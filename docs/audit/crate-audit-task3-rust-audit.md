@@ -89,7 +89,7 @@ mds_categories: [composition, curation]
 
 | # | Location | Anti-Pattern | Detail |
 |---|----------|-------------|--------|
-| O1 | `hkask-agents/src/ensemble/session.rs:22` | **Nested interior mutability** | `chats: Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>` — double locking. The inner `Arc<RwLock<EnsembleChat>>` suggests `EnsembleChat` itself needs shared mutable access. Could `EnsembleChat` own its state without interior mutability? |
+| O1 | `hkask-agents/src/ensemble/session.rs:22` | **Nested interior mutability** | `chats: Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>` — double locking. The inner `Arc<RwLock<EnsembleChat>>` suggests `EnsembleChat` itself needs shared mutable access. Could `EnsembleChat` own its state without interior mutability? **Deferred (2026-06-14):** Ensemble crate removed. Finding preserved for reference when future multi-agent mode is implemented. |
 
 **Epistemic Mode:** [Declarative, IS] — directly observed.
 **Constraint Force:** **[Evidence, IS-Probabilistic]** — Nested `Arc<RwLock<...>>` is a complexity signal. May be justified by concurrent access patterns, but warrants review.
@@ -198,7 +198,7 @@ Full depth scoring per crate. Interface = count of `pub` items. Implementation =
 | T3a | Type | inference | `embedding_router.rs:99` | `.unwrap()` in library code | [Declarative, IS] | **[Guardrail]** |
 | T3b | Type | inference | `embedding_router.rs:109` | `.unwrap()` in library code | [Declarative, IS] | **[Guardrail]** |
 | T4 | Type | cli | `cli/helpers.rs:16` | Boolean blindness | [Declarative, IS] | **[Evidence]** |
-| O1 | Ownership | agents | `ensemble/session.rs:22` | Nested `Arc<RwLock<Arc<RwLock<...>>>>` | [Declarative, IS] | **[Evidence]** |
+| O1 | Ownership | agents | `ensemble/session.rs:22` | Nested `Arc<RwLock<Arc<RwLock<...>>>>` — **Deferred (2026-06-14):** Ensemble crate removed. Finding preserved for reference when future multi-agent mode is implemented. | [Declarative, IS] | **[Evidence]** |
 | O2 | Ownership | agents | `pod/manager.rs:20` | 8 `Arc<dyn Port>` fields | [Declarative, IS] | **[Evidence]** |
 | D3 | Depth | templates | `lib.rs:37-41` | Pass-through re-exports from inference | [Declarative, IS] | **[Guideline]** |
 | D4 | Depth | keystore | `lib.rs:11-15` | 15 public resolver functions | [Declarative, IS] | **[Guideline]** |

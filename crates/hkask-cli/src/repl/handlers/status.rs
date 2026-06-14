@@ -59,28 +59,13 @@ pub(crate) fn handle_status(
     println!("  Loops:      {} registered ({})", loop_count, ids_str);
     match &state.active_session {
         Some(session) => {
-            let config = rt.block_on(async {
-                crate::commands::ensemble_improv_config(&state.service_context, session).await
-            });
-            match config {
-                Ok(cfg) => {
-                    println!(
-                        "  Ensemble:   \x1b[33m{}\x1b[0m (mode: {}, threshold: {:.2})",
-                        session,
-                        cfg.mode.as_str(),
-                        cfg.participation_threshold
-                    );
-                }
-                Err(e) => {
-                    println!(
-                        "  Ensemble:   \x1b[33m{}\x1b[0m (config error: {})",
-                        session, e
-                    );
-                }
-            }
+            println!(
+                "  Session:    \x1b[33m{}\x1b[0m (dual-presence with Curator daemon)",
+                session
+            );
         }
         None => {
-            println!("  Ensemble:   single-agent");
+            println!("  Mode:       single-agent (dual-presence with Curator daemon)");
         }
     }
     println!();

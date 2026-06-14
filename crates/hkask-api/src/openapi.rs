@@ -15,7 +15,6 @@ use crate::routes::{
     EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,
     ResolveEscalationRequest, ResolveEscalationResponse,
 };
-use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusResponse};
 
 // Handler-local types needed in schemas
 use crate::routes::cns::CnsSubscribeParams;
@@ -46,10 +45,6 @@ use crate::routes::cns::CnsSubscribeParams;
         DismissEscalationResponse,
         EscalationStatsResponse,
         MetacognitionStatusResponse,
-        // Ensemble standing session schemas
-        StandingStartRequest,
-        StandingStartResponse,
-        StandingStatusResponse,
         // Git schemas
         ArchiveRequest,
         ArchiveResponse,
@@ -70,7 +65,6 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "chat", description = "Curator chat interface"),
         (name = "models", description = "Multi-provider model catalog (Ollama, Fireworks, DeepInfra)"),
         (name = "curator", description = "Curator escalation and metacognition"),
-        (name = "ensemble", description = "Ensemble multi-agent coordination"),
         (name = "git", description = "Git archival and resolution"),
         (name = "acp", description = "ACP agent registration and management"),
         (name = "goals", description = "Goal coordination substrate (OCAP-gated)"),

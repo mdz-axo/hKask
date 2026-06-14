@@ -1,5 +1,8 @@
 # Standing Ensemble Session — System Coordination Chat
 # hKask v0.21.0 - A Minimal Viable Container for Agents
+#
+# Deferred: ensemble removed 2026-06-14. Preserved as reference for future
+# multi-agent mode evolving from dual-presence.
 
 session:
   id: system-coordination-standing-session

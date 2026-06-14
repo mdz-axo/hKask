@@ -9,7 +9,7 @@ use hkask_types::InfrastructureError;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 // P4.3: `now_rfc3339` lives in `hkask-types` (the foundation crate) so
-// that non-storage crates (CLI, ensemble, agents) can also use it without
+// that non-storage crates (CLI, agents) can also use it without
 // pulling in the entire storage dependency tree. Re-export it from this
 // module for backward compatibility with `hkask_storage::now_rfc3339`.
 // The actual implementation is in `hkask_types::time`.

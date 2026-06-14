@@ -135,6 +135,7 @@
 - id: gml/recognize-ensemble
   template_type: KnowAct
   name: "GML Recognize Ensemble"
+  # Note: This is GML "state ensemble" recognition — distinct from hKask ensemble module (deferred 2026-06-14).
   lexicon_terms:
     - recognize
     - discriminate

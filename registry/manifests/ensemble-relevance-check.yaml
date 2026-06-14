@@ -1,6 +1,9 @@
 # Ensemble Relevance Check — Should-you-speak? prompt
 # ℏKask v0.21.0 — Generative Improvisation Engine
 #
+# Deferred: ensemble removed 2026-06-14. Preserved as reference for future
+# multi-agent mode evolving from dual-presence.
+#
 # Lightweight inference call that asks each agent whether they have
 # something unique to contribute to the current conversation.
 # Uses fast_local model tier for speed; 100 max tokens.

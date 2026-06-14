@@ -18,7 +18,6 @@ pub mod adapters;
 pub mod consent; // Loop 6
 pub mod curator; // Loop 5
 pub mod curator_agent; // Loop 5
-pub mod ensemble; // Multi-agent chat coordination
 pub mod error;
 
 pub mod inference_loop; // Loop 1 (domain logic; governance applied externally via GovernedTool in hkask-cns)

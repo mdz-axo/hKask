@@ -98,12 +98,6 @@ pub enum Commands {
         action: GitAction,
     },
 
-    /// Multi-agent ensemble management (Phase 7)
-    Ensemble {
-        #[command(subcommand)]
-        action: EnsembleAction,
-    },
-
     /// Specification authoring, curation, and validation (MDS)
     Spec {
         #[command(subcommand)]

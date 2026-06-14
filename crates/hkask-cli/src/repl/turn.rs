@@ -1,6 +1,6 @@
 //! Per-turn processing for the REPL.
 //!
-//! Handles both ensemble and single-agent inference turns,
+//! Handles single-agent inference turns,
 //! including gas governance, tool-augmented followup,
 //! CNS updates, and persona filtering.
 //!
@@ -17,70 +17,6 @@ use super::energy;
 use super::handlers::speak_response;
 use super::handlers::to_llm_params;
 use super::tool_augmented;
-
-/// Handle an ensemble (multi-agent) turn.
-pub(super) fn ensemble_turn(
-    session: &str,
-    input: &str,
-    state: &mut ReplState,
-    rt: &tokio::runtime::Handle,
-    acp_secret: &[u8],
-) {
-    match rt.block_on(crate::commands::ensemble_improv_turn(
-        &state.service_context,
-        session,
-        input,
-        Some(state.inference_port.clone()),
-    )) {
-        Ok(turn) => {
-            if turn.responses.is_empty() {
-                println!("  \x1b[2m(no agents chose to speak)\x1b[0m");
-            } else {
-                for response in &turn.responses {
-                    // Tool-augmented processing: same function
-                    // as single-agent REPL.
-                    let agent_name = response.agent_webid.to_string();
-                    let processed = rt.block_on(tool_augmented::process_response(
-                        &response.content,
-                        &agent_name,
-                        &state.governed_tool,
-                        &state.agent_webid,
-                        acp_secret,
-                        None, // ensemble responses don't carry structured tool calls yet
-                    ));
-                    if !processed.had_tool_calls {
-                        println!(
-                            "\x1b[1m{}\x1b[0m (conf. {:.2}): {}\n",
-                            response.agent_webid, response.confidence, response.content
-                        );
-                    }
-                }
-                if let Some(ref synthesis) = turn.curator_synthesis {
-                    let processed = rt.block_on(tool_augmented::process_response(
-                        synthesis,
-                        "Curator",
-                        &state.governed_tool,
-                        &state.agent_webid,
-                        acp_secret,
-                        None,
-                    ));
-                    if !processed.had_tool_calls {
-                        println!("\x1b[1;33mCurator:\x1b[0m {}\n", synthesis);
-                    }
-                }
-            }
-            for j in &turn.judgments {
-                if !j.should_speak {
-                    println!(
-                        "  \x1b[2m{}: silent ({:.2} — {})\x1b[0m",
-                        j.agent_name, j.confidence, j.reason
-                    );
-                }
-            }
-        }
-        Err(e) => println!("  \x1b[31mEnsemble error:\x1b[0m {}", e),
-    }
-}
 
 /// Handle a single-agent inference turn.
 ///

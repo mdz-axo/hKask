@@ -57,7 +57,7 @@ Slash commands (inside chat):
 - `/model <query>` — Fuzzy search models (e.g., `/model qwen` lists all Qwen models)
 - `/pods` — List agent pods
 - `/templates` — List registered templates
-- `/ensemble` — Multi-agent ensemble (sessions, create, join, send)
+- ~~`/ensemble`~~ — Multi-agent ensemble (deferred 2026-06-14; future mode evolving from dual-presence)
 - `/escalations` — List pending escalations
 - `/metacognition` — Run metacognition cycle
 - `/sovereignty` — Show sovereignty status

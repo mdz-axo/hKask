@@ -59,7 +59,6 @@ pub fn generate_cli_markdown() -> String {
     );
     md.push_str("- `/pods` — List agent pods\n");
     md.push_str("- `/templates` — List registered templates\n");
-    md.push_str("- `/ensemble` — Multi-agent ensemble (sessions, create, join, send)\n");
     md.push_str("- `/escalations` — List pending escalations\n");
     md.push_str("- `/metacognition` — Run metacognition cycle\n");
     md.push_str("- `/sovereignty` — Show sovereignty status\n");

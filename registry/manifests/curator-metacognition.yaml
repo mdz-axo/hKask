@@ -165,9 +165,9 @@ ocap:
     - resource: inference
       action: call
       gas_budget: 6000
-    - resource: ensemble
-      action: coordinate
-      gas_budget: 4000
+    # - resource: ensemble  # Deferred (2026-06-14)
+    #   action: coordinate
+    #   gas_budget: 4000
   delegation_chain_required: true
   max_delegation_depth: 7
   signature_algorithm: HMAC-SHA256
@@ -201,7 +201,7 @@ bot_reporting:
     - memory-curator-bot
     - inference-curator-bot
     - mcp-dispatch-bot
-    - ensemble-curator-bot
+    # - ensemble-curator-bot  # Deferred (2026-06-14)
     - git-curator-bot
     - registry-dispatch-bot
   synthesis_interval: hourly

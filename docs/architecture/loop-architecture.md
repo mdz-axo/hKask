@@ -229,7 +229,7 @@ This pathway is **unidirectional**: Cybernetics signals Curation, but Curation d
 | `hkask-storage` | Shared substrate | `read(cap, path) → Data`, `write(cap, path, data) → ()` |
 | `hkask-cns` | Cybernetics | `observe(event)`, `regulate(span, action)`, `health() → CnsHealth` |
 | `hkask-templates` | Curation | `render(template, ctx) → String`, `validate(template) → ValidationResult` |
-| `hkask-ensemble` | Curation | Multi-agent chat coordination via ACP ports |
+| `hkask-ensemble` | Curation | **Deferred (2026-06-14):** Future multi-agent mode evolving from dual-presence pattern. Ensemble crate removed; preserved as reference for future implementation. |
 | `hkask-cli` / `hkask-api` | Surface (presentation) | `execute(command) → Result<Output>` |
 | `hkask-services` | Service layer | `ChatService`, `InferenceService`, domain operations |
 | `hkask-types` | Shared substrate | Type definitions only — no behavior |

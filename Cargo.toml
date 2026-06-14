@@ -131,3 +131,6 @@ urlencoding = "2"
 
 # Environment file loading
 dotenvy = "0.15"
+
+# Matrix protocol
+matrix-sdk = { version = "0.16", default-features = false, features = ["native-tls"] }

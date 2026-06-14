@@ -117,9 +117,8 @@ pub(super) fn print_help() {
 
     let categories = [
         ("Session", &["help", "quit", "clear", "history"] as &[&str]),
-        ("Agent", &["agent", "agents", "pods"]),
+        ("Agent", &["agent", "agents", "pods", "ask"]),
         ("Model", &["model"]),
-        ("Ensemble", &["into", "ensemble", "filter", "mode", "ask"]),
         ("System", &["status", "tools", "templates", "sovereignty"]),
         (
             "Governance",
@@ -165,69 +164,11 @@ pub(super) fn print_command_help(cmd_name: &str) {
         println!("  {}", cmd.about);
 
         match cmd.primary {
-            "ensemble" => {
-                println!();
-                println!("  Subcommands:");
-                println!(
-                    "    \x1b[36m/ensemble sessions\x1b[0m    — List active ensemble sessions"
-                );
-                println!(
-                    "    \x1b[36m/ensemble create\x1b[0m <id> — Create a new ensemble chat session"
-                );
-                println!(
-                    "    \x1b[36m/ensemble join\x1b[0m <id> <bot> <role> — Register a bot in a session"
-                );
-                println!(
-                    "    \x1b[36m/ensemble send\x1b[0m <id> <msg> — Send a message to a session"
-                );
-                println!(
-                    "    \x1b[36m/ensemble invite\x1b[0m <bot> [role] — Invite agent into current session"
-                );
-                println!(
-                    "    \x1b[36m/ensemble participants\x1b[0m — Show who's in the current session"
-                );
-                println!();
-                println!("  Roles: memory_bot, spandrel_bot, inference_bot, scholar_bot");
-                println!("  Use \x1b[36m/into <session>\x1b[0m to enter ensemble mode");
-            }
-            "into" => {
-                println!();
-                println!(
-                    "  \x1b[2m/into research-team\x1b[0m  — Enter ensemble session 'research-team'"
-                );
-                println!(
-                    "  \x1b[2m/into\x1b[0m               — Leave ensemble mode, return to single-agent"
-                );
-                println!();
-                println!("  In ensemble mode, messages go to the group. Agents self-select");
-                println!("  to speak based on relevance confidence (generative improvisation).");
-            }
-            "filter" => {
-                println!();
-                println!("  \x1b[2m/filter\x1b[0m          — Show current participation threshold");
-                println!(
-                    "  \x1b[2m/filter 0.8\x1b[0m      — Set threshold (0.0-1.0, higher = more selective)"
-                );
-                println!();
-                println!("  Controls how confident an agent must be to speak in ensemble mode.");
-                println!(
-                    "  Default: 0.75. Increase for focused discussion, decrease for more voices."
-                );
-            }
-            "mode" => {
-                println!();
-                println!("  \x1b[2m/mode\x1b[0m                     — Show current ensemble mode");
-                println!(
-                    "  \x1b[2m/mode freeform\x1b[0m            — Agents self-select by relevance (default)"
-                );
-                println!("  \x1b[2m/mode curator_led\x1b[0m         — Curator picks speakers");
-                println!("  \x1b[2m/mode round_robin\x1b[0m         — All agents speak in turn");
-            }
             "ask" => {
                 println!();
                 println!("  \x1b[2m/ask ScholarBot What do you think?\x1b[0m");
                 println!();
-                println!("  Force a specific agent to respond, bypassing relevance filter.");
+                println!("  Force a specific agent to respond directly.");
             }
             "agent" => {
                 println!();

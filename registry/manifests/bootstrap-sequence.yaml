@@ -85,12 +85,12 @@ sequence:
     depends_on: [hkask-mcp-memory]
 
   - ordinal: 9
-    component: ensemble-curator-bot
+    component: ensemble-curator-bot # Deferred (2026-06-14)
     type: bot
     manifest: registry/bots/ensemble-curator-bot.yaml
     readiness_probe: bot_ping
     timeout_seconds: 60
-    critical: true
+    critical: false # was true; ensemble deferred
     depends_on: [hkask-mcp-memory]
 
   - ordinal: 10
@@ -123,24 +123,24 @@ sequence:
       - memory-curator-bot
       - inference-curator-bot
       - mcp-dispatch-bot
-      - ensemble-curator-bot
+      # - ensemble-curator-bot  # Deferred (2026-06-14)
       - git-curator-bot
       - registry-dispatch-bot
 
   - ordinal: 13
-    component: system-coordination-standing-session
+    component: system-coordination-standing-session # Deferred (2026-06-14)
     type: standing_session
     manifest: registry/manifests/standing-ensemble-session.yaml
     readiness_probe: session_ping
     timeout_seconds: 120
-    critical: true
+    critical: false # was true; ensemble deferred
     depends_on:
       - Curator
       - cns-curator-bot
       - memory-curator-bot
       - inference-curator-bot
       - mcp-dispatch-bot
-      - ensemble-curator-bot
+      # - ensemble-curator-bot  # Deferred (2026-06-14)
       - git-curator-bot
       - registry-dispatch-bot
 
@@ -183,7 +183,7 @@ readiness_probes:
 
   session_ping:
     type: health_check
-    endpoint: ensemble::session_status
+    endpoint: ensemble::session_status # Deferred (2026-06-14)
     expected: { state: Active }
     retry_count: 3
     retry_delay_seconds: 5

@@ -138,7 +138,7 @@ All pipeline executions are logged with:
 ## Future Enhancements
 
 - [ ] Iterative loop (return to earlier stages on new evidence)
-- [ ] Ensemble mode (multiple parallel pipeline runs)
+- [ ] Ensemble mode (multiple parallel pipeline runs) — Note: distinct from hKask ensemble module (deferred 2026-06-14)
 - [ ] Human-in-the-loop checkpoints
 - [ ] Automatic reference class lookup from knowledge base
 - [ ] Brier score tracking and feedback

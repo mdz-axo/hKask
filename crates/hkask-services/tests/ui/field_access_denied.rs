@@ -33,7 +33,6 @@ fn main() {
     // ctx.git_cas_port         // ERROR: private
     // ctx.episodic_storage     // ERROR: private
     // ctx.semantic_storage     // ERROR: private
-    // ctx.standing_session_store // ERROR: private
     // ctx.spec_store           // ERROR: private
     // ctx.session_manager      // ERROR: private
     // ctx.agent_registry_store // ERROR: private

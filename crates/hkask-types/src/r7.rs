@@ -1,6 +1,6 @@
 //! R7 Bot Identity — Loop 4 (Communication): standing session coordination
 //!
-//! The R7 bots participate in standing ensemble sessions coordinated by
+//! The R7 bots participate in standing sessions coordinated by
 //! the Communication loop. Energy budgets are governed by Cybernetics;
 //! the roster itself is Communication infrastructure.
 
@@ -112,7 +112,7 @@ pub fn default_r7_bots() -> &'static [R7BotIdentity] {
                 "hkask-agents".into(),
                 "Holds the agents. Bots are public. Replicants are private or public. Curator is single.".into(),
                 8000,
-                vec!["agents".into(), "ensemble".into(), "kata".into()],
+                vec!["agents".into(), "kata".into()],
             ),
             R7BotIdentity::new(
                 "R7.6".into(),

@@ -49,10 +49,6 @@ pub(crate) fn handle_start(state: &ReplState) {
             "  Your replicant remembers conversations via episodic memory.\n  \x1b[36m/consolidate\x1b[0m — promote important knowledge to long-term memory.\n  \x1b[36m/history\x1b[0m     — review recent conversation turns.",
         ),
         (
-            "Ensemble",
-            "  \x1b[36m/ensemble\x1b[0m — multi-agent collaboration:\n  Create sessions, invite bots, run group discussions.\n  \x1b[36m/into <session>\x1b[0m — join an ensemble session.\n  Use when you want multiple perspectives on a problem.",
-        ),
-        (
             "Done!",
             "  \x1b[1;32mYou're ready to use hKask!\x1b[0m\n  \x1b[36m/help\x1b[0m anytime for the full command reference.\n  \x1b[36m/start\x1b[0m anytime to replay this tour.\n  Happy building!",
         ),

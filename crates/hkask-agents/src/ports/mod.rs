@@ -12,9 +12,6 @@ pub mod registry_source;
 pub use acp::AcpPort;
 pub use hkask_mcp::GitCasAdapter;
 pub use hkask_types::audit::{AuditEntry, AuditOutcome};
-pub use hkask_types::ports::{
-    MessageRecord, SessionRecord, SessionStoreError as StandingSessionPortError,
-};
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,

@@ -12,7 +12,8 @@ pub(crate) fn handle_ask(
     }
 
     match &state.active_session {
-        Some(session) => {
+        Some(_session) => {
+            // Dual-presence active — fall through to single-agent mode
             let chat_response = rt.block_on(crate::commands::chat_with_agent(
                 arg2,
                 Some(arg1),
@@ -31,16 +32,6 @@ pub(crate) fn handle_ask(
                     usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
                 );
             }
-
-            let manager_session = session.clone();
-            rt.block_on(async {
-                let _ = crate::commands::ensemble_chat_send(
-                    &state.service_context,
-                    manager_session,
-                    format!("[direct to {}] {}", arg1, arg2),
-                )
-                .await;
-            });
         }
         None => {
             let chat_response = rt.block_on(crate::commands::chat_with_agent(

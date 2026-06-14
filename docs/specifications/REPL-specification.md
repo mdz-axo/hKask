@@ -12,11 +12,11 @@ mds_categories: [domain, composition, lifecycle, curation]
 
 ## 1. Purpose and Scope
 
-This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop), invoked via `kask chat`. The REPL is the primary human-facing surface of hKask. It provides a terminal-based conversational interface to agents, models, tools, and ensemble sessions — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP).
+This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop), invoked via `kask chat`. The REPL is the primary human-facing surface of hKask. It provides a terminal-based conversational interface to agents, models, tools, and pods — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). Multi-agent ensemble sessions are deferred (2026-06-14) as a future mode evolving from the dual-presence pattern.
 
 **Audience:** Architects, developers, users, and agents interacting with hKask.
 
-**Scope:** Covers the REPL loop, slash command registry, single-agent turn pipeline, ensemble turn pipeline, memory infrastructure, gas governance, inference configuration, tool-augmented execution, and future features toward parity with leading AI REPL providers (primarily Zed). Does NOT cover the HTTP API surface (`hkask-api`) or standalone CLI commands (`kask bundle`, `kask sovereignty`, etc.) except where they are directly invoked from the REPL.
+**Scope:** Covers the REPL loop, slash command registry, single-agent turn pipeline, memory infrastructure, gas governance, inference configuration, tool-augmented execution, and future features toward parity with leading AI REPL providers (primarily Zed). Does NOT cover the HTTP API surface (`hkask-api`) or standalone CLI commands (`kask bundle`, `kask sovereignty`, etc.) except where they are directly invoked from the REPL. Multi-agent ensemble turn pipeline is deferred (2026-06-14); see §7 for forward-looking design notes.
 
 ## 2. Design Principles
 
@@ -61,7 +61,7 @@ crates/hkask-cli/src/repl/
 ├── display.rs          # Banner, help, command help
 ├── helper.rs           # KaskHelper (Completer, Highlighter, Hinter, Validator)
 ├── init.rs             # Dependency injection — wires CNS, loops, memory, tools
-├── turn.rs             # single_agent_turn(), ensemble_turn() (→ ChatService::execute_turn)
+├── turn.rs             # single_agent_turn() (→ ChatService::execute_turn)
 ├── energy.rs           # EnergyGuard (owned-consumption hold-settle gas pattern)
 ├── cns_display.rs      # CNS algedonic alert display, loop system tick (read-only)
 ├── tool_augmented.rs   # Tool call parsing, invocation, response processing
@@ -71,7 +71,7 @@ crates/hkask-cli/src/repl/
     ├── agent.rs        # /agent, /agents
     ├── ask.rs          # /ask (session-aware agent query)
     ├── consolidation.rs # /consolidate
-    ├── ensemble.rs     # /ensemble, /filter, /mode, /into
+    ├── ensemble.rs     # /ensemble, /filter, /mode, /into — Deferred (2026-06-14)
     ├── escalation.rs   # /escalations, /resolve, /dismiss
     ├── info.rs         # /history, /pods, /templates, /tools
     ├── invoke.rs       # /invoke (OCAP-gated tool invocation)
@@ -91,7 +91,7 @@ pub(crate) struct ReplState {
     pub(crate) agent_webid: WebID,                              // Deterministic from agent name
     pub(crate) current_model: String,                           // Active Okapi model name
     pub(crate) current_agent: String,                           // Active agent name (from onboarding)
-    pub(crate) active_session: Option<String>,                  // Ensemble session ID (None = single-agent)
+    pub(crate) active_session: Option<String>,                  // Deferred (2026-06-14): Future multi-agent session ID (None = single-agent)
     pub(crate) resolved_secrets: Option<ResolvedSecrets>,       // From onboarding (ACP + DB)
     pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>, // OCAP + CNS governance membrane
     // ── private fields (only accessed within repl/ submodules) ──
@@ -139,7 +139,7 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 - Ignore duplicates: true
 - Ignore space-prefixed lines: true
 - Completion type: List (inline)
-- Prompt format: ℏKask [agent_name]>  (default) or ℏKask [session_id]> (ensemble)
+- Prompt format: ℏKask [agent_name]>  (default)
 ```
 
 ### 4.2 Slash Command Detection
@@ -154,8 +154,7 @@ Inputs starting with `/` are intercepted before inference. The dispatch logic in
 ### 4.3 Natural Language → Inference
 
 Inputs not starting with `/` and not matching `"quit"` / `"exit"` are treated as natural language prompts. These route to either:
-- `turn::single_agent_turn()` — if `active_session` is `None`
-- `turn::ensemble_turn()` — if `active_session` is `Some(session_id)`
+- `turn::single_agent_turn()` — always (ensemble turn pipeline deferred 2026-06-14)
 
 ### 4.4 SIGINT / EOF / Error Handling
 
@@ -199,34 +198,40 @@ All 28 slash commands with aliases, categorized as shown in `/help`:
 - `/model qwen` → fuzzy match → list all models containing "qwen"
 - `/model foobar` → no match → store name anyway (Okapi may be unreachable)
 
-### 5.4 Ensemble Commands
+### 5.4 Ensemble Commands — Deferred (2026-06-14)
+
+Ensemble multi-agent commands are deferred. The dual-presence pattern (§7) is the active multi-agent path. Ensemble will evolve from dual-presence learnings when N≥3 stable sessions with distinct ACP agents are achieved.
+
+**Original specification (preserved for future reference):**
 
 | Command | Aliases | Args | Description |
 |---------|---------|------|-------------|
-| `/into` | `/i` | `[SESSION]` | Enter ensemble session, or leave it (no args = leave) |
-| `/ensemble` | `/ens` | `sessions\|create\|join\|send\|invite\|participants` | Multi-agent ensemble operations |
-| `/filter` | `/thresh` | `[0.0-1.0]` | Set/show participation threshold (default: 0.75) |
-| `/mode` | | `[freeform\|curator_led\|round_robin]` | Set/show ensemble orchestration mode |
+| ~~`/into`~~ | ~~`/i`~~ | ~~`[SESSION]`~~ | ~~Enter ensemble session, or leave it (no args = leave)~~ |
+| ~~`/ensemble`~~ | ~~`/ens`~~ | ~~`sessions\|create\|join\|send\|invite\|participants`~~ | ~~Multi-agent ensemble operations~~ |
+| ~~`/filter`~~ | ~~`/thresh`~~ | ~~`[0.0-1.0]`~~ | ~~Set/show participation threshold (default: 0.75)~~ |
+| ~~`/mode`~~ | | ~~`[freeform\|curator_led\|round_robin]`~~ | ~~Set/show ensemble orchestration mode~~ |
 | `/ask` | | `<AGENT> <MESSAGE>` | Force a specific agent to respond (bypasses relevance filter) |
 
-**Ensemble subcommands:**
-- `/ensemble sessions` — list active ensemble sessions
-- `/ensemble create <id>` — create a new ensemble chat session
-- `/ensemble join <session> <bot> <role>` — register a bot with role (memory_bot, spandrel_bot, okapi_bot, scholar_bot)
-- `/ensemble invite <bot> [role]` — invite agent into current session
-- `/ensemble participants` — show participants in current session
-- `/ensemble send <session> <message>` — send message to a session
+**Deferred (2026-06-14):** ensemble removed. Future multi-agent mode will evolve from dual-presence.
 
-**Orchestration modes:**
-- `freeform` (default) — agents self-select by relevance confidence
-- `curator_led` — Curator picks which agents speak
-- `round_robin` — all agents speak in turn
+~~**Ensemble subcommands:**~~
+~~- `/ensemble sessions` — list active ensemble sessions~~
+~~- `/ensemble create <id>` — create a new ensemble chat session~~
+~~- `/ensemble join <session> <bot> <role>` — register a bot with role (memory_bot, spandrel_bot, okapi_bot, scholar_bot)~~
+~~- `/ensemble invite <bot> [role]` — invite agent into current session~~
+~~- `/ensemble participants` — show participants in current session~~
+~~- `/ensemble send <session> <message>` — send message to a session~~
+
+~~**Orchestration modes:**~~
+~~- `freeform` (default) — agents self-select by relevance confidence~~
+~~- `curator_led` — Curator picks which agents speak~~
+~~- `round_robin` — all agents speak in turn~~
 
 ### 5.5 System Commands
 
 | Command | Aliases | Args | Description |
 |---------|---------|------|-------------|
-| `/status` | `/st` | | System status: agent, model, template, gas, CNS health, loop count, turns, ensemble config |
+| `/status` | `/st` | | System status: agent, model, template, gas, CNS health, loop count, turns |
 | `/tools` | | | List MCP tools with descriptions (discovered via GovernedTool) |
 | `/templates` | `/tpl` | | List registered templates (ID + type) |
 | `/sovereignty` | `/sov` | | Show sovereignty status (Magna Carta compliance) |
@@ -256,7 +261,7 @@ All 28 slash commands with aliases, categorized as shown in `/help`:
 | `/start` | `/tour`, `/onboarding` | | Interactive step-by-step guided tour (9 steps, press Enter to advance, type `skip` to exit) |
 | `/feedback` | | | Prompt for a free-text usability note; appended with UTC timestamp + replicant name to `~/.local/share/hkask/feedback.md` |
 
-**`/start` detail:** Each step covers one capability domain: Chat, Commands, Models, Status, Tools, Settings, Memory, Ensemble, Done. Always available — not only on first run. `/tour` and `/onboarding` are aliases.
+**`/start` detail:** Each step covers one capability domain: Chat, Commands, Models, Status, Tools, Settings, Memory, Done. Always available — not only on first run. `/tour` and `/onboarding` are aliases.
 
 **`/feedback` scope:** REPL-only. Not exposed via CLI subcommand or HTTP API. The file is append-only; each entry is a Markdown `##` heading with ISO-8601 UTC timestamp and a blockquote body. Nothing is transmitted anywhere.
 
@@ -365,16 +370,22 @@ This followup prompt is fed back into the next loop iteration.
 - **Iteration 1:** Uses `chat_with_agent_streaming_with_params()` — tokens are printed incrementally to stdout, prefixed with `"{agent_name}: "`
 - **Iteration 2+:** Uses `chat_with_agent_with_params()` — non-streaming to avoid redundant output during tool loop followups
 
-## 7. Ensemble (Multi-Agent) Turn Pipeline
+## 7. Ensemble (Multi-Agent) Turn Pipeline — Deferred (2026-06-14)
 
-When `active_session` is set, user messages route through `turn::ensemble_turn()`:
+Ensemble multi-agent turn pipeline is deferred. The dual-presence pattern (see `docs/specifications/dual-presence-pattern.md`) is the active multi-agent path. Ensemble will evolve from dual-presence learnings.
 
-1. Calls `ensemble_improv_turn()` — agents self-select by relevance confidence (freeform mode) or follow the configured mode
-2. For each agent that chose to speak, tool-augmented processing is applied
-3. Responses display with confidence score: `AgentName (conf. 0.85): response text`
-4. Agents that were silent display a dim footnote: `AgentName: silent (0.42 — below threshold)`
-5. If a Curator synthesis is produced, it is displayed in gold: `Curator: synthesis`
-6. All responses (including silent judgments) are recorded in session history
+**Original specification (preserved for future reference):**
+
+~~When `active_session` is set, user messages route through `turn::ensemble_turn()`:~~
+
+~~1. Calls `ensemble_improv_turn()` — agents self-select by relevance confidence (freeform mode) or follow the configured mode~~
+~~2. For each agent that chose to speak, tool-augmented processing is applied~~
+~~3. Responses display with confidence score: `AgentName (conf. 0.85): response text`~~
+~~4. Agents that were silent display a dim footnote: `AgentName: silent (0.42 — below threshold)`~~
+~~5. If a Curator synthesis is produced, it is displayed in gold: `Curator: synthesis`~~
+~~6. All responses (including silent judgments) are recorded in session history~~
+
+**Reactivation criterion:** When dual-presence has produced N≥3 stable sessions with distinct ACP agents.
 
 ## 8. REPL Settings (`/repl` command)
 
@@ -652,7 +663,6 @@ Returning users see the compact one-liner only. `is_first_run` is `false` for al
 Session    — help, quit, clear, history
 Agent      — agent, agents, pods
 Model      — model
-Ensemble   — into, ensemble, filter, mode, ask
 System     — status, tools, templates, sovereignty
 Governance — escalations, resolve, dismiss, metacognition
 Onboarding — start, feedback
@@ -700,7 +710,7 @@ The REPL routes all infrastructure through `AgentService::build()`, which create
 
 ### 19.4 GovernedTool as Singular Boundary
 
-Every tool invocation — whether from agent tool-use loops, direct `/invoke` commands, ensemble turns, or auto-condense — routes through a single `GovernedTool` instance. This is intentional: it means OCAP authorization, energy budgets, and CNS observability are enforced at a single choke point with no bypass paths.
+Every tool invocation — whether from agent tool-use loops, direct `/invoke` commands, or auto-condense — routes through a single `GovernedTool` instance. This is intentional: it means OCAP authorization, energy budgets, and CNS observability are enforced at a single choke point with no bypass paths.
 
 ### 19.5 Per-Agent Memory Isolation
 

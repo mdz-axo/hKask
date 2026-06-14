@@ -194,25 +194,10 @@ pub fn run(
                     }
                 };
 
-                if let Some(ref session) = state.active_session.clone() {
-                    // Validate session still exists (guard against external deletion
-                    // or divergence between ReplState and the canonical session manager).
-                    let exists = rt.block_on(async {
-                        hkask_services::EnsembleService::list_chats(&state.service_context)
-                            .await
-                            .map(|sessions| sessions.contains(session))
-                            .unwrap_or(false)
-                    });
-                    if exists {
-                        turn::ensemble_turn(session, input, &mut state, &rt, &acp_secret);
-                    } else {
-                        println!(
-                            "  Session \x1b[33m{}\x1b[0m no longer active. Back to single-agent mode.",
-                            session
-                        );
-                        state.active_session = None;
-                        turn::single_agent_turn(input, &mut state, &rt, &acp_secret);
-                    }
+                if let Some(ref _session) = state.active_session.clone() {
+                    // Dual-presence active. Fall back to single-agent mode.
+                    state.active_session = None;
+                    turn::single_agent_turn(input, &mut state, &rt, &acp_secret);
                 } else {
                     turn::single_agent_turn(input, &mut state, &rt, &acp_secret);
                 }

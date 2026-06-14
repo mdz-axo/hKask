@@ -162,9 +162,9 @@ erDiagram
     hkask-mcp ||--o{ hkask-api : "depends_on [MCP routes, tool invocation]"
     hkask-mcp ||--o{ hkask-cli : "depends_on [MCP commands, daemon]"
 
-    hkask-agents ||--o{ hkask-services : "depends_on [PodManager, CurationLoop, EnsembleService]"
+    hkask-agents ||--o{ hkask-services : "depends_on [PodManager, CurationLoop]"
     hkask-agents ||--o{ hkask-api : "depends_on [pod routes, chat routes, ACP routes]"
-    hkask-agents ||--o{ hkask-cli : "depends_on [pod commands, chat, ensemble]"
+    hkask-agents ||--o{ hkask-cli : "depends_on [pod commands, chat]"
 
     hkask-services ||--o{ hkask-api : "depends_on [AgentService — single source of truth]"
     hkask-services ||--o{ hkask-cli : "depends_on [AgentService — single source of truth]"

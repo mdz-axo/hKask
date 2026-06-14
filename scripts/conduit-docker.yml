@@ -1,0 +1,43 @@
+# Conduit Matrix Homeserver — Docker Compose configuration for hKask
+#
+# Starts a local-only Conduit instance on localhost:8008.
+# No federation, no TLS — designed for single-machine agent-to-agent communication.
+#
+# Usage:
+#   docker compose -f scripts/conduit-docker.yml up -d
+#
+# After starting, the first user to register becomes the admin.
+# hKask agents auto-register via the communication MCP server.
+
+services:
+  conduit:
+    image: matrixconduit/matrix-conduit:next
+    container_name: hkask-conduit
+    restart: unless-stopped
+    ports:
+      - "8008:6167"
+    volumes:
+      - conduit-db:/var/lib/matrix-conduit
+    environment:
+      # Server name — localhost for single-machine, no federation
+      CONDUIT_SERVER_NAME: "localhost"
+      # Database backend
+      CONDUIT_DATABASE_BACKEND: "rocksdb"
+      # Allow registration without verification (dev mode)
+      CONDUIT_ALLOW_REGISTRATION: "true"
+      # Disable federation (local-only)
+      CONDUIT_ALLOW_FEDERATION: "false"
+      # Disable encryption requirement for local dev
+      CONDUIT_ALLOW_ENCRYPTION: "false"
+      # Disable registration token requirement
+      CONDUIT_REGISTRATION_TOKEN: ""
+      # Maximum request size (10 MB)
+      CONDUIT_MAX_REQUEST_SIZE: "10_000_000"
+      # Trust all servers (not needed since federation is off)
+      CONDUIT_TRUSTED_SERVERS: "[]"
+      # Log level
+      CONDUIT_LOG: "info"
+
+volumes:
+  conduit-db:
+    name: hkask-conduit-db

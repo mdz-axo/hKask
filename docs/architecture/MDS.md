@@ -316,7 +316,7 @@ domain_anchor: hkask
 curation_model:
   decisions: [Accept, Revise, Reject]
   curator:
-    type: Replicant
+    type: Daemon
     authority: "Human-augmented — curator proposes, human decides"
   guidance: |
     Accept — spec is coherent and complete, publish it.

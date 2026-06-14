@@ -60,22 +60,6 @@ impl From<uuid::Error> for AgentError {
     }
 }
 
-/// Errors that can occur during ensemble operations
-///
-/// P3.5: most variants are now `#[from]`-style wrappers around typed upstream
-/// errors (`StandingSessionError`). The remaining `String` variants are
-/// sentinels for *user-facing* input errors (e.g. missing config file).
-#[derive(Debug, Error)]
-pub enum EnsembleError {
-    #[error("Session not found: {0}")]
-    SessionNotFound(String),
-
-    /// Upstream standing-session bootstrap failure.
-    /// P3.5: replaces `.map_err(|e| SessionCreationFailed(e.to_string()))` calls.
-    #[error(transparent)]
-    Standing(#[from] hkask_agents::ensemble::StandingSessionError),
-}
-
 /// Errors that can occur during curator operations
 ///
 /// P3.5: most variants are now `#[from]`-style wrappers around typed upstream
@@ -236,19 +220,6 @@ impl From<hkask_services::ServiceError> for AgentError {
             SE::AgentRegistryStore(err) => AgentError::RegistrationFailed(err.to_string()),
             SE::Infra(err) => AgentError::Registry(RegistryError::Infra(err)),
             other => AgentError::RegistrationFailed(other.to_string()),
-        }
-    }
-}
-
-impl From<hkask_services::ServiceError> for EnsembleError {
-    fn from(e: hkask_services::ServiceError) -> Self {
-        use hkask_services::ServiceError as SE;
-        match e {
-            SE::SessionNotFound(id) => EnsembleError::SessionNotFound(id),
-            SE::StandingSession(err) => EnsembleError::Standing(err),
-            other => EnsembleError::Standing(
-                hkask_agents::ensemble::StandingSessionError::Bootstrap(other.to_string()),
-            ),
         }
     }
 }

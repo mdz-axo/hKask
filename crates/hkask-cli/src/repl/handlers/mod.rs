@@ -3,7 +3,6 @@
 pub(crate) mod agent;
 pub(crate) mod ask;
 pub(crate) mod consolidation;
-pub(crate) mod ensemble;
 pub(crate) mod escalation;
 pub(crate) mod feedback;
 pub(crate) mod info;
@@ -20,7 +19,6 @@ pub(crate) mod talk;
 pub(crate) use agent::{handle_agent, handle_agents};
 pub(crate) use ask::handle_ask;
 pub(crate) use consolidation::handle_consolidate;
-pub(crate) use ensemble::{handle_ensemble, handle_filter, handle_into, handle_mode};
 pub(crate) use escalation::{handle_dismiss, handle_escalations, handle_resolve};
 pub(crate) use feedback::handle_feedback;
 pub(crate) use info::{handle_history, handle_pods, handle_templates, handle_tools};

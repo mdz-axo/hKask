@@ -13,7 +13,7 @@
 
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp_communication::agent_registration::AgentRegistry;
-use hkask_mcp_communication::matrix::{EmbeddedHomeserver, MatrixClient, RoomId};
+use hkask_mcp_communication::matrix::{ConduitSidecar, MatrixClient, RoomIdStr};
 use hkask_mcp_communication::moderation::{ModerationQueue, NaiveKeywordClassifier, SevenR7Bot};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -252,7 +252,7 @@ impl CommunicationServer {
         let span = ToolSpanGuard::new("send_message", &self.webid);
         match self
             .matrix
-            .send_message(&RoomId::new(&room_id), &body, None)
+            .send_message(&RoomIdStr::new(&room_id), &body, None)
             .await
         {
             Ok(()) => span.ok_json(serde_json::json!({ "sent": true, "room_id": room_id })),
@@ -315,7 +315,7 @@ impl CommunicationServer {
 
         match self
             .matrix
-            .invite_user(&RoomId::new(&room_id), &user_id)
+            .invite_user(&RoomIdStr::new(&room_id), &user_id)
             .await
         {
             Ok(()) => span.ok_json(serde_json::json!({
@@ -381,7 +381,7 @@ impl CommunicationServer {
 
         match self
             .registry
-            .monitor_thread(&webid, &RoomId::new(&room_id))
+            .monitor_thread(&webid, &RoomIdStr::new(&room_id))
             .await
         {
             Ok(()) => span.ok_json(serde_json::json!({
@@ -439,7 +439,7 @@ impl CommunicationServer {
         });
         match self
             .matrix
-            .send_message(&RoomId::new(&room_id), &mention, Some(structured))
+            .send_message(&RoomIdStr::new(&room_id), &mention, Some(structured))
             .await
         {
             Ok(()) => span.ok_json(serde_json::json!({
@@ -462,12 +462,12 @@ async fn main() -> anyhow::Result<()> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
 
-    // Start embedded Conduit homeserver
-    let embedded = EmbeddedHomeserver::start(&homeserver_url)
+    // Connect to Conduit Docker sidecar
+    let sidecar = ConduitSidecar::connect(&homeserver_url)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to start embedded Matrix homeserver: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to connect to Conduit sidecar: {}", e))?;
 
-    let matrix = embedded.client();
+    let matrix = sidecar.client();
     let registry = Arc::new(AgentRegistry::new());
     let queue = Arc::new(ModerationQueue::default());
 

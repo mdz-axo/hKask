@@ -254,7 +254,7 @@ capabilities:
   - tool:cns:calibrate
   - tool:memory:recall
   - tool:inference:call
-  - tool:ensemble:coordinate
+  # - tool:ensemble:coordinate  # Deferred (2026-06-14)
 
 rights:
   - read: all_public_semantic_memory
@@ -264,7 +264,7 @@ rights:
   - write: own_episodic_memory
   - write: public_semantic_memory
   - execute: metaknowledge_ops
-  - coordinate: bot_ensemble_sessions
+  # - coordinate: bot_ensemble_sessions  # Deferred (2026-06-14)
 
 responsibilities:
   - monitor: domain_health_via_cns
@@ -272,13 +272,13 @@ responsibilities:
   - perform: metaknowledge_on_system_performance
   - calibrate: bot_energy_budgets_and_thresholds
   - escalate: critical_alerts_to_administrator
-  - orchestrate: standing_ensemble_session
+  # - orchestrate: standing_ensemble_session  # Deferred (2026-06-14)
 
 reporting:
   receives_from:
     - specialist-bot-1
     - specialist-bot-2
-  report_to: standing_ensemble_session
+  report_to: Curator  # was standing_ensemble_session (deferred 2026-06-14)
   escalate_to: Curator
   escalation_triggers:
     - variety_deficit_gt_100
@@ -286,7 +286,7 @@ reporting:
     - system_degradation_detected
 
 standing_session:
-  session_id: system-coordination-standing-session
+  session_id: system-coordination-standing-session  # Deferred (2026-06-14)
   role: orchestrator
   report_interval: hourly
   administrator_visible: true
@@ -312,7 +312,7 @@ readiness_probe:
 - `cns.prompt.metacognition` — Metacognition events
 - `cns.prompt.calibrate` — Calibration events
 - `cns.prompt.escalate` — Escalation events
-- `cns.ensemble.coordination` — Coordination events
+- `cns.ensemble.coordination` — Coordination events (deferred 2026-06-14)
 
 ### Existing Examples
 - `registry/bots/Curator.yaml`
@@ -377,12 +377,12 @@ responsibilities:
 
 reporting:
   escalate_to: Curator
-  report_to: standing_ensemble_session
+  report_to: Curator  # was standing_ensemble_session (deferred 2026-06-14)
   report_on: [selection_failures, low_confidence_dispatches, template_errors]
   report_interval: on_event_and_hourly_summary
 
 standing_session:
-  session_id: system-coordination-standing-session
+  session_id: system-coordination-standing-session  # Deferred (2026-06-14)
   role: participant
   report_interval: hourly
   administrator_visible: true
@@ -576,7 +576,7 @@ You are {{ agent_name }}, a personal assistant in the hKask system.
 
 ### Existing Examples
 - `registry/bots/Curator.yaml` (Replicant pattern)
-- `registry/templates/ensemble/standing_session_curator_instruction.j2`
+- `registry/templates/ensemble/standing_session_curator_instruction.j2` (deferred 2026-06-14)
 
 ---
 
@@ -619,7 +619,7 @@ capabilities:
   - tool:inference:call
   - tool:mcp:invoke
   - tool:registry:index
-  - tool:ensemble:coordinate
+  # - tool:ensemble:coordinate  # Deferred (2026-06-14)
   - tool:bridge:translate
 
 rights:
@@ -746,7 +746,7 @@ Template files use Jinja2[^jinja2] and YAML[^yaml12] formats.
 | `dispatch.yaml` | General dispatch workflow | `registry/manifests/` |
 | `memory-ops.yaml` | Memory operations workflow | `registry/manifests/` |
 | `metacognition.yaml` | Metacognition workflow | `registry/manifests/` |
-| `ensemble-orchestration.yaml` | Ensemble coordination | `registry/manifests/` |
+| `ensemble-orchestration.yaml` | Ensemble coordination (deferred 2026-06-14) | `registry/manifests/` |
 | `tool_dispatch.yaml` | Tool dispatch workflow | `registry/manifests/` |
 
 ---

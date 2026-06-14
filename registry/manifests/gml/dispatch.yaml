@@ -4,7 +4,6 @@
 # Version: 0.1.0
 
 ---
-
 ## Process Definition
 
 # ```yaml
@@ -95,19 +94,18 @@ process:
 # ```
 
 ---
-
 ## Template Inventory
 
 # | Template | Purpose | KnowAct Operations |
 # |----------|---------|-------------------|
 # | `gml/recognize-ensemble.j2` | Parse concept into states and ports | recognize, discriminate, parse |
+# Note: This is GML "state ensemble" recognition — distinct from hKask ensemble module (deferred 2026-06-14).
 # | `gml/bind-effector.j2` | Apply effector, infer state-shift | analogy, infer, bind |
 # | `gml/compute-equilibrium.j2` | Calculate R̄, n_H, distribution | calculate, compare |
 # | `gml/assess-coherence.j2` | Evaluate network homeostasis | evaluate, reflect, calibrate |
 # | `gml/reframe-concept.j2` | Generate alternative frames | abduct, generate, synthesize |
 
 ---
-
 ## CNS Integration
 
 # **Spans:**
@@ -122,7 +120,6 @@ process:
 # - Channel: `cns.algedonic.variety_deficit`
 
 ---
-
 ## Usage Example
 
 # ```yaml
@@ -154,5 +151,4 @@ contextual_effectors:
 # ```
 
 ---
-
 # *ℏKask - A Minimal Viable Container for Agents — GML v0.1.0*

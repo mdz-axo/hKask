@@ -1,13 +1,11 @@
 //! Recall deduplication — entity-attribute-value hash strategy
 //!
-//! Implements the `entity_attribute_value_hash` deduplication strategy
-//! declared in `standing-ensemble-session.yaml`. Filters duplicate triples
-//! at recall time by computing a BLAKE3 hash of the canonical EAV content.
+//! Filters duplicate triples at recall time by computing a BLAKE3 hash
+//! of the canonical EAV content.
 //!
 //! This is Layer 1 of the three-layer DRY system:
 //! - Layer 1: Memory recall dedup (this module)
-//! - Layer 2: Session message dedup (hkask-ensemble/src/chat_dedup.rs)
-//! - Layer 3: Prompt assembly dedup (hkask-templates/src/context_assembly.rs)
+//! - Layer 2: Prompt assembly dedup (hkask-templates/src/context_assembly.rs)
 
 use hkask_storage::Triple;
 use std::collections::HashSet;

@@ -7,7 +7,6 @@ pub(crate) mod chat;
 pub(crate) mod cns;
 pub(crate) mod consolidation;
 pub(crate) mod curator;
-pub(crate) mod ensemble;
 pub(crate) mod episodic;
 pub(crate) mod git;
 pub(crate) mod goal;
@@ -28,7 +27,6 @@ pub use chat::chat_router;
 pub use cns::cns_router;
 pub use consolidation::consolidation_router;
 pub use curator::curator_router;
-pub use ensemble::ensemble_router;
 pub use episodic::episodic_router;
 pub use git::git_router;
 pub use goal::goal_router;
@@ -54,10 +52,7 @@ pub use curator::{
     EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,
     ResolveEscalationRequest, ResolveEscalationResponse,
 };
-pub use ensemble::{
-    CreateChatRequest, EnsembleResponse, RecordResponseRequest, RegisterBotRequest,
-    SendMessageRequest, StandingStartRequest, StandingStartResponse, StandingStatusResponse,
-};
+
 pub use git::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
 pub use goal::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};

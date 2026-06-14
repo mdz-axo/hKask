@@ -30,7 +30,6 @@ use thiserror::Error;
 use hkask_agents::acp::AcpError;
 use hkask_agents::consent::ConsentError;
 use hkask_agents::curator_agent::metacognition::MetacognitionError;
-use hkask_agents::ensemble::StandingSessionError;
 use hkask_agents::pod::AgentPodError;
 use hkask_agents::registry_loader::RegistryLoaderError;
 use hkask_cns::EnergyError;
@@ -38,8 +37,7 @@ use hkask_memory::{EpisodicMemoryError, SemanticMemoryError};
 use hkask_storage::EscalationError;
 use hkask_storage::{
     AgentRegistryError, ConsentStoreError, DatabaseError, GoalRepositoryError, NuEventError,
-    SovereigntyStoreError, SpecError, StandingSessionError as StorageStandingSessionError,
-    TripleError, UserStoreError,
+    SovereigntyStoreError, SpecError, TripleError, UserStoreError,
 };
 use hkask_templates::TemplateError;
 use hkask_types::InfrastructureError;
@@ -139,10 +137,6 @@ pub enum ServiceError {
     #[error(transparent)]
     NuEvent(#[from] NuEventError),
 
-    /// Upstream standing-session store error (storage layer).
-    #[error(transparent)]
-    StandingSessionStore(#[from] StorageStandingSessionError),
-
     // ── Memory domain ────────────────────────────────────────────────────
     /// Upstream episodic memory error.
     #[error(transparent)]
@@ -168,19 +162,6 @@ pub enum ServiceError {
     /// Upstream energy budget error.
     #[error(transparent)]
     Gas(#[from] EnergyError),
-
-    // ── Ensemble domain ─────────────────────────────────────────────────
-    /// Ensemble session not found.
-    #[error("Session not found: {0}")]
-    SessionNotFound(String),
-
-    /// Improv operation failed.
-    #[error("Improv error: {0}")]
-    Improv(String),
-
-    /// Upstream standing-session error (ensemble layer).
-    #[error(transparent)]
-    StandingSession(#[from] StandingSessionError),
 
     // ── Pod domain ────────────────────────────────────────────────────
     /// Pod not found by ID.

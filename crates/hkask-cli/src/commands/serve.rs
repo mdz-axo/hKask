@@ -6,7 +6,6 @@
 
 use hkask_api::ApiState;
 use hkask_mcp::runtime::McpRuntime;
-use std::sync::Arc;
 
 /// MCP servers to start for the API.
 ///
@@ -48,13 +47,6 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
             Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
         })?;
 
-    // Build improv client from AgentService's inference port
-    let improv_client =
-        hkask_services::EnsembleService::build_improv_client(&ctx, None).map_err(|e| {
-            Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
-        })?;
-    let base_adapter = Arc::new(improv_client.inner().clone());
-
     // Start API MCP servers on the AgentService's runtime
     let server_count = start_api_servers(ctx.mcp_runtime()).await;
     if server_count > 0 {
@@ -63,8 +55,8 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
         tracing::warn!(target: "hkask.serve", "No MCP servers started — tool endpoints will return empty results");
     }
 
-    // Build ApiState from AgentService, adding CLI's ensemble adapter
-    let state = ApiState::from_service_context(ctx, Some(base_adapter))
+    // Build ApiState from AgentService
+    let state = ApiState::from_service_context(ctx)
         .await
         .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 

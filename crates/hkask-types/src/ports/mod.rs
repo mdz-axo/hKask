@@ -7,7 +7,6 @@
 pub mod git_cas;
 
 use crate::cns::CircuitState;
-use crate::error::InfrastructureError;
 use crate::event::SpanNamespace;
 use crate::id::WebID;
 use crate::lexicon::TemplateType;
@@ -511,35 +510,6 @@ pub trait RegistryIndex {
     fn get(&self, id: &str) -> Result<RegistryEntry, RegistryError>;
 }
 
-/// Self-contained error type — no dependency on hkask-storage.
-#[derive(Debug, Clone, thiserror::Error)]
-pub enum SessionStoreError {
-    #[error("Session not found: {0}")]
-    NotFound(String),
-    #[error("Session is sealed: {0}")]
-    Sealed(String),
-    #[error("Storage error: {0}")]
-    Storage(#[from] InfrastructureError),
-}
-
-#[derive(Debug, Clone)]
-pub struct SessionRecord {
-    pub session_id: String,
-    pub config_yaml: String,
-    pub created_at: String,
-    pub last_active: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct MessageRecord {
-    pub id: i64,
-    pub session_id: String,
-    pub from_webid: String,
-    pub content: String,
-    pub timestamp: String,
-    pub template_id: Option<String>,
-}
-
 /// Parameters for consolidation. All fields except `limit` optional.
 #[derive(Debug, Clone)]
 pub struct ConsolidationRequest {
@@ -627,7 +597,7 @@ pub trait ToolPort: Send + Sync {
     ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send;
 }
 
-/// Canonical tool metadata for OCAP capability matching and ensemble tool scoping.
+/// Canonical tool metadata for OCAP capability matching.
 #[derive(Debug, Clone)]
 pub struct ToolInfo {
     pub name: String,

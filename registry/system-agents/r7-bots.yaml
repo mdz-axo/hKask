@@ -77,7 +77,7 @@ bots:
     memory_visibility: Shared
     domains:
       - agents
-      - ensemble
+      # - ensemble  # Deferred (2026-06-14)
       - kata
 
   - id: R7.6
@@ -85,7 +85,7 @@ bots:
     primary_crate: hkask-mcp
     description: >
       Holds the tools. Fifteen MCP servers. Multi-provider inference (Ollama, Fireworks, DeepInfra).
-      Storage. Memory. Embedding. Condenser. Ensemble. Web.
+      Storage. Memory. Embedding. Condenser. Web.  # Ensemble deferred (2026-06-14)
       Dispatches. Does not accumulate. Passes the work through.
     gas_budget: 12000
     memory_visibility: Shared

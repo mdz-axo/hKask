@@ -6,9 +6,8 @@
 //! 3. MCP — Supervisor, server registration, health checks
 //! 4. Bots — Pod creation for R7.1–R7.7, span scoping, memory stacks
 //! 5. Curator — Replicant pod with full access
-//! 6. Standing Session — Initialize, register R7 participants
-//! 7. Kata Readiness — Verify kata domain owned, emit readiness span
-//! 8. CNS Active — Activate all bots, begin monitoring
+//! 6. Kata Readiness — Verify kata domain owned, emit readiness span
+//! 7. CNS Active — Activate all bots, begin monitoring
 
 use hkask_keystore::{Keychain, derive_all_internal_secrets};
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
@@ -24,7 +23,6 @@ pub enum BootstrapPhase {
     Mcp,
     Bots,
     Curator,
-    StandingSession,
     KataReadiness,
     CnsActive,
 }
@@ -37,7 +35,6 @@ impl std::fmt::Display for BootstrapPhase {
             BootstrapPhase::Mcp => write!(f, "mcp"),
             BootstrapPhase::Bots => write!(f, "bots"),
             BootstrapPhase::Curator => write!(f, "curator"),
-            BootstrapPhase::StandingSession => write!(f, "standing_session"),
             BootstrapPhase::KataReadiness => write!(f, "kata_readiness"),
             BootstrapPhase::CnsActive => write!(f, "cns_active"),
         }
@@ -57,8 +54,6 @@ pub enum BootstrapError {
     BotCreation(String),
     #[error("Curator creation failed: {0}")]
     CuratorCreation(String),
-    #[error("Standing session failed: {0}")]
-    StandingSession(String),
     #[error("Kata readiness failed: {0}")]
     KataReadiness(String),
     #[error("CNS activation failed: {0}")]
@@ -74,7 +69,6 @@ impl BootstrapError {
             BootstrapError::Mcp(_) => BootstrapPhase::Mcp,
             BootstrapError::BotCreation(_) => BootstrapPhase::Bots,
             BootstrapError::CuratorCreation(_) => BootstrapPhase::Curator,
-            BootstrapError::StandingSession(_) => BootstrapPhase::StandingSession,
             BootstrapError::KataReadiness(_) => BootstrapPhase::KataReadiness,
             BootstrapError::CnsActivation(_) => BootstrapPhase::CnsActive,
         }
@@ -149,17 +143,12 @@ impl BootstrapSequence {
         self.phase_curator()?;
         self.complete_phase(BootstrapPhase::Curator).await;
 
-        // Phase 6: Standing Session
-        self.start_phase(BootstrapPhase::StandingSession);
-        self.phase_standing_session()?;
-        self.complete_phase(BootstrapPhase::StandingSession).await;
-
-        // Phase 7: Kata Readiness
+        // Phase 6: Kata Readiness
         self.start_phase(BootstrapPhase::KataReadiness);
         self.phase_kata_readiness()?;
         self.complete_phase(BootstrapPhase::KataReadiness).await;
 
-        // Phase 8: CNS Active (async)
+        // Phase 7: CNS Active (async)
         self.start_phase(BootstrapPhase::CnsActive);
         self.phase_cns_active().await?;
         self.complete_phase(BootstrapPhase::CnsActive).await;
@@ -323,18 +312,7 @@ impl BootstrapSequence {
         Ok(())
     }
 
-    /// Phase 6: Standing Session — Initialize and register participants
-    fn phase_standing_session(&mut self) -> Result<(), BootstrapError> {
-        info!(target: "bootstrap", "Standing Session phase: Initializing session");
-
-        // The session_id matches the YAML configuration
-        self.state.session_id = Some("system-coordination-standing-session".to_string());
-
-        info!(target: "bootstrap", "Standing Session phase: All participants registered");
-        Ok(())
-    }
-
-    /// Phase 7: Kata Readiness — Verify kata domain is owned by an R7 bot
+    /// Phase 6: Kata Readiness — Verify kata domain is owned by an R7 bot
     fn phase_kata_readiness(&self) -> Result<(), BootstrapError> {
         info!(target: "bootstrap", "Kata Readiness phase: Verifying kata domain ownership");
 

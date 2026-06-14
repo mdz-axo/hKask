@@ -262,62 +262,6 @@ pub enum GitAction {
     },
 }
 
-/// Ensemble multi-agent actions (Phase 7)
-#[derive(Subcommand)]
-pub enum EnsembleAction {
-    ChatCreate {
-        #[arg(short, long)]
-        session: String,
-    },
-    ChatRegister {
-        #[arg(short, long)]
-        session: String,
-        #[arg(short, long)]
-        bot: String,
-        #[arg(short, long)]
-        role: String,
-    },
-    ChatSend {
-        #[arg(short, long)]
-        session: String,
-        #[arg(short, long)]
-        message: String,
-    },
-    ChatList,
-    DeliberationCreate {
-        #[arg(short, long)]
-        session: String,
-    },
-    DeliberationStart {
-        #[arg(short, long)]
-        session: String,
-    },
-    DeliberationRecord {
-        #[arg(short, long)]
-        session: String,
-        #[arg(short, long)]
-        agent: String,
-        #[arg(short, long)]
-        content: String,
-        #[arg(short, long)]
-        confidence: f64,
-    },
-    DeliberationSynthesize {
-        #[arg(short, long)]
-        session: String,
-    },
-    DeliberationList,
-    StandingStart {
-        #[arg(
-            short,
-            long,
-            default_value = "registry/manifests/standing-ensemble-session.yaml"
-        )]
-        config: PathBuf,
-    },
-    StandingStatus,
-}
-
 /// Curator governance actions
 #[derive(Subcommand)]
 pub enum CuratorAction {

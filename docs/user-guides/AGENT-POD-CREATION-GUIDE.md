@@ -156,10 +156,11 @@ capabilities:
   - tool:template:select
   - tool:template:execute
 
-# Ensemble capabilities
-capabilities:
-  - tool:ensemble:coordinate
-  - tool:ensemble:orchestrate
+# Ensemble capabilities — Deferred (2026-06-14)
+# Ensemble crate removed. Future multi-agent mode will evolve from dual-presence pattern.
+# capabilities:
+#   - tool:ensemble:coordinate
+#   - tool:ensemble:orchestrate
 ```
 
 ### 1.3 Rights and Access
@@ -183,7 +184,7 @@ rights:
   - execute: template_dispatch
   - execute: metaknowledge_ops
   - execute: system_calibration
-  - coordinate: bot_ensemble_sessions
+  # - coordinate: bot_ensemble_sessions  # Deferred (2026-06-14)
 ```
 
 **Q: What data does the agent need to write?**
@@ -238,7 +239,7 @@ reporting:
   receives_from:
     - cns-curator-bot
     - memory-curator-bot
-  report_to: standing_ensemble_session
+  report_to: Curator  # was standing_ensemble_session (deferred 2026-06-14)
   escalate_to: Curator
   escalation_triggers:
     - variety_deficit_gt_100
@@ -297,17 +298,17 @@ visibility:
 # Optional: Reporting configuration
 reporting:
   receives_from: []
-  report_to: standing_ensemble_session
+  report_to: Curator  # was standing_ensemble_session (deferred 2026-06-14)
   escalate_to: Curator
   escalation_triggers: []
   report_interval: on_event_and_hourly_summary
 
-# Optional: Standing session participation
-standing_session:
-  session_id: system-coordination-standing-session
-  role: participant                # orchestrator | participant | observer
-  report_interval: hourly
-  administrator_visible: true
+# Optional: Standing session participation — Deferred (2026-06-14)
+# standing_session:
+#   session_id: system-coordination-standing-session
+#   role: participant                # orchestrator | participant | observer
+#   report_interval: hourly
+#   administrator_visible: true
 
 # Required: Process manifest reference
 process_manifest: registry/manifests/my-bot-dispatch.yaml
@@ -998,7 +999,7 @@ capabilities:
   - tool:cns:variety
   - tool:memory:recall
   - tool:inference:call
-  - tool:ensemble:coordinate
+  # - tool:ensemble:coordinate  # Deferred (2026-06-14)
 
 rights:
   - read: all_public_semantic_memory
@@ -1007,19 +1008,19 @@ rights:
   - write: own_episodic_memory
   - write: public_semantic_memory
   - execute: metaknowledge_ops
-  - coordinate: bot_ensemble_sessions
+  # - coordinate: bot_ensemble_sessions  # Deferred (2026-06-14)
 
 responsibilities:
   - monitor: domain_health
   - synthesize: bot_reports
   - escalate: critical_alerts_to_curator
-  - orchestrate: ensemble_sessions
+  # - orchestrate: ensemble_sessions  # Deferred (2026-06-14)
 
 reporting:
   receives_from:
     - specialist-bot-1
     - specialist-bot-2
-  report_to: standing_ensemble_session
+  report_to: Curator  # was standing_ensemble_session (deferred 2026-06-14)
   escalate_to: Curator
 
 process_manifest: registry/manifests/domain-curation.yaml
@@ -1090,7 +1091,7 @@ capabilities:
   - tool:inference:call
   - tool:mcp:invoke
   - tool:registry:index
-  - tool:ensemble:coordinate
+  # - tool:ensemble:coordinate  # Deferred (2026-06-14)
 
 rights:
   - read: workspace_artifacts
@@ -1261,9 +1262,9 @@ kask pod deactivate <pod-id>
 - tool:registry:index
 - tool:registry:discover
 
-# Ensemble
-- tool:ensemble:coordinate
-- tool:ensemble:orchestrate
+# Ensemble — Deferred (2026-06-14)
+# - tool:ensemble:coordinate
+# - tool:ensemble:orchestrate
 ```
 
 ---
@@ -1273,10 +1274,9 @@ kask pod deactivate <pod-id>
 After creating your agent pod[^humble2010]:
 
 1. **Test readiness probe**: Verify all dependencies are available
-2. **Join ensemble session**: Participate in standing coordination sessions
-3. **Monitor CNS spans**: Observe agent behavior via CNS events
-4. **Produce memory artifacts**: Generate semantic/episodic triples
-5. **Coordinate with other bots**: Establish A2A communication channels
+2. **Monitor CNS spans**: Observe agent behavior via CNS events
+3. **Produce memory artifacts**: Generate semantic/episodic triples
+4. **Coordinate with other bots**: Establish A2A communication channels
 
 For advanced topics, see:
 - [Agent Pod Implementation](../architecture/MDS.md)

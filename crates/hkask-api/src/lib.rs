@@ -29,7 +29,6 @@
 //! - `GET /api/episodic/query` — Query episodic memories
 //! - `GET /api/episodic/usage` — Episodic storage usage
 
-mod energy;
 mod git_cas;
 
 pub mod error;
@@ -49,14 +48,12 @@ pub use routes::{
     SpecWritingQualityResponse, TemplateResponse, VarietyCounterResponse,
 };
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use hkask_services::AgentService;
 use hkask_services::WalletService;
 use utoipa::OpenApi;
 
-use energy::ApiEnergyGovernanceAdapter;
 use git_cas::{GitCasBundle, init_git_cas};
 
 use openapi::ApiDoc;
@@ -64,32 +61,20 @@ use openapi::ApiDoc;
 /// API state — composes `AgentService` for all shared infrastructure.
 ///
 /// The `agent_service` field is the single source of truth for domain
-/// objects. Surface-specific fields (standing sessions map, git CAS,
-/// ensemble inferencer, gas governance) are the ONLY fields that don't
-/// come from `AgentService`.
+/// objects. Surface-specific fields (spec store, git CAS, wallet service)
+/// are the ONLY fields that don't come from `AgentService`.
 #[derive(Clone)]
 pub struct ApiState {
     /// Agent service — single source of truth for all shared infrastructure.
     /// All domain objects (registry, escalation queue, consent manager, etc.)
     /// come from here. Surface code derives service types via domain accessors.
     pub agent_service: Arc<AgentService>,
-    /// Standing ensemble sessions (keyed by session ID) — surface-specific live state
-    pub standing_sessions: Arc<
-        tokio::sync::RwLock<
-            HashMap<String, Arc<tokio::sync::RwLock<hkask_agents::ensemble::StandingSession>>>,
-        >,
-    >,
-    /// Ensemble inferencer (optional — for ensemble inference) — surface-specific
-    pub ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
     /// Spec store for MDS specifications — surface-specific
     pub spec_store: Option<Arc<hkask_storage::SqliteSpecStore>>,
     /// Git CAS adapter for template archival (legacy — template loading only) — surface-specific
     pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
     /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
     pub git_cas_port: Arc<dyn hkask_types::ports::git_cas::GitCASPort>,
-    /// CNS gas governance port for ensemble sessions — surface-specific
-    /// Wired through the CyberneticsLoop so CNS can sense ensemble gas usage.
-    pub gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort>,
     /// Wallet service for rJoule payments and API key management — surface-specific.
     /// Built from config during `ApiState::with_defaults()` or `from_service_context()`.
     pub wallet_service: Option<Arc<WalletService>>,
@@ -114,7 +99,7 @@ impl ApiState {
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to build service context: {e}"),
             })?;
-        Self::from_service_context(ctx, None).await
+        Self::from_service_context(ctx).await
     }
 
     /// Create ApiState from a pre-built `AgentService`.
@@ -122,36 +107,9 @@ impl ApiState {
     /// This is the canonical construction path for API surfaces that compose
     /// `AgentService::build()`. All shared infrastructure (CNS, loop system,
     /// governed tool, pod manager, stores) comes from `AgentService`.
-    /// Surface-specific fields (ensemble inferencer, git CAS, gas governance)
-    /// are constructed from AgentService fields or initialized to defaults.
-    ///
-    /// # Arguments
-    ///
-    /// * `ctx` — A fully-wired `AgentService` from `AgentService::build(config).await`
-    /// * `ensemble_inferencer` — Optional ensemble inference adapter (surface-specific)
-    ///
-    /// # Surface-specific fields
-    ///
-    /// - `ensemble_inferencer` — passed through from caller
-    /// - `gas_governance` — built from AgentService's cybernetics loop
-    /// - `git_cas` / `git_cas_port` — built via `init_git_cas()`
-    /// - `standing_sessions` — initialized to empty map
-    /// - `spec_store` — initialized to None
-    /// - `cns_runtime` — cloned from AgentService's shared CnsRuntime
-    pub async fn from_service_context(
-        ctx: AgentService,
-        ensemble_inferencer: Option<Arc<hkask_agents::ensemble::adapters::InferencePortAdapter>>,
-    ) -> Result<Self, ApiError> {
-        // Surface-specific: gas governance from cybernetics loop + system webid
-        let cybernetics = ctx.cybernetics_loop();
-        let (webid, _) = ctx.identity();
-        let gas_governance: Arc<dyn hkask_agents::ensemble::GasGovernancePort> =
-            Arc::new(ApiEnergyGovernanceAdapter::new(
-                cybernetics.clone(),
-                *webid,
-                energy::API_ENSEMBLE_ENERGY_CAP,
-            ));
-
+    /// Surface-specific fields (git CAS) are constructed from AgentService
+    /// fields or initialized to defaults.
+    pub async fn from_service_context(ctx: AgentService) -> Result<Self, ApiError> {
         // Surface-specific: Git CAS adapters (legacy template archival)
         let GitCasBundle {
             git_cas,
@@ -161,34 +119,10 @@ impl ApiState {
         Ok(Self {
             agent_service: Arc::new(ctx),
             // Surface-specific fields only
-            standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
-            ensemble_inferencer,
             spec_store: None,
             git_cas,
             git_cas_port,
-            gas_governance,
             wallet_service: None,
-        })
-    }
-
-    /// Create a circuit-breaker-wrapped ensemble inferencer.
-    ///
-    /// Returns `None` if no ensemble inferencer is configured.
-    /// When available, wraps the base `InferencePortAdapter` with a
-    /// `CircuitBreakerInferenceAdapter` using inference-appropriate defaults.
-    pub fn ensemble_inferencer_with_breaker(
-        &self,
-    ) -> Option<Arc<hkask_agents::ensemble::adapters::CircuitBreakerInferenceAdapter>> {
-        self.ensemble_inferencer.as_ref().map(|adapter| {
-            let breaker: Arc<dyn hkask_types::ports::CircuitBreakerPort> = Arc::new(
-                hkask_cns::CircuitBreaker::default_for_inference("ensemble-inference"),
-            );
-            Arc::new(
-                hkask_agents::ensemble::adapters::CircuitBreakerInferenceAdapter::new(
-                    (**adapter).clone(),
-                    breaker,
-                ),
-            )
         })
     }
 
@@ -242,7 +176,6 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
             .merge(routes::sovereignty_router())
             .merge(routes::chat_router())
             .merge(routes::models_router())
-            .merge(routes::ensemble_router())
             .merge(routes::acp_router())
             .merge(routes::bundles_router())
             .merge(routes::spec_router())
@@ -278,7 +211,6 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
         .merge(routes::sovereignty_router())
         .merge(routes::chat_router())
         .merge(routes::models_router())
-        .merge(routes::ensemble_router())
         .merge(routes::acp_router())
         .merge(routes::bundles_router())
         .merge(routes::spec_router())

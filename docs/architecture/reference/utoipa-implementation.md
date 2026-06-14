@@ -63,7 +63,7 @@ pub struct TemplateResponse {
 | chat | `ChatRequest`, `ChatResponse` |
 | models | `ModelEntry`, `ModelListResponse`, `ModelSearchQuery` |
 | curator | `ListEscalationsResponse`, `EscalationEntryResponse`, `EscalationStatsResponse`, `ResolveEscalationRequest`, `ResolveEscalationResponse`, `DismissEscalationRequest`, `DismissEscalationResponse`, `MetacognitionStatusResponse` |
-| ensemble | `StandingStartRequest`, `StandingStartResponse`, `StandingStatusResponse`, `CreateChatRequest`, `EnsembleResponse`, `ImprovTurnRequest`, `ImprovTurnResponse` |
+| ensemble | **Deferred (2026-06-14):** `StandingStartRequest`, `StandingStartResponse`, `StandingStatusResponse`, `CreateChatRequest`, `EnsembleResponse`, `ImprovTurnRequest`, `ImprovTurnResponse` — ensemble crate removed; schemas preserved as reference for future multi-agent mode |
 | acp | `AcpRegisterRequest`, `AcpRegisterResponse`, `AgentListResponse` |
 | bundles | `BundleSummary`, `BundleListResponse`, `ComposeBundleRequest`, `ComposeBundleResponse`, `ApplyBundleResponse`, `EvolveBundleResponse`, `DeactivateBundleResponse` |
 | specs | `SpecListResponse`, `SpecDetailResponse`, `SpecCaptureRequestDto`, `SpecCoherenceResponse`, `SpecWritingQualityResponse` |
@@ -112,10 +112,10 @@ async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateRespo
 | POST | `/api/chat/stream` | chat | 200, 400, 401, 500 |
 | GET | `/api/models` | models | 200, 503 |
 | GET | `/api/models/search` | models | 200 |
-| POST | `/api/ensemble/chat` | ensemble | 201, 500 |
-| POST | `/api/ensemble/chat/{session}/improv` | ensemble | 200, 404, 500 |
-| POST | `/api/v1/ensemble/standing-start` | ensemble | 201, 401, 500 |
-| GET | `/api/v1/ensemble/standing-status` | ensemble | 200, 401, 404 |
+| ~~POST~~ | ~~`/api/ensemble/chat`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
+| ~~POST~~ | ~~`/api/ensemble/chat/{session}/improv`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
+| ~~POST~~ | ~~`/api/v1/ensemble/standing-start`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
+| ~~GET~~ | ~~`/api/v1/ensemble/standing-status`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
 | GET | `/api/v1/acp/agents` | acp | 200, 401, 500 |
 | DELETE | `/api/v1/acp/agents/{agent_id}` | acp | 200, 400, 401, 500 |
 | GET | `/api/v1/bundles` | bundles | 200 |
@@ -169,11 +169,11 @@ These endpoints use direct `.route()` registration without `#[utoipa::path]` ann
 | POST | `/api/pods/{id}/deactivate` | pods |
 | GET | `/api/pods/{id}/status` | pods |
 | GET | `/api/cns/alerts` | cns |
-| GET | `/api/ensemble/chat/{session}` | ensemble |
-| GET | `/api/ensemble/chat/{session}/list` | ensemble |
-| POST | `/api/ensemble/chat/{session}/register` | ensemble |
-| POST | `/api/ensemble/chat/{session}/send` | ensemble |
-| POST | `/api/ensemble/deliberation` | ensemble |
+| ~~GET~~ | ~~`/api/ensemble/chat/{session}`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
+| ~~GET~~ | ~~`/api/ensemble/chat/{session}/list`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
+| ~~POST~~ | ~~`/api/ensemble/chat/{session}/register`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
+| ~~POST~~ | ~~`/api/ensemble/chat/{session}/send`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
+| ~~POST~~ | ~~`/api/ensemble/deliberation`~~ | ~~ensemble~~ | Deferred (2026-06-14) |
 | POST | `/api/v1/acp/register` | acp |
 | GET | `/api/settings` | settings |
 | PUT | `/api/settings` | settings |

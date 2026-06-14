@@ -100,7 +100,7 @@ impl AgentService {
 | `cns()` | ✅ (CNS commands, REPL) | ✅ (CNS routes) | ✅ Yes |
 | `governance()` | ✅ (MCP commands) | ✅ (MCP routes) | ✅ Yes |
 | `storage()` | ✅ (goals, specs, agents) | ✅ (templates, bundles, goals) | ✅ Yes |
-| `coordination()` | ✅ (ensemble, pods) | ✅ (ensemble, pods, curator) | ✅ Yes |
+| `coordination()` | ✅ (pods) | ✅ (pods, curator) | ✅ Yes |
 | `identity()` | ❌ | ❌ | ✅ N/A (internal use) |
 | `config()` | ✅ (all commands) | ✅ (all routes) | ✅ Yes |
 

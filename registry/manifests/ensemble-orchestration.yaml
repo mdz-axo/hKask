@@ -1,5 +1,8 @@
 # Dispatch manifest for ensemble-curator-bot
 # Orchestrates multi-agent chat without swarms or consensus
+#
+# Deferred: ensemble removed 2026-06-14. Preserved as reference for future
+# multi-agent mode evolving from dual-presence.
 
 manifest:
   name: ensemble-orchestration

@@ -20,7 +20,6 @@ use hkask_agents::CuratorContext;
 use hkask_agents::LoopSystem;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator_agent::CuratorAgent;
-use hkask_agents::ensemble::session::SessionManager;
 use hkask_agents::loop_system::CyberneticsLoopHandle;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
@@ -40,7 +39,7 @@ use hkask_storage::nu_event_store::NuEventStore;
 use hkask_storage::user_store::UserStore;
 use hkask_storage::{
     ConsentStore, Database, DatabaseError, EmbeddingStore, SovereigntyBoundaryStore,
-    SqliteSpecStore, StandingSessionStore, TripleStore, in_memory_db,
+    SqliteSpecStore, TripleStore, in_memory_db,
 };
 use hkask_templates::SqliteRegistry;
 use hkask_types::CapabilityChecker;
@@ -126,17 +125,11 @@ pub struct AgentService {
     /// Event sink for CNS audit trail.
     event_sink: Arc<dyn NuEventSink>,
 
-    /// Standing session store for ensemble persistence.
-    standing_session_store: Arc<StandingSessionStore>,
-
     /// Sovereignty boundary store for Magna Carta compliance queries.
     sovereignty_boundary_store: SovereigntyBoundaryStore,
 
     /// Spec store for specification capture, validation, and cultivation.
     spec_store: SqliteSpecStore,
-
-    /// Ensemble session manager for chat and deliberation coordination.
-    session_manager: Arc<RwLock<hkask_agents::ensemble::session::SessionManager>>,
 
     /// ACP runtime for capability token management and agent registration.
     acp_runtime: Arc<hkask_agents::AcpRuntime>,
@@ -271,22 +264,10 @@ impl AgentService {
 
     // === Surface-specific fields:
 
-    /// Access standing session store for ensemble persistence.
-    /// TODO: Move to ApiState.
-    pub fn standing_session_store(&self) -> &Arc<StandingSessionStore> {
-        &self.standing_session_store
-    }
-
     /// Access spec store for specification capture, validation, and cultivation.
     /// TODO: Move to ApiState.
     pub fn spec_store(&self) -> &SqliteSpecStore {
         &self.spec_store
-    }
-
-    /// Access session manager for chat and deliberation coordination.
-    /// TODO: Move to ApiState.
-    pub fn session_manager(&self) -> &Arc<RwLock<hkask_agents::ensemble::session::SessionManager>> {
-        &self.session_manager
     }
 
     /// Access agent registry store for persistent agent records.
@@ -455,9 +436,6 @@ impl AgentService {
 
         let goal_sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&goal_conn)));
         let goal_repo = Arc::new(SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
-
-        let standing_conn = open_db()?.conn_arc();
-        let standing_session_store = Arc::new(StandingSessionStore::new(standing_conn));
 
         let sovereignty_conn = open_db()?.conn_arc();
         let sovereignty_boundary_store = SovereigntyBoundaryStore::new(sovereignty_conn);
@@ -723,9 +701,6 @@ impl AgentService {
                 .map_err(ServiceError::Acp)?;
         };
 
-        // ── 10. Session manager for ensemble coordination ──
-        let session_manager = Arc::new(RwLock::new(SessionManager::new(system_webid)));
-
         Ok(Self {
             registry,
             mcp_runtime,
@@ -744,10 +719,8 @@ impl AgentService {
             capability_checker,
             system_webid,
             event_sink: cns_event_sink,
-            standing_session_store,
             sovereignty_boundary_store,
             spec_store,
-            session_manager,
             acp_runtime,
             agent_registry_store,
             user_store,

@@ -10,7 +10,7 @@
 //! The 7R7 bot polls the Matrix server for unread/flagged content, producing
 //! `Escalation` entries that feed the `ModerationQueue`.
 
-use crate::matrix::{MatrixClient, RoomId, UserId};
+use crate::matrix::{MatrixClient, RoomIdStr, UserIdStr};
 use hkask_types::WebID;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -25,9 +25,9 @@ use tracing;
 #[derive(Debug, Default)]
 pub struct AgentRegistry {
     /// Mapping from replicant WebID (string) to Matrix UserId.
-    entries: RwLock<HashMap<String, UserId>>,
+    entries: RwLock<HashMap<String, UserIdStr>>,
     /// Mapping from room ID to list of agents monitoring it.
-    thread_watchlists: RwLock<HashMap<RoomId, Vec<String>>>,
+    thread_watchlists: RwLock<HashMap<RoomIdStr, Vec<String>>>,
 }
 
 impl AgentRegistry {
@@ -44,7 +44,7 @@ impl AgentRegistry {
         &self,
         webid: &WebID,
         matrix: &MatrixClient,
-    ) -> Result<UserId, AgentRegistrationError> {
+    ) -> Result<UserIdStr, AgentRegistrationError> {
         let webid_str = webid.to_string();
         {
             let entries = self.entries.read().await;
@@ -89,7 +89,7 @@ impl AgentRegistry {
     }
 
     /// Resolve a WebID to its Matrix UserId.
-    pub async fn resolve(&self, webid: &WebID) -> Option<UserId> {
+    pub async fn resolve(&self, webid: &WebID) -> Option<UserIdStr> {
         self.entries.read().await.get(&webid.to_string()).cloned()
     }
 
@@ -97,7 +97,7 @@ impl AgentRegistry {
     pub async fn monitor_thread(
         &self,
         webid: &WebID,
-        room_id: &RoomId,
+        room_id: &RoomIdStr,
     ) -> Result<(), AgentRegistrationError> {
         let webid_str = webid.to_string();
         {
@@ -122,7 +122,7 @@ impl AgentRegistry {
     }
 
     /// Get agents monitoring a given thread.
-    pub async fn get_watchers(&self, room_id: &RoomId) -> Vec<String> {
+    pub async fn get_watchers(&self, room_id: &RoomIdStr) -> Vec<String> {
         self.thread_watchlists
             .read()
             .await

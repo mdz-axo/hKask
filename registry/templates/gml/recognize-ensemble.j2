@@ -1,5 +1,7 @@
 {# gml/recognize-ensemble.j2 - KnowAct: recognize, discriminate, parse #}
 {# Purpose: Parse concept into states and ports #}
+{# Note: This template is about GML "state ensembles" (a different concept from hKask ensemble). #}
+{# The hKask ensemble module was removed 2026-06-14; future multi-agent mode will evolve from dual-presence. #}
 
 {% from 'gml/validate-inputs.j2' import validate_concept %}
 {% from 'gml/cns-instrument.j2' import start_span, end_span, record_error, audit_log %}

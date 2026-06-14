@@ -39,7 +39,9 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 | MCP Dispatch | `McpPort` | `ports.rs` | `McpDispatcher` (in hkask-mcp) |
 | Registry | `RegistryIndex` | `ports.rs` | `Registry`, `SqliteRegistry` |
 
-### hkask-ensemble (3)
+### hkask-ensemble (3) — Deferred (2026-06-14)
+
+Ensemble crate removed. Ports preserved as reference for future multi-agent mode evolving from dual-presence.
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
@@ -114,7 +116,7 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 hkask-cli → hkask-agents → hkask-types (ports defined here: AuditLogPort, NuEventSink)
                         → hkask-cns (CnsPort)
                         → hkask-templates (InferencePort, McpPort, RegistryIndex)
-           hkask-ensemble → hkask-agents (StandingSessionPort)
+           hkask-ensemble → hkask-agents (StandingSessionPort) — Deferred (2026-06-14)
 
 hkask-mcp → hkask-templates (McpPort impl)
           → hkask-cns (CnsPort, optional CNS integration)

@@ -69,8 +69,6 @@ fn main() {
 
         Commands::Spec { action } => commands::spec::run(action),
 
-        Commands::Ensemble { action } => commands::ensemble::run_ensemble(&rt, action),
-
         Commands::Agent { action } => commands::agent::run_agent(&rt, action),
 
         Commands::Curator { action } => {

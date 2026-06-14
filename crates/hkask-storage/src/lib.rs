@@ -19,10 +19,6 @@ pub mod security;
 pub mod sovereignty;
 pub mod spec_store;
 pub mod spec_types;
-pub(crate) mod standing_session;
-pub use standing_session::{
-    StandingSessionError, StandingSessionStore, StoredMessage, StoredSession,
-};
 pub mod gallery;
 pub mod kata_history;
 pub mod triples;

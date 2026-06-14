@@ -284,7 +284,7 @@ impl SevenR7Bot {
     /// 3. Push escalations to the ModerationQueue
     pub async fn check_cycle(
         &self,
-        rooms: &[crate::matrix::RoomId],
+        rooms: &[crate::matrix::RoomIdStr],
     ) -> Result<usize, ModerationError> {
         let messages = self
             .matrix

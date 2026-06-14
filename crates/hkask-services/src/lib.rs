@@ -15,7 +15,6 @@ pub mod daemon_handler;
 pub mod deletion_test;
 pub mod discover;
 pub mod embed;
-pub mod ensemble;
 pub mod error;
 pub mod experience;
 pub mod goal;
@@ -56,7 +55,6 @@ pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
     EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
 };
-pub use ensemble::{CyberneticsLoopGasAdapter, EnsembleService};
 pub use error::ServiceError;
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};

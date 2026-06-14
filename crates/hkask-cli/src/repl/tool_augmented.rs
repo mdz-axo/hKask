@@ -1,7 +1,7 @@
 //! Tool-augmented chat — parse model responses for tool call directives
 //! and invoke them through GovernedTool or the Communication Loop.
 //
-//! Both single-agent REPL and ensemble turns call the same `process_response`
+//! Both single-agent REPL and dual-presence turns call the same `process_response`
 //! function. Any agent response that contains tool calls (either structured
 //! `InferenceResult.tool_calls` from native function calling or `<<tool:...>>`
 //! text directives) gets parsed, invoked, and optionally fed back to the model
@@ -233,7 +233,7 @@ pub fn format_tool_results(calls: &[(ToolCall, Result<serde_json::Value, String>
 /// Process tool calls in a response: parse, invoke, display results.
 ///
 /// This is the single shared async function called by both single-agent REPL
-/// and ensemble turns. It:
+/// and dual-presence turns. It:
 /// 1. Checks `InferenceResult.tool_calls` for structured native function calls
 /// 2. Falls back to parsing `<<tool:...>>` text directives if no structured calls
 /// 3. Invokes each through GovernedTool

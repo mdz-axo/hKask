@@ -7,7 +7,7 @@ use axum::{
 };
 use hkask_storage::{
     AgentRegistryError, ConsentStoreError, GoalRepositoryError, NuEventError,
-    SovereigntyStoreError, StandingSessionError, TripleError, UserStoreError,
+    SovereigntyStoreError, TripleError, UserStoreError,
 };
 use hkask_types::InfrastructureError;
 use serde::Serialize;
@@ -172,23 +172,6 @@ impl From<SovereigntyStoreError> for ApiError {
                 message: msg.clone(),
             },
             SovereigntyStoreError::Infra(e) => ApiError::Internal {
-                message: e.to_string(),
-            },
-        }
-    }
-}
-
-impl From<StandingSessionError> for ApiError {
-    fn from(e: StandingSessionError) -> Self {
-        match &e {
-            StandingSessionError::NotFound(id) => ApiError::NotFound {
-                resource: "session".into(),
-                id: id.clone(),
-            },
-            StandingSessionError::Sealed(id) => ApiError::Forbidden {
-                reason: format!("Session is sealed (key version mismatch): {id}"),
-            },
-            StandingSessionError::Infra(e) => ApiError::Internal {
                 message: e.to_string(),
             },
         }
@@ -369,10 +352,6 @@ impl From<hkask_services::ServiceError> for ApiError {
                 resource: "user".into(),
                 id: name,
             },
-            SE::SessionNotFound(id) => ApiError::NotFound {
-                resource: "session".into(),
-                id,
-            },
             SE::PodNotFound(id) => ApiError::NotFound {
                 resource: "pod".into(),
                 id,
@@ -418,7 +397,6 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::Triple(err) => ApiError::from(err),
             SE::ConsentStore(err) => ApiError::from(err),
             SE::UserStore(err) => ApiError::from(err),
-            SE::StandingSessionStore(err) => ApiError::from(err),
             SE::Consent(err) => ApiError::from(err),
             SE::Spec(err) => ApiError::Internal {
                 message: err.to_string(),
