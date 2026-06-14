@@ -2459,6 +2459,7 @@ dependencies = [
  "minijinja",
  "rand 0.9.4",
  "ratatui",
+ "reqwest",
  "rpassword",
  "rusqlite",
  "rustyline",
@@ -2489,6 +2490,19 @@ dependencies = [
  "serde_yaml",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "hkask-improv"
+version = "0.27.0"
+dependencies = [
+ "chrono",
+ "hkask-cns",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
  "tracing",
 ]
 

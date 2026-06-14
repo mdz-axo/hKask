@@ -2,7 +2,7 @@
 title: "Test Program Specification — MDS Self-Applying Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-10
-version: "0.1.0"
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -127,7 +127,7 @@ Test invariants compose via goal decomposition (MDS §5.11 `mvss-compose` patter
 id: tdd-tracer-bullet
 name: tdd-tracer-bullet
 description: Vertical tracer-bullet TDD cycle governed by MDS Curation
-version: "0.1.0"
+version: "0.27.0"
 editor: hkask
 visibility: Public
 

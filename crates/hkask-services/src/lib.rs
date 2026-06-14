@@ -67,7 +67,8 @@ pub use lifecycle::{
     LifecycleError, ServerHealth, ServerLifecycle, ServerLifecycleConfig, run_lifecycle,
 };
 pub use onboarding::{
-    OnboardingService, RegistryHandle, ReplicantContactConfig, ResolvedSecrets, SignInOutcome,
+    MatrixRegistrationResult, OnboardingService, RegistryHandle, ReplicantContactConfig,
+    ResolvedSecrets, SignInOutcome, conduit_health_check,
 };
 pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
 pub use scheduler::SchedulerService;

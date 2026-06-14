@@ -2,7 +2,7 @@
 title: "CI/CD and Installation Guide"
 audience: [DevOps engineers, contributors]
 last_updated: 2026-06-07
-version: "1.0.0"
+version: "0.27.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [lifecycle]

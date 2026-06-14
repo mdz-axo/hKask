@@ -2,7 +2,7 @@
 title: "Crate Audit Bundle Manifest"
 audience: [architects, developers, agents]
 last_updated: 2026-06-12
-version: "1.0.0"
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [composition, curation]

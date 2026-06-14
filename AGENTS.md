@@ -30,6 +30,52 @@ Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
 
 ---
 
+## Pre-Install Requirements
+
+Before running hKask for the first time, two things must be set up:
+
+### 1. Conduit Matrix Homeserver (Docker/Podman sidecar)
+
+hKask uses Matrix for agent-to-agent and human-to-agent communication.
+Conduit runs as a Docker (or Podman) container on the same machine.
+
+```bash
+# Start Conduit (Docker or Podman — auto-detected)
+./scripts/conduit-docker.sh start
+
+# Verify it's running
+./scripts/conduit-docker.sh status
+
+# Register an admin user (optional — hKask auto-registers during onboarding)
+./scripts/conduit-docker.sh register
+```
+
+Conduit runs on `http://localhost:8008`. No federation, no TLS — local-only.
+The script detects Docker Compose v2, Podman Compose, or legacy docker-compose.
+
+### 2. Provider API Keys (.env file)
+
+Copy the template and fill in your API keys for inference and tool providers:
+
+```bash
+cp providers.env.example providers.env
+# Edit providers.env with your keys:
+#   DI_API_KEY=...       (DeepInfra — inference)
+#   FW_API_KEY=...       (Fireworks — inference)
+#   FA_API_KEY=...       (fal.ai — media generation)
+#   FMP_API_KEY=...      (Financial Modeling Prep — company data)
+```
+
+Load into the OS keychain (encrypted at rest):
+
+```bash
+kask keystore load --path providers.env --shred
+```
+
+The `--shred` flag securely deletes the plaintext .env file after loading.
+
+---
+
 ## Crate Map
 
 | Crate | Purpose |

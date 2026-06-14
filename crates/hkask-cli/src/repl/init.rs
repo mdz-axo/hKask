@@ -243,6 +243,7 @@ pub(super) fn init_repl_state(
         is_first_run: onboarding_outcome.is_first_run,
         talk_enabled: false,
         voice_design: None,
+        improv_mode: None,
     };
 
     // Discover available MCP tools and format the system prompt section.

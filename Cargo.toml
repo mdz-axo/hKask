@@ -15,6 +15,7 @@ members = [
     "crates/hkask-mcp",
     "crates/hkask-cli",
     "crates/hkask-api",
+    "crates/hkask-improv",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",

@@ -176,6 +176,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "on | off | voice [DESCRIPTION]",
         about: "Enable spoken summaries of agent responses (TTS)",
     },
+    SlashCommand {
+        primary: "improv",
+        aliases: &["imp"],
+        args: "[plussing|yes-and|yes-but|freestyle|riff]",
+        about: "Set or display the active improv interaction mode",
+    },
 ];
 
 // ── Lookup ─────────────────────────────────────────────────────────────
@@ -298,6 +304,7 @@ pub(super) fn handle_slash_command(
         "feedback" => handlers::handle_feedback(state),
         "listen" | "rec" | "record" => handlers::handle_listen(arg1, arg2, state, rt),
         "talk" | "speak" => handlers::handle_talk(arg1, arg2, state, rt),
+        "improv" | "imp" => handlers::handle_improv(arg1, arg2, state),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

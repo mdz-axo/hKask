@@ -1,6 +1,6 @@
 ---
 title: "MCP Media Server — Design & Implementation Plan"
-version: "1.0.0"
+version: "0.27.0"
 audience: [architects, developers]
 last_updated: 2026-06-13
 status: "Draft"
@@ -66,7 +66,7 @@ Each media tool is backed by a Jinja2 manifest (YAML frontmatter + Jinja2 body) 
 # manifests/media/detect_objects.yaml
 template_type: WordAct
 name: media_detect_objects
-version: "1.0.0"
+version: "0.27.0"
 description: "Detect and label objects in an image"
 model: "DI/meta-llama/Llama-3.2-11B-Vision-Instruct"
 parameters:
@@ -587,7 +587,7 @@ mcp-servers/hkask-mcp-media/
 
 ## 9. Open Questions
 
-1. **Face grouping algorithm:** Should face grouping be LLM-based (send pairs to vision model: "are these the same person?") or use traditional embedding clustering? LLM is more accurate but expensive at scale; embedding clustering is fast but less precise. **Proposal:** Start with embedding clustering, add LLM verification for borderline cases.
+1. **Face grouping algorithm:** Should face grouping be LLM-based (send pairs to vision model: "are these the same person?") or use traditional embedding clustering? LLM is more accurate but expensive at scale; embedding clustering is fast but less precise. **Decision (2026-06-14):** Start with vision LLM pairwise comparison for face matching against the registry. This is accurate and leverages existing infrastructure. Upgrade path: dedicated ONNX face embedding model (InsightFace/ArcFace) for sub-millisecond vector similarity search at scale.
 
 2. **Gallery embedding model:** Should we use the same embedding model as `hkask-memory`, or allow gallery-specific configuration? **Proposal:** Use the same model by default (`HKASK_EMBEDDING_MODEL`), allow override via gallery config.
 
@@ -597,7 +597,90 @@ mcp-servers/hkask-mcp-media/
 
 ---
 
-## 10. Related Documents
+## 10. Face Recognition System
+
+**Added:** 2026-06-14 · **Status:** Active
+
+### 10.1 Design Rationale
+
+hKask is headless — no GUI, no dashboards. Face recognition needs a reference image per person, but there is no UI for users to upload or select faces. The solution: users place portrait-style reference images into their gallery (convention: `gallery/faces/` subfolder), then register them via MCP tools. This is headless-compatible, minimal, and puts the user in explicit control (Magna Carta P1: User Sovereignty).
+
+### 10.2 Architecture
+
+```
+User drops reference     face_validate tool       face_register tool       gallery_refresh
+portraits into           checks each image        stores in face_registry  (include_faces=true)
+gallery/faces/           meets requirements       table with name          auto-matches detected
+        │                       │                       │                  faces → registry
+        ▼                       ▼                       ▼                      ▼
+   Gallery scan          Vision LLM assesses:     INSERT INTO              For each detected face:
+   indexes images         • Exactly 1 face?       face_registry            vision LLM compares
+                          • Face ≥15% of img?     (id, first_name,         against each registry
+                          • Frontal pose?         last_name,               entry: "same person?"
+                          • Adequate lighting?    image_id,                → name + confidence
+                          • No occlusion?         status, notes)           or "unmatched"
+                          • Min resolution?
+                                │
+                          REJECT with structured
+                          reasons if invalid
+```
+
+### 10.3 Face Registry Schema
+
+```sql
+CREATE TABLE IF NOT EXISTS face_registry (
+    id          TEXT PRIMARY KEY,          -- UUID
+    first_name  TEXT NOT NULL,
+    last_name   TEXT NOT NULL,
+    image_id    TEXT NOT NULL REFERENCES gallery_images(id) ON DELETE CASCADE,
+    status      TEXT NOT NULL DEFAULT 'pending',  -- pending | valid | rejected
+    notes       TEXT NOT NULL DEFAULT '',          -- validation notes / rejection reasons
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+```
+
+### 10.4 Reference Image Requirements
+
+| Criterion | How Verified | Reject If |
+|-----------|-------------|-----------|
+| Exactly 1 face | Vision LLM face detection | 0 faces or >1 face detected |
+| Face occupies ≥15% of image | `face_size` from detection ÷ image dimensions | Face too small for reliable matching |
+| Frontal or near-frontal pose | Vision LLM assessment | Profile/side angle (matching degrades) |
+| Adequate lighting | Vision LLM assessment | Heavy shadow, backlight, severe underexposure |
+| No heavy occlusion | Vision LLM assessment | Sunglasses, masks, hands covering face |
+| Minimum resolution | Image dimensions check | Face region < 112×112 px |
+
+### 10.5 New Tools
+
+| Tool | Description |
+|------|-------------|
+| `face_validate` | Validate a gallery image as a face reference. Returns structured pass/fail with reasons. |
+| `face_register` | Register a validated face reference with a name (first_name, last_name). |
+| `face_list` | List all registered faces in the registry. |
+| `face_remove` | Remove a face from the registry by ID. |
+
+### 10.6 Auto-Matching Integration
+
+`gallery_refresh` with `include_faces: true` now includes an auto-matching step after face detection:
+
+1. Detect faces in all images (existing `tag_faces` pipeline)
+2. For each detected face, compare against all `valid` entries in `face_registry`
+3. Comparison: vision LLM receives both face crops and answers "Are these the same person?" with confidence
+4. Matched faces get named tags (e.g., `"name": "Alice Chen", "confidence": 0.94`)
+5. Unmatched faces remain as unnamed face groups (user can later name via `gallery_name_face` or register via `face_register`)
+
+### 10.7 Future Upgrade Path
+
+Replace vision LLM pairwise comparison with dedicated ONNX face embedding model (InsightFace/ArcFace):
+- Add `embedding` column (BLOB) to `face_registry`
+- Extract embeddings at `face_register` time
+- Use `sqlite-vec` for sub-millisecond vector similarity search
+- Vision LLM retained as fallback for borderline cases (confidence < 0.85)
+
+---
+
+## 11. Related Documents
 
 | Document | Relevance |
 |----------|-----------|

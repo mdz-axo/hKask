@@ -254,6 +254,11 @@ pub enum ServiceError {
     /// Configuration or external service setup failed.
     #[error("Config error: {0}")]
     Config(String),
+
+    // ── Matrix / communication ──────────────────────────────────────────
+    /// Matrix homeserver operation failed (registration, connection, message send).
+    #[error("Matrix error: {0}")]
+    Matrix(String),
 }
 
 impl From<uuid::Error> for ServiceError {
@@ -265,5 +270,357 @@ impl From<uuid::Error> for ServiceError {
 impl<T> From<std::sync::PoisonError<T>> for ServiceError {
     fn from(_: std::sync::PoisonError<T>) -> Self {
         ServiceError::Infra(hkask_types::InfrastructureError::LockPoisoned)
+    }
+}
+
+// ── Retryability semantics ─────────────────────────────────────────────
+//
+// The CNS energy budget needs to know whether retrying an operation will
+// consume gas for a potentially successful retry or waste gas on a
+// guaranteed failure. This method provides that signal.
+
+impl ServiceError {
+    /// Whether this error represents a transient condition that may succeed
+    /// on retry (with backoff). Used by the CNS gas budget to decide whether
+    /// to allow retry loops.
+    ///
+    /// Retryable: network I/O, inference connection/timeout, circuit breaker
+    /// open, rate limiting, external service unavailable.
+    ///
+    /// Non-retryable: not-found, invalid input, permission denied, database
+    /// corruption, encryption failures, lock poisoning.
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            // ── Retryable ────────────────────────────────────────────
+            ServiceError::InferencePort(e) => matches!(
+                e,
+                hkask_types::ports::InferenceError::Connection(_)
+                    | hkask_types::ports::InferenceError::CircuitOpen(_)
+            ),
+            ServiceError::Embedding(e) => matches!(
+                e,
+                hkask_types::ports::EmbeddingGenerationError::Connection(_)
+                    | hkask_types::ports::EmbeddingGenerationError::Api(..)
+            ),
+            ServiceError::Infra(e) => matches!(e, hkask_types::InfrastructureError::Io(_)),
+            ServiceError::RateLimited(_) => true,
+            ServiceError::Matrix(_) => true, // Network operations may be transient
+            ServiceError::Config(_) => true, // Config resolution may succeed on retry
+            ServiceError::Keystore(_) => true, // Keychain may be temporarily unavailable
+
+            // ── Non-retryable ────────────────────────────────────────
+            // User-input errors: retrying won't change the outcome
+            ServiceError::EscalationNotFound(_)
+            | ServiceError::AgentNotFound(_)
+            | ServiceError::InvalidAgentType(_)
+            | ServiceError::AgentRegistrationFailed(_)
+            | ServiceError::PodNotFound(_)
+            | ServiceError::UserNotFound(_)
+            | ServiceError::LoginFailed(_)
+            | ServiceError::InvalidPassphrase(_)
+            | ServiceError::ValidationError(_)
+            | ServiceError::InvalidWebID(_) => false,
+
+            // Storage errors: database corruption, schema issues, encryption
+            // failures are not transient
+            ServiceError::Storage(_) => false,
+
+            // Permission/security: retrying won't grant capabilities
+            ServiceError::Acp(_) | ServiceError::Consent(_) => false,
+
+            // CNS energy exhaustion: retrying would waste more gas
+            ServiceError::Gas(_) => false,
+
+            // Pipeline/operational errors: generally non-retryable
+            // (registry init failure, archival failure, embed failure)
+            ServiceError::RegistryInitFailed(_)
+            | ServiceError::RegistryLoadFailed(_)
+            | ServiceError::Archival(_)
+            | ServiceError::Embed(_)
+            | ServiceError::Compose(_)
+            | ServiceError::Skill(_)
+            | ServiceError::Verification(_)
+            | ServiceError::Wallet(_)
+            | ServiceError::Cns(_)
+            | ServiceError::Consolidation(_) => false,
+
+            // ── Delegate to inner error for transparent wrappers ──────
+            // Domain errors may have their own retryability semantics.
+            // Default conservative: non-retryable unless proven otherwise.
+            ServiceError::Escalation(_)
+            | ServiceError::Metacognition(_)
+            | ServiceError::AgentRegistry(_)
+            | ServiceError::AgentRegistryStore(_)
+            | ServiceError::Registry(_)
+            | ServiceError::Template(_)
+            | ServiceError::GoalRepo(_)
+            | ServiceError::Triple(_)
+            | ServiceError::UserStore(_)
+            | ServiceError::ConsentStore(_)
+            | ServiceError::SovereigntyStore(_)
+            | ServiceError::Spec(_)
+            | ServiceError::NuEvent(_)
+            | ServiceError::EpisodicMemory(_)
+            | ServiceError::SemanticMemory(_)
+            | ServiceError::Pod(_) => false,
+        }
+    }
+}
+
+// ── CNS ν-event emission ───────────────────────────────────────────────
+//
+// Only system-level errors (infrastructure, inference, CNS, storage)
+// emit ν-events. User-input errors (NotFound, InvalidInput, LoginFailed)
+// are not system conditions — they don't need CNS observability.
+
+impl ServiceError {
+    /// Emit a ν-event for CNS-observable errors.
+    ///
+    /// Returns `None` for user-input errors that don't represent system
+    /// conditions. Returns `Some(NuEvent)` for infrastructure, inference,
+    /// CNS, storage, and security errors the CNS can act on.
+    ///
+    /// The observer WebID is freshly generated per event — these are
+    /// system-level observations, not agent-specific.
+    pub fn nu_event(&self) -> Option<hkask_types::event::NuEvent> {
+        use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+        use hkask_types::id::WebID;
+
+        let (namespace, path_suffix, observation) = match self {
+            // ── Inference domain ──────────────────────────────────────
+            ServiceError::InferencePort(e) => (
+                "cns.inference",
+                "error",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::Embedding(e) => (
+                "cns.inference",
+                "error.embedding",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+
+            // ── CNS domain ────────────────────────────────────────────
+            ServiceError::Cns(msg) => (
+                "cns.cybernetics",
+                "error",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Gas(e) => (
+                "cns.gas",
+                "error",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+
+            // ── Storage domain ────────────────────────────────────────
+            ServiceError::Storage(e) => (
+                "cns.cybernetics",
+                "error.storage",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::Infra(e) => (
+                "cns.cybernetics",
+                "error.infra",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+
+            // ── Memory domain ─────────────────────────────────────────
+            ServiceError::EpisodicMemory(e) => (
+                "cns.memory.encode",
+                "error.episodic",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::SemanticMemory(e) => (
+                "cns.memory.encode",
+                "error.semantic",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::Consolidation(msg) => (
+                "cns.memory.encode",
+                "error.consolidation",
+                serde_json::json!({ "message": msg }),
+            ),
+
+            // ── Security / OCAP domain ────────────────────────────────
+            ServiceError::Acp(e) => (
+                "cns.sovereignty",
+                "error.acp",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::Consent(e) => (
+                "cns.sovereignty",
+                "error.consent",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+
+            // ── Agent / Pod domain ────────────────────────────────────
+            ServiceError::AgentRegistry(e) => (
+                "cns.agent_pod",
+                "error.registry_load",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::Pod(e) => (
+                "cns.agent_pod",
+                "error",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+
+            // ── Template domain ───────────────────────────────────────
+            ServiceError::Template(e) => (
+                "cns.template",
+                "error",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+
+            // ── Spec domain ───────────────────────────────────────────
+            ServiceError::Spec(e) => (
+                "cns.spec",
+                "error",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+
+            // ── Goal domain ───────────────────────────────────────────
+            ServiceError::GoalRepo(e) => (
+                "cns.goal",
+                "error",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+
+            // ── Keystore / Config ─────────────────────────────────────
+            ServiceError::Keystore(msg) => (
+                "cns.cybernetics",
+                "error.keystore",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Config(msg) => (
+                "cns.cybernetics",
+                "error.config",
+                serde_json::json!({ "message": msg }),
+            ),
+
+            // ── Rate limiting ─────────────────────────────────────────
+            ServiceError::RateLimited(msg) => (
+                "cns.cybernetics.backpressure",
+                "rate_limited",
+                serde_json::json!({ "message": msg }),
+            ),
+
+            // ── User-input errors — NOT system conditions ─────────────
+            // These return None: they don't represent system health.
+            ServiceError::EscalationNotFound(_)
+            | ServiceError::AgentNotFound(_)
+            | ServiceError::InvalidAgentType(_)
+            | ServiceError::AgentRegistrationFailed(_)
+            | ServiceError::PodNotFound(_)
+            | ServiceError::UserNotFound(_)
+            | ServiceError::LoginFailed(_)
+            | ServiceError::InvalidPassphrase(_)
+            | ServiceError::ValidationError(_)
+            | ServiceError::InvalidWebID(_) => return None,
+
+            // ── Pipeline / operational errors — system conditions ─────
+            ServiceError::RegistryInitFailed(msg) => (
+                "cns.cybernetics",
+                "error.registry_init",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::RegistryLoadFailed(msg) => (
+                "cns.cybernetics",
+                "error.registry_load",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Archival(msg) => (
+                "cns.cybernetics",
+                "error.archival",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Embed(msg) => (
+                "cns.pipeline",
+                "error.embed",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Compose(msg) => (
+                "cns.pipeline",
+                "error.compose",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Skill(msg) => (
+                "cns.pipeline",
+                "error.skill",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Verification(msg) => (
+                "cns.sovereignty",
+                "error.verification",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Wallet(msg) => (
+                "cns.wallet.balance",
+                "error",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Matrix(msg) => (
+                "cns.cybernetics",
+                "error.matrix",
+                serde_json::json!({ "message": msg }),
+            ),
+
+            // ── Transparent wrappers not explicitly matched above ──────
+            // These carry domain semantics from upstream crates.
+            // Default: emit as cybernetics error with the Display message.
+            ServiceError::Metacognition(e) => (
+                "cns.curation",
+                "error.metacognition",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::Escalation(e) => (
+                "cns.curation",
+                "error.escalation",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::Registry(e) => (
+                "cns.template",
+                "error.registry",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::Triple(e) => (
+                "cns.memory.encode",
+                "error.triple",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::UserStore(e) => (
+                "cns.cybernetics",
+                "error.user_store",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::ConsentStore(e) => (
+                "cns.sovereignty",
+                "error.consent_store",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::SovereigntyStore(e) => (
+                "cns.sovereignty",
+                "error.sovereignty_store",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::NuEvent(e) => (
+                "cns.cybernetics",
+                "error.nu_event",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+            ServiceError::AgentRegistryStore(e) => (
+                "cns.agent_pod",
+                "error.agent_registry_store",
+                serde_json::json!({ "error": e.to_string() }),
+            ),
+        };
+
+        let span = Span::new(SpanNamespace::new(namespace), path_suffix);
+        Some(NuEvent::new(
+            WebID::new(),
+            span,
+            Phase::Sense,
+            observation,
+            0,
+        ))
     }
 }

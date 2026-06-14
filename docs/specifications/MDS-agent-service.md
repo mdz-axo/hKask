@@ -2,7 +2,7 @@
 title: "MDS — AgentService Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-10
-version: "0.27.2"
+version: "0.27.0"
 status: "Active"
 domain: "Composition"
 mds_categories: [domain, composition, trust, lifecycle]

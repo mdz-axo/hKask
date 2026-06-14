@@ -35,6 +35,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-06** | Citation compliance audit | Curator | Medium | ✅ Complete | 9 target docs compliant (2026-06-11); 12 additional docs pending |
 | **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web + hkask-mcp-rss-reader → hkask-mcp-research (1,044 LOC, ~17 tools) (consolidated 2026-06-11) |
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have mds_categories (2026-05-28) |
+| **P1-09** | Face recognition system for media server | Media bot | High | 🔄 In Progress | `docs/plans/mcp-media-server-design.md` §10. Face registry table, validation gate, auto-matching in gallery_refresh. 4 new tools: face_validate, face_register, face_list, face_remove. |
 
 ---
 

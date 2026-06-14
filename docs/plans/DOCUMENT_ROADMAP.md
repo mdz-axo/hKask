@@ -52,11 +52,9 @@ mds_categories: [lifecycle, curation]
 
 ## P1 — High (This Release)
 
-### P1-1: Fix Metadata on 5 Audit Documents
+### P1-1: Fix Metadata on 5 Audit Documents ✅ DONE
 
-**Current status:** 5 files in `docs/audit/` lack YAML frontmatter entirely (confirmed by `check-metadata.sh`).  
-**Action:** Add minimal frontmatter with `status: "Deprecated"` and `mds_categories: [curation]` since these are completed audit bundles with historical value only.  
-**Files:** `crate-audit-task1-cartography.md`, `crate-audit-task2-cybernetics.md`, `crate-audit-task3-rust-audit.md`, `crate-audit-task4-implementation.md`, `crate-audit-task5-open-questions.md`
+**Status:** Archived 2026-06-14. All 5 audit documents had YAML frontmatter (were not actually missing). Archived per essentialist Gate 1 — no forward-looking value.
 
 ### P1-2: Fix `mds_categories` on `docs/status/skill-inventory.md`
 
@@ -123,9 +121,9 @@ Extract archive policy from `docs/archive/MANIFEST.md` and `HANDOFF_LIFECYCLE.md
 
 No operational documentation exists for hKask deployments. Minimum viable: cloud server daemon setup, troubleshooting, log locations, key rotation procedure.
 
-### P2-5: Migrate `docs/audit/` to Archive
+### P2-5: Migrate `docs/audit/` to Archive ✅ DONE
 
-Completed audit bundles (5 files) are static historical records with no forward-looking value. After adding frontmatter (P1-1), consider archiving the entire `docs/audit/` directory.
+**Status:** Archived 2026-06-14. All 5 audit documents moved to `docs/archive/2026-06-14-crate-audit/`. Failed essentialist Gate 1 (Exist). `docs/audit/` directory is now empty.
 
 ### P2-6: Standardize Plan Document Versioning
 

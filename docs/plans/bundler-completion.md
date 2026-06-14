@@ -2,7 +2,7 @@
 title: "Bundler Completion Plan — Remaining Tasks"
 audience: [project maintainers, contributors]
 last_updated: 2026-06-11
-version: "0.1.0"
+version: "0.27.0"
 status: "Active"
 domain: "Skill Bundling"
 mds_categories: [domain, composition, lifecycle]

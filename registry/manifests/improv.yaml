@@ -1,0 +1,202 @@
+# Improv Skill Manifest
+# hKask v0.27.0 — Composable interaction grammar for agent communication
+
+manifest:
+  id: improv
+  name: Improv
+  skill_type: interaction
+  description: >
+    Composable interaction grammar for hKask agents. Five improv modes
+    (Plussing, Yes And, Yes But, Freestyling, Riffing) provide
+    constructive-by-default communication protocols. Used in dual-presence
+    chat, ensemble sessions, and kata coaching loops. Governing principle:
+    never explicitly negate — criticism is deletion-by-omission.
+  editor: Curator
+  visibility: public
+
+gas:
+  cap: 8000
+  cost_per_token: 0.15
+  alert_threshold: 0.7
+  hard_limit: true
+
+modes:
+  - name: plussing
+    label: Plussing (Catmull)
+    description: >
+      Extract agreeable components from a contribution, silently discard
+      the remainder, and build constructively on selected seeds.
+      Never explicitly negate.
+    cns_span: cns.improv.plussing.ratio
+    default_for:
+      - dual-presence chat (replicant posture)
+      - starter kata observation drill
+      - coaching kata Q5 (amplify experimental design)
+    repl_command: /improv plussing
+
+  - name: yes-and
+    label: Yes And
+    description: >
+      Accept the whole contribution and extend it with a novel, additive
+      layer. Extension must be additive, not substitutive.
+    cns_span: cns.improv.mode.active
+    default_for:
+      - starter kata five-questions drill
+      - brainstorming sessions
+      - ensemble momentum building
+    repl_command: /improv yes-and
+
+  - name: yes-but
+    label: Yes But
+    description: >
+      Accept the whole contribution and append a constraint or redirect
+      that narrows scope without contradicting.
+    cns_span: cns.improv.mode.active
+    default_for:
+      - coaching kata Q4 (next step guidance)
+      - scope narrowing discussions
+      - risk assessment conversations
+    repl_command: /improv yes-but
+
+  - name: freestyling
+    label: Freestyling
+    description: >
+      Rapid collaborative short-response cycling among participants.
+      Time-bounded, no single owner, round-robin turns.
+    cns_span: cns.improv.freestyle.coherence
+    default_for:
+      - creative problem-solving loops
+      - architecture exploration sessions
+      - ensemble rapid ideation
+    repl_command: /improv freestyle [duration_seconds]
+
+  - name: riffing
+    label: Riffing
+    description: >
+      Solo divergent exploration from a seed contribution. May return
+      to group with synthesis or spawn a new thread.
+    cns_span: cns.improv.mode.active
+    default_for:
+      - deep-dive exploration of specific ideas
+      - "what if" tangents
+      - independent research threads
+    repl_command: /improv riff [return-policy: group|spawn|steps:N]
+
+composition_rules:
+  - sequence: [plussing, yes-and]
+    description: Filter then extend the filtered seeds (constructive escalation)
+  - sequence: [plussing, riffing]
+    description: Filter then explore the strongest seed independently
+  - sequence: [freestyling, plussing]
+    description: After rapid ideation, filter emergent ideas for the best ones
+  - sequence: [yes-but, yes-and]
+    description: Constrain then extend within the boundary
+
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Mode selection — determine which improv mode to apply based on
+      conversation context, user preference, or kata phase.
+    renderer: minijinja
+    template_ref: improv/improv-cycle
+    gas_cap: 1000
+    timeout_seconds: 10
+    output_schema:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [plussing, yes-and, yes-but, freestyling, riffing]
+        rationale:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Mode application — apply the selected improv mode to the current
+      contribution. Delegates to mode-specific template.
+    renderer: minijinja
+    template_ref: improv/improv-{{ mode }}
+    gas_cap: 2000
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        response:
+          type: string
+        cns_spans:
+          type: array
+
+  - ordinal: 3
+    action: execute
+    description: >
+      CNS emission — record improv mode application to CNS spans.
+      Track constructive ratio, coherence, and mode transitions.
+    renderer: null
+    template_ref: null
+    target: emit_improv_cns
+    mcp: hkask-mcp-memory
+    tool: cns_emit
+    gas_cap: 500
+    timeout_seconds: 5
+    output_schema:
+      type: object
+      properties:
+        cns_event_id:
+          type: string
+        mode_active:
+          type: string
+        plussing_ratio:
+          type: number
+
+error_handling:
+  on_gas_exceeded: abort_and_escalate
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+
+cns:
+  emit_spans: true
+  span_namespace: cns.improv
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: hKask-Administrator
+  spans:
+    - cns.improv.mode.active
+    - cns.improv.plussing.ratio
+    - cns.improv.freestyle.coherence
+    - cns.improv.ensemble.coherence
+    - cns.kata.improv.effectiveness
+
+integration_points:
+  dual_presence_repl:
+    command: /improv
+    subcommands: [plussing, yes-and, yes-but, freestyle, riff]
+    description: Set replicant improv posture for current session
+
+  ensemble_chat:
+    description: Sessions can declare an improv mode for the session scope
+
+  starter_kata:
+    observation_drill: plussing
+    five_questions_drill: yes-and
+    description: Improv modes reinforce correct patterns and filter errors
+
+  coaching_kata:
+    q4_next_step: yes-but
+    q5_learn: plussing
+    description: Yes But introduces constraints, Plussing amplifies design
+
+  skill_bundles:
+    - improv + kata-starter
+    - improv + kata-coaching
+    - improv + coding-guidelines
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true

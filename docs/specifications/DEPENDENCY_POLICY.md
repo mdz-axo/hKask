@@ -2,7 +2,7 @@
 title: "hKask Dependency Policy"
 audience: [developers, maintainers, agents]
 last_updated: 2026-05-22
-version: "1.0.0"
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle]

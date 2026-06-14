@@ -126,6 +126,13 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.condenser.compression_ratio",
     "cns.evolution.energy_delta",
     "cns.architecture.module_depth",
+    // Improv spans — composable interaction grammar (hkask-improv crate)
+    "cns.improv.mode.active",
+    "cns.improv.plussing.ratio",
+    "cns.improv.freestyle.coherence",
+    "cns.improv.ensemble.coherence",
+    "cns.kata.improv.effectiveness",
+    "cns.improv.cascade.depth",
 ];
 
 impl SpanNamespace {

@@ -8,6 +8,7 @@
 //! - `galleries`: root_path, policy_mode
 //! - `images`: path, hash, dimensions, gallery_id
 //! - `tags`: image_id, tag_type, value, confidence
+//! - `face_registry`: first_name, last_name, image_id, status, notes
 
 use crate::{Store, now_rfc3339};
 use hkask_types::InfrastructureError;
@@ -110,6 +111,21 @@ pub struct TagRecord {
     pub created_at: String,
 }
 
+/// A registered face in the face registry.
+///
+/// Maps a reference image to a person's name for facial recognition matching.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FaceRegistryRecord {
+    pub id: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub image_id: String,
+    pub status: String,
+    pub notes: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 define_store!(GalleryStore);
 
 impl GalleryStore {
@@ -160,7 +176,21 @@ impl GalleryStore {
                 ON gallery_tags(tag_type);
 
             CREATE UNIQUE INDEX IF NOT EXISTS idx_gallery_tags_unique
-                ON gallery_tags(image_id, tag_type, value);",
+                ON gallery_tags(image_id, tag_type, value);
+
+            CREATE TABLE IF NOT EXISTS face_registry (
+                id TEXT PRIMARY KEY,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                image_id TEXT NOT NULL REFERENCES gallery_images(id) ON DELETE CASCADE,
+                status TEXT NOT NULL DEFAULT 'pending',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_face_registry_status
+                ON face_registry(status);",
         )
     }
 
@@ -431,6 +461,131 @@ impl GalleryStore {
         Ok(rows)
     }
 
+    /// Register a face in the registry.
+    ///
+    /// REQ: media-face-register-01
+    pub fn register_face(
+        &self,
+        first_name: &str,
+        last_name: &str,
+        image_id: &str,
+        status: &str,
+        notes: &str,
+    ) -> std::result::Result<FaceRegistryRecord, GalleryStoreError> {
+        let conn = self.lock_conn()?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = now_rfc3339();
+
+        conn.execute(
+            "INSERT INTO face_registry (id, first_name, last_name, image_id, status, notes, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
+            rusqlite::params![id, first_name, last_name, image_id, status, notes, now],
+        )?;
+
+        Ok(FaceRegistryRecord {
+            id,
+            first_name: first_name.to_string(),
+            last_name: last_name.to_string(),
+            image_id: image_id.to_string(),
+            status: status.to_string(),
+            notes: notes.to_string(),
+            created_at: now.clone(),
+            updated_at: now,
+        })
+    }
+
+    /// List all faces in the registry, optionally filtered by status.
+    ///
+    /// REQ: media-face-list-01
+    pub fn list_faces(
+        &self,
+        status_filter: Option<&str>,
+    ) -> std::result::Result<Vec<FaceRegistryRecord>, GalleryStoreError> {
+        let conn = self.lock_conn()?;
+
+        if let Some(status) = status_filter {
+            let mut stmt = conn.prepare(
+                "SELECT id, first_name, last_name, image_id, status, notes, created_at, updated_at
+                 FROM face_registry WHERE status = ?1
+                 ORDER BY created_at DESC",
+            )?;
+            stmt.query_map([status], Self::face_from_row)?
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(GalleryStoreError::from)
+        } else {
+            let mut stmt = conn.prepare(
+                "SELECT id, first_name, last_name, image_id, status, notes, created_at, updated_at
+                 FROM face_registry
+                 ORDER BY created_at DESC",
+            )?;
+            stmt.query_map([], Self::face_from_row)?
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(GalleryStoreError::from)
+        }
+    }
+
+    /// Get a face registry entry by ID.
+    ///
+    /// REQ: media-face-get-01
+    pub fn get_face(
+        &self,
+        face_id: &str,
+    ) -> std::result::Result<FaceRegistryRecord, GalleryStoreError> {
+        let conn = self.lock_conn()?;
+
+        conn.query_row(
+            "SELECT id, first_name, last_name, image_id, status, notes, created_at, updated_at
+             FROM face_registry WHERE id = ?1",
+            [face_id],
+            Self::face_from_row,
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                GalleryStoreError::NotFound(format!("face_id={}", face_id))
+            }
+            other => GalleryStoreError::from(other),
+        })
+    }
+
+    /// Remove a face from the registry by ID.
+    ///
+    /// REQ: media-face-remove-01
+    pub fn remove_face(&self, face_id: &str) -> std::result::Result<(), GalleryStoreError> {
+        let conn = self.lock_conn()?;
+
+        let affected = conn.execute("DELETE FROM face_registry WHERE id = ?1", [face_id])?;
+
+        if affected == 0 {
+            return Err(GalleryStoreError::NotFound(format!("face_id={}", face_id)));
+        }
+
+        Ok(())
+    }
+
+    /// Update a face registry entry's status and notes.
+    ///
+    /// REQ: media-face-update-01
+    pub fn update_face(
+        &self,
+        face_id: &str,
+        status: &str,
+        notes: &str,
+    ) -> std::result::Result<FaceRegistryRecord, GalleryStoreError> {
+        let conn = self.lock_conn()?;
+        let now = now_rfc3339();
+
+        let affected = conn.execute(
+            "UPDATE face_registry SET status = ?1, notes = ?2, updated_at = ?3 WHERE id = ?4",
+            rusqlite::params![status, notes, now, face_id],
+        )?;
+
+        if affected == 0 {
+            return Err(GalleryStoreError::NotFound(format!("face_id={}", face_id)));
+        }
+
+        self.get_face(face_id)
+    }
+
     // ── Row mappers ──
 
     fn image_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImageRecord> {
@@ -457,6 +612,19 @@ impl GalleryStore {
             confidence: row.get(4)?,
             model_used: row.get(5)?,
             created_at: row.get(6)?,
+        })
+    }
+
+    fn face_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<FaceRegistryRecord> {
+        Ok(FaceRegistryRecord {
+            id: row.get(0)?,
+            first_name: row.get(1)?,
+            last_name: row.get(2)?,
+            image_id: row.get(3)?,
+            status: row.get(4)?,
+            notes: row.get(5)?,
+            created_at: row.get(6)?,
+            updated_at: row.get(7)?,
         })
     }
 }
@@ -687,5 +855,234 @@ mod tests {
         // Only one tag exists
         let tags = store.get_tags(&img.id).unwrap();
         assert_eq!(tags.len(), 1);
+    }
+
+    // ── Face registry tests ──
+
+    /// REQ: media-face-register-01 — register_face creates a valid record
+    #[test]
+    fn register_face_creates_record() {
+        let store = setup();
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .unwrap();
+        let img = store
+            .add_image(
+                &gallery.id,
+                "alice.jpg",
+                "/tmp/test-gallery/alice.jpg",
+                "hash1",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .unwrap();
+
+        let face = store
+            .register_face(
+                "Alice",
+                "Chen",
+                &img.id,
+                "valid",
+                "Frontal portrait, good lighting",
+            )
+            .unwrap();
+
+        assert_eq!(face.first_name, "Alice");
+        assert_eq!(face.last_name, "Chen");
+        assert_eq!(face.image_id, img.id);
+        assert_eq!(face.status, "valid");
+        assert!(face.notes.contains("good lighting"));
+    }
+
+    /// REQ: media-face-list-01 — list_faces returns all registered faces
+    #[test]
+    fn list_faces_returns_all() {
+        let store = setup();
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .unwrap();
+        let img1 = store
+            .add_image(
+                &gallery.id,
+                "alice.jpg",
+                "/tmp/test-gallery/alice.jpg",
+                "hash1",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .unwrap();
+        let img2 = store
+            .add_image(
+                &gallery.id,
+                "bob.jpg",
+                "/tmp/test-gallery/bob.jpg",
+                "hash2",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .unwrap();
+
+        store
+            .register_face("Alice", "Chen", &img1.id, "valid", "")
+            .unwrap();
+        store
+            .register_face("Bob", "Smith", &img2.id, "valid", "")
+            .unwrap();
+
+        let faces = store.list_faces(None).unwrap();
+        assert_eq!(faces.len(), 2);
+    }
+
+    /// REQ: media-face-list-02 — list_faces filters by status
+    #[test]
+    fn list_faces_filters_by_status() {
+        let store = setup();
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .unwrap();
+        let img1 = store
+            .add_image(
+                &gallery.id,
+                "alice.jpg",
+                "/tmp/test-gallery/alice.jpg",
+                "hash1",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .unwrap();
+        let img2 = store
+            .add_image(
+                &gallery.id,
+                "bob.jpg",
+                "/tmp/test-gallery/bob.jpg",
+                "hash2",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .unwrap();
+
+        store
+            .register_face("Alice", "Chen", &img1.id, "valid", "")
+            .unwrap();
+        store
+            .register_face("Bob", "Smith", &img2.id, "rejected", "Too dark")
+            .unwrap();
+
+        let valid = store.list_faces(Some("valid")).unwrap();
+        assert_eq!(valid.len(), 1);
+        assert_eq!(valid[0].first_name, "Alice");
+
+        let rejected = store.list_faces(Some("rejected")).unwrap();
+        assert_eq!(rejected.len(), 1);
+        assert_eq!(rejected[0].first_name, "Bob");
+    }
+
+    /// REQ: media-face-get-01 — get_face returns correct record
+    #[test]
+    fn get_face_returns_record() {
+        let store = setup();
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .unwrap();
+        let img = store
+            .add_image(
+                &gallery.id,
+                "alice.jpg",
+                "/tmp/test-gallery/alice.jpg",
+                "hash1",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .unwrap();
+
+        let face = store
+            .register_face("Alice", "Chen", &img.id, "valid", "")
+            .unwrap();
+
+        let retrieved = store.get_face(&face.id).unwrap();
+        assert_eq!(retrieved.first_name, "Alice");
+        assert_eq!(retrieved.last_name, "Chen");
+    }
+
+    /// REQ: media-face-get-02 — get_face errors on unknown ID
+    #[test]
+    fn get_face_unknown_id_errors() {
+        let store = setup();
+        let result = store.get_face("nonexistent-id");
+        assert!(result.is_err());
+    }
+
+    /// REQ: media-face-remove-01 — remove_face deletes record
+    #[test]
+    fn remove_face_deletes_record() {
+        let store = setup();
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .unwrap();
+        let img = store
+            .add_image(
+                &gallery.id,
+                "alice.jpg",
+                "/tmp/test-gallery/alice.jpg",
+                "hash1",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .unwrap();
+
+        let face = store
+            .register_face("Alice", "Chen", &img.id, "valid", "")
+            .unwrap();
+
+        store.remove_face(&face.id).unwrap();
+
+        let result = store.get_face(&face.id);
+        assert!(result.is_err());
+    }
+
+    /// REQ: media-face-update-01 — update_face changes status and notes
+    #[test]
+    fn update_face_changes_status() {
+        let store = setup();
+        let gallery = store
+            .create("/tmp/test-gallery", GalleryMode::ReadOnly)
+            .unwrap();
+        let img = store
+            .add_image(
+                &gallery.id,
+                "alice.jpg",
+                "/tmp/test-gallery/alice.jpg",
+                "hash1",
+                400,
+                600,
+                "jpg",
+                50000,
+            )
+            .unwrap();
+
+        let face = store
+            .register_face("Alice", "Chen", &img.id, "pending", "")
+            .unwrap();
+
+        let updated = store
+            .update_face(&face.id, "rejected", "Multiple faces detected")
+            .unwrap();
+
+        assert_eq!(updated.status, "rejected");
+        assert!(updated.notes.contains("Multiple faces"));
     }
 }

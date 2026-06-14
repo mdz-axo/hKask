@@ -27,7 +27,7 @@ mds_categories: [lifecycle, curation]
 | `docs/status/` | CI/CD steward | Per-build | Mixed | Inventories auto-generated; PROJECT_STATUS.md manual |
 | `docs/user-guides/` | User advocate | Per-release | No | End-user facing documentation |
 | `docs/guides/` | Methodology steward | Per-release | No | Research and practice guides |
-| `docs/audit/` | Audit steward | Per-audit-cycle | No | Completed audit bundles; archival candidates |
+| `docs/audit/` | Audit steward | Per-audit-cycle | No | **Archived 2026-06-14.** Completed audit bundles moved to `docs/archive/2026-06-14-crate-audit/`. Directory retained for future audit cycles. |
 | `docs/generated/` | Build system | Per-build | **Yes** | CLI reference, OpenAPI spec (future) |
 | `docs/ci/` | CI/CD steward | Per-build | No | Verification scripts |
 | `docs/archive/` | Documentation steward | Per-sweep | No | Gitignored snapshot; git history is canonical |
@@ -70,8 +70,9 @@ mds_categories: [lifecycle, curation]
 - Ensures research guides reference current project state
 
 ### Audit Steward
-- Maintains `docs/audit/` bundles
+- Maintains `docs/audit/` bundles during active audit cycles
 - Transitions completed audit bundles to archive when implementation is verified
+- **Current state:** All prior audit bundles archived 2026-06-14. Directory empty, ready for next audit cycle.
 
 ---
 

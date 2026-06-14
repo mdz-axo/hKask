@@ -130,7 +130,7 @@ impl BootstrapSequence {
 
         // Phase 3: MCP
         self.start_phase(BootstrapPhase::Mcp);
-        self.phase_mcp()?;
+        self.phase_mcp().await?;
         self.complete_phase(BootstrapPhase::Mcp).await;
 
         // Phase 4: Bots (async)
@@ -238,8 +238,9 @@ impl BootstrapSequence {
         Ok(())
     }
 
-    /// Phase 3: MCP — Start McpSupervisor, register servers, verify health
-    fn phase_mcp(&self) -> Result<(), BootstrapError> {
+    /// Phase 3: MCP — Start McpSupervisor, register servers, verify health,
+    /// and register system bot Matrix accounts on Conduit.
+    async fn phase_mcp(&mut self) -> Result<(), BootstrapError> {
         info!(target: "bootstrap", "MCP phase: Starting MCP supervisor");
 
         let mcp_servers = vec![
@@ -259,8 +260,29 @@ impl BootstrapSequence {
                 server = %server,
                 "Registering MCP server"
             );
-            // cns.connector.{server}.started would be emitted by McpSupervisor
-            // when with_cns_emitter() is configured
+        }
+
+        // Register system bot Matrix accounts on Conduit (non-blocking)
+        let homeserver_url = std::env::var("HKASK_MATRIX_URL")
+            .unwrap_or_else(|_| "http://localhost:8008".to_string());
+
+        match hkask_services::OnboardingService::register_system_accounts(&homeserver_url).await {
+            Ok(registered) => {
+                info!(
+                    target: "bootstrap",
+                    count = %registered.len(),
+                    "System bot Matrix accounts registered"
+                );
+            }
+            Err(e) => {
+                // Non-fatal — Conduit may not be running yet.
+                // The health monitor will retry on next cycle.
+                info!(
+                    target: "bootstrap",
+                    error = %e,
+                    "System bot Matrix registration deferred — Conduit not available"
+                );
+            }
         }
 
         Ok(())

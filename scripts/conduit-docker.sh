@@ -29,11 +29,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/conduit-docker.yml"
 HOMESERVER_URL="http://localhost:8008"
 
-# Detect docker compose variant (v2 uses "docker compose", v1 uses "docker-compose")
+# Detect container runtime (docker compose > podman compose > docker-compose > podman-compose)
 if docker compose version &>/dev/null; then
     DOCKER_COMPOSE="docker compose"
-else
+elif podman compose version &>/dev/null; then
+    DOCKER_COMPOSE="podman compose"
+elif docker-compose --version &>/dev/null; then
     DOCKER_COMPOSE="docker-compose"
+elif podman-compose --version &>/dev/null; then
+    DOCKER_COMPOSE="podman-compose"
+else
+    echo "Error: No container runtime found. Install Docker or Podman with compose support."
+    echo "  Docker: https://docs.docker.com/engine/install/"
+    echo "  Podman: https://podman.io/getting-started/installation"
+    exit 1
 fi
 
 # ── Colors ───────────────────────────────────────────────────────────────────

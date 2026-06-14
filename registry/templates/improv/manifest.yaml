@@ -1,0 +1,53 @@
+# Template crate manifest for improv skill
+# hKask v0.27.0
+
+crate:
+  name: improv
+  version: "0.27.0"
+  description: >
+    Composable interaction grammar for hKask agents. Five improv modes
+    (Plussing, Yes And, Yes But, Freestyling, Riffing) provide
+    constructive-by-default communication protocols for dual-presence
+    chat, ensemble sessions, and kata coaching loops.
+
+templates:
+  - id: improv/improv-cycle
+    path: improv-cycle.j2
+    type: FlowDef
+    description: Full improv mode selection and application cycle.
+
+  - id: improv/improv-plussing
+    path: improv-plussing.j2
+    type: WordAct
+    description: >
+      Plussing (Catmull) — Extract agreeable components from a contribution,
+      silently discard the remainder, and build constructively on selected seeds.
+      Never explicitly negate.
+
+  - id: improv/improv-yes-and
+    path: improv-yes-and.j2
+    type: WordAct
+    description: >
+      Yes And — Accept the whole contribution and extend it with a novel,
+      additive layer. Extension must be additive, not substitutive.
+
+  - id: improv/improv-yes-but
+    path: improv-yes-but.j2
+    type: WordAct
+    description: >
+      Yes But — Accept the whole contribution and append a constraint or
+      redirect that narrows scope without contradicting.
+
+  - id: improv/improv-freestyling
+    path: improv-freestyling.j2
+    type: WordAct
+    description: >
+      Freestyling — Rapid collaborative short-response cycling among
+      participants. Time-bounded, no single owner, round-robin turns.
+
+  - id: improv/improv-riffing
+    path: improv-riffing.j2
+    type: WordAct
+    description: >
+      Riffing — Solo divergent exploration from a seed contribution.
+      May return to group with synthesis or spawn a new thread.

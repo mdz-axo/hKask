@@ -10,7 +10,7 @@
 //! After setup, derived secrets are stored in the OS keychain for future
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
-use hkask_services::{OnboardingService, ResolvedSecrets, ServiceConfig};
+use hkask_services::{MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig};
 use hkask_types::{RegisteredAgent, UserProfile};
 use thiserror::Error;
 
@@ -181,6 +181,9 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         e
     })?;
 
+    // Matrix registration for the new replicant (human account already exists)
+    let matrix_info = register_replicant_matrix(&display_name).await;
+
     // Summary
     println!();
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
@@ -196,6 +199,9 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         "  \x1b[1mModel:\x1b[0m     \x1b[36m{}\x1b[0m",
         selected_model
     );
+    if let Some(ref mid) = matrix_info {
+        println!("  \x1b[1mMatrix:\x1b[0m    \x1b[36m{}\x1b[0m", mid);
+    }
     println!();
     println!(
         "  Start a session: \x1b[36mkask chat {}\x1b[0m",
@@ -384,8 +390,17 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
         cleanup(&config);
     })?;
 
+    // Matrix registration — create accounts on Conduit for human + replicant
+    let matrix_result =
+        register_matrix_for_onboarding(&user_profile, &display_name, &passphrase).await;
+
     // Post-creation summary
-    print_creation_summary(&display_name, &description, &selected_model);
+    print_creation_summary(
+        &display_name,
+        &description,
+        &selected_model,
+        matrix_result.as_ref(),
+    );
 
     Ok(OnboardingOutcome {
         signed_in_agent: display_name,
@@ -680,8 +695,104 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     Ok(())
 }
 
+/// Register a Matrix account for a new replicant (added via `kask onboard`).
+///
+/// The human account already exists from first-run onboarding. Only the
+/// replicant account needs to be created. Uses a generated password derived
+/// from a UUID — the daemon handles replicant authentication, not the human.
+async fn register_replicant_matrix(display_name: &str) -> Option<String> {
+    let homeserver_url =
+        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
+
+    let localpart = display_name.to_lowercase().replace(' ', "-");
+    let full_username = format!("@{}-bot:localhost", localpart);
+    let password = uuid::Uuid::new_v4().to_string();
+
+    let url = format!(
+        "{}/_matrix/client/v3/register",
+        homeserver_url.trim_end_matches('/')
+    );
+    let body = serde_json::json!({
+        "username": format!("{}-bot", localpart),
+        "password": &password,
+        "initial_device_display_name": "hKask Replicant",
+        "auth": {"type": "m.login.dummy"}
+    });
+
+    match reqwest::Client::new()
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(response) if response.status().is_success() => {
+            let keychain = hkask_keystore::Keychain::default();
+            let _ = keychain.store_by_key(&format!("matrix-replicant-{}", display_name), &password);
+            Some(full_username)
+        }
+        Ok(response) => {
+            eprintln!(
+                "  \x1b[33m⚠\x1b[0m  Matrix registration for replicant failed (HTTP {})",
+                response.status().as_u16()
+            );
+            None
+        }
+        Err(e) => {
+            eprintln!("  \x1b[33m⚠\x1b[0m  Matrix registration failed: {}", e);
+            eprintln!("  Is Conduit running? Start it with:");
+            eprintln!("    \x1b[36m./scripts/conduit-docker.sh start\x1b[0m");
+            None
+        }
+    }
+}
+
+/// Attempt Matrix account registration during onboarding.
+///
+/// If Conduit is not running, prints a warning and returns `None` —
+/// Matrix registration is non-blocking for onboarding. The user can
+/// register later by running `kask onboard` again or using the
+/// `./scripts/conduit-docker.sh register` helper.
+async fn register_matrix_for_onboarding(
+    user_profile: &UserProfile,
+    replicant_display_name: &str,
+    passphrase: &str,
+) -> Option<MatrixRegistrationResult> {
+    let homeserver_url =
+        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
+
+    match OnboardingService::register_matrix_accounts(
+        user_profile,
+        replicant_display_name,
+        passphrase,
+        &homeserver_url,
+    )
+    .await
+    {
+        Ok(result) => Some(result),
+        Err(e) => {
+            eprintln!();
+            eprintln!(
+                "  \x1b[33m⚠\x1b[0m  Matrix chat accounts could not be registered: {}",
+                e
+            );
+            eprintln!("  Is Conduit running? Start it with:");
+            eprintln!("    \x1b[36m./scripts/conduit-docker.sh start\x1b[0m");
+            eprintln!("  Then register accounts manually:");
+            eprintln!("    \x1b[36m./scripts/conduit-docker.sh register\x1b[0m");
+            eprintln!();
+            None
+        }
+    }
+}
+
 /// Print a summary after successful replicant creation (first-run).
-fn print_creation_summary(name: &str, description: &str, model: &str) {
+fn print_creation_summary(
+    name: &str,
+    description: &str,
+    model: &str,
+    matrix: Option<&MatrixRegistrationResult>,
+) {
     println!();
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
     println!("  \x1b[1;32m  ✓  Replicant created successfully!\x1b[0m");
@@ -691,6 +802,20 @@ fn print_creation_summary(name: &str, description: &str, model: &str) {
     println!("  \x1b[1mTag line:\x1b[0m  {}", description);
     println!("  \x1b[1mModel:\x1b[0m     \x1b[36m{}\x1b[0m", model);
     println!("  \x1b[1mSecurity:\x1b[0m  Keys stored in OS keychain (encrypted DB)");
+
+    if let Some(m) = matrix {
+        println!();
+        println!("  \x1b[1mMatrix Chat:\x1b[0m");
+        println!("  Accounts registered on Conduit (localhost:8008):");
+        println!("    \x1b[36mYou:\x1b[0m      {}", m.human_user_id);
+        println!("    \x1b[36mReplicant:\x1b[0m {}", m.replicant_user_id);
+        println!();
+        println!("  Open FluffyChat (or any Matrix client) and log in with:");
+        println!("    Homeserver: http://localhost:8008");
+        println!("    Username:   {}", m.human_user_id);
+        println!("    Password:   your master passphrase");
+    }
+
     println!();
     println!("  \x1b[1mGetting started:\x1b[0m");
     println!("  • Just type to chat with your replicant");

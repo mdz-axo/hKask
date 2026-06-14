@@ -916,6 +916,19 @@ impl ChatService {
         };
 
         // 4. Execute inference via ChatService::chat().
+        // 4a. Inject improv mode instructions into the system prompt.
+        let effective_input = if let Some(ref mode) = req.improv_mode {
+            let improv_instruction = improv_system_prompt(mode);
+            format!(
+                "{}
+
+{}",
+                improv_instruction, effective_input
+            )
+        } else {
+            effective_input
+        };
+
         let chat_req = ChatRequest {
             input: effective_input,
             agent_name: Some(req.agent_name.clone()),
@@ -992,6 +1005,10 @@ pub struct TurnRequest {
     pub context_window: Option<u32>,
     /// Model to use for condenser summarization (defaults to chat model if None).
     pub condenser_model: Option<String>,
+    /// Active improv mode — when set, prepends mode-specific instructions
+    /// to the system prompt so the model adopts the interaction posture.
+    /// None means no improv posture (default agent behavior).
+    pub improv_mode: Option<String>,
 }
 
 /// Result of a single-agent turn from `ChatService::execute_turn()`.
@@ -1007,4 +1024,50 @@ pub struct TurnResult {
     /// Structured tool calls when the model requests tools.
     /// Empty if finish_reason != "tool_calls".
     pub structured_tool_calls: Vec<StructuredToolCall>,
+}
+
+/// Generate a system-prompt instruction for the active improv mode.
+///
+/// Prepended to the effective input before inference so the model
+/// adopts the specified interaction posture. Each mode has a concise
+/// instruction that encodes its core constraint.
+fn improv_system_prompt(mode: &str) -> String {
+    let instruction = match mode {
+        "plussing" => {
+            "[Improv mode: Plussing]\n\
+             Find what you can agree with in the user's message. Build constructively on those points.\n\
+             Silently omit anything you disagree with — never explicitly negate or reject.\n\
+             If nothing is agreeable, redirect constructively: \"Let's explore this from a different angle.\""
+        }
+        "yes-and" => {
+            "[Improv mode: Yes And]\n\
+             Accept the user's entire message as valid. Extend it with a novel, additive layer.\n\
+             Your extension must build on their contribution, not replace or contradict it.\n\
+             Start with \"Yes, and also:\" or equivalent acceptance language."
+        }
+        "yes-but" => {
+            "[Improv mode: Yes But]\n\
+             Accept the user's entire message as valid. Then append a constructive constraint\n\
+             or boundary condition that narrows scope without contradicting.\n\
+             Frame as additive guidance: \"Yes, and let's also consider...\" not \"No, because...\"\n\
+             Never use rejecting language (no, wrong, can't, impossible)."
+        }
+        "freestyling" => {
+            "[Improv mode: Freestyling]\n\
+             Engage in rapid, associative, creative response. Keep responses short (1-3 sentences).\n\
+             Build on the energy of the conversation — this is creative exploration, not careful analysis.\n\
+             Take creative leaps. Connect ideas associatively. Don't over-think."
+        }
+        "riffing" => {
+            "[Improv mode: Riffing]\n\
+             Take one idea from the user's message and explore it independently as a solo tangent.\n\
+             Go deep, go wide, go creative — this is your independent exploration space.\n\
+             When done, either return to the main topic with a synthesis of your findings,\n\
+             or signal that this tangent deserves its own thread."
+        }
+        _other => {
+            return String::new();
+        }
+    };
+    instruction.to_string()
 }

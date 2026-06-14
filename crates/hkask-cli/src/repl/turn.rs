@@ -95,6 +95,7 @@ pub(super) fn single_agent_turn(
                     .unwrap_or(&state.current_model)
                     .to_string(),
             ),
+            improv_mode: state.improv_mode.clone(),
         };
 
         let chat_result = rt.block_on(ChatService::execute_turn(

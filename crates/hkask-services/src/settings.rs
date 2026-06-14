@@ -40,6 +40,12 @@ pub struct HkaskSettings {
     /// Override: `HKASK_OCR_MODEL` env var.
     #[serde(default = "default_ocr_model")]
     pub ocr_model: String,
+
+    /// Communication server 7R7 moderation polling interval in seconds.
+    /// How often the 7R7 bot checks Matrix rooms for content to moderate.
+    /// Override: `HKASK_COMMUNICATION_POLL_INTERVAL_SECS` env var.
+    #[serde(default = "default_poll_interval")]
+    pub communication_poll_interval_secs: u64,
 }
 
 fn default_generation_model() -> String {
@@ -58,6 +64,10 @@ fn default_ocr_model() -> String {
     "maternion/LightOnOCR-2:1b".to_string()
 }
 
+fn default_poll_interval() -> u64 {
+    60
+}
+
 impl Default for HkaskSettings {
     fn default() -> Self {
         Self {
@@ -65,6 +75,7 @@ impl Default for HkaskSettings {
             embedding_model: default_embedding_model(),
             classifier_model: default_classifier_model(),
             ocr_model: default_ocr_model(),
+            communication_poll_interval_secs: default_poll_interval(),
         }
     }
 }

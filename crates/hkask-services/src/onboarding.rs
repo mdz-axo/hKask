@@ -327,4 +327,246 @@ impl OnboardingService {
             }
         }
     }
+
+    // ── Matrix registration ────────────────────────────────────────────
+
+    /// Register Matrix accounts for the human user and their replicant on
+    /// the local Conduit homeserver.
+    ///
+    /// Called during onboarding after replicant registration succeeds.
+    /// Creates two accounts:
+    /// - Human: `@firstname-lastname:localhost`
+    /// - Replicant: `@displayname-bot:localhost`
+    ///
+    /// Both use the master passphrase as their initial password.
+    /// Credentials are stored in the OS keychain.
+    ///
+    /// Returns the created user IDs for display in the onboarding summary.
+    pub async fn register_matrix_accounts(
+        user_profile: &UserProfile,
+        replicant_display_name: &str,
+        passphrase: &str,
+        homeserver_url: &str,
+    ) -> Result<MatrixRegistrationResult, ServiceError> {
+        let human_username = matrix_username_from_human(user_profile);
+        let replicant_username = matrix_username_from_replicant(replicant_display_name);
+
+        // Register human account
+        let human_id = register_on_conduit(homeserver_url, &human_username, passphrase)
+            .await
+            .map_err(|e| {
+                ServiceError::Matrix(format!("Human account registration failed: {}", e))
+            })?;
+
+        // Register replicant account
+        let replicant_id = register_on_conduit(homeserver_url, &replicant_username, passphrase)
+            .await
+            .map_err(|e| {
+                // Best-effort: if replicant registration fails, human account still exists.
+                // Don't roll back — the human can still use their account.
+                ServiceError::Matrix(format!("Replicant account registration failed: {}", e))
+            })?;
+
+        // Store credentials in keychain
+        let keychain = Keychain::default();
+        keychain
+            .store_by_key("matrix-human-username", &human_id)
+            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+        keychain
+            .store_by_key("matrix-replicant-username", &replicant_id)
+            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+
+        tracing::info!(
+            target: "cns.communication.matrix.onboarding",
+            human = %human_id,
+            replicant = %replicant_id,
+            "Matrix accounts registered during onboarding"
+        );
+
+        Ok(MatrixRegistrationResult {
+            human_user_id: human_id,
+            replicant_user_id: replicant_id,
+        })
+    }
+
+    /// Register Matrix accounts for system bots (Curator, 7R7) on Conduit.
+    ///
+    /// Called during bootstrap. Creates accounts with generated passwords
+    /// stored in the OS keychain. These are passive listeners — they monitor
+    /// rooms and escalate via CNS, not active chat participants.
+    ///
+    /// Returns the created user IDs keyed by bot name.
+    pub async fn register_system_accounts(
+        homeserver_url: &str,
+    ) -> Result<std::collections::HashMap<String, String>, ServiceError> {
+        let system_bots = [
+            "curator",
+            "r7-1-observer",
+            "r7-2-variety",
+            "r7-3-algedonic",
+            "r7-4-composer",
+            "r7-5-consolidator",
+            "r7-6-cybernetics",
+            "r7-7-communication",
+        ];
+
+        let mut registered = std::collections::HashMap::new();
+        let keychain = Keychain::default();
+
+        for bot_name in &system_bots {
+            let localpart = format!("hkask-{}", bot_name);
+            let password = uuid::Uuid::new_v4().to_string();
+
+            match register_on_conduit(homeserver_url, &localpart, &password).await {
+                Ok(user_id) => {
+                    keychain
+                        .store_by_key(&format!("matrix-bot-{}", bot_name), &password)
+                        .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+                    tracing::info!(
+                        target: "cns.communication.matrix.bootstrap",
+                        bot = %bot_name,
+                        user_id = %user_id,
+                        "System bot Matrix account registered"
+                    );
+                    registered.insert(bot_name.to_string(), user_id);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.communication.matrix.bootstrap",
+                        bot = %bot_name,
+                        error = %e,
+                        "Failed to register system bot Matrix account — Conduit may not be running"
+                    );
+                }
+            }
+        }
+
+        Ok(registered)
+    }
+}
+
+/// Result of Matrix account registration during onboarding.
+#[derive(Debug, Clone)]
+pub struct MatrixRegistrationResult {
+    /// Full Matrix user ID for the human (e.g., "@alice-smith:localhost").
+    pub human_user_id: String,
+    /// Full Matrix user ID for the replicant (e.g., "@assistant-rsmith-bot:localhost").
+    pub replicant_user_id: String,
+}
+
+// ── Matrix helpers ──────────────────────────────────────────────────────
+
+/// Derive a Matrix username from the human's UserProfile.
+/// Format: "@firstname-lastname:localhost" (lowercase, hyphenated).
+fn matrix_username_from_human(profile: &UserProfile) -> String {
+    let first = profile.first_name.to_lowercase();
+    let last = profile.last_name.to_lowercase();
+    format!("{}-{}", first, last)
+}
+
+/// Derive a Matrix username from the replicant's display name.
+/// Format: "@displayname-bot:localhost" (lowercase, hyphenated, " r" → "-r").
+fn matrix_username_from_replicant(display_name: &str) -> String {
+    let slug = display_name.to_lowercase().replace(' ', "-");
+    format!("{}-bot", slug)
+}
+
+/// Register a user on a Conduit homeserver via the Matrix API.
+///
+/// POST /_matrix/client/v3/register with username, password, and
+/// m.login.dummy auth (Conduit allows registration without verification
+/// when CONDUIT_ALLOW_REGISTRATION is enabled).
+///
+/// Returns the full Matrix user ID on success (e.g., "@alice-smith:localhost").
+async fn register_on_conduit(
+    homeserver_url: &str,
+    localpart: &str,
+    password: &str,
+) -> Result<String, ServiceError> {
+    let url = format!(
+        "{}/_matrix/client/v3/register",
+        homeserver_url.trim_end_matches('/')
+    );
+
+    let body = serde_json::json!({
+        "username": localpart,
+        "password": password,
+        "initial_device_display_name": "hKask",
+        "auth": {"type": "m.login.dummy"}
+    });
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| ServiceError::Matrix(format!("HTTP request failed: {}", e)))?;
+
+    let status = response.status();
+    let response_body: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| ServiceError::Matrix(format!("Failed to parse response: {}", e)))?;
+
+    if !status.is_success() {
+        let error_msg = response_body
+            .get("error")
+            .and_then(|e| e.as_str())
+            .unwrap_or("unknown error");
+        return Err(ServiceError::Matrix(format!(
+            "Registration failed (HTTP {}): {}",
+            status.as_u16(),
+            error_msg
+        )));
+    }
+
+    let user_id = response_body
+        .get("user_id")
+        .and_then(|u| u.as_str())
+        .ok_or_else(|| ServiceError::Matrix("Response missing user_id field".to_string()))?;
+
+    Ok(user_id.to_string())
+}
+
+/// Check whether the Conduit homeserver is healthy and responding.
+///
+/// Performs a GET to `/_matrix/client/versions`. Returns `true` if the
+/// server responds with a successful HTTP status.
+pub async fn conduit_health_check(homeserver_url: &str) -> bool {
+    let url = format!(
+        "{}/_matrix/client/versions",
+        homeserver_url.trim_end_matches('/')
+    );
+
+    match reqwest::Client::new().get(&url).send().await {
+        Ok(response) => {
+            let healthy = response.status().is_success();
+            if healthy {
+                tracing::debug!(
+                    target: "cns.communication.matrix.health",
+                    url = %homeserver_url,
+                    "Conduit healthy"
+                );
+            } else {
+                tracing::warn!(
+                    target: "cns.communication.matrix.health",
+                    url = %homeserver_url,
+                    status = %response.status().as_u16(),
+                    "Conduit responded with error status"
+                );
+            }
+            healthy
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "cns.communication.matrix.health",
+                url = %homeserver_url,
+                error = %e,
+                "Conduit unreachable"
+            );
+            false
+        }
+    }
 }

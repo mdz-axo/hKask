@@ -1,0 +1,67 @@
+# Improv + Kata-Starter Bundle Manifest
+# hKask v0.27.0 — Composes improv interaction grammar with starter kata practice routines
+#
+# Polarity classification:
+#   - improv: regulative (constrains interaction posture)
+#   - kata-starter: procedural (orchestrates practice flow)
+#
+# Phase assignment:
+#   - improv runs pre-core (sets interaction posture before practice begins)
+#   - kata-starter runs core (executes the practice routine)
+#
+# Complementarity: improv modes (Plussing, Yes And) reinforce correct patterns
+# and silently filter errors during starter kata drills, accelerating habit formation.
+
+bundle:
+  name: improv-kata-starter
+  version: "0.27.0"
+  description: >
+    Composes the improv interaction grammar with starter kata practice routines.
+    Improv modes set the interaction posture before each drill: Plussing for
+    Observation Drill (silently filter incorrect observations), Yes And for
+    Five Questions Drill (reinforce correct answers). The bundle accelerates
+    scientific thinking habit formation by making feedback constructive-by-default.
+
+  skills:
+    - name: improv
+      polarity: regulative
+      phase: pre-core
+      cascade_order: 1
+      config:
+        default_mode: plussing
+        kata_drill_modes:
+          observation: plussing
+          five-questions: yes-and
+          pdca: plussing
+
+    - name: kata-starter
+      polarity: procedural
+      phase: core
+      cascade_order: 2
+      config:
+        routines: [five-questions, pdca, observation]
+        progression: sequential
+
+  conflicts: []
+  # No conflicts — improv (regulative) and kata-starter (procedural) operate in
+  # different phases with complementary polarities.
+
+  complementarities:
+    - skills: [improv, kata-starter]
+      leveraged: >
+        Improv Plussing silently filters incorrect observations during Observation
+        Drill, preventing discouragement. Improv Yes And reinforces correct answers
+        during Five Questions Drill, building momentum. Both modes make feedback
+        constructive-by-default, which is essential for habit formation.
+
+  convergence:
+    criterion: >
+      Learner automaticity score reaches threshold (≥0.7) within 5 sessions.
+      CNS span: cns.kata.improv.effectiveness tracks the delta.
+
+  cns:
+    spans:
+      - cns.kata.improv.effectiveness
+      - cns.improv.plussing.ratio
+      - cns.improv.mode.active
+    variety_monitoring: true

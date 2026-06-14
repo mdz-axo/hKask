@@ -1,6 +1,6 @@
 ---
 title: "MCP Server Roadmap — Consolidation, Deepening, and RAG Pipeline"
-version: "1.1.0"
+version: "0.27.0"
 audience: [architects, developers]
 last_updated: 2026-06-12
 status: "Active"
