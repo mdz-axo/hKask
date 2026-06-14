@@ -462,6 +462,24 @@ impl FalBackend {
             .await
     }
 
+    /// Segment/extract a specific object from an image.
+    /// Endpoint: fal-ai/florence-2-large/referring-expression-segmentation
+    pub async fn segment_object(
+        &self,
+        image_url: &str,
+        object_description: &str,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let body = serde_json::json!({
+            "image_url": image_url,
+            "prompt": object_description,
+        });
+        self.fal_sync_post(
+            "fal-ai/florence-2-large/referring-expression-segmentation",
+            body,
+        )
+        .await
+    }
+
     /// Generate speech from text with a voice preset.
     /// Uses fal.ai ElevenLabs TTS (eleven-v3).
     /// Available voices: Rachel, Aria, Roger, Sarah, Laura, Charlie, George,

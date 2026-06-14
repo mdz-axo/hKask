@@ -6,7 +6,7 @@
 
 use crate::cli::KataAction;
 use hkask_inference::InferenceConfig;
-use hkask_services::{KataEngine, KataError};
+use hkask_services::{CliExperienceRecorder, KataEngine, KataError};
 use hkask_templates::SqliteRegistry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -269,6 +269,28 @@ fn start_kata(
                     serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
                 eprintln!("  [{}]: {}", key, display);
             }
+
+            // Record experience via daemon — agent learns from kata
+            let recorder = CliExperienceRecorder::new();
+            let kata_type = result.kata_type.clone();
+            let steps = result.steps_completed;
+            let gas = result.gas_consumed;
+            let bot_name = bot.to_string();
+            rt.spawn(async move {
+                recorder
+                    .record(
+                        &bot_name,
+                        "kata_execute",
+                        &kata_type,
+                        "success",
+                        serde_json::json!({
+                            "kata_type": kata_type,
+                            "steps_completed": steps,
+                            "gas_consumed": gas,
+                        }),
+                    )
+                    .await;
+            });
         }
         Err(KataError::GasExceeded { consumed, cap }) => {
             eprintln!(

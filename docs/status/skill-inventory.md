@@ -99,7 +99,6 @@ hKask skills follow a dual-layer architecture: a **Zed agent layer** (`.agents/s
 | Bundle manifests | `registry/manifests/<name>.yaml` | YAML with `manifest:`, `steps:`, `gas:`, `cns:`, `ocap:` |
 | Bootstrap registration | `registry/templates/bootstrap-registry.yaml` | YAML array of `RegistryEntry` structs |
 | hLexicon domain registries | `registry/hlexicon/<domain>-hlexicon.yaml` | YAML with functional role categorization |
-| Hexagonal ports | `registry/ports/<domain>-ports.yaml` | YAML with inbound/outbound port definitions |
 
 ## Skill Lifecycle
 

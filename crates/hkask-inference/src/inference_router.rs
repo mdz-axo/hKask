@@ -380,6 +380,21 @@ impl InferenceRouter {
         backend.generate_speech(text, voice).await
     }
 
+    /// Segment/extract a specific object from an image.
+    /// Routes to fal.ai Florence-2 segmentation.
+    pub async fn segment_object(
+        &self,
+        image_url: &str,
+        object_description: &str,
+    ) -> Result<serde_json::Value, InferenceError> {
+        let backend = self.fal.as_ref().ok_or_else(|| {
+            InferenceError::Connection(
+                "fal.ai backend required for object segmentation".to_string(),
+            )
+        })?;
+        backend.segment_object(image_url, object_description).await
+    }
+
     /// Transcribe speech audio to text.
     /// Routes to DeepInfra Whisper (default) with fal.ai Whisper fallback.
     pub async fn transcribe(

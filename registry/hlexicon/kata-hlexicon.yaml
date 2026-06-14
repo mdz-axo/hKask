@@ -175,9 +175,9 @@ hlexicon:
 # Functional Logic Summary
 functional_summary:
   bundle:
-    wordact_count: 3 # habit-intervention + 2 port emissions
+    wordact_count: 1 # habit-intervention
     flowdef_count: 2 # kata-pattern, kata-iteration manifests
-    knowact_count: 9 # consent-select, selector, outcome-habit, switch-check, iteration-*, 3 port auth
+    knowact_count: 6 # consent-select, selector, outcome-habit, switch-check, iteration-comparison, iteration-check
   starter:
     flowdef_count: 4 # starter-cycle, five-questions, pdca-cycle, observation-drill
     knowact_count: 1 # starter-selector
@@ -187,7 +187,7 @@ functional_summary:
   coaching:
     flowdef_count: 1 # coaching-cycle
     wordact_count: 5 # q1-target, q2-actual, q3-obstacles, q4-experiment, q5-learn
-  total: 30
+  total: 25
 
 # Implementation vs Functional Logic Mapping
 implementation_mapping:
@@ -205,9 +205,6 @@ implementation_mapping:
     improvement: 1 # improvement-kata
     coaching: 1 # coaching-kata
 
-  yaml_ports:
-    total: 1 # kata-ports (serves all four skills)
-
 # Separation Verification
 separation_verified: true
 notes: |
@@ -217,4 +214,3 @@ notes: |
   - Adoption path: starter → improvement → coaching → full bundle
   - Implementation (Jinja2/YAML) is independent of functional logic (WordAct/FlowDef/KnowAct)
   - FlowDefs orchestrate; KnowActs judge; WordActs act
-  - Ports serve all four skills (hexagonal architecture)

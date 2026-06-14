@@ -154,20 +154,17 @@ Each skill is **independently usable and adoptable.** An agent doesn't need the 
 | `improvement-kata.yaml` | kata-improvement | 4-step scientific pattern with gas, CNS, OCAP |
 | `coaching-kata.yaml` | kata-coaching | 5-question dialogue flow with gas, CNS, OCAP |
 
-### 2.5 Hexagonal Ports
+### 2.5 Interfaces
 
-The kata system's interfaces are defined in code:
+The kata engine (`crates/hkask-services/src/kata.rs`) exposes:
 
-| Port | Direction | Purpose |
-|------|-----------|---------|
-| `kata:execute` | Inbound | Execute a kata pattern (starter, improvement, or coaching) |
-| `kata:switch` | Inbound | Switch between kata patterns (improvement ↔ coaching) |
-| `kata:revoke-consent` | Inbound | Revoke consent mid-cycle |
-| `cns:emit:kata` | Outbound | Emit kata outcome span to CNS with carbon data |
-| `memory:record:kata` | Outbound | Record practice to episodic memory |
-| `curator:report:kata` | Outbound | Report to Curator standing session |
-| `kata:state:save` | Outbound | Save kata state for composition switching |
-| `kata:state:resume` | Outbound | Resume kata state after composition |
+| Interface | Purpose |
+|-----------|--------|
+| `KataEngine::execute()` | Execute a full kata cycle |
+| `KataEngine::load_manifest()` | Load and parse a kata manifest |
+| `KataEngine::with_consent()` | Set OCAP consent gate |
+| `KataEngine::with_cns()` | Set CNS observer callback |
+| `KataState::save()` / `KataState::load()` | Persist and resume kata state |
 
 ### 2.6 CNS Integration
 
