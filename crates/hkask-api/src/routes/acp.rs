@@ -84,7 +84,7 @@ async fn acp_register(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<AcpRegisterRequest>,
-) -> Result<Json<AcpRegisterResponse>, ApiError> {
+) -> Result<Json<AcpRegisterResponse>, ServiceErrorResponse> {
     let webid = parse_webid(&req.webid)?;
 
     let agent_kind =
@@ -104,7 +104,8 @@ async fn acp_register(
     let acp = state.agent_service.pod_manager().acp_runtime();
     let token = acp
         .register_agent(webid, agent_kind, req.capabilities)
-        .await?;
+        .await
+        .map_err(|e| ApiError::from(hkask_services::ServiceError::Acp(e)))?;
 
     Ok(Json(AcpRegisterResponse {
         token: token.id.clone(),
@@ -127,7 +128,7 @@ async fn acp_register(
 pub(crate) async fn acp_list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<AgentListResponse>, ApiError> {
+) -> Result<Json<AgentListResponse>, ServiceErrorResponse> {
     let acp = state.agent_service.pod_manager().acp_runtime();
     let agents = acp.list_agents().await;
 
@@ -173,7 +174,9 @@ pub(crate) async fn acp_unregister_agent(
     let webid = parse_webid(&agent_id)?;
 
     let acp = state.agent_service.pod_manager().acp_runtime();
-    acp.unregister_agent(&webid).await?;
+    acp.unregister_agent(&webid)
+        .await
+        .map_err(|e| ApiError::from(hkask_services::ServiceError::Acp(e)))?;
 
     Ok(StatusCode::NO_CONTENT)
 }

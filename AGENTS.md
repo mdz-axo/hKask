@@ -93,6 +93,7 @@ The `--shred` flag securely deletes the plaintext .env file after loading.
 | `hkask-services` | Shared service layer (CLI/API deduplication) |
 | `hkask-improv` | Composable interaction grammar (Plussing, Yes And, Yes But, Freestyling, Riffing, Cascade) |
 | `hkask-wallet` | HD wallet, rJoule energy accounting, on-chain settlement |
+| `hkask-communication` | Core Matrix transport, agent registry, 7R7 listener — daemon-owned infrastructure |
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 | `hkask-mcp-media` | Media MCP server (image, video, audio, voice, collage) — 36 tools |
@@ -104,7 +105,7 @@ The `--shred` flag securely deletes the plaintext .env file after loading.
 | `hkask-mcp-memory` | Episodic + semantic memory MCP server (triples, embeddings, KNN, backup/restore) — 16 tools |
 | `hkask-mcp-condenser` | Context condensation MCP server (compress, classify, persist, thread summary) — 7 tools |
 | `hkask-mcp-spec` | Specification authoring MCP server (goal capture, decompose, writing quality, graph coherence, replica rewrite) — 6 tools |
-| `hkask-mcp-communication` | Agent communication MCP server (TTS, Matrix chat, threads, agent tagging) — 9 tools |
+| `hkask-mcp-communication` | Agent communication MCP server (TTS, Matrix chat, threads, agent tagging) — thin wrapper over `hkask-communication` core crate — 9 tools |
 
 **10 MCP servers (141 tools):** memory (16), condenser (7), research (17), spec (6), companies (27), communication (9), media (36), replica (8), docproc (9), training (6)
 **Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra, fal.ai), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP), daemon (Unix socket at ~/.config/hkask/daemon.sock)
@@ -170,7 +171,7 @@ Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Ze
 
 **Mode mutual exclusion (initial):** An agent can be in Chat mode OR Server mode, not both. Concurrency planned for future release.
 
-**Slash commands** (`kask chat`): `/model`, `/model <query>`, `/agent [NAME]`, `/status`, `/repl [setting] [value]`, `/start`, `/feedback`, `/talk on|off|voice`, `/listen start|stop|view`
+**Slash commands** (`kask chat`): `/model`, `/model <query>`, `/agent [NAME]`, `/status`, `/repl [setting] [value]`, `/start`, `/feedback`, `/talk on|off|voice`, `/listen start|stop|view`, `/matrix [ROOM]`, `/msg <ROOM> <TEXT>`
 
 **`/repl` sub-settings** (user-configurable inference params, persisted to `~/.config/hkask/settings.json`):
 

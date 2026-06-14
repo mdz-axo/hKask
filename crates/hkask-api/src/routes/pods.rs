@@ -54,7 +54,7 @@ pub fn pods_router() -> OpenApiRouter<ApiState> {
         .route("/api/pods/{id}/status", axum::routing::get(pod_status))
 }
 
-fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ServiceErrorResponse> {
+fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ApiError> {
     use hkask_agents::pod::PodID;
     Uuid::parse_str(id)
         .map(PodID::from_uuid)
@@ -126,7 +126,7 @@ async fn activate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<StatusCode, ServiceErrorResponse> {
+) -> Result<StatusCode, ApiError> {
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
@@ -141,7 +141,7 @@ async fn deactivate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<StatusCode, ServiceErrorResponse> {
+) -> Result<StatusCode, ApiError> {
     let pid = parse_pod_id(&id)?;
     state
         .agent_service

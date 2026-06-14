@@ -67,7 +67,7 @@ pub(crate) async fn create_goal(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
-) -> Result<Json<GoalResponse>, ServiceErrorResponse> {
+) -> Result<Json<GoalResponse>, ApiError> {
     let svc_req = hkask_services::CreateGoalRequest {
         text: req.text,
         visibility: req.visibility.unwrap_or_else(|| "private".into()),
@@ -93,7 +93,7 @@ pub(crate) async fn list_goals(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<GoalListResponse>, ServiceErrorResponse> {
+) -> Result<Json<GoalListResponse>, ApiError> {
     let state_filter = params.get("state").map(|s| s.as_str());
     let goals =
         hkask_services::GoalService::list_goals(&state.agent_service, &auth.webid, state_filter)
@@ -121,7 +121,7 @@ pub(crate) async fn set_goal_state(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
-) -> Result<Json<GoalResponse>, ServiceErrorResponse> {
+) -> Result<Json<GoalResponse>, ApiError> {
     let goal = hkask_services::GoalService::set_goal_state(&state.agent_service, &id, &req.state)
         ?;
     Ok(Json(goal.into()))

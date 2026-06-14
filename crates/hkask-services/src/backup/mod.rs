@@ -431,6 +431,8 @@ fn artifact_type_from_label(label: &str) -> Option<ArtifactType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backup::config::RetentionPolicy;
+    use crate::backup::serialization::serialize_artifact;
     use hkask_types::ports::git_cas::MockGitCas;
 
     fn test_config() -> BackupConfig {
@@ -494,8 +496,9 @@ mod tests {
         let mock = Arc::new(MockGitCas::new());
         let svc = BackupService::with_config(mock.clone(), test_config());
 
-        // First, snapshot some data
-        let data = serde_json::to_vec(&serde_json::json!({"name": "test-tpl"})).unwrap();
+        // First, snapshot properly serialized data
+        let payload = serde_json::json!({"name": "test-tpl"});
+        let data = serialize_artifact(&ArtifactType::Template, "tpl-1", &payload).unwrap();
         let artifacts = vec![(ArtifactType::Template, "tpl-1".to_string(), data)];
         let snap = svc
             .snapshot(BackupScope::ByType(ArtifactType::Template), &artifacts)

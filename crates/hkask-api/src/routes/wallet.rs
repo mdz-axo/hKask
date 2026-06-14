@@ -349,6 +349,9 @@ async fn create_key(
         req.expiry_days,
         privacy,
         preferred_chain,
+        vec![],
+        String::new(),
+        None,
     ) {
         Ok(material) => (
             StatusCode::CREATED,

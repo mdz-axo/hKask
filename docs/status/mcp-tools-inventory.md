@@ -192,7 +192,7 @@ Per MDS.md §3 — six tools. Curation tools (`evaluate`, `reconcile`, `cultivat
 
 **Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 36 (8 gallery + 4 face + 5 image + 9 video + 2 voice + 4 audio + 4 generation)
 
-**Required:** `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` (at least one)
+**Required:** `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` (at least one). **Optional:** ONNX face recognition via `face_id` crate (auto-downloads ~250MB models on first run, no API keys needed).
 
 | Tool | Description |
 |------|-------------|
@@ -200,12 +200,12 @@ Per MDS.md §3 — six tools. Curation tools (`evaluate`, `reconcile`, `cultivat
 | `gallery_status` | Get gallery summary: path, mode, image count, size |
 | `gallery_search` | Fuzzy search by describing what you're looking for (Levenshtein) |
 | `gallery_find_similar` | Find visually similar images using AI caption embeddings |
-| `gallery_refresh` | Scan for new/removed images + update all AI metadata. Face detection opt-in. Auto-matches detected faces against face_registry. |
+| `gallery_refresh` | Scan for new/removed images + update all AI metadata. Face detection opt-in. Auto-matches detected faces against face_registry (ONNX ArcFace embedding matching primary, vision LLM fallback). |
 | `gallery_analyze` | Analyze images with AI: detect faces, objects, colors, composition, scene descriptions |
-| `gallery_name_face` | Name a face group from gallery_analyze results |
+| `gallery_name_face` | Name a face group. Accepts free-text name or face_id (resolves "First Last" from registry). |
 | `gallery_timeline` | Organize images by time period using EXIF dates |
 | `face_validate` | Validate a gallery image as a face reference (checks: 1 face, coverage ≥15%, frontal pose, lighting, occlusion, clarity) |
-| `face_register` | Register a validated face reference with a person's name (auto-validates, stores in face_registry table) |
+| `face_register` | Register a face reference with a name. Auto-validates (unless --force), extracts ArcFace 512-d embedding via ONNX if available, stores in face_registry. |
 | `face_list` | List all registered faces, optionally filtered by status (valid/rejected/pending) |
 | `face_remove` | Remove a face from the registry by ID |
 | `extract_object` | Extract a specific object from an image using AI segmentation |

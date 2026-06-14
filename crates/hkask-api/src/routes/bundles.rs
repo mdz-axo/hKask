@@ -139,7 +139,7 @@ async fn list_bundles(State(state): State<ApiState>) -> Json<BundleListResponse>
 pub(crate) async fn get_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<serde_json::Value>, ServiceErrorResponse> {
+) -> Result<Json<serde_json::Value>, ApiError> {
     match BundleService::get(&state.agent_service, &id).await {
         Ok(Some(bundle)) => {
             let value =
@@ -162,7 +162,7 @@ pub(crate) async fn get_bundle(
 /// available, or creates a fresh port as fallback.
 fn resolve_api_composition_port(
     state: &ApiState,
-) -> Result<std::sync::Arc<dyn hkask_types::ports::InferencePort>, ServiceErrorResponse> {
+) -> Result<std::sync::Arc<dyn hkask_types::ports::InferencePort>, ApiError> {
     // Prefer the shared port from AgentService
     if let Some(port) = state.agent_service.inference_port() {
         return Ok(port);
@@ -195,7 +195,7 @@ fn resolve_api_composition_port(
 pub(crate) async fn compose_bundle(
     State(state): State<ApiState>,
     Json(request): Json<ComposeBundleRequest>,
-) -> Result<Json<ComposeBundleResponse>, ServiceErrorResponse> {
+) -> Result<Json<ComposeBundleResponse>, ApiError> {
     if request.skills.len() < 2 {
         return Err(ApiError::BadRequest {
             message: "A bundle requires at least 2 skills".to_string(),
@@ -250,7 +250,7 @@ pub(crate) async fn compose_bundle(
 pub(crate) async fn apply_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<ApplyBundleResponse>, ServiceErrorResponse> {
+) -> Result<Json<ApplyBundleResponse>, ApiError> {
     match BundleService::apply(&state.agent_service, &id).await {
         Ok(bundle) => Ok(Json(ApplyBundleResponse {
             status: "active".to_string(),
@@ -281,7 +281,7 @@ pub(crate) async fn apply_bundle(
 pub(crate) async fn evolve_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<EvolveBundleResponse>, ServiceErrorResponse> {
+) -> Result<Json<EvolveBundleResponse>, ApiError> {
     let inference_port = resolve_api_composition_port(&state)?;
     let editor = hkask_services::resolve_replicant_name();
 

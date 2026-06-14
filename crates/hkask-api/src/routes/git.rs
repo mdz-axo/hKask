@@ -75,7 +75,7 @@ pub(crate) async fn archive(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ArchiveRequest>,
-) -> Result<Json<ArchiveResponse>, ServiceErrorResponse> {
+) -> Result<Json<ArchiveResponse>, ApiError> {
     // Construct crate name from owner/repo
     let crate_name = format!("{}/{}", req.owner, req.repo);
 
@@ -127,7 +127,7 @@ pub(crate) async fn resolve_sha(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(reference): Path<String>,
-) -> Result<Json<ResolveShaResponse>, ServiceErrorResponse> {
+) -> Result<Json<ResolveShaResponse>, ApiError> {
     let commit = state
         .git_cas_port
         .resolve_ref(&RepoId::Registry, &reference)

@@ -6,7 +6,7 @@
 //! Initial implementation uses JSON for all types — simplest, diffable, human-readable.
 //! Per-type format optimization deferred to F1 resolution.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::scope::ArtifactType;
 

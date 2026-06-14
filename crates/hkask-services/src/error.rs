@@ -2,11 +2,13 @@
 //! # REQ: P8 (Semantic Grounding) — every error variant is a distinct semantic state.
 //!
 //! `ServiceError` composes from all domain crate errors. Surface layers
-//! (CLI, API) adapt `ServiceError` into their own presentation types:
+//! (CLI, API) use `ServiceError` directly — CLI commands return
+//! `ServiceError`, API routes return `ServiceErrorResponse` (a newtype
+//! implementing Axum's `IntoResponse`). No surface-specific error enums.
 //!
-//! - CLI: `impl From<ServiceError> for CuratorError`, `AgentError`, etc.
-//!   (added in `hkask-cli/src/errors.rs`)
-//! - API: `impl From<ServiceError> for ApiError` (added in `hkask-api/src/error.rs`)
+//! - CLI: commands return `Result<_, ServiceError>`, rendered via `Display`
+//! - API: routes return `Result<_, ServiceErrorResponse>`, mapped to HTTP
+//!   status codes via `From<ServiceError> for ApiError`
 //!
 //! MCP servers continue using `anyhow` for isolated process errors and do
 //! NOT depend on this crate.

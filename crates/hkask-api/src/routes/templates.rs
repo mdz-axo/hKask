@@ -98,10 +98,12 @@ pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<Te
 pub(crate) async fn get_template(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<TemplateResponse>, ApiError> {
+) -> Result<Json<TemplateResponse>, ServiceErrorResponse> {
     let registry = state.agent_service.registry().lock().await;
 
-    let entry = registry.get(&id)?;
+    let entry = registry
+        .get(&id)
+        .map_err(|e| ApiError::from(hkask_services::ServiceError::Registry(e)))?;
 
     Ok(Json(TemplateResponse {
         id: entry.id.clone(),

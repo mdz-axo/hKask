@@ -69,7 +69,7 @@ pub struct AccessCheckResponse {
 pub(crate) async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<SovereigntyStatusResponse>, ServiceErrorResponse> {
+) -> Result<Json<SovereigntyStatusResponse>, ApiError> {
     let cm = &state.agent_service.sovereignty();
     let webid_str = auth.webid.to_string();
     let boundary = hkask_types::sovereignty::DataSovereigntyBoundary::hkask_default();
@@ -114,7 +114,7 @@ pub(crate) async fn sovereignty_grant_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<SovereigntyConsentRequest>,
-) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
+) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
     let webid_str = auth.webid.to_string();
     let cat_str = req.category;
     let cat = parse_data_category(&cat_str);
@@ -143,7 +143,7 @@ pub(crate) async fn sovereignty_grant_consent(
 pub(crate) async fn sovereignty_revoke_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
+) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
     let webid_str = auth.webid.to_string();
     let cm = &state.agent_service.sovereignty();
     cm.revoke_consent(&webid_str)?;
@@ -169,7 +169,7 @@ pub(crate) async fn sovereignty_check_access(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<AccessCheckResponse>, ServiceErrorResponse> {
+) -> Result<Json<AccessCheckResponse>, ApiError> {
     let cat_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     if cat_str.is_empty() {
         return Err(ApiError::BadRequest {
