@@ -127,7 +127,6 @@ translation_rules:
     process_steps: manifest.steps[]
     step_action: action (select|populate|execute)
     step_template: template_ref
-    step_model: model_tier
     step_mcp: mcp
     gas_cap: manifest.energy.cap
     visibility: manifest.visibility

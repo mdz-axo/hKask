@@ -32,7 +32,6 @@ steps:
       Render scholar extraction template with query and parameters.
     renderer: minijinja
     template_ref: mcp/scholar_extract
-    model_tier: null
     mcp: null
     gas_cap: 1000
     timeout_seconds: 10
@@ -46,7 +45,6 @@ steps:
       Call scholarly APIs (arXiv, PubMed, etc.).
     renderer: null
     template_ref: null
-    model_tier: reasoning_local
     mcp: null  # was hkask-mcp-scholar (never existed)
     gas_cap: 6000
     timeout_seconds: 60
@@ -62,7 +60,6 @@ steps:
       Track paper quality and database coverage.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

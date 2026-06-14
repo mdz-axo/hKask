@@ -12,11 +12,9 @@ steps:
     action: select
     template_ref: inference/selectors/model-selector.j2
     renderer: minijinja
-    model_tier: fast_local
     output_schema:
       type: object
       properties:
-        model_tier:
           type: string
           enum: [fast_local, balanced, high_quality]
         model_name:
@@ -38,7 +36,6 @@ steps:
     target: inference_call
     renderer: inline
     template_ref: "{{ step_2_populated }}"
-    model_tier: from_input
     output_schema:
       type: object
       properties:
@@ -57,7 +54,6 @@ cns:
   spans:
     - cns.tool.invocation
     - cns.prompt.outcome
-model_tiers:
   fast_local: OM/llama3.2
   balanced: FW/claude-haiku
   high_quality: FW/claude-sonnet

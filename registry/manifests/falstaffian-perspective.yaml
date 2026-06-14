@@ -37,7 +37,6 @@ steps:
       This corresponds to metacognitive steps 1 (calibrate) and 2 (affirm).
     renderer: minijinja
     template_ref: cognition/falstaffian-perspective
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -68,7 +67,6 @@ steps:
       This corresponds to metacognitive steps 3 (select shape) and 4 (execute through play).
     renderer: minijinja
     template_ref: cognition/falstaffian-perspective
-    model_tier: balanced
     gas_cap: 8000
     timeout_seconds: 90
     input_mapping:
@@ -114,7 +112,6 @@ steps:
       This corresponds to metacognitive step 5 (verify tension carried).
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 500
     timeout_seconds: 10
@@ -143,7 +140,6 @@ steps:
       Track shape selection patterns and perspective diversity.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

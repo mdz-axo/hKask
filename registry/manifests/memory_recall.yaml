@@ -12,7 +12,6 @@ steps:
     action: select
     description: Select memory retrieval strategy
     template_ref: process/memory/recall
-    model_tier: fast_local
     renderer: minijinja
 
   - ordinal: 2

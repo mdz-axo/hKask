@@ -61,7 +61,6 @@ steps:
       structured critique with specific, actionable feedback.
     renderer: minijinja
     template_ref: self-critique-revision/critique
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -98,7 +97,6 @@ steps:
       The revision should directly respond to specific critique points.
     renderer: minijinja
     template_ref: self-critique-revision/revise
-    model_tier: reasoning_local
     gas_cap: 5000
     timeout_seconds: 90
     input_mapping:
@@ -136,7 +134,6 @@ steps:
       is acceptable. Check max_iterations.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 1000
     timeout_seconds: 10
@@ -172,7 +169,6 @@ steps:
       Report iteration count, quality progression, and convergence status.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

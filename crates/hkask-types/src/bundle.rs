@@ -165,7 +165,6 @@ pub struct BundleManifestStep {
     pub description: String,
     pub renderer: Option<String>,
     pub template_ref: Option<String>,
-    pub model_tier: Option<String>,
     pub mcp: Option<String>,
     pub gas_cap: u32,
     pub timeout_seconds: u32,

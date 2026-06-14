@@ -57,6 +57,12 @@ pub struct PortfolioManager {
     base_dir: PathBuf,
 }
 
+impl Default for PortfolioManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PortfolioManager {
     pub fn new() -> Self {
         let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -102,7 +108,19 @@ impl PortfolioManager {
                 created_at TEXT NOT NULL
             );
             CREATE INDEX idx_tx_date ON transactions(date);
-            CREATE INDEX idx_tx_symbol ON transactions(symbol);",
+            CREATE INDEX idx_tx_symbol ON transactions(symbol);
+            CREATE TABLE IF NOT EXISTS price_cache (
+                symbol TEXT NOT NULL,
+                date TEXT NOT NULL,
+                close REAL NOT NULL,
+                source TEXT NOT NULL,
+                fetched_at TEXT NOT NULL,
+                PRIMARY KEY (symbol, date)
+            );
+            CREATE TABLE IF NOT EXISTS security_links (
+                ledger_symbol TEXT PRIMARY KEY,
+                data_symbol TEXT NOT NULL
+            );",
         )
         .map_err(|e| format!("schema: {e}"))?;
         Ok(())
@@ -122,10 +140,10 @@ impl PortfolioManager {
         if let Ok(entries) = std::fs::read_dir(&self.base_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(false, |e| e == "db") {
-                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                        names.push(stem.to_string());
-                    }
+                if path.extension().is_some_and(|e| e == "db")
+                    && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+                {
+                    names.push(stem.to_string());
                 }
             }
         }
@@ -469,6 +487,173 @@ impl PortfolioManager {
         }
         Ok(out)
     }
+
+    // ── Data linkage ─────────────────────────────────────────────
+
+    /// Get all unique symbols from the portfolio ledger.
+    pub fn get_symbols(&self, name: &str) -> Result<Vec<String>, String> {
+        let conn = self.open(name)?;
+        let mut stmt = conn
+            .prepare("SELECT DISTINCT symbol FROM transactions WHERE symbol IS NOT NULL AND symbol != ''")
+            .map_err(|e| format!("query: {e}"))?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("query: {e}"))?;
+        let mut symbols = Vec::new();
+        for row in rows {
+            symbols.push(row.map_err(|e| format!("row: {e}"))?);
+        }
+        Ok(symbols)
+    }
+
+    /// Resolve a ledger symbol to its data provider symbol.
+    /// Checks security_links table first, falls back to using the ledger symbol as-is.
+    pub fn resolve_symbol(&self, name: &str, ledger_symbol: &str) -> Result<String, String> {
+        let conn = self.open(name)?;
+        match conn.query_row(
+            "SELECT data_symbol FROM security_links WHERE ledger_symbol = ?1",
+            params![ledger_symbol],
+            |row| row.get::<_, String>(0),
+        ) {
+            Ok(data_symbol) => Ok(data_symbol),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(ledger_symbol.to_string()),
+            Err(e) => Err(format!("lookup: {e}")),
+        }
+    }
+
+    /// Link a ledger symbol to a specific data provider symbol.
+    pub fn link_security(
+        &self,
+        name: &str,
+        ledger_symbol: &str,
+        data_symbol: &str,
+    ) -> Result<(), String> {
+        let conn = self.open(name)?;
+        conn.execute(
+            "INSERT OR REPLACE INTO security_links (ledger_symbol, data_symbol) VALUES (?1, ?2)",
+            params![ledger_symbol, data_symbol],
+        )
+        .map_err(|e| format!("insert: {e}"))?;
+        Ok(())
+    }
+
+    /// Get the date range of transactions for a symbol (or all symbols).
+    pub fn get_date_range(
+        &self,
+        name: &str,
+        symbol: Option<&str>,
+    ) -> Result<(String, String), String> {
+        let conn = self.open(name)?;
+        let (sql, params): (String, Vec<Box<dyn rusqlite::types::ToSql>>) = if let Some(sym) =
+            symbol
+        {
+            (
+                    "SELECT MIN(date), MAX(date) FROM transactions WHERE symbol = ?1 AND symbol IS NOT NULL".into(),
+                    vec![Box::new(sym.to_string())],
+                )
+        } else {
+            (
+                "SELECT MIN(date), MAX(date) FROM transactions".into(),
+                vec![],
+            )
+        };
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+            params.iter().map(|b| b.as_ref()).collect();
+        let result = conn.query_row(&sql, param_refs.as_slice(), |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        });
+        match result {
+            Ok((min, max)) => Ok((min, max)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Err("no transactions".into()),
+            Err(e) => Err(format!("query: {e}")),
+        }
+    }
+
+    /// Find dates in [from, to] that are missing from price_cache for a symbol.
+    pub fn get_missing_price_dates(
+        &self,
+        name: &str,
+        symbol: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<Vec<String>, String> {
+        let conn = self.open(name)?;
+        // Get all dates we have cached for this symbol in range
+        let mut stmt = conn
+            .prepare(
+                "SELECT date FROM price_cache WHERE symbol = ?1 AND date >= ?2 AND date <= ?3 ORDER BY date",
+            )
+            .map_err(|e| format!("query: {e}"))?;
+        let cached: Vec<String> = stmt
+            .query_map(params![symbol, from, to], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("query: {e}"))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        // Generate all calendar dates in range and find missing
+        let from_date = chrono::NaiveDate::parse_from_str(from, "%Y-%m-%d")
+            .map_err(|e| format!("invalid from date '{from}': {e}"))?;
+        let to_date = chrono::NaiveDate::parse_from_str(to, "%Y-%m-%d")
+            .map_err(|e| format!("invalid to date '{to}': {e}"))?;
+
+        let mut missing = Vec::new();
+        let mut current = from_date;
+        while current <= to_date {
+            let date_str = current.format("%Y-%m-%d").to_string();
+            if !cached.contains(&date_str) {
+                missing.push(date_str);
+            }
+            current += chrono::Duration::days(1);
+        }
+        Ok(missing)
+    }
+
+    /// Store a closing price in the cache.
+    pub fn store_price(
+        &self,
+        name: &str,
+        symbol: &str,
+        date: &str,
+        close: f64,
+        source: &str,
+    ) -> Result<(), String> {
+        let conn = self.open(name)?;
+        conn.execute(
+            "INSERT OR REPLACE INTO price_cache (symbol, date, close, source, fetched_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![symbol, date, close, source, chrono::Utc::now().to_rfc3339()],
+        )
+        .map_err(|e| format!("insert: {e}"))?;
+        Ok(())
+    }
+
+    /// Get cached prices for a symbol in a date range.
+    #[allow(dead_code)] // used in Phase 4 analysis
+    pub fn get_prices(
+        &self,
+        name: &str,
+        symbol: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<Vec<(String, f64, String)>, String> {
+        let conn = self.open(name)?;
+        let mut stmt = conn
+            .prepare("SELECT date, close, source FROM price_cache WHERE symbol = ?1 AND date >= ?2 AND date <= ?3 ORDER BY date")
+            .map_err(|e| format!("query: {e}"))?;
+        let rows = stmt
+            .query_map(params![symbol, from, to], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, f64>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .map_err(|e| format!("query: {e}"))?;
+        let mut prices = Vec::new();
+        for row in rows {
+            prices.push(row.map_err(|e| format!("row: {e}"))?);
+        }
+        Ok(prices)
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────
@@ -619,11 +804,11 @@ mod tests {
         pm.create("test").unwrap();
 
         let csv = "\
-type,date,symbol,quantity,price,commission
-buy,2024-01-15,AAPL,10,150.0,1.0
-sell,2024-02-20,AAPL,3,160.0,1.0
-dividend,2024-03-01,AAPL,,,0.5
-deposit,2024-01-01,,,10000.0
+type,date,symbol,quantity,price,commission,amount
+buy,2024-01-15,AAPL,10,150.0,1.0,
+sell,2024-02-20,AAPL,3,160.0,1.0,
+dividend,2024-03-01,AAPL,,,,0.5
+deposit,2024-01-01,,,,,10000.0
 ";
 
         let imported = pm.import_csv("test", csv).unwrap();

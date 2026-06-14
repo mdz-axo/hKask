@@ -50,7 +50,6 @@ steps:
       for each. Provide a benign explanation if the text might be legitimate.
     renderer: minijinja
     template_ref: prompt-defense/classify-threat
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -84,7 +83,6 @@ steps:
       radius for each exploitation path.
     renderer: minijinja
     template_ref: prompt-defense/analyze-attack-surface
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -127,7 +125,6 @@ steps:
       from YAML-level changes.
     renderer: minijinja
     template_ref: prompt-defense/recommend-defenses
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -169,7 +166,6 @@ steps:
       and no contradictions exist between classification and recommendations.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 1000
     timeout_seconds: 15
@@ -198,7 +194,6 @@ steps:
       layers recommended, and critical threats for CNS algedonic monitoring.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

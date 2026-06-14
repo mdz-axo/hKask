@@ -27,7 +27,6 @@ steps:
       Render extraction template with document content and schema.
     renderer: minijinja
     template_ref: mcp/doc_extract
-    model_tier: null
     mcp: null
     gas_cap: 1000
     timeout_seconds: 10
@@ -41,7 +40,6 @@ steps:
       Parse document and extract structured content.
     renderer: null
     template_ref: null
-    model_tier: reasoning_local
     mcp: hkask-mcp-doc-knowledge
     gas_cap: 6000
     timeout_seconds: 90
@@ -57,7 +55,6 @@ steps:
       Track extraction quality and completeness.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

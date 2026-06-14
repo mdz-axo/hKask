@@ -44,7 +44,6 @@ steps:
       queries into sub-queries, expand with synonyms, and identify intent.
     renderer: minijinja
     template_ref: rag/reformulate-query
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 15
     input_mapping:
@@ -66,7 +65,6 @@ steps:
       Uses recall_semantic to find relevant episodic and semantic chunks.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     tool: recall_semantic
     arguments:
@@ -96,7 +94,6 @@ steps:
       to supplement memory context with fresh external information.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_search
     arguments:
@@ -126,7 +123,6 @@ steps:
       Include inline citations and flag unsupported claims.
     renderer: minijinja
     template_ref: rag/synthesize-grounded
-    model_tier: reasoning_local
     gas_cap: 6000
     timeout_seconds: 90
     input_mapping:
@@ -162,7 +158,6 @@ steps:
       compute citation coverage.
     renderer: minijinja
     template_ref: rag/verify-citations
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
@@ -195,7 +190,6 @@ steps:
       Emit CNS feedback for variety monitoring and retrieval quality tracking.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

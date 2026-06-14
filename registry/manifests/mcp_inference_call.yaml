@@ -28,7 +28,6 @@ steps:
       Apply safety mode if enabled.
     renderer: minijinja
     template_ref: mcp/inference_call
-    model_tier: null
     mcp: null
     gas_cap: 1000
     timeout_seconds: 10
@@ -39,10 +38,8 @@ steps:
     action: select
     description: >
       Call inference via InferencePort with the populated prompt.
-      Route to appropriate model based on model_tier.
     renderer: inline
     template_ref: "{{ step_1_populated }}"
-    model_tier: from_input
     gas_cap: 8192
     timeout_seconds: 60
     output_schema:
@@ -58,7 +55,6 @@ steps:
       Track token usage and model performance.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

@@ -45,7 +45,6 @@ steps:
       predicted probabilities, and time horizons.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 1000
     timeout_seconds: 10
@@ -80,7 +79,6 @@ steps:
       hindsight bias check before reviewing original predictions.
     renderer: minijinja
     template_ref: decision-journal/revisit-evaluate
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -123,7 +121,6 @@ steps:
       Lower is better; 0 = perfect; 0.25 = random coin flip.
     renderer: minijinja
     template_ref: decision-journal/compute-brier
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
@@ -161,7 +158,6 @@ steps:
       Report Brier scores, calibration points, and bias patterns.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

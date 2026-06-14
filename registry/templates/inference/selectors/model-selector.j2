@@ -1,7 +1,6 @@
 {# Template: inference/selectors/model-selector.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
-{# produces: model_tier_selection #}
 {# Purpose: Select appropriate model tier for inference request #}
 
 You are a model tier selector for the hKask inference system.
@@ -39,7 +38,6 @@ Given the user's request, select the appropriate model tier.
 ## Output Format
 
 Return JSON with:
-- model_tier: fast_local, balanced, or high_quality
 - model_name: Specific model identifier
 - rationale: Why this tier was selected
 
@@ -47,7 +45,6 @@ Return JSON with:
 
 ```json
 {
-  "model_tier": "...",
   "model_name": "...",
   "rationale": "..."
 }

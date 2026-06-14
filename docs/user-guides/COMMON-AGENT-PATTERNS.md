@@ -140,7 +140,6 @@ steps:
     action: select
     template_ref: registry/templates/memory/selectors/operation-selector.j2
     renderer: minijinja
-    model_tier: fast_local
     output_schema:
       type: object
       properties:
@@ -162,7 +161,6 @@ steps:
     target: memory
     contract:
        mcp: hkask-mcp-spec
-      model_tier: balanced
 
 cns:
   spans:
@@ -414,7 +412,6 @@ steps:
     action: select
     template_ref: registry/selectors/selector.j2
     renderer: minijinja
-    model_tier: fast_local
     
   - ordinal: 2
     action: populate
@@ -429,7 +426,6 @@ steps:
     target: "${template.contract.target}"
     contract: "${template.contract}"
     mcp: "${template.contract.mcp}"
-    model_tier: "${template.contract.model_tier}"
 ```
 
 ### CNS Spans

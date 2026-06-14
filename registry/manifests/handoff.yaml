@@ -73,7 +73,6 @@ steps:
       state. Reduce verbose conversation history to essential facts.
     renderer: minijinja
     template_ref: handoff/handoff-compact
-    model_tier: balanced
     gas_cap: 6000
     timeout_seconds: 45
     input_mapping:
@@ -110,7 +109,6 @@ steps:
       rather than duplicating their content. Detect artifact type automatically.
     renderer: minijinja
     template_ref: handoff/handoff-artifacts
-    model_tier: fast_local
     gas_cap: 3000
     timeout_seconds: 30
     input_mapping:
@@ -145,7 +143,6 @@ steps:
       work to known skill capabilities.
     renderer: minijinja
     template_ref: handoff/handoff-skills-suggest
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 20
     input_mapping:
@@ -181,7 +178,6 @@ steps:
       suitable for a fresh agent session. Write to OS temp directory.
     renderer: minijinja
     template_ref: handoff/handoff-compose
-    model_tier: balanced
     gas_cap: 5000
     timeout_seconds: 45
     input_mapping:
@@ -213,7 +209,6 @@ steps:
       Track handoff frequency, document size, and skill suggestion patterns.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

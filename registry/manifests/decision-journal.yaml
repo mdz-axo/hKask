@@ -51,7 +51,6 @@ steps:
       alternatives considered. Structure the decision for future review.
     renderer: minijinja
     template_ref: decision-journal/record-decision
-    model_tier: balanced
     gas_cap: 3000
     timeout_seconds: 45
     input_mapping:
@@ -94,7 +93,6 @@ steps:
       the calibration targets for future revisit.
     renderer: minijinja
     template_ref: decision-journal/define-expected-outcomes
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -132,7 +130,6 @@ steps:
       future lookup.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 1000
     timeout_seconds: 10
@@ -160,7 +157,6 @@ steps:
       CNS algedonic monitoring.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

@@ -78,7 +78,6 @@ steps:
       the Curator for confirmation.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-research
     tool: web_search
     arguments:
@@ -99,7 +98,6 @@ steps:
       Returns structured paper metadata with abstracts, citations, and PDF links.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-research
     tool: web_search
     arguments:
@@ -118,7 +116,6 @@ steps:
       Uses arXiv's author search syntax.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-research
     tool: web_search
     arguments:
@@ -138,7 +135,6 @@ steps:
       interviews, and other content by or about the author.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-research
     tool: web_search
     arguments:
@@ -160,7 +156,6 @@ steps:
       the transcript extraction step.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-research
     tool: web_search
     arguments:
@@ -183,7 +178,6 @@ steps:
       PDFs are handled by the research server's extraction pipeline.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-research
     tool: web_extract
     arguments:
@@ -204,7 +198,6 @@ steps:
       can skip re-downloading. Each work is saved as {cache_dir}/{slug}.txt.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-replica
     tool: replica_cache_work
     arguments:
@@ -225,7 +218,6 @@ steps:
       Each video ID is sent to SerpAPI's youtube_video_transcript engine.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-research
     tool: web_search
     arguments:
@@ -249,7 +241,6 @@ steps:
       structured entities for the corpus YAML.
     renderer: minijinja
     template_ref: replica/extract-concepts
-    model_tier: reasoning_local
     mcp: hkask-mcp-memory
     gas_cap: 4096
     timeout_seconds: 60
@@ -268,7 +259,6 @@ steps:
       definitions with stylometric signal thresholds.
     renderer: minijinja
     template_ref: replica/infer-methods
-    model_tier: reasoning_local
     mcp: hkask-mcp-memory
     condition: "${input.include_methods}"
     gas_cap: 4096
@@ -286,7 +276,6 @@ steps:
       for Curator approval before proceeding to build.
     renderer: minijinja
     template_ref: replica/discovery-corpus
-    model_tier: null
     gas_cap: 2000
     timeout_seconds: 10
     output_schema:
@@ -303,7 +292,6 @@ steps:
       Curator can approve, modify, or abort. In agentic mode, this step is skipped.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null
     condition: "${input.mode == 'curated'}"
     gas_cap: 500
@@ -324,7 +312,6 @@ steps:
       works discovered, concepts extracted, and methods inferred.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

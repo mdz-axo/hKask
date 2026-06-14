@@ -38,7 +38,6 @@ steps:
     description: Re-execute Kata with temperature variation for variance assessment
     renderer: minijinja
     template_ref: kata/{{ kata_type }}-cycle.j2
-    model_tier: balanced
     token_cap: 40000
     timeout_seconds: 60
     temperature: 0.8  # Higher than primary (0.3) for variance
@@ -57,7 +56,6 @@ steps:
     description: Compare all iterations for variance and confidence assessment
     renderer: minijinja
     template_ref: kata/iteration-comparison.j2
-    model_tier: fast_local
     token_cap: 5000
     timeout_seconds: 20
     output_schema:

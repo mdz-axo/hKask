@@ -52,7 +52,6 @@ steps:
       intensity. Map the target to its vulnerability surface.
     renderer: minijinja
     template_ref: adversarial-red-team/select-target
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 15
     input_mapping:
@@ -90,7 +89,6 @@ steps:
       perturbations designed to probe weaknesses in the target output.
     renderer: minijinja
     template_ref: adversarial-red-team/generate-adversarial
-    model_tier: reasoning_local
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -122,7 +120,6 @@ steps:
       succumbs to the attack. Record failure modes and successful defenses.
     renderer: minijinja
     template_ref: adversarial-red-team/test-against-target
-    model_tier: reasoning_local
     gas_cap: 6000
     timeout_seconds: 90
     input_mapping:
@@ -159,7 +156,6 @@ steps:
       resistance scores, and identify the most critical vulnerabilities.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 1000
     timeout_seconds: 15
@@ -196,7 +192,6 @@ steps:
       (context drainage, goal gradualism, authority escalation, tool chaining).
     renderer: minijinja
     template_ref: adversarial-red-team/multi-turn-attack
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -229,7 +224,6 @@ steps:
       for CNS algedonic monitoring.
     renderer: null
     template_ref: null
-    model_tier: null
     # CNS is now internal via CnsRuntime; use memory for health/monitoring feedback
     mcp: hkask-mcp-memory
     gas_cap: 500

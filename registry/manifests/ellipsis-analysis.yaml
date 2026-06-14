@@ -32,7 +32,6 @@ steps:
       creating the reference set against which gaps will be detected.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 2000
     timeout_seconds: 15
@@ -49,7 +48,6 @@ steps:
       differentiate ellipsis from leak, see past yourself, find what is not inferno.
     renderer: minijinja
     template_ref: cognition/ellipsis-analysis
-    model_tier: reasoning_local
     gas_cap: 6000
     timeout_seconds: 60
     output_schema:
@@ -66,7 +64,6 @@ steps:
       Ensure each omission has a classification with supporting reasoning.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 1000
     timeout_seconds: 15
@@ -86,7 +83,6 @@ steps:
       ellipsis-to-leak ratio for variety monitoring.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

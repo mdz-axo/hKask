@@ -27,7 +27,6 @@ steps:
       Returns enriched results with scores, provider agreement, and related questions.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_search
     arguments:
@@ -50,7 +49,6 @@ steps:
       Only runs if Exa provider is configured and top result has a valid URL.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_find_similar
     arguments:
@@ -69,7 +67,6 @@ steps:
       Iterates over the merged result set and extracts markdown content.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_extract
     arguments:
@@ -89,7 +86,6 @@ steps:
       Searches for each related question to fill gaps in coverage.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_search
     arguments:
@@ -110,7 +106,6 @@ steps:
       Renders the research-cascade template with collected data.
     renderer: minijinja
     template_ref: web/research-cascade
-    model_tier: null
     gas_cap: 1000
     timeout_seconds: 10
     output_schema:
@@ -123,7 +118,6 @@ steps:
       Emit research outcome to CNS. Track variety and coverage metrics.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

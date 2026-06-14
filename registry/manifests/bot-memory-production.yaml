@@ -59,7 +59,6 @@ steps:
       Render operation record template with bot operation data.
     renderer: minijinja
     template_ref: memory/templates/agent_operation_memory.j2
-    model_tier: fast_local
     mcp: hkask-mcp-memory
     gas_cap: 2000
     timeout_seconds: 10

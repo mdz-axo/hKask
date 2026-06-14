@@ -149,7 +149,6 @@ steps:
     description: "Identify seam and invariant"
     renderer: markdown
     template_ref: test/templates/seam-selector.j2
-    model_tier: standard
     mcp: null
     gas_cap: 500
     timeout_seconds: 30
@@ -161,7 +160,6 @@ steps:
     description: "Write RED test for invariant"
     renderer: markdown
     template_ref: test/templates/red-test.j2
-    model_tier: standard
     mcp: null
     gas_cap: 500
     timeout_seconds: 60
@@ -173,7 +171,6 @@ steps:
     description: "Write minimal GREEN implementation"
     renderer: markdown
     template_ref: test/templates/green-impl.j2
-    model_tier: standard
     mcp: null
     gas_cap: 500
     timeout_seconds: 60

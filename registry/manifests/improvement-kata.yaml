@@ -29,7 +29,6 @@ steps:
       What capability needs development? What is the long-term goal?
     renderer: minijinja
     template_ref: kata-improvement/improvement-step1-direction
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 20
     output_schema:
@@ -49,7 +48,6 @@ steps:
       What is the actual performance now? Measure, don't assume.
     renderer: minijinja
     template_ref: kata-improvement/improvement-step2-current
-    model_tier: fast_local
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:
@@ -69,7 +67,6 @@ steps:
       What specific, measurable improvement will we achieve by when?
     renderer: minijinja
     template_ref: kata-improvement/improvement-step3-target
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 30
     output_schema:
@@ -89,7 +86,6 @@ steps:
       What obstacle will we address? What is the next experiment?
     renderer: minijinja
     template_ref: kata-improvement/improvement-step4-experiment
-    model_tier: balanced
     gas_cap: 5000
     timeout_seconds: 45
     output_schema:

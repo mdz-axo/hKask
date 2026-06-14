@@ -28,7 +28,6 @@ gas:
 
   inference_energy:
     source: LLMCO2-AAAI-2026
-    model_tier_factors:
       fast_local: 0.0003
       balanced: 0.0008
       reasoning_local: 0.0015
@@ -49,7 +48,6 @@ gas:
       - methodology_version
       - grid_intensity_source
       - pue_assumption
-      - model_tier_used
       - uncertainty_range
     verification_standard: ISO-14064-3
     base_year: 2026
@@ -61,7 +59,6 @@ steps:
     description: Verify consent and select Kata pattern
     renderer: minijinja
     template_ref: kata/consent-and-select.j2
-    model_tier: fast_local
     token_cap: 3000
     timeout_seconds: 20
     output_schema:
@@ -82,7 +79,6 @@ steps:
     description: Execute selected Kata pattern
     renderer: minijinja
     template_ref: kata/{{ kata_type }}-cycle.j2
-    model_tier: balanced
     token_cap: 70000
     timeout_seconds: 60
     output_schema:
@@ -98,7 +94,6 @@ steps:
     description: Synthesize Kata outcome with habit assessment
     renderer: minijinja
     template_ref: kata/outcome-and-habit.j2
-    model_tier: fast_local
     token_cap: 8000
     timeout_seconds: 30
     output_schema:
@@ -164,7 +159,6 @@ steps:
     description: Check if intervention is needed (habit at risk)
     renderer: minijinja
     template_ref: kata/habit-intervention.j2
-    model_tier: fast_local
     token_cap: 4000
     timeout_seconds: 15
     condition: intervention_needed OR days_since_practice_gt_3
@@ -181,7 +175,6 @@ steps:
     description: Check if Kata switching is requested
     renderer: minijinja
     template_ref: kata/kata-switch-check.j2
-    model_tier: fast_local
     token_cap: 3000
     timeout_seconds: 15
     condition: composition_enabled
@@ -219,7 +212,6 @@ steps:
     description: Check if iteration is needed (high variance or low confidence)
     renderer: minijinja
     template_ref: kata/iteration-check.j2
-    model_tier: fast_local
     token_cap: 3000
     timeout_seconds: 15
     condition: variance_detected OR confidence_low
@@ -465,5 +457,4 @@ audit:
     framework: GHG-Protocol-Scope-2-2024
     grid_intensity_source: IEA-Emission-Factors-2026
     pue_assumption: 1.15
-    model_tier: balanced
     uncertainty_range: ±50%

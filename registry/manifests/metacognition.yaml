@@ -30,7 +30,6 @@ steps:
       Break high-level goal into subgoals with dependencies and effort estimates.
     renderer: minijinja
     template_ref: metacognition/meta_decompose
-    model_tier: reasoning_local
     gas_cap: 6000
     timeout_seconds: 60
     output_schema:
@@ -45,7 +44,6 @@ steps:
       Check dependency graph is acyclic and effort estimates sum to ~1.0.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 500
     timeout_seconds: 10
@@ -64,7 +62,6 @@ steps:
       Track decomposition quality and strategy selection patterns.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

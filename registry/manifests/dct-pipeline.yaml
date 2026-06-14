@@ -29,7 +29,6 @@ steps:
       Decompose natural language into atomic SVO sentences.
     renderer: minijinja
     template_ref: dct-pipeline/decimation
-    model_tier: fast_local
     mcp: null
     gas_cap: 2000
     timeout_seconds: 30
@@ -44,7 +43,6 @@ steps:
       Classify each sentence as goal/constraint/task with ontological/epistemic tagging.
     renderer: minijinja
     template_ref: dct-pipeline/classification
-    model_tier: fast_local
     mcp: null
     gas_cap: 2000
     timeout_seconds: 30
@@ -58,7 +56,6 @@ steps:
       Return structured intent hierarchy to caller.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 500
     timeout_seconds: 10

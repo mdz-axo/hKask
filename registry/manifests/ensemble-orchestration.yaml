@@ -12,7 +12,6 @@ steps:
     action: select
     template_ref: ensemble/selectors/participant-selector.j2
     renderer: minijinja
-    model_tier: fast_local
     output_schema:
       type: object
       properties:

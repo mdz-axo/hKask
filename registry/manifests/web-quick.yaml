@@ -25,7 +25,6 @@ steps:
       Quick search via single keyword provider (Brave). RRF-ranked results.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_search
     arguments:
@@ -44,7 +43,6 @@ steps:
       Emit search outcome to CNS.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

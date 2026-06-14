@@ -70,7 +70,6 @@ steps:
       Establish the goal the learner is working toward.
     renderer: minijinja
     template_ref: kata-coaching/coaching-q1-target
-    model_tier: fast_local
     gas_cap: 1500
     timeout_seconds: 15
     output_schema:
@@ -88,7 +87,6 @@ steps:
       What does the learner observe about current performance?
     renderer: minijinja
     template_ref: kata-coaching/coaching-q2-actual
-    model_tier: fast_local
     gas_cap: 1500
     timeout_seconds: 15
     output_schema:
@@ -107,7 +105,6 @@ steps:
       addressing now?
     renderer: minijinja
     template_ref: kata-coaching/coaching-q3-obstacles
-    model_tier: reasoning_local
     gas_cap: 2500
     timeout_seconds: 20
     output_schema:
@@ -125,7 +122,6 @@ steps:
       What do you expect?
     renderer: minijinja
     template_ref: kata-coaching/coaching-q4-experiment
-    model_tier: balanced
     gas_cap: 3000
     timeout_seconds: 25
     output_schema:
@@ -144,7 +140,6 @@ steps:
       Establish immediate feedback loop.
     renderer: minijinja
     template_ref: kata-coaching/coaching-q5-learn
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 15
     output_schema:

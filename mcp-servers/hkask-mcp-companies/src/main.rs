@@ -109,6 +109,13 @@ pub struct LedgerExportRequest {
     pub format: String, // "csv" or "json"
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PortfolioLinkRequest {
+    pub portfolio: String,
+    pub ledger_symbol: String,
+    pub data_symbol: String,
+}
+
 // ── Validation ──────────────────────────────────────────────────────
 
 fn validate_symbol(symbol: &str) -> Result<(), McpToolError> {
@@ -965,6 +972,204 @@ impl CompaniesServer {
                 McpToolError::invalid_argument(e).to_json_string(),
             ),
         }
+    }
+
+    // ── Data linkage tools ───────────────────────────────────────
+
+    #[tool(description = "Link a ledger symbol to a data provider symbol")]
+    async fn portfolio_link_security(
+        &self,
+        Parameters(req): Parameters<PortfolioLinkRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("portfolio_link_security", &self.webid);
+        match self
+            .portfolio
+            .link_security(&req.portfolio, &req.ledger_symbol, &req.data_symbol)
+        {
+            Ok(()) => span.ok_json(serde_json::json!({"status": "linked"})),
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Refresh prices for all securities in a portfolio — fetches missing daily closes"
+    )]
+    async fn portfolio_refresh_prices(
+        &self,
+        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("portfolio_refresh_prices", &self.webid);
+
+        let symbols = match self.portfolio.get_symbols(&name) {
+            Ok(s) => s,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
+        };
+
+        let (from, to) = match self.portfolio.get_date_range(&name, None) {
+            Ok(range) => range,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
+        };
+
+        let mut fetched = 0u32;
+        let mut errors = Vec::new();
+
+        for ledger_sym in &symbols {
+            let data_sym = self
+                .portfolio
+                .resolve_symbol(&name, ledger_sym)
+                .unwrap_or_else(|_| ledger_sym.clone());
+
+            let missing = match self
+                .portfolio
+                .get_missing_price_dates(&name, &data_sym, &from, &to)
+            {
+                Ok(m) => m,
+                Err(e) => {
+                    errors.push(format!("{ledger_sym}: {e}"));
+                    continue;
+                }
+            };
+
+            if missing.is_empty() {
+                continue;
+            }
+
+            // Fetch historical prices for the full range; companies_get returns
+            // FMP-style {symbol, historical: [...]} or EODHD-style normalized.
+            let result = companies_get(
+                &self.client,
+                "historical_price",
+                &data_sym,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("from", &from), ("to", &to)],
+            )
+            .await;
+
+            match result {
+                Ok(value) => {
+                    let historical = value.get("historical").and_then(|h| h.as_array());
+                    if let Some(days) = historical {
+                        for day in days {
+                            let date = day.get("date").and_then(|d| d.as_str()).unwrap_or("");
+                            let close = day
+                                .get("close")
+                                .or_else(|| day.get("adjClose"))
+                                .and_then(|v| v.as_f64());
+                            if let (Some(c), true) = (close, !date.is_empty())
+                                && missing.contains(&date.to_string())
+                            {
+                                if let Err(e) =
+                                    self.portfolio.store_price(&name, &data_sym, date, c, "api")
+                                {
+                                    errors.push(format!("{ledger_sym} {date}: {e}"));
+                                } else {
+                                    fetched += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    errors.push(format!("{ledger_sym}: {}", e.to_json_string()));
+                }
+            }
+        }
+
+        span.ok_json(serde_json::json!({
+            "status": "completed",
+            "symbols_checked": symbols.len(),
+            "prices_fetched": fetched,
+            "errors": errors,
+        }))
+    }
+
+    #[tool(description = "Refresh fundamental data for all securities in a portfolio")]
+    async fn portfolio_refresh_fundamentals(
+        &self,
+        Parameters(PortfolioNameRequest { name }): Parameters<PortfolioNameRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("portfolio_refresh_fundamentals", &self.webid);
+
+        let symbols = match self.portfolio.get_symbols(&name) {
+            Ok(s) => s,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
+        };
+
+        let mut profiles = serde_json::Map::new();
+        let mut metrics = serde_json::Map::new();
+        let mut errors = Vec::new();
+
+        for ledger_sym in &symbols {
+            let data_sym = self
+                .portfolio
+                .resolve_symbol(&name, ledger_sym)
+                .unwrap_or_else(|_| ledger_sym.clone());
+
+            // Fetch profile
+            match companies_get(
+                &self.client,
+                "company_profile",
+                &data_sym,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[],
+            )
+            .await
+            {
+                Ok(v) => {
+                    profiles.insert(ledger_sym.clone(), v);
+                }
+                Err(e) => {
+                    errors.push(format!("{ledger_sym} profile: {}", e.to_json_string()));
+                }
+            }
+
+            // Fetch key metrics
+            match companies_get(
+                &self.client,
+                "key_metrics",
+                &data_sym,
+                &self.fmp_api_key,
+                &self.eodhd_api_key,
+                &[("limit", "5")],
+            )
+            .await
+            {
+                Ok(v) => {
+                    metrics.insert(ledger_sym.clone(), v);
+                }
+                Err(e) => {
+                    errors.push(format!("{ledger_sym} metrics: {}", e.to_json_string()));
+                }
+            }
+        }
+
+        span.ok_json(serde_json::json!({
+            "status": "completed",
+            "symbols_checked": symbols.len(),
+            "profiles": profiles,
+            "metrics": metrics,
+            "errors": errors,
+        }))
     }
 }
 

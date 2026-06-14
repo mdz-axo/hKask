@@ -47,7 +47,6 @@ steps:
       symptoms from causes. Establish scope, timeline, and impact metrics.
     renderer: minijinja
     template_ref: rca/define-problem
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
@@ -81,7 +80,6 @@ steps:
       likelihood dot-voting.
     renderer: minijinja
     template_ref: rca/ishikawa-6m
-    model_tier: reasoning_local
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -120,7 +118,6 @@ steps:
       for high-confidence root causes.
     renderer: minijinja
     template_ref: rca/five-whys-chain
-    model_tier: reasoning_local
     gas_cap: 6000
     timeout_seconds: 90
     input_mapping:
@@ -153,7 +150,6 @@ steps:
       that address multiple root causes.
     renderer: minijinja
     template_ref: rca/corrective-action
-    model_tier: balanced
     gas_cap: 3000
     timeout_seconds: 45
     input_mapping:
@@ -187,7 +183,6 @@ steps:
       actions for CNS algedonic monitoring.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

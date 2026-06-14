@@ -566,96 +566,17 @@ impl MediaServer {
     // ── Gallery tools ────────────────────────────────────────────────────────
 
     #[tool(
-        description = "Scan the gallery directory for new, changed, or removed images. Computes SHA-256 checksums and image dimensions."
+        description = "Organize a photo gallery. Point at a folder — the system creates the index, scans for images, and returns status. Use gallery_search to find photos by content."
     )]
-    async fn gallery_scan(
+    async fn gallery_organize(
         &self,
-        Parameters(GalleryScanRequest {
+        Parameters(GalleryOrganizeRequest {
+            path,
+            mode,
             recursive,
-            extensions,
-        }): Parameters<GalleryScanRequest>,
+        }): Parameters<GalleryOrganizeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("gallery_scan", &self.webid);
-
-        let mut guard = self.gallery_state.lock().unwrap();
-        let state = match &mut *guard {
-            Some(s) => s,
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(
-                        "No gallery initialized. Use gallery_set_root first.",
-                    )
-                    .to_json_string(),
-                );
-            }
-        };
-
-        let result = state.scan(recursive, extensions.as_deref());
-
-        // Persist discovered images to SQLite
-        let gallery_id = state.gallery_id.clone();
-        let mut persisted = 0u32;
-        let mut persist_errors = Vec::new();
-        if let Some(ref gid) = gallery_id {
-            for entry in &result.entries {
-                let abs_path = state.path.join(&entry.relative_path);
-                match self.gallery_store.add_image(
-                    gid,
-                    &entry.relative_path,
-                    &abs_path.to_string_lossy(),
-                    &entry.checksum,
-                    entry.width,
-                    entry.height,
-                    &entry.format,
-                    entry.size_bytes,
-                ) {
-                    Ok(_) => persisted += 1,
-                    Err(e) => persist_errors.push(format!("{}: {}", entry.relative_path, e)),
-                }
-            }
-        }
-
-        let summary = state.summary();
-
-        span.ok_json(serde_json::json!({
-            "scan": {
-                "added": result.added,
-                "removed": result.removed,
-                "unchanged": result.unchanged,
-                "total": result.total,
-                "errors": result.errors,
-                "persisted": persisted,
-                "persist_errors": persist_errors,
-            },
-            "gallery": summary,
-        }))
-    }
-
-    #[tool(description = "Get current gallery status: path, mode, image count, size, tags.")]
-    async fn gallery_info(&self) -> String {
-        let span = ToolSpanGuard::new("gallery_info", &self.webid);
-
-        let guard = self.gallery_state.lock().unwrap();
-        match &*guard {
-            Some(state) => span.ok_json(state.summary()),
-            None => span.ok_json(serde_json::json!({
-                "status": "no_gallery",
-                "message": "No gallery initialized. Use gallery_set_root to create one."
-            })),
-        }
-    }
-
-    // ── Gallery management tools ────────────────────────────────────────────
-
-    #[tool(
-        description = "Initialize or reconfigure an image gallery with a root path and policy mode (read-only, copy-on-write, destructive)."
-    )]
-    async fn gallery_set_root(
-        &self,
-        Parameters(GallerySetRootRequest { path, mode }): Parameters<GallerySetRootRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("gallery_set_root", &self.webid);
+        let span = ToolSpanGuard::new("gallery_organize", &self.webid);
 
         let gallery_mode = match mode.as_str() {
             "read-only" => GalleryMode::ReadOnly,
@@ -673,226 +594,136 @@ impl MediaServer {
             }
         };
 
-        // Create in SQLite
-        match self.gallery_store.create(&path, gallery_mode.clone()) {
-            Ok(record) => {
-                // Also set up the in-memory GalleryState for filesystem operations
-                let local_mode = match gallery_mode {
-                    GalleryMode::ReadOnly | GalleryMode::CopyOnWrite => LocalGalleryMode::Original,
-                    GalleryMode::Destructive => LocalGalleryMode::Copy,
-                };
-                let mut state = GalleryState::new(PathBuf::from(&path), local_mode);
-                if let Err(e) = state.validate() {
-                    return span.error(
-                        McpErrorKind::InvalidArgument,
-                        McpToolError::invalid_argument(e).to_json_string(),
-                    );
+        // Create gallery in SQLite
+        let record = match self.gallery_store.create(&path, gallery_mode.clone()) {
+            Ok(r) => r,
+            Err(GalleryStoreError::AlreadyExists(_)) => {
+                // Gallery exists — just scan
+                let guard = self.gallery_state.lock().unwrap();
+                if let Some(ref state) = *guard {
+                    if let Some(ref gid) = state.gallery_id {
+                        let gid_clone = gid.clone();
+                        let mut state_clone = state.clone();
+                        drop(guard);
+                        let scan_result = state_clone.scan(recursive, None);
+                        let mut persisted = 0u32;
+                        for entry in &scan_result.entries {
+                            let abs_path = state_clone.path.join(&entry.relative_path);
+                            if self
+                                .gallery_store
+                                .add_image(
+                                    &gid_clone,
+                                    &entry.relative_path,
+                                    &abs_path.to_string_lossy(),
+                                    &entry.checksum,
+                                    entry.width,
+                                    entry.height,
+                                    &entry.format,
+                                    entry.size_bytes,
+                                )
+                                .is_ok()
+                            {
+                                persisted += 1;
+                            }
+                        }
+                        *self.gallery_state.lock().unwrap() = Some(state_clone);
+                        return span.ok_json(serde_json::json!({
+                            "status": "rescanned",
+                            "gallery_id": gid_clone,
+                            "root_path": path,
+                            "mode": mode,
+                            "images_added": scan_result.added,
+                            "total_images": scan_result.total,
+                            "persisted": persisted,
+                        }));
+                    }
                 }
-                if let Err(e) = state.ensure_meta_dir() {
-                    return span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(e).to_json_string(),
-                    );
-                }
-                // Store gallery_id so scans can persist to SQLite
-                state.gallery_id = Some(record.id.clone());
-                *self.gallery_state.lock().unwrap() = Some(state);
-
-                span.ok_json(serde_json::json!({
-                    "status": "initialized",
-                    "gallery_id": record.id,
-                    "root_path": record.root_path,
-                    "mode": record.mode,
-                }))
+                return span.ok_json(serde_json::json!({
+                    "status": "already_exists",
+                    "message": "A gallery already exists at this path but its state was lost. Please restart the server."
+                }));
             }
-            Err(GalleryStoreError::AlreadyExists(_)) => span.ok_json(serde_json::json!({
-                "status": "already_exists",
-                "message": "A gallery already exists at this path. Use gallery_scan to update it."
-            })),
-            Err(e) => span.error(
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to create gallery: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        // Set up in-memory GalleryState
+        let local_mode = match gallery_mode {
+            GalleryMode::ReadOnly | GalleryMode::CopyOnWrite => LocalGalleryMode::Original,
+            GalleryMode::Destructive => LocalGalleryMode::Copy,
+        };
+        let mut state = GalleryState::new(PathBuf::from(&path), local_mode);
+        if let Err(e) = state.validate() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e).to_json_string(),
+            );
+        }
+        if let Err(e) = state.ensure_meta_dir() {
+            return span.error(
                 McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to create gallery: {}", e)).to_json_string(),
-            ),
+                McpToolError::internal(e).to_json_string(),
+            );
         }
-    }
+        state.gallery_id = Some(record.id.clone());
 
-    #[tool(
-        description = "Get a reference to a gallery image by index or hash. Returns path, base64, or URL."
-    )]
-    async fn gallery_get_image(
-        &self,
-        Parameters(GalleryGetImageRequest {
-            index,
-            hash,
-            format,
-        }): Parameters<GalleryGetImageRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("gallery_get_image", &self.webid);
-
-        let guard = self.gallery_state.lock().unwrap();
-        let state = match &*guard {
-            Some(s) => s,
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("No gallery initialized.").to_json_string(),
-                );
+        // Scan for images
+        let scan_result = state.scan(recursive, None);
+        let mut persisted = 0u32;
+        for entry in &scan_result.entries {
+            let abs_path = state.path.join(&entry.relative_path);
+            if self
+                .gallery_store
+                .add_image(
+                    &record.id,
+                    &entry.relative_path,
+                    &abs_path.to_string_lossy(),
+                    &entry.checksum,
+                    entry.width,
+                    entry.height,
+                    &entry.format,
+                    entry.size_bytes,
+                )
+                .is_ok()
+            {
+                persisted += 1;
             }
-        };
-
-        // Look up image in SQLite via GalleryStore
-        let gallery_id = match &state.gallery_id {
-            Some(id) => id.clone(),
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(
-                        "Gallery not persisted — run gallery_set_root first.",
-                    )
-                    .to_json_string(),
-                );
-            }
-        };
-
-        let img_record = match self
-            .gallery_store
-            .get_image(&gallery_id, index, hash.as_deref())
-        {
-            Ok(r) => r,
-            Err(GalleryStoreError::ImageNotFound(msg)) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(msg).to_json_string(),
-                );
-            }
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Gallery lookup failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        let img_path = PathBuf::from(&img_record.absolute_path);
-        let fmt = format.as_deref().unwrap_or("path");
-        match fmt {
-            "base64" => match std::fs::read(&img_path) {
-                Ok(data) => {
-                    let b64 =
-                        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
-                    span.ok_json(serde_json::json!({
-                        "format": "base64",
-                        "data": format!("data:image/{};base64,{}", img_record.format, b64),
-                        "path": img_record.absolute_path,
-                        "hash": img_record.hash,
-                        "width": img_record.width,
-                        "height": img_record.height,
-                    }))
-                }
-                Err(e) => span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to read image: {}", e)).to_json_string(),
-                ),
-            },
-            _ => span.ok_json(serde_json::json!({
-                "format": "path",
-                "path": img_record.absolute_path,
-                "hash": img_record.hash,
-                "width": img_record.width,
-                "height": img_record.height,
-            })),
         }
-    }
 
-    #[tool(description = "Get metadata for a gallery image including AI-generated tags.")]
-    async fn gallery_get_metadata(
-        &self,
-        Parameters(GalleryGetMetadataRequest { index, hash: _hash }): Parameters<
-            GalleryGetMetadataRequest,
-        >,
-    ) -> String {
-        let span = ToolSpanGuard::new("gallery_get_metadata", &self.webid);
-
-        let guard = self.gallery_state.lock().unwrap();
-        let state = match &*guard {
-            Some(s) => s,
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("No gallery initialized.").to_json_string(),
-                );
-            }
-        };
-
-        let gallery_id = match &state.gallery_id {
-            Some(id) => id.clone(),
-            None => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(
-                        "Gallery not persisted — run gallery_set_root first.",
-                    )
-                    .to_json_string(),
-                );
-            }
-        };
-
-        let img_record = match self.gallery_store.get_image(&gallery_id, index, None) {
-            Ok(r) => r,
-            Err(GalleryStoreError::ImageNotFound(msg)) => {
-                return span.error(
-                    McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(msg).to_json_string(),
-                );
-            }
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Gallery lookup failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        // Read tags from SQLite
-        let tags = self
-            .gallery_store
-            .get_tags(&img_record.id)
-            .unwrap_or_default();
-        let tag_list: Vec<serde_json::Value> = tags
-            .iter()
-            .map(|t| {
-                serde_json::json!({
-                    "type": t.tag_type,
-                    "value": t.value,
-                    "confidence": t.confidence,
-                    "model": t.model_used,
-                })
-            })
-            .collect();
-
-        // Read EXIF metadata from the image file
-        let exif_data = Self::extract_exif(&img_record.absolute_path);
+        *self.gallery_state.lock().unwrap() = Some(state);
 
         span.ok_json(serde_json::json!({
-            "path": img_record.absolute_path,
-            "filename": PathBuf::from(&img_record.absolute_path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown"),
-            "format": img_record.format,
-            "width": img_record.width,
-            "height": img_record.height,
-            "size_bytes": img_record.size_bytes,
-            "hash": img_record.hash,
-            "tags": tag_list,
-            "exif": exif_data,
+            "status": "organized",
+            "gallery_id": record.id,
+            "root_path": record.root_path,
+            "mode": record.mode,
+            "images_found": scan_result.added,
+            "total_images": scan_result.total,
+            "persisted": persisted,
+            "message": "Gallery ready. Use gallery_search to find photos by content."
         }))
     }
 
+    #[tool(description = "Get gallery status: path, mode, image count, and total size.")]
+    async fn gallery_status(&self) -> String {
+        let span = ToolSpanGuard::new("gallery_status", &self.webid);
+        let guard = self.gallery_state.lock().unwrap();
+        match &*guard {
+            Some(state) => span.ok_json(state.summary()),
+            None => span.ok_json(serde_json::json!({
+                "status": "no_gallery",
+                "message": "No gallery organized. Use gallery_organize to point at a photo folder."
+            })),
+        }
+    }
+
     #[tool(
-        description = "Search gallery images by fuzzy-matching tags using Levenshtein distance. Returns ranked results with matching tags highlighted."
+        description = "Search your gallery by describing what you're looking for. Fuzzy-matches against AI-generated tags (objects, faces, colors, composition)."
     )]
     async fn gallery_search(
         &self,
@@ -911,7 +742,10 @@ impl MediaServer {
             None => {
                 return span.error(
                     McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument("No gallery initialized.").to_json_string(),
+                    McpToolError::invalid_argument(
+                        "No gallery organized. Use gallery_organize first.",
+                    )
+                    .to_json_string(),
                 );
             }
         };
@@ -921,10 +755,7 @@ impl MediaServer {
             None => {
                 return span.error(
                     McpErrorKind::InvalidArgument,
-                    McpToolError::invalid_argument(
-                        "Gallery not persisted — run gallery_set_root first.",
-                    )
-                    .to_json_string(),
+                    McpToolError::invalid_argument("Gallery not persisted.").to_json_string(),
                 );
             }
         };
@@ -944,12 +775,10 @@ impl MediaServer {
         let type_filter: Option<Vec<String>> =
             tag_types.map(|t| t.into_iter().map(|s| s.to_lowercase()).collect());
 
-        // Score each tag against the query using Levenshtein similarity
         let mut image_scores: std::collections::HashMap<String, (f64, Vec<serde_json::Value>)> =
             std::collections::HashMap::new();
 
         for (tag, relative_path) in &all_tags {
-            // Apply tag type filter if specified
             if let Some(ref filter) = type_filter {
                 if !filter.contains(&tag.tag_type.to_lowercase()) {
                     continue;
@@ -974,7 +803,6 @@ impl MediaServer {
             }));
         }
 
-        // Sort by score descending, take top N
         let mut ranked: Vec<(String, f64, Vec<serde_json::Value>)> = image_scores
             .into_iter()
             .map(|(path, (score, matches))| (path, score, matches))
@@ -1000,309 +828,24 @@ impl MediaServer {
         }))
     }
 
-    // ── Tagging tools ───────────────────────────────────────────────────────
-
-    #[tool(description = "Detect and describe faces in a gallery image using vision LLM.")]
-    async fn tag_faces(
-        &self,
-        Parameters(TagFacesRequest {
-            image_index,
-            detail_level: _detail_level,
-        }): Parameters<TagFacesRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("tag_faces", &self.webid);
-        let image_url = match self.resolve_image_url(image_index) {
-            Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-        };
-
-        let detail = _detail_level.as_deref().unwrap_or("detailed");
-        let mut vars = HashMap::new();
-        vars.insert("detail_level", detail);
-        let prompt = match self.render_prompt("tag_faces", &vars) {
-            Ok(p) => p,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Template render failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        let (vision_model, vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
-        let result = self
-            .inference
-            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
-            .await;
-
-        self.record_experience(
-            "tag_faces",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"detail_level": detail}),
-        );
-
-        match result {
-            Ok(r) => {
-                // Persist face tags to gallery store
-                if let Ok(image_id) = self.resolve_image_id(image_index) {
-                    if let Ok(faces) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
-                        for face in &faces {
-                            let value = serde_json::to_string(face).unwrap_or_default();
-                            self.persist_tag(&image_id, "face", &value, 0.85, vision_label);
-                        }
-                    } else {
-                        self.persist_tag(&image_id, "face", r.text.trim(), 0.7, vision_label);
-                    }
-                }
-                span.ok_json(serde_json::json!({"faces": r.text, "model": vision_label}))
-            }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                    .to_json_string(),
-            ),
-        }
-    }
-
-    #[tool(description = "Detect and label objects in a gallery image using vision LLM.")]
-    async fn tag_objects(
-        &self,
-        Parameters(TagObjectsRequest {
-            image_index,
-            detail_level: _detail_level,
-            max_objects,
-        }): Parameters<TagObjectsRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("tag_objects", &self.webid);
-        let image_url = match self.resolve_image_url(image_index) {
-            Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-        };
-
-        let detail = _detail_level.as_deref().unwrap_or("detailed");
-        let max = max_objects.unwrap_or(20);
-        let max_str = max.to_string();
-        let mut vars = HashMap::new();
-        vars.insert("detail_level", detail);
-        vars.insert("max_objects", &max_str);
-        let prompt = match self.render_prompt("tag_objects", &vars) {
-            Ok(p) => p,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Template render failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        let (vision_model, vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
-        let result = self
-            .inference
-            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
-            .await;
-
-        self.record_experience(
-            "tag_objects",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"max_objects": max}),
-        );
-
-        match result {
-            Ok(r) => {
-                // Persist object tags to gallery store
-                if let Ok(image_id) = self.resolve_image_id(image_index) {
-                    if let Ok(objects) = serde_json::from_str::<Vec<serde_json::Value>>(&r.text) {
-                        for obj in &objects {
-                            let value = serde_json::to_string(obj).unwrap_or_default();
-                            self.persist_tag(&image_id, "object", &value, 0.85, vision_label);
-                        }
-                    } else {
-                        self.persist_tag(&image_id, "object", r.text.trim(), 0.7, vision_label);
-                    }
-                }
-                span.ok_json(serde_json::json!({"objects": r.text, "model": vision_label}))
-            }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                    .to_json_string(),
-            ),
-        }
-    }
+    // ── Image tools ──────────────────────────────────────────────────────────
 
     #[tool(
-        description = "Analyze dominant colors and palette in a gallery image using vision LLM."
+        description = "Describe an image in detail. Choose a style: descriptive (full scene), artistic (poetic), technical (photographic analysis), or alt_text (accessibility)."
     )]
-    async fn tag_colors(
+    async fn describe_image(
         &self,
-        Parameters(TagColorsRequest { image_index }): Parameters<TagColorsRequest>,
+        Parameters(DescribeImageRequest { image_url, style }): Parameters<DescribeImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("tag_colors", &self.webid);
-        let image_url = match self.resolve_image_url(image_index) {
-            Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-        };
-
-        let mut vars = HashMap::new();
-        vars.insert("max_colors", "8");
-        let prompt = match self.render_prompt("tag_colors", &vars) {
-            Ok(p) => p,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Template render failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        let (vision_model, vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
-        let result = self
-            .inference
-            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
-            .await;
-
-        self.record_experience(
-            "tag_colors",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({}),
-        );
-
-        match result {
-            Ok(r) => {
-                // Persist color tags to gallery store
-                if let Ok(image_id) = self.resolve_image_id(image_index) {
-                    // Try to parse as structured JSON with colors array
-                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
-                        if let Some(colors) = parsed["colors"].as_array() {
-                            for color in colors {
-                                let value = serde_json::to_string(color).unwrap_or_default();
-                                self.persist_tag(&image_id, "color", &value, 0.85, vision_label);
-                            }
-                        }
-                        // Also store palette-level metadata
-                        for field in &["palette_style", "temperature", "saturation"] {
-                            if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
-                                self.persist_tag(&image_id, "color", v, 0.9, vision_label);
-                            }
-                        }
-                    } else {
-                        self.persist_tag(&image_id, "color", r.text.trim(), 0.7, vision_label);
-                    }
-                }
-                span.ok_json(serde_json::json!({"colors": r.text, "model": vision_label}))
-            }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                    .to_json_string(),
-            ),
+        let span = ToolSpanGuard::new("describe_image", &self.webid);
+        if let Err(e) = validate_tool_url(&image_url) {
+            return span.error(e.kind, e.to_json_string());
         }
-    }
-
-    #[tool(description = "Analyze photographic composition of a gallery image using vision LLM.")]
-    async fn tag_composition(
-        &self,
-        Parameters(TagCompositionRequest { image_index }): Parameters<TagCompositionRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("tag_composition", &self.webid);
-        let image_url = match self.resolve_image_url(image_index) {
-            Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-        };
-
-        let vars = HashMap::new();
-        let prompt = match self.render_prompt("tag_composition", &vars) {
-            Ok(p) => p,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Template render failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        let (vision_model, vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
-        let result = self
-            .inference
-            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
-            .await;
-
-        self.record_experience(
-            "tag_composition",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({}),
-        );
-
-        match result {
-            Ok(r) => {
-                // Persist composition tags to gallery store
-                if let Ok(image_id) = self.resolve_image_id(image_index) {
-                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&r.text) {
-                        for field in &[
-                            "focal_point",
-                            "rule_of_thirds",
-                            "leading_lines",
-                            "depth_of_field",
-                            "perspective",
-                            "framing",
-                            "symmetry",
-                            "negative_space",
-                        ] {
-                            if let Some(v) = parsed.get(*field).and_then(|v| v.as_str()) {
-                                self.persist_tag(&image_id, "composition", v, 0.85, vision_label);
-                            }
-                        }
-                    } else {
-                        self.persist_tag(
-                            &image_id,
-                            "composition",
-                            r.text.trim(),
-                            0.7,
-                            vision_label,
-                        );
-                    }
-                }
-                span.ok_json(serde_json::json!({"composition": r.text, "model": vision_label}))
-            }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                    .to_json_string(),
-            ),
-        }
-    }
-
-    // ── Abstraction tools ───────────────────────────────────────────────────
-
-    #[tool(
-        description = "Describe the full scene: subject, setting, lighting, mood using vision LLM."
-    )]
-    async fn image_describe_scene(
-        &self,
-        Parameters(DescribeSceneRequest { image_index, style }): Parameters<DescribeSceneRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("image_describe_scene", &self.webid);
-        let image_url = match self.resolve_image_url(image_index) {
-            Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-        };
 
         let style_str = style.as_deref().unwrap_or("descriptive");
         let mut vars = HashMap::new();
         vars.insert("style", style_str);
-        let prompt = match self.render_prompt("describe_scene", &vars) {
+        let prompt = match self.render_prompt("caption", &vars) {
             Ok(p) => p,
             Err(e) => {
                 return span.error(
@@ -1318,76 +861,14 @@ impl MediaServer {
         let result = self
             .inference
             .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
-            .await;
-
-        self.record_experience(
-            "image_describe_scene",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"style": style_str}),
-        );
-
-        match result {
-            Ok(r) => span.ok_json(serde_json::json!({"description": r.text, "style": style_str})),
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                    .to_json_string(),
-            ),
-        }
-    }
-
-    #[tool(description = "Classify image style: photographic style, genre, era using vision LLM.")]
-    async fn image_classify_style(
-        &self,
-        Parameters(ClassifyStyleRequest {
-            image_index,
-            categories,
-        }): Parameters<ClassifyStyleRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("image_classify_style", &self.webid);
-        let image_url = match self.resolve_image_url(image_index) {
-            Ok(url) => url,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e),
-        };
-
-        let cats = categories.as_deref().unwrap_or("");
-        let mut vars = HashMap::new();
-        vars.insert("categories", cats);
-        let prompt = match self.render_prompt("classify_style", &vars) {
-            Ok(p) => p,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Template render failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-
-        let (vision_model, vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
-        let result = self
-            .inference
-            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
-            .await;
-
-        self.record_experience(
-            "image_classify_style",
-            &format!("image_index={}", image_index),
-            if result.is_ok() { "success" } else { "error" },
-            serde_json::json!({"categories": categories}),
-        );
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Vision inference failed: {}", e)));
 
         match result {
             Ok(r) => {
-                span.ok_json(serde_json::json!({"classifications": r.text, "model": vision_label}))
+                span.ok_json(serde_json::json!({"description": r.text.trim(), "style": style_str}))
             }
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Vision inference failed: {}", e))
-                    .to_json_string(),
-            ),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -2554,30 +2035,10 @@ impl MediaServer {
         }
     }
 
-    // ── fal.ai generation tools ──────────────────────────────────────────────
+    // ── Generation tools ────────────────────────────────────────────────────
 
-    #[tool(description = "Ping Fal.ai API to verify connectivity and authentication")]
-    async fn fal_ping(&self) -> String {
-        let span = ToolSpanGuard::new("fal_ping", &self.webid);
-        // Ping via inference router — try a lightweight image generation
-        match self
-            .inference
-            .generate_image("test ping", Some("64x64"), Some(1))
-            .await
-        {
-            Ok(_) => span.ok_json(serde_json::json!({
-                "status": "ok",
-                "message": "fal.ai API is reachable and authenticated via inference router",
-            })),
-            Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Connection failed: {}", e)).to_json_string(),
-            ),
-        }
-    }
-
-    #[tool(description = "Generate an image from a prompt")]
-    async fn fal_generate_image(
+    #[tool(description = "Generate an image from a text prompt. Describe what you want to see.")]
+    async fn generate_image(
         &self,
         Parameters(GenerateImageRequest {
             prompt,
@@ -2585,7 +2046,7 @@ impl MediaServer {
             num_images,
         }): Parameters<GenerateImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal_generate_image", &self.webid);
+        let span = ToolSpanGuard::new("generate_image", &self.webid);
         let size = image_size.clone();
         let result = self
             .inference
@@ -2593,7 +2054,7 @@ impl MediaServer {
             .await
             .map_err(|e| McpToolError::unavailable(format!("Image generation failed: {}", e)));
         self.record_experience(
-            "fal_generate_image",
+            "generate_image",
             &prompt,
             if result.is_ok() { "success" } else { "error" },
             serde_json::json!({"image_size": size, "num_images": num_images}),
@@ -2601,16 +2062,18 @@ impl MediaServer {
         span.finish(result)
     }
 
-    #[tool(description = "Transform an image with a prompt")]
-    async fn fal_image_to_image(
+    #[tool(
+        description = "Transform an existing image with a text prompt. Describe the change you want."
+    )]
+    async fn transform_image(
         &self,
-        Parameters(ImageToImageRequest {
+        Parameters(TransformImageRequest {
             prompt,
             image_url,
             strength,
-        }): Parameters<ImageToImageRequest>,
+        }): Parameters<TransformImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal_image_to_image", &self.webid);
+        let span = ToolSpanGuard::new("transform_image", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -2618,16 +2081,16 @@ impl MediaServer {
             .inference
             .image_to_image(&image_url, &prompt, strength)
             .await
-            .map_err(|e| McpToolError::unavailable(format!("Image-to-image failed: {}", e)));
+            .map_err(|e| McpToolError::unavailable(format!("Image transform failed: {}", e)));
         span.finish(result)
     }
 
-    #[tool(description = "Upscale an image")]
-    async fn fal_upscale(
+    #[tool(description = "Upscale an image to higher resolution.")]
+    async fn upscale_image(
         &self,
-        Parameters(UpscaleRequest { image_url, scale }): Parameters<UpscaleRequest>,
+        Parameters(UpscaleImageRequest { image_url, scale }): Parameters<UpscaleImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal_upscale", &self.webid);
+        let span = ToolSpanGuard::new("upscale_image", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -2639,52 +2102,20 @@ impl MediaServer {
         span.finish(result)
     }
 
-    #[tool(description = "Generate a video from a prompt")]
-    async fn fal_generate_video(
+    #[tool(
+        description = "Generate a short video from a text prompt. Describe the scene you want to see in motion."
+    )]
+    async fn generate_video(
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal_generate_video", &self.webid);
+        let span = ToolSpanGuard::new("generate_video", &self.webid);
         let result = self
             .inference
             .generate_video(&prompt, duration)
             .await
             .map_err(|e| McpToolError::unavailable(format!("Video generation failed: {}", e)));
         span.finish(result)
-    }
-
-    #[tool(description = "Generate a caption for an image")]
-    async fn fal_caption(
-        &self,
-        Parameters(CaptionRequest { image_url }): Parameters<CaptionRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("fal_caption", &self.webid);
-        if let Err(e) = validate_tool_url(&image_url) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        let mut vars = HashMap::new();
-        vars.insert("style", "descriptive");
-        let prompt = match self.render_prompt("caption", &vars) {
-            Ok(p) => p,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Template render failed: {}", e))
-                        .to_json_string(),
-                );
-            }
-        };
-        let (vision_model, _vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
-        let result = self
-            .inference
-            .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
-            .await
-            .map_err(|e| McpToolError::unavailable(format!("Caption generation failed: {}", e)));
-        match result {
-            Ok(r) => span.ok_json(serde_json::json!({"caption": r.text})),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
     }
 }
 

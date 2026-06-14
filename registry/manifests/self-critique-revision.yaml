@@ -52,7 +52,6 @@ steps:
       critique-revise cycle.
     renderer: minijinja
     template_ref: self-critique-revision/generate
-    model_tier: balanced
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -76,7 +75,6 @@ steps:
       structured critique with specific, actionable feedback.
     renderer: minijinja
     template_ref: self-critique-revision/critique
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -113,7 +111,6 @@ steps:
       The revision should directly respond to specific critique points.
     renderer: minijinja
     template_ref: self-critique-revision/revise
-    model_tier: reasoning_local
     gas_cap: 5000
     timeout_seconds: 90
     input_mapping:
@@ -151,7 +148,6 @@ steps:
       is acceptable. Validate that quality criteria are met.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 1000
     timeout_seconds: 10
@@ -188,7 +184,6 @@ steps:
       output back as input. It has max_iterations: 3.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # internal SqliteRegistry was hkask-mcp-templates
     tool: self_critique_revision_iteration
     gas_cap: 12000
@@ -220,7 +215,6 @@ steps:
       Report iteration count, quality progression, and convergence status.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

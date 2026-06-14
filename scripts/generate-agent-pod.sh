@@ -193,7 +193,6 @@ steps:
     action: select
     template_ref: registry/selectors/selector.j2
     renderer: minijinja
-    model_tier: fast_local
     matroshka_depth: "\${matroshka_depth}"
     output_schema:
       type: object
@@ -221,7 +220,6 @@ steps:
     target: "\${template.contract.target}"
     contract: "\${template.contract}"
     mcp: "\${template.contract.mcp}"
-    model_tier: "\${template.contract.model_tier}"
     matroshka_depth: "\${matroshka_depth + 1}"
 
 cns:
@@ -266,7 +264,6 @@ Given the following available templates and the user's raw prompt, select the mo
 
 2. Match lexicon terms to prompt vocabulary
 
-3. Consider contract compatibility (model_tier, mcp server)
 
 ## Output Format
 

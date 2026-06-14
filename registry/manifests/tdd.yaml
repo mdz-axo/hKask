@@ -179,7 +179,6 @@ steps:
       (P0 security → P1 correctness → P2+ ergonomics), and get user approval.
     renderer: minijinja
     template_ref: tdd/tdd-plan
-    model_tier: reasoning_local
     gas_cap: 6144
     timeout_seconds: 90
     input_mapping:
@@ -237,7 +236,6 @@ steps:
       to a spec requirement (// REQ: tag), then write the minimal code to pass.
     renderer: minijinja
     template_ref: tdd/tdd-tracer
-    model_tier: balanced
     gas_cap: 8192
     timeout_seconds: 120
     input_mapping:
@@ -266,7 +264,6 @@ steps:
       at a time, verified by tests.
     renderer: minijinja
     template_ref: tdd/tdd-refactor
-    model_tier: reasoning_local
     gas_cap: 6144
     timeout_seconds: 90
     input_mapping:
@@ -298,7 +295,6 @@ steps:
       stubs, spec traceability via // REQ: tags, functional coverage gaps identified.
     renderer: minijinja
     template_ref: tdd/tdd-verify
-    model_tier: reasoning_local
     gas_cap: 4096
     timeout_seconds: 60
     input_mapping:
@@ -350,7 +346,6 @@ steps:
       recommendations for OPEN_QUESTIONS.md. P0 gaps MUST have tracer bullets.
     renderer: minijinja
     template_ref: tdd/tdd-gap-check
-    model_tier: reasoning_local
     gas_cap: 4096
     timeout_seconds: 60
     input_mapping:
@@ -400,7 +395,6 @@ steps:
       rates, gap closure rates, and tracer-bullet discipline.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

@@ -53,7 +53,6 @@ steps:
       3. Select k_min..k_max passages within distance_threshold
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 10
@@ -79,7 +78,6 @@ steps:
       are defined in registry/styles/hemingway/hemingway-style-synthesizer.yaml.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null
     gas_cap: 100
     timeout_seconds: 5
@@ -103,7 +101,6 @@ steps:
       paratactic coordination, Fish generative forms, and corpus exemplars.
     renderer: minijinja
     template_ref: composition/hemingway-style-synthesizer
-    model_tier: balanced
     gas_cap: 4096
     timeout_seconds: 30
     output_schema:
@@ -121,7 +118,6 @@ steps:
       5. Check coordinated clause ratio, syllable count, sentence length
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 15
@@ -149,7 +145,6 @@ steps:
       and centroid distance measurement.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

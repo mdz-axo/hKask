@@ -30,7 +30,6 @@ steps:
     description: "Invoke the replica-discovery pipeline manifest"
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 50000
     timeout_seconds: 600

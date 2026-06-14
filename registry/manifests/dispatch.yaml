@@ -25,7 +25,6 @@ steps:
     action: select
     template_ref: registry/selectors/selector.j2
     renderer: minijinja
-    model_tier: fast_local
     matroshka_depth: "${matroshka_depth}"
     output_schema:
       type: object
@@ -53,7 +52,6 @@ steps:
     target: "${template.contract.target}"
     contract: "${template.contract}"
     mcp: "${template.contract.mcp}"
-    model_tier: "${template.contract.model_tier}"
     matroshka_depth: "${matroshka_depth + 1}"
 
 cns:

@@ -24,12 +24,12 @@ Updated 2026-06-13: `hkask-mcp-markitdown` + `hkask-mcp-doc-knowledge` → `hkas
 | spec | `hkask-mcp-spec` | 5 | L5 (Curation) | `HKASK_OCAP_SECRET` |
 | companies | `hkask-mcp-companies` | 15 | L4 (Communication) | `HKASK_FMP_API_KEY`, `HKASK_EODHD_API_KEY` |
 | communication | `hkask-mcp-communication` | 3 | L4 (Communication) | — |
-| fal | `hkask-mcp-media` | 9 | L4 (Communication) | `HKASK_FAL_API_KEY` |
+| media | `hkask-mcp-media` | 20 | L4 (Communication) | `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` |
 | replica | `hkask-mcp-replica` | 6 | L4 (Communication) | `HKASK_EMBEDDING_MODEL` (optional) |
 | memory | `hkask-mcp-memory` | 13 | L2 (Episodic + Semantic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
 | docproc | `hkask-mcp-docproc` | 9 | L2 (Episodic) | `HKASK_OCR_MODEL` (optional) |
 | training | `hkask-mcp-training` | 1 | L2 (Episodic) | `HKASK_MEMORY_DB`, `HKASK_DB_PASSPHRASE` |
-| **Total** | | **~86** | | |
+| **Total** | | **~97** | | |
 
 ---
 
@@ -163,42 +163,34 @@ Per MDS.md §3 — five tools only. Curation tools (`evaluate`, `reconcile`, `cu
 
 ---
 
-### fal
+### media
 
-**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 29 (6 gallery + 4 tagging + 2 abstraction + 3 derivation + 5 video + 2 voice + 7 generation)
+**Crate:** `hkask-mcp-media` · **Loop:** L4 · **Tools:** 20 (3 gallery + 4 image + 7 video + 2 voice + 4 generation)
 
 **Required:** `DI_API_KEY`, `FA_API_KEY`, or `FW_API_KEY` (at least one)
 
 | Tool | Description |
 |------|-------------|
-| `gallery_set_root` | Initialize gallery with path and policy mode |
-| `gallery_scan` | Scan gallery for images (checksums, dimensions) |
-| `gallery_info` | Get gallery status summary |
-| `gallery_get_image` | Get image by index or hash (path/base64) |
-| `gallery_get_metadata` | Get image metadata including EXIF and AI tags |
-| `gallery_search` | Fuzzy search gallery by tags (Levenshtein distance) |
-| `tag_faces` | Detect and describe faces using vision LLM |
-| `tag_objects` | Detect and label objects using vision LLM |
-| `tag_colors` | Analyze dominant colors and palette |
-| `tag_composition` | Analyze photographic composition |
-| `image_describe_scene` | Describe full scene (subject, setting, mood) |
-| `image_classify_style` | Classify photographic style and genre |
-| `image_remove_background` | Remove background (Bria RMBG 2.0) |
-| `image_apply_style` | Apply style transfer (Flux img2img) |
-| `image_create_collage` | Create collage from gallery images |
-| `video_clip` | Trim video to segment (ffmpeg) |
-| `video_to_gif` | Convert video segment to GIF (ffmpeg) |
-| `image_to_video` | Animate image to short video |
-| `video_add_caption` | Add text overlay to video (ffmpeg) |
+| `gallery_organize` | Point at a photo folder — auto-creates index and scans for images |
+| `gallery_status` | Get gallery summary: path, mode, image count, size |
+| `gallery_search` | Fuzzy search by describing what you're looking for (Levenshtein) |
+| `describe_image` | Describe an image in detail (descriptive/artistic/technical/alt_text) |
+| `remove_background` | Remove background from an image (Bria RMBG 2.0) |
+| `apply_style` | Apply style transfer to an image (Flux img2img) |
+| `create_collage` | Create a collage from gallery images (search, similar, or explicit) |
+| `video_clip` | Trim a video to a segment (ffmpeg) |
+| `video_to_gif` | Convert a video segment to GIF (ffmpeg) |
+| `image_to_video` | Animate a still image into a short video |
+| `video_add_caption` | Add text overlay to a video (ffmpeg) |
 | `video_remix` | Clip + caption + GIF composite |
-| `voice_design` | Design synthetic voice from character description |
+| `video_concat` | Concatenate multiple clips (ffmpeg) |
+| `video_from_images` | Create video/GIF from image sequence (ffmpeg) |
+| `voice_design` | Design a synthetic voice from a character description |
 | `generate_speech` | Generate speech audio from text + voice design |
-| `fal_ping` | Ping fal.ai API |
-| `fal_generate_image` | Generate image from prompt |
-| `fal_image_to_image` | Transform image with prompt |
-| `fal_upscale` | Upscale an image |
-| `fal_generate_video` | Generate video from prompt |
-| `fal_caption` | Generate caption for an image |
+| `generate_image` | Generate an image from a text prompt |
+| `transform_image` | Transform an existing image with a text prompt |
+| `upscale_image` | Upscale an image to higher resolution |
+| `generate_video` | Generate a short video from a text prompt |
 
 ---
 

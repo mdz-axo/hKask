@@ -11,7 +11,6 @@ steps:
     action: select
     description: Select target tool based on request
     template_ref: process/dispatch
-    model_tier: fast_local
     renderer: minijinja
 
   - ordinal: 2

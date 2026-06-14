@@ -26,7 +26,6 @@ steps:
       Search all providers with full fusion and reranking.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_search
     arguments:
@@ -45,7 +44,6 @@ steps:
       Extract full content from top results for synthesis.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_extract
     arguments:
@@ -64,7 +62,6 @@ steps:
       Render synthesis template with extracted content.
     renderer: minijinja
     template_ref: web/extract-synthesize
-    model_tier: null
     gas_cap: 1000
     timeout_seconds: 10
     output_schema:
@@ -77,7 +74,6 @@ steps:
       Emit synthesis outcome to CNS.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

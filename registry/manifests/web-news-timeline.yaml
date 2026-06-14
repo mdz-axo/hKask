@@ -25,7 +25,6 @@ steps:
       Search news-capable providers with recency bias.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-web
     tool: web_search
     arguments:
@@ -45,7 +44,6 @@ steps:
       Render results into a timeline format bucketed by recency.
     renderer: minijinja
     template_ref: web/search-news
-    model_tier: null
     gas_cap: 500
     timeout_seconds: 10
     output_schema:
@@ -57,7 +55,6 @@ steps:
       Emit news search outcome to CNS.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

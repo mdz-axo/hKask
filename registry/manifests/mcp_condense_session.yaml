@@ -27,7 +27,6 @@ steps:
       Render condensation template with session transcript and parameters.
     renderer: minijinja
     template_ref: mcp/condense_session
-    model_tier: null
     mcp: null
     gas_cap: 1000
     timeout_seconds: 10
@@ -41,7 +40,6 @@ steps:
       Extract summary, decisions, and action items.
     renderer: inline
     template_ref: "{{ step_1_populated }}"
-    model_tier: balanced
     gas_cap: 4096
     timeout_seconds: 60
     output_schema:
@@ -57,7 +55,6 @@ steps:
       Track compression efficiency and quality.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

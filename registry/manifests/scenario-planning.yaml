@@ -47,7 +47,6 @@ steps:
       Good: "What should we do about X given we don't know what will happen?"
     renderer: minijinja
     template_ref: scenario/focal-question
-    model_tier: fast_local
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
@@ -80,7 +79,6 @@ steps:
       assess each for impact and predictability.
     renderer: minijinja
     template_ref: scenario/key-forces
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -110,7 +108,6 @@ steps:
       Identify the two most critical uncertainties as scenario axes.
     renderer: minijinja
     template_ref: scenario/driving-forces
-    model_tier: reasoning_local
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -148,7 +145,6 @@ steps:
       least one must challenge current assumptions.
     renderer: minijinja
     template_ref: scenario/axes-and-narratives
-    model_tier: reasoning_local
     gas_cap: 8000
     timeout_seconds: 120
     input_mapping:
@@ -194,7 +190,6 @@ steps:
       scenario. Output must be actionable, not just descriptive.
     renderer: minijinja
     template_ref: scenario/implications-indicators
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -222,7 +217,6 @@ steps:
       robust strategies found, and early indicators count.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

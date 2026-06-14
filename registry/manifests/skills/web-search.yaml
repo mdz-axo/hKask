@@ -17,7 +17,6 @@ steps:
     description: "Load web search knowledge into context"
     renderer: minijinja
     template_ref: skills/web-search/knowledge
-    model_tier: null
     mcp: hkask-mcp-memory
     output_schema:
       knowledge_block: string
@@ -28,7 +27,6 @@ steps:
     description: "Append to replicant system prompt"
     renderer: minijinja
     template_ref: skills/web-search/prompt_append
-    model_tier: null
     mcp: hkask-mcp-memory
     output_schema:
       assembled_prompt: string

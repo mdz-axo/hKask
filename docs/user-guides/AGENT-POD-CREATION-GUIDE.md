@@ -433,7 +433,6 @@ steps:
     action: select                   # Select template
     template_ref: registry/selectors/selector.j2
     renderer: minijinja
-    model_tier: fast_local           # fast_local | balanced | high_quality
     matroshka_depth: "${matroshka_depth}"
     output_schema:
       type: object
@@ -461,7 +460,6 @@ steps:
     target: "${template.contract.target}"
     contract: "${template.contract}"
     mcp: "${template.contract.mcp}"
-    model_tier: "${template.contract.model_tier}"
     matroshka_depth: "${matroshka_depth + 1}"
 
 # CNS span emission
@@ -476,9 +474,7 @@ cns:
 
 | Action | Purpose | Required Fields |
 |--------|---------|-----------------|
-| `select` | Template selection | `template_ref`, `renderer`, `model_tier`, `output_schema` |
 | `populate` | Field binding | `template_ref`, `renderer`, `bindings` |
-| `execute` | Execution | `target`, `contract`, `mcp`, `model_tier` |
 
 ### 3.3 Common Dispatch Patterns
 
@@ -498,7 +494,6 @@ steps:
     action: execute
     target: inference
     contract:
-      model_tier: balanced
       mcp: hkask-mcp-inference
 ```
 
@@ -533,7 +528,6 @@ steps:
     action: execute
     target: inference
     contract:
-      model_tier: balanced
       mcp: hkask-mcp-inference
 ```
 
@@ -568,7 +562,6 @@ steps:
     action: execute
     target: inference
     contract:
-      model_tier: high_quality
       mcp: hkask-mcp-inference
 ```
 

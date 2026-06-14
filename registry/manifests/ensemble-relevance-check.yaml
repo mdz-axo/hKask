@@ -21,7 +21,6 @@ steps:
       agent_description: "${participant.description}"
       user_message: "${input.message}"
       conversation_context: "${input.context_summary}"
-    model_tier: fast_local
     output_schema:
       type: object
       properties:

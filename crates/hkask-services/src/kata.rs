@@ -86,8 +86,6 @@ pub struct KataStep {
     #[serde(default)]
     pub template_ref: Option<String>,
     #[serde(default)]
-    pub model_tier: Option<String>,
-    #[serde(default)]
     pub gas_cap: Option<u64>,
     #[serde(default)]
     pub timeout_seconds: Option<u64>,

@@ -88,7 +88,6 @@ steps:
       and define success criteria before any implementation begins.
     renderer: minijinja
     template_ref: coding-guidelines/guidelines-assess
-    model_tier: reasoning_local
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -140,7 +139,6 @@ steps:
       with explicit guardrails against over-engineering and scope creep.
     renderer: minijinja
     template_ref: coding-guidelines/guidelines-apply
-    model_tier: balanced
     gas_cap: 4000
     timeout_seconds: 45
     input_mapping:
@@ -182,7 +180,6 @@ steps:
       report and corrective recommendations.
     renderer: minijinja
     template_ref: coding-guidelines/guidelines-verify
-    model_tier: reasoning_local
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -225,7 +222,6 @@ steps:
       adherence rates, common violation patterns, and scope creep frequency.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5

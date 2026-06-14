@@ -50,7 +50,6 @@ steps:
       3. Select k_min..k_max passages within distance_threshold
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 10
@@ -75,7 +74,6 @@ steps:
       are defined in registry/styles/woolf/woolf-style-synthesizer.yaml.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null
     gas_cap: 100
     timeout_seconds: 5
@@ -99,7 +97,6 @@ steps:
       accumulative sentences, moments of being, and corpus exemplars.
     renderer: minijinja
     template_ref: composition/woolf-style-synthesizer
-    model_tier: balanced
     gas_cap: 4096
     timeout_seconds: 30
     output_schema:
@@ -115,7 +112,6 @@ steps:
       4. Check subordinate clause ratio, free indirect discourse presence, sentence length variation
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 15
@@ -141,7 +137,6 @@ steps:
       and centroid distance measurement.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 5

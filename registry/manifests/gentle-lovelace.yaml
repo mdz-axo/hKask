@@ -70,7 +70,6 @@ steps:
       Also retrieves the 4 per-dimension centroids and composite for comparison.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 10
@@ -113,7 +112,6 @@ steps:
       Hopper 10% (accessibility), Lovelace 10% (precision).
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-replica
     tool: replica_compare
     arguments:
@@ -162,7 +160,6 @@ steps:
       document authors.
     renderer: minijinja
     template_ref: gentle-lovelace/replica-report
-    model_tier: balanced
     gas_cap: 2048
     timeout_seconds: 30
     output_schema:
@@ -187,7 +184,6 @@ steps:
       Record per-dimension distances, composite score, and document metadata.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory
     gas_cap: 500
     timeout_seconds: 5

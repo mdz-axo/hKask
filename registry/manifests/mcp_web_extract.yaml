@@ -27,7 +27,6 @@ steps:
       Render web extraction template with query and parameters.
     renderer: minijinja
     template_ref: mcp/web_extract
-    model_tier: null
     mcp: null
     gas_cap: 1000
     timeout_seconds: 10
@@ -41,7 +40,6 @@ steps:
       Call Brave/Firecrawl search APIs.
     renderer: null
     template_ref: null
-    model_tier: fast_local
     mcp: hkask-mcp-web
     gas_cap: 4096
     timeout_seconds: 30
@@ -57,7 +55,6 @@ steps:
       Track result quality and source diversity.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: null  # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5

@@ -7,7 +7,6 @@ steps:
   - ordinal: 1
     action: select
     template_ref: spec/templates/selector.j2
-    model_tier: fast_local
     output_schema:
       selected_templates: array
       domain_hints: object

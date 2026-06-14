@@ -17,7 +17,6 @@ steps:
     description: "Load pragmatic semantics knowledge into context"
     renderer: minijinja
     template_ref: skills/pragmatic-semantics/knowledge
-    model_tier: null
     mcp: hkask-mcp-memory
     output_schema:
       knowledge_block: string

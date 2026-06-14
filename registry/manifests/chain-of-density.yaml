@@ -47,7 +47,6 @@ steps:
       point for iterative density optimization.
     renderer: minijinja
     template_ref: chain-of-density/initial-summary
-    model_tier: balanced
     gas_cap: 4000
     timeout_seconds: 45
     input_mapping:
@@ -82,7 +81,6 @@ steps:
       Increase entity density while maintaining target length constraint.
     renderer: minijinja
     template_ref: chain-of-density/density-pass
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -122,7 +120,6 @@ steps:
       further redundancy. Approaching convergence.
     renderer: minijinja
     template_ref: chain-of-density/density-pass
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
@@ -166,7 +163,6 @@ steps:
       converges in 3-5 passes.
     renderer: minijinja
     template_ref: chain-of-density/density-pass
-    model_tier: reasoning_local
     gas_cap: 4000
     timeout_seconds: 60
     condition: "{{ ordinal_3.converged == false }}"
@@ -210,7 +206,6 @@ steps:
       Uses the best available summary (ordinal 3b if executed, otherwise ordinal 3).
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # was hkask-mcp-storage
     gas_cap: 1000
     timeout_seconds: 10
@@ -250,7 +245,6 @@ steps:
       Report density progression, entity coverage, and convergence status.
     renderer: null
     template_ref: null
-    model_tier: null
     mcp: hkask-mcp-memory  # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
