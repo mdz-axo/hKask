@@ -13,7 +13,9 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
+
 use crate::ApiState;
+
 /// Create CNS router
 pub fn cns_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
@@ -22,9 +24,12 @@ pub fn cns_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(cns_variety))
         .routes(routes!(cns_subscribe))
 }
+
 /// Broadcast channel capacity for SSE events.
 const SSE_CHANNEL_CAPACITY: usize = 256;
+
 // ── SSE Event Envelope ──
+
 /// Union type for all CNS events that can be streamed over SSE.
 /// Wraps NuEvent, DepletionSignal, and BackpressureSignal so a single
 /// broadcast channel can carry all observer callbacks.
@@ -37,7 +42,10 @@ enum CnsSseEvent {
     Depletion(DepletionSignal),
     #[serde(rename = "backpressure")]
     Backpressure(BackpressureSignal),
+}
+
 // ── SSE Observer Bridge ──
+
 /// Bridge between CnsRuntime's observer pattern and tokio broadcast channel.
 ///
 /// Implements `CnsObserver` so the CNS can deliver events via its standard
@@ -46,6 +54,8 @@ enum CnsSseEvent {
 struct SseObserver {
     sender: broadcast::Sender<CnsSseEvent>,
     interest_mask: Vec<SpanNamespace>,
+}
+
 impl SseObserver {
     fn new(interest_mask: Vec<SpanNamespace>) -> (Self, broadcast::Receiver<CnsSseEvent>) {
         let (sender, receiver) = broadcast::channel(SSE_CHANNEL_CAPACITY);
@@ -55,21 +65,33 @@ impl SseObserver {
         };
         (observer, receiver)
     }
+}
+
 #[async_trait]
 impl CnsObserver for SseObserver {
     fn interest_mask(&self) -> Vec<SpanNamespace> {
         self.interest_mask.clone()
+    }
+
     async fn on_event(&self, event: &NuEvent) {
         let interested =
             self.interest_mask.is_empty() || self.interest_mask.contains(&event.span.namespace);
         if interested {
             let _ = self.sender.send(CnsSseEvent::NuEvent(event.clone()));
         }
+    }
+
     async fn on_depletion(&self, signal: &DepletionSignal) {
         let _ = self.sender.send(CnsSseEvent::Depletion(signal.clone()));
+    }
+
     async fn on_backpressure(&self, signal: &BackpressureSignal) {
         let _ = self.sender.send(CnsSseEvent::Backpressure(signal.clone()));
+    }
+}
+
 // ── CNS Health ──
+
 /// CNS health endpoint
 #[utoipa::path(
     get,
@@ -83,21 +105,36 @@ impl CnsObserver for SseObserver {
 pub(crate) async fn cns_health(State(state): State<ApiState>) -> axum::Json<CnsHealthResponse> {
     let cns_runtime = state.agent_service.cns_runtime();
     let health = cns_runtime.read().await.health().await;
+
     axum::Json(CnsHealthResponse {
         overall_deficit: health.overall_deficit,
         critical_count: health.critical_count,
         warning_count: health.warning_count,
         healthy: health.healthy,
     })
+}
+
 /// CNS alerts endpoint
 async fn cns_alerts(State(_state): State<ApiState>) -> axum::Json<Vec<String>> {
     axum::Json(vec![])
+}
+
 /// CNS variety endpoint
+#[utoipa::path(
+    get,
     path = "/api/cns/variety",
+    tag = "cns",
+    responses(
         (status = 200, description = "CNS variety counters", body = CnsVarietyResponse),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
 pub(crate) async fn cns_variety(State(state): State<ApiState>) -> axum::Json<CnsVarietyResponse> {
+    let cns_runtime = state.agent_service.cns_runtime();
     let variety_data = cns_runtime.read().await.variety().await;
+
     let domains: Vec<String> = variety_data.iter().map(|(d, _)| d.clone()).collect();
+
     let counters: std::collections::HashMap<String, VarietyCounterResponse> = variety_data
         .iter()
         .map(|(domain, variety)| {
@@ -111,26 +148,41 @@ pub(crate) async fn cns_variety(State(state): State<ApiState>) -> axum::Json<Cns
             )
         })
         .collect();
+
     let total_deficit: u64 = counters.values().map(|c| c.variety).sum();
+
     axum::Json(CnsVarietyResponse {
         domains,
         total_deficit,
         counters,
+    })
+}
+
 // ── CNS Subscribe (SSE) ──
+
 /// Query parameters for CNS SSE subscription
 #[derive(Debug, Deserialize, IntoParams, ToSchema)]
 pub(crate) struct CnsSubscribeParams {
     /// Span namespaces to subscribe to (e.g., ["cns.tool", "cns.inference"])
     #[serde(default)]
     spans: Vec<String>,
+}
+
 /// Subscribe to CNS events as an SSE stream.
+///
 /// The endpoint upgrades the HTTP response to a long-lived SSE connection.
 /// Events matching the requested span namespaces are forwarded in real time.
 /// Lag notifications are emitted when the client falls behind.
+#[utoipa::path(
+    get,
     path = "/api/cns/subscribe",
+    tag = "cns",
     params(CnsSubscribeParams),
+    responses(
         (status = 200, description = "SSE event stream", content_type = "text/event-stream"),
         (status = 400, description = "Invalid request"),
+    ),
+)]
 pub(crate) async fn cns_subscribe(
     State(state): State<ApiState>,
     Query(params): Query<CnsSubscribeParams>,
@@ -138,13 +190,18 @@ pub(crate) async fn cns_subscribe(
     // Validate spans — filter to only canonical CNS namespaces
     let valid_spans: Vec<SpanNamespace> = params
         .spans
+        .iter()
         .filter_map(|s| SpanNamespace::parse(s))
+        .collect();
+
     let (observer, mut receiver) = SseObserver::new(valid_spans);
+    let cns_runtime = state.agent_service.cns_runtime();
     cns_runtime
         .read()
         .await
         .subscribe_async(Arc::new(observer))
         .await;
+
     let stream = async_stream::stream! {
         loop {
             match receiver.recv().await {
@@ -160,12 +217,19 @@ pub(crate) async fn cns_subscribe(
                 Err(broadcast::error::RecvError::Lagged(n)) => {
                     let data = format!(r#"{{"type":"lagged","count":{n}}}"#);
                     yield Ok(Event::default().data(data).event("cns-warning"));
+                }
                 Err(broadcast::error::RecvError::Closed) => {
                     break;
+                }
             }
+        }
     };
+
     Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(30)))
+}
+
 // ── Response Types ──
+
 /// CNS health response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CnsHealthResponse {
@@ -173,13 +237,20 @@ pub struct CnsHealthResponse {
     pub critical_count: usize,
     pub warning_count: usize,
     pub healthy: bool,
+}
+
 /// CNS variety counter response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct VarietyCounterResponse {
     pub variety: u64,
     pub total: u64,
     pub entropy: f64,
+}
+
 /// CNS variety response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CnsVarietyResponse {
     pub domains: Vec<String>,
     pub total_deficit: u64,
     pub counters: std::collections::HashMap<String, VarietyCounterResponse>,
+}

@@ -7,8 +7,10 @@
 use axum::{Json, extract::State, routing::get};
 use serde::{Deserialize, Serialize};
 use utoipa_axum::router::OpenApiRouter;
+
 use crate::ApiState;
 use hkask_services::settings_path;
+
 /// JSON shape for the settings response.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SettingsResponse {
@@ -27,22 +29,8 @@ pub struct SettingsResponse {
     pub auto_condense: bool,
     pub context_length: Option<u32>,
     pub supports_thinking: Option<bool>,
-    /// Edge-density ratio below which a page is considered Simple.
-    #[serde(default = "default_ocr_simple_max")]
-    pub ocr_simple_max: f32,
-    /// Edge-density ratio below which a page is considered Moderate.
-    #[serde(default = "default_ocr_moderate_max")]
-    pub ocr_moderate_max: f32,
-    /// Dual-routing sampling rate for Moderate-tier pages [0.0, 1.0].
-    #[serde(default = "default_ocr_sample_rate")]
-    pub ocr_sample_rate: f32,
 }
-fn default_ocr_simple_max() -> f32 {
-    0.05
-fn default_ocr_moderate_max() -> f32 {
-    0.15
-fn default_ocr_sample_rate() -> f32 {
-    0.10
+
 impl Default for SettingsResponse {
     fn default() -> Self {
         Self {
@@ -60,11 +48,10 @@ impl Default for SettingsResponse {
             auto_condense: true,
             context_length: None,
             supports_thinking: None,
-            ocr_simple_max: default_ocr_simple_max(),
-            ocr_moderate_max: default_ocr_moderate_max(),
-            ocr_sample_rate: default_ocr_sample_rate(),
         }
     }
+}
+
 /// Load settings from disk. Returns defaults if the file doesn't exist
 /// or can't be parsed.
 fn load_settings() -> SettingsResponse {
@@ -72,10 +59,16 @@ fn load_settings() -> SettingsResponse {
     match std::fs::read_to_string(&path) {
         Ok(json) => serde_json::from_str::<SettingsResponse>(&json).unwrap_or_default(),
         Err(_) => SettingsResponse::default(),
+    }
+}
+
 /// Save settings to disk.
 fn save_settings(settings: &SettingsResponse) -> Result<(), String> {
+    let path = settings_path();
     let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
     std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
 /// JSON shape for updating settings. All fields optional — only present
 /// fields are applied; omitted fields keep their current value.
 #[derive(Debug, Deserialize)]
@@ -91,67 +84,97 @@ pub struct UpdateSettingsRequest {
     pub seed: Option<Option<u32>>,
     pub gas_heuristic: Option<u64>,
     pub gas_cap: Option<u64>,
+    #[serde(alias = "auto_compact")]
     pub auto_condense: Option<bool>,
-    pub ocr_simple_max: Option<f32>,
-    pub ocr_moderate_max: Option<f32>,
-    pub ocr_sample_rate: Option<f32>,
+}
+
 pub fn settings_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new().route("/api/settings", get(get_settings).put(update_settings))
+}
+
 /// GET /api/settings — return current settings.
 async fn get_settings(State(_state): State<ApiState>) -> Json<SettingsResponse> {
     Json(load_settings())
+}
+
 /// PUT /api/settings — update settings, merge with current values.
 async fn update_settings(
     State(_state): State<ApiState>,
     Json(req): Json<UpdateSettingsRequest>,
 ) -> Json<SettingsResponse> {
     let mut settings = load_settings();
+
     if let Some(v) = req.tool_loop_limit
         && v > 0
     {
         settings.tool_loop_limit = v;
+    }
     if let Some(v) = req.context_turns {
         settings.context_turns = v;
+    }
     if let Some(v) = req.temperature
         && (0.0..=2.0).contains(&v)
+    {
         settings.temperature = v;
+    }
     if let Some(v) = req.top_p
         && (0.0..=1.0).contains(&v)
+    {
         settings.top_p = v;
+    }
     if let Some(v) = req.top_k
         && v >= 1
+    {
         settings.top_k = v;
+    }
     if let Some(v) = req.min_p
+        && (0.0..=1.0).contains(&v)
+    {
         settings.min_p = v;
+    }
     if let Some(v) = req.typical_p
+        && (0.0..=1.0).contains(&v)
+    {
         settings.typical_p = v;
+    }
     if let Some(v) = req.max_tokens
+        && v > 0
+    {
         settings.max_tokens = v;
+    }
     if let Some(v) = req.seed {
         settings.seed = v;
+    }
     if let Some(v) = req.gas_heuristic
+        && v > 0
+    {
         settings.gas_heuristic = v;
+    }
     if let Some(v) = req.gas_cap
+        && v > 0
+    {
         settings.gas_cap = v;
+    }
     if let Some(v) = req.auto_condense {
         settings.auto_condense = v;
-    if let Some(v) = req.ocr_simple_max
-        settings.ocr_simple_max = v;
-    if let Some(v) = req.ocr_moderate_max
-        settings.ocr_moderate_max = v;
-    if let Some(v) = req.ocr_sample_rate
-        settings.ocr_sample_rate = v;
+    }
+
     let _ = save_settings(&settings);
     Json(settings)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     // REQ: Merge-update preserves unspecified fields — only the fields
     // in the request are changed; all others keep their current values.
+
     #[test]
     fn update_settings_merge_preserves_unspecified_fields() {
         // Start with defaults
         let mut settings = SettingsResponse::default();
+
         // Only update temperature
         let req = UpdateSettingsRequest {
             temperature: Some(0.3),
@@ -162,25 +185,50 @@ mod tests {
             min_p: None,
             typical_p: None,
             max_tokens: None,
+            seed: None,
             gas_heuristic: None,
             gas_cap: None,
             auto_condense: None,
-            ocr_simple_max: None,
-            ocr_moderate_max: None,
-            ocr_sample_rate: None,
         };
+
         // Apply the merge (same logic as the PUT handler)
         if let Some(v) = req.temperature
             && (0.0..=2.0).contains(&v)
         {
             settings.temperature = v;
+        }
+
         // Temperature should be updated
         assert!((settings.temperature - 0.3).abs() < f32::EPSILON);
         // Unspecified fields should retain defaults
         assert_eq!(settings.tool_loop_limit, 21);
         assert_eq!(settings.context_turns, 3);
         assert!((settings.top_p - 0.9).abs() < f32::EPSILON);
+    }
+
+    #[test]
     fn update_settings_out_of_range_is_ignored() {
+        let mut settings = SettingsResponse::default();
+        let req = UpdateSettingsRequest {
             temperature: Some(3.0), // out of range
+            tool_loop_limit: None,
+            context_turns: None,
+            top_p: None,
+            top_k: None,
+            min_p: None,
+            typical_p: None,
+            max_tokens: None,
+            seed: None,
+            gas_heuristic: None,
+            gas_cap: None,
+            auto_condense: None,
+        };
+        if let Some(v) = req.temperature
+            && (0.0..=2.0).contains(&v)
+        {
+            settings.temperature = v;
+        }
         // Out-of-range value should be silently ignored (no change)
         assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
+    }
+}
