@@ -12,7 +12,7 @@ mds_categories: [domain, composition, lifecycle, curation]
 
 ## 1. Purpose and Scope
 
-This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop), invoked via `kask chat`. The REPL is the primary human-facing surface of hKask. It provides a terminal-based conversational interface to agents, models, tools, and pods — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). Multi-agent ensemble sessions are deferred (2026-06-14) as a future mode evolving from the dual-presence pattern.
+This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop), invoked via `kask chat`. The REPL provides the primary human-facing surface of hKask. It offers a terminal-based conversational interface to agents, models, tools, and pods — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). The project defers multi-agent ensemble sessions (2026-06-14) as a future mode evolving from the dual-presence pattern.
 
 **Audience:** Architects, developers, users, and agents interacting with hKask.
 
@@ -22,7 +22,7 @@ This document is the authoritative specification for the hKask interactive REPL 
 
 ### 2.1 User Sovereignty First (Magna Carta P1–P4)
 
-Every design decision in the REPL is grounded in the Magna Carta:
+Every design decision in the REPL grounds itself in the Magna Carta:
 
 | Principle | REPL Implementation |
 |-----------|-------------------|
@@ -107,7 +107,7 @@ pub(crate) struct ReplState {
 }
 ```
 
-**Design Intent:** `ReplState` is initialized once at REPL boot via `init::init_repl_state()` and mutated in place across turns. Five fields are private (only accessed within `repl/` submodules): `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. Session history is no longer stored in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` is set from `OnboardingOutcome.is_first_run` and gates the First Steps guide shown in the welcome banner.
+**Design Intent:** `init::init_repl_state()` initializes `ReplState` once at REPL boot and mutates it in place across turns. Five fields remain private (only accessed within `repl/` submodules): `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. The system no longer stores session history in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `OnboardingOutcome.is_first_run` sets `is_first_run`, which gates the First Steps guide shown in the welcome banner.
 
 ### 3.3 Dependency Injection (init.rs)
 

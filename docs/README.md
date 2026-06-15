@@ -149,11 +149,7 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 
 Transient session handoffs recording implementation state. Handoffs are committed to git history and cleaned from the working tree when superseded or when their context is no longer needed. All handoffs are recoverable via git history.
 
-| Document | MDS | Description |
-|----------|--------|-------------|
-| [`comm-train-2026-06-14.md`](handoffs/comm-train-2026-06-14.md) | — | Communication & training MCP buildout — ~85% complete |
-| [`err-unify-svc-extract-2026-06-14.md`](handoffs/err-unify-svc-extract-2026-06-14.md) | — | Error unification & service extraction — in progress |
-| [`err-unify-complete-2026-06-14.md`](handoffs/err-unify-complete-2026-06-14.md) | — | Error unification completion — final state |
+*No active handoffs in working tree.* See git history for past handoffs (`git log -- docs/handoffs/`).
 
 ---
 

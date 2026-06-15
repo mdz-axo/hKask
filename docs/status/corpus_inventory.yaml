@@ -883,53 +883,23 @@ documents:
   # =========================================================================
   # HANDOFFS/ — Transient, no frontmatter required per HANDOFF_LIFECYCLE.md §4
   # =========================================================================
-  - path: "docs/handoffs/comm-train-2026-06-14.md"
-    category: "Handoff"
-    status: "Active"
-    last_updated: "2026-06-14"
-    version: null
-    mds_categories: []
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Communication & training MCP buildout handoff. Transient — no frontmatter per HANDOFF_LIFECYCLE.md §4."
-
-  - path: "docs/handoffs/err-unify-svc-extract-2026-06-14.md"
-    category: "Handoff"
-    status: "Active"
-    last_updated: "2026-06-14"
-    version: null
-    mds_categories: []
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Error unification & service extraction handoff. Transient — no frontmatter per HANDOFF_LIFECYCLE.md §4."
-
-  - path: "docs/handoffs/err-unify-complete-2026-06-14.md"
-    category: "Handoff"
-    status: "Active"
-    last_updated: "2026-06-14"
-    version: null
-    mds_categories: []
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Error unification completion handoff. Transient — no frontmatter per HANDOFF_LIFECYCLE.md §4."
+  # No active handoffs in working tree (archived 2026-06-15).
+  # See git history: git log -- docs/handoffs/
 
 # =========================================================================
 # SUMMARY STATISTICS
 # =========================================================================
 summary:
-  total_documents: 74
-  active_keep: 74
+  total_documents: 71
+  active_keep: 71
   stale_refresh: 0
   archived: 0
   newly_created: 0
   total_with_frontmatter: 71
-  total_without_frontmatter: 3
+  total_without_frontmatter: 0
   missing_referenced: 0
   version_anomalies: 0
   documents_not_in_master_index: 0
   documents_not_in_scaffold: 0
   documents_not_in_portal: 0
-  notes: "2026-06-15 document-update sweep: all version anomalies fixed (7 docs: 0.23.0, 0.28.0, 1.0.0, 1.3.0, 1.9.0, 2.4.0, 2.5.0 → 0.27.0). 3 archive-target docs already removed (feedback.md, OCR-PIPELINE-INSIGHTS.md, portfolio-tracking.md). 7 missing docs added to portal. 2 missing docs added to architecture master. check-metadata.sh updated to skip handoffs per HANDOFF_LIFECYCLE.md §4. All 14 spec-code drift items resolved. Zero ddmvss_categories in frontmatter. Zero broken links. Zero metadata violations."
+  notes: "2026-06-15 document-update sweep: all version anomalies fixed (7 docs: 0.23.0, 0.28.0, 1.0.0, 1.3.0, 1.9.0, 2.4.0, 2.5.0 → 0.27.0). 3 archive-target docs already removed (feedback.md, OCR-PIPELINE-INSIGHTS.md, portfolio-tracking.md). 3 handoffs archived from working tree. 7 missing docs added to portal. 2 missing docs added to architecture master. check-metadata.sh updated to skip handoffs per HANDOFF_LIFECYCLE.md §4. All 14 spec-code drift items resolved. Zero ddmvss_categories in frontmatter. Zero broken links. Zero metadata violations."
