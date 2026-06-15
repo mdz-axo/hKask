@@ -300,3 +300,64 @@ impl SovereigntyConsent for ConsentManager {
         ConsentManager::has_consent(self, webid, category).unwrap_or(false)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: P2-consent-record-001 — new ConsentRecord starts active with empty grants
+    #[test]
+    fn consent_record_new_has_correct_defaults() {
+        let record = ConsentRecord::new("user:alice");
+        assert_eq!(record.webid, "user:alice");
+        assert!(record.granted_categories.is_empty());
+        assert!(record.is_active());
+        assert!(record.revoked_at.is_none());
+        assert!(record.granted_at > 0);
+    }
+
+    // REQ: P2-consent-record-002 — grant() adds category, sets active, clears revoked_at
+    #[test]
+    fn consent_record_grant_adds_category_and_activates() {
+        let mut record = ConsentRecord::new("user:alice");
+        // First revoke to set inactive state, then grant to verify reactivation
+        record.revoke();
+        assert!(!record.is_active());
+
+        record.grant("episodic_memory");
+        assert!(record.is_active());
+        assert!(record.revoked_at.is_none());
+        assert!(record.has_category("episodic_memory"));
+    }
+
+    // REQ: P2-consent-record-003 — revoke() sets revoked_at and deactivates
+    #[test]
+    fn consent_record_revoke_sets_inactive() {
+        let mut record = ConsentRecord::new("user:alice");
+        record.grant("episodic_memory");
+        assert!(record.is_active());
+
+        record.revoke();
+        assert!(!record.is_active());
+        assert!(record.revoked_at.is_some());
+        // After revoke, previously granted categories should not be accessible
+        assert!(!record.has_category("episodic_memory"));
+    }
+
+    // REQ: P2-consent-record-004 — has_category() only true when active and granted
+    #[test]
+    fn consent_record_has_category_only_when_active_and_granted() {
+        let mut record = ConsentRecord::new("user:alice");
+        // Not granted yet
+        assert!(!record.has_category("episodic_memory"));
+
+        record.grant("episodic_memory");
+        assert!(record.has_category("episodic_memory"));
+        // Different category not granted
+        assert!(!record.has_category("semantic_memory"));
+
+        record.revoke();
+        // After revoke, even granted categories are denied
+        assert!(!record.has_category("episodic_memory"));
+    }
+}

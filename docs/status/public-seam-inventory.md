@@ -1,6 +1,6 @@
 # Public Seam Inventory
 
-**Generated:** 2026-06-15T20:05:17Z
+**Generated:** 2026-06-15T21:21:38Z
 **Source:** `scripts/audit/public-seam-inventory.sh`
 **Purpose:** P8 traceability — maps public API items to REQ-tagged test coverage.
 
@@ -811,7 +811,7 @@ Each public item is classified:
 | fn | `version_file_path` | hkask-keystore::version_file | crates/hkask-keystore/src/version_file.rs:17 | 🔴 Core Logic | 🟢 |
 | fn | `write_key_version` | hkask-keystore::version_file | crates/hkask-keystore/src/version_file.rs:39 | 🔴 Core Logic | 🟢 |
 
-| hkask-mcp | 64 | 43 | 21 | 67% | 12 |
+| hkask-mcp | 64 | 43 | 21 | 67% | 15 |
 
 ### hkask-mcp
 
@@ -1699,7 +1699,7 @@ Each public item is classified:
 | fn | `with_cybernetics` | hkask-services::wallet | crates/hkask-services/src/wallet.rs:48 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `WalletService` | hkask-services::wallet | crates/hkask-services/src/wallet.rs:29 | 🟡 Type Declaration | 🟢 |
 
-| hkask-storage | 231 | 169 | 62 | 73% | 65 |
+| hkask-storage | 231 | 169 | 62 | 73% | 70 |
 
 ### hkask-storage
 
@@ -2559,5 +2559,5 @@ Each public item is classified:
 | Covered (🟢) | 1081 |
 | Uncovered (🔴) | 1278 |
 | Overall coverage | 45% |
-| Total REQ-tagged tests | 670 |
+| Total REQ-tagged tests | 678 |
 | Crates analyzed | 25 |

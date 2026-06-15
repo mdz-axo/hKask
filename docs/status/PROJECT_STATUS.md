@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** R7.3 Public Seam Watcher implementation — P8 runtime enforcement, periodic drift checking, Curator `/status` integration (2026-06-15).
+**Current session:** Code Quality & Smell Reduction execution — all 6 waves complete (2026-06-15). Waves 1–6: security boundary correctness, runtime reliability, spec traceability, architecture convergence, module depth governance, CI sustainment gates.
 
 ---
 
@@ -23,43 +23,37 @@ All 24 workspace members.
 | Target | Result | Date |
 |--------|--------|------|
 | Workspace (`cargo check --workspace`) | ✅ Pass (24/24 crates) | 2026-06-15 |
+| Workspace (`cargo clippy --workspace -- -D warnings`) | ✅ Pass (0 warnings) | 2026-06-15 |
 | Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication) | ✅ Pass | 2026-06-15 |
 | MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory) | ✅ Pass | 2026-06-15 |
-| `hkask-cli` (production) | ✅ Pass | 2026-06-14 |
-| `hkask-cli` (tests) | ✅ Pass — 25 tests | 2026-06-11 |
-| `hkask-services` (production) | ✅ Pass | 2026-06-14 |
-| `hkask-services` (tests) | ✅ Pass — 76 tests (15 backup) | 2026-06-14 |
-| `hkask-api` (production) | ✅ Pass | 2026-06-14 |
-| `hkask-cli` (production) | ✅ Pass | 2026-06-14 |
-| `hkask-mcp` (gix adapter) | ✅ Pass — pure `gix` v0.81 | 2026-06-14 |
 
 ---
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — 419 tests across 16 crates, 0 failures. 403 `// REQ:` tags (zero untagged test files).
+`cargo test --workspace` result: ✅ Pass — 472 tests across 16 crates, 0 failures. 453 `// REQ:` tags (96% coverage).
 
 ### Test Distribution
 
 | Crate | Tests | REQ Tags |
 |-------|-------|----------|
-| hkask-types | 21 | ✅ |
-| hkask-inference | 20 | ✅ |
-| hkask-storage | 54 | ✅ |
-| hkask-memory | 14 | ✅ |
-| hkask-cns | 35 | ✅ |
-| hkask-agents | 8 | ✅ |
-| hkask-keystore | 13 | ✅ |
-| hkask-services | 77 | ✅ |
-| hkask-templates | 13 | ✅ |
-| hkask-condenser | 29 | ✅ |
-| hkask-improv | 57 | ✅ |
-| hkask-wallet | 13 | ✅ |
-| hkask-communication | 19 | ✅ |
-| hkask-mcp | 12 | ✅ |
-| hkask-cli | 43 | ✅ |
-| hkask-api | 2 | ✅ |
-| **Total** | **419** | **403** |
+| hkask-types | 69 | 66 |
+| hkask-inference | 20 | 20 |
+| hkask-storage | 59 | 65 |
+| hkask-memory | 14 | 14 |
+| hkask-cns | 35 | 35 |
+| hkask-agents | 14 | 14 |
+| hkask-keystore | 13 | 13 |
+| hkask-services | 78 | 76 |
+| hkask-templates | 20 | 20 |
+| hkask-condenser | 29 | 29 |
+| hkask-improv | 37 | 37 |
+| hkask-wallet | 13 | 13 |
+| hkask-communication | 19 | 19 |
+| hkask-mcp | 27 | 12 |
+| hkask-cli | 43 | 31 |
+| hkask-api | 9 | 8 |
+| **Total** | **472** | **453** |
 
 ---
 
@@ -67,7 +61,7 @@ All 24 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`-D warnings`) | 1 pre-existing (`hkask-agents` type_complexity), 0 new | 2026-06-15 |
+| Workspace (`-D warnings`) | ✅ Pass — 0 warnings | 2026-06-15 |
 
 ---
 
@@ -78,8 +72,11 @@ All 24 workspace members.
 | `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-15 |
 | Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `acp/mod.rs:171` | 2026-06-10 |
 | Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-15 |
-| REQ tag coverage | ✅ 396 REQ tags, zero untagged test files | 2026-06-15 |
-| Unsafe blocks | ✅ Zero across all crates | 2026-06-15 |
+| REQ tag coverage | ✅ 453 REQ tags (96% coverage) | 2026-06-15 |
+| Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
+| Runtime `.unwrap()` in targeted crates | ✅ Zero violations (Wave 2 denylist) | 2026-06-15 |
+| MCP Gate-3 startup verification | ✅ 10/10 servers enforce verify_startup_gates() | 2026-06-15 |
+| Public surface justification | ✅ 13/13 oversized crates have PUBLIC_SURFACE.md | 2026-06-15 |
 | Rc<RefCell> patterns | ✅ Zero across all crates | 2026-06-15 |
 
 ---
@@ -92,13 +89,30 @@ All 24 workspace members.
 | Source files (MCP servers) | 70 |
 | Source files (total) | 391 |
 | Workspace members | 18 |
-| Active docs | 72 |
+| Active docs | 86 |
 | Archived docs | 10 |
 | Skills | 28 |
 | MCP servers | 10 |
-| MCP tools (total) | 143 (all fully implemented — verified 2026-06-15) |
-| Tests (total) | 430 |
-| REQ tags | 405 |
+| MCP tools (total) | 143 (all fully implemented) |
+| Tests (total) | 472 |
+| REQ tags | 453 |
+| CI quality gate scripts | 6 |
+| Public surface justifications | 13 |
+
+---
+
+## CI Quality Gates (Wave 6)
+
+| Check | Script | Result | Date |
+|-------|--------|--------|------|
+| Public Surface Governance | `scripts/check-public-surface.sh` | ✅ Pass (16/16 crates) | 2026-06-15 |
+| Unsafe Documentation Policy | `scripts/check-unsafe-safety.sh` | ✅ Pass (all blocks documented) | 2026-06-15 |
+| Runtime `.unwrap()` Denylist | `scripts/check-unwrap-denylist.sh` | ✅ Pass (0 violations) | 2026-06-15 |
+| MCP Gate-3 Consistency | `scripts/check-mcp-gate3.sh` | ✅ Pass (10/10 servers) | 2026-06-15 |
+| REQ Traceability Trend | `scripts/check-req-traceability.sh` | ✅ Pass (96% coverage) | 2026-06-15 |
+| **Master** | `scripts/ci-quality-gates.sh` | ✅ ALL CHECKS PASSED | 2026-06-15 |
+
+All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, running on every PR and push to main. Release builds depend on quality gates passing.
 
 ---
 

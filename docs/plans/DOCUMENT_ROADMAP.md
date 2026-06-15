@@ -1,7 +1,7 @@
 ---
 title: "Document Corpus Roadmap — Prioritized"
 audience: [project maintainers, documentation stewards, agents]
-last_updated: 2026-06-15
+last_updated: 2026-06-15-sweep
 version: "0.27.0"
 status: "Draft"
 domain: "Cross-cutting"
@@ -38,12 +38,9 @@ mds_categories: [lifecycle, curation]
 
 **Status:** File exists at `docs/status/corpus_inventory.yaml`. Content may need periodic regeneration but the stub is in place. README portal reference resolved.
 
-### P0-3: Create `docs/status/curation_decisions.yaml`
+### P0-3: Create `docs/status/curation_decisions.yaml` — Obsolete
 
-**Referenced by:** README portal (L116), MDS_SCAFFOLD  
-**Purpose:** Merge/Revise decisions per MDS curation protocol for each drift item.  
-**Approach:** Start as manual log; link to corpus_inventory.yaml entries.  
-**Verification:** File does not yet exist — Quick Win QW-6 covers this.
+**Status:** Archived 2026-06-15 per README portal. `curation-decisions.yaml` served its purpose and was removed from the working tree. Recoverable via git history. No action needed.
 
 ---
 
@@ -53,13 +50,16 @@ mds_categories: [lifecycle, curation]
 
 **Status:** Archived 2026-06-14. All 5 audit documents had YAML frontmatter (were not actually missing). Archived per essentialist Gate 1 — no forward-looking value.
 
-### P1-2: Fix `mds_categories` on `docs/status/skill-inventory.md`
+### P1-2: Fix `mds_categories` on `docs/status/skill-inventory.md` — Obsolete
 
-**Current:** `mds_categories: [composition, status]` — `status` is not a valid MDS category.  
-**Fix:** Change to `mds_categories: [composition, curation]`.  
-**Verification:** `check-metadata.sh` currently flags this as a warning.
+**Status:** Archived 2026-06-15. `skill-inventory.md` was removed from the working tree per README portal. Recoverable via git history. No action needed.
 
-### P1-3: Fix 18 Version Anomalies
+### P1-3: Fix 18 Version Anomalies ✅ DONE
+
+**Status:** Resolved 2026-06-15 by document-update sweep. `corpus_inventory.yaml` reports `version_anomalies: 0`. All documents now at `0.27.0` or documented as intentionally divergent.
+
+<details>
+<summary>Original anomaly list (resolved)</summary>
 
 Documents with `version` diverging from workspace `0.27.0`:
 
@@ -77,10 +77,12 @@ Documents with `version` diverging from workspace `0.27.0`:
 | | `gentle-lovelace-specification.md` (0.1.0) |
 | | `plans/bundler-completion.md` — archived 2026-06-15
 | | `plans/mcp-server-roadmap.md` (1.0.0) |
-| | `plans/mcp-media-server-design.md` — archived 2026-06-15
-| | `adversarial-simplification-inventory.md` — archived 2026-06-15
+| `plans/mcp-media-server-design.md` — archived 2026-06-15
+| `adversarial-simplification-inventory.md` — archived 2026-06-15
 
 **Approach:** Left column — document in `corpus_inventory.yaml` that version is intentional. Right column — bump to `0.27.0`.
+
+</details>
 
 ### P1-4: Create `docs/ci/sync-versions.sh`
 
@@ -156,31 +158,23 @@ Hook that flags documents where `version` ≠ workspace `Cargo.toml` version, wi
 
 | # | Task | Effort |
 |---|------|--------|
-| QW-1 | Fix `skill-inventory.md` mds_categories: s/status/curation/ | 1 min | ⬜ Open |
+| QW-1 | Fix `skill-inventory.md` mds_categories: s/status/curation/ | 1 min | Obsolete (archived 2026-06-15) |
 | QW-2 | Add frontmatter to 5 audit documents (all same template) | 15 min | ✅ Done (P1-1) — docs archived 2026-06-14 |
-| QW-3 | Fix `corpus_inventory.yaml` missing_referenced: remove check-links.sh + check-metadata.sh | 5 min | ⬜ Open |
-| QW-4 | Bump 14 document versions from various → 0.27.0 | 15 min | ⬜ Open |
-| QW-5 | Create `spec-code-drift.yaml` stub with section headers | 15 min | ⬜ Open |
-| QW-6 | Create `curation-decisions.yaml` stub with section headers | 15 min | ⬜ Open |
+| QW-3 | Fix `corpus_inventory.yaml` missing_referenced: remove check-links.sh + check-metadata.sh | 5 min | ✅ Done (document-update sweep 2026-06-15) |
+| QW-4 | Bump 14 document versions from various → 0.27.0 | 15 min | ✅ Done (document-update sweep 2026-06-15) |
+| QW-5 | Create `spec-code-drift.yaml` stub with section headers | 15 min | Obsolete (archived 2026-06-15 per README portal) |
+| QW-6 | Create `curation-decisions.yaml` stub with section headers | 15 min | Obsolete (archived 2026-06-15 per README portal) |
 
 ---
 
 ## Dependency Graph
 
 ```
-P1-1 (audit frontmatter)
-  ↓
-P2-5 (archive audit/)
-
-P0-2 (corpus_inventory.yaml)
-  ↓
-P0-3 (corpus_inventory.yaml)
-
-P1-3 (fix version anomalies)
+P1-3 (fix version anomalies) ✅ DONE
   ↓
 P1-4 (create sync-versions.sh)
 
-P1-5 + P1-2 + QW-1 (metadata fixes)
+P1-5 + P0-1 (metadata fixes)
   ↓
 Re-run check-metadata.sh → 0 errors
 ```
@@ -193,8 +187,8 @@ After each tier is complete:
 
 | Tier | Gate |
 |------|------|
-| P0 | `check-links.sh` passes; README portal has no "not yet created" references; spec-code-drift.yaml and curation-decisions.yaml exist |
-| P1 | `check-metadata.sh` passes with 0 errors; all version anomalies resolved or documented; sync-versions.sh functional |
+| P0 | `check-links.sh` passes; README portal has no "not yet created" references; P0-1 (CI scripts in missing_referenced) resolved |
+| P1 | `check-metadata.sh` passes with 0 errors; all version anomalies resolved (✅); sync-versions.sh functional |
 | P2 | `openapi.json` generated; missing ADRs exist; audit docs archived |
 | P3 | Backlog grooming complete |
 

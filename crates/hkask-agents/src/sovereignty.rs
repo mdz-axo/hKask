@@ -109,3 +109,43 @@ impl SovereigntyChecker {
         self.can_access(data_category, &self.owner_webid)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::DataCategory;
+    use std::sync::Arc;
+
+    fn test_webid() -> WebID {
+        WebID::new()
+    }
+
+    // REQ: P1-sovereignty-001 — DenyAllConsent always returns false (fail-closed default)
+    #[test]
+    fn deny_all_consent_always_denies() {
+        let consent = DenyAllConsent;
+        assert!(!consent.has_consent("user:alice", &DataCategory::EpisodicMemory));
+        assert!(!consent.has_consent("user:alice", &DataCategory::SemanticMemory));
+        assert!(!consent.has_consent("user:bob", &DataCategory::EpisodicMemory));
+    }
+
+    // REQ: P1-sovereignty-002 — SovereigntyChecker enforces sovereign boundary (consent + owner match)
+    #[test]
+    fn sovereignty_checker_sovereign_data_requires_consent_and_owner() {
+        let owner = test_webid();
+        let consent = Arc::new(DenyAllConsent);
+        let checker = SovereigntyChecker::new(owner.clone(), consent);
+
+        // Sovereign data with DenyAllConsent: denied even for owner
+        assert!(!checker.can_access(&DataCategory::EpisodicMemory, &owner));
+
+        // With AllowAllConsent: owner can access sovereign data
+        let consent = Arc::new(AllowAllConsent);
+        let checker = SovereigntyChecker::new(owner.clone(), consent);
+        assert!(checker.can_access(&DataCategory::EpisodicMemory, &owner));
+
+        // But a different requester is still denied (not the owner)
+        let other = test_webid();
+        assert!(!checker.can_access(&DataCategory::EpisodicMemory, &other));
+    }
+}
