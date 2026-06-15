@@ -14,6 +14,7 @@ pub mod git_cas;
 pub mod runtime;
 pub(crate) mod security;
 pub mod server;
+pub mod startup; // P4 Gate 1/2/3 startup verification for MCP server binaries
 
 pub(crate) use adapter_container::AdapterContainer;
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
@@ -27,6 +28,7 @@ pub use server::{
     resolve_credential, run_stdio_server, run_stdio_server_with_preloaded, tool_internal_error,
     validate_identifier,
 };
+pub use startup::{StartupGateResult, verify_startup_gates};
 
 /// Run an MCP server with stdio transport.
 ///

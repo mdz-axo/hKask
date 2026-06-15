@@ -194,6 +194,9 @@ The existing `cns.*` span namespaces are not removed — they are **absorbed** i
 | `cns.condenser.compression_ratio` | Pragmatic compression efficiency — bytes_out / bytes_in per cycle. Ratio < 1.0 for 3+ cycles → Warning (anti-compressing) |
 | `cns.evolution.energy_delta` | Action gradient — energy(S_t) - energy(S_{t+1}). Positive for 5+ cycles → Critical (anti-lazy drift) |
 | `cns.architecture.module_depth` | Architectural action — public_fn_count / total_fn_count. Ratio > 0.5 → Warning (shallow module) |
+| `cns.outcome.tool` | Tool outcome quality — success/failure rate per MCP server. Success rate < 50% → Warning, < 25% → Critical |
+| `cns.outcome.inference` | Inference outcome quality — success/failure rate for LLM calls |
+| `cns.outcome.memory` | Memory outcome quality — success/failure rate for memory operations |
 
 The Cybernetics Loop **owns** all `cns.*` spans. Other loops emit `NuEvent`s into these spans, but the Cybernetics Loop is the sole consumer and regulator of the observability they produce.
 

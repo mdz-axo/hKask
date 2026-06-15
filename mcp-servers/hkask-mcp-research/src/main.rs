@@ -1162,94 +1162,23 @@ async fn main() -> anyhow::Result<()> {
     .await
 }
 
-/// Attempt the daemon-mediated P4 dual-gate flow:
+/// Attempt the daemon-mediated P4 gate flow:
 /// 1. Auth query — is the replicant authenticated?
 /// 2. Assignment query — is the replicant assigned to "research"?
 /// 3. Capability queries — does the replicant hold tool capabilities?
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let client = hkask_mcp::DaemonClient::new();
-
-    // Gate 1: Authentication (P2 — Affirmative Consent)
-    let auth = client.auth_query(replicant).await?;
-    match auth {
-        hkask_mcp::DaemonResponse::AuthResponse {
-            authenticated: true,
-            webid: Some(ref webid),
-            ..
-        } => {
-            tracing::info!(
-                target: "hkask.mcp.research",
-                replicant = %replicant,
-                webid = %webid,
-                "Replicant authenticated via daemon"
-            );
-        }
-        hkask_mcp::DaemonResponse::AuthResponse {
-            authenticated: false,
-            action: Some(ref action),
-            ..
-        } if action == "prompt_user" => {
-            anyhow::bail!(
-                "Replicant '{}' is not authenticated. The daemon will prompt for passphrase. \
-                 Enter the replicant's passphrase in the hKask terminal.",
-                replicant
-            );
-        }
-        other => {
-            anyhow::bail!("Unexpected auth response: {:?}", other);
-        }
-    }
-
-    // Gate 2: Assignment (P4 — sovereignty/consent)
-    let assignment = client.assignment_query(replicant, "research").await?;
-    match assignment {
-        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: true } => {
-            tracing::info!(
-                target: "hkask.mcp.research",
-                replicant = %replicant,
-                "Replicant assigned to research role"
-            );
-        }
-        hkask_mcp::DaemonResponse::AssignmentResponse { assigned: false } => {
-            anyhow::bail!(
-                "Replicant '{}' is not assigned to the research MCP role. \
-                 Use 'kask replicant assign {} research' to grant this role.",
-                replicant,
-                replicant
-            );
-        }
-        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
-    }
-
-    // Gate 3: Capabilities (P4 — OCAP tokens)
-    let required_tools = ["web_search", "web_extract", "web_browse"];
-    for tool in &required_tools {
-        let cap = client.capability_query(replicant, tool).await?;
-        match cap {
-            hkask_mcp::DaemonResponse::CapabilityResponse { granted: true } => {
-                tracing::debug!(
-                    target: "hkask.mcp.research",
-                    replicant = %replicant,
-                    tool = %tool,
-                    "Capability granted"
-                );
-            }
-            hkask_mcp::DaemonResponse::CapabilityResponse { granted: false } => {
-                tracing::warn!(
-                    target: "hkask.mcp.research",
-                    replicant = %replicant,
-                    tool = %tool,
-                    "Capability denied — tool will not be available"
-                );
-            }
-            other => anyhow::bail!("Unexpected capability response for '{}': {:?}", tool, other),
-        }
-    }
-
-    tracing::info!(
-        target: "hkask.mcp.research",
-        replicant = %replicant,
-        "P4 dual-gate verification complete — starting MCP server"
+    let result = hkask_mcp::verify_startup_gates(
+        &client,
+        replicant,
+        "research",
+        &["web_search", "web_extract", "web_browse"],
+    )
+    .await?;
+    tracing::info!(target: "hkask.mcp.research", replicant = %replicant,
+        "P4 gates verified{}",
+        if result.denied_tools.is_empty() { String::new() }
+        else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }
     );
     Ok(())
 }

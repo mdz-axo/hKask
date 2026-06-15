@@ -167,6 +167,71 @@ impl AlgedonicManager {
     pub(crate) fn total_deficit(&self) -> u64 {
         self.alerts.iter().map(|a| a.deficit).sum()
     }
+
+    // ── Outcome Quality Checking ──
+
+    /// Default outcome success rate warning threshold (50%).
+    pub(crate) const DEFAULT_OUTCOME_WARNING_THRESHOLD: f64 = 0.50;
+    /// Default outcome success rate critical threshold (25%).
+    pub(crate) const DEFAULT_OUTCOME_CRITICAL_THRESHOLD: f64 = 0.25;
+
+    /// Check outcome quality and generate alert if success rate is degraded.
+    ///
+    /// Uses binary thresholds on success_rate (higher is better, so we invert):
+    /// - success_rate < 0.25 → Critical (75%+ failure rate)
+    /// - success_rate < 0.50 → Warning (50%+ failure rate)
+    /// - success_rate ≥ 0.50 → Info (healthy)
+    pub(crate) fn check_outcome(
+        &mut self,
+        domain: &str,
+        success_rate: f64,
+        total_ops: u64,
+    ) -> Option<&RuntimeAlert> {
+        let severity = if success_rate < Self::DEFAULT_OUTCOME_CRITICAL_THRESHOLD {
+            AlertSeverity::Critical
+        } else if success_rate < Self::DEFAULT_OUTCOME_WARNING_THRESHOLD {
+            AlertSeverity::Warning
+        } else {
+            return None; // Healthy — no alert needed
+        };
+
+        let alert = RuntimeAlert {
+            domain: format!("outcome:{domain}"),
+            deficit: ((1.0 - success_rate) * 100.0) as u64, // failure rate as "deficit"
+            threshold: ((1.0 - Self::DEFAULT_OUTCOME_WARNING_THRESHOLD) * 100.0) as u64,
+            severity,
+            escalated: severity == AlertSeverity::Critical,
+            timestamp: Utc::now(),
+            message: format!(
+                "Outcome success rate {:.1}% in domain '{}' ({} operations, {} failures)",
+                success_rate * 100.0,
+                domain,
+                total_ops,
+                total_ops.saturating_sub((success_rate * total_ops as f64) as u64),
+            ),
+        };
+
+        if alert.should_escalate() {
+            error!(
+                target: "cns.outcome",
+                domain = %domain,
+                success_rate = %format!("{:.1}%", success_rate * 100.0),
+                total_ops = total_ops,
+                "OUTCOME ALERT - Critical failure rate"
+            );
+        } else {
+            warn!(
+                target: "cns.outcome",
+                domain = %domain,
+                success_rate = %format!("{:.1}%", success_rate * 100.0),
+                total_ops = total_ops,
+                "Outcome success rate degraded"
+            );
+        }
+
+        self.alerts.push(alert);
+        self.alerts.last()
+    }
 }
 
 /// Construct CnsHealth from the algedonic manager's current state.
@@ -240,5 +305,52 @@ mod tests {
         // Domain B should be more severe (higher deficit)
         let total = mgr.total_deficit();
         assert!(total >= 5 + 9, "Total deficit should reflect both domains");
+    }
+
+    // REQ: svc-cns-outcome-001 — check_outcome_classifies_success_rate_correctly
+    //
+    // Outcome quality tracking: success_rate < 0.25 → Critical,
+    // < 0.50 → Warning, ≥ 0.50 → healthy (no alert).
+    #[test]
+    fn check_outcome_classifies_success_rate_correctly() {
+        let mut mgr = AlgedonicManager::new(100, 10);
+
+        // Critical: 20% success rate (80% failure)
+        let alert = mgr.check_outcome("test_domain", 0.20, 10);
+        assert!(alert.is_some(), "20% success rate should trigger alert");
+        assert_eq!(alert.unwrap().severity, AlertSeverity::Critical);
+
+        // Warning: 40% success rate (60% failure)
+        let alert = mgr.check_outcome("test_domain", 0.40, 10);
+        assert!(alert.is_some(), "40% success rate should trigger alert");
+        assert_eq!(alert.unwrap().severity, AlertSeverity::Warning);
+
+        // Healthy: 60% success rate
+        let alert = mgr.check_outcome("test_domain", 0.60, 10);
+        assert!(alert.is_none(), "60% success rate should be healthy");
+
+        // Healthy: 100% success rate
+        let alert = mgr.check_outcome("test_domain", 1.0, 10);
+        assert!(alert.is_none(), "100% success rate should be healthy");
+    }
+
+    // REQ: svc-cns-outcome-002 — check_outcome_alert_message_includes_domain_and_rate
+    #[test]
+    fn check_outcome_alert_message_includes_domain_and_rate() {
+        let mut mgr = AlgedonicManager::new(100, 10);
+        let alert = mgr.check_outcome("hkask-mcp-research", 0.15, 20).unwrap();
+        assert!(alert.message.contains("hkask-mcp-research"));
+        assert!(alert.message.contains("15.0%"));
+        assert!(alert.message.contains("20 operations"));
+        assert_eq!(alert.severity, AlertSeverity::Critical);
+    }
+
+    // REQ: svc-cns-outcome-003 — check_outcome_domain_prefixed_with_outcome
+    #[test]
+    fn check_outcome_domain_prefixed_with_outcome() {
+        let mut mgr = AlgedonicManager::new(100, 10);
+        let alert = mgr.check_outcome("tool", 0.10, 10).unwrap();
+        assert!(alert.domain.starts_with("outcome:"));
+        assert!(alert.domain.contains("tool"));
     }
 }

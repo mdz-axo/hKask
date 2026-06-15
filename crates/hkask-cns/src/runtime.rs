@@ -90,6 +90,83 @@ impl Default for VarietyTracker {
     }
 }
 
+/// Outcome quality tracker — success/failure distribution per domain.
+///
+/// Complements `VarietyTracker` by tracking not just *what* was done
+/// (distinct tool names) but *how well* (success rate). A system calling
+/// 47 distinct tools that all fail would show variety=47 ("healthy") while
+/// being completely broken. Outcome tracking closes this blind spot.
+///
+/// # Epistemic grounding
+/// - **crt:certainty** = Declarative (direct measurement of tool outcomes)
+/// - **crt:force** = Evidence (IS statement, measured from runtime state)
+/// - **mode** = IS
+#[derive(Debug, Clone)]
+pub(crate) struct OutcomeTracker {
+    total: u64,
+    successes: u64,
+    failures: u64,
+    /// Per-error-kind breakdown for diagnosis.
+    error_kinds: HashMap<String, u64>,
+    window_start: Instant,
+    window_duration: Duration,
+}
+
+impl OutcomeTracker {
+    pub(crate) fn new() -> Self {
+        Self {
+            total: 0,
+            successes: 0,
+            failures: 0,
+            error_kinds: HashMap::new(),
+            window_start: Instant::now(),
+            window_duration: Duration::from_secs(DEFAULT_VARIETY_WINDOW_SECS),
+        }
+    }
+
+    pub(crate) fn record_success(&mut self) {
+        self.check_window();
+        self.total += 1;
+        self.successes += 1;
+    }
+
+    pub(crate) fn record_failure(&mut self, error_kind: &str) {
+        self.check_window();
+        self.total += 1;
+        self.failures += 1;
+        *self.error_kinds.entry(error_kind.to_string()).or_insert(0) += 1;
+    }
+
+    /// Success rate: 1.0 if no operations, successes/total otherwise.
+    pub(crate) fn success_rate(&self) -> f64 {
+        if self.total == 0 {
+            1.0
+        } else {
+            self.successes as f64 / self.total as f64
+        }
+    }
+
+    pub(crate) fn total_operations(&self) -> u64 {
+        self.total
+    }
+
+    fn check_window(&mut self) {
+        if self.window_start.elapsed() > self.window_duration {
+            self.total = 0;
+            self.successes = 0;
+            self.failures = 0;
+            self.error_kinds.clear();
+            self.window_start = Instant::now();
+        }
+    }
+}
+
+impl Default for OutcomeTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Variety monitor for multiple domains — Ashby's Law tracking at the CNS level.
 ///
 /// # Epistemic grounding
@@ -143,6 +220,7 @@ impl Default for VarietyMonitor {
 struct CnsState {
     algedonic: Arc<ParkingRwLock<AlgedonicManager>>,
     tracker: VarietyMonitor,
+    outcome: HashMap<String, OutcomeTracker>,
     energy_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, EnergyBudget>>>,
 }
 
@@ -153,10 +231,12 @@ impl CnsState {
             DEFAULT_EXPECTED_VARIETY,
         )));
         let tracker = VarietyMonitor::new();
+        let outcome = HashMap::new();
         let energy_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         Self {
             algedonic,
             tracker,
+            outcome,
             energy_budgets,
         }
     }
@@ -252,6 +332,64 @@ impl CnsRuntime {
     pub fn blocking_variety_for_domain(&self, domain: &str) -> u64 {
         let state = self.state.blocking_read();
         state.tracker.variety_for_domain(domain)
+    }
+
+    // ── Outcome Quality Tracking ──
+
+    /// Record a tool outcome (success or failure) for outcome quality tracking.
+    ///
+    /// Complements variety tracking by measuring not just *what* was done
+    /// but *how well*. After recording, checks outcome thresholds and emits
+    /// alerts if success rate drops below warning/critical levels.
+    pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
+        {
+            let mut state = self.state.write().await;
+            let tracker = state.outcome.entry(domain.to_string()).or_default();
+            if success {
+                tracker.record_success();
+            } else {
+                tracker.record_failure(error_kind.unwrap_or("unknown"));
+            }
+        }
+        self.check_outcome(domain).await;
+    }
+
+    /// Check outcome quality thresholds and emit alerts if degraded.
+    ///
+    /// Thresholds: success_rate < 0.50 → Warning, < 0.25 → Critical.
+    /// Only checks when at least 5 operations have been recorded (avoids
+    /// alert storms from small sample sizes).
+    pub async fn check_outcome(&self, domain: &str) -> Option<RuntimeAlert> {
+        let (success_rate, total_ops) = {
+            let state = self.state.read().await;
+            let tracker = state.outcome.get(domain).cloned().unwrap_or_default();
+            (tracker.success_rate(), tracker.total_operations())
+        };
+
+        // Only alert when we have enough data to be meaningful
+        if total_ops < 5 {
+            return None;
+        }
+
+        let alert = {
+            let state = self.state.write().await;
+            let mut mgr = state.algedonic.write();
+            mgr.check_outcome(domain, success_rate, total_ops).cloned()
+        };
+
+        if let Some(ref a) = alert
+            && a.severity == crate::algedonic::AlertSeverity::Critical
+        {
+            emit_critical_depletion(self, a).await;
+        }
+
+        alert
+    }
+
+    /// Get outcome success rate for a domain.
+    pub async fn outcome_success_rate(&self, domain: &str) -> Option<f64> {
+        let state = self.state.read().await;
+        state.outcome.get(domain).map(|t| t.success_rate())
     }
 
     /// Increment variety and check thresholds — the loop closes here.
@@ -483,5 +621,61 @@ mod tests {
         assert_eq!(monitor.variety_for_domain("tools"), 2);
         assert_eq!(monitor.variety_for_domain("models"), 3);
         assert_eq!(monitor.variety_for_domain("nonexistent"), 0);
+    }
+
+    // REQ: svc-cns-outcome-004 — outcome_tracker_success_rate_calculation
+    //
+    // OutcomeTracker must correctly compute success rate from recorded
+    // successes and failures.
+    #[test]
+    fn outcome_tracker_success_rate_calculation() {
+        let mut tracker = OutcomeTracker::new();
+
+        // Empty tracker: 1.0 (no data = healthy)
+        assert!((tracker.success_rate() - 1.0).abs() < 0.001);
+
+        tracker.record_success();
+        tracker.record_success();
+        tracker.record_failure("timeout");
+        // 2 successes, 1 failure → 0.666...
+        assert!((tracker.success_rate() - 2.0 / 3.0).abs() < 0.001);
+        assert_eq!(tracker.total_operations(), 3);
+    }
+
+    // REQ: svc-cns-outcome-005 — outcome_tracker_error_kind_breakdown
+    //
+    // OutcomeTracker must track per-error-kind counts for diagnosis.
+    #[test]
+    fn outcome_tracker_error_kind_breakdown() {
+        let mut tracker = OutcomeTracker::new();
+
+        tracker.record_failure("timeout");
+        tracker.record_failure("timeout");
+        tracker.record_failure("permission_denied");
+        tracker.record_success();
+
+        assert_eq!(tracker.total_operations(), 4);
+        // 1 success, 3 failures → 0.25
+        assert!((tracker.success_rate() - 0.25).abs() < 0.001);
+    }
+
+    // REQ: svc-cns-outcome-006 — outcome_tracker_window_reset
+    //
+    // OutcomeTracker must reset its window after the configured duration.
+    #[test]
+    fn outcome_tracker_window_reset() {
+        let mut tracker = OutcomeTracker::new();
+
+        tracker.record_success();
+        tracker.record_failure("error");
+        assert_eq!(tracker.total_operations(), 2);
+
+        // Force window expiry by setting window_start far in the past
+        tracker.window_start = Instant::now() - Duration::from_secs(120);
+        tracker.record_success();
+
+        // After reset, only the new record should count
+        assert_eq!(tracker.total_operations(), 1);
+        assert!((tracker.success_rate() - 1.0).abs() < 0.001);
     }
 }

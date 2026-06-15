@@ -5,6 +5,7 @@ use hkask_services::embed::EmbedService;
 
 /// Parse the Gentle Lovelace corpus config and verify all 11 works,
 /// 4 dimension centroids, 4 tag sets, tag_weights, and budget deserialize.
+// REQ: svc-embed-001 — EmbedService parses Gentle Lovelace corpus with all 11 works, 4 centroids, 4 tag sets, tag_weights, budget, methods, and foundational rules
 #[test]
 fn parse_gentle_lovelace_corpus_yaml() {
     // Resolve from workspace root via CARGO_MANIFEST_DIR

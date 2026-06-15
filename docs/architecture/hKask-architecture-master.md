@@ -10,11 +10,161 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Architecture Master
 
-**Purpose:** Index to the authoritative architecture documents.
+**Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
 **Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.27.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
+
+---
+
+## The Four Essential Patterns
+
+hKask's architecture is governed by **four irreducible patterns** that compose into a single cybernetic whole. Remove any one and the system collapses into a qualitatively different — and non-viable — system. These patterns were identified through systematic pragmatics review (pragmatic-semantics + pragmatic-cybernetics + pragmatic-laziness + essentialist + coding-guidelines) and stress-tested via Socratic interrogation (grill-me).
+
+### Pattern A: The Skills Model — WordAct / FlowDef / KnowAct
+
+**What it is:** A tripartite template type system that governs how hKask composes behavior. Mirrors the structure of human cognition: speech acts (WordAct), procedural memory (FlowDef), and metacognition (KnowAct).
+
+| Type | Format | Governs | hLexicon Domain |
+|------|--------|---------|----------------|
+| **WordAct** | Jinja2 `.j2` | "What to say" — system prompts, persona definitions, performative utterances | specify, elicit, require, constrain |
+| **FlowDef** | YAML `.yaml` | "What to do" — `select → populate → execute` cascade, choice/escalate/abort/delegate verbs | select, populate, execute, sequence |
+| **KnowAct** | Jinja2 `.j2` | "How to think" — pattern recognition, classification, reflection, calibration | recognize, classify, discriminate, reflect, calibrate |
+
+**Key properties:**
+- Selection intelligence lives in **Jinja2/LLM**, not Rust code (P3 Generative Space)
+- `ManifestExecutor` drives the cascade: render selector → LLM → parse JSON → follow chosen path
+- Cascade is recursive — a FlowDef step can contain nested WordAct/KnowAct/FlowDef, bounded by matryoshka limit (7)
+- hLexicon grounds 142 term-slots across 3 domains with academic citations (P8 Semantic Grounding)
+- Specifications are FlowDef manifests — not a separate type (unification principle)
+- Energy-accounted and OCAP-gated: every execute step goes through `GovernedTool`
+
+**Crates:** `hkask-templates`, `hkask-types` (lexicon, BundleManifest)
+
+**If removed:** System becomes a tool executor with monitoring — can do things but can't compose behavior, select strategies, or render personas. P3 and P8 violated.
+
+### Pattern B: The CNS Feedback Loop — Cybernetic Self-Regulation
+
+**What it is:** The autonomic nervous system of hKask — a complete cybernetic system per Beer's Viable System Model (S1–S5). Not passive monitoring; active *regulation*.
+
+```
+Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, EnergyBudget)
+    → Comparator (AlgedonicManager, SetPoints, Dampener)
+    → Regulator (CurationLoop, CuratorAgent, BackpressureSignal)
+    → Actuator (GovernedTool, OCAP dual gate, CircuitBreaker)
+    → Sensor (loop closes)
+```
+
+**Key properties:**
+- **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
+- **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
+- **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `CnsRuntime::calibrate_threshold()`.
+- **30 canonical CNS span namespaces.** Every dimension observable: tools, prompts, inference, agent pods, connectors, pipelines, gas, reviews, templates, curation, variety, sovereignty, goals, specs, tests, set points, backpressure, cadence, memory, condenser, evolution, architecture, improv, kata.
+- **Good Regulator contract enforced.** CNS variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
+
+**Crates:** `hkask-cns`, `hkask-types` (CNS types, SpanNamespace)
+
+**If removed:** System becomes a runaway agent platform — agents act without regulation, resources deplete without backpressure, failures accumulate without detection. P9 violated entirely. P5 loses CNS sensors.
+
+### Pattern C: Agentic AI Mediation — Curator + 7R7
+
+**What it is:** The meta-agent layer that maintains and curates the stack. Embodies the cybernetic separation of observation from decision.
+
+| Component | Role | Authority |
+|-----------|------|-----------|
+| **7R7 Listener** | Passive observer — polls Matrix rooms, emits CNS spans | **Zero.** Does not classify, escalate, moderate, or judge. |
+| **CurationLoop** | Pure regulatory — sense/compute/act cycle | **Regulatory.** Compares variety, emits directives. |
+| **CuratorAgent** | Persona layer — metacognition, spec curation, human-facing reporting | **Decisional.** Formats directives, pursues goals, escalates to human. |
+
+**Key properties:**
+- **Singleton invariant.** Exactly one `CuratorAgent` per system (VSM S4 — Intelligence). Multiple Curators would produce conflicting assessments.
+- **Dual-presence in CLI/REPL.** Human replicant + Curator daemon co-present in the interaction loop. User speaks; Curator observes, surfaces CNS alerts, provides memory summaries.
+- **Curator never bypasses OCAP.** Can recommend actions, cannot execute without capability tokens. No `sudo`.
+- **Metacognitive override mechanism.** `MetacognitionLoop::act_on_throttle()` → `CuratorDirective::CalibrateThreshold` → `mpsc` channel → `CyberneticsLoop` → `CnsRuntime::calibrate_threshold()`. Curator adjusts CNS thresholds; human can override Curator.
+- **Spec drift is a cybernetic signal.** `DefaultSpecCurator` detects when specs diverge from implementation → `SpecDriftAlert` → Conant-Ashby violation → revise spec, not suppress alert.
+- **7R7 is a dumb pipe by design.** Transport moves messages; agents decide what they mean. Authority resides in agent layer, not transport layer.
+
+**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (listener)
+
+**If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. CNS fires alerts into a void. P12 partially violated.
+
+### Pattern D: Agent Creation with Sovereign Memory
+
+**What it is:** The pod lifecycle — how agents come into existence with their own identity, capabilities, memory, and consent boundaries.
+
+```
+Creation (kask pod create) → Populated → Registered → Activated → Deactivated
+                              ↓
+                        Operating Modes: Chat (H2A) | Server (A2A)
+                              ↓
+                        Sovereign Memory: per-agent SQLCipher DB
+                              ↓
+                        Boundaries: OCAP dual gate + Visibility gating + ConsentManager
+```
+
+**Key properties:**
+- **Deterministic key derivation.** `derive_ocap_secret(webid)` via HKDF-SHA256 from master key. ADR-027: restart-safe, per-agent isolation. No key material stored.
+- **Mode mutual exclusion (initial).** Chat OR Server, not both. Safety boundary: prevents context leakage between human dialogue and tool serving (P11).
+- **Server mode flow.** 4 gates: `kask login → pod assign → pod mode server → IDE spawns MCP binary → daemon auth → assignment → capability → serve`.
+- **Dual memory encoding.** Every tool call → `record_experience()` → daemon `store_experience` → episodic (private) + semantic (public). Every 10 experiences → `generate_narrative()`.
+- **No cross-agent memory access.** `EpisodicMemory::query_for_deduped` filters by `perspective == Some(agent_webid)`. Semantic memory is public. P11: right to choose public/private extends to agents.
+- **Default is private — sovereignty fails closed.** `Visibility::Private` default. `ConsentManager` requires explicit affirmative consent for visibility transitions.
+
+**Crates:** `hkask-agents` (pod), `hkask-memory`, `hkask-storage`, `hkask-keystore`
+
+**If removed:** System becomes a library, not a platform — all infrastructure for agency exists but no agents to inhabit it. P6, P10, P11, P12 violated.
+
+### How They Compose
+
+```mermaid
+graph TD
+    subgraph Skills["Pattern A: Skills Model"]
+        SK["WordAct / FlowDef / KnowAct<br/>select → populate → execute"]
+    end
+
+    subgraph CNS["Pattern B: CNS Feedback Loop"]
+        CN["Variety → Algedonic → Backpressure<br/>30 canonical span namespaces"]
+    end
+
+    subgraph Curator["Pattern C: Agentic AI Mediation"]
+        CU["CuratorAgent + 7R7<br/>observe → assess → intervene → escalate"]
+    end
+
+    subgraph Agents["Pattern D: Agent Creation + Sovereign Memory"]
+        AG["Pod lifecycle + per-agent DB<br/>identity, capabilities, memory, consent"]
+    end
+
+    SK -->|"templates drive"| AG
+    CN -->|"monitors"| AG
+    CN -->|"algedonic signals"| CU
+    CU -->|"CalibrateThreshold directive"| CN
+    CU -->|"curates"| SK
+    AG -->|"produces CNS spans"| CN
+    SK -->|"renders Curator persona"| CU
+
+    style Skills fill:#e1f5ff
+    style CNS fill:#ffe1e1
+    style Curator fill:#f3e1ff
+    style Agents fill:#fff3e1
+```
+
+**The composition chain:**
+1. **Skills drive Agents.** Pods created from FlowDef templates. Personas are WordAct. Cognitive strategies are KnowAct. Templates are the loom; agents are the fabric.
+2. **CNS monitors Agents.** Every tool call, inference, memory operation emits CNS span. Variety counter tracks behavioral diversity. Algedonic alerts fire on deficit.
+3. **CNS signals Curator.** AlgedonicManager → RuntimeAlert → NuEventStore → CurationLoop reads via cursor → CuratorAgent assesses via metacognition.
+4. **Curator regulates CNS.** `CuratorDirective::CalibrateThreshold` on direct `mpsc` channel → `CyberneticsLoop` → `CnsRuntime::calibrate_threshold()`. Brain regulates autonomic nervous system.
+5. **Curator curates Skills.** `DefaultSpecCurator` evaluates coherence, detects drift, recommends revisions. Ensures template DNA stays aligned with implemented system.
+6. **Agents produce CNS data.** Agency produces observability; observability enables regulation; regulation ensures healthy agency. Virtuous cycle.
+
+### Identified Gaps (2026-06-15)
+
+| Gap | Severity | Status | Description |
+|-----|----------|--------|-------------|
+| **Key rotation fragility** | Medium | Open | Master key rotation breaks all derived secrets (OCAP, DB passphrase, wallet seed). No key versioning or migration path exists. |
+| **Variety vs. outcome quality** | Medium | **Closed (v0.27.0)** | `VarietyTracker` counted diversity but not success/failure distribution. Fixed by adding `OutcomeTracker` with per-domain success rate tracking, `AlgedonicManager::check_outcome()` with 50%/25% thresholds, and wiring `GovernedTool::invoke()` to call `record_outcome()` after every tool completion. New CNS spans: `cns.outcome.tool`, `cns.outcome.inference`, `cns.outcome.memory`. |
+| **CNS span→counter connection** | Low | Verified | Tracing spans emit via `tracing` crate; `VarietyTracker::increment()` called explicitly by `CnsRuntime::increment_variety()`. Connection is through `CyberneticsLoop` sense→compute→act cycle. |
+| **Metacognitive override mechanism** | Low | Verified | `MetacognitionLoop::act_on_throttle()` → `CuratorDirective::CalibrateThreshold` → `mpsc::UnboundedSender` → `CyberneticsLoop` → `CnsRuntime::calibrate_threshold()`. Implemented and traced. |
 
 ---
 

@@ -151,6 +151,7 @@ impl VoiceDesign {
 mod tests {
     use super::*;
 
+    // REQ: types-voice-001 — VoiceDesign default is neutral with medium pitch
     #[test]
     fn default_voice_is_neutral() {
         let v = VoiceDesign::default();
@@ -158,6 +159,7 @@ mod tests {
         assert_eq!(v.pitch, "medium");
     }
 
+    // REQ: types-voice-002 — to_tts_description renders all voice dimensions as descriptive prose
     #[test]
     fn tts_description_renders_prose() {
         let v = VoiceDesign {

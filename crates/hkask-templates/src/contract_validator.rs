@@ -105,6 +105,7 @@ mod tests {
         lexicon
     }
 
+    // REQ: templates-contract-001 — ContractValidator without lexicon always passes
     #[test]
     fn validator_without_lexicon_always_passes() {
         let validator = ContractValidator::new();
@@ -113,6 +114,7 @@ mod tests {
         assert!(unknown.is_empty());
     }
 
+    // REQ: templates-contract-002 — ContractValidator in Warn mode reports unknown terms
     #[test]
     fn validator_warn_mode_reports_unknown_terms() {
         let lexicon = bootstrap_lexicon();
@@ -122,6 +124,7 @@ mod tests {
         assert_eq!(unknown.len(), 1);
     }
 
+    // REQ: templates-contract-003 — ContractValidator in Reject mode blocks unknown terms
     #[test]
     fn validator_reject_mode_blocks_unknown_terms() {
         let lexicon = bootstrap_lexicon();
@@ -130,6 +133,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // REQ: templates-contract-004 — ContractValidator accepts known hLexicon terms
     #[test]
     fn validator_accepts_known_terms() {
         let lexicon = bootstrap_lexicon();
@@ -140,6 +144,7 @@ mod tests {
         assert!(unknown.is_empty());
     }
 
+    // REQ: templates-contract-005 — ContractValidator default is passthrough
     #[test]
     fn validator_default_is_passthrough() {
         let validator = ContractValidator::default();

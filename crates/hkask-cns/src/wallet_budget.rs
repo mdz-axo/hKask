@@ -177,6 +177,7 @@ mod tests {
     // Skipped by default (require keystore env); run with:
     //   HKASK_MASTER_KEY=000102... cargo test -p hkask-cns -- wallet_budget
 
+    // REQ: cns-wallet-budget-001 — gas-to-rJoule conversion math rounds correctly
     #[test]
     fn wallet_budget_gas_to_rjoules_conversion() {
         // Unit test: verify the conversion math without a real wallet.

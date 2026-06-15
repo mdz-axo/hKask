@@ -351,6 +351,24 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             );
         }
 
+        // Step 7: Record outcome for quality tracking (success rate per domain)
+        {
+            let cybernetics = self.cybernetics.read().await;
+            let error_kind: Option<String> = match &result {
+                Err(e) => {
+                    // Extract the error kind — use the ToolPortError variant name
+                    let err_str = e.to_string();
+                    // Take first line or first 64 chars as the error kind
+                    let kind = err_str.lines().next().unwrap_or(&err_str);
+                    Some(kind.chars().take(64).collect())
+                }
+                Ok(_) => None,
+            };
+            cybernetics
+                .record_outcome(server, success, error_kind.as_deref())
+                .await;
+        }
+
         result
     }
 

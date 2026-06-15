@@ -392,6 +392,7 @@ pub trait SpecCurator: Send + Sync {
 mod tests {
     use super::*;
 
+    // REQ: storage-spec-types-001 — SpecCategory::parse_str maps legacy DDMVSS names to MDS categories
     #[test]
     fn parse_str_maps_legacy_ddmvss_names() {
         assert_eq!(
@@ -412,6 +413,7 @@ mod tests {
         );
     }
 
+    // REQ: storage-spec-types-002 — SpecCategory::parse_str handles canonical MDS names
     #[test]
     fn parse_str_handles_mds_names() {
         assert_eq!(
@@ -424,11 +426,13 @@ mod tests {
         );
     }
 
+    // REQ: storage-spec-types-003 — SpecCategory::parse_str returns None for unknown strings
     #[test]
     fn parse_str_returns_none_for_unknown() {
         assert_eq!(SpecCategory::parse_str("nonsense"), None);
     }
 
+    // REQ: storage-spec-types-004 — Spec deserializes legacy variant names to correct MDS categories
     #[test]
     fn serde_deserializes_legacy_variant_names() {
         let json = r#"{"id": "00000000-0000-0000-0000-000000000001", "name": "test", "category": "Capability", "domain_anchor": "Hkask", "declared_verbs": [], "goals": [], "version": null, "signature": null, "signed_by": null, "created_at": "2026-01-01T00:00:00Z", "valid_from": null, "valid_to": null}"#;
@@ -440,6 +444,7 @@ mod tests {
         assert_eq!(spec.category, SpecCategory::Lifecycle);
     }
 
+    // REQ: storage-spec-types-005 — SpecCategory::all returns exactly five MDS variants
     #[test]
     fn spec_category_all_has_exactly_five_variants() {
         assert_eq!(SpecCategory::all().len(), 5);

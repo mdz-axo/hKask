@@ -1,0 +1,236 @@
+//! Integration tests for hkask-communication public API.
+//!
+//! Tests the public seams: types (RoomId, UserId, Thread, MatrixMessage),
+//! AgentRegistry (WebID↔UserId mapping, thread watchlists), and error types.
+//!
+//! MatrixTransport tests require a running Conduit homeserver (Docker sidecar).
+//! Those are deferred to the integration test suite that runs with `./scripts/conduit-docker.sh start`.
+//! See OPEN_QUESTIONS.md §hkask-communication-matrix-transport-tests.
+
+use hkask_communication::agent_registration::{AgentRegistrationError, AgentRegistry};
+use hkask_communication::matrix::{MatrixError, MatrixMessage, RoomId, Thread, UserId};
+use hkask_types::WebID;
+
+// ── Type tests ───────────────────────────────────────────────────────────────
+
+// REQ: comm-types-001 — RoomId newtype wraps and unwraps correctly
+#[test]
+fn room_id_newtype_round_trip() {
+    let id = RoomId::new("!abc123:localhost");
+    assert_eq!(id.as_str(), "!abc123:localhost");
+}
+
+// REQ: comm-types-002 — RoomId equality is value-based
+#[test]
+fn room_id_equality() {
+    let a = RoomId::new("!abc123:localhost");
+    let b = RoomId::new("!abc123:localhost");
+    let c = RoomId::new("!xyz789:localhost");
+    assert_eq!(a, b);
+    assert_ne!(a, c);
+}
+
+// REQ: comm-types-003 — UserId newtype wraps and unwraps correctly
+#[test]
+fn user_id_newtype_round_trip() {
+    let id = UserId::new("@agent:localhost");
+    assert_eq!(id.as_str(), "@agent:localhost");
+}
+
+// REQ: comm-types-004 — UserId equality is value-based
+#[test]
+fn user_id_equality() {
+    let a = UserId::new("@alice:localhost");
+    let b = UserId::new("@alice:localhost");
+    let c = UserId::new("@bob:localhost");
+    assert_eq!(a, b);
+    assert_ne!(a, c);
+}
+
+// REQ: comm-types-005 — Thread struct carries all room metadata fields
+#[test]
+fn thread_struct_fields() {
+    let thread = Thread {
+        room_id: RoomId::new("!room1:localhost"),
+        title: "Test Thread".to_string(),
+        participants: vec![
+            UserId::new("@alice:localhost"),
+            UserId::new("@bob:localhost"),
+        ],
+        monitored_by: vec![UserId::new("@curator:localhost")],
+        escalated: false,
+        created_at: 1000,
+    };
+    assert_eq!(thread.room_id.as_str(), "!room1:localhost");
+    assert_eq!(thread.title, "Test Thread");
+    assert_eq!(thread.participants.len(), 2);
+    assert_eq!(thread.monitored_by.len(), 1);
+    assert!(!thread.escalated);
+    assert_eq!(thread.created_at, 1000);
+}
+
+// REQ: comm-types-006 — MatrixMessage carries sender, body, timestamp, and optional structured payload
+#[test]
+fn matrix_message_fields() {
+    let msg = MatrixMessage {
+        sender: UserId::new("@alice:localhost"),
+        body: "Hello, world!".to_string(),
+        structured: Some(serde_json::json!({"type": "greeting"})),
+        timestamp: 1700000000000,
+    };
+    assert_eq!(msg.sender.as_str(), "@alice:localhost");
+    assert_eq!(msg.body, "Hello, world!");
+    assert!(msg.structured.is_some());
+    assert_eq!(msg.timestamp, 1700000000000);
+}
+
+// REQ: comm-types-007 — MatrixMessage without structured payload has None
+#[test]
+fn matrix_message_no_structured() {
+    let msg = MatrixMessage {
+        sender: UserId::new("@bot:localhost"),
+        body: "Plain text".to_string(),
+        structured: None,
+        timestamp: 0,
+    };
+    assert!(msg.structured.is_none());
+}
+
+// ── Error type tests ─────────────────────────────────────────────────────────
+
+// REQ: comm-errors-001 — MatrixError::NotLoggedIn formats correctly
+#[test]
+fn matrix_error_not_logged_in() {
+    let err = MatrixError::NotLoggedIn;
+    assert!(err.to_string().contains("Not logged in"));
+}
+
+// REQ: comm-errors-002 — MatrixError::Auth carries the failure reason
+#[test]
+fn matrix_error_auth_carries_reason() {
+    let err = MatrixError::Auth("Invalid password".to_string());
+    assert!(err.to_string().contains("Invalid password"));
+}
+
+// REQ: comm-errors-003 — MatrixError::Unavailable carries the failure reason
+#[test]
+fn matrix_error_unavailable_carries_reason() {
+    let err = MatrixError::Unavailable("Connection refused".to_string());
+    assert!(err.to_string().contains("Connection refused"));
+}
+
+// REQ: comm-errors-004 — AgentRegistrationError::NotRegistered carries the WebID
+#[test]
+fn agent_registration_error_not_registered() {
+    let err = AgentRegistrationError::NotRegistered("alice-webid".to_string());
+    assert!(err.to_string().contains("alice-webid"));
+}
+
+// ── AgentRegistry tests ──────────────────────────────────────────────────────
+
+// REQ: comm-registry-001 — AgentRegistry records WebID→UserId mapping and resolves it
+#[tokio::test]
+async fn registry_record_and_resolve() {
+    let registry = AgentRegistry::new();
+    let webid = WebID::new();
+    let user_id = UserId::new("@alice:localhost");
+
+    registry.record_mapping(&webid, &user_id).await;
+
+    let resolved = registry.resolve(&webid).await;
+    assert!(resolved.is_some());
+    assert_eq!(resolved.unwrap().as_str(), "@alice:localhost");
+}
+
+// REQ: comm-registry-002 — AgentRegistry returns None for unregistered WebID
+#[tokio::test]
+async fn registry_resolve_unregistered_returns_none() {
+    let registry = AgentRegistry::new();
+    let webid = WebID::new();
+
+    let resolved = registry.resolve(&webid).await;
+    assert!(resolved.is_none());
+}
+
+// REQ: comm-registry-003 — AgentRegistry deregister removes the mapping
+#[tokio::test]
+async fn registry_deregister_removes_mapping() {
+    let registry = AgentRegistry::new();
+    let webid = WebID::new();
+    let user_id = UserId::new("@alice:localhost");
+
+    registry.record_mapping(&webid, &user_id).await;
+    assert!(registry.resolve(&webid).await.is_some());
+
+    registry.deregister(&webid).await.unwrap();
+    assert!(registry.resolve(&webid).await.is_none());
+}
+
+// REQ: comm-registry-004 — AgentRegistry deregister of unregistered agent is a no-op success
+#[tokio::test]
+async fn registry_deregister_unregistered_is_noop() {
+    let registry = AgentRegistry::new();
+    let webid = WebID::new();
+
+    let result = registry.deregister(&webid).await;
+    assert!(result.is_ok());
+}
+
+// REQ: comm-registry-005 — AgentRegistry monitor_thread requires prior registration
+#[tokio::test]
+async fn registry_monitor_thread_requires_registration() {
+    let registry = AgentRegistry::new();
+    let webid = WebID::new();
+    let room_id = RoomId::new("!room1:localhost");
+
+    let result = registry.monitor_thread(&webid, &room_id).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        AgentRegistrationError::NotRegistered(_) => {} // expected
+        other => panic!("Expected NotRegistered, got: {:?}", other),
+    }
+}
+
+// REQ: comm-registry-006 — AgentRegistry monitor_thread succeeds for registered agent
+#[tokio::test]
+async fn registry_monitor_thread_succeeds_for_registered_agent() {
+    let registry = AgentRegistry::new();
+    let webid = WebID::new();
+    let user_id = UserId::new("@alice:localhost");
+    let room_id = RoomId::new("!room1:localhost");
+
+    registry.record_mapping(&webid, &user_id).await;
+    let result = registry.monitor_thread(&webid, &room_id).await;
+    assert!(result.is_ok());
+}
+
+// REQ: comm-registry-007 — AgentRegistry get_watchers returns agents monitoring a thread
+#[tokio::test]
+async fn registry_get_watchers_returns_monitoring_agents() {
+    let registry = AgentRegistry::new();
+    let alice = WebID::new();
+    let bob = WebID::new();
+    let room_id = RoomId::new("!room1:localhost");
+
+    registry
+        .record_mapping(&alice, &UserId::new("@alice:localhost"))
+        .await;
+    registry
+        .record_mapping(&bob, &UserId::new("@bob:localhost"))
+        .await;
+    registry.monitor_thread(&alice, &room_id).await.unwrap();
+    registry.monitor_thread(&bob, &room_id).await.unwrap();
+
+    let watchers = registry.get_watchers(&room_id).await;
+    assert_eq!(watchers.len(), 2);
+}
+
+// REQ: comm-registry-008 — AgentRegistry get_watchers returns empty for unmonitored thread
+#[tokio::test]
+async fn registry_get_watchers_empty_for_unmonitored_thread() {
+    let registry = AgentRegistry::new();
+    let room_id = RoomId::new("!unmonitored:localhost");
+
+    let watchers = registry.get_watchers(&room_id).await;
+    assert!(watchers.is_empty());
+}

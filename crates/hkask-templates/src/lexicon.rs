@@ -238,6 +238,7 @@ mod tests {
     use super::*;
 
     /// P8: parse_markdown_catalog extracts terms from markdown tables across all three domains
+    // REQ: templates-lexicon-001 — parse_markdown_catalog extracts terms from markdown tables across all three domains
     #[test]
     fn parse_catalog_extracts_terms() {
         let markdown = "\
@@ -308,6 +309,7 @@ mod tests {
     }
 
     /// P8: parse_markdown_catalog skips non-term rows (separator, header, prose)
+    // REQ: templates-lexicon-002 — parse_markdown_catalog skips non-term rows (separator, header, prose)
     #[test]
     fn parse_catalog_skips_non_term_rows() {
         let markdown = "\
@@ -325,6 +327,7 @@ mod tests {
     }
 
     /// P8: parse_markdown_catalog returns error on empty input
+    // REQ: templates-lexicon-003 — parse_markdown_catalog returns error on empty input
     #[test]
     fn parse_catalog_empty_input_returns_error() {
         let result = parse_markdown_catalog("No tables here");
@@ -332,6 +335,7 @@ mod tests {
     }
 
     /// P8: render_workspace_yaml produces valid YAML that round-trips through load_hlexicon_from_yaml
+    // REQ: templates-lexicon-004 — render_workspace_yaml produces valid YAML that round-trips through load_hlexicon_from_yaml
     #[test]
     fn render_yaml_round_trips() {
         let terms = vec![
@@ -374,6 +378,7 @@ mod tests {
     }
 
     /// P8: regenerate_workspace_yaml is the full markdown→YAML pipeline
+    // REQ: templates-lexicon-005 — regenerate_workspace_yaml is the full markdown→YAML pipeline
     #[test]
     fn regenerate_workspace_yaml_produces_valid_yaml() {
         let markdown = "\
@@ -399,6 +404,7 @@ mod tests {
     }
 
     /// P8: generate YAML from actual markdown source and verify round-trip consistency
+    // REQ: templates-lexicon-006 — hLexicon YAML matches canonical markdown source
     #[test]
     fn hlexicon_yaml_matches_markdown() {
         // Read the canonical markdown source

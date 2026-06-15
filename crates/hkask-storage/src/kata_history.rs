@@ -255,6 +255,7 @@ mod tests {
     use super::*;
     use crate::in_memory_db;
 
+    // REQ: storage-kata-history-001 — KataHistoryStore records and retrieves practice entries
     #[test]
     fn record_and_retrieve_entry() {
         let db = in_memory_db();
@@ -271,6 +272,7 @@ mod tests {
         assert_eq!(entries[0].steps_completed, 5);
     }
 
+    // REQ: storage-kata-history-002 — KataHistoryStore counts entries per agent and per date
     #[test]
     fn count_entries_per_date() {
         let db = in_memory_db();
@@ -298,6 +300,7 @@ mod tests {
         assert_eq!(store.count_entries_for_agent("Bob").unwrap(), 1);
     }
 
+    // REQ: storage-kata-history-003 — KataHistoryStore returns most recent entry for agent
     #[test]
     fn last_entry_for_agent() {
         let db = in_memory_db();
@@ -323,6 +326,7 @@ mod tests {
         assert_eq!(last.gas_consumed, 15000);
     }
 
+    // REQ: storage-kata-history-004 — KataHistoryStore returns None for agent with no entries
     #[test]
     fn no_entries_returns_none() {
         let db = in_memory_db();
@@ -331,6 +335,7 @@ mod tests {
         assert!(last.is_none());
     }
 
+    // REQ: storage-kata-history-005 — KataHistoryStore deletes entries before a cutoff date
     #[test]
     fn delete_entries_before() {
         let db = in_memory_db();

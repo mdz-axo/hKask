@@ -343,61 +343,72 @@ fn refresh_tool_section(state: &mut super::super::ReplState, rt: &tokio::runtime
 mod tests {
     use super::*;
 
+    // REQ: cli-mcp-001 — parse_selection accepts a single 1-based index number
     #[test]
     fn parse_single_number() {
         assert_eq!(parse_selection("1", 10), vec![1]);
         assert_eq!(parse_selection("  5  ", 10), vec![5]);
     }
 
+    // REQ: cli-mcp-002 — parse_selection accepts comma-separated list of indices, sorted output
     #[test]
     fn parse_comma_list() {
         assert_eq!(parse_selection("1,4,6,9", 10), vec![1, 4, 6, 9]);
         assert_eq!(parse_selection("3,1,2", 10), vec![1, 2, 3]);
     }
 
+    // REQ: cli-mcp-003 — parse_selection accepts inclusive range a-b, order-independent
     #[test]
     fn parse_range() {
         assert_eq!(parse_selection("4-6", 10), vec![4, 5, 6]);
         assert_eq!(parse_selection("6-4", 10), vec![4, 5, 6]);
     }
 
+    // REQ: cli-mcp-004 — parse_selection accepts mixed single indices and ranges
     #[test]
     fn parse_mixed() {
         assert_eq!(parse_selection("1,4-6,9", 10), vec![1, 4, 5, 6, 9]);
     }
 
+    // REQ: cli-mcp-005 — parse_selection tolerates whitespace around commas and hyphens
     #[test]
     fn parse_with_spaces() {
         assert_eq!(parse_selection("1, 4 - 6, 9", 10), vec![1, 4, 5, 6, 9]);
     }
 
+    // REQ: cli-mcp-006 — parse_selection deduplicates overlapping indices in output
     #[test]
     fn parse_deduplicates() {
         assert_eq!(parse_selection("1,1,1,2-4,3", 10), vec![1, 2, 3, 4]);
     }
 
+    // REQ: cli-mcp-007 — parse_selection supports <= comparison operator (inclusive upper bound)
     #[test]
     fn parse_lte_comparison() {
         assert_eq!(parse_selection("<=3", 10), vec![1, 2, 3]);
         assert_eq!(parse_selection("<=1", 10), vec![1]);
     }
 
+    // REQ: cli-mcp-008 — parse_selection supports >= comparison operator (inclusive lower bound)
     #[test]
     fn parse_gte_comparison() {
         assert_eq!(parse_selection(">=8", 10), vec![8, 9, 10]);
         assert_eq!(parse_selection(">=10", 10), vec![10]);
     }
 
+    // REQ: cli-mcp-009 — parse_selection supports < comparison operator (strict upper bound)
     #[test]
     fn parse_lt_comparison() {
         assert_eq!(parse_selection("<4", 10), vec![1, 2, 3]);
     }
 
+    // REQ: cli-mcp-010 — parse_selection supports > comparison operator (strict lower bound)
     #[test]
     fn parse_gt_comparison() {
         assert_eq!(parse_selection(">8", 10), vec![9, 10]);
     }
 
+    // REQ: cli-mcp-011 — parse_selection rejects comparison operators at boundary (empty result)
     #[test]
     fn parse_comparison_at_boundary() {
         assert!(parse_selection(">10", 10).is_empty());
@@ -406,6 +417,7 @@ mod tests {
         assert!(parse_selection("<=0", 10).is_empty());
     }
 
+    // REQ: cli-mcp-012 — parse_selection accepts mixed single indices and comparison operators
     #[test]
     fn parse_mixed_with_comparisons() {
         assert_eq!(
@@ -414,6 +426,7 @@ mod tests {
         );
     }
 
+    // REQ: cli-mcp-013 — parse_selection accepts complex mixed patterns (comparisons, singles, ranges)
     #[test]
     fn parse_complex_mixed() {
         assert_eq!(
@@ -422,6 +435,7 @@ mod tests {
         );
     }
 
+    // REQ: cli-mcp-014 — parse_selection rejects out-of-range indices (0, >max, range exceeding max)
     #[test]
     fn parse_out_of_range_rejected() {
         assert!(parse_selection("0", 10).is_empty());
@@ -429,12 +443,14 @@ mod tests {
         assert!(parse_selection("5-11", 10).is_empty());
     }
 
+    // REQ: cli-mcp-015 — parse_selection returns empty for server name strings (fallback to name match)
     #[test]
     fn parse_name_string_not_treated_as_selection() {
         assert!(parse_selection("condenser", 10).is_empty());
         assert!(parse_selection("memory", 10).is_empty());
     }
 
+    // REQ: cli-mcp-016 — parse_selection returns empty for empty string or non-numeric input
     #[test]
     fn parse_empty_or_non_numeric() {
         assert!(parse_selection("", 10).is_empty());

@@ -110,6 +110,7 @@ impl TranscriptBundle {
 mod tests {
     use super::*;
 
+    // REQ: types-transcript-001 — TranscriptBundle carries hkask-transcript-v1 format marker
     #[test]
     fn bundle_has_format_marker() {
         let bundle = TranscriptBundle::new(
@@ -120,6 +121,7 @@ mod tests {
         assert_eq!(bundle.format, "hkask-transcript-v1");
     }
 
+    // REQ: types-transcript-002 — word_at_ms binary search finds correct timed word at millisecond position
     #[test]
     fn word_at_ms_finds_correct_word() {
         let bundle = TranscriptBundle {

@@ -132,6 +132,10 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.improv.freestyle.coherence",
     "cns.kata.improv.effectiveness",
     "cns.improv.cascade.depth",
+    // Outcome quality spans — success/failure rate tracking per domain
+    "cns.outcome.tool",
+    "cns.outcome.inference",
+    "cns.outcome.memory",
 ];
 
 impl SpanNamespace {

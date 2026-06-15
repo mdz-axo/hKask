@@ -124,6 +124,18 @@ impl CyberneticsLoop {
         self
     }
 
+    /// Record a tool outcome in the CNS runtime for outcome quality tracking.
+    ///
+    /// Delegates to `CnsRuntime::record_outcome`. Called by `GovernedTool`
+    /// after every tool invocation completes.
+    pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
+        self.cns
+            .read()
+            .await
+            .record_outcome(domain, success, error_kind)
+            .await;
+    }
+
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         self.energy_budget_manager
             .register_energy_budget(agent, budget)

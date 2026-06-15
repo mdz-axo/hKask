@@ -369,7 +369,7 @@ mod tests {
         Spec::new(name, category, DomainAnchor::Hkask)
     }
 
-    // P8: list_valid_at returns specs with valid_from <= at < valid_to
+    // REQ: storage-spec-store-001 — list_valid_at includes currently valid specs (valid_from <= at < valid_to)
     #[test]
     fn list_valid_at_includes_currently_valid_specs() {
         let store = make_store();
@@ -383,7 +383,7 @@ mod tests {
         assert_eq!(valid[0].name, "test");
     }
 
-    // P8: list_valid_at excludes specs whose valid_to has passed
+    // REQ: storage-spec-store-002 — list_valid_at excludes specs whose valid_to has passed
     #[test]
     fn list_valid_at_excludes_expired_specs() {
         let store = make_store();
@@ -395,7 +395,7 @@ mod tests {
         assert!(store.list_valid_at(now).unwrap().is_empty());
     }
 
-    // P8: list_valid_at includes specs with valid_to IS NULL (no expiry)
+    // REQ: storage-spec-store-003 — list_valid_at includes specs with valid_to IS NULL (no expiry)
     #[test]
     fn list_valid_at_includes_no_expiry_specs() {
         let store = make_store();
@@ -406,7 +406,7 @@ mod tests {
         assert_eq!(store.list_valid_at(now).unwrap().len(), 1);
     }
 
-    // P8: list_valid_in_range returns specs with overlapping temporal windows
+    // REQ: storage-spec-store-004 — list_valid_in_range returns specs with overlapping temporal windows
     #[test]
     fn list_valid_in_range_overlap_query() {
         let store = make_store();
@@ -424,7 +424,7 @@ mod tests {
         );
     }
 
-    // P8: list_since returns specs created after a timestamp
+    // REQ: storage-spec-store-005 — list_since returns specs created after a timestamp
     #[test]
     fn list_since_transaction_time_query() {
         let store = make_store();
@@ -441,7 +441,7 @@ mod tests {
         assert_eq!(store.list_since(now - Duration::hours(1)).unwrap().len(), 1);
     }
 
-    // P8: expire sets valid_to and the spec is excluded from list_valid_at
+    // REQ: storage-spec-store-006 — expire sets valid_to and excludes spec from list_valid_at
     #[test]
     fn expire_updates_valid_to() {
         let store = make_store();

@@ -4057,45 +4057,12 @@ async fn main() -> anyhow::Result<()> {
 
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let client = DaemonClient::new();
-
-    let auth = client.auth_query(replicant).await?;
-    match auth {
-        DaemonResponse::AuthResponse {
-            authenticated: true,
-            webid: Some(ref webid),
-            ..
-        } => {
-            tracing::info!(target: "hkask.mcp.media", replicant = %replicant, webid = %webid, "Replicant authenticated via daemon");
-        }
-        DaemonResponse::AuthResponse {
-            authenticated: false,
-            action: Some(ref action),
-            ..
-        } if action == "prompt_user" => {
-            anyhow::bail!(
-                "Replicant '{}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.",
-                replicant
-            );
-        }
-        other => anyhow::bail!("Unexpected auth response: {:?}", other),
-    }
-
-    let assignment = client.assignment_query(replicant, "media").await?;
-    match assignment {
-        DaemonResponse::AssignmentResponse { assigned: true } => {
-            tracing::info!(target: "hkask.mcp.media", replicant = %replicant, "Replicant assigned to media role");
-        }
-        DaemonResponse::AssignmentResponse { assigned: false } => {
-            anyhow::bail!(
-                "Replicant '{}' is not assigned to the media MCP role. Use 'kask pod assign {} media' to grant this role.",
-                replicant,
-                replicant
-            );
-        }
-        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
-    }
-
-    tracing::info!(target: "hkask.mcp.media", replicant = %replicant, "P4 dual-gate verification complete");
+    let result = hkask_mcp::verify_startup_gates(&client, replicant, "media", &[]).await?;
+    tracing::info!(target: "hkask.mcp.media", replicant = %replicant,
+        "P4 gates verified{}",
+        if result.denied_tools.is_empty() { String::new() }
+        else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }
+    );
     Ok(())
 }
 

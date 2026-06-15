@@ -846,6 +846,7 @@ impl BudgetConfig {
 mod tests {
     use super::*;
 
+    // REQ: memory-salience-001 — compute_method_signals detects Hemingway-like prose (high parataxis, low adverb density, short sentences)
     #[test]
     fn method_signals_hemingway_like() {
         let text = "He drank the wine. It was good. He walked out into the rain.";
@@ -856,6 +857,7 @@ mod tests {
         assert!(signals.avg_sentence_length < 10.0);
     }
 
+    // REQ: memory-salience-002 — compute_method_signals detects Wilde-like prose (high adjective/adverb/hedge/intensifier density)
     #[test]
     fn method_signals_wilde_like() {
         let text = "The utterly magnificent and beautifully ornate chandelier \
@@ -869,6 +871,7 @@ mod tests {
         assert!(signals.intensifier_density > 0.0);
     }
 
+    // REQ: memory-salience-003 — DeclaredMethod::matches correctly identifies when signals meet declared thresholds
     #[test]
     fn declared_method_matches() {
         let method = DeclaredMethod {
@@ -890,6 +893,7 @@ mod tests {
         assert!(!method.matches(&wilde_signals));
     }
 
+    // REQ: memory-salience-004 — salience is zero when entity tags are empty
     #[test]
     fn salience_zero_for_empty_tags() {
         let tags = vec![EntityTags::default()];
@@ -898,6 +902,7 @@ mod tests {
         assert!((scores[0] - 0.0).abs() < 0.01);
     }
 
+    // REQ: memory-salience-005 — salience increases when passages share entities; isolated passages score zero
     #[test]
     fn salience_increases_with_shared_entities() {
         // Three passages: two share "Jake", one isolated
@@ -921,6 +926,7 @@ mod tests {
         assert!((scores[2] - 0.0).abs() < 0.01, "passage 2 isolated");
     }
 
+    // REQ: memory-salience-006 — clustering coefficient is zero when neighbors share no entities; bridge passages retain positive salience
     #[test]
     fn clustering_zero_when_neighbors_disconnected() {
         // Three passages each with a unique entity — no shared entities
@@ -956,6 +962,7 @@ mod tests {
         assert!((scores[3] - 0.0).abs() < 0.01);
     }
 
+    // REQ: memory-salience-007 — bridge passages score higher than dense clique members due to lower clustering penalty
     #[test]
     fn bridge_scores_higher_than_dense_clique() {
         // Four passages: A and B share entity X. C and D share entity Y.
@@ -1011,6 +1018,7 @@ mod tests {
         );
     }
 
+    // REQ: memory-salience-008 — method tags participate in the salience graph alongside other entity types
     #[test]
     fn methods_participate_in_graph() {
         let tags = vec![
@@ -1028,6 +1036,7 @@ mod tests {
         assert!(scores[1] > 0.0);
     }
 
+    // REQ: memory-salience-009 — PerPage budget resolves proportionally to passage count with a minimum floor
     #[test]
     fn budget_per_page_resolve() {
         let budget = BudgetConfig::PerPage {
@@ -1041,12 +1050,14 @@ mod tests {
         assert!(budget.resolve(10) >= 3750);
     }
 
+    // REQ: memory-salience-010 — Absolute budget always returns the fixed max_triples regardless of passage count
     #[test]
     fn budget_absolute() {
         let budget = BudgetConfig::Absolute { max_triples: 10000 };
         assert_eq!(budget.resolve(5000), 10000);
     }
 
+    // REQ: memory-salience-011 — entity tagging is case-insensitive for characters and places
     #[test]
     fn entity_tagging_case_insensitive() {
         let text = "Jake Barnes walked through Paris in the rain.";
@@ -1055,6 +1066,7 @@ mod tests {
         assert_eq!(tags.places, vec!["Paris"]);
     }
 
+    // REQ: memory-salience-012 — dialogue ratio is correctly detected from quoted text in compute_method_signals
     #[test]
     fn dialogue_ratio_detection() {
         let text = "\"I'm not drunk,\" he said. \"You are,\" she replied. The rain fell.";

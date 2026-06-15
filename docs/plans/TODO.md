@@ -59,8 +59,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-09** | MDS audit R8: Add TemplateType vocabulary mapping to MDS.md §7.2 | Curator | Medium | ✅ Complete | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct mapping with `as_spec_name()` cross-reference. Updated 2026-06-08 |
 | **P2-10** | MDS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 MDS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
-| **P2-12** | Populate `do../status/PROJECT_STATUS.md` — complete catalog of all 10 MCP servers' tools | Dev | Medium | ✅ Complete | 10 servers, ~82 tools (updated 2026-06-11: research consolidation, replica added) |
-| **P2-13** | Populate `do../status/PROJECT_STATUS.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 42 seams, 192 tests, gap analysis |
+| **P2-12** | Populate `do../status/PROJECT_STATUS.md` — complete catalog of all 10 MCP servers' tools | Dev | Medium | ✅ Complete | 10 servers, 143 tools — all 143 fully implemented (verified 2026-06-15 pragmatics audit) |
+| **P2-13** | Populate `do../status/PROJECT_STATUS.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 360+ tests, full REQ coverage (396 REQ tags, zero untagged tests — verified 2026-06-15 pragmatics audit) |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete → Archived | 6 Fowler patterns identified (2 applied, 4 open-low). Archived 2026-06-11; open items deferred to P1 threshold. |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ✅ Complete | 12 dead_code annotations, 4 unwired seams, 3 simplification candidates, 0 removal candidates. Created 2026-06-08 |
 | **P2-16** | Custom/private securities for portfolio tracking | Companies bot | Medium | ⬜ Planned | Spec: `docs/specifications/portfolio-tracking.md` §10.6. 6 new tools planned (create, list, delete, update_price, import_prices, link_public). Deferred to Phase 6; depends on Phase 5 multi-currency. |
@@ -212,6 +212,18 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **C-20** | Fix O(n³) salience hang — cap two-hop expansion to 50 neighbors | 2026-06-12 | `crates/hkask-memory/src/salience.rs` — 1832-passage corpus now completes in seconds |
 | **C-21** | Update DEPLOYMENT.md + CI-CD-GUIDE.md — replace Okapi with multi-provider inference | 2026-06-12 | Env vars, examples, systemd/Docker/K8s, troubleshooting all updated |
 | **C-22** | End-to-end verification — Hemingway corpus embedded via DeepInfra | 2026-06-12 | 1832 embeddings, centroid stored, 28,989 triples — full pipeline completes |
+
+---
+
+## Completed (2026-06-15 Pragmatics Audit)
+
+| ID | Task | Date | Evidence |
+|----|------|------|----------|
+| **C-23** | REQ tag coverage — add `// REQ:` tags to 77 untagged tests across 12 files | 2026-06-15 | 396 REQ tags across all 360+ tests; zero untagged test files. Files: salience (12), discover (16), mcp handlers (16), lexicon (6), spec_store (6), contract_validator (5), spec_types (5), kata_history (5), transcript (2), voice (2), wallet_budget (1), gentle_lovelace (1) |
+| **C-24** | hkask-communication integration tests — 19 tests for public API surface | 2026-06-15 | `crates/hkask-communication/tests/integration_test.rs` — types (7), errors (4), AgentRegistry (8). All 19 pass. MatrixTransport tests deferred (require Conduit homeserver) |
+| **C-25** | MCP server tool completeness verified — all 10 servers audited | 2026-06-15 | 143/143 tools fully implemented: condenser (7), spec (6), replica (8), training (8), docproc (9), communication (9), memory (16), research (17), companies (27), media (36) |
+| **C-26** | Condenser completion verified — all 7 tools functional | 2026-06-15 | `hkask-mcp-condenser` — ping, compress, classify, persist, set_profile, stats, thread_summary all implemented with inference router integration and CNS span emission |
+| **C-27** | Pragmatics codebase audit — 7-task principle-grounded review | 2026-06-15 | All 7 tasks converge at δ=0. Zero P1–P12 violations. Key findings: CNS feedback loop closed, OCAP tokens cryptographically unforgeable (HMAC-SHA256), zero unsafe blocks, zero Rc<RefCell>, condenser complete, services extraction ~70%+ |
 
 ---
 
