@@ -105,20 +105,6 @@ impl IntoResponse for ServiceErrorResponse {
     }
 }
 
-// ── Temporary bridge: allow existing ApiError constructions to be ──────
-// returned from routes that now use ServiceErrorResponse. During migration,
-// manual ApiError::BadRequest/etc. constructions still work. Once all
-// manual constructions are converted to ServiceError variants, this impl
-// can be deleted.
-
-impl From<ApiError> for ServiceErrorResponse {
-    fn from(e: ApiError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::Infra(
-            hkask_types::InfrastructureError::Database(e.to_string()),
-        ))
-    }
-}
-
 // ── Domain error → ServiceErrorResponse bridges ───────────────────────
 //
 // The `?` operator needs direct `From<E> for ServiceErrorResponse`.
@@ -139,7 +125,11 @@ impl From<hkask_storage::EscalationError> for ServiceErrorResponse {
 
 impl From<uuid::Error> for ServiceErrorResponse {
     fn from(e: uuid::Error) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::InvalidWebID(e.to_string()))
+        let msg = e.to_string();
+        ServiceErrorResponse(hkask_services::ServiceError::InvalidWebID {
+            source: Some(e),
+            message: msg,
+        })
     }
 }
 
@@ -158,6 +148,16 @@ impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
 impl From<hkask_types::ports::RegistryError> for ServiceErrorResponse {
     fn from(e: hkask_types::ports::RegistryError) -> Self {
         ServiceErrorResponse(hkask_services::ServiceError::Registry(e))
+    }
+}
+
+impl From<hkask_services::backup::BackupError> for ServiceErrorResponse {
+    fn from(e: hkask_services::backup::BackupError) -> Self {
+        let msg = e.to_string();
+        ServiceErrorResponse(hkask_services::ServiceError::Backup {
+            source: Some(Box::new(e)),
+            message: msg,
+        })
     }
 }
 
@@ -334,11 +334,11 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::NuEvent(err) => ApiError::Internal {
                 message: err.to_string(),
             },
-            SE::Keystore(msg) => ApiError::ServiceUnavailable { reason: msg },
+            SE::Keystore { message: msg, .. } => ApiError::ServiceUnavailable { reason: msg },
             SE::Infra(err) => ApiError::Internal {
                 message: err.to_string(),
             },
-            SE::Backup(msg) => ApiError::Internal {
+            SE::Backup { message: msg, .. } => ApiError::Internal {
                 message: format!("Backup failed: {}", msg),
             },
             other => ApiError::Internal {

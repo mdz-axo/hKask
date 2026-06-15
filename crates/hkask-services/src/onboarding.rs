@@ -63,10 +63,16 @@ impl OnboardingService {
             let keychain = Keychain::default();
             keychain
                 .store_by_key("acp-secret", &secrets.acp_secret)
-                .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+                .map_err(|e| ServiceError::Keystore {
+                    source: Some(Box::new(e)),
+                    message: "Failed to store acp-secret".into(),
+                })?;
             keychain
                 .store_by_key("hkask-db-passphrase", &secrets.capability_key)
-                .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+                .map_err(|e| ServiceError::Keystore {
+                    source: Some(Box::new(e)),
+                    message: "Failed to store hkask-db-passphrase".into(),
+                })?;
         }
         Ok(ResolvedSecrets {
             acp_secret: secrets.acp_secret.clone(),
@@ -222,10 +228,16 @@ impl OnboardingService {
         let keychain = Keychain::default();
         keychain
             .store_by_key("acp-secret", &resolved_secrets.acp_secret)
-            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+            .map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to store acp-secret".into(),
+            })?;
         keychain
             .store_by_key("hkask-db-passphrase", &resolved_secrets.db_passphrase)
-            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+            .map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to store hkask-db-passphrase".into(),
+            })?;
 
         Ok(SignInOutcome {
             agent_name: agent_name.to_string(),
@@ -371,16 +383,28 @@ impl OnboardingService {
         let keychain = Keychain::default();
         keychain
             .store_by_key("matrix-human-username", &human_id)
-            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+            .map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to store matrix-human-username".into(),
+            })?;
         keychain
             .store_by_key("matrix-human-password", passphrase)
-            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+            .map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to store matrix-human-password".into(),
+            })?;
         keychain
             .store_by_key("matrix-replicant-username", &replicant_id)
-            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+            .map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to store matrix-replicant-username".into(),
+            })?;
         keychain
             .store_by_key("matrix-replicant-password", passphrase)
-            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+            .map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to store matrix-replicant-password".into(),
+            })?;
 
         tracing::info!(
             target: "cns.communication.matrix.onboarding",
@@ -427,7 +451,10 @@ impl OnboardingService {
                 Ok(user_id) => {
                     keychain
                         .store_by_key(&format!("matrix-bot-{}", bot_name), &password)
-                        .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+                        .map_err(|e| ServiceError::Keystore {
+                            source: Some(Box::new(e)),
+                            message: format!("Failed to store matrix-bot-{}", bot_name),
+                        })?;
                     tracing::info!(
                         target: "cns.communication.matrix.bootstrap",
                         bot = %bot_name,

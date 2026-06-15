@@ -10,7 +10,6 @@ use crate::config::{InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
 use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
-use crate::fireworks_backend::FireworksBackend;
 use crate::ollama_backend::OllamaBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_types::LLMParameters;
@@ -26,7 +25,6 @@ use tracing::warn;
 pub struct InferenceRouter {
     config: InferenceConfig,
     ollama: Option<OllamaBackend>,
-    fireworks: Option<FireworksBackend>,
     deepinfra: Option<DeepInfraBackend>,
     fal: Option<FalBackend>,
     together: Option<TogetherBackend>,
@@ -42,16 +40,12 @@ impl InferenceRouter {
     /// Ollama is always attempted since it requires no auth.
     pub fn new(config: InferenceConfig) -> Self {
         let ollama = OllamaBackend::new(&config).ok();
-        let fireworks = FireworksBackend::new(&config).ok();
         let deepinfra = DeepInfraBackend::new(&config).ok();
         let fal = FalBackend::new(&config).ok();
         let together = TogetherBackend::new(&config).ok();
 
         if ollama.is_none() {
             warn!(target: "hkask.inference", "Ollama backend unavailable");
-        }
-        if fireworks.is_none() {
-            warn!(target: "hkask.inference", "Fireworks backend unavailable (no API key)");
         }
         if deepinfra.is_none() {
             warn!(target: "hkask.inference", "DeepInfra backend unavailable (no API key)");
@@ -66,7 +60,6 @@ impl InferenceRouter {
         Self {
             config,
             ollama,
-            fireworks,
             deepinfra,
             fal,
             together,
@@ -84,7 +77,6 @@ impl InferenceRouter {
 
         let available = match provider {
             ProviderId::Ollama => self.ollama.is_some(),
-            ProviderId::Fireworks => self.fireworks.is_some(),
             ProviderId::DeepInfra => self.deepinfra.is_some(),
             ProviderId::Fal => self.fal.is_some(),
             ProviderId::Together => self.together.is_some(),
@@ -128,24 +120,6 @@ impl InferenceRouter {
                         .as_ref()
                         .and_then(|d| d.quantization_level.clone()),
                     size_bytes: m.size,
-                });
-            }
-        }
-
-        // Fireworks models
-        if let Some(ref backend) = self.fireworks
-            && let Ok(models) = backend.list_models().await
-        {
-            for m in models {
-                entries.push(RouterModelEntry {
-                    prefixed_name: ProviderId::Fireworks.prefix_model(&m.id),
-                    provider: ProviderId::Fireworks,
-                    model: m.id.clone(),
-                    supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
-                    family: None,
-                    parameter_size: None,
-                    quantization_level: None,
-                    size_bytes: None,
                 });
             }
         }
@@ -254,15 +228,6 @@ impl InferenceRouter {
                     .as_ref()
                     .ok_or_else(|| {
                         InferenceError::Connection("Ollama backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-            ProviderId::Fireworks => {
-                self.fireworks
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("Fireworks backend unavailable".to_string())
                     })?
                     .generate_vision(&model, &prompt, &images, &params)
                     .await
@@ -483,13 +448,6 @@ impl InferencePort for InferenceRouter {
                         .generate(model, &prompt, &parameters)
                         .await
                 }
-                ProviderId::Fireworks => {
-                    self.fireworks
-                        .as_ref()
-                        .unwrap()
-                        .generate(model, &prompt, &parameters)
-                        .await
-                }
                 ProviderId::DeepInfra => {
                     self.deepinfra
                         .as_ref()
@@ -539,13 +497,6 @@ impl InferencePort for InferenceRouter {
             match provider {
                 ProviderId::Ollama => {
                     self.ollama
-                        .as_ref()
-                        .unwrap()
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
-                ProviderId::Fireworks => {
-                    self.fireworks
                         .as_ref()
                         .unwrap()
                         .generate(&model, &prompt, &parameters)
@@ -618,12 +569,6 @@ impl InferencePort for InferenceRouter {
         match provider {
             ProviderId::Ollama => {
                 self.ollama
-                    .as_ref()
-                    .unwrap()
-                    .generate_stream(&model, &prompt, &parameters)
-            }
-            ProviderId::Fireworks => {
-                self.fireworks
                     .as_ref()
                     .unwrap()
                     .generate_stream(&model, &prompt, &parameters)

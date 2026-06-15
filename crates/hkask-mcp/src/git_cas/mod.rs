@@ -13,7 +13,7 @@ pub mod gix_adapter;
 
 pub use gix_adapter::GixCasAdapter;
 
-use hkask_types::{GitError, TemplateCrate, TemplateFile};
+use hkask_types::{InfrastructureError, TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
 
 /// Git CAS Adapter — Concrete implementation for template crate loading
@@ -28,20 +28,24 @@ impl GitCasAdapter {
     }
 
     /// Validate a path to prevent directory traversal attacks
-    pub(crate) fn validate_path(&self, path: &Path) -> Result<(), GitError> {
+    pub(crate) fn validate_path(&self, path: &Path) -> Result<(), InfrastructureError> {
         let path_str = path.to_string_lossy();
 
         if path_str.contains('\0') {
-            return Err(GitError::Io("Path contains null bytes".to_string()));
+            return Err(InfrastructureError::Io(
+                "Path contains null bytes".to_string(),
+            ));
         }
 
         if path.is_absolute() {
-            return Err(GitError::Io("Absolute paths not allowed".to_string()));
+            return Err(InfrastructureError::Io(
+                "Absolute paths not allowed".to_string(),
+            ));
         }
 
         for component in path.components() {
             if let Component::ParentDir = component {
-                return Err(GitError::Io(
+                return Err(InfrastructureError::Io(
                     "Parent directory traversal not allowed".to_string(),
                 ));
             }
@@ -51,7 +55,10 @@ impl GitCasAdapter {
     }
 
     /// Load a template crate from the content-addressable store
-    pub fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, GitError> {
+    pub fn load_template_crate(
+        &self,
+        crate_name: &str,
+    ) -> Result<TemplateCrate, InfrastructureError> {
         let crate_path = Path::new(crate_name);
 
         self.validate_path(crate_path)?;
@@ -59,7 +66,7 @@ impl GitCasAdapter {
         let full_path = self.base_path.join(crate_name);
 
         if !full_path.exists() {
-            return Err(GitError::CrateNotFound(format!(
+            return Err(InfrastructureError::NotFound(format!(
                 "Crate path does not exist: {:?}",
                 full_path
             )));
@@ -67,24 +74,25 @@ impl GitCasAdapter {
 
         let persona_path = full_path.join("agent_persona.yaml");
         let persona_yaml = std::fs::read_to_string(&persona_path)
-            .map_err(|e| GitError::Io(format!("Failed to read persona: {}", e)))?;
+            .map_err(|e| InfrastructureError::Io(format!("Failed to read persona: {}", e)))?;
 
         let manifest_path = full_path.join("dispatch_manifest.yaml");
         let dispatch_manifest_yaml = std::fs::read_to_string(&manifest_path)
-            .map_err(|e| GitError::Io(format!("Failed to read manifest: {}", e)))?;
+            .map_err(|e| InfrastructureError::Io(format!("Failed to read manifest: {}", e)))?;
 
         let templates_dir = full_path.join("templates");
         let mut templates = Vec::new();
 
         if templates_dir.exists() {
-            for entry in std::fs::read_dir(&templates_dir)
-                .map_err(|e| GitError::Io(format!("Failed to read templates dir: {}", e)))?
-            {
-                let entry =
-                    entry.map_err(|e| GitError::Io(format!("Failed to read entry: {}", e)))?;
+            for entry in std::fs::read_dir(&templates_dir).map_err(|e| {
+                InfrastructureError::Io(format!("Failed to read templates dir: {}", e))
+            })? {
+                let entry = entry
+                    .map_err(|e| InfrastructureError::Io(format!("Failed to read entry: {}", e)))?;
                 let path = entry.path();
-                let content = std::fs::read_to_string(&path)
-                    .map_err(|e| GitError::Io(format!("Failed to read template: {}", e)))?;
+                let content = std::fs::read_to_string(&path).map_err(|e| {
+                    InfrastructureError::Io(format!("Failed to read template: {}", e))
+                })?;
 
                 let template_type = match path.extension().and_then(|s| s.to_str()) {
                     Some("j2") => "KnowAct",
@@ -103,7 +111,7 @@ impl GitCasAdapter {
         let hlexicon_path = full_path.join("hlexicon.yaml");
         let hlexicon_terms = if hlexicon_path.exists() {
             let content = std::fs::read_to_string(&hlexicon_path)
-                .map_err(|e| GitError::Io(format!("Failed to read hlexicon: {}", e)))?;
+                .map_err(|e| InfrastructureError::Io(format!("Failed to read hlexicon: {}", e)))?;
             parse_hlexicon_terms(&content)
         } else {
             Vec::new()
@@ -122,7 +130,7 @@ impl GitCasAdapter {
     }
 
     /// Resolve the current SHA for a crate
-    pub(crate) fn resolve_sha(&self, _crate_name: &str) -> Result<String, GitError> {
+    pub(crate) fn resolve_sha(&self, _crate_name: &str) -> Result<String, InfrastructureError> {
         use std::process::Command;
 
         let output = Command::new("git")

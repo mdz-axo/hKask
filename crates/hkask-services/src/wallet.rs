@@ -56,21 +56,30 @@ impl WalletService {
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, ServiceError> {
         self.manager
             .get_balance(wallet_id)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// Check if a wallet can afford a given rJoule cost.
     pub fn can_afford(&self, wallet_id: WalletId, cost_rj: RJoule) -> Result<bool, ServiceError> {
         self.manager
             .can_afford(wallet_id, cost_rj)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// Ensure a wallet row exists (idempotent — creates if missing).
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), ServiceError> {
         self.manager
             .ensure_wallet(wallet_id)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     // ── Deposit ──────────────────────────────────────────────────────────────
@@ -84,7 +93,10 @@ impl WalletService {
     ) -> Result<DepositAddress, ServiceError> {
         self.manager
             .get_deposit_address(wallet_id, chain, privacy)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// Generate a one-time deposit reference for shielded deposits.
@@ -97,7 +109,10 @@ impl WalletService {
         let duration = chrono::Duration::hours(validity_hours);
         self.manager
             .generate_deposit_reference(wallet_id, chain, duration)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// Get paginated transaction history for a wallet.
@@ -109,7 +124,10 @@ impl WalletService {
     ) -> Result<Vec<WalletTransaction>, ServiceError> {
         self.manager
             .get_transactions(wallet_id, limit, offset)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     // ── Withdrawal ───────────────────────────────────────────────────────────
@@ -126,7 +144,10 @@ impl WalletService {
         self.manager
             .withdraw(wallet_id, amount_rj, to_address, chain, privacy)
             .await
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     // ── API Keys ─────────────────────────────────────────────────────────────
@@ -155,21 +176,30 @@ impl WalletService {
                 purpose,
                 rate_limit,
             )
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
         self.issuer
             .revoke_key(key_id)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// List active (non-revoked) API keys for a wallet.
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, ServiceError> {
         self.issuer
             .list_keys(wallet_id)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     // ── Gas conversion ──────────────────────────────────────────────────────
@@ -199,7 +229,10 @@ impl WalletService {
         let loop_ = self
             .cybernetics
             .as_ref()
-            .ok_or_else(|| ServiceError::Wallet("CyberneticsLoop not attached to WalletService — call with_cybernetics() during construction".into()))?;
+            .ok_or_else(|| ServiceError::Wallet {
+                source: None,
+                message: "CyberneticsLoop not attached to WalletService — call with_cybernetics() during construction".into(),
+            })?;
         let budget = hkask_cns::WalletBackedBudget::new(wallet_id, Arc::clone(&self.manager));
         loop_
             .read()
@@ -220,21 +253,30 @@ impl WalletService {
     ) -> Result<(), ServiceError> {
         self.manager
             .encumber(wallet_id, key_id, amount)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// Release an encumbrance, returning unspent rJoules to the wallet.
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
         self.manager
             .release_encumbrance(key_id)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// Atomically consume rJoules from an API key's encumbrance.
     pub fn consume_gas(&self, key_id: ApiKeyId, gas_rj: RJoule) -> Result<(), ServiceError> {
         self.manager
             .consume(key_id, gas_rj)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 
     /// Get the encumbrance for an API key.
@@ -244,7 +286,10 @@ impl WalletService {
     ) -> Result<Option<hkask_types::wallet::Encumbrance>, ServiceError> {
         self.manager
             .get_encumbrance(key_id)
-            .map_err(|e| ServiceError::Wallet(e.to_string()))
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: e.to_string(),
+            })
     }
 }
 

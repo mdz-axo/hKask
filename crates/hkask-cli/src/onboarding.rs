@@ -458,14 +458,14 @@ async fn setup_provider() -> Result<(), OnboardingError> {
 
     // Check if any cloud provider is already configured
     let has_deepinfra = !config.deepinfra_api_key.is_empty();
-    let has_fireworks = !config.fireworks_api_key.is_empty();
+    let has_together = !config.together_api_key.is_empty();
     let has_fal = !config.fal_api_key.is_empty();
 
-    if has_deepinfra || has_fireworks || has_fal {
+    if has_deepinfra || has_together || has_fal {
         let provider_name = if has_deepinfra {
             "DeepInfra"
-        } else if has_fireworks {
-            "Fireworks"
+        } else if has_together {
+            "Together AI"
         } else {
             "fal.ai"
         };
@@ -486,7 +486,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     println!("  AI service. You can get a free key at:");
     println!();
     println!("    \x1b[36mhttps://deepinfra.com/\x1b[0m  (recommended — free tier, wide catalog)");
-    println!("    \x1b[36mhttps://fireworks.ai/\x1b[0m  (fast serverless inference)");
+    println!("    \x1b[36mhttps://together.ai/\x1b[0m  (inference + fine-tuning)");
     println!("    \x1b[36mhttps://fal.ai/\x1b[0m      (specialized vision/OCR models)");
     println!();
     println!("  You can set this up now, or later with:");
@@ -536,7 +536,8 @@ async fn setup_provider() -> Result<(), OnboardingError> {
                 if let Some((key, value)) = line.split_once('=')
                     && !value.trim().is_empty()
                     && (key.trim() == "DI_API_KEY"
-                        || key.trim() == "FW_API_KEY"
+                        || key.trim() == "TG_API_KEY"
+                        || key.trim() == "TOGETHER_API_KEY"
                         || key.trim() == "FA_API_KEY")
                 {
                     found_keys.push(key.trim());
@@ -548,7 +549,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
                     "  \x1b[31m✗\x1b[0m No API keys found in {}.",
                     path.display()
                 );
-                println!("  Fill in at least one of DI_API_KEY, FW_API_KEY, or FA_API_KEY.");
+                println!("  Fill in at least one of DI_API_KEY, TOGETHER_API_KEY, or FA_API_KEY.");
                 return Err(OnboardingError::Cancelled);
             }
 
@@ -628,20 +629,20 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             println!();
             println!("  Supported providers:");
             println!("    DI — DeepInfra (recommended, wide model catalog)");
-            println!("    FW — Fireworks.ai (fast serverless inference)");
+            println!("    TG — Together AI (inference + fine-tuning)");
             println!("    FA — fal.ai (specialized vision/OCR models)");
             println!();
 
-            let provider_str = prompt_line("  Provider code (DI/FW/FA):")?;
+            let provider_str = prompt_line("  Provider code (DI/TG/FA):")?;
             let provider_str = provider_str.trim().to_uppercase();
 
             let key_name = match provider_str.as_str() {
                 "DI" => "DI_API_KEY",
-                "FW" => "FW_API_KEY",
+                "TG" => "TOGETHER_API_KEY",
                 "FA" => "FA_API_KEY",
                 _ => {
                     println!(
-                        "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use DI, FW, or FA.",
+                        "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use DI, TG, or FA.",
                         provider_str
                     );
                     return Err(OnboardingError::Cancelled);
@@ -658,7 +659,10 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             let keychain = hkask_keystore::Keychain::default();
             keychain.store_by_key(key_name, api_key).map_err(|e| {
                 eprintln!("  \x1b[31m✗\x1b[0m Failed to store key: {}", e);
-                OnboardingError::Service(ServiceError::Keystore(e.to_string()))
+                OnboardingError::Service(ServiceError::Keystore {
+                    source: Some(Box::new(e)),
+                    message: format!("Failed to store {}", key_name),
+                })
             })?;
 
             // Also set default provider to match

@@ -2,10 +2,10 @@
 //!
 //! Two endpoints for discovering and switching LLM models across providers:
 //!
-//! - `GET /api/models` — List all available models (Ollama, Fireworks, DeepInfra)
+//! - `GET /api/models` — List all available models (Ollama, DeepInfra, fal.ai, Together AI)
 //! - `GET /api/models/search?q=...` — Fuzzy search models by name
 //!
-//! Model names use a 2-letter provider prefix (OM/, FW/, DI/).
+//! Model names use a 2-letter provider prefix (OM/, DI/, FA/, TG/).
 //! Returned names can be passed as the `model` field in
 //! `POST /api/chat` requests to select which LLM the Curator or agent uses.
 
@@ -68,7 +68,7 @@ pub struct ModelSearchQuery {
 
 /// List all available models from all configured providers.
 ///
-/// Queries Ollama, Fireworks, and DeepInfra and returns metadata for each
+/// Queries Ollama, DeepInfra, fal.ai, and Together AI and returns metadata for each
 /// available model with provider prefix applied. Returns an empty list if
 /// no providers are reachable (graceful degradation).
 #[utoipa::path(

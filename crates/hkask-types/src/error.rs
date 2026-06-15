@@ -49,8 +49,9 @@ pub enum InfrastructureError {
 }
 
 // From impls for the canonical error sources.
-// Note: no From<rusqlite::Error> here — hkask-types does not depend on rusqlite.
-// Downstream crates should wrap rusqlite errors into InfrastructureError::Database(String).
+// Note: the rusqlite From impl requires the "sql" feature (opt-in).
+// Downstream crates without rusqlite should manually wrap errors
+// into InfrastructureError::Database(String).
 impl From<serde_json::Error> for InfrastructureError {
     fn from(e: serde_json::Error) -> Self {
         InfrastructureError::Serialization(e.to_string())
@@ -66,6 +67,13 @@ impl From<std::io::Error> for InfrastructureError {
 impl<T> From<PoisonError<T>> for InfrastructureError {
     fn from(_: PoisonError<T>) -> Self {
         InfrastructureError::LockPoisoned
+    }
+}
+
+#[cfg(feature = "sql")]
+impl From<rusqlite::Error> for InfrastructureError {
+    fn from(e: rusqlite::Error) -> Self {
+        InfrastructureError::Database(e.to_string())
     }
 }
 
@@ -130,25 +138,7 @@ impl std::fmt::Display for McpErrorKind {
     }
 }
 
-// GitError — Git CAS errors
-
-/// Git CAS errors for content-addressable storage operations
-#[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum GitError {
-    #[error("Crate not found: {0}")]
-    CrateNotFound(String),
-
-    #[error("IO error: {0}")]
-    Io(String),
-
-    #[error("Git error: {0}")]
-    Git(String),
-}
-
-// Canonical domain error types — shared across all crates.
-// Domain enums delegate to these rather than duplicating variants.
-
+// McpErrorKind — Canonical MCP Error Taxonomy
 /// A resource was not found. Canonical across 17+ crates.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotFound {

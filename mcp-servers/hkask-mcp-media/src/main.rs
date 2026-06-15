@@ -762,7 +762,7 @@ impl MediaServer {
     }
 
     /// Resolve the best available vision model with fallback chain.
-    /// Tries: DeepInfra → Fireworks → Ollama (local).
+    /// Tries: DeepInfra → Together AI → Ollama (local).
     /// Returns the model name and a label for recording.
     async fn resolve_vision_model(&self) -> (&'static str, &'static str) {
         let models = self.inference.list_vision_models().await;
@@ -775,8 +775,8 @@ impl MediaServer {
                         "llama-3.2-vision",
                     );
                 }
-                hkask_inference::ProviderId::Fireworks => {
-                    return ("FW/llama-v3p1-70b-instruct", "llama-3.1-vision");
+                hkask_inference::ProviderId::Together => {
+                    return ("TG/Qwen/Qwen2.5-VL-72B-Instruct", "qwen-vl");
                 }
                 hkask_inference::ProviderId::Ollama => return ("OM/llava:13b", "llava"),
                 _ => continue,
@@ -4046,8 +4046,8 @@ async fn main() -> anyhow::Result<()> {
                 "fal.ai API key for image/video generation",
             ),
             hkask_mcp::CredentialRequirement::optional(
-                "FW_API_KEY",
-                "Fireworks API key for vision LLMs",
+                "TOGETHER_API_KEY",
+                "Together AI API key for vision LLMs",
             ),
         ],
     )

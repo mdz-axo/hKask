@@ -1,28 +1,27 @@
 //! hKask Inference — multi-provider inference router
 //!
-//! Routes LLM requests to Ollama (local), Fireworks.ai (cloud), DeepInfra (cloud),
-//! or fal.ai (cloud) based on a 2-letter provider prefix in the model name.
+//! Routes LLM requests to Ollama (local), DeepInfra (cloud),
+//! fal.ai (cloud), or Together AI (cloud) based on a 2-letter provider prefix in the model name.
 //!
 //! # Architecture
 //!
 //! ```text
 //! InferenceRouter (implements InferencePort)
 //!   ├── OllamaBackend    — OM/ prefix → localhost:11434
-//!   ├── FireworksBackend — FW/ prefix → api.fireworks.ai
 //!   ├── DeepInfraBackend — DI/ prefix → api.deepinfra.com
-//!   └── FalBackend       — FA/ prefix → api.fal.ai
+//!   ├── FalBackend       — FA/ prefix → api.fal.ai
+//!   └── TogetherBackend  — TG/ prefix → api.together.xyz
 //!
 //! EmbeddingRouter
 //!   ├── OllamaEmbedding    — OM/ prefix → /api/embed
-//!   ├── FireworksEmbedding — FW/ prefix → /v1/embeddings
 //!   └── DeepInfraEmbedding — DI/ prefix → /v1/embeddings
 //! ```
 //!
 //! # Model Naming
 //!
 //! - `OM/qwen3:8b` → Ollama
-//! - `FW/llama-v3p1-70b-instruct` → Fireworks
 //! - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra
+//! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI
 //! - `FA/paddleocr` → fal.ai
 //! - No prefix → default provider (configurable, default: Ollama)
 
@@ -31,7 +30,6 @@ pub mod config;
 pub mod deepinfra_backend;
 pub mod embedding_router;
 pub mod fal_backend;
-pub mod fireworks_backend;
 pub mod inference_router;
 pub mod ollama_backend;
 pub mod together_backend;
@@ -44,7 +42,6 @@ pub use inference_router::InferenceRouter;
 // Model listing types
 pub use deepinfra_backend::DeepInfraModelEntry;
 pub use fal_backend::FalModelEntry;
-pub use fireworks_backend::FireworksModelEntry;
 pub use ollama_backend::OllamaModelEntry;
 pub use together_backend::TogetherModel;
 

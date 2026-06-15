@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Matrix integration architecture, implementation, and documentation (2026-06-14).
+**Current session:** Git backup system — full implementation (2026-06-14).
 
 ---
 
@@ -28,14 +28,28 @@ All 18 workspace members.
 | `hkask-cli` (production) | ✅ Pass | 2026-06-14 |
 | `hkask-cli` (tests) | ✅ Pass — 25 tests | 2026-06-11 |
 | `hkask-services` (production) | ✅ Pass | 2026-06-14 |
-| `hkask-services` (tests) | ✅ Pass — 29 tests | 2026-06-11 |
-| `hkask-api` (production) | ⚠️ 6 pre-existing errors (missing `From` trait impls for error types — unrelated to Matrix) | 2026-06-14 |
+| `hkask-services` (tests) | ✅ Pass — 76 tests (15 backup) | 2026-06-14 |
+| `hkask-api` (production) | ✅ Pass | 2026-06-14 |
+| `hkask-cli` (production) | ✅ Pass | 2026-06-14 |
+| `hkask-mcp` (gix adapter) | ✅ Pass — pure `gix` v0.81 | 2026-06-14 |
 
 ---
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — 246 tests, 0 failures (7 doc-tests ignored in hkask-storage).
+`cargo test --workspace` result: ✅ Pass — all tests green, 0 failures.
+
+### Backup System Tests (15 tests, all pass)
+
+| Test Group | Count | Status |
+|-----------|-------|--------|
+| Snapshot (BACKUP-SNAPSHOT-001..003) | 3 | ✅ |
+| Restore (BACKUP-RESTORE-001) | 1 | ✅ |
+| List (BACKUP-LIST-001) | 1 | ✅ |
+| Prune (BACKUP-PRUNE-001) | 1 | ✅ |
+| Verify (BACKUP-VERIFY-001) | 1 | ✅ |
+| Config (BACKUP-CONFIG-001..004) | 4 | ✅ |
+| Serialization (BACKUP-SERIALIZE-001..004) | 4 | ✅ |
 
 ---
 
@@ -43,7 +57,7 @@ All 18 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`-D warnings`) | ✅ Pass (1 pre-existing warning: hkask-mcp-markitdown) | 2026-06-13 |
+| Workspace (`-D warnings`) | 1 pre-existing (`hkask-agents` type_complexity), 0 new | 2026-06-14 |
 
 ---
 
@@ -51,7 +65,7 @@ All 18 workspace members.
 
 | Check | Result | Date |
 |-------|--------|------|
-| `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-13 |
+| `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations (backup module clean) | 2026-06-14 |
 | Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `acp/mod.rs:171` | 2026-06-10 |
 | Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-13 |
 

@@ -101,7 +101,7 @@ macro_rules! impl_from_rusqlite {
     ($error:ident, $infra_variant:ident) => {
         impl From<rusqlite::Error> for $error {
             fn from(e: rusqlite::Error) -> Self {
-                $error::$infra_variant(hkask_types::InfrastructureError::Database(e.to_string()))
+                $error::$infra_variant(e.into())
             }
         }
     };

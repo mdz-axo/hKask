@@ -749,6 +749,54 @@ docs/                                Exemplary corpus
 
 ---
 
+---
+
+## Backup System Implementation (2026-06-14)
+
+*Questions surfaced during the git backup system implementation.*
+
+### BKP-001: Auto-snapshot scheduler daemon integration
+
+**MDS Category:** Lifecycle  
+**Status:** Resolved — API exists, daemon wiring deferred  
+**Opened:** 2026-06-14
+
+`BackupService::run_daily_snapshot()` provides the daily snapshot capability. The daemon loop needs to call this on a schedule (daily cron or tokio interval). The service method exists, the `auto_snapshot` config flag exists — what remains is the daemon-side scheduling loop.
+
+**Resolution:** The `run_daily_snapshot()` method is fully implemented in `hkask-services`. The daemon scheduler integration is the next step — either via an existing loop in the `LoopSystem` or a new `BackupLoop`.
+
+---
+
+### BKP-002: History rewriting completeness for prune
+
+**MDS Category:** Persistence  
+**Status:** Open  
+**Opened:** 2026-06-14
+
+`BackupService::rewrite_history()` creates a new commit chain with only retained commits, but does not garbage-collect the old (pruned) git objects. GIX does not currently expose `git gc`-equivalent functionality. Old objects remain in the ODB until a future GIX release supports packfile optimization and object pruning. This is a memory leak, not a correctness issue — old objects are unreferenced but not deleted.
+
+**Options:**
+1. Wait for GIX to implement `gc`/`prune` functionality
+2. Manually delete unreferenced objects from `.git/objects/` after history rewrite
+3. Accept the storage overhead until GIX supports it
+
+---
+
+### BKP-003: Encryption key rotation strategy
+
+**MDS Category:** Trust  
+**Status:** Open  
+**Opened:** 2026-06-14
+
+When the encryption passphrase changes, all existing encrypted blobs become unreadable with the new key. A rotation strategy is needed: either re-encrypt all blobs with the new key (expensive), or maintain a key history (stores old salts/keys for decryption, uses new key for encryption). The current implementation does not handle key rotation — changing the passphrase via `enable_encryption()` generates a new salt and key, making old blobs inaccessible.
+
+**Options:**
+1. Re-encrypt all blobs on key change (walk all repos, decrypt with old key, re-encrypt with new key)
+2. Maintain key history in `BackupConfig.encryption` as a `Vec<EncryptionConfig>` — try each key on decrypt
+3. Accept that key rotation requires a full re-backup
+
+---
+
 ## References
 
 [^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification*. `docs/architecture/MDS.md`.

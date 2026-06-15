@@ -159,8 +159,12 @@ pub enum ServiceError {
     Cns(String),
 
     /// Keystore secret resolution failed.
-    #[error("Keystore resolution failed: {0}")]
-    Keystore(String),
+    #[error("Keystore resolution failed: {message}")]
+    Keystore {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream energy budget error.
     #[error(transparent)]
@@ -202,8 +206,12 @@ pub enum ServiceError {
     ValidationError(String),
 
     /// Invalid UUID format for WebID parsing.
-    #[error("Invalid WebID: {0}")]
-    InvalidWebID(String),
+    #[error("Invalid WebID: {message}")]
+    InvalidWebID {
+        #[source]
+        source: Option<uuid::Error>,
+        message: String,
+    },
 
     // ── Infrastructure ──────────────────────────────────────────────────
     /// Upstream infrastructure error (lock poisoning, IO, etc.).
@@ -245,13 +253,21 @@ pub enum ServiceError {
 
     // ── Wallet domain ───────────────────────────────────────────────────
     /// Wallet operation failed.
-    #[error("Wallet error: {0}")]
-    Wallet(String),
+    #[error("Wallet error: {message}")]
+    Wallet {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Backup domain ──────────────────────────────────────────────────
     /// Backup operation failed (CAS, serialization, config, CNS).
-    #[error("Backup failed: {0}")]
-    Backup(String),
+    #[error("Backup failed: {message}")]
+    Backup {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Rate limiting ──────────────────────────────────────────────────────
     /// Operation rate limited (too soon after previous invocation).
@@ -283,7 +299,11 @@ pub enum ServiceError {
 
 impl From<uuid::Error> for ServiceError {
     fn from(e: uuid::Error) -> Self {
-        ServiceError::InvalidWebID(e.to_string())
+        let msg = e.to_string();
+        ServiceError::InvalidWebID {
+            source: Some(e),
+            message: msg,
+        }
     }
 }
 
@@ -306,7 +326,11 @@ impl From<hkask_mcp::server::McpToolError> for ServiceError {
 
 impl From<crate::backup::BackupError> for ServiceError {
     fn from(e: crate::backup::BackupError) -> Self {
-        ServiceError::Backup(e.to_string())
+        let msg = e.to_string();
+        ServiceError::Backup {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     }
 }
 
@@ -343,7 +367,7 @@ impl ServiceError {
             ServiceError::RateLimited(_) => true,
             ServiceError::Matrix(_) => true, // Network operations may be transient
             ServiceError::Config(_) => true, // Config resolution may succeed on retry
-            ServiceError::Keystore(_) => true, // Keychain may be temporarily unavailable
+            ServiceError::Keystore { .. } => true, // Keychain may be temporarily unavailable
             ServiceError::McpTool { kind, .. } => kind.is_retryable(),
 
             // ── Non-retryable ────────────────────────────────────────
@@ -357,7 +381,7 @@ impl ServiceError {
             | ServiceError::LoginFailed(_)
             | ServiceError::InvalidPassphrase(_)
             | ServiceError::ValidationError(_)
-            | ServiceError::InvalidWebID(_) => false,
+            | ServiceError::InvalidWebID { .. } => false,
 
             // Storage errors: database corruption, schema issues, encryption
             // failures are not transient
@@ -378,10 +402,10 @@ impl ServiceError {
             | ServiceError::Compose(_)
             | ServiceError::Skill(_)
             | ServiceError::Verification(_)
-            | ServiceError::Wallet(_)
+            | ServiceError::Wallet { .. }
             | ServiceError::Cns(_)
             | ServiceError::Consolidation(_)
-            | ServiceError::Backup(_) => false,
+            | ServiceError::Backup { .. } => false,
 
             // ── Delegate to inner error for transparent wrappers ──────
             // Domain errors may have their own retryability semantics.
@@ -453,7 +477,7 @@ impl ServiceError {
 
             // ── CNS domain ──────────────────────────────────────────
             ServiceError::Cns(_) => "error.cns.operation",
-            ServiceError::Keystore(_) => "error.cns.keystore",
+            ServiceError::Keystore { .. } => "error.cns.keystore",
             ServiceError::Gas(_) => "error.cns.gas",
 
             // ── Pod domain ──────────────────────────────────────────
@@ -469,7 +493,7 @@ impl ServiceError {
             ServiceError::LoginFailed(_) => "error.user.login_failed",
             ServiceError::InvalidPassphrase(_) => "error.user.invalid_passphrase",
             ServiceError::ValidationError(_) => "error.user.validation",
-            ServiceError::InvalidWebID(_) => "error.user.invalid_webid",
+            ServiceError::InvalidWebID { .. } => "error.user.invalid_webid",
 
             // ── Infrastructure ──────────────────────────────────────
             ServiceError::Infra(_) => "error.infra",
@@ -482,10 +506,10 @@ impl ServiceError {
             ServiceError::Compose(_) => "error.pipeline.compose",
             ServiceError::Skill(_) => "error.pipeline.skill",
             ServiceError::Verification(_) => "error.pipeline.verification",
-            ServiceError::Wallet(_) => "error.pipeline.wallet",
+            ServiceError::Wallet { .. } => "error.pipeline.wallet",
 
             // ── Backup domain ──────────────────────────────────────
-            ServiceError::Backup(_) => "error.backup",
+            ServiceError::Backup { .. } => "error.backup",
 
             // ── Rate limiting / config / communication ──────────────
             ServiceError::RateLimited(_) => "error.rate_limited",
@@ -617,7 +641,7 @@ impl ServiceError {
             ),
 
             // ── Keystore / Config ─────────────────────────────────────
-            ServiceError::Keystore(msg) => (
+            ServiceError::Keystore { message: msg, .. } => (
                 "cns.cybernetics",
                 "error.keystore",
                 serde_json::json!({ "message": msg }),
@@ -646,7 +670,7 @@ impl ServiceError {
             | ServiceError::LoginFailed(_)
             | ServiceError::InvalidPassphrase(_)
             | ServiceError::ValidationError(_)
-            | ServiceError::InvalidWebID(_) => return None,
+            | ServiceError::InvalidWebID { .. } => return None,
 
             // ── Pipeline / operational errors — system conditions ─────
             ServiceError::RegistryInitFailed(msg) => (
@@ -684,7 +708,7 @@ impl ServiceError {
                 "error.verification",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Wallet(msg) => (
+            ServiceError::Wallet { message: msg, .. } => (
                 "cns.wallet.balance",
                 "error",
                 serde_json::json!({ "message": msg }),
@@ -696,7 +720,7 @@ impl ServiceError {
             ),
 
             // ── Backup domain ─────────────────────────────────────
-            ServiceError::Backup(msg) => (
+            ServiceError::Backup { message: msg, .. } => (
                 "cns.cybernetics",
                 "error.backup",
                 serde_json::json!({ "message": msg }),

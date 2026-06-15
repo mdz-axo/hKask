@@ -31,7 +31,7 @@ pub(crate) fn populate_model_meta(
 /// Fetch per-model detail from Ollama's `/api/show` endpoint.
 ///
 /// Only works for Ollama models (OM/ prefix or unprefixed with default
-/// provider = Ollama). Returns `None` for Fireworks/DeepInfra models or
+/// provider = Ollama). Returns `None` for DeepInfra/Together AI models or
 /// if the endpoint is unreachable.
 async fn fetch_model_show(config: &InferenceConfig, model: &str) -> Option<ModelShowInfo> {
     // Resolve the raw Ollama model name, stripping any provider prefix.

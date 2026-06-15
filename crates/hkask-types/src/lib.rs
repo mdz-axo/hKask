@@ -66,7 +66,7 @@ pub use capability::{
 };
 pub use cns::CircuitState;
 pub use curation::CurationDecision;
-pub use error::{GitError, InfrastructureError, McpErrorKind};
+pub use error::{InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::Goal;
 pub use id::{

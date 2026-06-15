@@ -126,15 +126,24 @@ impl ServiceConfig {
         // Resolve secrets from keystore. If keystore resolution fails,
         // fall back to empty secrets (in-memory mode will be used).
         let acp_secret = hkask_keystore::resolve_acp_secret()
-            .map_err(|e| ServiceError::Keystore(format!("Failed to resolve ACP secret: {e}")))?
+            .map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to resolve ACP secret".into(),
+            })?
             .to_vec();
 
-        let db_passphrase_bytes = hkask_keystore::resolve_db_passphrase()
-            .map_err(|e| ServiceError::Keystore(format!("Failed to resolve DB passphrase: {e}")))?;
+        let db_passphrase_bytes =
+            hkask_keystore::resolve_db_passphrase().map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to resolve DB passphrase".into(),
+            })?;
         let db_passphrase = String::from_utf8_lossy(db_passphrase_bytes.as_ref()).into_owned();
 
         let mcp_secret_vec = hkask_keystore::resolve_mcp_secret()
-            .map_err(|e| ServiceError::Keystore(format!("Failed to resolve MCP secret: {e}")))?
+            .map_err(|e| ServiceError::Keystore {
+                source: Some(Box::new(e)),
+                message: "Failed to resolve MCP secret".into(),
+            })?
             .to_vec();
 
         Ok(Self {

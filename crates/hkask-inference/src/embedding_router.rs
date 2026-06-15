@@ -1,8 +1,8 @@
 //! Embedding router — multi-provider embedding generation.
 //!
-//! Routes embedding requests to Ollama, Fireworks, or DeepInfra based on
+//! Routes embedding requests to Ollama or DeepInfra based on
 //! the 2-letter provider prefix. Ollama uses its native `/api/embed`
-//! endpoint; Fireworks and DeepInfra use OpenAI-compatible `/v1/embeddings`.
+//! endpoint; DeepInfra uses OpenAI-compatible `/v1/embeddings`.
 
 use crate::config::{InferenceConfig, ProviderId};
 use hkask_types::ports::EmbeddingGenerationError;
@@ -17,7 +17,6 @@ use tracing::{info, warn};
 pub struct EmbeddingRouter {
     config: InferenceConfig,
     ollama_client: Option<Arc<reqwest::Client>>,
-    fireworks_client: Option<Arc<reqwest::Client>>,
     deepinfra_client: Option<Arc<reqwest::Client>>,
 }
 
@@ -35,12 +34,6 @@ impl EmbeddingRouter {
         };
 
         let ollama_client = build_client();
-        let fireworks_client = if config.fireworks_api_key.is_empty() {
-            warn!(target: "hkask.inference", "Fireworks embeddings unavailable (no API key)");
-            None
-        } else {
-            build_client()
-        };
         let deepinfra_client = if config.deepinfra_api_key.is_empty() {
             warn!(target: "hkask.inference", "DeepInfra embeddings unavailable (no API key)");
             None
@@ -51,7 +44,6 @@ impl EmbeddingRouter {
         Self {
             config,
             ollama_client,
-            fireworks_client,
             deepinfra_client,
         }
     }
@@ -63,7 +55,6 @@ impl EmbeddingRouter {
 
         let available = match provider {
             ProviderId::Ollama => self.ollama_client.is_some(),
-            ProviderId::Fireworks => self.fireworks_client.is_some(),
             ProviderId::DeepInfra => self.deepinfra_client.is_some(),
             ProviderId::Fal => false, // fal.ai does not expose embedding endpoints
             ProviderId::Together => false, // Together AI embedding client not yet implemented
@@ -96,19 +87,6 @@ impl EmbeddingRouter {
 
         let result = match provider {
             ProviderId::Ollama => self.embed_ollama(&model, &texts).await?,
-            ProviderId::Fireworks => {
-                let client = self.fireworks_client.as_ref().ok_or_else(|| {
-                    EmbeddingGenerationError::Connection("Fireworks client not initialized".into())
-                })?;
-                self.embed_openai(
-                    client,
-                    &self.config.fireworks_base_url,
-                    &self.config.fireworks_api_key,
-                    &model,
-                    &texts,
-                )
-                .await?
-            }
             ProviderId::DeepInfra => {
                 let client = self.deepinfra_client.as_ref().ok_or_else(|| {
                     EmbeddingGenerationError::Connection("DeepInfra client not initialized".into())

@@ -122,7 +122,7 @@ pub enum AgentPodError {
     PersonaParseError(String),
 
     #[error("Failed to load template crate: {0}")]
-    CrateLoadError(#[from] hkask_types::GitError),
+    CrateLoadError(#[from] hkask_types::InfrastructureError),
 
     #[error("ACP registration failed: {0}")]
     ACPRegistrationError(String),

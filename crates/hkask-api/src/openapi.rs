@@ -63,7 +63,7 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "mcp", description = "MCP servers and tools"),
         (name = "cns", description = "CNS monitoring"),
         (name = "chat", description = "Curator chat interface"),
-        (name = "models", description = "Multi-provider model catalog (Ollama, Fireworks, DeepInfra)"),
+        (name = "models", description = "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI)"),
         (name = "curator", description = "Curator escalation and metacognition"),
         (name = "git", description = "Git archival and resolution"),
         (name = "acp", description = "ACP agent registration and management"),

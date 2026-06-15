@@ -1,6 +1,6 @@
 //! Shared OpenAI-compatible chat completion protocol types and helpers.
 //!
-//! All three backends (Ollama, Fireworks, DeepInfra) speak the same
+//! All backends (Ollama, DeepInfra, Together AI) speak the same
 //! `/v1/chat/completions` wire format. This module provides the shared
 //! request/response types and helper functions used by all backends.
 //!

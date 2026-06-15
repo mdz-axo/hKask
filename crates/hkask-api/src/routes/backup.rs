@@ -286,16 +286,11 @@ pub(crate) async fn snapshot(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<SnapshotRequest>,
-) -> Result<Json<SnapshotResponse>, ApiError> {
+) -> Result<Json<SnapshotResponse>, ServiceErrorResponse> {
     let svc = backup_service(&state);
     let scope = api_scope_to_domain(req.scope)?;
 
-    let result = svc
-        .snapshot(scope, &[])
-        .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Snapshot failed: {e}"),
-        })?;
+    let result = svc.snapshot(scope, &[]).await?;
 
     Ok(Json(snapshot_to_response(&result)))
 }
@@ -317,23 +312,16 @@ pub(crate) async fn restore(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<RestoreRequest>,
-) -> Result<Json<RestoreResponse>, ApiError> {
+) -> Result<Json<RestoreResponse>, ServiceErrorResponse> {
     let svc = backup_service(&state);
     let scope = api_restore_scope_to_domain(req.scope)?;
 
-    let commit_hash: CommitHash =
-        req.commit_hash
-            .parse()
-            .map_err(|e: String| ApiError::BadRequest {
-                message: format!("Invalid commit hash: {e}"),
-            })?;
+    let commit_hash: CommitHash = req
+        .commit_hash
+        .parse()
+        .map_err(|e: String| ServiceError::ValidationError(format!("Invalid commit hash: {e}")))?;
 
-    let artifacts = svc
-        .restore(&commit_hash, scope)
-        .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Restore failed: {e}"),
-        })?;
+    let artifacts = svc.restore(&commit_hash, scope).await?;
 
     Ok(Json(RestoreResponse {
         artifacts: artifacts
@@ -362,7 +350,7 @@ pub(crate) async fn list_snapshots(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
-) -> Result<Json<ListResponse>, ApiError> {
+) -> Result<Json<ListResponse>, ServiceErrorResponse> {
     let svc = backup_service(&state);
 
     let filter = ListFilter {
@@ -370,9 +358,7 @@ pub(crate) async fn list_snapshots(
         limit: Some(query.limit),
     };
 
-    let snapshots = svc.list(filter).await.map_err(|e| ApiError::Internal {
-        message: format!("List failed: {e}"),
-    })?;
+    let snapshots = svc.list(filter).await?;
 
     Ok(Json(ListResponse {
         snapshots: snapshots.iter().map(snapshot_to_response).collect(),
@@ -395,15 +381,10 @@ pub(crate) async fn prune(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<PruneRequest>,
-) -> Result<Json<PruneResponse>, ApiError> {
+) -> Result<Json<PruneResponse>, ServiceErrorResponse> {
     let svc = backup_service(&state);
 
-    let report = svc
-        .prune(req.dry_run)
-        .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Prune failed: {e}"),
-        })?;
+    let report = svc.prune(req.dry_run).await?;
 
     Ok(Json(PruneResponse {
         dry_run: report.dry_run,
@@ -434,12 +415,10 @@ pub(crate) async fn prune(
 pub(crate) async fn verify(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<VerifyResponse>, ApiError> {
+) -> Result<Json<VerifyResponse>, ServiceErrorResponse> {
     let svc = backup_service(&state);
 
-    let reports = svc.verify().await.map_err(|e| ApiError::Internal {
-        message: format!("Verify failed: {e}"),
-    })?;
+    let reports = svc.verify().await?;
 
     Ok(Json(VerifyResponse {
         reports: reports
@@ -468,7 +447,7 @@ pub(crate) async fn verify(
 pub(crate) async fn get_config(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-) -> Result<Json<BackupConfigResponse>, ApiError> {
+) -> Result<Json<BackupConfigResponse>, ServiceErrorResponse> {
     let svc = backup_service(&state);
     let config = svc.config();
 
@@ -503,7 +482,7 @@ pub(crate) async fn update_config(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<UpdateConfigRequest>,
-) -> Result<Json<BackupConfigResponse>, ApiError> {
+) -> Result<Json<BackupConfigResponse>, ServiceErrorResponse> {
     let mut svc = backup_service(&state);
     let mut config = svc.config().clone();
 
@@ -530,9 +509,7 @@ pub(crate) async fn update_config(
         config.verify_after_snapshot = verify;
     }
 
-    svc.update_config(config).map_err(|e| ApiError::Internal {
-        message: format!("Failed to update config: {e}"),
-    })?;
+    svc.update_config(config)?;
 
     let updated = svc.config();
     Ok(Json(BackupConfigResponse {

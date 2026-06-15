@@ -1,15 +1,15 @@
-//! Inference configuration — multi-provider routing for Ollama, Fireworks, DeepInfra, and fal.ai.
+//! Inference configuration — multi-provider routing for Ollama, DeepInfra, fal.ai, and Together AI.
 //!
 //! # Environment Variables
 //!
 //! - `OM_BASE_URL` — Ollama base URL (default: <http://127.0.0.1:11434>)
-//! - `FW_BASE_URL` — Fireworks base URL (default: <https://api.fireworks.ai/inference>)
-//! - `FW_API_KEY` — Fireworks API key (required for FW provider)
 //! - `DI_BASE_URL` — DeepInfra base URL (default: <https://api.deepinfra.com>)
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
 //! - `FA_BASE_URL` — fal.ai base URL (default: <https://api.fal.ai>)
 //! - `FA_API_KEY` — fal.ai API key (required for FA provider)
-//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (OM, FW, DI, FA; default: OM)
+//! - `TG_BASE_URL` — Together AI base URL (default: <https://api.together.xyz>)
+//! - `TOGETHER_API_KEY` — Together AI API key (required for TG provider)
+//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (OM, DI, FA, TG; default: OM)
 //!
 //! # API Key Resolution
 //!
@@ -24,9 +24,9 @@
 //!
 //! Models use a 2-letter provider prefix:
 //! - `OM/qwen3:8b` → Ollama (local)
-//! - `FW/llama-v3p1-70b-instruct` → Fireworks.ai (cloud)
 //! - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra (cloud)
 //! - `FA/paddleocr` → fal.ai (cloud)
+//! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI (cloud)
 //! - No prefix → default provider (configurable, default: Ollama)
 
 use serde::{Deserialize, Serialize};
@@ -39,9 +39,6 @@ pub enum ProviderId {
     /// Ollama (local) — prefix `OM/`
     #[serde(rename = "OM")]
     Ollama,
-    /// Fireworks.ai (cloud) — prefix `FW/`
-    #[serde(rename = "FW")]
-    Fireworks,
     /// DeepInfra (cloud) — prefix `DI/`
     #[serde(rename = "DI")]
     DeepInfra,
@@ -73,7 +70,6 @@ impl ProviderId {
         }
         match prefix {
             "OM" => Some((ProviderId::Ollama, rest)),
-            "FW" => Some((ProviderId::Fireworks, rest)),
             "DI" => Some((ProviderId::DeepInfra, rest)),
             "FA" => Some((ProviderId::Fal, rest)),
             "TG" => Some((ProviderId::Together, rest)),
@@ -90,7 +86,6 @@ impl ProviderId {
     pub fn as_str(&self) -> &'static str {
         match self {
             ProviderId::Ollama => "OM",
-            ProviderId::Fireworks => "FW",
             ProviderId::DeepInfra => "DI",
             ProviderId::Fal => "FA",
             ProviderId::Together => "TG",
@@ -100,7 +95,7 @@ impl ProviderId {
 
 /// Configuration for the inference router.
 ///
-/// Holds connection settings for Ollama (local), Fireworks (cloud),
+/// Holds connection settings for Ollama (local),
 /// DeepInfra (cloud), fal.ai (cloud), and Together AI (cloud).
 /// The router uses this config to construct backends and decide
 /// the default provider for unprefixed model names.
@@ -109,18 +104,11 @@ pub struct InferenceConfig {
     /// Default provider for model names without a prefix.
     /// Default: Ollama (local-first). Override with `HKASK_DEFAULT_PROVIDER` env var
     /// or store in OS keychain under key `HKASK_DEFAULT_PROVIDER`.
-    /// Accepted values: OM, FW, DI, FA, TG.
+    /// Accepted values: OM, DI, FA, TG.
     pub default_provider: ProviderId,
 
     /// Base URL for the Ollama inference server.
     pub ollama_base_url: String,
-
-    /// Base URL for the Fireworks inference API.
-    pub fireworks_base_url: String,
-
-    /// API key for Fireworks authentication.
-    /// Required for FW provider. If empty, FW is unavailable.
-    pub fireworks_api_key: String,
 
     /// Base URL for the DeepInfra inference API (OpenAI-compatible endpoint).
     pub deepinfra_base_url: String,
@@ -162,8 +150,6 @@ impl Default for InferenceConfig {
         Self {
             default_provider: ProviderId::Ollama,
             ollama_base_url: "http://127.0.0.1:11434".to_string(),
-            fireworks_base_url: "https://api.fireworks.ai/inference".to_string(),
-            fireworks_api_key: String::new(),
             deepinfra_base_url: "https://api.deepinfra.com".to_string(),
             deepinfra_api_key: String::new(),
             fal_base_url: "https://api.fal.ai".to_string(),
@@ -181,16 +167,11 @@ impl InferenceConfig {
     /// Resolve from environment variables and OS keychain.
     ///
     /// API keys resolve keychain-first, then fall back to environment variables.
-    /// Also accepts `FIREWORKS_API_KEY`, `DEEPINFRA_API_KEY`, and `FAL_API_KEY`
+    /// Also accepts `DEEPINFRA_API_KEY` and `FAL_API_KEY`
     /// as legacy environment variable names.
     pub fn from_env() -> Self {
         let ollama_base_url =
             std::env::var("OM_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
-
-        let fireworks_base_url = std::env::var("FW_BASE_URL")
-            .unwrap_or_else(|_| "https://api.fireworks.ai/inference".to_string());
-
-        let fireworks_api_key = resolve_api_key("FW_API_KEY", &["FIREWORKS_API_KEY"]);
 
         let deepinfra_base_url = std::env::var("DI_BASE_URL")
             .unwrap_or_else(|_| "https://api.deepinfra.com".to_string());
@@ -212,8 +193,6 @@ impl InferenceConfig {
         Self {
             default_provider,
             ollama_base_url,
-            fireworks_base_url,
-            fireworks_api_key,
             deepinfra_base_url,
             deepinfra_api_key,
             fal_base_url,
@@ -287,7 +266,6 @@ fn resolve_default_provider() -> ProviderId {
 fn parse_provider_code(raw: &str) -> ProviderId {
     match raw {
         "OM" => ProviderId::Ollama,
-        "FW" => ProviderId::Fireworks,
         "DI" => ProviderId::DeepInfra,
         "FA" => ProviderId::Fal,
         "TG" => ProviderId::Together,
@@ -307,8 +285,8 @@ mod tests {
             Some((ProviderId::Ollama, "qwen3:8b"))
         );
         assert_eq!(
-            ProviderId::parse_from_model("FW/llama-v3p1-70b-instruct"),
-            Some((ProviderId::Fireworks, "llama-v3p1-70b-instruct"))
+            ProviderId::parse_from_model("TG/Qwen/Qwen2.5-7B-Instruct-Turbo"),
+            Some((ProviderId::Together, "Qwen/Qwen2.5-7B-Instruct-Turbo"))
         );
         assert_eq!(
             ProviderId::parse_from_model("DI/meta-llama/Llama-3.3-70B-Instruct"),
@@ -351,8 +329,8 @@ mod tests {
     fn prefix_model_format() {
         assert_eq!(ProviderId::Ollama.prefix_model("qwen3:8b"), "OM/qwen3:8b");
         assert_eq!(
-            ProviderId::Fireworks.prefix_model("llama-v3p1"),
-            "FW/llama-v3p1"
+            ProviderId::Together.prefix_model("Qwen/Qwen2.5-7B"),
+            "TG/Qwen/Qwen2.5-7B"
         );
         assert_eq!(
             ProviderId::DeepInfra.prefix_model("meta-llama/Llama-3.3-70B"),
@@ -380,7 +358,6 @@ mod tests {
     #[test]
     fn parse_provider_code_all_codes() {
         assert_eq!(parse_provider_code("OM"), ProviderId::Ollama);
-        assert_eq!(parse_provider_code("FW"), ProviderId::Fireworks);
         assert_eq!(parse_provider_code("DI"), ProviderId::DeepInfra);
         assert_eq!(parse_provider_code("FA"), ProviderId::Fal);
         assert_eq!(parse_provider_code("TG"), ProviderId::Together);

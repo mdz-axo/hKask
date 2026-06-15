@@ -20,6 +20,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P0-02** | Git CAS integration for triples | Storage bot | High | ✅ Complete | Deleted in 2026-06-10 architecture audit (see HANDOFF.md) |
 | **P0-03** | CLI/API symmetry audit | CLI bot | High | ✅ Complete | API routes match CLI commands |
 | **P0-04** | Documentation quality gates | Curator | High | ✅ Complete | MDS-aligned refresh complete |
+| **P0-05** | Git backup system — core implementation | Backup system | High | ✅ Complete | `hkask-services/src/backup/` — BackupService with snapshot/restore/list/prune/verify/config; CLI (`kask backup`); API (`/api/v1/backup/*`); 15 tests; CNS spans |
+| **P0-06** | Git backup — encryption at rest (AES-256-GCM + Argon2) | Backup system | High | ✅ Complete | `BackupService` encrypts blobs before CAS storage; key derived from `HKASK_BACKUP_PASSPHRASE`; salt persisted in `BackupConfig` |
+| **P0-07** | Git backup — 3-tier retention with actual GIX pruning | Backup system | High | ✅ Complete | `RetentionPolicy` (daily 21d, weekly 12w, monthly); `prune()` performs history rewriting via `rewrite_history()` |
+| **P0-08** | Git backup — scheduled daily snapshots + scoped restore | Backup system | High | ✅ Complete | `run_daily_snapshot()` for daemon loop; `scoped_restore()` for system/type/file-level restore |
+| **P0-09** | Git CAS adapter — pure GIX (no CLI git) | Backup system | High | ✅ Complete | `GixCasAdapter` rewritten to use `gix` v0.81; blob storage via `BlobRef`; tree/commit via pure gix API |
 
 ---
 

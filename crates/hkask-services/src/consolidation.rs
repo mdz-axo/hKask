@@ -47,8 +47,10 @@ pub fn db_path_for_agent(webid: &WebID) -> String {
     format!("hkask-memory-agent-{}.db", webid)
 }
 pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
-    let expected = hkask_keystore::resolve_db_passphrase()
-        .map_err(|_| ServiceError::Keystore("Server passphrase not configured".into()))?;
+    let expected = hkask_keystore::resolve_db_passphrase().map_err(|_| ServiceError::Keystore {
+        source: None,
+        message: "Server passphrase not configured".into(),
+    })?;
     let expected_str = String::from_utf8_lossy(&expected).to_string();
     let secrets = hkask_keystore::master_key::derive_all_internal_secrets(passphrase);
     if secrets.capability_key != expected_str {
