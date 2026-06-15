@@ -356,6 +356,22 @@ impl CommunicationServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+
+    let daemon_ok = match try_daemon_flow(&replicant).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.communication", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            false
+        }
+    };
+
+    let _daemon_client = if daemon_ok {
+        Some(hkask_mcp::DaemonClient::new())
+    } else {
+        None
+    };
+
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
 
@@ -388,4 +404,15 @@ async fn main() -> anyhow::Result<()> {
         vec![],
     )
     .await
+}
+
+async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+    let client = hkask_mcp::DaemonClient::new();
+    let result = hkask_mcp::verify_startup_gates(&client, replicant, "communication", &[]).await?;
+    tracing::info!(target: "hkask.mcp.communication", replicant = %replicant,
+        "P4 gates verified{}",
+        if result.denied_tools.is_empty() { String::new() }
+        else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }
+    );
+    Ok(())
 }

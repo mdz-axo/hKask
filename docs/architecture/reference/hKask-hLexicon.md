@@ -71,9 +71,9 @@ The three representations have deliberately different lifecycles:
 ```mermaid
 flowchart LR
     MD["hKask-hLexicon.md<br/>(CANONICAL)"] -->|load_hlexicon_from_yaml<br/>(active)| YAML["hlexicon-workspace.yaml<br/>(derived, committed)"]
-    MD -.->|parse_markdown_catalog → render_workspace_yaml<br/>(planned stubs, FocusingAssumption FA-Co1)| YAML
-    YAML -.->|hlexicon_yaml_matches_markdown<br/>(planned, not yet implemented)| GATE{YAML ==<br/>markdown?}
-    YAML -.-> GATE
+    MD -->|parse_markdown_catalog → render_workspace_yaml<br/>(implemented)| YAML
+    YAML -->|hlexicon_yaml_matches_markdown<br/>(active test)| GATE{YAML ==<br/>markdown?}
+    YAML --> GATE
     GATE -->|drift| ASK["test fails:<br/>regenerate OR<br/>restore markdown from git"]
 ```
 
@@ -87,9 +87,9 @@ status: VERIFIED
 **Process when the vocabulary changes:**
 
 1. Edit the term tables in this file (add/remove/recategorize a term).
-2. Regenerate the derived YAML explicitly (never automatic — once stubs are implemented):
+2. Regenerate the derived YAML explicitly (never automatic):
    `cargo test -p hkask-templates regenerate_workspace_yaml -- --ignored`
-   **Currently:** Only `load_hlexicon_from_yaml` is active. The `parse_markdown_catalog` → `render_workspace_yaml` → `regenerate_workspace_yaml` pipeline is a planned stub (FocusingAssumption FA-Co1).
+   **Currently:** The `parse_markdown_catalog` → `render_workspace_yaml` → `regenerate_workspace_yaml` pipeline is implemented and tested (see `crates/hkask-templates/src/lexicon.rs` tests).
 3. Commit both this file and `registry/hlexicon/hlexicon-workspace.yaml`.
 4. The `hlexicon_yaml_matches_markdown` test (runs under `cargo test --workspace`)
    fails if the YAML and markdown disagree. On failure the maintainer decides:

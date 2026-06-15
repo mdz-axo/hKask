@@ -561,7 +561,10 @@ impl MediaServer {
 
     /// Resolve an image index to a base64 data URL for vision LLM calls.
     fn resolve_image_url(&self, image_index: usize) -> Result<String, String> {
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = self
+            .gallery_state
+            .lock()
+            .map_err(|e| format!("Gallery state lock error: {}", e))?;
         let state = guard
             .as_ref()
             .ok_or("No gallery initialized.".to_string())?;
@@ -592,7 +595,10 @@ impl MediaServer {
 
     /// Resolve an image index to a filesystem path.
     fn resolve_image_path(&self, image_index: usize) -> Result<PathBuf, String> {
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = self
+            .gallery_state
+            .lock()
+            .map_err(|e| format!("Gallery state lock error: {}", e))?;
         let state = guard
             .as_ref()
             .ok_or("No gallery initialized.".to_string())?;
@@ -611,7 +617,10 @@ impl MediaServer {
 
     /// Resolve an image index to its SQLite image ID for tag persistence.
     fn resolve_image_id(&self, image_index: usize) -> Result<String, String> {
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = self
+            .gallery_state
+            .lock()
+            .map_err(|e| format!("Gallery state lock error: {}", e))?;
         let state = guard
             .as_ref()
             .ok_or("No gallery initialized.".to_string())?;
@@ -635,7 +644,10 @@ impl MediaServer {
     fn resolve_image_url_by_id(&self, image_id: &str) -> Result<String, String> {
         // Extract gallery_id and drop the guard before any I/O
         let gallery_id = {
-            let guard = self.gallery_state.lock().unwrap();
+            let guard = self
+                .gallery_state
+                .lock()
+                .map_err(|e| format!("Gallery state lock error: {}", e))?;
             let state = guard
                 .as_ref()
                 .ok_or("No gallery initialized.".to_string())?;
@@ -705,7 +717,10 @@ impl MediaServer {
     /// image URL if cropping fails (graceful degradation).
     fn crop_face_region(&self, image_id: &str, bbox: &serde_json::Value) -> Result<String, String> {
         // Resolve the image path
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = self
+            .gallery_state
+            .lock()
+            .map_err(|e| format!("Gallery state lock error: {}", e))?;
         let state = guard
             .as_ref()
             .ok_or("No gallery initialized.".to_string())?;
@@ -798,7 +813,10 @@ impl MediaServer {
         &self,
         recursive: bool,
     ) -> Result<(String, u64, u32, u32, u32), String> {
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = self
+            .gallery_state
+            .lock()
+            .map_err(|e| format!("Gallery state lock error: {}", e))?;
         match &*guard {
             Some(state) => match &state.gallery_id {
                 Some(gid) => {
@@ -827,7 +845,11 @@ impl MediaServer {
                             persisted += 1;
                         }
                     }
-                    *self.gallery_state.lock().unwrap() = Some(state_clone);
+                    *self
+                        .gallery_state
+                        .lock()
+                        .map_err(|e| format!("Gallery state lock error: {}", e))? =
+                        Some(state_clone);
                     Ok((
                         gid,
                         old_count,
@@ -1325,7 +1347,14 @@ impl MediaServer {
             }
         }
 
-        *self.gallery_state.lock().unwrap() = Some(state);
+        *match self.gallery_state.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                );
+            }
+        } = Some(state);
 
         let result = serde_json::json!({
             "status": "organized",
@@ -1360,7 +1389,14 @@ impl MediaServer {
     #[tool(description = "Get gallery status: path, mode, image count, and total size.")]
     async fn gallery_status(&self) -> String {
         let span = ToolSpanGuard::new("gallery_status", &self.webid);
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = match self.gallery_state.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                );
+            }
+        };
         match &*guard {
             Some(state) => span.ok_json(state.summary()),
             None => span.ok_json(serde_json::json!({
@@ -1384,7 +1420,14 @@ impl MediaServer {
     ) -> String {
         let span = ToolSpanGuard::new("gallery_search", &self.webid);
 
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = match self.gallery_state.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                );
+            }
+        };
         let state = match &*guard {
             Some(s) => s,
             None => {
@@ -1563,7 +1606,13 @@ impl MediaServer {
 
         // Collect captions for all images in the gallery
         let gallery_id = {
-            let guard = self.gallery_state.lock().unwrap();
+            let guard =
+                match self.gallery_state.lock() {
+                    Ok(g) => g,
+                    Err(e) => return span.internal_error(
+                        serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                    ),
+                };
             let state = match &*guard {
                 Some(s) => s,
                 None => {
@@ -1619,8 +1668,11 @@ impl MediaServer {
         }
 
         if candidates.is_empty() {
+            let query_label = text
+                .clone()
+                .unwrap_or_else(|| format!("image_index={}", image_index.unwrap_or(0)));
             return span.ok_json(serde_json::json!({
-                "query": text.unwrap_or_else(|| format!("image_index={}", image_index.unwrap())),
+                "query": query_label,
                 "results": [],
                 "message": "No captions found. Run gallery_analyze first.",
             }));
@@ -1661,8 +1713,11 @@ impl MediaServer {
             .map(|(path, score)| serde_json::json!({"image": path, "similarity": score}))
             .collect();
 
+        let query_label = text
+            .clone()
+            .unwrap_or_else(|| format!("image_index={}", image_index.unwrap_or(0)));
         span.ok_json(serde_json::json!({
-            "query": text.unwrap_or_else(|| format!("image_index={}", image_index.unwrap())),
+            "query": query_label,
             "results": results,
         }))
     }
@@ -1711,7 +1766,12 @@ impl MediaServer {
         if include_faces {
             // Extract gallery_id and drop the guard before any await
             let gallery_id = {
-                let guard = self.gallery_state.lock().unwrap();
+                let guard = match self.gallery_state.lock() {
+                    Ok(g) => g,
+                    Err(e) => return span.internal_error(
+                        serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                    ),
+                };
                 match &*guard {
                     Some(s) => match &s.gallery_id {
                         Some(id) => id.clone(),
@@ -2017,7 +2077,13 @@ impl MediaServer {
 
         // Extract gallery state in a block so the MutexGuard is dropped before any await
         let (image_count, _gallery_id) = {
-            let guard = self.gallery_state.lock().unwrap();
+            let guard =
+                match self.gallery_state.lock() {
+                    Ok(g) => g,
+                    Err(e) => return span.internal_error(
+                        serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                    ),
+                };
             let state = match &*guard {
                 Some(s) => s,
                 None => {

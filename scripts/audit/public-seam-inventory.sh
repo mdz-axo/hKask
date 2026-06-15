@@ -112,7 +112,8 @@ collect_public_items() {
                 [ -n "$fn_name" ] || continue
                 local sig
                 sig=$(echo "$line" | sed 's/^[[:space:]]*//' | cut -c1-120)
-                echo "FN|$crate|$modpath|$fn_name|$file:$linenum|$sig" >> "$outfile"
+                local relfile="${file#$repo_root/}"
+                echo "FN|$crate|$modpath|$fn_name|$relfile:$linenum|$sig" >> "$outfile"
             done < "$matches"
 
             # Find pub struct declarations
@@ -124,7 +125,8 @@ collect_public_items() {
                 [ -n "$st_name" ] || continue
                 local sig
                 sig=$(echo "$line" | sed 's/^[[:space:]]*//' | cut -c1-120)
-                echo "ST|$crate|$modpath|$st_name|$file:$linenum|$sig" >> "$outfile"
+                local relfile="${file#$repo_root/}"
+                echo "ST|$crate|$modpath|$st_name|$relfile:$linenum|$sig" >> "$outfile"
             done < "$matches"
 
             # Find pub enum declarations
@@ -136,7 +138,8 @@ collect_public_items() {
                 [ -n "$en_name" ] || continue
                 local sig
                 sig=$(echo "$line" | sed 's/^[[:space:]]*//' | cut -c1-120)
-                echo "EN|$crate|$modpath|$en_name|$file:$linenum|$sig" >> "$outfile"
+                local relfile="${file#$repo_root/}"
+                echo "EN|$crate|$modpath|$en_name|$relfile:$linenum|$sig" >> "$outfile"
             done < "$matches"
 
             # Find pub trait declarations
@@ -148,7 +151,8 @@ collect_public_items() {
                 [ -n "$tr_name" ] || continue
                 local sig
                 sig=$(echo "$line" | sed 's/^[[:space:]]*//' | cut -c1-120)
-                echo "TR|$crate|$modpath|$tr_name|$file:$linenum|$sig" >> "$outfile"
+                local relfile="${file#$repo_root/}"
+                echo "TR|$crate|$modpath|$tr_name|$relfile:$linenum|$sig" >> "$outfile"
             done < "$matches"
 
             # Find pub type aliases
@@ -160,7 +164,8 @@ collect_public_items() {
                 [ -n "$ty_name" ] || continue
                 local sig
                 sig=$(echo "$line" | sed 's/^[[:space:]]*//' | cut -c1-120)
-                echo "TY|$crate|$modpath|$ty_name|$file:$linenum|$sig" >> "$outfile"
+                local relfile="${file#$repo_root/}"
+                echo "TY|$crate|$modpath|$ty_name|$relfile:$linenum|$sig" >> "$outfile"
             done < "$matches"
 
             rm -f "$matches"
@@ -227,11 +232,55 @@ collect_req_tests() {
                     fi
                 done
 
-                echo "REQ|$crate|$modpath|$req_id|$req_desc|$test_fn|$file:$req_linenum" >> "$outfile"
+                local relfile="${file#$repo_root/}"
+                echo "REQ|$crate|$modpath|$req_id|$req_desc|$test_fn|$relfile:$req_linenum" >> "$outfile"
             done < "$req_matches"
             rm -f "$req_matches"
         done < <(find "$dir" -name '*.rs' -print0)
     done
+}
+
+# ── risk classification ──────────────────────────────────────────────────────
+
+# Classify a public item by risk tier: high, medium, or low.
+# Output format: "tier:category" for use in inventory tables.
+classify_risk() {
+    local kind="$1" crate="$2" fn_name="$3"
+
+    case "$kind" in
+        ST|EN|TR|TY)
+            echo "medium:Type Declaration"
+            ;;
+        FN)
+            # Accessor/constructor patterns — low risk individually
+            case "$fn_name" in
+                new|new_*|from_*|with_*|as_*|to_*|into_*|\
+                is_*|has_*|get_*|set_*|try_*|default|\
+                builder|build|len|is_empty|iter|iter_mut|\
+                run|start|stop|shutdown|close|open)
+                    echo "low:Accessor/Constructor"
+                    ;;
+                *)
+                    # Context-based classification
+                    case "$crate" in
+                        hkask-api)
+                            echo "high:API Route Handler"
+                            ;;
+                        hkask-mcp-*)
+                            echo "high:MCP Tool Handler"
+                            ;;
+                        hkask-mcp)
+                            echo "high:Core Logic"
+                            ;;
+                        *)
+                            echo "high:Core Logic"
+                            ;;
+                    esac
+                    ;;
+            esac
+            ;;
+        *) echo "medium:Unknown" ;;
+    esac
 }
 
 # ── cross-reference: match public items to REQ tests ──────────────────────────
@@ -253,8 +302,8 @@ build_inventory() {
         echo "$cr|$mp" >> "$req_data"
         # Record REQ presence per crate
         echo "$cr" >> "$crate_req_counts"
-        # Extract potential item name references from REQ description and test fn
-        echo "$rid:$rdesc:$tfn" >> "${req_data}.terms"
+        # Extract potential item name references, scoped by crate
+        echo "$cr:$rid:$rdesc:$tfn" >> "${req_data}.terms"
     done < "$reqs_file"
 
     # Now process public items and determine coverage
@@ -310,15 +359,15 @@ HEADER
             local pct=0
             [ "$items" -gt 0 ] && pct=$(( covered * 100 / items ))
             local reqs_in_crate
-            reqs_in_crate=$(grep -c "^$crate|" "$reqs_file" 2>/dev/null || echo 0)
+            reqs_in_crate=$(grep -cF "REQ|${crate}|" "$reqs_file" 2>/dev/null || echo 0)
             echo "| $crate | $items | $covered | $((items - covered)) | ${pct}% | $reqs_in_crate |"
 
             # Emit detailed items for previous crate
             echo ""
             echo "### $crate"
             echo ""
-            echo "| Kind | Item | Module | Location | REQ Coverage |"
-            echo "|------|------|--------|----------|-------------|"
+            echo "| Kind | Item | Module | Location | Risk Tier | REQ |"
+            echo "|------|------|--------|----------|-----------|-----|"
             echo "$crate_lines"
 
             total_covered=$((total_covered + covered))
@@ -338,18 +387,15 @@ HEADER
         local is_covered=false
         local coverage_marker="🔴"
 
-        # Check: does this module have any REQ tests? (|| true for pipefail)
-        if grep -qF "$cr|$mp" "$req_data" 2>/dev/null || [ $? -eq 1 ]; then
-            if [ $? -eq 0 ]; then
-                is_covered=true
-            fi
+        # Check: does this module have any REQ tests?
+        if grep -qFx "$cr|$mp" "$req_data" 2>/dev/null; then
+            is_covered=true
         fi
 
-        # Check: does the item name appear in any REQ description or test fn name?
-        if [ "$is_covered" = false ]; then
-            if grep -qi "$name" "${req_data}.terms" 2>/dev/null; then
-                is_covered=true
-            fi
+        # Check: does the item name appear in this crate's REQ descriptions or test fn names?
+        # Terms file format: crate:req_id:description:test_fn
+        if [ "$is_covered" = false ] && grep -qi "^${cr}:.*${name}" "${req_data}.terms" 2>/dev/null; then
+            is_covered=true
         fi
 
         if $is_covered; then
@@ -367,7 +413,19 @@ HEADER
             *)  kind_label="$kind" ;;
         esac
 
-        crate_lines="${crate_lines}| $kind_label | \`$name\` | $mp | $loc | $coverage_marker |
+        local risk_tier
+        risk_tier=$(classify_risk "$kind" "$cr" "$name")
+        local risk_label="${risk_tier%%:*}"
+        local risk_cat="${risk_tier#*:}"
+        local risk_icon
+        case "$risk_label" in
+            high) risk_icon="🔴" ;;
+            medium) risk_icon="🟡" ;;
+            low) risk_icon="🟢" ;;
+            *) risk_icon="⚪" ;;
+        esac
+
+        crate_lines="${crate_lines}| $kind_label | \`$name\` | $mp | $loc | $risk_icon $risk_cat | $coverage_marker |
 "
     done < <(sort -t'|' -k2,2 -k3,3 "$items_file")
 
@@ -376,18 +434,21 @@ HEADER
         local pct=0
         [ "$items" -gt 0 ] && pct=$(( covered * 100 / items ))
         local reqs_in_crate
-        reqs_in_crate=$(grep -c "^$crate|" "$reqs_file" 2>/dev/null || echo 0)
+        reqs_in_crate=$(grep -cF "REQ|${crate}|" "$reqs_file" 2>/dev/null || echo 0)
         echo "| $crate | $items | $covered | $((items - covered)) | ${pct}% | $reqs_in_crate |"
         echo ""
         echo "### $crate"
         echo ""
-        echo "| Kind | Item | Module | Location | REQ Coverage |"
-        echo "|------|------|--------|----------|-------------|"
+        echo "| Kind | Item | Module | Location | Risk Tier | REQ |"
+        echo "|------|------|--------|----------|-----------|-----|"
         echo "$crate_lines"
 
         total_covered=$((total_covered + covered))
         total_crates=$((total_crates + 1))
     fi
+
+    # Generate priority list from the same data
+    generate_priority_list "$items_file" "$reqs_file"
 
     # Emit overall summary footer
     local overall_pct=0
@@ -408,6 +469,106 @@ HEADER
 
     # Cleanup
     rm -f "$req_data" "${req_data}.terms" "$crate_req_counts"
+}
+
+# ── priority list generation ─────────────────────────────────────────────────
+
+generate_priority_list() {
+    local items_file="$1"
+    local reqs_file="$2"
+
+    local priority_output="$repo_root/docs/status/public-seam-priority.md"
+    local temp_priority
+    temp_priority=$(mktemp)
+
+    # Collect uncovered items with risk tier classification
+    while IFS='|' read -r kind cr mp name loc sig; do
+        [ -z "$kind" ] && continue
+
+        # Determine coverage (same logic as build_inventory)
+        local is_covered=false
+
+        # Check module-level REQ coverage
+        if grep -qFx "$cr|$mp" "$reqs_file.module_data" 2>/dev/null; then
+            is_covered=true
+        fi
+
+        if [ "$is_covered" = false ]; then
+            local risk_tier
+            risk_tier=$(classify_risk "$kind" "$cr" "$name")
+            local risk_label="${risk_tier%%:*}"
+
+            # Only include high-risk uncovered items
+            if [ "$risk_label" = "high" ]; then
+                local kind_label
+                case "$kind" in
+                    FN) kind_label="fn" ;;
+                    ST) kind_label="struct" ;;
+                    EN) kind_label="enum" ;;
+                    TR) kind_label="trait" ;;
+                    TY) kind_label="type" ;;
+                    *)  kind_label="$kind" ;;
+                esac
+                echo "$risk_tier|$cr|$kind_label|$name|$mp|$loc" >> "$temp_priority"
+            fi
+        fi
+    done < "$items_file"
+
+    local priority_count
+    priority_count=$(wc -l < "$temp_priority" 2>/dev/null || echo 0)
+
+    cat > "$priority_output" <<PRIORITY_HEADER
+# Public Seam Priority List
+
+**Generated:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+**Source:** \`scripts/audit/public-seam-inventory.sh\`
+**Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
+
+Items are classified as **high risk** when they are:
+- API route handlers (\`hkask-api\`)
+- MCP tool handlers (\`hkask-mcp-*\` servers)
+- Core logic functions in other crates (non-accessor/constructor patterns)
+
+Accessors, constructors, and type declarations are excluded — they are low/medium
+risk and typically covered by struct-level or integration tests.
+
+---
+
+## Top High-Risk Uncovered Items (top 100)
+
+| # | Crate | Kind | Item | Module | Location | Category |
+|---|-------|------|------|--------|----------|----------|
+PRIORITY_HEADER
+
+    # Output top 100, sorted by crate then item name
+    local count=0
+    sort -t'|' -k2,2 -k4,4 "$temp_priority" | head -100 | {
+        while IFS='|' read -r risk cr kind name mp loc; do
+            count=$((count + 1))
+            local risk_cat="${risk#*:}"
+            echo "| $count | $cr | $kind | \`$name\` | $mp | $loc | $risk_cat |"
+        done >> "$priority_output"
+        true  # swallow SIGPIPE from head closing early
+    }
+
+    # Summary per crate
+    echo "" >> "$priority_output"
+    echo "---" >> "$priority_output"
+    echo "" >> "$priority_output"
+    echo "## Per-Crate High-Risk Uncovered Count" >> "$priority_output"
+    echo "" >> "$priority_output"
+    echo "| Crate | High-Risk Uncovered |" >> "$priority_output"
+    echo "|-------|--------------------|" >> "$priority_output"
+
+    cut -d'|' -f2 "$temp_priority" | sort | uniq -c | sort -rn | \
+    while read -r cnt cr; do
+        echo "| $cr | $cnt |"
+    done >> "$priority_output"
+
+    echo "" >> "$priority_output"
+    echo "**Total high-risk uncovered:** $priority_count" >> "$priority_output"
+
+    rm -f "$temp_priority"
 }
 
 # ── main ──────────────────────────────────────────────────────────────────────

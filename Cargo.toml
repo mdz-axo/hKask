@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    # Core crates (12 — ≤35k lines total)
+    # Core crates (13 — ≤35k lines total)
     "crates/hkask-condenser",
     "crates/hkask-types",
     "crates/hkask-inference",

@@ -250,6 +250,9 @@ jobs:
       - name: No undocumented unsafe blocks
         run: bash scripts/check-unsafe.sh
 
+      - name: Public seam inventory check (P8 traceability)
+        run: bash scripts/audit/public-seam-inventory.sh
+
       - name: No visual UI infrastructure
         run: |
           violations=$(grep -r 'grafana\|prometheus\|dashboard\|visual.*ui' crates/ --include="*.rs" || true)

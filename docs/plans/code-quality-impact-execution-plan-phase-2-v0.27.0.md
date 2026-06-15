@@ -1,8 +1,9 @@
 # hKask v0.27.0 — Code Quality Execution Plan (Phase 2)
 
-**Status:** Proposed  
+**Status:** In Progress — Wave 1 (Task 1 ✅, Task 1.1 in progress)  
 **Depends on:** `docs/plans/code-quality-impact-execution-plan-v0.27.0.md` (Phase 1)  
 **Created:** 2026-06-15  
+**Last Updated:** 2026-06-15  
 **Scope:** `crates/*`, `mcp-servers/*`, CI, and `docs/status/*`
 
 ---
@@ -32,25 +33,50 @@ Drive sustained quality after Phase 1 by hardening specification traceability (P
 
 ## Wave 1 — Visibility + correctness baseline
 
-### Task 1 — Public seam inventory generator
-**Assumption:** P8 can’t be sustained without an always-current seam map.  
+### Task 1 — Public seam inventory generator ✅
+**Assumption:** P8 can't be sustained without an always-current seam map.  
 **Expected outcome:** machine-generated inventory of public seams and REQ-test linkage.
 
 **PR slices**
-- PR 2.1.1: Add tool/script (e.g., `scripts/audit/public_seams.rs` or Python equivalent) to emit:
-  - crate/module path
-  - public item signature
-  - presence of linked `// REQ:` tests
-- PR 2.1.2: Add output artifact under `docs/status/public-seam-inventory.md`.
-- PR 2.1.3: Add CI check that regenerates and fails on drift.
+- ✅ PR 2.1.1: `scripts/audit/public-seam-inventory.sh` — bash generator (zero new deps). Walks all 26 workspace members, extracts 5 public item kinds (fn/struct/enum/trait/type), strips `#[cfg(test)]` blocks, cross-references `// REQ:` tags. `--write` and `--check` modes.
+- ✅ PR 2.1.2: `docs/status/public-seam-inventory.md` — 2,336 public items, 572 REQ tests, 49% reported coverage (inflated by cross-crate matching bug — see Task 1.1). Per-crate detail tables with relative paths.
+- ✅ PR 2.1.3: `.github/workflows/ci.yml` — added `Public seam inventory check (P8 traceability)` step to `security-invariants` job. Fails on drift.
 
 **Acceptance criteria**
-- Inventory generated deterministically in CI.
-- Delta in seam/test mapping visible in PRs.
+- ✅ Inventory generated deterministically in CI.
+- ✅ Delta in seam/test mapping visible in PRs.
+
+**Artifacts**
+- `scripts/audit/public-seam-inventory.sh` (465 lines)
+- `docs/status/public-seam-inventory.md` (2,565 lines)
+- `.github/workflows/ci.yml` (+3 lines)
+
+---
+
+### Task 1.1 — Inventory quality fix + first-pass triage 🔵
+**Assumption:** the raw inventory has known quality gaps that must be fixed before subsequent tasks can rely on it.  
+**Expected outcome:** accurate coverage numbers, risk-tiered inventory, and an actionable priority list.
+
+**Findings from Task 1**
+- Cross-crate name matching inflates coverage: `hkask-mcp` reports 15 covered with 0 REQ tests (common names like `new`, `from` match tests in other crates).
+- `hkask-api` at 10% is the worst-covered high-surface crate (137 items, 1 REQ test).
+- Three MCP servers have 0 REQ-tagged tests at all (`hkask-mcp`, `hkask-mcp-communication`, `hkask-mcp-memory`).
+- ~200 uncovered fns are accessor/constructor patterns (`as_str`×16, `with_*`, `from_*`, `new`) — low risk individually.
+- ~120 uncovered items are API route handlers and ~100 are MCP tool handlers — high risk.
+
+**PR slices**
+- PR 2.1.4: Fix cross-crate matching bug — scope name-proximity lookup to same crate only. Regenerate inventory with corrected counts.
+- PR 2.1.5: Add risk-tier classification column: Accessor/Constructor (low), Type Declaration (medium), Tool Handler/Route Handler (high), Core Logic (high).
+- PR 2.1.6: Generate `docs/status/public-seam-priority.md` — top-100 highest-risk uncovered items with assigned crate owner.
+
+**Acceptance criteria**
+- Crates with 0 REQ tests show 0% coverage (not inflated).
+- Per-item risk tier visible in inventory.
+- Top-100 priority list routes to specific crate maintainers.
 
 **Validation**
-- `cargo check --workspace`
-- CI: inventory generation + diff check
+- `scripts/audit/public-seam-inventory.sh --check` passes after regeneration
+- CI inventory check passes
 
 ---
 

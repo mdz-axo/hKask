@@ -195,7 +195,80 @@ pub fn run(action: KeystoreAction) {
             super::helpers::or_exit(keychain.delete_by_key(&key), "Failed to delete key");
             println!("Deleted {}", key);
         }
+        KeystoreAction::Rotate { passphrase } => {
+            run_rotate(&keychain, passphrase.as_deref());
+        }
     }
+}
+
+/// Rotate the master key version.
+///
+/// Increments the key version, derives new secrets (with optional new
+/// passphrase), and stores them in the OS keychain. Old-version secrets
+/// remain derivable — existing encrypted data can still be accessed by
+/// specifying the old version.
+fn run_rotate(keychain: &hkask_keystore::Keychain, new_passphrase: Option<&str>) {
+    use hkask_keystore::version_file;
+
+    let old_version = version_file::read_key_version();
+    let new_version = old_version + 1;
+
+    // Get the passphrase — either the new one provided, or prompt for current
+    let passphrase = match new_passphrase {
+        Some(p) => p.to_string(),
+        None => {
+            // Prompt for current passphrase (same passphrase, new version)
+            let prompt = format!(
+                "Enter current master passphrase (version {} → {}): ",
+                old_version, new_version
+            );
+            match rpassword::prompt_password(prompt) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Failed to read passphrase: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+
+    // Derive new secrets with the incremented version
+    let secrets =
+        hkask_keystore::derive_all_internal_secrets_with_version(&passphrase, new_version);
+
+    // Store new secrets in keychain
+    let store = |key: &str, value: &str| {
+        keychain.store_by_key(key, value).unwrap_or_else(|e| {
+            eprintln!("Warning: Failed to store {key} in keychain: {e}");
+        });
+    };
+
+    store("hkask-acp-secret", &secrets.acp_secret);
+    store("hkask-capability-key", &secrets.capability_key);
+    store("hkask-mcp-security-key", &secrets.mcp_security_key);
+    store("hkask-ocap-secret", &secrets.ocap_secret);
+    // DB passphrase is the capability_key
+    store("hkask-db-passphrase", &secrets.capability_key);
+
+    // Write the new version to disk
+    super::helpers::or_exit(
+        version_file::write_key_version(new_version),
+        "Failed to write key version",
+    );
+
+    println!();
+    println!("Key rotation complete.");
+    println!("  Old version: {old_version}");
+    println!("  New version: {new_version}");
+    println!();
+    println!("New secrets stored in OS keychain.");
+    println!("Old-version secrets remain derivable — use version {old_version}");
+    println!("to access data encrypted with the previous passphrase.");
+    println!();
+    println!("Next steps:");
+    println!("  1. Restart hKask to use new secrets");
+    println!("  2. Re-sign capability tokens if needed");
+    println!("  3. Migrate encrypted databases: kask keystore migrate");
 }
 
 /// Securely delete a file by overwriting with random bytes before unlinking.

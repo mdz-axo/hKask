@@ -161,7 +161,7 @@ graph TD
 
 | Gap | Severity | Status | Description |
 |-----|----------|--------|-------------|
-| **Key rotation fragility** | Medium | Open | Master key rotation breaks all derived secrets (OCAP, DB passphrase, wallet seed). No key versioning or migration path exists. |
+| **Key rotation fragility** | Medium | **Closed (v0.27.0)** | Master key rotation now supported via key versioning. `derive_sub_key_with_version()` embeds `key_version` in HKDF info string (`"hkask-v{version}:{context}"`). Version stored in `~/.config/hkask/version`. `kask keystore rotate` increments version, derives new secrets, stores in keychain. Old-version secrets remain derivable. |
 | **Variety vs. outcome quality** | Medium | **Closed (v0.27.0)** | `VarietyTracker` counted diversity but not success/failure distribution. Fixed by adding `OutcomeTracker` with per-domain success rate tracking, `AlgedonicManager::check_outcome()` with 50%/25% thresholds, and wiring `GovernedTool::invoke()` to call `record_outcome()` after every tool completion. New CNS spans: `cns.outcome.tool`, `cns.outcome.inference`, `cns.outcome.memory`. |
 | **CNS span→counter connection** | Low | Verified | Tracing spans emit via `tracing` crate; `VarietyTracker::increment()` called explicitly by `CnsRuntime::increment_variety()`. Connection is through `CyberneticsLoop` sense→compute→act cycle. |
 | **Metacognitive override mechanism** | Low | Verified | `MetacognitionLoop::act_on_throttle()` → `CuratorDirective::CalibrateThreshold` → `mpsc::UnboundedSender` → `CyberneticsLoop` → `CnsRuntime::calibrate_threshold()`. Implemented and traced. |
@@ -173,7 +173,7 @@ graph TD
 ```
 core/magna-carta.md  ←  Foundation (4 inviolable principles)
        ↓
-core/PRINCIPLES.md  ←  9 principles (P1-P9), constraint forces
+core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
        ↓
    core/MDS.md      ←  Minimal Domain Specification (5 categories, 5 tools)
        ↓
@@ -207,7 +207,7 @@ The REPL loops tool calls until the model stops requesting them, gated by `ReplS
 
 ### Auto-Condense
 
-At 87.5% of the model's context window, old session history is condensed via the condenser library (`hkask-mcp-condenser`). The condenser summarizes older turns into a compact form, freeing context space for new messages. Controlled by `ReplSettings.auto_condense` (default on). When off, the user must condense manually.
+At 87.5% of the model's context window, old session history is condensed via the condenser domain crate (`hkask-condenser`). The condenser summarizes older turns into a compact form, freeing context space for new messages. Controlled by `ReplSettings.auto_condense` (default on). When off, the user must condense manually.
 
 ### Model Awareness
 

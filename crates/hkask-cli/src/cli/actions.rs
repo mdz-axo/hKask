@@ -411,6 +411,16 @@ pub enum KeystoreAction {
         #[arg()]
         key: String,
     },
+    /// Rotate the master key version — increments the key version,
+    /// derives new secrets, and stores them in the keychain.
+    /// Old-version secrets remain derivable for data access.
+    /// Requires the current master passphrase.
+    Rotate {
+        /// New master passphrase (if changing). If not provided,
+        /// the current passphrase is used with the incremented version.
+        #[arg(short, long)]
+        passphrase: Option<String>,
+    },
 }
 
 /// Specification actions (MDS)

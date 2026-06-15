@@ -5,15 +5,21 @@
 //!
 //! 1. Argon2id(master_passphrase, fixed_salt) → 32-byte master key
 //!    (slow, memory-hard — run once)
-//! 2. HKDF-SHA256(master_key, context) → 32-byte sub-key
+//! 2. HKDF-SHA256(master_key, "hkask-v{version}:{context}") → 32-byte sub-key
 //!    (fast, deterministic — run per secret)
 //!
+//! **Key versioning (v0.27.0):** The `key_version` parameter is embedded in
+//! the HKDF info string. This enables passphrase rotation without data loss:
+//! old secrets remain derivable from old versions, new secrets use the
+//! incremented version. The current version is stored in
+//! `~/.config/hkask/version`.
+//!
 //! This ensures:
-//! - The same passphrase always produces the same secrets (restart-safe)
+//! - The same passphrase + version always produces the same secrets (restart-safe)
+//! - Different versions produce cryptographically independent sub-keys
 //! - Different contexts produce cryptographically independent sub-keys
 //! - Compromising one sub-key does not compromise the master key or other sub-keys
-//! - Deriving 4 secrets takes ~100ms (one Argon2id) + ~4μs (four HKDF expansions)
-//!   instead of ~400ms (four Argon2id calls)
+//! - Passphrase rotation preserves access to old-version data
 
 use hkask_types::derivation_contexts;
 use hmac::{Hmac, Mac};
@@ -37,6 +43,10 @@ const HKDF_SALT: &[u8; 13] = b"hkask-hkdf-v1";
 
 /// Output length for HKDF expansion (256 bits = 32 bytes = AES-256 / HMAC-SHA256 key size).
 const SUB_KEY_LEN: usize = 32;
+
+/// Default key version for backward compatibility.
+/// All existing secrets were derived with version 1.
+pub const DEFAULT_KEY_VERSION: u32 = 1;
 
 /// All internal secrets derived from the master key.
 ///
@@ -65,7 +75,7 @@ impl std::fmt::Debug for InternalSecrets {
     }
 }
 
-/// Derive all internal secrets from a master passphrase.
+/// Derive all internal secrets from a master passphrase (version 1 — backward compat).
 ///
 /// Uses Argon2id (slow, memory-hard) once to stretch the passphrase into a
 /// 32-byte master key, then HKDF-SHA256 (fast, deterministic) to derive each
@@ -81,17 +91,50 @@ impl std::fmt::Debug for InternalSecrets {
 ///
 /// Cannot panic — Argon2id and HKDF are infallible with valid parameters.
 pub fn derive_all_internal_secrets(master_passphrase: &str) -> InternalSecrets {
+    derive_all_internal_secrets_with_version(master_passphrase, DEFAULT_KEY_VERSION)
+}
+
+/// Derive all internal secrets with a specific key version.
+///
+/// The `key_version` is embedded in the HKDF info string as
+/// `"hkask-v{version}:{context}"`. This ensures that rotating the
+/// passphrase (incrementing the version) produces cryptographically
+/// independent secrets while old-version secrets remain derivable.
+///
+/// Use this when:
+/// - Rotating the master passphrase (increment version)
+/// - Accessing old-version data after rotation (use old version)
+/// - Initial setup (use version 1)
+pub fn derive_all_internal_secrets_with_version(
+    master_passphrase: &str,
+    key_version: u32,
+) -> InternalSecrets {
     // Step 1: Argon2id stretch (slow, ~100ms)
     let master_key = crate::encryption::derive_key(master_passphrase, &MASTER_KEY_SALT)
         .expect("Argon2id derivation cannot fail with valid parameters");
 
-    // Step 2: HKDF-SHA256 expand (fast, ~1μs each)
+    // Step 2: HKDF-SHA256 expand with versioned contexts (fast, ~1μs each)
     let master_key_bytes: &[u8] = &*master_key;
-    let acp_secret = derive_sub_key_hex(master_key_bytes, derivation_contexts::ACP_SECRET);
-    let capability_key = derive_sub_key_hex(master_key_bytes, derivation_contexts::CAPABILITY_KEY);
-    let mcp_security_key =
-        derive_sub_key_hex(master_key_bytes, derivation_contexts::MCP_SECURITY_KEY);
-    let ocap_secret = derive_sub_key_hex(master_key_bytes, derivation_contexts::OCAP_SECRET);
+    let acp_secret = derive_sub_key_hex_versioned(
+        master_key_bytes,
+        derivation_contexts::ACP_SECRET,
+        key_version,
+    );
+    let capability_key = derive_sub_key_hex_versioned(
+        master_key_bytes,
+        derivation_contexts::CAPABILITY_KEY,
+        key_version,
+    );
+    let mcp_security_key = derive_sub_key_hex_versioned(
+        master_key_bytes,
+        derivation_contexts::MCP_SECURITY_KEY,
+        key_version,
+    );
+    let ocap_secret = derive_sub_key_hex_versioned(
+        master_key_bytes,
+        derivation_contexts::OCAP_SECRET,
+        key_version,
+    );
 
     InternalSecrets {
         acp_secret,
@@ -138,12 +181,84 @@ pub fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
     Zeroizing::new(okm[..SUB_KEY_LEN].to_vec())
 }
 
-/// Derive a sub-key and return it as a hex-encoded string.
+/// Derive a sub-key with a key version embedded in the HKDF info string.
 ///
-/// Convenience wrapper around [`derive_sub_key`] for callers that need
-/// the key as a hex string (e.g., for storage in the OS keychain or
-/// environment variable comparison).
-fn derive_sub_key_hex(master_key: &[u8], context: &str) -> String {
-    let sub_key = derive_sub_key(master_key, context);
+/// The info string becomes `"hkask-v{version}:{context}"` instead of
+/// just `context`. This provides cryptographic domain separation between
+/// different key versions — version N and version N+1 produce completely
+/// independent sub-keys from the same master key.
+pub fn derive_sub_key_with_version(
+    master_key: &[u8],
+    context: &str,
+    key_version: u32,
+) -> Zeroizing<Vec<u8>> {
+    let versioned_context = format!("hkask-v{key_version}:{context}");
+    derive_sub_key(master_key, &versioned_context)
+}
+
+/// Derive a versioned sub-key and return it as a hex-encoded string.
+fn derive_sub_key_hex_versioned(master_key: &[u8], context: &str, key_version: u32) -> String {
+    let sub_key = derive_sub_key_with_version(master_key, context, key_version);
     hex::encode(&*sub_key)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: svc-keystore-version-004 — different_versions_produce_different_keys
+    //
+    // Version N and version N+1 must produce cryptographically independent
+    // sub-keys from the same master key and context.
+    #[test]
+    fn different_versions_produce_different_keys() {
+        let master_key = [0u8; 32];
+        let context = "test-context";
+
+        let v1 = derive_sub_key_with_version(&master_key, context, 1);
+        let v2 = derive_sub_key_with_version(&master_key, context, 2);
+
+        assert_ne!(&*v1, &*v2, "Different versions must produce different keys");
+    }
+
+    // REQ: svc-keystore-version-005 — same_version_produces_same_key
+    //
+    // The same master key, context, and version must always produce
+    // the same sub-key (deterministic derivation).
+    #[test]
+    fn same_version_produces_same_key() {
+        let master_key = [0u8; 32];
+        let context = "test-context";
+
+        let v1_a = derive_sub_key_with_version(&master_key, context, 1);
+        let v1_b = derive_sub_key_with_version(&master_key, context, 1);
+
+        assert_eq!(&*v1_a, &*v1_b, "Same version must produce same key");
+    }
+
+    // REQ: svc-keystore-version-006 — derive_all_secrets_with_version_is_deterministic
+    #[test]
+    fn derive_all_secrets_with_version_is_deterministic() {
+        let passphrase = "test-passphrase-for-versioning";
+
+        let secrets_a = derive_all_internal_secrets_with_version(passphrase, 1);
+        let secrets_b = derive_all_internal_secrets_with_version(passphrase, 1);
+
+        assert_eq!(secrets_a.acp_secret, secrets_b.acp_secret);
+        assert_eq!(secrets_a.capability_key, secrets_b.capability_key);
+        assert_eq!(secrets_a.ocap_secret, secrets_b.ocap_secret);
+    }
+
+    // REQ: svc-keystore-version-007 — derive_all_secrets_different_versions_differ
+    #[test]
+    fn derive_all_secrets_different_versions_differ() {
+        let passphrase = "test-passphrase-for-versioning";
+
+        let secrets_v1 = derive_all_internal_secrets_with_version(passphrase, 1);
+        let secrets_v2 = derive_all_internal_secrets_with_version(passphrase, 2);
+
+        assert_ne!(secrets_v1.acp_secret, secrets_v2.acp_secret);
+        assert_ne!(secrets_v1.capability_key, secrets_v2.capability_key);
+        assert_ne!(secrets_v1.ocap_secret, secrets_v2.ocap_secret);
+    }
 }

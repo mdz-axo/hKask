@@ -107,7 +107,7 @@ Document (PDF, MD, HTML, TXT)
           ├─ docproc_embed  →  vector embeddings
           ├─ docproc_generate_qa  →  QA pairs (LLM-generated)
           │   └─ docproc_store_qa  →  stored in semantic memory
-          │       └─ training_ingest_qa  →  hkask-mcp-training (stub)
+          │       └─ training_ingest_qa  →  hkask-mcp-training (implemented)
           └─ docproc_cache  →  cached markdown reference
 ```
 
@@ -230,8 +230,8 @@ Document (PDF, MD, HTML, TXT)
 
 | Document | Relevance |
 |----------|-----------|
-| [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Current tool catalog (~82 tools across 10 servers) |
-| [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Test coverage per crate (102 total tests) |
+| [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Current tool catalog (143 tools across 10 servers — all fully implemented) |
+| [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Test coverage per crate (413 total tests, 396 REQ tags) |
 | [`do../specifications/specs/test-program.md`](../specifications/specs/test-program.md) | MDS self-applying test methodology |
 | [`docs/OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) | Open questions including OQ-5 (test isolation), OQ-9 (stub MCP servers) |
 | [`AGENTS.md`](../../AGENTS.md) | Crate map with 10 listed MCP servers |

@@ -16,6 +16,8 @@ Activate the relevant skill via `skill` tool when its conditions are met:
 | **improve-codebase-architecture** | Finding deepening opportunities. Walk codebase for shallow modules, tight coupling, untested seams. |
 | **condenser-continuation** | Resuming condenser implementation after context reset. Restores session state, prioritizes remaining tasks, verifies build health. |
 | **improv** | Agent interaction grammar — Plussing, Yes And, Yes But, Freestyling, Riffing. Sets replicant posture in dual-presence chat, ensemble sessions, and kata coaching. Use `/improv` in REPL. |
+| **pragmatics** | Meta-cognitive codebase review. Composes pragmatic-semantics, pragmatic-cybernetics, pragmatic-laziness, essentialist, and coding-guidelines into a unified architecture analysis discipline. Use when reviewing codebase patterns, auditing principle compliance, or analyzing architecture. |
+| **document-update** | Systematic documentation corpus maintenance. 7-task workflow: inventory, metadata alignment, writing quality, cross-corpus coherence, spec-code drift, archive, portal refresh. Use when updating docs, aligning specs, or auditing documentation. |
 
 ---
 
@@ -23,7 +25,7 @@ Activate the relevant skill via `skill` tool when its conditions are met:
 
 - **Headless only.** No visual UI, Grafana, dashboards, web frontends, GUIs. CLI/MCP/API only.
 - **No monitoring stacks.** Prometheus, Alertmanager, external observability forbidden. CNS provides programmatic observability.
-- **No excess complexity.** No `todo!()`, `unimplemented!()`, `#[deprecated]`, unused traits, stubs, feature flags (P1-P8, C1-C8).
+- **No excess complexity.** No `todo!()`, `unimplemented!()`, `#[deprecated]`, unused traits, stubs, feature flags (P5 — Essentialism & Minimalism).
 - **P8:** Every `#[test]` verifies a stated behavioral property of a public seam.
 - **C8:** Test depth matches module depth. Shallow modules get shallow tests; deep modules get deep tests.
 
@@ -82,6 +84,7 @@ The `--shred` flag securely deletes the plaintext .env file after loading.
 | Crate | Purpose |
 |-------|---------|
 | `hkask-types` | ID types, ν-event, hLexicon |
+| `hkask-condenser` | Context condensation domain logic (compression algorithms, engine, inference formatting) |
 | `hkask-inference` | Inference router (Ollama, Fireworks, DeepInfra, fal.ai) |
 | `hkask-storage` | SQLite + SQLCipher + sqlite-vec |
 | `hkask-memory` | Semantic/episodic pipelines |
@@ -198,11 +201,11 @@ Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Ze
 | Topic | Location |
 |-------|----------|
 | Architecture master | `docs/architecture/hKask-architecture-master.md` |
-| Principles (P1-P9) | `docs/architecture/PRINCIPLES.md` |
-| MDS Specification | `docs/architecture/MDS.md` |
+| Principles (P1-P12) | `docs/architecture/core/PRINCIPLES.md` |
+| MDS Specification | `docs/architecture/core/MDS.md` |
 | Test Program | `docs/specifications/test-program.md` |
 | Test Inventory | `docs/status/test-inventory.md` |
-| CNS spans (canonical) | `docs/architecture/PRINCIPLES.md` §1.4 |
+| CNS spans (canonical) | `docs/architecture/core/PRINCIPLES.md` §1.4 |
 | Registry & templating | `docs/architecture/ADR-024-unified-registry.md` |
 | CI/CD | `docs/CI-CD-GUIDE.md` |
 | API Endpoints | `docs/api/endpoints.md` |
@@ -272,5 +275,5 @@ Models use 2-letter prefixes for explicit routing:
 
 ```bash
 if grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"; then echo "VIOLATION: Headless"; exit 1; fi
-if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then echo "VIOLATION: P6/P7"; exit 1; fi
+if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then echo "VIOLATION: P5 (Essentialism)"; exit 1; fi
 ```
