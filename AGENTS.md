@@ -21,183 +21,19 @@ Activate the relevant skill via `skill` tool when its conditions are met:
 
 ---
 
-## Design Constraints (Non-Negotiable)
+## Prohibitions
 
-- **Headless only.** No visual UI, Grafana, dashboards, web frontends, GUIs. CLI/MCP/API only.
-- **No monitoring stacks.** Prometheus, Alertmanager, external observability forbidden. CNS provides programmatic observability.
-- **No excess complexity.** No `todo!()`, `unimplemented!()`, `#[deprecated]`, unused traits, stubs, feature flags (P5 — Essentialism & Minimalism).
-- **P8:** Every `#[test]` verifies a stated behavioral property of a public seam.
-- **C8:** Test depth matches module depth. Shallow modules get shallow tests; deep modules get deep tests.
+These derive from the Magna Carta (P1–P4) and P12 of [`docs/architecture/core/PRINCIPLES.md`](docs/architecture/core/PRINCIPLES.md). Violations compromise the system's core identity and **must be deleted**.
 
-Violations get deleted. See `docs/architecture/core/PRINCIPLES.md`.
+| # | Prohibition | Principle | Rationale |
+|---|-------------|-----------|-----------|
+| 1 | No visual UI, dashboards, Grafana, Prometheus, or monitoring stacks | P3 · §5 | Headless system — CLI/MCP/API only. CNS provides all observability programmatically. |
+| 2 | No `todo!()`, `unimplemented!()`, `#[deprecated]`, unused traits, stubs, or feature flags | P5 · P3 | Stubs are debt against the Generative Space. Deprecated code earns deletion, not annotation. |
+| 3 | No anonymous agency — every action has an authenticated author | P12 · P1 | Every operation carries a replicant host; every triple stores an `owner` WebID. No root, no `sudo`. |
+| 4 | No hidden parameters or admin-gated settings | P3 | All generative settings are user-visible through CLI, API, and REPL. No privileged engineer access. |
+| 5 | No pass-through abstractions (deep-module discipline) | P5 · P7 | Modules earn existence by the deletion test. Public surface ≤ 7 items; extras justified or removed. |
 
----
-
-## Pre-Install Requirements
-
-Before running hKask for the first time, two things must be set up:
-
-### 1. Conduit Matrix Homeserver (handled by install.sh)
-
-hKask uses Matrix for agent-to-agent and human-to-agent communication.
-Conduit runs as a Docker (or Podman) container on the same machine.
-
-The **install script handles this automatically**:
-- Detects Docker/Podman and starts Conduit
-- Registers the **Curator** as the Matrix admin (`@curator:localhost`)
-- The Curator manages account creation, deletion, and moderation on the Matrix server
-- System bots (hkask-curator, 7R7, etc.) auto-register during bootstrap
-
-```bash
-# The install script does this for you. Manual control if needed:
-./scripts/conduit-docker.sh start       # Start Conduit
-./scripts/conduit-docker.sh status      # Verify it's running
-./scripts/conduit-docker.sh register    # Re-register Curator (default: curator / UserSovereignty)
-./scripts/conduit-docker.sh stop        # Stop Conduit
-./scripts/conduit-docker.sh reset       # Wipe database, restart fresh
-```
-
-Conduit runs on `http://localhost:8008`. No federation, no TLS — local-only.
-The script detects Docker Compose v2, Podman Compose, or legacy docker-compose.
-Skip with `--skip-conduit` if you don't need Matrix communication.
-
-### 2. Provider API Keys (.env file)
-
-Copy the template and fill in your API keys for inference and tool providers:
-
-```bash
-cp providers.env.example providers.env
-# Edit providers.env with your keys:
-#   DI_API_KEY=...       (DeepInfra — inference)
-#   FW_API_KEY=...       (Fireworks — inference)
-#   FA_API_KEY=...       (fal.ai — media generation)
-#   FMP_API_KEY=...      (Financial Modeling Prep — company data)
-```
-
-Load into the OS keychain (encrypted at rest):
-
-```bash
-kask keystore load --path providers.env --shred
-```
-
-The `--shred` flag securely deletes the plaintext .env file after loading.
-
----
-
-## Crate Map
-
-| Crate | Purpose |
-|-------|---------|
-| `hkask-types` | ID types, ν-event, hLexicon |
-| `hkask-condenser` | Context condensation domain logic (compression algorithms, engine, inference formatting) |
-| `hkask-inference` | Inference router (Ollama, Fireworks, DeepInfra, fal.ai) |
-| `hkask-storage` | SQLite + SQLCipher + sqlite-vec |
-| `hkask-memory` | Semantic/episodic pipelines |
-| `hkask-cns` | Cybernetic Nervous System (homeostatic self-regulation) |
-| `hkask-templates` | Registry, hLexicon, cascade |
-| `hkask-agents` | Pods, ACP, bot/replicant, Curation Loop |
-| `hkask-keystore` | OS keychain, AES-256-GCM, HKDF-SHA256 |
-| `hkask-mcp` | MCP runtime, dispatch, dynamic tool discovery |
-| `hkask-services` | Shared service layer (CLI/API deduplication) |
-| `hkask-improv` | Composable interaction grammar (Plussing, Yes And, Yes But, Freestyling, Riffing, Cascade) |
-| `hkask-wallet` | HD wallet, rJoule energy accounting, on-chain settlement |
-| `hkask-communication` | Core Matrix transport, agent registry, 7R7 listener — daemon-owned infrastructure |
-| `hkask-cli` | CLI commands |
-| `hkask-api` | HTTP API (utoipa) |
-| `hkask-mcp-media` | Media MCP server (image, video, audio, voice, collage) — 36 tools |
-| `hkask-mcp-docproc` | Unified document processing MCP server (convert, OCR, chunk, triples, embed, QA, cache, query) — 9 tools |
-| `hkask-mcp-training` | Model training data ingestion MCP server (QA ingest, LoRA fine-tuning, adapter management, dataset assembly, trace generation) — 8 tools |
-| `hkask-mcp-research` | Web search, extraction, browsing, RSS feed research — 17 tools |
-| `hkask-mcp-replica` | Authorial style embedding and composition — 8 tools |
-| `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) + portfolio tracking — 27 tools |
-| `hkask-mcp-memory` | Episodic + semantic memory MCP server (triples, embeddings, KNN, backup/restore) — 16 tools |
-| `hkask-mcp-condenser` | Context condensation MCP server (compress, classify, persist, thread summary) — 7 tools |
-| `hkask-mcp-spec` | Specification authoring MCP server (goal capture, decompose, writing quality, graph coherence, replica rewrite) — 6 tools |
-| `hkask-mcp-communication` | Agent communication MCP server (TTS, Matrix chat, threads, agent tagging) — thin wrapper over `hkask-communication` core crate — 9 tools |
-
-**10 MCP servers (143 tools):** memory (16), condenser (7), research (17), spec (6), companies (27), communication (9), media (36), replica (8), docproc (9), training (8)
-**Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra, fal.ai), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP), daemon (Unix socket at ~/.config/hkask/daemon.sock)
-**External:** Ollama, Fireworks.ai, DeepInfra, fal.ai, ACP (acp-runtime), MCP (rmcp)
-
----
-
-## Commands
-
-```bash
-cargo check -p <crate>                    # Build & check
-cargo test -p <crate>                      # Test (cargo test for workspace)
-cargo clippy -p <crate> -- -D warnings     # Lint
-cargo run --bin kask -- <subcommand>       # Run
-kask chat                                  # Interactive (Curator, default model)
-kask chat -m qwen3:8b                      # Specific model
-kask chat Alice -m llama3.1:70b            # Named agent + model
-echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive
-kask onboard                               # Add a new replicant to an existing install
-kask keystore set <KEY> <VALUE>             # Store a key in OS keychain
-kask keystore get <KEY>                      # Retrieve a key (masked display)
-kask keystore delete <KEY>                   # Delete a key from keychain
-kask keystore load --path <file>             # Bulk load keys from .env file into keychain
-kask keystore load --path <file> --shred     # Load keys then securely delete the plaintext file
-kask sovereignty verify                    # Magna Carta compliance
-kask settings show                          # Show all settings
-kask settings show temp                     # Show one setting
-kask settings set temp 0.3                  # Set a setting
-kask settings reset                         # Reset all to defaults
-kask pod create -t <template> -p <persona.yaml>  # Create agent pod
-kask pod activate <pod-id>                   # Activate pod
-kask pod list                                # List all pods
-kask pod assign <name> <role>                # Assign MCP role to replicant (e.g., kask pod assign Bob research)
-kask pod mode <name> server -r <role>        # Put replicant in server mode serving a role
-kask pod mode <name> chat                    # Put replicant in chat mode
-kask pod mode <name> exit                    # Exit current mode
-kask style discover "David Dunning"          # Discover academic author corpus
-kask style discover "Author" --no-methods   # Skip LLM concept/method extraction
-kask style discover "Author" --no-curate     # Skip interactive curation
-kask style discover "J. Smith" --bio "professor of psychology at Cornell"  # Disambiguate
-kask style embed-corpus --config <yaml> --db <path> --passphrase <phrase>  # Build corpus
-kask list styles                             # List all built style corpora
-kask list templates                          # List all registered templates
-kask rm styles-hemingway --db <path> --passphrase <phrase>  # Remove a style corpus
-kask rm templates-my-template                # Check template existence (removal via YAML)
-```
-
-### Replicant Server Mode (MCP)
-
-Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Zed, VSCode) and other hKask agents. The daemon (`~/.config/hkask/daemon.sock`) mediates authentication, role assignment, capability verification, and dual memory encoding.
-
-**Startup flow:**
-1. `kask login <replicant>` — authenticate (creates session in UserStore)
-2. `kask pod assign <replicant> <role>` — assign MCP role (P4 Gate 2: sovereignty/consent)
-3. `kask pod mode <replicant> server -r <role>` — enter server mode (P4 Gate 1: OCAP)
-4. IDE spawns MCP binary with `HKASK_REPLICANT=<replicant>`
-5. Binary connects to daemon → auth → assignment → capability → serve
-
-**Memory flow:**
-- Tool calls → `record_experience()` → daemon `store_experience` → dual encoding (episodic + semantic)
-- Every 10 experiences → `generate_narrative()` → inference analyzes session log → stores observations as episodic "narrative"/"thought"
-- Existing consolidation pipeline extracts semantic knowledge from both streams
-
-**Mode mutual exclusion (initial):** An agent can be in Chat mode OR Server mode, not both. Concurrency planned for future release.
-
-**Slash commands** (`kask chat`): `/model`, `/model <query>`, `/agent [NAME]`, `/status`, `/repl [setting] [value]`, `/start`, `/feedback`, `/talk on|off|voice`, `/listen start|stop|view`, `/matrix [ROOM]`, `/msg <ROOM> <TEXT>`
-
-**`/repl` sub-settings** (user-configurable inference params, persisted to `~/.config/hkask/settings.json`):
-
-| Setting | Type | Range | Default | Description |
-|---------|------|-------|---------|-------------|
-| `loops` | usize | ≥1 | 21 | Max tool-call loop iterations per turn |
-| `context` | usize | ≥0 | 3 | Past turns in context (0 = no history) |
-| `temp` | f32 | 0.0–2.0 | 0.7 | Sampling temperature |
-| `top_p` | f32 | 0.0–1.0 | 0.9 | Nucleus sampling |
-| `top_k` | u32 | ≥1 | 40 | Top-k filtering |
-| `min_p` | f32 | 0.0–1.0 | 0.0 | Min-p threshold (0.0 = disabled) |
-| `typical_p` | f32 | 0.0–1.0 | 0.0 | Locally typical sampling (0.0 = disabled) |
-| `max_tokens` | u32 | ≥1 | 512 | Max completion tokens per call |
-| `seed` | u32 or `off` | — | random | Deterministic seed (`off` = random) |
-| `gas_heuristic` | u64 | ≥1 | 500 | Per-turn gas reservation |
-| `gas_cap` | u64 | ≥1 | 10,000 | Total session energy budget cap |
-| `auto_condense` | `on`/`off` | — | on | Auto-condense at 87.5% of context window |
-| `reset` | — | — | — | Reset all to defaults |
+These are **Prohibitions**, not guidelines. See PRINCIPLES.md §2.1–2.4 for the full principle hierarchy (Prohibition → Guardrail → Guideline) and constraint force classification.
 
 ---
 
@@ -206,79 +42,25 @@ Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Ze
 | Topic | Location |
 |-------|----------|
 | Architecture master | `docs/architecture/hKask-architecture-master.md` |
-| Principles (P1-P12) | `docs/architecture/core/PRINCIPLES.md` |
+| Principles (P1–P12) | `docs/architecture/core/PRINCIPLES.md` |
 | MDS Specification | `docs/architecture/core/MDS.md` |
-| Test Program | `docs/specifications/test-program.md` |
-| Test Inventory | `docs/status/test-inventory.md` |
 | CNS spans (canonical) | `docs/architecture/core/PRINCIPLES.md` §1.4 |
-| Registry & templating | `docs/architecture/ADR-024-unified-registry.md` |
-| CI/CD | `docs/CI-CD-GUIDE.md` |
-| API Endpoints | `docs/api/endpoints.md` |
-| Portfolio Tracking Spec | `docs/specifications/portfolio-tracking.md` |
-
-### API Settings Endpoints
-
-`hkask-api` exposes settings via `GET/PUT /api/settings` (same shared `~/.config/hkask/settings.json`):
-
-```http
-GET /api/settings            # Returns full SettingsResponse JSON
-PUT /api/settings            # Merge-updates with UpdateSettingsRequest body
-```
-
-**Fields in both request/response:** `tool_loop_limit`, `context_turns`, `temperature`, `top_p`, `top_k`, `min_p`, `typical_p`, `max_tokens`, `seed`, `gas_heuristic`, `gas_cap`, `auto_condense`. Response also includes `context_length` and `supports_thinking` (read-only model metadata).
-
-### ReplSettings Struct
-
-Defined in `hkask-cli::repl::handlers::repl_settings` — stored as `repl_settings` field on `ReplState`. Serializable via `serde`, loaded from disk at REPL init, mutable during session via `/repl`, and convertible to `hkask_types::LLMParameters` via `to_llm_params()`. Also read by `hkask-services` for shared init paths.
-
----
-
-## Provider Configuration
-
-hKask uses a multi-provider inference router. API keys resolve through a 2-tier chain:
-1. **OS keychain** (encrypted at rest) — preferred for cloud deployments
-2. **Environment variable** (backward compat, SSH session convenience)
-
-### Quick setup (cloud server)
-
-```bash
-# Copy the template, fill in your keys
-cp providers.env.example providers.env
-
-# Load into OS keychain and securely delete the plaintext file
-kask keystore load --path providers.env --shred
-
-# Run — keys are read from keychain, no env vars needed
-kask chat
-```
-
-### Environment variables
-
-| Variable | Purpose | Default |
-|----------|---------|--------|
-| `DI_API_KEY` | DeepInfra API key | — (required for DI provider) |
-| `FA_API_KEY` | fal.ai API key | — (required for FA provider) |
-| `TOGETHER_API_KEY` | Together AI API key | — (required for TG provider) |
-| `HKASK_DEFAULT_PROVIDER` | Default provider for unprefixed model names | `OM` (Ollama) |
-| `HKASK_DEFAULT_MODEL` | Default generation model | `deepseek-v4-pro` |
-| `HKASK_EMBEDDING_MODEL` | Default embedding model | — |
-
-Accepted `HKASK_DEFAULT_PROVIDER` values: `OM` (Ollama), `DI` (DeepInfra), `FA` (fal.ai), `TG` (Together AI).
-
-### Provider prefixes
-
-Models use 2-letter prefixes for explicit routing:
-- `OM/qwen3:8b` → Ollama (local)
-- `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra
-- `TG/meta-llama/Llama-3.3-70B-Instruct-Turbo` → Together AI
-- `FA/paddleocr` → fal.ai
-- No prefix → routes to `HKASK_DEFAULT_PROVIDER`
+| Test Program | `docs/specifications/test-program.md` |
 
 ---
 
 ## Constraint Verification
 
 ```bash
-if grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"; then echo "VIOLATION: Headless"; exit 1; fi
-if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then echo "VIOLATION: P5 (Essentialism)"; exit 1; fi
+# Headless + monitoring stack violation (P3 + §5 anti-patterns)
+grep -r "grafana\|prometheus\|dashboard\|visual.*ui\|web.*frontend" crates/ --include="*.rs"
+
+# Stub / dead-code violation (P5)
+grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"
+
+# Magna Carta compliance
+kask sovereignty verify
+
+# CNS span health
+kask cns status
 ```
