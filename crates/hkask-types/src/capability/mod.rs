@@ -269,6 +269,286 @@ mod tests {
         assert_eq!(spec.resource, DelegationResource::Tool);
         assert_eq!(spec.action, DelegationAction::Execute);
     }
+
+    // ── Property tests (proptest) ───────────────────────────────────────────
+
+    mod proptest_tests {
+        use super::*;
+        use proptest::prelude::*;
+
+        // Valid resource names for strategy generation
+        fn valid_resource_str() -> impl Strategy<Value = String> {
+            prop_oneof![
+                Just("tool".to_string()),
+                Just("template".to_string()),
+                Just("registry".to_string()),
+                Just("memory".to_string()),
+                Just("key".to_string()),
+            ]
+        }
+
+        fn valid_action_str() -> impl Strategy<Value = String> {
+            prop_oneof![
+                Just("read".to_string()),
+                Just("write".to_string()),
+                Just("execute".to_string()),
+            ]
+        }
+
+        // ── CapabilitySpec::parse ──────────────────────────────────────────
+
+        // REQ: cap-prop-001 — valid 2-part capabilities parse without error
+        proptest! {
+            #[test]
+            fn parse_2part_always_succeeds(
+                resource in valid_resource_str(),
+                action in valid_action_str()
+            ) {
+                let input = format!("{resource}:{action}");
+                let result = CapabilitySpec::parse(&input);
+                prop_assert!(result.is_ok(), "2-part parse failed for: {input}");
+                let spec = result.unwrap();
+                // resource_id for 2-part should be the full input
+                prop_assert_eq!(spec.resource_id, input);
+            }
+        }
+
+        // REQ: cap-prop-002 — valid 3-part capabilities parse correctly
+        proptest! {
+            #[test]
+            fn parse_3part_has_correct_resource_id(
+                resource in valid_resource_str(),
+                domain in "[a-z][a-z0-9_]*",
+                action in valid_action_str()
+            ) {
+                let input = format!("{resource}:{domain}:{action}");
+                let result = CapabilitySpec::parse(&input);
+                prop_assert!(result.is_ok(), "3-part parse failed for: {input}");
+                let spec = result.unwrap();
+                // resource_id for 3-part should be the domain (middle part)
+                prop_assert_eq!(spec.resource_id, domain);
+            }
+        }
+
+        // REQ: cap-prop-003 — parse never panics on arbitrary input
+        proptest! {
+            #[test]
+            fn parse_never_panics(input in "\\PC*") {
+                let _ = CapabilitySpec::parse(&input);
+            }
+        }
+
+        // REQ: cap-prop-004 — single-part input or 4+ parts returns error
+        proptest! {
+            #[test]
+            fn malformed_part_count_returns_err(
+                input in proptest::string::string_regex("[a-z]+").unwrap()
+            ) {
+                // Single part, no colon
+                if !input.contains(':') {
+                    prop_assert!(CapabilitySpec::parse(&input).is_err(),
+                        "single-part input should fail: {input}");
+                }
+            }
+        }
+
+        // REQ: cap-prop-005 — 4+ colon-separated parts returns error
+        proptest! {
+            #[test]
+            fn four_plus_parts_returns_err(
+                extra in "[a-z]+:[a-z]+:[a-z]+:[a-z]+"
+            ) {
+                prop_assert!(CapabilitySpec::parse(&extra).is_err(),
+                    "4-part input should fail: {extra}");
+            }
+        }
+
+        // REQ: cap-prop-006 — unknown action falls back to Execute
+        proptest! {
+            #[test]
+            fn unknown_action_uses_execute(
+                resource in valid_resource_str(),
+                unknown_action in "[a-z_]+"
+            ) {
+                prop_assume!(unknown_action != "read"
+                    && unknown_action != "write"
+                    && unknown_action != "execute");
+                let input = format!("{resource}:{unknown_action}");
+                let result = CapabilitySpec::parse(&input);
+                prop_assert!(result.is_ok(),
+                    "parse with unknown action should succeed: {input}");
+                prop_assert_eq!(result.unwrap().action, DelegationAction::Execute);
+            }
+        }
+
+        // ── DelegationResource::parse_str / as_str round-trip ──────────────
+
+        // REQ: cap-prop-007 — resource parse/as_str round-trip for all variants
+        proptest! {
+            #[test]
+            fn resource_parse_as_str_round_trip(
+                resource in valid_resource_str()
+            ) {
+                let parsed = DelegationResource::parse_str(&resource);
+                prop_assert!(parsed.is_some(), "parse_str failed for: {resource}");
+                let round_tripped = parsed.unwrap().as_str();
+                // "memory" aliases to Registry, so round-trip differs
+                if resource == "memory" {
+                    prop_assert_eq!(round_tripped, "registry");
+                } else {
+                    prop_assert_eq!(round_tripped, resource);
+                }
+            }
+        }
+
+        // ── DelegationAction::parse_str / as_str round-trip ────────────────
+
+        // REQ: cap-prop-008 — action parse/as_str round-trip for all variants
+        proptest! {
+            #[test]
+            fn action_parse_as_str_round_trip(
+                action in valid_action_str()
+            ) {
+                let parsed = DelegationAction::parse_str(&action);
+                prop_assert!(parsed.is_some(), "parse_str failed for: {action}");
+                prop_assert_eq!(parsed.unwrap().as_str(), action);
+            }
+        }
+
+        // REQ: cap-prop-009 — action hierarchy: Execute ≥ Write ≥ Read
+        proptest! {
+            #[test]
+            fn action_hierarchy_permits_write(
+                action in valid_action_str()
+            ) {
+                let parsed = DelegationAction::parse_str(&action).unwrap();
+                if action == "read" {
+                    prop_assert!(!parsed.permits_write());
+                } else {
+                    prop_assert!(parsed.permits_write());
+                }
+            }
+        }
+
+        proptest! {
+            #[test]
+            fn action_hierarchy_permits_read(
+                action in valid_action_str()
+            ) {
+                let parsed = DelegationAction::parse_str(&action).unwrap();
+                // All actions permit read
+                prop_assert!(parsed.permits_read());
+            }
+        }
+
+        // ── AttenuationLevel ────────────────────────────────────────────────
+
+        // REQ: cap-prop-010 — valid attenuation levels (0..max) round-trip
+        proptest! {
+            #[test]
+            fn attenuation_valid_round_trip(
+                level in 0u8..=SYSTEM_MAX_RECURSION
+            ) {
+                let al = AttenuationLevel::new(level);
+                prop_assert!(al.is_ok());
+                prop_assert_eq!(al.unwrap().as_u8(), level);
+            }
+        }
+
+        // REQ: cap-prop-011 — attenuation above max returns error
+        proptest! {
+            #[test]
+            fn attenuation_above_max_is_error(
+                level in (SYSTEM_MAX_RECURSION + 1)..=u8::MAX
+            ) {
+                let al = AttenuationLevel::new(level);
+                prop_assert!(al.is_err());
+            }
+        }
+
+        // ── capabilities_match ──────────────────────────────────────────────
+
+        // REQ: cap-prop-012 — a capability always matches itself (reflexive)
+        proptest! {
+            #[test]
+            fn capabilities_match_is_reflexive(
+                resource in valid_resource_str(),
+                action in valid_action_str()
+            ) {
+                let cap = format!("{resource}:{action}");
+                prop_assert!(capabilities_match(&cap, &cap),
+                    "capability should match itself: {cap}");
+            }
+        }
+
+        // REQ: cap-prop-013 — action hierarchy: execute covers write covers read
+        // Uses 3-part capabilities with shared domain so resource_id matches.
+        // 2-part capabilities have resource_id = full input, so different
+        // actions produce different resource_ids and never match.
+        proptest! {
+            #[test]
+            fn capabilities_match_action_hierarchy(
+                resource in valid_resource_str(),
+                domain in "[a-z][a-z0-9_]*"
+            ) {
+                let exec_cap = format!("{resource}:{domain}:execute");
+                let write_cap = format!("{resource}:{domain}:write");
+                let read_cap = format!("{resource}:{domain}:read");
+
+                // Execute covers write and read within same resource+domain
+                prop_assert!(capabilities_match(&exec_cap, &write_cap));
+                prop_assert!(capabilities_match(&exec_cap, &read_cap));
+                // Write covers read
+                prop_assert!(capabilities_match(&write_cap, &read_cap));
+                // Read does not cover write or execute
+                prop_assert!(!capabilities_match(&read_cap, &write_cap));
+                prop_assert!(!capabilities_match(&read_cap, &exec_cap));
+            }
+        }
+
+        // REQ: cap-prop-014 — different resources never match
+        proptest! {
+            #[test]
+            fn different_resources_never_match(
+                r1 in valid_resource_str(),
+                r2 in valid_resource_str()
+            ) {
+                prop_assume!(r1 != r2 && r1 != "memory");
+                // Skip the "memory" alias for simplicity
+                if r2 == "memory" { return Ok(()); }
+
+                let cap1 = format!("{r1}:execute");
+                let cap2 = format!("{r2}:execute");
+                prop_assert!(!capabilities_match(&cap1, &cap2),
+                    "different resources should not match: {cap1} vs {cap2}");
+            }
+        }
+
+        // ── capability_from_server_id ───────────────────────────────────────
+
+        // REQ: cap-prop-015 — server_id with hkask-mcp- prefix produces capability
+        proptest! {
+            #[test]
+            fn server_id_to_capability_format(
+                domain in "[a-z][a-z0-9_]*"
+            ) {
+                let server_id = format!("hkask-mcp-{domain}");
+                let cap = capability_from_server_id(&server_id);
+                prop_assert!(cap.is_some());
+                prop_assert_eq!(cap.unwrap(), format!("tool:{domain}:execute"));
+            }
+        }
+
+        proptest! {
+            #[test]
+            fn non_prefixed_server_id_returns_none(
+                server_id in "[a-z][a-z0-9_-]*"
+            ) {
+                prop_assume!(!server_id.starts_with("hkask-mcp-"));
+                prop_assert!(capability_from_server_id(&server_id).is_none());
+            }
+        }
+    }
 }
 
 /// Additive restrictions on a capability token.

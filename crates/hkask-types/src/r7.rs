@@ -96,9 +96,9 @@ pub fn default_r7_bots() -> &'static [R7BotIdentity] {
             R7BotIdentity::new(
                 "R7.3".into(),
                 "hkask-cns".into(),
-                "Holds the nervous system. Monitors variety. Sounds the alert when variety deficit >100.".into(),
+                "Holds the nervous system. Monitors variety. Sounds the alert when variety deficit >100. Watches the public seam — knows when behavioral guarantees are thinning.".into(),
                 10000,
-                vec!["cns".into()],
+                vec!["cns".into(), "seam".into()],
             ),
             R7BotIdentity::new(
                 "R7.4".into(),

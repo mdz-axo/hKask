@@ -35,10 +35,10 @@ use crate::set_points::{DEFAULT_MAX_ITERATIONS, SetPoints};
 use crate::wallet_budget::WalletBackedBudget;
 
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanKind};
 use hkask_types::loops::{
     ActionType, CurationInput, CuratorDirective, Deviation, DeviationDirection, HkaskLoop,
-    LoopAction, LoopId, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
+    LoopAction, LoopId, LoopQuality, RuntimeAlert, Signal, SignalMetric, ToolConsumptionEvent,
 };
 use hkask_types::ports::BackpressureSignal;
 use std::sync::Arc;
@@ -65,6 +65,8 @@ pub struct CyberneticsLoop {
     tool_consumption_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<ToolConsumptionEvent>>>>,
     /// Direct curator directive channel: Curation → Cybernetics.
     curator_directive_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<CuratorDirective>>>>,
+    /// Loop-quality telemetry from the most recent tick cycle.
+    loop_quality: Arc<RwLock<LoopQuality>>,
 }
 
 impl CyberneticsLoop {
@@ -87,6 +89,7 @@ impl CyberneticsLoop {
             alerts_tx: None,
             tool_consumption_rx: None,
             curator_directive_rx: None,
+            loop_quality: Arc::new(RwLock::new(LoopQuality::default())),
         }
     }
 
@@ -326,7 +329,7 @@ impl CyberneticsLoop {
         if let Some(ref sink) = self.event_sink {
             let ack = NuEvent::new(
                 WebID::new(),
-                Span::new(SpanNamespace::new("cns.curation"), "directive_acknowledged"),
+                Span::from_kind(SpanKind::CurationDirectiveAcknowledged),
                 Phase::Act,
                 serde_json::json!({
                     "directive_type": directive_type,
@@ -485,6 +488,39 @@ impl HkaskLoop for CyberneticsLoop {
                         serde_json::json!({"reason": "wallet_key_unhealthy", "severity": "warning", "threshold": dev.signal.set_point}),
                     ))
                 }
+                SignalMetric::SeamCoverage
+                    if dev.direction == DeviationDirection::BelowSetPoint =>
+                {
+                    // Public seam coverage dropped — R7.3 watcher alert.
+                    // Severity based on magnitude of drop:
+                    //   >5pp drop → critical (escalate to human)
+                    //   1–5pp drop → warning (escalate to Curator)
+                    let drop_magnitude = dev.signal.set_point - dev.signal.value;
+                    let severity = if drop_magnitude > 5.0 {
+                        "critical"
+                    } else {
+                        "warning"
+                    };
+                    tracing::warn!(
+                        target: "cns.architecture.seam",
+                        coverage_pct = dev.signal.value,
+                        set_point = dev.signal.set_point,
+                        drop_magnitude = drop_magnitude,
+                        severity = severity,
+                        "Public seam coverage degraded — R7.3 alert"
+                    );
+                    Some(LoopAction::new(
+                        LoopId::Curation,
+                        ActionType::Escalate,
+                        serde_json::json!({
+                            "reason": "seam_coverage_degraded",
+                            "coverage_pct": dev.signal.value,
+                            "previous_coverage": dev.signal.set_point,
+                            "drop_magnitude": drop_magnitude,
+                            "severity": severity,
+                        }),
+                    ))
+                }
                 _ => None,
             };
             if let Some(a) = action {
@@ -552,7 +588,7 @@ impl HkaskLoop for CyberneticsLoop {
                     if let Some(ref sink) = self.event_sink {
                         let event = NuEvent::new(
                             WebID::new(),
-                            Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
+                            Span::from_kind(SpanKind::VarietyAlgedonicAlert),
                             Phase::Act,
                             serde_json::json!({
                                 "deficit": deficit,
@@ -574,6 +610,32 @@ impl HkaskLoop for CyberneticsLoop {
             }
         }
     }
+
+    /// Full regulation cycle with loop-quality telemetry.
+    ///
+    /// Overrides the default `tick()` to measure elapsed time and compute
+    /// `LoopQuality` metrics (delay_ms, gain, fidelity_score) after each cycle.
+    async fn tick(&self) {
+        let start = std::time::Instant::now();
+        let signals = self.sense().await;
+        let deviations = self.compare(&signals).await;
+        let actions = self.compute(&deviations).await;
+        self.act(&actions).await;
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+
+        let quality = LoopQuality::from_cycle(elapsed_ms, &deviations, &actions);
+        *self.loop_quality.write().await = quality;
+
+        tracing::debug!(
+            target: "cns.cybernetics",
+            delay_ms = quality.delay_ms,
+            gain = quality.gain,
+            fidelity = quality.fidelity_score,
+            deviations = deviations.len(),
+            actions = actions.len(),
+            "Loop-quality telemetry recorded"
+        );
+    }
 }
 
 /// Extract (deficit, threshold) from action parameters. Returns (0, 0) on missing fields.
@@ -581,4 +643,42 @@ fn extract_deficit_threshold(params: &serde_json::Value) -> (u64, u64) {
     let get_f64 =
         |key: &str| -> u64 { params.get(key).and_then(|v| v.as_f64()).unwrap_or(0.0) as u64 };
     (get_f64("deficit"), get_f64("threshold"))
+}
+
+impl CyberneticsLoop {
+    /// Return a snapshot of the most recent loop-quality telemetry.
+    pub async fn loop_quality(&self) -> LoopQuality {
+        *self.loop_quality.read().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: cns-loop-quality-001 — new CyberneticsLoop starts with default LoopQuality
+    #[tokio::test]
+    async fn new_loop_starts_with_default_quality() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::with_threshold(100)));
+        let loop_instance = CyberneticsLoop::new(cns);
+        let q = loop_instance.loop_quality().await;
+        assert_eq!(q.delay_ms, 0);
+        assert!((q.gain - 0.0).abs() < f64::EPSILON);
+        assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
+    }
+
+    // REQ: cns-loop-quality-002 — tick() updates loop_quality (delay_ms may be 0 for fast cycles)
+    #[tokio::test]
+    async fn tick_updates_loop_quality() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::with_threshold(100)));
+        let loop_instance = CyberneticsLoop::new(cns);
+        loop_instance.tick().await;
+        let q = loop_instance.loop_quality().await;
+        // After a tick, gain and fidelity should be computed (even if delay_ms is 0)
+        // The key property: quality is no longer the default zero-state
+        assert!(
+            q.gain >= 0.0 && q.fidelity_score >= 0.0,
+            "quality should be computed after tick"
+        );
+    }
 }

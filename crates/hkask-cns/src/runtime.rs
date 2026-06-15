@@ -467,6 +467,18 @@ impl CnsRuntime {
         drop(state);
     }
 
+    /// Synchronous variant of `calibrate_threshold` for startup/bootstrap contexts.
+    ///
+    /// Uses `blocking_write()` on the internal `ParkingRwLock` — safe because
+    /// this is called during bootstrap before the async runtime is fully active.
+    pub fn calibrate_threshold_blocking(&self, domain: &str, new_threshold: u64) {
+        let state = self.state.blocking_write();
+        state
+            .algedonic
+            .write()
+            .set_expected_variety(domain, new_threshold);
+    }
+
     // ── Bot Observation (CNS Observer) ──
 
     /// Register a CnsObserver to receive events matching its interest mask.

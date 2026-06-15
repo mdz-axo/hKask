@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use utoipa_axum::router::OpenApiRouter;
 
 use crate::ApiState;
-use hkask_services::settings_path;
 
 /// JSON shape for the settings response.
 #[derive(Debug, Serialize, Deserialize)]
@@ -52,21 +51,14 @@ impl Default for SettingsResponse {
     }
 }
 
-/// Load settings from disk. Returns defaults if the file doesn't exist
-/// or can't be parsed.
+/// Load settings from disk via the shared service.
 fn load_settings() -> SettingsResponse {
-    let path = settings_path();
-    match std::fs::read_to_string(&path) {
-        Ok(json) => serde_json::from_str::<SettingsResponse>(&json).unwrap_or_default(),
-        Err(_) => SettingsResponse::default(),
-    }
+    hkask_services::settings::load_settings()
 }
 
-/// Save settings to disk.
+/// Save settings to disk via the shared service.
 fn save_settings(settings: &SettingsResponse) -> Result<(), String> {
-    let path = settings_path();
-    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
-    std::fs::write(&path, json).map_err(|e| e.to_string())
+    hkask_services::settings::save_settings(settings).map_err(|e| e.to_string())
 }
 
 /// JSON shape for updating settings. All fields optional — only present
@@ -298,5 +290,267 @@ mod tests {
             settings.seed = v;
         }
         assert_eq!(settings.seed, None);
+    }
+
+    // ── Pure merge helper (no I/O) for property tests ─────────────────────
+
+    /// Apply an `UpdateSettingsRequest` to a `SettingsResponse` in-place.
+    /// Replicates the exact merge logic from `update_settings()` handler.
+    fn apply_merge(settings: &mut SettingsResponse, req: &UpdateSettingsRequest) {
+        if let Some(v) = req.tool_loop_limit
+            && v > 0
+        {
+            settings.tool_loop_limit = v;
+        }
+        if let Some(v) = req.context_turns {
+            settings.context_turns = v;
+        }
+        if let Some(v) = req.temperature
+            && (0.0..=2.0).contains(&v)
+        {
+            settings.temperature = v;
+        }
+        if let Some(v) = req.top_p
+            && (0.0..=1.0).contains(&v)
+        {
+            settings.top_p = v;
+        }
+        if let Some(v) = req.top_k
+            && v >= 1
+        {
+            settings.top_k = v;
+        }
+        if let Some(v) = req.min_p
+            && (0.0..=1.0).contains(&v)
+        {
+            settings.min_p = v;
+        }
+        if let Some(v) = req.typical_p
+            && (0.0..=1.0).contains(&v)
+        {
+            settings.typical_p = v;
+        }
+        if let Some(v) = req.max_tokens
+            && v > 0
+        {
+            settings.max_tokens = v;
+        }
+        if let Some(v) = req.seed {
+            settings.seed = v;
+        }
+        if let Some(v) = req.gas_heuristic
+            && v > 0
+        {
+            settings.gas_heuristic = v;
+        }
+        if let Some(v) = req.gas_cap
+            && v > 0
+        {
+            settings.gas_cap = v;
+        }
+        if let Some(v) = req.auto_condense {
+            settings.auto_condense = v;
+        }
+    }
+
+    // ── Property tests (proptest) ─────────────────────────────────────────
+
+    mod proptest_tests {
+        use super::*;
+        use proptest::prelude::*;
+
+        /// Strategy for an arbitrary `UpdateSettingsRequest`.
+        /// Each field is independently Some(valid) or None.
+        fn arb_update_request() -> impl Strategy<Value = UpdateSettingsRequest> {
+            let opt_usize = prop_oneof![
+                1 => Just(None),
+                3 => (1usize..1000).prop_map(Some),
+            ];
+            let opt_f32_range = |lo: f32, hi: f32| {
+                prop_oneof![
+                    1 => Just(None),
+                    3 => (lo..hi).prop_map(Some),
+                ]
+            };
+            let opt_u32_pos = prop_oneof![
+                1 => Just(None),
+                3 => (1u32..1000).prop_map(Some),
+            ];
+            let opt_bool = prop_oneof![
+                1 => Just(None),
+                1 => Just(Some(true)),
+                1 => Just(Some(false)),
+            ];
+            let opt_seed = prop_oneof![
+                1 => Just(None),
+                1 => Just(Some(None)),
+                2 => (0u32..).prop_map(|v| Some(Some(v))),
+            ];
+
+            (
+                opt_usize.clone(),
+                opt_usize.clone(),
+                opt_f32_range(0.0, 2.0),
+                opt_f32_range(0.0, 1.0),
+                opt_u32_pos.clone(),
+                opt_f32_range(0.0, 1.0),
+                opt_f32_range(0.0, 1.0),
+                opt_u32_pos.clone(),
+                opt_seed,
+                opt_u32_pos.clone().prop_map(|v| v.map(|x| x as u64)),
+                opt_u32_pos.prop_map(|v| v.map(|x| x as u64)),
+                opt_bool,
+            )
+                .prop_map(
+                    |(
+                        tool_loop_limit,
+                        context_turns,
+                        temperature,
+                        top_p,
+                        top_k,
+                        min_p,
+                        typical_p,
+                        max_tokens,
+                        seed,
+                        gas_heuristic,
+                        gas_cap,
+                        auto_condense,
+                    )| UpdateSettingsRequest {
+                        tool_loop_limit,
+                        context_turns,
+                        temperature,
+                        top_p,
+                        top_k,
+                        min_p,
+                        typical_p,
+                        max_tokens,
+                        seed,
+                        gas_heuristic,
+                        gas_cap,
+                        auto_condense,
+                    },
+                )
+        }
+
+        // REQ: api-settings-prop-001 — merge is idempotent
+        proptest! {
+            #[test]
+            fn merge_idempotent(
+                req in arb_update_request()
+            ) {
+                let mut s1 = SettingsResponse::default();
+                let mut s2 = SettingsResponse::default();
+
+                // Apply once
+                apply_merge(&mut s1, &req);
+                // Apply twice
+                apply_merge(&mut s2, &req);
+                apply_merge(&mut s2, &req);
+
+                // Both should be identical
+                prop_assert!(settings_eq(&s1, &s2),
+                    "merge not idempotent: once={s1:?}, twice={s2:?}");
+            }
+        }
+
+        // REQ: api-settings-prop-002 — unspecified fields are preserved
+        proptest! {
+            #[test]
+            fn unspecified_fields_preserved(
+                req in arb_update_request()
+            ) {
+                let mut settings = SettingsResponse::default();
+                let original = SettingsResponse::default();
+                apply_merge(&mut settings, &req);
+
+                // Every field that was None in the request should retain default
+                if req.tool_loop_limit.is_none() {
+                    prop_assert_eq!(settings.tool_loop_limit, original.tool_loop_limit);
+                }
+                if req.context_turns.is_none() {
+                    prop_assert_eq!(settings.context_turns, original.context_turns);
+                }
+                if req.temperature.is_none() {
+                    prop_assert!((settings.temperature - original.temperature).abs() < f32::EPSILON);
+                }
+                if req.top_p.is_none() {
+                    prop_assert!((settings.top_p - original.top_p).abs() < f32::EPSILON);
+                }
+                if req.top_k.is_none() {
+                    prop_assert_eq!(settings.top_k, original.top_k);
+                }
+                if req.min_p.is_none() {
+                    prop_assert!((settings.min_p - original.min_p).abs() < f32::EPSILON);
+                }
+                if req.typical_p.is_none() {
+                    prop_assert!((settings.typical_p - original.typical_p).abs() < f32::EPSILON);
+                }
+                if req.max_tokens.is_none() {
+                    prop_assert_eq!(settings.max_tokens, original.max_tokens);
+                }
+                if req.seed.is_none() {
+                    prop_assert_eq!(settings.seed, original.seed);
+                }
+                if req.gas_heuristic.is_none() {
+                    prop_assert_eq!(settings.gas_heuristic, original.gas_heuristic);
+                }
+                if req.gas_cap.is_none() {
+                    prop_assert_eq!(settings.gas_cap, original.gas_cap);
+                }
+                if req.auto_condense.is_none() {
+                    prop_assert_eq!(settings.auto_condense, original.auto_condense);
+                }
+            }
+        }
+
+        // REQ: api-settings-prop-003 — out-of-range values are silently ignored
+        proptest! {
+            #[test]
+            fn out_of_range_values_ignored(
+                temp in (2.0f32..10.0),
+                top_p in (1.0f32..10.0),
+                min_p in (1.0f32..10.0),
+                typical_p in (1.0f32..10.0),
+            ) {
+                let mut settings = SettingsResponse::default();
+                let original = SettingsResponse::default();
+
+                let req = UpdateSettingsRequest {
+                    temperature: Some(temp),
+                    top_p: Some(top_p),
+                    min_p: Some(min_p),
+                    typical_p: Some(typical_p),
+                    tool_loop_limit: None,
+                    context_turns: None,
+                    top_k: None,
+                    max_tokens: None,
+                    seed: None,
+                    gas_heuristic: None,
+                    gas_cap: None,
+                    auto_condense: None,
+                };
+                apply_merge(&mut settings, &req);
+
+                // All out-of-range values should be ignored — settings unchanged
+                prop_assert!(settings_eq(&settings, &original),
+                    "out-of-range values should be ignored");
+            }
+        }
+
+        /// Field-by-field equality for SettingsResponse (f32 uses epsilon).
+        fn settings_eq(a: &SettingsResponse, b: &SettingsResponse) -> bool {
+            a.tool_loop_limit == b.tool_loop_limit
+                && a.context_turns == b.context_turns
+                && (a.temperature - b.temperature).abs() < f32::EPSILON
+                && (a.top_p - b.top_p).abs() < f32::EPSILON
+                && a.top_k == b.top_k
+                && (a.min_p - b.min_p).abs() < f32::EPSILON
+                && (a.typical_p - b.typical_p).abs() < f32::EPSILON
+                && a.max_tokens == b.max_tokens
+                && a.seed == b.seed
+                && a.gas_heuristic == b.gas_heuristic
+                && a.gas_cap == b.gas_cap
+                && a.auto_condense == b.auto_condense
+        }
     }
 }

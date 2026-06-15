@@ -128,6 +128,8 @@ pub enum SignalMetric {
     WalletTreasuryRatio,
     /// Wallet API key health (1.0 = exhausted/expired, 0.0 = healthy)
     WalletKeyHealth,
+    /// Public seam coverage ratio per crate (R7.3 watcher, 0.0–100.0)
+    SeamCoverage,
 }
 
 impl std::fmt::Display for SignalMetric {
@@ -173,6 +175,7 @@ impl SignalMetric {
             SignalMetric::WalletBalanceRatio => "wallet_balance_ratio",
             SignalMetric::WalletTreasuryRatio => "wallet_treasury_ratio",
             SignalMetric::WalletKeyHealth => "wallet_key_health",
+            SignalMetric::SeamCoverage => "seam_coverage",
         }
     }
 }
@@ -314,5 +317,134 @@ pub trait Loop: Send + Sync {
         let deviations = self.compare(&signals).await;
         let actions = self.compute(&deviations).await;
         self.act(&actions).await;
+    }
+}
+
+/// Loop-quality telemetry — measures the loop's own performance.
+///
+/// These metrics are about the loop itself, not the signals it processes.
+/// They enable CNS observability of loop health: is the loop responding
+/// quickly enough? Is it producing appropriate actions for detected deviations?
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct LoopQuality {
+    /// Milliseconds between sense start and act completion (loop latency).
+    pub delay_ms: u64,
+    /// Ratio of actions produced to deviations detected (responsiveness).
+    /// 1.0 = every deviation produced an action. 0.0 = no actions produced.
+    pub gain: f64,
+    /// How well actions match deviations (0.0–1.0).
+    /// 1.0 = every deviation had a corresponding action.
+    /// Computed as: matched_deviations / total_deviations.
+    pub fidelity_score: f64,
+}
+
+impl Default for LoopQuality {
+    fn default() -> Self {
+        Self {
+            delay_ms: 0,
+            gain: 0.0,
+            fidelity_score: 0.0,
+        }
+    }
+}
+
+impl LoopQuality {
+    /// Compute loop quality from the cycle's inputs and outputs.
+    ///
+    /// - `elapsed_ms`: wall-clock time from sense start to act end
+    /// - `deviations`: deviations detected during compare
+    /// - `actions`: actions produced during compute
+    pub fn from_cycle(elapsed_ms: u64, deviations: &[Deviation], actions: &[LoopAction]) -> Self {
+        let total_deviations = deviations.len().max(1) as f64;
+        let gain = actions.len() as f64 / total_deviations;
+
+        // Fidelity: count how many deviations had a matching action.
+        // A deviation is "matched" if any action's parameters reference
+        // the same metric (via the "reason" field convention).
+        let matched = deviations
+            .iter()
+            .filter(|d| {
+                let metric_str = d.signal.metric.as_str();
+                actions.iter().any(|a| {
+                    a.parameters
+                        .get("reason")
+                        .and_then(|v| v.as_str())
+                        .is_some_and(|reason| {
+                            // Heuristic: if the reason contains the metric name or
+                            // the deviation direction, it's a match
+                            reason.contains(metric_str)
+                                || match d.direction {
+                                    DeviationDirection::AboveSetPoint => {
+                                        reason.contains("exceeded")
+                                    }
+                                    DeviationDirection::BelowSetPoint => {
+                                        reason.contains("low") || reason.contains("depletion")
+                                    }
+                                }
+                        })
+                })
+            })
+            .count() as f64;
+        let fidelity_score = matched / total_deviations;
+
+        Self {
+            delay_ms: elapsed_ms,
+            gain,
+            fidelity_score,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: types-loop-quality-001 — LoopQuality::default() has zero values
+    #[test]
+    fn loop_quality_default_is_zero() {
+        let q = LoopQuality::default();
+        assert_eq!(q.delay_ms, 0);
+        assert!((q.gain - 0.0).abs() < f64::EPSILON);
+        assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
+    }
+
+    // REQ: types-loop-quality-002 — from_cycle computes gain correctly
+    #[test]
+    fn from_cycle_computes_gain() {
+        let sig = Signal::new(LoopId::Cybernetics, SignalMetric::VarietyDeficit, 0.9, 0.5);
+        let dev = Deviation::from_signal(&sig).unwrap();
+        let action = LoopAction::new(
+            LoopId::Curation,
+            ActionType::Escalate,
+            serde_json::json!({"reason": "variety_deficit_exceeded"}),
+        );
+        let q = LoopQuality::from_cycle(100, &[dev], &[action]);
+        assert_eq!(q.delay_ms, 100);
+        assert!((q.gain - 1.0).abs() < f64::EPSILON);
+        assert!((q.fidelity_score - 1.0).abs() < f64::EPSILON);
+    }
+
+    // REQ: types-loop-quality-003 — from_cycle with no deviations has zero gain
+    #[test]
+    fn from_cycle_no_deviations_zero_gain() {
+        let q = LoopQuality::from_cycle(50, &[], &[]);
+        assert_eq!(q.delay_ms, 50);
+        assert!((q.gain - 0.0).abs() < f64::EPSILON);
+        assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
+    }
+
+    // REQ: types-loop-quality-004 — unmatched deviation reduces fidelity
+    #[test]
+    fn unmatched_deviation_reduces_fidelity() {
+        let sig = Signal::new(LoopId::Cybernetics, SignalMetric::ErrorRate, 0.3, 0.1);
+        let dev = Deviation::from_signal(&sig).unwrap();
+        // Action with unrelated reason
+        let action = LoopAction::new(
+            LoopId::Inference,
+            ActionType::Throttle,
+            serde_json::json!({"reason": "energy_budget_low"}),
+        );
+        let q = LoopQuality::from_cycle(200, &[dev], &[action]);
+        assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
     }
 }

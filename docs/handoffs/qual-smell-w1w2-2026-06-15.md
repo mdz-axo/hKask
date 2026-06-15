@@ -1,7 +1,7 @@
 # Handoff — Code Quality & Smell Reduction, Waves 1–2
 
 **Session date:** 2026-06-15
-**Progress:** Waves 1–3 complete, Task 4 complete
+**Progress:** Waves 1–4 complete, Waves 5–6 pending
 **Build status:** `cargo check --workspace` + `cargo clippy --workspace -D warnings` → clean
 
 ---
@@ -44,9 +44,59 @@
 
 ### What Remains (not started)
 
-- **Wave 4:** Architecture convergence (tasks 5 + 6 + 7)
 - **Wave 5:** Module depth + safety governance (tasks 8 + 9)
 - **Wave 6:** Sustainment (task 10)
+
+---
+
+## 4) Wave 4 — Architecture Convergence (✅ Complete)
+
+### Task 5 — Settings-domain strangler extraction (✅ Complete)
+
+**PR 5.1:** Added generic `load_settings<T>()` and `save_settings<T>()` to `hkask-services/src/settings.rs`:
+- Shared file I/O for any `Serialize + DeserializeOwned + Default` type
+- Uses `ServiceError::Infra` for typed error propagation
+- 2 REQ-tagged tests (default fallback, save/load round-trip)
+
+**PR 5.2:** Migrated CLI `commands/settings.rs` to delegate to service:
+- Removed ~15 lines of duplicated `load_settings`/`save_settings`/`settings_path`
+- REPL init (`repl/init.rs`) also updated to use service directly
+
+**PR 5.3:** Migrated API `routes/settings.rs` to delegate to service:
+- Thin wrappers preserve existing `fn load_settings() -> SettingsResponse` signature
+- Removed ~15 lines of duplicated file I/O logic
+
+**PR 5.4:** REPL already aligned — uses same `load_settings` from service via `repl/init.rs`
+
+### Task 6 — CNS loop telemetry (✅ Complete)
+
+**PR 6.1:** Added `LoopQuality` type to `hkask-types::loops`:
+- Fields: `delay_ms` (loop latency), `gain` (actions/deviations ratio), `fidelity_score` (match quality)
+- `from_cycle()` constructor computes metrics from deviations + actions
+- 4 REQ-tagged tests (default zero, gain computation, no deviations, unmatched fidelity)
+
+**PR 6.2:** Instrumented `CyberneticsLoop`:
+- Added `loop_quality: Arc<RwLock<LoopQuality>>` field
+- Overrode `tick()` to measure elapsed time and compute `LoopQuality`
+- Added `loop_quality()` accessor method
+- Debug tracing emits delay_ms, gain, fidelity per cycle
+- 2 REQ-tagged tests (default quality, tick updates quality)
+
+**PR 6.3:** REQ tests included in PR 6.1 + 6.2 above
+
+### Task 7 — Strengthen span typing (✅ Complete)
+
+**PR 7.1:** Added `SpanKind` enum + `Span::from_kind()` to `hkask-types::event`:
+- 13 variants covering the most common spans (tool, gas, curation, agent_pod, variety)
+- Each variant maps to a canonical (namespace, path) pair — no string typos possible
+- 1 REQ-tagged test verifying all variant paths
+
+**PR 7.2:** Migrated 2 high-traffic call sites in `CyberneticsLoop`:
+- `persist_directive_acknowledgment` → `SpanKind::CurationDirectiveAcknowledged`
+- `act()` algedonic alert → `SpanKind::VarietyAlgedonicAlert`
+- Removed now-unused `SpanNamespace` import
+
+**PR 7.3:** Existing `Span::new()` remains as compatibility adapter for non-migrated sites
 
 ---
 

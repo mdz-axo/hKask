@@ -36,6 +36,13 @@ pub const DEFAULT_CONNECTOR_LATENCY_MAX_SECS: f64 = 30.0;
 pub const DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD: QueueDepth =
     QueueDepth::DEFAULT_BACKPRESSURE;
 
+/// Default minimum seam coverage ratio before alert.
+///
+/// When per-crate coverage drops below its previous snapshot value,
+/// R7.3 fires an algedonic alert. Default: 0.0 (alert on ANY regression —
+/// coverage should never go down).
+pub const DEFAULT_SEAM_COVERAGE_MIN: f64 = 0.0;
+
 /// Default maximum number of regulation iterations per cycle.
 ///
 /// Prevents unbounded cascading in the compute→act pipeline.
@@ -61,6 +68,10 @@ pub struct SetPoints {
     /// CyberneticsLoop produces a Throttle(Communication) action.
     /// Default: 100 messages
     pub communication_backpressure_threshold: QueueDepth,
+    /// Minimum seam coverage ratio per crate before R7.3 alert.
+    /// When per-crate coverage drops below its previous snapshot,
+    /// an algedonic alert fires. Default: 0.0 (any regression alerts).
+    pub seam_coverage_min: f64,
 }
 
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
@@ -79,6 +90,7 @@ pub struct SetPointsConfig {
     pub error_rate_max: Option<f64>,
     pub connector_latency_max_secs: Option<f64>,
     pub communication_backpressure_threshold: Option<QueueDepth>,
+    pub seam_coverage_min: Option<f64>,
 }
 
 impl SetPointsConfig {
@@ -103,6 +115,7 @@ impl Default for SetPoints {
             error_rate_max: DEFAULT_ERROR_RATE_MAX,
             connector_latency_max_secs: DEFAULT_CONNECTOR_LATENCY_MAX_SECS,
             communication_backpressure_threshold: DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
+            seam_coverage_min: DEFAULT_SEAM_COVERAGE_MIN,
         }
     }
 }
@@ -125,6 +138,9 @@ impl SetPoints {
             communication_backpressure_threshold: config
                 .communication_backpressure_threshold
                 .unwrap_or(defaults.communication_backpressure_threshold),
+            seam_coverage_min: config
+                .seam_coverage_min
+                .unwrap_or(defaults.seam_coverage_min),
         }
     }
 }

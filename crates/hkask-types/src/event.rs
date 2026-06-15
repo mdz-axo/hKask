@@ -126,6 +126,9 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.condenser.compression_ratio",
     "cns.evolution.energy_delta",
     "cns.architecture.module_depth",
+    // Architecture health — public seam coverage (R7.3 watcher)
+    "cns.architecture.seam.coverage",
+    "cns.architecture.seam.drift",
     // Improv spans — composable interaction grammar (hkask-improv crate)
     "cns.improv.mode.active",
     "cns.improv.plussing.ratio",
@@ -289,6 +292,76 @@ impl Span {
     /// Returns the fully-qualified span path
     pub fn as_str(&self) -> &str {
         &self.path
+    }
+
+    /// Create a span from a typed `SpanKind` variant.
+    ///
+    /// Eliminates string typos at construction sites for the most common
+    /// span paths. Each variant maps to a canonical (namespace, path) pair.
+    pub fn from_kind(kind: SpanKind) -> Self {
+        let (ns, local_path) = kind.namespace_and_path();
+        Span::new(SpanNamespace::new(ns), local_path)
+    }
+}
+
+/// Typed span kind — canonical (namespace, path) pairs for common spans.
+///
+/// Use `Span::from_kind()` to construct spans without string literals,
+/// reducing the risk of typos in span paths at construction sites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SpanKind {
+    // ── Tool spans (cns.tool.*) ──
+    /// Tool invocation started: `cns.tool.invoked`
+    ToolInvoked,
+    /// Tool invocation completed: `cns.tool.completed`
+    ToolCompleted,
+    /// Tool invocation errored: `cns.tool.error`
+    ToolError,
+
+    // ── Gas/energy spans (cns.gas.*) ──
+    /// Gas reserved for an operation: `cns.gas.reserved`
+    GasReserved,
+    /// Gas settled after an operation: `cns.gas.settled`
+    GasSettled,
+    /// Gas budget depleted: `cns.gas.depleted`
+    GasDepleted,
+
+    // ── Curation spans (cns.curation.*) ──
+    /// Curation directive acknowledged: `cns.curation.directive_acknowledged`
+    CurationDirectiveAcknowledged,
+    /// Curation escalation received: `cns.curation.escalation`
+    CurationEscalation,
+
+    // ── Agent pod spans (cns.agent_pod.*) ──
+    /// Agent pod registered: `cns.agent_pod.registered`
+    AgentPodRegistered,
+    /// Agent pod activated: `cns.agent_pod.activated`
+    AgentPodActivated,
+    /// Agent pod deactivated: `cns.agent_pod.deactivated`
+    AgentPodDeactivated,
+
+    // ── Variety spans (cns.variety.*) ──
+    /// Algedonic alert emitted: `cns.variety.algedonic_alert`
+    VarietyAlgedonicAlert,
+}
+
+impl SpanKind {
+    /// Return the (namespace, local_path) pair for this span kind.
+    fn namespace_and_path(&self) -> (&'static str, &'static str) {
+        match self {
+            SpanKind::ToolInvoked => ("cns.tool", "invoked"),
+            SpanKind::ToolCompleted => ("cns.tool", "completed"),
+            SpanKind::ToolError => ("cns.tool", "error"),
+            SpanKind::GasReserved => ("cns.gas", "reserved"),
+            SpanKind::GasSettled => ("cns.gas", "settled"),
+            SpanKind::GasDepleted => ("cns.gas", "depleted"),
+            SpanKind::CurationDirectiveAcknowledged => ("cns.curation", "directive_acknowledged"),
+            SpanKind::CurationEscalation => ("cns.curation", "escalation"),
+            SpanKind::AgentPodRegistered => ("cns.agent_pod", "registered"),
+            SpanKind::AgentPodActivated => ("cns.agent_pod", "activated"),
+            SpanKind::AgentPodDeactivated => ("cns.agent_pod", "deactivated"),
+            SpanKind::VarietyAlgedonicAlert => ("cns.variety", "algedonic_alert"),
+        }
     }
 }
 
@@ -472,5 +545,147 @@ mod tests {
         let ns = SpanNamespace::new("cns.tool");
         let span = Span::new(ns, "invoked");
         assert_eq!(span.as_str(), "cns.tool.invoked");
+    }
+
+    // REQ: types-event-009 — Span::from_kind() produces correct paths for all variants
+    #[test]
+    fn span_from_kind_produces_correct_paths() {
+        assert_eq!(
+            Span::from_kind(SpanKind::ToolInvoked).as_str(),
+            "cns.tool.invoked"
+        );
+        assert_eq!(
+            Span::from_kind(SpanKind::ToolCompleted).as_str(),
+            "cns.tool.completed"
+        );
+        assert_eq!(
+            Span::from_kind(SpanKind::GasReserved).as_str(),
+            "cns.gas.reserved"
+        );
+        assert_eq!(
+            Span::from_kind(SpanKind::GasSettled).as_str(),
+            "cns.gas.settled"
+        );
+        assert_eq!(
+            Span::from_kind(SpanKind::CurationDirectiveAcknowledged).as_str(),
+            "cns.curation.directive_acknowledged"
+        );
+        assert_eq!(
+            Span::from_kind(SpanKind::AgentPodRegistered).as_str(),
+            "cns.agent_pod.registered"
+        );
+        assert_eq!(
+            Span::from_kind(SpanKind::VarietyAlgedonicAlert).as_str(),
+            "cns.variety.algedonic_alert"
+        );
+    }
+
+    // ── Property tests (proptest) ───────────────────────────────────────────
+
+    mod proptest_tests {
+        use super::*;
+        use proptest::prelude::*;
+
+        fn canonical_namespace_str() -> impl Strategy<Value = String> {
+            (0..CANONICAL_NAMESPACES.len()).prop_map(|i| CANONICAL_NAMESPACES[i].to_string())
+        }
+
+        // REQ: span-prop-001 — all CANONICAL_NAMESPACES entries parse successfully
+        proptest! {
+            #[test]
+            fn all_canonical_namespaces_parse(
+                ns in canonical_namespace_str()
+            ) {
+                let parsed = SpanNamespace::parse(&ns);
+                prop_assert!(parsed.is_some(), "canonical namespace should parse: {ns}");
+                let span_ns = parsed.unwrap();
+                prop_assert_eq!(span_ns.as_str(), ns.as_str());
+            }
+        }
+
+        // REQ: span-prop-002 — short form round-trip
+        // e.g., "tool" → parse() → as_str() == "cns.tool"
+        proptest! {
+            #[test]
+            fn short_form_round_trip(
+                ns in canonical_namespace_str()
+            ) {
+                let short = &ns[4..]; // strip "cns." prefix
+                let parsed = SpanNamespace::parse(short);
+                prop_assert!(parsed.is_some(), "short form should parse: {short}");
+                let span_ns = parsed.unwrap();
+                prop_assert_eq!(span_ns.as_str(), ns.as_str());
+            }
+        }
+
+        // REQ: span-prop-003 — non-canonical names return None, never panic
+        proptest! {
+            #[test]
+            fn non_canonical_returns_none(
+                input in "\\PC*"
+            ) {
+                prop_assume!(!CANONICAL_NAMESPACES.contains(&input.as_str()));
+                let full = format!("cns.{input}");
+                prop_assume!(!CANONICAL_NAMESPACES.contains(&full.as_str()));
+
+                let result = SpanNamespace::parse(&input);
+                prop_assert!(result.is_none(), "non-canonical should return None: {input}");
+            }
+        }
+
+        // REQ: span-prop-004 — SpanCategory::from_short_name() handles prefix patterns
+        proptest! {
+            #[test]
+            fn from_short_name_known_prefixes(
+                prefix in prop_oneof![
+                    Just("variety"), Just("gas"),
+                    Just("curation"), Just("spec"),
+                    Just("inference"),
+                    Just("agent_pod"), Just("connector"),
+                ]
+            ) {
+                let category = SpanCategory::from_short_name(prefix);
+                prop_assert!(category != SpanCategory::Unknown,
+                    "known prefix should not be Unknown: {prefix}");
+            }
+        }
+
+        proptest! {
+            #[test]
+            fn from_short_name_unknown_prefix(
+                prefix in "[a-z][a-z0-9_]*"
+            ) {
+                prop_assume!(prefix != "variety" && prefix != "gas"
+                    && prefix != "curation" && prefix != "spec"
+                    && prefix != "inference"
+                    && prefix != "agent_pod" && prefix != "connector");
+                let category = SpanCategory::from_short_name(&prefix);
+                prop_assert!(category == SpanCategory::Unknown,
+                    "unknown prefix should be Unknown: {prefix}");
+            }
+        }
+
+        // REQ: span-prop-005 — every canonical namespace maps to expected category
+        proptest! {
+            #[test]
+            fn namespace_category_invariant(
+                ns in canonical_namespace_str()
+            ) {
+                let parsed = SpanNamespace::parse(&ns).unwrap();
+                let category = parsed.category();
+                let short = parsed.short_name();
+                let prefix = short.split('.').next().unwrap_or(short);
+
+                let expected = match prefix {
+                    "variety" | "gas" => SpanCategory::Cybernetics,
+                    "curation" | "spec" => SpanCategory::Curation,
+                    "inference" => SpanCategory::Inference,
+                    "agent_pod" | "connector" => SpanCategory::Episodic,
+                    _ => SpanCategory::Unknown,
+                };
+                prop_assert!(category == expected,
+                    "{ns}: expected {expected:?}, got {category:?}");
+            }
+        }
     }
 }

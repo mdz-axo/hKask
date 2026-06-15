@@ -3,40 +3,25 @@
 //! Persists settings to `~/.config/hkask/settings.json` so CLI, API, and
 //! interactive REPL share the same configuration. Magna Carta P3 (Generative
 //! Space): all settings exposed equally across every surface.
+//!
+//! Delegates load/save to `hkask_services::settings` for shared persistence.
 
 use crate::cli::SettingsAction;
 use crate::repl::handlers::ReplSettings;
-use hkask_services::settings_path;
-
-/// Load settings from disk. Returns defaults if the file doesn't exist
-/// or can't be parsed.
-pub(crate) fn load_settings() -> ReplSettings {
-    let path = settings_path();
-    match std::fs::read_to_string(&path) {
-        Ok(json) => serde_json::from_str::<ReplSettings>(&json).unwrap_or_default(),
-        Err(_) => ReplSettings::default(),
-    }
-}
-
-/// Save settings to disk.
-fn save_settings(settings: &ReplSettings) -> Result<(), String> {
-    let path = settings_path();
-    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
-    std::fs::write(&path, json).map_err(|e| e.to_string())
-}
+use hkask_services::settings::{load_settings, save_settings};
 
 /// CLI handler for `kask settings {show,set,reset}`.
 pub fn run(action: SettingsAction) {
     match action {
         SettingsAction::Show { name } => {
-            let settings = load_settings();
+            let settings: ReplSettings = load_settings();
             match name {
                 None => show_all(&settings),
                 Some(key) => show_one(&settings, &key),
             }
         }
         SettingsAction::Set { name, value } => {
-            let mut settings = load_settings();
+            let mut settings: ReplSettings = load_settings();
             if apply_setting(&mut settings, &name, &value) {
                 match save_settings(&settings) {
                     Ok(()) => println!("Saved."),

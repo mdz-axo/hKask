@@ -1,6 +1,6 @@
 # Public Seam Priority List
 
-**Generated:** 2026-06-15T18:45:49Z
+**Generated:** 2026-06-15T19:24:16Z
 **Source:** `scripts/audit/public-seam-inventory.sh`
 **Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
 
@@ -103,7 +103,7 @@ risk and typically covered by struct-level or integration tests.
 | 83 | hkask-api | fn | `models_router` | hkask-api::routes::models | crates/hkask-api/src/routes/models.rs:21 | API Route Handler |
 | 84 | hkask-api | fn | `pods_router` | hkask-api::routes::pods | crates/hkask-api/src/routes/pods.rs:46 | API Route Handler |
 | 85 | hkask-api | fn | `revoke_token` | hkask-api::middleware::auth | crates/hkask-api/src/middleware/auth.rs:70 | API Route Handler |
-| 86 | hkask-api | fn | `settings_router` | hkask-api::routes::settings | crates/hkask-api/src/routes/settings.rs:91 | API Route Handler |
+| 86 | hkask-api | fn | `settings_router` | hkask-api::routes::settings | crates/hkask-api/src/routes/settings.rs:83 | API Route Handler |
 | 87 | hkask-api | fn | `shutdown_loops` | hkask-api | crates/hkask-api/src/lib.rs:155 | API Route Handler |
 | 88 | hkask-api | fn | `sovereignty_router` | hkask-api::routes::sovereignty | crates/hkask-api/src/routes/sovereignty.rs:22 | API Route Handler |
 | 89 | hkask-api | fn | `spec_router` | hkask-api::routes::spec | crates/hkask-api/src/routes/spec.rs:68 | API Route Handler |
@@ -126,7 +126,7 @@ risk and typically covered by struct-level or integration tests.
 | Crate | High-Risk Uncovered |
 |-------|--------------------|
 | hkask-types | 145 |
-| hkask-services | 132 |
+| hkask-services | 134 |
 | hkask-storage | 130 |
 | hkask-agents | 68 |
 | hkask-cli | 45 |
@@ -149,4 +149,4 @@ risk and typically covered by struct-level or integration tests.
 | hkask-mcp-communication | 1 |
 | hkask-communication | 1 |
 
-**Total high-risk uncovered:** 876
+**Total high-risk uncovered:** 878

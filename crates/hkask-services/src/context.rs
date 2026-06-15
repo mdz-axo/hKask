@@ -25,7 +25,7 @@ use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CnsRuntime, CompositeEnergyEstimator, CyberneticsLoop, EnergyEstimator, GovernedTool,
-    SnapshotLoop, load_set_points,
+    SeamWatcher, SnapshotLoop, load_set_points,
 };
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::RawMcpToolPort;
@@ -477,6 +477,32 @@ impl AgentService {
         let cns_runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
             config.cns_threshold,
         )));
+
+        // ── 4a. Seam watcher (R7.3) — load public seam inventory, register domains ──
+        // Non-fatal: if the JSON file is missing, seam watching is silently disabled.
+        let seam_watcher = {
+            let cns = cns_runtime.read().await;
+            match SeamWatcher::load("docs/status/public-seam-inventory.json") {
+                Some(watcher) => {
+                    watcher.register_domains(&cns);
+                    tracing::info!(
+                        target: "bootstrap",
+                        crates = %watcher.inventory().crates.len(),
+                        coverage_pct = %watcher.overall_coverage(),
+                        "Seam watcher initialized — R7.3 watching the public seam"
+                    );
+                    Some(watcher)
+                }
+                None => {
+                    tracing::info!(
+                        target: "bootstrap",
+                        "Seam watcher skipped — inventory JSON not found (non-fatal)"
+                    );
+                    None
+                }
+            }
+        };
+
         // Use the primary DB for CNS events so they persist in production.
         let cns_event_sink: Arc<dyn NuEventSink> =
             Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));

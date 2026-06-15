@@ -5,7 +5,9 @@
 # (pub fn, pub struct, pub enum, pub trait, pub type), and cross-references
 # with // REQ:-tagged tests to produce a coverage-linked inventory.
 #
-# Output: docs/status/public-seam-inventory.md
+# Output:
+#   docs/status/public-seam-inventory.md  — human-readable markdown
+#   docs/status/public-seam-inventory.json — machine-readable JSON (CNS/R7.3)
 # Exit 0 if inventory matches existing file, exit 1 on drift (CI gate).
 #
 # Usage:
@@ -18,6 +20,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 output="$repo_root/docs/status/public-seam-inventory.md"
+json_output="$repo_root/docs/status/public-seam-inventory.json"
 mode="${1:---check}"
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -48,6 +51,20 @@ module_path_from_file() {
     else
         echo "${crate}::${rest}"
     fi
+}
+
+# ── JSON helpers ────────────────────────────────────────────────────────────────
+
+# Escape a string for JSON (backslash, double-quote, control chars).
+json_escape() {
+    local s="${1-}"
+    # Backslash must be first to avoid re-escaping
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
 }
 
 # ── collect public items ──────────────────────────────────────────────────────
@@ -359,7 +376,7 @@ HEADER
             local pct=0
             [ "$items" -gt 0 ] && pct=$(( covered * 100 / items ))
             local reqs_in_crate
-            reqs_in_crate=$(grep -cF "REQ|${crate}|" "$reqs_file" 2>/dev/null || echo 0)
+            reqs_in_crate=$(grep -cF "REQ|${crate}|" "$reqs_file" 2>/dev/null || true)
             echo "| $crate | $items | $covered | $((items - covered)) | ${pct}% | $reqs_in_crate |"
 
             # Emit detailed items for previous crate
@@ -434,7 +451,7 @@ HEADER
         local pct=0
         [ "$items" -gt 0 ] && pct=$(( covered * 100 / items ))
         local reqs_in_crate
-        reqs_in_crate=$(grep -cF "REQ|${crate}|" "$reqs_file" 2>/dev/null || echo 0)
+        reqs_in_crate=$(grep -cF "REQ|${crate}|" "$reqs_file" 2>/dev/null || true)
         echo "| $crate | $items | $covered | $((items - covered)) | ${pct}% | $reqs_in_crate |"
         echo ""
         echo "### $crate"
@@ -469,6 +486,271 @@ HEADER
 
     # Cleanup
     rm -f "$req_data" "${req_data}.terms" "$crate_req_counts"
+}
+
+# ── JSON inventory generation (machine-readable, CNS/R7.3 observability) ──────
+
+# Build a comprehensive JSON inventory from the same items_file and reqs_file.
+# Output: JSON on stdout — caller redirects to file.
+build_json_inventory() {
+    local items_file="$1"
+    local reqs_file="$2"
+
+    local gen_date
+    gen_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Pre-compute per-module REQ coverage lookup
+    local req_data
+    req_data=$(mktemp)
+    local req_terms
+    req_terms=$(mktemp)
+    local crate_req_counts
+    crate_req_counts=$(mktemp)
+
+    while IFS='|' read -r _ cr mp rid rdesc tfn loc; do
+        echo "$cr|$mp" >> "$req_data"
+        echo "$cr" >> "$crate_req_counts"
+        echo "$cr:$rid:$rdesc:$tfn" >> "${req_terms}"
+    done < "$reqs_file"
+
+    # ── Build per-crate data ──
+    local crate_json=""
+    local current_crate=""
+    local crate_items_json=""
+    local crate_total=0
+    local crate_covered=0
+    local crate_high_risk_uncovered=0
+    local first_crate=true
+
+    # Also collect high-risk uncovered for priority section
+    local priority_items=""
+    local priority_count=0
+    local priority_per_crate=""
+
+    while IFS='|' read -r kind cr mp name loc sig; do
+        [ -z "$kind" ] && continue
+
+        # Flush previous crate when crate changes
+        if [ "$current_crate" != "" ] && [ "$cr" != "$current_crate" ]; then
+            local pct=0
+            [ "$crate_total" -gt 0 ] && pct=$(( crate_covered * 100 / crate_total ))
+            local reqs_in_crate
+            reqs_in_crate=$(grep -cF "REQ|${current_crate}|" "$reqs_file" 2>/dev/null || true)
+
+            local crate_entry
+            crate_entry=$(printf '{"total_items":%d,"covered":%d,"uncovered":%d,"coverage_pct":%d,"req_tests":%d,"high_risk_uncovered":%d,"items":[%s]}' \
+                "$crate_total" "$crate_covered" "$((crate_total - crate_covered))" "$pct" "$reqs_in_crate" "$crate_high_risk_uncovered" "$crate_items_json")
+
+            if $first_crate; then
+                first_crate=false
+                crate_json="\"$(json_escape "$current_crate")\":$crate_entry"
+            else
+                crate_json="$crate_json,\"$(json_escape "$current_crate")\":$crate_entry"
+            fi
+
+            current_crate="$cr"
+            crate_total=1
+            crate_covered=0
+            crate_high_risk_uncovered=0
+            crate_items_json=""
+        else
+            current_crate="$cr"
+            crate_total=$((crate_total + 1))
+        fi
+
+        # Determine coverage
+        local is_covered=false
+        if grep -qFx "$cr|$mp" "$req_data" 2>/dev/null; then
+            is_covered=true
+        fi
+        if [ "$is_covered" = false ] && grep -qi "^${cr}:.*${name}" "${req_terms}" 2>/dev/null; then
+            is_covered=true
+        fi
+
+        if $is_covered; then
+            crate_covered=$((crate_covered + 1))
+        fi
+
+        # Risk classification
+        local risk_tier
+        risk_tier=$(classify_risk "$kind" "$cr" "$name")
+        local risk_label="${risk_tier%%:*}"
+        local risk_cat="${risk_tier#*:}"
+
+        # Track high-risk uncovered for priority
+        if [ "$is_covered" = false ] && [ "$risk_label" = "high" ]; then
+            crate_high_risk_uncovered=$((crate_high_risk_uncovered + 1))
+            if [ "$priority_count" -lt 100 ]; then
+                priority_count=$((priority_count + 1))
+                local kind_label
+                case "$kind" in
+                    FN) kind_label="fn" ;;
+                    ST) kind_label="struct" ;;
+                    EN) kind_label="enum" ;;
+                    TR) kind_label="trait" ;;
+                    TY) kind_label="type" ;;
+                    *)  kind_label="$kind" ;;
+                esac
+                local escaped_name escaped_mp escaped_loc escaped_cat
+                escaped_name=$(json_escape "$name")
+                escaped_mp=$(json_escape "$mp")
+                escaped_loc=$(json_escape "$loc")
+                escaped_cat=$(json_escape "$risk_cat")
+                local escaped_crate
+                escaped_crate=$(json_escape "$cr")
+                local pri_entry
+                pri_entry=$(printf '{"rank":%d,"crate":"%s","kind":"%s","name":"%s","module":"%s","location":"%s","risk_category":"%s"}' \
+                    "$priority_count" "$escaped_crate" "$kind_label" "$escaped_name" "$escaped_mp" "$escaped_loc" "$escaped_cat")
+                if [ -z "$priority_items" ]; then
+                    priority_items="$pri_entry"
+                else
+                    priority_items="$priority_items,$pri_entry"
+                fi
+            fi
+        fi
+
+        # Build item JSON entry
+        local kind_label
+        case "$kind" in
+            FN) kind_label="fn" ;;
+            ST) kind_label="struct" ;;
+            EN) kind_label="enum" ;;
+            TR) kind_label="trait" ;;
+            TY) kind_label="type" ;;
+            *)  kind_label="$kind" ;;
+        esac
+
+        local covered_str
+        if $is_covered; then covered_str="true"; else covered_str="false"; fi
+
+        local escaped_name escaped_mp escaped_loc escaped_cat
+        escaped_name=$(json_escape "$name")
+        escaped_mp=$(json_escape "$mp")
+        escaped_loc=$(json_escape "$loc")
+        escaped_cat=$(json_escape "$risk_cat")
+
+        local item_entry
+        item_entry=$(printf '{"kind":"%s","name":"%s","module":"%s","location":"%s","risk_tier":"%s","risk_category":"%s","covered":%s,"req_tags":[]}' \
+            "$kind_label" "$escaped_name" "$escaped_mp" "$escaped_loc" "$risk_label" "$escaped_cat" "$covered_str")
+
+        if [ -z "$crate_items_json" ]; then
+            crate_items_json="$item_entry"
+        else
+            crate_items_json="$crate_items_json,$item_entry"
+        fi
+    done < <(sort -t'|' -k2,2 -k3,3 "$items_file")
+
+    # Flush last crate
+    if [ "$current_crate" != "" ]; then
+        local pct=0
+        [ "$crate_total" -gt 0 ] && pct=$(( crate_covered * 100 / crate_total ))
+        local reqs_in_crate
+        reqs_in_crate=$(grep -cF "REQ|${current_crate}|" "$reqs_file" 2>/dev/null || true)
+
+        local crate_entry
+        crate_entry=$(printf '{"total_items":%d,"covered":%d,"uncovered":%d,"coverage_pct":%d,"req_tests":%d,"high_risk_uncovered":%d,"items":[%s]}' \
+            "$crate_total" "$crate_covered" "$((crate_total - crate_covered))" "$pct" "$reqs_in_crate" "$crate_high_risk_uncovered" "$crate_items_json")
+
+        if $first_crate; then
+            crate_json="\"$(json_escape "$current_crate")\":$crate_entry"
+        else
+            crate_json="$crate_json,\"$(json_escape "$current_crate")\":$crate_entry"
+        fi
+    fi
+
+    # ── Compute totals ──
+    local total_items=0 total_covered=0 total_crates=0 total_reqs=0
+    total_items=$(wc -l < "$items_file" 2>/dev/null || echo 0)
+    total_reqs=$(wc -l < "$reqs_file" 2>/dev/null || echo 0)
+
+    # Count covered items and crates from the data we just processed
+    # Re-scan to get accurate totals (the per-crate loop tracked these)
+    local all_covered=0 all_crates=0
+    while IFS='|' read -r kind cr mp name loc sig; do
+        [ -z "$kind" ] && continue
+        local is_cov=false
+        if grep -qFx "$cr|$mp" "$req_data" 2>/dev/null; then is_cov=true; fi
+        if [ "$is_cov" = false ] && grep -qi "^${cr}:.*${name}" "${req_terms}" 2>/dev/null; then is_cov=true; fi
+        if $is_cov; then all_covered=$((all_covered + 1)); fi
+    done < "$items_file"
+    all_crates=$(cut -d'|' -f2 "$items_file" | sort -u | wc -l)
+
+    local overall_pct=0
+    [ "$total_items" -gt 0 ] && overall_pct=$(( all_covered * 100 / total_items ))
+
+    # ── Per-crate priority counts ──
+    local pri_per_crate_json=""
+    local pri_first=true
+    # Re-use the high-risk uncovered counts we tracked per crate
+    # We need to rebuild from items_file since we only tracked in the loop above
+    local pri_crate_counts
+    pri_crate_counts=$(mktemp)
+    while IFS='|' read -r kind cr mp name loc sig; do
+        [ -z "$kind" ] && continue
+        local is_cov=false
+        if grep -qFx "$cr|$mp" "$req_data" 2>/dev/null; then is_cov=true; fi
+        if [ "$is_cov" = false ] && grep -qi "^${cr}:.*${name}" "${req_terms}" 2>/dev/null; then is_cov=true; fi
+        if [ "$is_cov" = false ]; then
+            local rt
+            rt=$(classify_risk "$kind" "$cr" "$name")
+            local rl="${rt%%:*}"
+            if [ "$rl" = "high" ]; then
+                echo "$cr" >> "$pri_crate_counts"
+            fi
+        fi
+    done < "$items_file"
+
+    local prev_crate=""
+    while IFS= read -r pc; do
+        if [ "$pc" != "$prev_crate" ]; then
+            local cnt
+            cnt=$(grep -cFx "$pc" "$pri_crate_counts" 2>/dev/null || echo 0)
+            local escaped_pc
+            escaped_pc=$(json_escape "$pc")
+            if $pri_first; then
+                pri_first=false
+                pri_per_crate_json="\"$escaped_pc\":$cnt"
+            else
+                pri_per_crate_json="$pri_per_crate_json,\"$escaped_pc\":$cnt"
+            fi
+            prev_crate="$pc"
+        fi
+    done < <(sort "$pri_crate_counts" | uniq)
+    rm -f "$pri_crate_counts"
+
+    # ── Emit JSON ──
+    local escaped_gen_date
+    escaped_gen_date=$(json_escape "$gen_date")
+
+    cat <<JSONEOF
+{
+  "generated": "$escaped_gen_date",
+  "source": "scripts/audit/public-seam-inventory.sh",
+  "purpose": "P8 traceability — machine-readable public seam inventory for CNS observability (R7.3 watcher)",
+  "totals": {
+    "total_items": $total_items,
+    "covered": $all_covered,
+    "uncovered": $((total_items - all_covered)),
+    "coverage_pct": ${overall_pct}.0,
+    "req_tests": $total_reqs,
+    "crates_analyzed": $all_crates
+  },
+  "crates": {
+    $crate_json
+  },
+  "priority": {
+    "total_high_risk_uncovered": $priority_count,
+    "top_100": [
+      $priority_items
+    ],
+    "per_crate_counts": {
+      $pri_per_crate_json
+    }
+  }
+}
+JSONEOF
+
+    rm -f "$req_data" "${req_terms}" "$crate_req_counts"
 }
 
 # ── priority list generation ─────────────────────────────────────────────────
@@ -580,8 +862,9 @@ main() {
     local items_file reqs_file
     items_file=$(mktemp)
     reqs_file=$(mktemp)
-    local new_output
+    local new_output new_json
     new_output=$(mktemp)
+    new_json=$(mktemp)
 
     echo "Scanning public items..." >&2
     collect_public_items "both" "$items_file"
@@ -602,18 +885,23 @@ main() {
     gen_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     sed "s/GENERATED_DATE/$gen_date/" "$new_output" > "${new_output}.dated" && mv "${new_output}.dated" "$new_output"
 
+    echo "Generating JSON inventory..." >&2
+    build_json_inventory "$items_file" "$reqs_file" > "$new_json"
+
     # Mode: --write overwrites, --check compares
     if [ "$mode" = "--write" ]; then
         cp "$new_output" "$output"
+        cp "$new_json" "$json_output"
         echo "Inventory written to $output ($item_count items, $req_count REQ tests)" >&2
-        rm -f "$items_file" "$reqs_file" "$new_output"
+        echo "JSON inventory written to $json_output" >&2
+        rm -f "$items_file" "$reqs_file" "$new_output" "$new_json"
         exit 0
     fi
 
     if [ ! -f "$output" ]; then
         echo "ERROR: Inventory file does not exist at $output" >&2
         echo "Run with --write to generate it first." >&2
-        rm -f "$items_file" "$reqs_file" "$new_output"
+        rm -f "$items_file" "$reqs_file" "$new_output" "$new_json"
         exit 1
     fi
 
@@ -624,17 +912,50 @@ main() {
     sed 's/\*\*Generated:\*\*.*//' "$output" > "$existing_stripped"
     sed 's/\*\*Generated:\*\*.*//' "$new_output" > "$new_stripped"
 
+    local md_ok=true json_ok=true
+
     if diff -q "$existing_stripped" "$new_stripped" > /dev/null 2>&1; then
-        echo "OK: Public seam inventory is current ($item_count items, $req_count REQ tests)" >&2
-        rm -f "$items_file" "$reqs_file" "$new_output" "$existing_stripped" "$new_stripped"
+        echo "OK: Public seam inventory (markdown) is current ($item_count items, $req_count REQ tests)" >&2
+    else
+        md_ok=false
+        echo "DRIFT: Public seam inventory (markdown) is out of date." >&2
+        echo "" >&2
+        echo "Markdown diff:" >&2
+        diff "$existing_stripped" "$new_stripped" >&2 || true
+    fi
+
+    # Check JSON drift — strip "generated" field before comparing
+    if [ -f "$json_output" ]; then
+        local existing_json_stripped new_json_stripped
+        existing_json_stripped=$(mktemp)
+        new_json_stripped=$(mktemp)
+        # Remove the "generated" line (timestamps change every run)
+        grep -v '"generated"' "$json_output" > "$existing_json_stripped" 2>/dev/null || true
+        grep -v '"generated"' "$new_json" > "$new_json_stripped" 2>/dev/null || true
+
+        if diff -q "$existing_json_stripped" "$new_json_stripped" > /dev/null 2>&1; then
+            echo "OK: Public seam inventory (JSON) is current" >&2
+        else
+            json_ok=false
+            echo "DRIFT: Public seam inventory (JSON) is out of date." >&2
+            echo "" >&2
+            echo "JSON diff:" >&2
+            diff "$existing_json_stripped" "$new_json_stripped" >&2 || true
+        fi
+        rm -f "$existing_json_stripped" "$new_json_stripped"
+    else
+        echo "WARNING: JSON inventory file does not exist at $json_output" >&2
+        echo "Run with --write to generate it." >&2
+        json_ok=false
+    fi
+
+    rm -f "$items_file" "$reqs_file" "$new_output" "$new_json" "$existing_stripped" "$new_stripped"
+
+    if $md_ok && $json_ok; then
         exit 0
     else
-        echo "DRIFT: Public seam inventory is out of date." >&2
-        echo "Run 'scripts/audit/public-seam-inventory.sh --write' to regenerate." >&2
         echo "" >&2
-        echo "Diff:" >&2
-        diff "$existing_stripped" "$new_stripped" >&2 || true
-        rm -f "$items_file" "$reqs_file" "$new_output" "$existing_stripped" "$new_stripped"
+        echo "Run 'scripts/audit/public-seam-inventory.sh --write' to regenerate." >&2
         exit 1
     fi
 }
