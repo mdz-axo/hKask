@@ -261,22 +261,34 @@ hKask will need composition when agents must apply multiple skills simultaneousl
 
 ### 4.1 Completed
 
-- [x] Training MCP server (8 tools)
+- [x] Training MCP server (14 tools — full skills training surface)
 - [x] Together AI provider integration (upload + fine-tune + deploy)
-- [x] Decomposition trace generation (`training_generate_traces`)
+- [x] Runpod provider integration (GPU pod dispatch for axolotl training)
+- [x] Decomposition trace generation (`training_generate_traces`) with model override + chunking
 - [x] constraint-forces skill adapter (v2, 100% accuracy)
 - [x] End-to-end pipeline proven (generate → upload → train → deploy → evaluate)
+- [x] `training_evaluate` — automated holdout evaluation (exact/contains/semantic)
+- [x] `training_register_adapter` — persistent adapter registry with versioning
+- [x] `training_recommend_model` — base model selection guidance
+- [x] `training_record_invocation` — episodic invocation recording for continuous loop
+- [x] `training_curate_feedback` — LLM-as-judge feedback curation from QA pairs
+- [x] `training_retrain` — merge + dedup + retrain with auto-incremented version
+- [x] Adapter registry: Versioned adapter store with metadata (skill, base model, version, evaluation scores, training date)
+- [x] Job persistence: `training_jobs` table survives server restarts
+- [x] Blob storage: Adapter weights stored for local providers (Axolotl/Unsloth)
+- [x] PID tracking: Real job cancellation for local providers (SIGTERM)
+- [x] Token-length validation in `training_submit`
+- [x] System prompt support in `training_assemble_dataset`
+- [x] Chunking for large skill documents in `training_generate_traces`
 
 ### 4.2 Near-Term (Next 2-4 Weeks)
 
 - [ ] **pragmatic-semantics adapter**: Classification-shaped (IS vs OUGHT, declarative vs probabilistic vs subjunctive). Similar structure to constraint-forces — easy to auto-evaluate.
-- [ ] **`training_evaluate` tool**: Automated holdout evaluation — split traces into train/test, run inference against trained adapter, score accuracy.
 - [ ] **Multi-skill evaluation harness**: Test adapter composition — can the model apply constraint-forces AND pragmatic-semantics in the same response?
 
 ### 4.3 Medium-Term (1-2 Months)
 
 - [ ] **Procedural skill adapters**: `essentialist` (3-gate deletion test), `diagnose` (spec-anchored debugging loop), `tdd` (red-green-refactor). These require more complex traces — multi-step procedures with branching.
-- [ ] **Adapter registry**: Versioned adapter store with metadata (skill, base model, evaluation scores, training date, trace count).
 - [ ] **Automatic adapter selection**: Inference router detects task type from user query and routes to appropriate adapter.
 
 ### 4.4 Long-Term (3-6 Months)
@@ -285,6 +297,17 @@ hKask will need composition when agents must apply multiple skills simultaneousl
 - [ ] **Adapter composition**: Merge or route between multiple adapters for cross-skill tasks (e.g., sovereignty audit requiring constraint-forces + pragmatic-semantics + magna-carta-verifier).
 - [ ] **Continual adaptation**: Generate training traces from agent experiences (CNS episodic memory) — adapters improve from real usage, not just static documents.
 - [ ] **Cross-model adapters**: Train adapters for different base models (Qwen3.5, DeepSeek, Llama 4) — skill portability across inference providers.
+- [ ] **`training_monitor_health`** (DEFERRED): Track adapter quality metrics over time (accuracy trend, alert correlation, confidence distribution). Deferred until we have sufficient active usage data to make trends meaningful.
+- [ ] **`training_ab_test`** (DEFERRED): Serve multiple adapter versions simultaneously, route fraction of traffic to each, compare outcomes. Deferred until we have multiple adapter versions in active use.
+
+### 4.5 Providers
+
+| Provider | Type | Status | Notes |
+|----------|------|--------|-------|
+| **Together AI** | Managed fine-tuning API | ✅ Production | Upload → train → deploy → infer. ~$0.005/LoRA run. Primary provider. |
+| **Runpod** | GPU pod dispatch | ✅ Implemented | Creates GPU pods from template, dispatches axolotl training. Requires `RUNPOD_API_KEY` + `RUNPOD_TEMPLATE_ID`. |
+| **Axolotl** | Local CLI | ✅ Production | YAML-config-driven. PID-tracked cancellation. |
+| **Unsloth** | Local Python | ✅ Production | Memory-efficient. PID-tracked cancellation. |
 
 ---
 
@@ -309,7 +332,14 @@ QA pairs train **what** to answer. Decomposition traces train **how** to think. 
 - **Serverless multi-LoRA**: Future path to serving multiple adapters without managing endpoints
 - **Pay-per-use**: No idle endpoint costs when not training
 
-### 5.4 Why Qwen3.5-9B?
+### 5.5 Why Runpod for GPU Dispatch?
+
+- **GPU flexibility**: Choose GPU type per job (RTX 4090, A100, etc.) via `RUNPOD_GPU_TYPE`
+- **Template-based**: Pre-built axolotl templates enable one-click training pod creation
+- **Complement to Together AI**: Use Runpod when you need specific GPU types, custom training configurations, or want to run axolotl/unsloth in the cloud instead of locally
+- **Pod lifecycle**: Pods are created on `submit`, terminated on `cancel`/completion — no idle costs
+
+### 5.6 Why Qwen3.5-9B?
 
 - **Apache 2.0 license**: No usage restrictions
 - **Broad provider support**: Unsloth, Axolotl, Together AI all support it
@@ -596,15 +626,15 @@ Trigger: training_curate_feedback when narrative count
 
 ### 7.4 Tool Development Roadmap for Continuous Training
 
-New tools needed to close the continuous training loop:
+Tools to close the continuous training loop:
 
-| Tool | Purpose | Priority |
-|------|---------|----------|
-| `training_record_invocation` | Record each adapter use as an episodic experience with CNS span correlation | High — enables all downstream curation |
-| `training_curate_feedback` | Query episodic memory for correction-worthy sessions, generate corrected traces, present for Curator review | High — bridges operation → training data |
-| `training_retrain` | Merge original + feedback traces, submit retraining job, evaluate against holdout, manage versioning | High — closes the loop |
-| `training_monitor_health` | Track adapter quality metrics over time (accuracy trend, alert correlation, confidence distribution) | Medium — informs retraining decisions |
-| `training_ab_test` | Serve multiple adapter versions simultaneously, route fraction of traffic to each, compare outcomes | Low — optimization, not essential for v1 |
+| Tool | Purpose | Status |
+|------|---------|--------|
+| `training_record_invocation` | Record each adapter use as an episodic experience with CNS span correlation | ✅ Built (2026-06) |
+| `training_curate_feedback` | Query semantic memory for QA pairs, validate with LLM-as-judge, generate corrected traces | ✅ Built (2026-06) |
+| `training_retrain` | Merge original + feedback traces, deduplicate, submit retraining job with incremented version | ✅ Built (2026-06) |
+| `training_monitor_health` | Track adapter quality metrics over time (accuracy trend, alert correlation, confidence distribution) | 🔵 Deferred — needs active usage data |
+| `training_ab_test` | Serve multiple adapter versions simultaneously, route fraction of traffic to each, compare outcomes | 🔵 Deferred — needs multiple active versions |
 
 ---
 

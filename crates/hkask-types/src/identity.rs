@@ -5,6 +5,7 @@
 
 use crate::WebID;
 use crate::id::UserID;
+use crate::wallet::WalletId;
 use serde::{Deserialize, Serialize};
 
 /// Loop: Cybernetics
@@ -51,6 +52,9 @@ pub struct ReplicantIdentity {
     pub replicant_name: String,
     pub user_id: UserID,
     pub replicant_webid: WebID,
+    /// Wallet ID for rJoule payments. Created during replicant registration.
+    /// Each replicant gets their own wallet for deposit/withdrawal isolation.
+    pub wallet_id: Option<WalletId>,
     pub first_name_enc: Vec<u8>,
     pub last_name_enc: Vec<u8>,
     pub persona_yaml: Option<String>,
@@ -75,6 +79,7 @@ impl ReplicantIdentity {
             replicant_webid: Self::derive_webid(&replicant_name),
             replicant_name,
             user_id,
+            wallet_id: None,
             first_name_enc,
             last_name_enc,
             persona_yaml: None,

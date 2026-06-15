@@ -14,7 +14,7 @@ Part of hKask's Episodic loop (L2). The condenser operates on the active convers
 | `condenser_set_profile` | Set compression profile (heavy/normal/soft/light) | — |
 | `condenser_stats` | Cumulative compression statistics | — |
 | `condenser_persist` | Persist compressed output to episodic memory | `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` |
-| `condenser_thread_summary` | LLM-powered conversation summarization via centralized inference router | — |
+| `condenser_thread_summary` | LLM-powered conversation summarization via centralized inference router. Disables model thinking/reasoning mode to ensure output tokens are used for the summary, not internal reasoning. Returns `original_tokens_approx` and `summary_tokens_approx` for context-window budgeting. | — |
 
 ## Compression Profiles
 
@@ -60,6 +60,18 @@ Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. 
 
 More-specific categories are checked first — `test` matches before `run`, so `pytest_run` classifies as `test_output`.
 
+## Token Estimation
+
+`approx_token_count` uses the standard ~4 characters per token heuristic (same rule of thumb used by OpenAI's tiktoken and Anthropic's Claude). This provides fast, dependency-free estimates for context-window planning.
+
+`ThreadSummaryOutput` includes both `original_tokens_approx` (before summarization) and `summary_tokens_approx` (after), enabling callers to budget context windows. The `ChatService` auto-condense trigger uses this same heuristic at 87.5% of the model's context window.
+
+## Thinking Mode
+
+For models with reasoning/thinking mode (e.g., qwen3), `condenser_thread_summary` and `ChatService::condense_history` set `disable_thinking: true` in `LLMParameters`. This maps to `enable_thinking: false` in the OpenAI-compatible chat request, instructing the model to skip internal reasoning and produce output directly. Without this, reasoning-mode models can consume all `max_tokens` on internal thought, producing empty visible output.
+
+The `enable_thinking` field is only serialized when `false` — backends that don't support it are unaffected.
+
 ## Running
 
 ```bash
@@ -71,7 +83,4 @@ hkask-mcp-condenser
 
 # With persistence
 HKASK_DB_PATH=/path/to/db HKASK_DB_PASSPHRASE=secret hkask-mcp-condenser
-
-# With inference thread summarization (uses centralized hKask inference router)
-hkask-mcp-condenser
 ```

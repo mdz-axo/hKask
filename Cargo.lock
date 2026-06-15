@@ -4419,7 +4419,6 @@ dependencies = [
  "tokio",
  "tonic",
  "tracing",
- "uuid",
  "zeroize",
 ]
 

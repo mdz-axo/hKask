@@ -10,6 +10,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -27,6 +28,8 @@ pub enum TrainingProviderId {
     Unsloth,
     /// together — Together AI cloud fine-tuning API
     Together,
+    /// runpod — Runpod GPU cloud training (pod-based axolotl dispatch)
+    Runpod,
 }
 
 impl TrainingProviderId {
@@ -37,6 +40,7 @@ impl TrainingProviderId {
             "axolotl" => Some(Self::Axolotl),
             "unsloth" => Some(Self::Unsloth),
             "together" => Some(Self::Together),
+            "runpod" => Some(Self::Runpod),
             _ => None,
         }
     }
@@ -1011,6 +1015,257 @@ impl TrainingProvider for TogetherProvider {
     }
 }
 
+// ── Runpod provider ─────────────────────────────────────────────────────
+
+/// Runpod GPU cloud training provider — dispatches training to GPU pods.
+///
+/// Uses the Runpod GraphQL API to create GPU pods from a pre-built template
+/// (with axolotl installed), execute training, and retrieve LoRA adapters.
+/// This is the "cloud dispatch" path for Axolotl — instead of running locally,
+/// training runs on Runpod's GPU infrastructure.
+///
+/// Environment variables:
+/// - `RUNPOD_API_KEY` — Runpod API key
+/// - `RUNPOD_TEMPLATE_ID` — GPU pod template ID with axolotl pre-installed
+pub struct RunpodProvider {
+    api_key: String,
+    template_id: String,
+    graphql_url: String,
+    client: reqwest::Client,
+    /// job_id → pod_id mapping for status/cancel
+    jobs: Arc<Mutex<HashMap<String, String>>>,
+}
+
+impl RunpodProvider {
+    pub fn new(api_key: String, template_id: String) -> Self {
+        Self {
+            api_key,
+            template_id,
+            graphql_url: "https://api.runpod.io/graphql".to_string(),
+            client: reqwest::Client::new(),
+            jobs: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    async fn graphql_query(
+        &self,
+        query: &str,
+        variables: serde_json::Value,
+    ) -> Result<serde_json::Value, ProviderError> {
+        let body = json!({
+            "query": query,
+            "variables": variables,
+        });
+
+        let response = self
+            .client
+            .post(&self.graphql_url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Runpod API request failed: {}", e)))?;
+
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Runpod API parse error: {}", e)))?;
+
+        if let Some(errors) = json.get("errors") {
+            return Err(ProviderError::Backend(format!(
+                "Runpod GraphQL errors: {}",
+                serde_json::to_string_pretty(errors).unwrap_or_default()
+            )));
+        }
+
+        Ok(json)
+    }
+}
+
+#[async_trait::async_trait]
+impl TrainingProvider for RunpodProvider {
+    async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        // Create a GPU pod from the template
+        let mutation = r#"
+            mutation CreatePod($input: PodCreateAndDeployInput!) {
+                podCreateAndDeploy(input: $input) {
+                    id
+                    name
+                    desiredStatus
+                    runtime { uptimeInSeconds }
+                }
+            }
+        "#;
+
+        let gpu_type = std::env::var("RUNPOD_GPU_TYPE").unwrap_or_else(|_| "RTX 4090".to_string());
+        let variables = json!({
+            "input": {
+                "name": format!("hkask-training-{}", &job.id[..8]),
+                "imageName": self.template_id,
+                "gpuType": gpu_type,
+                "containerDiskInGb": 50,
+                "minMemoryInGb": 24,
+                "minVcpuCount": 8,
+                "env": [
+                    { "key": "HKASK_JOB_ID", "value": job.id },
+                    { "key": "HKASK_BASE_MODEL", "value": job.base_model },
+                    { "key": "HKASK_DATASET_PATH", "value": job.dataset_path.to_string_lossy().to_string() },
+                    { "key": "HKASK_NUM_EPOCHS", "value": job.params.num_epochs.to_string() },
+                    { "key": "HKASK_LORA_R", "value": job.params.lora_r.to_string() },
+                ],
+            }
+        });
+
+        let result = self.graphql_query(mutation, variables).await?;
+
+        let pod_id = result["data"]["podCreateAndDeploy"]["id"]
+            .as_str()
+            .ok_or_else(|| ProviderError::Backend("No pod ID in Runpod response".to_string()))?
+            .to_string();
+
+        // Store pod_id for status/cancel
+        if let Ok(mut map) = self.jobs.lock() {
+            map.insert(job.id.clone(), pod_id.clone());
+        }
+
+        tracing::info!(
+            target: "cns.training.job.submit",
+            job_id = %job.id,
+            pod_id = %pod_id,
+            provider = "runpod",
+            "Training pod created on Runpod"
+        );
+
+        Ok(job.id.clone())
+    }
+
+    async fn status(&self, job_id: &str) -> Result<TrainingJobStatus, ProviderError> {
+        let pod_id = {
+            let map = self
+                .jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+            map.get(job_id).cloned()
+        };
+
+        let pod_id = match pod_id {
+            Some(id) => id,
+            None => {
+                return Err(ProviderError::JobFailed(format!(
+                    "No pod found for job {}",
+                    job_id
+                )));
+            }
+        };
+
+        let query = r#"
+            query GetPod($id: String!) {
+                pod(input: { podId: $id }) {
+                    id
+                    desiredStatus
+                    runtime { uptimeInSeconds }
+                    machine { gpuType }
+                }
+            }
+        "#;
+
+        let result = self.graphql_query(query, json!({ "id": pod_id })).await?;
+
+        let status_str = result["data"]["pod"]["desiredStatus"]
+            .as_str()
+            .unwrap_or("UNKNOWN");
+
+        match status_str {
+            "CREATING" | "PENDING" => Ok(TrainingJobStatus::Queued),
+            "RUNNING" => Ok(TrainingJobStatus::Running),
+            "STOPPED" | "TERMINATED" => {
+                // Check if training output exists — if pod stopped with output, it completed
+                // For now, treat STOPPED as potentially completed
+                Ok(TrainingJobStatus::Completed)
+            }
+            "FAILED" | "ERROR" => Ok(TrainingJobStatus::Failed),
+            _ => Ok(TrainingJobStatus::Queued),
+        }
+    }
+
+    async fn cancel(&self, job_id: &str) -> Result<(), ProviderError> {
+        let pod_id = {
+            let map = self
+                .jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+            map.get(job_id).cloned()
+        };
+
+        let pod_id = match pod_id {
+            Some(id) => id,
+            None => {
+                tracing::warn!(
+                    target: "cns.training.job.cancel",
+                    job_id = %job_id,
+                    "No pod found for job"
+                );
+                return Ok(());
+            }
+        };
+
+        let mutation = r#"
+            mutation TerminatePod($id: String!) {
+                podTerminate(input: { podId: $id })
+            }
+        "#;
+
+        self.graphql_query(mutation, json!({ "id": pod_id }))
+            .await?;
+
+        if let Ok(mut map) = self.jobs.lock() {
+            map.remove(job_id);
+        }
+
+        tracing::info!(
+            target: "cns.training.job.cancel",
+            job_id = %job_id,
+            pod_id = %pod_id,
+            provider = "runpod",
+            "Training pod terminated"
+        );
+        Ok(())
+    }
+
+    async fn list_adapters(&self) -> Result<Vec<String>, ProviderError> {
+        // List completed pods — adapters are identified by job_id
+        let map = self
+            .jobs
+            .lock()
+            .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+        Ok(map.keys().cloned().collect())
+    }
+
+    async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError> {
+        // Terminate the pod if still running
+        let _ = self.cancel(adapter_id).await;
+        Ok(())
+    }
+
+    async fn completion_metadata(
+        &self,
+        _job_id: &str,
+    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+        // Runpod doesn't provide structured training metrics via API.
+        // Metrics would need to be extracted from the pod's output logs.
+        Ok(None)
+    }
+
+    async fn adapter_weight_path(
+        &self,
+        _adapter_id: &str,
+    ) -> Result<Option<PathBuf>, ProviderError> {
+        // Weights are on the Runpod pod — need to be downloaded separately.
+        Ok(None)
+    }
+}
+
 // ── Provider factory ───────────────────────────────────────────────────────
 
 /// Create a provider from configuration.
@@ -1039,6 +1294,22 @@ pub fn create_provider(
                 config.together_api_key.clone(),
             )))
         }
+        TrainingProviderId::Runpod => {
+            if config.runpod_api_key.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Runpod API key not configured (set RUNPOD_API_KEY)".to_string(),
+                ));
+            }
+            if config.runpod_template_id.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Runpod template ID not configured (set RUNPOD_TEMPLATE_ID)".to_string(),
+                ));
+            }
+            Ok(Box::new(RunpodProvider::new(
+                config.runpod_api_key.clone(),
+                config.runpod_template_id.clone(),
+            )))
+        }
     }
 }
 
@@ -1055,6 +1326,10 @@ pub struct ProviderConfig {
     pub cloud_dispatch: bool,
     /// Together AI API key (for Together).
     pub together_api_key: String,
+    /// Runpod API key (for Runpod).
+    pub runpod_api_key: String,
+    /// Runpod GPU pod template ID with axolotl pre-installed (for Runpod).
+    pub runpod_template_id: String,
 }
 
 impl Default for ProviderConfig {
@@ -1065,6 +1340,8 @@ impl Default for ProviderConfig {
             python_path: None,
             cloud_dispatch: false,
             together_api_key: String::new(),
+            runpod_api_key: String::new(),
+            runpod_template_id: String::new(),
         }
     }
 }

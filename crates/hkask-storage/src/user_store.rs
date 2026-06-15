@@ -3,13 +3,14 @@
 use crate::Store;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
+use hkask_types::wallet::WalletId;
 use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession};
 use rand::RngCore;
 use rusqlite::params;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-const REPLICANT_COLUMNS: &str = "replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc, persona_yaml, is_primary, created_at, last_login";
+const REPLICANT_COLUMNS: &str = "replicant_name, user_id, replicant_webid, wallet_id, first_name_enc, last_name_enc, persona_yaml, is_primary, created_at, last_login";
 const SESSION_COLUMNS: &str = "session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active";
 
 #[derive(Error, Debug)]
@@ -46,12 +47,19 @@ fn replicant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ReplicantIden
         replicant_name: row.get(0)?,
         user_id: row.get(1)?,
         replicant_webid: row.get(2)?,
-        first_name_enc: row.get(3)?,
-        last_name_enc: row.get(4)?,
-        persona_yaml: row.get(5)?,
-        is_primary: row.get::<_, i64>(6)? != 0,
-        created_at: row.get(7)?,
-        last_login: row.get(8)?,
+        wallet_id: row
+            .get::<_, Option<String>>(3)?
+            .map(|s| {
+                use std::str::FromStr;
+                WalletId::from_str(&s).ok()
+            })
+            .flatten(),
+        first_name_enc: row.get(4)?,
+        last_name_enc: row.get(5)?,
+        persona_yaml: row.get(6)?,
+        is_primary: row.get::<_, i64>(7)? != 0,
+        created_at: row.get(8)?,
+        last_login: row.get(9)?,
     })
 }
 
@@ -73,6 +81,9 @@ impl UserStore {
         conn.execute_batch(include_str!("sql/users.sql"))?;
         // Migration: add passphrase_set_at if not present
         conn.execute_batch("ALTER TABLE human_users ADD COLUMN passphrase_set_at INTEGER;")
+            .ok(); // ignore error if column already exists
+        // Migration: add wallet_id if not present (multi-wallet support)
+        conn.execute_batch("ALTER TABLE replicant_identities ADD COLUMN wallet_id TEXT;")
             .ok(); // ignore error if column already exists
         Ok(())
     }
@@ -318,6 +329,27 @@ impl UserStore {
             "SELECT {REPLICANT_COLUMNS} FROM replicant_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC"
         ))?;
         Ok(collect_rows!(stmt, params![user_id], replicant_from_row))
+    }
+
+    /// Get the wallet ID for a replicant.
+    pub fn get_wallet_id(&self, replicant_name: &str) -> UserResult<Option<WalletId>> {
+        let identity = self
+            .get_replicant(replicant_name)?
+            .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
+        Ok(identity.wallet_id)
+    }
+
+    /// Set the wallet ID for a replicant (called during onboarding after wallet creation).
+    pub fn set_wallet_id(&self, replicant_name: &str, wallet_id: WalletId) -> UserResult<()> {
+        let conn = self.lock_conn()?;
+        let rows = conn.execute(
+            "UPDATE replicant_identities SET wallet_id = ?1 WHERE replicant_name = ?2",
+            params![wallet_id.to_string(), replicant_name],
+        )?;
+        if rows == 0 {
+            return Err(UserStoreError::NotFound(replicant_name.into()));
+        }
+        Ok(())
     }
 
     fn create_session(&self, identity: &ReplicantIdentity) -> UserResult<UserSession> {

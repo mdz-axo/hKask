@@ -27,8 +27,14 @@
 //!
 //! - `HKASK_MEMORY_DB` — Path to per-agent memory database for QA storage
 //! - `HKASK_DB_PASSPHRASE` — Passphrase for the database
-//! - `HKASK_TRAINING_PROVIDER` — Override training provider (axolotl|unsloth)
+//! - `HKASK_TRAINING_PROVIDER` — Override training provider (axolotl|unsloth|together|runpod)
 //! - `HKASK_TRAINING_CACHE_DIR` — Dataset cache directory
+//! - `TOGETHER_API_KEY` — Together AI API key (for Together provider)
+//! - `RUNPOD_API_KEY` — Runpod API key (for Runpod provider)
+//! - `RUNPOD_TEMPLATE_ID` — Runpod GPU pod template ID with axolotl pre-installed
+//! - `RUNPOD_GPU_TYPE` — GPU type for Runpod pods (default: "RTX 4090")
+//! - `HKASK_AXOLOTL_PATH` — Path to axolotl CLI (for Axolotl provider)
+//! - `HKASK_PYTHON_PATH` — Path to python3 interpreter (for Unsloth provider)
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
@@ -2194,6 +2200,8 @@ async fn main() -> anyhow::Result<()> {
         python_path: std::env::var("HKASK_PYTHON_PATH").ok().map(PathBuf::from),
         cloud_dispatch,
         together_api_key: std::env::var("TOGETHER_API_KEY").unwrap_or_default(),
+        runpod_api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
+        runpod_template_id: std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
     };
 
     let cache_dir = PathBuf::from(

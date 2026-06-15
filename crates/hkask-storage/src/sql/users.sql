@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS replicant_identities (
     replicant_name TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     replicant_webid TEXT UNIQUE NOT NULL,
+    wallet_id TEXT,
     first_name_enc BLOB NOT NULL,
     last_name_enc BLOB NOT NULL,
     persona_yaml TEXT,

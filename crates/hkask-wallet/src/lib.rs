@@ -1,31 +1,39 @@
-//! hKask Wallet — rJoule payments, Circle-backed USDC custody, API key issuance.
+//! hKask Wallet — rJoule payments, self-custody multi-chain deposits, API key issuance.
 //!
-//! # Architecture (post-cleanup)
+//! # Specialized sub-wallet `[OUGHT-DECL]`
+//! The hKask wallet is a specialized sub-wallet — one of several crypto wallets
+//! the user holds. It only does what hKask needs:
+//! - Receive deposits (USDC → rJoules)
+//! - Track rJoule balances
+//! - Issue API key capability tokens
+//! - Process withdrawals (rJoules → USDC)
 //!
-//! The wallet has two layers separated by the `ChainPort` trait boundary:
+//! The user's primary wallet (Phantom, HashPack, MetaMask) handles key storage,
+//! multi-chain asset management, and DeFi interactions.
 //!
-//! **Above the boundary (hKask-specific, always compiled):**
-//! - `manager.rs` — `WalletManager` orchestrates rJoule accounting, deposits, withdrawals
-//! - `issuer.rs` — `ApiKeyIssuer` generates Ed25519 OCAP capability tokens
-//! - `signing.rs` — Isolated security boundary for API key capability signing
-//! - `price_feed.rs` — `PriceFeed` trait + `StaticPriceFeed` for fee estimation
-//! - `chain.rs` — `ChainPort` trait (the plug boundary)
-//! - `privacy.rs` — `PrivacyPort` trait for shielded transfers
-//!
-//! **Below the boundary (pluggable chain ports):**
-//! - `circle.rs` — **Primary.** Circle Programmable Wallets REST API (default feature)
-//! - `hinkal.rs` — Privacy layer via Hinkal protocol (feature: `hinkal`)
-//!
-//! **Archived (reference only, not in default builds):**
-//! - `solana.rs` — Raw Solana JSON-RPC (feature: `archive-solana`)
-//! - `hedera.rs` — Hedera mirror node + gRPC (feature: `archive-hedera`)
+//! # Self-custody `[OUGHT-DECL]` (P1 — User Sovereignty)
+//! hKask derives treasury keys from the user's master key via HKDF. No third
+//! party holds the keys. No custodial service. The user controls their funds
+//! at all times. Chain ports (`solana.rs`, `hedera.rs`) interact directly with
+//! blockchain RPC endpoints — no intermediary API.
 //!
 //! # Security `[OUGHT-DECL]`
 //! - `signing.rs` — isolated security boundary for all key operations
 //! - Per-operation key loading: keys derived via HKDF, used, zeroized immediately
-//! - No long-lived treasury key material (Circle manages chain-level keys)
+//! - No long-lived treasury key material
 //! - API key private keys returned to user once, never stored by hKask
 //! - `Zeroizing` wrappers on all secret key material
+//!
+//! # Crate Map
+//! - `chain.rs` — `ChainPort` trait + `DepositEvent`
+//! - `privacy.rs` — `PrivacyPort` trait + `ShieldedTransfer`
+//! - `signing.rs` — Isolated signing module (security boundary)
+//! - `manager.rs` — `WalletManager` + deposit reference logic
+//! - `issuer.rs` — `ApiKeyIssuer` + `ApiKeyMaterial`
+//! - `price_feed.rs` — `PriceFeed` trait + fee estimation
+//! - `solana.rs` — `SolanaPort` (feature-gated: "solana")
+//! - `hedera.rs` — `HederaPort` (feature-gated: "hedera")
+//! - `hinkal.rs` — `HinkalPort` (feature-gated: "hinkal")
 
 pub mod chain;
 pub mod issuer;
@@ -34,20 +42,14 @@ pub mod price_feed;
 pub mod privacy;
 pub mod signing;
 
-// Primary chain port (default feature)
-#[cfg(feature = "circle")]
-pub mod circle;
-
-// Privacy layer (separate concern)
-#[cfg(feature = "hinkal")]
-pub mod hinkal;
-
-// Archived — reference implementations, not in default builds
-#[cfg(feature = "archive-solana")]
+#[cfg(feature = "solana")]
 pub mod solana;
 
-#[cfg(feature = "archive-hedera")]
+#[cfg(feature = "hedera")]
 pub mod hedera;
+
+#[cfg(feature = "hinkal")]
+pub mod hinkal;
 
 pub use chain::{ChainPort, DepositEvent};
 pub use issuer::{ApiKeyIssuer, ApiKeyMaterial};

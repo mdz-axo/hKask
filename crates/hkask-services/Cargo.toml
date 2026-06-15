@@ -44,3 +44,9 @@ parking_lot = "0.12"
 [dev-dependencies]
 tempfile.workspace = true
 trybuild = "1"
+
+[features]
+# Pass-through to hkask-wallet for chain port selection
+solana = ["hkask-wallet/solana"]
+hedera = ["hkask-wallet/hedera"]
+hinkal = ["hkask-wallet/hinkal"]

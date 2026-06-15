@@ -3,7 +3,7 @@ name = "hkask-wallet"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "rJoule wallet — Circle-backed USDC custody, API key issuance, Hinkal privacy integration"
+description = "rJoule wallet — self-custody multi-chain deposits, API key issuance, Hinkal privacy integration"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
@@ -24,32 +24,24 @@ hmac.workspace = true
 sha2.workspace = true
 tracing.workspace = true
 
-# Circle — Programmable Wallets REST API (primary chain port)
-reqwest = { version = "0.12", optional = true, default-features = false, features = ["rustls-tls", "json"] }
-uuid = { workspace = true, optional = true }
-
-# Archived chain ports — reference implementations, not used in production.
-# Kept for documentation and offline testing. Remove once Circle is validated.
-# Solana: raw JSON-RPC via reqwest (no openssl)
+# Chain SDKs — feature-gated to keep default build lightweight
+# Solana: solana-sdk (types) + reqwest (rustls) for raw JSON-RPC
+# solana-client is NOT used — it depends on openssl via solana-tls-utils
 solana-sdk = { version = "2", optional = true }
 spl-token = { version = "6", optional = true }
 spl-associated-token-account = { version = "6", optional = true }
 bincode = { version = "1", optional = true }
-# Hedera: mirror node REST + gRPC via hiero-sdk-proto + tonic (no openssl)
+# Hedera — mirror node REST API + gRPC via hiero-sdk-proto + tonic (rustls, no openssl)
+reqwest = { version = "0.12", optional = true, default-features = false, features = ["rustls-tls", "json"] }
 hiero-sdk-proto = { version = "0.22", optional = true }
 tonic = { version = "0.12", optional = true, default-features = false, features = ["transport", "codegen", "prost"] }
 prost = { version = "0.13", optional = true }
 
 [features]
-default = ["circle"]
-# Primary chain port — Circle Programmable Wallets API (production)
-circle = ["dep:reqwest", "dep:uuid"]
-# Privacy layer — Hinkal shielded transactions (separate concern)
+default = []
+solana = ["dep:solana-sdk", "dep:spl-token", "dep:spl-associated-token-account", "dep:bincode", "dep:reqwest"]
+hedera = ["dep:reqwest", "dep:hiero-sdk-proto", "dep:tonic", "dep:prost"]
 hinkal = ["dep:reqwest"]
-# Archived — Solana raw RPC (reference only, not production)
-archive-solana = ["dep:solana-sdk", "dep:spl-token", "dep:spl-associated-token-account", "dep:bincode", "dep:reqwest"]
-# Archived — Hedera mirror node + gRPC (reference only, not production)
-archive-hedera = ["dep:reqwest", "dep:hiero-sdk-proto", "dep:tonic", "dep:prost"]
 
 [dev-dependencies]
 hkask-storage = { path = "../hkask-storage" }

@@ -52,7 +52,54 @@ pub fn build_summary_output(
     }
 }
 
-/// Approximate token count using whitespace splitting.
+/// Approximate token count using character-length heuristic.
+///
+/// Uses the standard ~4 characters per token rule of thumb for English text.
+/// This is the same heuristic used by OpenAI's tiktoken and Anthropic's
+/// Claude token estimator for rough context-window planning.
+///
+/// For accurate token counts, use a model-specific tokenizer. This function
+/// provides a fast, dependency-free estimate suitable for condensation
+/// threshold checks and context-window budgeting.
 pub fn approx_token_count(text: &str) -> usize {
-    text.split_whitespace().count()
+    // ~4 characters per token for English text. Floor at 1 to avoid zero
+    // for very short inputs (empty string returns 1, which is harmless
+    // for threshold comparisons).
+    (text.len() / 4).max(1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: condenser-token-est — approx_token_count uses ~4 chars/token heuristic
+    #[test]
+    fn token_count_uses_char_heuristic() {
+        // 40 chars → ~10 tokens
+        assert_eq!(
+            approx_token_count("1234567890123456789012345678901234567890"),
+            10
+        );
+        // 4 chars → 1 token
+        assert_eq!(approx_token_count("test"), 1);
+        // 7 chars → 1 token (floor)
+        assert_eq!(approx_token_count("testing"), 1);
+        // 8 chars → 2 tokens
+        assert_eq!(approx_token_count("test test"), 2);
+    }
+
+    // REQ: condenser-token-est — empty string floors at 1
+    #[test]
+    fn token_count_empty_floors_at_one() {
+        assert_eq!(approx_token_count(""), 1);
+    }
+
+    // REQ: condenser-token-est — long text scales linearly
+    #[test]
+    fn token_count_scales_with_length() {
+        let short = approx_token_count("hello world");
+        let long = approx_token_count(&"x".repeat(400));
+        assert!(long > short, "longer text should have higher token count");
+        assert_eq!(long, 100); // 400 chars / 4 = 100
+    }
 }

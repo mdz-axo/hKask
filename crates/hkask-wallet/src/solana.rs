@@ -1,21 +1,8 @@
 //! SolanaPort — SPL USDC deposit monitoring and withdrawal on Solana.
 //!
-//! # ⚠ ARCHIVED — Use `circle.rs` instead
-//!
-//! This module is a reference implementation of raw Solana JSON-RPC interaction.
-//! It is NOT used in production. The primary chain port is `CirclePort` in
-//! `circle.rs`, which delegates custody and signing to Circle's API.
-//!
-//! Kept for:
-//! - Documentation of the SPL token transfer flow
-//! - Offline testing without external API dependencies
-//! - Reference for future ChainPort implementations
-//!
-//! To compile: `cargo build --features archive-solana`
-//!
 //! # Feature gate
-//! This module is only compiled when the `archive-solana` feature is enabled.
-//! Default builds do NOT include Solana SDK dependencies.
+//! This module is only compiled when the `solana` feature is enabled.
+//! Default builds have zero Solana SDK dependencies.
 //!
 //! # Dependency constraint `[IS-DECL]`
 //! `solana-client` depends on openssl via `solana-tls-utils` (forbidden by hKask).
@@ -529,7 +516,7 @@ impl ChainPort for SolanaPort {
 //   HKASK_MASTER_KEY=<32-byte hex seed>
 
 #[cfg(test)]
-#[cfg(feature = "archive-solana")]
+#[cfg(feature = "solana")]
 mod integration_tests {
     use super::*;
     use crate::signing;

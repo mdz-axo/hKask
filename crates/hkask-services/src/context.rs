@@ -52,7 +52,6 @@ use hkask_types::ports::InferencePort;
 use hkask_types::ports::git_cas::GitCASPort;
 use hkask_types::wallet::ChainId;
 use hkask_types::wallet::WalletId;
-use hkask_wallet::circle::CirclePort;
 use hkask_wallet::{ApiKeyIssuer, WalletManager};
 use std::collections::HashMap;
 
@@ -978,48 +977,74 @@ impl AgentService {
             let wallet_store = Arc::new(WalletStore::new(wallet_conn));
 
             // Build chain ports from environment
+            #[allow(unused_mut)]
             let mut chains: HashMap<ChainId, Box<dyn hkask_wallet::ChainPort>> = HashMap::new();
 
-            // Circle — primary chain port (production)
-            if let Ok(api_key) = std::env::var("CIRCLE_API_KEY")
-                && let Ok(wallet_id) = std::env::var("CIRCLE_TREASURY_WALLET_ID")
+            // Solana — self-custody via raw JSON-RPC (P1: user holds keys)
+            #[cfg(feature = "solana")]
+            if let Ok(rpc_url) = std::env::var("SOLANA_RPC_URL")
+                && let Ok(treasury_pubkey) = std::env::var("SOLANA_TREASURY_PUBKEY")
             {
-                let blockchain =
-                    std::env::var("CIRCLE_BLOCKCHAIN").unwrap_or_else(|_| "SOL".to_string());
-                let sandbox = std::env::var("CIRCLE_SANDBOX")
-                    .map(|v| v == "1" || v == "true")
-                    .unwrap_or(false);
-
-                match CirclePort::new(
-                    &api_key,
-                    &wallet_id,
-                    &blockchain,
-                    ChainId::Solana, // default; override via CIRCLE_BLOCKCHAIN
-                    sandbox,
-                )
-                .await
-                {
+                match hkask_wallet::solana::SolanaPort::new(
+                    &rpc_url,
+                    &treasury_pubkey,
+                    None, // default USDC mint
+                ) {
                     Ok(port) => {
                         tracing::info!(
                             target: "cns.wallet.chain",
-                            blockchain = %blockchain,
-                            sandbox = sandbox,
-                            "CirclePort initialized — Circle-backed USDC custody"
+                            chain = "solana",
+                            rpc_url = %rpc_url,
+                            "SolanaPort initialized — self-custody via JSON-RPC"
                         );
                         chains.insert(ChainId::Solana, Box::new(port));
                     }
                     Err(e) => {
                         tracing::warn!(
                             target: "cns.wallet.chain",
+                            chain = "solana",
                             error = %e,
-                            "Failed to initialize CirclePort — wallet will be read-only"
+                            "Failed to initialize SolanaPort"
                         );
                     }
                 }
-            } else {
+            }
+
+            // Hedera — self-custody via mirror node + gRPC (P1: user holds keys)
+            #[cfg(feature = "hedera")]
+            if let Ok(treasury_account) = std::env::var("HEDERA_TREASURY_ACCOUNT") {
+                let mirror_url = std::env::var("HEDERA_MIRROR_NODE_URL")
+                    .unwrap_or_else(|_| "https://mainnet-public.mirrornode.hedera.com".to_string());
+                match hkask_wallet::hedera::HederaPort::new(
+                    &mirror_url,
+                    &treasury_account,
+                    None,                           // default USDC token
+                    "https://35.232.244.145:50211", // mainnet consensus node
+                ) {
+                    Ok(port) => {
+                        tracing::info!(
+                            target: "cns.wallet.chain",
+                            chain = "hedera",
+                            mirror_url = %mirror_url,
+                            "HederaPort initialized — self-custody via mirror node + gRPC"
+                        );
+                        chains.insert(ChainId::Hedera, Box::new(port));
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "cns.wallet.chain",
+                            chain = "hedera",
+                            error = %e,
+                            "Failed to initialize HederaPort"
+                        );
+                    }
+                }
+            }
+
+            if chains.is_empty() {
                 tracing::info!(
                     target: "cns.wallet.chain",
-                    "CIRCLE_API_KEY not set — wallet running without chain ports (read-only mode)"
+                    "No chain ports configured — wallet running in read-only mode. Set SOLANA_RPC_URL + SOLANA_TREASURY_PUBKEY or HEDERA_TREASURY_ACCOUNT to enable deposits/withdrawals."
                 );
             }
 
@@ -1057,6 +1082,34 @@ impl AgentService {
                     source: Some(Box::new(e)),
                     message: "Failed to ensure default wallet".into(),
                 })?;
+
+            // Bind default wallet to the system replicant (multi-wallet foundation)
+            {
+                let user_guard = user_store.lock().map_err(|_| {
+                    ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
+                        hkask_types::InfrastructureError::LockPoisoned,
+                    ))
+                })?;
+                // Set wallet_id on the agent's replicant identity if it exists
+                let agent_name = config.agent_name.clone();
+                if let Ok(Some(_identity)) = user_guard.get_replicant(&agent_name) {
+                    if let Err(e) = user_guard.set_wallet_id(&agent_name, default_wallet) {
+                        tracing::warn!(
+                            target: "cns.wallet",
+                            replicant = %agent_name,
+                            error = %e,
+                            "Failed to bind wallet to replicant"
+                        );
+                    } else {
+                        tracing::info!(
+                            target: "cns.wallet",
+                            replicant = %agent_name,
+                            wallet_id = %default_wallet,
+                            "Wallet bound to replicant"
+                        );
+                    }
+                }
+            }
 
             // Spawn deposit monitor as background task
             let monitor_manager = Arc::clone(&wallet_manager);

@@ -1,22 +1,8 @@
 //! HederaPort — HTS USDC deposit monitoring and withdrawal on Hedera.
 //!
-//! # ⚠ ARCHIVED — Use `circle.rs` instead
-//!
-//! This module is a reference implementation of Hedera mirror node REST API
-//! and gRPC transaction submission. It is NOT used in production. The primary
-//! chain port is `CirclePort` in `circle.rs`, which delegates custody and
-//! signing to Circle's API.
-//!
-//! Kept for:
-//! - Documentation of the HTS token transfer flow
-//! - Reference for protobuf transaction construction
-//! - Reference for future ChainPort implementations
-//!
-//! To compile: `cargo build --features archive-hedera`
-//!
 //! # Feature gate
-//! This module is only compiled when the `archive-hedera` feature is enabled.
-//! Default builds do NOT include Hedera SDK dependencies.
+//! This module is only compiled when the `hedera` feature is enabled.
+//! Default builds have zero Hedera dependencies.
 //!
 //! # SDK constraint `[IS-DECL]`
 //! The `hiero-sdk` crate (v0.45.0) depends on `openssl`, which is forbidden
