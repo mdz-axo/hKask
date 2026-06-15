@@ -19,11 +19,11 @@
 //! HTTP client or inference URL configuration is needed — the router handles
 //! provider dispatch (Ollama, Fireworks, DeepInfra) automatically.
 
+use hkask_condenser::engine::CondenserEngine;
+use hkask_condenser::inference;
+use hkask_condenser::types::*;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard};
-use hkask_mcp_condenser::engine::CondenserEngine;
-use hkask_mcp_condenser::inference;
-use hkask_mcp_condenser::types::*;
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Database, Triple};
 use hkask_types::ports::InferencePort;
@@ -170,7 +170,10 @@ impl CondenserServer {
             Some(c) => match c.parse::<ContextCategory>() {
                 Ok(cat) => Some(cat),
                 Err(e) => {
-                    return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(e).to_json_string(),
+                    );
                 }
             },
             None => None,
@@ -204,7 +207,12 @@ impl CondenserServer {
         let span = ToolSpanGuard::new("condenser_set_profile", &self.webid);
         let p = match profile.parse::<Profile>() {
             Ok(p) => p,
-            Err(e) => return span.error(McpErrorKind::InvalidArgument, e.to_json_string()),
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
         };
         let mut engine = match self.engine.lock() {
             Ok(guard) => guard,

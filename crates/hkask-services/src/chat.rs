@@ -799,10 +799,10 @@ impl ChatService {
         let old_half = &episodes[..midpoint];
         let recent_half = &episodes[midpoint..];
 
-        let recent_text = hkask_mcp_condenser::inference::format_conversation_text(recent_half);
-        let old_text = hkask_mcp_condenser::inference::format_conversation_text(old_half);
+        let recent_text = hkask_condenser::inference::format_conversation_text(recent_half);
+        let old_text = hkask_condenser::inference::format_conversation_text(old_half);
         let summary_prompt =
-            hkask_mcp_condenser::inference::build_summarization_prompt(&old_text, &req.input);
+            hkask_condenser::inference::build_summarization_prompt(&old_text, &req.input);
 
         let full_prompt = format!("{CONDENSER_SYSTEM_PROMPT}\n\nUser: {summary_prompt}");
 
@@ -899,7 +899,7 @@ impl ChatService {
             && let Some(window) = req.context_window
         {
             let threshold = (window as f64 * 0.875) as usize;
-            if hkask_mcp_condenser::inference::approx_token_count(&input_with_context) > threshold
+            if hkask_condenser::inference::approx_token_count(&input_with_context) > threshold
                 && let Some(condensed) = Self::condense_history(ctx, req, &token, &base_input).await
             {
                 input_with_context = condensed;

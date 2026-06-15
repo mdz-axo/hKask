@@ -304,13 +304,13 @@ if let Some(x) = value && x > 0 {
 
 ```bash
 # Debian/Ubuntu
-sudo apt-get install build-essential pkg-config libssl-dev libsqlite3-dev
+sudo apt-get install build-essential pkg-config libssl-dev libsqlite3-dev libdbus-1-dev
 
 # Fedora/RHEL
-sudo dnf install gcc pkg-config openssl-devel sqlite-devel
+sudo dnf install gcc pkg-config openssl-devel sqlite-devel dbus-devel
 
 # Arch
-sudo pacman -S base-devel pkg-config openssl sqlite
+sudo pacman -S base-devel pkg-config openssl sqlite dbus
 ```
 
 **Error: Out of disk space during build**

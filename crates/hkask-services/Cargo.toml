@@ -18,7 +18,7 @@ hkask-wallet = { path = "../hkask-wallet" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-communication = { path = "../hkask-communication" }
 hkask-improv = { path = "../hkask-improv" }
-hkask-mcp-condenser = { path = "../../mcp-servers/hkask-mcp-condenser" }
+hkask-condenser = { path = "../hkask-condenser" }
 thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true

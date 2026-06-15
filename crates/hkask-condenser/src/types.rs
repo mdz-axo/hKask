@@ -1,6 +1,8 @@
-//! hKask MCP Condenser — Request and domain types
+//! hKask Condenser — Domain types
+//!
+//! Pure domain types with no MCP dependencies. Error types use `String`
+//! for `FromStr` impls; MCP servers wrap these at the boundary.
 
-use hkask_mcp::server::McpToolError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -88,16 +90,16 @@ impl Profile {
 }
 
 impl std::str::FromStr for Profile {
-    type Err = McpToolError;
+    type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "heavy" => Ok(Profile::Heavy),
             "normal" => Ok(Profile::Normal),
             "soft" => Ok(Profile::Soft),
             "light" => Ok(Profile::Light),
-            _ => Err(McpToolError::invalid_argument(format!(
+            _ => Err(format!(
                 "Unknown profile '{s}'. Use: heavy, normal, soft, light"
-            ))),
+            )),
         }
     }
 }
@@ -143,7 +145,7 @@ impl ContextCategory {
 }
 
 impl std::str::FromStr for ContextCategory {
-    type Err = McpToolError;
+    type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "shell_command" => Ok(ContextCategory::ShellCommand),

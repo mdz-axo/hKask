@@ -3,13 +3,10 @@ name = "hkask-mcp-condenser"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Context condensation MCP server — compress tool outputs, manage profiles, classify categories, summarize thread history"
-
-[lib]
-name = "hkask_mcp_condenser"
-path = "src/lib.rs"
+description = "Context condensation MCP server — thin wrapper around hkask-condenser domain crate"
 
 [dependencies]
+hkask-condenser = { path = "../../crates/hkask-condenser" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-memory = { path = "../../crates/hkask-memory" }

@@ -3797,6 +3797,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-condenser"
+version = "0.27.0"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hkask-improv"
 version = "0.27.0"
 dependencies = [
@@ -3922,6 +3931,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "dotenvy",
+ "hkask-condenser",
  "hkask-inference",
  "hkask-mcp",
  "hkask-memory",
@@ -4146,11 +4156,11 @@ dependencies = [
  "hkask-agents",
  "hkask-cns",
  "hkask-communication",
+ "hkask-condenser",
  "hkask-improv",
  "hkask-inference",
  "hkask-keystore",
  "hkask-mcp",
- "hkask-mcp-condenser",
  "hkask-memory",
  "hkask-storage",
  "hkask-templates",
