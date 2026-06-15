@@ -185,7 +185,7 @@ pub(crate) async fn metacognition_status(
     let queue = state.agent_service.escalation_queue();
     let stats = queue
         .stats()
-        .map_err(|e| ApiError::from(hkask_services::ServiceError::Escalation(e)))?;
+        ?;
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,
         pending: stats.pending,

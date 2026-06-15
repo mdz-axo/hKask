@@ -18,7 +18,7 @@ use axum::http::StatusCode;
 use hkask_types::ports::RegistryIndex;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
+use crate::error::{ApiError, ServiceErrorResponse};
 use crate::ApiState;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -98,12 +98,12 @@ pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<Te
 pub(crate) async fn get_template(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<TemplateResponse>, ApiError> {
+) -> Result<Json<TemplateResponse>, ServiceErrorResponse> {
     let registry = state.agent_service.registry().lock().await;
 
     let entry = registry
         .get(&id)
-        .map_err(|e| ApiError::from(hkask_services::ServiceError::Registry(e)))?;
+        ?;
 
     Ok(Json(TemplateResponse {
         id: entry.id.clone(),
@@ -119,7 +119,7 @@ pub(crate) async fn get_template(
 async fn register_template(
     State(state): State<ApiState>,
     Json(_req): Json<TemplateResponse>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<StatusCode, ServiceErrorResponse> {
     use axum::http::StatusCode;
 
     let _registry = state.agent_service.registry().lock().await;

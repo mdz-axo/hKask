@@ -110,8 +110,7 @@ pub fn save_backup_config(config: &BackupConfig) -> Result<(), std::io::Error> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_string_pretty(config)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    let json = serde_json::to_string_pretty(config).map_err(|e| std::io::Error::other(e))?;
     std::fs::write(&path, json)
 }
 

@@ -60,11 +60,10 @@ impl DatasetFormat {
             }
             "json" => {
                 // Single JSON array of Alpaca objects.
-                if let Ok(content) = std::fs::read_to_string(path) {
-                    if content.contains("\"instruction\"") && content.contains("\"output\"") {
+                if let Ok(content) = std::fs::read_to_string(path)
+                    && content.contains("\"instruction\"") && content.contains("\"output\"") {
                         return Some(Self::Alpaca);
                     }
-                }
                 None
             }
             "txt" => Some(Self::RawText),

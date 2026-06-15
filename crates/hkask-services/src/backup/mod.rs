@@ -22,9 +22,11 @@ pub mod serialization;
 
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::Instant;
 
 use chrono::Utc;
 use hkask_types::ports::git_cas::{CommitHash, GitCASPort, GitCasError, LogEntry, RepoId};
+use tracing::{info, instrument, warn};
 
 use config::BackupConfig;
 use metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
@@ -103,14 +105,14 @@ impl BackupService {
     /// deterministic blob, stores via `put_blob`, then commits via `snapshot`.
     /// The commit DAG IS the changelog — each commit records what changed.
     ///
-    /// Currently snapshots are **manual only** — the caller provides artifact
-    /// data directly. Auto-snapshot on mutation (F4) will be wired when the
-    /// daemon's MutationEvent emission is implemented.
+    /// CNS span: `backup.snapshot` — records artifact_count, repos, duration_ms.
+    #[instrument(skip(self, artifacts), fields(artifact_count, repo_count))]
     pub async fn snapshot(
         &self,
         scope: BackupScope,
         artifacts: &[(ArtifactType, String, Vec<u8>)],
     ) -> Result<SnapshotMetadata, BackupError> {
+        let start = Instant::now();
         // Validate: all artifact types in scope must be tracked
         self.validate_scope(&scope)?;
 
@@ -150,6 +152,17 @@ impl BackupService {
             let commit_hash = self.cas.snapshot(repo_id, &message).await?;
             commits.push((repo_id.clone(), commit_hash));
         }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        tracing::Span::current().record("artifact_count", artifact_count);
+        tracing::Span::current().record("repo_count", by_repo.len());
+        info!(
+            target: "hkask.backup",
+            artifact_count = artifact_count,
+            repo_count = by_repo.len(),
+            duration_ms = duration_ms,
+            "Snapshot complete"
+        );
 
         Ok(SnapshotMetadata {
             commits,
@@ -200,10 +213,10 @@ impl BackupService {
                     })?;
 
                 // If scoped to specific IDs, filter
-                if let RestoreScope::ByIds { ref ids, .. } = scope {
-                    if !ids.contains(&envelope.artifact_id) {
-                        continue;
-                    }
+                if let RestoreScope::ByIds { ref ids, .. } = scope
+                    && !ids.contains(&envelope.artifact_id)
+                {
+                    continue;
                 }
 
                 restored.push((artifact_type, envelope.artifact_id, blob));
@@ -313,17 +326,54 @@ impl BackupService {
     /// 5. Verify integrity of all tracked repositories.
     ///
     /// Delegates to [`GitCASPort::verify`] for each tracked repo.
-    /// Returns the combined verification report. CNS alerting for
-    /// integrity failures is handled by the caller (daemon).
+    /// Returns the combined verification report.
+    ///
+    /// CNS span: `backup.verify` — records total_blobs, corrupt_count per repo.
+    /// CNS alert: `backup.integrity_failure` if any repo has corrupt blobs.
+    #[instrument(skip(self), fields(repo_count, total_blobs, corrupt_count))]
     pub async fn verify(
         &self,
     ) -> Result<Vec<hkask_types::ports::git_cas::VerificationReport>, BackupError> {
         let repos = self.tracked_repos();
         let mut reports = Vec::new();
+        let mut total_blobs = 0usize;
+        let mut corrupt_count = 0usize;
 
         for repo_id in &repos {
             let report = self.cas.verify(repo_id).await?;
+            total_blobs += report.total_blobs;
+            corrupt_count += report.corrupt_hashes.len();
+            if !report.corrupt_hashes.is_empty() {
+                warn!(
+                    target: "hkask.backup",
+                    repo = %repo_id.dir_name(),
+                    corrupt = report.corrupt_hashes.len(),
+                    total = report.total_blobs,
+                    "BACKUP INTEGRITY FAILURE — corrupt blobs detected"
+                );
+            }
             reports.push(report);
+        }
+
+        tracing::Span::current().record("repo_count", repos.len());
+        tracing::Span::current().record("total_blobs", total_blobs);
+        tracing::Span::current().record("corrupt_count", corrupt_count);
+
+        if corrupt_count > 0 {
+            warn!(
+                target: "hkask.backup",
+                repo_count = repos.len(),
+                total_blobs = total_blobs,
+                corrupt_count = corrupt_count,
+                "Backup integrity verification found corruption"
+            );
+        } else {
+            info!(
+                target: "hkask.backup",
+                repo_count = repos.len(),
+                total_blobs = total_blobs,
+                "Backup integrity verification passed"
+            );
         }
 
         Ok(reports)

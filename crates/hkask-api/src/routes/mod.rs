@@ -1,6 +1,7 @@
 //! HTTP routes — per-domain modules
 
 pub(crate) mod acp;
+pub(crate) mod backup;
 pub(crate) mod bots;
 pub(crate) mod bundles;
 pub(crate) mod chat;
@@ -21,6 +22,7 @@ pub(crate) mod wallet;
 
 // Re-export router functions
 pub use acp::acp_router;
+pub use backup::backup_router;
 pub use bots::bots_router;
 pub use bundles::bundles_router;
 pub use chat::chat_router;

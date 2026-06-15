@@ -1,4 +1,4 @@
-//! Replicant registration and authentication — call user store directly.
+//! Replicant registration and authentication — delegates to AgentService.
 
 use std::sync::{Arc, Mutex};
 
@@ -9,6 +9,12 @@ use hkask_types::{RegistrationRequest, ReplicantIdentity, UserID, UserSession};
 use zeroize::Zeroizing;
 
 type Store = Arc<Mutex<UserStore>>;
+
+fn build_store() -> Store {
+    crate::commands::helpers::build_service_context()
+        .user_store()
+        .clone()
+}
 
 /// Unwrap an I/O result or print the error and exit.
 /// Used for interactive stdin/stdout operations where failure is terminal.
@@ -151,19 +157,6 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
         .ok_or_else(|| ServiceError::UserNotFound(format!("Session '{}'", session_id)))?;
     store.lock().unwrap().logout(session_id)?;
     Ok(session)
-}
-
-fn build_store() -> Store {
-    let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
-        eprintln!("Failed to resolve config: {e}");
-        std::process::exit(1);
-    });
-    let db =
-        hkask_storage::Database::open(&config.db_path, &config.db_passphrase).unwrap_or_else(|e| {
-            eprintln!("Failed to open DB: {e}");
-            std::process::exit(1);
-        });
-    Arc::new(Mutex::new(UserStore::new(db.conn_arc())))
 }
 
 /// Register a new replicant identity (interactive)

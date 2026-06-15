@@ -7,6 +7,8 @@
 //! - `training_cancel` — Cancel a running job
 //! - `training_list_adapters` — List completed LoRA adapters
 //! - `training_delete_adapter` — Remove a LoRA adapter
+//! - `training_assemble_dataset` — Assemble stored QA pairs into a ChatML JSONL dataset file
+//! - `training_generate_traces` — Generate decomposition traces from skill documents
 //!
 //! Architecture:
 //!   Dataset → DatasetPipeline (ingest/normalize/validate/cache)

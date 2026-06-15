@@ -1,20 +1,16 @@
 //! Style corpus embedding command — thin CLI orchestrator
 
 use hkask_services::{CliExperienceRecorder, EmbedProgress, EmbedService};
-use hkask_storage::user_store::UserStore;
 
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// Authenticate a replicant and resolve the agent-specific DB path.
 /// Returns (db_path, db_passphrase) after successful login.
 fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, String), String> {
-    let config = hkask_services::ServiceConfig::from_env()
-        .map_err(|e| format!("Failed to resolve config: {e}"))?;
-    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| format!("Failed to open system DB: {e}"))?;
-    let store = Arc::new(Mutex::new(UserStore::new(db.conn_arc())));
+    let ctx = crate::commands::helpers::build_service_context();
+    let store = ctx.user_store();
 
     // Authenticate
     let session = store

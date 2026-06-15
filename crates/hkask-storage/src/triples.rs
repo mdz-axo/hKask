@@ -134,6 +134,20 @@ impl TripleStore {
         ))
     }
 
+    /// Query all triples with a given attribute, regardless of entity.
+    pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, TripleError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {TRIPLE_COLUMNS} FROM triples WHERE attribute = ?1 AND valid_to IS NULL ORDER BY valid_from DESC"
+        ))?;
+        Ok(collect_rows!(
+            stmt,
+            rusqlite::params![attribute],
+            Self::row_to_triple_row,
+            Self::row_to_triple
+        ))
+    }
+
     /// Update a triple's value (close current version, insert new).
     /// Wrapped in a transaction for atomicity.
     pub fn update(

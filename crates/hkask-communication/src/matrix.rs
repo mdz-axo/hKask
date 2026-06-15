@@ -206,7 +206,7 @@ impl MatrixTransport {
                 let sender = parsed
                     .get("sender")
                     .and_then(|s| s.as_str())
-                    .map(|s| UserId::new(s))
+                    .map(UserId::new)
                     .unwrap_or_else(|| UserId::new("unknown"));
                 let body = parsed
                     .get("content")

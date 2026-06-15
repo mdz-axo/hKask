@@ -1,12 +1,14 @@
 //! hKask MCP Training — Model training data ingestion and fine-tuning server.
 //!
-//! Starts an MCP server over stdio exposing 6 tools:
+//! Starts an MCP server over stdio exposing 8 tools:
 //! - `training_ingest_qa` — Ingest QA pairs for future model fine-tuning
 //! - `training_submit` — Submit a training job for execution
 //! - `training_status` — Query training job status
 //! - `training_cancel` — Cancel a running or queued job
 //! - `training_list_adapters` — List completed LoRA adapters
 //! - `training_delete_adapter` — Remove a LoRA adapter
+//! - `training_assemble_dataset` — Assemble stored QA pairs into a ChatML JSONL dataset file
+//! - `training_generate_traces` — Generate decomposition traces from skill documents
 //!
 //! Architecture:
 //!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingProvider → LoRAAdapter
@@ -22,6 +24,7 @@
 //! - `HKASK_TRAINING_PROVIDER` — Override training provider (axolotl|unsloth)
 //! - `HKASK_TRAINING_CACHE_DIR` — Dataset cache directory
 
+use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_mcp_training::adapters::{AdapterStore, InMemoryAdapterStore};
@@ -32,7 +35,8 @@ use hkask_mcp_training::providers::{
 };
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
-use hkask_types::{McpErrorKind, Visibility, WebID};
+use hkask_types::ports::InferencePort;
+use hkask_types::{LLMParameters, McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -91,6 +95,52 @@ pub struct TrainDeleteAdapterRequest {
     pub adapter_id: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AssembleDatasetRequest {
+    /// Training dataset name to filter by (matches QA pairs ingested with this dataset).
+    #[serde(default)]
+    pub dataset: Option<String>,
+    /// Source identifier to filter by.
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Bloom level to filter by (e.g., "remembering", "applying").
+    #[serde(default)]
+    pub bloom_level: Option<String>,
+    /// Path to write the assembled ChatML JSONL file.
+    pub output_path: String,
+    /// Fraction of examples to reserve for training (default 1.0 = all train, no test split).
+    /// Set to 0.8 for an 80/20 train/test split. Test file is written to {output_path}.test.jsonl.
+    #[serde(default)]
+    pub train_split: Option<f64>,
+    /// Maximum number of examples to include (default: all matching).
+    #[serde(default)]
+    pub max_examples: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GenerateTracesRequest {
+    /// Path to the skill document (SKILL.md) or inline text describing the process.
+    pub skill_document: String,
+    /// Name of the skill for output tracking.
+    pub skill_name: String,
+    /// Number of decomposition traces to generate (default 50).
+    #[serde(default)]
+    pub num_traces: Option<usize>,
+    /// Bloom taxonomy levels to target (e.g., ["applying", "analyzing"]).
+    /// Default: all levels.
+    #[serde(default)]
+    pub bloom_levels: Option<Vec<String>>,
+    /// Path to write the generated ChatML JSONL file.
+    pub output_path: String,
+    /// Optional system prompt to prepend to each trace (sets agent persona/context).
+    #[serde(default)]
+    pub system_prompt: Option<String>,
+    /// Model to use for trace generation (provider-prefixed, e.g., "DI/meta-llama/Llama-3.3-70B-Instruct").
+    /// Defaults to the server's configured default model.
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
 // ── Server ───────────────────────────────────────────────────────────────
 
 pub struct TrainingServer {
@@ -101,6 +151,7 @@ pub struct TrainingServer {
     provider: Box<dyn TrainingProvider>,
     pipeline: Mutex<DatasetPipeline>,
     adapter_store: Arc<dyn AdapterStore>,
+    inference_config: InferenceConfig,
 }
 
 impl TrainingServer {
@@ -112,6 +163,7 @@ impl TrainingServer {
         provider: Box<dyn TrainingProvider>,
         pipeline: DatasetPipeline,
         adapter_store: Arc<dyn AdapterStore>,
+        inference_config: InferenceConfig,
     ) -> Self {
         Self {
             webid,
@@ -121,6 +173,7 @@ impl TrainingServer {
             provider,
             pipeline: Mutex::new(pipeline),
             adapter_store,
+            inference_config,
         }
     }
 
@@ -422,6 +475,330 @@ impl TrainingServer {
         }
     }
 
+    #[tool(
+        description = "Assemble stored QA pairs into a ChatML JSONL training dataset file. Queries semantic memory for training_qa_pair triples, filters by dataset/source/bloom level, and writes a file ready for training_submit. Optionally splits into train/test."
+    )]
+    async fn training_assemble_dataset(
+        &self,
+        Parameters(AssembleDatasetRequest {
+            dataset,
+            source,
+            bloom_level,
+            output_path,
+            train_split,
+            max_examples,
+        }): Parameters<AssembleDatasetRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_assemble_dataset", &self.webid);
+
+        let Some(semantic) = &self.semantic else {
+            return span.error(
+                McpErrorKind::PermissionDenied,
+                McpToolError::permission_denied(
+                    "Semantic memory not available — set HKASK_MEMORY_DB and HKASK_DB_PASSPHRASE",
+                )
+                .to_json_string(),
+            );
+        };
+
+        let triples = match semantic.query_by_attribute("training_qa_pair") {
+            Ok(t) => t,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to query QA triples: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        if triples.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "No training_qa_pair triples found in semantic memory. Ingest QA pairs first with training_ingest_qa.",
+                )
+                .to_json_string(),
+            );
+        }
+
+        // Parse and filter QA pairs
+        let mut conversations: Vec<serde_json::Value> = Vec::new();
+        for triple in &triples {
+            let value = &triple.value;
+            let q_ds = value.get("dataset").and_then(|v| v.as_str()).unwrap_or("");
+            let q_source = value.get("source").and_then(|v| v.as_str()).unwrap_or("");
+            let q_bloom = value
+                .get("bloom_level")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+
+            // Apply filters
+            if let Some(ref ds) = dataset {
+                if q_ds != ds.as_str() {
+                    continue;
+                }
+            }
+            if let Some(ref src) = source {
+                if q_source != src.as_str() {
+                    continue;
+                }
+            }
+            if let Some(ref bl) = bloom_level {
+                if q_bloom != bl.as_str() {
+                    continue;
+                }
+            }
+
+            let question = value.get("question").and_then(|v| v.as_str()).unwrap_or("");
+            let answer = value.get("answer").and_then(|v| v.as_str()).unwrap_or("");
+
+            if question.is_empty() || answer.is_empty() {
+                continue;
+            }
+
+            conversations.push(json!({
+                "messages": [
+                    {"role": "user", "content": question},
+                    {"role": "assistant", "content": answer}
+                ]
+            }));
+        }
+
+        if conversations.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("No QA pairs matched the given filters.")
+                    .to_json_string(),
+            );
+        }
+
+        let total = conversations.len();
+        let limit = max_examples.unwrap_or(total).min(total);
+        conversations.truncate(limit);
+
+        let train_count = if let Some(split) = train_split {
+            let split = split.clamp(0.0, 1.0);
+            (limit as f64 * split) as usize
+        } else {
+            limit
+        };
+
+        // Write training file
+        let write_jsonl =
+            |path: &str, items: &[serde_json::Value]| -> Result<usize, std::io::Error> {
+                let mut output = String::new();
+                for item in items {
+                    output.push_str(&serde_json::to_string(item).unwrap());
+                    output.push('\n');
+                }
+                std::fs::write(path, output)?;
+                Ok(items.len())
+            };
+
+        let train_items = &conversations[..train_count];
+        match write_jsonl(&output_path, train_items) {
+            Ok(n) => {
+                let mut result = json!({
+                    "train_examples": n,
+                    "train_path": output_path,
+                    "total_matched": total,
+                });
+
+                // Write test split if requested
+                if train_count < limit {
+                    let test_path = format!("{}.test.jsonl", output_path);
+                    let test_items = &conversations[train_count..];
+                    match write_jsonl(&test_path, test_items) {
+                        Ok(m) => {
+                            result["test_examples"] = json!(m);
+                            result["test_path"] = json!(test_path);
+                        }
+                        Err(e) => {
+                            result["test_write_error"] = json!(e.to_string());
+                        }
+                    }
+                }
+
+                self.record_experience(
+                    "training_assemble_dataset",
+                    &output_path,
+                    "success",
+                    result.clone(),
+                );
+                span.ok_json(result)
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to write dataset file: {}", e))
+                    .to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Generate decomposition traces from a skill document for LoRA fine-tuning. Uses the inference engine to produce varied scenario→decomposition→synthesis training examples in ChatML format. Each trace shows the process of transforming an ill-formed situation into answerable sub-questions."
+    )]
+    async fn training_generate_traces(
+        &self,
+        Parameters(GenerateTracesRequest {
+            skill_document,
+            skill_name,
+            num_traces,
+            bloom_levels,
+            output_path,
+            system_prompt,
+            model: _model,
+        }): Parameters<GenerateTracesRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_generate_traces", &self.webid);
+
+        let count = num_traces.unwrap_or(50);
+        if count == 0 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("num_traces must be > 0").to_json_string(),
+            );
+        }
+
+        // Read skill document from file or use inline text
+        let skill_text = if let Ok(content) = std::fs::read_to_string(&skill_document) {
+            content
+        } else {
+            skill_document.clone()
+        };
+
+        let levels_str = bloom_levels
+            .as_ref()
+            .map(|l| l.join(", "))
+            .unwrap_or_else(|| {
+                "remembering, understanding, applying, analyzing, evaluating, creating".to_string()
+            });
+
+        let sys = system_prompt
+            .unwrap_or_else(|| format!("You are an hKask agent trained in the {skill_name} skill. Apply it precisely and thoroughly."));
+
+        let prompt = format!(
+            "You are generating training data for fine-tuning an AI agent on the '{skill_name}' skill.\n\n\
+             SKILL DOCUMENT:\n{skill_text}\n\n\
+             Generate {count} training examples in ChatML JSONL format. \
+             Each example must be a DECOMPOSITION TRACE: an ill-formed situation that requires \
+             the skill's process to transform it into answerable sub-questions, then synthesize a resolution.\n\n\
+             STRUCTURE OF EACH TRACE:\n\
+             1. SITUATION: Present an ill-formed problem/scenario that triggers the skill.\n\
+             2. DECOMPOSITION: Walk through the skill's process step by step, showing how each \
+                step narrows the situation into specific, answerable sub-questions.\n\
+             3. SYNTHESIS: Answer the sub-questions and resolve the original situation.\n\n\
+             TARGET BLOOM LEVELS: {levels_str}\n\n\
+             VARY ACROSS:\n\
+             - Difficulty: novice (obvious application) to expert (subtle tradeoffs, conflicting principles)\n\
+             - Scenario types: direct application, violation detection, decision justification, \
+               error recovery, multi-turn dialogue\n\
+             - Context richness: minimal (snippet only) to rich (full context with distractors)\n\n\
+             OUTPUT FORMAT: Valid JSONL with one JSON object per line. Each object must have \
+             a 'messages' array with system, user, and assistant roles:\n\
+             {{\"messages\": [\
+               {{\"role\": \"system\", \"content\": \"{sys}\"}},\n\
+               {{\"role\": \"user\", \"content\": \"<the situation>\"}},\n\
+               {{\"role\": \"assistant\", \"content\": \"<the decomposition trace + synthesis>\"}}\n\
+             ]}}\n\n\
+             Output ONLY the JSONL, no preamble or explanation."
+        );
+
+        let router = InferenceRouter::new(self.inference_config.clone());
+        let params = LLMParameters {
+            temperature: 0.7,
+            max_tokens: 4096,
+            ..Default::default()
+        };
+
+        match router.generate(&prompt, &params).await {
+            Ok(response) => {
+                // Strip markdown code fences if present
+                let cleaned = response
+                    .text
+                    .trim()
+                    .trim_start_matches("```jsonl")
+                    .trim_start_matches("```json")
+                    .trim_start_matches("```")
+                    .trim_end_matches("```")
+                    .trim();
+
+                // Validate each line is parseable JSON with messages array
+                let mut valid_count = 0;
+                let mut parse_errors = 0;
+                for (i, line) in cleaned.lines().enumerate() {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    match serde_json::from_str::<serde_json::Value>(trimmed) {
+                        Ok(v) if v.get("messages").is_some() => {
+                            valid_count += 1;
+                        }
+                        Ok(_) => {
+                            parse_errors += 1;
+                            tracing::warn!(
+                                target: "cns.training.trace",
+                                line = i + 1,
+                                "Trace missing 'messages' field"
+                            );
+                        }
+                        Err(e) => {
+                            parse_errors += 1;
+                            tracing::warn!(
+                                target: "cns.training.trace",
+                                line = i + 1,
+                                error = %e,
+                                "Failed to parse trace line"
+                            );
+                        }
+                    }
+                }
+
+                if valid_count == 0 {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(
+                            "Inference returned no valid ChatML traces. The model may not have understood the format.",
+                        )
+                        .to_json_string(),
+                    );
+                }
+
+                // Write valid traces to output file
+                match std::fs::write(&output_path, cleaned) {
+                    Ok(()) => {
+                        let result = json!({
+                            "skill_name": skill_name,
+                            "traces_requested": count,
+                            "traces_generated": valid_count,
+                            "parse_errors": parse_errors,
+                            "output_path": output_path,
+                            "tokens_used": response.usage.total_tokens,
+                        });
+                        self.record_experience(
+                            "training_generate_traces",
+                            &skill_name,
+                            "success",
+                            result.clone(),
+                        );
+                        span.ok_json(result)
+                    }
+                    Err(e) => span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Failed to write traces file: {}", e))
+                            .to_json_string(),
+                    ),
+                }
+            }
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(format!("Inference failed: {}", e)).to_json_string(),
+            ),
+        }
+    }
+
     fn provider_id(&self) -> TrainingProviderId {
         // The provider doesn't expose its ID — derive from type name heuristics.
         // A proper implementation would store the ID on the server struct.
@@ -500,6 +877,8 @@ async fn main() -> anyhow::Result<()> {
             let provider = create_provider(&provider_config)
                 .map_err(|e| anyhow::anyhow!("Failed to create training provider: {}", e))?;
 
+            let inference_config = InferenceConfig::from_env();
+
             Ok(TrainingServer::new(
                 ctx.webid,
                 replicant.clone(),
@@ -508,6 +887,7 @@ async fn main() -> anyhow::Result<()> {
                 provider,
                 pipeline.clone(),
                 Arc::clone(&adapter_store),
+                inference_config,
             ))
         },
         vec![

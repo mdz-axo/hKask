@@ -1,12 +1,12 @@
-//! Agent registration and bot listing — call ACP and store directly.
+//! Agent registration and bot listing — delegates to AgentService.
+//!
+//! All domain operations (ACP, store) come from AgentService.
+//! No direct Database::open(), AcpRuntime::new(), or AgentRegistryStore::new().
 
 use std::str::FromStr;
-use std::sync::Arc;
 
 use crate::block_on;
 use crate::cli::BotAction;
-use hkask_agents::AgentRegistryLoader;
-use hkask_agents::adapters::FilesystemRegistrySource;
 use hkask_services::ServiceError;
 use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 
@@ -17,23 +17,12 @@ pub struct AgentReceipt {
     pub registered_at: String,
 }
 
-async fn build_loader() -> Result<AgentRegistryLoader, ServiceError> {
-    let config = hkask_services::ServiceConfig::from_env()?;
-    let acp = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
-    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| ServiceError::AgentRegistrationFailed(e.to_string()))?;
-    let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
-    Ok(AgentRegistryLoader::new(
-        config.registry_yaml_path,
-        acp,
-        store,
-        Arc::new(FilesystemRegistrySource::new()),
-    ))
-}
-
 pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>, ServiceError> {
-    let loader = build_loader().await?;
-    let agents = loader.boot().await?;
+    let ctx = crate::commands::helpers::build_service_context();
+    let agents = ctx
+        .agent_registry_store()
+        .list()
+        .map_err(ServiceError::from)?;
     Ok(match kind_filter.and_then(AgentKind::parse) {
         Some(kind) => agents
             .into_iter()
@@ -44,12 +33,10 @@ pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>,
 }
 
 pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
-    let loader = build_loader().await?;
-    let agents = loader.boot().await?;
-    agents
-        .into_iter()
-        .find(|a| a.definition.name == name)
-        .ok_or_else(|| ServiceError::AgentNotFound(name.to_string()))
+    let ctx = crate::commands::helpers::build_service_context();
+    ctx.agent_registry_store()
+        .get(name)
+        .map_err(ServiceError::from)
 }
 
 pub async fn agent_register(
@@ -57,11 +44,11 @@ pub async fn agent_register(
     agent_type: &str,
     capabilities: Vec<String>,
 ) -> Result<AgentReceipt, ServiceError> {
-    let config = hkask_services::ServiceConfig::from_env()?;
+    let ctx = crate::commands::helpers::build_service_context();
     let webid = WebID::from_str(webid_str)?;
     let kind = AgentKind::parse(agent_type)
         .ok_or_else(|| ServiceError::InvalidAgentType(agent_type.to_string()))?;
-    let acp = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
+    let (_, acp) = ctx.identity();
     let token = acp.register_agent(webid, kind, capabilities).await?;
     let def = AgentDefinition {
         name: webid_str.to_string(),
@@ -82,10 +69,9 @@ pub async fn agent_register(
         registered_at: hkask_types::now_rfc3339(),
         source_yaml: "cli-register".to_string(),
     };
-    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| ServiceError::AgentRegistrationFailed(e.to_string()))?;
-    let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
-    store.insert(&reg)?;
+    ctx.agent_registry_store()
+        .insert(&reg)
+        .map_err(ServiceError::from)?;
     Ok(AgentReceipt {
         webid: webid_str.to_string(),
         token_hash: token.signature,
@@ -94,12 +80,10 @@ pub async fn agent_register(
 }
 
 pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
-    let config = hkask_services::ServiceConfig::from_env()?;
-    let db = hkask_storage::Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| ServiceError::AgentRegistrationFailed(e.to_string()))?;
-    let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
-    store.remove(name)?;
-    Ok(())
+    let ctx = crate::commands::helpers::build_service_context();
+    ctx.agent_registry_store()
+        .remove(name)
+        .map_err(ServiceError::from)
 }
 
 pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {

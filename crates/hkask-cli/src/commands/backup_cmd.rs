@@ -6,9 +6,7 @@
 use std::sync::Arc;
 
 use hkask_services::backup::config::RetentionPolicy;
-use hkask_services::{
-    ArtifactType, BackupConfig, BackupScope, BackupService, ListFilter, RestoreScope,
-};
+use hkask_services::{ArtifactType, BackupScope, BackupService, ListFilter, RestoreScope};
 use hkask_types::ports::git_cas::GitCASPort;
 
 use crate::block_on;
@@ -250,7 +248,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
                     config.auto_snapshot = false;
                 }
 
-                block_on!(rt, svc.update_config(config), "Config update failed");
+                svc.update_config(config)
+                    .map_err(|e| {
+                        eprintln!("Config update failed: {}", e);
+                        std::process::exit(1);
+                    })
+                    .ok();
                 println!("Backup configuration updated.");
             }
         },

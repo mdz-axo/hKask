@@ -27,6 +27,7 @@ pub enum TrainingProviderId {
 
 impl TrainingProviderId {
     /// Parse from a config string (case-insensitive).
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "axolotl" => Some(Self::Axolotl),

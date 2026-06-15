@@ -143,6 +143,11 @@ pub struct AgentService {
     /// Daemon handler — bridges Unix socket queries to PodManager and UserStore.
     daemon_handler: Arc<crate::daemon_handler::ServiceDaemonHandler>,
 
+    /// Matrix transport for agent-to-agent and human-to-agent communication.
+    /// Owned by the daemon, shared with REPL, pod activation, and MCP wrapper.
+    /// Wrapped in Mutex because login/reconnect take &mut self.
+    matrix_transport: Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>>,
+
     /// Configuration used to build this context.
     config: ServiceConfig,
 }
@@ -285,6 +290,16 @@ impl AgentService {
     /// Access daemon handler for MCP binary communication.
     pub fn daemon_handler(&self) -> &Arc<crate::daemon_handler::ServiceDaemonHandler> {
         &self.daemon_handler
+    }
+
+    /// Access the shared Matrix transport, if connected.
+    ///
+    /// Returns `None` if Matrix is not configured or Conduit is unreachable.
+    /// The transport is wrapped in a Mutex because `login`/`reconnect` take `&mut self`.
+    pub fn matrix_transport(
+        &self,
+    ) -> Option<&Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
+        self.matrix_transport.as_ref()
     }
 
     /// Build per-agent memory infrastructure from an agent-scoped Database.
@@ -680,6 +695,89 @@ impl AgentService {
             }
         });
 
+        // ── 8c. Matrix transport + 7R7 listener ────────────────────────────
+        // Resolve Matrix credentials from keychain (stored during onboarding
+        // or bootstrap), create transport, login, and start the passive 7R7
+        // listener. Non-blocking: if Conduit isn't running, the daemon
+        // continues without Matrix and the transport remains None.
+        let matrix_transport: Option<
+            Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>,
+        > = {
+            let homeserver_url = std::env::var("HKASK_MATRIX_URL")
+                .unwrap_or_else(|_| "http://localhost:8008".to_string());
+
+            let keychain = hkask_keystore::Keychain::default();
+
+            // Resolve credentials: curator bot → replicant → env vars
+            let credentials = {
+                // 1. Try matrix-bot-curator (system bot account from bootstrap)
+                if let Ok(password) = keychain.retrieve_by_key("matrix-bot-curator") {
+                    Some(("@hkask-curator:localhost".to_string(), password))
+                }
+                // 2. Fall back to replicant account (from onboarding)
+                else if let (Ok(username), Ok(password)) = (
+                    keychain.retrieve_by_key("matrix-replicant-username"),
+                    keychain.retrieve_by_key("matrix-replicant-password"),
+                ) {
+                    Some((username, password))
+                }
+                // 3. Fall back to environment variables (backward compat)
+                else if let (Ok(username), Ok(password)) = (
+                    std::env::var("HKASK_MATRIX_AGENT_USERNAME"),
+                    std::env::var("HKASK_MATRIX_AGENT_PASSWORD"),
+                ) {
+                    Some((username, password))
+                } else {
+                    None
+                }
+            };
+
+            match credentials {
+                Some((username, password)) => {
+                    let mut transport =
+                        hkask_communication::matrix::MatrixTransport::new(&homeserver_url);
+                    match transport.login(&username, &password).await {
+                        Ok(()) => {
+                            let transport = Arc::new(tokio::sync::Mutex::new(transport));
+
+                            // Start 7R7 passive listener — polls rooms, emits CNS spans.
+                            // Does NOT classify, escalate, or moderate.
+                            let listener = hkask_communication::listener::SevenR7Listener::new(
+                                transport.clone(),
+                                30, // poll every 30 seconds
+                            );
+                            listener.start().await;
+
+                            tracing::info!(
+                                target: "cns.communication.matrix.daemon",
+                                username = %username,
+                                homeserver = %homeserver_url,
+                                "Matrix transport connected and 7R7 listener started"
+                            );
+
+                            Some(transport)
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "cns.communication.matrix.daemon",
+                                username = %username,
+                                error = %e,
+                                "Matrix login failed — Conduit may not be running. Continuing without Matrix."
+                            );
+                            None
+                        }
+                    }
+                }
+                None => {
+                    tracing::info!(
+                        target: "cns.communication.matrix.daemon",
+                        "No Matrix credentials found in keychain or environment. Continuing without Matrix."
+                    );
+                    None
+                }
+            }
+        };
+
         // ── 9. Registry ─────────────────────────────────────────────────────
         let registry = Arc::new(tokio::sync::Mutex::new(
             SqliteRegistry::new_with_conn(primary_conn.clone()).map_err(ServiceError::Template)?,
@@ -742,6 +840,7 @@ impl AgentService {
             agent_registry_store,
             user_store,
             daemon_handler,
+            matrix_transport,
             config,
         })
     }

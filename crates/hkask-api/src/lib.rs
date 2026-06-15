@@ -182,6 +182,7 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
             .merge(routes::episodic_router())
             .merge(routes::consolidation_router())
             .merge(routes::git_router())
+            .merge(routes::backup_router())
             .merge(routes::goal_router())
             .merge(routes::settings_router())
             .merge(routes::wallet_router())
@@ -217,6 +218,7 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
         .merge(routes::episodic_router())
         .merge(routes::consolidation_router())
         .merge(routes::git_router())
+        .merge(routes::backup_router())
         .merge(routes::goal_router())
         .merge(routes::settings_router())
         .merge(routes::wallet_router());

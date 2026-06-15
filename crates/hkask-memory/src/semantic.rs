@@ -108,6 +108,11 @@ impl SemanticMemory {
         Ok(self.triple_store.count_semantic_by_entity(entity)?)
     }
 
+    /// Query all triples with a given attribute.
+    pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
+        Ok(self.triple_store.query_by_attribute(attribute)?)
+    }
+
     // Embedding operations (Loop 2b) — similarity-augmented recall
 
     /// Store an embedding vector for a semantic triple.

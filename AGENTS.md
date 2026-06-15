@@ -98,7 +98,7 @@ The `--shred` flag securely deletes the plaintext .env file after loading.
 | `hkask-api` | HTTP API (utoipa) |
 | `hkask-mcp-media` | Media MCP server (image, video, audio, voice, collage) — 36 tools |
 | `hkask-mcp-docproc` | Unified document processing MCP server (convert, OCR, chunk, triples, embed, QA, cache, query) — 9 tools |
-| `hkask-mcp-training` | Model training data ingestion MCP server (QA ingest, LoRA fine-tuning, adapter management) — 6 tools |
+| `hkask-mcp-training` | Model training data ingestion MCP server (QA ingest, LoRA fine-tuning, adapter management, dataset assembly, trace generation) — 8 tools |
 | `hkask-mcp-research` | Web search, extraction, browsing, RSS feed research — 17 tools |
 | `hkask-mcp-replica` | Authorial style embedding and composition — 8 tools |
 | `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) + portfolio tracking — 27 tools |
@@ -107,7 +107,7 @@ The `--shred` flag securely deletes the plaintext .env file after loading.
 | `hkask-mcp-spec` | Specification authoring MCP server (goal capture, decompose, writing quality, graph coherence, replica rewrite) — 6 tools |
 | `hkask-mcp-communication` | Agent communication MCP server (TTS, Matrix chat, threads, agent tagging) — thin wrapper over `hkask-communication` core crate — 9 tools |
 
-**10 MCP servers (141 tools):** memory (16), condenser (7), research (17), spec (6), companies (27), communication (9), media (36), replica (8), docproc (9), training (6)
+**10 MCP servers (143 tools):** memory (16), condenser (7), research (17), spec (6), companies (27), communication (9), media (36), replica (8), docproc (9), training (8)
 **Internal cognition:** inference (hkask-inference — Ollama, Fireworks, DeepInfra, fal.ai), CNS, OCAP, keystore, registry, git (CAS), goals (direct crate calls, not MCP), daemon (Unix socket at ~/.config/hkask/daemon.sock)
 **External:** Ollama, Fireworks.ai, DeepInfra, fal.ai, ACP (acp-runtime), MCP (rmcp)
 

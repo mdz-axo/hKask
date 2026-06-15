@@ -373,7 +373,13 @@ impl OnboardingService {
             .store_by_key("matrix-human-username", &human_id)
             .map_err(|e| ServiceError::Keystore(e.to_string()))?;
         keychain
+            .store_by_key("matrix-human-password", passphrase)
+            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+        keychain
             .store_by_key("matrix-replicant-username", &replicant_id)
+            .map_err(|e| ServiceError::Keystore(e.to_string()))?;
+        keychain
+            .store_by_key("matrix-replicant-password", passphrase)
             .map_err(|e| ServiceError::Keystore(e.to_string()))?;
 
         tracing::info!(

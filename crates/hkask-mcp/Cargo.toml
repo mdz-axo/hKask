@@ -26,6 +26,7 @@ reqwest.workspace = true
 hex.workspace = true
 async-trait.workspace = true
 dirs = "6"
+gix = { workspace = true }
 
 [dev-dependencies]
 tempfile.workspace = true

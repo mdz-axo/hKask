@@ -155,6 +155,12 @@ impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
     }
 }
 
+impl From<hkask_types::ports::RegistryError> for ServiceErrorResponse {
+    fn from(e: hkask_types::ports::RegistryError) -> Self {
+        ServiceErrorResponse(hkask_services::ServiceError::Registry(e))
+    }
+}
+
 // ── Service layer adapter ────────────────────────────────────────────
 
 impl From<hkask_services::ServiceError> for ApiError {

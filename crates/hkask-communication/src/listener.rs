@@ -12,7 +12,7 @@
 
 use crate::matrix::MatrixTransport;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 // ── 7R7 Listener ───────────────────────────────────────────────────────────
 
@@ -21,8 +21,8 @@ use tokio::sync::RwLock;
 /// This is a passive observer. It does not classify, escalate, or moderate.
 /// Content decisions are made by the agent layer (Curator + skills + templates).
 pub struct SevenR7Listener {
-    /// Matrix transport for polling.
-    matrix: Arc<MatrixTransport>,
+    /// Matrix transport for polling (Mutex-wrapped for shared &mut access).
+    matrix: Arc<Mutex<MatrixTransport>>,
     /// Polling interval in seconds.
     poll_interval_secs: u64,
     /// Whether the listener is active.
@@ -31,7 +31,7 @@ pub struct SevenR7Listener {
 
 impl SevenR7Listener {
     /// Create a new 7R7 listener.
-    pub fn new(matrix: Arc<MatrixTransport>, poll_interval_secs: u64) -> Self {
+    pub fn new(matrix: Arc<Mutex<MatrixTransport>>, poll_interval_secs: u64) -> Self {
         Self {
             matrix,
             poll_interval_secs,
@@ -61,22 +61,26 @@ impl SevenR7Listener {
                 timer.tick().await;
 
                 // List known rooms
-                let rooms = match matrix.list_rooms().await {
-                    Ok(r) => r,
-                    Err(e) => {
-                        tracing::warn!(
-                            target: "cns.communication.listener",
-                            error = %e,
-                            "7R7 failed to list rooms"
-                        );
-                        continue;
+                let rooms = {
+                    let transport = matrix.lock().await;
+                    match transport.list_rooms().await {
+                        Ok(r) => r,
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "cns.communication.listener",
+                                error = %e,
+                                "7R7 failed to list rooms"
+                            );
+                            continue;
+                        }
                     }
                 };
 
                 // Poll each room for recent messages
                 for room in &rooms {
                     let room_id = room.room_id.as_str();
-                    match matrix.get_messages(&room.room_id, 10).await {
+                    let transport = matrix.lock().await;
+                    match transport.get_messages(&room.room_id, 10).await {
                         Ok(messages) => {
                             for msg in &messages {
                                 tracing::info!(
