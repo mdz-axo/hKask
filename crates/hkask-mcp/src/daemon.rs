@@ -588,4 +588,251 @@ mod tests {
             _ => panic!("Expected StoreResponse, got {:?}", response),
         }
     }
+
+    // ── Protocol contract tests ────────────────────────────────────────────
+
+    // REQ: daemon-contract-001 — all 4 request variants serialize to correct JSON shape
+    #[test]
+    fn request_variants_serialize_to_correct_shape() {
+        // AuthQuery
+        let req = DaemonRequest::AuthQuery {
+            replicant: "alice".into(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "auth_query");
+        assert_eq!(v["replicant"], "alice");
+        assert!(
+            v.as_object().unwrap().len() == 2,
+            "AuthQuery should have 2 fields"
+        );
+
+        // AssignmentQuery
+        let req = DaemonRequest::AssignmentQuery {
+            replicant: "alice".into(),
+            role: "research".into(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "assignment_query");
+        assert_eq!(v["replicant"], "alice");
+        assert_eq!(v["role"], "research");
+        assert!(v.as_object().unwrap().len() == 3);
+
+        // CapabilityQuery
+        let req = DaemonRequest::CapabilityQuery {
+            replicant: "alice".into(),
+            tool: "web_search".into(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "capability_query");
+        assert_eq!(v["replicant"], "alice");
+        assert_eq!(v["tool"], "web_search");
+        assert!(v.as_object().unwrap().len() == 3);
+
+        // StoreExperience (with confidence)
+        let req = DaemonRequest::StoreExperience {
+            replicant: "alice".into(),
+            entity: "session".into(),
+            attribute: "observed".into(),
+            value: serde_json::json!({"key": "val"}),
+            confidence: Some(0.85),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "store_experience");
+        assert_eq!(v["replicant"], "alice");
+        assert_eq!(v["entity"], "session");
+        assert_eq!(v["attribute"], "observed");
+        assert_eq!(v["confidence"], 0.85);
+    }
+
+    // REQ: daemon-contract-002 — all 5 response variants serialize to correct JSON shape
+    #[test]
+    fn response_variants_serialize_to_correct_shape() {
+        // AuthResponse (authenticated)
+        let resp = DaemonResponse::AuthResponse {
+            authenticated: true,
+            webid: Some("alice-webid".into()),
+            action: None,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "auth_response");
+        assert_eq!(v["authenticated"], true);
+        assert_eq!(v["webid"], "alice-webid");
+        // action should be absent when None (skip_serializing_if)
+        assert!(v.get("action").is_none());
+
+        // AuthResponse (unauthenticated)
+        let resp = DaemonResponse::AuthResponse {
+            authenticated: false,
+            webid: None,
+            action: Some("prompt_user".into()),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "auth_response");
+        assert_eq!(v["authenticated"], false);
+        assert!(v.get("webid").is_none());
+        assert_eq!(v["action"], "prompt_user");
+
+        // AssignmentResponse
+        let resp = DaemonResponse::AssignmentResponse { assigned: true };
+        let json = serde_json::to_string(&resp).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "assignment_response");
+        assert_eq!(v["assigned"], true);
+
+        // CapabilityResponse
+        let resp = DaemonResponse::CapabilityResponse { granted: false };
+        let json = serde_json::to_string(&resp).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "capability_response");
+        assert_eq!(v["granted"], false);
+
+        // ErrorResponse
+        let resp = DaemonResponse::ErrorResponse {
+            message: "something broke".into(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "error");
+        assert_eq!(v["message"], "something broke");
+
+        // StoreResponse
+        let resp = DaemonResponse::StoreResponse {
+            stored: true,
+            episodic_id: Some("ep-001".into()),
+            semantic_id: Some("sem-001".into()),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["type"], "store_response");
+        assert_eq!(v["stored"], true);
+        assert_eq!(v["episodic_id"], "ep-001");
+        assert_eq!(v["semantic_id"], "sem-001");
+    }
+
+    // REQ: daemon-contract-003 — forward compatibility: unknown fields tolerated
+    #[test]
+    fn forward_compat_unknown_fields_tolerated() {
+        // A future client might send extra fields. The current daemon must not reject them.
+        let json =
+            r#"{"type":"auth_query","replicant":"alice","future_field":"v2_data","another":42}"#;
+        let req: DaemonRequest =
+            serde_json::from_str(json).expect("unknown fields should be tolerated");
+        match req {
+            DaemonRequest::AuthQuery { replicant } => assert_eq!(replicant, "alice"),
+            _ => panic!("wrong variant"),
+        }
+
+        // Same for response — client should tolerate extra fields from future daemon
+        let json = r#"{"type":"assignment_response","assigned":true,"future_meta":"ok"}"#;
+        let resp: DaemonResponse =
+            serde_json::from_str(json).expect("unknown fields in response should be tolerated");
+        match resp {
+            DaemonResponse::AssignmentResponse { assigned } => assert!(assigned),
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    // REQ: daemon-contract-004 — backward compatibility: missing optional fields
+    #[test]
+    fn backward_compat_missing_optional_fields() {
+        // StoreExperience without confidence (optional field)
+        let json = r#"{"type":"store_experience","replicant":"alice","entity":"s","attribute":"a","value":{}}"#;
+        let req: DaemonRequest =
+            serde_json::from_str(json).expect("missing optional confidence should work");
+        match req {
+            DaemonRequest::StoreExperience { confidence, .. } => {
+                assert!(confidence.is_none(), "missing confidence should be None");
+            }
+            _ => panic!("wrong variant"),
+        }
+
+        // AuthResponse without webid and action (both optional)
+        let json = r#"{"type":"auth_response","authenticated":true}"#;
+        let resp: DaemonResponse =
+            serde_json::from_str(json).expect("missing optional fields in response should work");
+        match resp {
+            DaemonResponse::AuthResponse {
+                authenticated,
+                webid,
+                action,
+            } => {
+                assert!(authenticated);
+                assert!(webid.is_none());
+                assert!(action.is_none());
+            }
+            _ => panic!("wrong variant"),
+        }
+
+        // StoreResponse without IDs
+        let json = r#"{"type":"store_response","stored":false}"#;
+        let resp: DaemonResponse =
+            serde_json::from_str(json).expect("missing optional IDs should work");
+        match resp {
+            DaemonResponse::StoreResponse {
+                stored,
+                episodic_id,
+                semantic_id,
+            } => {
+                assert!(!stored);
+                assert!(episodic_id.is_none());
+                assert!(semantic_id.is_none());
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    // REQ: daemon-contract-005 — failure mode: unknown type tag
+    #[test]
+    fn failure_unknown_type_tag() {
+        let json = r#"{"type":"future_variant_v3","replicant":"alice"}"#;
+        let result: Result<DaemonRequest, _> = serde_json::from_str(json);
+        assert!(
+            result.is_err(),
+            "unknown type tag should fail deserialization"
+        );
+    }
+
+    // REQ: daemon-contract-006 — failure mode: missing required field
+    #[test]
+    fn failure_missing_required_field() {
+        // AuthQuery without replicant
+        let json = r#"{"type":"auth_query"}"#;
+        let result: Result<DaemonRequest, _> = serde_json::from_str(json);
+        assert!(result.is_err(), "missing required field should fail");
+
+        // AssignmentQuery without role
+        let json = r#"{"type":"assignment_query","replicant":"alice"}"#;
+        let result: Result<DaemonRequest, _> = serde_json::from_str(json);
+        assert!(result.is_err(), "missing required role should fail");
+    }
+
+    // REQ: daemon-contract-007 — failure mode: malformed JSON
+    #[test]
+    fn failure_malformed_json() {
+        let result: Result<DaemonRequest, _> = serde_json::from_str("not json at all");
+        assert!(result.is_err(), "malformed JSON should fail");
+
+        let result: Result<DaemonRequest, _> = serde_json::from_str("{\"type\":\"auth_query\",");
+        assert!(result.is_err(), "truncated JSON should fail");
+    }
+
+    // REQ: daemon-contract-008 — failure mode: wrong type for field
+    #[test]
+    fn failure_wrong_field_type() {
+        // replicant should be string, not number
+        let json = r#"{"type":"auth_query","replicant":42}"#;
+        let result: Result<DaemonRequest, _> = serde_json::from_str(json);
+        assert!(result.is_err(), "wrong field type should fail");
+
+        // authenticated should be bool, not string
+        let json = r#"{"type":"auth_response","authenticated":"yes"}"#;
+        let result: Result<DaemonResponse, _> = serde_json::from_str(json);
+        assert!(result.is_err(), "wrong field type in response should fail");
+    }
 }

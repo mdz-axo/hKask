@@ -47,6 +47,35 @@ pub(crate) fn handle_status(
         _ => "\x1b[32mHEALTHY\x1b[0m (no alerts)".to_string(),
     };
     println!("  CNS:        {}", cns_status);
+
+    // ── R7.3 Seam Watcher status ──
+    let seam_lock = state.service_context.seam_watcher();
+    let seam_guard = rt.block_on(seam_lock.read());
+    match seam_guard.as_ref() {
+        Some(watcher) => {
+            let summary = watcher.summary();
+            let coverage_bar = if summary.coverage_pct >= 60.0 {
+                "\x1b[32m■\x1b[0m" // green
+            } else if summary.coverage_pct >= 30.0 {
+                "\x1b[33m■\x1b[0m" // yellow
+            } else {
+                "\x1b[31m■\x1b[0m" // red
+            };
+            println!(
+                "  R7.3 Seam:  {} watching {} crates | {}/{} covered ({:.0}%) | {} REQ tests",
+                coverage_bar,
+                summary.crate_count,
+                summary.covered_items,
+                summary.total_items,
+                summary.coverage_pct,
+                summary.req_tests,
+            );
+        }
+        None => {
+            println!("  R7.3 Seam:  \x1b[2mdisabled\x1b[0m (no inventory available)");
+        }
+    }
+    drop(seam_guard);
     // Show LoopSystem registered loops
     let loops = state.service_context.loop_system();
     let loop_count = rt.block_on(loops.registered_count());

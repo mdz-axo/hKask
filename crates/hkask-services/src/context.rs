@@ -148,9 +148,12 @@ pub struct AgentService {
     /// Wrapped in Mutex because login/reconnect take &mut self.
     matrix_transport: Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>>,
 
-    /// R7.3 public seam watcher — loaded at startup, refreshed periodically.
+    /// R7.3 public seam watcher — loaded at startup, checked periodically.
+    /// Wrapped in RwLock for shared mutable access between the periodic
+    /// background task (which calls `check_drift(&mut self)`) and the
+    /// Curator (which reads summary data).
     /// None if the inventory JSON file is missing (non-fatal).
-    seam_watcher: Option<SeamWatcher>,
+    seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
 
     /// Configuration used to build this context.
     config: ServiceConfig,
@@ -211,8 +214,10 @@ impl AgentService {
         &self.event_sink
     }
     /// R7.3 public seam watcher — None if inventory unavailable at startup.
-    pub fn seam_watcher(&self) -> Option<&SeamWatcher> {
-        self.seam_watcher.as_ref()
+    /// Returns a read lock on the watcher. For summary data, call
+    /// `.read().await` and then `.as_ref().map(|w| w.summary())`.
+    pub fn seam_watcher(&self) -> &Arc<RwLock<Option<SeamWatcher>>> {
+        &self.seam_watcher
     }
 
     // --- Governance ---
@@ -489,10 +494,10 @@ impl AgentService {
         // ── 4a. Seam watcher (R7.3) — load public seam inventory, register domains ──
         // Non-fatal: if no inventory is available, seam watching is silently disabled.
         // Uses embedded JSON (compile-time) with file path override (HKASK_SEAM_INVENTORY_PATH).
-        let seam_watcher = {
+        let seam_watcher: Arc<RwLock<Option<SeamWatcher>>> = {
             let cns = cns_runtime.read().await;
             if let Some(watcher) = SeamWatcher::load() {
-                watcher.register_domains(&cns);
+                watcher.register_domains(&cns).await;
                 let summary = watcher.summary();
                 tracing::info!(
                     target: "bootstrap",
@@ -501,19 +506,100 @@ impl AgentService {
                     total_items = %summary.total_items,
                     "Seam watcher initialized — R7.3 watching the public seam"
                 );
-                Some(watcher)
+                Arc::new(RwLock::new(Some(watcher)))
             } else {
                 tracing::info!(
                     target: "bootstrap",
                     "Seam watcher skipped — no inventory available (non-fatal)"
                 );
-                None
+                Arc::new(RwLock::new(None))
             }
         };
 
         // Use the primary DB for CNS events so they persist in production.
         let cns_event_sink: Arc<dyn NuEventSink> =
             Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
+
+        // ── 4b. Spawn periodic seam drift check (R7.3 background watcher) ──
+        // Runs on a configurable interval (default: 30 minutes). Checks for
+        // drift from the previous snapshot, increments variety, and emits CNS spans.
+        {
+            let watcher_lock = Arc::clone(&seam_watcher);
+            let cns = Arc::clone(&cns_runtime);
+            let event_sink = Arc::clone(&cns_event_sink);
+
+            let interval_secs: u64 = std::env::var("HKASK_SEAM_CHECK_INTERVAL_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(1800); // default: 30 minutes
+
+            tokio::spawn(async move {
+                tracing::info!(
+                    target: "cns.architecture.seam",
+                    interval_secs = %interval_secs,
+                    "Seam periodic drift check started — R7.3 watching every {}s",
+                    interval_secs
+                );
+
+                // Initial check immediately after startup
+                {
+                    let cns_rt = cns.read().await;
+                    let mut guard = watcher_lock.write().await;
+                    if let Some(ref mut watcher) = *guard {
+                        let drifts = watcher.check_drift(&cns_rt, &*event_sink).await;
+                        if !drifts.is_empty() {
+                            tracing::info!(
+                                target: "cns.architecture.seam",
+                                drift_count = %drifts.len(),
+                                "Initial seam drift check complete"
+                            );
+                        }
+                    }
+                }
+
+                // Periodic loop
+                let mut interval =
+                    tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+                loop {
+                    interval.tick().await;
+
+                    let cns_rt = cns.read().await;
+                    let mut guard = watcher_lock.write().await;
+                    if let Some(ref mut watcher) = *guard {
+                        // Try refresh first (only works if file path is set)
+                        let refreshed = watcher.refresh();
+                        if refreshed {
+                            tracing::debug!(
+                                target: "cns.architecture.seam",
+                                "Seam inventory refreshed before periodic check"
+                            );
+                        }
+
+                        let drifts = watcher.check_drift(&cns_rt, &*event_sink).await;
+                        if !drifts.is_empty() {
+                            let degradations: Vec<_> =
+                                drifts.iter().filter(|d| d.delta_pct < 0.0).collect();
+                            let improvements: Vec<_> =
+                                drifts.iter().filter(|d| d.delta_pct > 0.0).collect();
+                            tracing::info!(
+                                target: "cns.architecture.seam",
+                                total_drifts = %drifts.len(),
+                                degradations = %degradations.len(),
+                                improvements = %improvements.len(),
+                                "Periodic seam drift check complete"
+                            );
+                        }
+                    } else {
+                        tracing::debug!(
+                            target: "cns.architecture.seam",
+                            "Periodic seam check skipped — no watcher"
+                        );
+                    }
+                    drop(guard);
+                    drop(cns_rt);
+                }
+            });
+        }
 
         // ── 5. Loop system ──────────────────────────────────────────────────
         let loop_system = Arc::new(LoopSystem::new());

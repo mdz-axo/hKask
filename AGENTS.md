@@ -37,24 +37,29 @@ Violations get deleted. See `docs/architecture/core/PRINCIPLES.md`.
 
 Before running hKask for the first time, two things must be set up:
 
-### 1. Conduit Matrix Homeserver (Docker/Podman sidecar)
+### 1. Conduit Matrix Homeserver (handled by install.sh)
 
 hKask uses Matrix for agent-to-agent and human-to-agent communication.
 Conduit runs as a Docker (or Podman) container on the same machine.
 
+The **install script handles this automatically**:
+- Detects Docker/Podman and starts Conduit
+- Registers the **Curator** as the Matrix admin (`@curator:localhost`)
+- The Curator manages account creation, deletion, and moderation on the Matrix server
+- System bots (hkask-curator, 7R7, etc.) auto-register during bootstrap
+
 ```bash
-# Start Conduit (Docker or Podman — auto-detected)
-./scripts/conduit-docker.sh start
-
-# Verify it's running
-./scripts/conduit-docker.sh status
-
-# Register an admin user (optional — hKask auto-registers during onboarding)
-./scripts/conduit-docker.sh register
+# The install script does this for you. Manual control if needed:
+./scripts/conduit-docker.sh start       # Start Conduit
+./scripts/conduit-docker.sh status      # Verify it's running
+./scripts/conduit-docker.sh register    # Re-register Curator (default: curator / UserSovereignty)
+./scripts/conduit-docker.sh stop        # Stop Conduit
+./scripts/conduit-docker.sh reset       # Wipe database, restart fresh
 ```
 
 Conduit runs on `http://localhost:8008`. No federation, no TLS — local-only.
 The script detects Docker Compose v2, Podman Compose, or legacy docker-compose.
+Skip with `--skip-conduit` if you don't need Matrix communication.
 
 ### 2. Provider API Keys (.env file)
 

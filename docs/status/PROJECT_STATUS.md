@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Architecture refinement — condenser domain extraction, outcome quality tracking, key rotation versioning, four-pattern thesis documentation, documentation sweep (2026-06-15).
+**Current session:** R7.3 Public Seam Watcher implementation — P8 runtime enforcement, periodic drift checking, Curator `/status` integration (2026-06-15).
 
 ---
 
@@ -47,7 +47,7 @@ All 24 workspace members.
 | hkask-inference | 20 | ✅ |
 | hkask-storage | 54 | ✅ |
 | hkask-memory | 14 | ✅ |
-| hkask-cns | 24 | ✅ |
+| hkask-cns | 35 | ✅ |
 | hkask-agents | 8 | ✅ |
 | hkask-keystore | 13 | ✅ |
 | hkask-services | 77 | ✅ |
@@ -97,8 +97,8 @@ All 24 workspace members.
 | Skills | 28 |
 | MCP servers | 10 |
 | MCP tools (total) | 143 (all fully implemented — verified 2026-06-15) |
-| Tests (total) | 413 |
-| REQ tags | 396 |
+| Tests (total) | 430 |
+| REQ tags | 405 |
 
 ---
 
@@ -134,6 +134,19 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 ---
 
 ## This Session (2026-06-15)
+
+**R7.3 Public Seam Watcher — P8 Runtime Enforcement:**
+
+- Plan: `docs/plans/r7.3-public-seam-watcher-v0.28.0.md` — 5-wave implementation plan with adversarial pragmatics+grill-me review. 5 gaps found and resolved (afferent signal, deployment path, surface count, temporal mismatch, asymmetric observability).
+- JSON inventory: `scripts/audit/public-seam-inventory.sh` extended with `build_json_inventory()` — generates machine-readable `docs/status/public-seam-inventory.json` alongside markdown. Both CI-enforced for drift.
+- Types: `SeamCoverage`, `SeamInventory` in `hkask-types::cns`. `SignalMetric::SeamCoverage` + `ActionType::Notify` in `hkask-types::loops`. 2 new canonical CNS spans: `cns.architecture.seam.coverage`, `cns.architecture.seam.drift` (30→32 total).
+- Core module: `hkask-cns/src/seam_watcher.rs` — `SeamWatcher` (load, register_domains, check_drift, refresh, summary), `SeamDrift`, `SeamSummary`. Embedded JSON via `include_str!()` for deployment safety. File path override via `HKASK_SEAM_INVENTORY_PATH` for development. 9 REQ-tagged tests.
+- Algedonic integration: `CyberneticsLoop::compute()` handles `SeamCoverage` — `BelowSetPoint`→`Escalate(Curation)` with severity grading (>5pp critical, 1–5pp warning), `AboveSetPoint`→`Notify(Curation)` for improvements. `seam_coverage_min` set-point (default: 0.0 = alert on any regression).
+- Bootstrap: `AgentService::build()` loads seam watcher, registers 25 per-crate variety domains (`seam:{crate_name}`), spawns periodic background task (30-min interval, configurable via `HKASK_SEAM_CHECK_INTERVAL_SECS`). Watcher stored as `Arc<RwLock<Option<SeamWatcher>>>`.
+- Curator surface: `/status` command displays R7.3 seam coverage — color-coded bar (green ≥60%, yellow 30–60%, red <30%), crate count, covered/total items, coverage %, REQ test count.
+- R7.3 identity: domains updated to `["cns", "seam"]`, description updated.
+- Build: all 18 workspace members compile. 35/35 CNS tests pass (9 new + 26 existing). CI inventory gate passes (markdown + JSON).
+- Docs updated: `hKask-architecture-master.md` (Pattern C table, key properties, crates, identified gaps, CNS span count, mermaid), `PROJECT_STATUS.md` (this update), `docs/plans/r7.3-public-seam-watcher-v0.28.0.md` (implementation summary).
 
 **Pragmatics Codebase Audit + REQ Tag Coverage + MCP Server Tool Audit + Communication Tests:**
 

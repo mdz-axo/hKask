@@ -12,15 +12,16 @@
 #   ./scripts/conduit-docker.sh status      # Check if running
 #   ./scripts/conduit-docker.sh logs        # Tail logs
 #   ./scripts/conduit-docker.sh reset       # Stop, delete DB, restart fresh
-#   ./scripts/conduit-docker.sh register    # Register first admin user
+#   ./scripts/conduit-docker.sh register    # Register the Curator admin user
 #
 # Requirements:
 #   - Docker (docker compose or docker-compose)
 #   - curl (for health checks and registration)
 #
 # After starting, the homeserver is available at http://localhost:8008.
-# The first user to register becomes the admin.
-# hKask agents auto-register via the communication MCP server.
+# The Curator (@curator:localhost) is the Matrix admin — manages account
+# creation, deletion, and moderation on the server.
+# System bots (hkask-curator, 7R7, etc.) auto-register during bootstrap.
 # ──────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -71,7 +72,7 @@ cmd_start() {
             echo "  ┌─────────────────────────────────────────────────────────┐"
             echo "  │  Conduit is running at http://localhost:8008            │"
             echo "  │                                                         │"
-            echo "  │  Next: register an admin user:                          │"
+            echo "  │  Next: register the Curator user:                       │"
             echo "  │    ./scripts/conduit-docker.sh register                 │"
             echo "  │                                                         │"
             echo "  │  Then start hKask with Matrix enabled:                  │"
@@ -129,12 +130,16 @@ cmd_reset() {
 }
 
 cmd_register() {
-    local username="${1:-admin}"
-    local password="${2:-hKaskAdmin123!}"
+    # Register the Curator as the Matrix admin. The Curator manages account
+    # creation, deletion, and moderation on the Conduit homeserver.
+    # Default credentials: curator / UserSovereignty
+    local username="${1:-curator}"
+    local password="${2:-UserSovereignty}"
+    local reg_token="${HKASK_MATRIX_REGISTRATION_TOKEN:-hkask-dev}"
 
-    log_info "Registering admin user '$username' on $HOMESERVER_URL..."
+    log_info "Registering Curator user '$username' on $HOMESERVER_URL..."
 
-    # Use the Matrix registration API (no auth required for initial registration)
+    # Use the Matrix registration API with registration token
     local response
     response=$(curl -s -X POST "$HOMESERVER_URL/_matrix/client/v3/register" \
         -H "Content-Type: application/json" \
@@ -142,11 +147,11 @@ cmd_register() {
             \"username\": \"$username\",
             \"password\": \"$password\",
             \"initial_device_display_name\": \"hKask Admin\",
-            \"auth\": {\"type\": \"m.login.dummy\"}
+            \"auth\": {\"type\": \"m.login.registration_token\", \"token\": \"$reg_token\"}
         }")
 
     if echo "$response" | grep -q "access_token"; then
-        log_info "Admin user '$username' registered successfully!"
+        log_info "Curator user '$username' registered successfully!"
         echo ""
         echo "  Username: @$username:localhost"
         echo "  Password: $password"
@@ -155,9 +160,121 @@ cmd_register() {
     else
         log_error "Registration failed. Response:"
         echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"
-        log_warn "If the server already has users, the first user is the admin."
+        log_warn "If the server already has users, the first user is the Curator."
         log_warn "Try logging in with existing credentials instead."
     fi
+}
+
+# ── LAN Setup (TLS + well-known for phone access) ───────────────────────────
+
+# Directory for TLS certificates
+TLS_DIR="${SCRIPT_DIR}/conduit-tls"
+
+cmd_setup_lan() {
+    local lan_host="${1:-}"
+
+    # Detect LAN hostname if not provided
+    if [ -z "$lan_host" ]; then
+        lan_host="$(hostname).local"
+        log_info "Detected LAN hostname: $lan_host"
+        echo ""
+        echo "  This hostname will be used for phone connections."
+        echo "  To use a different name: $0 setup-lan <hostname>"
+        echo ""
+    fi
+
+    # Create TLS directory
+    mkdir -p "$TLS_DIR"
+
+    # Generate self-signed TLS certificate for the LAN hostname
+    if [ ! -f "$TLS_DIR/fullchain.pem" ]; then
+        log_info "Generating self-signed TLS certificate for $lan_host..."
+        openssl req -x509 -newkey rsa:4096 -keyout "$TLS_DIR/privkey.pem" \
+            -out "$TLS_DIR/fullchain.pem" -days 3650 -nodes \
+            -subj "/CN=$lan_host" 2>/dev/null
+        log_info "TLS certificate generated (valid 10 years)"
+    else
+        log_info "TLS certificate already exists at $TLS_DIR"
+    fi
+
+    # Create LAN override compose file
+    local lan_compose="$SCRIPT_DIR/conduit-docker.lan.yml"
+    cat > "$lan_compose" << 'LANEOF'
+# Conduit LAN Override — TLS + well-known for phone access
+#
+# Extends conduit-docker.yml with:
+#   - TLS certificates for HTTPS
+#   - Well-known discovery so Matrix clients auto-connect
+#   - Server name set to LAN hostname
+#
+# Generated by: conduit-docker.sh setup-lan
+
+services:
+  conduit:
+    ports:
+      - "8448:8000"
+    volumes:
+      - TLS_DIR_PLACEHOLDER:/etc/conduit-tls:ro
+    environment:
+      CONDUIT_SERVER_NAME: "LAN_HOST_PLACEHOLDER"
+      CONDUIT_TLS_CERTS: "/etc/conduit-tls/fullchain.pem"
+      CONDUIT_TLS_KEY: "/etc/conduit-tls/privkey.pem"
+      CONDUIT_WELL_KNOWN_CLIENT: "https://LAN_HOST_PLACEHOLDER:8448"
+LANEOF
+
+    # Substitute placeholders with actual values
+    sed -i "s|TLS_DIR_PLACEHOLDER|$TLS_DIR|g" "$lan_compose"
+    sed -i "s|LAN_HOST_PLACEHOLDER|$lan_host|g" "$lan_compose"
+
+    log_info "LAN configuration written to $lan_compose"
+
+    # Restart Conduit with LAN override
+    log_info "Restarting Conduit with LAN TLS configuration..."
+    $DOCKER_COMPOSE -f "$COMPOSE_FILE" -f "$lan_compose" down 2>/dev/null || true
+    $DOCKER_COMPOSE -f "$COMPOSE_FILE" -f "$lan_compose" up -d
+
+    # Wait for TLS health
+    log_info "Waiting for Conduit TLS to become healthy..."
+    local max_attempts=30
+    local attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if curl -sk "https://localhost:8448/_matrix/client/versions" > /dev/null 2>&1; then
+            log_info "Conduit TLS is healthy at https://localhost:8448"
+            break
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    # Print phone connection instructions
+    echo ""
+    echo "  ╔══════════════════════════════════════════════════════════╗"
+    echo "  ║  Matrix LAN Access — Connect from your devices           ║"
+    echo "  ╠══════════════════════════════════════════════════════════╣"
+    echo "  ║                                                          ║"
+    echo "  ║  Server URL:  https://$lan_host:8448                     ║"
+    echo "  ║                                                          ║"
+    echo "  ║  How to connect:                                         ║"
+    echo "  ║  1. Curator creates an account for each human user:     ║"
+    echo "  ║     kask matrix register-user <name>                     ║"
+    echo "  ║     Share the MXID + password with them securely.        ║"
+    echo "  ║                                                          ║"
+    echo "  ║  2. Human user installs a Matrix client:                ║"
+    echo "  ║     Mobile:  FluffyChat or Element X                     ║"
+    echo "  ║     Desktop: Element or FluffyChat                       ║"
+    echo "  ║     (any Matrix-compliant client works)                  ║"
+    echo "  ║                                                          ║"
+    echo "  ║  3. In the client, select \"Use custom server\"          ║"
+    echo "  ║     Enter: https://$lan_host:8448                        ║"
+    echo "  ║                                                          ║"
+    echo "  ║  4. Log in with the MXID and password from step 1       ║"
+    echo "  ║                                                          ║"
+    echo "  ║  ⚠ Self-signed certificate — accept the warning         ║"
+    echo "  ║                                                          ║"
+    echo "  ║  Curator admin: @curator:$lan_host / UserSovereignty    ║"
+    echo "  ║                                                          ║"
+    echo "  ╚══════════════════════════════════════════════════════════╝"
+    echo ""
 }
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -181,8 +298,11 @@ case "${1:-}" in
     register)
         cmd_register "${2:-}" "${3:-}"
         ;;
+    setup-lan)
+        cmd_setup_lan "${2:-}"
+        ;;
     *)
-        echo "Usage: $0 {start|stop|status|logs|reset|register [username] [password]}"
+        echo "Usage: $0 {start|stop|status|logs|reset|register|setup-lan [hostname]}"
         echo ""
         echo "Commands:"
         echo "  start       Start Conduit Docker container"
@@ -190,10 +310,14 @@ case "${1:-}" in
         echo "  status      Check if Conduit is healthy"
         echo "  logs        Tail Conduit logs"
         echo "  reset       Stop, delete database, and restart fresh"
-        echo "  register    Register an admin user (default: admin / hKaskAdmin123!)"
+        echo "  register    Register the Curator admin user (default: curator / UserSovereignty)"
+        echo "  setup-lan   Enable TLS + well-known for phone access over LAN"
         echo ""
         echo "After starting, hKask agents connect via:"
         echo "  HKASK_MATRIX_URL=http://localhost:8008 kask chat"
+        echo ""
+        echo "For phone access (FluffyChat etc.):"
+        echo "  $0 setup-lan"
         exit 1
         ;;
 esac

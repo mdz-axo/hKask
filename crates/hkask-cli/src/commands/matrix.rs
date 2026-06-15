@@ -315,15 +315,11 @@ fn run_register_agent(agent: &str, homeserver: &str) {
 // ── register-user ──────────────────────────────────────────────────────────
 
 fn run_register_user(user: &str, homeserver: &str) {
-    // 1. Read admin token from keystore
+    // 1. Try to read admin token from keystore (may not exist in dev mode)
     let keychain = hkask_keystore::Keychain::default();
-    let admin_token = match keychain.retrieve_by_key("HKASK_MATRIX_ADMIN_TOKEN") {
-        Ok(t) => t,
-        Err(_) => {
-            eprintln!("  No admin token found. Run 'kask matrix deploy-sidecar' first.");
-            std::process::exit(1);
-        }
-    };
+    let admin_token = keychain
+        .retrieve_by_key("HKASK_MATRIX_ADMIN_TOKEN")
+        .unwrap_or_default();
 
     // 2. Derive MXID and generate password
     let mxid = derive_mxid(user, homeserver);
@@ -335,21 +331,21 @@ fn run_register_user(user: &str, homeserver: &str) {
     println!("  MXID:     {}", mxid);
     println!();
 
-    // 3. Register on Conduit via admin API
+    // 3. Register on Conduit (tries admin API, then registration token)
     match call_conduit_admin_register(homeserver, &admin_token, user, &password) {
         Ok(()) => {
-            println!("  ✓ User created on Matrix homeserver");
+            println!("  \u{2713} User created on Matrix homeserver");
         }
         Err(e) => {
-            eprintln!("  ✗ Registration failed: {}", e);
-            eprintln!("  Check that Conduit is running and the admin token is correct.");
+            eprintln!("  \u{2717} Registration failed: {}", e);
+            eprintln!("  Check that Conduit is running and registration is enabled.");
             eprintln!("  If open registration is enabled, the user can also create");
             eprintln!("  their account directly in FluffyChat.");
             std::process::exit(1);
         }
     }
 
-    // 4. Output credentials
+    // 4. Output credentials with connection instructions
     println!();
     println!("  ═══════════════════════════════════════════════════════════");
     println!("  Human User Credentials — Share securely");
@@ -359,14 +355,17 @@ fn run_register_user(user: &str, homeserver: &str) {
     println!("  MXID:       {}", mxid);
     println!("  Password:   {}", password);
     println!();
-    println!("  Share these credentials with the human user through");
-    println!("  a secure channel (in person, Signal, existing Matrix DM).");
+    println!("  Share these with the human user through a secure channel");
+    println!("  (in person, Signal, or an existing encrypted DM).");
     println!();
-    println!("  The human user should:");
-    println!("  1. Open FluffyChat");
-    println!("  2. Select 'Use custom homeserver' → {}", homeserver);
-    println!("  3. Log in with the MXID and password above");
-    println!("  4. Search for their agent and start a DM");
+    println!("  The human user then:");
+    println!("  1. Installs a Matrix client:");
+    println!("     Mobile:  FluffyChat or Element X");
+    println!("     Desktop: Element or FluffyChat");
+    println!("     (any Matrix-compliant client works)");
+    println!("  2. Selects 'Use custom server' → {}", homeserver);
+    println!("  3. Logs in with the MXID and password above");
+    println!("  4. Searches for their agent and starts a DM");
     println!();
 }
 
@@ -516,7 +515,7 @@ fn call_conduit_admin_register(
         return Ok(());
     }
 
-    // Fallback: try standard Matrix registration API with admin token
+    // Fallback 1: try standard Matrix registration API with admin token
     let register_url = format!(
         "{}/_matrix/client/v3/register",
         homeserver.trim_end_matches('/')
@@ -526,6 +525,26 @@ fn call_conduit_admin_register(
         "password": password,
         "initial_device_display_name": format!("hKask Agent {}", username),
         "admin_token": admin_token,
+    });
+
+    let response = client
+        .post(&register_url)
+        .json(&body)
+        .send()
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    if response.status().is_success() {
+        return Ok(());
+    }
+
+    // Fallback 2: try registration token (hkask-dev mode)
+    let reg_token = std::env::var("HKASK_MATRIX_REGISTRATION_TOKEN")
+        .unwrap_or_else(|_| "hkask-dev".to_string());
+    let body = serde_json::json!({
+        "username": localpart,
+        "password": password,
+        "initial_device_display_name": format!("hKask Agent {}", username),
+        "auth": {"type": "m.login.registration_token", "token": reg_token},
     });
 
     let response = client

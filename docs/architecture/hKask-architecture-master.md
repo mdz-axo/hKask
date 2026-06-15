@@ -74,6 +74,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 | Component | Role | Authority |
 |-----------|------|-----------|
 | **7R7 Listener** | Passive observer — polls Matrix rooms, emits CNS spans | **Zero.** Does not classify, escalate, moderate, or judge. |
+| **R7.3 Seam Watcher** | Public API contract observer — loads seam inventory, tracks per-crate test coverage as CNS variety dimensions, detects drift, emits algedonic alerts on degradation | **Zero.** Observes and reports. Does not write tests, modify code, or block builds. |
 | **CurationLoop** | Pure regulatory — sense/compute/act cycle | **Regulatory.** Compares variety, emits directives. |
 | **CuratorAgent** | Persona layer — metacognition, spec curation, human-facing reporting | **Decisional.** Formats directives, pursues goals, escalates to human. |
 
@@ -84,8 +85,9 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 - **Metacognitive override mechanism.** `MetacognitionLoop::act_on_throttle()` → `CuratorDirective::CalibrateThreshold` → `mpsc` channel → `CyberneticsLoop` → `CnsRuntime::calibrate_threshold()`. Curator adjusts CNS thresholds; human can override Curator.
 - **Spec drift is a cybernetic signal.** `DefaultSpecCurator` detects when specs diverge from implementation → `SpecDriftAlert` → Conant-Ashby violation → revise spec, not suppress alert.
 - **7R7 is a dumb pipe by design.** Transport moves messages; agents decide what they mean. Authority resides in agent layer, not transport layer.
+- **R7.3 watches the public seam.** `SeamWatcher` loads the machine-readable public seam inventory (embedded JSON at compile time, file path override for development), registers per-crate coverage as CNS variety domains (`seam:{crate_name}`), runs periodic drift checks (default: 30 min), and emits algedonic alerts when coverage degrades. Coverage improvements emit positive `Notify` signals. The watcher is non-fatal — if no inventory is available, seam watching is silently disabled.
 
-**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (listener)
+**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (listener), `hkask-cns` (seam_watcher)
 
 **If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. CNS fires alerts into a void. P12 partially violated.
 
@@ -124,11 +126,11 @@ graph TD
     end
 
     subgraph CNS["Pattern B: CNS Feedback Loop"]
-        CN["Variety → Algedonic → Backpressure<br/>30 canonical span namespaces"]
+        CN["Variety → Algedonic → Backpressure<br/>32 canonical span namespaces"]
     end
 
     subgraph Curator["Pattern C: Agentic AI Mediation"]
-        CU["CuratorAgent + 7R7<br/>observe → assess → intervene → escalate"]
+        CU["CuratorAgent + 7R7 + R7.3 Seam Watcher<br/>observe → assess → intervene → escalate"]
     end
 
     subgraph Agents["Pattern D: Agent Creation + Sovereign Memory"]
@@ -165,6 +167,7 @@ graph TD
 | **Variety vs. outcome quality** | Medium | **Closed (v0.27.0)** | `VarietyTracker` counted diversity but not success/failure distribution. Fixed by adding `OutcomeTracker` with per-domain success rate tracking, `AlgedonicManager::check_outcome()` with 50%/25% thresholds, and wiring `GovernedTool::invoke()` to call `record_outcome()` after every tool completion. New CNS spans: `cns.outcome.tool`, `cns.outcome.inference`, `cns.outcome.memory`. |
 | **CNS span→counter connection** | Low | Verified | Tracing spans emit via `tracing` crate; `VarietyTracker::increment()` called explicitly by `CnsRuntime::increment_variety()`. Connection is through `CyberneticsLoop` sense→compute→act cycle. |
 | **Metacognitive override mechanism** | Low | Verified | `MetacognitionLoop::act_on_throttle()` → `CuratorDirective::CalibrateThreshold` → `mpsc::UnboundedSender` → `CyberneticsLoop` → `CnsRuntime::calibrate_threshold()`. Implemented and traced. |
+| **Public seam observability (P8 runtime enforcement)** | Medium | **Closed (v0.28.0)** | P8 required every `#[test]` to verify a public seam, but coverage was only checked at CI time. R7.3 `SeamWatcher` now loads the machine-readable public seam inventory at startup (embedded JSON), registers 25 per-crate variety domains, runs periodic drift checks (30-min interval), and fires algedonic alerts on coverage degradation. Coverage improvements emit positive `Notify` signals. Curator `/status` displays seam coverage. New CNS spans: `cns.architecture.seam.coverage`, `cns.architecture.seam.drift`. New `SignalMetric::SeamCoverage` with `BelowSetPoint`→`Escalate` and `AboveSetPoint`→`Notify`. 9 REQ-tagged tests verify behavioral properties. |
 
 ---
 

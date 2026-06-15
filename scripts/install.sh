@@ -4,6 +4,11 @@
 # This script installs hKask and its dependencies on Linux systems.
 # Supports: Debian/Ubuntu, Fedora/RHEL, Arch Linux, openSUSE, Alpine
 #
+# Also sets up the Conduit Matrix homeserver (Docker/Podman sidecar) for
+# agent-to-agent communication. The Curator registers as the Matrix admin
+# and manages account creation, deletion, and moderation on the server.
+# Skip with --skip-conduit.
+#
 # Usage: curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
 # Or: wget -O - https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
 
@@ -450,8 +455,12 @@ print_container_runtime_guide() {
 # Start Conduit Matrix homeserver via the conduit-docker.sh management script.
 #
 # If a container runtime (Docker/Podman) is available, pulls the Conduit image,
-# starts the container, and waits for it to become healthy. If no runtime is
-# found, prints OS-specific install instructions and skips Conduit (non-fatal).
+# starts the container, waits for it to become healthy, and registers the
+# Curator as the Matrix admin. The Curator manages account creation, deletion,
+# and moderation on the Matrix server.
+#
+# If no runtime is found, prints OS-specific install instructions and
+# skips Conduit (non-fatal).
 #
 # Requires the repo to be cloned (HKASK_SOURCE_DIR must be set).
 setup_conduit() {
@@ -468,7 +477,16 @@ setup_conduit() {
     # a clear error if neither Docker nor Podman is available.
     if bash "$conduit_script" start; then
         log_success "Conduit Matrix homeserver is running at http://localhost:8008"
-        log "Agents will auto-register Matrix accounts on first launch."
+
+        # Register the Curator admin user for human administration.
+        # System bots (hkask-curator, 7R7, etc.) auto-register during hKask bootstrap.
+        log "Registering Curator admin user..."
+        if bash "$conduit_script" register curator UserSovereignty 2>&1 | grep -q "successfully"; then
+            log_success "Curator admin registered: @curator:localhost / UserSovereignty"
+        else
+            log "Curator admin may already exist — credentials: @curator:localhost / UserSovereignty"
+        fi
+        log "System bots will auto-register Matrix accounts on first launch."
         CONDUIT_READY=true
     else
         print_container_runtime_guide
@@ -578,6 +596,7 @@ Options:
     --skip-deps         Skip system dependency installation
     --skip-rust         Skip Rust installation
     --skip-conduit      Skip Conduit Matrix homeserver setup
+    --matrix-lan        Enable TLS + well-known for phone access over LAN
     --install-dir DIR   Install to custom directory (default: \$HOME/.local)
     --help              Show this help message
 
@@ -619,6 +638,7 @@ main() {
     local skip_deps=false
     local skip_rust=false
     local skip_conduit=false
+    local matrix_lan=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -655,6 +675,10 @@ main() {
                 ;;
             --skip-conduit)
                 skip_conduit=true
+                shift
+                ;;
+            --matrix-lan)
+                matrix_lan=true
                 shift
                 ;;
             --install-dir)
@@ -709,6 +733,10 @@ main() {
 
             if [ "$skip_conduit" = false ]; then
                 setup_conduit
+                if [ "$matrix_lan" = true ] && [ "${CONDUIT_READY:-false}" = "true" ]; then
+                    log "Setting up LAN access for phone connections..."
+                    bash "$HKASK_SOURCE_DIR/scripts/conduit-docker.sh" setup-lan
+                fi
             else
                 log "Skipping Conduit setup (--skip-conduit)"
             fi

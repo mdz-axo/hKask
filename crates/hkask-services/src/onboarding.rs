@@ -518,8 +518,12 @@ fn matrix_username_from_replicant(display_name: &str) -> String {
 /// Register a user on a Conduit homeserver via the Matrix API.
 ///
 /// POST /_matrix/client/v3/register with username, password, and
-/// m.login.dummy auth (Conduit allows registration without verification
-/// when CONDUIT_ALLOW_REGISTRATION is enabled).
+/// m.login.registration_token auth. The registration token is read from
+/// the HKASK_MATRIX_REGISTRATION_TOKEN env var (default: "hkask-dev").
+///
+/// The Curator (@curator:localhost) is the Matrix admin and manages
+/// account creation, deletion, and moderation on the server.
+/// System bots auto-register during bootstrap using this function.
 ///
 /// Returns the full Matrix user ID on success (e.g., "@alice-smith:localhost").
 async fn register_on_conduit(
@@ -532,11 +536,14 @@ async fn register_on_conduit(
         homeserver_url.trim_end_matches('/')
     );
 
+    let registration_token = std::env::var("HKASK_MATRIX_REGISTRATION_TOKEN")
+        .unwrap_or_else(|_| "hkask-dev".to_string());
+
     let body = serde_json::json!({
         "username": localpart,
         "password": password,
         "initial_device_display_name": "hKask",
-        "auth": {"type": "m.login.dummy"}
+        "auth": {"type": "m.login.registration_token", "token": registration_token}
     });
 
     let client = reqwest::Client::new();

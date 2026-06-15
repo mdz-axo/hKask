@@ -1,8 +1,9 @@
 # Handoff — Code Quality & Smell Reduction, Waves 1–2
 
 **Session date:** 2026-06-15
-**Progress:** Waves 1–5 complete, Wave 6 pending
+**Progress:** All 6 waves complete ✅
 **Build status:** `cargo check --workspace` + `cargo clippy --workspace -D warnings` → clean
+**CI gates:** `scripts/ci-quality-gates.sh` → ALL CHECKS PASSED
 
 ---
 
@@ -42,9 +43,39 @@
 - 7 `Option`/unit-returning functions → `.expect("Failed to lock registry connection for ...")`
 - 1 `count()` returning `usize` → match with early return 0 on lock poison
 
-### What Remains (not started)
+### What Remains
 
-- **Wave 6:** Sustainment (task 10 — CI quality gates)
+**Nothing — all 10 tasks across 6 waves are complete.**
+
+The CI quality gates script (`scripts/ci-quality-gates.sh`) should be wired into the existing CI pipeline (`.github/workflows/` or equivalent) to run on every PR.
+
+---
+
+## 6) Wave 6 — Sustainment (✅ Complete)
+
+### Task 10 — Headless quality gates for regression prevention (✅ Complete)
+
+**CI scripts created:**
+
+| Script | Check | Prevents Regression Of |
+|--------|-------|----------------------|
+| `check-public-surface.sh` | Public surface justification docs | Wave 5 / Task 8 |
+| `check-unsafe-safety.sh` | SAFETY: comments on unsafe blocks | Wave 5 / Task 9 |
+| `check-unwrap-denylist.sh` | Runtime `.unwrap()` in targeted crates | Wave 2 |
+| `check-mcp-gate3.sh` | `verify_startup_gates()` in all MCP servers | Wave 1 |
+| `check-req-traceability.sh` | REQ tag coverage trend | Wave 3 |
+| `ci-quality-gates.sh` | **Master** — runs all 5 checks | All waves |
+
+**Current results:**
+```
+✅ Public Surface Governance   — 16/16 crates pass
+✅ Unsafe Documentation Policy  — all unsafe blocks documented
+✅ Runtime .unwrap() Denylist   — zero violations in targeted crates
+✅ MCP Gate-3 Consistency       — 10/10 servers verified
+✅ REQ Traceability Trend       — 472 tests, 453 REQ tags (96% coverage)
+```
+
+**Next step:** Wire `scripts/ci-quality-gates.sh` into CI pipeline (`.github/workflows/` or equivalent).
 
 ---
 

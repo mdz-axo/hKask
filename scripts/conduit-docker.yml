@@ -6,33 +6,40 @@
 # Usage:
 #   docker compose -f scripts/conduit-docker.yml up -d
 #
-# After starting, the first user to register becomes the admin.
-# hKask agents auto-register via the communication MCP server.
+# The Curator (@curator:localhost) is the Matrix admin — manages account
+# creation, deletion, and moderation on the server.
+# System bots (hkask-curator, 7R7, etc.) auto-register during bootstrap.
 
 services:
   conduit:
-    image: matrixconduit/matrix-conduit:next
+    image: matrixconduit/matrix-conduit:latest
     container_name: hkask-conduit
     restart: unless-stopped
     ports:
-      - "8008:6167"
+      - "8008:8000"
     volumes:
       - conduit-db:/var/lib/matrix-conduit
     environment:
+      # Config mode: empty string = use environment variables (no TOML file needed)
+      CONDUIT_CONFIG: ""
+      # Bind address — 0.0.0.0 required for Docker port mapping to work
+      CONDUIT_ADDRESS: "0.0.0.0"
       # Server name — localhost for single-machine, no federation
       CONDUIT_SERVER_NAME: "localhost"
       # Database backend
       CONDUIT_DATABASE_BACKEND: "rocksdb"
+      # Database path (required by :next image)
+      CONDUIT_DATABASE_PATH: "/var/lib/matrix-conduit"
       # Allow registration without verification (dev mode)
       CONDUIT_ALLOW_REGISTRATION: "true"
       # Disable federation (local-only)
       CONDUIT_ALLOW_FEDERATION: "false"
       # Disable encryption requirement for local dev
       CONDUIT_ALLOW_ENCRYPTION: "false"
-      # Disable registration token requirement
-      CONDUIT_REGISTRATION_TOKEN: ""
+      # Disable registration token requirement — set a dev token for local use
+      CONDUIT_REGISTRATION_TOKEN: "hkask-dev"
       # Maximum request size (10 MB)
-      CONDUIT_MAX_REQUEST_SIZE: "10_000_000"
+      CONDUIT_MAX_REQUEST_SIZE: "10000000"
       # Trust all servers (not needed since federation is off)
       CONDUIT_TRUSTED_SERVERS: "[]"
       # Log level

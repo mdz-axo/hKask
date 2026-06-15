@@ -1,6 +1,6 @@
 # Public Seam Priority List
 
-**Generated:** 2026-06-15T19:36:58Z
+**Generated:** 2026-06-15T20:05:17Z
 **Source:** `scripts/audit/public-seam-inventory.sh`
 **Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
 
@@ -126,14 +126,14 @@ risk and typically covered by struct-level or integration tests.
 | Crate | High-Risk Uncovered |
 |-------|--------------------|
 | hkask-types | 145 |
-| hkask-services | 134 |
+| hkask-services | 135 |
 | hkask-storage | 130 |
 | hkask-agents | 68 |
 | hkask-cli | 45 |
 | hkask-memory | 43 |
-| hkask-cns | 38 |
 | hkask-templates | 36 |
 | hkask-mcp-research | 35 |
+| hkask-cns | 34 |
 | hkask-keystore | 32 |
 | hkask-mcp-companies | 29 |
 | hkask-mcp | 29 |
@@ -149,4 +149,4 @@ risk and typically covered by struct-level or integration tests.
 | hkask-mcp-communication | 1 |
 | hkask-communication | 1 |
 
-**Total high-risk uncovered:** 886
+**Total high-risk uncovered:** 883
