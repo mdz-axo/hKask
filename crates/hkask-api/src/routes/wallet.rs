@@ -2,6 +2,10 @@
 //!
 //! All endpoints require `ApiState` with an attached `WalletService`.
 //! Routes return 503 Service Unavailable if the wallet service is not configured.
+//!
+//! Authentication: wallet routes accept both capability tokens (system auth)
+//! and API key Bearer tokens (user auth). The `api_key_auth_middleware` runs
+//! after the global `auth_middleware`, so either auth method works.
 
 use axum::Json;
 use axum::body::Body;

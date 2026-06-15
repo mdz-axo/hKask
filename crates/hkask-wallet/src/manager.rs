@@ -171,6 +171,17 @@ impl WalletManager {
 
     /// Process a transparent on-chain deposit.
     async fn process_deposit(&self, event: DepositEvent) -> Result<(), WalletError> {
+        // Idempotency: skip if this tx_hash was already processed.
+        // Prevents double-crediting on monitor restart or chain re-org.
+        if self.store.transaction_exists_by_hash(&event.tx_hash.0)? {
+            tracing::debug!(
+                target: "hkask.wallet",
+                tx_hash = %event.tx_hash.0,
+                "Deposit already processed — skipping"
+            );
+            return Ok(());
+        }
+
         // For transparent deposits, the to_address IS the wallet identifier.
         // We look up which wallet owns this deposit address.
         // For now, we use a single wallet model — all deposits credit the default wallet.
@@ -227,6 +238,21 @@ impl WalletManager {
         &self,
         transfer: ShieldedTransfer,
     ) -> Result<(), WalletError> {
+        // Idempotency: skip if this commitment was already processed.
+        // The deposit reference consumption below also provides anti-replay,
+        // but this tx_hash check is defense-in-depth.
+        if self
+            .store
+            .transaction_exists_by_hash(&transfer.commitment)?
+        {
+            tracing::debug!(
+                target: "hkask.wallet",
+                commitment = %transfer.commitment,
+                "Shielded deposit already processed — skipping"
+            );
+            return Ok(());
+        }
+
         // Extract deposit reference from memo
         let memo = match transfer.memo {
             Some(ref m) => m.clone(),

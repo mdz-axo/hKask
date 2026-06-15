@@ -12,6 +12,7 @@
 //! - `training_evaluate` — Evaluate a trained adapter against a test dataset
 //! - `training_register_adapter` — Register a completed adapter in persistent storage
 //! - `training_recommend_model` — Recommend a base model for fine-tuning
+//! - `training_record_invocation` — Record an adapter invocation for continuous training
 //!
 //! Architecture:
 //!   Dataset → DatasetPipeline (ingest/normalize/validate/cache)

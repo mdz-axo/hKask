@@ -11,6 +11,7 @@ pub mod cybernetics_loop; // Loop 6
 pub(crate) mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — energy budgets (hJoules)
 pub mod energy_budget_management; // Loop 6 — energy budget registration/reservation/settlement
+pub mod governed_inference; // Loop 6 → inference call membrane
 pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub(crate) mod inference_estimator; // Loop 6 → Inference energy estimation
 
@@ -33,6 +34,7 @@ pub use energy::{
     EnergyError,
 };
 pub use energy_budget_management::EnergyBudgetManager;
+pub use governed_inference::GovernedInference;
 pub use governed_tool::{EnergyEstimator, GovernedTool};
 pub use wallet_budget::WalletBackedBudget;
 pub use wallet_energy_estimator::WalletEnergyEstimator;

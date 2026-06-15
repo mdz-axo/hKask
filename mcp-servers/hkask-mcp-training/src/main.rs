@@ -12,6 +12,7 @@
 //! - `training_evaluate` — Evaluate a trained adapter against a test dataset
 //! - `training_register_adapter` — Register a completed adapter in persistent storage
 //! - `training_recommend_model` — Recommend a base model for fine-tuning
+//! - `training_record_invocation` — Record an adapter invocation for continuous training
 //!
 //! Architecture:
 //!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingProvider → LoRAAdapter
@@ -120,6 +121,10 @@ pub struct AssembleDatasetRequest {
     /// Maximum number of examples to include (default: all matching).
     #[serde(default)]
     pub max_examples: Option<usize>,
+    /// Optional system prompt to prepend to each assembled conversation.
+    /// Sets agent persona/context for fine-tuning (e.g., "You are an hKask agent trained in constraint classification.").
+    #[serde(default)]
+    pub system_prompt: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -174,6 +179,9 @@ pub struct TrainRegisterAdapterRequest {
     pub adapter_id: String,
     /// Human-readable name for the adapter (e.g., "constraint-forces-v3").
     pub name: String,
+    /// Skill name this adapter serves (e.g., "constraint-forces").
+    /// Enables adapter-to-skill mapping for the registry.
+    pub skill_name: String,
     /// Base model the adapter was trained on (provider-prefixed).
     pub base_model: String,
     /// Content hash of the training dataset.
@@ -215,6 +223,27 @@ pub struct TrainRecommendModelRequest {
     /// Preferred provider: "together", "fireworks", "deepinfra", "ollama", or "any".
     #[serde(default)]
     pub provider: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainRecordInvocationRequest {
+    /// Adapter ID that was used.
+    pub adapter_id: String,
+    /// Skill name that was invoked.
+    pub skill_name: String,
+    /// Summary of the user's input/query.
+    pub input_summary: String,
+    /// Summary of the adapter's output/response.
+    pub output_summary: String,
+    /// CNS span identifier for correlation (e.g., "cns.training.invoke.constraint-forces").
+    #[serde(default)]
+    pub cns_span: Option<String>,
+    /// Confidence score for the invocation (0.0–1.0).
+    #[serde(default)]
+    pub confidence: Option<f64>,
+    /// Whether the invocation was successful (default: true).
+    #[serde(default)]
+    pub success: Option<bool>,
 }
 
 // ── Server ───────────────────────────────────────────────────────────────
@@ -446,7 +475,9 @@ impl TrainingServer {
         }
     }
 
-    #[tool(description = "Query the status of a training job by its ID.")]
+    #[tool(
+        description = "Query the status of a training job by its ID. When a job completes, automatically registers the adapter in the persistent store if not already registered."
+    )]
     async fn training_status(
         &self,
         Parameters(TrainStatusRequest { job_id }): Parameters<TrainStatusRequest>,
@@ -454,10 +485,68 @@ impl TrainingServer {
         let span = ToolSpanGuard::new("training_status", &self.webid);
         match self.provider.status(&job_id).await {
             Ok(status) => {
-                let result = json!({
+                let mut result = json!({
                     "job_id": job_id,
                     "status": serde_json::to_value(status).unwrap_or_default(),
                 });
+
+                // Auto-register adapter on completion
+                if status == TrainingJobStatus::Completed {
+                    match self.adapter_store.get_metadata(&job_id).await {
+                        Ok(Some(_)) => {
+                            result["adapter_registered"] = json!(true);
+                            result["adapter_note"] = json!("Already registered");
+                        }
+                        _ => {
+                            // Try to get completion metadata from provider
+                            match self.provider.completion_metadata(&job_id).await {
+                                Ok(Some(meta)) => {
+                                    let adapter = LoRAAdapter {
+                                        id: job_id.clone(),
+                                        name: meta
+                                            .output_name
+                                            .unwrap_or_else(|| format!("adapter-{}", &job_id[..8])),
+                                        base_model: meta.base_model.clone(),
+                                        dataset_hash: String::new(),
+                                        training_job_id: job_id.clone(),
+                                        created_at: chrono::Utc::now().timestamp(),
+                                        size_bytes: 0,
+                                        skill_name: String::new(),
+                                        metrics: Some(AdapterMetrics {
+                                            loss: meta.loss,
+                                            perplexity: None,
+                                            training_duration_secs: meta.training_duration_secs,
+                                            tokens_processed: meta.tokens_processed,
+                                        }),
+                                    };
+                                    match self.adapter_store.store_metadata(&adapter).await {
+                                        Ok(()) => {
+                                            result["adapter_registered"] = json!(true);
+                                            result["adapter_name"] = json!(adapter.name);
+                                            result["base_model"] = json!(meta.base_model);
+                                            tracing::info!(
+                                                target: "cns.training.adapter.created",
+                                                adapter_id = %job_id,
+                                                "Adapter auto-registered on completion"
+                                            );
+                                        }
+                                        Err(e) => {
+                                            result["adapter_registered"] = json!(false);
+                                            result["adapter_error"] = json!(e.to_string());
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    result["adapter_registered"] = json!(false);
+                                    result["adapter_note"] = json!(
+                                        "Provider does not support auto-registration. Use training_register_adapter to register manually."
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
                 span.ok_json(result)
             }
             Err(e) => span.error(
@@ -496,6 +585,7 @@ impl TrainingServer {
                         Ok(Some(adapter)) => json!({
                             "id": adapter.id,
                             "name": adapter.name,
+                            "skill_name": adapter.skill_name,
                             "base_model": adapter.base_model,
                             "dataset_hash": adapter.dataset_hash,
                             "training_job_id": adapter.training_job_id,
@@ -567,6 +657,7 @@ impl TrainingServer {
             output_path,
             train_split,
             max_examples,
+            system_prompt,
         }): Parameters<AssembleDatasetRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("training_assemble_dataset", &self.webid);
@@ -637,12 +728,14 @@ impl TrainingServer {
                 continue;
             }
 
-            conversations.push(json!({
-                "messages": [
-                    {"role": "user", "content": question},
-                    {"role": "assistant", "content": answer}
-                ]
-            }));
+            let mut messages = vec![
+                json!({"role": "user", "content": question}),
+                json!({"role": "assistant", "content": answer}),
+            ];
+            if let Some(ref sys) = system_prompt {
+                messages.insert(0, json!({"role": "system", "content": sys}));
+            }
+            conversations.push(json!({ "messages": messages }));
         }
 
         if conversations.is_empty() {
@@ -728,7 +821,7 @@ impl TrainingServer {
             bloom_levels,
             output_path,
             system_prompt,
-            model: _model,
+            model,
         }): Parameters<GenerateTracesRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("training_generate_traces", &self.webid);
@@ -758,32 +851,21 @@ impl TrainingServer {
         let sys = system_prompt
             .unwrap_or_else(|| format!("You are an hKask agent trained in the {skill_name} skill. Apply it precisely and thoroughly."));
 
-        let prompt = format!(
-            "You are generating training data for fine-tuning an AI agent on the '{skill_name}' skill.\n\n\
-             SKILL DOCUMENT:\n{skill_text}\n\n\
-             Generate {count} training examples in ChatML JSONL format. \
-             Each example must be a DECOMPOSITION TRACE: an ill-formed situation that requires \
-             the skill's process to transform it into answerable sub-questions, then synthesize a resolution.\n\n\
-             STRUCTURE OF EACH TRACE:\n\
-             1. SITUATION: Present an ill-formed problem/scenario that triggers the skill.\n\
-             2. DECOMPOSITION: Walk through the skill's process step by step, showing how each \
-                step narrows the situation into specific, answerable sub-questions.\n\
-             3. SYNTHESIS: Answer the sub-questions and resolve the original situation.\n\n\
-             TARGET BLOOM LEVELS: {levels_str}\n\n\
-             VARY ACROSS:\n\
-             - Difficulty: novice (obvious application) to expert (subtle tradeoffs, conflicting principles)\n\
-             - Scenario types: direct application, violation detection, decision justification, \
-               error recovery, multi-turn dialogue\n\
-             - Context richness: minimal (snippet only) to rich (full context with distractors)\n\n\
-             OUTPUT FORMAT: Valid JSONL with one JSON object per line. Each object must have \
-             a 'messages' array with system, user, and assistant roles:\n\
-             {{\"messages\": [\
-               {{\"role\": \"system\", \"content\": \"{sys}\"}},\n\
-               {{\"role\": \"user\", \"content\": \"<the situation>\"}},\n\
-               {{\"role\": \"assistant\", \"content\": \"<the decomposition trace + synthesis>\"}}\n\
-             ]}}\n\n\
-             Output ONLY the JSONL, no preamble or explanation."
-        );
+        // Chunking: split large skill documents to avoid context overflow.
+        // Threshold of ~6000 chars leaves room for the prompt template (~2000 chars)
+        // within typical 8K context windows.
+        const CHUNK_THRESHOLD: usize = 6000;
+        let chunks: Vec<String> = if skill_text.len() > CHUNK_THRESHOLD {
+            tracing::info!(
+                target: "cns.training.trace",
+                skill = %skill_name,
+                size = skill_text.len(),
+                "Skill document exceeds chunk threshold, splitting"
+            );
+            split_into_chunks(&skill_text, CHUNK_THRESHOLD)
+        } else {
+            vec![skill_text.clone()]
+        };
 
         let router = InferenceRouter::new(self.inference_config.clone());
         let params = LLMParameters {
@@ -792,89 +874,140 @@ impl TrainingServer {
             ..Default::default()
         };
 
-        match router.generate(&prompt, &params).await {
-            Ok(response) => {
-                // Strip markdown code fences if present
-                let cleaned = response
-                    .text
-                    .trim()
-                    .trim_start_matches("```jsonl")
-                    .trim_start_matches("```json")
-                    .trim_start_matches("```")
-                    .trim_end_matches("```")
-                    .trim();
+        let traces_per_chunk = (count as f64 / chunks.len() as f64).ceil() as usize;
+        let mut all_cleaned = String::new();
+        let mut total_valid = 0usize;
+        let mut total_parse_errors = 0usize;
+        let mut total_tokens_used = 0u64;
 
-                // Validate each line is parseable JSON with messages array
-                let mut valid_count = 0;
-                let mut parse_errors = 0;
-                for (i, line) in cleaned.lines().enumerate() {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        continue;
-                    }
-                    match serde_json::from_str::<serde_json::Value>(trimmed) {
-                        Ok(v) if v.get("messages").is_some() => {
-                            valid_count += 1;
+        for (chunk_idx, chunk_text) in chunks.iter().enumerate() {
+            let chunk_label = if chunks.len() > 1 {
+                format!(" (part {} of {})", chunk_idx + 1, chunks.len())
+            } else {
+                String::new()
+            };
+
+            let prompt = format!(
+                "You are generating training data for fine-tuning an AI agent on the '{skill_name}' skill{chunk_label}.\n\n\
+                 SKILL DOCUMENT{chunk_label}:\n{chunk_text}\n\n\
+                 Generate {traces_per_chunk} training examples in ChatML JSONL format. \
+                 Each example must be a DECOMPOSITION TRACE: an ill-formed situation that requires \
+                 the skill's process to transform it into answerable sub-questions, then synthesize a resolution.\n\n\
+                 STRUCTURE OF EACH TRACE:\n\
+                 1. SITUATION: Present an ill-formed problem/scenario that triggers the skill.\n\
+                 2. DECOMPOSITION: Walk through the skill's process step by step, showing how each \
+                    step narrows the situation into specific, answerable sub-questions.\n\
+                 3. SYNTHESIS: Answer the sub-questions and resolve the original situation.\n\n\
+                 TARGET BLOOM LEVELS: {levels_str}\n\n\
+                 VARY ACROSS:\n\
+                 - Difficulty: novice (obvious application) to expert (subtle tradeoffs, conflicting principles)\n\
+                 - Scenario types: direct application, violation detection, decision justification, \
+                   error recovery, multi-turn dialogue\n\
+                 - Context richness: minimal (snippet only) to rich (full context with distractors)\n\n\
+                 OUTPUT FORMAT: Valid JSONL with one JSON object per line. Each object must have \
+                 a 'messages' array with system, user, and assistant roles:\n\
+                 {{\"messages\": [\
+                   {{\"role\": \"system\", \"content\": \"{sys}\"}},\n\
+                   {{\"role\": \"user\", \"content\": \"<the situation>\"}},\n\
+                   {{\"role\": \"assistant\", \"content\": \"<the decomposition trace + synthesis>\"}}\n\
+                 ]}}\n\n\
+                 Output ONLY the JSONL, no preamble or explanation."
+            );
+
+            match router
+                .generate_with_model(&prompt, &params, model.as_deref())
+                .await
+            {
+                Ok(response) => {
+                    total_tokens_used += response.usage.total_tokens as u64;
+                    let cleaned = response
+                        .text
+                        .trim()
+                        .trim_start_matches("```jsonl")
+                        .trim_start_matches("```json")
+                        .trim_start_matches("```")
+                        .trim_end_matches("```")
+                        .trim();
+
+                    // Validate and accumulate
+                    for (i, line) in cleaned.lines().enumerate() {
+                        let trimmed = line.trim();
+                        if trimmed.is_empty() {
+                            continue;
                         }
-                        Ok(_) => {
-                            parse_errors += 1;
-                            tracing::warn!(
-                                target: "cns.training.trace",
-                                line = i + 1,
-                                "Trace missing 'messages' field"
-                            );
-                        }
-                        Err(e) => {
-                            parse_errors += 1;
-                            tracing::warn!(
-                                target: "cns.training.trace",
-                                line = i + 1,
-                                error = %e,
-                                "Failed to parse trace line"
-                            );
+                        match serde_json::from_str::<serde_json::Value>(trimmed) {
+                            Ok(v) if v.get("messages").is_some() => {
+                                total_valid += 1;
+                                all_cleaned.push_str(trimmed);
+                                all_cleaned.push('\n');
+                            }
+                            Ok(_) => {
+                                total_parse_errors += 1;
+                                tracing::warn!(
+                                    target: "cns.training.trace",
+                                    chunk = chunk_idx + 1,
+                                    line = i + 1,
+                                    "Trace missing 'messages' field"
+                                );
+                            }
+                            Err(e) => {
+                                total_parse_errors += 1;
+                                tracing::warn!(
+                                    target: "cns.training.trace",
+                                    chunk = chunk_idx + 1,
+                                    line = i + 1,
+                                    error = %e,
+                                    "Failed to parse trace line"
+                                );
+                            }
                         }
                     }
                 }
-
-                if valid_count == 0 {
-                    return span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(
-                            "Inference returned no valid ChatML traces. The model may not have understood the format.",
-                        )
-                        .to_json_string(),
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.training.trace",
+                        chunk = chunk_idx + 1,
+                        error = %e,
+                        "Chunk generation failed, continuing with remaining chunks"
                     );
                 }
+            }
+        }
 
-                // Write valid traces to output file
-                match std::fs::write(&output_path, cleaned) {
-                    Ok(()) => {
-                        let result = json!({
-                            "skill_name": skill_name,
-                            "traces_requested": count,
-                            "traces_generated": valid_count,
-                            "parse_errors": parse_errors,
-                            "output_path": output_path,
-                            "tokens_used": response.usage.total_tokens,
-                        });
-                        self.record_experience(
-                            "training_generate_traces",
-                            &skill_name,
-                            "success",
-                            result.clone(),
-                        );
-                        span.ok_json(result)
-                    }
-                    Err(e) => span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(format!("Failed to write traces file: {}", e))
-                            .to_json_string(),
-                    ),
-                }
+        if total_valid == 0 {
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(
+                    "Inference returned no valid ChatML traces across all chunks. The model may not have understood the format.",
+                )
+                .to_json_string(),
+            );
+        }
+
+        // Write accumulated traces to output file
+        match std::fs::write(&output_path, &all_cleaned) {
+            Ok(()) => {
+                let result = json!({
+                    "skill_name": skill_name,
+                    "traces_requested": count,
+                    "traces_generated": total_valid,
+                    "parse_errors": total_parse_errors,
+                    "chunks_processed": chunks.len(),
+                    "output_path": output_path,
+                    "tokens_used": total_tokens_used,
+                });
+                self.record_experience(
+                    "training_generate_traces",
+                    &skill_name,
+                    "success",
+                    result.clone(),
+                );
+                span.ok_json(result)
             }
             Err(e) => span.error(
-                McpErrorKind::Unavailable,
-                McpToolError::unavailable(format!("Inference failed: {}", e)).to_json_string(),
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to write traces file: {}", e))
+                    .to_json_string(),
             ),
         }
     }
@@ -1083,6 +1216,7 @@ impl TrainingServer {
         Parameters(TrainRegisterAdapterRequest {
             adapter_id,
             name,
+            skill_name,
             base_model,
             dataset_hash,
             training_job_id,
@@ -1118,6 +1252,7 @@ impl TrainingServer {
             training_job_id: training_job_id.unwrap_or_default(),
             created_at: chrono::Utc::now().timestamp(),
             size_bytes: size_bytes.unwrap_or(0),
+            skill_name: skill_name.clone(),
             metrics,
         };
 
@@ -1126,6 +1261,7 @@ impl TrainingServer {
                 let result = json!({
                     "adapter_id": adapter_id,
                     "name": name,
+                    "skill_name": skill_name,
                     "base_model": base_model,
                     "registered": true,
                 });
@@ -1294,12 +1430,149 @@ impl TrainingServer {
         span.ok_json(result)
     }
 
+    #[tool(
+        description = "Record an adapter invocation as an episodic experience for future training data curation. Stores input/output summaries with CNS span correlation and confidence. This is the first step in the continuous training loop — recorded invocations feed into training_curate_feedback and training_retrain."
+    )]
+    async fn training_record_invocation(
+        &self,
+        Parameters(TrainRecordInvocationRequest {
+            adapter_id,
+            skill_name,
+            input_summary,
+            output_summary,
+            cns_span,
+            confidence,
+            success,
+        }): Parameters<TrainRecordInvocationRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_record_invocation", &self.webid);
+
+        let Some(ref daemon) = self.daemon else {
+            return span.error(
+                McpErrorKind::PermissionDenied,
+                McpToolError::permission_denied(
+                    "Daemon not available — episodic memory storage requires the hKask daemon",
+                )
+                .to_json_string(),
+            );
+        };
+
+        let value = json!({
+            "adapter_id": adapter_id,
+            "skill_name": skill_name,
+            "input_summary": input_summary,
+            "output_summary": output_summary,
+            "cns_span": cns_span,
+            "success": success.unwrap_or(true),
+            "timestamp": now_rfc3339(),
+        });
+
+        let conf = confidence.unwrap_or(0.85);
+
+        match daemon
+            .store_experience(
+                &self.replicant,
+                "adapter_invocation",
+                "observed",
+                &value,
+                Some(conf),
+            )
+            .await
+        {
+            Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                let result = json!({
+                    "adapter_id": adapter_id,
+                    "skill_name": skill_name,
+                    "recorded": true,
+                    "confidence": conf,
+                });
+                tracing::debug!(
+                    target: "cns.training.invoke",
+                    adapter_id = %adapter_id,
+                    skill = %skill_name,
+                    "Adapter invocation recorded"
+                );
+                span.ok_json(result)
+            }
+            Ok(other) => {
+                tracing::warn!(
+                    target: "cns.training.invoke",
+                    adapter_id = %adapter_id,
+                    response = ?other,
+                    "Unexpected daemon response"
+                );
+                span.ok_json(json!({
+                    "adapter_id": adapter_id,
+                    "recorded": false,
+                    "warning": "Unexpected daemon response"
+                }))
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to record invocation: {}", e))
+                    .to_json_string(),
+            ),
+        }
+    }
+
     fn provider_id(&self) -> TrainingProviderId {
         self.provider_id
     }
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────
+
+/// Split text into chunks at paragraph boundaries, each under `max_chars`.
+/// Splits at double-newline boundaries first, then falls back to single-newline
+/// if a paragraph exceeds the limit.
+fn split_into_chunks(text: &str, max_chars: usize) -> Vec<String> {
+    let mut chunks = Vec::new();
+    let paragraphs: Vec<&str> = text.split("\n\n").collect();
+    let mut current = String::new();
+
+    for para in paragraphs {
+        let para = para.trim();
+        if para.is_empty() {
+            continue;
+        }
+        if current.len() + para.len() + 2 > max_chars && !current.is_empty() {
+            chunks.push(current.trim().to_string());
+            current = String::new();
+        }
+        if !current.is_empty() {
+            current.push_str("\n\n");
+        }
+        current.push_str(para);
+
+        // If a single paragraph exceeds the limit, split by sentences (newlines within)
+        while current.len() > max_chars {
+            if let Some(split_point) = current[..max_chars].rfind('\n') {
+                let take = current[..split_point].trim().to_string();
+                if !take.is_empty() {
+                    chunks.push(take);
+                }
+                current = current[split_point + 1..].trim().to_string();
+            } else {
+                // No newline found — hard split at max_chars
+                let take = current[..max_chars].trim().to_string();
+                if !take.is_empty() {
+                    chunks.push(take);
+                }
+                current = current[max_chars..].trim().to_string();
+            }
+        }
+    }
+
+    if !current.trim().is_empty() {
+        chunks.push(current.trim().to_string());
+    }
+
+    if chunks.is_empty() {
+        vec![text.to_string()]
+    } else {
+        chunks
+    }
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

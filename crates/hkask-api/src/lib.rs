@@ -77,6 +77,9 @@ pub struct ApiState {
     /// Wallet service for rJoule payments and API key management — surface-specific.
     /// Built from config during `ApiState::with_defaults()` or `from_service_context()`.
     pub wallet_service: Option<Arc<WalletService>>,
+    /// API key authentication service for Bearer token verification.
+    /// Built from the wallet store when a wallet service is available.
+    pub api_key_auth_service: Option<Arc<middleware::api_key_auth::ApiKeyAuthService>>,
 }
 
 impl ApiState {
@@ -115,13 +118,24 @@ impl ApiState {
             git_cas_port,
         } = init_git_cas()?;
 
+        // Extract wallet service before moving ctx into Arc
+        let wallet_service = ctx.wallet().cloned();
+
+        // Build API key auth service if wallet store is available
+        let api_key_auth_service = ctx.wallet_store().map(|store| {
+            Arc::new(middleware::api_key_auth::ApiKeyAuthService::new(
+                Arc::clone(store),
+            ))
+        });
+
         Ok(Self {
             agent_service: Arc::new(ctx),
             // Surface-specific fields only
             spec_store: None,
             git_cas,
             git_cas_port,
-            wallet_service: None,
+            wallet_service,
+            api_key_auth_service,
         })
     }
 
@@ -165,33 +179,40 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         state.agent_service.config(),
     ));
 
-    Ok(
-        utoipa_axum::router::OpenApiRouter::with_openapi(ApiDoc::openapi())
-            .merge(routes::templates_router())
-            .merge(routes::bots_router())
-            .merge(routes::pods_router())
-            .merge(routes::mcp_router())
-            .merge(routes::cns_router())
-            .merge(routes::sovereignty_router())
-            .merge(routes::chat_router())
-            .merge(routes::models_router())
-            .merge(routes::acp_router())
-            .merge(routes::bundles_router())
-            .merge(routes::spec_router())
-            .merge(routes::curator_router())
-            .merge(routes::episodic_router())
-            .merge(routes::consolidation_router())
-            .merge(routes::git_router())
-            .merge(routes::backup_router())
-            .merge(routes::goal_router())
-            .merge(routes::settings_router())
-            .merge(routes::wallet_router())
-            .layer(axum::middleware::from_fn_with_state(
-                auth_service,
-                middleware::auth_middleware,
-            ))
-            .with_state(state),
-    )
+    let mut router = utoipa_axum::router::OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(routes::templates_router())
+        .merge(routes::bots_router())
+        .merge(routes::pods_router())
+        .merge(routes::mcp_router())
+        .merge(routes::cns_router())
+        .merge(routes::sovereignty_router())
+        .merge(routes::chat_router())
+        .merge(routes::models_router())
+        .merge(routes::acp_router())
+        .merge(routes::bundles_router())
+        .merge(routes::spec_router())
+        .merge(routes::curator_router())
+        .merge(routes::episodic_router())
+        .merge(routes::consolidation_router())
+        .merge(routes::git_router())
+        .merge(routes::backup_router())
+        .merge(routes::goal_router())
+        .merge(routes::settings_router())
+        .merge(routes::wallet_router())
+        .layer(axum::middleware::from_fn_with_state(
+            auth_service,
+            middleware::auth_middleware,
+        ));
+
+    // Apply API key auth middleware if available (allows Bearer token auth on wallet routes)
+    if let Some(api_key_auth) = &state.api_key_auth_service {
+        router = router.layer(axum::middleware::from_fn_with_state(
+            Arc::clone(api_key_auth),
+            middleware::api_key_auth::api_key_auth_middleware,
+        ));
+    }
+
+    Ok(router.with_state(state))
 }
 
 /// Build OpenAPI spec with all route paths collected from the router.

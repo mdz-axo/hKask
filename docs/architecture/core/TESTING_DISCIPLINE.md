@@ -119,6 +119,25 @@ The established combination (Hillel Wayne, 2017; `icontract-hypothesis`, 2020; G
 3. **PBT verifies postconditions hold.** `prop_assert!` checks the guarantees.
 4. **Contracts chain through call stacks.** If `f` calls `g`, and `g` has contracts, `g`'s contracts are verified during `f`'s PBT. Unit PBT becomes integration testing automatically.
 
+### 2.4 The Test Pyramid Under DbC
+
+| Layer | What | Contract Element | Verification |
+|-------|------|-----------------|-------------|
+| **Unit** | Single function's behavior | Pre/Post conditions | Proptest on the function directly |
+| **Integration** | Cross-function chains | Contracts chain through call stack | Proptest on the entry point; called functions' contracts verified transitively |
+| **Contract** | Crate boundary behavior | Invariants across operations | Proptest on operation sequences; verifies type invariants hold |
+| **Fuzz** | Input surface robustness | Implicit precondition: "any input" | `catch_unwind` + arbitrary input; verifies no panic |
+| **System** | End-to-end workflows | Cross-crate invariants | Integration tracer bullet (TDD skill); verifies full vertical slice |
+
+### 2.5 Partial Contract Coverage
+
+The contract chain (§2.3, item 4) requires contracts on ALL called functions to propagate. If a function in the call stack lacks a contract, the chain breaks silently — `f`'s PBT will not verify `g`'s behavior. This is acceptable during migration but must be tracked:
+
+- Functions without contracts are **contract debt** — analogous to test debt (§4.2)
+- The contract completeness audit (§12) measures coverage
+- New code must not introduce contract debt; existing debt is reduced over time
+- When a bug is found in an uncontracted function, the fix must include adding a contract
+
 ---
 
 ## 3. Ontology — Testing Vocabulary
@@ -165,44 +184,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 
 ---
 
-## 5. Rust Conventions
-
-### 5.1 Test Location
-
-| Test Type | Location | Convention |
-|-----------|----------|------------|
-| Unit (same-module) | `#[cfg(test)] mod tests` inside source file | For testing public interface of a single module |
-| Integration | `tests/` directory at crate root | For testing cross-module behavior through crate public API |
-| Contract | `tests/contract/` directory at crate root | For testing behavioral contracts at crate boundaries |
-| Fuzz | `tests/` directory at crate root | For panic-free verification on arbitrary input |
-| MCP server | `#[cfg(test)] mod tests` in `main.rs` | For testing tool handlers and response types |
-
-### 5.2 Test Rules
-
-1. Use `#[cfg(test)]` module for unit tests alongside the code they test.
-2. Use `tests/` directory for integration tests that exercise crate public APIs.
-3. Use `#[tokio::test]` for async tests.
-4. Use `tempfile` or `hkask-test-harness` for tests needing filesystem/database — never write to the project tree.
-5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
-6. Test error paths — verify error variants, not just happy paths.
-7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics (P5).
-8. **Every test carries a `// REQ:` tag** naming the spec requirement it validates. Format: `// REQ: <spec_id> — requirement summary`.
-
----
-
-## 6. The Test Pyramid Under DbC
-
-| Layer | What | Contract Element | Verification |
-|-------|------|-----------------|-------------|
-| **Unit** | Single function's behavior | Pre/Post conditions | Proptest on the function directly |
-| **Integration** | Cross-function chains | Contracts chain through call stack | Proptest on the entry point; called functions' contracts verified transitively |
-| **Contract** | Crate boundary behavior | Invariants across operations | Proptest on operation sequences; verifies type invariants hold |
-| **Fuzz** | Input surface robustness | Implicit precondition: "any input" | `catch_unwind` + arbitrary input; verifies no panic |
-| **System** | End-to-end workflows | Cross-crate invariants | Integration tracer bullet (TDD skill); verifies full vertical slice |
-
----
-
-## 7. MDS Category → Test Strategy
+## 5. MDS Category → Test Strategy
 
 Each MDS category has a distinct testing emphasis. The contract defines *what* to test; the strategy defines *how*.
 
@@ -289,11 +271,11 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 
 ---
 
-## 8. The TDD Bridge: From Specification to Contract to Test
+## 6. The TDD Bridge: From Specification to Contract to Test
 
 The TDD skill (`.agents/skills/tdd/SKILL.md`) defines the *process* for writing tests. This discipline defines *what* the tests must verify. The bridge is the contract.
 
-### 8.1 The Traceability Chain
+### 6.1 The Traceability Chain
 
 ```
 Specification (spec/goal/capture)
@@ -313,7 +295,7 @@ Implementation ──→ pub fn verify_sovereignty(...)
 
 Every link is traceable. The `// REQ:` tag on the test references the spec_id. The contract on the function references the same spec_id. The TDD skill's gap-check verifies that every spec criterion has a matching `// REQ:` tag.
 
-### 8.2 TDD Cycle with Contracts
+### 6.2 TDD Cycle with Contracts
 
 The TDD skill's RED→GREEN→REFACTOR cycle, augmented with contracts:
 
@@ -335,7 +317,7 @@ REFACTOR:
        - Does the implementation still satisfy the contract?
 ```
 
-### 8.3 Contract-First, Not Test-First
+### 6.3 Contract-First, Not Test-First
 
 The TDD skill says "write the test first." This discipline adds: **write the contract before the test.** The contract is the specification of the test. Without a contract, the test verifies *something*, but it's not clear what.
 
@@ -344,7 +326,7 @@ Order:
 2. **Test** — proptest verifying the contract
 3. **Implementation** — minimal code satisfying the contract
 
-### 8.4 Vertical Slicing, Not Horizontal
+### 6.4 Vertical Slicing, Not Horizontal
 
 **Do not write all tests first, then all implementation.** This is horizontal slicing — it produces tests that verify *imagined* behavior rather than *actual* behavior.
 
@@ -362,31 +344,43 @@ RIGHT (vertical):
 
 Each RED→GREEN cycle is a **tracer bullet**: one test confirming one behavior, then minimal code to pass.
 
+### 6.5 Skill Integration
+
+The following skills govern testing practices and are anchored on this discipline:
+
+| Skill | Testing Role | When to Use |
+|-------|-------------|-------------|
+| `tdd` | Red-green-refactor with vertical slicing, contract-first ordering | Building features, fixing bugs |
+| `diagnose` | Build feedback loop before hypothesizing | Bug reports, performance regressions |
+| `improve-codebase-architecture` | Identify shallow modules and deepen seams | When code is hard to test through its interface |
+| `coding-guidelines` | Surgical changes, simplicity first, goal-driven | All code changes |
+| `pragmatics` | Meta-cognitive codebase review against principles | Architecture analysis, principle compliance audit |
+
 ---
 
-## 9. Principle Alignment
+## 7. Principle Alignment
 
-### 9.1 P4 — Clear Boundaries (OCAP)
+### 7.1 P4 — Clear Boundaries (OCAP)
 
 **Contracts ARE OCAP membranes made testable.** An OCAP boundary is a capability gate. A contract is the behavioral specification of that gate. The precondition defines what capabilities the caller must possess. The postcondition defines what capabilities are returned or exercised.
 
 Contract tests at crate boundaries detect **semantic drift** — when a type changes in a way that's type-compatible but behaviorally different. The compiler can't catch this. Contracts can.
 
-### 9.2 P8 — Semantic Grounding
+### 7.2 P8 — Semantic Grounding
 
 **Every contract is an IS statement about behavior.** Preconditions, postconditions, and invariants are declarative claims about what the system does. They are not OUGHT statements ("the system should...") — they are IS statements ("the system, when called with X, returns Y"). The proptest verifies the IS claim against reality.
 
 The `// REQ:` tag traces the contract to a specification requirement. The specification is the OUGHT. The contract is the IS. The test verifies that IS matches OUGHT.
 
-### 9.3 P9 — Homeostatic Self-Regulation
+### 7.3 P9 — Homeostatic Self-Regulation
 
 **The test suite is a feedback loop.** Under the Good Regulator Theorem (Conant & Ashby, 1970), every good regulator must be a model of the system it regulates. The test suite IS that model. If the tests don't model the system's actual failure modes, they're not a good regulator.
 
-- **Contract violations are CNS events.** A failed contract test emits a `cns.contract.violated` algedonic signal.
-- **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert.
+- **Contract violations are CNS events [OUGHT — requires `cns.contract.violated` span implementation].** A failed contract test SHOULD emit a `cns.contract.violated` algedonic signal. The span is registered in PRINCIPLES.md §1.4 and `hkask-types::event::CANONICAL_NAMESPACES`. Implementation is pending.
+- **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert via `cns.contract.coverage`.
 - **Mutation testing measures regulator quality.** `cargo-mutants` injects bugs; the percentage caught measures how well the test suite models the system.
 
-### 9.4 P6 — Space for Replicants
+### 7.4 P6 — Space for Replicants
 
 **Replicants propose contracts for their own behavior.** An agent can open a PR containing:
 - A contract (`// REQ: pre: ... post: ...`) describing its intended behavior
@@ -395,7 +389,13 @@ The `// REQ:` tag traces the contract to a specification requirement. The specif
 
 A human operator provides affirmative consent (P2) to merge. The contract becomes part of the agent's regulatory model — the agent is saying "this is how I should behave, verify it."
 
-### 9.5 P7 — Evolutionary Architecture
+**Contract conflict resolution:** If two replicants propose conflicting contracts for the same function, the conflict is resolved by:
+1. The human operator identifies the conflict during PR review
+2. The conflicting replicants are prompted to reconcile (improv plussing mode)
+3. If reconciliation fails, the human selects one contract and documents the rejection rationale
+4. The rejected contract is archived as a curation decision for future reference
+
+### 7.5 P7 — Evolutionary Architecture
 
 **Contracts evolve from actual failures, not speculation.** When a bug escapes to production:
 1. The bug is a contract violation (a postcondition that was too weak, or an invariant that was missing)
@@ -406,11 +406,46 @@ A human operator provides affirmative consent (P2) to merge. The contract become
 
 Contracts accumulate the scar tissue of every production incident. They become the real engineering artifact — the implementation is replaceable; the contract is not.
 
+### 7.6 Probabilistic Contracts for LLM Agents
+
+Design by Contract assumes deterministic functions. LLM agents are non-deterministic. The Agent Behavioral Contracts framework (2025) extends DbC for this case with **`(p, δ, k)`-satisfaction**:
+
+- **p:** Probability threshold (e.g., 0.95 = contract must hold in 95% of executions)
+- **δ:** Tolerance bound (how far from the postcondition is acceptable)
+- **k:** Recovery window (how many steps the agent has to self-correct before violation is reported)
+
+For hKask, probabilistic contracts apply to:
+- Inference output validation (exact match impossible)
+- Agent behavior assertions (non-deterministic by design)
+- Improv mode compliance (creative variation is expected)
+
+Probabilistic contracts use the same `// REQ:` syntax with an additional `prob:` field:
+
+```rust
+/// REQ: improv-plussing-001
+/// pre:  mode is Plussing, context is non-empty
+/// post: response builds on input (yes-and pattern) with prob ≥ 0.90, δ = semantic similarity ≥ 0.7
+/// prob: p=0.90, δ=0.7, k=3
+pub async fn plussing_respond(&self, input: &str) -> String {
+    // ...
+}
+```
+
 ---
 
-## 10. Rules for the Testing Program
+## 8. Rules for the Testing Program
 
-### 10.1 Contract Rules
+### 8.1 Test Location
+
+| Test Type | Location | Convention |
+|-----------|----------|------------|
+| Unit (same-module) | `#[cfg(test)] mod tests` inside source file | For testing public interface of a single module |
+| Integration | `tests/` directory at crate root | For testing cross-module behavior through crate public API |
+| Contract | `tests/contract/` directory at crate root | For testing behavioral contracts at crate boundaries |
+| Fuzz | `tests/` directory at crate root | For panic-free verification on arbitrary input |
+| MCP server | `#[cfg(test)] mod tests` in `main.rs` | For testing tool handlers and response types |
+
+### 8.2 Contract Rules
 
 | Rule | Description |
 |------|-------------|
@@ -421,7 +456,7 @@ Contracts accumulate the scar tissue of every production incident. They become t
 | **C5** | Contracts are the specification — there is no separate "spec document" for function behavior |
 | **C6** | Contract violations are bugs — fix the implementation, not the contract (unless the contract was wrong) |
 
-### 10.2 Testing Rules
+### 8.3 Testing Rules
 
 | Rule | Description |
 |------|-------------|
@@ -432,8 +467,11 @@ Contracts accumulate the scar tissue of every production incident. They become t
 | **T5** | Integration tracer bullets follow the TDD skill's vertical slice pattern |
 | **T6** | Fuzz tests verify that all input surfaces handle arbitrary input without panicking |
 | **T7** | No `todo!()`, `unimplemented!()`, or `#[deprecated]` in test code (P5) |
+| **T8** | Use `#[cfg(test)]` module for unit tests; `tests/` for integration; `#[tokio::test]` for async |
+| **T9** | Use `tempfile` or `hkask-test-harness` for filesystem/database — never write to the project tree |
+| **T10** | Prefer `assert!` with meaningful messages; test error paths, not just happy paths |
 
-### 10.3 Process Rules
+### 8.4 Process Rules
 
 | Rule | Description |
 |------|-------------|
@@ -444,7 +482,7 @@ Contracts accumulate the scar tissue of every production incident. They become t
 | **P5** | Replicants may propose contracts and tests; humans provide consent to merge (P2, P6) |
 | **P6** | Every test action carries an authenticated author (TestWebId or replicant WebID) (P12) |
 
-### 10.4 Quality Rules
+### 8.5 Quality Rules
 
 | Rule | Description |
 |------|-------------|
@@ -455,7 +493,9 @@ Contracts accumulate the scar tissue of every production incident. They become t
 
 ---
 
-## 11. Verification Gates
+## 9. Verification & Audit
+
+### 9.1 Verification Gates
 
 | Gate | Command | Expected |
 |------|---------|----------|
@@ -468,9 +508,7 @@ Contracts accumulate the scar tissue of every production incident. They become t
 | Contract coverage | `grep -rn "// REQ:.*pre:" crates/ mcp-servers/ --include="*.rs" \| wc -l` | Increasing over time |
 | Test debt | `grep -r "TEST-DEBT" crates/ --include="*.rs" \| wc -l` | Decreasing over time |
 
----
-
-## 12. Contract Completeness Audit
+### 9.2 Contract Completeness Audit
 
 ```bash
 # Count public functions
@@ -489,21 +527,7 @@ Target: 100% of public functions have contracts. New code must not reduce this p
 
 ---
 
-## 13. Skill Integration
-
-The following skills govern testing practices and are anchored on this discipline:
-
-| Skill | Testing Role | When to Use |
-|-------|-------------|-------------|
-| `tdd` | Red-green-refactor with vertical slicing, contract-first ordering | Building features, fixing bugs |
-| `diagnose` | Build feedback loop before hypothesizing | Bug reports, performance regressions |
-| `improve-codebase-architecture` | Identify shallow modules and deepen seams | When code is hard to test through its interface |
-| `coding-guidelines` | Surgical changes, simplicity first, goal-driven | All code changes |
-| `pragmatics` | Meta-cognitive codebase review against principles | Architecture analysis, principle compliance audit |
-
----
-
-## 14. References
+## 10. References
 
 ### External Discipline
 

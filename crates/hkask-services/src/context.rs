@@ -160,6 +160,13 @@ pub struct AgentService {
 
     /// Configuration used to build this context.
     config: ServiceConfig,
+
+    /// Wallet service for rJoule payments, deposits, withdrawals, and API key management.
+    /// Constructed during build() with the wallet_config from ServiceConfig.
+    wallet_service: Option<Arc<WalletService>>,
+
+    /// Wallet store — shared between WalletManager, ApiKeyIssuer, and API key auth middleware.
+    wallet_store: Option<Arc<WalletStore>>,
 }
 
 /// Per-agent memory infrastructure — storage ports and ConsolidationService
@@ -179,6 +186,16 @@ impl AgentService {
     /// Access configuration.
     pub fn config(&self) -> &ServiceConfig {
         &self.config
+    }
+
+    /// Access the wallet service for rJoule payments and API key management.
+    pub fn wallet(&self) -> Option<&Arc<WalletService>> {
+        self.wallet_service.as_ref()
+    }
+
+    /// Access the wallet store for API key lookup and balance queries.
+    pub fn wallet_store(&self) -> Option<&Arc<WalletStore>> {
+        self.wallet_store.as_ref()
     }
 
     // === Named accessors (replaces positional tuple group methods) ===
@@ -636,12 +653,20 @@ impl AgentService {
             None
         } else {
             let router = hkask_inference::InferenceRouter::new(config.inference_config.clone());
-            let port: Arc<dyn InferencePort> = Arc::new(router);
+            let raw_port: Arc<dyn InferencePort> = Arc::new(router);
+            // Wrap with GovernedInference membrane for energy budget enforcement
+            let governed_port: Arc<dyn InferencePort> =
+                Arc::new(hkask_cns::GovernedInference::new(
+                    raw_port,
+                    Arc::clone(&cybernetics_loop),
+                    Arc::clone(&cns_event_sink),
+                    system_webid,
+                ));
             let inference_loop = hkask_agents::InferenceLoop::new()
                 .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
                 .with_model(&config.default_model);
             loop_system.register_loop(Arc::new(inference_loop)).await;
-            Some(port)
+            Some(governed_port)
         };
 
         // Episodic + Semantic loops
@@ -944,6 +969,70 @@ impl AgentService {
                 .map_err(ServiceError::Acp)?;
         };
 
+        // ── 10. Wallet — rJoule payments, deposits, API keys ─────────────────
+        let (wallet_service, wallet_store): (Option<Arc<WalletService>>, Option<Arc<WalletStore>>) = {
+            let wallet_conn = open_db()?.conn_arc();
+            let wallet_store = Arc::new(WalletStore::new(wallet_conn));
+            let wallet_manager = Arc::new(
+                WalletManager::build(
+                    config.wallet_config.clone(),
+                    Arc::clone(&wallet_store),
+                    Default::default(), // chain ports — empty until SDK integration
+                    None,               // privacy port — empty until Hinkal integration
+                )
+                .map_err(|e| ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: "Failed to build WalletManager".into(),
+                })?
+                .with_event_sink(Arc::clone(&cns_event_sink)),
+            );
+            let issuer = Arc::new(
+                ApiKeyIssuer::new(Arc::clone(&wallet_store))
+                    .map_err(|e| ServiceError::Wallet {
+                        source: Some(Box::new(e)),
+                        message: "Failed to build ApiKeyIssuer".into(),
+                    })?
+                    .with_event_sink(Arc::clone(&cns_event_sink)),
+            );
+            let svc = Arc::new(
+                WalletService::new(Arc::clone(&wallet_manager), Arc::clone(&issuer))
+                    .with_cybernetics(Arc::clone(&cybernetics_loop)),
+            );
+
+            // Ensure default wallet exists
+            let default_wallet = WalletId::default();
+            wallet_manager
+                .ensure_wallet(default_wallet)
+                .map_err(|e| ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: "Failed to ensure default wallet".into(),
+                })?;
+
+            // Spawn deposit monitor as background task
+            let monitor_manager = Arc::clone(&wallet_manager);
+            let interval_secs: u64 = std::env::var("HKASK_DEPOSIT_MONITOR_INTERVAL_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(30); // default: poll every 30 seconds
+            tokio::spawn(async move {
+                tracing::info!(
+                    target: "cns.wallet.deposit",
+                    interval_secs = %interval_secs,
+                    "Deposit monitor started — polling every {}s",
+                    interval_secs
+                );
+                if let Err(e) = monitor_manager.start_deposit_monitor(interval_secs).await {
+                    tracing::error!(
+                        target: "cns.wallet.deposit",
+                        error = %e,
+                        "Deposit monitor loop exited with error"
+                    );
+                }
+            });
+
+            (Some(svc), Some(wallet_store))
+        };
+
         Ok(Self {
             registry,
             mcp_runtime,
@@ -971,6 +1060,8 @@ impl AgentService {
             matrix_transport,
             seam_watcher,
             config,
+            wallet_service,
+            wallet_store,
         })
     }
 }

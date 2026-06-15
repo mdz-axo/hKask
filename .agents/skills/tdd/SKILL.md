@@ -26,11 +26,15 @@ The SKILL.md (this file) teaches the Zed coding agent the TDD methodology. The .
 
 ## Philosophy
 
-**Core principle**: Tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't.
+**Core principle**: Tests verify behavioral contracts through public interfaces, not implementation details. Code can change entirely; contracts shouldn't.
 
-**Good tests** are integration-style: they exercise real code paths through public APIs. They describe *what* the system does, not *how* it does it. A good test reads like a specification. These tests survive refactors because they don't care about internal structure.
+**Anchoring discipline:** [`docs/architecture/core/TESTING_DISCIPLINE.md`](../../docs/architecture/core/TESTING_DISCIPLINE.md) — Design by Contract (Meyer, 1986), verified through Property-Based Testing (QuickCheck, Claessen & Hughes, 2000). This skill defines the *process* for writing tests. The Testing Discipline defines *what* the tests must verify: contracts (preconditions, postconditions, invariants).
 
-**Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
+**Contract-first ordering:** Write the contract before the test. The contract is the specification of the test. Without a contract, the test verifies *something*, but it's not clear what. Order: (1) Contract → (2) Property-Based Test → (3) Implementation.
+
+**Good tests** are property-based: they verify that a contract holds for all valid inputs, not just hand-picked examples. They describe *what* the system guarantees, not *how* it achieves it. A good test reads like an executable contract. These tests survive refactors because they don't care about internal structure.
+
+**Bad tests** are example-based and coupled to implementation. They test specific input-output pairs rather than invariants. They mock internal collaborators, test private methods, or verify through external means. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
 
 ### Spec-Anchored Testing
 
@@ -119,18 +123,29 @@ Ask: "Which MDS categories does this change touch? What should the public interf
 
 ### 2. Tracer Bullet
 
-Write ONE test that confirms ONE thing about the system:
+Write ONE contract and ONE test that confirm ONE thing about the system:
 
 ```
-RED:   Write test for first behavior → test fails
-GREEN: Write minimal code to pass → test passes
+CONTRACT: Write the contract (// REQ: pre: ... post: ...) on the function signature
+RED:     Write property-based test verifying the contract → test fails
+GREEN:   Write minimal code to satisfy the contract → test passes
 ```
 
-Each test must include a `// REQ:` comment that references the spec's `id` field from `Spec`:
+Each contract must include a `// REQ:` tag that references the spec's `id` field from `Spec`:
 ```rust
-// REQ: <spec_id> — capability_check_denies_when_no_checker
+/// REQ: <spec_id>
+/// pre:  webid is a valid, non-nil WebID
+/// post: returns Ok(state) where state.webid == webid
+pub fn verify_sovereignty(webid: &WebID) -> Result<SovereigntyState, SovereigntyError> {
+    // ...
+}
+```
+
+Each test must include a `// REQ:` comment matching the contract's spec_id:
+```rust
+// REQ: <spec_id> — sovereignty verification returns correct state
 #[test]
-fn capability_check_denies_when_no_checker() { ... }
+fn sovereignty_verify_returns_correct_state() { ... }
 ```
 The `spec_id` is the UUID returned by `spec/goal/capture`. For human readability, include the MDS category and a brief summary after the em-dash.
 
@@ -139,16 +154,17 @@ The `spec_id` is the UUID returned by `spec/goal/capture`. For human readability
 For each remaining behavior:
 
 ```
-RED:   Write next test → fails
-GREEN: Minimal code to pass → passes
+CONTRACT: Write next contract →
+RED:     Write next property-based test → fails
+GREEN:   Minimal code to pass → passes
 ```
 
 Rules:
-- One test at a time
-- Only enough code to pass current test
-- Don't anticipate future tests
-- Keep tests focused on observable behavior
-- Each test carries its `// REQ:` tag
+- One contract + one test at a time
+- Only enough code to satisfy the current contract
+- Don't anticipate future contracts
+- Keep contracts focused on observable behavior
+- Each contract and test carries its `// REQ:` tag
 
 ### 4. Refactor
 

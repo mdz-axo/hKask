@@ -34,6 +34,9 @@ pub struct LoRAAdapter {
     pub created_at: i64,
     /// Size of adapter weights in bytes.
     pub size_bytes: u64,
+    /// Skill name this adapter was trained for (e.g., "constraint-forces").
+    /// Enables adapter-to-skill mapping for the registry and auto-selection router.
+    pub skill_name: String,
     /// Training metrics (loss, perplexity, etc.).
     pub metrics: Option<AdapterMetrics>,
 }
@@ -59,6 +62,7 @@ impl LoRAAdapter {
         dataset_hash: String,
         training_job_id: String,
         size_bytes: u64,
+        skill_name: String,
         metrics: Option<AdapterMetrics>,
     ) -> Self {
         Self {
@@ -69,6 +73,7 @@ impl LoRAAdapter {
             training_job_id,
             created_at: Utc::now().timestamp(),
             size_bytes,
+            skill_name,
             metrics,
         }
     }
@@ -242,6 +247,7 @@ impl SqliteAdapterStore {
                 training_job_id TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 size_bytes INTEGER NOT NULL,
+                skill_name TEXT NOT NULL DEFAULT '',
                 metrics_json TEXT
             );
             CREATE TABLE IF NOT EXISTS lora_blobs (
@@ -287,9 +293,9 @@ impl AdapterStore for SqliteAdapterStore {
         exec_discard(
             &conn,
             "INSERT OR REPLACE INTO lora_adapters
-             (id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, metrics_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            &[&adapter.id, &adapter.name, &adapter.base_model, &adapter.dataset_hash, &adapter.training_job_id, &adapter.created_at as &dyn rusqlite::types::ToSql, &(adapter.size_bytes as i64) as &dyn rusqlite::types::ToSql, &metrics_json as &dyn rusqlite::types::ToSql],
+             (id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, metrics_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            &[&adapter.id, &adapter.name, &adapter.base_model, &adapter.dataset_hash, &adapter.training_job_id, &adapter.created_at as &dyn rusqlite::types::ToSql, &(adapter.size_bytes as i64) as &dyn rusqlite::types::ToSql, &adapter.skill_name as &dyn rusqlite::types::ToSql, &metrics_json as &dyn rusqlite::types::ToSql],
         )?;
 
         tracing::info!(
@@ -321,7 +327,7 @@ impl AdapterStore for SqliteAdapterStore {
         let conn = self.lock()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, metrics_json
+                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, metrics_json
                  FROM lora_adapters WHERE id = ?1",
             )
             .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
@@ -329,7 +335,8 @@ impl AdapterStore for SqliteAdapterStore {
         let result = stmt.query_row(rusqlite::params![adapter_id], |row| {
             let created_at: i64 = row.get(5)?;
             let size_bytes_i64: i64 = row.get(6)?;
-            let metrics_json: Option<String> = row.get(7)?;
+            let skill_name: String = row.get(7)?;
+            let metrics_json: Option<String> = row.get(8)?;
             let metrics = match metrics_json {
                 Some(ref json) if !json.is_empty() && json != "null" => {
                     Some(serde_json::from_str(json).map_err(|_| {
@@ -350,6 +357,7 @@ impl AdapterStore for SqliteAdapterStore {
                 training_job_id: row.get(4)?,
                 created_at,
                 size_bytes: size_bytes_i64 as u64,
+                skill_name,
                 metrics,
             })
         });
@@ -378,7 +386,7 @@ impl AdapterStore for SqliteAdapterStore {
         let conn = self.lock()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, metrics_json
+                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, metrics_json
                  FROM lora_adapters ORDER BY created_at DESC",
             )
             .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
@@ -387,7 +395,8 @@ impl AdapterStore for SqliteAdapterStore {
             .query_map([], |row| {
                 let created_at: i64 = row.get(5)?;
                 let size_bytes_i64: i64 = row.get(6)?;
-                let metrics_json: Option<String> = row.get(7)?;
+                let skill_name: String = row.get(7)?;
+                let metrics_json: Option<String> = row.get(8)?;
                 let metrics = match metrics_json {
                     Some(ref json) if !json.is_empty() && json != "null" => {
                         Some(serde_json::from_str(json).map_err(|_| {
@@ -408,6 +417,7 @@ impl AdapterStore for SqliteAdapterStore {
                     training_job_id: row.get(4)?,
                     created_at,
                     size_bytes: size_bytes_i64 as u64,
+                    skill_name,
                     metrics,
                 })
             })

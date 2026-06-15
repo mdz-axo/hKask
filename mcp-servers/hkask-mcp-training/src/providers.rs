@@ -147,6 +147,31 @@ pub trait TrainingProvider: Send + Sync {
 
     /// Delete a LoRA adapter and its associated artifacts.
     async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError>;
+
+    /// Return completion metadata for a finished job (base model, metrics, output path).
+    /// Returns `None` if the job is not completed or the provider doesn't support metadata.
+    /// Default implementation returns `None`.
+    async fn completion_metadata(
+        &self,
+        _job_id: &str,
+    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+        Ok(None)
+    }
+}
+
+/// Metadata returned by a provider when a training job completes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletionMetadata {
+    /// Base model used for training.
+    pub base_model: String,
+    /// Fine-tuned model name / output identifier.
+    pub output_name: Option<String>,
+    /// Final training loss.
+    pub loss: Option<f32>,
+    /// Training duration in seconds.
+    pub training_duration_secs: Option<u64>,
+    /// Number of tokens processed.
+    pub tokens_processed: Option<u64>,
 }
 
 // ── Axolotl provider ───────────────────────────────────────────────────────
@@ -783,6 +808,69 @@ impl TrainingProvider for TogetherProvider {
             "LoRA adapter deleted from Together AI"
         );
         Ok(())
+    }
+
+    async fn completion_metadata(
+        &self,
+        job_id: &str,
+    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+        let response = self
+            .client
+            .get(format!("{}/v1/fine-tunes/{}", self.base_url, job_id))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .send()
+            .await
+            .map_err(|e| {
+                ProviderError::Backend(format!("Together AI metadata request failed: {}", e))
+            })?;
+
+        let json: serde_json::Value = response.json().await.map_err(|e| {
+            ProviderError::Backend(format!("Together AI metadata parse error: {}", e))
+        })?;
+
+        let status_str = json["status"].as_str().unwrap_or("");
+        if status_str != "completed" && status_str != "succeeded" {
+            return Ok(None);
+        }
+
+        let base_model = json["model"].as_str().unwrap_or("unknown").to_string();
+        let output_name = json["output_name"].as_str().map(|s| s.to_string());
+
+        // Extract loss from the last training event
+        let loss = json["events"].as_array().and_then(|events| {
+            events.iter().rev().find_map(|e| {
+                e.get("type")
+                    .and_then(|t| t.as_str())
+                    .filter(|t| *t == "training_loss" || *t == "checkpoint")
+                    .and_then(|_| e.get("data").and_then(|d| d.get("loss")))
+                    .and_then(|l| l.as_f64())
+                    .map(|l| l as f32)
+            })
+        });
+
+        let tokens_processed = json["events"].as_array().and_then(|events| {
+            events.iter().rev().find_map(|e| {
+                e.get("type")
+                    .and_then(|t| t.as_str())
+                    .filter(|t| *t == "training_loss" || *t == "checkpoint")
+                    .and_then(|_| e.get("data").and_then(|d| d.get("tokens")))
+                    .and_then(|t| t.as_u64())
+            })
+        });
+
+        let training_duration_secs = json["events"].as_array().and_then(|events| {
+            let created = events.first()?.get("created_at")?.as_i64()?;
+            let finished = events.last()?.get("created_at")?.as_i64()?;
+            Some((finished - created) as u64)
+        });
+
+        Ok(Some(CompletionMetadata {
+            base_model,
+            output_name,
+            loss,
+            training_duration_secs,
+            tokens_processed,
+        }))
     }
 }
 

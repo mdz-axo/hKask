@@ -29,7 +29,7 @@ use hkask_types::WebID;
 use hkask_types::capability::{
     DelegationAction, DelegationResource, DelegationToken, capabilities_match,
 };
-use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
 use hkask_types::loops::ToolConsumptionEvent;
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
 
@@ -200,6 +200,20 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         let estimated_cost = EnergyCost(estimated_cost);
         let loop6 = self.cybernetics.read().await;
         if !loop6.can_proceed(&self.agent, estimated_cost).await {
+            // Emit cns.gas.depleted span
+            let depleted_span = Span::from_kind(SpanKind::GasDepleted);
+            let depleted_event = NuEvent::new(
+                self.agent,
+                depleted_span,
+                Phase::Sense,
+                serde_json::json!({
+                    "tool": tool,
+                    "estimated_cost": estimated_cost.0,
+                }),
+                0,
+            );
+            let _ = self.event_sink.persist(&depleted_event);
+
             debug!(
                 target: "cns.tool",
                 agent = ?self.agent,
@@ -228,6 +242,20 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             )));
         }
         drop(loop6);
+
+        // Emit cns.gas.reserved span
+        let reserved_span = Span::from_kind(SpanKind::GasReserved);
+        let reserved_event = NuEvent::new(
+            self.agent,
+            reserved_span,
+            Phase::Act,
+            serde_json::json!({
+                "tool": tool,
+                "estimated_cost": estimated_cost.0,
+            }),
+            0,
+        );
+        let _ = self.event_sink.persist(&reserved_event);
 
         // Step 3: Emit invoked span
         let invoked_span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
@@ -292,6 +320,22 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             );
         }
         drop(loop6);
+
+        // Emit cns.gas.settled span
+        let settled_span = Span::from_kind(SpanKind::GasSettled);
+        let settled_event = NuEvent::new(
+            self.agent,
+            settled_span,
+            Phase::Act,
+            serde_json::json!({
+                "tool": tool,
+                "reserved": estimated_cost.0,
+                "actual": actual_cost,
+                "refunded": estimated_cost.0.saturating_sub(actual_cost),
+            }),
+            0,
+        );
+        let _ = self.event_sink.persist(&settled_event);
 
         // Step 5b: Emit gas-consumed signal to Cybernetics Loop via direct channel.
         let success = result.is_ok();

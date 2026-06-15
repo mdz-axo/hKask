@@ -231,6 +231,18 @@ impl WalletStore {
         Ok(rows)
     }
 
+    /// Check if a transaction with the given on-chain tx_hash already exists.
+    /// Used for deposit idempotency — prevents double-crediting on restart.
+    pub fn transaction_exists_by_hash(&self, tx_hash: &str) -> Result<bool, WalletError> {
+        let conn = self.lock_conn()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM wallet_transactions WHERE on_chain_tx_hash = ?1",
+            rusqlite::params![tx_hash],
+            |row| row.get(0),
+        )?;
+        Ok(count > 0)
+    }
+
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// Store a newly issued API key capability.

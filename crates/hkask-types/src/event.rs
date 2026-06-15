@@ -139,6 +139,9 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.outcome.tool",
     "cns.outcome.inference",
     "cns.outcome.memory",
+    // Contract discipline spans — Testing Discipline §9.3 (P9 feedback loop)
+    "cns.contract.violated",
+    "cns.contract.coverage",
 ];
 
 impl SpanNamespace {
