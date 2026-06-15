@@ -128,7 +128,7 @@ pub struct Skill {
 
 **Option A — Skill composition as runtime orchestration (no manifest).** The agent would receive all skill instructions simultaneously and resolve conflicts at inference time. Rejected because: (1) no validation guardrail, (2) no persistent composition to evolve, (3) no audit trail, (4) contradicts hKask's design principle that structure should be declared, not emergent.
 
-**Option B — Separate `BundleRegistry` type.** A distinct registry for bundles, parallel to the unified template registry. Rejected because it violates ADR-024[^adr-024]: three registries were already rejected in favor of a single unified registry. Bundles join the existing registry as a `template_type` discriminator, not a parallel structure.
+**Option B — Separate `BundleRegistry` type.** A distinct registry for bundles, parallel to the unified template registry. Rejected because it violates ADR-024[^adr-024]: hKask Project. (2026). *ADR-024: Unified Registry Decision*. Archived 2026-06-15. Recoverable via git history.
 
 ## Anti-Patterns
 
@@ -157,8 +157,8 @@ pub struct Skill {
 ## References
 
 [^double-diamond]: Council, D. (2005). *The Double Diamond: Design Council's Framework for Innovation*. <https://www.designcouncil.org.uk/our-resources/the-double-diamond/>
-[^adr-024]: hKask Project. (2026). *ADR-024: Unified Registry Decision*. `docs/architecture/ADR-024-unified-registry.md`
-[^adr-025]: hKask Project. (2026). *ADR-025: 7-Level Attenuation Depth Limit*. `docs/architecture/ADR-025-attenuation-depth-limit.md`
+[^adr-024]: hKask Project. (2026). *ADR-024: Unified Registry Decision*. Archived 2026-06-15. Recoverable via git history.
+[^adr-025]: hKask Project. (2026). *ADR-025: 7-Level Attenuation Depth Limit*. Archived 2026-06-15. Recoverable via git history.
 [^principles]: hKask Project. (2026). *Architecture Principles*. `docs/architecture/PRINCIPLES.md`
 [^content-addressing]: Merkle, R. C. (1987). *A Digital Signature Based on a Conventional Encryption Function*. CRYPTO '87.
 

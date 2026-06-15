@@ -34,14 +34,14 @@ mds_categories: [lifecycle, curation]
 
 **Verification:** Re-run `check-links.sh` (251 links, 0 broken) and `check-metadata.sh` (67 docs checked, 5 fail metadata, 1 warning) — both scripts PASS their core functions.
 
-### P0-2: Create `docs/status/spec-code-drift.yaml`
+### P0-2: Create `do../status/corpus_inventory.yaml`
 
 **Referenced by:** README portal (L116), MDS_SCAFFOLD, architecture master  
 **Purpose:** Set-difference of named entities from spec documents against `pub` API surfaces. Core infrastructure for P8 enforcement.  
 **Approach:** Start as manual inventory; automate via `cargo doc` or `cargo public-api` later.  
 **Verification:** README portal line 116 currently says "not yet created" — this reference must be resolved.
 
-### P0-3: Create `docs/status/curation-decisions.yaml`
+### P0-3: Create `do../status/corpus_inventory.yaml`
 
 **Referenced by:** README portal (L116), MDS_SCAFFOLD  
 **Purpose:** Merge/Revise decisions per MDS curation protocol for each drift item.  
@@ -78,10 +78,10 @@ Documents with `version` diverging from workspace `0.27.0`:
 | `reference/okapi-integration.md` (0.28.0) | `MDS-agent-service.md` (0.27.2) |
 | `plans/TODO.md` (1.9.0) | `crate-audit.md` (1.0.0) |
 | | `gentle-lovelace-specification.md` (0.1.0) |
-| | `plans/bundler-completion.md` (0.1.0) |
+| | `plans/bundler-completion.md` — archived 2026-06-15
 | | `plans/mcp-server-roadmap.md` (1.0.0) |
-| | `plans/mcp-media-server-design.md` (1.0.0) |
-| | `adversarial-simplification-inventory.md` (0.1.0) |
+| | `plans/mcp-media-server-design.md` — archived 2026-06-15
+| | `adversarial-simplification-inventory.md` — archived 2026-06-15
 
 **Approach:** Left column — document in `corpus_inventory.yaml` that version is intentional. Right column — bump to `0.27.0`.
 
@@ -175,9 +175,9 @@ P1-1 (audit frontmatter)
   ↓
 P2-5 (archive audit/)
 
-P0-2 (spec-code-drift.yaml)
+P0-2 (corpus_inventory.yaml)
   ↓
-P0-3 (curation-decisions.yaml)
+P0-3 (corpus_inventory.yaml)
 
 P1-3 (fix version anomalies)
   ↓

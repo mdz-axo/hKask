@@ -55,10 +55,6 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 
 | ADR | MDS | Decision | Status |
 |-----|--------|----------|--------|
-| [ADR-024](architecture/ADRs/ADR-024-unified-registry.md) | composition | Unified registry decision | Active |
-| [ADR-025](architecture/ADRs/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit | Active |
-| [ADR-026](architecture/ADRs/ADR-026-bitemporal-triple-schema.md) | lifecycle | Bitemporal triple schema | Active |
-| [ADR-027](architecture/ADRs/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation | Active |
 | [ADR-030](architecture/ADRs/ADR-030-skill-bundler.md) | composition | Skill Bundler — meta-skill composition | Proposed |
 | [ADR-031](architecture/ADRs/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation | Active |
 | [ADR-032](architecture/ADRs/ADR-032-mcp-gateway-membrane.md) | composition, trust | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) | Draft |
@@ -68,6 +64,8 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [ADR-036](architecture/ADRs/ADR-036-ocr-pipeline.md) | composition, curation | OCR pipeline — sealed backend hierarchy, deterministic routing | Draft |
 | [ADR-037](architecture/ADRs/ADR-037-wallet-payments.md) | domain, trust, lifecycle | Wallet payment mechanism — rJoule currency, multi-chain bridges | Draft |
 | [ADR-038](architecture/ADRs/ADR-038-media-server.md) | composition, domain | Media MCP server — 36 tools, fal.ai backend, single-server architecture | Draft |
+
+**Archived ADRs (retroactive, 2026-06-15):** ADR-024 (unified registry), ADR-025 (attenuation depth limit), ADR-026 (bitemporal triple schema), ADR-027 (argon2-hkdf master key). Recoverable via `git log -- docs/architecture/ADRs/`.
 
 ### Reference Artifacts (`architecture/reference/`)
 
@@ -135,14 +133,9 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | Document | MDS | Description |
 |----------|--------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | lifecycle | Build, test, and CI health |
-| [`test-inventory.md`](status/test-inventory.md) | lifecycle, curation | Test inventory from `cargo test --list` |
-| [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | composition, lifecycle | MCP server tool catalog — 141 tools across 10 servers |
-| [`skill-inventory.md`](status/skill-inventory.md) | composition, curation | Dual-layer skill registry — 33 skills cataloged |
-| [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | composition, domain | Dead code and simplification opportunities |
-| [`spec-code-drift.yaml`](status/spec-code-drift.yaml) | domain, composition, trust, lifecycle, curation | Spec-code drift tracking — 14/14 items resolved (2026-06-12) |
-| [`curation-decisions.yaml`](status/curation-decisions.yaml) | domain, composition, trust, lifecycle, curation | Curation decisions per drift item — 14 decisions recorded |
-| [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | lifecycle, curation | Document corpus lifecycle classification (generated 2026-06-14, updated 2026-06-15) |
-| [`document-futures.md`](status/document-futures.md) | lifecycle, curation | Open questions & under-specification tracking |
+| [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | lifecycle, curation | Document corpus lifecycle classification — living inventory |
+
+**Archived (2026-06-15):** test-inventory.md, mcp-tools-inventory.md, skill-inventory.md, adversarial-simplification-inventory.md, document-futures.md, spec-code-drift.yaml, curation-decisions.yaml, writing_quality_report.yaml, coherence_report.yaml. All served their purpose. Recoverable via git history.
 
 ---
 
@@ -153,13 +146,10 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | Document | MDS | Description |
 |----------|--------|-------------|
 | [`TODO.md`](plans/TODO.md) | domain, composition, trust, lifecycle, curation | Open work items |
-| [`bundler-completion.md`](plans/bundler-completion.md) | domain, composition, lifecycle | Bundler completion — remaining tasks |
 | [`mcp-server-roadmap.md`](plans/mcp-server-roadmap.md) | domain, composition, trust, lifecycle, curation | MCP server consolidation roadmap |
-| [`2026-06-12-replicant-server-mode.md`](plans/2026-06-12-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode handoff |
-| [`2026-06-12-wallet-payment-mechanism.md`](plans/2026-06-12-wallet-payment-mechanism.md) | domain, composition, trust, lifecycle | Wallet payment integration plan |
-| [`2026-06-12-wallet-rjoule-payments.md`](plans/2026-06-12-wallet-rjoule-payments.md) | domain, composition, trust, lifecycle | Wallet rJoule multi-chain plan |
-| [`mcp-media-server-design.md`](plans/mcp-media-server-design.md) | domain, composition, lifecycle | MCP media server — design & implementation plan |
 | [`DOCUMENT_ROADMAP.md`](plans/DOCUMENT_ROADMAP.md) | lifecycle, curation | Document corpus roadmap — P0→P3 prioritized (2026-06-14) |
+
+**Archived plans (2026-06-15):** replicant-server-mode, wallet-payment-mechanism, wallet-rjoule-payments, mcp-media-server-design, bundler-completion. Recoverable via `git log -- docs/plans/`.
 
 ---
 

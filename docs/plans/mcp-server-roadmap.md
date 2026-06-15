@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 Surfaced from architecture audit on 2026-06-11. Covers 12 MCP servers.
 
-See also: [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) for current tool catalog.
+See also: [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) for current tool catalog.
 
 ---
 
@@ -230,8 +230,8 @@ Document (PDF, MD, HTML, TXT)
 
 | Document | Relevance |
 |----------|-----------|
-| [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) | Current tool catalog (~82 tools across 10 servers) |
-| [`docs/status/test-inventory.md`](../status/test-inventory.md) | Test coverage per crate (102 total tests) |
+| [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Current tool catalog (~82 tools across 10 servers) |
+| [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Test coverage per crate (102 total tests) |
 | [`do../specifications/specs/test-program.md`](../specifications/specs/test-program.md) | MDS self-applying test methodology |
 | [`docs/OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) | Open questions including OQ-5 (test isolation), OQ-9 (stub MCP servers) |
 | [`AGENTS.md`](../../AGENTS.md) | Crate map with 10 listed MCP servers |

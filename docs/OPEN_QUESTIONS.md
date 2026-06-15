@@ -48,7 +48,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `docs/status/mcp-tools-inventory.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
+**Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `do../status/PROJECT_STATUS.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
 
 **Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 19 × ~2KB = ~38KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface. Note: The term "arsenal" is not part of the hKask vocabulary — the project has 11 core crates and 21 MCP servers, all in a single workspace.
 
@@ -126,7 +126,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Status:** **Resolved** (already confirmed 2026-05-28; reaffirmed 2026-05-29 MCP audit)  
 **Resolution Date:** 2026-05-28
 
-**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-web` (3,389 LOC). No stubs remain. MCP tools inventory confirms completeness (see `docs/status/mcp-tools-inventory.md`).
+**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-web` (3,389 LOC). No stubs remain. MCP tools inventory confirms completeness (see `do../status/PROJECT_STATUS.md`).
 
 ---
 
@@ -553,7 +553,7 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-The corrected MDS establishes that spec-document completeness is orthogonal to code-implementation completeness. The decision rule is now codified: spec completeness and code completeness are orthogonal predicates; drift items are classified by the curation gradient (Merge/Revise/Defer/Discard). Full drift set in `docs/status/spec-code-drift.yaml`, curation decisions in `docs/status/curation-decisions.yaml`. The MDS_SCAFFOLD.md §4 now has a two-column completeness predicate reflecting this axiom.
+The corrected MDS establishes that spec-document completeness is orthogonal to code-implementation completeness. The decision rule is now codified: spec completeness and code completeness are orthogonal predicates; drift items are classified by the curation gradient (Merge/Revise/Defer/Discard). Full drift set in `do../status/corpus_inventory.yaml`, curation decisions in `do../status/corpus_inventory.yaml`. The MDS_SCAFFOLD.md §4 now has a two-column completeness predicate reflecting this axiom.
 
 ---
 
@@ -574,7 +574,7 @@ Producing real content for `docs/status/` files. Two new status files have been 
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-The `hkask-agents` crate build regression has been resolved. All 9 code drift items (P2-06-D1 through P2-06-D9) have been resolved via the curation gradient: spec_ahead items received stubs with FocusingAssumptions, divergent items received spec updates or type aliases. See `docs/status/spec-code-drift.yaml` and `docs/status/curation-decisions.yaml`.
+The `hkask-agents` crate build regression has been resolved. All 9 code drift items (P2-06-D1 through P2-06-D9) have been resolved via the curation gradient: spec_ahead items received stubs with FocusingAssumptions, divergent items received spec updates or type aliases. See `do../status/corpus_inventory.yaml` and `do../status/corpus_inventory.yaml`.
 
 ---
 

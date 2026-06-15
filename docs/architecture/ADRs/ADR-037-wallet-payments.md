@@ -12,7 +12,7 @@ mds_categories: [domain, trust, lifecycle]
 
 **Status:** Draft  
 **Date:** 2026-06-14  
-**References:** `docs/plans/2026-06-12-wallet-payment-mechanism.md`, `docs/plans/2026-06-12-wallet-rjoule-payments.md`, `docs/architecture/wallet-specification.md`
+**References:** `docs/specifications/specs/wallet-specification.md` (plans archived 2026-06-15)
 
 ---
 

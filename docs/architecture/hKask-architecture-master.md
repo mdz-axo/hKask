@@ -356,10 +356,6 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | ADR | Topic |
 |-----|-------|
-| [`ADRs/ADR-024-unified-registry.md`](ADRs/ADR-024-unified-registry.md) | Unified registry with `template_type` discriminator (retroactive) |
-| [`ADRs/ADR-025-attenuation-depth-limit.md`](ADRs/ADR-025-attenuation-depth-limit.md) | 7-level attenuation depth limit (retroactive) |
-| [`ADRs/ADR-026-bitemporal-triple-schema.md`](ADRs/ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
-| [`ADRs/ADR-027-argon2-hkdf-master-key.md`](ADRs/ADR-027-argon2-hkdf-master-key.md) | Argon2id + HKDF-SHA256 master key derivation (retroactive) |
 | [`ADRs/ADR-030-skill-bundler.md`](ADRs/ADR-030-skill-bundler.md) | Skill bundler — meta-skill composition |
 | [`ADRs/ADR-031-consolidation-authorization.md`](ADRs/ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
 | [`ADRs/ADR-032-mcp-gateway-membrane.md`](ADRs/ADR-032-mcp-gateway-membrane.md) | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) |
@@ -369,6 +365,8 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADRs/ADR-036-ocr-pipeline.md`](ADRs/ADR-036-ocr-pipeline.md) | OCR pipeline — sealed backend hierarchy (Tesseract, PaddleOCR, FalAI), deterministic routing |
 | [`ADRs/ADR-037-wallet-payments.md`](ADRs/ADR-037-wallet-payments.md) | Wallet payment mechanism — rJoule internal currency, multi-chain bridge architecture |
 | [`ADRs/ADR-038-media-server.md`](ADRs/ADR-038-media-server.md) | Media MCP server — 28 tools across 6 categories, fal.ai primary backend |
+
+**Archived (retroactive, 2026-06-15):** ADR-024, ADR-025, ADR-026, ADR-027. Recoverable via git history.
 
 ---
 
@@ -401,10 +399,7 @@ docs/architecture/
 ├── mandates/
 │   └── P12-replicant-host-mandate.md      # Framework (replicant host mandate)
 ├── ADRs/
-│   ├── ADR-024-unified-registry.md        # Decision record
-│   ├── ADR-025-attenuation-depth-limit.md # Decision record
-│   ├── ADR-026-bitemporal-triple-schema.md # Decision record
-│   ├── ADR-027-argon2-hkdf-master-key.md  # Decision record
+│   ├── _TEMPLATE.md                       # ADR template
 │   ├── ADR-030-skill-bundler.md           # Decision record (Draft)
 │   ├── ADR-031-consolidation-authorization.md # Decision record
 │   ├── ADR-032-mcp-gateway-membrane.md    # Decision record (Draft)
@@ -423,7 +418,7 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 26 active architecture documents (3 core + 1 mandate + 4 root + 13 ADRs + 6 reference artifacts).
+**Total:** 22 active architecture documents (3 core + 1 mandate + 4 root + 9 ADRs + 1 template + 6 reference artifacts).
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.)
 

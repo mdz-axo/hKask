@@ -12,7 +12,7 @@ mds_categories: [composition, domain]
 
 **Status:** Draft  
 **Date:** 2026-06-14  
-**References:** `docs/plans/mcp-media-server-design.md`, handoffs: `media-voice-talk-2026-06-13.md`, `media-server-continuation-2026-06-14.md`
+**References:** Design plan archived 2026-06-15. Handoffs in git history.
 
 ---
 
@@ -20,7 +20,7 @@ mds_categories: [composition, domain]
 
 hKask generates media (image, video, audio, voice, collage, 3D) through MCP tools. The `hkask-mcp-media` crate serves 28 tools from a single MCP server. fal.ai is the primary generation backend.
 
-Agent sessions developed the architecture across multiple handoffs (`media-voice-talk-2026-06-13.md`, `media-server-continuation-2026-06-14.md`). The `mcp-media-server-design.md` plan specifies the design. This ADR documents those decisions retroactively.
+Agent sessions developed the architecture across multiple handoffs (archived 2026-06-15, recoverable via git history). This ADR documents those decisions.
 
 ## Decision
 

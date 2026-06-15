@@ -53,19 +53,19 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-03** | GPU acceleration (CUDA) | Infrastructure | Low | Optional |
 | **P2-04** | Qdrant vector search | Storage bot | Low | Contingency |
 | **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
-| **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved; code drift audit complete — see `docs/status/spec-code-drift.yaml` and `docs/status/curation-decisions.yaml` |
+| **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved; code drift audit complete — see `do../status/corpus_inventory.yaml` and `do../status/corpus_inventory.yaml` |
 | **P2-07** | MDS audit R4: Update §9.1 self-application matrix | Curator | Medium | ✅ Complete | Trust → Pass, Observability → Pass, Persistence/Lifecycle/Curation → :partial. Updated 2026-06-08 |
 | **P2-08** | MDS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ✅ Complete | PRINCIPLES.md §1.4 is authoritative; 5 hierarchical spans now registered in CANONICAL_NAMESPACES |
 | **P2-09** | MDS audit R8: Add TemplateType vocabulary mapping to MDS.md §7.2 | Curator | Medium | ✅ Complete | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct mapping with `as_spec_name()` cross-reference. Updated 2026-06-08 |
 | **P2-10** | MDS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 MDS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
-| **P2-12** | Populate `docs/status/mcp-tools-inventory.md` — complete catalog of all 10 MCP servers' tools | Dev | Medium | ✅ Complete | 10 servers, ~82 tools (updated 2026-06-11: research consolidation, replica added) |
-| **P2-13** | Populate `docs/status/test-inventory.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 42 seams, 192 tests, gap analysis |
+| **P2-12** | Populate `do../status/PROJECT_STATUS.md` — complete catalog of all 10 MCP servers' tools | Dev | Medium | ✅ Complete | 10 servers, ~82 tools (updated 2026-06-11: research consolidation, replica added) |
+| **P2-13** | Populate `do../status/PROJECT_STATUS.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 42 seams, 192 tests, gap analysis |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete → Archived | 6 Fowler patterns identified (2 applied, 4 open-low). Archived 2026-06-11; open items deferred to P1 threshold. |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ✅ Complete | 12 dead_code annotations, 4 unwired seams, 3 simplification candidates, 0 removal candidates. Created 2026-06-08 |
 | **P2-16** | Custom/private securities for portfolio tracking | Companies bot | Medium | ⬜ Planned | Spec: `docs/specifications/portfolio-tracking.md` §10.6. 6 new tools planned (create, list, delete, update_price, import_prices, link_public). Deferred to Phase 6; depends on Phase 5 multi-currency. |
 
-**Code drift from spec alignment audit (2026-06-07, resolved 2026-06-08):** Full drift set and curation decisions are in [`docs/status/spec-code-drift.yaml`](../status/spec-code-drift.yaml) and [`docs/status/curation-decisions.yaml`](../status/curation-decisions.yaml). Summary of resolutions:
+**Code drift from spec alignment audit (2026-06-07, resolved 2026-06-08):** Full drift set and curation decisions are in [`do../status/corpus_inventory.yaml`](../status/corpus_inventory.yaml) and [`do../status/corpus_inventory.yaml`](../status/corpus_inventory.yaml). Summary of resolutions:
 
 | ID | Resolution |
 |----|------------|

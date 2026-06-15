@@ -100,7 +100,7 @@ All 18 workspace members.
 
 ## Code Drift
 
-See [`docs/status/spec-code-drift.yaml`](spec-code-drift.yaml) and [`docs/status/curation-decisions.yaml`](curation-decisions.yaml).
+See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 **All 14 drift items resolved (2026-06-12).** Zero remaining spec_ahead, code_ahead, or divergent items.
 

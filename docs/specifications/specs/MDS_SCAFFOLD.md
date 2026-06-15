@@ -60,8 +60,8 @@ Spec-code alignment is tracked in dedicated files, not duplicated here:
 
 | Tracking File | Purpose |
 |---------------|---------|
-| [`spec-code-drift.yaml`](../../status/spec-code-drift.yaml) | Set-difference of named entities from spec docs against `pub` API surfaces |
-| [`curation-decisions.yaml`](../../status/curation-decisions.yaml) | Merge/Revise/Defer/Discard decisions per drift item |
+| [`spec-code-drift.yaml`](../../status/corpus_inventory.yaml) | Set-difference of named entities from spec docs against `pub` API surfaces |
+| [`curation-decisions.yaml`](../../status/corpus_inventory.yaml) | Merge/Revise/Defer/Discard decisions per drift item |
 
 **Rule:** When spec and code diverge, record the drift item in `spec-code-drift.yaml` and the curation decision in `curation-decisions.yaml`. This scaffold does not maintain a duplicate completeness table.
 
