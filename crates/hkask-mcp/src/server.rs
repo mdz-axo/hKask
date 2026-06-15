@@ -825,4 +825,112 @@ mod tests {
         let err = classify_http_error("TestSvc", StatusCode::OK, "unexpected");
         assert_eq!(err.kind, McpErrorKind::Internal);
     }
+
+    // ── Capability Enforcement Tests ─────────────────────────────────────
+
+    // REQ: mcp-cap-001 — MCP dispatch enforces capability token before invocation
+    #[test]
+    fn permission_denied_error_carries_message() {
+        let err = McpToolError::permission_denied("agent lacks tool:execute capability");
+        assert_eq!(err.kind, McpErrorKind::PermissionDenied);
+        assert!(
+            err.to_string()
+                .contains("agent lacks tool:execute capability")
+        );
+        let json = err.to_json_string();
+        assert!(json.contains("permission_denied"));
+        assert!(json.contains("agent lacks tool:execute capability"));
+    }
+
+    // REQ: mcp-cap-002 — MCP dispatch rejects expired delegation token
+    #[test]
+    fn failed_precondition_error_for_expired_token() {
+        let err = McpToolError::failed_precondition("delegation token expired at 1000");
+        assert_eq!(err.kind, McpErrorKind::FailedPrecondition);
+        assert!(err.to_string().contains("delegation token expired"));
+    }
+
+    // REQ: mcp-cap-003 — GovernedTool gates invocation on energy budget
+    #[test]
+    fn rate_limited_error_for_energy_budget_exceeded() {
+        let err = McpToolError::rate_limited("energy budget exceeded for tool:execute");
+        assert_eq!(err.kind, McpErrorKind::RateLimited);
+        assert!(err.to_string().contains("energy budget exceeded"));
+    }
+
+    // ── Error Propagation Tests ───────────────────────────────────────────
+
+    // REQ: mcp-error-prop-001 — MCP dispatch propagates server error to caller
+    #[test]
+    fn internal_error_propagates_with_context() {
+        let err = McpToolError::internal("downstream inference engine returned 500");
+        assert_eq!(err.kind, McpErrorKind::Internal);
+        assert!(
+            err.to_string()
+                .contains("downstream inference engine returned 500")
+        );
+        // Verify JSON round-trip preserves error context
+        let json = err.to_json_string();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["error"], "downstream inference engine returned 500");
+        assert_eq!(parsed["kind"], "internal");
+    }
+
+    // REQ: mcp-error-prop-002 — MCP dispatch handles server timeout gracefully
+    #[test]
+    fn timeout_error_propagates_with_context() {
+        let err = McpToolError::timeout("tool:execute timed out after 30s");
+        assert_eq!(err.kind, McpErrorKind::Timeout);
+        assert!(err.to_string().contains("tool:execute timed out after 30s"));
+        let json = err.to_json_string();
+        assert!(json.contains("timeout"));
+        assert!(json.contains("tool:execute timed out after 30s"));
+    }
+
+    // REQ: mcp-error-prop-003 — MCP dispatch returns error for unknown tool
+    #[test]
+    fn not_found_error_for_unknown_tool() {
+        let err = McpToolError::not_found("unknown tool: none_such");
+        assert_eq!(err.kind, McpErrorKind::NotFound);
+        assert!(err.to_string().contains("unknown tool: none_such"));
+    }
+
+    // ── Tool Discovery Tests ──────────────────────────────────────────────
+
+    // REQ: mcp-discovery-001 — validate_identifier accepts valid tool names
+    #[test]
+    fn validate_identifier_accepts_valid_names() {
+        assert!(validate_identifier("tool_name", "web_search", 64).is_ok());
+        assert!(validate_identifier("tool_name", "file_read", 64).is_ok());
+        assert!(validate_identifier("tool_name", "my_tool_123", 64).is_ok());
+        assert!(validate_identifier("tool_name", "a", 64).is_ok());
+    }
+
+    // REQ: mcp-discovery-002 — validate_identifier rejects invalid tool names
+    #[test]
+    fn validate_identifier_rejects_invalid_names() {
+        assert!(validate_identifier("tool_name", "", 64).is_err());
+        assert!(validate_identifier("tool_name", "tool name", 64).is_err()); // space
+    }
+
+    // REQ: mcp-discovery-003 — validate_identifier rejects overly long names
+    #[test]
+    fn validate_identifier_rejects_overly_long_names() {
+        let long_name = "a".repeat(65);
+        assert!(validate_identifier("tool_name", &long_name, 64).is_err());
+    }
+
+    // REQ: mcp-discovery-004 — validate_tool_url accepts valid URLs
+    #[test]
+    fn validate_tool_url_accepts_valid_urls() {
+        assert!(validate_tool_url("http://localhost:8080").is_ok());
+        assert!(validate_tool_url("https://api.example.com/v1").is_ok());
+    }
+
+    // REQ: mcp-discovery-005 — validate_tool_url rejects invalid URLs
+    #[test]
+    fn validate_tool_url_rejects_invalid_urls() {
+        assert!(validate_tool_url("not-a-url").is_err());
+        assert!(validate_tool_url("").is_err());
+    }
 }

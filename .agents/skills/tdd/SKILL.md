@@ -8,6 +8,8 @@ description: "Test-driven development with red-green-refactor loop. Use when bui
 
 Adapted from Matt Pocock's TDD skill.
 
+**Anchoring discipline:** [`docs/architecture/core/TESTING_DISCIPLINE.md`](../../docs/architecture/core/TESTING_DISCIPLINE.md) — Design by Contract (Meyer, 1986), verified through Property-Based Testing (QuickCheck, Claessen & Hughes, 2000). This skill defines the *process* for writing tests. The Testing Discipline defines *what* the tests must verify: contracts (preconditions, postconditions, invariants).
+
 ## Registry Templates
 
 This skill's runtime templates live in `registry/templates/tdd/`:

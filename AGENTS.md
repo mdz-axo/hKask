@@ -11,7 +11,7 @@ Activate the relevant skill via `skill` tool when its conditions are met:
 | Skill | When to Activate |
 |-------|-----------------|
 | **coding-guidelines** | Before writing or reviewing any code. Surfaces assumptions, enforces simplicity, surgical changes, goal-driven execution. |
-| **tdd** | Building features or fixing bugs. Vertical tracer-bullet RED→GREEN→REFACTOR. Every test carries `// REQ:` tag from spec. |
+| **tdd** | Building features or fixing bugs. Vertical tracer-bullet RED→GREEN→REFACTOR. Every test carries `// REQ:` tag from spec. Anchored on the Testing Discipline (Design by Contract + Property-Based Testing). |
 | **refactor-service-layer** | Extracting duplicated business logic from CLI/API/MCP surfaces into `hkask-services`. Strangler fig pattern, deep-module discipline. |
 | **improve-codebase-architecture** | Finding deepening opportunities. Walk codebase for shallow modules, tight coupling, untested seams. |
 | **condenser-continuation** | Resuming condenser implementation after context reset. Restores session state, prioritizes remaining tasks, verifies build health. |
@@ -45,7 +45,7 @@ These are **Prohibitions**, not guidelines. See PRINCIPLES.md §2.1–2.4 for th
 | Principles (P1–P12) | `docs/architecture/core/PRINCIPLES.md` |
 | MDS Specification | `docs/architecture/core/MDS.md` |
 | CNS spans (canonical) | `docs/architecture/core/PRINCIPLES.md` §1.4 |
-| Test Program | `docs/specifications/test-program.md` |
+| Testing Discipline | `docs/architecture/core/TESTING_DISCIPLINE.md` |
 
 ---
 
@@ -63,4 +63,8 @@ kask sovereignty verify
 
 # CNS span health
 kask cns status
+
+# Contract completeness audit (Testing Discipline §7)
+grep -rn "pub fn\|pub async fn" crates/ mcp-servers/ --include="*.rs" | grep -v "cfg(test)" | grep -v "/tests/" | wc -l  # public functions
+grep -rn "// REQ:.*pre:" crates/ mcp-servers/ --include="*.rs" | wc -l  # contracted functions
 ```

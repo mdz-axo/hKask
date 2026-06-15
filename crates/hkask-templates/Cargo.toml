@@ -32,3 +32,7 @@ path = "tests/manifest_fuzz.rs"
 [[test]]
 name = "yaml_schema_validation"
 path = "tests/yaml_schema_validation.rs"
+
+[[test]]
+name = "template_rendering"
+path = "tests/template_rendering.rs"

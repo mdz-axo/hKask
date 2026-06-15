@@ -1,0 +1,82 @@
+//! Template rendering tests — Wave 6 Task 6.2
+//!
+//! Verifies that all Jinja2 templates in the registry render without
+//! errors when given sample context data. Catches template syntax errors
+//! and missing variable bugs at test time rather than at runtime.
+//!
+//! # Principle grounding
+//! - P8 (Semantic Grounding): template errors should be caught before runtime
+
+use minijinja::Environment;
+use serde_json::json;
+use std::path::Path;
+
+// REQ: TPL-002 — Template rendering correctness (P8)
+// All Jinja2 templates render without errors with valid context.
+
+#[test]
+fn all_templates_render() {
+    let templates_dir = Path::new("registry/templates");
+    if !templates_dir.exists() {
+        eprintln!("registry/templates/ not found — skipping test");
+        return;
+    }
+
+    let mut env = Environment::new();
+    let mut errors = Vec::new();
+    let mut count = 0;
+
+    for entry in walkdir::WalkDir::new(templates_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "j2"))
+    {
+        count += 1;
+        let path = entry.path().to_path_buf();
+        let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+
+        match std::fs::read_to_string(&path) {
+            Ok(source) => {
+                if let Err(e) = env.add_template_owned(name.clone(), source) {
+                    errors.push(format!("{}: template parse error: {}", path.display(), e));
+                    continue;
+                }
+
+                // Render with minimal sample context
+                let ctx = json!({
+                    "agent_name": "test-agent",
+                    "goal_text": "test goal",
+                    "query": "test query",
+                    "topic": "test topic",
+                    "mode": "plussing",
+                });
+                match env.get_template(&name).unwrap().render(&ctx) {
+                    Ok(output) => {
+                        assert!(
+                            !output.is_empty(),
+                            "{}: rendered output is empty",
+                            path.display()
+                        );
+                    }
+                    Err(e) => {
+                        errors.push(format!("{}: render error: {}", path.display(), e));
+                    }
+                }
+            }
+            Err(e) => {
+                errors.push(format!("{}: IO error: {}", path.display(), e));
+            }
+        }
+    }
+
+    if !errors.is_empty() {
+        panic!(
+            "{} of {} templates failed to render:\n{}",
+            errors.len(),
+            count,
+            errors.join("\n")
+        );
+    }
+
+    eprintln!("Rendered {} templates — all successful", count);
+}

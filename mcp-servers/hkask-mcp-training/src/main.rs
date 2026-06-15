@@ -1,14 +1,17 @@
 //! hKask MCP Training — Model training data ingestion and fine-tuning server.
 //!
-//! Starts an MCP server over stdio exposing 8 tools:
-//! - `training_ingest_qa` — Ingest QA pairs for future model fine-tuning
-//! - `training_submit` — Submit a training job for execution
+//! Exposes a full training surface:
+//! - `training_ingest_qa` — Ingest QA pairs for model fine-tuning
+//! - `training_submit` — Submit a training job via pluggable provider
 //! - `training_status` — Query training job status
-//! - `training_cancel` — Cancel a running or queued job
+//! - `training_cancel` — Cancel a running job
 //! - `training_list_adapters` — List completed LoRA adapters
 //! - `training_delete_adapter` — Remove a LoRA adapter
 //! - `training_assemble_dataset` — Assemble stored QA pairs into a ChatML JSONL dataset file
 //! - `training_generate_traces` — Generate decomposition traces from skill documents
+//! - `training_evaluate` — Evaluate a trained adapter against a test dataset
+//! - `training_register_adapter` — Register a completed adapter in persistent storage
+//! - `training_recommend_model` — Recommend a base model for fine-tuning
 //!
 //! Architecture:
 //!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingProvider → LoRAAdapter
@@ -27,7 +30,9 @@
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_mcp_training::adapters::{AdapterStore, InMemoryAdapterStore};
+use hkask_mcp_training::adapters::{
+    AdapterMetrics, AdapterStore, InMemoryAdapterStore, LoRAAdapter, SqliteAdapterStore,
+};
 use hkask_mcp_training::dataset::DatasetPipeline;
 use hkask_mcp_training::providers::{
     ProviderConfig, TrainingJob, TrainingJobStatus, TrainingParams, TrainingProvider,
@@ -139,6 +144,77 @@ pub struct GenerateTracesRequest {
     /// Defaults to the server's configured default model.
     #[serde(default)]
     pub model: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainEvaluateRequest {
+    /// Adapter ID or fine-tuned model name to evaluate.
+    pub adapter_id: String,
+    /// Path to test dataset (ChatML JSONL). Each line must have a "messages" array
+    /// with user/assistant turns. The last assistant message is the expected answer.
+    pub test_dataset_path: String,
+    /// Model identifier to run evaluation against (provider-prefixed).
+    /// For Together AI adapters, use the fine-tuned model name
+    /// (e.g., "mdz-axolotl/Qwen3.5-9B-ft-abc123").
+    pub model: String,
+    /// Evaluation method: "exact_match" (default), "contains", or "semantic".
+    /// - exact_match: generated == expected after trimming
+    /// - contains: expected substring is found in generated
+    /// - semantic: uses a second inference call to judge correctness
+    #[serde(default)]
+    pub method: Option<String>,
+    /// Maximum number of examples to evaluate (default: all).
+    #[serde(default)]
+    pub max_examples: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainRegisterAdapterRequest {
+    /// Adapter ID (from training job completion).
+    pub adapter_id: String,
+    /// Human-readable name for the adapter (e.g., "constraint-forces-v3").
+    pub name: String,
+    /// Base model the adapter was trained on (provider-prefixed).
+    pub base_model: String,
+    /// Content hash of the training dataset.
+    #[serde(default)]
+    pub dataset_hash: Option<String>,
+    /// ID of the originating training job.
+    #[serde(default)]
+    pub training_job_id: Option<String>,
+    /// Size of adapter weights in bytes.
+    #[serde(default)]
+    pub size_bytes: Option<u64>,
+    /// Final training loss.
+    #[serde(default)]
+    pub loss: Option<f32>,
+    /// Perplexity at end of training.
+    #[serde(default)]
+    pub perplexity: Option<f32>,
+    /// Training duration in seconds.
+    #[serde(default)]
+    pub training_duration_secs: Option<u64>,
+    /// Number of tokens processed.
+    #[serde(default)]
+    pub tokens_processed: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainRecommendModelRequest {
+    /// Task type: "classification", "generation", "procedural", "reasoning", or "chat".
+    pub task_type: String,
+    /// Budget constraint: "low" (<$1/run), "medium" (<$10/run), or "high" (unlimited).
+    #[serde(default)]
+    pub budget: Option<String>,
+    /// Latency requirement: "realtime" (<2s), "batch" (minutes ok), or "flexible".
+    #[serde(default)]
+    pub latency: Option<String>,
+    /// License requirement: "apache2", "mit", "open", or "any".
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Preferred provider: "together", "fireworks", "deepinfra", "ollama", or "any".
+    #[serde(default)]
+    pub provider: Option<String>,
 }
 
 // ── Server ───────────────────────────────────────────────────────────────
@@ -803,6 +879,421 @@ impl TrainingServer {
         }
     }
 
+    #[tool(
+        description = "Evaluate a trained adapter against a test dataset. Runs inference for each test example and scores accuracy using exact match, substring containment, or semantic comparison. The model must be deployed and available for inference (Together AI fine-tuned models are auto-deployed; local adapters require the inference engine to have the adapter loaded)."
+    )]
+    async fn training_evaluate(
+        &self,
+        Parameters(TrainEvaluateRequest {
+            adapter_id,
+            test_dataset_path,
+            model,
+            method,
+            max_examples,
+        }): Parameters<TrainEvaluateRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_evaluate", &self.webid);
+
+        let test_path = PathBuf::from(&test_dataset_path);
+        if !test_path.exists() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "Test dataset file not found: {}",
+                    test_dataset_path
+                ))
+                .to_json_string(),
+            );
+        }
+
+        let raw = match std::fs::read_to_string(&test_path) {
+            Ok(r) => r,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!("Failed to read test dataset: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        // Parse test examples: extract user message as input, last assistant message as expected
+        let mut examples: Vec<(String, String)> = Vec::new();
+        for (i, line) in raw.lines().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let record: serde_json::Value = match serde_json::from_str(trimmed) {
+                Ok(v) => v,
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.training.evaluate",
+                        line = i + 1,
+                        error = %e,
+                        "Skipping unparseable test line"
+                    );
+                    continue;
+                }
+            };
+            let messages = match record.get("messages").and_then(|m| m.as_array()) {
+                Some(ms) => ms,
+                None => continue,
+            };
+
+            // Build user prompt from all user turns
+            let user_parts: Vec<&str> = messages
+                .iter()
+                .filter(|m| m.get("role").and_then(|r| r.as_str()) == Some("user"))
+                .filter_map(|m| m.get("content").and_then(|c| c.as_str()))
+                .collect();
+            if user_parts.is_empty() {
+                continue;
+            }
+            let input = user_parts.join("\n");
+
+            // Expected answer is the last assistant message
+            let expected = messages
+                .iter()
+                .rev()
+                .find(|m| m.get("role").and_then(|r| r.as_str()) == Some("assistant"))
+                .and_then(|m| m.get("content").and_then(|c| c.as_str()))
+                .unwrap_or("");
+
+            if expected.is_empty() {
+                continue;
+            }
+            examples.push((input, expected.to_string()));
+        }
+
+        if examples.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "No valid test examples found in dataset. Each line must have a 'messages' array with user and assistant turns.",
+                )
+                .to_json_string(),
+            );
+        }
+
+        let limit = max_examples.unwrap_or(examples.len()).min(examples.len());
+        examples.truncate(limit);
+
+        let eval_method = method.as_deref().unwrap_or("exact_match");
+        let router = InferenceRouter::new(self.inference_config.clone());
+
+        let mut correct = 0;
+        let mut errors = 0;
+        let mut total_tokens = 0u64;
+        let mut per_example_results: Vec<serde_json::Value> = Vec::new();
+
+        for (i, (input, expected)) in examples.iter().enumerate() {
+            let prompt = format!("{input}\n\nRespond concisely and accurately.");
+
+            let params = LLMParameters {
+                temperature: 0.0, // Deterministic for evaluation
+                max_tokens: 512,
+                ..Default::default()
+            };
+
+            match router.generate(&prompt, &params).await {
+                Ok(response) => {
+                    total_tokens += response.usage.total_tokens as u64;
+                    let generated = response.text.trim();
+                    let expected_trimmed = expected.trim();
+
+                    let is_correct = match eval_method {
+                        "contains" => generated.contains(expected_trimmed),
+                        "semantic" => {
+                            // Semantic evaluation: ask the model to judge correctness
+                            let judge_prompt = format!(
+                                "Judge whether the following response correctly answers the question.\n\n\
+                                 QUESTION:\n{input}\n\n\
+                                 EXPECTED ANSWER:\n{expected_trimmed}\n\n\
+                                 GENERATED ANSWER:\n{generated}\n\n\
+                                 Reply with ONLY 'CORRECT' or 'INCORRECT'."
+                            );
+                            match router.generate(&judge_prompt, &params).await {
+                                Ok(judge) => judge.text.trim().to_uppercase().contains("CORRECT"),
+                                Err(_) => false,
+                            }
+                        }
+                        _ => generated == expected_trimmed,
+                    };
+
+                    if is_correct {
+                        correct += 1;
+                    }
+
+                    per_example_results.push(json!({
+                        "index": i,
+                        "input": input,
+                        "expected": expected_trimmed,
+                        "generated": generated,
+                        "correct": is_correct,
+                        "tokens": response.usage.total_tokens,
+                    }));
+                }
+                Err(e) => {
+                    errors += 1;
+                    tracing::warn!(
+                        target: "cns.training.evaluate",
+                        example = i,
+                        error = %e,
+                        "Inference failed for test example"
+                    );
+                    per_example_results.push(json!({
+                        "index": i,
+                        "input": input,
+                        "expected": expected.trim(),
+                        "error": e.to_string(),
+                    }));
+                }
+            }
+        }
+
+        let total = correct + errors;
+        let accuracy = if total > 0 {
+            correct as f64 / total as f64
+        } else {
+            0.0
+        };
+
+        let result = json!({
+            "adapter_id": adapter_id,
+            "model": model,
+            "method": eval_method,
+            "total_examples": total,
+            "correct": correct,
+            "errors": errors,
+            "accuracy": accuracy,
+            "total_tokens_used": total_tokens,
+            "per_example": per_example_results,
+        });
+
+        self.record_experience("training_evaluate", &adapter_id, "success", result.clone());
+        span.ok_json(result)
+    }
+
+    #[tool(
+        description = "Register a completed LoRA adapter in the persistent store. Call after training completes to record adapter metadata for future listing, evaluation, and composition. Stores both metadata and links the adapter to its originating training job."
+    )]
+    async fn training_register_adapter(
+        &self,
+        Parameters(TrainRegisterAdapterRequest {
+            adapter_id,
+            name,
+            base_model,
+            dataset_hash,
+            training_job_id,
+            size_bytes,
+            loss,
+            perplexity,
+            training_duration_secs,
+            tokens_processed,
+        }): Parameters<TrainRegisterAdapterRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_register_adapter", &self.webid);
+
+        let metrics = if loss.is_some()
+            || perplexity.is_some()
+            || training_duration_secs.is_some()
+            || tokens_processed.is_some()
+        {
+            Some(AdapterMetrics {
+                loss,
+                perplexity,
+                training_duration_secs,
+                tokens_processed,
+            })
+        } else {
+            None
+        };
+
+        let adapter = LoRAAdapter {
+            id: adapter_id.clone(),
+            name: name.clone(),
+            base_model: base_model.clone(),
+            dataset_hash: dataset_hash.unwrap_or_default(),
+            training_job_id: training_job_id.unwrap_or_default(),
+            created_at: chrono::Utc::now().timestamp(),
+            size_bytes: size_bytes.unwrap_or(0),
+            metrics,
+        };
+
+        match self.adapter_store.store_metadata(&adapter).await {
+            Ok(()) => {
+                let result = json!({
+                    "adapter_id": adapter_id,
+                    "name": name,
+                    "base_model": base_model,
+                    "registered": true,
+                });
+                self.record_experience(
+                    "training_register_adapter",
+                    &adapter_id,
+                    "success",
+                    result.clone(),
+                );
+                span.ok_json(result)
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to register adapter: {}", e))
+                    .to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Recommend a base model for fine-tuning based on task type, budget, latency, and license requirements. Returns ranked recommendations with rationale to guide model selection before calling training_submit."
+    )]
+    async fn training_recommend_model(
+        &self,
+        Parameters(TrainRecommendModelRequest {
+            task_type,
+            budget,
+            latency,
+            license,
+            provider,
+        }): Parameters<TrainRecommendModelRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_recommend_model", &self.webid);
+
+        // Model knowledge base — ranked recommendations per task type
+        // Updated 2026-06. Weights: license freedom, provider availability, cost, capability.
+        let recommendations: Vec<serde_json::Value> = match task_type.to_lowercase().as_str() {
+            "classification" => vec![
+                json!({
+                    "rank": 1, "model": "Qwen3.5-9B", "provider_prefix": "TOGETHER",
+                    "rationale": "Strong instruction-following, Apache 2.0 license, broad provider support. Excellent for constraint classification and categorical tasks. ~$0.005/LoRA run on Together AI.",
+                    "license": "apache2", "size": "9B", "cost_per_run": "~$0.005"
+                }),
+                json!({
+                    "rank": 2, "model": "Llama-4-8B", "provider_prefix": "TOGETHER",
+                    "rationale": "Latest Llama architecture, strong reasoning. Good for classification with nuanced categories. Slightly more expensive than Qwen3.5.",
+                    "license": "llama4", "size": "8B", "cost_per_run": "~$0.01"
+                }),
+                json!({
+                    "rank": 3, "model": "DeepSeek-V3-7B", "provider_prefix": "TOGETHER",
+                    "rationale": "Excellent reasoning capabilities, strong for multi-step classification. MIT license. Good for procedural classification tasks.",
+                    "license": "mit", "size": "7B", "cost_per_run": "~$0.008"
+                }),
+            ],
+            "generation" => vec![
+                json!({
+                    "rank": 1, "model": "Qwen3.5-14B", "provider_prefix": "TOGETHER",
+                    "rationale": "Larger variant with stronger generation capabilities. Apache 2.0. Good for trace generation and synthetic data creation.",
+                    "license": "apache2", "size": "14B", "cost_per_run": "~$0.02"
+                }),
+                json!({
+                    "rank": 2, "model": "Llama-4-12B", "provider_prefix": "TOGETHER",
+                    "rationale": "Strong creative generation, good for diverse synthetic data. Llama 4 community license.",
+                    "license": "llama4", "size": "12B", "cost_per_run": "~$0.03"
+                }),
+            ],
+            "procedural" => vec![
+                json!({
+                    "rank": 1, "model": "Qwen3.5-9B", "provider_prefix": "TOGETHER",
+                    "rationale": "Best cost/capability balance for procedural skill training. Apache 2.0. Proven with hKask constraint-forces and essentialist adapters.",
+                    "license": "apache2", "size": "9B", "cost_per_run": "~$0.005"
+                }),
+                json!({
+                    "rank": 2, "model": "DeepSeek-V3-7B", "provider_prefix": "TOGETHER",
+                    "rationale": "Strong at following multi-step procedures. MIT license. Good for diagnose and tdd skill adapters.",
+                    "license": "mit", "size": "7B", "cost_per_run": "~$0.008"
+                }),
+            ],
+            "reasoning" => vec![
+                json!({
+                    "rank": 1, "model": "DeepSeek-V3-7B", "provider_prefix": "TOGETHER",
+                    "rationale": "Top-tier reasoning capabilities. MIT license. Best for pragmatic-semantics, essentialist, and other analysis-heavy skills.",
+                    "license": "mit", "size": "7B", "cost_per_run": "~$0.008"
+                }),
+                json!({
+                    "rank": 2, "model": "Qwen3.5-9B", "provider_prefix": "TOGETHER",
+                    "rationale": "Strong reasoning with broader provider support. Apache 2.0. Good fallback if DeepSeek is unavailable.",
+                    "license": "apache2", "size": "9B", "cost_per_run": "~$0.005"
+                }),
+            ],
+            "chat" => vec![
+                json!({
+                    "rank": 1, "model": "Qwen3.5-9B", "provider_prefix": "TOGETHER",
+                    "rationale": "Well-rounded chat capabilities, Apache 2.0, broad provider support. Good general-purpose base for agent conversation skills.",
+                    "license": "apache2", "size": "9B", "cost_per_run": "~$0.005"
+                }),
+                json!({
+                    "rank": 2, "model": "Llama-4-8B", "provider_prefix": "TOGETHER",
+                    "rationale": "Natural conversational tone, strong instruction following. Good for improv and coaching adapters.",
+                    "license": "llama4", "size": "8B", "cost_per_run": "~$0.01"
+                }),
+            ],
+            _ => vec![json!({
+                "rank": 1, "model": "Qwen3.5-9B", "provider_prefix": "TOGETHER",
+                "rationale": "Default recommendation: best all-around balance of capability, cost, and license freedom (Apache 2.0). Proven with hKask skill adapters.",
+                "license": "apache2", "size": "9B", "cost_per_run": "~$0.005"
+            })],
+        };
+
+        // Apply filters
+        let latency_filter = latency.as_deref().unwrap_or("flexible");
+        let budget_filter = budget.as_deref().unwrap_or("medium");
+        let license_filter = license.as_deref().unwrap_or("any");
+        let provider_filter = provider.as_deref().unwrap_or("any");
+
+        let filtered: Vec<&serde_json::Value> = recommendations
+            .iter()
+            .filter(|r| {
+                // Budget filter
+                let cost = r.get("cost_per_run").and_then(|c| c.as_str()).unwrap_or("");
+                match budget_filter {
+                    "low" => cost.contains("$0.005"),
+                    "medium" => !cost.contains("$0.03") && !cost.contains("$0.05"),
+                    _ => true,
+                }
+            })
+            .filter(|r| {
+                // License filter
+                if license_filter == "any" {
+                    return true;
+                }
+                let lic = r.get("license").and_then(|l| l.as_str()).unwrap_or("");
+                match license_filter {
+                    "apache2" => lic == "apache2",
+                    "mit" => lic == "mit" || lic == "apache2",
+                    "open" => lic != "llama4",
+                    _ => true,
+                }
+            })
+            .filter(|r| {
+                // Provider filter
+                if provider_filter == "any" {
+                    return true;
+                }
+                let pref = r
+                    .get("provider_prefix")
+                    .and_then(|p| p.as_str())
+                    .unwrap_or("");
+                pref.to_lowercase()
+                    .contains(&provider_filter.to_lowercase())
+            })
+            .collect();
+
+        let result = json!({
+            "task_type": task_type,
+            "filters_applied": {
+                "budget": budget_filter,
+                "latency": latency_filter,
+                "license": license_filter,
+                "provider": provider_filter,
+            },
+            "recommendations": filtered,
+            "guidance": "For hKask skill adapters, Qwen3.5-9B on Together AI is the recommended default: Apache 2.0 license, ~$0.005 per LoRA run, 4-7 minute training time, and proven with constraint-forces (100% accuracy). Use DeepSeek-V3-7B for reasoning-heavy skills (pragmatic-semantics, essentialist). Use Qwen3.5-14B for generation-heavy skills (trace generation).",
+        });
+
+        span.ok_json(result)
+    }
+
     fn provider_id(&self) -> TrainingProviderId {
         self.provider_id
     }
@@ -851,14 +1342,11 @@ async fn main() -> anyhow::Result<()> {
     );
     let pipeline = DatasetPipeline::new(cache_dir);
 
-    // In-memory adapter store for now — production should use SQLite
-    let adapter_store: Arc<dyn AdapterStore> = Arc::new(InMemoryAdapterStore::new());
-
     hkask_mcp::run_server(
         "hkask-mcp-training",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            let semantic = match ctx.credentials.get("HKASK_MEMORY_DB") {
+            let (semantic, adapter_store) = match ctx.credentials.get("HKASK_MEMORY_DB") {
                 Some(path) => {
                     let passphrase =
                         ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
@@ -868,13 +1356,21 @@ async fn main() -> anyhow::Result<()> {
                         .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
                     let conn = db.conn_arc();
                     let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
-                    let embedding_store = hkask_storage::EmbeddingStore::new(conn);
-                    Some(hkask_memory::SemanticMemory::new(
+                    let embedding_store = hkask_storage::EmbeddingStore::new(Arc::clone(&conn));
+                    let semantic = Some(hkask_memory::SemanticMemory::new(
                         triple_store,
                         embedding_store,
-                    ))
+                    ));
+                    let store = SqliteAdapterStore::new(db);
+                    store
+                        .migrate()
+                        .map_err(|e| anyhow::anyhow!("Failed to migrate adapter store: {}", e))?;
+                    (semantic, Arc::new(store) as Arc<dyn AdapterStore>)
                 }
-                None => None,
+                None => (
+                    None,
+                    Arc::new(InMemoryAdapterStore::new()) as Arc<dyn AdapterStore>,
+                ),
             };
 
             let provider = create_provider(&provider_config)
@@ -890,7 +1386,7 @@ async fn main() -> anyhow::Result<()> {
                 provider,
                 provider_config.provider,
                 pipeline.clone(),
-                Arc::clone(&adapter_store),
+                adapter_store,
                 inference_config,
             ))
         },

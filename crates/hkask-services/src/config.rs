@@ -8,6 +8,7 @@
 
 use crate::error::ServiceError;
 use hkask_inference::InferenceConfig;
+use hkask_types::wallet::WalletConfig;
 
 // ── Default values ──────────────────────────────────────────────────────────
 // Centralized here so all three constructors share the same defaults.
@@ -103,6 +104,9 @@ pub struct ServiceConfig {
     ///
     /// Defaults to `registry/bots` when not set.
     pub registry_yaml_path: std::path::PathBuf,
+
+    /// Wallet configuration for rJoule payments and multi-chain deposits.
+    pub wallet_config: WalletConfig,
 }
 
 impl ServiceConfig {
@@ -162,6 +166,7 @@ impl ServiceConfig {
             memory_db_path,
             memory_passphrase: None,
             registry_yaml_path,
+            wallet_config: WalletConfig::default(),
         })
     }
 
@@ -201,6 +206,7 @@ impl ServiceConfig {
             memory_db_path,
             memory_passphrase: None,
             registry_yaml_path,
+            wallet_config: WalletConfig::default(),
         }
     }
 
@@ -225,6 +231,7 @@ impl ServiceConfig {
             memory_db_path: None,
             memory_passphrase: None,
             registry_yaml_path: std::path::PathBuf::from("registry/bots"),
+            wallet_config: WalletConfig::default(),
         }
     }
 

@@ -234,3 +234,88 @@ async fn registry_get_watchers_empty_for_unmonitored_thread() {
     let watchers = registry.get_watchers(&room_id).await;
     assert!(watchers.is_empty());
 }
+
+// ── SevenR7Listener Lifecycle Tests ───────────────────────────────────────
+
+// REQ: listener-lifecycle-001 — SevenR7Listener::new creates without panic
+#[test]
+fn listener_new_creates_without_panic() {
+    use hkask_communication::listener::SevenR7Listener;
+    use hkask_communication::matrix::MatrixTransport;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let transport = Arc::new(Mutex::new(MatrixTransport::new("http://localhost:8008")));
+    let _listener = SevenR7Listener::new(transport, 30);
+}
+
+// REQ: listener-lifecycle-002 — SevenR7Listener::new accepts various poll intervals
+#[test]
+fn listener_new_accepts_various_intervals() {
+    use hkask_communication::listener::SevenR7Listener;
+    use hkask_communication::matrix::MatrixTransport;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let transport = Arc::new(Mutex::new(MatrixTransport::new("http://localhost:8008")));
+    let _fast = SevenR7Listener::new(Arc::clone(&transport), 1);
+    let _slow = SevenR7Listener::new(Arc::clone(&transport), 3600);
+}
+
+// REQ: listener-lifecycle-003 — SevenR7Listener::start does not panic
+#[tokio::test]
+async fn listener_start_does_not_panic() {
+    use hkask_communication::listener::SevenR7Listener;
+    use hkask_communication::matrix::MatrixTransport;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let transport = Arc::new(Mutex::new(MatrixTransport::new("http://localhost:8008")));
+    let listener = SevenR7Listener::new(transport, 30);
+
+    listener.start().await;
+}
+
+// REQ: listener-lifecycle-004 — SevenR7Listener::start is idempotent (no double-start panic)
+#[tokio::test]
+async fn listener_start_is_idempotent() {
+    use hkask_communication::listener::SevenR7Listener;
+    use hkask_communication::matrix::MatrixTransport;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let transport = Arc::new(Mutex::new(MatrixTransport::new("http://localhost:8008")));
+    let listener = SevenR7Listener::new(transport, 30);
+
+    listener.start().await;
+    listener.start().await; // second start should be no-op
+}
+
+// REQ: listener-lifecycle-005 — SevenR7Listener::stop does not panic
+#[tokio::test]
+async fn listener_stop_does_not_panic() {
+    use hkask_communication::listener::SevenR7Listener;
+    use hkask_communication::matrix::MatrixTransport;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let transport = Arc::new(Mutex::new(MatrixTransport::new("http://localhost:8008")));
+    let listener = SevenR7Listener::new(transport, 30);
+
+    listener.start().await;
+    listener.stop().await;
+}
+
+// REQ: listener-lifecycle-006 — SevenR7Listener::stop before start does not panic
+#[tokio::test]
+async fn listener_stop_before_start_does_not_panic() {
+    use hkask_communication::listener::SevenR7Listener;
+    use hkask_communication::matrix::MatrixTransport;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let transport = Arc::new(Mutex::new(MatrixTransport::new("http://localhost:8008")));
+    let listener = SevenR7Listener::new(transport, 30);
+
+    listener.stop().await; // stop before start should be safe
+}

@@ -9,6 +9,9 @@
 //! - `training_delete_adapter` — Remove a LoRA adapter
 //! - `training_assemble_dataset` — Assemble stored QA pairs into a ChatML JSONL dataset file
 //! - `training_generate_traces` — Generate decomposition traces from skill documents
+//! - `training_evaluate` — Evaluate a trained adapter against a test dataset
+//! - `training_register_adapter` — Register a completed adapter in persistent storage
+//! - `training_recommend_model` — Recommend a base model for fine-tuning
 //!
 //! Architecture:
 //!   Dataset → DatasetPipeline (ingest/normalize/validate/cache)

@@ -39,7 +39,7 @@ use hkask_storage::nu_event_store::NuEventStore;
 use hkask_storage::user_store::UserStore;
 use hkask_storage::{
     ConsentStore, Database, DatabaseError, EmbeddingStore, SovereigntyBoundaryStore,
-    SqliteSpecStore, TripleStore, in_memory_db,
+    SqliteSpecStore, TripleStore, WalletStore, in_memory_db,
 };
 use hkask_templates::SqliteRegistry;
 use hkask_types::CapabilityChecker;
@@ -50,10 +50,13 @@ use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
 use hkask_types::ports::git_cas::GitCASPort;
+use hkask_types::wallet::WalletId;
+use hkask_wallet::{ApiKeyIssuer, WalletManager};
 
 use crate::ServiceConfig;
 use crate::ServiceError;
 use crate::SovereigntyService;
+use crate::WalletService;
 
 /// Shared dependency graph assembled once at startup.
 ///
