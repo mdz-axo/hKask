@@ -599,3 +599,258 @@ impl crate::ports::AcpPort for AcpRuntime {
         AcpRuntime::list_agents(self).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::{AgentKind, DelegationResource, WebID};
+
+    const TEST_SECRET: &[u8] = b"test-acp-secret-32-bytes-min!";
+
+    fn test_webid(label: &str) -> WebID {
+        WebID::from_persona(label.as_bytes())
+    }
+
+    // ── ACP Wildcard Rejection ──────────────────────────────────────────────
+
+    // REQ: acp-wildcard-001 — ACP rejects wildcard capability "*"
+    #[tokio::test]
+    async fn acp_rejects_wildcard_capability() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("test-agent");
+
+        let result = acp
+            .register_agent(webid, AgentKind::Bot, vec!["*".to_string()])
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AcpError::WildcardCapabilityNotAllowed => {} // expected
+            other => panic!("Expected WildcardCapabilityNotAllowed, got: {:?}", other),
+        }
+    }
+
+    // REQ: acp-wildcard-002 — ACP rejects wildcard mixed with valid capabilities
+    #[tokio::test]
+    async fn acp_rejects_wildcard_mixed_with_valid_capabilities() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("test-agent");
+
+        let result = acp
+            .register_agent(
+                webid,
+                AgentKind::Bot,
+                vec!["tool:execute".to_string(), "*".to_string()],
+            )
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AcpError::WildcardCapabilityNotAllowed => {}
+            other => panic!("Expected WildcardCapabilityNotAllowed, got: {:?}", other),
+        }
+    }
+
+    // ── ACP Registration ────────────────────────────────────────────────────
+
+    // REQ: acp-register-001 — ACP registers agent and returns delegation token
+    #[tokio::test]
+    async fn acp_registers_agent_and_returns_token() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("test-agent");
+
+        let token = acp
+            .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .await
+            .expect("Registration should succeed");
+
+        assert_eq!(token.delegated_to, webid);
+        assert_eq!(token.resource, DelegationResource::Tool);
+        assert!(token.verify(TEST_SECRET));
+        assert!(acp.is_registered(&webid).await);
+    }
+
+    // REQ: acp-register-002 — ACP rejects duplicate agent registration
+    #[tokio::test]
+    async fn acp_rejects_duplicate_registration() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("test-agent");
+
+        acp.register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .await
+            .expect("First registration should succeed");
+
+        let result = acp
+            .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AcpError::AgentAlreadyRegistered(w) => assert_eq!(w, webid),
+            other => panic!("Expected AgentAlreadyRegistered, got: {:?}", other),
+        }
+    }
+
+    // REQ: acp-register-003 — Root authority creates delegation tokens for all requested capabilities
+    #[tokio::test]
+    async fn root_authority_creates_tokens_for_all_capabilities() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("multi-cap-agent");
+
+        let capabilities = vec![
+            "tool:execute".to_string(),
+            "memory:read".to_string(),
+            "template:dispatch".to_string(),
+        ];
+
+        let _token = acp
+            .register_agent(webid, AgentKind::Bot, capabilities.clone())
+            .await
+            .expect("Registration should succeed");
+
+        let stored_tokens = acp.get_capabilities(&webid).await;
+        assert_eq!(
+            stored_tokens.len(),
+            3,
+            "Should have one token per capability"
+        );
+
+        for token in &stored_tokens {
+            assert!(token.verify(TEST_SECRET));
+            assert_eq!(token.delegated_to, webid);
+        }
+    }
+
+    // ── ACP Unregistration ──────────────────────────────────────────────────
+
+    // REQ: acp-unregister-001 — ACP unregisters agent and removes tokens
+    #[tokio::test]
+    async fn acp_unregisters_agent_and_removes_tokens() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("test-agent");
+
+        acp.register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .await
+            .expect("Registration should succeed");
+
+        assert!(acp.is_registered(&webid).await);
+        assert!(!acp.get_capabilities(&webid).await.is_empty());
+
+        acp.unregister_agent(&webid)
+            .await
+            .expect("Unregistration should succeed");
+
+        assert!(!acp.is_registered(&webid).await);
+        assert!(acp.get_capabilities(&webid).await.is_empty());
+    }
+
+    // REQ: acp-unregister-002 — ACP unregister of unknown agent returns error
+    #[tokio::test]
+    async fn acp_unregister_unknown_agent_returns_error() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("nonexistent");
+
+        let result = acp.unregister_agent(&webid).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AcpError::AgentNotFound(w) => assert_eq!(w, webid),
+            other => panic!("Expected AgentNotFound, got: {:?}", other),
+        }
+    }
+
+    // ── ACP Token Revocation ────────────────────────────────────────────────
+
+    // REQ: acp-revoke-001 — ACP revokes token and denies subsequent access
+    #[tokio::test]
+    async fn acp_revokes_token() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("test-agent");
+
+        let token = acp
+            .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .await
+            .expect("Registration should succeed");
+
+        let token_id = token.id.clone();
+        acp.revoke_capability(&token_id).await;
+
+        let state = acp.state.read().await;
+        assert!(state.revoked_tokens.contains(&token_id));
+    }
+
+    // ── ACP Restore ─────────────────────────────────────────────────────────
+
+    // REQ: acp-restore-001 — ACP restored from storage has same capabilities
+    #[tokio::test]
+    async fn acp_restore_preserves_capabilities() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let webid = test_webid("test-agent");
+
+        let token = acp
+            .register_agent(
+                webid,
+                AgentKind::Bot,
+                vec!["tool:execute".to_string(), "memory:read".to_string()],
+            )
+            .await
+            .expect("Registration should succeed");
+
+        let agent = AcpAgent {
+            webid,
+            agent_type: AgentKind::Bot,
+            capabilities: vec!["tool:execute".to_string(), "memory:read".to_string()],
+            registered_at: 1000,
+            active: true,
+        };
+
+        let mut tokens_map = std::collections::HashMap::new();
+        tokens_map.insert(webid, vec![token.clone()]);
+
+        let acp2 = AcpRuntime::new(TEST_SECRET);
+        let count = acp2
+            .restore_from_storage(vec![agent], tokens_map)
+            .await
+            .expect("Restore should succeed");
+
+        assert_eq!(count, 1);
+        assert!(acp2.is_registered(&webid).await);
+
+        let restored_tokens = acp2.get_capabilities(&webid).await;
+        assert_eq!(restored_tokens.len(), 1);
+        assert_eq!(restored_tokens[0].id, token.id);
+        assert!(restored_tokens[0].verify(TEST_SECRET));
+    }
+
+    // ── ACP List Agents ─────────────────────────────────────────────────────
+
+    // REQ: acp-list-001 — ACP lists all registered agents
+    #[tokio::test]
+    async fn acp_lists_registered_agents() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let alice = test_webid("alice");
+        let bob = test_webid("bob");
+
+        acp.register_agent(alice, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .await
+            .expect("Alice registration should succeed");
+
+        acp.register_agent(bob, AgentKind::Replicant, vec!["memory:read".to_string()])
+            .await
+            .expect("Bob registration should succeed");
+
+        let agents = acp.list_agents().await;
+        assert_eq!(agents.len(), 2);
+
+        let webids: Vec<WebID> = agents.iter().map(|a| a.webid).collect();
+        assert!(webids.contains(&alice));
+        assert!(webids.contains(&bob));
+    }
+
+    // REQ: acp-list-002 — ACP list is empty when no agents registered
+    #[tokio::test]
+    async fn acp_list_empty_when_no_agents() {
+        let acp = AcpRuntime::new(TEST_SECRET);
+        let agents = acp.list_agents().await;
+        assert!(agents.is_empty());
+    }
+}

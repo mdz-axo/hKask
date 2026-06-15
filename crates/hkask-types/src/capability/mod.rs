@@ -540,14 +540,212 @@ mod tests {
         }
 
         proptest! {
-            #[test]
-            fn non_prefixed_server_id_returns_none(
-                server_id in "[a-z][a-z0-9_-]*"
-            ) {
-                prop_assume!(!server_id.starts_with("hkask-mcp-"));
-                prop_assert!(capability_from_server_id(&server_id).is_none());
+        #[test]
+        fn non_prefixed_server_id_returns_none(
+            server_id in "[a-z][a-z0-9_-]*"
+        ) {
+            prop_assume!(!server_id.starts_with("hkask-mcp-"));
+            prop_assert!(capability_from_server_id(&server_id).is_none());
             }
         }
+    }
+
+    // ── DelegationToken Tests ────────────────────────────────────────────
+
+    const TOKEN_SECRET: &[u8] = b"test-token-secret-32-bytes!!";
+
+    fn test_webid(label: &str) -> WebID {
+        WebID::from_persona(label.as_bytes())
+    }
+
+    // REQ: token-verify-001 — DelegationToken verifies with correct secret
+    #[test]
+    fn token_verifies_with_correct_secret() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+        assert!(token.verify(TOKEN_SECRET));
+    }
+
+    // REQ: token-verify-002 — DelegationToken rejects wrong secret
+    #[test]
+    fn token_rejects_wrong_secret() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+        let wrong_secret = b"wrong-secret-32-bytes-minimum!";
+        assert!(!token.verify(wrong_secret));
+    }
+
+    // REQ: token-verify-003 — DelegationToken rejects tampered signature
+    #[test]
+    fn token_rejects_tampered_signature() {
+        let mut token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+        token.signature.push_str("tampered");
+        assert!(!token.verify(TOKEN_SECRET));
+    }
+
+    // REQ: token-attenuation-001 — DelegationToken can_attenuate when below max
+    #[test]
+    fn token_can_attenuate_when_below_max() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+        assert!(token.can_attenuate());
+    }
+
+    // REQ: token-attenuation-002 — DelegationToken attenuation enforced at max
+    #[test]
+    fn token_attenuation_enforced_at_max() {
+        let root = test_webid("root");
+        let agent = test_webid("agent");
+
+        let mut current = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            root,
+            agent,
+            TOKEN_SECRET,
+        );
+
+        for i in 1..=7 {
+            let next_agent = test_webid(&format!("agent-{}", i));
+            let attenuated = current
+                .attenuate(next_agent, TOKEN_SECRET, 100_000)
+                .expect(&format!("Attenuation {} should succeed", i));
+            assert!(attenuated.verify(TOKEN_SECRET));
+            assert_eq!(attenuated.attenuation_level, i as u8);
+            current = attenuated;
+        }
+
+        assert!(!current.can_attenuate());
+        let next_agent = test_webid("agent-8");
+        assert!(
+            current
+                .attenuate(next_agent, TOKEN_SECRET, 100_000)
+                .is_none()
+        );
+    }
+
+    // REQ: token-attenuation-003 — DelegationToken attenuation preserves signature validity
+    #[test]
+    fn token_attenuation_preserves_signature_validity() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+
+        let attenuated = token
+            .attenuate(test_webid("agent-2"), TOKEN_SECRET, 100_000)
+            .expect("Attenuation should succeed");
+
+        assert!(attenuated.verify(TOKEN_SECRET));
+        assert_eq!(attenuated.attenuation_level, 1);
+        assert_eq!(attenuated.delegated_from, token.delegated_to);
+        assert_eq!(attenuated.delegated_to, test_webid("agent-2"));
+    }
+
+    // REQ: token-attenuation-004 — DelegationToken verify_attenuation_chain
+    #[test]
+    fn token_verify_attenuation_chain() {
+        let root = test_webid("root");
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            root,
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+
+        let root_nonce = token.root_context_nonce().to_string();
+
+        let attenuated = token
+            .attenuate(test_webid("agent-2"), TOKEN_SECRET, 100_000)
+            .expect("Attenuation should succeed");
+
+        assert!(attenuated.verify_attenuation_chain(&root_nonce, 1));
+        assert!(!attenuated.verify_attenuation_chain("wrong-root", 1));
+        assert!(!attenuated.verify_attenuation_chain(&root_nonce, 0));
+    }
+
+    // REQ: token-expiry-001 — DelegationToken is_expired when past expiry
+    #[test]
+    fn token_is_expired_when_past_expiry() {
+        let mut token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+        token.expires_at = Some(1000);
+        assert!(token.is_expired(2000));
+        assert!(!token.is_expired(500));
+    }
+
+    // REQ: token-expiry-002 — DelegationToken without expiry never expires
+    #[test]
+    fn token_without_expiry_never_expires() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+        assert!(!token.is_expired(i64::MAX));
+    }
+
+    // REQ: token-serialization-001 — DelegationToken base64 round-trip
+    #[test]
+    fn token_base64_round_trip() {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            TOKEN_SECRET,
+        );
+
+        let encoded = token.to_base64().expect("Base64 encoding should succeed");
+        let decoded =
+            DelegationToken::from_base64(&encoded).expect("Base64 decoding should succeed");
+
+        assert_eq!(token.id, decoded.id);
+        assert_eq!(token.resource, decoded.resource);
+        assert_eq!(token.delegated_to, decoded.delegated_to);
+        assert!(decoded.verify(TOKEN_SECRET));
     }
 }
 

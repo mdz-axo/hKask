@@ -23,7 +23,12 @@ async-trait.workspace = true
 [dev-dependencies]
 hkask-test-harness = { path = "../hkask-test-harness" }
 proptest = "1"
+walkdir.workspace = true
 
 [[test]]
 name = "manifest_fuzz"
 path = "tests/manifest_fuzz.rs"
+
+[[test]]
+name = "yaml_schema_validation"
+path = "tests/yaml_schema_validation.rs"
