@@ -182,3 +182,94 @@ impl std::fmt::Display for DimensionMismatch {
 }
 
 // Canonical domain error types — shared across all crates.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::PoisonError;
+
+    // REQ: types-error-001 — McpErrorKind::is_retryable() only for Unavailable/Timeout/RateLimited
+    #[test]
+    fn mcperrorkind_is_retryable() {
+        assert!(McpErrorKind::Unavailable.is_retryable());
+        assert!(McpErrorKind::Timeout.is_retryable());
+        assert!(McpErrorKind::RateLimited.is_retryable());
+        assert!(!McpErrorKind::Internal.is_retryable());
+        assert!(!McpErrorKind::NotFound.is_retryable());
+        assert!(!McpErrorKind::InvalidArgument.is_retryable());
+        assert!(!McpErrorKind::PermissionDenied.is_retryable());
+        assert!(!McpErrorKind::FailedPrecondition.is_retryable());
+    }
+
+    // REQ: types-error-002 — McpErrorKind::requires_intervention() only for PermissionDenied/FailedPrecondition
+    #[test]
+    fn mcperrorkind_requires_intervention() {
+        assert!(McpErrorKind::PermissionDenied.requires_intervention());
+        assert!(McpErrorKind::FailedPrecondition.requires_intervention());
+        assert!(!McpErrorKind::Internal.requires_intervention());
+        assert!(!McpErrorKind::Unavailable.requires_intervention());
+        assert!(!McpErrorKind::Timeout.requires_intervention());
+        assert!(!McpErrorKind::NotFound.requires_intervention());
+        assert!(!McpErrorKind::InvalidArgument.requires_intervention());
+        assert!(!McpErrorKind::RateLimited.requires_intervention());
+    }
+
+    // REQ: types-error-003 — From<PoisonError<T>> for InfrastructureError produces LockPoisoned
+    #[test]
+    fn from_poison_error_produces_lock_poisoned() {
+        let mutex = std::sync::Mutex::new(42);
+        // Poison the mutex by panicking while holding the lock
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = mutex.lock().unwrap();
+            panic!("intentional poison");
+        }));
+        assert!(result.is_err());
+        // After the panic, the mutex is poisoned
+        let lock_result = mutex.lock();
+        assert!(lock_result.is_err());
+        let infra: InfrastructureError = lock_result.unwrap_err().into();
+        assert_eq!(infra, InfrastructureError::LockPoisoned);
+    }
+
+    // REQ: types-error-004 — From<serde_json::Error> for InfrastructureError produces Serialization
+    #[test]
+    fn from_serde_error_produces_serialization() {
+        let bad_json = "{invalid";
+        let result: Result<serde_json::Value, _> = serde_json::from_str(bad_json);
+        assert!(result.is_err());
+        let infra: InfrastructureError = result.unwrap_err().into();
+        assert!(matches!(infra, InfrastructureError::Serialization(_)));
+    }
+
+    // REQ: types-error-005 — InfrastructureError Display impls are human-readable
+    #[test]
+    fn infrastructure_error_display_is_readable() {
+        assert_eq!(
+            InfrastructureError::Database("conn refused".into()).to_string(),
+            "database: conn refused"
+        );
+        assert_eq!(
+            InfrastructureError::LockPoisoned.to_string(),
+            "lock poisoned"
+        );
+        assert_eq!(
+            InfrastructureError::NotFound("key".into()).to_string(),
+            "not found: key"
+        );
+    }
+
+    // REQ: types-error-006 — McpErrorKind Display renders snake_case
+    #[test]
+    fn mcperrorkind_display_renders_snake_case() {
+        assert_eq!(McpErrorKind::Internal.to_string(), "internal");
+        assert_eq!(McpErrorKind::Unavailable.to_string(), "unavailable");
+        assert_eq!(
+            McpErrorKind::PermissionDenied.to_string(),
+            "permission_denied"
+        );
+        assert_eq!(
+            McpErrorKind::FailedPrecondition.to_string(),
+            "failed_precondition"
+        );
+    }
+}

@@ -113,7 +113,10 @@ impl DocProcServer {
             }
         };
 
-        let mut index = self.index.lock().unwrap();
+        let mut index = self
+            .index
+            .lock()
+            .expect("Failed to lock index for passage indexing");
         for (i, ((entity_ref, passage_text), embedding)) in
             passages.iter().zip(vectors.into_iter()).enumerate()
         {
@@ -319,7 +322,10 @@ impl DocProcServer {
     fn accumulate_and_check_drift(&self, outcome: &hkask_types::ocr::PipelineOutcome) {
         use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
 
-        let mut acc = self.cv_accumulator.lock().unwrap();
+        let mut acc = self
+            .cv_accumulator
+            .lock()
+            .expect("Failed to lock CV accumulator for drift check");
         acc.extend(outcome.cross_validations.clone());
 
         let synthetic_outcome = hkask_types::ocr::PipelineOutcome {

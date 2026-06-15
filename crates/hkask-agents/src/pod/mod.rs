@@ -675,4 +675,73 @@ mod tests {
         pod.enter_server_mode("research").expect("re-enter server");
         assert!(pod.is_in_server_mode());
     }
+
+    // REQ: types-pod-001 — PodLifecycleState valid transitions
+    #[test]
+    fn lifecycle_state_valid_transitions() {
+        assert!(PodLifecycleState::Populated.can_transition_to(PodLifecycleState::Registered));
+        assert!(PodLifecycleState::Registered.can_transition_to(PodLifecycleState::Activated));
+        assert!(PodLifecycleState::Activated.can_transition_to(PodLifecycleState::Deactivated));
+    }
+
+    // REQ: types-pod-002 — PodLifecycleState rejects invalid transitions
+    #[test]
+    fn lifecycle_state_rejects_invalid_transitions() {
+        assert!(!PodLifecycleState::Populated.can_transition_to(PodLifecycleState::Activated));
+        assert!(!PodLifecycleState::Populated.can_transition_to(PodLifecycleState::Deactivated));
+        assert!(!PodLifecycleState::Registered.can_transition_to(PodLifecycleState::Deactivated));
+        assert!(!PodLifecycleState::Deactivated.can_transition_to(PodLifecycleState::Activated));
+    }
+
+    // REQ: types-pod-003 — new AgentPod starts with correct defaults
+    #[test]
+    fn new_pod_has_correct_defaults() {
+        let pod = test_pod();
+        assert_eq!(pod.state, PodLifecycleState::Populated);
+        assert!(pod.mode.is_none());
+        assert!(pod.assigned_mcp_roles.is_empty());
+        assert!(pod.voice_design.is_none());
+        assert!(!pod.is_active());
+        assert!(!pod.is_in_server_mode());
+        assert!(!pod.is_in_chat_mode());
+    }
+
+    // REQ: types-pod-004 — is_active() only true when Activated
+    #[test]
+    fn is_active_only_when_activated() {
+        let mut pod = test_pod();
+        assert!(!pod.is_active()); // Populated
+        pod.state = PodLifecycleState::Registered;
+        assert!(!pod.is_active());
+        pod.state = PodLifecycleState::Activated;
+        assert!(pod.is_active());
+        pod.state = PodLifecycleState::Deactivated;
+        assert!(!pod.is_active());
+    }
+
+    // REQ: types-pod-005 — voice_design set/get round-trip
+    #[test]
+    fn voice_design_set_get_roundtrip() {
+        let mut pod = test_pod();
+        let voice = VoiceDesign::default();
+        pod.set_voice(voice.clone());
+        assert!(pod.get_voice().is_some());
+        assert_eq!(pod.get_voice().unwrap().name, voice.name);
+        assert!(!pod.voice_description().is_empty());
+    }
+
+    // REQ: types-pod-006 — AgentPodError Display is human-readable
+    #[test]
+    fn agent_pod_error_display_is_readable() {
+        let err = AgentPodError::ModeRequiresActivation(PodLifecycleState::Populated);
+        assert!(err.to_string().contains("Activated"));
+        assert!(err.to_string().contains("populated"));
+
+        let err = AgentPodError::ModeConflict(AgentMode::Server);
+        assert!(err.to_string().contains("server"));
+        assert!(err.to_string().contains("exit current mode"));
+
+        let err = AgentPodError::RoleNotAssigned("research".into(), vec![]);
+        assert!(err.to_string().contains("research"));
+    }
 }

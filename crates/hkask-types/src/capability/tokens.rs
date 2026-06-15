@@ -44,3 +44,23 @@ impl ConsolidationToken {
         &self.issuer
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: types-cap-token-001 — ConsolidationToken::verify_issuer() accepts expected issuer
+    #[test]
+    fn consolidation_token_verify_issuer_accepts_expected() {
+        let token = ConsolidationToken::new(ConsolidationToken::expected_issuer());
+        assert!(token.verify_issuer());
+    }
+
+    // REQ: types-cap-token-002 — ConsolidationToken::verify_issuer() rejects wrong issuer
+    #[test]
+    fn consolidation_token_verify_issuer_rejects_wrong() {
+        let wrong_issuer = WebID::from_persona(b"not-curator");
+        let token = ConsolidationToken::new(wrong_issuer);
+        assert!(!token.verify_issuer());
+    }
+}

@@ -332,3 +332,145 @@ impl Phase {
 pub trait NuEventSink: Send + Sync {
     fn persist(&self, event: &NuEvent) -> Result<(), crate::InfrastructureError>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::id::WebID;
+
+    // REQ: types-event-001 — NuEvent::new() sets correct defaults
+    #[test]
+    fn nuevent_new_sets_correct_defaults() {
+        let webid = WebID::from_persona(b"test-agent");
+        let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
+        let obs = serde_json::json!({"key": "value"});
+
+        let event = NuEvent::new(webid.clone(), span, Phase::Sense, obs.clone(), 0);
+
+        assert_eq!(event.observer_webid, webid);
+        assert_eq!(event.phase, Phase::Sense);
+        assert_eq!(event.observation, obs);
+        assert_eq!(event.recursion_depth, 0);
+        assert_eq!(event.visibility, "private");
+        assert!(event.regulation.is_none());
+        assert!(event.outcome.is_none());
+        assert!(event.parent_event.is_none());
+    }
+
+    // REQ: types-event-002 — NuEvent builder chain produces correct fields
+    #[test]
+    fn nuevent_builder_chain_sets_fields() {
+        let webid = WebID::from_persona(b"test-agent");
+        let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
+        let parent_id = crate::id::EventID::new();
+
+        let event = NuEvent::new(webid, span, Phase::Act, serde_json::json!({}), 1)
+            .with_outcome(serde_json::json!({"result": "ok"}))
+            .with_regulation(serde_json::json!({"adj": 0.5}))
+            .with_parent(parent_id.clone())
+            .with_visibility("public");
+
+        assert_eq!(event.outcome, Some(serde_json::json!({"result": "ok"})));
+        assert_eq!(event.regulation, Some(serde_json::json!({"adj": 0.5})));
+        assert_eq!(event.parent_event, Some(parent_id));
+        assert_eq!(event.visibility, "public");
+    }
+
+    // REQ: types-event-003 — SpanNamespace::parse() accepts short and full forms
+    #[test]
+    fn spannamespace_parse_accepts_short_and_full_forms() {
+        let full = SpanNamespace::parse("cns.tool");
+        assert!(full.is_some());
+        assert_eq!(full.unwrap().as_str(), "cns.tool");
+
+        let short = SpanNamespace::parse("tool");
+        assert!(short.is_some());
+        assert_eq!(short.unwrap().as_str(), "cns.tool");
+    }
+
+    // REQ: types-event-004 — SpanNamespace::parse() rejects invalid namespaces
+    #[test]
+    fn spannamespace_parse_rejects_invalid() {
+        assert!(SpanNamespace::parse("cns.nonexistent").is_none());
+        assert!(SpanNamespace::parse("invalid").is_none());
+        assert!(SpanNamespace::parse("").is_none());
+    }
+
+    // REQ: types-event-005 — SpanNamespace::category() classifies correctly
+    #[test]
+    fn spannamespace_category_classifies_correctly() {
+        assert_eq!(
+            SpanNamespace::new("cns.variety").category(),
+            SpanCategory::Cybernetics
+        );
+        assert_eq!(
+            SpanNamespace::new("cns.gas").category(),
+            SpanCategory::Cybernetics
+        );
+        assert_eq!(
+            SpanNamespace::new("cns.curation").category(),
+            SpanCategory::Curation
+        );
+        assert_eq!(
+            SpanNamespace::new("cns.inference").category(),
+            SpanCategory::Inference
+        );
+        assert_eq!(
+            SpanNamespace::new("cns.agent_pod").category(),
+            SpanCategory::Episodic
+        );
+        assert_eq!(
+            SpanNamespace::new("cns.tool").category(),
+            SpanCategory::Unknown
+        );
+    }
+
+    // REQ: types-event-006 — SpanCategory::from_short_name() parses correctly
+    #[test]
+    fn spancategory_from_short_name_parses_correctly() {
+        assert_eq!(
+            SpanCategory::from_short_name("variety"),
+            SpanCategory::Cybernetics
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("curation"),
+            SpanCategory::Curation
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("inference"),
+            SpanCategory::Inference
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("agent_pod"),
+            SpanCategory::Episodic
+        );
+        assert_eq!(
+            SpanCategory::from_short_name("unknown_ns"),
+            SpanCategory::Unknown
+        );
+    }
+
+    // REQ: types-event-007 — Phase::from_str() backward-compatible parsing
+    #[test]
+    fn phase_from_str_backward_compatible() {
+        // New names
+        assert_eq!(Phase::from_str("sense"), Phase::Sense);
+        assert_eq!(Phase::from_str("compute"), Phase::Compute);
+        assert_eq!(Phase::from_str("compare"), Phase::Compare);
+        assert_eq!(Phase::from_str("act"), Phase::Act);
+        // Backward-compatible old names
+        assert_eq!(Phase::from_str("observe"), Phase::Sense);
+        assert_eq!(Phase::from_str("regulate"), Phase::Compute);
+        assert_eq!(Phase::from_str("outcome"), Phase::Act);
+        // Unknown falls back to Sense
+        assert_eq!(Phase::from_str("unknown"), Phase::Sense);
+    }
+
+    // REQ: types-event-008 — Span::new() constructs correct full path
+    #[test]
+    fn span_new_constructs_full_path() {
+        let ns = SpanNamespace::new("cns.tool");
+        let span = Span::new(ns, "invoked");
+        assert_eq!(span.as_str(), "cns.tool.invoked");
+    }
+}

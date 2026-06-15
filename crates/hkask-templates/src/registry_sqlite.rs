@@ -97,7 +97,10 @@ impl SqliteRegistry {
     }
 
     fn init_schema(&mut self) -> Result<()> {
-        self.conn.lock().unwrap().execute_batch(concat!(
+        self.conn
+            .lock()
+            .map_err(|e| TemplateError::Database(InfrastructureError::from(e)))?
+            .execute_batch(concat!(
             "CREATE TABLE IF NOT EXISTS templates(id TEXT PRIMARY KEY, template_type TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', description TEXT, source_path TEXT NOT NULL, cascade_level INTEGER NOT NULL DEFAULT 0, matroshka_limit INTEGER NOT NULL DEFAULT 7, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);",
             "CREATE TABLE IF NOT EXISTS lexicon_terms(template_id TEXT NOT NULL, term TEXT NOT NULL, PRIMARY KEY(template_id, term), FOREIGN KEY(template_id) REFERENCES templates(id));",
             "CREATE TABLE IF NOT EXISTS template_capabilities(template_id TEXT NOT NULL, capability TEXT NOT NULL, PRIMARY KEY(template_id, capability), FOREIGN KEY(template_id) REFERENCES templates(id));",
@@ -138,7 +141,10 @@ impl SqliteRegistry {
                 );
             }
         }
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|e| TemplateError::Database(InfrastructureError::from(e)))?;
         let tx = conn
             .transaction()
             .map_err(|e| TemplateError::Manifest(format!("Transaction: {}", e)))?;
@@ -208,7 +214,10 @@ impl SqliteRegistry {
     }
 
     pub fn get_entry(&self, id: &str) -> Result<RegistryEntry> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TemplateError::Database(InfrastructureError::from(e)))?;
         let row = conn
             .prepare(Self::_T_SELECT)
             .map_err(|e| {
@@ -223,7 +232,10 @@ impl SqliteRegistry {
     /// Returns the entry if it existed, None otherwise.
     pub fn delete_entry(&mut self, id: &str) -> Option<RegistryEntry> {
         let entry = self.get_entry(id).ok();
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .expect("Failed to lock registry connection for delete_entry");
         for table in &["lexicon_terms", "template_capabilities", "provenance"] {
             if let Err(e) = conn.execute(
                 &format!("DELETE FROM {} WHERE template_id = ?1", table),
@@ -239,7 +251,10 @@ impl SqliteRegistry {
     }
 
     pub fn search_by_lexicon(&self, term: &str) -> Result<Vec<RegistryEntry>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TemplateError::Database(InfrastructureError::from(e)))?;
         let rows: Vec<TemplateRow> = conn
     			.prepare("SELECT t.id, t.template_type, t.name, t.description, t.source_path, t.cascade_level, t.matroshka_limit FROM templates t JOIN lexicon_terms l ON t.id = l.template_id WHERE l.term = ?1")
     			.map_err(|e| TemplateError::Database(InfrastructureError::Database(format!("Prepare: {}", e))))?
@@ -254,13 +269,17 @@ impl SqliteRegistry {
     }
 
     pub fn count(&self) -> usize {
-        self.conn
-            .lock()
-            .unwrap()
-            .query_row("SELECT COUNT(*) FROM templates", [], |row| {
-                row.get::<_, i64>(0)
-            })
-            .unwrap_or(0) as usize
+        let conn = match self.conn.lock() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!(target: "hkask.templates", error = %e, "count: lock poisoned, returning 0");
+                return 0;
+            }
+        };
+        conn.query_row("SELECT COUNT(*) FROM templates", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .unwrap_or(0) as usize
     }
 
     const _T_SELECT: &str = "SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates WHERE id = ?1";
@@ -318,7 +337,10 @@ impl RegistryIndex for SqliteRegistry {
 
 impl SkillRegistryIndex for SqliteRegistry {
     fn register_skill(&mut self, skill: Skill) {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .expect("Failed to lock registry connection for register_skill");
         if let Err(e) = conn.execute(
             "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -354,7 +376,7 @@ impl SkillRegistryIndex for SqliteRegistry {
         if let Err(e) = self
             .conn
             .lock()
-            .unwrap()
+            .expect("Failed to lock registry connection for remove_skill")
             .execute("DELETE FROM skills WHERE id = ?1", params![id])
         {
             tracing::error!(target: "hkask.templates", error = %e, id = %id, "remove_skill: DELETE failed");
@@ -374,7 +396,10 @@ impl BundleRegistryIndex for SqliteRegistry {
                 return;
             }
         };
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .expect("Failed to lock registry connection for register_bundle");
         if let Err(e) = conn.execute("INSERT OR REPLACE INTO bundles (id, name, description, version, editor, visibility, manifest_json, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)", params![bundle.id, bundle.name, bundle.description, bundle.version, bundle.editor, bundle.visibility.as_str(), manifest_json]) {
             tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, "register_bundle: INSERT failed");
             return;
@@ -396,7 +421,7 @@ impl BundleRegistryIndex for SqliteRegistry {
     fn get_bundle(&self, id: &str) -> Option<BundleManifest> {
         self.conn
             .lock()
-            .unwrap()
+            .expect("Failed to lock registry connection for get_bundle")
             .query_row(
                 "SELECT manifest_json FROM bundles WHERE id = ?1",
                 params![id],
@@ -427,7 +452,10 @@ impl BundleRegistryIndex for SqliteRegistry {
 
     fn remove_bundle(&mut self, id: &str) -> Option<BundleManifest> {
         let bundle = self.get_bundle(id);
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .expect("Failed to lock registry connection for remove_bundle");
         if let Err(e) = conn.execute(
             "DELETE FROM bundle_skills WHERE bundle_id = ?1",
             params![id],
@@ -484,7 +512,10 @@ impl SqliteRegistry {
     }
 
     pub fn get_skill_owned(&self, id: &str) -> Option<Skill> {
-        self.conn.lock().unwrap().query_row(
+        self.conn
+            .lock()
+            .expect("Failed to lock registry connection for get_skill_owned")
+            .query_row(
             "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE id = ?1", params![id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?)),
         ).ok().and_then(|(id, ds, wa, fd, ka, ps, ch, vs, zs, ns)| Self::row_to_skill(id, ds, wa, fd, ka, ps, ch, vs, zs, ns))

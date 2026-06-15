@@ -176,7 +176,7 @@ pub async fn run_pipeline(
             continue;
         }
 
-        let primary = primary_result.unwrap();
+        let primary = primary_result.expect("primary_result checked via is_none() guard above");
 
         // Track backend usage for CNS reporting
         *backend_counts.entry(primary.backend.clone()).or_insert(0) += 1;

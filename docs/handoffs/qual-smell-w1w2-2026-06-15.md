@@ -1,7 +1,7 @@
 # Handoff — Code Quality & Smell Reduction, Waves 1–2
 
-**Session date:** 2026-06-15  
-**Progress:** Waves 1 complete (PR 1.1 + 1.2), Wave 2 PR 2.1 ~40% done  
+**Session date:** 2026-06-15
+**Progress:** Waves 1–3 complete, Task 4 complete
 **Build status:** `cargo check --workspace` + `cargo clippy --workspace -D warnings` → clean
 
 ---
@@ -28,127 +28,60 @@
 - `hkask-mcp-research` retains its 3-tool list: `web_search`, `web_extract`, `web_browse`
 - Other 8 servers use empty tool lists (`&[]`) — G3 infrastructure in place, tool lists can be added later
 
-### Wave 2 — Runtime Reliability (🔄 PR 2.1 partially done)
+### Wave 2 — Runtime Reliability (✅ Complete)
 
-**PR 2.1 so far:** Fixed `.unwrap()` in `hkask-mcp-media` **helper methods** (7 calls fixed):
+**PR 2.1:** Fixed all 20 `.unwrap()` calls in `hkask-mcp-media` runtime code (7 helper methods + 13 tool handlers/main).
 
-All in `mcp-servers/hkask-mcp-media/src/main.rs`:
+**PR 2.2:** Fixed 5 `.unwrap()` calls in `hkask-mcp-docproc` runtime code:
+- `tools.rs`: 2 lock unwraps in `docproc_query` + `docproc_clear_index` → `span.internal_error()`
+- `server.rs`: 2 lock unwraps in `index_passages` + `accumulate_and_check_drift` → `.expect()`
+- `pipeline.rs`: 1 `primary_result.unwrap()` guarded by `is_none()` → `.expect()`
 
-| Function | Line (approx) | Fix applied |
-|---|---|---|
-| `resolve_image_url` | L564 | `lock().map_err(\|e\| format!(...))?` |
-| `resolve_image_path` | L595 | same |
-| `resolve_image_id` | L617 | same |
-| `resolve_image_url_by_id` | L644 | same |
-| `crop_face_region` | L717 | same |
-| `rescan_existing_gallery` (read) | L813 | same |
-| `rescan_existing_gallery` (write-back) | L845 | same |
+**PR 2.3:** Fixed 12 `.unwrap()` calls in `hkask-templates` `registry_sqlite.rs`:
+- 4 `Result`-returning functions → `.map_err(|e| TemplateError::Database(InfrastructureError::from(e)))?`
+- 7 `Option`/unit-returning functions → `.expect("Failed to lock registry connection for ...")`
+- 1 `count()` returning `usize` → match with early return 0 on lock poison
 
-These helpers all return `Result<T, String>`, so `.map_err(|e| format!("Gallery state lock error: {}", e))?` propagates the lock error as a `String` to callers that already handle errors.
+### What Remains (not started)
 
----
-
-## 3) What Remains
-
-### HIGH — Complete PR 2.1: Fix remaining `.unwrap()` in hkask-mcp-media tool handlers
-
-**~13 `.unwrap()` calls remain** in `mcp-servers/hkask-mcp-media/src/main.rs`. All are in async tool handler functions that return `String` (not `Result`). Each handler already has a `span: ToolSpanGuard` variable in scope.
-
-**Pattern A — lock unwrap in tool handlers (10 calls):**
-
-```rust
-// Before:
-let guard = self.gallery_state.lock().unwrap();
-
-// After:
-let guard = match self.gallery_state.lock() {
-    Ok(g) => g,
-    Err(e) => return span.internal_error(
-        serde_json::json!({"error": format!("Gallery state lock error: {}", e)})
-    ),
-};
-```
-
-Sites:
-1. `gallery_status` — ~L1385
-2. `gallery_search` — ~L1409
-3. `gallery_find_similar` — ~L1588
-4. `gallery_refresh` — ~L1736
-5. `gallery_analyze` — ~L2042
-6. `gallery_name_face` — ~L2160
-7. `gallery_timeline` — ~L2487
-8. `image_create_collage` — ~L2675
-
-**Pattern B — lock write-back in gallery_organize (1 call):**
-
-```rust
-// Before (approx line 1350):
-*self.gallery_state.lock().unwrap() = Some(state);
-
-// After:
-*match self.gallery_state.lock() {
-    Ok(g) => g,
-    Err(e) => return span.internal_error(
-        serde_json::json!({"error": format!("Gallery state lock error: {}", e)})
-    ),
-} = Some(state);
-```
-
-**Pattern C — canvas.as_mut_rgba8().unwrap() (~L2862):**
-
-```rust
-// Before:
-for pixel in canvas.as_mut_rgba8().unwrap().pixels_mut() {
-
-// After (infallible — canvas was created as RGBA8):
-for pixel in canvas.as_mut_rgba8().expect("canvas was created as RGBA8").pixels_mut() {
-```
-
-**Pattern D — text/image_index.unwrap() in gallery_find_similar (2 occurrences, ~L1645 + ~L1687):**
-
-```rust
-// Before:
-text.unwrap_or_else(|| format!("image_index={}", image_index.unwrap()))
-
-// After: compute fallback separately to avoid unwrap
-let query_label = text.clone().unwrap_or_else(|| {
-    format!("image_index={}", image_index.unwrap_or(0))
-});
-// Then use `query_label` in the json! macro instead of the inline expression
-```
-
-**Pattern E — conn.lock().unwrap() in main() (~L4032):**
-
-```rust
-// Before:
-let conn = conn.lock().unwrap();
-
-// After (startup path — expect is appropriate):
-let conn = conn.lock().expect("Failed to lock database connection for gallery table init");
-```
-
-**Validation after all fixes:**
-```bash
-cargo check -p hkask-mcp-media
-cargo clippy -p hkask-mcp-media -- -D warnings
-# Verify zero remaining .unwrap() in non-test runtime code
-grep -n '\.unwrap()' mcp-servers/hkask-mcp-media/src/main.rs | grep -v '#\[cfg(test)\]' | grep -v 'mod tests'
-```
-
-### MEDIUM — PR 2.2: Fix .unwrap() in hkask-mcp-docproc
-
-Search for `.unwrap()` in `mcp-servers/hkask-mcp-docproc/src/`. The docproc server delegates most logic to its library crate `hkask-mcp-docproc` (in crates). Check both locations. Apply same patterns as PR 2.1.
-
-### MEDIUM — PR 2.3: Fix .unwrap() in hkask-templates registry
-
-Search for `.unwrap()` in `crates/hkask-templates/src/`. Focus on public seam-reachable paths. Apply typed error propagation using existing error types in the crate.
-
-### Remaining Waves (not started)
-
-- **Wave 3:** P8 REQ coverage (tasks 3 + 4)
 - **Wave 4:** Architecture convergence (tasks 5 + 6 + 7)
 - **Wave 5:** Module depth + safety governance (tasks 8 + 9)
 - **Wave 6:** Sustainment (task 10)
+
+---
+
+## 3) Wave 3 — Spec Traceability + Dead Abstraction Removal (✅ Complete)
+
+### Task 3 — P8 REQ coverage expansion
+
+**PR 3.1 — hkask-types:** 20 new REQ-tagged tests:
+- `event.rs`: 8 tests (NuEvent defaults, builder chain, SpanNamespace parse/category, SpanCategory, Phase backward-compat, Span construction)
+- `error.rs`: 6 tests (McpErrorKind retryable/intervention, InfrastructureError From impls, Display)
+- `capability/tokens.rs`: 2 tests (ConsolidationToken issuer verification)
+- `capability/verification.rs`: 4 tests (CapabilityChecker, verify_delegation_token, require_write_access)
+
+**PR 3.2 — hkask-agents:** 6 new REQ-tagged tests:
+- `pod/mod.rs`: 6 tests (lifecycle transitions, pod defaults, is_active, voice round-trip, error Display)
+
+**PR 3.3 — hkask-api:** 4 new REQ-tagged tests:
+- `error.rs`: 3 tests (ApiError status codes, Display, IntoResponse)
+- `routes/settings.rs`: 1 test (seed field merge semantics)
+
+### Task 4 — Replace pass-through capability validator
+
+**PR 4.1–4.3 (combined):** Replaced `CapabilityAwareValidator` stub with real implementation:
+- Uses `capabilities_match` from `hkask-types::capability` for action-hierarchy-aware comparison
+- Returns `TemplateError::CapabilityDenied` with details about unsatisfied requirements
+- Handles malformed requirements, empty requirements, multiple requirements
+- 9 new REQ-tagged tests: empty pass, satisfied pass, unsatisfied fail, action hierarchy (Execute≥Write≥Read), malformed error, multiple requirements, no tokens fail
+
+**Validation:**
+```
+✅ cargo test -p hkask-types --lib      → 41/41 passed
+✅ cargo test -p hkask-agents --lib     → 14/14 passed
+✅ cargo test -p hkask-api --lib        → 6/6 passed
+✅ cargo test -p hkask-templates --lib  → 20/20 passed
+```
 
 ---
 

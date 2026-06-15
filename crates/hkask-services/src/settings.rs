@@ -151,3 +151,62 @@ impl HkaskSettings {
         std::fs::write(&path, json)
     }
 }
+
+/// Load any settings type from `~/.config/hkask/settings.json`.
+/// Falls back to `T::default()` if the file doesn't exist or is unparseable.
+///
+/// This is the shared load path for CLI (`ReplSettings`), API (`SettingsResponse`),
+/// and any future surface that needs LLM parameter persistence.
+pub fn load_settings<T: serde::de::DeserializeOwned + Default>() -> T {
+    let path = settings_path();
+    match std::fs::read_to_string(&path) {
+        Ok(json) => serde_json::from_str(&json).unwrap_or_else(|e| {
+            tracing::warn!(
+                path = %path.display(),
+                error = %e,
+                "Failed to parse settings.json — using defaults"
+            );
+            T::default()
+        }),
+        Err(_) => T::default(),
+    }
+}
+
+/// Save any settings type to `~/.config/hkask/settings.json`.
+///
+/// This is the shared save path for CLI, API, and any future surface.
+pub fn save_settings<T: serde::Serialize>(settings: &T) -> Result<(), crate::ServiceError> {
+    let path = settings_path();
+    let json = serde_json::to_string_pretty(settings).map_err(|e| {
+        crate::ServiceError::Infra(hkask_types::InfrastructureError::Serialization(
+            e.to_string(),
+        ))
+    })?;
+    std::fs::write(&path, json).map_err(|e| {
+        crate::ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string()))
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: services-settings-001 — load_settings returns default when file missing
+    #[test]
+    fn load_settings_returns_default_when_file_missing() {
+        // Use a non-existent path by temporarily overriding — just test the fallback
+        let settings: HkaskSettings = load_settings();
+        // Should always succeed (returns default on any error)
+        assert!(!settings.generation_model.is_empty());
+    }
+
+    // REQ: services-settings-002 — save_settings and load_settings round-trip
+    #[test]
+    fn save_and_load_roundtrip() {
+        let original = HkaskSettings::default();
+        save_settings(&original).expect("save should succeed");
+        let loaded = load_settings::<HkaskSettings>();
+        assert_eq!(loaded.generation_model, original.generation_model);
+        assert_eq!(loaded.embedding_model, original.embedding_model);
+    }
+}

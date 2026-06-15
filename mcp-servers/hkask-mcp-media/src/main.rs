@@ -2201,7 +2201,14 @@ impl MediaServer {
             }
         };
 
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = match self.gallery_state.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                );
+            }
+        };
         let state = match &*guard {
             Some(s) => s,
             None => {
@@ -2528,7 +2535,14 @@ impl MediaServer {
     ) -> String {
         let span = ToolSpanGuard::new("gallery_timeline", &self.webid);
 
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = match self.gallery_state.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                );
+            }
+        };
         let state = match &*guard {
             Some(s) => s.clone(),
             None => {
@@ -2716,7 +2730,14 @@ impl MediaServer {
         }
 
         // Get gallery state
-        let guard = self.gallery_state.lock().unwrap();
+        let guard = match self.gallery_state.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Gallery state lock error: {}", e)}),
+                );
+            }
+        };
         let state = match &*guard {
             Some(s) => s,
             None => {
@@ -2903,7 +2924,11 @@ impl MediaServer {
         // Create canvas
         let mut canvas = image::DynamicImage::new_rgba8(canvas_w, canvas_h);
         let bg = image::Rgba([30u8, 30u8, 30u8, 255u8]);
-        for pixel in canvas.as_mut_rgba8().unwrap().pixels_mut() {
+        for pixel in canvas
+            .as_mut_rgba8()
+            .expect("canvas was created as RGBA8")
+            .pixels_mut()
+        {
             *pixel = bg;
         }
 
@@ -4073,7 +4098,9 @@ async fn main() -> anyhow::Result<()> {
     let db = hkask_storage::in_memory_db();
     {
         let conn = db.conn_arc();
-        let conn = conn.lock().unwrap();
+        let conn = conn
+            .lock()
+            .expect("Failed to lock database connection for gallery table init");
         GalleryStore::init_tables(&conn).expect("Failed to initialize gallery tables");
     }
     let gallery_store = Arc::new(GalleryStore::new(db.conn_arc()));

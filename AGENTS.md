@@ -29,7 +29,7 @@ Activate the relevant skill via `skill` tool when its conditions are met:
 - **P8:** Every `#[test]` verifies a stated behavioral property of a public seam.
 - **C8:** Test depth matches module depth. Shallow modules get shallow tests; deep modules get deep tests.
 
-Violations get deleted. See `docs/architecture/PRINCIPLES.md`.
+Violations get deleted. See `docs/architecture/core/PRINCIPLES.md`.
 
 ---
 

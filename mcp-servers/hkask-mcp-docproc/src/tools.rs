@@ -1248,7 +1248,14 @@ impl DocProcServer {
 
         // Search the index (scoped to drop guard before any await)
         let (results, total_indexed) = {
-            let index = self.index.lock().unwrap();
+            let index = match self.index.lock() {
+                Ok(i) => i,
+                Err(e) => {
+                    return span.internal_error(
+                        serde_json::json!({"error": format!("Index lock error: {}", e)}),
+                    );
+                }
+            };
             if index.is_empty() {
                 return span.ok_json(json!({
                     "query": query,
@@ -1331,7 +1338,14 @@ impl DocProcServer {
         Parameters(ClearIndexRequest { index_id: _ }): Parameters<ClearIndexRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("docproc_clear_index", &self.webid);
-        let mut index = self.index.lock().unwrap();
+        let mut index = match self.index.lock() {
+            Ok(i) => i,
+            Err(e) => {
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Index lock error: {}", e)}),
+                );
+            }
+        };
         let cleared = index.len();
         index.clear();
         span.ok_json(json!({"cleared": cleared}))

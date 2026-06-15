@@ -541,15 +541,18 @@ risk and typically covered by struct-level or integration tests.
 PRIORITY_HEADER
 
     # Output top 100, sorted by crate then item name
+    local sorted_priority
+    sorted_priority=$(mktemp)
+    sort -t'|' -k2,2 -k4,4 "$temp_priority" > "$sorted_priority"
     local count=0
-    sort -t'|' -k2,2 -k4,4 "$temp_priority" | head -100 | {
-        while IFS='|' read -r risk cr kind name mp loc; do
-            count=$((count + 1))
-            local risk_cat="${risk#*:}"
-            echo "| $count | $cr | $kind | \`$name\` | $mp | $loc | $risk_cat |"
-        done >> "$priority_output"
-        true  # swallow SIGPIPE from head closing early
-    }
+    while IFS='|' read -r risk cr kind name mp loc; do
+        [ -z "$risk" ] && continue
+        [ "$count" -ge 100 ] && break
+        count=$((count + 1))
+        local risk_cat="${risk#*:}"
+        echo "| $count | $cr | $kind | \`$name\` | $mp | $loc | $risk_cat |"
+    done < "$sorted_priority" >> "$priority_output"
+    rm -f "$sorted_priority"
 
     # Summary per crate
     echo "" >> "$priority_output"

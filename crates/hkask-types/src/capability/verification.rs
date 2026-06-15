@@ -319,3 +319,83 @@ pub fn token_err_insufficient_access(resource_id: &str, action: &str) -> String 
 pub fn token_err_tool_access_denied(tool_name: &str) -> String {
     format!("Token does not authorize tool: {tool_name}")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::id::WebID;
+
+    // REQ: types-cap-verify-001 — CapabilityChecker::new() creates checker with secret
+    #[test]
+    fn capability_checker_new_creates_checker() {
+        let secret = b"test-secret-32-bytes-long!!";
+        let checker = CapabilityChecker::new(secret);
+        // Verify it can verify a token it created
+        let from = WebID::from_persona(b"issuer");
+        let to = WebID::from_persona(b"holder");
+        let token = checker.grant_tool("test_tool".into(), from, to.clone());
+        assert!(checker.verify(&token));
+    }
+
+    // REQ: types-cap-verify-002 — verify_delegation_token returns NoChecker when checker is None
+    #[test]
+    fn verify_delegation_token_returns_no_checker_when_none() {
+        let from = WebID::from_persona(b"issuer");
+        let to = WebID::from_persona(b"holder");
+        let secret = b"test-secret-32-bytes-long!!";
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "test_tool".into(),
+            DelegationAction::Execute,
+            from,
+            to.clone(),
+            secret,
+        );
+        let outcome = verify_delegation_token(
+            None,
+            &token,
+            &to,
+            DelegationResource::Tool,
+            "test_tool",
+            DelegationAction::Execute,
+            i64::MAX, // far future — not expired
+        );
+        assert_eq!(outcome, VerificationOutcome::NoChecker);
+    }
+
+    // REQ: types-cap-verify-003 — require_write_access returns Ok for write tokens
+    #[test]
+    fn require_write_access_accepts_write_token() {
+        let from = WebID::from_persona(b"issuer");
+        let to = WebID::from_persona(b"holder");
+        let secret = b"test-secret-32-bytes-long!!";
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "episodic".into(),
+            DelegationAction::Write,
+            from,
+            to,
+            secret,
+        );
+        assert!(require_write_access(&token, "episodic").is_ok());
+    }
+
+    // REQ: types-cap-verify-004 — require_write_access returns Err for read-only tokens
+    #[test]
+    fn require_write_access_rejects_read_only_token() {
+        let from = WebID::from_persona(b"issuer");
+        let to = WebID::from_persona(b"holder");
+        let secret = b"test-secret-32-bytes-long!!";
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "episodic".into(),
+            DelegationAction::Read,
+            from,
+            to,
+            secret,
+        );
+        let result = require_write_access(&token, "episodic");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("read-only"));
+    }
+}

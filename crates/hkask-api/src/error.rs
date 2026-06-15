@@ -344,3 +344,81 @@ impl From<hkask_services::ServiceError> for ApiError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::response::IntoResponse;
+
+    // REQ: api-error-001 — ApiError maps to correct HTTP status codes
+    #[test]
+    fn apierror_maps_to_correct_status_codes() {
+        let (status, _) = ApiError::NotFound {
+            resource: "agent".into(),
+            id: "test".into(),
+        }
+        .status_and_message();
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        let (status, _) = ApiError::Unauthorized {
+            reason: "bad token".into(),
+        }
+        .status_and_message();
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+
+        let (status, _) = ApiError::Forbidden {
+            reason: "no access".into(),
+        }
+        .status_and_message();
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _) = ApiError::BadRequest {
+            message: "invalid".into(),
+        }
+        .status_and_message();
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        let (status, _) = ApiError::Internal {
+            message: "boom".into(),
+        }
+        .status_and_message();
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    // REQ: api-error-002 — ApiError Display impls are human-readable
+    #[test]
+    fn apierror_display_is_readable() {
+        let err = ApiError::NotFound {
+            resource: "pod".into(),
+            id: "p1".into(),
+        };
+        assert_eq!(err.to_string(), "pod not found: p1");
+
+        let err = ApiError::Unauthorized {
+            reason: "expired".into(),
+        };
+        assert_eq!(err.to_string(), "Unauthorized: expired");
+
+        let err = ApiError::BadRequest {
+            message: "missing field".into(),
+        };
+        assert_eq!(err.to_string(), "Bad request: missing field");
+    }
+
+    // REQ: api-error-003 — ApiError IntoResponse produces correct HTTP status
+    #[test]
+    fn apierror_into_response_produces_correct_status() {
+        let err = ApiError::NotFound {
+            resource: "agent".into(),
+            id: "alice".into(),
+        };
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        let err = ApiError::Internal {
+            message: "boom".into(),
+        };
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+}

@@ -231,4 +231,72 @@ mod tests {
         // Out-of-range value should be silently ignored (no change)
         assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
     }
+
+    // REQ: api-settings-003 — seed field merge: Some(Some(v)) sets seed, Some(None) means random
+    #[test]
+    fn update_settings_seed_merge() {
+        let mut settings = SettingsResponse::default();
+        // Default seed is None (random)
+        assert!(settings.seed.is_none());
+
+        // Set a specific seed
+        let req = UpdateSettingsRequest {
+            seed: Some(Some(42)),
+            temperature: None,
+            tool_loop_limit: None,
+            context_turns: None,
+            top_p: None,
+            top_k: None,
+            min_p: None,
+            typical_p: None,
+            max_tokens: None,
+            gas_heuristic: None,
+            gas_cap: None,
+            auto_condense: None,
+        };
+        if let Some(v) = req.seed {
+            settings.seed = v;
+        }
+        assert_eq!(settings.seed, Some(42));
+
+        // Reset to random via Some(None)
+        let req = UpdateSettingsRequest {
+            seed: Some(None),
+            temperature: None,
+            tool_loop_limit: None,
+            context_turns: None,
+            top_p: None,
+            top_k: None,
+            min_p: None,
+            typical_p: None,
+            max_tokens: None,
+            gas_heuristic: None,
+            gas_cap: None,
+            auto_condense: None,
+        };
+        if let Some(v) = req.seed {
+            settings.seed = v;
+        }
+        assert_eq!(settings.seed, None);
+
+        // None (outer) means "don't change" — seed stays None
+        let req = UpdateSettingsRequest {
+            seed: None,
+            temperature: None,
+            tool_loop_limit: None,
+            context_turns: None,
+            top_p: None,
+            top_k: None,
+            min_p: None,
+            typical_p: None,
+            max_tokens: None,
+            gas_heuristic: None,
+            gas_cap: None,
+            auto_condense: None,
+        };
+        if let Some(v) = req.seed {
+            settings.seed = v;
+        }
+        assert_eq!(settings.seed, None);
+    }
 }

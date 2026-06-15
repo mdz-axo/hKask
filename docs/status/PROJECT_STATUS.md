@@ -12,18 +12,18 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Pragmatics codebase audit + REQ tag coverage + MCP server tool audit + hkask-communication integration tests (2026-06-15).
+**Current session:** Architecture refinement — condenser domain extraction, outcome quality tracking, key rotation versioning, four-pattern thesis documentation, documentation sweep (2026-06-15).
 
 ---
 
 ## Build
 
-All 18 workspace members.
+All 24 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (15/18 crates; `hkask-mcp` has pre-existing tracing macro issue) | 2026-06-15 |
-| Core crates (types, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, condenser, improv, wallet, communication) | ✅ Pass | 2026-06-15 |
+| Workspace (`cargo check --workspace`) | ✅ Pass (24/24 crates) | 2026-06-15 |
+| Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication) | ✅ Pass | 2026-06-15 |
 | MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory) | ✅ Pass | 2026-06-15 |
 | `hkask-cli` (production) | ✅ Pass | 2026-06-14 |
 | `hkask-cli` (tests) | ✅ Pass — 25 tests | 2026-06-11 |
@@ -37,7 +37,7 @@ All 18 workspace members.
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — 413 tests across 16 crates, 0 failures. 396 `// REQ:` tags (zero untagged test files).
+`cargo test --workspace` result: ✅ Pass — 419 tests across 16 crates, 0 failures. 403 `// REQ:` tags (zero untagged test files).
 
 ### Test Distribution
 
@@ -47,19 +47,19 @@ All 18 workspace members.
 | hkask-inference | 20 | ✅ |
 | hkask-storage | 54 | ✅ |
 | hkask-memory | 14 | ✅ |
-| hkask-cns | 25 | ✅ |
+| hkask-cns | 24 | ✅ |
 | hkask-agents | 8 | ✅ |
-| hkask-keystore | 6 | ✅ |
+| hkask-keystore | 13 | ✅ |
 | hkask-services | 77 | ✅ |
 | hkask-templates | 13 | ✅ |
 | hkask-condenser | 29 | ✅ |
 | hkask-improv | 57 | ✅ |
 | hkask-wallet | 13 | ✅ |
-| hkask-communication | 19 | ✅ (new — 2026-06-15) |
+| hkask-communication | 19 | ✅ |
 | hkask-mcp | 12 | ✅ |
 | hkask-cli | 43 | ✅ |
 | hkask-api | 2 | ✅ |
-| **Total** | **413** | **396** |
+| **Total** | **419** | **403** |
 
 ---
 
