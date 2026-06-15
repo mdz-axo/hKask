@@ -728,4 +728,4 @@ kask face_list --status valid
 | [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) | Current 9 fal tools catalog |
 | [`docs/architecture/loop-architecture.md`](../architecture/loop-architecture.md) | L4 Communication loop mapping |
 | [`AGENTS.md`](../../AGENTS.md) | Crate map, constraints, commands |
-| [`docs/architecture/ADR-024-unified-registry.md`](../architecture/ADR-024-unified-registry.md) | Template registry architecture |
+| [`do../architecture/ADRs/ADR-024-unified-registry.md`](../architecture/ADRs/ADR-024-unified-registry.md) | Template registry architecture |

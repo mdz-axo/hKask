@@ -13,7 +13,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Twelve principles governing hKask architecture, grounded in the Principle of Least Action (§0) and the Magna Carta, organized as foundational (P1–P4), operational (P5–P7), regulatory (P8–P9), and agent (P10–P12).
 
-**Related:** [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](hKask-architecture-master.md)  
+**Related:** [`AGENTS.md`](../../../AGENTS.md), [`hKask-architecture-master.md`](../hKask-architecture-master.md)  
 **Verification:** `cargo check --workspace`
 
 ---
@@ -175,7 +175,7 @@ fi
 
 ### §1.7 Loop Mapping
 
-The five anchors ground in the [four-loop authority model](loop-architecture.md):
+The five anchors ground in the [four-loop authority model](../loop-architecture.md):
 
 | Anchor | Loop(s) | Rationale |
 |--------|---------|-----------|

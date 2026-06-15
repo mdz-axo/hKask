@@ -19,6 +19,7 @@ use hkask_cns::CnsRuntime;
 use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
 use hkask_types::LLMParameters;
+use hkask_types::now_rfc3339;
 use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -1109,7 +1110,7 @@ impl KataEngine {
                 action: step.action.clone(),
                 output_summary: summary,
                 gas_used: step_gas,
-                timestamp: chrono::Utc::now().to_rfc3339(),
+                timestamp: now_rfc3339(),
             });
 
             // CNS span: step complete
@@ -1306,7 +1307,7 @@ impl KataEngine {
                 action: "coaching_question".into(),
                 output_summary: response.text.chars().take(200).collect(),
                 gas_used: step_gas,
-                timestamp: chrono::Utc::now().to_rfc3339(),
+                timestamp: now_rfc3339(),
             });
 
             // CNS observer callback
@@ -1407,7 +1408,7 @@ impl KataEngine {
                 action: "practice_routine".into(),
                 output_summary: practice.description.clone(),
                 gas_used: 0, // starter kata has no LLM gas cost
-                timestamp: chrono::Utc::now().to_rfc3339(),
+                timestamp: now_rfc3339(),
             });
 
             // CNS span for each practice

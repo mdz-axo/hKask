@@ -12,11 +12,11 @@ mds_categories: [composition, trust]
 
 **Date:** 2026-06-07
 **Status:** Draft
-**Related:** [`MDS.md`](MDS.md), OPEN_QUESTIONS.md FUT-004
+**Related:** [`MDS.md`](../core/MDS.md), OPEN_QUESTIONS.md FUT-004
 
 ## Context
 
-hKask's 10 MCP servers provide tool capabilities to agents. The capability model documented in [`MDS.md`](MDS.md) describes a "capability membrane" — a boundary that gates access to tools based on OCAP tokens. However, only 1 of 10 MCP servers currently implements this membrane via `GovernedTool`:
+hKask's 10 MCP servers provide tool capabilities to agents. The capability model documented in [`MDS.md`](../core/MDS.md) describes a "capability membrane" — a boundary that gates access to tools based on OCAP tokens. However, only 1 of 10 MCP servers currently implements this membrane via `GovernedTool`:
 
 | Server | Membrane | Rationale |
 |--------|----------|-----------|
@@ -125,8 +125,8 @@ grep -r "todo!\|unimplemented!" mcp-servers/ --include="*.rs" | wc -l
 
 ## Related Documents
 
-- [`MDS.md`](MDS.md) — Capability membrane model
-- [`MDS.md`](MDS.md) — Security model
+- [`MDS.md`](../core/MDS.md) — Capability membrane model
+- [`MDS.md`](../core/MDS.md) — Security model
 - [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) FUT-004 — MCP gateway membrane question
 
 ## References

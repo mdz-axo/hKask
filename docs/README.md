@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 # hKask Documentation Portal
 
 **Purpose:** Single entry point indexing every active document in `docs/`, tagged
-by [MDS](architecture/MDS.md) category. This portal is the navigation
+by [MDS](architecture/core/MDS.md) category. This portal is the navigation
 surface; canonical content lives in the linked documents, never duplicated here.
 
 ℏKask - "A Minimal Viable Container for Agents" - binary `kask`,
@@ -28,7 +28,7 @@ crate prefix `hkask-`, workspace v0.27.0.
 | Document | What It Is |
 |----------|------------|
 | [`architecture/hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative index to the four MDS specification documents and reference artifacts |
-| [`architecture/MDS.md`](architecture/MDS.md) | The 5-category specification framework and MDS methodology |
+| [`architecture/MDS.md`](architecture/core/MDS.md) | The 5-category specification framework and MDS methodology |
 | [`specifications/MDS_SCAFFOLD.md`](specifications/MDS_SCAFFOLD.md) | MDS category → directory mapping and lifecycle policy |
 | [`plans/TODO.md`](plans/TODO.md) | Open work only |
 
@@ -40,34 +40,34 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 
 | Document | MDS Categories | Description |
 |----------|-------------------|-------------|
-| [`MDS.md`](architecture/MDS.md) | domain, composition, trust, lifecycle, curation | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
-| [`PRINCIPLES.md`](architecture/PRINCIPLES.md) | domain, composition, trust, lifecycle, curation | Architecture principles (P1-P12), 5 anchors, anti-patterns |
-| [`magna-carta.md`](architecture/magna-carta.md) | domain, composition, trust, lifecycle, curation | User sovereignty charter — 4 inviolable principles |
+| [`MDS.md`](architecture/core/MDS.md) | domain, composition, trust, lifecycle, curation | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
+| [`PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | domain, composition, trust, lifecycle, curation | Architecture principles (P1-P12), 5 anchors, anti-patterns |
+| [`magna-carta.md`](architecture/core/magna-carta.md) | domain, composition, trust, lifecycle, curation | User sovereignty charter — 4 inviolable principles |
 | [`loop-architecture.md`](architecture/loop-architecture.md) | domain, composition, lifecycle, curation | 4-loop architecture — RateLimiting→EnergyBudget, crate↔loop mapping |
-| [`wallet-specification.md`](architecture/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate — architectural specification |
-| [`P12-replicant-host-mandate.md`](architecture/P12-replicant-host-mandate.md) | domain, trust, composition | Replicant host mandate — P12 elaboration |
+| [`wallet-specification.md`](specifications/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate — architectural specification |
+| [`P12-replicant-host-mandate.md`](architecture/mandates/P12-replicant-host-mandate.md) | domain, trust, composition | Replicant host mandate — P12 elaboration |
 | [`energy-gas-payments-api-keys.md`](architecture/energy-gas-payments-api-keys.md) | domain, trust, lifecycle, curation | Energy, gas, payments & API key architecture |
-| [`lazy-universe-research.md`](architecture/lazy-universe-research.md) | domain, composition, curation | Least-action principle — research grounding |
+| [`lazy-universe-research.md`](research/lazy-universe-research.md) | domain, composition, curation | Least-action principle — research grounding |
 | [`matrix-integration-architecture.md`](architecture/matrix-integration-architecture.md) | composition, trust | Matrix transport, Conduit sidecar, 7R7 listener, agent registry |
-| [`training-decomposition-traces.md`](architecture/training-decomposition-traces.md) | domain, composition, lifecycle, curation | Decomposition traces, LoRA adapters, fine-tuning architecture |
+| [`training-decomposition-traces.md`](research/training-decomposition-traces.md) | domain, composition, lifecycle, curation | Decomposition traces, LoRA adapters, fine-tuning architecture |
 
 ### Architecture Decision Records
 
 | ADR | MDS | Decision | Status |
 |-----|--------|----------|--------|
-| [ADR-024](architecture/ADR-024-unified-registry.md) | composition | Unified registry decision | Active |
-| [ADR-025](architecture/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit | Active |
-| [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | lifecycle | Bitemporal triple schema | Active |
-| [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation | Active |
-| [ADR-030](architecture/ADR-030-skill-bundler.md) | composition | Skill Bundler — meta-skill composition | Proposed |
-| [ADR-031](architecture/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation | Active |
-| [ADR-032](architecture/ADR-032-mcp-gateway-membrane.md) | composition, trust | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) | Draft |
-| [ADR-033](architecture/ADR-033-dampener-override-cooldown.md) | trust, lifecycle | Dampener override cooldown — per-issuer vs global | Draft |
-| [ADR-034](architecture/ADR-034-academic-author-pipeline.md) | composition, curation | Academic author pipeline architecture | Draft |
-| [ADR-035](architecture/ADR-035-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode — AgentMode, daemon transport, dual memory | Active |
-| [ADR-036](architecture/ADR-036-ocr-pipeline.md) | composition, curation | OCR pipeline — sealed backend hierarchy, deterministic routing | Draft |
-| [ADR-037](architecture/ADR-037-wallet-payments.md) | domain, trust, lifecycle | Wallet payment mechanism — rJoule currency, multi-chain bridges | Draft |
-| [ADR-038](architecture/ADR-038-media-server.md) | composition, domain | Media MCP server — 36 tools, fal.ai backend, single-server architecture | Draft |
+| [ADR-024](architecture/ADRs/ADR-024-unified-registry.md) | composition | Unified registry decision | Active |
+| [ADR-025](architecture/ADRs/ADR-025-attenuation-depth-limit.md) | trust | 7-level attenuation depth limit | Active |
+| [ADR-026](architecture/ADRs/ADR-026-bitemporal-triple-schema.md) | lifecycle | Bitemporal triple schema | Active |
+| [ADR-027](architecture/ADRs/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation | Active |
+| [ADR-030](architecture/ADRs/ADR-030-skill-bundler.md) | composition | Skill Bundler — meta-skill composition | Proposed |
+| [ADR-031](architecture/ADRs/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation | Active |
+| [ADR-032](architecture/ADRs/ADR-032-mcp-gateway-membrane.md) | composition, trust | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) | Draft |
+| [ADR-033](architecture/ADRs/ADR-033-dampener-override-cooldown.md) | trust, lifecycle | Dampener override cooldown — per-issuer vs global | Draft |
+| [ADR-034](architecture/ADRs/ADR-034-academic-author-pipeline.md) | composition, curation | Academic author pipeline architecture | Draft |
+| [ADR-035](architecture/ADRs/ADR-035-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode — AgentMode, daemon transport, dual memory | Active |
+| [ADR-036](architecture/ADRs/ADR-036-ocr-pipeline.md) | composition, curation | OCR pipeline — sealed backend hierarchy, deterministic routing | Draft |
+| [ADR-037](architecture/ADRs/ADR-037-wallet-payments.md) | domain, trust, lifecycle | Wallet payment mechanism — rJoule currency, multi-chain bridges | Draft |
+| [ADR-038](architecture/ADRs/ADR-038-media-server.md) | composition, domain | Media MCP server — 36 tools, fal.ai backend, single-server architecture | Draft |
 
 ### Reference Artifacts (`architecture/reference/`)
 

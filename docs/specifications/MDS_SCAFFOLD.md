@@ -14,7 +14,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Role:** This document tells you what documentation to produce and where to put it. Verification that what you produced is correct is governed by [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md). Current inventory lives in [`docs/README.md`](../README.md) (portal) and [`docs/status/corpus_inventory.yaml`](../status/corpus_inventory.yaml) (lifecycle classification) — this scaffold does not duplicate them.
 
-**MDS Reference:** [`architecture/MDS.md`](../architecture/MDS.md)
+**MDS Reference:** [`architecture/MDS.md`](../architecture/core/MDS.md)
 
 ---
 
@@ -24,11 +24,11 @@ Where each MDS category's authoritative documents live:
 
 | # | MDS Category | Authoritative Document | Primary Directory | Supporting References |
 |---|--------------|----------------------|-------------------|----------------------|
-| 1 | **Domain** | [`MDS.md`](../architecture/MDS.md) | `architecture/` | [`reference/hKask-hLexicon.md`](../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../architecture/reference/hKask-Curator-persona.md) |
-| 2 | **Composition** | [`MDS.md`](../architecture/MDS.md) | `architecture/` | [`reference/template-header-standard.md`](../architecture/reference/template-header-standard.md) |
-| 3 | **Trust** | [`MDS.md`](../architecture/MDS.md) | `architecture/` | [`magna-carta.md`](../architecture/magna-carta.md) |
-| 4 | **Lifecycle** | [`MDS.md`](../architecture/MDS.md) | `architecture/` | [`CI-CD-GUIDE.md`](CI-CD-GUIDE.md), [`DEPLOYMENT.md`](DEPLOYMENT.md) |
-| 5 | **Curation** | [`MDS.md`](../architecture/MDS.md) + [`WRITING_EXCELLENCE.md`](WRITING_EXCELLENCE.md) | `architecture/` + `specifications/` | — |
+| 1 | **Domain** | [`MDS.md`](../architecture/core/MDS.md) | `architecture/` | [`reference/hKask-hLexicon.md`](../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../architecture/reference/hKask-Curator-persona.md) |
+| 2 | **Composition** | [`MDS.md`](../architecture/core/MDS.md) | `architecture/` | [`reference/template-header-standard.md`](../architecture/reference/template-header-standard.md) |
+| 3 | **Trust** | [`MDS.md`](../architecture/core/MDS.md) | `architecture/` | [`magna-carta.md`](../architecture/core/magna-carta.md) |
+| 4 | **Lifecycle** | [`MDS.md`](../architecture/core/MDS.md) | `architecture/` | [`CI-CD-GUIDE.md`](CI-CD-GUIDE.md), [`DEPLOYMENT.md`](DEPLOYMENT.md) |
+| 5 | **Curation** | [`MDS.md`](../architecture/core/MDS.md) + [`WRITING_EXCELLENCE.md`](WRITING_EXCELLENCE.md) | `architecture/` + `specifications/` | — |
 
 **Rule:** New documents go in the directory of their primary MDS category. Cross-cutting documents (multiple categories) go in the directory of their dominant category. The portal provides category-based navigation; this scaffold provides the placement rule.
 

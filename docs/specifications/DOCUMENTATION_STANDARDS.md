@@ -26,7 +26,7 @@ non-negotiable biases of this project:
    Lovelace, Schriver, Gentle).
 4. **Stewardship Mandate** — documents that introduce, describe, or
    modify a context of participant collaboration honour the
-   stewardship principles in [`PRINCIPLES.md`](../architecture/PRINCIPLES.md) §4.
+   stewardship principles in [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) §4.
     Specifically: declare the shared goal of the context (PS-01),
     document the bounded lexicon of its domain (PS-02), name the mode
     of play it supports (PS-03), and prefer invitational over
@@ -52,7 +52,7 @@ The metadata, diagram, citation, and writing excellence conventions below implem
 Every document directly under `docs/**` (excluding `archive/`) MUST
 begin with YAML frontmatter delimited by `---` containing the following
 six fields. The header format shown below uses the 5-category MDS taxonomy
-per [`../architecture/MDS.md`](../architecture/MDS.md) §1:
+per [`../architecture/MDS.md`](../architecture/core/MDS.md) §1:
 
 ```yaml
 ---
@@ -74,7 +74,7 @@ Conventions:
 | Last-Updated | ISO 8601 date on every content-bearing edit[^iso8601]. |
 | Status | Exactly one of the four values. `Deprecated` and `Superseded` documents are removed from the active tree (`git rm`) at the next review; git history is the canonical archive of record. A local `docs/archive/` snapshot may be kept on a maintainer's disk for personal reference but is gitignored. |
 | Audience | Named roles; avoid "everyone." |
-| MDS Categories | One or more of the 5 MDS categories defined in [`../architecture/MDS.md`](../architecture/MDS.md) §1: `domain`, `composition`, `trust`, `lifecycle`, `curation`. See [`MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md) for category → directory mapping. Documents that spanned the deprecated 9-category DDMVSS taxonomy have been migrated; the old categories map as: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. |
+| MDS Categories | One or more of the 5 MDS categories defined in [`../architecture/MDS.md`](../architecture/core/MDS.md) §1: `domain`, `composition`, `trust`, `lifecycle`, `curation`. See [`MDS_SCAFFOLD.md`](MDS_SCAFFOLD.md) for category → directory mapping. Documents that spanned the deprecated 9-category DDMVSS taxonomy have been migrated; the old categories map as: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. |
 | Domain | Optional for cross-cutting documents; mandatory for domain-specific documents. |
 
 ## 3. Lifecycle
@@ -343,7 +343,7 @@ Before a document is merged:
 
 ## 11. MDS Alignment
 
-All architecture documents MUST map to at least one of the 5 MDS categories defined in [`../architecture/MDS.md`](../architecture/MDS.md) §1:
+All architecture documents MUST map to at least one of the 5 MDS categories defined in [`../architecture/MDS.md`](../architecture/core/MDS.md) §1:
 
 1. **Domain** — Bounded context, ν-events, entities, hLexicon terms
 2. **Composition** — Registry, cascade rules, template types, MCP/CLI/API surfaces, equivalence matrix
@@ -375,7 +375,7 @@ The verification checklist (§10) is extended with MDS alignment checks:
 
 - [ ] Document maps to ≥1 MDS category
 - [ ] `mds_categories` field present in metadata
-- [ ] Category-specific completeness criteria addressed (see [`MDS.md`](../architecture/MDS.md) §2)
+- [ ] Category-specific completeness criteria addressed (see [`MDS.md`](../architecture/core/MDS.md) §2)
 
 ### 11.3 Category-Specific Requirements
 

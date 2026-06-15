@@ -14,7 +14,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Supersedes:** The previous 9-category DDMVSS. All MDS references in the codebase should be updated.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`magna-carta.md`](magna-carta.md), [`loop-architecture.md`](loop-architecture.md)
+**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`magna-carta.md`](magna-carta.md), [`loop-architecture.md`](../loop-architecture.md)
 
 ---
 

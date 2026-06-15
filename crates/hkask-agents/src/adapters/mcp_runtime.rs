@@ -20,6 +20,46 @@ use hkask_types::{
 };
 use std::sync::Arc;
 
+/// Verify a delegation token for tool access grant.
+///
+/// Shared by `CapabilityOnlyAdapter` and `FullMcpAdapter` — eliminates
+/// the 35-line duplicate verification block that was identical in both
+/// `grant_tool_access` implementations.
+fn verify_grant_access(
+    checker: &CapabilityChecker,
+    token: &DelegationToken,
+) -> Result<(), McpError> {
+    if token.id.is_empty() {
+        return Err(McpError::InvalidToken("Token ID is empty".to_string()));
+    }
+
+    match verify_delegation_token_now(
+        Some(checker),
+        token,
+        &token.delegated_to,
+        DelegationResource::Tool,
+        &token.resource_id,
+        DelegationAction::Execute,
+    ) {
+        VerificationOutcome::Valid => Ok(()),
+        VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
+            TOKEN_ERR_INVALID_SIGNATURE.to_string(),
+        )),
+        VerificationOutcome::Expired => Err(McpError::CapabilityDenied {
+            resource: "token".to_string(),
+            action: TOKEN_ERR_EXPIRED.to_string(),
+        }),
+        VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied {
+            resource: token.resource_id.clone(),
+            action: "execute".to_string(),
+        }),
+        VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied {
+            resource: "token".to_string(),
+            action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
+        }),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Capability-only adapter
 // ---------------------------------------------------------------------------
@@ -50,39 +90,7 @@ impl CapabilityOnlyAdapter {
 
 impl MCPRuntimePort for CapabilityOnlyAdapter {
     fn grant_tool_access(&self, token: DelegationToken) -> Result<(), McpError> {
-        let token_id = token.id.clone();
-
-        if token_id.is_empty() {
-            return Err(McpError::InvalidToken("Token ID is empty".to_string()));
-        }
-
-        match verify_delegation_token_now(
-            Some(self.capability_checker.as_ref()),
-            &token,
-            &token.delegated_to,
-            DelegationResource::Tool,
-            &token.resource_id,
-            DelegationAction::Execute,
-        ) {
-            VerificationOutcome::Valid => Ok(()),
-            VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
-                TOKEN_ERR_INVALID_SIGNATURE.to_string(),
-            )),
-            VerificationOutcome::Expired => Err(McpError::CapabilityDenied {
-                resource: "token".to_string(),
-                action: TOKEN_ERR_EXPIRED.to_string(),
-            }),
-            VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied {
-                resource: token.resource_id.clone(),
-                action: "execute".to_string(),
-            }),
-            // CapabilityOnlyAdapter always carries a checker; NoChecker
-            // should never fire, but we handle it defensively.
-            VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied {
-                resource: "token".to_string(),
-                action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
-            }),
-        }
+        verify_grant_access(&self.capability_checker, &token)
     }
 
     fn invoke_tool(
@@ -139,37 +147,7 @@ impl FullMcpAdapter {
 
 impl MCPRuntimePort for FullMcpAdapter {
     fn grant_tool_access(&self, token: DelegationToken) -> Result<(), McpError> {
-        let token_id = token.id.clone();
-
-        if token_id.is_empty() {
-            return Err(McpError::InvalidToken("Token ID is empty".to_string()));
-        }
-
-        match verify_delegation_token_now(
-            Some(self.capability_checker.as_ref()),
-            &token,
-            &token.delegated_to,
-            DelegationResource::Tool,
-            &token.resource_id,
-            DelegationAction::Execute,
-        ) {
-            VerificationOutcome::Valid => Ok(()),
-            VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
-                TOKEN_ERR_INVALID_SIGNATURE.to_string(),
-            )),
-            VerificationOutcome::Expired => Err(McpError::CapabilityDenied {
-                resource: "token".to_string(),
-                action: TOKEN_ERR_EXPIRED.to_string(),
-            }),
-            VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied {
-                resource: token.resource_id.clone(),
-                action: "execute".to_string(),
-            }),
-            VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied {
-                resource: "token".to_string(),
-                action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
-            }),
-        }
+        verify_grant_access(&self.capability_checker, &token)
     }
 
     fn invoke_tool(

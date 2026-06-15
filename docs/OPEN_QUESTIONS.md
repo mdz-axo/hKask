@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Unresolved aspects requiring decision-making before they can be addressed. Each question is tagged with its MDS category and includes the decision options under consideration.
 
-**Related:** [`MDS.md`](architecture/MDS.md), [`REQUIREMENTS.md`](specifications/REQUIREMENTS.md)
+**Related:** [`MDS.md`](architecture/core/MDS.md), [`REQUIREMENTS.md`](specifications/REQUIREMENTS.md)
 
 ---
 
@@ -795,6 +795,42 @@ When the encryption passphrase changes, all existing encrypted blobs become unre
 1. Re-encrypt all blobs on key change (walk all repos, decrypt with old key, re-encrypt with new key)
 2. Maintain key history in `BackupConfig.encryption` as a `Vec<EncryptionConfig>` — try each key on decrypt
 3. Accept that key rotation requires a full re-backup
+
+---
+
+## Dual-Presence Pattern (merged from `docs/specifications/dual-presence-pattern.md`, 2026-06-15)
+
+**MDS Category:** domain, composition, trust
+**Source:** Formerly `docs/specifications/dual-presence-pattern.md` — merged 2026-06-15 per essentialist consolidation.
+
+The dual-presence pattern — where two entities (a sovereign host replicant and a co-participant daemon) share one CLI/REPL conversation loop — requires five architectural decisions:
+
+### DP-1: Presence Model
+**What does "being present" actually mean?**
+- **Continuous:** Curator observes every message (enables proactive CNS regulation but raises P2 consent concerns)
+- **Invoked:** Curator only engages when addressed (simpler but makes Curator reactive, not regulatory)
+- Can presence be toggled? If user disables Curator, who regulates energy budgets?
+
+### DP-2: Sovereignty Boundary
+**Where does P1 draw the line between user and system?**
+- If Curator observes all messages, is that data access requiring consent?
+- If Curator stores observations, whose memory is it?
+
+### DP-3: Authority Model
+**Who has final say when user and Curator disagree?**
+- P1 (User Sovereignty) vs P9 (System Self-Regulation) tension
+- Escalation path: Curator warns → user overrides → CNS records override → pattern detection
+
+### DP-4: Addressing Model
+**How does the user address the Curator vs. other agents?**
+- `@curator` prefix? Separate `/curator` command? Implicit context detection?
+
+### DP-5: Memory Model
+**Who owns the record of dual-presence interactions?**
+- Episodic (private, per-agent) vs semantic (public, shared)
+- If Curator observes, does it encode its observations as its own episodic memory?
+
+**Recommended answer order:** Presence Model → Sovereignty Boundary → Authority Model → Addressing Model → Memory Model → Generalization (don't generalize an unstable pattern).
 
 ---
 

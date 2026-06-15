@@ -12,7 +12,7 @@ mds_categories: [composition, trust, lifecycle]
 
 **Date:** 2026-06-12
 **Status:** Active
-**Related:** [`MDS.md`](MDS.md), [`ADR-032`](ADR-032-mcp-gateway-membrane.md), [`magna-carta.md`](magna-carta.md)
+**Related:** [`MDS.md`](../core/MDS.md), [`ADR-032`](ADR-032-mcp-gateway-membrane.md), [`magna-carta.md`](../core/magna-carta.md)
 
 ## Context
 
@@ -148,9 +148,9 @@ grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon.rs --in
 
 ## Related Documents
 
-- [`magna-carta.md`](magna-carta.md) — P1-P4 principles enforced by this architecture
+- [`magna-carta.md`](../core/magna-carta.md) — P1-P4 principles enforced by this architecture
 - [`ADR-032`](ADR-032-mcp-gateway-membrane.md) — Two-tier membrane policy (orthogonal to server mode)
-- [`loop-architecture.md`](loop-architecture.md) — Memory loops (episodic, semantic, consolidation)
+- [`loop-architecture.md`](../loop-architecture.md) — Memory loops (episodic, semantic, consolidation)
 
 ## References
 

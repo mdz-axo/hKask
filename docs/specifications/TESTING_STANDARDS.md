@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Codify testing practices derived from Matt Pocock's TDD methodology, architecture deepening principles, and disciplined diagnosis — adapted to hKask's MDS categories and constraint-driven design (P1–P7, C1–C7).
 
-**Related:** [`PRINCIPLES.md`](../architecture/PRINCIPLES.md), [`MDS.md`](../architecture/MDS.md), [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`AGENTS.md`](../../AGENTS.md)
+**Related:** [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md), [`MDS.md`](../architecture/core/MDS.md), [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`AGENTS.md`](../../AGENTS.md)
 
 **Skills referenced:** `tdd`, `diagnose`, `improve-codebase-architecture`, `coding-guidelines`, `zoom-out`, `grill-me`, `skill-bundler`
 

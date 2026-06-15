@@ -235,5 +235,5 @@ Document (PDF, MD, HTML, TXT)
 | [`docs/specifications/test-program.md`](../specifications/test-program.md) | MDS self-applying test methodology |
 | [`docs/OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) | Open questions including OQ-5 (test isolation), OQ-9 (stub MCP servers) |
 | [`AGENTS.md`](../../AGENTS.md) | Crate map with 10 listed MCP servers |
-| [`docs/architecture/PRINCIPLES.md`](../architecture/PRINCIPLES.md) | P8 (test behavioral properties), C4 (extraction threshold), C8 (test depth) |
+| [`do../architecture/core/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) | P8 (test behavioral properties), C4 (extraction threshold), C8 (test depth) |
 | [`docs/plans/TODO.md`](TODO.md) | General project TODO (P1-07: stub MCP servers ✅ Complete) |

@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Bidirectional traceability from MDS goal specs → code → tests, organized by MDS category.
 
-**Related:** [`REQUIREMENTS.md`](REQUIREMENTS.md), [`MDS.md`](../architecture/MDS.md)
+**Related:** [`REQUIREMENTS.md`](REQUIREMENTS.md), [`MDS.md`](../architecture/core/MDS.md)
 
 **Scope-exempt from Sourced-Ideas Mandate** — this is a cross-reference table, not a design document.
 

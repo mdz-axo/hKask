@@ -12,7 +12,7 @@ mds_categories: [domain, composition, curation]
 
 **Purpose:** Specification for the Gentle Lovelace mashup replica persona — a composite embedding space that evaluates technical documentation against four dimensions of excellence, each grounded in the work of a woman who shaped the field.
 
-**Related:** [`WRITING_EXCELLENCE.md`](WRITING_EXCELLENCE.md), [`MDS.md`](../architecture/MDS.md), [`document-update` SKILL.md](../../.agents/skills/document-update/SKILL.md)
+**Related:** [`WRITING_EXCELLENCE.md`](WRITING_EXCELLENCE.md), [`MDS.md`](../architecture/core/MDS.md), [`document-update` SKILL.md](../../.agents/skills/document-update/SKILL.md)
 
 ---
 

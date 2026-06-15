@@ -21,11 +21,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 ## Document Hierarchy
 
 ```
-magna-carta.md  ←  Foundation (4 inviolable principles)
+core/magna-carta.md  ←  Foundation (4 inviolable principles)
        ↓
-PRINCIPLES.md  ←  9 principles (P1-P9), constraint forces
+core/PRINCIPLES.md  ←  9 principles (P1-P9), constraint forces
        ↓
-   MDS.md      ←  Minimal Domain Specification (5 categories, 5 tools)
+   core/MDS.md      ←  Minimal Domain Specification (5 categories, 5 tools)
        ↓
 loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 ```
@@ -34,11 +34,11 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 
 | Document | Purpose |
 |----------|--------|
-| [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
-| [`PRINCIPLES.md`](PRINCIPLES.md) | 12 architecture principles (P1-P12), 5 anchors, anti-patterns |
-| [`MDS.md`](MDS.md) | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
+| [`core/magna-carta.md`](core/magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
+| [`core/PRINCIPLES.md`](core/PRINCIPLES.md) | 12 architecture principles (P1-P12), 5 anchors, anti-patterns |
+| [`core/MDS.md`](core/MDS.md) | Minimal Domain Specification — 5 categories, 5 tools, completeness predicate |
 | [`loop-architecture.md`](loop-architecture.md) | 4-loop architecture — RateLimiting→EnergyBudget subsumption, crate↔loop mapping |
-| [`P12-replicant-host-mandate.md`](P12-replicant-host-mandate.md) | Replicant Host Mandate — every interaction has an author, no unsupervised agency |
+| [`mandates/P12-replicant-host-mandate.md`](mandates/P12-replicant-host-mandate.md) | Replicant Host Mandate — every interaction has an author, no unsupervised agency |
 | [`energy-gas-payments-api-keys.md`](energy-gas-payments-api-keys.md) | Energy, Gas, Payments & API Key System — economic layer, rJoules, wallets, key lifecycle |
 
 ---
@@ -356,19 +356,19 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | ADR | Topic |
 |-----|-------|
-| [`ADR-024-unified-registry.md`](ADR-024-unified-registry.md) | Unified registry with `template_type` discriminator (retroactive) |
-| [`ADR-025-attenuation-depth-limit.md`](ADR-025-attenuation-depth-limit.md) | 7-level attenuation depth limit (retroactive) |
-| [`ADR-026-bitemporal-triple-schema.md`](ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
-| [`ADR-027-argon2-hkdf-master-key.md`](ADR-027-argon2-hkdf-master-key.md) | Argon2id + HKDF-SHA256 master key derivation (retroactive) |
-| [`ADR-030-skill-bundler.md`](ADR-030-skill-bundler.md) | Skill bundler — meta-skill composition |
-| [`ADR-031-consolidation-authorization.md`](ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
-| [`ADR-032-mcp-gateway-membrane.md`](ADR-032-mcp-gateway-membrane.md) | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) |
-| [`ADR-033-dampener-override-cooldown.md`](ADR-033-dampener-override-cooldown.md) | Dampener override cooldown — per-issuer vs global |
-| [`ADR-034-academic-author-pipeline.md`](ADR-034-academic-author-pipeline.md) | Academic author pipeline — corpus_type discriminator, pre-processing, enumeration, disambiguation |
-| [`ADR-035-replicant-server-mode.md`](ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
-| [`ADR-036-ocr-pipeline.md`](ADR-036-ocr-pipeline.md) | OCR pipeline — sealed backend hierarchy (Tesseract, PaddleOCR, FalAI), deterministic routing |
-| [`ADR-037-wallet-payments.md`](ADR-037-wallet-payments.md) | Wallet payment mechanism — rJoule internal currency, multi-chain bridge architecture |
-| [`ADR-038-media-server.md`](ADR-038-media-server.md) | Media MCP server — 28 tools across 6 categories, fal.ai primary backend |
+| [`ADRs/ADR-024-unified-registry.md`](ADRs/ADR-024-unified-registry.md) | Unified registry with `template_type` discriminator (retroactive) |
+| [`ADRs/ADR-025-attenuation-depth-limit.md`](ADRs/ADR-025-attenuation-depth-limit.md) | 7-level attenuation depth limit (retroactive) |
+| [`ADRs/ADR-026-bitemporal-triple-schema.md`](ADRs/ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
+| [`ADRs/ADR-027-argon2-hkdf-master-key.md`](ADRs/ADR-027-argon2-hkdf-master-key.md) | Argon2id + HKDF-SHA256 master key derivation (retroactive) |
+| [`ADRs/ADR-030-skill-bundler.md`](ADRs/ADR-030-skill-bundler.md) | Skill bundler — meta-skill composition |
+| [`ADRs/ADR-031-consolidation-authorization.md`](ADRs/ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
+| [`ADRs/ADR-032-mcp-gateway-membrane.md`](ADRs/ADR-032-mcp-gateway-membrane.md) | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) |
+| [`ADRs/ADR-033-dampener-override-cooldown.md`](ADRs/ADR-033-dampener-override-cooldown.md) | Dampener override cooldown — per-issuer vs global |
+| [`ADRs/ADR-034-academic-author-pipeline.md`](ADRs/ADR-034-academic-author-pipeline.md) | Academic author pipeline — corpus_type discriminator, pre-processing, enumeration, disambiguation |
+| [`ADRs/ADR-035-replicant-server-mode.md`](ADRs/ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
+| [`ADRs/ADR-036-ocr-pipeline.md`](ADRs/ADR-036-ocr-pipeline.md) | OCR pipeline — sealed backend hierarchy (Tesseract, PaddleOCR, FalAI), deterministic routing |
+| [`ADRs/ADR-037-wallet-payments.md`](ADRs/ADR-037-wallet-payments.md) | Wallet payment mechanism — rJoule internal currency, multi-chain bridge architecture |
+| [`ADRs/ADR-038-media-server.md`](ADRs/ADR-038-media-server.md) | Media MCP server — 28 tools across 6 categories, fal.ai primary backend |
 
 ---
 
@@ -390,30 +390,30 @@ Detailed lookup tables and diagrams in `reference/`:
 
 ```
 docs/architecture/
-├── hKask-architecture-master.md           # THIS FILE (index — includes REPL Architecture)
-├── MDS.md                              # Framework (5 categories, 5 tools)
-├── PRINCIPLES.md                          # Framework (P1-P12)
+├── hKask-architecture-master.md           # THIS FILE (index)
 ├── loop-architecture.md                   # Framework (4-loop authority model)
-├── magna-carta.md                         # Framework
-├── P12-replicant-host-mandate.md          # Framework (replicant host mandate — P12)
 ├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
-├── lazy-universe-research.md              # Research (least-action principle grounding)
-├── wallet-specification.md                # Specification (wallet crate architecture)
 ├── matrix-integration-architecture.md     # Specification (Matrix transport, Conduit sidecar)
-├── training-decomposition-traces.md       # Research (decomposition traces, LoRA adapters)
-├── ADR-024-unified-registry.md            # Decision record
-├── ADR-025-attenuation-depth-limit.md     # Decision record
-├── ADR-026-bitemporal-triple-schema.md    # Decision record
-├── ADR-027-argon2-hkdf-master-key.md      # Decision record
-├── ADR-030-skill-bundler.md                # Decision record (Draft)
-├── ADR-031-consolidation-authorization.md  # Decision record
-├── ADR-032-mcp-gateway-membrane.md        # Decision record (Draft)
-├── ADR-033-dampener-override-cooldown.md   # Decision record (Draft)
-├── ADR-034-academic-author-pipeline.md      # Decision record (Active)
-├── ADR-035-replicant-server-mode.md          # Decision record (Active)
-├── ADR-036-ocr-pipeline.md                   # Decision record (Draft)
-├── ADR-037-wallet-payments.md                # Decision record (Draft)
-├── ADR-038-media-server.md                   # Decision record (Draft)
+├── core/
+│   ├── magna-carta.md                     # Foundation (4 inviolable principles)
+│   ├── PRINCIPLES.md                      # Framework (P1-P12)
+│   └── MDS.md                             # Framework (5 categories, 5 tools)
+├── mandates/
+│   └── P12-replicant-host-mandate.md      # Framework (replicant host mandate)
+├── ADRs/
+│   ├── ADR-024-unified-registry.md        # Decision record
+│   ├── ADR-025-attenuation-depth-limit.md # Decision record
+│   ├── ADR-026-bitemporal-triple-schema.md # Decision record
+│   ├── ADR-027-argon2-hkdf-master-key.md  # Decision record
+│   ├── ADR-030-skill-bundler.md           # Decision record (Draft)
+│   ├── ADR-031-consolidation-authorization.md # Decision record
+│   ├── ADR-032-mcp-gateway-membrane.md    # Decision record (Draft)
+│   ├── ADR-033-dampener-override-cooldown.md # Decision record (Draft)
+│   ├── ADR-034-academic-author-pipeline.md # Decision record (Active)
+│   ├── ADR-035-replicant-server-mode.md   # Decision record (Active)
+│   ├── ADR-036-ocr-pipeline.md            # Decision record (Draft)
+│   ├── ADR-037-wallet-payments.md         # Decision record (Draft)
+│   └── ADR-038-media-server.md            # Decision record (Draft)
 └── reference/
     ├── hKask-hLexicon.md                  # Vocabulary catalog
     ├── ports-inventory.md                 # Port reference
@@ -423,7 +423,9 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 30 active architecture documents (8 framework + 1 index + 13 ADRs + 6 reference artifacts + 2 specifications/research).
+**Total:** 26 active architecture documents (3 core + 1 mandate + 4 root + 13 ADRs + 6 reference artifacts).
+
+**Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.)
 
 ---
 

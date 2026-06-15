@@ -12,7 +12,7 @@ mds_categories: [domain, trust, lifecycle, curation]
 
 **Purpose:** Defines the economic layer of hKask — how energy is measured, consumed, funded, and settled across all interaction surfaces.
 
-**Related:** [`P12-replicant-host-mandate.md`](P12-replicant-host-mandate.md), [`PRINCIPLES.md`](PRINCIPLES.md), [`loop-architecture.md`](loop-architecture.md)
+**Related:** [`P12-replicant-host-mandate.md`](mandates/P12-replicant-host-mandate.md), [`PRINCIPLES.md`](core/PRINCIPLES.md), [`loop-architecture.md`](loop-architecture.md)
 
 ---
 

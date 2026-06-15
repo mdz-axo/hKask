@@ -10,7 +10,7 @@ mds_categories: [composition]
 
 # Hexagonal Port Inventory — hKask v0.23.0
 
-> **Note:** Active ports are authoritative in [`MDS.md`](../MDS.md) §7 §2. This reference provides implementation detail, removal history, and phantom type corrections.
+> **Note:** Active ports are authoritative in [`MDS.md`](../core/MDS.md) §7 §2. This reference provides implementation detail, removal history, and phantom type corrections.
 
 ## Active Traits
 

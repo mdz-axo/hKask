@@ -14,7 +14,7 @@ mds_categories: [domain, composition, curation]
 
 **Grounded in:** Pixar's plussing (Ed Catmull), Freestyle Love Supreme's freestyling (Lin-Manuel Miranda, Anthony Veneziale), and classic improv "yes, and" (Johnstone, Kulhan).
 
-**Related:** [`dual-presence-pattern.md`](../specifications/dual-presence-pattern.md), [`kata-user-guide.md`](../guides/kata-user-guide.md), [`PRINCIPLES.md`](../architecture/PRINCIPLES.md) §P3, P5
+**Related:** [`dual-presence-pattern.md`](../specifications/dual-presence-pattern.md), [`kata-user-guide.md`](../guides/kata-user-guide.md), [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) §P3, P5
 
 ---
 

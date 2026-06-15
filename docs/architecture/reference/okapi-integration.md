@@ -10,7 +10,7 @@ mds_categories: [domain]
 
 # Inference Router — API Contract
 
-> **Note:** This reference document provides implementation detail supplementary to the authoritative specification in [`MDS.md`](../MDS.md) §7 §2.5.
+> **Note:** This reference document provides implementation detail supplementary to the authoritative specification in [`MDS.md`](../core/MDS.md) §7 §2.5.
 
 **Version:** 0.28.0
 **Last Updated:** 2026-06-11

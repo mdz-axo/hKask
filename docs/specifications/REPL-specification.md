@@ -816,8 +816,8 @@ Agent writes code → executes → sees error traceback → rewrites → re-exec
 
 ## 22. References
 
-- [`PRINCIPLES.md`](../architecture/PRINCIPLES.md) — Architecture principles (P1–P11)
-- [`magna-carta.md`](../architecture/magna-carta.md) — User sovereignty charter
+- [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) — Architecture principles (P1–P11)
+- [`magna-carta.md`](../architecture/core/magna-carta.md) — User sovereignty charter
 - [`hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture index
 - [Zed REPL crate](https://github.com/zed-industries/zed/tree/main/crates/repl) — Reference implementation for code execution patterns
 - [Jupyter Messaging Protocol](https://jupyter-client.readthedocs.io/en/stable/messaging.html) — Wire protocol specification

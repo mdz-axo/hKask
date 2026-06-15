@@ -22,6 +22,7 @@ use hkask_agents::pod::PodManager;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_storage::user_store::UserStore;
 use hkask_types::LLMParameters;
+use hkask_types::now_rfc3339;
 use hkask_types::ports::InferencePort;
 use tracing;
 
@@ -304,7 +305,7 @@ async fn generate_narrative(
             let _ = ctx.store_episodic(
                 "narrative",
                 "thought",
-                serde_json::json!({"observation": trimmed, "timestamp": chrono::Utc::now().to_rfc3339()}),
+                serde_json::json!({"observation": trimmed, "timestamp": now_rfc3339()}),
                 hkask_types::Confidence::new(0.7),
             );
         }
@@ -318,7 +319,7 @@ async fn generate_narrative(
             "observation": obs,
             "source": "internal_narrative",
             "triggered_by": format!("{} experiences", recent.len()),
-            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "timestamp": now_rfc3339(),
         });
 
         match ctx.store_episodic(

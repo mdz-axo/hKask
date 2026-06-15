@@ -12,7 +12,7 @@ mds_categories: [trust, lifecycle]
 
 **Date:** 2026-06-07
 **Status:** Draft
-**Related:** [`MDS.md`](MDS.md), OPEN_QUESTIONS.md FUT-003, FUT-007
+**Related:** [`MDS.md`](../core/MDS.md), OPEN_QUESTIONS.md FUT-003, FUT-007
 
 ## Context
 
@@ -116,8 +116,8 @@ cargo test -p hkask-cns
 
 ## Related Documents
 
-- [`MDS.md`](MDS.md) — Dampener override model
-- [`MDS.md`](MDS.md) — Security model
+- [`MDS.md`](../core/MDS.md) — Dampener override model
+- [`MDS.md`](../core/MDS.md) — Security model
 - [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) FUT-003, FUT-007 — Override cooldown questions
 
 ## References

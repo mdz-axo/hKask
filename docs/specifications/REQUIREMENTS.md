@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Implemented requirements as MDS goal specs, with traceability to specific crates, modules, and tests. Each requirement is grounded in code that compiles and passes tests today.
 
-**Related:** [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`MDS.md`](../architecture/MDS.md)
+**Related:** [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`MDS.md`](../architecture/core/MDS.md)
 
 **Verification:** `cargo test --workspace`
 

@@ -12,7 +12,7 @@ mds_categories: [domain, trust, composition]
 
 **Purpose:** Defines the requirement that every hKask interaction carries a replicant identity. No operation occurs unsupervised.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md) §2.4, [`AGENTS.md`](../../AGENTS.md), [`MDS.md`](MDS.md)
+**Related:** [`PRINCIPLES.md`](../core/PRINCIPLES.md) §2.4, [`AGENTS.md`](../../../AGENTS.md), [`MDS.md`](../core/MDS.md)
 
 ---
 

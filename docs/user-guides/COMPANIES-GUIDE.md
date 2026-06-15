@@ -253,4 +253,4 @@ Keys are resolved from the OS keychain (`kask keystore`) first, then environment
 |----------|-----------|
 | [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) | Tool catalog across all 12 MCP servers |
 | [`docs/plans/mcp-server-roadmap.md`](../plans/mcp-server-roadmap.md) | Server consolidation and value-add roadmap |
-| [`docs/architecture/PRINCIPLES.md`](../architecture/PRINCIPLES.md) | Architecture principles (P8, C4, C8) |
+| [`docs/architecture/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) | Architecture principles (P8, C4, C8) |

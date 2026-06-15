@@ -10,6 +10,7 @@
 //! memory unavailability.
 
 use hkask_mcp::DaemonClient;
+use hkask_types::now_rfc3339;
 use serde_json::json;
 
 /// Shared recorder for CLI command experiences.
@@ -80,7 +81,7 @@ impl CliExperienceRecorder {
             "input": input_summary,
             "outcome": outcome,
             "detail": detail,
-            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "timestamp": now_rfc3339(),
         });
 
         let entity = format!("cli:{}", tool);

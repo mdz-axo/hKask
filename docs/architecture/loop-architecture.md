@@ -12,7 +12,7 @@ mds_categories: [domain, composition, lifecycle, curation]
 
 **Purpose:** Establish that rate limiting is a redundant projection of energy tracking, decompose hKask into four semantic loops, map crates to loops, define capability membranes, and document open questions.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`MDS.md`](MDS.md), [`magna-carta.md`](magna-carta.md)
+**Related:** [`PRINCIPLES.md`](core/PRINCIPLES.md), [`MDS.md`](core/MDS.md), [`magna-carta.md`](core/magna-carta.md)
 
 ---
 
@@ -32,7 +32,7 @@ Every rate limit is an energy constraint over a time window. This is not an anal
 
 Energy tracking subsumes rate limiting by modeling **depletion**, **replenishment**, and **allocation** without the artificial discretization of fixed windows. A rate bucket says "N operations per T seconds." An energy budget says "this operation costs E energy, the account holds B balance, replenishment restores R per cycle, and the opportunity cost of spending E here is recorded."[^beer-vsm]
 
-**Deeper reason: least action.** Energy tracking is not merely a richer resource model — it is the computational expression of the least action principle (see [`lazy-universe-research.md`](lazy-universe-research.md)). Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. The budget cap is the maximum action the system allows per session. The replenishment rate is the cybernetic analog of a system settling back toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. Backpressure is the governing dynamic asserting itself: when the system approaches its action budget, it resists further expenditure. Rate limiting was a lossy projection of action tracking — energy tracking is the direct measurement.
+**Deeper reason: least action.** Energy tracking is not merely a richer resource model — it is the computational expression of the least action principle (see [`lazy-universe-research.md`](../research/lazy-universe-research.md)). Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. The budget cap is the maximum action the system allows per session. The replenishment rate is the cybernetic analog of a system settling back toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. Backpressure is the governing dynamic asserting itself: when the system approaches its action budget, it resists further expenditure. Rate limiting was a lossy projection of action tracking — energy tracking is the direct measurement.
 
 ### 1.2 Root Cause
 
@@ -444,7 +444,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 - **B. Compute-seconds:** 1 energy unit = 1 second of compute. Uniform across operations but requires profiling to calibrate.
 - **C. Dimensionless cost scalar:** Each `EnergySpanType` defines its own cost function. Most flexible but requires per-operation calibration and makes cross-loop comparison harder.
 
-**Status: Resolved — gas IS action.** The unit is **gas** — a dimensionless cost unit serving the same function as Ethereum gas: preventing infinite loops by making resource exhaustion explicit. But the deeper semantics are now anchored: gas is the computational measure of *action* — the "distance" the system moves in configuration space per operation. Each MCP server/tool has a configured gas cost in a `GasEstimator` table. Inference tools use token-based estimation (tokens are the natural action unit for LLM computation); other tools use flat costs from the table (calibrated to reflect relative action cost). Energy budgets replenish periodically — replenishment is the cybernetic analog of a system returning toward its stationary action path. The `EnergyDelta` type (see [`lazy-universe-research.md`](lazy-universe-research.md)) measures whether the system is moving toward or away from stationary action. The thermodynamic anchoring is not deferred — it is here, through the least action principle. Gas is action.
+**Status: Resolved — gas IS action.** The unit is **gas** — a dimensionless cost unit serving the same function as Ethereum gas: preventing infinite loops by making resource exhaustion explicit. But the deeper semantics are now anchored: gas is the computational measure of *action* — the "distance" the system moves in configuration space per operation. Each MCP server/tool has a configured gas cost in a `GasEstimator` table. Inference tools use token-based estimation (tokens are the natural action unit for LLM computation); other tools use flat costs from the table (calibrated to reflect relative action cost). Energy budgets replenish periodically — replenishment is the cybernetic analog of a system returning toward its stationary action path. The `EnergyDelta` type (see [`lazy-universe-research.md`](../research/lazy-universe-research.md)) measures whether the system is moving toward or away from stationary action. The thermodynamic anchoring is not deferred — it is here, through the least action principle. Gas is action.
 
 ### 5.4 Persistence of Loop State
 
