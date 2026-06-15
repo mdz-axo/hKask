@@ -1162,4 +1162,173 @@ mod tests {
             balance.rjoules, ledger_sum,
         );
     }
+
+    // ── Idempotency contract tests ──────────────────────────────────────
+    //
+    // Idempotency contract matrix (PR 2.5.1):
+    //
+    // | Operation                  | Idempotent? | Mechanism                          |
+    // |----------------------------|:-----------:|------------------------------------|
+    // | ensure_wallet               | ✅          | INSERT OR IGNORE                  |
+    // | get_balance / can_afford    | ✅          | Read-only                         |
+    // | get_transactions            | ✅          | Read-only                         |
+    // | consume_deposit_reference   | ✅          | Atomic CAS (spent=0 → spent=1)    |
+    // | release_encumbrance         | ✅          | Status guard (active only)        |
+    // | revoke_api_key              | ✅          | Marks revoked (idempotent mark)   |
+    // | credit_rjoules              | ❌          | No tx-hash dedup (GAP)            |
+    // | debit_rjoules               | ❌          | No idempotency key (GAP)          |
+    // | encumber_rjoules            | ⚡           | Key-scoped guard (not op-scoped)  |
+    // | consume_encumbrance         | ❌          | Double-consumes while active (GAP)|
+    // | store_api_key               | ❌          | Always creates new key (GAP)      |
+    // | store_deposit_reference     | ❌          | Always inserts                    |
+    //
+    // GAP entries are documented below with regression-catching tests.
+
+    // REQ: wallet-idem-001 — ensure_wallet is idempotent (INSERT OR IGNORE)
+    #[test]
+    fn ensure_wallet_is_idempotent() {
+        let store = make_store();
+        let wallet = WalletId::new();
+
+        // First call creates
+        store.ensure_wallet(wallet).unwrap();
+        let b1 = store.get_balance(wallet).unwrap().unwrap();
+        assert_eq!(b1.rjoules, 0);
+
+        // Second call should be no-op (INSERT OR IGNORE)
+        store.ensure_wallet(wallet).unwrap();
+        let b2 = store.get_balance(wallet).unwrap().unwrap();
+        assert_eq!(
+            b2.rjoules, 0,
+            "balance should not change on duplicate ensure"
+        );
+    }
+
+    // REQ: wallet-idem-002 — release_encumbrance is idempotent (status guard)
+    #[test]
+    fn release_encumbrance_is_idempotent() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(5000)).unwrap();
+
+        // Create an API key first (encumbrance references api_keys table)
+        let key_id = ApiKeyId::new();
+        let cap = ApiKeyCapability {
+            wallet_id: wallet,
+            key_id,
+            public_key: Ed25519PublicKey([9u8; 32]),
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::ZERO,
+            scope: vec!["test".to_string()],
+            purpose: "idempotency test".to_string(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&cap).unwrap();
+
+        store
+            .encumber_rjoules(wallet, key_id, RJoule::new(1000))
+            .unwrap();
+
+        // Balance should be 4000 after encumbrance
+        let after_encumber = store.get_balance(wallet).unwrap().unwrap();
+        assert_eq!(after_encumber.rjoules, 4000);
+
+        // First release returns funds
+        store.release_encumbrance(key_id).unwrap();
+        let after_first = store.get_balance(wallet).unwrap().unwrap();
+        assert_eq!(
+            after_first.rjoules, 5000,
+            "first release should return funds"
+        );
+
+        // Second release is a no-op (explicitly documented as idempotent)
+        store.release_encumbrance(key_id).unwrap();
+        let after_second = store.get_balance(wallet).unwrap().unwrap();
+        assert_eq!(
+            after_second.rjoules, 5000,
+            "second release must not double-credit (idempotency contract)"
+        );
+    }
+
+    // REQ: wallet-idem-003 — credit_rjoules is NOT idempotent (documents gap)
+    //
+    // This test documents the CURRENT behavior. When a transaction-hash
+    // deduplication mechanism is added, this test MUST be updated to verify
+    // that duplicate credits are rejected.
+    #[test]
+    fn credit_rjoules_is_not_idempotent_documents_gap() {
+        let store = make_store();
+        let wallet = WalletId::new();
+
+        // Credit once
+        store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
+        assert_eq!(store.get_balance(wallet).unwrap().unwrap().rjoules, 1000);
+
+        // Credit again with same amount — currently doubles (GAP)
+        store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
+        assert_eq!(
+            store.get_balance(wallet).unwrap().unwrap().rjoules,
+            2000,
+            "GAP: duplicate credit doubles balance — no tx-hash dedup exists"
+        );
+    }
+
+    // REQ: wallet-idem-004 — debit_rjoules is NOT idempotent (documents gap)
+    //
+    // This test documents the CURRENT behavior. When an idempotency key
+    // mechanism is added, this test MUST be updated to verify that duplicate
+    // debits are rejected (or are safe).
+    #[test]
+    fn debit_rjoules_is_not_idempotent_documents_gap() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
+
+        // Debit once
+        store.debit_rjoules(wallet, RJoule::new(300)).unwrap();
+        assert_eq!(store.get_balance(wallet).unwrap().unwrap().rjoules, 700);
+
+        // Debit again — currently succeeds and double-charges (GAP)
+        store.debit_rjoules(wallet, RJoule::new(300)).unwrap();
+        assert_eq!(
+            store.get_balance(wallet).unwrap().unwrap().rjoules,
+            400,
+            "GAP: duplicate debit double-charges — no idempotency key exists"
+        );
+    }
+
+    // REQ: wallet-idem-005 — consume_deposit_reference is idempotent (CAS guard)
+    //
+    // This is the same as the anti-replay test above but explicitly framed
+    // as an idempotency contract test.
+    #[test]
+    fn consume_deposit_reference_is_idempotent() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.ensure_wallet(wallet).unwrap();
+
+        let dep_ref = DepositReference {
+            reference: "idem_ref_001".into(),
+            wallet_id: wallet,
+            chain: ChainId::Solana,
+            nonce: [0u8; 16],
+            expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
+        };
+        store.store_deposit_reference(&dep_ref).unwrap();
+
+        // First consumption succeeds
+        let r1 = store.consume_deposit_reference("idem_ref_001").unwrap();
+        assert_eq!(r1, Some(wallet));
+
+        // Second consumption returns None (idempotent — already spent)
+        let r2 = store.consume_deposit_reference("idem_ref_001").unwrap();
+        assert_eq!(
+            r2, None,
+            "second consume must return None (idempotent via atomic CAS)"
+        );
+    }
 }

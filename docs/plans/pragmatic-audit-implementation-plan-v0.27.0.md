@@ -1,8 +1,9 @@
 # hKask v0.27.0 — Pragmatic Audit Implementation Plan
 
-**Status:** Proposed  
+**Status:** In Progress — Wave 1 R1 ✅ (19 tests), Waves 2–6 not started  
 **Owner:** Engineering  
 **Created:** 2026-06-15  
+**Last Updated:** 2026-06-15  
 **Scope:** `crates/*` + `mcp-servers/*` (headless-only, no UI additions)  
 **Source Audit:** Pragmatic Codebase Audit — 7 tasks + Ω open questions  
 **Principles:** P4 (Clear Boundaries), P5 (Essentialism), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation), C8 (Test Depth)
@@ -587,7 +588,7 @@ These decisions require human input before implementation:
 
 | Metric | Current | Target | Wave |
 |--------|---------|--------|------|
-| `hkask-communication` tests | 0 | ≥10 | Wave 1 (R1) |
+| `hkask-communication` tests | 19 ✅ | ≥10 | Wave 1 (R1) |
 | `hkask-agents` tests | 8 | ≥20 | Wave 1 (R2) |
 | `hkask-mcp` tests | 5 | ≥15 | Wave 1 (R3) |
 | `hkask-api` REQ tags | 1 | ≥20 | Wave 2 (R4) |
@@ -597,7 +598,7 @@ These decisions require human input before implementation:
 | `hkask-types` public surface | 231 | ≤50 top-level, submodules ≤7 | Wave 4 (R8) |
 | Mid-migration domains | 7 | 5 (2 extracted) | Wave 5 (R9) |
 | Training cancel stubs | 3 soft no-ops | 0 or documented with `[EVIDENCE]` | Wave 6 (R10) |
-| Total REQ tags across workspace | 345 | >400 | All waves |
+| Total REQ tags across workspace | 396 | >400 | All waves |
 | `todo!()` / `unimplemented!()` count | 0 | 0 | Maintained |
 
 ---

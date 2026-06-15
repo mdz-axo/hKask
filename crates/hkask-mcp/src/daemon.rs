@@ -835,4 +835,131 @@ mod tests {
         let result: Result<DaemonResponse, _> = serde_json::from_str(json);
         assert!(result.is_err(), "wrong field type in response should fail");
     }
+
+    // ── Idempotency tests ───────────────────────────────────────────────
+    //
+    // Daemon query idempotency contract (PR 2.5.1):
+    //
+    // | Operation           | Idempotent? | Reason                    |
+    // |---------------------|:-----------:|---------------------------|
+    // | auth_query          | ✅          | Read-only (UserStore)     |
+    // | assignment_query    | ✅          | Read-only (PodManager)    |
+    // | capability_query    | ✅          | Read-only (PodManager)    |
+    // | store_experience    | ❌          | Creates new UUID triples  |
+    //
+    // The three query operations are naturally idempotent — they perform
+    // no mutations. store_experience is documented as non-idempotent
+    // (each call generates new TripleIDs).
+
+    // REQ: daemon-idem-001 — repeated auth_query returns consistent result
+    #[tokio::test]
+    async fn daemon_auth_query_is_idempotent() {
+        let (listener, path) = setup_test_listener().await;
+        let handler = Arc::new(MockHandler {
+            authenticated: AtomicBool::new(true),
+        });
+
+        tokio::spawn(async move {
+            let _ = listener.serve(handler).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let client = DaemonClient::with_path(path);
+
+        // First call
+        let r1 = client.auth_query("bob").await.expect("first auth query");
+        // Second call — must return same result
+        let r2 = client.auth_query("bob").await.expect("second auth query");
+
+        // Both should be identical AuthResponse with same fields
+        match (&r1, &r2) {
+            (
+                DaemonResponse::AuthResponse {
+                    authenticated: a1,
+                    webid: w1,
+                    action: ac1,
+                },
+                DaemonResponse::AuthResponse {
+                    authenticated: a2,
+                    webid: w2,
+                    action: ac2,
+                },
+            ) => {
+                assert_eq!(a1, a2, "authenticated must be consistent");
+                assert_eq!(w1, w2, "webid must be consistent");
+                assert_eq!(ac1, ac2, "action must be consistent");
+            }
+            _ => panic!("expected AuthResponse from both calls"),
+        }
+    }
+
+    // REQ: daemon-idem-002 — repeated assignment_query returns consistent result
+    #[tokio::test]
+    async fn daemon_assignment_query_is_idempotent() {
+        let (listener, path) = setup_test_listener().await;
+        let handler = Arc::new(MockHandler {
+            authenticated: AtomicBool::new(false),
+        });
+
+        tokio::spawn(async move {
+            let _ = listener.serve(handler).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let client = DaemonClient::with_path(path);
+
+        let r1 = client
+            .assignment_query("bob", "research")
+            .await
+            .expect("first assignment query");
+        let r2 = client
+            .assignment_query("bob", "research")
+            .await
+            .expect("second assignment query");
+
+        match (&r1, &r2) {
+            (
+                DaemonResponse::AssignmentResponse { assigned: a1 },
+                DaemonResponse::AssignmentResponse { assigned: a2 },
+            ) => {
+                assert_eq!(a1, a2, "assignment result must be idempotent");
+            }
+            _ => panic!("expected AssignmentResponse from both calls"),
+        }
+    }
+
+    // REQ: daemon-idem-003 — repeated capability_query returns consistent result
+    #[tokio::test]
+    async fn daemon_capability_query_is_idempotent() {
+        let (listener, path) = setup_test_listener().await;
+        let handler = Arc::new(MockHandler {
+            authenticated: AtomicBool::new(false),
+        });
+
+        tokio::spawn(async move {
+            let _ = listener.serve(handler).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let client = DaemonClient::with_path(path);
+
+        let r1 = client
+            .capability_query("bob", "web_search")
+            .await
+            .expect("first capability query");
+        let r2 = client
+            .capability_query("bob", "web_search")
+            .await
+            .expect("second capability query");
+
+        match (&r1, &r2) {
+            (
+                DaemonResponse::CapabilityResponse { granted: g1 },
+                DaemonResponse::CapabilityResponse { granted: g2 },
+            ) => {
+                assert_eq!(g1, g2, "capability result must be idempotent");
+            }
+            _ => panic!("expected CapabilityResponse from both calls"),
+        }
+    }
 }

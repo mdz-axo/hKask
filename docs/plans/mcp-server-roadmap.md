@@ -214,8 +214,8 @@ Document (PDF, MD, HTML, TXT)
 | # | Task | Section | Priority | Effort | Dependencies | Status |
 |---|------|---------|----------|--------|--------------|--------|
 | 1 | Collapse rss-reader + web → research | — | High | Medium | None | ✅ Complete (2026-06-11) |
-| 2 | Define RAG pipeline architecture | §3 | High | Design-only | None | ⬜ Open |
-| 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete | ⬜ Open |
+| 2 | Define RAG pipeline architecture | §3 | High | Design-only | None | ✅ Complete (2026-06-13) — design fed into §3 docproc merger |
+| 3 | RAG Phase 1: embed integration | §3.4 | High | Medium | §3 design complete | ✅ Complete (2026-06-13) — `docproc_embed` uses inference router. Remaining: end-to-end Q/R/G, provenance/citations (see §3.2) |
 | 4 | FMP value-add layer (Tier 1: moat, management, working capital, expectations gap + Tier 2: portfolio tracking) | §2.1 | Medium | High | None | ✅ Complete (2026-06-14) — 4 MAIA + 9 portfolio tools, 12 new tests, 3 modules |
 | 5 | Communication server (local TTS) | §2.2 | Medium | High | None | ✅ Partial (2026-06-12) — `tts_speak`, `tts_generate`, `tts_list_voices` via espeak. Telnyx fully deleted. Remaining: STT, voice design in onboarding, verbal mode templates. |
 | 6 | Fal value-add layer | §2.3 | Medium | High | None | ⬜ Open |

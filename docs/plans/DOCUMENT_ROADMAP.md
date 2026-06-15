@@ -1,7 +1,7 @@
 ---
 title: "Document Corpus Roadmap — Prioritized"
 audience: [project maintainers, documentation stewards, agents]
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 version: "0.27.0"
 status: "Draft"
 domain: "Cross-cutting"
@@ -34,19 +34,16 @@ mds_categories: [lifecycle, curation]
 
 **Verification:** Re-run `check-links.sh` (251 links, 0 broken) and `check-metadata.sh` (67 docs checked, 5 fail metadata, 1 warning) — both scripts PASS their core functions.
 
-### P0-2: Create `do../status/corpus_inventory.yaml`
+### P0-2: Create `do../status/corpus_inventory.yaml` ✅ DONE
 
-**Referenced by:** README portal (L116), MDS_SCAFFOLD, architecture master  
-**Purpose:** Set-difference of named entities from spec documents against `pub` API surfaces. Core infrastructure for P8 enforcement.  
-**Approach:** Start as manual inventory; automate via `cargo doc` or `cargo public-api` later.  
-**Verification:** README portal line 116 currently says "not yet created" — this reference must be resolved.
+**Status:** File exists at `docs/status/corpus_inventory.yaml`. Content may need periodic regeneration but the stub is in place. README portal reference resolved.
 
-### P0-3: Create `do../status/corpus_inventory.yaml`
+### P0-3: Create `docs/status/curation_decisions.yaml`
 
 **Referenced by:** README portal (L116), MDS_SCAFFOLD  
 **Purpose:** Merge/Revise decisions per MDS curation protocol for each drift item.  
-**Approach:** Start as manual log; link to spec-code-drift.yaml entries.  
-**Verification:** README portal reference resolved.
+**Approach:** Start as manual log; link to corpus_inventory.yaml entries.  
+**Verification:** File does not yet exist — Quick Win QW-6 covers this.
 
 ---
 
@@ -159,12 +156,12 @@ Hook that flags documents where `version` ≠ workspace `Cargo.toml` version, wi
 
 | # | Task | Effort |
 |---|------|--------|
-| QW-1 | Fix `skill-inventory.md` mds_categories: s/status/curation/ | 1 min |
-| QW-2 | Add frontmatter to 5 audit documents (all same template) | 15 min |
-| QW-3 | Fix `corpus_inventory.yaml` missing_referenced: remove check-links.sh + check-metadata.sh | 5 min |
-| QW-4 | Bump 14 document versions from various → 0.27.0 | 15 min |
-| QW-5 | Create `spec-code-drift.yaml` stub with section headers | 15 min |
-| QW-6 | Create `curation-decisions.yaml` stub with section headers | 15 min |
+| QW-1 | Fix `skill-inventory.md` mds_categories: s/status/curation/ | 1 min | ⬜ Open |
+| QW-2 | Add frontmatter to 5 audit documents (all same template) | 15 min | ✅ Done (P1-1) — docs archived 2026-06-14 |
+| QW-3 | Fix `corpus_inventory.yaml` missing_referenced: remove check-links.sh + check-metadata.sh | 5 min | ⬜ Open |
+| QW-4 | Bump 14 document versions from various → 0.27.0 | 15 min | ⬜ Open |
+| QW-5 | Create `spec-code-drift.yaml` stub with section headers | 15 min | ⬜ Open |
+| QW-6 | Create `curation-decisions.yaml` stub with section headers | 15 min | ⬜ Open |
 
 ---
 
