@@ -4230,6 +4230,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-test-harness"
+version = "0.27.0"
+dependencies = [
+ "chrono",
+ "hkask-storage",
+ "hkask-types",
+ "parking_lot",
+ "proptest",
+ "rand 0.9.4",
+ "rusqlite",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "hkask-types"
 version = "0.27.0"
 dependencies = [

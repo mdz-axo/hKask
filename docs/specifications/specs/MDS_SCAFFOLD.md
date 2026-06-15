@@ -56,14 +56,13 @@ Draft → Active → Deprecated → Superseded → Removed
 
 ## 3. Spec-Code Drift
 
-Spec-code alignment is tracked in dedicated files, not duplicated here:
+Spec-code alignment is tracked in the corpus inventory, not duplicated here:
 
 | Tracking File | Purpose |
 |---------------|---------|
-| [`spec-code-drift.yaml`](../../status/corpus_inventory.yaml) | Set-difference of named entities from spec docs against `pub` API surfaces |
-| [`curation-decisions.yaml`](../../status/corpus_inventory.yaml) | Merge/Revise/Defer/Discard decisions per drift item |
+| [`corpus_inventory.yaml`](../../status/corpus_inventory.yaml) | Lifecycle classification + drift tracking (spec-code-drift.yaml and curation-decisions.yaml archived 2026-06-15 — their function merged into corpus_inventory.yaml) |
 
-**Rule:** When spec and code diverge, record the drift item in `spec-code-drift.yaml` and the curation decision in `curation-decisions.yaml`. This scaffold does not maintain a duplicate completeness table.
+**Rule:** When spec and code diverge, the drift is captured in `corpus_inventory.yaml` staleness signals. This scaffold does not maintain a duplicate completeness table.
 
 ---
 

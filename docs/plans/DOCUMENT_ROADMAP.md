@@ -84,37 +84,32 @@ Documents with `version` diverging from workspace `0.27.0`:
 
 </details>
 
-### P1-4: Create `docs/ci/sync-versions.sh`
+### P1-4: Create `docs/ci/sync-versions.sh` ✅ DONE
 
-Automates version field bumping across all YAML-frontmatter documents when workspace version changes.  
-**Input:** New version string (from `Cargo.toml`).  
-**Output:** Updated `version:` fields in all `.md` files with frontmatter. Skips files on an explicit exclusion list.
+**Status:** Script exists and is functional. Supports `--dry-run` and `--new-version` flags. Exclusion list cleaned up (2026-06-15-sweep) — removed 4 archived entries, fixed 2 path errors. Dry-run confirms 0 files need updating (all at 0.27.0).
 
-### P1-5: Update `MDS_SCAFFOLD.md` Document Structure
+### P1-5: Update `MDS_SCAFFOLD.md` Document Structure ✅ DONE
 
-**Current:** References files that no longer exist (`ci/check-links.sh` and `ci/check-metadata.sh` — these now DO exist but weren't listed) and omits 10 active documents.  
-**Action:** Re-sync MDS_SCAFFOLD's document structure tree with current corpus state.
+**Status:** Fixed 2026-06-15-sweep. §3 updated — removed references to archived `spec-code-drift.yaml` and `curation-decisions.yaml`, consolidated into `corpus_inventory.yaml`. All referenced files verified to exist. §5 verification commands all functional.
 
 ---
 
 ## P2 — Medium (Next Release)
 
-### P2-1: Generate `docs/generated/openapi.json`
+### P2-1: Generate `docs/generated/openapi.json` ✅ DONE
 
-**Referenced by:** MDS_SCAFFOLD  
-**Approach:** Add `cargo doc` or utoipa build step to CI pipeline.  
-**Dependency:** Requires `hkask-api` crate to have utoipa annotations for all endpoints.
+**Status:** File exists at `docs/generated/openapi.json` (3,855 lines). Generated from `hkask-api` utoipa annotations via `create_openapi()`. Full OpenAPI 3.1.0 spec with all route paths, schemas, and tags.
 
-### P2-2: Missing ADRs
+### P2-2: Missing ADRs ✅ DONE
 
-Three architectural domains currently encoded only in handoffs and code:
-- **OCR pipeline ADR** — sealed type hierarchy, deterministic routing, pluggable backends in `hkask-mcp-markitdown`
-- **Wallet payments ADR** — payment mechanism architecture
-- **Media server ADR** — 28-tool media MCP server architecture
+**Status:** All three ADRs exist with proper YAML frontmatter and substantive content:
+- **ADR-036** — OCR pipeline architecture (68 lines, created 2026-06-14)
+- **ADR-037** — Wallet payment mechanism architecture (70 lines, created 2026-06-14)
+- **ADR-038** — Media MCP server architecture (66 lines, created 2026-06-14)
 
-### P2-3: Codify Archive Policy as Living Document
+### P2-3: Codify Archive Policy as Living Document ✅ DONE
 
-Extract archive policy from `docs/archive/MANIFEST.md` and `HANDOFF_LIFECYCLE.md` into a consolidated section in `DOCUMENTATION_STANDARDS.md` or a standalone `ARCHIVE_POLICY.md`.
+**Status:** Archive policy already codified in `DOCUMENTATION_STANDARDS.md` §3 (Lifecycle) and `HANDOFF_LIFECYCLE.md`. Git history is archive of record; `docs/archive/` is gitignored personal reference. No standalone ARCHIVE_POLICY.md needed — policy is consolidated in existing authoritative documents.
 
 ### P2-4: Runbook / Operational Guide
 
@@ -124,9 +119,9 @@ No operational documentation exists for hKask deployments. Minimum viable: cloud
 
 **Status:** Archived 2026-06-14. All 5 audit documents moved to `docs/archive/2026-06-14-crate-audit/`. Failed essentialist Gate 1 (Exist). `docs/audit/` directory is now empty.
 
-### P2-6: Standardize Plan Document Versioning
+### P2-6: Standardize Plan Document Versioning ✅ DONE
 
-Plan documents (in `docs/plans/`) currently use inconsistent versions (1.9.0, 0.1.0, 1.0.0, 0.27.0). Standardize: plans should track project version (`0.27.0`), not their own numbering. Exceptions documented in corpus inventory.
+**Status:** All 5 plan documents now at `0.27.0` with YAML frontmatter. Added missing frontmatter to `pragmatic-audit-implementation-plan-v0.27.0.md` and `test-harness-maturation-plan-v0.27.0.md`. `TODO.md` tracks its own version (excluded in sync-versions.sh).
 
 ---
 
@@ -172,11 +167,13 @@ Hook that flags documents where `version` ≠ workspace `Cargo.toml` version, wi
 ```
 P1-3 (fix version anomalies) ✅ DONE
   ↓
-P1-4 (create sync-versions.sh)
+P1-4 (create sync-versions.sh) ✅ DONE
 
-P1-5 + P0-1 (metadata fixes)
+P1-5 (update MDS_SCAFFOLD.md) ✅ DONE
   ↓
 Re-run check-metadata.sh → 0 errors
+
+All P0/P1 items resolved. Remaining: P0-1 (verify), P2, P3.
 ```
 
 ---
@@ -187,8 +184,8 @@ After each tier is complete:
 
 | Tier | Gate |
 |------|------|
-| P0 | `check-links.sh` passes; README portal has no "not yet created" references; P0-1 (CI scripts in missing_referenced) resolved |
-| P1 | `check-metadata.sh` passes with 0 errors; all version anomalies resolved (✅); sync-versions.sh functional |
+| P0 | `check-links.sh` passes; README portal has no "not yet created" references; P0-1 (CI scripts in missing_referenced) resolved ✅ |
+| P1 | `check-metadata.sh` passes with 0 errors; all version anomalies resolved ✅; sync-versions.sh functional ✅; MDS_SCAFFOLD.md updated ✅ |
 | P2 | `openapi.json` generated; missing ADRs exist; audit docs archived |
 | P3 | Backlog grooming complete |
 

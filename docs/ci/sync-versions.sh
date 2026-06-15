@@ -40,12 +40,8 @@ fi
 # Documents that track their own version (intentionally divergent)
 # Format: "path:reason"
 EXCLUSIONS=(
-    "docs/specifications/MDS_SCAFFOLD.md:MDS_SCAFFOLD tracks its own semantic version"
-    "docs/specifications/TRACEABILITY_MATRIX.md:TRACEABILITY_MATRIX tracks its own version"
-    "docs/status/test-inventory.md:Auto-generated, tracks its own version"
-    "docs/status/mcp-tools-inventory.md:Auto-generated, tracks its own version"
-    "docs/status/spec-code-drift.yaml:Drift set tracks its own version"
-    "docs/status/curation-decisions.yaml:Curation decisions track their own version"
+    "docs/specifications/specs/MDS_SCAFFOLD.md:MDS_SCAFFOLD tracks its own semantic version"
+    "docs/specifications/specs/TRACEABILITY_MATRIX.md:TRACEABILITY_MATRIX tracks its own version"
     "docs/architecture/reference/template-header-standard.md:Template standard tracks its own version"
     "docs/architecture/reference/hKask-Curator-persona.md:Persona spec tracks its own version"
     "docs/architecture/reference/utoipa-implementation.md:Implementation guide tracks its own version"

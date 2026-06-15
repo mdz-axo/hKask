@@ -1,0 +1,22 @@
+[package]
+name = "hkask-test-harness"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared test fixtures and harness for hKask — temp DBs, keystores, WebID factories, CNS mocks"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-storage = { path = "../hkask-storage" }
+rusqlite.workspace = true
+tempfile.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+rand.workspace = true
+parking_lot.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+proptest = "1"
