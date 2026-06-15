@@ -13,7 +13,7 @@ mds_categories: [lifecycle]
 
 **Purpose:** Ensure hKask runs on the most recent stable versions of Rust and dependencies while maintaining build stability.
 
-**Related:** [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md)
+**Related:** [`DOCUMENTATION_STANDARDS.md`](standards/DOCUMENTATION_STANDARDS.md)
 
 ---
 

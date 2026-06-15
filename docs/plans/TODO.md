@@ -32,8 +32,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Owner | Priority | Status | Evidence |
 |----|------|-------|----------|--------|----------|
-| **P1-01** | Requirements specification | Architect | High | ✅ Complete | `docs/specifications/REQUIREMENTS.md` |
-| **P1-02** | Traceability matrix | Architect | Medium | ✅ Complete | `docs/specifications/TRACEABILITY_MATRIX.md` |
+| **P1-01** | Requirements specification | Architect | High | ✅ Complete | `do../specifications/specs/REQUIREMENTS.md` |
+| **P1-02** | Traceability matrix | Architect | Medium | ✅ Complete | `do../specifications/specs/TRACEABILITY_MATRIX.md` |
 | **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 28 diagrams, 8 V1.1+ candidates |
 | **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6); note: ADR-023 superseded by ADR-027, ADR-028 archived (deferred), ADR-029 archived (superseded) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
@@ -100,10 +100,10 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-01** | MDS documentation audit (Task 1) | 2026-05-25 | Classification table in refresh plan |
 | **R-02** | Archive 10 stale documents (Task 2) | 2026-05-25 | `docs/archive/2026-05-25-documentation-refresh/` |
 | **R-03** | Delete 1 duplicate document (Task 2) | 2026-05-25 | `DOCUMENTATION_REFRESH_DDNVSS.md` (deleted, no longer exists) |
-| **R-04** | Create MDS_SCAFFOLD.md (Task 3) | 2026-05-25 | `docs/specifications/MDS_SCAFFOLD.md` |
+| **R-04** | Create MDS_SCAFFOLD.md (Task 3) | 2026-05-25 | `do../specifications/specs/MDS_SCAFFOLD.md` |
 | **R-05** | Write 4 MDS-aligned architecture docs (Task 4) | 2026-05-25 | domain-and-capability (deleted), interface-and-composition, trust-security-observability (deleted), persistence-and-lifecycle |
-| **R-06** | Write REQUIREMENTS.md (Task 5) | 2026-05-25 | `docs/specifications/REQUIREMENTS.md` |
-| **R-07** | Write TRACEABILITY_MATRIX.md (Task 5) | 2026-05-25 | `docs/specifications/TRACEABILITY_MATRIX.md` |
+| **R-06** | Write REQUIREMENTS.md (Task 5) | 2026-05-25 | `do../specifications/specs/REQUIREMENTS.md` |
+| **R-07** | Write TRACEABILITY_MATRIX.md (Task 5) | 2026-05-25 | `do../specifications/specs/TRACEABILITY_MATRIX.md` |
 | **R-08** | Update PROJECT_STATUS.md (Task 7) | 2026-05-25 | Accurate metrics, MDS completeness |
 | **R-09** | Write OPEN_QUESTIONS.md (Task 9) | 2026-05-25 | 9 open questions with MDS tags |
 | **R-10** | Fix MDS.md stale gaps (Task 8) | 2026-05-25 | hkask-mcp-spec existence, Span::Spec variant |
@@ -186,7 +186,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Date | Evidence |
 |----|------|------|----------|
-| **C-01** | Documentation audit | 2026-05-22 | `docs/specifications/WRITING_EXCELLENCE.md` |
+| **C-01** | Documentation audit | 2026-05-22 | `do../specifications/standards/WRITING_EXCELLENCE.md` |
 | **C-02** | Archive stale documents (73 files) | 2026-05-22 | `docs/archive/2026-05-22-documentation-refresh/` |
 | **C-03** | Fix hkask-testing compilation failures | 2026-05-22 | All tests passing |
 | **C-04** | Resolve clippy warnings | 2026-05-22 | `cargo clippy -- -D warnings` passes |

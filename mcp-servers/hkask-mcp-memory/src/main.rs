@@ -179,7 +179,7 @@ impl MemoryServer {
                 "input": input_summary,
                 "outcome": outcome,
                 "detail": detail,
-                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();

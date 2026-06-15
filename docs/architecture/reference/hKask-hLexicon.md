@@ -102,7 +102,7 @@ status: VERIFIED
 strings**. The lexicon is keyed by term string and therefore holds 86 entries;
 `transform` takes its first/primary domain (WordAct), leaving 33 unique FlowDef
 keys. `load_workspace_lexicon()` reflects this 86-term functional set.
-Requirement: [`REQ-DOM-004`](../../specifications/REQUIREMENTS.md).
+Requirement: [`REQ-DOM-004`](../../specifications/specs/REQUIREMENTS.md).
 
 ---
 

@@ -232,7 +232,7 @@ Document (PDF, MD, HTML, TXT)
 |----------|-----------|
 | [`docs/status/mcp-tools-inventory.md`](../status/mcp-tools-inventory.md) | Current tool catalog (~82 tools across 10 servers) |
 | [`docs/status/test-inventory.md`](../status/test-inventory.md) | Test coverage per crate (102 total tests) |
-| [`docs/specifications/test-program.md`](../specifications/test-program.md) | MDS self-applying test methodology |
+| [`do../specifications/specs/test-program.md`](../specifications/specs/test-program.md) | MDS self-applying test methodology |
 | [`docs/OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) | Open questions including OQ-5 (test isolation), OQ-9 (stub MCP servers) |
 | [`AGENTS.md`](../../AGENTS.md) | Crate map with 10 listed MCP servers |
 | [`do../architecture/core/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) | P8 (test behavioral properties), C4 (extraction threshold), C8 (test depth) |

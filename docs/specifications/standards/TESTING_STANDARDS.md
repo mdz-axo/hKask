@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Codify testing practices derived from Matt Pocock's TDD methodology, architecture deepening principles, and disciplined diagnosis — adapted to hKask's MDS categories and constraint-driven design (P1–P7, C1–C7).
 
-**Related:** [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md), [`MDS.md`](../architecture/core/MDS.md), [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md), [`AGENTS.md`](../../AGENTS.md)
+**Related:** [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md), [`MDS.md`](../architecture/core/MDS.md), [`TRACEABILITY_MATRIX.md`](specs/TRACEABILITY_MATRIX.md), [`AGENTS.md`](../../AGENTS.md)
 
 **Skills referenced:** `tdd`, `diagnose`, `improve-codebase-architecture`, `coding-guidelines`, `zoom-out`, `grill-me`, `skill-bundler`
 
@@ -355,7 +355,7 @@ Priority is determined by risk: security and correctness-critical paths first.
 | Test Debt | `grep -r "TEST-DEBT" crates/ --include="*.rs" \| wc -l` | Decreasing over time |
 | P6/P7 | `grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"` | Zero |
 
-[^traceability-matrix]: hKask Team. (2026). *Traceability Matrix.* `docs/specifications/TRACEABILITY_MATRIX.md` — bidirectional code→test traceability with requirement tags.
+[^traceability-matrix]: hKask Team. (2026). *Traceability Matrix.* `do../specifications/specs/TRACEABILITY_MATRIX.md` — bidirectional code→test traceability with requirement tags.
 
 ---
 

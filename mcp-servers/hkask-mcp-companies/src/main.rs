@@ -38,7 +38,7 @@
 use chrono::Datelike;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
-use hkask_types::{McpErrorKind, WebID};
+use hkask_types::{McpErrorKind, WebID, now_rfc3339};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -239,7 +239,7 @@ impl CompaniesServer {
                 "input": input_summary,
                 "outcome": outcome,
                 "detail": detail,
-                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();

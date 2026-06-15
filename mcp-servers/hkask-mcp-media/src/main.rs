@@ -22,7 +22,8 @@ use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError, Store};
 use hkask_types::{
-    InferencePort, McpErrorKind, TimedWord, TranscriptBundle, TranscriptSegment, VoiceDesign, WebID,
+    InferencePort, McpErrorKind, TimedWord, TranscriptBundle, TranscriptSegment, VoiceDesign,
+    WebID, now_rfc3339,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -529,7 +530,7 @@ impl MediaServer {
                 "input": input_summary,
                 "outcome": outcome,
                 "detail": detail,
-                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();

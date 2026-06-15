@@ -86,28 +86,47 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 
 ## Specifications (`specifications/`)
 
+### Standards (`specifications/standards/`) — HOW we work
+
 | Document | MDS | Description |
 |----------|--------|-------------|
-| [`REQUIREMENTS.md`](specifications/REQUIREMENTS.md) | all | Implemented requirements as goal specs |
-| [`TRACEABILITY_MATRIX.md`](specifications/TRACEABILITY_MATRIX.md) | all | Goal spec → code → test traceability |
-| [`DOCUMENTATION_STANDARDS.md`](specifications/DOCUMENTATION_STANDARDS.md) | all | Metadata, citation, diagram, and lifecycle mandates |
-| [`MDS_SCAFFOLD.md`](specifications/MDS_SCAFFOLD.md) | all | Category → directory mapping; lifecycle enforcement |
-| [`WRITING_EXCELLENCE.md`](specifications/WRITING_EXCELLENCE.md) | curation | The 4-perspective writing test |
-| [`ADR_TEMPLATE.md`](specifications/ADR_TEMPLATE.md) | curation | Starting point for new ADRs |
-| [`DEPENDENCY_POLICY.md`](specifications/DEPENDENCY_POLICY.md) | lifecycle | Dependency governance |
-| [`DEPLOYMENT.md`](specifications/DEPLOYMENT.md) | lifecycle | Deployment guide |
-| [`CI-CD-GUIDE.md`](specifications/CI-CD-GUIDE.md) | lifecycle | CI/CD and installation |
-| [`TESTING_STANDARDS.md`](specifications/TESTING_STANDARDS.md) | all | Testing protocol and classification |
-| [`test-program.md`](specifications/test-program.md) | domain, composition, trust, lifecycle, curation | Test program specification |
-| [`REPL-specification.md`](specifications/REPL-specification.md) | domain, composition, lifecycle, curation | REPL specification — `kask chat` |
-| [`MDS-agent-service.md`](specifications/MDS-agent-service.md) | domain, composition, trust, lifecycle | AgentService specification |
-| [`salience-specification.md`](specifications/salience-specification.md) | domain, composition | Passage salience algorithm specification |
-| [`crate-audit.md`](specifications/crate-audit.md) | composition, curation | Crate audit bundle manifest |
-| [`HANDOFF_LIFECYCLE.md`](specifications/HANDOFF_LIFECYCLE.md) | lifecycle, curation | Handoff lifecycle policy — states, 30-day staleness rule, archive procedure |
-| [`DOCUMENT_OWNERSHIP.md`](specifications/DOCUMENT_OWNERSHIP.md) | lifecycle, curation | Document category ownership, version sync policy, review cadence |
-| [`dual-presence-pattern.md`](specifications/dual-presence-pattern.md) | domain, composition, trust | Dual-presence pattern — open specification questions |
-| [`improv-skill-design.md`](specifications/improv-skill-design.md) | domain, composition, curation | Improv skill — design recommendation |
-| [`improv-future-questions.md`](specifications/improv-future-questions.md) | composition, curation | Improv skill — open questions & future work |
+| [`DOCUMENTATION_STANDARDS.md`](specifications/standards/DOCUMENTATION_STANDARDS.md) | all | Metadata, citation, diagram, and lifecycle mandates |
+| [`TESTING_STANDARDS.md`](specifications/standards/TESTING_STANDARDS.md) | all | Testing protocol and classification |
+| [`WRITING_EXCELLENCE.md`](specifications/standards/WRITING_EXCELLENCE.md) | curation | The 4-perspective writing test |
+| [`DEPENDENCY_POLICY.md`](specifications/standards/DEPENDENCY_POLICY.md) | lifecycle | Dependency governance |
+
+### Policies (`specifications/policies/`) — WHAT we must do
+
+| Document | MDS | Description |
+|----------|--------|-------------|
+| [`DOCUMENT_OWNERSHIP.md`](specifications/policies/DOCUMENT_OWNERSHIP.md) | lifecycle, curation | Document category ownership, version sync policy, review cadence |
+| [`HANDOFF_LIFECYCLE.md`](specifications/policies/HANDOFF_LIFECYCLE.md) | lifecycle, curation | Handoff lifecycle policy — states, 30-day staleness rule, archive procedure |
+
+### System Specifications (`specifications/specs/`) — WHAT the system does
+
+| Document | MDS | Description |
+|----------|--------|-------------|
+| [`MDS_SCAFFOLD.md`](specifications/specs/MDS_SCAFFOLD.md) | all | Category → directory mapping; lifecycle enforcement |
+| [`REQUIREMENTS.md`](specifications/specs/REQUIREMENTS.md) | all | Implemented requirements as goal specs |
+| [`TRACEABILITY_MATRIX.md`](specifications/specs/TRACEABILITY_MATRIX.md) | all | Goal spec → code → test traceability |
+| [`REPL-specification.md`](specifications/specs/REPL-specification.md) | domain, composition, lifecycle, curation | REPL specification — `kask chat` |
+| [`MDS-agent-service.md`](specifications/specs/MDS-agent-service.md) | domain, composition, trust, lifecycle | AgentService specification |
+| [`test-program.md`](specifications/specs/test-program.md) | domain, composition, trust, lifecycle, curation | Test program specification |
+| [`wallet-specification.md`](specifications/specs/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate — architectural specification |
+| [`salience-specification.md`](specifications/specs/salience-specification.md) | domain, composition | Passage salience algorithm specification |
+| [`gentle-lovelace-specification.md`](specifications/specs/gentle-lovelace-specification.md) | domain, composition, curation | Gentle Lovelace — document excellence replica specification |
+| [`crate-audit.md`](specifications/specs/crate-audit.md) | composition, curation | Crate audit bundle manifest |
+
+### Relocated (2026-06-15 consolidation)
+
+| Former Location | New Location | Reason |
+|-----------------|-------------|--------|
+| `specifications/CI-CD-GUIDE.md` | [`guides/CI-CD-GUIDE.md`](guides/CI-CD-GUIDE.md) | Guide, not specification |
+| `specifications/DEPLOYMENT.md` | [`guides/DEPLOYMENT.md`](guides/DEPLOYMENT.md) | Guide, not specification |
+| `specifications/ADR_TEMPLATE.md` | [`architecture/ADRs/_TEMPLATE.md`](architecture/ADRs/_TEMPLATE.md) | Template, not specification |
+| `specifications/dual-presence-pattern.md` | Merged into [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) §Dual-Presence | Open questions → question tracker |
+| `specifications/improv-skill-design.md` | [`.agents/skills/improv/design.md`](../.agents/skills/improv/design.md) | Skill design → skill folder |
+| `specifications/improv-future-questions.md` | [`.agents/skills/improv/future-questions.md`](../.agents/skills/improv/future-questions.md) | Skill questions → skill folder |
 | [`gentle-lovelace-specification.md`](specifications/gentle-lovelace-specification.md) | domain, composition, curation | Gentle Lovelace — document excellence replica specification |
 
 ---

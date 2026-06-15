@@ -11,7 +11,7 @@ mds_categories: [lifecycle, curation]
 # Test Inventory
 
 Re-derived from `cargo test --workspace -- --list` on 2026-06-14.
-Per MDS §8 and `docs/specifications/test-program.md`.
+Per MDS §8 and `do../specifications/specs/test-program.md`.
 
 ---
 

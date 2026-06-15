@@ -118,7 +118,7 @@ The REPL supports bidirectional voice interaction through the media MCP server (
 
 **Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
 
-**Canonical specification:** [`MDS-agent-service.md`](../specifications/MDS-agent-service.md) — full domain spec, accessor methods, depth test results, and service boundary definitions.
+**Canonical specification:** [`MDS-agent-service.md`](../specifications/specs/MDS-agent-service.md) — full domain spec, accessor methods, depth test results, and service boundary definitions.
 
 ### Summary
 
@@ -376,13 +376,13 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | Document | Purpose |
 |----------|---------|
-| [`../specifications/REQUIREMENTS.md`](../specifications/REQUIREMENTS.md) | 22 implemented + 5 deferred goal specs |
-| [`../specifications/TRACEABILITY_MATRIX.md`](../specifications/TRACEABILITY_MATRIX.md) | Bidirectional code→test traceability |
+| [`../specifications/specs/REQUIREMENTS.md`](../specifications/specs/REQUIREMENTS.md) | 22 implemented + 5 deferred goal specs |
+| [`../specifications/specs/TRACEABILITY_MATRIX.md`](../specifications/specs/TRACEABILITY_MATRIX.md) | Bidirectional code→test traceability |
 
 
 ---
 
-*Verification commands:* `cargo check --workspace`, `cargo test --workspace`, `cargo clippy --workspace -- -D warnings`, `cargo fmt --check`. See [`MDS_SCAFFOLD.md`](../specifications/MDS_SCAFFOLD.md) §6 for the full verification gate table.
+*Verification commands:* `cargo check --workspace`, `cargo test --workspace`, `cargo clippy --workspace -- -D warnings`, `cargo fmt --check`. See [`MDS_SCAFFOLD.md`](../specifications/specs/MDS_SCAFFOLD.md) §6 for the full verification gate table.
 
 ---
 

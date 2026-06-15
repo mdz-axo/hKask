@@ -8,7 +8,7 @@ use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::DaemonClient;
 use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_types::ports::CnsObserver;
-use hkask_types::{LLMParameters, WebID};
+use hkask_types::{LLMParameters, WebID, now_rfc3339};
 use std::sync::Mutex;
 
 /// Minimum word count from pdf-extract to consider text extraction successful
@@ -346,7 +346,7 @@ impl DocProcServer {
         if let Some(ref daemon) = self.daemon {
             let value = serde_json::json!({
                 "tool": tool, "input": input_summary, "outcome": outcome,
-                "detail": detail, "timestamp": chrono::Utc::now().to_rfc3339(),
+                "detail": detail, "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();

@@ -8,6 +8,8 @@ use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use hkask_types::now_rfc3339;
+
 // ── Transaction ─────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -233,7 +235,7 @@ impl PortfolioManager {
         let conn = self.open()?;
         conn.execute(
             "INSERT INTO portfolios (name, created_at) VALUES (?1, ?2)",
-            params![name, chrono::Utc::now().to_rfc3339()],
+            params![name, now_rfc3339()],
         )
         .map_err(|e| format!("create: {e}"))?;
         Ok(())
@@ -544,7 +546,7 @@ impl PortfolioManager {
                 amount,
                 currency,
                 notes,
-                created_at: chrono::Utc::now().to_rfc3339(),
+                created_at: now_rfc3339(),
             });
         }
 
@@ -755,7 +757,7 @@ impl PortfolioManager {
         let conn = self.open()?;
         conn.execute(
             "INSERT OR REPLACE INTO price_cache (portfolio_name, symbol, date, close, source, fetched_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![name, symbol, date, close, source, chrono::Utc::now().to_rfc3339()],
+            params![name, symbol, date, close, source, now_rfc3339()],
         )
         .map_err(|e| format!("insert: {e}"))?;
         Ok(())
@@ -880,7 +882,7 @@ impl PortfolioManager {
         self.check_exists(&conn, portfolio)?;
         let id = uuid::Uuid::new_v4().to_string();
         let tags_json = serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string());
-        let now = chrono::Utc::now().to_rfc3339();
+        let now = now_rfc3339();
         conn.execute(
             "INSERT INTO notes (id, portfolio_name, symbol, date, title, body, tags, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![id, portfolio, symbol, date, title, body, tags_json, now],
@@ -998,7 +1000,7 @@ impl PortfolioManager {
 
         let path_str = file_path.to_string_lossy().to_string();
         let size = bytes.len() as i64;
-        let now = chrono::Utc::now().to_rfc3339();
+        let now = now_rfc3339();
 
         conn.execute(
             "INSERT INTO files (id, portfolio_name, symbol, date, filename, mime_type, size, path, notes, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",

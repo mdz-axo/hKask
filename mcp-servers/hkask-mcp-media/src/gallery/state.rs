@@ -11,6 +11,8 @@ use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
+use hkask_types::now_rfc3339;
+
 pub use hkask_storage::GalleryMode;
 
 /// Supported image extensions for gallery scanning.
@@ -193,7 +195,7 @@ impl GalleryState {
                         height,
                         format: ext,
                         size_bytes,
-                        added_at: chrono::Utc::now().to_rfc3339(),
+                        added_at: now_rfc3339(),
                     };
                     entries.push(entry);
                 }
@@ -203,7 +205,7 @@ impl GalleryState {
             }
         }
 
-        self.last_scan = Some(chrono::Utc::now().to_rfc3339());
+        self.last_scan = Some(now_rfc3339());
 
         ScanResult {
             added,

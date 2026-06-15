@@ -14,7 +14,7 @@ mds_categories: [curation]
 ## 1. Purpose
 
 This protocol defines the voice, style, and quality discipline for the hKask documentation corpus. It translates four independent dimensions of documentation quality — each grounded in the work of a woman who shaped technical communication — into a scoring rubric that governs publication decisions. It enforces the Writing Excellence Mandate in
-[`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md) §1.[^schriver-readers]
+[`DOCUMENTATION_STANDARDS.md`](standards/DOCUMENTATION_STANDARDS.md) §1.[^schriver-readers]
 
 ## 2. Voice and Style Standards
 

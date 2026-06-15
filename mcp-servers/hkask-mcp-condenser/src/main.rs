@@ -27,7 +27,7 @@ use hkask_mcp_condenser::types::*;
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Database, Triple};
 use hkask_types::ports::InferencePort;
-use hkask_types::{LLMParameters, McpErrorKind, Visibility, WebID};
+use hkask_types::{LLMParameters, McpErrorKind, Visibility, WebID, now_rfc3339};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::{Arc, Mutex};
 
@@ -91,7 +91,7 @@ impl CondenserServer {
                 "input": input_summary,
                 "outcome": outcome,
                 "detail": detail,
-                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();
