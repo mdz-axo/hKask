@@ -115,14 +115,6 @@ check_dependencies() {
         missing+=("pkg-config")
     fi
 
-    if ! command -v cmake &> /dev/null; then
-        missing+=("cmake")
-    fi
-
-    if ! command -v protoc &> /dev/null; then
-        missing+=("protobuf-compiler")
-    fi
-
     # Check for required development libraries
     if ! pkg-config --exists openssl 2>/dev/null; then
         missing+=("libssl-dev")
@@ -132,24 +124,16 @@ check_dependencies() {
         missing+=("libsqlite3-dev")
     fi
 
-    if ! pkg-config --exists libzstd 2>/dev/null; then
-        missing+=("libzstd-dev")
-    fi
-
     if ! pkg-config --exists dbus-1 2>/dev/null; then
         missing+=("libdbus-1-dev")
-    fi
-
-    if ! command -v llvm-config &> /dev/null && ! pkg-config --exists libclang 2>/dev/null; then
-        missing+=("libclang-dev/llvm-dev")
     fi
 
     if [ ${#missing[@]} -ne 0 ]; then
         log_error "Missing dependencies: ${missing[*]}"
         log "Please install using your package manager:"
-        log "  Debian/Ubuntu: sudo apt-get install build-essential pkg-config libssl-dev libsqlite3-dev libdbus-1-dev libclang-dev llvm-dev cmake protobuf-compiler libprotobuf-dev libzstd-dev"
-        log "  Fedora/RHEL: sudo dnf install gcc pkg-config openssl-devel sqlite-devel clang-devel llvm-devel cmake protobuf-compiler protobuf-devel libzstd-devel"
-        log "  Arch: sudo pacman -S base-devel pkg-config openssl sqlite clang llvm cmake protobuf protobuf-c zstd"
+        log "  Debian/Ubuntu: sudo apt-get install build-essential pkg-config libssl-dev libsqlite3-dev libdbus-1-dev"
+        log "  Fedora/RHEL: sudo dnf install gcc pkg-config openssl-devel sqlite-devel dbus-devel"
+        log "  Arch: sudo pacman -S base-devel pkg-config openssl sqlite dbus"
         exit 1
     fi
 

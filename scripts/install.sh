@@ -100,17 +100,11 @@ install_system_dependencies() {
                 libssl-dev \
                 libsqlite3-dev \
                 libdbus-1-dev \
-                libclang-dev \
-                llvm-dev \
-                libzstd-dev \
-                cmake \
                 git \
                 curl \
                 wget \
                 jq \
-                xz-utils \
-                protobuf-compiler \
-                libprotobuf-dev
+                xz-utils
             ;;
         dnf|yum)
             log "Installing build dependencies (Fedora/RHEL)..."
@@ -122,17 +116,11 @@ install_system_dependencies() {
                 openssl-devel \
                 sqlite-devel \
                 dbus-devel \
-                clang-devel \
-                llvm-devel \
-                libzstd-devel \
-                cmake \
                 git \
                 curl \
                 wget \
                 jq \
-                xz \
-                protobuf-compiler \
-                protobuf-devel
+                xz
             ;;
         pacman)
             log "Installing build dependencies (Arch Linux)..."
@@ -141,17 +129,11 @@ install_system_dependencies() {
                 openssl \
                 sqlite \
                 dbus \
-                clang \
-                llvm \
-                zstd \
-                cmake \
                 git \
                 curl \
                 wget \
                 jq \
-                xz \
-                protobuf \
-                protobuf-c
+                xz
             ;;
         zypper)
             log "Installing build dependencies (openSUSE)..."
@@ -161,16 +143,11 @@ install_system_dependencies() {
                 libopenssl-devel \
                 sqlite3-devel \
                 dbus-1-devel \
-                clang \
-                llvm \
-                libzstd-devel \
-                cmake \
                 git \
                 curl \
                 wget \
                 jq \
-                xz \
-                protobuf-devel
+                xz
             ;;
         apk)
             log "Installing build dependencies (Alpine)..."
@@ -179,20 +156,15 @@ install_system_dependencies() {
                 openssl-dev \
                 sqlite-dev \
                 dbus-dev \
-                clang \
-                llvm \
-                zstd-dev \
-                cmake \
                 git \
                 curl \
                 wget \
                 jq \
-                xz \
-                protobuf-dev
+                xz
             ;;
         unknown)
             log_warning "Unknown package manager. Please install dependencies manually."
-            log "Required: build-essential, pkg-config, libssl-dev, libsqlite3-dev, libdbus-1-dev, libclang-dev, llvm-dev, libzstd-dev, cmake, git, curl, jq, xz-utils"
+            log "Required: build-essential, pkg-config, libssl-dev, libsqlite3-dev, libdbus-1-dev, git, curl, jq, xz-utils"
             return 1
             ;;
     esac

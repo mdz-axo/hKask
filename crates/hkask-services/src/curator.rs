@@ -162,12 +162,17 @@ impl CuratorService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hkask_types::EscalationID;
+    use uuid::Uuid;
+
+    const FIXED_UUID_1: &str = "00000000-0000-0000-0000-000000000001";
+    const FIXED_UUID_2: &str = "00000000-0000-0000-0000-000000000002";
 
     // REQ: MDS-curator-svc-001 — EscalationEntry → EscalationResponse maps all fields
     #[test]
     fn escalation_entry_to_response_maps_fields() {
         let entry = EscalationEntry {
-            id: "esc-1".into(),
+            id: EscalationID::from_uuid(Uuid::parse_str(FIXED_UUID_1).unwrap()),
             template_id: hkask_types::TemplateID::new(),
             bot_id: hkask_types::BotID::new(),
             output: "test output".into(),
@@ -180,7 +185,7 @@ mod tests {
             resolved_by: None,
         };
         let resp = EscalationResponse::from(entry);
-        assert_eq!(resp.id, "esc-1");
+        assert_eq!(resp.id, FIXED_UUID_1);
         assert_eq!(resp.output, "test output");
         assert!((resp.confidence - 0.85).abs() < 0.001);
         assert_eq!(resp.retry_count, 2);
@@ -193,7 +198,7 @@ mod tests {
     fn escalation_entry_resolved_maps_resolution_fields() {
         let now = chrono::Utc::now();
         let entry = EscalationEntry {
-            id: "esc-2".into(),
+            id: EscalationID::from_uuid(Uuid::parse_str(FIXED_UUID_2).unwrap()),
             template_id: hkask_types::TemplateID::new(),
             bot_id: hkask_types::BotID::new(),
             output: "done".into(),

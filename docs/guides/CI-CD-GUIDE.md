@@ -79,14 +79,11 @@ The install script automatically detects and supports:
 - Rust 1.91 (pinned via rust-toolchain.toml, edition 2024)
 - 4GB RAM
 - 2GB disk space
-- GCC/Clang
+- GCC
 - pkg-config
 - libssl-dev
 - libsqlite3-dev
-- libclang-dev
-- llvm-dev
-- cmake
-- protobuf-compiler
+- libdbus-1-dev
 
 **Install dependencies manually (Debian/Ubuntu):**
 ```bash
@@ -96,14 +93,10 @@ sudo apt-get install -y \
   pkg-config \
   libssl-dev \
   libsqlite3-dev \
-  libclang-dev \
-  llvm-dev \
-  cmake \
+  libdbus-1-dev \
   git \
   curl \
-  jq \
-  protobuf-compiler \
-  libprotobuf-dev
+  jq
 ```
 
 ---

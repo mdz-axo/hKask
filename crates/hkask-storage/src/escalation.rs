@@ -377,7 +377,7 @@ mod tests {
                 "ctx".into(),
             )
             .expect("add escalation");
-        assert!(q.resolve(&id, "tester").is_ok());
+        assert!(q.resolve(&id.to_string(), "tester").is_ok());
     }
 
     // REQ: escalation-rows-004 — dismiss on an existing entry succeeds
@@ -394,6 +394,6 @@ mod tests {
                 "ctx".into(),
             )
             .expect("add escalation");
-        assert!(q.dismiss(&id, "tester").is_ok());
+        assert!(q.dismiss(&id.to_string(), "tester").is_ok());
     }
 }
