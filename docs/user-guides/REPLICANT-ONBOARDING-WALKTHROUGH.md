@@ -94,7 +94,7 @@ kask pod list
 kask sovereignty status
 
 # Verify CNS health
-kask cns status
+kask cns health
 ```
 
 Expected output:
@@ -190,10 +190,10 @@ kask chat --replicant bob-jones
 
 ### "Daemon unavailable"
 
-The hKask daemon runs on a Unix socket at `~/.config/hkask/daemon.sock`. If it's not running:
+The hKask daemon runs on a Unix socket at `~/.config/hkask/daemon.sock`. If it's not running, start it via the serve command:
 
 ```bash
-kask daemon start
+kask serve
 ```
 
 ### "Replicant not authenticated"
@@ -201,7 +201,7 @@ kask daemon start
 Your replicant's passphrase may have expired or been revoked. Re-authenticate:
 
 ```bash
-kask auth login --replicant alice-smith
+kask replicant login alice-smith
 ```
 
 ### "Model not found"
@@ -213,9 +213,9 @@ ollama pull qwen3:8b
 
 If using a cloud provider, verify your API key:
 ```bash
-kask settings get INFERENCE_MODEL
-kask settings get DI_API_KEY   # DeepInfra
-kask settings get FW_API_KEY   # Fireworks
+kask settings show INFERENCE_MODEL
+kask settings show DI_API_KEY   # DeepInfra
+kask settings show FW_API_KEY   # Fireworks
 ```
 
 ### "Permission denied" on memory access

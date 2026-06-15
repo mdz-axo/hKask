@@ -25,7 +25,12 @@ rusqlite = { workspace = true, optional = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
 proptest = "1"
+hkask-test-harness = { path = "../hkask-test-harness" }
 
 [features]
 default = []
-sql = ["rusqlite"]
+sql = ["dep:rusqlite"]
+
+[[test]]
+name = "types_contract"
+path = "tests/contract/types_contract.rs"

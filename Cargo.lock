@@ -4262,6 +4262,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "hex",
+ "hkask-test-harness",
  "hmac 0.12.1",
  "proptest",
  "rusqlite",
