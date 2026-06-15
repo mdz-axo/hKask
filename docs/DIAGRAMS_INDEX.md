@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-06-13
+last_updated: 2026-06-15
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"

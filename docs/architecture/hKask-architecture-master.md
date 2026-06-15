@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -399,6 +399,8 @@ docs/architecture/
 ├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
 ├── lazy-universe-research.md              # Research (least-action principle grounding)
 ├── wallet-specification.md                # Specification (wallet crate architecture)
+├── matrix-integration-architecture.md     # Specification (Matrix transport, Conduit sidecar)
+├── training-decomposition-traces.md       # Research (decomposition traces, LoRA adapters)
 ├── ADR-024-unified-registry.md            # Decision record
 ├── ADR-025-attenuation-depth-limit.md     # Decision record
 ├── ADR-026-bitemporal-triple-schema.md    # Decision record
@@ -421,7 +423,7 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 28 active architecture documents (8 framework + 1 index + 13 ADRs + 6 reference artifacts).
+**Total:** 30 active architecture documents (8 framework + 1 index + 13 ADRs + 6 reference artifacts + 2 specifications/research).
 
 ---
 

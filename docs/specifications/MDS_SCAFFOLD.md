@@ -1,8 +1,8 @@
 ---
 title: "MDS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
-last_updated: 2026-06-14
-version: "2.5.0"
+last_updated: 2026-06-15
+version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]

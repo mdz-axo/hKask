@@ -1,8 +1,8 @@
 ---
 title: "Test Inventory"
 audience: [architects, developers, agents]
-version: "2.4.0"
-last_updated: 2026-06-14
+version: "0.27.0"
+last_updated: 2026-06-15
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle, curation]

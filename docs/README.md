@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-14
+last_updated: 2026-06-15
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -48,6 +48,8 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`P12-replicant-host-mandate.md`](architecture/P12-replicant-host-mandate.md) | domain, trust, composition | Replicant host mandate — P12 elaboration |
 | [`energy-gas-payments-api-keys.md`](architecture/energy-gas-payments-api-keys.md) | domain, trust, lifecycle, curation | Energy, gas, payments & API key architecture |
 | [`lazy-universe-research.md`](architecture/lazy-universe-research.md) | domain, composition, curation | Least-action principle — research grounding |
+| [`matrix-integration-architecture.md`](architecture/matrix-integration-architecture.md) | composition, trust | Matrix transport, Conduit sidecar, 7R7 listener, agent registry |
+| [`training-decomposition-traces.md`](architecture/training-decomposition-traces.md) | domain, composition, lifecycle, curation | Decomposition traces, LoRA adapters, fine-tuning architecture |
 
 ### Architecture Decision Records
 
@@ -103,6 +105,10 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`crate-audit.md`](specifications/crate-audit.md) | composition, curation | Crate audit bundle manifest |
 | [`HANDOFF_LIFECYCLE.md`](specifications/HANDOFF_LIFECYCLE.md) | lifecycle, curation | Handoff lifecycle policy — states, 30-day staleness rule, archive procedure |
 | [`DOCUMENT_OWNERSHIP.md`](specifications/DOCUMENT_OWNERSHIP.md) | lifecycle, curation | Document category ownership, version sync policy, review cadence |
+| [`dual-presence-pattern.md`](specifications/dual-presence-pattern.md) | domain, composition, trust | Dual-presence pattern — open specification questions |
+| [`improv-skill-design.md`](specifications/improv-skill-design.md) | domain, composition, curation | Improv skill — design recommendation |
+| [`improv-future-questions.md`](specifications/improv-future-questions.md) | composition, curation | Improv skill — open questions & future work |
+| [`gentle-lovelace-specification.md`](specifications/gentle-lovelace-specification.md) | domain, composition, curation | Gentle Lovelace — document excellence replica specification |
 
 ---
 
@@ -117,7 +123,8 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`adversarial-simplification-inventory.md`](status/adversarial-simplification-inventory.md) | composition, domain | Dead code and simplification opportunities |
 | [`spec-code-drift.yaml`](status/spec-code-drift.yaml) | domain, composition, trust, lifecycle, curation | Spec-code drift tracking — 14/14 items resolved (2026-06-12) |
 | [`curation-decisions.yaml`](status/curation-decisions.yaml) | domain, composition, trust, lifecycle, curation | Curation decisions per drift item — 14 decisions recorded |
-| [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | lifecycle, curation | Document corpus lifecycle classification (generated 2026-06-14, updated 2026-06-14) |
+| [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | lifecycle, curation | Document corpus lifecycle classification (generated 2026-06-14, updated 2026-06-15) |
+| [`document-futures.md`](status/document-futures.md) | lifecycle, curation | Open questions & under-specification tracking |
 
 ---
 
@@ -142,7 +149,11 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 
 Transient session handoffs recording implementation state. Handoffs are committed to git history and cleaned from the working tree when superseded or when their context is no longer needed. All handoffs are recoverable via git history.
 
-*No active handoffs in working tree.* See git history for past handoffs (`git log -- docs/handoffs/`).
+| Document | MDS | Description |
+|----------|--------|-------------|
+| [`comm-train-2026-06-14.md`](handoffs/comm-train-2026-06-14.md) | — | Communication & training MCP buildout — ~85% complete |
+| [`err-unify-svc-extract-2026-06-14.md`](handoffs/err-unify-svc-extract-2026-06-14.md) | — | Error unification & service extraction — in progress |
+| [`err-unify-complete-2026-06-14.md`](handoffs/err-unify-complete-2026-06-14.md) | — | Error unification completion — final state |
 
 ---
 

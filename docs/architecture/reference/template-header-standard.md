@@ -1,8 +1,8 @@
 ---
 title: "Template Header Standard — hLexicon Functional Roles"
 audience: [developers, template authors]
-last_updated: 2026-06-07
-version: "0.23.0"
+last_updated: 2026-06-15
+version: "0.27.0"
 status: "Active"
 domain: "Application"
 mds_categories: [composition]

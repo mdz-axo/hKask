@@ -43,6 +43,11 @@ while IFS= read -r -d '' file; do
         continue
     fi
 
+    # Skip handoff files (transient, no frontmatter required per HANDOFF_LIFECYCLE.md §4)
+    if [[ "$file" == *"/docs/handoffs/"* ]]; then
+        continue
+    fi
+
     TOTAL=$((TOTAL + 1))
     rel_file="${file#$DOCS_DIR/}"
     missing=()

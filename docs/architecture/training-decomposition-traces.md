@@ -1,3 +1,13 @@
+---
+title: "Training Decomposition Traces"
+audience: [architects, developers, agents]
+last_updated: 2026-06-15
+version: "0.27.0"
+status: "Active"
+domain: "Training"
+mds_categories: [domain, composition, lifecycle, curation]
+---
+
 # hKask Agent Skill Training: Decomposition Traces, LoRA Adapters, and the Future of Fine-Tuning
 
 **Status:** Research & Architecture Document  
@@ -357,6 +367,389 @@ training_assemble_dataset (optional — for docproc-derived QA)
 training_submit → Together AI fine-tuning API
     ↓
 LoRA adapter
+```
+
+---
+
+## 7. Training & Deployment Workflow: From Skill to Serving
+
+### 7.1 End-to-End Process (Current)
+
+This is the workflow we execute today for each skill adapter:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 1: TRACE GENERATION                               │
+│                                                         │
+│  Skill document (SKILL.md)                              │
+│      ↓                                                  │
+│  training_generate_traces                                │
+│      ├── Extract decision methodology from doc          │
+│      ├── Generate basic traces (25-50)                  │
+│      ├── Generate edge-case traces (25-50)              │
+│      │   ├── Boundary confusions (e.g., Guardrail vs    │
+│      │   │   Evidence)                                  │
+│      │   ├── Technical detail distractions             │
+│      │   ├── Ambiguous language cases                   │
+│      │   └── Conflict resolution scenarios             │
+│      └── Write ChatML JSONL to data/{skill}-traces.jsonl│
+│                                                         │
+│  Output: 50-100 decomposition traces in ChatML format   │
+└─────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 2: INITIAL TRAINING                               │
+│                                                         │
+│  training_submit                                        │
+│      ├── Upload JSONL to Together AI files API          │
+│      ├── Submit fine-tuning job:                        │
+│      │   model: Qwen/Qwen3.5-9B                         │
+│      │   epochs: 3                                      │
+│      │   lora_r: 16-64 (task-dependent)                 │
+│      │   lora_alpha: 32-128                             │
+│      │   learning_rate: 2e-4                            │
+│      │   batch_size: 8                                  │
+│      ├── Poll job status until completed                │
+│      └── Record adapter ID in AdapterStore              │
+│                                                         │
+│  Output: LoRA adapter (safetensors, ~200MB)             │
+│  Time: ~4-7 minutes | Cost: ~$0.005                     │
+└─────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 3: EVALUATION                                     │
+│                                                         │
+│  Deploy adapter to dedicated endpoint                   │
+│      ↓                                                  │
+│  Run evaluation suite:                                  │
+│      ├── Basic classification tests (10 items)          │
+│      ├── Edge-case tests (10 items)                     │
+│      ├── Conflict resolution tests (5 items)            │
+│      └── Adversarial/distractor tests (5 items)         │
+│      ↓                                                  │
+│  Score accuracy per category                            │
+│      ↓                                                  │
+│  Decision gate:                                         │
+│      ├── ≥90% accuracy → promote to production          │
+│      ├── 70-89% → identify weak spots, generate more    │
+│      │            targeted traces, retrain              │
+│      └── <70% → review trace quality, methodology       │
+│                                                         │
+│  Output: Evaluation report + adapter readiness status   │
+└─────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 4: DEPLOYMENT                                     │
+│                                                         │
+│  Register adapter in hKask inference router:            │
+│      adapter_id: "hkask-cf-v2"                          │
+│      model_name: "mdz_7e9b/Qwen3.5-9B-hkask-cf-v2-..." │
+│      skill: "constraint-forces"                         │
+│      base_model: "Qwen3.5-9B"                           │
+│      evaluation_score: 1.0                              │
+│      status: "production"                               │
+│      ↓                                                  │
+│  Deploy to serving endpoint:                            │
+│      ├── Current: dedicated endpoint per adapter        │
+│      └── Future: multi-LoRA endpoint (shared base)      │
+│      ↓                                                  │
+│  Router configuration:                                  │
+│      skill → adapter mapping                            │
+│      fallback → base model (no adapter)                 │
+│                                                         │
+│  Output: Live adapter serving requests                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 7.2 Continuous Training Loop (Future)
+
+Once an adapter is in production, agent usage generates data that can improve the adapter. This is the **continuous training loop** — a closed cycle where system operation produces training signal.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ CONTINUOUS TRAINING LOOP                                     │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐    │
+│  │ DATA GENERATION (ongoing, automatic)                 │    │
+│  │                                                      │    │
+│  │  Source 1: CNS Feedback Signals                      │    │
+│  │  ┌─────────────────────────────────────────────┐    │    │
+│  │  │ • Algedonic alerts: when does the adapter    │    │    │
+│  │  │   produce responses that trigger CNS warnings│    │    │
+│  │  │   (e.g., variety deficit after classification│    │    │
+│  │  │   suggests the model is stuck/repeating)     │    │    │
+│  │  │ • Span anomalies: cns.cybernetics.backpressure│    │    │
+│  │  │   events correlated with adapter usage       │    │    │
+│  │  │ • Confidence tracking: when does the model  │    │    │
+│  │  │   produce low-confidence classifications?   │    │    │
+│  │  └─────────────────────────────────────────────┘    │    │
+│  │                                                      │    │
+│  │  Source 2: Episodic Memory                            │    │
+│  │  ┌─────────────────────────────────────────────┐    │    │
+│  │  │ • Record every adapter invocation as an      │    │    │
+│  │  │   experience: {query, adapter, response,     │    │    │
+│  │  │   user_feedback, cns_spans}                  │    │    │
+│  │  │ • User corrections: when a user overrides or │    │    │
+│  │  │   rejects the adapter's classification,     │    │    │
+│  │  │   capture the correction as a training pair  │    │    │
+│  │  │ • Curator escalations: when the Curation     │    │    │
+│  │  │   Loop flags an adapter response for review  │    │    │
+│  │  └─────────────────────────────────────────────┘    │    │
+│  │                                                      │    │
+│  │  Source 3: Semantic Memory                            │    │
+│  │  ┌─────────────────────────────────────────────┐    │    │
+│  │  │ • Query triples tagged with skill domain     │    │    │
+│  │  │ • Extract new edge cases from related        │    │    │
+│  │  │   knowledge (e.g., new constraint patterns   │    │    │
+│  │  │   discovered in other skills' documents)     │    │    │
+│  │  │ • Consolidation pipeline: as episodic         │    │    │
+│  │  │   experiences consolidate into semantic       │    │    │
+│  │  │   knowledge, extract training-relevant facts  │    │    │
+│  │  └─────────────────────────────────────────────┘    │    │
+│  │                                                      │    │
+│  │  Source 4: Feedback Collection (/feedback in REPL)   │    │
+│  │  ┌─────────────────────────────────────────────┐    │    │
+│  │  │ • Explicit user feedback on adapter quality  │    │    │
+│  │  │ • "This classification was wrong because..." │    │    │
+│  │  │ • Feature requests: "the adapter should also │    │    │
+│  │  │   handle X scenario"                         │    │    │
+│  │  └─────────────────────────────────────────────┘    │    │
+│  └──────────────────────────────────────────────────────┘    │
+│                          ↓                                   │
+│  ┌──────────────────────────────────────────────────────┐    │
+│  │ DATA CURATION (periodic, semi-automatic)             │    │
+│  │                                                      │    │
+│  │  training_curate_feedback (new tool)                 │    │
+│  │      ├── Query episodic memory for adapter sessions  │    │
+│  │      ├── Filter: only sessions with user corrections │    │
+│  │      │   or CNS alerts                               │    │
+│  │      ├── Deduplicate: cluster similar failure cases  │    │
+│  │      ├── Generate corrected traces:                  │    │
+│  │      │   original query + corrected classification   │    │
+│  │      │   + reasoning trace showing why original      │    │
+│  │      │   was wrong and corrected is right            │    │
+│  │      ├── Curator review gate: human approves or     │    │
+│  │      │   rejects each new trace before training      │    │
+│  │      └── Append to skill's trace corpus              │    │
+│  │                                                      │    │
+│  │  Trigger conditions:                                 │    │
+│  │      • Time-based: every N days of adapter usage     │    │
+│  │      • Volume-based: after M user corrections         │    │
+│  │      • CNS-based: algedonic alert rate exceeds        │    │
+│  │        threshold for adapter-tagged sessions         │    │
+│  └──────────────────────────────────────────────────────┘    │
+│                          ↓                                   │
+│  ┌──────────────────────────────────────────────────────┐    │
+│  │ BATCHED RETRAINING (triggered)                       │    │
+│  │                                                      │    │
+│  │  training_retrain (new tool)                         │    │
+│  │      ├── Merge original traces + curated feedback    │    │
+│  │      │   traces into combined dataset                │    │
+│  │      ├── Split: 80% train / 20% holdout evaluation   │    │
+│  │      ├── Submit fine-tuning job with combined data   │    │
+│  │      ├── Evaluate against holdout + original test    │    │
+│  │      │   suite (regression check)                    │    │
+│  │      ├── Decision gate:                              │    │
+│  │      │   ├── Score improved → promote new adapter    │    │
+│  │      │   ├── Score same → keep current adapter       │    │
+│  │      │   └── Score worse → revert, investigate       │    │
+│  │      └── Update adapter registry with new version    │    │
+│  │                                                      │    │
+│  │  Versioning:                                         │    │
+│  │      constraint-forces-v1 → v2 → v3 ...              │    │
+│  │      Router always serves latest production version  │    │
+│  │      Previous versions retained for rollback          │    │
+│  └──────────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 7.3 CNS as Training Data Engine
+
+The Cybernetic Nervous System is uniquely positioned to drive continuous training because it already monitors what matters:
+
+| CNS Signal | Training Implication |
+|------------|---------------------|
+| **Algedonic alerts** during adapter sessions | High alert rate → adapter may be producing incorrect classifications that trigger downstream CNS warnings. These sessions are prime candidates for trace extraction. |
+| **Variety deficit** after adapter-heavy turns | Low variety → adapter may be stuck in a narrow classification pattern, missing edge cases. Generate traces targeting the missing categories. |
+| **Backpressure events** (`cns.cybernetics.backpressure`) | Spans emitted when constraints conflict. Extract the conflicting constraints as new training scenarios. |
+| **Confidence tracking** (per-response logprobs) | Low-confidence responses → the model is uncertain. These are exactly the cases where more training data is needed. |
+| **Curator escalation rate** | High escalation rate for adapter-tagged sessions → systematic quality issue. Trigger retraining cycle. |
+| **Gas consumption patterns** | Adapter sessions consuming unusual energy → possible loop or repetitive correction pattern. Flag for review. |
+
+**Implementation sketch:**
+
+```
+CNS span emission
+    ↓
+Tagged with adapter_id + skill + session_id
+    ↓
+Episodic memory: store_experience(adapter_invocation)
+    ↓
+Consolidation pipeline: every 10 experiences → generate_narrative()
+    ↓
+Narrative analysis: "adapter X produced 3 low-confidence
+    Guardrail classifications in session Y"
+    ↓
+Trigger: training_curate_feedback when narrative count
+    exceeds threshold
+```
+
+### 7.4 Tool Development Roadmap for Continuous Training
+
+New tools needed to close the continuous training loop:
+
+| Tool | Purpose | Priority |
+|------|---------|----------|
+| `training_record_invocation` | Record each adapter use as an episodic experience with CNS span correlation | High — enables all downstream curation |
+| `training_curate_feedback` | Query episodic memory for correction-worthy sessions, generate corrected traces, present for Curator review | High — bridges operation → training data |
+| `training_retrain` | Merge original + feedback traces, submit retraining job, evaluate against holdout, manage versioning | High — closes the loop |
+| `training_monitor_health` | Track adapter quality metrics over time (accuracy trend, alert correlation, confidence distribution) | Medium — informs retraining decisions |
+| `training_ab_test` | Serve multiple adapter versions simultaneously, route fraction of traffic to each, compare outcomes | Low — optimization, not essential for v1 |
+
+---
+
+## 8. Statistical Settings: Inference Parameters in Training Context
+
+### 8.1 The Two Modes: Generation vs Evaluation
+
+Training involves two distinct inference modes with different optimal settings:
+
+| Parameter | Trace Generation Mode | Evaluation Mode |
+|-----------|----------------------|-----------------|
+| **Purpose** | Produce diverse, creative, methodologically correct reasoning traces | Produce consistent, deterministic classifications for scoring |
+| **temperature** | 0.7–0.9 (high diversity) | 0.0 (deterministic) |
+| **top_p** | 0.9–0.95 (wide sampling) | 1.0 (no truncation, but temp=0 makes this irrelevant) |
+| **top_k** | 40–60 (broad candidate pool) | 1 (greedy, but temp=0 makes this irrelevant) |
+| **min_p** | 0.0 (disabled) | 0.0 (disabled) |
+| **typical_p** | 0.0 (disabled) | 0.0 (disabled) |
+| **max_tokens** | 512–1024 (full reasoning traces) | 20–50 (classification word only) |
+| **seed** | random (diversity) | fixed (reproducibility) |
+| **reasoning** | enabled (for trace generation model) | **disabled** (classification tasks — reasoning tokens eat budget without improving accuracy) |
+
+### 8.2 Temperature's Role in Training Data Quality
+
+Temperature is the most impactful parameter for training data generation:
+
+**High temperature (0.7–0.9) — Trace Generation:**
+- **Benefit**: Produces diverse reasoning paths. Two traces for the same constraint type will phrase the decision tree walk differently, use different examples, emphasize different distinctions. This diversity prevents the trained adapter from memorizing specific phrasings.
+- **Risk**: At very high temperatures (>1.0), traces may become incoherent — reasoning steps that don't follow from each other, incorrect classifications justified with confident-sounding but wrong logic.
+- **Mitigation**: Validate generated traces before training. The `training_generate_traces` tool should include a validation pass: does the trace's final classification match the expected answer? Does the reasoning chain logically hold?
+
+**Zero temperature (0.0) — Evaluation:**
+- **Benefit**: Deterministic output. Same input always produces same classification. This is essential for scoring — you need to know whether the model consistently gets a test case right or wrong.
+- **Risk**: None for classification tasks. The model always picks the highest-probability token sequence.
+- **Caveat**: Zero temperature doesn't guarantee correctness — it guarantees consistency. A model with temp=0 can be consistently wrong.
+
+**Temperature during training (fine-tuning job):**
+- Temperature is NOT a training hyperparameter. The fine-tuning job uses a fixed training loss (cross-entropy) regardless of what temperature was used to generate the training data.
+- However, the temperature used during **data generation** affects what the model learns:
+  - Traces generated at temp=0.0 → model learns one "correct" way to answer. Brittle — fails on paraphrased inputs.
+  - Traces generated at temp=0.7 → model learns the methodology, not the phrasing. Robust — generalizes to novel inputs.
+
+### 8.3 Top-P and Top-K: Controlling Diversity vs Precision
+
+**Top-P (nucleus sampling):**
+- `top_p=0.9` means: sample from the smallest set of tokens whose cumulative probability ≥ 0.9. This dynamically adjusts the candidate pool based on confidence — when the model is confident, few candidates; when uncertain, more candidates.
+- For trace generation: `top_p=0.9–0.95` provides a good balance. Lower values (0.5–0.7) produce more conservative, repetitive traces. Higher values (1.0) include low-probability tokens that may introduce errors.
+- For evaluation: irrelevant when temperature=0 (only the single highest-probability token is selected).
+
+**Top-K:**
+- `top_k=40` means: only consider the 40 highest-probability tokens at each step.
+- For trace generation: `top_k=40–60` prevents the model from sampling extremely unlikely tokens while still allowing diversity.
+- Interaction with temperature: high temp + high top_k = maximum diversity (may be incoherent). High temp + low top_k = diverse but constrained. Low temp + any top_k ≈ deterministic.
+
+### 8.4 Seed and Reproducibility
+
+- **Trace generation**: `seed=random` — each generation run produces different traces, building a diverse corpus across multiple runs.
+- **Evaluation**: `seed=fixed` (e.g., `seed=42`) — ensures that evaluation results are reproducible. Same test suite, same seed, same scores.
+- **Training**: Seed is NOT a training hyperparameter for Together AI fine-tuning (the API sets `random_seed` automatically).
+
+### 8.5 Reasoning Mode: Critical for Training, Dangerous for Evaluation
+
+Qwen3.5 models support a `reasoning` mode that produces internal chain-of-thought before the visible response. This has opposite effects in our two modes:
+
+**Trace Generation — Reasoning ON:**
+- The reasoning trace IS the training data. We WANT the model to produce explicit step-by-step reasoning. For the teacher model generating traces, reasoning mode enriches the output.
+- However: if the teacher model is itself a fine-tuned adapter, reasoning mode may produce reasoning about reasoning — meta-cognitive loops that waste tokens.
+- Recommendation: Use base model (not adapter) for trace generation, with reasoning enabled.
+
+**Evaluation — Reasoning OFF (mandatory):**
+- Reasoning tokens count against `max_tokens` but are NOT visible in `choices[0].message.content`. With `max_tokens=20` and reasoning enabled, the model may spend all 20 tokens on internal reasoning and produce an empty visible response.
+- This was a discovered pitfall: v1 evaluation initially showed empty responses because reasoning consumed the token budget.
+- **Hard rule**: Always set `"reasoning": {"enabled": false}` for classification evaluation.
+
+### 8.6 Max Tokens: Budgeting for Thought vs Answer
+
+| Mode | max_tokens | Rationale |
+|------|-----------|----------|
+| Trace generation | 512–1024 | Full decision tree walk requires space. A typical constraint-forces trace is 200–400 tokens. Allow headroom. |
+| Classification evaluation | 20–50 | We only need the classification word ("Prohibition", "Guardrail", etc.). 20 tokens is sufficient; 50 provides safety margin. |
+| Conflict resolution evaluation | 200–400 | Conflict resolution traces include classification of both constraints + resolution logic. |
+| Procedural skill evaluation | 512–1024 | Skills like `diagnose` or `essentialist` produce multi-step procedures. |
+
+### 8.7 Training Hyperparameters (Fine-Tuning Job)
+
+These are set in the `training_submit` request, separate from inference parameters:
+
+| Parameter | Default | Effect of Changing |
+|-----------|---------|-------------------|
+| **n_epochs** | 3 | More epochs = more learning from limited data, but risk of overfitting (memorizing traces instead of learning methodology). For small datasets (<100 traces), 3 epochs is a safe default. For larger datasets (500+), 1-2 epochs may suffice. |
+| **learning_rate** | 2e-4 | Higher LR (5e-4–1e-3) = faster adaptation but risk of catastrophic forgetting (overwriting base model capabilities). Lower LR (5e-5–1e-4) = gentler adaptation but may underfit small datasets. 2e-4 is the community standard for LoRA. |
+| **lora_r (rank)** | 16–64 | Higher rank = more adapter capacity. For classification tasks (constraint-forces), r=16 is sufficient. For procedural tasks (diagnose), r=32–64 may be needed. Together AI defaults to r=64. |
+| **lora_alpha** | 32–128 | Scaling factor for LoRA updates. Typically alpha = 2× rank. Higher alpha = stronger adaptation signal. Together AI defaults to alpha=128. |
+| **batch_size** | 8 | Larger batches = more stable gradients but require more data. For small datasets, batch_size must be ≤ dataset size / epochs. Together AI enforces batch_size ≥ 8. |
+| **target_modules** | ["q_proj","v_proj","k_proj","o_proj"] | Which attention layers to adapt. Default targets all attention projections. For some tasks, adding "gate_proj" and "up_proj" (MLP layers) improves capacity. Together AI defaults include all 7 modules. |
+
+### 8.8 Settings Decision Matrix
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ WHICH SETTINGS FOR WHICH PHASE?                             │
+│                                                             │
+│  TRACE GENERATION (training_generate_traces)                │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ temp=0.8  top_p=0.9  top_k=50  max_tokens=1024     │   │
+│  │ seed=random  reasoning=enabled (base model)         │   │
+│  │                                                     │   │
+│  │ Goal: diverse, methodologically correct traces      │   │
+│  │ Risk: incoherence at temp > 1.0                     │   │
+│  │ Validation: check final classification matches      │   │
+│  │   expected answer before adding to dataset          │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  CLASSIFICATION EVALUATION (testing adapter accuracy)       │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ temp=0.0  max_tokens=30  reasoning=disabled         │   │
+│  │ seed=42   top_p/top_k: irrelevant (temp=0)          │   │
+│  │                                                     │   │
+│  │ Goal: deterministic, reproducible scoring           │   │
+│  │ Risk: reasoning mode silently consuming tokens      │   │
+│  │ Hard rule: ALWAYS disable reasoning for eval        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  PROCEDURAL EVALUATION (testing diagnose/essentialist)      │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ temp=0.0  max_tokens=1024  reasoning=disabled       │   │
+│  │ seed=42                                             │   │
+│  │                                                     │   │
+│  │ Goal: deterministic procedure output                │   │
+│  │ Note: even at temp=0, procedural outputs may vary   │   │
+│  │   slightly due to long-form generation dynamics.    │   │
+│  │   Evaluate with rubric, not exact string match.     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  PRODUCTION SERVING (agent sessions using adapter)          │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ temp=0.3  top_p=0.9  top_k=40  max_tokens=512      │   │
+│  │ reasoning=disabled (classification skills)          │   │
+│  │                                                     │   │
+│  │ Goal: reliable but not brittle responses            │   │
+│  │ Why not temp=0? Slight diversity prevents the       │   │
+│  │   adapter from producing identical phrasing for     │   │
+│  │   similar inputs, which feels robotic. But low      │   │
+│  │   enough to maintain classification accuracy.      │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---

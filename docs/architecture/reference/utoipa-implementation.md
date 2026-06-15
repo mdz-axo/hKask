@@ -1,8 +1,8 @@
 ---
 title: "utoipa Implementation — API and CLI Documentation"
 audience: [API developers, CLI operators, integration engineers]
-last_updated: 2026-06-12
-version: "1.0.0"
+last_updated: 2026-06-15
+version: "0.27.0"
 status: "Active"
 domain: "Application"
 mds_categories: [composition]

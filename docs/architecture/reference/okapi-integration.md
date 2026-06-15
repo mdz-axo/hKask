@@ -1,8 +1,8 @@
 ---
 title: "Inference Router — API Contract"
-version: "0.28.0"
+version: "0.27.0"
 status: "Active"
-last_updated: 2026-06-11
+last_updated: 2026-06-15
 audience: [architects, developers]
 domain: "Application"
 mds_categories: [domain]
