@@ -134,6 +134,8 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 |----------|--------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | lifecycle | Build, test, and CI health |
 | [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | lifecycle, curation | Document corpus lifecycle classification — living inventory |
+| [`public-seam-inventory.md`](status/public-seam-inventory.md) | composition, curation | Public seam inventory — 77 seams across 18 crates |
+| [`public-seam-priority.md`](status/public-seam-priority.md) | composition, curation | Public seam priority ranking — test depth targets |
 
 **Archived (2026-06-15):** test-inventory.md, mcp-tools-inventory.md, skill-inventory.md, adversarial-simplification-inventory.md, document-futures.md, spec-code-drift.yaml, curation-decisions.yaml, writing_quality_report.yaml, coherence_report.yaml. All served their purpose. Recoverable via git history.
 
@@ -147,7 +149,9 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 |----------|--------|-------------|
 | [`TODO.md`](plans/TODO.md) | domain, composition, trust, lifecycle, curation | Open work items |
 | [`mcp-server-roadmap.md`](plans/mcp-server-roadmap.md) | domain, composition, trust, lifecycle, curation | MCP server consolidation roadmap |
-| [`DOCUMENT_ROADMAP.md`](plans/DOCUMENT_ROADMAP.md) | lifecycle, curation | Document corpus roadmap — P0→P3 prioritized (2026-06-14) |
+| [`DOCUMENT_ROADMAP.md`](plans/DOCUMENT_ROADMAP.md) | lifecycle, curation | Document corpus roadmap — P0→P3 prioritized |
+| [`pragmatic-audit-implementation-plan-v0.27.0.md`](plans/pragmatic-audit-implementation-plan-v0.27.0.md) | lifecycle, curation | Pragmatic audit — 7-task implementation plan |
+| [`test-harness-maturation-plan-v0.27.0.md`](plans/test-harness-maturation-plan-v0.27.0.md) | lifecycle, curation | Test harness maturation — 3-wave plan |
 
 **Archived plans (2026-06-15):** replicant-server-mode, wallet-payment-mechanism, wallet-rjoule-payments, mcp-media-server-design, bundler-completion. Recoverable via `git log -- docs/plans/`.
 
@@ -167,6 +171,9 @@ Transient session handoffs recording implementation state. Handoffs are committe
 |----------|--------|-------------|
 | [`kata-user-guide.md`](guides/kata-user-guide.md) | composition, lifecycle | Toyota Kata — research background, technical build, user how-to |
 | [`OPERATIONS_RUNBOOK.md`](guides/OPERATIONS_RUNBOOK.md) | lifecycle, trust | Operations runbook — deployment, health checks, troubleshooting, backup/recovery |
+| [`CI-CD-GUIDE.md`](guides/CI-CD-GUIDE.md) | lifecycle | CI/CD and installation guide |
+| [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | lifecycle | Deployment guide — systemd, Docker, K8s |
+| [`MATRIX-CLOUD-DEPLOYMENT.md`](guides/MATRIX-CLOUD-DEPLOYMENT.md) | lifecycle | Matrix cloud deployment — Conduit sidecar, 7R7 listener |
 
 ---
 
@@ -177,6 +184,7 @@ Transient session handoffs recording implementation state. Handoffs are committe
 | [`AGENT-POD-CREATION-GUIDE.md`](user-guides/AGENT-POD-CREATION-GUIDE.md) | domain | Creating agent pods |
 | [`COMMON-AGENT-PATTERNS.md`](user-guides/COMMON-AGENT-PATTERNS.md) | domain | Common agent patterns and templates |
 | [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | domain, composition | Company research and portfolio management user guide |
+| [`REPLICANT-ONBOARDING-WALKTHROUGH.md`](user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md) | domain, lifecycle | End-to-end onboarding — install through first chat session |
 
 ---
 
@@ -199,6 +207,9 @@ Documentation quality gates (run from the repository root):
 bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/check-metadata.sh   # mandatory metadata headers on every active doc
 bash docs/ci/sync-versions.sh --dry-run  # version synchronization check
+bash docs/ci/essentialist-cull.sh       # unreferenced document detection
+bash docs/ci/pre-commit-version-check.sh  # pre-commit version anomaly hook
+bash docs/ci/regenerate-corpus-inventory.sh  # inventory skeleton regeneration
 ```
 
 *ℏKask - A Minimal Viable Container for Agents — v0.27.0*

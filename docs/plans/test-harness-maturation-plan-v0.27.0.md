@@ -10,10 +10,10 @@ mds_categories: [lifecycle, curation]
 
 # hKask v0.27.0 — Test Harness Maturation Plan
 
-**Status:** In Progress — Wave 1 ✅ (PRs 1.1.1–1.1.3 complete), Wave 2 pending  
+**Status:** In Progress — Wave 1 ✅, Wave 2 ✅ (4/6 crates with property tests), Waves 3–6 pending  
 **Owner:** Engineering  
 **Created:** 2026-06-15  
-**Last Updated:** 2026-06-15 (Wave 1 complete)  
+**Last Updated:** 2026-06-15 (Wave 2 complete)  
 **Scope:** `crates/*` + `mcp-servers/*` (headless-only, no UI additions)  
 **Source Analysis:** Pragmatics 4-phase cascade + Grill-Me interrogation (2026-06-15)  
 **Principles:** P3 (Generative Space), P5 (Essentialism), P6 (Space for Replicants), P7 (Evolutionary Architecture), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation), P12 (Replicant Host Mandate)

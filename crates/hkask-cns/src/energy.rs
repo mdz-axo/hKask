@@ -383,3 +383,84 @@ pub enum EnergyError {
         remaining: EnergyCost,
     },
 }
+
+// ── Property-based tests (Wave 2) ───────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    /// Strategy: generate a random EnergyCost in a reasonable range.
+    fn arbitrary_cost() -> BoxedStrategy<EnergyCost> {
+        (1u64..1000u64).prop_map(EnergyCost).boxed()
+    }
+
+    /// Strategy: generate a random EnergyBudget with hard_limit=true.
+    fn arbitrary_budget() -> BoxedStrategy<EnergyBudget> {
+        (1u64..10000u64)
+            .prop_map(|cap| EnergyBudget::new(EnergyCost(cap)))
+            .boxed()
+    }
+
+    // REQ: CNS-001 — Budget cap invariant (P4, P9)
+    // After any sequence of reserve/settle/consume operations,
+    // remaining + reserved never exceeds cap.
+    proptest! {
+        #[test]
+        fn budget_never_exceeds_cap(
+            mut budget in arbitrary_budget(),
+            operations in prop::collection::vec((arbitrary_cost(), arbitrary_cost()), 0..20),
+        ) {
+            let cap = budget.cap;
+            for (reserve_gas, actual_gas) in &operations {
+                // Try to reserve; may fail if insufficient
+                if let Ok(reserved) = budget.reserve(*reserve_gas) {
+                    // Settle with actual cost (may differ from reserved)
+                    let _ = budget.settle(reserved, *actual_gas);
+                }
+            }
+            let total = EnergyCost(budget.remaining.0 + budget.reserved.0);
+            prop_assert!(total <= cap,
+                "remaining {} + reserved {} = {} > cap {}",
+                budget.remaining.0, budget.reserved.0, total.0, cap.0);
+        }
+    }
+
+    // REQ: CNS-002 — Available never negative (P4, P9)
+    // available() = remaining - reserved, must never be negative.
+    proptest! {
+        #[test]
+        fn available_never_negative(
+            mut budget in arbitrary_budget(),
+            operations in prop::collection::vec(arbitrary_cost(), 0..20),
+        ) {
+            for cost in &operations {
+                let _ = budget.reserve(*cost);
+                let _ = budget.consume(*cost);
+            }
+            let available = budget.available();
+            prop_assert!(available.0 <= budget.remaining.0,
+                "available {} > remaining {}", available.0, budget.remaining.0);
+        }
+    }
+
+    // REQ: CNS-003 — Replenish never exceeds cap (P9)
+    // After replenishment, remaining never exceeds cap.
+    proptest! {
+        #[test]
+        fn replenish_never_exceeds_cap(
+            mut budget in arbitrary_budget(),
+            cycles in 0u32..100u32,
+        ) {
+            // Drain budget first
+            budget.remaining = EnergyCost(0);
+            for _ in 0..cycles {
+                budget.replenish();
+            }
+            prop_assert!(budget.remaining <= budget.cap,
+                "remaining {} > cap {} after {} cycles",
+                budget.remaining.0, budget.cap.0, cycles);
+        }
+    }
+}

@@ -148,7 +148,52 @@ mod tests {
     #[test]
     fn validator_default_is_passthrough() {
         let validator = ContractValidator::default();
-        let (result, _) = validator.validate_terms("test", &["anything".into()]);
+        let (result, unknown) = validator.validate_terms("test", &["anything".into()]);
         assert!(result.is_ok());
+        assert!(unknown.is_empty());
+    }
+
+    // ── Property-based tests (Wave 2) ─────────────────────────────────────
+
+    use proptest::prelude::*;
+
+    // REQ: TPL-001 — Manifest validation never panics (P4, P8)
+    // For any lexicon and any term set, validate_terms never panics.
+    proptest! {
+        #[test]
+        fn validator_never_panics(
+            known_terms in prop::collection::vec(proptest::arbitrary::any::<String>(), 0..20),
+            test_terms in prop::collection::vec(proptest::arbitrary::any::<String>(), 0..10),
+            mode in proptest::sample::select(&[ValidationMode::Warn, ValidationMode::Reject]),
+        ) {
+            let mut lexicon = HLexicon::new();
+            for term in &known_terms {
+                if !term.is_empty() {
+                    lexicon.add(LexiconTerm::new(term, TemplateType::WordAct, "test"));
+                }
+            }
+            let validator = ContractValidator::with_lexicon(&lexicon).with_mode(mode);
+            let result = std::panic::catch_unwind(|| {
+                validator.validate_terms("test", &test_terms)
+            });
+            prop_assert!(result.is_ok(), "validator panicked");
+        }
+    }
+
+    // REQ: TPL-002 — Known terms always accepted (P4, P8)
+    // Terms registered in the lexicon are never reported as unknown.
+    proptest! {
+        #[test]
+        fn known_terms_always_accepted(
+            term in proptest::arbitrary::any::<String>(),
+        ) {
+            prop_assume!(!term.is_empty());
+            let mut lexicon = HLexicon::new();
+            lexicon.add(LexiconTerm::new(&term, TemplateType::WordAct, "test"));
+            let validator = ContractValidator::with_lexicon(&lexicon).with_mode(ValidationMode::Reject);
+            let (result, unknown) = validator.validate_terms("test", &[term]);
+            prop_assert!(result.is_ok());
+            prop_assert!(unknown.is_empty());
+        }
     }
 }

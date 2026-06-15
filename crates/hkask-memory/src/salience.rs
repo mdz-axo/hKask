@@ -1073,4 +1073,56 @@ mod tests {
         let signals = compute_method_signals(text);
         assert!(signals.dialogue_ratio > 0.3);
     }
+
+    // ── Property-based tests (Wave 2) ─────────────────────────────────────
+
+    use proptest::prelude::*;
+
+    /// Strategy: generate random EntityTags with controlled entity sets.
+    fn arbitrary_entity_tags() -> BoxedStrategy<EntityTags> {
+        prop::collection::vec(proptest::arbitrary::any::<String>(), 0..5)
+            .prop_map(|chars| EntityTags {
+                characters: chars.into_iter().filter(|s| !s.is_empty()).collect(),
+                places: vec![],
+                events: vec![],
+                concepts: vec![],
+                methods: vec![],
+            })
+            .boxed()
+    }
+
+    // REQ: MEM-001 — Salience scores in valid range (P8, P9)
+    // All salience scores are in [0.0, 1.0] and function never panics.
+    proptest! {
+        #[test]
+        fn salience_scores_in_valid_range(
+            tags in prop::collection::vec(arbitrary_entity_tags(), 0..20),
+        ) {
+            let result = std::panic::catch_unwind(|| {
+                compute_salience_batch(&tags)
+            });
+            prop_assert!(result.is_ok(), "compute_salience_batch panicked");
+            let scores = result.unwrap();
+            for (i, score) in scores.iter().enumerate() {
+                prop_assert!(*score >= 0.0 && *score <= 1.0,
+                    "score[{}] = {} out of [0.0, 1.0] range", i, score);
+            }
+        }
+    }
+
+    // REQ: MEM-002 — Empty tags produce zero salience (P8)
+    // Passages with no entity tags always score zero.
+    proptest! {
+        #[test]
+        fn empty_tags_produce_zero_salience(
+            mut tags in prop::collection::vec(arbitrary_entity_tags(), 1..10),
+        ) {
+            // Add an empty-tag passage
+            tags.push(EntityTags::default());
+            let scores = compute_salience_batch(&tags);
+            let last = scores.last().unwrap();
+            prop_assert_eq!(*last, 0.0f32,
+                "empty-tag passage should score 0.0, got {}", last);
+        }
+    }
 }

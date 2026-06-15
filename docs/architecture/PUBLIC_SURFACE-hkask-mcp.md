@@ -1,3 +1,13 @@
+---
+title: "Public Surface Justification — hkask-mcp"
+audience: [architects, developers]
+last_updated: 2026-06-15
+version: "0.27.0"
+status: "Active"
+domain: "Technology"
+mds_categories: [composition]
+---
+
 # Public Surface Justification — hkask-mcp
 
 **Crate:** `hkask-mcp`  

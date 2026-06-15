@@ -127,9 +127,9 @@ Documents with `version` diverging from workspace `0.27.0`:
 
 ## P3 — Low (Backlog)
 
-### P3-1: Crate-Specific Onboarding Guides — Template Created
+### P3-1: Crate-Specific Onboarding Guides — Rejected
 
-**Status:** Template created at `docs/user-guides/CRATE-ONBOARDING-TEMPLATE.md`. Covers: crate purpose, architecture, public interface, testing, common tasks, error handling. Individual crate guides deferred — 18 crates is a per-crate workstream. Copy template and fill per crate.
+**Rationale:** "Crate onboarding" is a category error — crates don't onboard, replicants and users do. The underlying need (developer reference docs for complex crates) is real but not well-scoped as a P3 item. Defer to per-crate workstreams when specific crate documentation gaps are identified.
 
 ### P3-2: Replicant Onboarding Walkthrough ✅ DONE
 
@@ -187,7 +187,7 @@ After each tier is complete:
 | P0 | `check-links.sh` passes; README portal has no "not yet created" references; P0-1 (CI scripts in missing_referenced) resolved ✅ |
 | P1 | `check-metadata.sh` passes with 0 errors; all version anomalies resolved ✅; sync-versions.sh functional ✅; MDS_SCAFFOLD.md updated ✅ |
 | P2 | `openapi.json` generated ✅; missing ADRs exist ✅; archive policy codified ✅; runbook exists ✅; plan versioning standardized ✅ |
-| P3 | Backlog grooming complete; onboarding walkthrough created ✅; essentialist cull script ✅; corpus inventory regeneration script ✅; pre-commit hook ✅; crate guide template created (per-crate guides deferred) |
+| P3 | Backlog grooming complete; onboarding walkthrough created ✅; essentialist cull script ✅; corpus inventory regeneration script ✅; pre-commit hook ✅; P3-1 rejected (category error) |
 
 ---
 

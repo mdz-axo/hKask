@@ -1,3 +1,13 @@
+---
+title: "Public Seam Priority List"
+audience: [architects, developers]
+last_updated: 2026-06-15
+version: "0.27.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [composition, curation]
+---
+
 # Public Seam Priority List
 
 **Generated:** 2026-06-15T21:21:38Z

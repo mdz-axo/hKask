@@ -1,3 +1,13 @@
+---
+title: "Matrix Cloud Deployment Guide"
+audience: [devops, system administrators]
+last_updated: 2026-06-15
+version: "0.27.0"
+status: "Draft"
+domain: "Technology"
+mds_categories: [lifecycle]
+---
+
 # Matrix Cloud Deployment Guide
 
 **Status:** Design document — not yet implemented  
