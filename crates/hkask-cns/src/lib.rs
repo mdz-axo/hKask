@@ -39,6 +39,8 @@ pub use wallet_energy_estimator::WalletEnergyEstimator;
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
 pub use hkask_types::cns::QueueDepth;
 pub use runtime::CnsRuntime;
+pub use runtime::NoopEventSink;
+pub use seam_watcher::{SeamDrift, SeamSummary, SeamWatcher};
 pub use set_points::{
     CurationThresholdConfig, DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD,
     DEFAULT_CONNECTOR_LATENCY_MAX_SECS, DEFAULT_ENERGY_MIN_REMAINING_RATIO, DEFAULT_ERROR_RATE_MAX,

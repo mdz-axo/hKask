@@ -664,3 +664,165 @@ where
     running.waiting().await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper: parse a `McpToolError::to_json_string()` output and extract fields.
+    fn parse_error_json(json: &str) -> (String, String) {
+        let v: serde_json::Value = serde_json::from_str(json).expect("error JSON should be valid");
+        let error = v["error"]
+            .as_str()
+            .expect("should have 'error' field")
+            .to_string();
+        let kind = v["kind"]
+            .as_str()
+            .expect("should have 'kind' field")
+            .to_string();
+        (error, kind)
+    }
+
+    // REQ: mcp-error-golden-001 — all 8 McpErrorKind variants produce correct wire format
+    #[test]
+    fn all_error_kinds_produce_correct_wire_format() {
+        let cases = vec![
+            (McpToolError::internal("internal bug"), "internal"),
+            (McpToolError::unavailable("downstream down"), "unavailable"),
+            (McpToolError::timeout("timed out"), "timeout"),
+            (McpToolError::not_found("missing resource"), "not_found"),
+            (
+                McpToolError::invalid_argument("bad input"),
+                "invalid_argument",
+            ),
+            (
+                McpToolError::permission_denied("access denied"),
+                "permission_denied",
+            ),
+            (
+                McpToolError::rate_limited("too many requests"),
+                "rate_limited",
+            ),
+            (
+                McpToolError::failed_precondition("not initialized"),
+                "failed_precondition",
+            ),
+        ];
+
+        for (err, expected_kind) in cases {
+            let json = err.to_json_string();
+            let (error_msg, kind) = parse_error_json(&json);
+            assert!(!error_msg.is_empty(), "error message should not be empty");
+            assert_eq!(
+                kind, expected_kind,
+                "kind field should match McpErrorKind Display"
+            );
+            // Verify the JSON is valid and has exactly 2 top-level keys
+            let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+            assert!(
+                v.as_object().unwrap().len() == 2,
+                "error JSON should have exactly 2 fields (error + kind)"
+            );
+        }
+    }
+
+    // REQ: mcp-error-golden-002 — error wire format is stable (golden strings)
+    #[test]
+    fn error_wire_format_golden_strings() {
+        // These exact JSON strings are the contract. Changing them breaks all clients.
+        assert_eq!(
+            McpToolError::internal("boom").to_json_string(),
+            r#"{"error":"boom","kind":"internal"}"#
+        );
+        assert_eq!(
+            McpToolError::not_found("gone").to_json_string(),
+            r#"{"error":"gone","kind":"not_found"}"#
+        );
+        assert_eq!(
+            McpToolError::invalid_argument("bad").to_json_string(),
+            r#"{"error":"bad","kind":"invalid_argument"}"#
+        );
+        assert_eq!(
+            McpToolError::permission_denied("nope").to_json_string(),
+            r#"{"error":"nope","kind":"permission_denied"}"#
+        );
+        assert_eq!(
+            McpToolError::unavailable("down").to_json_string(),
+            r#"{"error":"down","kind":"unavailable"}"#
+        );
+        assert_eq!(
+            McpToolError::timeout("late").to_json_string(),
+            r#"{"error":"late","kind":"timeout"}"#
+        );
+        assert_eq!(
+            McpToolError::rate_limited("wait").to_json_string(),
+            r#"{"error":"wait","kind":"rate_limited"}"#
+        );
+        assert_eq!(
+            McpToolError::failed_precondition("nope").to_json_string(),
+            r#"{"error":"nope","kind":"failed_precondition"}"#
+        );
+    }
+
+    // REQ: mcp-error-golden-003 — McpErrorKind Display matches wire format kind field
+    #[test]
+    fn error_kind_display_matches_wire_format() {
+        for kind in &[
+            McpErrorKind::Internal,
+            McpErrorKind::Unavailable,
+            McpErrorKind::Timeout,
+            McpErrorKind::NotFound,
+            McpErrorKind::InvalidArgument,
+            McpErrorKind::PermissionDenied,
+            McpErrorKind::RateLimited,
+            McpErrorKind::FailedPrecondition,
+        ] {
+            let err = McpToolError::new(*kind, "test");
+            let json = err.to_json_string();
+            let (_, wire_kind) = parse_error_json(&json);
+            assert_eq!(
+                wire_kind,
+                kind.to_string(),
+                "wire format kind must match McpErrorKind Display"
+            );
+        }
+    }
+
+    // REQ: mcp-error-golden-004 — classify_http_error maps status codes correctly
+    #[test]
+    fn classify_http_error_maps_status_codes() {
+        use reqwest::StatusCode;
+
+        // 401/403 → PermissionDenied
+        let err = classify_http_error("TestSvc", StatusCode::UNAUTHORIZED, "unauthorized");
+        assert_eq!(err.kind, McpErrorKind::PermissionDenied);
+        let err = classify_http_error("TestSvc", StatusCode::FORBIDDEN, "forbidden");
+        assert_eq!(err.kind, McpErrorKind::PermissionDenied);
+
+        // 404 → NotFound
+        let err = classify_http_error("TestSvc", StatusCode::NOT_FOUND, "missing");
+        assert_eq!(err.kind, McpErrorKind::NotFound);
+
+        // 422 → InvalidArgument
+        let err = classify_http_error("TestSvc", StatusCode::UNPROCESSABLE_ENTITY, "bad schema");
+        assert_eq!(err.kind, McpErrorKind::InvalidArgument);
+
+        // 429 → RateLimited
+        let err = classify_http_error("TestSvc", StatusCode::TOO_MANY_REQUESTS, "rate limited");
+        assert_eq!(err.kind, McpErrorKind::RateLimited);
+
+        // 502/503 → Unavailable
+        let err = classify_http_error("TestSvc", StatusCode::BAD_GATEWAY, "bad gateway");
+        assert_eq!(err.kind, McpErrorKind::Unavailable);
+        let err = classify_http_error("TestSvc", StatusCode::SERVICE_UNAVAILABLE, "down");
+        assert_eq!(err.kind, McpErrorKind::Unavailable);
+
+        // Other 5xx → Unavailable
+        let err = classify_http_error("TestSvc", StatusCode::INTERNAL_SERVER_ERROR, "boom");
+        assert_eq!(err.kind, McpErrorKind::Unavailable);
+
+        // Unknown → Internal
+        let err = classify_http_error("TestSvc", StatusCode::OK, "unexpected");
+        assert_eq!(err.kind, McpErrorKind::Internal);
+    }
+}

@@ -24,14 +24,12 @@ pub(crate) fn embedding_dim() -> usize {
 fn load_sqlite_vec() -> Result<(), DatabaseError> {
     use std::sync::Once;
     static INIT: Once = Once::new();
+    // SAFETY: sqlite3_vec_init is the canonical entry point for the sqlite-vec
+    // extension. sqlite3_auto_extension expects a sqlite3_ext_init_fn which is
+    // equivalent to extern "C" fn(...) -> c_int. sqlite3_vec_init has signature
+    // fn() -> (), so we transmute the function pointer to the expected entry
+    // point type. This is the standard pattern used by sqlite-vec and rusqlite.
     INIT.call_once(|| unsafe {
-        // SAFETY: sqlite3_vec_init is the canonical entry point for the sqlite-vec
-        // extension. sqlite3_auto_extension expects a sqlite3_ext_init_fn which is
-        // equivalent to extern "C" fn(*mut sqlite3, *mut *const c_char, *const sqlite3_api_routines) -> c_int.
-        // sqlite3_vec_init has signature fn() -> (), so we transmute the function pointer
-        // to the expected entry point type. This is the standard pattern used by
-        // sqlite-vec and rusqlite projects — the actual registration is handled
-        // internally by sqlite3_vec_init when invoked.
         type Sqlite3ExtInitFn = unsafe extern "C" fn(
             *mut rusqlite::ffi::sqlite3,
             *mut *mut std::os::raw::c_char,

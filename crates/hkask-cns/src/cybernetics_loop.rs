@@ -521,6 +521,30 @@ impl HkaskLoop for CyberneticsLoop {
                         }),
                     ))
                 }
+                SignalMetric::SeamCoverage
+                    if dev.direction == DeviationDirection::AboveSetPoint =>
+                {
+                    // Public seam coverage improved — positive health signal (G5 fix).
+                    // Not an escalation; informational notification to Curator.
+                    let improvement = dev.signal.value - dev.signal.set_point;
+                    tracing::info!(
+                        target: "cns.architecture.seam",
+                        coverage_pct = dev.signal.value,
+                        set_point = dev.signal.set_point,
+                        improvement = improvement,
+                        "Public seam coverage improved — R7.3 positive signal"
+                    );
+                    Some(LoopAction::new(
+                        LoopId::Curation,
+                        ActionType::Notify,
+                        serde_json::json!({
+                            "reason": "seam_coverage_improved",
+                            "coverage_pct": dev.signal.value,
+                            "previous_coverage": dev.signal.set_point,
+                            "improvement": improvement,
+                        }),
+                    ))
+                }
                 _ => None,
             };
             if let Some(a) = action {

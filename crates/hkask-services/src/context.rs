@@ -148,6 +148,10 @@ pub struct AgentService {
     /// Wrapped in Mutex because login/reconnect take &mut self.
     matrix_transport: Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>>,
 
+    /// R7.3 public seam watcher — loaded at startup, refreshed periodically.
+    /// None if the inventory JSON file is missing (non-fatal).
+    seam_watcher: Option<SeamWatcher>,
+
     /// Configuration used to build this context.
     config: ServiceConfig,
 }
@@ -205,6 +209,10 @@ impl AgentService {
     /// CNS event sink for the audit trail.
     pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
         &self.event_sink
+    }
+    /// R7.3 public seam watcher — None if inventory unavailable at startup.
+    pub fn seam_watcher(&self) -> Option<&SeamWatcher> {
+        self.seam_watcher.as_ref()
     }
 
     // --- Governance ---
@@ -479,27 +487,27 @@ impl AgentService {
         )));
 
         // ── 4a. Seam watcher (R7.3) — load public seam inventory, register domains ──
-        // Non-fatal: if the JSON file is missing, seam watching is silently disabled.
+        // Non-fatal: if no inventory is available, seam watching is silently disabled.
+        // Uses embedded JSON (compile-time) with file path override (HKASK_SEAM_INVENTORY_PATH).
         let seam_watcher = {
             let cns = cns_runtime.read().await;
-            match SeamWatcher::load("docs/status/public-seam-inventory.json") {
-                Some(watcher) => {
-                    watcher.register_domains(&cns);
-                    tracing::info!(
-                        target: "bootstrap",
-                        crates = %watcher.inventory().crates.len(),
-                        coverage_pct = %watcher.overall_coverage(),
-                        "Seam watcher initialized — R7.3 watching the public seam"
-                    );
-                    Some(watcher)
-                }
-                None => {
-                    tracing::info!(
-                        target: "bootstrap",
-                        "Seam watcher skipped — inventory JSON not found (non-fatal)"
-                    );
-                    None
-                }
+            if let Some(watcher) = SeamWatcher::load() {
+                watcher.register_domains(&cns);
+                let summary = watcher.summary();
+                tracing::info!(
+                    target: "bootstrap",
+                    crates = %summary.crate_count,
+                    coverage_pct = %summary.coverage_pct,
+                    total_items = %summary.total_items,
+                    "Seam watcher initialized — R7.3 watching the public seam"
+                );
+                Some(watcher)
+            } else {
+                tracing::info!(
+                    target: "bootstrap",
+                    "Seam watcher skipped — no inventory available (non-fatal)"
+                );
+                None
             }
         };
 
@@ -872,6 +880,7 @@ impl AgentService {
             user_store,
             daemon_handler,
             matrix_transport,
+            seam_watcher,
             config,
         })
     }

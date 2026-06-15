@@ -280,6 +280,9 @@ pub enum ActionType {
     /// Used when an agent has exhausted its budget but should continue.
     /// This is the Curator's ability to inject gas into the system.
     ReplenishBudget,
+    /// Informational notification — no action required, positive signal.
+    /// Used for non-urgent health improvements (e.g., seam coverage increased).
+    Notify,
 }
 
 /// The Loop trait — sense → compare → compute → act.

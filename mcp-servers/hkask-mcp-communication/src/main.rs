@@ -16,7 +16,7 @@
 
 use hkask_communication::agent_registration::AgentRegistry;
 use hkask_communication::matrix::{MatrixTransport, RoomId};
-use hkask_mcp::server::ToolSpanGuard;
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -131,11 +131,11 @@ impl CommunicationServer {
             ),
             Ok(_) => span.error(
                 McpErrorKind::Internal,
-                serde_json::json!({"error": "espeak exited with error"}).to_string(),
+                McpToolError::internal("espeak exited with error").to_json_string(),
             ),
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
-                serde_json::json!({"error": format!("espeak not available: {e}")}).to_string(),
+                McpToolError::unavailable(format!("espeak not available: {e}")).to_json_string(),
             ),
         }
     }
@@ -162,8 +162,8 @@ impl CommunicationServer {
         args.push(&text);
         match std::process::Command::new("espeak").args(&args).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn().and_then(|mut c| c.wait()) {
             Ok(status) if status.success() => span.ok_json(serde_json::json!({"audio_path": path_str, "voice": voice, "text_length": text.len(), "engine": "espeak"})),
-            Ok(_) => span.error(McpErrorKind::Internal, serde_json::json!({"error": "espeak exited with error"}).to_string()),
-            Err(e) => span.error(McpErrorKind::Unavailable, serde_json::json!({"error": format!("espeak not available: {e}")}).to_string()),
+            Ok(_) => span.error(McpErrorKind::Internal, McpToolError::internal("espeak exited with error").to_json_string()),
+            Err(e) => span.error(McpErrorKind::Unavailable, McpToolError::unavailable(format!("espeak not available: {e}")).to_json_string()),
         }
     }
 
@@ -217,7 +217,8 @@ impl CommunicationServer {
             Ok(()) => span.ok_json(serde_json::json!({"sent": true, "room_id": room_id})),
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
-                serde_json::json!({"error": format!("Failed to send message: {}", e)}).to_string(),
+                McpToolError::unavailable(format!("Failed to send message: {}", e))
+                    .to_json_string(),
             ),
         }
     }
@@ -234,7 +235,8 @@ impl CommunicationServer {
             }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
-                serde_json::json!({"error": format!("Failed to create thread: {}", e)}).to_string(),
+                McpToolError::unavailable(format!("Failed to create thread: {}", e))
+                    .to_json_string(),
             ),
         }
     }
@@ -248,26 +250,35 @@ impl CommunicationServer {
         }): Parameters<InviteAgentRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("invite_agent", &self.webid);
-        let webid =
-            match WebID::from_str(&replicant_id) {
-                Ok(w) => w,
-                Err(_) => return span.error(
+        let webid = match WebID::from_str(&replicant_id) {
+            Ok(w) => w,
+            Err(_) => {
+                return span.error(
                     McpErrorKind::InvalidArgument,
-                    serde_json::json!({"error": format!("Invalid replicant ID: {}", replicant_id)})
-                        .to_string(),
-                ),
-            };
+                    McpToolError::invalid_argument(format!(
+                        "Invalid replicant ID: {}",
+                        replicant_id
+                    ))
+                    .to_json_string(),
+                );
+            }
+        };
         let user_id = match self.registry.resolve(&webid).await {
             Some(uid) => uid,
-            None => return span.error(
-                McpErrorKind::PermissionDenied,
-                serde_json::json!({"error": format!("Replicant {} not registered", replicant_id)})
-                    .to_string(),
-            ),
+            None => {
+                return span.error(
+                    McpErrorKind::PermissionDenied,
+                    McpToolError::permission_denied(format!(
+                        "Replicant {} not registered",
+                        replicant_id
+                    ))
+                    .to_json_string(),
+                );
+            }
         };
         match self.matrix.invite_user(&RoomId::new(&room_id), &user_id).await {
             Ok(()) => span.ok_json(serde_json::json!({"invited": true, "room_id": room_id, "replicant_id": replicant_id})),
-            Err(e) => span.error(McpErrorKind::Unavailable, serde_json::json!({"error": format!("Failed to invite agent: {}", e)}).to_string()),
+            Err(e) => span.error(McpErrorKind::Unavailable, McpToolError::unavailable(format!("Failed to invite agent: {}", e)).to_json_string()),
         }
     }
 
@@ -287,7 +298,8 @@ impl CommunicationServer {
             }
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
-                serde_json::json!({"error": format!("Failed to list threads: {}", e)}).to_string(),
+                McpToolError::unavailable(format!("Failed to list threads: {}", e))
+                    .to_json_string(),
             ),
         }
     }
@@ -301,18 +313,22 @@ impl CommunicationServer {
         }): Parameters<MonitorThreadRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("monitor_thread", &self.webid);
-        let webid =
-            match WebID::from_str(&replicant_id) {
-                Ok(w) => w,
-                Err(_) => return span.error(
+        let webid = match WebID::from_str(&replicant_id) {
+            Ok(w) => w,
+            Err(_) => {
+                return span.error(
                     McpErrorKind::InvalidArgument,
-                    serde_json::json!({"error": format!("Invalid replicant ID: {}", replicant_id)})
-                        .to_string(),
-                ),
-            };
+                    McpToolError::invalid_argument(format!(
+                        "Invalid replicant ID: {}",
+                        replicant_id
+                    ))
+                    .to_json_string(),
+                );
+            }
+        };
         match self.registry.monitor_thread(&webid, &RoomId::new(&room_id)).await {
             Ok(()) => span.ok_json(serde_json::json!({"monitored": true, "room_id": room_id, "replicant_id": replicant_id})),
-            Err(e) => span.error(McpErrorKind::PermissionDenied, serde_json::json!({"error": format!("Failed to monitor thread: {}", e)}).to_string()),
+            Err(e) => span.error(McpErrorKind::PermissionDenied, McpToolError::permission_denied(format!("Failed to monitor thread: {}", e)).to_json_string()),
         }
     }
 
@@ -326,28 +342,37 @@ impl CommunicationServer {
         }): Parameters<TagAgentRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("tag_agent", &self.webid);
-        let webid =
-            match WebID::from_str(&replicant_id) {
-                Ok(w) => w,
-                Err(_) => return span.error(
+        let webid = match WebID::from_str(&replicant_id) {
+            Ok(w) => w,
+            Err(_) => {
+                return span.error(
                     McpErrorKind::InvalidArgument,
-                    serde_json::json!({"error": format!("Invalid replicant ID: {}", replicant_id)})
-                        .to_string(),
-                ),
-            };
+                    McpToolError::invalid_argument(format!(
+                        "Invalid replicant ID: {}",
+                        replicant_id
+                    ))
+                    .to_json_string(),
+                );
+            }
+        };
         let user_id = match self.registry.resolve(&webid).await {
             Some(uid) => uid,
-            None => return span.error(
-                McpErrorKind::PermissionDenied,
-                serde_json::json!({"error": format!("Replicant {} not registered", replicant_id)})
-                    .to_string(),
-            ),
+            None => {
+                return span.error(
+                    McpErrorKind::PermissionDenied,
+                    McpToolError::permission_denied(format!(
+                        "Replicant {} not registered",
+                        replicant_id
+                    ))
+                    .to_json_string(),
+                );
+            }
         };
         let mention = format!("@{} {}", user_id.as_str(), body);
         let structured = serde_json::json!({"tag": {"target": replicant_id, "type": "mention"}});
         match self.matrix.send_message(&RoomId::new(&room_id), &mention, Some(structured)).await {
             Ok(()) => span.ok_json(serde_json::json!({"tagged": true, "room_id": room_id, "replicant_id": replicant_id})),
-            Err(e) => span.error(McpErrorKind::Unavailable, serde_json::json!({"error": format!("Failed to tag agent: {}", e)}).to_string()),
+            Err(e) => span.error(McpErrorKind::Unavailable, McpToolError::unavailable(format!("Failed to tag agent: {}", e)).to_json_string()),
         }
     }
 }

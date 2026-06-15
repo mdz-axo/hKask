@@ -1,7 +1,7 @@
 # Handoff — Code Quality & Smell Reduction, Waves 1–2
 
 **Session date:** 2026-06-15
-**Progress:** Waves 1–4 complete, Waves 5–6 pending
+**Progress:** Waves 1–5 complete, Wave 6 pending
 **Build status:** `cargo check --workspace` + `cargo clippy --workspace -D warnings` → clean
 
 ---
@@ -44,8 +44,35 @@
 
 ### What Remains (not started)
 
-- **Wave 5:** Module depth + safety governance (tasks 8 + 9)
-- **Wave 6:** Sustainment (task 10)
+- **Wave 6:** Sustainment (task 10 — CI quality gates)
+
+---
+
+## 5) Wave 5 — Module Depth + Safety Governance (✅ Complete)
+
+### Task 8 — Public surface control and justification policy (✅ Complete)
+
+**PR 8.1:** Added `PUBLIC_SURFACE-<crate>.md` justification docs for all 13 oversized crates:
+- Each doc explains why the surface is large, lists mitigations, and passes the deletion test
+- Covers: types, services, storage, agents, api, cns, improv, inference, keystore, mcp, memory, templates, wallet
+
+**PR 8.2:** Skipped — reducing re-exports would be breaking; justification docs suffice
+
+**PR 8.3:** Added `scripts/check-public-surface.sh`:
+- Counts pub items per crate, flags crates >7 without PUBLIC_SURFACE.md
+- All 16 crates pass (3 within threshold, 13 with justification docs)
+
+### Task 9 — Enforce unsafe documentation policy (✅ Complete)
+
+**PR 9.1:** Added `scripts/check-unsafe-safety.sh`:
+- Scans all non-test Rust files for `unsafe {` blocks
+- Flags any lacking a `SAFETY:` comment within 5 preceding lines
+- Excludes test modules and test helper functions
+
+**PR 9.2:** Moved one `SAFETY:` comment in `database.rs` to precede the `unsafe {` block
+- All non-test unsafe blocks now have proximate SAFETY: comments
+
+**PR 9.3:** No new violations detected — codebase was already compliant
 
 ---
 

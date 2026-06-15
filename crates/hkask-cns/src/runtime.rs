@@ -21,7 +21,7 @@ use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
 
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
-use hkask_types::event::SpanNamespace;
+use hkask_types::event::{NuEvent, NuEventSink, SpanNamespace};
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
@@ -560,6 +560,16 @@ impl CnsRuntime {
 impl Default for CnsRuntime {
     fn default() -> Self {
         Self::with_threshold(DEFAULT_THRESHOLD)
+    }
+}
+
+/// No-op event sink for tests and contexts where CNS event persistence
+/// is not needed (e.g., seam watcher unit tests).
+pub struct NoopEventSink;
+
+impl NuEventSink for NoopEventSink {
+    fn persist(&self, _event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+        Ok(())
     }
 }
 
