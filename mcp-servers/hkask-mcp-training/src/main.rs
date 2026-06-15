@@ -36,7 +36,7 @@ use hkask_mcp_training::providers::{
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::ports::InferencePort;
-use hkask_types::{LLMParameters, McpErrorKind, Visibility, WebID};
+use hkask_types::{LLMParameters, McpErrorKind, Visibility, WebID, now_rfc3339};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -191,7 +191,7 @@ impl TrainingServer {
         if let Some(ref daemon) = self.daemon {
             let value = serde_json::json!({
                 "tool": tool, "input": input_summary, "outcome": outcome,
-                "detail": detail, "timestamp": chrono::Utc::now().to_rfc3339(),
+                "detail": detail, "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();

@@ -79,7 +79,7 @@ Every test verb is an attenuatable capability:
 | `curate_test` | `test:{invariant_id}` | MCP, CLI, API | Yes (Curator only for Discard) |
 | `deepen_seam` | `test:{seam_id}` | MCP, CLI, API | Yes |
 
-Capability tokens for test operations follow the same `DelegationToken` pattern as spec operations (see [`MDS.md`](../architecture/core/MDS.md)). The `spec:validate` action covers test verification.
+Capability tokens for test operations follow the same `DelegationToken` pattern as spec operations (see [`MDS.md`](../../architecture/core/MDS.md)). The `spec:validate` action covers test verification.
 
 ---
 

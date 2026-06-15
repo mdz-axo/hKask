@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Unresolved aspects requiring decision-making before they can be addressed. Each question is tagged with its MDS category and includes the decision options under consideration.
 
-**Related:** [`MDS.md`](architecture/core/MDS.md), [`REQUIREMENTS.md`](specifications/REQUIREMENTS.md)
+**Related:** [`MDS.md`](architecture/core/MDS.md), [`REQUIREMENTS.md`](specifications/specs/REQUIREMENTS.md)
 
 ---
 

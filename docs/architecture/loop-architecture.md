@@ -1,7 +1,7 @@
 ---
 title: "Loop Architecture — Semantic Root-Cause Analysis & Four-Loop Decomposition"
 audience: [architects, developers, agents]
-last_updated: 2026-06-09
+last_updated: 2026-06-15
 version: "0.27.0"
 status: "Active"
 domain: "Architecture"
@@ -36,7 +36,7 @@ Energy tracking subsumes rate limiting by modeling **depletion**, **replenishmen
 
 ### 1.2 Root Cause
 
-Rate limiting was introduced as a **local approximation of energy accounting** before a unified energy model existed. It solved the immediate problem — preventing resource exhaustion — by discretizing continuous energy flow into countable tokens over fixed windows. This was correct as a stopgap but introduced two costs:
+Rate limiting emerged as a **local approximation of energy accounting** before a unified energy model existed. It solved the immediate problem — preventing resource exhaustion — by discretizing continuous energy flow into countable tokens over fixed windows. This served correctly as a stopgap but introduced two costs:
 
 1. **Coupling without expressiveness:** Rate limits couple callers to window boundaries (sliding vs. fixed, per-key vs. global) without expressing *why* the limit exists or *what* it protects.
 2. **Redundant projection:** With `EnergyBudget.try_consume()` now gating all operations under a unified energy cap, the rate limiter is a lossy projection of information that the energy model already holds in richer form.
@@ -81,7 +81,7 @@ status: VERIFIED
 
 ### 1.5 Consequence
 
-The `RateLimiter` and `CnsTokenBucket` types have been removed. `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
+The system has removed the `RateLimiter` and `CnsTokenBucket` types. `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — hKask does not use it as an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
 
 ### 1.6 External-Boundary Rate Limiting — Cybernetics Membrane at the Transport Boundary
 
@@ -122,7 +122,7 @@ hKask decomposes into four loops:
 | **Curation Loop** | Curator persona, prompt validation, reflective self-assessment | Which goals are pursued, whether behavior is coherent | Selection mechanism — chooses which paths the system pursues (the "which path" of δS = 0) |
 | **Cybernetics Loop** | Observability, governance, energy accounting (hJoules), homeostatic regulation | Health, stability, resource equilibrium of the entire system | Action tracking and boundary enforcement — measures action consumption, asserts backpressure at budget limits, senses anti-lazy drift via `EnergyDelta` |
 
-**Communication** is demoted from a loop to transport infrastructure — `tokio::mpsc` channels handle inter-loop messaging. Communication does not own resources, does not regulate, and does not transform. It is a dumb pipe.
+**Communication** functions as transport infrastructure, not a loop — `tokio::mpsc` channels handle inter-loop messaging. Communication does not own resources, does not regulate, and does not transform. It operates as a dumb pipe.
 
 ### 2.2 Loop ERD
 
@@ -246,7 +246,7 @@ Each loop exposes a **minimal interface** — a set of operations that other loo
 
 ### 3.3 Shared Substrate
 
-`hkask-storage` and `hkask-types` are **not owned by any loop** — they are shared substrate accessed via capability. No loop may access storage directly; all access is mediated by OCAP tokens that attenuate on each delegation. This prevents any loop from accumulating implicit authority over another loop's data.
+`hkask-storage` and `hkask-types` belong to **no single loop** — they serve as shared substrate accessed via capability. No loop may access storage directly; OCAP tokens mediate all access, attenuating on each delegation. This prevents any loop from accumulating implicit authority over another loop's data.
 
 ### 3.4 MCP Server-to-Loop Mapping
 

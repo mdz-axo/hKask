@@ -1,3 +1,13 @@
+---
+title: "Fowler Pattern Re-Audit"
+audience: [architects, developers]
+last_updated: 2026-06-15
+version: "0.27.0"
+status: "Active"
+domain: "Cross-cutting"
+mds_categories: [composition, curation]
+---
+
 # Fowler Pattern Re-Audit — hKask Codebase
 
 **Date:** 2026-06-15  

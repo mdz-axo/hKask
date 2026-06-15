@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Bidirectional traceability from MDS goal specs → code → tests, organized by MDS category.
 
-**Related:** [`REQUIREMENTS.md`](specs/REQUIREMENTS.md), [`MDS.md`](../architecture/core/MDS.md)
+**Related:** [`REQUIREMENTS.md`](../specs/REQUIREMENTS.md), [`MDS.md`](../../architecture/core/MDS.md)
 
 **Scope-exempt from Sourced-Ideas Mandate** — this is a cross-reference table, not a design document.
 
@@ -106,6 +106,6 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | Curation | 2 | 0 | 0 | 2 |
 | **Total** | **25** | **0** | **5** | **30** |
 
-**MDS completeness:** 25/25 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](specs/REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
+**MDS completeness:** 25/25 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](../specs/REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
 
 **Test coverage note (updated 2026-06-04):** The goal-capability hardening (originally ADR-029, P0-03; ADR-029 archived — `GoalCapabilityToken` removed) now uses WebID-based owner scoping. `GoalCapabilityToken` and associated forgery/expiry/attenuation tests were removed in v0.23.0. Remaining dedicated `#[test]` coverage: transition tests in `hkask-types` (`goal`), owner-only-delete tests in `hkask-storage` (`goals`). `cargo test --workspace` is green. Other MDS requirements remain primarily doctest- or inspection-verified pending broader test expansion (P0-02).

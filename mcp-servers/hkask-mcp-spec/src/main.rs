@@ -19,7 +19,7 @@ use hkask_storage::{Database, EmbeddingStore, SpecStore};
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind,
     TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
-    WebID, token_err_insufficient_access, verify_delegation_token_now,
+    WebID, now_rfc3339, token_err_insufficient_access, verify_delegation_token_now,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -362,7 +362,7 @@ impl SpecServer {
                 "input": input_summary,
                 "outcome": outcome,
                 "detail": detail,
-                "timestamp": chrono::Utc::now().to_rfc3339(),
+                "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();

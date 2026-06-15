@@ -19,7 +19,7 @@ crate prefix `hkask-`, workspace v0.27.0.
 
 > **Lifecycle note.** Retired documents are removed from the active tree via
 > `git rm` (git history is the archive of record) and the on-disk `docs/archive/`
-> snapshot is gitignored. See [`specifications/DOCUMENTATION_STANDARDS.md`](specifications/DOCUMENTATION_STANDARDS.md) §3.
+> snapshot is gitignored. See [`specifications/standards/DOCUMENTATION_STANDARDS.md`](specifications/standards/DOCUMENTATION_STANDARDS.md) §3.
 
 ---
 
@@ -29,7 +29,7 @@ crate prefix `hkask-`, workspace v0.27.0.
 |----------|------------|
 | [`architecture/hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative index to the four MDS specification documents and reference artifacts |
 | [`architecture/MDS.md`](architecture/core/MDS.md) | The 5-category specification framework and MDS methodology |
-| [`specifications/MDS_SCAFFOLD.md`](specifications/MDS_SCAFFOLD.md) | MDS category → directory mapping and lifecycle policy |
+| [`specifications/specs/MDS_SCAFFOLD.md`](specifications/specs/MDS_SCAFFOLD.md) | MDS category → directory mapping and lifecycle policy |
 | [`plans/TODO.md`](plans/TODO.md) | Open work only |
 
 ---
@@ -44,7 +44,7 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | domain, composition, trust, lifecycle, curation | Architecture principles (P1-P12), 5 anchors, anti-patterns |
 | [`magna-carta.md`](architecture/core/magna-carta.md) | domain, composition, trust, lifecycle, curation | User sovereignty charter — 4 inviolable principles |
 | [`loop-architecture.md`](architecture/loop-architecture.md) | domain, composition, lifecycle, curation | 4-loop architecture — RateLimiting→EnergyBudget, crate↔loop mapping |
-| [`wallet-specification.md`](specifications/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate — architectural specification |
+| [`wallet-specification.md`](specifications/specs/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate — architectural specification |
 | [`P12-replicant-host-mandate.md`](architecture/mandates/P12-replicant-host-mandate.md) | domain, trust, composition | Replicant host mandate — P12 elaboration |
 | [`energy-gas-payments-api-keys.md`](architecture/energy-gas-payments-api-keys.md) | domain, trust, lifecycle, curation | Energy, gas, payments & API key architecture |
 | [`lazy-universe-research.md`](research/lazy-universe-research.md) | domain, composition, curation | Least-action principle — research grounding |
@@ -127,7 +127,6 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | `specifications/dual-presence-pattern.md` | Merged into [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) §Dual-Presence | Open questions → question tracker |
 | `specifications/improv-skill-design.md` | [`.agents/skills/improv/design.md`](../.agents/skills/improv/design.md) | Skill design → skill folder |
 | `specifications/improv-future-questions.md` | [`.agents/skills/improv/future-questions.md`](../.agents/skills/improv/future-questions.md) | Skill questions → skill folder |
-| [`gentle-lovelace-specification.md`](specifications/gentle-lovelace-specification.md) | domain, composition, curation | Gentle Lovelace — document excellence replica specification |
 
 ---
 

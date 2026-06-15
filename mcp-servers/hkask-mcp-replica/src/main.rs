@@ -15,7 +15,7 @@ use hkask_services::{
     EmbedProgress, EmbedService, HkaskSettings, InferenceContext, cosine_distance,
 };
 use hkask_storage::{Database, EmbeddingStore};
-use hkask_types::{McpErrorKind, WebID};
+use hkask_types::{McpErrorKind, WebID, now_rfc3339};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
@@ -73,7 +73,7 @@ impl ReplicaServer {
         if let Some(ref daemon) = self.daemon {
             let value = serde_json::json!({
                 "tool": tool, "input": input_summary, "outcome": outcome,
-                "detail": detail, "timestamp": chrono::Utc::now().to_rfc3339(),
+                "detail": detail, "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
             let replicant = self.replicant.clone();

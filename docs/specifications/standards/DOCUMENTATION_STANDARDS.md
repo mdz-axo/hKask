@@ -22,11 +22,11 @@ non-negotiable biases of this project:
    citation with a URL.
 3. **Writing Excellence Mandate** — every document must pass at least
    three of the four perspective tests defined in the companion
-   [`WRITING_EXCELLENCE.md`](standards/WRITING_EXCELLENCE.md) protocol (Hopper,
+   [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md) protocol (Hopper,
    Lovelace, Schriver, Gentle).
 4. **Stewardship Mandate** — documents that introduce, describe, or
    modify a context of participant collaboration honour the
-   stewardship principles in [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) §4.
+   stewardship principles in [`PRINCIPLES.md`](../../architecture/core/PRINCIPLES.md) §4.
     Specifically: declare the shared goal of the context (PS-01),
     document the bounded lexicon of its domain (PS-02), name the mode
     of play it supports (PS-03), and prefer invitational over
@@ -43,7 +43,7 @@ is the operational quality standard that governs publication decisions.
 
 The metadata, diagram, citation, and writing excellence conventions below implement these biases. Violations block publication.
 
-**Role:** This document is the verification gate. It confirms that documentation is correct and complete. [`MDS_SCAFFOLD.md`](specs/MDS_SCAFFOLD.md) governs what to create and where to put it.
+**Role:** This document is the verification gate. It confirms that documentation is correct and complete. [`MDS_SCAFFOLD.md`](../specs/MDS_SCAFFOLD.md) governs what to create and where to put it.
 
 ---
 
@@ -52,7 +52,7 @@ The metadata, diagram, citation, and writing excellence conventions below implem
 Every document directly under `docs/**` (excluding `archive/`) MUST
 begin with YAML frontmatter delimited by `---` containing the following
 six fields. The header format shown below uses the 5-category MDS taxonomy
-per [`../architecture/MDS.md`](../architecture/core/MDS.md) §1:
+per [`../architecture/MDS.md`](../../architecture/core/MDS.md) §1:
 
 ```yaml
 ---
@@ -74,7 +74,7 @@ Conventions:
 | Last-Updated | ISO 8601 date on every content-bearing edit[^iso8601]. |
 | Status | Exactly one of the four values. `Deprecated` and `Superseded` documents are removed from the active tree (`git rm`) at the next review; git history is the canonical archive of record. A local `docs/archive/` snapshot may be kept on a maintainer's disk for personal reference but is gitignored. |
 | Audience | Named roles; avoid "everyone." |
-| MDS Categories | One or more of the 5 MDS categories defined in [`../architecture/MDS.md`](../architecture/core/MDS.md) §1: `domain`, `composition`, `trust`, `lifecycle`, `curation`. See [`MDS_SCAFFOLD.md`](specs/MDS_SCAFFOLD.md) for category → directory mapping. Documents that spanned the deprecated 9-category DDMVSS taxonomy have been migrated; the old categories map as: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. |
+| MDS Categories | One or more of the 5 MDS categories defined in [`../architecture/MDS.md`](../../architecture/core/MDS.md) §1: `domain`, `composition`, `trust`, `lifecycle`, `curation`. See [`MDS_SCAFFOLD.md`](../specs/MDS_SCAFFOLD.md) for category → directory mapping. Documents that spanned the deprecated 9-category DDMVSS taxonomy have been migrated; the old categories map as: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. |
 | Domain | Optional for cross-cutting documents; mandatory for domain-specific documents. |
 
 ## 3. Lifecycle
@@ -111,7 +111,7 @@ followed by `git show <sha>:<path>`. The `docs/archive/` directory is
 gitignored and kept on disk for personal reference, organized by date
 (`docs/archive/YYYY-MM-DD-<label>/`). Archived documents must not be
 linked from the active tree. No active-tree document may describe retired
-or removed subsystems — per [`AGENTS.md`](../../AGENTS.md) §2.4.
+or removed subsystems — per [`AGENTS.md`](../../../AGENTS.md) §2.4.
 
 ## 4. Mermaid diagrams
 
@@ -234,7 +234,7 @@ This ensures:
 
 ### 6.2 What belongs where
 
-For the authoritative MDS category → directory mapping, see [`MDS_SCAFFOLD.md`](specs/MDS_SCAFFOLD.md) §2. The table below is a simplified content-type view:
+For the authoritative MDS category → directory mapping, see [`MDS_SCAFFOLD.md`](../specs/MDS_SCAFFOLD.md) §2. The table below is a simplified content-type view:
 
 | Content | Location |
 |---------|----------|
@@ -279,8 +279,8 @@ or point to git history (`git log --diff-filter=D -- <path>`).
 ```markdown
 [Docs Like Code](https://www.docslikecode.com/)
 <!-- Example relative links (update for your repository structure) -->
-<!-- [REQUIREMENTS.md](../specifications/specs/REQUIREMENTS.md) -->
-<!-- [stack-domain-types](../../crates/hkask-types/src/lib.rs) -->
+<!-- [REQUIREMENTS.md](../specs/REQUIREMENTS.md) -->
+<!-- [stack-domain-types](../../../crates/hkask-types/src/lib.rs) -->
 ```
 
 (Example paths above resolve against the `docs/standards/` directory. External
@@ -291,7 +291,7 @@ cross-references within the repository are verified.)
 ## 9. Writing Excellence
 
 The voice, style, and quality discipline for this corpus is defined in the
-companion [`WRITING_EXCELLENCE.md`](standards/WRITING_EXCELLENCE.md) protocol. That
+companion [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md) protocol. That
 document operationalizes four independent dimensions of documentation
 quality — each grounded in the work of a woman who shaped the field:
 
@@ -332,7 +332,7 @@ Before a document is merged:
 - [ ] All internal links resolve
 - [ ] No aspirational content (if document is in `architecture/` or `status/`)
 - [ ] `Last-Updated` date reflects the date of the final edit
-- [ ] Writing Excellence: document passes ≥ 3 of 4 perspective tests (see [`WRITING_EXCELLENCE.md`](standards/WRITING_EXCELLENCE.md) §3)
+- [ ] Writing Excellence: document passes ≥ 3 of 4 perspective tests (see [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md) §3)
     - [ ] Hopper (accessibility) — zero-context reader can accomplish the task
     - [ ] Lovelace (precision) — reader can write a test from spec alone
     - [ ] Schriver (findability) — answer found within 30 seconds
@@ -343,7 +343,7 @@ Before a document is merged:
 
 ## 11. MDS Alignment
 
-All architecture documents MUST map to at least one of the 5 MDS categories defined in [`../architecture/MDS.md`](../architecture/core/MDS.md) §1:
+All architecture documents MUST map to at least one of the 5 MDS categories defined in [`../architecture/MDS.md`](../../architecture/core/MDS.md) §1:
 
 1. **Domain** — Bounded context, ν-events, entities, hLexicon terms
 2. **Composition** — Registry, cascade rules, template types, MCP/CLI/API surfaces, equivalence matrix
@@ -375,7 +375,7 @@ The verification checklist (§10) is extended with MDS alignment checks:
 
 - [ ] Document maps to ≥1 MDS category
 - [ ] `mds_categories` field present in metadata
-- [ ] Category-specific completeness criteria addressed (see [`MDS.md`](../architecture/core/MDS.md) §2)
+- [ ] Category-specific completeness criteria addressed (see [`MDS.md`](../../architecture/core/MDS.md) §2)
 
 ### 11.3 Category-Specific Requirements
 
