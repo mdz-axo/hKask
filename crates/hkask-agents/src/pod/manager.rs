@@ -17,6 +17,9 @@ use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use crate::ports::{EpisodicStoragePort, MCPRuntimePort, RecalledEpisode, SemanticStoragePort};
 use hkask_mcp::GitCasAdapter;
 
+/// Callback invoked after a pod is successfully activated.
+pub type ActivationHook = Box<dyn Fn(WebID, String) + Send + Sync>;
+
 pub struct PodManager {
     pub(crate) pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
     git_cas: Arc<GitCasAdapter>,
@@ -31,7 +34,7 @@ pub struct PodManager {
     consent: Arc<dyn crate::SovereigntyConsent>,
     /// Hooks called after a pod is successfully activated.
     /// Each hook receives the pod's WebID and display name.
-    activation_hooks: RwLock<Vec<Box<dyn Fn(WebID, String) + Send + Sync>>>,
+    activation_hooks: RwLock<Vec<ActivationHook>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

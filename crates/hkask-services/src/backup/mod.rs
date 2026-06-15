@@ -16,6 +16,7 @@
 //! 7. `update_config` — update backup configuration
 
 pub mod config;
+pub mod r#loop;
 pub mod metadata;
 pub mod scope;
 pub mod serialization;
@@ -200,7 +201,6 @@ impl BackupService {
                 continue;
             }
             let repo_id = artifact_type.repo_id();
-            let _path = serialization::artifact_git_path(artifact_type, artifact_id);
 
             // Encrypt if configured.
             let encrypted = if self.encryption_key.is_some() {
@@ -372,31 +372,31 @@ impl BackupService {
         };
 
         let repos = self.tracked_repos();
-        let mut evaluated = 0usize;
-        let mut removed = Vec::new();
-        let mut retained = 0usize;
+        let mut total_evaluated = 0usize;
+        let mut total_removed = Vec::new();
+        let mut total_retained = 0usize;
 
         let now_secs = Utc::now().timestamp() as u64;
 
         for repo_id in &repos {
             let mut entries: Vec<LogEntry> = self.cas.log(repo_id, 1000).await?;
-            // Sort oldest first for index-based evaluation.
             entries.sort_by_key(|e| e.timestamp_secs);
-            evaluated += entries.len();
+            total_evaluated += entries.len();
 
-            // Index 0 = oldest, n-1 = newest. Reverse for iteration.
             let count = entries.len();
+            let mut repo_removed: Vec<CommitHash> = Vec::new();
             for (i, entry) in entries.iter().enumerate() {
-                let commit_index = count - 1 - i; // 0 = newest
+                let commit_index = count - 1 - i;
                 if policy.should_keep(commit_index, entry.timestamp_secs, now_secs) {
-                    retained += 1;
+                    total_retained += 1;
                 } else {
-                    removed.push((repo_id.clone(), entry.commit.clone()));
+                    repo_removed.push(entry.commit.clone());
+                    total_removed.push((repo_id.clone(), entry.commit.clone()));
                 }
             }
 
-            // Execute actual pruning if not dry run.
-            if !dry_run && !removed.is_empty() {
+            // Execute actual pruning if not dry run and this repo has removals.
+            if !dry_run && !repo_removed.is_empty() {
                 self.rewrite_history(repo_id, &entries, &policy, now_secs)
                     .await?;
             }
@@ -404,14 +404,14 @@ impl BackupService {
 
         Ok(PruneReport {
             dry_run,
-            evaluated,
-            removed,
-            retained,
+            evaluated: total_evaluated,
+            removed: total_removed,
+            retained: total_retained,
         })
     }
 
-    /// Rewrite git history to remove pruned commits.
-    /// Uses gix to create a new commit chain with only retained commits.
+    /// Rewrite git history: collect retained blobs, create an orphan commit
+    /// with no parent, effectively starting a new pruned history chain.
     async fn rewrite_history(
         &self,
         repo_id: &RepoId,
@@ -420,42 +420,36 @@ impl BackupService {
         now_secs: u64,
     ) -> Result<(), BackupError> {
         let count = entries.len();
-        let mut retain_commits: Vec<CommitHash> = Vec::new();
 
+        // Collect blobs from retained commits only.
         for (i, entry) in entries.iter().enumerate() {
             let commit_index = count - 1 - i;
-            if policy.should_keep(commit_index, entry.timestamp_secs, now_secs) {
-                retain_commits.push(entry.commit.clone());
+            if !policy.should_keep(commit_index, entry.timestamp_secs, now_secs) {
+                continue;
             }
-        }
-
-        if retain_commits.is_empty() {
-            return Ok(());
-        }
-
-        // Build a new commit chain: for each retained commit, re-commit its tree
-        // with the previous retained commit as parent.
-        let mut parent: Option<CommitHash> = None;
-        for commit_hash in &retain_commits {
             let tree_entries = self
                 .cas
-                .list_tree(repo_id, &commit_hash.to_string(), "")
+                .list_tree(repo_id, &entry.commit.to_string(), "")
                 .await?;
-            // Re-write all blobs under the same paths.
-            for entry in &tree_entries {
-                let blob = self.cas.get_blob(repo_id, &entry.content_hash).await?;
+            for te in &tree_entries {
+                let blob = self.cas.get_blob(repo_id, &te.content_hash).await?;
                 self.cas.put_blob(repo_id, &blob).await?;
             }
-            let message = format!("backup: retained snapshot (pruned)");
-            let new_commit = self.cas.snapshot(repo_id, &message).await?;
-            parent = Some(new_commit);
         }
 
-        // Update HEAD to point to the last retained commit.
-        if let Some(last) = parent {
-            // Reset HEAD to the new tip. This effectively prunes old history.
-            let _ = self.cas.resolve_ref(repo_id, &last.to_string()).await?;
-        }
+        // Create an orphan commit with all retained blobs — no parent,
+        // effectively pruning old history by starting a new chain.
+        let new_commit = self
+            .cas
+            .snapshot_orphan(repo_id, "backup: history pruned (retained snapshots)")
+            .await?;
+
+        info!(
+            target: "hkask.backup",
+            repo = %repo_id.dir_name(),
+            new_head = %new_commit,
+            "History pruned — orphan commit starts new chain"
+        );
 
         Ok(())
     }

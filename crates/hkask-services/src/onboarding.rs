@@ -222,7 +222,10 @@ impl OnboardingService {
         handle
             .store
             .get(agent_name)
-            .map_err(|_| ServiceError::AgentNotFound(agent_name.to_string()))?;
+            .map_err(|_| ServiceError::AgentNotFound {
+                source: None,
+                message: agent_name.to_string(),
+            })?;
 
         // Success — store secrets in keychain for future sessions
         let keychain = Keychain::default();
@@ -367,7 +370,11 @@ impl OnboardingService {
         let human_id = register_on_conduit(homeserver_url, &human_username, passphrase)
             .await
             .map_err(|e| {
-                ServiceError::Matrix(format!("Human account registration failed: {}", e))
+                let msg = format!("Human account registration failed: {}", e);
+                ServiceError::Matrix {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
             })?;
 
         // Register replicant account
@@ -376,7 +383,11 @@ impl OnboardingService {
             .map_err(|e| {
                 // Best-effort: if replicant registration fails, human account still exists.
                 // Don't roll back — the human can still use their account.
-                ServiceError::Matrix(format!("Replicant account registration failed: {}", e))
+                let msg = format!("Replicant account registration failed: {}", e);
+                ServiceError::Matrix {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
             })?;
 
         // Store credentials in keychain
@@ -535,30 +546,45 @@ async fn register_on_conduit(
         .json(&body)
         .send()
         .await
-        .map_err(|e| ServiceError::Matrix(format!("HTTP request failed: {}", e)))?;
+        .map_err(|e| {
+            let msg = format!("HTTP request failed: {}", e);
+            ServiceError::Matrix {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     let status = response.status();
-    let response_body: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| ServiceError::Matrix(format!("Failed to parse response: {}", e)))?;
+    let response_body: serde_json::Value = response.json().await.map_err(|e| {
+        let msg = format!("Failed to parse response: {}", e);
+        ServiceError::Matrix {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     if !status.is_success() {
         let error_msg = response_body
             .get("error")
             .and_then(|e| e.as_str())
             .unwrap_or("unknown error");
-        return Err(ServiceError::Matrix(format!(
-            "Registration failed (HTTP {}): {}",
-            status.as_u16(),
-            error_msg
-        )));
+        return Err(ServiceError::Matrix {
+            source: None,
+            message: format!(
+                "Registration failed (HTTP {}): {}",
+                status.as_u16(),
+                error_msg
+            ),
+        });
     }
 
     let user_id = response_body
         .get("user_id")
         .and_then(|u| u.as_str())
-        .ok_or_else(|| ServiceError::Matrix("Response missing user_id field".to_string()))?;
+        .ok_or_else(|| ServiceError::Matrix {
+            source: None,
+            message: "Response missing user_id field".to_string(),
+        })?;
 
     Ok(user_id.to_string())
 }

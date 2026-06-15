@@ -38,7 +38,7 @@ use hkask_cns::EnergyError;
 use hkask_memory::{EpisodicMemoryError, SemanticMemoryError};
 use hkask_storage::EscalationError;
 use hkask_storage::{
-    AgentRegistryError, ConsentStoreError, DatabaseError, GoalRepositoryError, NuEventError,
+    AgentRegistryError, ConsentStoreError, DatabaseError, GoalRepositoryError,
     SovereigntyStoreError, SpecError, TripleError, UserStoreError,
 };
 use hkask_templates::TemplateError;
@@ -59,8 +59,12 @@ use hkask_types::ports::{EmbeddingGenerationError, InferenceError, RegistryError
 pub enum ServiceError {
     // ── Curator domain ──────────────────────────────────────────────────
     /// Escalation not found by ID.
-    #[error("Escalation not found: {0}")]
-    EscalationNotFound(String),
+    #[error("Escalation not found: {message}")]
+    EscalationNotFound {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream escalation-queue error.
     #[error(transparent)]
@@ -72,16 +76,28 @@ pub enum ServiceError {
 
     // ── Agent / ACP domain ───────────────────────────────────────────────
     /// Agent not found by name.
-    #[error("Agent not found: {0}")]
-    AgentNotFound(String),
+    #[error("Agent not found: {message}")]
+    AgentNotFound {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Invalid agent type.
-    #[error("Invalid agent type: {0}")]
-    InvalidAgentType(String),
+    #[error("Invalid agent type: {message}")]
+    InvalidAgentType {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Agent registration failed.
-    #[error("Agent registration failed: {0}")]
-    AgentRegistrationFailed(String),
+    #[error("Agent registration failed: {message}")]
+    AgentRegistrationFailed {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream ACP error.
     #[error(transparent)]
@@ -136,10 +152,6 @@ pub enum ServiceError {
     #[error(transparent)]
     Spec(#[from] SpecError),
 
-    /// Upstream NuEvent store error.
-    #[error(transparent)]
-    NuEvent(#[from] NuEventError),
-
     // ── Memory domain ────────────────────────────────────────────────────
     /// Upstream episodic memory error.
     #[error(transparent)]
@@ -150,13 +162,21 @@ pub enum ServiceError {
     SemanticMemory(#[from] SemanticMemoryError),
 
     /// Consolidation pipeline execution failed.
-    #[error("Consolidation failed: {0}")]
-    Consolidation(String),
+    #[error("Consolidation failed: {message}")]
+    Consolidation {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── CNS domain ──────────────────────────────────────────────────────
     /// CNS operation failed.
-    #[error("CNS operation failed: {0}")]
-    Cns(String),
+    #[error("CNS operation failed: {message}")]
+    Cns {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Keystore secret resolution failed.
     #[error("Keystore resolution failed: {message}")]
@@ -172,8 +192,12 @@ pub enum ServiceError {
 
     // ── Pod domain ────────────────────────────────────────────────────
     /// Pod not found by ID.
-    #[error("Pod not found: {0}")]
-    PodNotFound(String),
+    #[error("Pod not found: {message}")]
+    PodNotFound {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream agent pod error.
     #[error(transparent)]
@@ -190,20 +214,36 @@ pub enum ServiceError {
 
     // ── User domain ─────────────────────────────────────────────────────
     /// User not found by name.
-    #[error("User not found: {0}")]
-    UserNotFound(String),
+    #[error("User not found: {message}")]
+    UserNotFound {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Login failed (deliberately opaque).
-    #[error("Login failed: {0}")]
-    LoginFailed(String),
+    #[error("Login failed: {message}")]
+    LoginFailed {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Invalid passphrase.
-    #[error("Invalid passphrase: {0}")]
-    InvalidPassphrase(String),
+    #[error("Invalid passphrase: {message}")]
+    InvalidPassphrase {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Validation error.
-    #[error("Validation error: {0}")]
-    ValidationError(String),
+    #[error("Validation error: {message}")]
+    ValidationError {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Invalid UUID format for WebID parsing.
     #[error("Invalid WebID: {message}")]
@@ -219,37 +259,65 @@ pub enum ServiceError {
     Infra(#[from] InfrastructureError),
 
     /// Registry initialization failure (no upstream typed source).
-    #[error("Registry initialization failed: {0}")]
-    RegistryInitFailed(String),
+    #[error("Registry initialization failed: {message}")]
+    RegistryInitFailed {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Registry load failure (no upstream typed source).
-    #[error("Registry load failed: {0}")]
-    RegistryLoadFailed(String),
+    #[error("Registry load failed: {message}")]
+    RegistryLoadFailed {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Archival domain ──────────────────────────────────────────────────
     /// GitHub archival operation failed (API call, encoding, credential resolution).
-    #[error("Archival failed: {0}")]
-    Archival(String),
+    #[error("Archival failed: {message}")]
+    Archival {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Embedding pipeline domain ─────────────────────────────────────────
     /// Embedding pipeline failed (config parsing, download, IO, batch processing).
-    #[error("Embed failed: {0}")]
-    Embed(String),
+    #[error("Embed failed: {message}")]
+    Embed {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Style composition domain ────────────────────────────────────────
     /// Style composition failed (Jinja2 rendering, inference, validation).
-    #[error("Compose failed: {0}")]
-    Compose(String),
+    #[error("Compose failed: {message}")]
+    Compose {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Skill domain ────────────────────────────────────────────────────────
     /// Skill operation failed (IO, front matter parsing, publish failure).
-    #[error("Skill failed: {0}")]
-    Skill(String),
+    #[error("Skill failed: {message}")]
+    Skill {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Verification domain ─────────────────────────────────────────────────
     /// Sovereignty verification failed (manifest loading, assertion execution).
-    #[error("Verification failed: {0}")]
-    Verification(String),
+    #[error("Verification failed: {message}")]
+    Verification {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Wallet domain ───────────────────────────────────────────────────
     /// Wallet operation failed.
@@ -271,18 +339,30 @@ pub enum ServiceError {
 
     // ── Rate limiting ──────────────────────────────────────────────────────
     /// Operation rate limited (too soon after previous invocation).
-    #[error("{0}")]
-    RateLimited(String),
+    #[error("{message}")]
+    RateLimited {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Configuration / setup ───────────────────────────────────────────
     /// Configuration or external service setup failed.
-    #[error("Config error: {0}")]
-    Config(String),
+    #[error("Config error: {message}")]
+    Config {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Matrix / communication ──────────────────────────────────────────
     /// Matrix homeserver operation failed (registration, connection, message send).
-    #[error("Matrix error: {0}")]
-    Matrix(String),
+    #[error("Matrix error: {message}")]
+    Matrix {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── MCP tool errors (out-of-process server failures) ─────────────────
     /// MCP tool call failed. Carries the semantic error kind for retryability
@@ -364,23 +444,23 @@ impl ServiceError {
                     | hkask_types::ports::EmbeddingGenerationError::Api(..)
             ),
             ServiceError::Infra(e) => matches!(e, hkask_types::InfrastructureError::Io(_)),
-            ServiceError::RateLimited(_) => true,
-            ServiceError::Matrix(_) => true, // Network operations may be transient
-            ServiceError::Config(_) => true, // Config resolution may succeed on retry
+            ServiceError::RateLimited { .. } => true,
+            ServiceError::Matrix { .. } => true, // Network operations may be transient
+            ServiceError::Config { .. } => true, // Config resolution may succeed on retry
             ServiceError::Keystore { .. } => true, // Keychain may be temporarily unavailable
             ServiceError::McpTool { kind, .. } => kind.is_retryable(),
 
             // ── Non-retryable ────────────────────────────────────────
             // User-input errors: retrying won't change the outcome
-            ServiceError::EscalationNotFound(_)
-            | ServiceError::AgentNotFound(_)
-            | ServiceError::InvalidAgentType(_)
-            | ServiceError::AgentRegistrationFailed(_)
-            | ServiceError::PodNotFound(_)
-            | ServiceError::UserNotFound(_)
-            | ServiceError::LoginFailed(_)
-            | ServiceError::InvalidPassphrase(_)
-            | ServiceError::ValidationError(_)
+            ServiceError::EscalationNotFound { .. }
+            | ServiceError::AgentNotFound { .. }
+            | ServiceError::InvalidAgentType { .. }
+            | ServiceError::AgentRegistrationFailed { .. }
+            | ServiceError::PodNotFound { .. }
+            | ServiceError::UserNotFound { .. }
+            | ServiceError::LoginFailed { .. }
+            | ServiceError::InvalidPassphrase { .. }
+            | ServiceError::ValidationError { .. }
             | ServiceError::InvalidWebID { .. } => false,
 
             // Storage errors: database corruption, schema issues, encryption
@@ -395,16 +475,16 @@ impl ServiceError {
 
             // Pipeline/operational errors: generally non-retryable
             // (registry init failure, archival failure, embed failure)
-            ServiceError::RegistryInitFailed(_)
-            | ServiceError::RegistryLoadFailed(_)
-            | ServiceError::Archival(_)
-            | ServiceError::Embed(_)
-            | ServiceError::Compose(_)
-            | ServiceError::Skill(_)
-            | ServiceError::Verification(_)
+            ServiceError::RegistryInitFailed { .. }
+            | ServiceError::RegistryLoadFailed { .. }
+            | ServiceError::Archival { .. }
+            | ServiceError::Embed { .. }
+            | ServiceError::Compose { .. }
+            | ServiceError::Skill { .. }
+            | ServiceError::Verification { .. }
             | ServiceError::Wallet { .. }
-            | ServiceError::Cns(_)
-            | ServiceError::Consolidation(_)
+            | ServiceError::Cns { .. }
+            | ServiceError::Consolidation { .. }
             | ServiceError::Backup { .. } => false,
 
             // ── Delegate to inner error for transparent wrappers ──────
@@ -422,7 +502,6 @@ impl ServiceError {
             | ServiceError::ConsentStore(_)
             | ServiceError::SovereigntyStore(_)
             | ServiceError::Spec(_)
-            | ServiceError::NuEvent(_)
             | ServiceError::EpisodicMemory(_)
             | ServiceError::SemanticMemory(_)
             | ServiceError::Pod(_) => false,
@@ -445,14 +524,14 @@ impl ServiceError {
     pub fn message_key(&self) -> &'static str {
         match self {
             // ── Curator domain ──────────────────────────────────────
-            ServiceError::EscalationNotFound(_) => "error.curator.escalation_not_found",
+            ServiceError::EscalationNotFound { .. } => "error.curator.escalation_not_found",
             ServiceError::Escalation(_) => "error.curator.escalation",
             ServiceError::Metacognition(_) => "error.curator.metacognition",
 
             // ── Agent / ACP domain ───────────────────────────────────
-            ServiceError::AgentNotFound(_) => "error.agent.not_found",
-            ServiceError::InvalidAgentType(_) => "error.agent.invalid_type",
-            ServiceError::AgentRegistrationFailed(_) => "error.agent.registration_failed",
+            ServiceError::AgentNotFound { .. } => "error.agent.not_found",
+            ServiceError::InvalidAgentType { .. } => "error.agent.invalid_type",
+            ServiceError::AgentRegistrationFailed { .. } => "error.agent.registration_failed",
             ServiceError::Acp(_) => "error.agent.acp",
             ServiceError::AgentRegistry(_) => "error.agent.registry_load",
             ServiceError::AgentRegistryStore(_) => "error.agent.registry_store",
@@ -468,20 +547,19 @@ impl ServiceError {
             ServiceError::ConsentStore(_) => "error.storage.consent_store",
             ServiceError::SovereigntyStore(_) => "error.storage.sovereignty_store",
             ServiceError::Spec(_) => "error.storage.spec",
-            ServiceError::NuEvent(_) => "error.storage.nu_event",
 
             // ── Memory domain ──────────────────────────────────────
             ServiceError::EpisodicMemory(_) => "error.memory.episodic",
             ServiceError::SemanticMemory(_) => "error.memory.semantic",
-            ServiceError::Consolidation(_) => "error.memory.consolidation",
+            ServiceError::Consolidation { .. } => "error.memory.consolidation",
 
             // ── CNS domain ──────────────────────────────────────────
-            ServiceError::Cns(_) => "error.cns.operation",
+            ServiceError::Cns { .. } => "error.cns.operation",
             ServiceError::Keystore { .. } => "error.cns.keystore",
             ServiceError::Gas(_) => "error.cns.gas",
 
             // ── Pod domain ──────────────────────────────────────────
-            ServiceError::PodNotFound(_) => "error.pod.not_found",
+            ServiceError::PodNotFound { .. } => "error.pod.not_found",
             ServiceError::Pod(_) => "error.pod.operation",
 
             // ── Inference domain ────────────────────────────────────
@@ -489,32 +567,32 @@ impl ServiceError {
             ServiceError::Embedding(_) => "error.inference.embedding",
 
             // ── User domain ─────────────────────────────────────────
-            ServiceError::UserNotFound(_) => "error.user.not_found",
-            ServiceError::LoginFailed(_) => "error.user.login_failed",
-            ServiceError::InvalidPassphrase(_) => "error.user.invalid_passphrase",
-            ServiceError::ValidationError(_) => "error.user.validation",
+            ServiceError::UserNotFound { .. } => "error.user.not_found",
+            ServiceError::LoginFailed { .. } => "error.user.login_failed",
+            ServiceError::InvalidPassphrase { .. } => "error.user.invalid_passphrase",
+            ServiceError::ValidationError { .. } => "error.user.validation",
             ServiceError::InvalidWebID { .. } => "error.user.invalid_webid",
 
             // ── Infrastructure ──────────────────────────────────────
             ServiceError::Infra(_) => "error.infra",
-            ServiceError::RegistryInitFailed(_) => "error.infra.registry_init",
-            ServiceError::RegistryLoadFailed(_) => "error.infra.registry_load",
+            ServiceError::RegistryInitFailed { .. } => "error.infra.registry_init",
+            ServiceError::RegistryLoadFailed { .. } => "error.infra.registry_load",
 
             // ── Pipeline / operational ──────────────────────────────
-            ServiceError::Archival(_) => "error.pipeline.archival",
-            ServiceError::Embed(_) => "error.pipeline.embed",
-            ServiceError::Compose(_) => "error.pipeline.compose",
-            ServiceError::Skill(_) => "error.pipeline.skill",
-            ServiceError::Verification(_) => "error.pipeline.verification",
+            ServiceError::Archival { .. } => "error.pipeline.archival",
+            ServiceError::Embed { .. } => "error.pipeline.embed",
+            ServiceError::Compose { .. } => "error.pipeline.compose",
+            ServiceError::Skill { .. } => "error.pipeline.skill",
+            ServiceError::Verification { .. } => "error.pipeline.verification",
             ServiceError::Wallet { .. } => "error.pipeline.wallet",
 
             // ── Backup domain ──────────────────────────────────────
             ServiceError::Backup { .. } => "error.backup",
 
             // ── Rate limiting / config / communication ──────────────
-            ServiceError::RateLimited(_) => "error.rate_limited",
-            ServiceError::Config(_) => "error.config",
-            ServiceError::Matrix(_) => "error.communication.matrix",
+            ServiceError::RateLimited { .. } => "error.rate_limited",
+            ServiceError::Config { .. } => "error.config",
+            ServiceError::Matrix { .. } => "error.communication.matrix",
 
             // ── MCP tool errors ─────────────────────────────────────
             ServiceError::McpTool { .. } => "error.mcp.tool",
@@ -555,7 +633,7 @@ impl ServiceError {
             ),
 
             // ── CNS domain ────────────────────────────────────────────
-            ServiceError::Cns(msg) => (
+            ServiceError::Cns { message: msg, .. } => (
                 "cns.cybernetics",
                 "error",
                 serde_json::json!({ "message": msg }),
@@ -589,7 +667,7 @@ impl ServiceError {
                 "error.semantic",
                 serde_json::json!({ "error": e.to_string() }),
             ),
-            ServiceError::Consolidation(msg) => (
+            ServiceError::Consolidation { message: msg, .. } => (
                 "cns.memory.encode",
                 "error.consolidation",
                 serde_json::json!({ "message": msg }),
@@ -646,14 +724,14 @@ impl ServiceError {
                 "error.keystore",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Config(msg) => (
+            ServiceError::Config { message: msg, .. } => (
                 "cns.cybernetics",
                 "error.config",
                 serde_json::json!({ "message": msg }),
             ),
 
             // ── Rate limiting ─────────────────────────────────────────
-            ServiceError::RateLimited(msg) => (
+            ServiceError::RateLimited { message: msg, .. } => (
                 "cns.cybernetics.backpressure",
                 "rate_limited",
                 serde_json::json!({ "message": msg }),
@@ -661,49 +739,49 @@ impl ServiceError {
 
             // ── User-input errors — NOT system conditions ─────────────
             // These return None: they don't represent system health.
-            ServiceError::EscalationNotFound(_)
-            | ServiceError::AgentNotFound(_)
-            | ServiceError::InvalidAgentType(_)
-            | ServiceError::AgentRegistrationFailed(_)
-            | ServiceError::PodNotFound(_)
-            | ServiceError::UserNotFound(_)
-            | ServiceError::LoginFailed(_)
-            | ServiceError::InvalidPassphrase(_)
-            | ServiceError::ValidationError(_)
+            ServiceError::EscalationNotFound { .. }
+            | ServiceError::AgentNotFound { .. }
+            | ServiceError::InvalidAgentType { .. }
+            | ServiceError::AgentRegistrationFailed { .. }
+            | ServiceError::PodNotFound { .. }
+            | ServiceError::UserNotFound { .. }
+            | ServiceError::LoginFailed { .. }
+            | ServiceError::InvalidPassphrase { .. }
+            | ServiceError::ValidationError { .. }
             | ServiceError::InvalidWebID { .. } => return None,
 
             // ── Pipeline / operational errors — system conditions ─────
-            ServiceError::RegistryInitFailed(msg) => (
+            ServiceError::RegistryInitFailed { message: msg, .. } => (
                 "cns.cybernetics",
                 "error.registry_init",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::RegistryLoadFailed(msg) => (
+            ServiceError::RegistryLoadFailed { message: msg, .. } => (
                 "cns.cybernetics",
                 "error.registry_load",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Archival(msg) => (
+            ServiceError::Archival { message: msg, .. } => (
                 "cns.cybernetics",
                 "error.archival",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Embed(msg) => (
+            ServiceError::Embed { message: msg, .. } => (
                 "cns.pipeline",
                 "error.embed",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Compose(msg) => (
+            ServiceError::Compose { message: msg, .. } => (
                 "cns.pipeline",
                 "error.compose",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Skill(msg) => (
+            ServiceError::Skill { message: msg, .. } => (
                 "cns.pipeline",
                 "error.skill",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Verification(msg) => (
+            ServiceError::Verification { message: msg, .. } => (
                 "cns.sovereignty",
                 "error.verification",
                 serde_json::json!({ "message": msg }),
@@ -713,7 +791,7 @@ impl ServiceError {
                 "error",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Matrix(msg) => (
+            ServiceError::Matrix { message: msg, .. } => (
                 "cns.cybernetics",
                 "error.matrix",
                 serde_json::json!({ "message": msg }),
@@ -774,11 +852,6 @@ impl ServiceError {
             ServiceError::SovereigntyStore(e) => (
                 "cns.sovereignty",
                 "error.sovereignty_store",
-                serde_json::json!({ "error": e.to_string() }),
-            ),
-            ServiceError::NuEvent(e) => (
-                "cns.cybernetics",
-                "error.nu_event",
                 serde_json::json!({ "error": e.to_string() }),
             ),
             ServiceError::AgentRegistryStore(e) => (

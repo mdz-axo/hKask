@@ -167,23 +167,23 @@ impl From<hkask_services::ServiceError> for ApiError {
     fn from(e: hkask_services::ServiceError) -> Self {
         use hkask_services::ServiceError as SE;
         match e {
-            SE::EscalationNotFound(id) => ApiError::NotFound {
+            SE::EscalationNotFound { message: id, .. } => ApiError::NotFound {
                 resource: "escalation".into(),
                 id,
             },
-            SE::AgentNotFound(name) => ApiError::NotFound {
+            SE::AgentNotFound { message: name, .. } => ApiError::NotFound {
                 resource: "agent".into(),
                 id: name,
             },
-            SE::UserNotFound(name) => ApiError::NotFound {
+            SE::UserNotFound { message: name, .. } => ApiError::NotFound {
                 resource: "user".into(),
                 id: name,
             },
-            SE::PodNotFound(id) => ApiError::NotFound {
+            SE::PodNotFound { message: id, .. } => ApiError::NotFound {
                 resource: "pod".into(),
                 id,
             },
-            SE::LoginFailed(_) => ApiError::Unauthorized {
+            SE::LoginFailed { .. } => ApiError::Unauthorized {
                 reason: "Invalid credentials".into(),
             },
             SE::Acp(hkask_agents::acp::AcpError::CapabilityDenied(webid, perm)) => {
@@ -206,12 +206,12 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::SovereigntyStore(hkask_storage::SovereigntyStoreError::UuidParse(msg)) => {
                 ApiError::BadRequest { message: msg }
             }
-            SE::InvalidAgentType(msg) => ApiError::BadRequest { message: msg },
-            SE::InvalidPassphrase(msg) => ApiError::BadRequest {
+            SE::InvalidAgentType { message: msg, .. } => ApiError::BadRequest { message: msg },
+            SE::InvalidPassphrase { message: msg, .. } => ApiError::BadRequest {
                 message: format!("Invalid passphrase: {}", msg),
             },
-            SE::ValidationError(msg) => ApiError::BadRequest { message: msg },
-            SE::AgentRegistrationFailed(msg) => ApiError::Conflict { message: msg },
+            SE::ValidationError { message: msg, .. } => ApiError::BadRequest { message: msg },
+            SE::AgentRegistrationFailed { message: msg, .. } => ApiError::Conflict { message: msg },
             SE::Escalation(hkask_storage::EscalationError::NotFound(id)) => ApiError::NotFound {
                 resource: "escalation".into(),
                 id,
@@ -330,9 +330,6 @@ impl From<hkask_services::ServiceError> for ApiError {
                 _ => ApiError::Internal {
                     message: err.to_string(),
                 },
-            },
-            SE::NuEvent(err) => ApiError::Internal {
-                message: err.to_string(),
             },
             SE::Keystore { message: msg, .. } => ApiError::ServiceUnavailable { reason: msg },
             SE::Infra(err) => ApiError::Internal {

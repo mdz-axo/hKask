@@ -46,8 +46,10 @@ pub async fn agent_register(
 ) -> Result<AgentReceipt, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     let webid = WebID::from_str(webid_str)?;
-    let kind = AgentKind::parse(agent_type)
-        .ok_or_else(|| ServiceError::InvalidAgentType(agent_type.to_string()))?;
+    let kind = AgentKind::parse(agent_type).ok_or_else(|| ServiceError::InvalidAgentType {
+        source: None,
+        message: agent_type.to_string(),
+    })?;
     let (_, acp) = ctx.identity();
     let token = acp.register_agent(webid, kind, capabilities).await?;
     let def = AgentDefinition {

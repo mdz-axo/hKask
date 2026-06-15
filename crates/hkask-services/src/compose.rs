@@ -368,11 +368,20 @@ fn render_jinja2_prompt(
 ) -> Result<String, ServiceError> {
     let mut env = minijinja::Environment::new();
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
-    env.add_template("system_prompt", template)
-        .map_err(|e| ServiceError::Compose(format!("Jinja2 template parse error: {e}")))?;
-    let tmpl = env
-        .get_template("system_prompt")
-        .map_err(|e| ServiceError::Compose(format!("Jinja2 template lookup error: {e}")))?;
+    env.add_template("system_prompt", template).map_err(|e| {
+        let msg = format!("Jinja2 template parse error: {e}");
+        ServiceError::Compose {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
+    let tmpl = env.get_template("system_prompt").map_err(|e| {
+        let msg = format!("Jinja2 template lookup error: {e}");
+        ServiceError::Compose {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     let ctx = minijinja::context! {
         prompt,
@@ -383,8 +392,13 @@ fn render_jinja2_prompt(
         centroid_distance_max,
     };
 
-    tmpl.render(&ctx)
-        .map_err(|e| ServiceError::Compose(format!("Jinja2 render error: {e}")))
+    tmpl.render(&ctx).map_err(|e| {
+        let msg = format!("Jinja2 render error: {e}");
+        ServiceError::Compose {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })
 }
 
 /// Generic fallback system prompt — used when no Jinja2 template is declared.
@@ -444,5 +458,3 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f64 {
     let similarity = dot / (norm_a * norm_b);
     1.0 - similarity
 }
-
-// ── Tests ────────────────────────────────────────────────────────────────

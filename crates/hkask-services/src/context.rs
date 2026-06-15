@@ -609,6 +609,11 @@ impl AgentService {
         let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
         loop_system.register_loop(Arc::new(snapshot_loop)).await;
 
+        // ── 6c. Backup loop (daily snapshots via BackupService) ──────────────
+        let backup_service = Arc::new(crate::BackupService::new(Arc::clone(&git_cas_port)));
+        let backup_loop = crate::backup::r#loop::BackupLoop::new(backup_service);
+        loop_system.register_loop(Arc::new(backup_loop)).await;
+
         // ── 7. GovernedTool membrane + MCP dispatcher ────────────────────────
         let mcp_runtime = McpRuntime::new();
         let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));

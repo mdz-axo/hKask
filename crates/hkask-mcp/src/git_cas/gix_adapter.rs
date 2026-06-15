@@ -46,6 +46,33 @@ fn oid_to_commit_hash(oid: &gix::ObjectId) -> CommitHash {
     CommitHash::from_bytes(arr)
 }
 
+fn build_tree(
+    repo: &gix::Repository,
+    entries: &[(String, gix::ObjectId)],
+) -> Result<gix::ObjectId, GitCasError> {
+    if entries.is_empty() {
+        let empty: Vec<gix::objs::tree::EntryRef<'_>> = Vec::new();
+        return Ok(repo
+            .write_object(gix::objs::TreeRef { entries: empty })
+            .map_err(|e| GitCasError::Git(format!("gix write empty tree: {e}")))?
+            .detach());
+    }
+    let entries_refs: Vec<gix::objs::tree::EntryRef<'_>> = entries
+        .iter()
+        .map(|(name, oid)| gix::objs::tree::EntryRef {
+            mode: gix::objs::tree::EntryMode::from(gix::objs::tree::EntryKind::Blob),
+            oid: oid.as_ref(),
+            filename: name.as_str().into(),
+        })
+        .collect();
+    Ok(repo
+        .write_object(gix::objs::TreeRef {
+            entries: entries_refs,
+        })
+        .map_err(|e| GitCasError::Git(format!("gix write tree: {e}")))?
+        .detach())
+}
+
 async fn spawn_blocking_io<F, T>(f: F) -> Result<T, GitCasError>
 where
     F: FnOnce() -> Result<T, GitCasError> + Send + 'static,
@@ -146,7 +173,6 @@ impl GitCASPort for GixCasAdapter {
                         .to_string();
                     let content = std::fs::read(&path)
                         .map_err(|e| GitCasError::Io(format!("read blob: {e}")))?;
-                    // Write as a git blob object.
                     let oid = repo
                         .write_object(gix::objs::BlobRef { data: &content })
                         .map_err(|e| GitCasError::Git(format!("gix write_object: {e}")))?;
@@ -154,31 +180,60 @@ impl GitCASPort for GixCasAdapter {
                 }
             }
 
-            // Build a tree from the entries.
-            let tree_id = if tree_entries.is_empty() {
-                let empty: Vec<gix::objs::tree::EntryRef<'_>> = Vec::new();
-                repo.write_object(gix::objs::TreeRef { entries: empty })
-                    .map_err(|e| GitCasError::Git(format!("gix write empty tree: {e}")))?
-                    .detach()
-            } else {
-                let entries_refs: Vec<gix::objs::tree::EntryRef<'_>> = tree_entries
-                    .iter()
-                    .map(|(name, oid)| gix::objs::tree::EntryRef {
-                        mode: gix::objs::tree::EntryMode::from(gix::objs::tree::EntryKind::Blob),
-                        oid: oid.as_ref(),
-                        filename: name.as_str().into(),
-                    })
-                    .collect();
-                repo.write_object(gix::objs::TreeRef {
-                    entries: entries_refs,
-                })
-                .map_err(|e| GitCasError::Git(format!("gix write tree: {e}")))?
-                .detach()
-            };
+            let tree_id = build_tree(&repo, &tree_entries)?;
 
             // Parent is HEAD if it exists.
             let parent = repo.head_commit().ok().map(|c| c.id().detach());
             let parents: Vec<gix::ObjectId> = parent.into_iter().collect();
+
+            let commit_oid = repo
+                .commit("HEAD", &msg, tree_id, parents)
+                .map_err(|e| GitCasError::Git(format!("gix commit: {e}")))?;
+
+            Ok(oid_to_commit_hash(&commit_oid.detach()))
+        })
+        .await
+    }
+
+    async fn snapshot_orphan(
+        &self,
+        repo: &RepoId,
+        message: &str,
+    ) -> Result<CommitHash, GitCasError> {
+        let repo_dir = self.ensure_repo_dir(repo).await?;
+        let msg = message.to_string();
+        spawn_blocking_io(move || {
+            let repo = open_or_init_repo(&repo_dir)?;
+            let cas_dir = repo_dir.join("cas");
+
+            let mut tree_entries: Vec<(String, gix::ObjectId)> = Vec::new();
+            if cas_dir.exists() {
+                for entry in std::fs::read_dir(&cas_dir)
+                    .map_err(|e| GitCasError::Io(format!("read_dir cas: {e}")))?
+                {
+                    let entry = entry.map_err(|e| GitCasError::Io(format!("dir entry: {e}")))?;
+                    let path = entry.path();
+                    if path.is_dir() {
+                        continue;
+                    }
+                    let filename = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    let content = std::fs::read(&path)
+                        .map_err(|e| GitCasError::Io(format!("read blob: {e}")))?;
+                    let oid = repo
+                        .write_object(gix::objs::BlobRef { data: &content })
+                        .map_err(|e| GitCasError::Git(format!("gix write_object: {e}")))?;
+                    tree_entries.push((filename, oid.detach()));
+                }
+            }
+
+            let tree_id = build_tree(&repo, &tree_entries)?;
+
+            // No parent — orphan commit for history rewriting.
+            let parents: Vec<gix::ObjectId> = Vec::new();
 
             let commit_oid = repo
                 .commit("HEAD", &msg, tree_id, parents)
@@ -274,14 +329,14 @@ impl GitCASPort for GixCasAdapter {
                 }
             }
             for (p, from_oid) in &from_paths {
-                if let Some(to_oid) = to_paths.get(p) {
-                    if from_oid != to_oid {
-                        diffs.push(FileDiff {
-                            path: p.clone(),
-                            kind: DiffKind::Modified,
-                            content: String::new(),
-                        });
-                    }
+                if let Some(to_oid) = to_paths.get(p)
+                    && from_oid != to_oid
+                {
+                    diffs.push(FileDiff {
+                        path: p.clone(),
+                        kind: DiffKind::Modified,
+                        content: String::new(),
+                    });
                 }
             }
             Ok(diffs)

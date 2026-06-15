@@ -758,12 +758,13 @@ docs/                                Exemplary corpus
 ### BKP-001: Auto-snapshot scheduler daemon integration
 
 **MDS Category:** Lifecycle  
-**Status:** Resolved — API exists, daemon wiring deferred  
-**Opened:** 2026-06-14
+**Status:** ✅ Resolved  
+**Opened:** 2026-06-14  
+**Resolved:** 2026-06-14
 
-`BackupService::run_daily_snapshot()` provides the daily snapshot capability. The daemon loop needs to call this on a schedule (daily cron or tokio interval). The service method exists, the `auto_snapshot` config flag exists — what remains is the daemon-side scheduling loop.
+`BackupService::run_daily_snapshot()` provides the daily snapshot capability. The daemon loop calls this on a 24-hour schedule via `BackupLoop`, which implements `HkaskLoop` and is registered in `AgentService::build()` alongside the existing `SnapshotLoop`. The `auto_snapshot` config flag controls whether the loop is active.
 
-**Resolution:** The `run_daily_snapshot()` method is fully implemented in `hkask-services`. The daemon scheduler integration is the next step — either via an existing loop in the `LoopSystem` or a new `BackupLoop`.
+**Resolution:** `BackupLoop` created in `hkask-services/src/backup/loop.rs`. Registered in `AgentService::build()` at section 6c. Runs daily snapshots through `BackupService`, optionally followed by `verify()` and `prune()`.
 
 ---
 

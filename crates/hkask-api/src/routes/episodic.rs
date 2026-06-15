@@ -104,9 +104,10 @@ pub(crate) async fn store_episode(
     Json(req): Json<StoreEpisodeRequest>,
 ) -> Result<Json<StoreEpisodeResponse>, ServiceErrorResponse> {
     if req.entity.is_empty() || req.attribute.is_empty() {
-        return Err(ServiceError::ValidationError(
-            "entity and attribute must not be empty".to_string(),
-        )
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: "entity and attribute must not be empty".to_string(),
+        }
         .into());
     }
 
@@ -166,9 +167,10 @@ pub(crate) async fn query_episodes(
     Query(params): Query<QueryEpisodesParams>,
 ) -> Result<Json<QueryEpisodesResponse>, ServiceErrorResponse> {
     if params.entity.is_empty() {
-        return Err(ServiceError::ValidationError(
-            "entity query parameter must not be empty".to_string(),
-        )
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: "entity query parameter must not be empty".to_string(),
+        }
         .into());
     }
 

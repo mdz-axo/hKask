@@ -134,7 +134,7 @@ pub(crate) async fn get_spec(
             requirements: detail.requirements,
         })
         .into_response(),
-        Err(hkask_services::ServiceError::ValidationError(_)) => (
+        Err(hkask_services::ServiceError::ValidationError { .. }) => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": format!("Invalid spec ID: {spec_id}") })),
         )
@@ -231,7 +231,7 @@ pub(crate) async fn get_writing_quality(
             meets_publication_standard: q.meets_publication_standard,
         })
         .into_response(),
-        Err(hkask_services::ServiceError::ValidationError(_)) => (
+        Err(hkask_services::ServiceError::ValidationError { .. }) => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": format!("Invalid spec ID: {spec_id}") })),
         )

@@ -74,7 +74,13 @@ impl ArchivalService {
 
         let result = api_put(&client, "github", &url, &payload)
             .await
-            .map_err(|e| ServiceError::Archival(format!("Failed to archive registry: {e}")))?;
+            .map_err(|e| {
+                let msg = format!("Failed to archive registry: {}", e);
+                ServiceError::Archival {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
+            })?;
 
         let commit_sha = result
             .get("commit")
@@ -111,21 +117,37 @@ impl ArchivalService {
             "{GITHUB_API_BASE}/repos/{repo_owner}/{repo_name}/contents/{remote_path}?ref={git_ref}"
         );
 
-        let json_val = api_get(&client, "github", &url)
-            .await
-            .map_err(|e| ServiceError::Archival(format!("Failed to fetch file: {e}")))?;
+        let json_val = api_get(&client, "github", &url).await.map_err(|e| {
+            let msg = format!("Failed to fetch file: {}", e);
+            ServiceError::Archival {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
         let encoded = json_val
             .get("content")
             .and_then(|c| c.as_str())
-            .ok_or_else(|| ServiceError::Archival("No content field in GitHub response".into()))?;
+            .ok_or_else(|| ServiceError::Archival {
+                source: None,
+                message: "No content field in GitHub response".into(),
+            })?;
 
-        let decoded = BASE64_STANDARD
-            .decode(encoded.trim())
-            .map_err(|e| ServiceError::Archival(format!("Failed to decode base64 content: {e}")))?;
+        let decoded = BASE64_STANDARD.decode(encoded.trim()).map_err(|e| {
+            let msg = format!("Failed to decode base64 content: {}", e);
+            ServiceError::Archival {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
-        String::from_utf8(decoded)
-            .map_err(|e| ServiceError::Archival(format!("Content is not valid UTF-8: {e}")))
+        String::from_utf8(decoded).map_err(|e| {
+            let msg = format!("Content is not valid UTF-8: {}", e);
+            ServiceError::Archival {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })
     }
 
     /// List archived registry versions (commit SHAs).
@@ -142,13 +164,18 @@ impl ArchivalService {
             "{GITHUB_API_BASE}/repos/{repo_owner}/{repo_name}/commits?path={DEFAULT_REGISTRY_PATH}"
         );
 
-        let json_val = api_get(&client, "github", &url)
-            .await
-            .map_err(|e| ServiceError::Archival(format!("Failed to list archives: {e}")))?;
+        let json_val = api_get(&client, "github", &url).await.map_err(|e| {
+            let msg = format!("Failed to list archives: {}", e);
+            ServiceError::Archival {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
-        let commits = json_val
-            .as_array()
-            .ok_or_else(|| ServiceError::Archival("Expected array of commits".into()))?;
+        let commits = json_val.as_array().ok_or_else(|| ServiceError::Archival {
+            source: None,
+            message: "Expected array of commits".into(),
+        })?;
 
         let shas: Vec<String> = commits
             .iter()
@@ -194,7 +221,13 @@ impl ArchivalService {
 
         let result = api_put(&client, "github", &file_url, &payload)
             .await
-            .map_err(|e| ServiceError::Archival(format!("Failed to create snapshot: {e}")))?;
+            .map_err(|e| {
+                let msg = format!("Failed to create snapshot: {}", e);
+                ServiceError::Archival {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
+            })?;
 
         let commit_sha = result
             .get("commit")
@@ -214,8 +247,13 @@ impl ArchivalService {
 /// Resolves the GitHub token from keychain/env and sets default headers
 /// (Authorization, Accept, User-Agent).
 fn build_github_client() -> Result<reqwest::Client, ServiceError> {
-    let token = resolve_credential("HKASK_GITHUB_TOKEN")
-        .map_err(|e| ServiceError::Archival(format!("GitHub token not available: {e}")))?;
+    let token = resolve_credential("HKASK_GITHUB_TOKEN").map_err(|e| {
+        let msg = format!("GitHub token not available: {}", e);
+        ServiceError::Archival {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
@@ -234,7 +272,13 @@ fn build_github_client() -> Result<reqwest::Client, ServiceError> {
     reqwest::Client::builder()
         .default_headers(headers)
         .build()
-        .map_err(|e| ServiceError::Archival(format!("Failed to build HTTP client: {e}")))
+        .map_err(|e| {
+            let msg = format!("Failed to build HTTP client: {}", e);
+            ServiceError::Archival {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })
 }
 
 /// Get the current file SHA from GitHub, if the file exists.
@@ -252,12 +296,21 @@ async fn get_current_file_sha(client: &reqwest::Client, url: &str) -> Option<Str
 
 /// Read the local registry database and serialize it to JSON.
 fn read_local_registry(store: &AgentRegistryStore) -> Result<String, ServiceError> {
-    let agents = store
-        .list()
-        .map_err(|e| ServiceError::Archival(format!("Failed to list agents: {e}")))?;
+    let agents = store.list().map_err(|e| {
+        let msg = format!("Failed to list agents: {}", e);
+        ServiceError::Archival {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
-    serde_json::to_string_pretty(&agents)
-        .map_err(|e| ServiceError::Archival(format!("Failed to serialize registry: {e}")))
+    serde_json::to_string_pretty(&agents).map_err(|e| {
+        let msg = format!("Failed to serialize registry: {}", e);
+        ServiceError::Archival {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────

@@ -74,9 +74,13 @@ pub(crate) async fn consolidate(
     consolidation::check_rate_limit()?;
 
     // Parse agent WebID
-    let webid: WebID = req.agent_webid.parse().map_err(|_| {
-        ServiceError::ValidationError("Invalid agent_webid: must be a valid UUID".to_string())
-    })?;
+    let webid: WebID = req
+        .agent_webid
+        .parse()
+        .map_err(|_| ServiceError::ValidationError {
+            source: None,
+            message: "Invalid agent_webid: must be a valid UUID".to_string(),
+        })?;
 
     // Verify passphrase via ConsolidationService (keystore → key derivation → comparison)
     let db_passphrase = consolidation::verify_passphrase(&req.passphrase)?;

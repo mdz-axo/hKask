@@ -149,18 +149,21 @@ pub struct TrainingServer {
     daemon: Option<hkask_mcp::DaemonClient>,
     semantic: Option<SemanticMemory>,
     provider: Box<dyn TrainingProvider>,
+    provider_id: TrainingProviderId,
     pipeline: Mutex<DatasetPipeline>,
     adapter_store: Arc<dyn AdapterStore>,
     inference_config: InferenceConfig,
 }
 
 impl TrainingServer {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         webid: WebID,
         replicant: String,
         daemon: Option<hkask_mcp::DaemonClient>,
         semantic: Option<SemanticMemory>,
         provider: Box<dyn TrainingProvider>,
+        provider_id: TrainingProviderId,
         pipeline: DatasetPipeline,
         adapter_store: Arc<dyn AdapterStore>,
         inference_config: InferenceConfig,
@@ -171,6 +174,7 @@ impl TrainingServer {
             daemon,
             semantic,
             provider,
+            provider_id,
             pipeline: Mutex::new(pipeline),
             adapter_store,
             inference_config,
@@ -534,20 +538,20 @@ impl TrainingServer {
                 .unwrap_or("");
 
             // Apply filters
-            if let Some(ref ds) = dataset {
-                if q_ds != ds.as_str() {
-                    continue;
-                }
+            if let Some(ref ds) = dataset
+                && q_ds != ds.as_str()
+            {
+                continue;
             }
-            if let Some(ref src) = source {
-                if q_source != src.as_str() {
-                    continue;
-                }
+            if let Some(ref src) = source
+                && q_source != src.as_str()
+            {
+                continue;
             }
-            if let Some(ref bl) = bloom_level {
-                if q_bloom != bl.as_str() {
-                    continue;
-                }
+            if let Some(ref bl) = bloom_level
+                && q_bloom != bl.as_str()
+            {
+                continue;
             }
 
             let question = value.get("question").and_then(|v| v.as_str()).unwrap_or("");
@@ -800,9 +804,7 @@ impl TrainingServer {
     }
 
     fn provider_id(&self) -> TrainingProviderId {
-        // Derive from the provider implementation type via its behavior.
-        // A proper implementation would store the ID on the server struct.
-        TrainingProviderId::Axolotl
+        self.provider_id
     }
 }
 
@@ -886,6 +888,7 @@ async fn main() -> anyhow::Result<()> {
                 daemon_client.clone(),
                 semantic,
                 provider,
+                provider_config.provider,
                 pipeline.clone(),
                 Arc::clone(&adapter_store),
                 inference_config,

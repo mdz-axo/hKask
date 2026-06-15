@@ -445,6 +445,13 @@ pub trait GitCASPort: Send + Sync {
     /// Create a snapshot commit of all staged changes.
     async fn snapshot(&self, repo: &RepoId, message: &str) -> Result<CommitHash, GitCasError>;
 
+    /// Create an orphan snapshot commit (no parent) for history rewriting.
+    async fn snapshot_orphan(
+        &self,
+        repo: &RepoId,
+        message: &str,
+    ) -> Result<CommitHash, GitCasError>;
+
     /// Resolve a symbolic ref (branch, tag) to a commit SHA.
     async fn resolve_ref(&self, repo: &RepoId, reference: &str) -> Result<CommitHash, GitCasError>;
 
@@ -551,6 +558,15 @@ impl GitCASPort for MockGitCas {
             .last()
             .map(|(_, _, hash)| hash.clone())
             .ok_or_else(|| GitCasError::NotFound("no snapshots".to_string()))
+    }
+
+    async fn snapshot_orphan(
+        &self,
+        repo: &RepoId,
+        message: &str,
+    ) -> Result<CommitHash, GitCasError> {
+        // Mock: same as snapshot but with no parent tracking.
+        self.snapshot(repo, message).await
     }
 
     async fn list_tree(

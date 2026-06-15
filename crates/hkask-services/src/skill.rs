@@ -47,12 +47,22 @@ pub struct SkillInfo {
 
 pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> {
     let mut skills = Vec::new();
-    let entries = fs::read_dir(zone_dir)
-        .map_err(|e| ServiceError::Skill(format!("Error scanning {}: {e}", zone_dir.display())))?;
+    let entries = fs::read_dir(zone_dir).map_err(|e| {
+        let msg = format!("Error scanning {}: {e}", zone_dir.display());
+        ServiceError::Skill {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     for entry in entries {
-        let entry =
-            entry.map_err(|e| ServiceError::Skill(format!("Error reading directory: {e}")))?;
+        let entry = entry.map_err(|e| {
+            let msg = format!("Error reading directory: {e}");
+            ServiceError::Skill {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
         let path = entry.path();
         if path.is_dir() && path.join("SKILL.md").exists() {
             let name = path
@@ -151,9 +161,10 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
     let private_dir = root.join(SkillZone::Private.directory()).join(name);
 
     if !private_dir.exists() {
-        return Err(ServiceError::Skill(format!(
-            "Skill '{name}' not found in private zone"
-        )));
+        return Err(ServiceError::Skill {
+            source: None,
+            message: format!("Skill '{name}' not found in private zone"),
+        });
     }
 
     let replicant_name = resolve_replicant_name();
@@ -166,26 +177,39 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
     let public_zone = root.join(SkillZone::Public.directory());
     if !public_zone.exists() {
         fs::create_dir_all(&public_zone).map_err(|e| {
-            ServiceError::Skill(format!(
+            let msg = format!(
                 "Failed to create public zone {}: {e}",
                 public_zone.display()
-            ))
+            );
+            ServiceError::Skill {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
         })?;
     }
 
     // Remove existing public copy before replacing
     if public_dir.exists() {
         fs::remove_dir_all(&public_dir).map_err(|e| {
-            ServiceError::Skill(format!(
+            let msg = format!(
                 "Failed to remove existing public copy {}: {e}",
                 public_dir.display()
-            ))
+            );
+            ServiceError::Skill {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
         })?;
     }
 
     // Copy the skill directory
-    copy_dir_recursive(&private_dir, &public_dir)
-        .map_err(|e| ServiceError::Skill(format!("Failed to copy skill to public zone: {e}")))?;
+    copy_dir_recursive(&private_dir, &public_dir).map_err(|e| {
+        let msg = format!("Failed to copy skill to public zone: {e}");
+        ServiceError::Skill {
+            source: None,
+            message: msg,
+        }
+    })?;
 
     // Update the SKILL.md visibility and namespace in the exported copy
     let public_skill_md = public_dir.join("SKILL.md");

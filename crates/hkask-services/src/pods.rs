@@ -60,8 +60,13 @@ impl PodService {
         ctx: &AgentService,
         req: CreatePodRequest,
     ) -> Result<PodResponse, ServiceError> {
-        let persona = AgentPersona::from_yaml(&req.persona_yaml)
-            .map_err(|e| ServiceError::ValidationError(format!("Invalid persona YAML: {e}")))?;
+        let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| {
+            let msg = format!("Invalid persona YAML: {e}");
+            ServiceError::ValidationError {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
         let pm = ctx.pod_manager();
         let pod_id = pm
             .create_pod(&req.template, &persona, req.name)
@@ -118,7 +123,10 @@ impl PodService {
         use uuid::Uuid;
         Uuid::parse_str(id)
             .map(PodID::from_uuid)
-            .map_err(|_| ServiceError::PodNotFound(format!("Invalid pod ID '{}'", id)))
+            .map_err(|_| ServiceError::PodNotFound {
+                source: None,
+                message: format!("Invalid pod ID '{}'", id),
+            })
     }
 
     /// Assign an MCP role to a replicant by name.
@@ -160,7 +168,7 @@ mod tests {
         let result = PodService::parse_pod_id("not-a-uuid");
         assert!(result.is_err());
         match result {
-            Err(ServiceError::PodNotFound(msg)) => {
+            Err(ServiceError::PodNotFound { message: msg, .. }) => {
                 assert!(msg.contains("Invalid pod ID"));
             }
             _ => panic!("Expected PodNotFound error"),

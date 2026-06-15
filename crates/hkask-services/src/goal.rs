@@ -49,10 +49,13 @@ impl GoalService {
         req: CreateGoalRequest,
     ) -> Result<GoalResponse, ServiceError> {
         let vis = Visibility::parse_str(&req.visibility).ok_or_else(|| {
-            ServiceError::ValidationError(format!(
-                "Invalid visibility '{}': expected private | public",
-                req.visibility
-            ))
+            ServiceError::ValidationError {
+                source: None,
+                message: format!(
+                    "Invalid visibility '{}': expected private | public",
+                    req.visibility
+                ),
+            }
         })?;
         let repo = ctx.goal_repo();
         let goal = repo
@@ -68,9 +71,14 @@ impl GoalService {
         state_filter: Option<&str>,
     ) -> Result<Vec<GoalResponse>, ServiceError> {
         let filter = match state_filter {
-            Some(s) => Some(GoalState::parse_str(s).ok_or_else(|| {
-                ServiceError::ValidationError(format!("Invalid goal state filter '{}'", s))
-            })?),
+            Some(s) => {
+                Some(
+                    GoalState::parse_str(s).ok_or_else(|| ServiceError::ValidationError {
+                        source: None,
+                        message: format!("Invalid goal state filter '{}'", s),
+                    })?,
+                )
+            }
             None => None,
         };
         let repo = ctx.goal_repo();
@@ -86,18 +94,26 @@ impl GoalService {
         goal_id_str: &str,
         new_state_str: &str,
     ) -> Result<GoalResponse, ServiceError> {
-        let goal_id: GoalID = goal_id_str.parse().map_err(|_| {
-            ServiceError::ValidationError(format!("Invalid goal ID '{}'", goal_id_str))
-        })?;
-        let new_state = GoalState::parse_str(new_state_str).ok_or_else(|| {
-            ServiceError::ValidationError(format!("Invalid goal state '{}'", new_state_str))
-        })?;
+        let goal_id: GoalID = goal_id_str
+            .parse()
+            .map_err(|_| ServiceError::ValidationError {
+                source: None,
+                message: format!("Invalid goal ID '{}'", goal_id_str),
+            })?;
+        let new_state =
+            GoalState::parse_str(new_state_str).ok_or_else(|| ServiceError::ValidationError {
+                source: None,
+                message: format!("Invalid goal state '{}'", new_state_str),
+            })?;
         let repo = ctx.goal_repo();
 
         let goal = repo
             .get_goal(goal_id)
             .map_err(ServiceError::GoalRepo)?
-            .ok_or_else(|| ServiceError::ValidationError(format!("Goal not found: {}", goal_id)))?;
+            .ok_or_else(|| ServiceError::ValidationError {
+                source: None,
+                message: format!("Goal not found: {}", goal_id),
+            })?;
         let from_state = goal.state.as_str().to_string();
 
         repo.update_goal_state(goal_id, new_state)

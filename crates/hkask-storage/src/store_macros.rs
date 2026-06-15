@@ -116,7 +116,6 @@ macro_rules! impl_from_rusqlite {
 /// # Example
 /// ```ignore
 /// impl_from_serde_json!(TripleError, Infra);
-/// impl_from_serde_json!(NuEventError, Infra);
 /// ```
 #[macro_export]
 macro_rules! impl_from_serde_json {

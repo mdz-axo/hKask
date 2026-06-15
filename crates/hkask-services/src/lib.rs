@@ -36,6 +36,7 @@ pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
 pub use backup::config::{
     BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
 };
+pub use backup::r#loop::BackupLoop;
 pub use backup::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
 pub use backup::scope::ArtifactType;
 pub use backup::scope::{BackupScope, ListFilter, RestoreScope};

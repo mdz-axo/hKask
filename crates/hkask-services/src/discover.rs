@@ -153,16 +153,24 @@ impl DiscoveryService {
 
         // Ensure output and cache directories exist
         std::fs::create_dir_all(&output_path).map_err(|e| {
-            ServiceError::Embed(format!(
+            let msg = format!(
                 "Failed to create output directory '{}': {e}",
                 output_path.display()
-            ))
+            );
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
         })?;
         std::fs::create_dir_all(&cache_dir).map_err(|e| {
-            ServiceError::Embed(format!(
+            let msg = format!(
                 "Failed to create cache directory '{}': {e}",
                 cache_dir.display()
-            ))
+            );
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
         })?;
 
         let mut works: Vec<DiscoveredWork> = Vec::new();
@@ -308,10 +316,10 @@ impl DiscoveryService {
 
         // Check after ALL sources have been tried
         if works.is_empty() && web_candidates.is_empty() && youtube_candidates.is_empty() {
-            return Err(ServiceError::Embed(format!(
-                "No works found for '{}' across any source",
-                req.author_name
-            )));
+            return Err(ServiceError::Embed {
+                source: None,
+                message: format!("No works found for '{}' across any source", req.author_name),
+            });
         }
 
         // ── Phase 4: Extract and cache content ────────────────────────────
@@ -477,15 +485,24 @@ pub fn generate_corpus_yaml(
     config.methods = methods.to_vec();
     config.corpus_type = "academic".to_string();
 
-    let config_yaml = serde_yaml::to_string(&config)
-        .map_err(|e| ServiceError::Embed(format!("Failed to serialize corpus config: {e}")))?;
+    let config_yaml = serde_yaml::to_string(&config).map_err(|e| {
+        let msg = format!("Failed to serialize corpus config: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     let config_path = output_dir.join("corpus.yaml");
     std::fs::write(&config_path, &config_yaml).map_err(|e| {
-        ServiceError::Embed(format!(
+        let msg = format!(
             "Failed to write corpus.yaml to '{}': {e}",
             config_path.display()
-        ))
+        );
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
 
     Ok(config_path)
@@ -547,14 +564,18 @@ fn augment_corpus_yaml(
 
     // Load existing config
     let existing_yaml = std::fs::read_to_string(&config_path).map_err(|e| {
-        ServiceError::Embed(format!(
-            "Failed to read existing corpus.yaml for augmentation: {e}"
-        ))
+        let msg = format!("Failed to read existing corpus.yaml for augmentation: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
     let mut config: CorpusConfig = serde_yaml::from_str(&existing_yaml).map_err(|e| {
-        ServiceError::Embed(format!(
-            "Failed to parse existing corpus.yaml for augmentation: {e}"
-        ))
+        let msg = format!("Failed to parse existing corpus.yaml for augmentation: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
 
     // Collect existing URLs for dedup
@@ -650,13 +671,22 @@ fn augment_corpus_yaml(
     }
 
     // Write back
-    let config_yaml = serde_yaml::to_string(&config)
-        .map_err(|e| ServiceError::Embed(format!("Failed to serialize augmented config: {e}")))?;
+    let config_yaml = serde_yaml::to_string(&config).map_err(|e| {
+        let msg = format!("Failed to serialize augmented config: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
     std::fs::write(&config_path, &config_yaml).map_err(|e| {
-        ServiceError::Embed(format!(
+        let msg = format!(
             "Failed to write augmented corpus.yaml to '{}': {e}",
             config_path.display()
-        ))
+        );
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
 
     tracing::info!(
@@ -718,7 +748,11 @@ async fn extract_concepts(
     // Render template
     let template_path = PathBuf::from(TEMPLATE_BASE).join("extract-concepts.j2");
     let template_src = std::fs::read_to_string(&template_path).map_err(|e| {
-        ServiceError::Embed(format!("Failed to read extract-concepts template: {e}"))
+        let msg = format!("Failed to read extract-concepts template: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
 
     // Parse model override before rendering (comments are stripped during render)
@@ -727,11 +761,21 @@ async fn extract_concepts(
     let mut env = minijinja::Environment::new();
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
     env.add_template_owned("extract-concepts", template_src)
-        .map_err(|e| ServiceError::Embed(format!("Failed to parse template: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Failed to parse template: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
-    let tmpl = env
-        .get_template("extract-concepts")
-        .map_err(|e| ServiceError::Embed(format!("Failed to load template: {e}")))?;
+    let tmpl = env.get_template("extract-concepts").map_err(|e| {
+        let msg = format!("Failed to load template: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     let prompt = tmpl
         .render(minijinja::context! {
@@ -739,7 +783,13 @@ async fn extract_concepts(
             papers,
             max_concepts => 15,
         })
-        .map_err(|e| ServiceError::Embed(format!("Failed to render template: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Failed to render template: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     // Call inference
     let inf_cfg = InferenceConfig::from_env();
@@ -753,13 +803,21 @@ async fn extract_concepts(
     let result = router
         .generate_with_model(&prompt, &params, model_override.as_deref())
         .await
-        .map_err(|e| ServiceError::Embed(format!("Concept extraction inference failed: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Concept extraction inference failed: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     // Parse JSON response
     let parsed: serde_json::Value = serde_json::from_str(&result.text).map_err(|e| {
-        ServiceError::Embed(format!(
-            "Failed to parse concept extraction response as JSON: {e}"
-        ))
+        let msg = format!("Failed to parse concept extraction response as JSON: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
 
     let concepts = parse_entity_list(&parsed, "concepts");
@@ -806,8 +864,13 @@ async fn infer_methods(
 
     // Render template
     let template_path = PathBuf::from(TEMPLATE_BASE).join("infer-methods.j2");
-    let template_src = std::fs::read_to_string(&template_path)
-        .map_err(|e| ServiceError::Embed(format!("Failed to read infer-methods template: {e}")))?;
+    let template_src = std::fs::read_to_string(&template_path).map_err(|e| {
+        let msg = format!("Failed to read infer-methods template: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     // Parse model override before rendering (comments are stripped during render)
     let model_override = parse_template_model(&template_src);
@@ -815,11 +878,21 @@ async fn infer_methods(
     let mut env = minijinja::Environment::new();
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
     env.add_template_owned("infer-methods", template_src)
-        .map_err(|e| ServiceError::Embed(format!("Failed to parse template: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Failed to parse template: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
-    let tmpl = env
-        .get_template("infer-methods")
-        .map_err(|e| ServiceError::Embed(format!("Failed to load template: {e}")))?;
+    let tmpl = env.get_template("infer-methods").map_err(|e| {
+        let msg = format!("Failed to load template: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     let prompt = tmpl
         .render(minijinja::context! {
@@ -827,7 +900,13 @@ async fn infer_methods(
             author_domain => "academic",
             sample_passages,
         })
-        .map_err(|e| ServiceError::Embed(format!("Failed to render template: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Failed to render template: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     // Call inference
     let inf_cfg = InferenceConfig::from_env();
@@ -841,13 +920,21 @@ async fn infer_methods(
     let result = router
         .generate_with_model(&prompt, &params, model_override.as_deref())
         .await
-        .map_err(|e| ServiceError::Embed(format!("Method inference failed: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Method inference failed: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     // Parse JSON response
     let parsed: serde_json::Value = serde_json::from_str(&result.text).map_err(|e| {
-        ServiceError::Embed(format!(
-            "Failed to parse method inference response as JSON: {e}"
-        ))
+        let msg = format!("Failed to parse method inference response as JSON: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
 
     let methods: Vec<DeclaredMethod> = parsed["methods"]
@@ -912,10 +999,13 @@ async fn mcp_search(
         "num_results": num_results,
     });
 
-    let result = mcp
-        .invoke("web_search", input, token)
-        .await
-        .map_err(|e| ServiceError::Embed(format!("MCP web_search failed: {e}")))?;
+    let result = mcp.invoke("web_search", input, token).await.map_err(|e| {
+        let msg = format!("MCP web_search failed: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     tracing::debug!(
         target: "hkask.discover",
@@ -1003,7 +1093,13 @@ async fn search_youtube_transcripts(
         .user_agent(USER_AGENT)
         .timeout(std::time::Duration::from_secs(30))
         .build()
-        .map_err(|e| ServiceError::Embed(format!("HTTP client build failed: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("HTTP client build failed: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     // Step 1: Search YouTube for videos
     let params: Vec<(&str, String)> = vec![
@@ -1018,7 +1114,13 @@ async fn search_youtube_transcripts(
         .query(&params)
         .send()
         .await
-        .map_err(|e| ServiceError::Embed(format!("SerpAPI YouTube search failed: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("SerpAPI YouTube search failed: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     let body = resp.text().await.unwrap_or_default();
     let parsed: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
@@ -1124,14 +1226,21 @@ async fn fetch_youtube_transcript(
         .query(&params)
         .send()
         .await
-        .map_err(|e| ServiceError::Embed(format!("SerpAPI transcript request failed: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("SerpAPI transcript request failed: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(ServiceError::Embed(format!(
-            "SerpAPI transcript error {status} for video '{video_id}'"
-        )));
+        return Err(ServiceError::Embed {
+            source: None,
+            message: format!("SerpAPI transcript error {status} for video '{video_id}'"),
+        });
     }
 
     let parsed: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
@@ -1173,17 +1282,29 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
         .user_agent(USER_AGENT)
         .timeout(std::time::Duration::from_secs(120))
         .build()
-        .map_err(|e| ServiceError::Embed(format!("HTTP client build failed: {e}")))?
+        .map_err(|e| {
+            let msg = format!("HTTP client build failed: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?
         .get(url)
         .send()
         .await
-        .map_err(|e| ServiceError::Embed(format!("HTTP request failed for '{url}': {e}")))?;
+        .map_err(|e| {
+            let msg = format!("HTTP request failed for '{url}': {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     if !resp.status().is_success() {
-        return Err(ServiceError::Embed(format!(
-            "HTTP {} for '{url}'",
-            resp.status()
-        )));
+        return Err(ServiceError::Embed {
+            source: None,
+            message: format!("HTTP {} for '{url}'", resp.status()),
+        });
     }
 
     let content_type = resp
@@ -1193,10 +1314,13 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
         .unwrap_or("")
         .to_string();
 
-    let bytes = resp
-        .bytes()
-        .await
-        .map_err(|e| ServiceError::Embed(format!("Failed to read response body: {e}")))?;
+    let bytes = resp.bytes().await.map_err(|e| {
+        let msg = format!("Failed to read response body: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     let is_pdf = content_type.contains("application/pdf")
         || url.ends_with(".pdf")
@@ -1205,8 +1329,13 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
     let text = if is_pdf {
         let tmp_dir = std::env::temp_dir();
         let tmp_path = tmp_dir.join(format!("hkask-discover-{}.pdf", uuid::Uuid::new_v4()));
-        std::fs::write(&tmp_path, &bytes)
-            .map_err(|e| ServiceError::Embed(format!("Failed to write temp PDF: {e}")))?;
+        std::fs::write(&tmp_path, &bytes).map_err(|e| {
+            let msg = format!("Failed to write temp PDF: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
         let extracted = pdf_extract::extract_text(&tmp_path).unwrap_or_default();
         let _ = std::fs::remove_file(&tmp_path);
 
@@ -1249,13 +1378,21 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
     };
 
     if text.split_whitespace().count() < 10 {
-        return Err(ServiceError::Embed(format!(
-            "Downloaded content from '{url}' is too short (likely paywalled or scanned PDF without OCR)"
-        )));
+        return Err(ServiceError::Embed {
+            source: None,
+            message: format!(
+                "Downloaded content from '{url}' is too short (likely paywalled or scanned PDF without OCR)"
+            ),
+        });
     }
 
-    std::fs::write(cache_path, &text)
-        .map_err(|e| ServiceError::Embed(format!("Failed to write cache: {e}")))?;
+    std::fs::write(cache_path, &text).map_err(|e| {
+        let msg = format!("Failed to write cache: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     tracing::info!(
         target: "hkask.discover",

@@ -120,16 +120,24 @@ pub fn load_classifier_config(
 ) -> Result<ClassifierDef, ServiceError> {
     let config_path = registry_dir.join("classify").join(format!("{name}.yaml"));
     let yaml_str = std::fs::read_to_string(&config_path).map_err(|e| {
-        ServiceError::Embed(format!(
+        let msg = format!(
             "Failed to read classifier config {}: {e}",
             config_path.display()
-        ))
+        );
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
     let config: ClassifierYaml = serde_yaml::from_str(&yaml_str).map_err(|e| {
-        ServiceError::Embed(format!(
+        let msg = format!(
             "Failed to parse classifier config {}: {e}",
             config_path.display()
-        ))
+        );
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
     Ok(config.classifier)
 }
@@ -197,21 +205,33 @@ async fn classify_one(
         .timeout(config.timeout)
         .send()
         .await
-        .map_err(|e| ServiceError::Embed(format!("Classifier HTTP error: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Classifier HTTP error: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
-        return Err(ServiceError::Embed(format!(
-            "Classifier error {status}: {}",
-            body.chars().take(200).collect::<String>()
-        )));
+        return Err(ServiceError::Embed {
+            source: None,
+            message: format!(
+                "Classifier error {status}: {}",
+                body.chars().take(200).collect::<String>()
+            ),
+        });
     }
 
-    let chat: ChatResponse = resp
-        .json()
-        .await
-        .map_err(|e| ServiceError::Embed(format!("Classifier JSON parse error: {e}")))?;
+    let chat: ChatResponse = resp.json().await.map_err(|e| {
+        let msg = format!("Classifier JSON parse error: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     let content = chat
         .choices
@@ -263,7 +283,13 @@ pub async fn classify_batch(
     let client = Client::builder()
         .timeout(config.timeout)
         .build()
-        .map_err(|e| ServiceError::Embed(format!("Classifier client build error: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Classifier client build error: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     let config = std::sync::Arc::new(config.clone()); // share across spawned tasks
     let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(config.concurrency));
@@ -329,7 +355,13 @@ pub async fn extract_triples_batch(
     let client = Client::builder()
         .timeout(config.timeout)
         .build()
-        .map_err(|e| ServiceError::Embed(format!("Triple extractor client build error: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Triple extractor client build error: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     let config = std::sync::Arc::new(config.clone());
     let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(config.concurrency));
@@ -390,21 +422,33 @@ async fn extract_triples_one(
         .timeout(config.timeout)
         .send()
         .await
-        .map_err(|e| ServiceError::Embed(format!("Triple extractor HTTP error: {e}")))?;
+        .map_err(|e| {
+            let msg = format!("Triple extractor HTTP error: {e}");
+            ServiceError::Embed {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
-        return Err(ServiceError::Embed(format!(
-            "Triple extractor error {status}: {}",
-            body.chars().take(200).collect::<String>()
-        )));
+        return Err(ServiceError::Embed {
+            source: None,
+            message: format!(
+                "Triple extractor error {status}: {}",
+                body.chars().take(200).collect::<String>()
+            ),
+        });
     }
 
-    let chat: ChatResponse = resp
-        .json()
-        .await
-        .map_err(|e| ServiceError::Embed(format!("Triple extractor JSON parse error: {e}")))?;
+    let chat: ChatResponse = resp.json().await.map_err(|e| {
+        let msg = format!("Triple extractor JSON parse error: {e}");
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    })?;
 
     let content = chat
         .choices
@@ -430,10 +474,14 @@ fn parse_triple_extraction(content: &str) -> Result<TripleExtraction, ServiceErr
     };
 
     let parsed: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
-        ServiceError::Embed(format!(
+        let msg = format!(
             "Triple extraction JSON parse error: {e}. Content: {}",
             &json_str[..json_str.len().min(200)]
-        ))
+        );
+        ServiceError::Embed {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
     })?;
 
     Ok(TripleExtraction {

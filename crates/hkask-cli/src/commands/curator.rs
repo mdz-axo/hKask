@@ -15,19 +15,17 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
 
 pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::resolve(&ctx, id, "cli-administrator").map_err(ServiceError::from)
+    CuratorService::resolve(&ctx, id, "cli-administrator")
 }
 
 pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::dismiss(&ctx, id, "cli-administrator").map_err(ServiceError::from)
+    CuratorService::dismiss(&ctx, id, "cli-administrator")
 }
 
 pub async fn curator_metacognition() -> Result<String, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::metacognition(&ctx)
-        .await
-        .map_err(ServiceError::from)
+    CuratorService::metacognition(&ctx).await
 }
 
 pub fn run_curator(

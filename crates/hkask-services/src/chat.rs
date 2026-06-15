@@ -376,9 +376,10 @@ impl ChatService {
         let _agent_kind = match agent {
             Some(registered) => registered.definition.agent_kind,
             None => {
-                return Err(ServiceError::AgentNotFound(
-                    "Agent not registered — run `kask agent register` first.".to_string(),
-                ));
+                return Err(ServiceError::AgentNotFound {
+                    source: None,
+                    message: "Agent not registered — run `kask agent register` first.".to_string(),
+                });
             }
         };
         // Model flows from request override → config default.

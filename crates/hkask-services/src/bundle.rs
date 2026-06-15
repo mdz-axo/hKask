@@ -70,9 +70,10 @@ impl BundleService {
         editor: &str,
     ) -> Result<BundleComposeResult, ServiceError> {
         if skill_ids.len() < 2 {
-            return Err(ServiceError::Compose(
-                "A bundle requires at least 2 skills".to_string(),
-            ));
+            return Err(ServiceError::Compose {
+                source: None,
+                message: "A bundle requires at least 2 skills".to_string(),
+            });
         }
 
         // Resolve skill metadata from the registry.
@@ -91,10 +92,10 @@ impl BundleService {
                 .filter(|id| !found.contains(id.as_str()))
                 .map(|s| s.as_str())
                 .collect();
-            return Err(ServiceError::Compose(format!(
-                "Skills not found in registry: {}",
-                missing.join(", ")
-            )));
+            return Err(ServiceError::Compose {
+                source: None,
+                message: format!("Skills not found in registry: {}", missing.join(", ")),
+            });
         }
 
         // Check for existing bundle with these skills (smart matching).
@@ -169,24 +170,37 @@ impl BundleService {
         let result = inference_port
             .generate(&prompt, &params)
             .await
-            .map_err(|e| ServiceError::Compose(format!("Inference failed: {}", e)))?;
+            .map_err(|e| {
+                let msg = format!("Inference failed: {}", e);
+                ServiceError::Compose {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
+            })?;
 
         // Parse the JSON response into a BundleManifest.
         let manifest: BundleManifest = serde_json::from_str(&result.text).map_err(|e| {
-            ServiceError::Compose(format!(
+            let msg = format!(
                 "Failed to parse composition result as JSON: {}. Raw response: {}",
                 e,
                 &result.text[..result.text.len().min(200)]
-            ))
+            );
+            ServiceError::Compose {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
         })?;
 
         // Validate the manifest.
         let validation = manifest.validate();
         if !validation.is_valid() {
-            return Err(ServiceError::Compose(format!(
-                "Composed bundle failed validation: {}",
-                validation.errors.join("; ")
-            )));
+            return Err(ServiceError::Compose {
+                source: None,
+                message: format!(
+                    "Composed bundle failed validation: {}",
+                    validation.errors.join("; ")
+                ),
+            });
         }
 
         // Register the bundle in the registry.
@@ -226,9 +240,10 @@ impl BundleService {
     pub async fn apply(ctx: &AgentService, id: &str) -> Result<BundleManifest, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
-        guard
-            .get_bundle(id)
-            .ok_or_else(|| ServiceError::Compose(format!("Bundle '{}' not found", id)))
+        guard.get_bundle(id).ok_or_else(|| ServiceError::Compose {
+            source: None,
+            message: format!("Bundle '{}' not found", id),
+        })
     }
 
     /// Evolve a bundle — re-compose when skills have changed.
@@ -242,8 +257,10 @@ impl BundleService {
         editor: &str,
     ) -> Result<BundleComposeResult, ServiceError> {
         let existing = Self::get(ctx, id).await?;
-        let existing =
-            existing.ok_or_else(|| ServiceError::Compose(format!("Bundle '{}' not found", id)))?;
+        let existing = existing.ok_or_else(|| ServiceError::Compose {
+            source: None,
+            message: format!("Bundle '{}' not found", id),
+        })?;
 
         // Re-compose using the same skill IDs.
         let skill_ids = existing.skill_ids();

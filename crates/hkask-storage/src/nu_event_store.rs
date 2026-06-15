@@ -3,7 +3,6 @@ use crate::{Store, now_rfc3339};
 use hkask_types::event::{Phase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};
-use thiserror::Error;
 
 /// Per-domain decay constants for weighted replay.
 ///
@@ -43,16 +42,6 @@ pub struct WeightedEvent {
     pub weight: f64,
 }
 
-#[derive(Error, Debug)]
-pub enum NuEventError {
-    #[error(transparent)]
-    Infra(#[from] InfrastructureError),
-}
-
-impl_from_rusqlite!(NuEventError, Infra);
-
-impl_from_serde_json!(NuEventError, Infra);
-
 /// Algedonic-significant span categories for Curation review.
 ///
 /// These are the CNS span namespaces that produce events requiring
@@ -80,7 +69,7 @@ impl NuEventStore {
         since: chrono::DateTime<chrono::Utc>,
         limit: u64,
         config: &DecayConfig,
-    ) -> Result<Vec<WeightedEvent>, NuEventError> {
+    ) -> Result<Vec<WeightedEvent>, InfrastructureError> {
         let events = self.query_algedonic(since, limit)?;
         let now = chrono::Utc::now();
 
@@ -116,7 +105,7 @@ impl NuEventStore {
         }
     }
 
-    pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {
+    pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
         let conn = self.lock_conn()?;
         let (span_category, span_path) = span_to_columns(&event.span);
 
@@ -155,7 +144,7 @@ impl NuEventStore {
     /// Loop cursors (e.g., `curation_last_review_ms`) track the last-processed
     /// event timestamp. Persisting them ensures the system doesn't re-process
     /// all historical events after a restart.
-    pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), NuEventError> {
+    pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), InfrastructureError> {
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT OR REPLACE INTO loop_cursors (key, value, updated_at) VALUES (?1, ?2, ?3)",
@@ -168,7 +157,7 @@ impl NuEventStore {
     ///
     /// Returns `Ok(None)` if no cursor has been persisted for the given key
     /// (e.g., first run after schema creation).
-    pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, NuEventError> {
+    pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT value FROM loop_cursors WHERE key = ?1")?;
         let mut rows = stmt.query(rusqlite::params![key])?;
@@ -182,7 +171,7 @@ impl NuEventStore {
         &self,
         since: chrono::DateTime<chrono::Utc>,
         limit: u64,
-    ) -> Result<Vec<NuEvent>, NuEventError> {
+    ) -> Result<Vec<NuEvent>, InfrastructureError> {
         let conn = self.lock_conn()?;
 
         let since_str = since.to_rfc3339();
@@ -199,7 +188,7 @@ impl NuEventStore {
             placeholders.join(", ")
         );
 
-        let mut stmt = conn.prepare(&sql).map_err(NuEventError::from)?;
+        let mut stmt = conn.prepare(&sql)?;
 
         // Dynamic params: since, then each span category, then limit
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
@@ -296,9 +285,7 @@ fn span_to_columns(span: &Span) -> (&str, &str) {
 
 impl NuEventSink for NuEventStore {
     fn persist(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
-        self.insert(event).map_err(|e| match e {
-            NuEventError::Infra(infra) => infra,
-        })
+        self.insert(event)
     }
 }
 

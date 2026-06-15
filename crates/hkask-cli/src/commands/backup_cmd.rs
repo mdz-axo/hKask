@@ -236,11 +236,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
                 config.tracked_types = parse_artifact_types(&types);
 
                 if let Some(dur_str) = _retention {
-                    let days: u32 = dur_str.trim_end_matches('d').parse().unwrap_or(21);
-                    config.retention = Some(RetentionPolicy {
-                        daily_days: days,
-                        weekly_weeks: 12,
-                    });
+                    config.retention = Some(
+                        RetentionPolicy::from_duration_str(&dur_str).unwrap_or_else(|e| {
+                            eprintln!("Invalid retention duration '{}': {}", dur_str, e);
+                            std::process::exit(1);
+                        }),
+                    );
                 }
 
                 if no_auto {

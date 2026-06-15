@@ -4,7 +4,7 @@
 //! and health checks for the Matrix integration.
 
 use crate::cli::MatrixAction;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn run(action: MatrixAction) {
     match action {
@@ -92,8 +92,7 @@ networks:
         domain = domain,
         output_dir = output_dir.display(),
         hydrogen_service = if with_web_client {
-            format!(
-                r#"
+            r#"
   # ── Optional lightweight web client ──
   hydrogen:
     image: element-hq/hydrogen-web:latest
@@ -114,7 +113,7 @@ networks:
     profiles:
       - with-web-client
 "#
-            )
+            .to_string()
         } else {
             String::new()
         }
@@ -467,7 +466,7 @@ fn derive_mxid(name: &str, homeserver: &str) -> String {
         use rand::RngCore;
         let mut bytes = [0u8; 4];
         rand::rng().fill_bytes(&mut bytes);
-        format!("agent-{}", hex::encode(&bytes))
+        format!("agent-{}", hex::encode(bytes))
     } else {
         localpart
     };
@@ -550,7 +549,7 @@ fn call_conduit_admin_register(
     }
 }
 
-fn write_file(dir: &PathBuf, name: &str, content: &str) {
+fn write_file(dir: &Path, name: &str, content: &str) {
     let path = dir.join(name);
     match std::fs::write(&path, content) {
         Ok(()) => println!("  ✓ wrote {}", name),

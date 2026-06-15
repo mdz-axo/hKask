@@ -156,10 +156,13 @@ impl SpecService {
         let specs = match category_filter {
             Some(cat_str) => {
                 let cat = SpecCategory::parse_str(cat_str).ok_or_else(|| {
-                    ServiceError::ValidationError(format!(
-                        "Unknown category '{}': valid: domain, composition, trust, lifecycle, curation",
-                        cat_str
-                    ))
+                    ServiceError::ValidationError {
+                        source: None,
+                        message: format!(
+                            "Unknown category '{}': valid: domain, composition, trust, lifecycle, curation",
+                            cat_str
+                        ),
+                    }
                 })?;
                 store.list_by_category(cat).map_err(ServiceError::Spec)?
             }
@@ -305,7 +308,10 @@ fn parse_spec_id(s: &str) -> Result<SpecId, ServiceError> {
     use uuid::Uuid;
     Uuid::parse_str(s)
         .map(SpecId)
-        .map_err(|_| ServiceError::ValidationError(format!("Invalid spec ID '{}'", s)))
+        .map_err(|_| ServiceError::ValidationError {
+            source: None,
+            message: format!("Invalid spec ID '{}'", s),
+        })
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────

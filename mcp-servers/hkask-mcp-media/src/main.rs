@@ -1185,7 +1185,7 @@ fn embedding_to_blob(embedding: &[f32]) -> Vec<u8> {
 
 /// Convert raw BLOB bytes back to a 512-dim f32 embedding.
 fn blob_to_embedding(blob: &[u8]) -> Option<Vec<f32>> {
-    if blob.len() % 4 != 0 {
+    if !blob.len().is_multiple_of(4) {
         return None;
     }
     let count = blob.len() / 4;

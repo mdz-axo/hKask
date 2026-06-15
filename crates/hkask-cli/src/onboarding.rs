@@ -94,9 +94,10 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         eprintln!("  \x1b[31m✗\x1b[0m No hKask installation found in OS keychain.");
         eprintln!("  Run \x1b[36mkask chat\x1b[0m first to complete initial setup, then use");
         eprintln!("  \x1b[36mkask onboard\x1b[0m to add additional replicants.");
-        OnboardingError::Service(ServiceError::Config(
-            "No keychain secrets — run `kask chat` first".into(),
-        ))
+        OnboardingError::Service(ServiceError::Config {
+            source: None,
+            message: "No keychain secrets — run `kask chat` first".into(),
+        })
     })?;
 
     // Open the existing registry.

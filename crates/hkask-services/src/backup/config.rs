@@ -121,11 +121,11 @@ impl RetentionPolicy {
         if age_weeks < weekly_window {
             // Keep if it's the start of an ISO week (Monday).
             // Simplified: keep one per week.
-            return age_days % 7 == 0;
+            return age_days.is_multiple_of(7);
         }
 
         // Monthly: keep one per month beyond weekly window.
-        age_days % 30 == 0
+        age_days.is_multiple_of(30)
     }
 
     /// Parse a duration string like "30d", "24h", or "60m" into a RetentionPolicy.
@@ -133,8 +133,8 @@ impl RetentionPolicy {
         let (value, unit) = split_duration(s)?;
         let days = match unit {
             "d" => value,
-            "h" => (value + 23) / 24,             // ceil to nearest day
-            "m" => ((value + 59) / 60 + 23) / 24, // minutes → hours → days
+            "h" => value.div_ceil(24),
+            "m" => value.div_ceil(60).div_ceil(24),
             other => {
                 return Err(format!(
                     "Unknown duration unit '{}', expected d, h, or m",
@@ -144,7 +144,7 @@ impl RetentionPolicy {
         };
         Ok(Self {
             daily_days: days as u32,
-            weekly_weeks: 0,
+            weekly_weeks: 12, // default weekly retention
         })
     }
 }
@@ -181,7 +181,7 @@ pub fn save_backup_config(config: &BackupConfig) -> Result<(), std::io::Error> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_string_pretty(config).map_err(|e| std::io::Error::other(e))?;
+    let json = serde_json::to_string_pretty(config).map_err(std::io::Error::other)?;
     std::fs::write(&path, json)
 }
 

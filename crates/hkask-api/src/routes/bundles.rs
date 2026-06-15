@@ -194,9 +194,10 @@ pub(crate) async fn compose_bundle(
     Json(request): Json<ComposeBundleRequest>,
 ) -> Result<Json<ComposeBundleResponse>, ServiceErrorResponse> {
     if request.skills.len() < 2 {
-        return Err(ServiceError::ValidationError(
-            "A bundle requires at least 2 skills".to_string(),
-        )
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: "A bundle requires at least 2 skills".to_string(),
+        }
         .into());
     }
 

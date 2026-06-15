@@ -187,8 +187,8 @@ fn parse_riff_policy(s: &str) -> Result<RiffReturn, String> {
         "group" | "return" | "return-to-group" => Ok(RiffReturn::ReturnToGroup),
         "spawn" | "spawn-thread" | "new-thread" => Ok(RiffReturn::SpawnThread),
         other => {
-            if other.starts_with("steps:") {
-                let max_steps: usize = other[6..]
+            if let Some(stripped) = other.strip_prefix("steps:") {
+                let max_steps: usize = stripped
                     .parse()
                     .map_err(|_| format!("Invalid step count in '{}'", other))?;
                 Ok(RiffReturn::ReturnAfterSteps { max_steps })

@@ -34,10 +34,10 @@ pub fn check_rate_limit() -> Result<(), ServiceError> {
     let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
     if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
         let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
-        return Err(ServiceError::RateLimited(format!(
-            "Rate limited: try again in {}s",
-            remaining
-        )));
+        return Err(ServiceError::RateLimited {
+            source: None,
+            message: format!("Rate limited: try again in {}s", remaining),
+        });
     }
     LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
     Ok(())
@@ -54,9 +54,10 @@ pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
     let expected_str = String::from_utf8_lossy(&expected).to_string();
     let secrets = hkask_keystore::master_key::derive_all_internal_secrets(passphrase);
     if secrets.capability_key != expected_str {
-        return Err(ServiceError::InvalidPassphrase(
-            "Passphrase verification failed".into(),
-        ));
+        return Err(ServiceError::InvalidPassphrase {
+            source: None,
+            message: "Passphrase verification failed".into(),
+        });
     }
     Ok(expected_str)
 }
@@ -83,9 +84,13 @@ pub fn consolidate(
     let token = handle.issue_consolidation_token();
     let domain_service = hkask_memory::ConsolidationService::new(bridge, semantic_memory, token);
 
-    let outcome = domain_service
-        .consolidate(webid, request)
-        .map_err(ServiceError::Consolidation)?;
+    let outcome =
+        domain_service
+            .consolidate(webid, request)
+            .map_err(|e| ServiceError::Consolidation {
+                source: None,
+                message: format!("Consolidation failed: {e}"),
+            })?;
 
     Ok(ConsolidationOutcome {
         consolidated_count: outcome.consolidated_count,

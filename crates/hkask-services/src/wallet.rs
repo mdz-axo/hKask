@@ -54,32 +54,35 @@ impl WalletService {
 
     /// Get the current rJoule balance for a wallet.
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, ServiceError> {
-        self.manager
-            .get_balance(wallet_id)
-            .map_err(|e| ServiceError::Wallet {
+        self.manager.get_balance(wallet_id).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
-                message: e.to_string(),
-            })
+                message: msg,
+            }
+        })
     }
 
     /// Check if a wallet can afford a given rJoule cost.
     pub fn can_afford(&self, wallet_id: WalletId, cost_rj: RJoule) -> Result<bool, ServiceError> {
-        self.manager
-            .can_afford(wallet_id, cost_rj)
-            .map_err(|e| ServiceError::Wallet {
+        self.manager.can_afford(wallet_id, cost_rj).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
-                message: e.to_string(),
-            })
+                message: msg,
+            }
+        })
     }
 
     /// Ensure a wallet row exists (idempotent — creates if missing).
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), ServiceError> {
-        self.manager
-            .ensure_wallet(wallet_id)
-            .map_err(|e| ServiceError::Wallet {
+        self.manager.ensure_wallet(wallet_id).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
-                message: e.to_string(),
-            })
+                message: msg,
+            }
+        })
     }
 
     // ── Deposit ──────────────────────────────────────────────────────────────
@@ -93,9 +96,12 @@ impl WalletService {
     ) -> Result<DepositAddress, ServiceError> {
         self.manager
             .get_deposit_address(wallet_id, chain, privacy)
-            .map_err(|e| ServiceError::Wallet {
-                source: Some(Box::new(e)),
-                message: e.to_string(),
+            .map_err(|e| {
+                let msg = e.to_string();
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
             })
     }
 
@@ -109,9 +115,12 @@ impl WalletService {
         let duration = chrono::Duration::hours(validity_hours);
         self.manager
             .generate_deposit_reference(wallet_id, chain, duration)
-            .map_err(|e| ServiceError::Wallet {
-                source: Some(Box::new(e)),
-                message: e.to_string(),
+            .map_err(|e| {
+                let msg = e.to_string();
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
             })
     }
 
@@ -124,9 +133,12 @@ impl WalletService {
     ) -> Result<Vec<WalletTransaction>, ServiceError> {
         self.manager
             .get_transactions(wallet_id, limit, offset)
-            .map_err(|e| ServiceError::Wallet {
-                source: Some(Box::new(e)),
-                message: e.to_string(),
+            .map_err(|e| {
+                let msg = e.to_string();
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
             })
     }
 
@@ -144,9 +156,12 @@ impl WalletService {
         self.manager
             .withdraw(wallet_id, amount_rj, to_address, chain, privacy)
             .await
-            .map_err(|e| ServiceError::Wallet {
-                source: Some(Box::new(e)),
-                message: e.to_string(),
+            .map_err(|e| {
+                let msg = e.to_string();
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
             })
     }
 
@@ -176,30 +191,35 @@ impl WalletService {
                 purpose,
                 rate_limit,
             )
-            .map_err(|e| ServiceError::Wallet {
-                source: Some(Box::new(e)),
-                message: e.to_string(),
+            .map_err(|e| {
+                let msg = e.to_string();
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
             })
     }
 
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
-        self.issuer
-            .revoke_key(key_id)
-            .map_err(|e| ServiceError::Wallet {
+        self.issuer.revoke_key(key_id).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
-                message: e.to_string(),
-            })
+                message: msg,
+            }
+        })
     }
 
     /// List active (non-revoked) API keys for a wallet.
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, ServiceError> {
-        self.issuer
-            .list_keys(wallet_id)
-            .map_err(|e| ServiceError::Wallet {
+        self.issuer.list_keys(wallet_id).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
-                message: e.to_string(),
-            })
+                message: msg,
+            }
+        })
     }
 
     // ── Gas conversion ──────────────────────────────────────────────────────
@@ -253,30 +273,35 @@ impl WalletService {
     ) -> Result<(), ServiceError> {
         self.manager
             .encumber(wallet_id, key_id, amount)
-            .map_err(|e| ServiceError::Wallet {
-                source: Some(Box::new(e)),
-                message: e.to_string(),
+            .map_err(|e| {
+                let msg = e.to_string();
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
             })
     }
 
     /// Release an encumbrance, returning unspent rJoules to the wallet.
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
-        self.manager
-            .release_encumbrance(key_id)
-            .map_err(|e| ServiceError::Wallet {
+        self.manager.release_encumbrance(key_id).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
-                message: e.to_string(),
-            })
+                message: msg,
+            }
+        })
     }
 
     /// Atomically consume rJoules from an API key's encumbrance.
     pub fn consume_gas(&self, key_id: ApiKeyId, gas_rj: RJoule) -> Result<(), ServiceError> {
-        self.manager
-            .consume(key_id, gas_rj)
-            .map_err(|e| ServiceError::Wallet {
+        self.manager.consume(key_id, gas_rj).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
-                message: e.to_string(),
-            })
+                message: msg,
+            }
+        })
     }
 
     /// Get the encumbrance for an API key.
@@ -284,12 +309,13 @@ impl WalletService {
         &self,
         key_id: ApiKeyId,
     ) -> Result<Option<hkask_types::wallet::Encumbrance>, ServiceError> {
-        self.manager
-            .get_encumbrance(key_id)
-            .map_err(|e| ServiceError::Wallet {
+        self.manager.get_encumbrance(key_id).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
-                message: e.to_string(),
-            })
+                message: msg,
+            }
+        })
     }
 }
 

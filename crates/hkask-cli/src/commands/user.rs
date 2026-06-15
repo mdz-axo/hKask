@@ -27,16 +27,20 @@ fn io_or_die<T>(result: std::io::Result<T>, context: &str) -> T {
 
 fn validate_passphrase(passphrase: &str) -> Result<(), ServiceError> {
     if passphrase.len() < 8 || !passphrase.chars().all(|c| c.is_alphanumeric()) {
-        return Err(ServiceError::InvalidPassphrase(
-            "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case".into(),
-        ));
+        return Err(ServiceError::InvalidPassphrase {
+            source: None,
+            message: "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case"
+                .into(),
+        });
     }
     let has_upper = passphrase.chars().any(|c| c.is_ascii_uppercase());
     let has_lower = passphrase.chars().any(|c| c.is_ascii_lowercase());
     if !has_upper || !has_lower {
-        return Err(ServiceError::InvalidPassphrase(
-            "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case".into(),
-        ));
+        return Err(ServiceError::InvalidPassphrase {
+            source: None,
+            message: "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case"
+                .into(),
+        });
     }
     Ok(())
 }
@@ -49,26 +53,30 @@ fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceErr
             .chars()
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
     {
-        return Err(ServiceError::ValidationError(
-            "Invalid replicant name".into(),
-        ));
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: "Invalid replicant name".into(),
+        });
     }
     if request.first_name.is_empty() || request.last_name.is_empty() {
-        return Err(ServiceError::ValidationError(
-            "Required name field is empty".into(),
-        ));
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: "Required name field is empty".into(),
+        });
     }
     if request.email.is_empty() || !request.email.contains('@') {
-        return Err(ServiceError::ValidationError(
-            "Invalid contact information format".into(),
-        ));
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: "Invalid contact information format".into(),
+        });
     }
     if let Some(phone) = &request.phone
         && !phone.starts_with('+')
     {
-        return Err(ServiceError::ValidationError(
-            "Invalid contact information format".into(),
-        ));
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: "Invalid contact information format".into(),
+        });
     }
     validate_passphrase(&request.passphrase)?;
     Ok(())
@@ -116,7 +124,10 @@ pub fn login_with_passphrase(
         .lock()
         .unwrap()
         .login(replicant_name, &passphrase)
-        .map_err(|_| ServiceError::LoginFailed("Invalid credentials".into()))
+        .map_err(|_| ServiceError::LoginFailed {
+            source: None,
+            message: "Invalid credentials".into(),
+        })
 }
 
 pub fn get_replicant(
@@ -127,7 +138,10 @@ pub fn get_replicant(
         .lock()
         .unwrap()
         .get_replicant(replicant_name)?
-        .ok_or_else(|| ServiceError::UserNotFound(format!("Replicant '{}'", replicant_name)))
+        .ok_or_else(|| ServiceError::UserNotFound {
+            source: None,
+            message: format!("Replicant '{}'", replicant_name),
+        })
 }
 
 pub fn get_replicants(
@@ -154,7 +168,10 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
         .lock()
         .unwrap()
         .get_session(session_id)?
-        .ok_or_else(|| ServiceError::UserNotFound(format!("Session '{}'", session_id)))?;
+        .ok_or_else(|| ServiceError::UserNotFound {
+            source: None,
+            message: format!("Session '{}'", session_id),
+        })?;
     store.lock().unwrap().logout(session_id)?;
     Ok(session)
 }
@@ -249,7 +266,10 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), Service
         .lock()
         .unwrap()
         .get_replicant(replicant_name)?
-        .ok_or_else(|| ServiceError::UserNotFound(format!("Replicant '{}'", replicant_name)))?;
+        .ok_or_else(|| ServiceError::UserNotFound {
+            source: None,
+            message: format!("Replicant '{}'", replicant_name),
+        })?;
     println!("Replicant: {}", identity.replicant_name);
     println!("  User ID: {}", identity.user_id);
     println!("  Created: {}", identity.created_at);
@@ -265,7 +285,7 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
         .lock()
         .unwrap()
         .list_replicants(&user_id)
-        .map_err(|e| ServiceError::from(e))?;
+        .map_err(ServiceError::from)?;
     if replicants.is_empty() {
         println!("No replicants registered.");
         return Ok(());
@@ -288,7 +308,10 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
         .lock()
         .unwrap()
         .get_session(session_id)?
-        .ok_or_else(|| ServiceError::UserNotFound(format!("Session '{}'", session_id)))?;
+        .ok_or_else(|| ServiceError::UserNotFound {
+            source: None,
+            message: format!("Session '{}'", session_id),
+        })?;
     store.lock().unwrap().logout(session_id)?;
     println!("Session revoked: {}", session.session_id);
     Ok(())
