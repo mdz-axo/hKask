@@ -11,3 +11,5 @@ serde_json.workspace = true
 schemars.workspace = true
 
 [dev-dependencies]
+hkask-test-harness = { path = "../hkask-test-harness" }
+proptest = "1"

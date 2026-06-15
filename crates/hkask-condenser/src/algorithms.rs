@@ -681,4 +681,70 @@ mod tests {
             "saliency_rank"
         );
     }
+
+    // ── Property-based tests (Wave 2) ─────────────────────────────────────
+
+    use proptest::prelude::*;
+    use proptest::sample::select;
+
+    /// Strategy: generate a non-empty string with varied content.
+    fn arbitrary_input() -> BoxedStrategy<String> {
+        proptest::arbitrary::any::<String>()
+            .prop_filter("must be non-empty", |s| !s.is_empty())
+            .boxed()
+    }
+
+    // REQ: CON-001 — Compression idempotency (P8, P9)
+    // For any input, re-compressing the output produces the same result.
+    proptest! {
+        #[test]
+        fn compression_is_idempotent(
+            input in arbitrary_input(),
+            profile in select(&[Profile::Heavy, Profile::Normal, Profile::Soft, Profile::Light]),
+            category in select(&[
+                ContextCategory::ShellCommand,
+                ContextCategory::TestOutput,
+                ContextCategory::BuildOutput,
+                ContextCategory::FileContents,
+                ContextCategory::ConversationHistory,
+                ContextCategory::StructuredData,
+                ContextCategory::LogOutput,
+                ContextCategory::Unknown,
+            ]),
+        ) {
+            let algo = RtkStyleAlgorithm;
+            let (first, _) = algo.compress(&input, profile, category);
+            let (second, _) = algo.compress(&first, profile, category);
+            let first_len = first.len();
+            let second_len = second.len();
+            prop_assert_eq!(first, second,
+                "re-compression changed output: first={} bytes, second={} bytes",
+                first_len, second_len);
+        }
+    }
+
+    // REQ: CON-002 — Size monotonicity (P8, P9)
+    // Compression never produces output larger than input.
+    proptest! {
+        #[test]
+        fn compression_never_expands(
+            input in arbitrary_input(),
+            profile in select(&[Profile::Heavy, Profile::Normal, Profile::Soft, Profile::Light]),
+            category in select(&[
+                ContextCategory::ShellCommand,
+                ContextCategory::TestOutput,
+                ContextCategory::BuildOutput,
+                ContextCategory::FileContents,
+                ContextCategory::ConversationHistory,
+                ContextCategory::StructuredData,
+                ContextCategory::LogOutput,
+                ContextCategory::Unknown,
+            ]),
+        ) {
+            let algo = RtkStyleAlgorithm;
+            let (compressed, _) = algo.compress(&input, profile, category);
+            prop_assert!(compressed.len() <= input.len(),
+                "compressed {} > original {}", compressed.len(), input.len());
+        }
+    }
 }

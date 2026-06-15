@@ -1,18 +1,25 @@
 //! hKask Service Layer — shared startup infrastructure and domain operations.
+//!
+//! # Module visibility
+//!
+//! Modules marked **Public API** are the stable surface. Prefer the re-exported
+//! paths at crate root (e.g. `hkask_services::BackupService`) over the full
+//! module path (`hkask_services::backup::BackupService`).
+//!
+//! Modules marked **Internal** are accessible via their full path but are not
+//! part of the committed public API. They may change without semver notice.
 
-pub mod archival;
+// ── Public API modules ─────────────────────────────────────────────────
+
 pub mod backup;
 pub mod bundle;
 pub mod chat;
-pub mod classify;
 pub mod cns;
 pub mod compose;
 pub mod config;
-pub mod consolidation;
 pub mod contacts;
 pub mod context;
 pub mod curator;
-pub mod daemon_handler;
 pub mod deletion_test;
 pub mod discover;
 pub mod embed;
@@ -31,6 +38,13 @@ pub mod sovereignty;
 pub mod spec;
 pub mod verification;
 pub mod wallet;
+
+// ── Internal modules (accessible, not part of committed API) ───────────
+
+pub mod archival;
+pub mod classify;
+pub mod consolidation;
+pub mod daemon_handler;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
 pub use backup::config::{

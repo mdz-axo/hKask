@@ -111,9 +111,9 @@ Documents with `version` diverging from workspace `0.27.0`:
 
 **Status:** Archive policy already codified in `DOCUMENTATION_STANDARDS.md` §3 (Lifecycle) and `HANDOFF_LIFECYCLE.md`. Git history is archive of record; `docs/archive/` is gitignored personal reference. No standalone ARCHIVE_POLICY.md needed — policy is consolidated in existing authoritative documents.
 
-### P2-4: Runbook / Operational Guide
+### P2-4: Runbook / Operational Guide ✅ DONE
 
-No operational documentation exists for hKask deployments. Minimum viable: cloud server daemon setup, troubleshooting, log locations, key rotation procedure.
+**Status:** `docs/guides/OPERATIONS_RUNBOOK.md` exists (created 2026-06-14). Covers all minimum viable items: deployment architecture (§1), prerequisites (§2), startup (§3), health checks (§4), key rotation (§5), troubleshooting (§6), log locations (§7), backup/recovery (§8), shutdown (§9). Status: Draft.
 
 ### P2-5: Migrate `docs/audit/` to Archive ✅ DONE
 
@@ -127,25 +127,25 @@ No operational documentation exists for hKask deployments. Minimum viable: cloud
 
 ## P3 — Low (Backlog)
 
-### P3-1: Crate-Specific Onboarding Guides
+### P3-1: Crate-Specific Onboarding Guides — Template Created
 
-Currently only 3 user guides exist (agent pod creation, common patterns, companies). 18 crates — especially new ones (`hkask-mcp-media`, `hkask-mcp-companies`) — would benefit from onboarding guides.
+**Status:** Template created at `docs/user-guides/CRATE-ONBOARDING-TEMPLATE.md`. Covers: crate purpose, architecture, public interface, testing, common tasks, error handling. Individual crate guides deferred — 18 crates is a per-crate workstream. Copy template and fill per crate.
 
-### P3-2: Replicant Onboarding Walkthrough
+### P3-2: Replicant Onboarding Walkthrough ✅ DONE
 
-End-to-end guide from `kask onboard` through first `kask chat` session with a named replicant. Currently no single document covers the full onboarding flow.
+**Status:** Guide created at `docs/user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md` (239 lines). Covers: prerequisites, build/install, onboarding flow, verification, first chat session, next steps (consent, MCP servers, additional replicants), troubleshooting, reference.
 
-### P3-3: Essentialist Auto-Culling
+### P3-3: Essentialist Auto-Culling ✅ DONE
 
-Automated deletion test: script that checks if a document is referenced from any index (portal, architecture master, AGENTS.md). Unreferenced documents are candidates for archival.
+**Status:** Script created at `docs/ci/essentialist-cull.sh`. Scans all docs/ against 3 indexes (README.md portal, architecture master, AGENTS.md). Current run: 56 referenced, 19 unreferenced (12 PUBLIC_SURFACE stubs, 2 new plans not yet in portal, 4 status/guide files). Run with `--verbose` to see referenced sources.
 
-### P3-4: Corpus Inventory Regeneration Automation
+### P3-4: Corpus Inventory Regeneration Automation ✅ DONE
 
-Currently manual (agent runs classification sweep). Automate via script that re-runs the classification logic.
+**Status:** Script created at `docs/ci/regenerate-corpus-inventory.sh`. Extracts frontmatter fields mechanically (path, category, status, version, mds_categories, last_updated). Classification fields (staleness_signal, governing_principles, disposition, notes) left as TODO for manual/agent sweep. Outputs YAML skeleton to stdout or `--output FILE`.
 
-### P3-5: Pre-Commit Hook for Version Anomalies
+### P3-5: Pre-Commit Hook for Version Anomalies ✅ DONE
 
-Hook that flags documents where `version` ≠ workspace `Cargo.toml` version, with an exclusion list for intentionally divergent documents.
+**Status:** Script created at `docs/ci/pre-commit-version-check.sh`. Non-blocking hook — flags staged .md/.yaml files whose `version:` diverges from workspace `Cargo.toml`. Uses same exclusion list as `sync-versions.sh`. Symlink as `.git/hooks/pre-commit` to activate.
 
 ---
 
@@ -186,8 +186,8 @@ After each tier is complete:
 |------|------|
 | P0 | `check-links.sh` passes; README portal has no "not yet created" references; P0-1 (CI scripts in missing_referenced) resolved ✅ |
 | P1 | `check-metadata.sh` passes with 0 errors; all version anomalies resolved ✅; sync-versions.sh functional ✅; MDS_SCAFFOLD.md updated ✅ |
-| P2 | `openapi.json` generated; missing ADRs exist; audit docs archived |
-| P3 | Backlog grooming complete |
+| P2 | `openapi.json` generated ✅; missing ADRs exist ✅; archive policy codified ✅; runbook exists ✅; plan versioning standardized ✅ |
+| P3 | Backlog grooming complete; onboarding walkthrough created ✅; essentialist cull script ✅; corpus inventory regeneration script ✅; pre-commit hook ✅; crate guide template created (per-crate guides deferred) |
 
 ---
 

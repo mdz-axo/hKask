@@ -15,6 +15,7 @@
 //! - P12 (Replicant Host Mandate): all test identities use TestWebId (authenticated)
 
 mod schema;
+pub mod strategies;
 
 pub use schema::SCHEMA_SQL;
 
