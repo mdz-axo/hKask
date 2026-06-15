@@ -7,13 +7,14 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::State};
+use hkask_services::ServiceError;
 use hkask_types::ports::git_cas::RepoId;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
 /// Archive repository request
@@ -75,26 +76,15 @@ pub(crate) async fn archive(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ArchiveRequest>,
-) -> Result<Json<ArchiveResponse>, ApiError> {
+) -> Result<Json<ArchiveResponse>, ServiceErrorResponse> {
     // Construct crate name from owner/repo
     let crate_name = format!("{}/{}", req.owner, req.repo);
 
     // Template loading stays on the legacy adapter (domain operation, not CAS)
     let git_cas = state.git_cas.clone();
-    let template_crate = git_cas
-        .load_template_crate(&crate_name)
-        .map_err(|e| match &e {
-            hkask_types::GitError::CrateNotFound(name) => ApiError::NotFound {
-                resource: "template crate".into(),
-                id: name.clone(),
-            },
-            hkask_types::GitError::Io(_) => ApiError::BadRequest {
-                message: e.to_string(),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
-        })?;
+    let template_crate = git_cas.load_template_crate(&crate_name).map_err(|e| {
+        ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
+    })?;
 
     // SHA resolution uses GitCASPort (hexagonal boundary)
     let sha = state
@@ -140,13 +130,16 @@ pub(crate) async fn resolve_sha(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(reference): Path<String>,
-) -> Result<Json<ResolveShaResponse>, ApiError> {
+) -> Result<Json<ResolveShaResponse>, ServiceErrorResponse> {
     let commit = state
         .git_cas_port
         .resolve_ref(&RepoId::Registry, &reference)
         .await
-        .map_err(|e| ApiError::Internal {
-            message: format!("Failed to resolve ref '{}': {}", reference, e),
+        .map_err(|e| {
+            ServiceError::Infra(hkask_types::InfrastructureError::Database(format!(
+                "Failed to resolve ref '{}': {}",
+                reference, e
+            )))
         })?;
 
     Ok(Json(ResolveShaResponse {

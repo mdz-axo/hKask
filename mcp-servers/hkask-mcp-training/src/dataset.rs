@@ -61,9 +61,11 @@ impl DatasetFormat {
             "json" => {
                 // Single JSON array of Alpaca objects.
                 if let Ok(content) = std::fs::read_to_string(path)
-                    && content.contains("\"instruction\"") && content.contains("\"output\"") {
-                        return Some(Self::Alpaca);
-                    }
+                    && content.contains("\"instruction\"")
+                    && content.contains("\"output\"")
+                {
+                    return Some(Self::Alpaca);
+                }
                 None
             }
             "txt" => Some(Self::RawText),
@@ -416,4 +418,96 @@ pub fn to_unsloth_format(
     std::fs::write(&output_path, output)
         .map_err(|e| DatasetError::Cache(format!("Failed to write unsloth format: {}", e)))?;
     Ok(output_path)
+}
+
+// ── Tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    /// REQ: training-pipeline-01 — DatasetPipeline ingests and normalizes ChatML JSONL
+    #[test]
+    fn ingest_chatml_jsonl() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("test.jsonl");
+        let cache = dir.path().join("cache");
+        std::fs::create_dir_all(&cache).expect("create cache dir");
+
+        // Write a minimal ChatML dataset (simulating constraint-forces traces)
+        let records = vec![
+            serde_json::json!({"messages": [
+                {"role": "system", "content": "You classify constraints."},
+                {"role": "user", "content": "Classify: must never expose memory."},
+                {"role": "assistant", "content": "Prohibition (Rank 1)."}
+            ]}),
+            serde_json::json!({"messages": [
+                {"role": "system", "content": "You classify constraints."},
+                {"role": "user", "content": "Classify: prefer local models."},
+                {"role": "assistant", "content": "Guideline (Rank 3)."}
+            ]}),
+        ];
+        let mut file = std::fs::File::create(&input).expect("create input");
+        for record in &records {
+            writeln!(file, "{}", serde_json::to_string(record).unwrap()).expect("write");
+        }
+
+        let mut pipeline = DatasetPipeline::new(cache.clone());
+        let normalized = pipeline.ingest(&input).expect("ingest should succeed");
+
+        assert!(normalized.exists(), "normalized output should exist");
+        let content = std::fs::read_to_string(&normalized).expect("read output");
+        let lines: Vec<_> = content.lines().filter(|l| !l.trim().is_empty()).collect();
+        assert_eq!(lines.len(), 2, "should have 2 conversations");
+
+        // Verify each line is valid ChatML JSON
+        for line in &lines {
+            let conv: ChatConversation = serde_json::from_str(line).expect("valid ChatML JSON");
+            assert!(!conv.messages.is_empty());
+            let roles: Vec<_> = conv.messages.iter().map(|m| m.role.as_str()).collect();
+            assert_eq!(roles, vec!["system", "user", "assistant"]);
+        }
+    }
+
+    /// REQ: training-pipeline-02 — DatasetPipeline caches and returns same result on re-ingest
+    #[test]
+    fn ingest_caches_result() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("test.jsonl");
+        let cache = dir.path().join("cache");
+        std::fs::create_dir_all(&cache).expect("create cache dir");
+
+        let record = serde_json::json!({"messages": [
+            {"role": "user", "content": "What is P5?"},
+            {"role": "assistant", "content": "Minimal Architecture."}
+        ]});
+        std::fs::write(
+            &input,
+            format!("{}\n", serde_json::to_string(&record).unwrap()),
+        )
+        .expect("write");
+
+        let mut pipeline = DatasetPipeline::new(cache.clone());
+        let first = pipeline.ingest(&input).expect("first ingest");
+        let second = pipeline.ingest(&input).expect("second ingest");
+
+        assert_eq!(first, second, "cached path should match");
+        assert!(first.starts_with(&cache), "output should be in cache dir");
+    }
+
+    /// REQ: training-pipeline-03 — empty dataset returns Empty error
+    #[test]
+    fn ingest_empty_dataset() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("empty.jsonl");
+        let cache = dir.path().join("cache");
+        std::fs::create_dir_all(&cache).expect("create cache dir");
+        std::fs::write(&input, "\n\n").expect("write empty");
+
+        let mut pipeline = DatasetPipeline::new(cache);
+        let result = pipeline.ingest(&input);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), DatasetError::Empty));
+    }
 }

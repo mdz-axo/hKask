@@ -66,6 +66,7 @@ impl EmbeddingRouter {
             ProviderId::Fireworks => self.fireworks_client.is_some(),
             ProviderId::DeepInfra => self.deepinfra_client.is_some(),
             ProviderId::Fal => false, // fal.ai does not expose embedding endpoints
+            ProviderId::Together => false, // Together AI embedding client not yet implemented
         };
 
         if !available {
@@ -124,6 +125,11 @@ impl EmbeddingRouter {
             ProviderId::Fal => {
                 return Err(EmbeddingGenerationError::Connection(
                     "fal.ai does not support embeddings".into(),
+                ));
+            }
+            ProviderId::Together => {
+                return Err(EmbeddingGenerationError::Connection(
+                    "Together AI embedding client not yet implemented".into(),
                 ));
             }
         };

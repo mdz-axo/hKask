@@ -23,6 +23,8 @@ pub enum TrainingProviderId {
     Axolotl,
     /// unsloth — optimized memory-efficient training
     Unsloth,
+    /// together — Together AI cloud fine-tuning API
+    Together,
 }
 
 impl TrainingProviderId {
@@ -32,6 +34,7 @@ impl TrainingProviderId {
         match s.to_lowercase().as_str() {
             "axolotl" => Some(Self::Axolotl),
             "unsloth" => Some(Self::Unsloth),
+            "together" => Some(Self::Together),
             _ => None,
         }
     }
@@ -535,6 +538,254 @@ impl TrainingProvider for UnslothProvider {
     }
 }
 
+// ── Together AI cloud provider ──────────────────────────────────────────────
+
+/// Together AI training provider — submits fine-tuning jobs via REST API.
+///
+/// Uses the Together AI fine-tuning API (https://api.together.xyz/v1/fine-tunes)
+/// to submit LoRA fine-tuning jobs, poll status, and manage adapters.
+/// No local GPU or CLI required.
+pub struct TogetherProvider {
+    api_key: String,
+    base_url: String,
+    client: reqwest::Client,
+}
+
+impl TogetherProvider {
+    pub fn new(api_key: String) -> Self {
+        Self {
+            api_key,
+            base_url: "https://api.together.xyz".to_string(),
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl TrainingProvider for TogetherProvider {
+    async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        // Step 1: Upload the dataset file
+        let file_name = job
+            .dataset_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("dataset.jsonl");
+
+        let file_bytes = tokio::fs::read(&job.dataset_path)
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Failed to read dataset file: {}", e)))?;
+
+        let file_part = reqwest::multipart::Part::bytes(file_bytes)
+            .file_name(file_name.to_string())
+            .mime_str("application/jsonl")
+            .map_err(|e| ProviderError::Backend(format!("Invalid MIME type: {}", e)))?;
+
+        let form = reqwest::multipart::Form::new()
+            .text("purpose", "fine-tune")
+            .text("file_name", file_name.to_string())
+            .part("file", file_part);
+
+        let upload_response = self
+            .client
+            .post(format!("{}/v1/files/upload", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Together AI upload failed: {}", e)))?;
+
+        let upload_status = upload_response.status();
+        let upload_json: serde_json::Value = upload_response.json().await.map_err(|e| {
+            ProviderError::Backend(format!("Together AI upload parse error: {}", e))
+        })?;
+
+        if !upload_status.is_success() {
+            return Err(ProviderError::Backend(format!(
+                "Together AI upload error {}: {}",
+                upload_status,
+                serde_json::to_string_pretty(&upload_json).unwrap_or_default()
+            )));
+        }
+
+        let file_id = upload_json["id"]
+            .as_str()
+            .ok_or_else(|| ProviderError::Backend("No file ID in upload response".to_string()))?
+            .to_string();
+
+        tracing::info!(
+            target: "cns.training.file.upload",
+            file_id = %file_id,
+            "Dataset uploaded to Together AI"
+        );
+
+        // Step 2: Submit the fine-tuning job
+        let body = serde_json::json!({
+            "model": job.base_model,
+            "training_file": file_id,
+            "n_epochs": job.params.num_epochs,
+            "n_checkpoints": 1,
+            "learning_rate": job.params.learning_rate,
+            "lora": true,
+            "lora_r": job.params.lora_r,
+            "lora_alpha": job.params.lora_alpha,
+            "batch_size": job.params.batch_size.max(8),
+            "suffix": format!("hkask-{}", &job.id[..8]),
+        });
+
+        let response = self
+            .client
+            .post(format!("{}/v1/fine-tunes", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Together AI request failed: {}", e)))?;
+
+        let status = response.status();
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Together AI parse error: {}", e)))?;
+
+        if !status.is_success() {
+            return Err(ProviderError::Backend(format!(
+                "Together AI error {}: {}",
+                status,
+                serde_json::to_string_pretty(&json).unwrap_or_default()
+            )));
+        }
+
+        let job_id = json["id"].as_str().unwrap_or("unknown").to_string();
+
+        tracing::info!(
+            target: "cns.training.job.submit",
+            job_id = %job_id,
+            provider = "together",
+            "Training job submitted to Together AI"
+        );
+
+        Ok(job_id)
+    }
+
+    async fn status(&self, job_id: &str) -> Result<TrainingJobStatus, ProviderError> {
+        let response = self
+            .client
+            .get(format!("{}/v1/fine-tunes/{}", self.base_url, job_id))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .send()
+            .await
+            .map_err(|e| {
+                ProviderError::Backend(format!("Together AI status request failed: {}", e))
+            })?;
+
+        let status_code = response.status();
+        let json: serde_json::Value = response.json().await.map_err(|e| {
+            ProviderError::Backend(format!("Together AI status parse error: {}", e))
+        })?;
+
+        if !status_code.is_success() {
+            return Err(ProviderError::Backend(format!(
+                "Together AI status error {}: {}",
+                status_code,
+                serde_json::to_string_pretty(&json).unwrap_or_default()
+            )));
+        }
+
+        let status_str = json["status"].as_str().unwrap_or("unknown");
+        match status_str {
+            "pending" | "queued" => Ok(TrainingJobStatus::Queued),
+            "running" => Ok(TrainingJobStatus::Running),
+            "completed" | "succeeded" => Ok(TrainingJobStatus::Completed),
+            "failed" | "error" => Ok(TrainingJobStatus::Failed),
+            "cancelled" => Ok(TrainingJobStatus::Cancelled),
+            _ => Ok(TrainingJobStatus::Queued),
+        }
+    }
+
+    async fn cancel(&self, job_id: &str) -> Result<(), ProviderError> {
+        let response = self
+            .client
+            .post(format!("{}/v1/fine-tunes/{}/cancel", self.base_url, job_id))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .send()
+            .await
+            .map_err(|e| {
+                ProviderError::Backend(format!("Together AI cancel request failed: {}", e))
+            })?;
+
+        if !response.status().is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(ProviderError::Backend(format!(
+                "Together AI cancel error: {}",
+                body
+            )));
+        }
+
+        tracing::info!(
+            target: "cns.training.job.cancel",
+            job_id = %job_id,
+            provider = "together",
+            "Training job cancelled"
+        );
+        Ok(())
+    }
+
+    async fn list_adapters(&self) -> Result<Vec<String>, ProviderError> {
+        let response = self
+            .client
+            .get(format!("{}/v1/fine-tunes", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .send()
+            .await
+            .map_err(|e| {
+                ProviderError::Backend(format!("Together AI list request failed: {}", e))
+            })?;
+
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Together AI list parse error: {}", e)))?;
+
+        let adapters: Vec<String> = json["data"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .filter(|j| j["status"] == "completed" || j["status"] == "succeeded")
+            .filter_map(|j| j["id"].as_str().map(|s| s.to_string()))
+            .collect();
+
+        Ok(adapters)
+    }
+
+    async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError> {
+        let response = self
+            .client
+            .delete(format!("{}/v1/fine-tunes/{}", self.base_url, adapter_id))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .send()
+            .await
+            .map_err(|e| {
+                ProviderError::Backend(format!("Together AI delete request failed: {}", e))
+            })?;
+
+        if !response.status().is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(ProviderError::Backend(format!(
+                "Together AI delete error: {}",
+                body
+            )));
+        }
+
+        tracing::info!(
+            target: "cns.training.adapter.deleted",
+            adapter_id = %adapter_id,
+            provider = "together",
+            "LoRA adapter deleted from Together AI"
+        );
+        Ok(())
+    }
+}
+
 // ── Provider factory ───────────────────────────────────────────────────────
 
 /// Create a provider from configuration.
@@ -553,6 +804,16 @@ pub fn create_provider(
             config.python_path.clone(),
             config.cloud_dispatch,
         ))),
+        TrainingProviderId::Together => {
+            if config.together_api_key.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Together AI API key not configured (set TOGETHER_API_KEY)".to_string(),
+                ));
+            }
+            Ok(Box::new(TogetherProvider::new(
+                config.together_api_key.clone(),
+            )))
+        }
     }
 }
 
@@ -567,6 +828,8 @@ pub struct ProviderConfig {
     pub python_path: Option<PathBuf>,
     /// Whether to dispatch training to cloud (Fireworks/Baseten).
     pub cloud_dispatch: bool,
+    /// Together AI API key (for Together).
+    pub together_api_key: String,
 }
 
 impl Default for ProviderConfig {
@@ -576,6 +839,7 @@ impl Default for ProviderConfig {
             axolotl_path: None,
             python_path: None,
             cloud_dispatch: false,
+            together_api_key: String::new(),
         }
     }
 }

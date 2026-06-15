@@ -4,12 +4,13 @@ use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use hkask_agents::pod::AgentPersona;
+use hkask_services::ServiceError;
 use hkask_types::DelegationResource;
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -54,25 +55,11 @@ pub fn pods_router() -> OpenApiRouter<ApiState> {
         .route("/api/pods/{id}/status", axum::routing::get(pod_status))
 }
 
-fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ApiError> {
+fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ServiceError> {
     use hkask_agents::pod::PodID;
     Uuid::parse_str(id)
         .map(PodID::from_uuid)
-        .map_err(|e| ApiError::BadRequest {
-            message: format!("Invalid pod ID: {e}"),
-        })
-}
-
-fn map_pod_err(e: hkask_agents::pod::AgentPodError) -> ApiError {
-    match &e {
-        hkask_agents::pod::AgentPodError::PodNotFound(id) => ApiError::NotFound {
-            resource: "pod".into(),
-            id: id.to_string(),
-        },
-        other => ApiError::Internal {
-            message: other.to_string(),
-        },
-    }
+        .map_err(|e| ServiceError::ValidationError(format!("Invalid pod ID: {e}")))
 }
 
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
@@ -98,25 +85,24 @@ async fn create_pod(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
-) -> Result<Json<CreatePodResponse>, ApiError> {
+) -> Result<Json<CreatePodResponse>, ServiceErrorResponse> {
     let has = state.agent_service.capability_checker().check_resource(
         &auth.token,
         &auth.webid,
         DelegationResource::Tool,
     );
     if !has {
-        return Err(ApiError::Forbidden {
-            reason: "Insufficient capability to create pods".into(),
-        });
+        return Err(
+            ServiceError::Acp(hkask_agents::acp::AcpError::CapabilityDenied(
+                auth.webid,
+                "Insufficient capability to create pods".into(),
+            ))
+            .into(),
+        );
     }
-    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| ApiError::BadRequest {
-        message: format!("Invalid persona YAML: {e}"),
-    })?;
+    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(ServiceError::Pod)?;
     let pm = state.agent_service.pod_manager();
-    let pod_id = pm
-        .create_pod(&req.template, &persona, req.name)
-        .await
-        .map_err(map_pod_err)?;
+    let pod_id = pm.create_pod(&req.template, &persona, req.name).await?;
     Ok(Json(CreatePodResponse {
         pod_id: pod_id.to_string(),
     }))
@@ -126,14 +112,9 @@ async fn activate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<StatusCode, ServiceErrorResponse> {
     let pid = parse_pod_id(&id)?;
-    state
-        .agent_service
-        .pod_manager()
-        .activate_pod(&pid)
-        .await
-        .map_err(map_pod_err)?;
+    state.agent_service.pod_manager().activate_pod(&pid).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -141,14 +122,13 @@ async fn deactivate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<StatusCode, ServiceErrorResponse> {
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
         .pod_manager()
         .deactivate_pod(&pid)
-        .await
-        .map_err(map_pod_err)?;
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -156,14 +136,13 @@ async fn pod_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
-) -> Result<Json<PodStatusResponse>, ApiError> {
+) -> Result<Json<PodStatusResponse>, ServiceErrorResponse> {
     let pid = parse_pod_id(&id)?;
     let status = state
         .agent_service
         .pod_manager()
         .get_pod_status(&pid)
-        .await
-        .map_err(map_pod_err)?;
+        .await?;
     Ok(Json(PodStatusResponse {
         pod_id: status.pod_id,
         name: status.name,

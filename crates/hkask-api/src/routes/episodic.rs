@@ -10,10 +10,11 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
-use hkask_agents::{MemoryError, RecallRequest, StorageRequest};
+use hkask_agents::{RecallRequest, StorageRequest};
+use hkask_services::ServiceError;
 use hkask_types::Confidence;
 
 /// Create episodic memory router
@@ -101,11 +102,12 @@ pub(crate) async fn store_episode(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<StoreEpisodeRequest>,
-) -> Result<Json<StoreEpisodeResponse>, ApiError> {
+) -> Result<Json<StoreEpisodeResponse>, ServiceErrorResponse> {
     if req.entity.is_empty() || req.attribute.is_empty() {
-        return Err(ApiError::BadRequest {
-            message: "entity and attribute must not be empty".to_string(),
-        });
+        return Err(ServiceError::ValidationError(
+            "entity and attribute must not be empty".to_string(),
+        )
+        .into());
     }
 
     let confidence = Confidence::new(req.confidence.unwrap_or(1.0));
@@ -121,13 +123,8 @@ pub(crate) async fn store_episode(
         .memory()
         .0
         .store_episodic(request, &auth.token)
-        .map_err(|e| match &e {
-            MemoryError::CapabilityDenied { resource, action } => ApiError::Forbidden {
-                reason: format!("Capability denied: {} on {}", action, resource),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
+        .map_err(|e| {
+            ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
         })?;
 
     tracing::debug!(
@@ -167,11 +164,12 @@ pub(crate) async fn query_episodes(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<QueryEpisodesParams>,
-) -> Result<Json<QueryEpisodesResponse>, ApiError> {
+) -> Result<Json<QueryEpisodesResponse>, ServiceErrorResponse> {
     if params.entity.is_empty() {
-        return Err(ApiError::BadRequest {
-            message: "entity query parameter must not be empty".to_string(),
-        });
+        return Err(ServiceError::ValidationError(
+            "entity query parameter must not be empty".to_string(),
+        )
+        .into());
     }
 
     let request = RecallRequest::episodic(&params.entity, auth.webid, auth.token);
@@ -180,13 +178,8 @@ pub(crate) async fn query_episodes(
         .memory()
         .0
         .recall_episodic(&request)
-        .map_err(|e| match &e {
-            MemoryError::CapabilityDenied { resource, action } => ApiError::Forbidden {
-                reason: format!("Capability denied: {} on {}", action, resource),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
+        .map_err(|e| {
+            ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
         })?;
 
     let episodes: Vec<EpisodeResponse> = results
@@ -220,14 +213,14 @@ pub(crate) async fn query_episodes(
 pub(crate) async fn storage_usage(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<EpisodicUsageResponse>, ApiError> {
+) -> Result<Json<EpisodicUsageResponse>, ServiceErrorResponse> {
     let count = state
         .agent_service
         .memory()
         .0
         .episodic_storage_usage(&auth.webid)
-        .map_err(|e| ApiError::Internal {
-            message: e.to_string(),
+        .map_err(|e| {
+            ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
         })?;
     let budget = state.agent_service.memory().0.episodic_storage_budget();
 

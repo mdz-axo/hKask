@@ -12,6 +12,7 @@ use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
 use crate::fireworks_backend::FireworksBackend;
 use crate::ollama_backend::OllamaBackend;
+use crate::together_backend::TogetherBackend;
 use hkask_types::LLMParameters;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
 use std::pin::Pin;
@@ -28,6 +29,7 @@ pub struct InferenceRouter {
     fireworks: Option<FireworksBackend>,
     deepinfra: Option<DeepInfraBackend>,
     fal: Option<FalBackend>,
+    together: Option<TogetherBackend>,
     #[allow(dead_code)]
     embedding: Option<EmbeddingRouter>,
 }
@@ -43,6 +45,7 @@ impl InferenceRouter {
         let fireworks = FireworksBackend::new(&config).ok();
         let deepinfra = DeepInfraBackend::new(&config).ok();
         let fal = FalBackend::new(&config).ok();
+        let together = TogetherBackend::new(&config).ok();
 
         if ollama.is_none() {
             warn!(target: "hkask.inference", "Ollama backend unavailable");
@@ -56,6 +59,9 @@ impl InferenceRouter {
         if fal.is_none() {
             warn!(target: "hkask.inference", "fal.ai backend unavailable (no API key)");
         }
+        if together.is_none() {
+            warn!(target: "hkask.inference", "Together AI backend unavailable (no API key)");
+        }
 
         Self {
             config,
@@ -63,7 +69,8 @@ impl InferenceRouter {
             fireworks,
             deepinfra,
             fal,
-            embedding: None, // EmbeddingRouter not yet implemented
+            together,
+            embedding: None,
         }
     }
 
@@ -80,6 +87,7 @@ impl InferenceRouter {
             ProviderId::Fireworks => self.fireworks.is_some(),
             ProviderId::DeepInfra => self.deepinfra.is_some(),
             ProviderId::Fal => self.fal.is_some(),
+            ProviderId::Together => self.together.is_some(),
         };
 
         if !available {
@@ -178,6 +186,24 @@ impl InferenceRouter {
             }
         }
 
+        // Together AI models
+        if let Some(ref backend) = self.together
+            && let Ok(models) = backend.list_models().await
+        {
+            for m in models {
+                entries.push(RouterModelEntry {
+                    prefixed_name: ProviderId::Together.prefix_model(&m.id),
+                    provider: ProviderId::Together,
+                    model: m.id.clone(),
+                    supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
+                    family: None,
+                    parameter_size: None,
+                    quantization_level: None,
+                    size_bytes: None,
+                });
+            }
+        }
+
         entries
     }
 
@@ -255,6 +281,15 @@ impl InferenceRouter {
                     .as_ref()
                     .ok_or_else(|| {
                         InferenceError::Connection("fal.ai backend unavailable".to_string())
+                    })?
+                    .generate_vision(&model, &prompt, &images, &params)
+                    .await
+            }
+            ProviderId::Together => {
+                self.together
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("Together AI backend unavailable".to_string())
                     })?
                     .generate_vision(&model, &prompt, &images, &params)
                     .await
@@ -469,6 +504,13 @@ impl InferencePort for InferenceRouter {
                         .generate(model, &prompt, &parameters)
                         .await
                 }
+                ProviderId::Together => {
+                    self.together
+                        .as_ref()
+                        .unwrap()
+                        .generate(model, &prompt, &parameters)
+                        .await
+                }
             }
         })
     }
@@ -518,6 +560,13 @@ impl InferencePort for InferenceRouter {
                 }
                 ProviderId::Fal => {
                     self.fal
+                        .as_ref()
+                        .unwrap()
+                        .generate(&model, &prompt, &parameters)
+                        .await
+                }
+                ProviderId::Together => {
+                    self.together
                         .as_ref()
                         .unwrap()
                         .generate(&model, &prompt, &parameters)
@@ -587,6 +636,12 @@ impl InferencePort for InferenceRouter {
             }
             ProviderId::Fal => {
                 self.fal
+                    .as_ref()
+                    .unwrap()
+                    .generate_stream(&model, &prompt, &parameters)
+            }
+            ProviderId::Together => {
+                self.together
                     .as_ref()
                     .unwrap()
                     .generate_stream(&model, &prompt, &parameters)

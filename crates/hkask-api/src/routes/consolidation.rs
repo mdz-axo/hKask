@@ -1,6 +1,7 @@
 //! Consolidation API — user-triggered episodic→semantic consolidation + semantic cleanup
 
 use axum::{Extension, Json, extract::State};
+use hkask_services::ServiceError;
 use hkask_services::consolidation;
 use hkask_types::WebID;
 use hkask_types::ports::ConsolidationRequest;
@@ -8,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 
 // Handlers
 
@@ -67,43 +68,18 @@ pub(crate) async fn consolidate(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<crate::middleware::auth::AuthContext>,
     Json(req): Json<ConsolidateRequest>,
-) -> Result<Json<ConsolidateResponse>, ApiError> {
+) -> Result<Json<ConsolidateResponse>, ServiceErrorResponse> {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
-    consolidation::check_rate_limit().map_err(|e| match e {
-        hkask_services::ServiceError::RateLimited(msg) => ApiError::BadRequest { message: msg },
-        _ => ApiError::Internal {
-            message: e.to_string(),
-        },
-    })?;
+    consolidation::check_rate_limit()?;
 
     // Parse agent WebID
-    let webid = req
-        .agent_webid
-        .parse::<WebID>()
-        .map_err(|_| ApiError::BadRequest {
-            message: "Invalid agent_webid: must be a valid UUID".to_string(),
-        })?;
+    let webid: WebID = req.agent_webid.parse().map_err(|_| {
+        ServiceError::ValidationError("Invalid agent_webid: must be a valid UUID".to_string())
+    })?;
 
     // Verify passphrase via ConsolidationService (keystore → key derivation → comparison)
-    let db_passphrase = consolidation::verify_passphrase(&req.passphrase).map_err(|e| match e {
-        hkask_services::ServiceError::InvalidPassphrase(_) => {
-            tracing::warn!(
-                target: "api.consolidation",
-                agent_webid = %req.agent_webid,
-                "Consolidation rejected: passphrase mismatch"
-            );
-            ApiError::Unauthorized {
-                reason: "Invalid passphrase".to_string(),
-            }
-        }
-        hkask_services::ServiceError::Keystore(_) => ApiError::Internal {
-            message: "Server passphrase not configured".to_string(),
-        },
-        other => ApiError::Internal {
-            message: other.to_string(),
-        },
-    })?;
+    let db_passphrase = consolidation::verify_passphrase(&req.passphrase)?;
 
     // Build consolidation request
     let consolidation_request = ConsolidationRequest {
@@ -115,10 +91,7 @@ pub(crate) async fn consolidate(
     // Execute via ConsolidationService (per-agent DB + pipeline assembly + consolidation)
     let db_path = consolidation::db_path_for_agent(&webid);
     let outcome =
-        consolidation::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)
-            .map_err(|e| ApiError::Internal {
-                message: e.to_string(),
-            })?;
+        consolidation::consolidate(&webid, &db_passphrase, &db_path, consolidation_request)?;
 
     Ok(Json(ConsolidateResponse {
         consolidated_count: outcome.consolidated_count,

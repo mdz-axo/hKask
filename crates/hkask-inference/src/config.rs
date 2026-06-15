@@ -48,6 +48,9 @@ pub enum ProviderId {
     /// fal.ai (cloud) — prefix `FA/`
     #[serde(rename = "FA")]
     Fal,
+    /// Together AI (cloud) — prefix `TG/`
+    #[serde(rename = "TG")]
+    Together,
 }
 
 impl ProviderId {
@@ -73,6 +76,7 @@ impl ProviderId {
             "FW" => Some((ProviderId::Fireworks, rest)),
             "DI" => Some((ProviderId::DeepInfra, rest)),
             "FA" => Some((ProviderId::Fal, rest)),
+            "TG" => Some((ProviderId::Together, rest)),
             _ => None,
         }
     }
@@ -89,6 +93,7 @@ impl ProviderId {
             ProviderId::Fireworks => "FW",
             ProviderId::DeepInfra => "DI",
             ProviderId::Fal => "FA",
+            ProviderId::Together => "TG",
         }
     }
 }
@@ -96,14 +101,15 @@ impl ProviderId {
 /// Configuration for the inference router.
 ///
 /// Holds connection settings for Ollama (local), Fireworks (cloud),
-/// and DeepInfra (cloud). The router uses this config to construct
-/// backends and decide the default provider for unprefixed model names.
+/// DeepInfra (cloud), fal.ai (cloud), and Together AI (cloud).
+/// The router uses this config to construct backends and decide
+/// the default provider for unprefixed model names.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceConfig {
     /// Default provider for model names without a prefix.
     /// Default: Ollama (local-first). Override with `HKASK_DEFAULT_PROVIDER` env var
     /// or store in OS keychain under key `HKASK_DEFAULT_PROVIDER`.
-    /// Accepted values: OM, FW, DI, FA.
+    /// Accepted values: OM, FW, DI, FA, TG.
     pub default_provider: ProviderId,
 
     /// Base URL for the Ollama inference server.
@@ -130,6 +136,13 @@ pub struct InferenceConfig {
     /// Required for FA provider. If empty, FA is unavailable.
     pub fal_api_key: String,
 
+    /// Base URL for the Together AI inference API (OpenAI-compatible endpoint).
+    pub together_base_url: String,
+
+    /// API key for Together AI authentication.
+    /// Required for TG provider. If empty, TG is unavailable.
+    pub together_api_key: String,
+
     /// Request timeout in seconds for inference calls.
     /// Default: 120 (accommodates model cold-start).
     pub timeout_secs: u64,
@@ -155,6 +168,8 @@ impl Default for InferenceConfig {
             deepinfra_api_key: String::new(),
             fal_base_url: "https://api.fal.ai".to_string(),
             fal_api_key: String::new(),
+            together_base_url: "https://api.together.xyz".to_string(),
+            together_api_key: String::new(),
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: "deepseek-v4-pro".to_string(),
@@ -187,6 +202,11 @@ impl InferenceConfig {
 
         let fal_api_key = resolve_api_key("FA_API_KEY", &["FAL_API_KEY"]);
 
+        let together_base_url =
+            std::env::var("TG_BASE_URL").unwrap_or_else(|_| "https://api.together.xyz".to_string());
+
+        let together_api_key = resolve_api_key("TOGETHER_API_KEY", &[]);
+
         let default_provider = resolve_default_provider();
 
         Self {
@@ -198,6 +218,8 @@ impl InferenceConfig {
             deepinfra_api_key,
             fal_base_url,
             fal_api_key,
+            together_base_url,
+            together_api_key,
             timeout_secs: 120,
             pool_max_idle: 5,
             default_model: std::env::var("HKASK_DEFAULT_MODEL")
@@ -268,6 +290,7 @@ fn parse_provider_code(raw: &str) -> ProviderId {
         "FW" => ProviderId::Fireworks,
         "DI" => ProviderId::DeepInfra,
         "FA" => ProviderId::Fal,
+        "TG" => ProviderId::Together,
         _ => ProviderId::Ollama,
     }
 }
@@ -360,6 +383,7 @@ mod tests {
         assert_eq!(parse_provider_code("FW"), ProviderId::Fireworks);
         assert_eq!(parse_provider_code("DI"), ProviderId::DeepInfra);
         assert_eq!(parse_provider_code("FA"), ProviderId::Fal);
+        assert_eq!(parse_provider_code("TG"), ProviderId::Together);
     }
 
     /// REQ: inf-cfg-009 — unknown or empty provider code defaults to Ollama

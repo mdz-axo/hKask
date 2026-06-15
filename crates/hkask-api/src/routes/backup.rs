@@ -11,15 +11,16 @@ use axum::extract::Extension;
 use axum::{Json, extract::State};
 use hkask_services::backup::config::RetentionPolicy;
 use hkask_services::{
-    ArtifactType, BackupScope, BackupService, ListFilter, RestoreScope, SnapshotMetadata,
+    ArtifactType, BackupScope, BackupService, ListFilter, RestoreScope, ServiceError,
+    SnapshotMetadata,
 };
 use hkask_types::ports::git_cas::CommitHash;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
 // ── Request/Response types (API-surface only, no domain type coupling) ──
@@ -158,8 +159,8 @@ pub struct BackupConfigResponse {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RetentionConfigResponse {
-    pub max_age_secs: u64,
-    pub min_keep: usize,
+    pub daily_days: u32,
+    pub weekly_weeks: u32,
 }
 
 /// Backup config update request.
@@ -208,18 +209,18 @@ fn parse_artifact_type(s: &str) -> Option<ArtifactType> {
     }
 }
 
-fn api_scope_to_domain(scope: ApiBackupScope) -> Result<BackupScope, ApiError> {
+fn api_scope_to_domain(scope: ApiBackupScope) -> Result<BackupScope, ServiceError> {
     match scope {
         ApiBackupScope::Full => Ok(BackupScope::Full),
         ApiBackupScope::ByType(s) => {
-            let at = parse_artifact_type(&s).ok_or_else(|| ApiError::BadRequest {
-                message: format!("Unknown artifact type: {s}"),
+            let at = parse_artifact_type(&s).ok_or_else(|| {
+                ServiceError::ValidationError(format!("Unknown artifact type: {s}"))
             })?;
             Ok(BackupScope::ByType(at))
         }
         ApiBackupScope::ByIds { artifact_type, ids } => {
-            let at = parse_artifact_type(&artifact_type).ok_or_else(|| ApiError::BadRequest {
-                message: format!("Unknown artifact type: {artifact_type}"),
+            let at = parse_artifact_type(&artifact_type).ok_or_else(|| {
+                ServiceError::ValidationError(format!("Unknown artifact type: {artifact_type}"))
             })?;
             Ok(BackupScope::ByIds {
                 artifact_type: at,
@@ -229,18 +230,18 @@ fn api_scope_to_domain(scope: ApiBackupScope) -> Result<BackupScope, ApiError> {
     }
 }
 
-fn api_restore_scope_to_domain(scope: ApiRestoreScope) -> Result<RestoreScope, ApiError> {
+fn api_restore_scope_to_domain(scope: ApiRestoreScope) -> Result<RestoreScope, ServiceError> {
     match scope {
         ApiRestoreScope::Full => Ok(RestoreScope::Full),
         ApiRestoreScope::ByType(s) => {
-            let at = parse_artifact_type(&s).ok_or_else(|| ApiError::BadRequest {
-                message: format!("Unknown artifact type: {s}"),
+            let at = parse_artifact_type(&s).ok_or_else(|| {
+                ServiceError::ValidationError(format!("Unknown artifact type: {s}"))
             })?;
             Ok(RestoreScope::ByType(at))
         }
         ApiRestoreScope::ByIds { artifact_type, ids } => {
-            let at = parse_artifact_type(&artifact_type).ok_or_else(|| ApiError::BadRequest {
-                message: format!("Unknown artifact type: {artifact_type}"),
+            let at = parse_artifact_type(&artifact_type).ok_or_else(|| {
+                ServiceError::ValidationError(format!("Unknown artifact type: {artifact_type}"))
             })?;
             Ok(RestoreScope::ByIds {
                 artifact_type: at,
@@ -480,8 +481,8 @@ pub(crate) async fn get_config(
         auto_snapshot: config.auto_snapshot,
         verify_after_snapshot: config.verify_after_snapshot,
         retention: config.retention.as_ref().map(|rp| RetentionConfigResponse {
-            max_age_secs: rp.max_age_secs,
-            min_keep: rp.min_keep,
+            daily_days: rp.daily_days,
+            weekly_weeks: rp.weekly_weeks,
         }),
     }))
 }
@@ -514,11 +515,11 @@ pub(crate) async fn update_config(
     }
 
     if let Some(dur_str) = &req.retention {
-        config.retention = Some(RetentionPolicy::from_duration_str(dur_str).map_err(|e| {
-            ApiError::BadRequest {
-                message: format!("Invalid retention duration: {e}"),
-            }
-        })?);
+        let days: u32 = dur_str.trim_end_matches('d').parse().unwrap_or(21);
+        config.retention = Some(RetentionPolicy {
+            daily_days: days,
+            weekly_weeks: 12,
+        });
     }
 
     if let Some(auto) = req.auto_snapshot {
@@ -546,8 +547,8 @@ pub(crate) async fn update_config(
             .retention
             .as_ref()
             .map(|rp| RetentionConfigResponse {
-                max_age_secs: rp.max_age_secs,
-                min_keep: rp.min_keep,
+                daily_days: rp.daily_days,
+                weekly_weeks: rp.weekly_weeks,
             }),
     }))
 }

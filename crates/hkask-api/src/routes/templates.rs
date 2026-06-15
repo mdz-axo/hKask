@@ -18,8 +18,8 @@ use axum::http::StatusCode;
 use hkask_types::ports::RegistryIndex;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::error::{ApiError, ServiceErrorResponse};
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -101,9 +101,7 @@ pub(crate) async fn get_template(
 ) -> Result<Json<TemplateResponse>, ServiceErrorResponse> {
     let registry = state.agent_service.registry().lock().await;
 
-    let entry = registry
-        .get(&id)
-        ?;
+    let entry = registry.get(&id)?;
 
     Ok(Json(TemplateResponse {
         id: entry.id.clone(),

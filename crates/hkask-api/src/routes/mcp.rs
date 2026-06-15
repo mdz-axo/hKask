@@ -20,12 +20,14 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::State};
+use hkask_services::ServiceError;
+use hkask_templates::McpPort;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use crate::middleware::auth::AuthContext;
 
 /// Create MCP router
@@ -112,9 +114,7 @@ pub(crate) async fn mcp_invoke(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<McpInvokeRequest>,
-) -> Result<Json<McpInvokeResponse>, ApiError> {
-    use hkask_templates::McpPort;
-
+) -> Result<Json<McpInvokeResponse>, ServiceErrorResponse> {
     let input = if req.input.is_null() {
         serde_json::Value::Object(serde_json::Map::new())
     } else {
@@ -127,14 +127,7 @@ pub(crate) async fn mcp_invoke(
         .mcp_dispatcher()
         .invoke(&req.tool, input, &auth.token)
         .await
-        .map_err(|e| match &e {
-            hkask_templates::TemplateError::CapabilityDenied(_) => ApiError::Unauthorized {
-                reason: e.to_string(),
-            },
-            _ => ApiError::Internal {
-                message: e.to_string(),
-            },
-        })?;
+        .map_err(ServiceError::Template)?;
 
     // Resolve server_id from the runtime's tool registry
     let server_id = state

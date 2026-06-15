@@ -4,10 +4,9 @@
 //! cultivation, and rendering.
 
 use crate::cli::SpecAction;
-use hkask_agents::DefaultSpecCurator;
 use hkask_services::{SpecCaptureRequest, SpecService};
 use hkask_storage::SpecStore;
-use hkask_storage::spec_types::{SpecCategory, SpecCurator};
+use hkask_storage::spec_types::SpecCategory;
 
 pub fn run(action: SpecAction) {
     match action {
@@ -64,21 +63,8 @@ pub fn run(action: SpecAction) {
             println!("  Note: Evaluation requires hkask-mcp-spec server.");
         }
         SpecAction::Validate { id } => {
-            let spec_id = super::helpers::or_exit(
-                hkask_storage::spec_types::SpecId::from_string(&id),
-                "Invalid spec ID",
-            );
             let ctx = super::helpers::build_service_context();
-            let spec = ctx
-                .spec_store()
-                .load(spec_id)
-                .map_err(hkask_services::ServiceError::Spec)
-                .unwrap_or_else(|e| {
-                    eprintln!("Failed to load specification: {e}");
-                    std::process::exit(1);
-                });
-            let curator = DefaultSpecCurator::default();
-            let record = curator.evaluate(&spec, &[]).unwrap_or_else(|e| {
+            let record = SpecService::validate(&ctx, &id).unwrap_or_else(|e| {
                 eprintln!("Failed to evaluate specification: {e}");
                 std::process::exit(1);
             });
@@ -91,22 +77,15 @@ pub fn run(action: SpecAction) {
             println!("  Curated at: {}", record.curated_at);
         }
         SpecAction::Cultivate { id } => {
-            let spec_id = super::helpers::or_exit(
-                hkask_storage::spec_types::SpecId::from_string(&id),
-                "Invalid spec ID",
-            );
             let ctx = super::helpers::build_service_context();
-            let spec = ctx
-                .spec_store()
-                .load(spec_id)
-                .map_err(hkask_services::ServiceError::Spec)
-                .unwrap_or_else(|e| {
-                    eprintln!("Failed to load specification: {e}");
-                    std::process::exit(1);
-                });
-            let curator = DefaultSpecCurator::default();
-            let record = curator.evaluate(&spec, &[]).unwrap_or_else(|e| {
+            let record = SpecService::cultivate(&ctx, &id).unwrap_or_else(|e| {
                 eprintln!("Failed to cultivate specification: {e}");
+                std::process::exit(1);
+            });
+
+            // Load the spec for completeness/coherence display
+            let detail = SpecService::get_by_id(&ctx, &id).unwrap_or_else(|e| {
+                eprintln!("Failed to load specification: {e}");
                 std::process::exit(1);
             });
 
@@ -115,8 +94,7 @@ pub fn run(action: SpecAction) {
             println!("  Decision: {:?}", record.decision);
             println!("  Rationale: {}", record.rationale);
             println!("  Coherence: {:.2}", record.coherence_score);
-            println!("  Spec completeness: {}", spec.is_complete());
-            println!("  Spec coherence: {:.2}", spec.coherence());
+            println!("  Spec name: {}", detail.name);
             println!();
             println!("  Required categories for full collection coherence:");
             for cat in SpecCategory::all() {

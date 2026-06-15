@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::error::{ApiError, ServiceErrorResponse};
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -183,9 +183,7 @@ pub(crate) async fn metacognition_status(
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<MetacognitionStatusResponse>, ServiceErrorResponse> {
     let queue = state.agent_service.escalation_queue();
-    let stats = queue
-        .stats()
-        ?;
+    let stats = queue.stats()?;
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,
         pending: stats.pending,

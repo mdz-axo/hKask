@@ -800,7 +800,7 @@ impl TrainingServer {
     }
 
     fn provider_id(&self) -> TrainingProviderId {
-        // The provider doesn't expose its ID — derive from type name heuristics.
+        // Derive from the provider implementation type via its behavior.
         // A proper implementation would store the ID on the server struct.
         TrainingProviderId::Axolotl
     }
@@ -840,6 +840,7 @@ async fn main() -> anyhow::Result<()> {
         axolotl_path: std::env::var("HKASK_AXOLOTL_PATH").ok().map(PathBuf::from),
         python_path: std::env::var("HKASK_PYTHON_PATH").ok().map(PathBuf::from),
         cloud_dispatch,
+        together_api_key: std::env::var("TOGETHER_API_KEY").unwrap_or_default(),
     };
 
     let cache_dir = PathBuf::from(

@@ -251,11 +251,12 @@ kask chat
 | `DI_API_KEY` | DeepInfra API key | — (required for DI provider) |
 | `FW_API_KEY` | Fireworks API key | — (required for FW provider) |
 | `FA_API_KEY` | fal.ai API key | — (required for FA provider) |
+| `TOGETHER_API_KEY` | Together AI API key | — (required for TG provider) |
 | `HKASK_DEFAULT_PROVIDER` | Default provider for unprefixed model names | `OM` (Ollama) |
 | `HKASK_DEFAULT_MODEL` | Default generation model | `deepseek-v4-pro` |
 | `HKASK_EMBEDDING_MODEL` | Default embedding model | — |
 
-Accepted `HKASK_DEFAULT_PROVIDER` values: `OM` (Ollama), `FW` (Fireworks), `DI` (DeepInfra), `FA` (fal.ai).
+Accepted `HKASK_DEFAULT_PROVIDER` values: `OM` (Ollama), `FW` (Fireworks), `DI` (DeepInfra), `FA` (fal.ai), `TG` (Together AI).
 
 ### Provider prefixes
 
@@ -263,6 +264,7 @@ Models use 2-letter prefixes for explicit routing:
 - `OM/qwen3:8b` → Ollama (local)
 - `FW/llama-v3p1-70b-instruct` → Fireworks.ai
 - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra
+- `TG/meta-llama/Llama-3.3-70B-Instruct-Turbo` → Together AI
 - `FA/paddleocr` → fal.ai
 - No prefix → routes to `HKASK_DEFAULT_PROVIDER`
 

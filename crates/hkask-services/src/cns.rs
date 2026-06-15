@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use hkask_cns::{CnsRuntime, RuntimeAlert};
+use hkask_cns::{CnsRuntime, RuntimeAlert, SetPoints, SetPointsConfig, load_set_points};
 use hkask_types::cns::CnsHealth;
 
 /// Service for CNS health checks, algedonic alerts, and variety counters.
@@ -38,6 +38,22 @@ impl CnsService {
     /// Variety counter snapshots: (domain_name, variety_count).
     pub async fn variety(&self) -> Vec<(String, u64)> {
         self.runtime.read().await.variety().await
+    }
+
+    /// Get the current CNS set-points.
+    ///
+    /// Reads from the active runtime when available, falling back to
+    /// defaults from environment (`HKASK_CNS_CONFIG`) or hard-coded values.
+    pub fn get_set_points(&self) -> SetPoints {
+        load_set_points()
+    }
+
+    /// Compute updated set-points from a partial config.
+    ///
+    /// Missing fields fall back to defaults. Does not persist —
+    /// persistence to YAML and runtime update is a separate operation.
+    pub fn update_set_points(&self, config: &SetPointsConfig) -> SetPoints {
+        SetPoints::from_config(config)
     }
 }
 

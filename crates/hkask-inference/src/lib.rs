@@ -34,6 +34,7 @@ pub mod fal_backend;
 pub mod fireworks_backend;
 pub mod inference_router;
 pub mod ollama_backend;
+pub mod together_backend;
 
 // Re-exports — public API
 pub use config::{InferenceConfig, ProviderId};
@@ -45,6 +46,7 @@ pub use deepinfra_backend::DeepInfraModelEntry;
 pub use fal_backend::FalModelEntry;
 pub use fireworks_backend::FireworksModelEntry;
 pub use ollama_backend::OllamaModelEntry;
+pub use together_backend::TogetherModel;
 
 /// Unified model entry from any provider, with provider prefix applied.
 #[derive(Debug, Clone)]

@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
 pub fn goal_router() -> OpenApiRouter<ApiState> {
@@ -67,14 +67,13 @@ pub(crate) async fn create_goal(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateGoalRequest>,
-) -> Result<Json<GoalResponse>, ApiError> {
+) -> Result<Json<GoalResponse>, ServiceErrorResponse> {
     let svc_req = hkask_services::CreateGoalRequest {
         text: req.text,
         visibility: req.visibility.unwrap_or_else(|| "private".into()),
         owner: auth.webid,
     };
-    let goal = hkask_services::GoalService::create_goal(&state.agent_service, svc_req)
-        ?;
+    let goal = hkask_services::GoalService::create_goal(&state.agent_service, svc_req)?;
     Ok(Json(goal.into()))
 }
 
@@ -93,11 +92,10 @@ pub(crate) async fn list_goals(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<GoalListResponse>, ApiError> {
+) -> Result<Json<GoalListResponse>, ServiceErrorResponse> {
     let state_filter = params.get("state").map(|s| s.as_str());
     let goals =
-        hkask_services::GoalService::list_goals(&state.agent_service, &auth.webid, state_filter)
-            ?;
+        hkask_services::GoalService::list_goals(&state.agent_service, &auth.webid, state_filter)?;
     Ok(Json(GoalListResponse {
         goals: goals.into_iter().map(|g| g.into()).collect(),
     }))
@@ -121,8 +119,7 @@ pub(crate) async fn set_goal_state(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
-) -> Result<Json<GoalResponse>, ApiError> {
-    let goal = hkask_services::GoalService::set_goal_state(&state.agent_service, &id, &req.state)
-        ?;
+) -> Result<Json<GoalResponse>, ServiceErrorResponse> {
+    let goal = hkask_services::GoalService::set_goal_state(&state.agent_service, &id, &req.state)?;
     Ok(Json(goal.into()))
 }

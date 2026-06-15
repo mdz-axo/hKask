@@ -8,8 +8,12 @@
 //! The `infer_category()` helper (moved from `hkask-api/src/routes/spec.rs`)
 //! is the single source of truth for context-keyword → MDS category mapping.
 
+use hkask_agents::DefaultSpecCurator;
 use hkask_storage::SpecStore;
-use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecId};
+use hkask_storage::spec_types::SpecCurator;
+use hkask_storage::spec_types::{
+    DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurationRecord, SpecId,
+};
 
 use crate::AgentService;
 use crate::error::ServiceError;
@@ -244,6 +248,31 @@ impl SpecService {
             dimensions_passing,
             meets_publication_standard: dimensions_passing == dimensions.len(),
         })
+    }
+
+    /// Evaluate (validate) a specification against the default curator's criteria.
+    ///
+    /// Loads the spec by ID, then delegates to `DefaultSpecCurator::evaluate()`.
+    pub fn validate(
+        ctx: &AgentService,
+        spec_id_str: &str,
+    ) -> Result<SpecCurationRecord, ServiceError> {
+        let id = parse_spec_id(spec_id_str)?;
+        let store = ctx.spec_store();
+        let spec = store.load(id).map_err(ServiceError::Spec)?;
+        let curator = DefaultSpecCurator::default();
+        curator.evaluate(&spec, &[]).map_err(ServiceError::Spec)
+    }
+
+    /// Cultivate a specification — same evaluation path as validate.
+    ///
+    /// Cultivation and validation share the same curator pipeline;
+    /// separate methods exist for semantic clarity in call sites.
+    pub fn cultivate(
+        ctx: &AgentService,
+        spec_id_str: &str,
+    ) -> Result<SpecCurationRecord, ServiceError> {
+        Self::validate(ctx, spec_id_str)
     }
 }
 

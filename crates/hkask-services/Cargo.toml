@@ -36,6 +36,10 @@ tempfile.workspace = true
 hex.workspace = true
 dirs = "6"
 async-trait.workspace = true
+aes-gcm = "0.10"
+argon2 = "0.5"
+rand = "0.9"
+sha2 = "0.10"
 
 [dev-dependencies]
 tempfile.workspace = true

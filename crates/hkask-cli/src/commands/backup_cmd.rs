@@ -216,8 +216,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
                 match &config.retention {
                     Some(rp) => {
                         println!(
-                            "  Retention: {}s (min keep: {})",
-                            rp.max_age_secs, rp.min_keep
+                            "  Retention: {}d daily, {}w weekly",
+                            rp.daily_days, rp.weekly_weeks
                         );
                     }
                     None => println!("  Retention: forever"),
@@ -226,7 +226,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
 
             crate::cli::ConfigAction::Set {
                 types,
-                retention,
+                retention: _retention,
                 no_auto,
             } => {
                 let port = resolve_git_cas_port();
@@ -235,13 +235,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
                 let mut config = svc.config().clone();
                 config.tracked_types = parse_artifact_types(&types);
 
-                if let Some(dur_str) = retention {
-                    config.retention = Some(
-                        RetentionPolicy::from_duration_str(&dur_str).unwrap_or_else(|e| {
-                            eprintln!("Invalid retention duration '{}': {}", dur_str, e);
-                            std::process::exit(1);
-                        }),
-                    );
+                if let Some(dur_str) = _retention {
+                    let days: u32 = dur_str.trim_end_matches('d').parse().unwrap_or(21);
+                    config.retention = Some(RetentionPolicy {
+                        daily_days: days,
+                        weekly_weeks: 12,
+                    });
                 }
 
                 if no_auto {

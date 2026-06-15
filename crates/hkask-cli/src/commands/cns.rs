@@ -4,7 +4,8 @@
 
 use crate::cli::CnsAction;
 use hkask_cns::CnsRuntime;
-use hkask_services::{AgentService, ServiceConfig};
+use hkask_cns::SetPointsConfig;
+use hkask_services::{AgentService, CnsService, ServiceConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -101,7 +102,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             connector_latency_max_secs,
             communication_backpressure_threshold,
         } => {
-            let defaults = hkask_cns::SetPoints::default();
+            let rt_ref = build_cns_runtime(rt);
+            let cns_svc = CnsService::new(Arc::clone(&rt_ref));
+            let defaults = cns_svc.get_set_points();
             println!("CNS Set-Points");
             println!("==============");
             println!(
@@ -133,7 +136,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
                 || connector_latency_max_secs.is_some()
                 || communication_backpressure_threshold.is_some()
             {
-                let config = hkask_cns::SetPointsConfig {
+                let config = SetPointsConfig {
                     gas_min_remaining,
                     variety_max_deficit,
                     error_rate_max,
@@ -141,7 +144,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
                     communication_backpressure_threshold: communication_backpressure_threshold
                         .map(hkask_types::cns::QueueDepth::new),
                 };
-                let updated = hkask_cns::SetPoints::from_config(&config);
+                let updated = cns_svc.update_set_points(&config);
                 println!();
                 println!("Updated values would be:");
                 println!("  gas_min_remaining:       {}", updated.gas_min_remaining);

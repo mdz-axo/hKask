@@ -2,12 +2,13 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::Query, extract::State};
+use hkask_services::ServiceError;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
 fn consent_name(value: bool) -> &'static str {
@@ -69,13 +70,11 @@ pub struct AccessCheckResponse {
 pub(crate) async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<SovereigntyStatusResponse>, ApiError> {
+) -> Result<Json<SovereigntyStatusResponse>, ServiceErrorResponse> {
     let cm = &state.agent_service.sovereignty();
     let webid_str = auth.webid.to_string();
     let boundary = hkask_types::sovereignty::DataSovereigntyBoundary::hkask_default();
-    let granted = cm
-        .get_granted_categories(&webid_str)
-        ?;
+    let granted = cm.get_granted_categories(&webid_str)?;
 
     Ok(Json(SovereigntyStatusResponse {
         explicit_consent: !granted.is_empty(),
@@ -114,15 +113,13 @@ pub(crate) async fn sovereignty_grant_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<SovereigntyConsentRequest>,
-) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
+) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
     let webid_str = auth.webid.to_string();
     let cat_str = req.category;
     let cat = parse_data_category(&cat_str);
     let cm = &state.agent_service.sovereignty();
     cm.grant_consent(&webid_str, &cat)?;
-    let granted = cm
-        .get_granted_categories(&webid_str)
-        ?;
+    let granted = cm.get_granted_categories(&webid_str)?;
     Ok(Json(SovereigntyConsentResponse {
         consent: true,
         message: format!("Explicit consent granted for '{cat_str}'. Data sharing enabled."),
@@ -143,7 +140,7 @@ pub(crate) async fn sovereignty_grant_consent(
 pub(crate) async fn sovereignty_revoke_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<SovereigntyConsentResponse>, ApiError> {
+) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
     let webid_str = auth.webid.to_string();
     let cm = &state.agent_service.sovereignty();
     cm.revoke_consent(&webid_str)?;
@@ -169,12 +166,13 @@ pub(crate) async fn sovereignty_check_access(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
-) -> Result<Json<AccessCheckResponse>, ApiError> {
+) -> Result<Json<AccessCheckResponse>, ServiceErrorResponse> {
     let cat_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     if cat_str.is_empty() {
-        return Err(ApiError::BadRequest {
-            message: "Missing required query parameter: category".into(),
-        });
+        return Err(ServiceError::ValidationError(
+            "Missing required query parameter: category".into(),
+        )
+        .into());
     }
     let cat = parse_data_category(cat_str);
     let cat_name = cat.as_str();
@@ -192,9 +190,13 @@ pub(crate) async fn sovereignty_check_access(
     };
 
     if !has_consent && classification != "PUBLIC" {
-        return Err(ApiError::Forbidden {
-            reason: format!("No consent for category '{cat_name}' (class {classification})"),
-        });
+        return Err(
+            ServiceError::Acp(hkask_agents::acp::AcpError::CapabilityDenied(
+                auth.webid,
+                format!("No consent for category '{cat_name}' (class {classification})"),
+            ))
+            .into(),
+        );
     }
     Ok(Json(AccessCheckResponse {
         category: cat_name.to_string(),

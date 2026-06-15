@@ -21,18 +21,16 @@ use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
-use crate::error::{ApiError, ServiceErrorResponse};
+use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
+use hkask_services::ServiceError;
+
 /// Parse a WebID from a string, returning a structured error on failure.
-fn parse_webid(raw: &str) -> Result<WebID, ServiceErrorResponse> {
+fn parse_webid(raw: &str) -> Result<WebID, ServiceError> {
     uuid::Uuid::parse_str(raw)
         .map(WebID::from_uuid)
-        .map_err(|_| {
-            ServiceErrorResponse::from(ApiError::BadRequest {
-                message: format!("Invalid WebID format: {}", raw),
-            })
-        })
+        .map_err(|_| ServiceError::ValidationError(format!("Invalid WebID format: {}", raw)))
 }
 
 /// ACP registration request
@@ -90,25 +88,23 @@ async fn acp_register(
     let webid = parse_webid(&req.webid)?;
 
     let agent_kind = hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| {
-        ServiceErrorResponse::from(ApiError::BadRequest {
-            message: format!(
-                "Agent type must be 'Bot' or 'Replicant', got: {}",
-                req.agent_type
-            ),
-        })
+        ServiceError::InvalidAgentType(format!(
+            "Agent type must be 'Bot' or 'Replicant', got: {}",
+            req.agent_type
+        ))
     })?;
 
     if req.capabilities.is_empty() {
-        return Err(ServiceErrorResponse::from(ApiError::BadRequest {
-            message: "At least one capability is required".to_string(),
-        }));
+        return Err(ServiceError::ValidationError(
+            "At least one capability is required".to_string(),
+        )
+        .into());
     }
 
     let acp = state.agent_service.pod_manager().acp_runtime();
     let token = acp
         .register_agent(webid, agent_kind, req.capabilities)
-        .await
-        ?;
+        .await?;
 
     Ok(Json(AcpRegisterResponse {
         token: token.id.clone(),
@@ -177,9 +173,7 @@ pub(crate) async fn acp_unregister_agent(
     let webid = parse_webid(&agent_id)?;
 
     let acp = state.agent_service.pod_manager().acp_runtime();
-    acp.unregister_agent(&webid)
-        .await
-        ?;
+    acp.unregister_agent(&webid).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }

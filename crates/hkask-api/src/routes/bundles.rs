@@ -8,11 +8,11 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use hkask_services::BundleService;
+use hkask_services::{BundleService, ServiceError};
 use hkask_types::Visibility;
 
-use crate::ApiError;
 use crate::ApiState;
+use crate::error::ServiceErrorResponse;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -139,20 +139,20 @@ async fn list_bundles(State(state): State<ApiState>) -> Json<BundleListResponse>
 pub(crate) async fn get_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<serde_json::Value>, ApiError> {
+) -> Result<Json<serde_json::Value>, ServiceErrorResponse> {
     match BundleService::get(&state.agent_service, &id).await {
         Ok(Some(bundle)) => {
             let value =
                 serde_json::to_value(&bundle).unwrap_or(serde_json::json!({"id": bundle.id}));
             Ok(Json(value))
         }
-        Ok(None) => Err(ApiError::NotFound {
-            resource: "bundle".into(),
-            id,
-        }),
-        Err(e) => Err(ApiError::Internal {
-            message: e.to_string(),
-        }),
+        Ok(None) => Err(
+            ServiceError::Infra(hkask_types::InfrastructureError::NotFound(format!(
+                "bundle: {id}"
+            )))
+            .into(),
+        ),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -162,7 +162,7 @@ pub(crate) async fn get_bundle(
 /// available, or creates a fresh port as fallback.
 fn resolve_api_composition_port(
     state: &ApiState,
-) -> Result<std::sync::Arc<dyn hkask_types::ports::InferencePort>, ApiError> {
+) -> Result<std::sync::Arc<dyn hkask_types::ports::InferencePort>, ServiceError> {
     // Prefer the shared port from AgentService
     if let Some(port) = state.agent_service.inference_port() {
         return Ok(port);
@@ -177,9 +177,6 @@ fn resolve_api_composition_port(
         &ctx,
         &state.agent_service.config().default_model,
     )
-    .map_err(|e| ApiError::Internal {
-        message: format!("Failed to initialize inference port: {}", e),
-    })
 }
 
 /// Compose a new bundle from specified skills
@@ -195,11 +192,12 @@ fn resolve_api_composition_port(
 pub(crate) async fn compose_bundle(
     State(state): State<ApiState>,
     Json(request): Json<ComposeBundleRequest>,
-) -> Result<Json<ComposeBundleResponse>, ApiError> {
+) -> Result<Json<ComposeBundleResponse>, ServiceErrorResponse> {
     if request.skills.len() < 2 {
-        return Err(ApiError::BadRequest {
-            message: "A bundle requires at least 2 skills".to_string(),
-        });
+        return Err(ServiceError::ValidationError(
+            "A bundle requires at least 2 skills".to_string(),
+        )
+        .into());
     }
 
     let vis = Visibility::parse_str(&request.visibility).unwrap_or(Visibility::Private);
@@ -214,13 +212,12 @@ pub(crate) async fn compose_bundle(
         inference_port,
         &editor,
     )
-    .await
-    .map_err(|e| ApiError::Internal {
-        message: format!("Bundle composition failed: {}", e),
-    })?;
+    .await?;
 
-    let manifest_json = serde_json::to_value(&result.manifest).map_err(|e| ApiError::Internal {
-        message: format!("Failed to serialize bundle manifest: {}", e),
+    let manifest_json = serde_json::to_value(&result.manifest).map_err(|e| {
+        ServiceError::Infra(hkask_types::InfrastructureError::Serialization(
+            e.to_string(),
+        ))
     })?;
 
     Ok(Json(ComposeBundleResponse {
@@ -250,7 +247,7 @@ pub(crate) async fn compose_bundle(
 pub(crate) async fn apply_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<ApplyBundleResponse>, ApiError> {
+) -> Result<Json<ApplyBundleResponse>, ServiceErrorResponse> {
     match BundleService::apply(&state.agent_service, &id).await {
         Ok(bundle) => Ok(Json(ApplyBundleResponse {
             status: "active".to_string(),
@@ -258,10 +255,12 @@ pub(crate) async fn apply_bundle(
             name: bundle.name.clone(),
             skill_count: bundle.skills.len(),
         })),
-        Err(_) => Err(ApiError::NotFound {
-            resource: "bundle".into(),
-            id,
-        }),
+        Err(_) => Err(
+            ServiceError::Infra(hkask_types::InfrastructureError::NotFound(format!(
+                "bundle: {id}"
+            )))
+            .into(),
+        ),
     }
 }
 
@@ -281,7 +280,7 @@ pub(crate) async fn apply_bundle(
 pub(crate) async fn evolve_bundle(
     State(state): State<ApiState>,
     Path(id): Path<String>,
-) -> Result<Json<EvolveBundleResponse>, ApiError> {
+) -> Result<Json<EvolveBundleResponse>, ServiceErrorResponse> {
     let inference_port = resolve_api_composition_port(&state)?;
     let editor = hkask_services::resolve_replicant_name();
 
@@ -289,14 +288,14 @@ pub(crate) async fn evolve_bundle(
         .await
         .map_err(|e| {
             if e.to_string().contains("not found") {
-                ApiError::NotFound {
-                    resource: "bundle".into(),
-                    id: id.clone(),
-                }
+                ServiceError::Infra(hkask_types::InfrastructureError::NotFound(format!(
+                    "bundle: {id}"
+                )))
             } else {
-                ApiError::Internal {
-                    message: format!("Bundle evolution failed: {}", e),
-                }
+                ServiceError::Infra(hkask_types::InfrastructureError::Database(format!(
+                    "Bundle evolution failed: {}",
+                    e
+                )))
             }
         })?;
 
