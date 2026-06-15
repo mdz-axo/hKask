@@ -13,6 +13,8 @@
 //! - `training_register_adapter` — Register a completed adapter in persistent storage
 //! - `training_recommend_model` — Recommend a base model for fine-tuning
 //! - `training_record_invocation` — Record an adapter invocation for continuous training
+//! - `training_curate_feedback` — Curate feedback from stored QA pairs for continuous skills training
+//! - `training_retrain` — Retrain an adapter with curated feedback (closes the continuous loop)
 //!
 //! Architecture:
 //!   Dataset → DatasetPipeline (ingest/normalize/validate/cache)
@@ -24,3 +26,8 @@
 pub mod adapters;
 pub mod dataset;
 pub mod providers;
+
+pub use adapters::{
+    AdapterMetrics, AdapterStore, AdapterStoreError, InMemoryAdapterStore, JobStore, LoRAAdapter,
+    SqliteAdapterStore, StoredJob,
+};

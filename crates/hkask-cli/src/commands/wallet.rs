@@ -28,6 +28,8 @@ pub fn run(action: WalletAction) {
             chain,
             private,
         } => handle_withdraw(&svc, amount_rj, to, chain, private),
+        WalletAction::Encumber { key_id, amount } => handle_encumber(&svc, key_id, amount),
+        WalletAction::ReleaseEncumbrance { key_id } => handle_release_encumbrance(&svc, key_id),
     }
 }
 
@@ -314,7 +316,52 @@ fn handle_withdraw(
     println!("  Privacy:  {privacy}");
     println!();
     println!("  (Withdrawal execution requires chain port implementations —");
-    println!("   solana.rs and hedera.rs are deferred to SDK integration.)");
+    println!("   set CIRCLE_API_KEY to enable Circle-backed withdrawals.)");
+}
+
+// ── Encumber ─────────────────────────────────────────────────────────────────
+
+fn handle_encumber(svc: &WalletService, key_id_str: String, amount: u64) {
+    use std::str::FromStr;
+    let key_id = match hkask_types::wallet::ApiKeyId::from_str(&key_id_str) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("Invalid key ID: {e}");
+            return;
+        }
+    };
+    let wallet_id = WalletId::default();
+
+    match svc.encumber_key(wallet_id, key_id, RJoule::new(amount)) {
+        Ok(()) => {
+            println!("Encumbered {} rJ to key {}", amount, key_id_str);
+            println!("The key can now make API calls up to this allocation.");
+        }
+        Err(e) => {
+            eprintln!("Error: {e}");
+        }
+    }
+}
+
+fn handle_release_encumbrance(svc: &WalletService, key_id_str: String) {
+    use std::str::FromStr;
+    let key_id = match hkask_types::wallet::ApiKeyId::from_str(&key_id_str) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("Invalid key ID: {e}");
+            return;
+        }
+    };
+
+    match svc.release_encumbrance(key_id) {
+        Ok(()) => {
+            println!("Encumbrance released for key {}", key_id_str);
+            println!("Unspent rJoules returned to wallet.");
+        }
+        Err(e) => {
+            eprintln!("Error: {e}");
+        }
+    }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

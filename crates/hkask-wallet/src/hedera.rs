@@ -1,23 +1,36 @@
 //! HederaPort — HTS USDC deposit monitoring and withdrawal on Hedera.
 //!
+//! # ⚠ ARCHIVED — Use `circle.rs` instead
+//!
+//! This module is a reference implementation of Hedera mirror node REST API
+//! and gRPC transaction submission. It is NOT used in production. The primary
+//! chain port is `CirclePort` in `circle.rs`, which delegates custody and
+//! signing to Circle's API.
+//!
+//! Kept for:
+//! - Documentation of the HTS token transfer flow
+//! - Reference for protobuf transaction construction
+//! - Reference for future ChainPort implementations
+//!
+//! To compile: `cargo build --features archive-hedera`
+//!
 //! # Feature gate
-//! This module is only compiled when the `hedera` feature is enabled.
-//! Default builds have zero Hedera dependencies.
+//! This module is only compiled when the `archive-hedera` feature is enabled.
+//! Default builds do NOT include Hedera SDK dependencies.
 //!
 //! # SDK constraint `[IS-DECL]`
 //! The `hiero-sdk` crate (v0.45.0) depends on `openssl`, which is forbidden
 //! by hKask's design constraints (rustls only). The `hiero-sdk-proto` crate
-//! (protobuf definitions) has no openssl dependency and could be used with
-//! `tonic` + `rustls` for full gRPC transaction submission. This is deferred
-//! to a future integration sprint.
+//! (protobuf definitions) has no openssl dependency and is used with
+//! `tonic` + `rustls` for gRPC transaction submission.
 //!
 //! # Current capability
 //! - **Reads:** Mirror node REST API (account info, transaction history, token balances)
-//! - **Writes:** Not yet implemented — requires gRPC transaction submission
+//! - **Writes:** Full gRPC transaction construction, signing, and submission
 //!
 //! # Security `[OUGHT-DECL]`
 //! - Does NOT hold treasury keys — signing is delegated to `signing.rs`
-//! - HTTP client uses rustls (no openssl)
+//! - HTTP/gRPC clients use rustls (no openssl)
 //! - Account IDs derived deterministically from treasury public key
 
 use async_trait::async_trait;
@@ -27,6 +40,16 @@ use serde::Deserialize;
 use std::time::Duration;
 
 use crate::chain::{ChainPort, DepositEvent};
+
+// Hedera protobuf types (feature-gated behind "hedera")
+use hiero_sdk_proto::services::{
+    AccountAmount, AccountId, CryptoTransferTransactionBody, Duration as ProtoDuration,
+    SignatureMap, SignaturePair, SignedTransaction, Timestamp, TokenId, TokenTransferList,
+    Transaction, TransactionBody, TransactionId, TransactionResponse,
+    crypto_service_client::CryptoServiceClient,
+};
+use prost::Message;
+use tonic::transport::Channel;
 
 /// Hedera mainnet mirror node REST API endpoint.
 const MIRROR_NODE_MAINNET: &str = "https://mainnet-public.mirrornode.hedera.com";
@@ -42,6 +65,21 @@ const USDC_TOKEN_TESTNET: &str = "0.0.2276698";
 
 /// HTTP request timeout.
 const REQUEST_TIMEOUT_SECS: u64 = 30;
+
+/// Hedera testnet consensus node (gRPC endpoint).
+const TESTNET_NODE: &str = "https://0.testnet.hedera.com:50211";
+
+/// Hedera mainnet consensus node (gRPC endpoint).
+const MAINNET_NODE: &str = "https://35.232.244.145:50211";
+
+/// Default transaction fee in tinybars (0.01 HBAR = 1,000,000 tinybars).
+const DEFAULT_TX_FEE: u64 = 1_000_000;
+
+/// Transaction valid duration in seconds.
+const TX_VALID_DURATION: u64 = 120;
+
+/// Default node account ID for transaction submission (node 0.0.3).
+const NODE_ACCOUNT_ID: &str = "0.0.3";
 
 // ── Mirror node REST API response types ──────────────────────────────────────
 
@@ -90,10 +128,11 @@ struct MirrorTokenBalance {
     balance: u64,
 }
 
-/// Hedera chain port — HTS USDC on Hedera via mirror node REST API.
+/// Hedera chain port — HTS USDC on Hedera via mirror node REST API + gRPC.
 ///
 /// # Ownership
 /// - Owns a `reqwest::Client` for mirror node HTTP requests
+/// - Owns a `tonic::transport::Channel` for gRPC transaction submission
 /// - Holds the treasury account ID for deposit address derivation
 /// - Does NOT hold the treasury private key (signing is external)
 pub struct HederaPort {
@@ -105,6 +144,8 @@ pub struct HederaPort {
     treasury_account: String,
     /// HTS USDC token ID.
     usdc_token: String,
+    /// Consensus node gRPC endpoint URL.
+    consensus_node_url: String,
 }
 
 impl HederaPort {
@@ -117,6 +158,7 @@ impl HederaPort {
         mirror_node_url: &str,
         treasury_account: &str,
         usdc_token: Option<&str>,
+        consensus_node_url: &str,
     ) -> Result<Self, WalletError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
@@ -132,6 +174,7 @@ impl HederaPort {
             mirror_node_url: mirror_node_url.to_string(),
             treasury_account: treasury_account.to_string(),
             usdc_token: usdc_token.unwrap_or(USDC_TOKEN_MAINNET).to_string(),
+            consensus_node_url: consensus_node_url.to_string(),
         })
     }
 
@@ -141,6 +184,7 @@ impl HederaPort {
             MIRROR_NODE_TESTNET,
             treasury_account,
             Some(USDC_TOKEN_TESTNET),
+            TESTNET_NODE,
         )
     }
 
@@ -150,6 +194,7 @@ impl HederaPort {
             MIRROR_NODE_MAINNET,
             treasury_account,
             Some(USDC_TOKEN_MAINNET),
+            MAINNET_NODE,
         )
     }
 
@@ -164,6 +209,130 @@ impl HederaPort {
         // Multi-account derivation (using HKDF from treasury key) is a
         // future enhancement.
         self.treasury_account.clone()
+    }
+
+    // ── Protobuf helpers ────────────────────────────────────────────────────
+
+    /// Parse a Hedera account ID string (0.0.X) into an AccountId protobuf.
+    fn parse_account_id(s: &str) -> Result<AccountId, WalletError> {
+        let parts: Vec<&str> = s.split('.').collect();
+        if parts.len() != 3 {
+            return Err(WalletError::Infra(
+                hkask_types::InfrastructureError::Database(format!(
+                    "invalid account ID format: {s}"
+                )),
+            ));
+        }
+        Ok(AccountId {
+            shard_num: parts[0].parse::<i64>().map_err(|e| {
+                WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
+                    "invalid shard: {e}"
+                )))
+            })?,
+            realm_num: parts[1].parse::<i64>().map_err(|e| {
+                WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
+                    "invalid realm: {e}"
+                )))
+            })?,
+            account: Some(hiero_sdk_proto::services::account_id::Account::AccountNum(
+                parts[2].parse::<i64>().map_err(|e| {
+                    WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
+                        "invalid account num: {e}"
+                    )))
+                })?,
+            )),
+        })
+    }
+
+    /// Parse a Hedera token ID string (0.0.X) into a TokenId protobuf.
+    fn parse_token_id(s: &str) -> Result<TokenId, WalletError> {
+        let parts: Vec<&str> = s.split('.').collect();
+        if parts.len() != 3 {
+            return Err(WalletError::Infra(
+                hkask_types::InfrastructureError::Database(format!("invalid token ID format: {s}")),
+            ));
+        }
+        Ok(TokenId {
+            shard_num: parts[0].parse::<i64>().map_err(|e| {
+                WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
+                    "invalid shard: {e}"
+                )))
+            })?,
+            realm_num: parts[1].parse::<i64>().map_err(|e| {
+                WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
+                    "invalid realm: {e}"
+                )))
+            })?,
+            token_num: parts[2].parse::<i64>().map_err(|e| {
+                WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
+                    "invalid token num: {e}"
+                )))
+            })?,
+        })
+    }
+
+    /// Build a CryptoTransfer transaction body for an HTS token transfer.
+    fn build_transfer_body(
+        &self,
+        to_address: &str,
+        amount_usdc_micro: u64,
+    ) -> Result<TransactionBody, WalletError> {
+        let treasury_id = Self::parse_account_id(&self.treasury_account)?;
+        let dest_id = Self::parse_account_id(to_address)?;
+        let token_id = Self::parse_token_id(&self.usdc_token)?;
+        let node_id = Self::parse_account_id(NODE_ACCOUNT_ID)?;
+
+        // Build token transfer list: negative for sender, positive for receiver
+        let transfer_list = TokenTransferList {
+            token: Some(token_id),
+            transfers: vec![
+                AccountAmount {
+                    account_id: Some(treasury_id.clone()),
+                    amount: -(amount_usdc_micro as i64),
+                    is_approval: false,
+                    hook_call: None,
+                },
+                AccountAmount {
+                    account_id: Some(dest_id),
+                    amount: amount_usdc_micro as i64,
+                    is_approval: false,
+                    hook_call: None,
+                },
+            ],
+            nft_transfers: vec![],
+            expected_decimals: None,
+        };
+
+        let crypto_transfer = CryptoTransferTransactionBody {
+            transfers: None, // no HBAR transfers
+            token_transfers: vec![transfer_list],
+        };
+
+        // Build transaction ID: treasury account + current timestamp
+        let now = chrono::Utc::now();
+        let tx_id = TransactionId {
+            transaction_valid_start: Some(Timestamp {
+                seconds: now.timestamp(),
+                nanos: now.timestamp_subsec_nanos() as i32,
+            }),
+            account_id: Some(treasury_id),
+            scheduled: false,
+            nonce: 0,
+        };
+
+        Ok(TransactionBody {
+            transaction_id: Some(tx_id),
+            node_account_id: Some(node_id),
+            transaction_fee: DEFAULT_TX_FEE,
+            transaction_valid_duration: Some(ProtoDuration {
+                seconds: TX_VALID_DURATION as i64,
+            }),
+            memo: String::new(),
+            data: Some(
+                hiero_sdk_proto::services::transaction_body::Data::CryptoTransfer(crypto_transfer),
+            ),
+            ..Default::default()
+        })
     }
 }
 
@@ -262,29 +431,125 @@ impl ChainPort for HederaPort {
 
     fn build_withdrawal_tx(
         &self,
-        _to_address: &str,
-        _amount_usdc_micro: u64,
+        to_address: &str,
+        amount_usdc_micro: u64,
     ) -> Result<Vec<u8>, WalletError> {
-        // Transaction building requires the Hedera protobuf schema.
-        // The `hiero-sdk` crate provides this but depends on openssl (forbidden).
-        // The `hiero-sdk-proto` crate (protobuf definitions only) has no openssl
-        // dependency and could be used with `tonic` + `rustls` for gRPC submission.
-        //
-        // Integration path:
-        // 1. Add `hiero-sdk-proto` + `tonic` (with rustls TLS) as optional deps
-        // 2. Construct `TransactionBody` protobuf with CryptoTransfer
-        // 3. Serialize, sign externally, submit via gRPC to consensus node
-        Err(WalletError::ChainError {
-            chain: ChainId::Hedera,
-            message: "Withdrawal transactions not yet implemented — requires hiero-sdk-proto + tonic (rustls) for gRPC submission. See crates/hkask-wallet/src/hedera.rs for integration path.".into(),
-        })
+        let body = self.build_transfer_body(to_address, amount_usdc_micro)?;
+        Ok(body.encode_to_vec())
     }
 
-    async fn submit_signed_tx(&self, _signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
-        Err(WalletError::ChainError {
+    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+        // The signing.rs module appends the Ed25519 signature (64 bytes) to the body bytes.
+        if signed_tx_bytes.len() < 64 {
+            return Err(WalletError::Infra(
+                hkask_types::InfrastructureError::Database("signed transaction too short".into()),
+            ));
+        }
+
+        let (body_bytes, sig_bytes) = signed_tx_bytes.split_at(signed_tx_bytes.len() - 64);
+
+        // Deserialize the transaction body
+        let body = TransactionBody::decode(body_bytes).map_err(|e| {
+            WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
+                "failed to decode transaction body: {e}"
+            )))
+        })?;
+
+        // Build signature map with the Ed25519 signature
+        let sig_pair = SignaturePair {
+            pub_key_prefix: vec![], // empty prefix = Ed25519 key from transaction body
+            signature: Some(
+                hiero_sdk_proto::services::signature_pair::Signature::Ed25519(sig_bytes.to_vec()),
+            ),
+        };
+        let sig_map = SignatureMap {
+            sig_pair: vec![sig_pair],
+        };
+
+        // Wrap in SignedTransaction
+        let signed_tx = SignedTransaction {
+            body_bytes: body_bytes.to_vec(),
+            sig_map: Some(sig_map),
+            use_serialized_tx_message_hash_algorithm: false,
+        };
+
+        // Wrap SignedTransaction in Transaction for gRPC submission
+        let transaction = Transaction {
+            signed_transaction_bytes: signed_tx.encode_to_vec(),
+            ..Default::default()
+        };
+
+        // Connect to consensus node and submit
+        let channel = Channel::from_shared(self.consensus_node_url.clone())
+            .map_err(|e| WalletError::ChainError {
+                chain: ChainId::Hedera,
+                message: format!("Invalid consensus node URL: {e}"),
+            })?
+            .connect()
+            .await
+            .map_err(|e| WalletError::ChainError {
+                chain: ChainId::Hedera,
+                message: format!("Failed to connect to consensus node: {e}"),
+            })?;
+
+        let mut client = CryptoServiceClient::new(channel);
+
+        // Submit the transaction via gRPC
+        let request = tonic::Request::new(transaction);
+        let response =
+            client
+                .crypto_transfer(request)
+                .await
+                .map_err(|e| WalletError::ChainError {
+                    chain: ChainId::Hedera,
+                    message: format!("gRPC cryptoTransfer failed: {e}"),
+                })?;
+
+        let receipt: TransactionResponse = response.into_inner();
+
+        // The response contains node_transaction_precheck_code.
+        // A value of 0 (OK) means the transaction passed pre-check.
+        if receipt.node_transaction_precheck_code != 0 {
+            return Err(WalletError::ChainError {
+                chain: ChainId::Hedera,
+                message: format!(
+                    "Transaction pre-check failed with code: {}",
+                    receipt.node_transaction_precheck_code
+                ),
+            });
+        }
+
+        // The tx_hash is derived from the TransactionID we built.
+        // Format: account_id@seconds.nanos
+        let tx_id = body.transaction_id.ok_or_else(|| WalletError::ChainError {
             chain: ChainId::Hedera,
-            message: "Transaction submission not yet implemented — see build_withdrawal_tx documentation.".into(),
-        })
+            message: "No transaction ID in body".into(),
+        })?;
+        let tx_hash = format!(
+            "{}@{}.{:09}",
+            tx_id
+                .account_id
+                .map(|a| format!(
+                    "{}.{}.{}",
+                    a.shard_num,
+                    a.realm_num,
+                    a.account
+                        .map(|acct| match acct {
+                            hiero_sdk_proto::services::account_id::Account::AccountNum(n) =>
+                                n.to_string(),
+                            _ => "0".to_string(),
+                        })
+                        .unwrap_or_default()
+                ))
+                .unwrap_or_default(),
+            tx_id
+                .transaction_valid_start
+                .map(|t| t.seconds)
+                .unwrap_or(0),
+            tx_id.transaction_valid_start.map(|t| t.nanos).unwrap_or(0)
+        );
+
+        Ok(TxHash(tx_hash))
     }
 
     async fn confirmations(&self, tx_hash: &TxHash) -> Result<u64, WalletError> {

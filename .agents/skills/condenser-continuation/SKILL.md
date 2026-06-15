@@ -24,22 +24,24 @@ The SKILL.md (this file) teaches the Zed coding agent the condenser domain and m
 ## When to Use
 
 - Resuming condenser implementation work after a context window reset
-- The user says "continue condenser work", "pick up condenser", or "resume Option A/B"
+- The user says "continue condenser work" or "pick up condenser"
 - Starting a new session that needs to continue prior condenser integration work
 
 ## Domain: Condenser Implementation
 
-The hKask condenser has two implementation options, both exposed as an MCP server (`hkask-mcp-condenser`):
+The hKask condenser is a single MCP server (`hkask-mcp-condenser`) with 7 tools: `compress`, `classify`, `set_profile`, `stats`, `ping`, `persist`, `thread_summary`. No running hKask instance required — compiles standalone. Binary: `hkask-mcp-condenser`.
 
-### Option A: Standalone Condenser (MCP Server)
+### Local CPU-Only Tools (6 tools)
 
-A self-contained MCP server with 7 tools: `compress`, `classify`, `set_profile`, `stats`, `ping`, `persist`, `thread_summary`. No running hKask instance required — compiles standalone. Binary: `hkask-mcp-condenser`.
+`compress`, `classify`, `set_profile`, `stats`, `ping`, and `persist` run entirely on local CPU with no LLM dependency. Three compression algorithms (rtk_style, saliency_rank, flashrank) dispatch by context category.
 
 ### Thread Summary via Centralized Inference Router
 
 The `condenser_thread_summary` tool uses the centralized hKask inference router (`InferencePort` trait, implemented by `InferenceRouter`). The router dispatches to Ollama, Fireworks, or DeepInfra based on the model name's provider prefix (OM/, FW/, DI/). No standalone HTTP client or per-tool inference URL configuration — the router is built once at startup from standard hKask environment variables (`OM_BASE_URL`, `FW_API_KEY`, `DI_API_KEY`).
 
 **Graceful degradation:** If no inference backends are reachable, `thread_summary` returns an error. All other tools continue working.
+
+**Thinking mode:** For models with reasoning/thinking mode (e.g., qwen3), the inference backend should disable thinking to prevent the model from spending output tokens on internal reasoning. This is backend-specific configuration — the condenser itself does not control thinking mode (the `InferencePort` trait has no thinking-mode parameter).
 
 ### MCP Server Configuration
 
@@ -94,15 +96,15 @@ Assemble a structured continuation document with:
 | File | Purpose |
 |------|--------|
 | `mcp-servers/hkask-mcp-condenser/src/main.rs` | MCP server entry point, all tool implementations |
-| `mcp-servers/hkask-mcp-condenser/src/engine.rs` | Pure domain logic — compression dispatch, profile management, stats |
-| `mcp-servers/hkask-mcp-condenser/src/inference.rs` | Pure formatting functions — prompt building, text formatting, token estimation, output construction |
-| `mcp-servers/hkask-mcp-condenser/src/types.rs` | Request/response types including `ThreadSummaryRequest`/`ThreadSummaryOutput` |
-| `mcp-servers/hkask-mcp-condenser/src/algorithms.rs` | Compression and classification algorithms |
 | `mcp-servers/hkask-mcp-condenser/Cargo.toml` | Dependencies including `hkask-inference` for the centralized inference router |
+| `crates/hkask-condenser/src/engine.rs` | Pure domain logic — compression dispatch, profile management, stats |
+| `crates/hkask-condenser/src/inference.rs` | Pure formatting functions — prompt building, text formatting, token estimation, output construction |
+| `crates/hkask-condenser/src/types.rs` | Request/response types including `ThreadSummaryRequest`/`ThreadSummaryOutput` |
+| `crates/hkask-condenser/src/algorithms.rs` | Compression and classification algorithms |
 
 ## Debug
 
 - CNS spans: `cns.tool.condenser.*` for tool invocation governance
-- `cns.inference.*` for inference governance when Option B is active
+- `cns.inference.*` for inference governance when thread_summary is active
 - Check `kask /status` for current agent, model, and pod state
 - Run `hkask-mcp-condenser` standalone to test MCP handshake without hKask runtime

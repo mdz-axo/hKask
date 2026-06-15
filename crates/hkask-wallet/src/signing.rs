@@ -60,6 +60,12 @@ impl std::fmt::Debug for LoadedKey {
 
 /// Sign a withdrawal transaction for a specific chain.
 ///
+/// REQ: WALLET-007
+/// pre:  chain is a valid ChainId, tx_bytes is non-empty
+/// post: returns Ok(signature) — 64-byte Ed25519 signature
+/// post: treasury key loaded, used, and zeroized within this call
+/// post: no key material returned to caller — only the signature
+///
 /// Loads the chain-specific treasury key via HKDF, signs the transaction bytes,
 /// and zeroizes the key on drop. Key material exists in memory only for the
 /// duration of this function call.
@@ -82,6 +88,11 @@ pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, Walle
 }
 
 /// Sign an API key capability token with the wallet's Ed25519 key.
+///
+/// REQ: WALLET-007
+/// pre:  capability is a valid, fully-populated ApiKeyCapability
+/// post: returns Ok(hex_signature) — 128-char hex-encoded Ed25519 signature
+/// post: delegates to hkask_keystore::sign_api_key_capability (isolated boundary)
 ///
 /// Delegates to `hkask_keystore::sign_api_key_capability` which handles
 /// wallet seed derivation, canonical JSON serialization, signing, and

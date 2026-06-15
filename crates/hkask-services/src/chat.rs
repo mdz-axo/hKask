@@ -478,6 +478,7 @@ impl ChatService {
             presence_penalty: 0.0,
             max_tokens: 512,
             seed: None,
+            disable_thinking: false,
         });
 
         // REQ: P9 (Homeostatic) — CNS span before inference (NuEvent, not just tracing)
@@ -817,6 +818,7 @@ impl ChatService {
             presence_penalty: 0.0,
             max_tokens: 500,
             seed: None,
+            disable_thinking: true,
         };
 
         let port = ctx.inference_port()?;

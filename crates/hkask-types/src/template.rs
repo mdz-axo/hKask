@@ -51,6 +51,14 @@ pub struct LLMParameters {
 
     /// Random seed (None for random, Some for reproducibility)
     pub seed: Option<u64>,
+
+    /// Disable thinking/reasoning mode for models that support it (e.g., qwen3).
+    /// When true, the model is instructed to skip internal reasoning and produce
+    /// output directly. Essential for summarization/condensation tasks where
+    /// output tokens are needed, not reasoning tokens.
+    /// Default: false (thinking enabled). Set to true for condenser tasks.
+    #[serde(default)]
+    pub disable_thinking: bool,
 }
 
 impl LLMParameters {
@@ -67,6 +75,7 @@ impl LLMParameters {
             presence_penalty: 0.4,
             max_tokens: 2048,
             seed: None,
+            disable_thinking: false,
         }
     }
 }

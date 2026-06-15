@@ -15,6 +15,16 @@ use hkask_types::ports::{
 };
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
+fn default_enable_thinking() -> bool {
+    true
+}
+
+#[allow(dead_code)]
+fn is_true(b: &bool) -> bool {
+    *b
+}
+
 // ── Request types ────────────────────────────────────────────────────────────
 
 /// OpenAI-compatible chat completion request body.
@@ -34,6 +44,12 @@ pub struct ChatRequest {
     pub n_probs: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
+    /// Enable thinking/reasoning mode (Ollama-specific).
+    /// Default true. Set to false for condenser/summarization tasks to prevent
+    /// the model from spending output tokens on internal reasoning.
+    /// Skipped from serialization when true (most models don't need it).
+    #[serde(default = "default_enable_thinking", skip_serializing_if = "is_true")]
+    pub enable_thinking: bool,
 }
 
 /// A single message in the chat conversation.
@@ -76,6 +92,7 @@ pub fn build_chat_request(
         seed: params.seed,
         n_probs,
         stream,
+        enable_thinking: !params.disable_thinking,
     }
 }
 
@@ -367,6 +384,7 @@ mod tests {
             presence_penalty: 0.0,
             max_tokens: 512,
             seed: None,
+            disable_thinking: false,
         };
         let req = build_chat_request(
             "qwen3:4b",
@@ -387,5 +405,46 @@ mod tests {
     fn validate_prompt_rejects_invalid() {
         assert!(validate_prompt("").is_err());
         assert!(validate_prompt("hello").is_ok());
+    }
+
+    /// REQ: chat-proto-004 — disable_thinking maps to enable_thinking: false in wire format
+    #[test]
+    fn disable_thinking_maps_to_wire_format() {
+        let params = LLMParameters {
+            temperature: 0.3,
+            top_p: 0.9,
+            top_k: 40,
+            min_p: 0.0,
+            typical_p: 0.0,
+            frequency_penalty: 0.0,
+            presence_penalty: 0.0,
+            max_tokens: 500,
+            seed: None,
+            disable_thinking: true,
+        };
+        let req = build_chat_request("qwen3:8b", "Summarize.", None, &params, Some(false), None);
+        let json = serde_json::to_value(&req).expect("serialization must succeed");
+        assert_eq!(json["enable_thinking"], serde_json::json!(false));
+    }
+
+    /// REQ: chat-proto-005 — enable_thinking is omitted from JSON when true (default)
+    #[test]
+    fn enable_thinking_omitted_when_true() {
+        let params = LLMParameters {
+            temperature: 0.7,
+            top_p: 0.9,
+            top_k: 40,
+            min_p: 0.0,
+            typical_p: 0.0,
+            frequency_penalty: 0.0,
+            presence_penalty: 0.0,
+            max_tokens: 512,
+            seed: None,
+            disable_thinking: false,
+        };
+        let req = build_chat_request("qwen3:4b", "Hello.", None, &params, Some(false), None);
+        let json = serde_json::to_value(&req).expect("serialization must succeed");
+        // enable_thinking should NOT appear in JSON when true (skip_serializing_if)
+        assert!(json.get("enable_thinking").is_none());
     }
 }

@@ -698,6 +698,21 @@ pub enum WalletAction {
         #[arg(short, long)]
         private: bool,
     },
+    /// Allocate rJoules to an API key for spending
+    Encumber {
+        /// API key ID to allocate rJoules to
+        #[arg(short, long)]
+        key_id: String,
+        /// Amount in rJoules to allocate
+        #[arg(short, long)]
+        amount: u64,
+    },
+    /// Release an API key's encumbrance (returns unspent rJoules to wallet)
+    ReleaseEncumbrance {
+        /// API key ID to release
+        #[arg(short, long)]
+        key_id: String,
+    },
 }
 
 #[derive(Subcommand)]

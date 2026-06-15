@@ -1,8 +1,21 @@
 //! SolanaPort — SPL USDC deposit monitoring and withdrawal on Solana.
 //!
+//! # ⚠ ARCHIVED — Use `circle.rs` instead
+//!
+//! This module is a reference implementation of raw Solana JSON-RPC interaction.
+//! It is NOT used in production. The primary chain port is `CirclePort` in
+//! `circle.rs`, which delegates custody and signing to Circle's API.
+//!
+//! Kept for:
+//! - Documentation of the SPL token transfer flow
+//! - Offline testing without external API dependencies
+//! - Reference for future ChainPort implementations
+//!
+//! To compile: `cargo build --features archive-solana`
+//!
 //! # Feature gate
-//! This module is only compiled when the `solana` feature is enabled.
-//! Default builds have zero Solana SDK dependencies.
+//! This module is only compiled when the `archive-solana` feature is enabled.
+//! Default builds do NOT include Solana SDK dependencies.
 //!
 //! # Dependency constraint `[IS-DECL]`
 //! `solana-client` depends on openssl via `solana-tls-utils` (forbidden by hKask).
@@ -390,6 +403,20 @@ impl ChainPort for SolanaPort {
         let treasury_ata = get_associated_token_address(&self.treasury_pubkey, &self.usdc_mint);
         let dest_ata = get_associated_token_address(&destination, &self.usdc_mint);
 
+        let mut instructions = Vec::new();
+
+        // Create destination ATA if it doesn't exist.
+        // The ATA program is idempotent — if the ATA already exists,
+        // this instruction is a no-op (it won't fail).
+        let create_ata_ix =
+            spl_associated_token_account::instruction::create_associated_token_account(
+                &self.treasury_pubkey, // payer
+                &destination,          // owner
+                &self.usdc_mint,       // mint
+                &spl_token::id(),      // token program
+            );
+        instructions.push(create_ata_ix);
+
         // Build SPL token transfer instruction
         let transfer_ix = spl_token_ix::transfer(
             &spl_token::id(),
@@ -404,11 +431,12 @@ impl ChainPort for SolanaPort {
                 "failed to build transfer instruction: {e}"
             )))
         })?;
+        instructions.push(transfer_ix);
 
         // Serialize instructions + payer for signing.rs to sign.
         // The full transaction with blockhash is assembled at submission time.
         let payload = WithdrawalPayload {
-            instructions: vec![transfer_ix],
+            instructions,
             payer: self.treasury_pubkey,
         };
         Ok(bincode::serialize(&payload).map_err(|e| {
@@ -483,5 +511,132 @@ impl ChainPort for SolanaPort {
         // For now, return a reasonable estimate.
         // TODO: Integrate with a price feed (Pyth, Switchboard, or CoinGecko API)
         Ok(150.0) // ~$150 SOL
+    }
+}
+
+// ── Integration tests (manual — requires Solana devnet) ────────────────────────
+//
+// These tests validate the full withdrawal flow against Solana devnet.
+// They require:
+//   1. A funded treasury keypair on devnet with USDC
+//   2. Network access to api.devnet.solana.com
+//
+// Run manually with:
+//   cargo test -p hkask-wallet --features solana -- solana_integration --ignored
+//
+// Set environment variables:
+//   SOLANA_TREASURY_PUBKEY=<base58 pubkey>
+//   HKASK_MASTER_KEY=<32-byte hex seed>
+
+#[cfg(test)]
+#[cfg(feature = "archive-solana")]
+mod integration_tests {
+    use super::*;
+    use crate::signing;
+
+    /// Build a SolanaPort for devnet testing.
+    fn devnet_port() -> SolanaPort {
+        let pubkey = std::env::var("SOLANA_TREASURY_PUBKEY")
+            .unwrap_or_else(|_| "11111111111111111111111111111111".to_string());
+        SolanaPort::new_devnet(&pubkey).expect("Failed to create devnet SolanaPort")
+    }
+
+    // REQ: solana-int-001 — build_withdrawal_tx produces valid serialized payload
+    #[test]
+    fn build_withdrawal_tx_produces_valid_payload() {
+        let port = devnet_port();
+        let dest = "2xNpeZTxL7oZTD3B8mGV6KqjyrV8qN1XJqY7B8Z9nK1W"; // random valid base58
+        let payload_bytes = port
+            .build_withdrawal_tx(dest, 1_000_000) // 1 USDC
+            .expect("build_withdrawal_tx should succeed");
+
+        // Payload should contain 2 instructions (create ATA + transfer)
+        let payload: WithdrawalPayload =
+            bincode::deserialize(&payload_bytes).expect("payload should deserialize");
+        assert_eq!(
+            payload.instructions.len(),
+            2,
+            "should have create ATA + transfer"
+        );
+        assert_eq!(payload.payer, port.treasury_pubkey);
+    }
+
+    // REQ: solana-int-002 — full withdrawal flow round-trips through signing
+    #[test]
+    fn withdrawal_payload_signing_roundtrip() {
+        // SAFETY: test-only — sets master key env var in isolated test process.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let port = devnet_port();
+        let dest = "2xNpeZTxL7oZTD3B8mGV6KqjyrV8qN1XJqY7B8Z9nK1W";
+        let payload_bytes = port
+            .build_withdrawal_tx(dest, 1_000_000)
+            .expect("build_withdrawal_tx");
+
+        // Sign the payload
+        let signature =
+            signing::sign_withdrawal(ChainId::Solana, &payload_bytes).expect("sign_withdrawal");
+        assert_eq!(signature.len(), 64, "Ed25519 signature is 64 bytes");
+
+        // Combine payload + signature (as submit_signed_tx expects)
+        let mut signed_tx = payload_bytes;
+        signed_tx.extend_from_slice(&signature);
+
+        // Verify the combined format is parseable
+        assert!(signed_tx.len() > 64);
+        let (payload_part, sig_part) = signed_tx.split_at(signed_tx.len() - 64);
+        let _payload: WithdrawalPayload =
+            bincode::deserialize(payload_part).expect("roundtrip deserialize");
+        assert_eq!(sig_part.len(), 64);
+    }
+
+    // REQ: solana-int-003 — submit_signed_tx against devnet (ignored — needs funded treasury)
+    #[test]
+    #[ignore = "requires funded treasury on Solana devnet with USDC"]
+    fn submit_withdrawal_to_devnet() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let port = devnet_port();
+        // Use a known devnet USDC holder as destination
+        let dest = std::env::var("SOLANA_TEST_DESTINATION")
+            .unwrap_or_else(|_| "2xNpeZTxL7oZTD3B8mGV6KqjyrV8qN1XJqY7B8Z9nK1W".to_string());
+        let amount = 100; // 0.0001 USDC (minimum test amount)
+
+        let payload_bytes = port
+            .build_withdrawal_tx(&dest, amount)
+            .expect("build_withdrawal_tx");
+        let signature = signing::sign_withdrawal(ChainId::Solana, &payload_bytes).expect("sign");
+
+        let mut signed_tx = payload_bytes;
+        signed_tx.extend_from_slice(&signature);
+
+        let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+        let tx_hash = rt
+            .block_on(port.submit_signed_tx(&signed_tx))
+            .expect("submit_signed_tx should return tx hash");
+
+        println!("Withdrawal submitted: {}", tx_hash.0);
+        println!(
+            "Check on Solana Explorer: https://explorer.solana.com/tx/{}?cluster=devnet",
+            tx_hash.0
+        );
+
+        // Wait a few seconds and check confirmations
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        let confs = rt
+            .block_on(port.confirmations(&tx_hash))
+            .expect("confirmations");
+        println!("Confirmations: {confs}");
     }
 }

@@ -50,8 +50,11 @@ use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
 use hkask_types::ports::git_cas::GitCASPort;
+use hkask_types::wallet::ChainId;
 use hkask_types::wallet::WalletId;
+use hkask_wallet::circle::CirclePort;
 use hkask_wallet::{ApiKeyIssuer, WalletManager};
+use std::collections::HashMap;
 
 use crate::ServiceConfig;
 use crate::ServiceError;
@@ -973,12 +976,59 @@ impl AgentService {
         let (wallet_service, wallet_store): (Option<Arc<WalletService>>, Option<Arc<WalletStore>>) = {
             let wallet_conn = open_db()?.conn_arc();
             let wallet_store = Arc::new(WalletStore::new(wallet_conn));
+
+            // Build chain ports from environment
+            let mut chains: HashMap<ChainId, Box<dyn hkask_wallet::ChainPort>> = HashMap::new();
+
+            // Circle — primary chain port (production)
+            if let Ok(api_key) = std::env::var("CIRCLE_API_KEY")
+                && let Ok(wallet_id) = std::env::var("CIRCLE_TREASURY_WALLET_ID")
+            {
+                let blockchain =
+                    std::env::var("CIRCLE_BLOCKCHAIN").unwrap_or_else(|_| "SOL".to_string());
+                let sandbox = std::env::var("CIRCLE_SANDBOX")
+                    .map(|v| v == "1" || v == "true")
+                    .unwrap_or(false);
+
+                match CirclePort::new(
+                    &api_key,
+                    &wallet_id,
+                    &blockchain,
+                    ChainId::Solana, // default; override via CIRCLE_BLOCKCHAIN
+                    sandbox,
+                )
+                .await
+                {
+                    Ok(port) => {
+                        tracing::info!(
+                            target: "cns.wallet.chain",
+                            blockchain = %blockchain,
+                            sandbox = sandbox,
+                            "CirclePort initialized — Circle-backed USDC custody"
+                        );
+                        chains.insert(ChainId::Solana, Box::new(port));
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "cns.wallet.chain",
+                            error = %e,
+                            "Failed to initialize CirclePort — wallet will be read-only"
+                        );
+                    }
+                }
+            } else {
+                tracing::info!(
+                    target: "cns.wallet.chain",
+                    "CIRCLE_API_KEY not set — wallet running without chain ports (read-only mode)"
+                );
+            }
+
             let wallet_manager = Arc::new(
                 WalletManager::build(
                     config.wallet_config.clone(),
                     Arc::clone(&wallet_store),
-                    Default::default(), // chain ports — empty until SDK integration
-                    None,               // privacy port — empty until Hinkal integration
+                    chains,
+                    None, // privacy port — empty until Hinkal integration
                 )
                 .map_err(|e| ServiceError::Wallet {
                     source: Some(Box::new(e)),

@@ -13,6 +13,8 @@
 //! - `training_register_adapter` — Register a completed adapter in persistent storage
 //! - `training_recommend_model` — Recommend a base model for fine-tuning
 //! - `training_record_invocation` — Record an adapter invocation for continuous training
+//! - `training_curate_feedback` — Curate feedback from stored QA pairs for continuous skills training
+//! - `training_retrain` — Retrain an adapter with curated feedback (closes the continuous loop)
 //!
 //! Architecture:
 //!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingProvider → LoRAAdapter
@@ -32,7 +34,7 @@ use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_mcp_training::adapters::{
-    AdapterMetrics, AdapterStore, InMemoryAdapterStore, LoRAAdapter, SqliteAdapterStore,
+    AdapterMetrics, AdapterStore, InMemoryAdapterStore, JobStore, LoRAAdapter, SqliteAdapterStore,
 };
 use hkask_mcp_training::dataset::DatasetPipeline;
 use hkask_mcp_training::providers::{
@@ -205,6 +207,9 @@ pub struct TrainRegisterAdapterRequest {
     /// Number of tokens processed.
     #[serde(default)]
     pub tokens_processed: Option<u64>,
+    /// Adapter version number (default: 1). Increment on retraining.
+    #[serde(default)]
+    pub version: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -246,6 +251,45 @@ pub struct TrainRecordInvocationRequest {
     pub success: Option<bool>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainCurateFeedbackRequest {
+    /// Dataset name to filter QA pairs by.
+    #[serde(default)]
+    pub dataset: Option<String>,
+    /// Source identifier to filter by.
+    #[serde(default)]
+    pub source: Option<String>,
+    /// Path to write the corrected ChatML JSONL feedback file.
+    pub output_path: String,
+    /// Model to use for validation/correction (provider-prefixed).
+    /// Defaults to the server's configured default model.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Maximum number of QA pairs to review (default: 50).
+    #[serde(default)]
+    pub max_pairs: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainRetrainRequest {
+    /// Path to the original training dataset.
+    pub original_dataset_path: String,
+    /// Path to the feedback JSONL file (from training_curate_feedback).
+    pub feedback_path: String,
+    /// Base model to fine-tune (provider-prefixed).
+    pub base_model: String,
+    /// Adapter name for the new version (e.g., "constraint-forces-v4").
+    pub adapter_name: String,
+    /// Skill name for the adapter registry.
+    pub skill_name: String,
+    /// Optional training hyperparameters. Uses defaults if not provided.
+    #[serde(default)]
+    pub params: Option<TrainingParams>,
+    /// Path to write the merged dataset (default: auto-generated in cache dir).
+    #[serde(default)]
+    pub merged_output_path: Option<String>,
+}
+
 // ── Server ───────────────────────────────────────────────────────────────
 
 pub struct TrainingServer {
@@ -257,6 +301,7 @@ pub struct TrainingServer {
     provider_id: TrainingProviderId,
     pipeline: Mutex<DatasetPipeline>,
     adapter_store: Arc<dyn AdapterStore>,
+    job_store: Option<JobStore>,
     inference_config: InferenceConfig,
 }
 
@@ -271,6 +316,7 @@ impl TrainingServer {
         provider_id: TrainingProviderId,
         pipeline: DatasetPipeline,
         adapter_store: Arc<dyn AdapterStore>,
+        job_store: Option<JobStore>,
         inference_config: InferenceConfig,
     ) -> Self {
         Self {
@@ -282,6 +328,7 @@ impl TrainingServer {
             provider_id,
             pipeline: Mutex::new(pipeline),
             adapter_store,
+            job_store,
             inference_config,
         }
     }
@@ -440,9 +487,38 @@ impl TrainingServer {
             }
         };
 
+        // Validate token lengths — warn if examples exceed typical context windows.
+        // Rough heuristic: 1 token ≈ 4 characters for English text.
+        let mut token_warnings: Vec<serde_json::Value> = Vec::new();
+        if let Ok(normalized_content) = std::fs::read_to_string(&normalized_path) {
+            for (i, line) in normalized_content.lines().enumerate() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let approx_tokens = trimmed.len() / 4;
+                // Warn at 2048 tokens (8K context), error at 4096 tokens (16K context)
+                if approx_tokens > 4096 {
+                    token_warnings.push(json!({
+                        "line": i + 1,
+                        "approx_tokens": approx_tokens,
+                        "severity": "error",
+                        "message": "Example likely exceeds 16K context window — may be truncated during training"
+                    }));
+                } else if approx_tokens > 2048 {
+                    token_warnings.push(json!({
+                        "line": i + 1,
+                        "approx_tokens": approx_tokens,
+                        "severity": "warning",
+                        "message": "Example approaches 8K context limit — consider truncation"
+                    }));
+                }
+            }
+        }
+
         let job = TrainingJob {
             id: uuid::Uuid::new_v4().to_string(),
-            dataset_path: normalized_path,
+            dataset_path: normalized_path.clone(),
             base_model: base_model.clone(),
             params: params.unwrap_or_default(),
             status: TrainingJobStatus::Queued,
@@ -450,14 +526,40 @@ impl TrainingServer {
             provider: self.provider_id(),
         };
 
+        // Persist job for survival across server restarts
+        if let Some(ref job_store) = self.job_store {
+            let params_json = serde_json::to_string(&job.params).unwrap_or_default();
+            let status_str = format!("{:?}", TrainingJobStatus::Queued).to_lowercase();
+            if let Err(e) = job_store.store(
+                &job.id,
+                &job.base_model,
+                &job.dataset_path.to_string_lossy(),
+                &params_json,
+                &status_str,
+                job.created_at.timestamp(),
+                &format!("{:?}", job.provider).to_lowercase(),
+            ) {
+                tracing::warn!(
+                    target: "cns.training.job.persist",
+                    job_id = %job.id,
+                    error = %e,
+                    "Failed to persist job"
+                );
+            }
+        }
+
         match self.provider.submit(&job).await {
             Ok(job_id) => {
-                let result = json!({
+                let mut result = json!({
                     "job_id": job_id,
                     "status": "queued",
                     "base_model": base_model,
                     "provider": format!("{:?}", self.provider_id()),
                 });
+                if !token_warnings.is_empty() {
+                    result["token_warnings"] = json!(token_warnings);
+                    result["token_warning_count"] = json!(token_warnings.len());
+                }
                 self.record_experience("training_submit", &dataset_path, "success", result.clone());
                 span.ok_json(result)
             }
@@ -490,6 +592,19 @@ impl TrainingServer {
                     "status": serde_json::to_value(status).unwrap_or_default(),
                 });
 
+                // Persist status update
+                if let Some(ref job_store) = self.job_store {
+                    let status_str = format!("{:?}", status).to_lowercase();
+                    if let Err(e) = job_store.update_status(&job_id, &status_str) {
+                        tracing::warn!(
+                            target: "cns.training.job.persist",
+                            job_id = %job_id,
+                            error = %e,
+                            "Failed to update job status"
+                        );
+                    }
+                }
+
                 // Auto-register adapter on completion
                 if status == TrainingJobStatus::Completed {
                     match self.adapter_store.get_metadata(&job_id).await {
@@ -512,6 +627,7 @@ impl TrainingServer {
                                         created_at: chrono::Utc::now().timestamp(),
                                         size_bytes: 0,
                                         skill_name: String::new(),
+                                        version: 1,
                                         metrics: Some(AdapterMetrics {
                                             loss: meta.loss,
                                             perplexity: None,
@@ -524,6 +640,47 @@ impl TrainingServer {
                                             result["adapter_registered"] = json!(true);
                                             result["adapter_name"] = json!(adapter.name);
                                             result["base_model"] = json!(meta.base_model);
+
+                                            // Store adapter weight blob if available locally
+                                            match self.provider.adapter_weight_path(&job_id).await {
+                                                Ok(Some(weight_path)) => {
+                                                    match tokio::fs::read(&weight_path).await {
+                                                        Ok(blob) => {
+                                                            let size = blob.len() as u64;
+                                                            if let Err(e) = self
+                                                                .adapter_store
+                                                                .store_blob(&job_id, blob)
+                                                                .await
+                                                            {
+                                                                tracing::warn!(
+                                                                    target: "cns.training.adapter.blob",
+                                                                    adapter_id = %job_id,
+                                                                    error = %e,
+                                                                    "Failed to store adapter blob"
+                                                                );
+                                                            } else {
+                                                                result["blob_stored"] = json!(true);
+                                                                result["blob_size_bytes"] =
+                                                                    json!(size);
+                                                            }
+                                                        }
+                                                        Err(e) => {
+                                                            tracing::warn!(
+                                                                target: "cns.training.adapter.blob",
+                                                                adapter_id = %job_id,
+                                                                error = %e,
+                                                                "Failed to read adapter weights"
+                                                            );
+                                                        }
+                                                    }
+                                                }
+                                                _ => {
+                                                    result["blob_stored"] = json!(false);
+                                                    result["blob_note"] =
+                                                        json!("No local weights (cloud provider)");
+                                                }
+                                            }
+
                                             tracing::info!(
                                                 target: "cns.training.adapter.created",
                                                 adapter_id = %job_id,
@@ -586,6 +743,7 @@ impl TrainingServer {
                             "id": adapter.id,
                             "name": adapter.name,
                             "skill_name": adapter.skill_name,
+                            "version": adapter.version,
                             "base_model": adapter.base_model,
                             "dataset_hash": adapter.dataset_hash,
                             "training_job_id": adapter.training_job_id,
@@ -1225,6 +1383,7 @@ impl TrainingServer {
             perplexity,
             training_duration_secs,
             tokens_processed,
+            version,
         }): Parameters<TrainRegisterAdapterRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("training_register_adapter", &self.webid);
@@ -1253,6 +1412,7 @@ impl TrainingServer {
             created_at: chrono::Utc::now().timestamp(),
             size_bytes: size_bytes.unwrap_or(0),
             skill_name: skill_name.clone(),
+            version: version.unwrap_or(1),
             metrics,
         };
 
@@ -1515,6 +1675,433 @@ impl TrainingServer {
         }
     }
 
+    #[tool(
+        description = "Curate feedback from stored QA pairs for continuous skills training. Queries semantic memory for training_qa_pair triples, validates each answer with inference, and generates corrected ChatML traces where the original answer is wrong or incomplete. Outputs a feedback JSONL file ready for training_retrain."
+    )]
+    async fn training_curate_feedback(
+        &self,
+        Parameters(TrainCurateFeedbackRequest {
+            dataset,
+            source,
+            output_path,
+            model,
+            max_pairs,
+        }): Parameters<TrainCurateFeedbackRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_curate_feedback", &self.webid);
+
+        let Some(semantic) = &self.semantic else {
+            return span.error(
+                McpErrorKind::PermissionDenied,
+                McpToolError::permission_denied(
+                    "Semantic memory not available — set HKASK_MEMORY_DB and HKASK_DB_PASSPHRASE",
+                )
+                .to_json_string(),
+            );
+        };
+
+        let triples = match semantic.query_by_attribute("training_qa_pair") {
+            Ok(t) => t,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Failed to query QA triples: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        if triples.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(
+                    "No training_qa_pair triples found. Ingest QA pairs first with training_ingest_qa.",
+                )
+                .to_json_string(),
+            );
+        }
+
+        // Filter and collect QA pairs
+        let mut pairs: Vec<(String, String)> = Vec::new();
+        for triple in &triples {
+            let value = &triple.value;
+            let q_ds = value.get("dataset").and_then(|v| v.as_str()).unwrap_or("");
+            let q_source = value.get("source").and_then(|v| v.as_str()).unwrap_or("");
+
+            if let Some(ref ds) = dataset
+                && q_ds != ds.as_str()
+            {
+                continue;
+            }
+            if let Some(ref src) = source
+                && q_source != src.as_str()
+            {
+                continue;
+            }
+
+            let question = value.get("question").and_then(|v| v.as_str()).unwrap_or("");
+            let answer = value.get("answer").and_then(|v| v.as_str()).unwrap_or("");
+            if !question.is_empty() && !answer.is_empty() {
+                pairs.push((question.to_string(), answer.to_string()));
+            }
+        }
+
+        let limit = max_pairs.unwrap_or(50).min(pairs.len());
+        pairs.truncate(limit);
+
+        if pairs.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("No QA pairs matched the given filters.")
+                    .to_json_string(),
+            );
+        }
+
+        let router = InferenceRouter::new(self.inference_config.clone());
+        let params = LLMParameters {
+            temperature: 0.0,
+            max_tokens: 1024,
+            ..Default::default()
+        };
+
+        let mut corrected_traces: Vec<serde_json::Value> = Vec::new();
+        let mut reviewed = 0usize;
+        let mut corrections = 0usize;
+        let mut total_tokens = 0u64;
+
+        for (question, original_answer) in &pairs {
+            reviewed += 1;
+
+            // Validate: ask the model to judge if the original answer is correct
+            let judge_prompt = format!(
+                "Review this QA pair for correctness and completeness.\n\n\
+                 QUESTION:\n{question}\n\n\
+                 ORIGINAL ANSWER:\n{original_answer}\n\n\
+                 If the answer is CORRECT and COMPLETE, reply with ONLY 'PASS'.\n\
+                 If the answer is wrong, incomplete, or could be improved, reply with 'FAIL: <brief reason>'\n\
+                 then provide the CORRECTED ANSWER on the next line prefixed with 'CORRECTED: '."
+            );
+
+            match router
+                .generate_with_model(&judge_prompt, &params, model.as_deref())
+                .await
+            {
+                Ok(response) => {
+                    total_tokens += response.usage.total_tokens as u64;
+                    let judge_text = response.text.trim();
+
+                    if judge_text.starts_with("PASS") {
+                        // Answer is fine — include as-is in feedback
+                        corrected_traces.push(json!({
+                            "messages": [
+                                {"role": "user", "content": question},
+                                {"role": "assistant", "content": original_answer}
+                            ],
+                            "review": "passed"
+                        }));
+                    } else {
+                        // Extract corrected answer
+                        let corrected = judge_text
+                            .lines()
+                            .find(|l| l.starts_with("CORRECTED:"))
+                            .map(|l| l.trim_start_matches("CORRECTED:").trim())
+                            .unwrap_or(original_answer.as_str());
+
+                        corrections += 1;
+                        corrected_traces.push(json!({
+                            "messages": [
+                                {"role": "user", "content": question},
+                                {"role": "assistant", "content": corrected}
+                            ],
+                            "review": "corrected",
+                            "original_answer": original_answer,
+                            "judge_notes": judge_text
+                        }));
+
+                        tracing::info!(
+                            target: "cns.training.curate",
+                            question = %question.chars().take(80).collect::<String>(),
+                            "Correction generated"
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.training.curate",
+                        error = %e,
+                        "Validation inference failed, keeping original"
+                    );
+                    corrected_traces.push(json!({
+                        "messages": [
+                            {"role": "user", "content": question},
+                            {"role": "assistant", "content": original_answer}
+                        ],
+                        "review": "unreviewed (inference error)"
+                    }));
+                }
+            }
+        }
+
+        // Write feedback file
+        let mut output = String::new();
+        for trace in &corrected_traces {
+            output.push_str(&serde_json::to_string(trace).unwrap());
+            output.push('\n');
+        }
+
+        match std::fs::write(&output_path, &output) {
+            Ok(()) => {
+                let result = json!({
+                    "output_path": output_path,
+                    "pairs_reviewed": reviewed,
+                    "corrections": corrections,
+                    "pass_rate": if reviewed > 0 {
+                        (reviewed - corrections) as f64 / reviewed as f64
+                    } else {
+                        1.0
+                    },
+                    "tokens_used": total_tokens,
+                });
+                self.record_experience(
+                    "training_curate_feedback",
+                    &output_path,
+                    "success",
+                    result.clone(),
+                );
+                span.ok_json(result)
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to write feedback file: {}", e))
+                    .to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Retrain an adapter with curated feedback for continuous skills training. Merges the original training dataset with a feedback JSONL file (from training_curate_feedback), submits a new training job with an incremented version number, and registers the new adapter on completion. This closes the continuous training loop: train → evaluate → curate → retrain."
+    )]
+    async fn training_retrain(
+        &self,
+        Parameters(TrainRetrainRequest {
+            original_dataset_path,
+            feedback_path,
+            base_model,
+            adapter_name,
+            skill_name,
+            params,
+            merged_output_path,
+        }): Parameters<TrainRetrainRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_retrain", &self.webid);
+
+        // Validate input files exist
+        let original = PathBuf::from(&original_dataset_path);
+        if !original.exists() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "Original dataset not found: {}",
+                    original_dataset_path
+                ))
+                .to_json_string(),
+            );
+        }
+
+        let feedback = PathBuf::from(&feedback_path);
+        if !feedback.exists() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "Feedback file not found: {}",
+                    feedback_path
+                ))
+                .to_json_string(),
+            );
+        }
+
+        // Read and merge datasets
+        let original_content = match std::fs::read_to_string(&original) {
+            Ok(c) => c,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!(
+                        "Failed to read original dataset: {}",
+                        e
+                    ))
+                    .to_json_string(),
+                );
+            }
+        };
+
+        let feedback_content = match std::fs::read_to_string(&feedback) {
+            Ok(c) => c,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!("Failed to read feedback file: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        // Merge: original lines + feedback lines, deduplicate by question content
+        let mut merged = String::new();
+        let mut seen_questions: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+
+        for content in [&original_content, &feedback_content] {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                // Extract question for dedup
+                if let Ok(record) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                    if let Some(messages) = record.get("messages").and_then(|m| m.as_array()) {
+                        let question = messages
+                            .iter()
+                            .find(|m| m.get("role").and_then(|r| r.as_str()) == Some("user"))
+                            .and_then(|m| m.get("content").and_then(|c| c.as_str()))
+                            .unwrap_or("");
+                        if !question.is_empty() && seen_questions.insert(question.to_string()) {
+                            merged.push_str(trimmed);
+                            merged.push('\n');
+                        }
+                    }
+                }
+            }
+        }
+
+        if merged.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("No valid examples found in either dataset")
+                    .to_json_string(),
+            );
+        }
+
+        // Write merged dataset
+        let merged_path = merged_output_path
+            .unwrap_or_else(|| format!("/tmp/hkask-retrain-{}.jsonl", &adapter_name));
+
+        if let Err(e) = std::fs::write(&merged_path, &merged) {
+            return span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to write merged dataset: {}", e))
+                    .to_json_string(),
+            );
+        }
+
+        // Determine version: look up previous adapter version and increment
+        let version = match self.adapter_store.get_metadata(&skill_name).await {
+            Ok(Some(prev)) => prev.version + 1,
+            _ => 1,
+        };
+
+        // Ingest and normalize the merged dataset
+        let normalized_path = match self
+            .pipeline
+            .lock()
+            .unwrap()
+            .ingest(&PathBuf::from(&merged_path))
+        {
+            Ok(path) => path,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!("Dataset pipeline error: {}", e))
+                        .to_json_string(),
+                );
+            }
+        };
+
+        let job = TrainingJob {
+            id: uuid::Uuid::new_v4().to_string(),
+            dataset_path: normalized_path.clone(),
+            base_model: base_model.clone(),
+            params: params.unwrap_or_default(),
+            status: TrainingJobStatus::Queued,
+            created_at: chrono::Utc::now(),
+            provider: self.provider_id(),
+        };
+
+        // Persist job
+        if let Some(ref job_store) = self.job_store {
+            let params_json = serde_json::to_string(&job.params).unwrap_or_default();
+            let _ = job_store.store(
+                &job.id,
+                &job.base_model,
+                &job.dataset_path.to_string_lossy(),
+                &params_json,
+                "queued",
+                job.created_at.timestamp(),
+                &format!("{:?}", job.provider).to_lowercase(),
+            );
+        }
+
+        // Pre-register the adapter metadata so it's ready when training completes
+        let adapter = LoRAAdapter {
+            id: job.id.clone(),
+            name: adapter_name.clone(),
+            base_model: base_model.clone(),
+            dataset_hash: String::new(),
+            training_job_id: job.id.clone(),
+            created_at: chrono::Utc::now().timestamp(),
+            size_bytes: 0,
+            skill_name: skill_name.clone(),
+            version,
+            metrics: None,
+        };
+
+        if let Err(e) = self.adapter_store.store_metadata(&adapter).await {
+            tracing::warn!(
+                target: "cns.training.retrain",
+                adapter_id = %job.id,
+                error = %e,
+                "Failed to pre-register adapter metadata"
+            );
+        }
+
+        match self.provider.submit(&job).await {
+            Ok(job_id) => {
+                let result = json!({
+                    "job_id": job_id,
+                    "status": "queued",
+                    "base_model": base_model,
+                    "adapter_name": adapter_name,
+                    "skill_name": skill_name,
+                    "version": version,
+                    "merged_dataset": merged_path,
+                    "original_examples": original_content.lines().filter(|l| !l.trim().is_empty()).count(),
+                    "feedback_examples": feedback_content.lines().filter(|l| !l.trim().is_empty()).count(),
+                    "merged_examples": merged.lines().filter(|l| !l.trim().is_empty()).count(),
+                    "provider": format!("{:?}", self.provider_id()),
+                });
+                self.record_experience(
+                    "training_retrain",
+                    &adapter_name,
+                    "success",
+                    result.clone(),
+                );
+                span.ok_json(result)
+            }
+            Err(e) => {
+                tracing::error!(
+                    target: "cns.training.job.fail",
+                    error = %e,
+                    "Retraining job submission failed"
+                );
+                span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Retraining job failed: {}", e))
+                        .to_json_string(),
+                )
+            }
+        }
+    }
+
     fn provider_id(&self) -> TrainingProviderId {
         self.provider_id
     }
@@ -1619,7 +2206,8 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-training",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            let (semantic, adapter_store) = match ctx.credentials.get("HKASK_MEMORY_DB") {
+            let (semantic, adapter_store, job_store) = match ctx.credentials.get("HKASK_MEMORY_DB")
+            {
                 Some(path) => {
                     let passphrase =
                         ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
@@ -1628,6 +2216,7 @@ async fn main() -> anyhow::Result<()> {
                     let db = hkask_storage::Database::open(path, passphrase)
                         .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
                     let conn = db.conn_arc();
+                    let job_store = Some(JobStore::new(Arc::clone(&conn)));
                     let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
                     let embedding_store = hkask_storage::EmbeddingStore::new(Arc::clone(&conn));
                     let semantic = Some(hkask_memory::SemanticMemory::new(
@@ -1638,11 +2227,16 @@ async fn main() -> anyhow::Result<()> {
                     store
                         .migrate()
                         .map_err(|e| anyhow::anyhow!("Failed to migrate adapter store: {}", e))?;
-                    (semantic, Arc::new(store) as Arc<dyn AdapterStore>)
+                    (
+                        semantic,
+                        Arc::new(store) as Arc<dyn AdapterStore>,
+                        job_store,
+                    )
                 }
                 None => (
                     None,
                     Arc::new(InMemoryAdapterStore::new()) as Arc<dyn AdapterStore>,
+                    None,
                 ),
             };
 
@@ -1660,6 +2254,7 @@ async fn main() -> anyhow::Result<()> {
                 provider_config.provider,
                 pipeline.clone(),
                 adapter_store,
+                job_store,
                 inference_config,
             ))
         },

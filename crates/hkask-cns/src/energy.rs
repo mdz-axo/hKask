@@ -31,11 +31,17 @@ impl EnergyCost {
     pub const ZERO: EnergyCost = EnergyCost(0);
 
     /// Create a energy cost from a raw `u64`.
+    ///
+    /// REQ: CNS-ENERGY-004
+    /// post: result.0 == value
     pub fn from_raw(value: u64) -> Self {
         EnergyCost(value)
     }
 
     /// Return the raw `u64` value.
+    ///
+    /// REQ: CNS-ENERGY-004
+    /// post: result == self.0
     pub fn as_raw(self) -> u64 {
         self.0
     }
@@ -97,11 +103,17 @@ impl EnergyDelta {
     pub const ZERO: EnergyDelta = EnergyDelta(0.0);
 
     /// Create an energy delta from a raw `f64`.
+    ///
+    /// REQ: CNS-ENERGY-005
+    /// post: result.0 == value
     pub fn from_raw(value: f64) -> Self {
         EnergyDelta(value)
     }
 
     /// Return the raw `f64` value.
+    ///
+    /// REQ: CNS-ENERGY-005
+    /// post: result == self.0
     pub fn as_raw(self) -> f64 {
         self.0
     }
@@ -109,11 +121,18 @@ impl EnergyDelta {
     /// Returns true if the system moved toward lower energy (lazy universe satisfied).
     /// Zero delta (stationary point) is also considered descending — the system
     /// has found its minimal-action configuration.
+    ///
+    /// REQ: CNS-ENERGY-005
+    /// post: result == (self.0 <= 0.0)
     pub fn is_descending(&self) -> bool {
         self.0 <= 0.0
     }
 
     /// Returns true if the system moved toward higher energy (anti-lazy — alert candidate).
+    ///
+    /// REQ: CNS-ENERGY-005
+    /// post: result == (self.0 > 0.0)
+    /// post: is_ascending() == !is_descending() || self.0 == 0.0
     pub fn is_ascending(&self) -> bool {
         self.0 > 0.0
     }
@@ -159,6 +178,10 @@ const fn default_priority() -> f64 {
 ///
 /// Gas replenishes periodically via `replenish()`, called by the
 /// Cybernetics Loop on its regulation cycle.
+///
+/// REQ: CNS-001
+/// inv: remaining + reserved ≤ cap (budget cap invariant)
+/// inv: remaining ≥ 0, reserved ≥ 0
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnergyBudget {
     /// Maximum gas capacity.
@@ -187,6 +210,10 @@ pub struct EnergyBudget {
 impl EnergyBudget {
     /// Create a new energy budget with the given cap.
     ///
+    /// REQ: CNS-001
+    /// pre:  cap > 0
+    /// post: remaining == cap, reserved == 0, hard_limit == true
+    /// post: replenish_rate == cap / 10, alert_threshold == DEFAULT_ENERGY_ALERT_THRESHOLD
     /// Defaults: replenish_rate = cap / 10, alert_threshold = DEFAULT_ENERGY_ALERT_THRESHOLD, hard_limit = true.
     pub fn new(cap: EnergyCost) -> Self {
         let cap_raw = cap.0;
@@ -203,6 +230,9 @@ impl EnergyBudget {
 
     /// Create a energy budget with unlimited capacity (u64::MAX).
     ///
+    /// REQ: CNS-001
+    /// post: cap == u64::MAX, hard_limit == false
+    ///
     /// Useful for agents that should never be throttled. The budget still
     /// tracks usage for observability but never hard-rejects.
     pub fn unlimited() -> Self {
@@ -210,18 +240,28 @@ impl EnergyBudget {
     }
 
     /// Set the replenishment rate (gas units per cycle).
+    ///
+    /// REQ: CNS-003
+    /// post: self.replenish_rate == rate
     pub fn with_replenish_rate(mut self, rate: EnergyCost) -> Self {
         self.replenish_rate = rate;
         self
     }
 
     /// Set the alert threshold (0.0–1.0).
+    ///
+    /// REQ: CNS-001
+    /// pre:  threshold is a valid ratio
+    /// post: self.alert_threshold == threshold.clamp(0.0, 1.0)
     pub fn with_alert_threshold(mut self, threshold: f64) -> Self {
         self.alert_threshold = threshold.clamp(0.0, 1.0);
         self
     }
 
     /// Set whether to hard-reject on exhaustion.
+    ///
+    /// REQ: CNS-001
+    /// post: self.hard_limit == hard
     pub fn with_hard_limit(mut self, hard: bool) -> Self {
         self.hard_limit = hard;
         self
@@ -229,6 +269,9 @@ impl EnergyBudget {
 
     /// Check whether an operation costing `gas` can proceed.
     ///
+    /// REQ: CNS-001
+    /// pre:  gas is a valid EnergyCost
+    /// post: returns true iff gas <= available OR hard_limit is false
     /// Returns `true` if the gas fits within available (remaining - reserved) budget.
     pub fn can_proceed(&self, gas: EnergyCost) -> bool {
         let available = self.available();
@@ -236,11 +279,21 @@ impl EnergyBudget {
     }
 
     /// Available gas = remaining - reserved.
+    ///
+    /// REQ: CNS-002
+    /// post: result >= 0 (available never negative)
+    /// post: result == remaining.saturating_sub(reserved)
     pub fn available(&self) -> EnergyCost {
         EnergyCost(self.remaining.0.saturating_sub(self.reserved.0))
     }
 
     /// Reserve gas for an in-flight operation (hold-settle pattern).
+    ///
+    /// REQ: CNS-001
+    /// pre:  gas is a valid EnergyCost
+    /// post: if hard_limit && gas > available → Err(BudgetExceeded)
+    /// post: if Ok → reserved increased by gas, remaining unchanged
+    /// inv:  remaining + reserved ≤ cap (maintained)
     ///
     /// Returns `Ok(reserved)` if gas was reserved, `Err` if insufficient.
     /// Reserved gas is deducted from available but not from remaining until
@@ -258,6 +311,13 @@ impl EnergyBudget {
     }
 
     /// Settle a reserved operation: deduct actual cost from remaining.
+    ///
+    /// REQ: CNS-001
+    /// pre:  reserved_gas ≤ self.reserved (caller must track reservations)
+    /// post: reserved decreased by reserved_gas
+    /// post: if hard_limit && actual > remaining → Err(BudgetExceeded)
+    /// post: if Ok → remaining decreased by actual
+    /// inv:  remaining + reserved ≤ cap (maintained)
     ///
     /// Since `reserve()` only tracks reserved gas without deducting from remaining,
     /// settlement simply removes the reservation and deducts the actual cost.
@@ -287,6 +347,12 @@ impl EnergyBudget {
 
     /// Consume gas immediately (non-reserved path).
     ///
+    /// REQ: CNS-001
+    /// pre:  gas is a valid EnergyCost
+    /// post: if hard_limit && gas > remaining → Err(BudgetExceeded)
+    /// post: if Ok → remaining decreased by gas
+    /// inv:  remaining + reserved ≤ cap (maintained)
+    ///
     /// For operations where the cost is known exactly at call time
     /// (no hold-settle needed).
     pub fn consume(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
@@ -302,6 +368,10 @@ impl EnergyBudget {
 
     /// Replenish energy budget by the configured replenish_rate.
     ///
+    /// REQ: CNS-003
+    /// post: remaining ≤ cap (never exceeds cap)
+    /// post: if replenish_rate > 0 → remaining increased by up to replenish_rate
+    ///
     /// Called by the Cybernetics Loop on its regulation cycle.
     /// Never exceeds cap.
     pub fn replenish(&mut self) {
@@ -316,11 +386,21 @@ impl EnergyBudget {
     }
 
     /// Replenish energy budget by a specific amount (used by CuratorDirective::ReplenishBudget).
+    ///
+    /// REQ: CNS-003
+    /// pre:  amount is a valid EnergyCost
+    /// post: remaining ≤ cap (never exceeds cap)
+    /// post: remaining increased by up to amount
     pub fn replenish_by(&mut self, amount: EnergyCost) {
         self.remaining = EnergyCost(self.remaining.0.saturating_add(amount.0).min(self.cap.0));
     }
 
     /// Replenish energy budget by `amount * priority`, weighted by the given priority.
+    ///
+    /// REQ: CNS-003
+    /// pre:  amount is a valid EnergyCost, priority in [0.0, 1.0]
+    /// post: remaining ≤ cap (never exceeds cap)
+    /// post: returns the actual amount replenished (≥ 1 if amount * priority > 0)
     ///
     /// The effective replenishment is `(amount * priority).round()`, never exceeding cap.
     /// If `amount * priority` rounds to 0, at least 1 unit is replenished (so

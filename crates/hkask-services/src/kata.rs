@@ -1673,6 +1673,7 @@ fn default_llm_params() -> LLMParameters {
         typical_p: 0.0,
         max_tokens: 512,
         seed: None,
+        disable_thinking: false,
     }
 }
 

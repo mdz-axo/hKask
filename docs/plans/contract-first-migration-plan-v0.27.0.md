@@ -172,16 +172,32 @@ done
 
 ## 5) Capability B — Replicant-Driven Contract Proposals
 
-### 5.1 Discovery Tool (Phase B1)
+### 5.1 Discovery Tool (Phase B1) ✅ COMPLETE (2026-06-15)
 
 **Goal:** An agent can ask "which public functions in crate X lack contracts?" and receive a list.
 
-**Implementation options:**
+**Delivered:** `scripts/contract-audit.sh` — a shell script with 4 output modes:
+- `--summary`: per-crate table with coverage percentages
+- `--json`: machine-readable JSON for MCP tool wrapping
+- `--csv`: spreadsheet-importable CSV
+- `<crate-name>`: detailed listing of uncontracted functions with file:line
+
+**Implementation path chosen:** Shell script (simplest path per handoff). Can be wrapped as an MCP tool later. The script is CI-ready (exit 0 always, trend monitor not hard gate).
+
+**Usage:**
+```bash
+scripts/contract-audit.sh              # all crates, color-coded
+scripts/contract-audit.sh hkask-cns    # single crate, lists uncontracted fn
+scripts/contract-audit.sh --json       # JSON for MCP wrapping
+scripts/contract-audit.sh --summary   # table format
+```
+
+**Original implementation options (for reference):**
 - **CLI command:** `kask contract audit --crate hkask-cns` — lists uncontracted `pub fn`
 - **MCP tool:** `contract/audit` — same, accessible to agents via MCP
 - **CNS span:** `cns.contract.coverage` — emits current coverage ratio per crate
 
-**Preferred path:** MCP tool + CNS span. The MCP tool enables agent-driven discovery. The CNS span enables trend monitoring.
+**Next step (Phase B2):** Agent contract generation workflow using the audit script as discovery input.
 
 ### 5.2 Proposal Generation (Phase B2)
 

@@ -8,7 +8,9 @@
 //! composition (base + adapter = effective model).
 
 use chrono::Utc;
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 // ── LoRA adapter metadata ──────────────────────────────────────────────────
@@ -37,6 +39,9 @@ pub struct LoRAAdapter {
     /// Skill name this adapter was trained for (e.g., "constraint-forces").
     /// Enables adapter-to-skill mapping for the registry and auto-selection router.
     pub skill_name: String,
+    /// Version number for this adapter (incremented on retraining).
+    /// Defaults to 1 for initial training, incremented by training_retrain.
+    pub version: u32,
     /// Training metrics (loss, perplexity, etc.).
     pub metrics: Option<AdapterMetrics>,
 }
@@ -63,6 +68,7 @@ impl LoRAAdapter {
         training_job_id: String,
         size_bytes: u64,
         skill_name: String,
+        version: u32,
         metrics: Option<AdapterMetrics>,
     ) -> Self {
         Self {
@@ -74,6 +80,7 @@ impl LoRAAdapter {
             created_at: Utc::now().timestamp(),
             size_bytes,
             skill_name,
+            version,
             metrics,
         }
     }
@@ -248,12 +255,22 @@ impl SqliteAdapterStore {
                 created_at INTEGER NOT NULL,
                 size_bytes INTEGER NOT NULL,
                 skill_name TEXT NOT NULL DEFAULT '',
+                version INTEGER NOT NULL DEFAULT 1,
                 metrics_json TEXT
             );
             CREATE TABLE IF NOT EXISTS lora_blobs (
                 adapter_id TEXT PRIMARY KEY,
                 data BLOB NOT NULL,
                 FOREIGN KEY (adapter_id) REFERENCES lora_adapters(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS training_jobs (
+                id TEXT PRIMARY KEY,
+                base_model TEXT NOT NULL,
+                dataset_path TEXT NOT NULL,
+                params_json TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'queued',
+                created_at INTEGER NOT NULL,
+                provider TEXT NOT NULL
             );",
         )
         .map_err(|e| AdapterStoreError::Storage(format!("Migration failed: {}", e)))
@@ -293,9 +310,9 @@ impl AdapterStore for SqliteAdapterStore {
         exec_discard(
             &conn,
             "INSERT OR REPLACE INTO lora_adapters
-             (id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, metrics_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            &[&adapter.id, &adapter.name, &adapter.base_model, &adapter.dataset_hash, &adapter.training_job_id, &adapter.created_at as &dyn rusqlite::types::ToSql, &(adapter.size_bytes as i64) as &dyn rusqlite::types::ToSql, &adapter.skill_name as &dyn rusqlite::types::ToSql, &metrics_json as &dyn rusqlite::types::ToSql],
+             (id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, version, metrics_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            &[&adapter.id, &adapter.name, &adapter.base_model, &adapter.dataset_hash, &adapter.training_job_id, &adapter.created_at as &dyn rusqlite::types::ToSql, &(adapter.size_bytes as i64) as &dyn rusqlite::types::ToSql, &adapter.skill_name as &dyn rusqlite::types::ToSql, &(adapter.version as i64) as &dyn rusqlite::types::ToSql, &metrics_json as &dyn rusqlite::types::ToSql],
         )?;
 
         tracing::info!(
@@ -327,7 +344,7 @@ impl AdapterStore for SqliteAdapterStore {
         let conn = self.lock()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, metrics_json
+                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, version, metrics_json
                  FROM lora_adapters WHERE id = ?1",
             )
             .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
@@ -336,7 +353,8 @@ impl AdapterStore for SqliteAdapterStore {
             let created_at: i64 = row.get(5)?;
             let size_bytes_i64: i64 = row.get(6)?;
             let skill_name: String = row.get(7)?;
-            let metrics_json: Option<String> = row.get(8)?;
+            let version_i64: i64 = row.get(8)?;
+            let metrics_json: Option<String> = row.get(9)?;
             let metrics = match metrics_json {
                 Some(ref json) if !json.is_empty() && json != "null" => {
                     Some(serde_json::from_str(json).map_err(|_| {
@@ -358,6 +376,7 @@ impl AdapterStore for SqliteAdapterStore {
                 created_at,
                 size_bytes: size_bytes_i64 as u64,
                 skill_name,
+                version: version_i64 as u32,
                 metrics,
             })
         });
@@ -386,7 +405,7 @@ impl AdapterStore for SqliteAdapterStore {
         let conn = self.lock()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, metrics_json
+                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, version, metrics_json
                  FROM lora_adapters ORDER BY created_at DESC",
             )
             .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
@@ -396,7 +415,8 @@ impl AdapterStore for SqliteAdapterStore {
                 let created_at: i64 = row.get(5)?;
                 let size_bytes_i64: i64 = row.get(6)?;
                 let skill_name: String = row.get(7)?;
-                let metrics_json: Option<String> = row.get(8)?;
+                let version_i64: i64 = row.get(8)?;
+                let metrics_json: Option<String> = row.get(9)?;
                 let metrics = match metrics_json {
                     Some(ref json) if !json.is_empty() && json != "null" => {
                         Some(serde_json::from_str(json).map_err(|_| {
@@ -418,6 +438,7 @@ impl AdapterStore for SqliteAdapterStore {
                     created_at,
                     size_bytes: size_bytes_i64 as u64,
                     skill_name,
+                    version: version_i64 as u32,
                     metrics,
                 })
             })
@@ -450,5 +471,141 @@ impl AdapterStore for SqliteAdapterStore {
             "LoRA adapter deleted from storage"
         );
         Ok(())
+    }
+}
+
+// ── Job store ───────────────────────────────────────────────────────────
+
+/// Persisted training job record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoredJob {
+    pub id: String,
+    pub base_model: String,
+    pub dataset_path: String,
+    pub params_json: String,
+    pub status: String,
+    pub created_at: i64,
+    pub provider: String,
+}
+
+/// Persistent job registry backed by the same SQLite database.
+/// Survives server restarts — enables `training_status` and `training_retrain`
+/// to look up original job parameters.
+pub struct JobStore {
+    conn: Arc<Mutex<Connection>>,
+}
+
+impl JobStore {
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
+    }
+
+    fn lock(&self) -> Result<std::sync::MutexGuard<'_, Connection>, AdapterStoreError> {
+        self.conn
+            .lock()
+            .map_err(|e| AdapterStoreError::Storage(format!("Lock error: {}", e)))
+    }
+
+    /// Store a new training job.
+    pub fn store(
+        &self,
+        id: &str,
+        base_model: &str,
+        dataset_path: &str,
+        params_json: &str,
+        status: &str,
+        created_at: i64,
+        provider: &str,
+    ) -> Result<(), AdapterStoreError> {
+        let conn = self.lock()?;
+        exec_discard(
+            &conn,
+            "INSERT OR REPLACE INTO training_jobs
+             (id, base_model, dataset_path, params_json, status, created_at, provider)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            &[
+                &id as &dyn rusqlite::types::ToSql,
+                &base_model as &dyn rusqlite::types::ToSql,
+                &dataset_path as &dyn rusqlite::types::ToSql,
+                &params_json as &dyn rusqlite::types::ToSql,
+                &status as &dyn rusqlite::types::ToSql,
+                &created_at as &dyn rusqlite::types::ToSql,
+                &provider as &dyn rusqlite::types::ToSql,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Update job status.
+    pub fn update_status(&self, job_id: &str, status: &str) -> Result<(), AdapterStoreError> {
+        let conn = self.lock()?;
+        exec_discard(
+            &conn,
+            "UPDATE training_jobs SET status = ?1 WHERE id = ?2",
+            &[
+                &status as &dyn rusqlite::types::ToSql,
+                &job_id as &dyn rusqlite::types::ToSql,
+            ],
+        )
+    }
+
+    /// Get a job by ID.
+    pub fn get(&self, job_id: &str) -> Result<Option<StoredJob>, AdapterStoreError> {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, base_model, dataset_path, params_json, status, created_at, provider
+                 FROM training_jobs WHERE id = ?1",
+            )
+            .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
+
+        let result = stmt.query_row(rusqlite::params![job_id], |row| {
+            Ok(StoredJob {
+                id: row.get(0)?,
+                base_model: row.get(1)?,
+                dataset_path: row.get(2)?,
+                params_json: row.get(3)?,
+                status: row.get(4)?,
+                created_at: row.get(5)?,
+                provider: row.get(6)?,
+            })
+        });
+
+        match result {
+            Ok(job) => Ok(Some(job)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(AdapterStoreError::Storage(format!("Query failed: {}", e))),
+        }
+    }
+
+    /// List all jobs, most recent first.
+    pub fn list_all(&self) -> Result<Vec<StoredJob>, AdapterStoreError> {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, base_model, dataset_path, params_json, status, created_at, provider
+                 FROM training_jobs ORDER BY created_at DESC",
+            )
+            .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(StoredJob {
+                    id: row.get(0)?,
+                    base_model: row.get(1)?,
+                    dataset_path: row.get(2)?,
+                    params_json: row.get(3)?,
+                    status: row.get(4)?,
+                    created_at: row.get(5)?,
+                    provider: row.get(6)?,
+                })
+            })
+            .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
+
+        let mut jobs = Vec::new();
+        for row in rows {
+            jobs.push(row.map_err(|e| AdapterStoreError::Storage(format!("Row error: {}", e)))?);
+        }
+        Ok(jobs)
     }
 }

@@ -3,13 +3,14 @@
 
 crate:
   name: condenser-continuation
-  version: "0.23.0"
+  version: "0.27.0"
   description: >
     Continuation skill for resuming hKask condenser implementation work after
     context reset. Restores session state, prioritizes remaining tasks,
     verifies build status, and composes a structured continuation plan.
-    Inference-agnostic: works with Ollama, Fireworks, DeepInfra, or any hKask-supported
-    inference engine.
+    The condenser is a unified MCP server with 7 tools (6 local CPU-only +
+    1 LLM-powered thread_summary). Inference-agnostic: works with Ollama,
+    Fireworks, DeepInfra, or any hKask-supported inference engine.
 
 templates:
   - id: condenser-continuation/condenser-continuation-restore

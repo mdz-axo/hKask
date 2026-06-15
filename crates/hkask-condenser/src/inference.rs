@@ -39,10 +39,12 @@ pub fn build_summarization_prompt(conversation_text: &str, current_query: &str) 
 /// Build a `ThreadSummaryOutput` from extracted data.
 pub fn build_summary_output(
     summary: String,
+    original_text: &str,
     msg_count: usize,
     inference_model: String,
 ) -> ThreadSummaryOutput {
     ThreadSummaryOutput {
+        original_tokens_approx: approx_token_count(original_text),
         summary_tokens_approx: approx_token_count(&summary),
         summary,
         original_message_count: msg_count,

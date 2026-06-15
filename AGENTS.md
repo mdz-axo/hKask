@@ -64,7 +64,10 @@ kask sovereignty verify
 # CNS span health
 kask cns status
 
-# Contract completeness audit (Testing Discipline §7)
+# Contract completeness audit (Testing Discipline §9.2)
+scripts/contract-audit.sh --summary
+
+# Or the raw grep one-liner:
 grep -rn "pub fn\|pub async fn" crates/ mcp-servers/ --include="*.rs" | grep -v "cfg(test)" | grep -v "/tests/" | wc -l  # public functions
 grep -rn "// REQ:.*pre:" crates/ mcp-servers/ --include="*.rs" | wc -l  # contracted functions
 ```

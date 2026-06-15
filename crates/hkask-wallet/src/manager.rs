@@ -29,6 +29,10 @@ use crate::signing;
 /// - Shares `Arc<WalletStore>` with CNS for algedonic monitoring
 /// - Holds `wallet_seed` in `Zeroizing` for deposit reference generation
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
+///
+/// REQ: WALLET-001
+/// inv: wallet_seed is zeroized on drop (Zeroizing wrapper)
+/// inv: chains map is non-empty after successful build
 pub struct WalletManager {
     config: WalletConfig,
     store: Arc<WalletStore>,
@@ -42,6 +46,11 @@ pub struct WalletManager {
 
 impl WalletManager {
     /// Build a WalletManager from configuration, store, and chain/privacy ports.
+    ///
+    /// REQ: WALLET-001
+    /// pre:  config is valid, store is initialized, chains is non-empty
+    /// post: returns Ok(WalletManager) with resolved wallet_seed
+    /// post: returns Err if wallet_seed resolution fails
     pub fn build(
         config: WalletConfig,
         store: Arc<WalletStore>,
@@ -84,6 +93,12 @@ impl WalletManager {
     // ── Balance ──────────────────────────────────────────────────────────────
 
     /// Get the current rJoule balance for a wallet.
+    ///
+    /// REQ: WALLET-002
+    /// pre:  wallet_id is a valid WalletId
+    /// post: returns Ok(balance) with rjoules, gas_equivalent, usdc_equivalent_micro
+    /// post: gas_equivalent == rjoules * config.gas_per_rjoule
+    /// post: balance.rjoules >= 0 (balances are never negative)
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, WalletError> {
         let mut balance = self.store.get_balance(wallet_id)?.unwrap_or(WalletBalance {
             wallet_id,
@@ -99,6 +114,11 @@ impl WalletManager {
 
     /// Get an API key's capability metadata for CNS health monitoring.
     /// Returns `None` if the key doesn't exist or has been revoked.
+    ///
+    /// REQ: WALLET-003
+    /// pre:  key_id is a valid ApiKeyId
+    /// post: returns Ok(Some(capability)) if key exists and is active
+    /// post: returns Ok(None) if key doesn't exist or is revoked
     pub fn get_api_key(
         &self,
         key_id: hkask_types::wallet::ApiKeyId,
@@ -504,6 +524,11 @@ impl WalletManager {
     }
 
     /// Check if a wallet can afford a given rJoule cost.
+    ///
+    /// REQ: WALLET-004
+    /// pre:  wallet_id is a valid WalletId, cost_rj is a valid RJoule
+    /// post: returns Ok(true) iff balance.rjoules >= cost_rj
+    /// post: returns Ok(false) iff balance.rjoules < cost_rj
     pub fn can_afford(&self, wallet_id: WalletId, cost_rj: RJoule) -> Result<bool, WalletError> {
         let balance = self.get_balance(wallet_id)?;
         Ok(balance.rjoules >= cost_rj.as_u64())
@@ -511,6 +536,11 @@ impl WalletManager {
 
     /// Reserve rJoules for an in-flight operation (optimistic).
     /// The actual debit happens at settle time.
+    ///
+    /// REQ: WALLET-004
+    /// pre:  wallet_id is a valid WalletId, amount is a valid RJoule
+    /// post: if can_afford → Ok(()), reservation is optimistic (no debit)
+    /// post: if !can_afford → Err(InsufficientBalance)
     pub fn reserve_rjoules(&self, wallet_id: WalletId, amount: RJoule) -> Result<(), WalletError> {
         if !self.can_afford(wallet_id, amount)? {
             let balance = self.get_balance(wallet_id)?;
@@ -526,6 +556,11 @@ impl WalletManager {
 
     /// Settle rJoules after an operation completes.
     /// Debits the actual cost (may be less than reserved on failure).
+    ///
+    /// REQ: WALLET-004
+    /// pre:  wallet_id is a valid WalletId, reserved and actual are valid RJoule
+    /// post: wallet balance debited by actual (not reserved)
+    /// post: if actual < reserved, difference is implicitly refunded
     pub fn settle_rjoules(
         &self,
         wallet_id: WalletId,
@@ -583,6 +618,10 @@ impl WalletManager {
 
     /// Encumber rJoules from a wallet for an API key's allocation.
     ///
+    /// REQ: WALLET-005
+    /// pre:  wallet_id is a valid WalletId, key_id is a valid ApiKeyId, amount > 0
+    /// post: amount rJoules locked against wallet for key_id
+    /// post: emits cns.wallet.encumbered span if event_sink configured
     /// Locks `amount` rJoules against the wallet balance. The locked rJoules
     /// can only be consumed by the specified API key via `consume()`.
     /// Unspent rJoules are returned to the wallet on `release_encumbrance()`.
@@ -608,6 +647,10 @@ impl WalletManager {
 
     /// Release an encumbrance, returning unspent rJoules to the wallet.
     ///
+    /// REQ: WALLET-005
+    /// pre:  key_id is a valid ApiKeyId
+    /// post: unspent rJoules returned to wallet
+    /// post: idempotent — releasing already-released/consumed encumbrance is no-op
     /// Idempotent — releasing an already-released or consumed encumbrance
     /// is a no-op.
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
@@ -625,6 +668,10 @@ impl WalletManager {
 
     /// Atomically consume rJoules from an API key's encumbrance.
     ///
+    /// REQ: WALLET-005
+    /// pre:  key_id is a valid ApiKeyId, gas_rj > 0
+    /// post: gas_rj deducted from key's active encumbrance (atomic)
+    /// post: if encumbrance fully consumed → status transitions to 'consumed'
     /// Deducts `gas_rj` from the key's active encumbrance. This is a single
     /// atomic operation — no separate check+deduct pair. If the encumbrance
     /// is fully consumed, status transitions to 'consumed'.
@@ -634,6 +681,11 @@ impl WalletManager {
     }
 
     /// Get the encumbrance for an API key.
+    ///
+    /// REQ: WALLET-005
+    /// pre:  key_id is a valid ApiKeyId
+    /// post: returns Ok(Some(encumbrance)) if key has active encumbrance
+    /// post: returns Ok(None) if key has no encumbrance
     pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
         self.store.get_encumbrance(key_id)
     }

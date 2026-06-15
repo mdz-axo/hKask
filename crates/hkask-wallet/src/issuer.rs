@@ -27,6 +27,9 @@ use crate::signing;
 
 /// Issues Ed25519-signed API key capability tokens.
 ///
+/// REQ: WALLET-006
+/// inv: private keys are never stored (only public keys persisted)
+/// inv: wallet_seed is zeroized on drop
 /// # Security `[OUGHT-DECL]`
 /// - Private keys are generated per-key, returned to user once, never stored
 /// - Only the public key is persisted (for Bearer token lookup)
@@ -43,6 +46,11 @@ pub struct ApiKeyIssuer {
 
 impl ApiKeyIssuer {
     /// Create a new ApiKeyIssuer.
+    ///
+    /// REQ: WALLET-006
+    /// pre:  store is initialized
+    /// post: returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing
+    /// post: returns Err if wallet_seed resolution fails
     pub fn new(store: Arc<WalletStore>) -> Result<Self, WalletError> {
         let seed_bytes = resolve_wallet_seed().map_err(|e| {
             WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
@@ -76,6 +84,12 @@ impl ApiKeyIssuer {
 
     /// "Print" a new API key.
     ///
+    /// REQ: WALLET-006
+    /// pre:  wallet_id is valid, spending_limit_rj > 0, purpose is non-empty
+    /// post: returns Ok(ApiKeyMaterial) with fresh Ed25519 keypair
+    /// post: private_key_hex returned once, never stored by hKask
+    /// post: public key + capability metadata persisted in store
+    /// post: emits cns.wallet.key_issued span
     /// Generates a fresh Ed25519 keypair, creates a signed capability token
     /// with the specified limits, scope, and purpose, stores the public key,
     /// and returns the private key to the user (shown exactly once).
@@ -147,6 +161,13 @@ impl ApiKeyIssuer {
 
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     /// Idempotent — revoking an already-revoked key is a no-op.
+    ///
+    /// REQ: WALLET-006
+    /// pre:  key_id is a valid ApiKeyId
+    /// post: key marked as revoked in store
+    /// post: unspent rJoules returned to wallet
+    /// post: idempotent — revoking already-revoked key is no-op
+    /// post: emits cns.wallet.key_revoked span
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         self.store.revoke_api_key(key_id)?;
 
@@ -164,6 +185,10 @@ impl ApiKeyIssuer {
     }
 
     /// List active (non-revoked) API keys for a wallet.
+    ///
+    /// REQ: WALLET-006
+    /// pre:  wallet_id is a valid WalletId
+    /// post: returns Ok(Vec<ApiKeyCapability>) containing only non-revoked keys
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         self.store.list_api_keys(wallet_id)
     }

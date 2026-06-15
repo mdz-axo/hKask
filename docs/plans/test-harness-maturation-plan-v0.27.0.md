@@ -568,17 +568,22 @@ async fn mcp_tool_lifecycle() {
 cargo test --test mcp_lifecycle_integration
 ```
 
-### Task 3.3 — Inference Router→Backend Integration (G6)
+### Task 3.3 — Inference Router→Backend Integration (G6) ✅ COMPLETE (2026-06-15)
 
 **Assumption:** The inference router (`hkask-inference`) routes requests to backends (Ollama, Fireworks, DeepInfra). Fallback behavior when a backend is unavailable has no integration test.  
 **Expected outcome:** `cargo test --test inference_routing_integration` passes; routing and fallback verified.
 
-**PR 3.3.1: Inference routing with mock backends**
+**PR 3.3.1: Inference routing with mock backends** ✅
 
-- File: `crates/hkask-inference/tests/inference_routing_integration.rs` (new)
-- Path: Configure router with mock backends → send request → verify routing → simulate backend failure → verify fallback
-- Uses mock HTTP servers (e.g., `wiremock` or `httptest`)
-- **Lines est.: ~180**
+- File: `crates/hkask-inference/tests/inference_routing_integration.rs` (new, 280 lines)
+- Deps added: `wiremock` 0.6 (dev), `tokio` (macros, rt) (dev)
+- 5 tests: routing by provider prefix, unavailable backend error, default provider routing, model override routing, graceful degradation in list_models
+- **Implementation note:** The current `InferenceRouter` has no fallback mechanism (unlike the aspirational code sketch below). `resolve()` returns an error when a backend is unavailable. Tests verify actual behavior: correct prefix routing, error on unavailable backend, default provider fallthrough, model override dispatch, and graceful degradation in `list_models()`.
+- Uses `wiremock::MockServer` to simulate Ollama and DeepInfra HTTP backends. `InferenceConfig` base URLs pointed at mock servers.
+- **Lines: ~280**
+
+<details>
+<summary>Original aspirational code sketch (superseded by actual implementation)</summary>
 
 ```rust
 // REQ: INT-003 — Inference routing and fallback (P9)
@@ -607,6 +612,8 @@ async fn inference_routing_with_fallback() {
 ```bash
 cargo test --test inference_routing_integration
 ```
+
+</details>
 
 ### Task 3.4 — CNS Feedback Loop Integration (G3)
 

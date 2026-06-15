@@ -362,6 +362,7 @@ impl CondenserServer {
             presence_penalty: 0.0,
             max_tokens: max_tok,
             seed: None,
+            disable_thinking: true,
         };
 
         let result = match self
@@ -388,8 +389,12 @@ impl CondenserServer {
         }
         let summary_len = summary.len();
 
-        let output =
-            inference::build_summary_output(summary, msg_count, effective_model.to_string());
+        let output = inference::build_summary_output(
+            summary,
+            &conversation_text,
+            msg_count,
+            effective_model.to_string(),
+        );
 
         self.record_experience(
             "condenser_thread_summary",

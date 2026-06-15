@@ -99,6 +99,36 @@ impl ApiKeyAuthService {
             return Err(ApiKeyAuthError::SpendingLimitExceeded);
         }
 
+        // Verify encumbrance: the key must have rJoules allocated
+        let encumbrance = self
+            .wallet_store
+            .get_encumbrance(capability.key_id)
+            .map_err(|_| ApiKeyAuthError::StoreError)?;
+
+        match encumbrance {
+            Some(ref enc) if enc.is_active() && enc.remaining_rj() > 0 => {
+                // Key has allocated rJoules — proceed
+            }
+            Some(ref enc) if enc.is_active() => {
+                // Encumbrance exists but is exhausted
+                return Err(ApiKeyAuthError::PaymentRequired(
+                    "API key encumbrance exhausted — allocate more rJoules".into(),
+                ));
+            }
+            Some(_) => {
+                // Encumbrance exists but is consumed/released
+                return Err(ApiKeyAuthError::PaymentRequired(
+                    "API key encumbrance is not active — re-encumber rJoules".into(),
+                ));
+            }
+            None => {
+                // No encumbrance at all — key has no allocated rJoules
+                return Err(ApiKeyAuthError::PaymentRequired(
+                    "API key has no rJoules allocated — use `kask wallet encumber` first".into(),
+                ));
+            }
+        }
+
         Ok(WalletContext {
             wallet_id: capability.wallet_id,
             key_id: capability.key_id,
@@ -123,31 +153,36 @@ pub enum ApiKeyAuthError {
     KeyExpired,
     #[error("API key spending limit exceeded")]
     SpendingLimitExceeded,
+    #[error("Payment required: {0}")]
+    PaymentRequired(String),
     #[error("Wallet store error")]
     StoreError,
 }
 
 impl IntoResponse for ApiKeyAuthError {
     fn into_response(self) -> Response {
-        let (status, message) = match self {
-            ApiKeyAuthError::MissingAuthorization => {
-                (StatusCode::UNAUTHORIZED, "Missing Authorization header")
-            }
+        let (status, message): (StatusCode, String) = match self {
+            ApiKeyAuthError::MissingAuthorization => (
+                StatusCode::UNAUTHORIZED,
+                "Missing Authorization header".into(),
+            ),
             ApiKeyAuthError::InvalidAuthorizationFormat => (
                 StatusCode::UNAUTHORIZED,
-                "Invalid Authorization header format",
+                "Invalid Authorization header format".into(),
             ),
             ApiKeyAuthError::InvalidKeyFormat => {
-                (StatusCode::UNAUTHORIZED, "Invalid API key format")
+                (StatusCode::UNAUTHORIZED, "Invalid API key format".into())
             }
-            ApiKeyAuthError::UnknownApiKey => (StatusCode::UNAUTHORIZED, "Unknown API key"),
-            ApiKeyAuthError::KeyExpired => (StatusCode::FORBIDDEN, "API key has expired"),
-            ApiKeyAuthError::SpendingLimitExceeded => {
-                (StatusCode::FORBIDDEN, "API key spending limit exceeded")
-            }
+            ApiKeyAuthError::UnknownApiKey => (StatusCode::UNAUTHORIZED, "Unknown API key".into()),
+            ApiKeyAuthError::KeyExpired => (StatusCode::FORBIDDEN, "API key has expired".into()),
+            ApiKeyAuthError::SpendingLimitExceeded => (
+                StatusCode::FORBIDDEN,
+                "API key spending limit exceeded".into(),
+            ),
+            ApiKeyAuthError::PaymentRequired(msg) => (StatusCode::PAYMENT_REQUIRED, msg),
             ApiKeyAuthError::StoreError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal authentication error",
+                "Internal authentication error".into(),
             ),
         };
         (status, message).into_response()

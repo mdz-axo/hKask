@@ -7,8 +7,7 @@ contract:
     next_focus: string
   output:
     session_purpose: string
-    option_a_status: string
-    option_b_status: string
+    condenser_status: string
     accomplishments: array
     key_files_changed: array
     key_decisions: array
@@ -48,17 +47,17 @@ Tailor the restored context to emphasize information relevant to this focus.
 
 ## Condenser Domain Knowledge
 
-The hKask condenser has two implementation options:
+The hKask condenser is a single MCP server (`hkask-mcp-condenser`) with 7 tools:
 
-- **Option A:** Standalone MCP server with 6 tools (compress, classify, set_profile, stats, ping, persist). Compiles independently — no hKask runtime needed.
-- **Option B:** Adds `condenser_thread_summary` tool that calls an inference engine's chat API for LLM-powered summarization. Works with any hKask-supported backend (Ollama, Fireworks, DeepInfra, etc.). Requires inference endpoint configuration. Graceful degradation: without an endpoint, thread_summary returns a clear error while all Option A tools continue working.
+- **Local CPU-only (6 tools):** `compress`, `classify`, `set_profile`, `stats`, `ping`, `persist` — no LLM dependency, compiles standalone.
+- **LLM-powered (1 tool):** `condenser_thread_summary` — calls the centralized inference router for summarization. Works with any hKask-supported backend (Ollama, Fireworks, DeepInfra, etc.). Graceful degradation: without a reachable inference endpoint, thread_summary returns a clear error while all other tools continue working.
 
-**Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3), the chat request must disable thinking mode to prevent the model from spending all output tokens on internal reasoning. This is engine-specific configuration.
+**Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3), the inference backend should disable thinking to prevent the model from spending all output tokens on internal reasoning. This is backend-specific configuration — the condenser itself does not control thinking mode (the `InferencePort` trait has no thinking-mode parameter).
 
 ## Restoration Rules
 
 1. **Purpose first.** What was this session trying to accomplish for the condenser? State it in one sentence.
-2. **Option status.** Explicitly mark Option A and Option B as complete, in-progress, or not-started.
+2. **Condenser status.** Mark the overall condenser implementation status: complete, in_progress, or not_started.
 3. **Accomplishments, not process.** Record what was *done*, not the journey. "Added thread_summary tool" not "First I read main.rs, then I added the handler..."
 4. **Files by path.** Reference changed files by their project-relative path. Never duplicate file contents.
 5. **Decisions with rationale.** Every significant decision must include *why* and what alternatives were considered.
@@ -71,8 +70,7 @@ Respond with a JSON object:
 ```json
 {
   "session_purpose": "One-sentence description of what this session was trying to accomplish for the condenser",
-  "option_a_status": "complete|in_progress|not_started",
-  "option_b_status": "complete|in_progress|not_started",
+  "condenser_status": "complete|in_progress|not_started",
   "accomplishments": [
     {"what": "What was done", "status": "complete|in_progress|blocked"}
   ],

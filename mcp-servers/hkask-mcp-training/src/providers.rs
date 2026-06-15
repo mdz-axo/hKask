@@ -10,7 +10,9 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 // ── Provider identifiers ───────────────────────────────────────────────────
@@ -157,6 +159,16 @@ pub trait TrainingProvider: Send + Sync {
     ) -> Result<Option<CompletionMetadata>, ProviderError> {
         Ok(None)
     }
+
+    /// Return the filesystem path to adapter weights, if stored locally.
+    /// Returns `None` for cloud providers (Together AI) where weights are server-side.
+    /// Default implementation returns `None`.
+    async fn adapter_weight_path(
+        &self,
+        _adapter_id: &str,
+    ) -> Result<Option<PathBuf>, ProviderError> {
+        Ok(None)
+    }
 }
 
 /// Metadata returned by a provider when a training job completes.
@@ -188,6 +200,8 @@ pub struct AxolotlProvider {
     /// Whether to use `hkask-inference` cloud dispatch (Fireworks/Baseten)
     /// instead of local subprocess.
     cloud_dispatch: bool,
+    /// Running job PIDs for cancellation support.
+    jobs: Arc<Mutex<HashMap<String, u32>>>,
 }
 
 impl AxolotlProvider {
@@ -199,6 +213,7 @@ impl AxolotlProvider {
         Self {
             cli_path,
             cloud_dispatch,
+            jobs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -279,13 +294,31 @@ impl TrainingProvider for AxolotlProvider {
             .cli_path
             .as_deref()
             .unwrap_or(std::path::Path::new("axolotl"));
-        let _status = tokio::process::Command::new(cli)
+        let mut child = tokio::process::Command::new(cli)
             .arg("train")
             .arg(&config_path)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| ProviderError::Backend(format!("Failed to spawn axolotl: {}", e)))?;
+
+        // Store PID for cancellation support
+        if let Some(pid) = child.id() {
+            self.jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?
+                .insert(job.id.clone(), pid);
+        }
+
+        // Spawn a background task to clean up the PID entry when the process exits
+        let job_id = job.id.clone();
+        let jobs = Arc::clone(&self.jobs);
+        tokio::spawn(async move {
+            let _ = child.wait().await;
+            if let Ok(mut map) = jobs.lock() {
+                map.remove(&job_id);
+            }
+        });
 
         tracing::info!(
             target: "cns.training.job.submit",
@@ -318,13 +351,40 @@ impl TrainingProvider for AxolotlProvider {
     }
 
     async fn cancel(&self, job_id: &str) -> Result<(), ProviderError> {
-        // Cancellation is process-level — kill the subprocess if still running.
-        // For now, this is a no-op stub; full implementation requires PID tracking.
-        tracing::warn!(
-            target: "cns.training.job.cancel",
-            job_id = %job_id,
-            "Axolotl job cancellation is a best-effort stub"
-        );
+        let pid = {
+            let map = self
+                .jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+            map.get(job_id).copied()
+        };
+
+        if let Some(pid) = pid {
+            // Send SIGTERM to the training process
+            let _ = std::process::Command::new("kill")
+                .arg("-TERM")
+                .arg(pid.to_string())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+
+            if let Ok(mut map) = self.jobs.lock() {
+                map.remove(job_id);
+            }
+
+            tracing::info!(
+                target: "cns.training.job.cancel",
+                job_id = %job_id,
+                pid = %pid,
+                "Axolotl training job cancelled (SIGTERM)"
+            );
+        } else {
+            tracing::warn!(
+                target: "cns.training.job.cancel",
+                job_id = %job_id,
+                "No PID found for job — process may have already exited"
+            );
+        }
         Ok(())
     }
 
@@ -360,6 +420,20 @@ impl TrainingProvider for AxolotlProvider {
         }
         Ok(())
     }
+
+    async fn adapter_weight_path(
+        &self,
+        adapter_id: &str,
+    ) -> Result<Option<PathBuf>, ProviderError> {
+        let path = PathBuf::from("./axolotl-output")
+            .join(adapter_id)
+            .join("adapter_model.safetensors");
+        if path.exists() {
+            Ok(Some(path))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 // ── Unsloth provider ───────────────────────────────────────────────────────
@@ -373,6 +447,8 @@ pub struct UnslothProvider {
     python_path: Option<PathBuf>,
     /// Whether to use cloud dispatch.
     cloud_dispatch: bool,
+    /// Running job PIDs for cancellation support.
+    jobs: Arc<Mutex<HashMap<String, u32>>>,
 }
 
 impl UnslothProvider {
@@ -381,6 +457,7 @@ impl UnslothProvider {
         Self {
             python_path,
             cloud_dispatch,
+            jobs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -490,12 +567,30 @@ impl TrainingProvider for UnslothProvider {
             .python_path
             .as_deref()
             .unwrap_or(std::path::Path::new("python3"));
-        tokio::process::Command::new(py)
+        let mut child = tokio::process::Command::new(py)
             .arg(&script_path)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| ProviderError::Backend(format!("Failed to spawn unsloth: {}", e)))?;
+
+        // Store PID for cancellation support
+        if let Some(pid) = child.id() {
+            self.jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?
+                .insert(job.id.clone(), pid);
+        }
+
+        // Spawn a background task to clean up the PID entry when the process exits
+        let job_id = job.id.clone();
+        let jobs = Arc::clone(&self.jobs);
+        tokio::spawn(async move {
+            let _ = child.wait().await;
+            if let Ok(mut map) = jobs.lock() {
+                map.remove(&job_id);
+            }
+        });
 
         tracing::info!(
             target: "cns.training.job.submit",
@@ -521,11 +616,39 @@ impl TrainingProvider for UnslothProvider {
     }
 
     async fn cancel(&self, job_id: &str) -> Result<(), ProviderError> {
-        tracing::warn!(
-            target: "cns.training.job.cancel",
-            job_id = %job_id,
-            "Unsloth job cancellation is a best-effort stub"
-        );
+        let pid = {
+            let map = self
+                .jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+            map.get(job_id).copied()
+        };
+
+        if let Some(pid) = pid {
+            let _ = std::process::Command::new("kill")
+                .arg("-TERM")
+                .arg(pid.to_string())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+
+            if let Ok(mut map) = self.jobs.lock() {
+                map.remove(job_id);
+            }
+
+            tracing::info!(
+                target: "cns.training.job.cancel",
+                job_id = %job_id,
+                pid = %pid,
+                "Unsloth training job cancelled (SIGTERM)"
+            );
+        } else {
+            tracing::warn!(
+                target: "cns.training.job.cancel",
+                job_id = %job_id,
+                "No PID found for job — process may have already exited"
+            );
+        }
         Ok(())
     }
 
@@ -560,6 +683,20 @@ impl TrainingProvider for UnslothProvider {
             );
         }
         Ok(())
+    }
+
+    async fn adapter_weight_path(
+        &self,
+        adapter_id: &str,
+    ) -> Result<Option<PathBuf>, ProviderError> {
+        let path = PathBuf::from("./unsloth-output")
+            .join(adapter_id)
+            .join("adapter");
+        if path.exists() {
+            Ok(Some(path))
+        } else {
+            Ok(None)
+        }
     }
 }
 

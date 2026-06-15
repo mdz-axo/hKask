@@ -244,6 +244,9 @@ pub struct ThreadSummaryRequest {
 pub struct ThreadSummaryOutput {
     pub summary: String,
     pub original_message_count: usize,
+    /// Approximate token count of the original conversation (before summarization).
+    /// Uses whitespace-split heuristic — rough estimate for context window planning.
+    pub original_tokens_approx: usize,
     pub summary_tokens_approx: usize,
     pub inference_model: String,
 }

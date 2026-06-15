@@ -4,8 +4,7 @@ lexicon_terms: [prioritize, rank, classify, discriminate, recommend]
 contract:
   input:
     accomplishments: array
-    option_a_status: string
-    option_b_status: string
+    condenser_status: string
     inference_engine: string
     known_blockers: array
   output:
@@ -32,11 +31,8 @@ You are a task prioritizer for the hKask condenser. Given what has been accompli
 
 ## Current State
 
-### Option A Status
-{{ option_a_status }}
-
-### Option B Status
-{{ option_b_status }}
+### Condenser Status
+{{ condenser_status }}
 
 ### Inference Engine
 {{ inference_engine }}
@@ -57,16 +53,16 @@ You are a task prioritizer for the hKask condenser. Given what has been accompli
 
 These are the typical remaining tasks for condenser implementation. Not all may apply — select only those relevant to the current state.
 
-1. **Fix thinking mode in thread_summary** — For inference engines with thinking/reasoning mode, the chat request must include the appropriate flag to disable thinking (e.g., disabling thinking mode for qwen3). Without this, the model spends all output tokens on internal reasoning.
+1. **Fix thinking mode in thread_summary** — For inference engines with thinking/reasoning mode, the inference backend should disable thinking (e.g., for qwen3). The condenser itself does not control this — it's backend-specific configuration. Without it, the model may spend all output tokens on internal reasoning.
 2. **End-to-end integration test of thread_summary** — Verify the tool works with a live inference endpoint. Test: valid summary, key decisions preserved, stats tracked, error handling.
 3. **MCP runtime configuration** — Register inference endpoint environment variables in the MCP runtime config (not in any editor-specific settings file).
 4. **Agent usage instructions** — Document when the agent should call each condenser tool (compress after large outputs, set_profile heavy near context limits, thread_summary when context >70% full).
-5. **Update design documentation** — Reflect the simplified MCP-only approach in existing design docs.
+5. **Update design documentation** — Reflect the unified MCP server architecture in existing design docs.
 6. **Inference-agnostic validation** — Ensure the condenser works with multiple backends (Ollama, Fireworks, DeepInfra, other) and gracefully degrades when no endpoint is available.
 
 ## Prioritization Rules
 
-1. **HIGH priority:** Anything that blocks Option A or Option B from functioning. Bugs, missing configuration, broken builds.
+1. **HIGH priority:** Anything that blocks the condenser from functioning. Bugs, missing configuration, broken builds.
 2. **MEDIUM priority:** Integration testing, documentation, configuration improvements that unblock other work.
 3. **LOW priority:** Nice-to-haves, documentation polish, non-blocking improvements.
 4. **Inference dependencies:** Explicitly flag tasks that require a specific inference engine or a live inference endpoint.
