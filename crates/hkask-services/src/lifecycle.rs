@@ -192,7 +192,7 @@ mod tests {
     use super::*;
 
     struct MockServer {
-        name: String,
+        _name: String,
         healthy: bool,
     }
 
@@ -231,7 +231,7 @@ mod tests {
             memory_passphrase: None,
         };
         let mut server = MockServer {
-            name: "test-server".to_string(),
+            _name: "test-server".to_string(),
             healthy: true,
         };
         assert!(server.init(&config).await.is_ok());
@@ -240,7 +240,7 @@ mod tests {
     // REQ: lifecycle-002 — health_reports_correct_status
     #[tokio::test]
     async fn health_reports_correct_status() {
-        let config = ServerLifecycleConfig {
+        let _config = ServerLifecycleConfig {
             name: "test-server".to_string(),
             version: "0.1.0".to_string(),
             db_path: ":memory:".to_string(),
@@ -248,14 +248,14 @@ mod tests {
             memory_db_path: None,
             memory_passphrase: None,
         };
-        let mut healthy_server = MockServer {
-            name: "test-server".to_string(),
+        let healthy_server = MockServer {
+            _name: "test-server".to_string(),
             healthy: true,
         };
         assert!(healthy_server.health().await.unwrap().is_healthy());
 
-        let mut degraded_server = MockServer {
-            name: "test-server".to_string(),
+        let degraded_server = MockServer {
+            _name: "test-server".to_string(),
             healthy: false,
         };
         assert!(!degraded_server.health().await.unwrap().is_healthy());
@@ -273,7 +273,7 @@ mod tests {
             memory_passphrase: None,
         };
         let server = MockServer {
-            name: "test-server".to_string(),
+            _name: "test-server".to_string(),
             healthy: true,
         };
         let result = run_lifecycle(config, server).await;
