@@ -29,7 +29,7 @@ use rusqlite::Connection;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 
 // ── TestDb ────────────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ use tempfile::TempDir;
 /// db.conn().execute("INSERT INTO triples ...", [])?;
 /// ```
 pub struct TestDb {
-    conn: Connection,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl TestDb {
@@ -54,17 +54,24 @@ impl TestDb {
         let conn = Connection::open_in_memory().expect("in-memory SQLite should always open");
         conn.execute_batch(SCHEMA_SQL)
             .expect("schema initialization should succeed");
-        Self { conn }
+        Self {
+            conn: Arc::new(Mutex::new(conn)),
+        }
     }
 
-    /// Borrow the underlying SQLite connection.
-    pub fn conn(&self) -> &Connection {
-        &self.conn
+    /// Borrow the underlying SQLite connection (locks the mutex).
+    pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.conn.lock().expect("mutex should not be poisoned")
+    }
+
+    /// Get the Arc<Mutex<Connection>> for Store constructors.
+    pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
+        Arc::clone(&self.conn)
     }
 
     /// Execute a batch of SQL statements (for seeding test data).
     pub fn execute_batch(&self, sql: &str) -> Result<(), rusqlite::Error> {
-        self.conn.execute_batch(sql)
+        self.conn().execute_batch(sql)
     }
 }
 

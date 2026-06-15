@@ -30,3 +30,8 @@ gix = { workspace = true }
 
 [dev-dependencies]
 tempfile.workspace = true
+proptest = "1"
+
+[[test]]
+name = "tool_input_fuzz"
+path = "tests/tool_input_fuzz.rs"

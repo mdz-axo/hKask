@@ -10,7 +10,7 @@ mds_categories: [lifecycle, curation]
 
 # hKask v0.27.0 — Pragmatic Audit Implementation Plan
 
-**Status:** In Progress — Wave 1 R1 ✅ (19 tests), Waves 2–6 not started  
+**Status:** In Progress — Wave 1 R1 ✅ (19 tests, count met; ⚠️ missing 7R7 listener + message encoding), R2 ✅ (20 tests, count met; ⚠️ missing ACP runtime + curation loop + root authority), R3 ✅ (27 tests, count met; ⚠️ missing tool dispatch routing + dynamic discovery + capability enforcement). Waves 2–6 not started. Behavioral coverage gaps being addressed.
 **Owner:** Engineering  
 **Created:** 2026-06-15  
 **Last Updated:** 2026-06-15  

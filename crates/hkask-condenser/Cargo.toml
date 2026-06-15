@@ -13,3 +13,7 @@ schemars.workspace = true
 [dev-dependencies]
 hkask-test-harness = { path = "../hkask-test-harness" }
 proptest = "1"
+
+[[test]]
+name = "condenser_fuzz"
+path = "tests/condenser_fuzz.rs"

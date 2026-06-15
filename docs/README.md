@@ -207,9 +207,6 @@ Documentation quality gates (run from the repository root):
 bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/check-metadata.sh   # mandatory metadata headers on every active doc
 bash docs/ci/sync-versions.sh --dry-run  # version synchronization check
-bash docs/ci/essentialist-cull.sh       # unreferenced document detection
-bash docs/ci/pre-commit-version-check.sh  # pre-commit version anomaly hook
-bash docs/ci/regenerate-corpus-inventory.sh  # inventory skeleton regeneration
 ```
 
 *ℏKask - A Minimal Viable Container for Agents — v0.27.0*

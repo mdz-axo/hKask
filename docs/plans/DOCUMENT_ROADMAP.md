@@ -135,17 +135,17 @@ Documents with `version` diverging from workspace `0.27.0`:
 
 **Status:** Guide created at `docs/user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md` (239 lines). Covers: prerequisites, build/install, onboarding flow, verification, first chat session, next steps (consent, MCP servers, additional replicants), troubleshooting, reference.
 
-### P3-3: Essentialist Auto-Culling ✅ DONE
+### P3-3: Essentialist Auto-Culling — Rejected (marginal)
 
-**Status:** Script created at `docs/ci/essentialist-cull.sh`. Scans all docs/ against 3 indexes (README.md portal, architecture master, AGENTS.md). Current run: 56 referenced, 19 unreferenced (12 PUBLIC_SURFACE stubs, 2 new plans not yet in portal, 4 status/guide files). Run with `--verbose` to see referenced sources.
+**Rationale:** Script created then deleted per essentialist review. Signal-to-noise too poor: 21 "unreferenced" but 12 are intentional PUBLIC_SURFACE stubs. Only ~3 genuinely actionable findings. Not worth maintaining a dedicated script for.
 
-### P3-4: Corpus Inventory Regeneration Automation ✅ DONE
+### P3-4: Corpus Inventory Regeneration Automation — Rejected (marginal)
 
-**Status:** Script created at `docs/ci/regenerate-corpus-inventory.sh`. Extracts frontmatter fields mechanically (path, category, status, version, mds_categories, last_updated). Classification fields (staleness_signal, governing_principles, disposition, notes) left as TODO for manual/agent sweep. Outputs YAML skeleton to stdout or `--output FILE`.
+**Rationale:** Script created then deleted per essentialist review. Solves only the mechanical 20% (path/category/status extraction from frontmatter). The hard 80% (staleness_signal, governing_principles, disposition, notes) remains TODO. Mechanical extraction is trivial grep work — doesn't earn a dedicated script.
 
-### P3-5: Pre-Commit Hook for Version Anomalies ✅ DONE
+### P3-5: Pre-Commit Hook for Version Anomalies — Rejected (marginal)
 
-**Status:** Script created at `docs/ci/pre-commit-version-check.sh`. Non-blocking hook — flags staged .md/.yaml files whose `version:` diverges from workspace `Cargo.toml`. Uses same exclusion list as `sync-versions.sh`. Symlink as `.git/hooks/pre-commit` to activate.
+**Rationale:** Script created then deleted per essentialist review. `sync-versions.sh` already handles version synchronization. A pre-commit hook adds friction to every commit for a check that would fire on ~0% of commits (version changes only on release). Near-zero benefit, non-zero cost.
 
 ---
 
@@ -187,7 +187,7 @@ After each tier is complete:
 | P0 | `check-links.sh` passes; README portal has no "not yet created" references; P0-1 (CI scripts in missing_referenced) resolved ✅ |
 | P1 | `check-metadata.sh` passes with 0 errors; all version anomalies resolved ✅; sync-versions.sh functional ✅; MDS_SCAFFOLD.md updated ✅ |
 | P2 | `openapi.json` generated ✅; missing ADRs exist ✅; archive policy codified ✅; runbook exists ✅; plan versioning standardized ✅ |
-| P3 | Backlog grooming complete; onboarding walkthrough created ✅; essentialist cull script ✅; corpus inventory regeneration script ✅; pre-commit hook ✅; P3-1 rejected (category error) |
+| P3 | Backlog grooming complete; onboarding walkthrough created ✅; P3-1 rejected (category error); P3-3/4/5 rejected (marginal — scripts created then deleted per essentialist review) |
 
 ---
 
