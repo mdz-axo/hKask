@@ -77,6 +77,10 @@ The CI quality gates script (`scripts/ci-quality-gates.sh`) should be wired into
 
 **Next step:** Wire `scripts/ci-quality-gates.sh` into CI pipeline (`.github/workflows/` or equivalent).
 
+✅ **Done** — Added `quality-gates` job to `.github/workflows/ci.yml`:
+- Runs `scripts/ci-quality-gates.sh` on every PR and push to main
+- Release builds now depend on quality gates passing (`needs: [..., quality-gates]`)
+
 ---
 
 ## 5) Wave 5 — Module Depth + Safety Governance (✅ Complete)

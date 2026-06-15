@@ -263,6 +263,20 @@ jobs:
           fi
 
   # ============================================================================
+  # Quality Gates — Wave 6 Sustainment (regression prevention)
+  # ============================================================================
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run all quality gates
+        run: bash scripts/ci-quality-gates.sh
+
+  # ============================================================================
   # Dependency Policy Check
   # ============================================================================
   deps:
@@ -293,7 +307,7 @@ jobs:
     name: Release Build
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [test, cyber-tests, security-invariants]
+    needs: [test, cyber-tests, security-invariants, quality-gates]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
