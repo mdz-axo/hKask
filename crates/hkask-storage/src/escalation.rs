@@ -6,16 +6,15 @@
 
 use crate::{Store, now_rfc3339};
 use chrono::{DateTime, Utc};
-use hkask_types::{BotID, InfrastructureError, TemplateID};
+use hkask_types::{BotID, EscalationID, InfrastructureError, TemplateID};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationEntry {
-    pub id: String,
+    pub id: EscalationID,
     pub template_id: TemplateID,
     pub bot_id: BotID,
     pub output: String,
@@ -32,7 +31,7 @@ impl EscalationEntry {
     /// Create a pending escalation entry with auto-generated id, timestamps, and defaults.
     pub fn pending(output: String, confidence: f64, error_context: String) -> Self {
         Self {
-            id: format!("esc_{}", Uuid::new_v4().simple()),
+            id: EscalationID::new(),
             template_id: TemplateID::new(),
             bot_id: BotID::new(),
             output,
@@ -117,15 +116,15 @@ impl EscalationQueue {
         confidence: f64,
         retry_count: u32,
         error_context: String,
-    ) -> Result<String, EscalationError> {
-        let id = format!("esc_{}", Uuid::new_v4().simple());
+    ) -> Result<EscalationID, EscalationError> {
+        let id = EscalationID::new();
         let now = now_rfc3339();
 
         self.lock_conn()?.execute(
             r#"INSERT INTO escalations (id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')"#,
             params![
-                id,
+                id.to_string(),
                 template_id.to_string(),
                 bot_id.as_uuid().to_string(),
                 output,
@@ -150,8 +149,9 @@ impl EscalationQueue {
             let bot_uuid_str: String = row.get(2)?;
             let bot_id: BotID = bot_uuid_str.parse().unwrap_or_else(|_| BotID::new());
 
+            let id_str: String = row.get(0)?;
             Ok(EscalationEntry {
-                id: row.get(0)?,
+                id: id_str.parse().unwrap_or_else(|_| EscalationID::new()),
                 template_id: row
                     .get::<_, String>(1)?
                     .parse()
@@ -206,7 +206,10 @@ impl EscalationQueue {
             });
 
             Ok(Some(EscalationEntry {
-                id: row.get(0)?,
+                id: row
+                    .get::<_, String>(0)?
+                    .parse()
+                    .unwrap_or_else(|_| EscalationID::new()),
                 template_id: row
                     .get::<_, String>(1)?
                     .parse()
@@ -282,7 +285,7 @@ impl EscalationQueue {
 /// (VSM algedonic paradox). Batching reduces noise while preserving signal fidelity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationBatch {
-    pub id: String,
+    pub id: EscalationID,
     pub entries: Vec<EscalationEntry>,
     pub domain: String,
     pub created_at: DateTime<Utc>,
@@ -292,7 +295,7 @@ pub struct EscalationBatch {
 impl EscalationBatch {
     pub fn new(entries: Vec<EscalationEntry>, domain: &str, threshold: usize) -> Self {
         Self {
-            id: format!("batch_{}", uuid::Uuid::new_v4().simple()),
+            id: EscalationID::new(),
             entries,
             domain: domain.to_string(),
             created_at: Utc::now(),

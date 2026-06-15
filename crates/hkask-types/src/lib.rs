@@ -70,8 +70,8 @@ pub use error::{InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::Goal;
 pub use id::{
-    ApiKeyId, BotID, EmbeddingID, EventID, GoalID, Id, IdKind, PodID, TemplateID, TripleID, UserID,
-    WalletId, WebID,
+    ApiKeyId, BotID, EmbeddingID, EscalationID, EventID, GoalID, Id, IdKind, PodID, TemplateID,
+    TripleID, UserID, WalletId, WebID,
 };
 
 pub use identity::{HumanUser, RegistrationRequest, ReplicantIdentity, UserSession};

@@ -30,8 +30,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             if variety.is_empty() {
                 println!("  • No variety data recorded");
             } else {
-                for (domain, count) in &variety {
-                    println!("  • {}: {} states", domain, count);
+                for (ns, count) in &variety {
+                    println!("  • {}: {} states", ns.as_str(), count);
                 }
             }
             println!();
@@ -77,8 +77,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             if variety.is_empty() {
                 println!("  (no variety data)");
             } else {
-                for (domain, count) in &variety {
-                    println!("  • {}: {} states", domain, count);
+                for (ns, count) in &variety {
+                    println!("  • {}: {} states", ns.as_str(), count);
                 }
             }
         }

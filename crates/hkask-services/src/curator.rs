@@ -35,7 +35,7 @@ pub struct EscalationResponse {
 impl From<EscalationEntry> for EscalationResponse {
     fn from(e: EscalationEntry) -> Self {
         Self {
-            id: e.id,
+            id: e.id.to_string(),
             template_id: e.template_id.to_string(),
             bot_id: e.bot_id.to_string(),
             output: e.output,

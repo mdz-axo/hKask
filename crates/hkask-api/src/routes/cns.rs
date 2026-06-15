@@ -133,13 +133,16 @@ pub(crate) async fn cns_variety(State(state): State<ApiState>) -> axum::Json<Cns
     let cns_runtime = state.agent_service.cns_runtime();
     let variety_data = cns_runtime.read().await.variety().await;
 
-    let domains: Vec<String> = variety_data.iter().map(|(d, _)| d.clone()).collect();
+    let domains: Vec<String> = variety_data
+        .keys()
+        .map(|ns| ns.as_str().to_string())
+        .collect();
 
     let counters: std::collections::HashMap<String, VarietyCounterResponse> = variety_data
         .iter()
-        .map(|(domain, variety)| {
+        .map(|(ns, variety)| {
             (
-                domain.clone(),
+                ns.as_str().to_string(),
                 VarietyCounterResponse {
                     variety: *variety,
                     total: *variety,

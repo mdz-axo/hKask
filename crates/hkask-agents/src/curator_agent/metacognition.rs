@@ -8,10 +8,12 @@ use hkask_storage::{EscalationBatch, EscalationEntry};
 use hkask_types::BotID;
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
+use hkask_types::event::SpanNamespace;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
@@ -168,7 +170,7 @@ impl Default for EscalationPolicy {
 pub struct HealthSnapshot {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub cns_health: String,
-    pub variety_counters: Vec<(String, u64)>,
+    pub variety_counters: HashMap<SpanNamespace, u64>,
     pub critical_alerts: usize,
     pub total_alerts: usize,
     pub(crate) bot_status_reports: Vec<BotStatusReport>,
@@ -259,8 +261,8 @@ impl MetacognitionLoop {
         let _ = writeln!(s, "**Total Alerts:** {}\n", snapshot.total_alerts);
         if !snapshot.variety_counters.is_empty() {
             let _ = writeln!(s, "### Variety Counters");
-            for (domain, variety) in &snapshot.variety_counters {
-                let _ = writeln!(s, "- {}: {}", domain, variety);
+            for (ns, variety) in &snapshot.variety_counters {
+                let _ = writeln!(s, "- {}: {}", ns.as_str(), variety);
             }
             s.push('\n');
         }
@@ -469,7 +471,7 @@ impl HkaskLoop for MetacognitionLoop {
 
         // Compute total variety deficit (same logic as evaluate_and_adapt)
         let mut total_variety_deficit = 0u64;
-        for (domain, variety) in &variety_counters {
+        for (ns, variety) in &variety_counters {
             let deficit = self
                 .config
                 .expected_variety_per_domain
@@ -479,7 +481,7 @@ impl HkaskLoop for MetacognitionLoop {
                 if deficit > self.config.thresholds.variety_deficit {
                     warn!(
                         target: MC_TARGET,
-                        domain = %domain,
+                        domain = %ns.as_str(),
                         variety = variety,
                         deficit = deficit,
                         "Variety deficit exceeds threshold"

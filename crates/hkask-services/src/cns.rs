@@ -4,11 +4,13 @@
 //! hiding the `Arc<RwLock<>>` pattern so callers don't repeat
 //! `cns_runtime.read().await.xxx().await` at every call site.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use hkask_cns::{CnsRuntime, RuntimeAlert, SetPoints, SetPointsConfig, load_set_points};
 use hkask_types::cns::CnsHealth;
+use hkask_types::event::SpanNamespace;
 
 /// Service for CNS health checks, algedonic alerts, and variety counters.
 ///
@@ -35,8 +37,8 @@ impl CnsService {
         self.runtime.read().await.alerts().await
     }
 
-    /// Variety counter snapshots: (domain_name, variety_count).
-    pub async fn variety(&self) -> Vec<(String, u64)> {
+    /// Variety counter snapshots keyed by canonical CNS namespace.
+    pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
         self.runtime.read().await.variety().await
     }
 

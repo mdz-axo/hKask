@@ -146,6 +146,10 @@ pub enum ApiKeyKind {}
 impl private::Sealed for ApiKeyKind {}
 impl IdKind for ApiKeyKind {}
 
+pub enum EscalationKind {}
+impl private::Sealed for EscalationKind {}
+impl IdKind for EscalationKind {}
+
 pub type TemplateID = Id<TemplateKind>;
 pub type BotID = Id<BotKind>;
 pub type TripleID = Id<TripleKind>;
@@ -157,6 +161,7 @@ pub(crate) type SovereigntyId = Id<SovereigntyKind>;
 pub type PodID = Id<PodKind>;
 pub type WalletId = Id<WalletKind>;
 pub type ApiKeyId = Id<ApiKeyKind>;
+pub type EscalationID = Id<EscalationKind>;
 
 use std::hash::Hash;
 use uuid::Uuid;

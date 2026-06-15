@@ -217,7 +217,7 @@ impl CnsRuntime {
 
     // ── Variety ──
 
-    pub async fn variety(&self) -> Vec<(String, u64)> {
+    pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
         let state = self.state.read().await;
         let domains: Vec<String> = state
             .tracker
@@ -227,12 +227,16 @@ impl CnsRuntime {
             .collect();
         drop(state);
 
-        let mut results = Vec::new();
+        let mut results = HashMap::new();
         for domain in &domains {
-            let state = self.state.read().await;
-            let count = state.tracker.variety_for_domain(domain);
-            drop(state);
-            results.push((domain.clone(), count));
+            // Only include canonical CNS namespaces — non-canonical
+            // domains are internal tracking artifacts, not observability signals.
+            if let Some(ns) = SpanNamespace::parse(domain) {
+                let state = self.state.read().await;
+                let count = state.tracker.variety_for_domain(domain);
+                drop(state);
+                results.insert(ns, count);
+            }
         }
         results
     }

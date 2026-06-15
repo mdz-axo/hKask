@@ -55,7 +55,7 @@ pub fn run_curator(
                 for esc in &escalations {
                     println!(
                         "{:<20} {:<15} {:<10.2} {}",
-                        &esc.id[..std::cmp::min(20, esc.id.len())],
+                        &esc.id.to_string()[..std::cmp::min(20, esc.id.to_string().len())],
                         esc.bot_id
                             .as_uuid()
                             .to_string()
