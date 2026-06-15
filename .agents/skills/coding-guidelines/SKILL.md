@@ -49,18 +49,21 @@ When your changes create orphans:
 **Define success criteria. Loop until verified.**
 
 Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
+- "Add validation" → "Write the contract (// REQ: pre/post), then a property-based test verifying it, then make it pass"
+- "Fix the bug" → "Strengthen the contract to exclude the bug, write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure existing contracts still hold and tests pass before and after"
 
 For multi-step tasks, state a brief plan:
 ```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+1. [Contract] → verify: contract accurately describes behavior
+2. [Test] → verify: proptest fails (RED)
+3. [Implement] → verify: proptest passes (GREEN)
+4. [Refactor] → verify: contracts still hold, tests still pass
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+**Anchoring discipline:** [`docs/architecture/core/TESTING_DISCIPLINE.md`](../../docs/architecture/core/TESTING_DISCIPLINE.md) — every implementation task must produce or verify a behavioral contract.
 
 ## Registry Templates
 

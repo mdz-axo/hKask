@@ -31,6 +31,7 @@
 pub mod chain;
 pub mod issuer;
 pub mod manager;
+pub mod price_feed;
 pub mod privacy;
 pub mod signing;
 
@@ -46,5 +47,6 @@ pub mod hinkal;
 pub use chain::{ChainPort, DepositEvent};
 pub use issuer::{ApiKeyIssuer, ApiKeyMaterial};
 pub use manager::WalletManager;
+pub use price_feed::{PriceFeed, StaticPriceFeed, WithdrawalFee, estimate_withdrawal_fee};
 pub use privacy::{PrivacyPort, ShieldedTransfer};
 pub use signing::{sign_capability, sign_withdrawal};

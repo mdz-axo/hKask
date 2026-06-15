@@ -202,11 +202,13 @@ This step catches the "tested but wrong" problem (tests that don't validate real
 ## Checklist Per Cycle
 
 ```
-[ ] Test describes behavior, not implementation
+[ ] Contract written before test (// REQ: pre: ... post: ...)
+[ ] Contract references a specification requirement (spec_id)
+[ ] Test is property-based (proptest) where applicable, verifying the contract
 [ ] Test uses public interface only (seam, not internals)
 [ ] Test would survive internal refactor
-[ ] Test carries a // REQ: tag referencing a specification requirement
-[ ] Code is minimal for this test
+[ ] Test carries a // REQ: tag matching the contract's spec_id
+[ ] Code is minimal to satisfy the contract
 [ ] No speculative features added
 [ ] No todo!() or unimplemented!() stubs
 [ ] cargo test -p <crate> passes
@@ -216,9 +218,9 @@ This step catches the "tested but wrong" problem (tests that don't validate real
 ## End-of-Session Checklist
 
 ```
-[ ] Every spec requirement in scope has a tracer bullet OR a documented deferral
+[ ] Every spec requirement in scope has a contract + tracer bullet OR a documented deferral
 [ ] No // REQ: tag references a non-existent spec_id
 [ ] Each MDS category in scope has coverage (Domain, Composition, Trust, Lifecycle, Curation)
-[ ] TRACEABILITY_MATRIX.md is updated for new coverage
+[ ] Contract completeness audit shows no regression (Testing Discipline §9.2)
 [ ] Gaps are recorded in OPEN_QUESTIONS.md with deferral rationale
 ```
