@@ -76,6 +76,7 @@ mod tests {
 
     mod proptest_tests {
         use super::*;
+        use crate::capability::token_types::AttenuationLevel;
         use proptest::prelude::*;
 
         // Valid resource names for strategy generation

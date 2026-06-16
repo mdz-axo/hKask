@@ -93,6 +93,39 @@ impl WalletManager {
         }
     }
 
+    /// Emit a CNS algedonic alert for API key health events.
+    ///
+    /// REQ: WALLET-006, MUST-6 (algedonic feedback closure)
+    /// pre:  key_id is a valid ApiKeyId
+    /// post: if key is expired → emits cns.wallet.key_expired span (Sense phase)
+    /// post: if key is exhausted → emits cns.wallet.key_exhausted span (Sense phase)
+    /// post: if event_sink is None → no-op (graceful degradation)
+    ///
+    /// Called by `WalletBackedBudget::can_proceed` when key health checks fail,
+    /// providing CNS algedonic visibility into key lifecycle events.
+    pub fn emit_key_alert(&self, key_id: ApiKeyId, exhausted: bool, expired: bool) {
+        if expired {
+            self.emit_span(
+                CnsSpan::WalletKeyExpired,
+                "expired",
+                Phase::Sense,
+                serde_json::json!({
+                    "key_id": key_id.to_string(),
+                }),
+            );
+        }
+        if exhausted {
+            self.emit_span(
+                CnsSpan::WalletKeyExhausted,
+                "exhausted",
+                Phase::Sense,
+                serde_json::json!({
+                    "key_id": key_id.to_string(),
+                }),
+            );
+        }
+    }
+
     // ── Balance ──────────────────────────────────────────────────────────────
 
     /// Get the current rJoule balance for a wallet.
@@ -1174,11 +1207,13 @@ mod tests {
         assert!(!enc.is_active(), "encumbrance should be released");
 
         // Step 8: Verify key spending limit tracking
+        // spent_rj is now synced with encumbrance consumption (consume_encumbrance
+        // updates both encumbrances.consumed_rj and api_keys.spent_rj).
         let capability = mgr.get_api_key(key_id).unwrap().unwrap();
         assert_eq!(
             capability.spent_rj.as_u64(),
-            0,
-            "spent_rj tracked at DB level"
+            800,
+            "spent_rj reflects 500 + 300 consumed from encumbrance"
         );
     }
 

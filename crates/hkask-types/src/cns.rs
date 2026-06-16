@@ -72,7 +72,7 @@ pub struct CnsHealth {
 
 // ── CnsSpan — Typed CNS Span Identifiers ──────────────────────────────────
 
-/// Typed CNS span identifiers — the authoritative registry per PRINCIPLES.md §1.4.
+/// Typed CNS span identifiers — the authoritative CNS span registry.
 ///
 /// [NORMATIVE] Replaces stringly-typed `&str` constants. Invalid span values
 /// are unrepresentable — the type system enforces validity at compile time (P8 — Semantic Grounding).
@@ -116,7 +116,7 @@ pub enum CnsSpan {
     /// Chat/conversation operations.
     Chat,
 
-    // ── Hierarchical spans (PRINCIPLES.md §1.4) ─────────────────────────
+    // ── Hierarchical spans (defined in `CnsSpan`) ─────────────────────────
     /// Cybernetic backpressure signals.
     CyberneticsBackpressure,
     /// Cybernetic cadence/timing signals.
@@ -332,8 +332,8 @@ impl std::str::FromStr for CnsSpan {
 
     /// Parse a canonical namespace string into a `CnsSpan` variant.
     ///
-    /// [NORMATIVE] Only strings matching the canonical namespaces in
-    /// PRINCIPLES.md §1.4 parse successfully. Unknown strings return `Err(())`.
+    /// [NORMATIVE] Only strings matching canonical `CnsSpan` namespaces parse
+    /// successfully. Unknown strings return `Err(())`.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "cns.tool" => Ok(CnsSpan::Tool {

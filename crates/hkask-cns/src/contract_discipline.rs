@@ -18,7 +18,7 @@
 //! # Reference
 //!
 //! - Testing Discipline §9.3 — CNS span registration
-//! - PRINCIPLES.md §1.4 — canonical span list
+//! - `hkask-types/src/cns.rs` (`CnsSpan`) — canonical span list
 //! - contract-first-migration-plan-v0.27.0.md §5.4
 
 use hkask_types::WebID;

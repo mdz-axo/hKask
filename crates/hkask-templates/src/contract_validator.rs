@@ -96,7 +96,7 @@ impl Default for ContractValidator<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{LexiconTerm, TemplateType};
+    use hkask_types::lexicon::{LexiconTerm, TemplateType};
 
     fn bootstrap_lexicon() -> HLexicon {
         let mut lexicon = HLexicon::new();

@@ -357,6 +357,14 @@ impl WalletService {
             }
         })
     }
+
+    /// Emit a CNS algedonic alert for API key health events.
+    ///
+    /// Delegates to `WalletManager::emit_key_alert`. When the manager has
+    /// no event sink configured, this is a no-op (graceful degradation).
+    pub fn emit_key_alert(&self, key_id: ApiKeyId, exhausted: bool, expired: bool) {
+        self.manager.emit_key_alert(key_id, exhausted, expired);
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

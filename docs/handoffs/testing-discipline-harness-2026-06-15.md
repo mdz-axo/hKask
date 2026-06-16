@@ -90,7 +90,7 @@ All use `catch_unwind` + proptest. Each crate got `[[test]]` entries in `Cargo.t
 ### 2.8 CNS Span Registration
 
 **Files modified:**
-- `docs/architecture/core/PRINCIPLES.md` §1.4 — added `cns.contract.violated`, `cns.contract.coverage` to canonical span list
+- `crates/hkask-types/src/cns.rs` (`CnsSpan`) — canonical span registry for `cns.contract.violated`, `cns.contract.coverage`
 - `crates/hkask-types/src/event.rs` `CANONICAL_NAMESPACES` — added same spans to code-level source of truth
 - **Status:** Spans registered. Emission code NOT YET IMPLEMENTED. Documented as OUGHT with pointer to migration plan §5.4.
 
@@ -230,7 +230,7 @@ cargo clippy --workspace -- -D warnings
 
 5. **`TestDb` stores `Arc<Mutex<Connection>>`** — this was changed mid-session to be compatible with `TripleStore::new()` and other Store types. Do not revert to bare `Connection`.
 
-6. **`cns.contract.violated` and `cns.contract.coverage` are registered but NOT YET IMPLEMENTED.** The spans exist in `CANONICAL_NAMESPACES` and PRINCIPLES.md §1.4. Emission code is pending (migration plan §5.4). Until implemented, contract violations are detected through CI test failures.
+6. **`cns.contract.violated` and `cns.contract.coverage` are registered but NOT YET IMPLEMENTED.** The spans exist in `CANONICAL_NAMESPACES` and `crates/hkask-types/src/cns.rs` (`CnsSpan`). Emission code is pending (migration plan §5.4). Until implemented, contract violations are detected through CI test failures.
 
 7. **Contract coverage CI gate is warning-only (exit 0).** Baseline is 0/1,720. A hard gate would block all PRs. The gate becomes hard when baseline exceeds 50%.
 

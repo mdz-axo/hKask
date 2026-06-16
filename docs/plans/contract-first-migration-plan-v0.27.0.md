@@ -261,7 +261,7 @@ scripts/contract-audit.sh --summary   # table format
 
 ### 5.4 CNS Integration (Phase B4) 🟡 PARTIAL (2026-06-15)
 
-**New CNS spans (registered in PRINCIPLES.md §1.4 and CANONICAL_NAMESPACES):**
+**New CNS spans (registered in `crates/hkask-types/src/cns.rs` (`CnsSpan`) and CANONICAL_NAMESPACES):**
 
 | Span | Emitted When | Observer | Status |
 |------|-------------|----------|--------|

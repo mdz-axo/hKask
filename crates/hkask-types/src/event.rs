@@ -101,7 +101,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.spec",
     "cns.test",
     "cns.chat",
-    // Hierarchical spans — registered from PRINCIPLES.md §1.4 (P2-06-D1)
+    // Hierarchical spans — registered in `hkask-types/src/cns.rs` (`CnsSpan`) (P2-06-D1)
     "cns.cybernetics.backpressure",
     "cns.cybernetics.cadence",
     "cns.set_point",
@@ -198,6 +198,7 @@ impl SpanNamespace {
             "curation" | "spec" => SpanCategory::Curation,
             "inference" => SpanCategory::Inference,
             "agent_pod" | "connector" => SpanCategory::Episodic,
+            "wallet" => SpanCategory::Wallet,
             _ => SpanCategory::Unknown,
         }
     }
@@ -221,6 +222,8 @@ pub enum SpanCategory {
     Inference,
     /// `cns.agent_pod*`, `cns.connector*` — episodic memory.
     Episodic,
+    /// `cns.wallet*` — wallet operations (balance, keys, deposits, withdrawals).
+    Wallet,
     /// Any other namespace. Callers decide the fallback policy.
     Unknown,
 }
@@ -236,6 +239,7 @@ impl SpanCategory {
             "curation" | "spec" => Self::Curation,
             "inference" => Self::Inference,
             "agent_pod" | "connector" => Self::Episodic,
+            "wallet" => Self::Wallet,
             _ => Self::Unknown,
         }
     }
@@ -248,6 +252,7 @@ impl std::fmt::Display for SpanCategory {
             SpanCategory::Curation => "curation",
             SpanCategory::Inference => "inference",
             SpanCategory::Episodic => "episodic",
+            SpanCategory::Wallet => "wallet",
             SpanCategory::Unknown => "unknown",
         };
         f.write_str(s)

@@ -324,7 +324,7 @@ The rJoule maps to an on-chain token (anticipated: ERC-20 or similar). The token
 ## 9. References
 
 - P12-replicant-host-mandate.md §API — Bot Host — key request flow, approval criteria, metering
-- PRINCIPLES.md §1.4 — CNS spans and variety counters
+- `crates/hkask-types/src/cns.rs` (`CnsSpan`) — CNS spans and variety counters
 - loop-architecture.md — EnergyBudget subsumption of RateLimiting
 - AGENTS.md — `/repl` settings for gas_heuristic, gas_cap
 - hkask-wallet — HD wallet derivation and balance operations

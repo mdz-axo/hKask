@@ -436,7 +436,7 @@ Sibling question to FUT-003. If FUT-003 resolves as "per-issuer," this question 
 **Status:** Open  
 **Opened:** 2026-06-07
 
-The canonical CNS span listing in `PRINCIPLES.md` §1.4 uses `cns.cybernetics.*` for some spans, while `AGENTS.md` and code use `cns.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
+The canonical CNS span listing in `crates/hkask-types/src/cns.rs` (`CnsSpan`) uses `cns.cybernetics.*` for some spans, while `AGENTS.md` and code use `cns.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
 
 ---
 
@@ -536,7 +536,7 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 | # | Item | Category | Status | Audit Ref |
 |---|------|----------|--------|----------|
 | R4 | MDS §9.1 self-application matrix labels | Observability, Persistence, Lifecycle, Curation | **Resolved** — matrix updated with :partial and :drift labels | Audit R4 |
-| R6 | CNS span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference PRINCIPLES.md §1.4 | Audit R6 |
+| R6 | CNS span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference `crates/hkask-types/src/cns.rs` (`CnsSpan`) | Audit R6 |
 | R8 | TemplateType vocabulary mapping | Composition | **Resolved** — as_spec_name() method added, mapping table documented in MDS.md §7.2 §3.3 | Audit R8 |
 | R13 | SpecDriftAlert not in CNS loop | Observability | **Resolved** — DefaultSpecCurator dispatches SpecDriftAlert through Communication Loop to CurationLoop inbox | Audit R13 |
 

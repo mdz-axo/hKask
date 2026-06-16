@@ -16,7 +16,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Owner | Priority | Status | Evidence |
 |----|------|-------|----------|--------|----------|
-| **P0-01** | CNS span emission integration | CNS bot | High | ✅ Complete | CNS spans distributed across `crates/hkask-cns/src/governed_tool.rs`, `crates/hkask-types/src/event.rs`, `crates/hkask-types/src/cns.rs`; canonical listing in PRINCIPLES.md §1.4 |
+| **P0-01** | CNS span emission integration | CNS bot | High | ✅ Complete | CNS spans distributed across `crates/hkask-cns/src/governed_tool.rs`, `crates/hkask-types/src/event.rs`, `crates/hkask-types/src/cns.rs`; canonical listing in `crates/hkask-types/src/cns.rs` (`CnsSpan`) |
 | **P0-02** | Git CAS integration for triples | Storage bot | High | ✅ Complete | Deleted in 2026-06-10 architecture audit (see HANDOFF.md) |
 | **P0-03** | CLI/API symmetry audit | CLI bot | High | ✅ Complete | API routes match CLI commands |
 | **P0-04** | Documentation quality gates | Curator | High | ✅ Complete | MDS-aligned refresh complete |
@@ -42,6 +42,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have mds_categories (2026-05-28) |
 | **P1-09** | Face recognition system for media server | Media bot | High | ✅ Complete | `docs/plans/mcp-media-server-design.md` §10. Face registry table with ArcFace embedding, validation gate, dual-path auto-matching (ONNX primary, vision LLM fallback). 5 tools: face_validate, face_register (with --force), face_list, face_remove, gallery_name_face (with face_id lookup). ONNX integration via `face_id` crate (SCRFD + ArcFace). |
 | **P1-10** | Condenser live integration testing — thinking mode + auto-condense | Dev | Medium | ✅ Complete | **All items verified.** (1) Thinking mode wire format: 2 unit tests pass. (2) Router pass-through: `disable_thinking_flows_to_wire_format` integration test (wiremock) passes. (3) Auto-condense threshold: 87.5% formula verified for all window sizes (2048–131072). (4) Live Ollama: `llama3.1:8b` produces structured summaries with `original_tokens_approx` + `summary_tokens_approx`. (5) Live DeepInfra: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output, no thinking interference. (6) Live Together: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output. (7) Graceful degradation: thinking models (qwen3.5/gemma4/deepseek-r1) return clear error on all backends. (8) Rust live-backend tests written: `crates/hkask-inference/tests/live_backends.rs` — `deepinfra_summarization` + `together_summarization` (gated on API keys, `#[ignore]`). **Finding:** Ollama 0.30.8 ignores `enable_thinking: false` for qwen3/gemma/deepseek — documented with workaround (use non-thinking models like llama3.1). DeepInfra/Together Qwen3 models also exhibit thinking mode. |
+| **P1-11** | Critical audit: energy-use tracking simplification + security hardening | Dev + CNS | High | ⬜ Planned | Perform adversarial review of gas/rJoule accounting paths (`GovernedTool` ↔ `EnergyBudgetManager` ↔ `WalletBackedBudget` ↔ `WalletStore`), remove duplicate accounting surfaces, and prove deterministic/tamper-evident transitions with focused tests. |
 
 ---
 
@@ -56,7 +57,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
 | **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved; code drift audit complete — see `do../status/corpus_inventory.yaml` and `do../status/corpus_inventory.yaml` |
 | **P2-07** | MDS audit R4: Update §9.1 self-application matrix | Curator | Medium | ✅ Complete | Trust → Pass, Observability → Pass, Persistence/Lifecycle/Curation → :partial. Updated 2026-06-08 |
-| **P2-08** | MDS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ✅ Complete | PRINCIPLES.md §1.4 is authoritative; 5 hierarchical spans now registered in CANONICAL_NAMESPACES |
+| **P2-08** | MDS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ✅ Complete | `crates/hkask-types/src/cns.rs` (`CnsSpan`) is authoritative; 5 hierarchical spans now registered in CANONICAL_NAMESPACES |
 | **P2-09** | MDS audit R8: Add TemplateType vocabulary mapping to MDS.md §7.2 | Curator | Medium | ✅ Complete | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct mapping with `as_spec_name()` cross-reference. Updated 2026-06-08 |
 | **P2-10** | MDS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 MDS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
@@ -228,6 +229,24 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ---
 
+## Completed (2026-06-15 Pragmatic Audit Implementation — All 10 Tasks)
+
+| ID | Task | Date | Evidence |
+|----|------|------|----------|
+| **C-37** | R1: hkask-communication tests (19→25) | 2026-06-15 | +6 SevenR7Listener lifecycle tests. 25 tests pass. |
+| **C-38** | R2: hkask-agents tests (20→31) | 2026-06-15 | +11 ACP runtime tests — wildcard, registration, unregistration, revocation, restore, list. |
+| **C-39** | R3: hkask-mcp tests (27→38) | 2026-06-15 | +11 capability enforcement, error propagation, tool discovery tests. |
+| **C-40** | R4: hkask-api REQ tags (8→29) | 2026-06-15 | +21 route type serialization tests in `tests/integration.rs`. Now 39 total REQ tags. |
+| **C-41** | R5: CnsSpan enum (51 variants) | 2026-06-15 | `CnsSpan` + `ToolSubsystem` enums defined. `Display`/`FromStr` implemented. All crates migrated. 6 tests. |
+| **C-42** | R6: Ed25519 DelegationToken | 2026-06-15 | Immediate cutover — `TokenSignature([u8; 64])`, `public_key`, `derive_signing_key()`. 15 token + 11 ACP tests. HMAC removed. |
+| **C-43** | R7: Provenance markers | 2026-06-15 | 54 OUGHT-as-IS doc claims marked `[NORMATIVE]`/`[DECLARATIVE]` across 18 files. Zero unmarked. |
+| **C-44** | R8: hkask-types surface reduction | 2026-06-15 | 10 files split into subdirectories (≤7 public items each). 10 types → pub(crate). ~25 deprecated re-exports removed. 12 G2 justifications. |
+| **C-45** | R9: Strangler fig extraction (Kata + Spec) | 2026-06-15 | `KataEngine::from_env()`, `SpecService::get_full()`. CLI no longer imports InferenceConfig/InferenceRouter/SpecStore. |
+| **C-46** | R10: Training cancel stubs | 2026-06-15 | Already implemented — all 5 providers have PID+SIGTERM or API cancel. Zero stubs. |
+| | **Total REQ tags** | 2026-06-15 | **916** across workspace. Zero `todo!()`/`unimplemented!()`. |
+
+---
+
 ## Completed (2026-06-15 Condenser Thinking Mode + Token Estimation)
 
 | ID | Task | Date | Evidence |
@@ -264,4 +283,4 @@ cargo fmt --check
 
 ---
 
-*This TODO is the single source of truth for open work. Last updated 2026-06-13 after companies rename + EODHD dual-provider integration.*
+*This TODO is the single source of truth for open work. Last updated 2026-06-15 after pragmatic audit implementation (all 10 tasks complete).*

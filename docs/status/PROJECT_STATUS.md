@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Code Quality & Smell Reduction execution — all 6 waves complete (2026-06-15). Waves 1–6: security boundary correctness, runtime reliability, spec traceability, architecture convergence, module depth governance, CI sustainment gates.
+**Current session:** Pragmatic Audit Implementation — all 10 tasks complete (2026-06-15). Waves 1–6: test infrastructure, semantic grounding, type strength (CnsSpan enum + Ed25519 tokens), surface control, strangler fig extraction, stub resolution. 916 REQ tags. Zero `todo!()`/`unimplemented!()`.
 
 ---
 
@@ -31,29 +31,31 @@ All 24 workspace members.
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — 472 tests across 16 crates, 0 failures. 453 `// REQ:` tags (96% coverage).
+`cargo test --workspace` result: ✅ Pass — ~570 tests across 16 crates, 0 failures. 916 `// REQ:` tags (workspace-wide including MCP servers).
 
 ### Test Distribution
 
 | Crate | Tests | REQ Tags |
 |-------|-------|----------|
-| hkask-types | 69 | 66 |
-| hkask-inference | 20 | 20 |
-| hkask-storage | 59 | 65 |
-| hkask-memory | 14 | 14 |
-| hkask-cns | 35 | 35 |
-| hkask-agents | 14 | 14 |
-| hkask-keystore | 13 | 13 |
-| hkask-services | 78 | 76 |
-| hkask-templates | 20 | 20 |
-| hkask-condenser | 29 | 29 |
-| hkask-improv | 37 | 37 |
-| hkask-wallet | 13 | 13 |
-| hkask-communication | 19 | 19 |
-| hkask-mcp | 27 | 12 |
-| hkask-cli | 43 | 31 |
-| hkask-api | 9 | 8 |
-| **Total** | **472** | **453** |
+| hkask-types | 85 | 84 |
+| hkask-inference | 23 | 34 |
+| hkask-storage | 59 | 72 |
+| hkask-memory | 16 | 16 |
+| hkask-cns | 42 | 67 |
+| hkask-agents | 31 | 38 |
+| hkask-keystore | 13 | 26 |
+| hkask-services | 78 | 84 |
+| hkask-templates | 22 | 25 |
+| hkask-condenser | 34 | 35 |
+| hkask-improv | 37 | 57 |
+| hkask-wallet | 13 | 49 |
+| hkask-communication | 25 | 25 |
+| hkask-mcp | 38 | 37 |
+| hkask-cli | 43 | 32 |
+| hkask-api | ~12 | 39 |
+| **Crate subtotal** | **~571** | **720** |
+| MCP servers (10) | — | ~196 |
+| **Workspace total** | **~571** | **916** |
 
 ---
 
@@ -94,10 +96,10 @@ All 24 workspace members.
 | Skills | 28 |
 | MCP servers | 10 |
 | MCP tools (total) | 143 (all fully implemented) |
-| Tests (total) | 472 |
-| REQ tags | 453 |
+| Tests (total) | ~571 |
+| REQ tags | 916 |
 | CI quality gate scripts | 6 |
-| Public surface justifications | 13 |
+| Public surface justifications | 17 (incl. CnsSpan G2 + 4 new module G2s) |
 
 ---
 
@@ -143,7 +145,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 | Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services::verification`. No single SovereigntyService — this is correct, not a gap. |
 | Magna Carta P2 (Affirmative Consent) | CNS consent denial events emitted. Prohibition gate — denial is terminal. |
 | Magna Carta P3 (Generative Space) | 10 MCP servers + Okapi inference. No feature flags, no gated surfaces. |
-| Magna Carta P4 (Clear Boundaries) | OCAP capability membrane. Dual-gate enforcement (require_capability + require_sovereignty) with HMAC-SHA256 cryptographic tokens. DenyAllConsent default. Verified across all capability-granting paths. |
+| Magna Carta P4 (Clear Boundaries) | OCAP capability membrane. Dual-gate enforcement (require_capability + require_sovereignty) with Ed25519 cryptographic tokens. DenyAllConsent default. Verified across all capability-granting paths. |
 
 ---
 
@@ -183,6 +185,18 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 - MCP server tool audit: All 10 servers verified — 143/143 tools fully implemented (condenser 7, spec 6, replica 8, training 8, docproc 9, communication 9, memory 16, research 17, companies 27, media 36).
 - Docs updated: `TODO.md` (C-23–C-27 added, P2-12/P2-13 counts corrected), `OPEN_QUESTIONS.md` (§8 added — 4 Ω questions resolved, 3 remaining subjunctive), `PROJECT_STATUS.md` (this update).
 - Build: 15/16 crates check clean (`hkask-mcp` has pre-existing tracing macro issue). All tests pass.
+
+## Session (2026-06-15) — Pragmatic Audit Implementation
+
+**All 10 tasks from `docs/plans/pragmatic-audit-implementation-plan-v0.27.0.md` complete:**
+
+- **Wave 1 — Test Infrastructure:** +6 hkask-communication tests (25 total), +11 hkask-agents ACP tests (31 total), +11 hkask-mcp tests (38 total).
+- **Wave 2 — Semantic Grounding:** +21 hkask-api route serialization tests (39 REQ tags), 54 provenance markers applied across 18 files (zero unmarked).
+- **Wave 3 — Type Strength:** `CnsSpan` enum (51 variants, `ToolSubsystem` companion enum) with `Display`/`FromStr`; Ed25519 `DelegationToken` with `TokenSignature` newtype and `derive_signing_key()` helper. All crates migrated.
+- **Wave 4 — Surface Control:** 10 files split into ≤7-item submodules. 10 types → `pub(crate)`. ~25 deprecated re-exports removed.
+- **Wave 5 — Strangler Fig:** `KataEngine::from_env()`, `SpecService::get_full()`. CLI decoupled from InferenceConfig/InferenceRouter/SpecStore.
+- **Wave 6 — Stub Resolution:** All 5 training providers had complete cancel already (plan was outdated). Zero stubs.
+- **Metrics:** 916 REQ tags across workspace. Zero `todo!()`/`unimplemented!()`. Workspace compiles clean, all tests pass.
 
 ## Session (2026-06-14)
 

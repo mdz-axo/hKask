@@ -98,10 +98,22 @@ impl WalletBackedBudget {
             match self.wallet_manager.get_encumbrance(key_id) {
                 Ok(Some(ref enc)) if enc.is_active() => {
                     if enc.remaining_rj() < cost_rj.as_u64() {
+                        // REQ: MUST-6 — emit algedonic alert for encumbrance exhaustion
+                        self.wallet_manager.emit_key_alert(key_id, true, false);
                         return false;
                     }
                 }
-                _ => return false,
+                _ => {
+                    // No active encumbrance — check if key is expired/exhausted for alert
+                    if let Some(health) = self.check_key_health() {
+                        self.wallet_manager.emit_key_alert(
+                            key_id,
+                            health.exhausted,
+                            health.expired,
+                        );
+                    }
+                    return false;
+                }
             }
         } else {
             // No key — check raw wallet balance
@@ -117,6 +129,9 @@ impl WalletBackedBudget {
         {
             let would_spend = health.spent_rj + cost_rj.as_u64();
             if would_spend > limit.as_u64() {
+                // REQ: MUST-6 — emit algedonic alert for spending limit exhaustion
+                self.wallet_manager
+                    .emit_key_alert(self.key_id.unwrap(), true, health.expired);
                 return false;
             }
         }
@@ -194,10 +209,57 @@ impl WalletBackedBudget {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use hkask_storage::WalletStore;
+    use hkask_storage::database::in_memory_db;
+    use hkask_types::wallet::{Ed25519PublicKey, PrivacyMode, WalletConfig};
+
     // WalletBackedBudget tests require a real WalletManager with an in-memory DB.
     // These are integration-style tests — they validate the gas→rJoule→debit pipeline.
     // Skipped by default (require keystore env); run with:
     //   HKASK_MASTER_KEY=000102... cargo test -p hkask-cns -- wallet_budget
+
+    fn make_wallet_budget_with_key(spent_rj: u64, limit_rj: u64) -> WalletBackedBudget {
+        // SAFETY: test-only setup for deterministic wallet manager construction.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let wallet_id = WalletId::new();
+        let key_id = ApiKeyId::new();
+
+        store.credit_rjoules(wallet_id, RJoule::new(10_000)).unwrap();
+
+        let capability = ApiKeyCapability {
+            wallet_id,
+            key_id,
+            public_key: Ed25519PublicKey([11u8; 32]),
+            spending_limit_rj: RJoule::new(limit_rj),
+            spent_rj: RJoule::new(spent_rj),
+            scope: vec![],
+            purpose: "wallet budget health test".into(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&capability).unwrap();
+        store
+            .encumber_rjoules(wallet_id, key_id, RJoule::new(2_000))
+            .unwrap();
+
+        let manager = Arc::new(
+            WalletManager::build(WalletConfig::default(), store, Default::default(), None).unwrap(),
+        );
+
+        WalletBackedBudget::new(wallet_id, manager).with_api_key(key_id, RJoule::new(limit_rj))
+    }
 
     // REQ: cns-wallet-budget-001 — gas-to-rJoule conversion math rounds correctly
     #[test]
@@ -215,5 +277,15 @@ mod tests {
         assert_eq!(1500 / gas_per_rjoule, 1);
         // 2000 gas / 1000 = 2 rJ
         assert_eq!(2000 / gas_per_rjoule, 2);
+    }
+
+    // REQ: cns-wallet-budget-002 — can_proceed fail-closes when key spending limit is exhausted
+    #[test]
+    fn wallet_budget_rejects_exhausted_key_even_with_active_encumbrance() {
+        let budget = make_wallet_budget_with_key(1_000, 1_000);
+        assert!(
+            !budget.can_proceed(EnergyCost(1_000)),
+            "exhausted key must be rejected by wallet-backed budget"
+        );
     }
 }

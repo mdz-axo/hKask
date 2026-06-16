@@ -46,8 +46,17 @@ pub struct WeightedEvent {
 ///
 /// These are the CNS span namespaces that produce events requiring
 /// Curation (Loop 5) attention: energy deficits, variety imbalances,
-/// and agent pod failures.
-const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &["energy", "variety", "agent_pod"];
+/// agent pod failures, and wallet key lifecycle events (exhaustion, expiry).
+///
+/// Matched against the stored `span_category` column (which holds the
+/// full `short_name()` — e.g., `"wallet.key_expired"`).
+const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &[
+    "gas",
+    "variety",
+    "agent_pod",
+    "wallet.key_expired",
+    "wallet.key_exhausted",
+];
 
 define_store!(NuEventStore);
 
@@ -101,6 +110,7 @@ impl NuEventStore {
             SpanCategory::Curation => config.curation_lambda,
             SpanCategory::Inference => config.inference_lambda,
             SpanCategory::Episodic => config.episodic_lambda,
+            SpanCategory::Wallet => config.cybernetics_lambda, // wallet ops are cybernetic (energy budget)
             SpanCategory::Unknown => config.cybernetics_lambda, // safe default
         }
     }

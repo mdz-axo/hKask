@@ -49,21 +49,25 @@ unsafe impl Sync for WalletContext {}
 pub struct ApiKeyAuthService {
     wallet_store: Arc<WalletStore>,
     wallet_service: Arc<WalletService>,
-    system_webid: WebID,
 }
 
 impl ApiKeyAuthService {
     /// Create a new API key auth service backed by a WalletStore and WalletService.
-    pub fn new(
-        wallet_store: Arc<WalletStore>,
-        wallet_service: Arc<WalletService>,
-        system_webid: WebID,
-    ) -> Self {
+    pub fn new(wallet_store: Arc<WalletStore>, wallet_service: Arc<WalletService>) -> Self {
         Self {
             wallet_store,
             wallet_service,
-            system_webid,
         }
+    }
+
+    /// Deterministically derive a per-key budget principal.
+    ///
+    /// REQ: wallet-api-budget-001
+    /// pre:  key_id is a valid ApiKeyId
+    /// post: returns a deterministic WebID unique to that key_id within this namespace
+    fn budget_principal_for_key(key_id: ApiKeyId) -> WebID {
+        let persona = format!("api-key-budget:{}", key_id);
+        WebID::from_persona_with_namespace(persona.as_bytes(), "wallet-api-key-budget")
     }
 
     /// Authenticate a request using an Ed25519 API key Bearer token.
@@ -115,11 +119,17 @@ impl ApiKeyAuthService {
         if let Some(expiry) = capability.expiry
             && chrono::Utc::now() > expiry
         {
+            // REQ: MUST-6 — emit algedonic alert for key expiry
+            self.wallet_service
+                .emit_key_alert(capability.key_id, false, true);
             return Err(ApiKeyAuthError::KeyExpired);
         }
 
         // Verify spending limit not exceeded
         if capability.spent_rj.as_u64() >= capability.spending_limit_rj.as_u64() {
+            // REQ: MUST-6 — emit algedonic alert for spending limit exhaustion
+            self.wallet_service
+                .emit_key_alert(capability.key_id, true, false);
             return Err(ApiKeyAuthError::SpendingLimitExceeded);
         }
 
@@ -135,12 +145,17 @@ impl ApiKeyAuthService {
             }
             Some(ref enc) if enc.is_active() => {
                 // Encumbrance exists but is exhausted
+                // REQ: MUST-6 — emit algedonic alert for encumbrance exhaustion
+                self.wallet_service
+                    .emit_key_alert(capability.key_id, true, false);
                 return Err(ApiKeyAuthError::PaymentRequired(
                     "API key encumbrance exhausted — allocate more rJoules".into(),
                 ));
             }
             Some(_) => {
                 // Encumbrance exists but is consumed/released
+                self.wallet_service
+                    .emit_key_alert(capability.key_id, true, false);
                 return Err(ApiKeyAuthError::PaymentRequired(
                     "API key encumbrance is not active — re-encumber rJoules".into(),
                 ));
@@ -273,10 +288,11 @@ pub async fn api_key_auth_middleware(
 
     // Register wallet-backed budget so GovernedTool/GovernedInference
     // debit from this key's encumbrance during the request.
+    let budget_principal = ApiKeyAuthService::budget_principal_for_key(ctx.key_id);
     let _ = auth
         .wallet_service
         .register_wallet_budget_for_key(
-            auth.system_webid,
+            budget_principal,
             ctx.wallet_id,
             ctx.key_id,
             ctx.spending_limit_rj,
@@ -288,4 +304,99 @@ pub async fn api_key_auth_middleware(
     request.extensions_mut().insert(ctx);
 
     Ok(next.run(request).await)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_storage::WalletStore;
+    use hkask_storage::database::in_memory_db;
+    use hkask_types::wallet::{ApiKeyCapability, Ed25519PublicKey, PrivacyMode, WalletConfig};
+    use hkask_wallet::{ApiKeyIssuer, WalletManager};
+
+    fn make_auth_service_with_key(spent_rj: u64, limit_rj: u64) -> (ApiKeyAuthService, String) {
+        // SAFETY: test-only setup for deterministic wallet manager construction.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let manager = Arc::new(
+            WalletManager::build(
+                WalletConfig::default(),
+                Arc::clone(&store),
+                Default::default(),
+                None,
+            )
+            .unwrap(),
+        );
+        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).unwrap());
+        let wallet_service = Arc::new(WalletService::new(manager, issuer));
+
+        let wallet_id = WalletId::new();
+        store.ensure_wallet(wallet_id).unwrap();
+        let key_id = ApiKeyId::new();
+        let private_key = [42u8; 32];
+        let signing_key = SigningKey::from_bytes(&private_key);
+        let public_key = signing_key.verifying_key().to_bytes();
+
+        let capability = ApiKeyCapability {
+            wallet_id,
+            key_id,
+            public_key: Ed25519PublicKey(public_key),
+            spending_limit_rj: RJoule::new(limit_rj),
+            spent_rj: RJoule::new(spent_rj),
+            scope: vec![],
+            purpose: "middleware test key".into(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&capability).unwrap();
+
+        let auth = ApiKeyAuthService::new(store, wallet_service);
+        (auth, hex::encode(private_key))
+    }
+
+    // REQ: wallet-api-budget-001 — budget principal derivation is deterministic per key
+    #[test]
+    fn budget_principal_is_deterministic_for_same_key() {
+        let key_id = ApiKeyId::new();
+        let p1 = ApiKeyAuthService::budget_principal_for_key(key_id);
+        let p2 = ApiKeyAuthService::budget_principal_for_key(key_id);
+        assert_eq!(p1, p2);
+    }
+
+    // REQ: wallet-api-budget-002 — different API keys map to distinct budget principals
+    #[test]
+    fn budget_principal_is_distinct_across_keys() {
+        let k1 = ApiKeyId::new();
+        let k2 = ApiKeyId::new();
+        let p1 = ApiKeyAuthService::budget_principal_for_key(k1);
+        let p2 = ApiKeyAuthService::budget_principal_for_key(k2);
+        assert_ne!(p1, p2);
+    }
+
+    // REQ: wallet-api-auth-003 — authentication rejects keys with exhausted spending limit
+    #[test]
+    fn authenticate_rejects_exhausted_key() {
+        let (auth, token) = make_auth_service_with_key(1_000, 1_000);
+        let request = Request::builder()
+            .uri("/api/wallet/balance")
+            .header("Authorization", format!("Bearer {token}"))
+            .body(Body::empty())
+            .unwrap();
+
+        let err = auth.authenticate(&request).unwrap_err();
+        assert!(
+            matches!(err, ApiKeyAuthError::SpendingLimitExceeded),
+            "expected SpendingLimitExceeded, got {err:?}"
+        );
+    }
 }

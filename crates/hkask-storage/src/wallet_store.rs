@@ -688,6 +688,13 @@ impl WalletStore {
             }
         }
 
+        // Keep api_keys.spent_rj in sync with encumbrance consumption.
+        // This preserves a single coherent spending view for auth/status APIs.
+        conn.execute(
+            "UPDATE api_keys SET spent_rj = spent_rj + ?1 WHERE key_id = ?2",
+            rusqlite::params![cost, key_id.to_string()],
+        )?;
+
         // Check if fully consumed — transition status
         conn.execute(
             "UPDATE encumbrances SET status = 'consumed', released_at = ?1 WHERE key_id = ?2 AND status = 'active' AND consumed_rj >= amount_rj",
@@ -1079,6 +1086,88 @@ mod tests {
         store.revoke_api_key(key_id).unwrap();
         let after = store.get_balance(wallet).unwrap().unwrap();
         assert_eq!(after.rjoules, 8800); // 5000 + 3800 unspent returned
+    }
+
+    // REQ: wallet-spend-sync-001 — consume_encumbrance increments api_keys.spent_rj in lockstep
+    #[test]
+    fn consume_encumbrance_updates_api_key_spent_rj() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(10_000)).unwrap();
+
+        let key_id = ApiKeyId::new();
+        let cap = ApiKeyCapability {
+            wallet_id: wallet,
+            key_id,
+            public_key: Ed25519PublicKey([7u8; 32]),
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::ZERO,
+            scope: vec!["read-specs".to_string()],
+            purpose: "spend sync test".to_string(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&cap).unwrap();
+
+        store
+            .encumber_rjoules(wallet, key_id, RJoule::new(2000))
+            .unwrap();
+        store.consume_encumbrance(key_id, RJoule::new(300)).unwrap();
+        store.consume_encumbrance(key_id, RJoule::new(250)).unwrap();
+
+        let key = store.get_api_key(key_id).unwrap().unwrap();
+        assert_eq!(
+            key.spent_rj,
+            RJoule::new(550),
+            "spent_rj must track cumulative encumbrance consumption"
+        );
+    }
+
+    // REQ: wallet-spend-sync-002 — failed/replayed consume must not drift api_keys.spent_rj
+    #[test]
+    fn failed_consume_does_not_increment_api_key_spent_rj() {
+        let store = make_store();
+        let wallet = WalletId::new();
+        store.credit_rjoules(wallet, RJoule::new(10_000)).unwrap();
+
+        let key_id = ApiKeyId::new();
+        let cap = ApiKeyCapability {
+            wallet_id: wallet,
+            key_id,
+            public_key: Ed25519PublicKey([8u8; 32]),
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::ZERO,
+            scope: vec!["read-specs".to_string()],
+            purpose: "failed consume sync test".to_string(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&cap).unwrap();
+
+        store
+            .encumber_rjoules(wallet, key_id, RJoule::new(300))
+            .unwrap();
+        store.consume_encumbrance(key_id, RJoule::new(300)).unwrap();
+
+        // Replay/second consume must fail because encumbrance is fully consumed.
+        let second = store.consume_encumbrance(key_id, RJoule::new(1));
+        assert!(
+            second.is_err(),
+            "second consume must fail after full consumption"
+        );
+
+        let key = store.get_api_key(key_id).unwrap().unwrap();
+        assert_eq!(
+            key.spent_rj,
+            RJoule::new(300),
+            "spent_rj must remain unchanged on failed consume"
+        );
     }
 
     // REQ: P2-wallet-store — purge_expired_references cleans up
