@@ -834,6 +834,9 @@ impl WalletManager {
     }
 
     /// Current gas→rJoule conversion rate.
+    ///
+    /// REQ: P9-wallet-mgr-gas-per-rjoule
+    /// post: returns the manager's current gas_per_rjoule rate
     pub fn gas_per_rjoule(&self) -> u64 {
         self.gas_per_rjoule.load(Ordering::Relaxed)
     }

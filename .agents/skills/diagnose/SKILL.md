@@ -29,7 +29,7 @@ Before building a feedback loop, anchor the diagnosis to functional requirements
 
 1. **Identify DDMVSS categories** — which category does the bug fall under? (Domain, Capability, Interface, Composition, Trust, Observability, Persistence, Lifecycle, Curation). A bug may span multiple categories.
 2. **Query the spec graph** — call `spec/graph/query` with the relevant categories to retrieve `Spec` objects governing the misbehaving code path.
-3. **Evaluate spec readiness** — call `spec/curate/evaluate` for each retrieved spec. A spec in `Merge` state is ready to test against. A spec in `Revise` state may itself be wrong — note this.
+3. **Evaluate spec readiness** — inspect the `state` field of each retrieved spec (`Draft`, `Revise`, `Merge`). A spec in `Merge` state is ready to test against. A spec in `Revise` state may itself be wrong — note this. If writing quality is questionable, call `spec/require_writing_quality` to assess whether the spec meets the 4-perspective publication standard.
 4. **Map symptom to requirement** — for each relevant spec, identify which criterion the bug violates. Record the `spec_id` and `// REQ:` reference.
 5. **Flag spec gaps** — if no spec covers the misbehavior, call it out: **"Spec gap: no requirement governs [behavior]."** This is a finding, not a failure. Document it in `OPEN_QUESTIONS.md`.
 
@@ -136,9 +136,9 @@ If a correct seam exists:
 
 ### Spec Verification
 
-- [ ] **Call `spec/test/verify`** to confirm the fix closes the requirement gap identified in Phase 0
-- [ ] **Call `spec/graph/validate`** for collection coherence — no dangling or orphaned specs
+- [ ] **Call `spec/graph/coherence`** to confirm the fix does not introduce dangling or orphaned specs
 - [ ] **New spec gaps** discovered during diagnosis are documented in `OPEN_QUESTIONS.md` with deferral rationale
+- [ ] If the fix creates a new requirement, call `spec/goal/capture` and link the regression test with `// REQ:`
 
 **Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling), note it for architecture review — after the fix, not before.
 

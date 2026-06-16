@@ -16,7 +16,7 @@ fn set_test_master_key() {
     }
 }
 
-// REQ: P9-wlt-hinkal-shielded-withdraw-delta-test — shielded withdraw submits Hinkal /withdraw request and returns tx hash
+// REQ: P9-wallet-hinkal-shielded-withdraw-delta-test — shielded withdraw submits Hinkal /withdraw request and returns tx hash
 #[tokio::test]
 async fn submit_signed_tx_posts_withdraw_and_returns_tx_hash() {
     set_test_master_key();
@@ -65,7 +65,7 @@ async fn submit_signed_tx_posts_withdraw_and_returns_tx_hash() {
     assert_eq!(tx_hash.0, "0xwithdrawhash");
 }
 
-// REQ: P9-wlt-hinkal-shield-payload-test — submit_signed_tx accepts backward-compatible payload+signature envelope
+// REQ: P9-wallet-hinkal-shield-payload-test — submit_signed_tx accepts backward-compatible payload+signature envelope
 #[tokio::test]
 async fn submit_signed_tx_accepts_legacy_payload_plus_signature() {
     set_test_master_key();
@@ -108,7 +108,7 @@ async fn submit_signed_tx_accepts_legacy_payload_plus_signature() {
     assert_eq!(tx_hash.0, "0xlegacyhash");
 }
 
-// REQ: P9-wlt-hinkal-suppress-nonincreasing-test — withdraw fails closed when API omits tx hash in success payload
+// REQ: P9-wallet-hinkal-suppress-nonincreasing-test — withdraw fails closed when API omits tx hash in success payload
 #[tokio::test]
 async fn submit_signed_tx_fails_closed_when_tx_hash_missing() {
     set_test_master_key();
@@ -156,7 +156,7 @@ async fn submit_signed_tx_fails_closed_when_tx_hash_missing() {
     }
 }
 
-// REQ: P9-wlt-hinkal-shield-message-format-test — shielded monitor reports only balance deltas and reuses cached read session
+// REQ: P9-wallet-hinkal-shield-message-format-test — shielded monitor reports only balance deltas and reuses cached read session
 #[tokio::test]
 async fn monitor_shielded_transfers_reports_deltas_only() {
     set_test_master_key();

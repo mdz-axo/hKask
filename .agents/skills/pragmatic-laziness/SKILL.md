@@ -84,11 +84,12 @@ A procedural composition skill. Finds the path of least action through meaning-s
 The laziest path is not always the most obvious one. The curve of fastest descent is a cycloid — it dips below the endpoint before rising. Naive simplification (just deleting code) is not always the true least-action path. Sometimes you must go *through* apparent complexity to extract the deeper pattern that ultimately reduces total system action. When Phase 3 finds a candidate that looks more complex than the status quo, ask: *"Does this reduce total system action across all phases, or just shift it elsewhere?"*
 
 ## Registry Templates
+This skill's runtime templates live in `registry/templates/pragmatic-laziness/`:
 
 | Template | Type | Purpose |
-|----------|------|--------|
-- `pragmatic-laziness-flow.j2` | KnowAct | Orchestrate the 3-phase cascade: delegate to semantics → cybernetics → essentialist + grill-me, loop until δS = 0
-- `pragmatic-laziness-converge.j2` | KnowAct | δS = 0 check: compare current configuration to previous; has action reached stationary point?
+|----------|------|---------|
+| `pragmatic-laziness-flow.j2` | KnowAct | Orchestrate the 3-phase cascade: delegate to semantics → cybernetics → essentialist + grill-me, loop until δS = 0 |
+| `pragmatic-laziness-converge.j2` | KnowAct | δS = 0 check: compare current configuration to previous; has action reached stationary point? |
 
 Two templates. The skill is lazy.
 

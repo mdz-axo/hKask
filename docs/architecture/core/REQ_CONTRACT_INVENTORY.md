@@ -6471,14 +6471,14 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns Ok(Some(capability)) if key exists and is active;returns Ok(None) if key doesn't exist or is revoked
 - **File:** crates/hkask-wallet/src/manager.rs:236
 
-#### P9-wlt-mgr-gas-to-rjoules (🟢 full)
+#### P9-wallet-mgr-gas-to-rjoules (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  gas is a non-negative integer
 - **Post:** returns RJoule equivalent using the current gas_per_rjoule rate
 - **File:** crates/hkask-wallet/src/manager.rs:812
 
-#### P9-wlt-mgr-rjoules-to-gas (🟢 full)
+#### P9-wallet-mgr-rjoules-to-gas (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  rj is a non-negative RJoule

@@ -185,6 +185,9 @@ impl DynamicGasTable {
     /// Number of observations accumulated for a specific server.
     ///
     /// Returns 0 if the server has never been observed.
+    ///
+    /// REQ: GAS-CALIB-002
+    /// post: returns the count of recorded observations for `server`, or 0 if unobserved
     pub fn observation_count(&self, server: &str) -> u64 {
         self.observation_counts.get(server).copied().unwrap_or(0)
     }
@@ -203,7 +206,7 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
-    // REQ: GAS-CLIB-001 — first observation initializes EMA
+    // REQ: GAS-CALIB-001 — first observation initializes EMA
     #[test]
     fn first_observation_initializes_ema() {
         let mut table = DynamicGasTable::new();
@@ -216,7 +219,7 @@ mod tests {
         assert_eq!(table.observation_count("hkask-mcp-condenser"), 1);
     }
 
-    // REQ: GAS-CALIB-02 — EMA smoothes multiple observations
+    // REQ: GAS-CALIB-002 — EMA smoothes multiple observations
     #[test]
     fn ema_smooths_multiple_observations() {
         let mut table = DynamicGasTable::new();

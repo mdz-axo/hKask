@@ -31,9 +31,13 @@ use std::time::Duration;
 use tracing::{info, warn};
 
 /// Default interval between background calibrations.
+///
+/// REQ: GAS-CALIB-004 — runtime calibration loop wired to production estimator
 pub const DEFAULT_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 /// Default lookback window for the first calibration after construction.
+///
+/// REQ: GAS-CALIB-004
 pub const DEFAULT_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hours(1);
 
 /// Self-regulating energy estimator that refreshes its per-server table from
@@ -70,6 +74,11 @@ impl CalibratedEnergyEstimator {
         }
     }
 
+    /// Configure how far back the first calibration pass searches for events.
+    ///
+    /// REQ: GAS-CALIB-004
+    /// pre:  lookback is a positive duration
+    /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
         let now = Utc::now();
@@ -122,6 +131,10 @@ impl CalibratedEnergyEstimator {
     ///
     /// The task runs until the runtime shuts down. Calibration errors are logged
     /// but do not crash the task.
+    ///
+    /// REQ: GAS-CALIB-004
+    /// pre:  interval > 0
+    /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
         tokio::spawn(async move {
             loop {
@@ -140,6 +153,9 @@ impl CalibratedEnergyEstimator {
     /// Snapshot of the current calibrated server-cost table.
     ///
     /// Useful for diagnostics and tests.
+    ///
+    /// REQ: GAS-CALIB-004
+    /// post: returns a copy of the internal server_costs map
     pub fn current_table(&self) -> std::collections::HashMap<String, u64> {
         self.table
             .read()

@@ -47,22 +47,6 @@
   cascade_level: 0
   matroshka_limit: 7
 
-- id: composition/hemingway-style-synthesizer
-  template_type: WordAct
-  name: "Hemingway Style Synthesizer"
-  lexicon_terms:
-    - compose
-    - synthesize
-    - write
-    - edit
-    - refine
-    - render
-  description: "Generate prose using Kansas City Star rules, Iceberg Theory, Fish generative forms, and embedding-based exemplar retrieval"
-  source_path: registry/templates/composition/hemingway-style-synthesizer.j2
-  required_capabilities: []
-  cascade_level: 0
-  matroshka_limit: 7
-
 - id: knowact/detect
   template_type: KnowAct
   name: "Drift Detection"

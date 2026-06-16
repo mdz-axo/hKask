@@ -96,10 +96,4 @@ kask sovereignty verify --principle p1  # Verify P1 only
 kask sovereignty verify --json       # JSON output (for MCP/API)
 ```
 
-## MCP Access
-
-The CNS MCP server exposes `cns_verify_magna_carta` which invokes the CLI verifier and returns a JSON report.
-
-| Tool | Parameters | Returns |
-|------|-----------|--------|
-| `cns_verify_magna_carta` | `principle` (optional: p1, p2, p3, p4) | JSON verification report |
+There is no dedicated MCP tool for Magna Carta verification. The CLI command is the canonical entry point; it loads assertion manifests from `.agents/skills/magna-carta-verifier/manifests/` and reports pass/fail/gap status.

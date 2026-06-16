@@ -5,14 +5,14 @@ Workspace version: 0.27.0
 | Metric | Count |
 |--------|-------|
 | workspace_version | 0.27.0 |
-| total_skills | 69 |
+| total_skills | 66 |
 | complete_both_layers | 29 |
 | zed_only | 1 |
-| registry_only | 39 |
+| registry_only | 36 |
 | active | 23 |
 | stale_warning | 11 |
-| critical | 7 |
-| recommend_deprecation | 28 |
+| critical | 6 |
+| recommend_deprecation | 26 |
 
 ## Skill Details
 
@@ -55,13 +55,6 @@ Workspace version: 0.27.0
 - ⚠ guidelines-apply.j2: energy_cap nested under contract (spec says top-level)
 - ⚠ guidelines-apply.j2: visibility nested under contract (spec says top-level)
 - ⚠ guidelines-assess.j2: energy_cap nested under contract (spec says top-level)
-
-### composition — recommend_deprecation (0.08)
-- Zed: ✗, Registry: ✓
-- Templates: 5 .j2 | WordAct=True KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ agatha-eliot-mashup.j2: unknown hlexicon terms ['render', 'evoke', 'interrogate', 'unveil']
 
 ### condenser-continuation — active (0.83)
 - Zed: ✓, Registry: ✓
@@ -118,13 +111,6 @@ Workspace version: 0.27.0
 - ⚠ doc-align-metadata.j2: missing [inference] frontmatter
 - ⚠ doc-align-metadata.j2: invalid visibility None
 - ⚠ doc-align-metadata.j2: missing/empty contract
-
-### ensemble — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 4 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ standing_session_administrator_view.j2: missing [inference] frontmatter
 
 ### essentialist — active (0.94)
 - Zed: ✓, Registry: ✓
@@ -276,13 +262,6 @@ Workspace version: 0.27.0
 - ⚠ missing Zed layer (SKILL.md)
 - ⚠ missing manifest.yaml
 - ⚠ meta_decompose.j2: unknown hlexicon terms ['subgoal', 'dependency', 'strategy', 'effort']
-
-### pragmatic-composition — critical (0.31)
-- Zed: ✗, Registry: ✓
-- Templates: 1 .j2 | WordAct=True KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ prompt_template.j2: invalid visibility None
 
 ### pragmatic-cybernetics — active (0.94)
 - Zed: ✓, Registry: ✓

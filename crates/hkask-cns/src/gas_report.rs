@@ -239,6 +239,7 @@ impl GasReport {
                     total_reserved += extract_cost(ev);
                 }
                 GasEventKind::Settled => {
+                    total_reserved += extract_reserved(ev);
                     total_consumed += extract_actual(ev);
                 }
                 GasEventKind::Depleted => {
@@ -355,6 +356,7 @@ impl GasReport {
                     entry.reserved += extract_cost(ev);
                 }
                 GasEventKind::Settled => {
+                    entry.reserved += extract_reserved(ev);
                     entry.consumed += extract_actual(ev);
                 }
                 GasEventKind::Depleted => {

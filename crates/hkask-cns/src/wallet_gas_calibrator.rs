@@ -19,9 +19,13 @@ use std::time::Duration;
 use tracing::{info, warn};
 
 /// Default interval between background wallet-gas calibrations.
+///
+/// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
 pub const DEFAULT_WALLET_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 /// Default lookback window for the first calibration pass after construction.
+///
+/// REQ: GAS-CALIB-005
 pub const DEFAULT_WALLET_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hours(1);
 
 /// Calibrator for the wallet gas→rJoule conversion rate.
@@ -43,7 +47,9 @@ impl WalletGasCalibrator {
     /// Create a wallet gas calibrator backed by the given event store and wallet manager.
     ///
     /// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
-    /// post: returns WalletGasCalibrator with the manager's current gas_per_rjoule rate
+    /// pre:  store is a valid NuEventStore; wallet_manager is valid
+    /// post: returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate
+    /// post: first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
     pub fn new(store: Arc<NuEventStore>, wallet_manager: Arc<WalletManager>) -> Self {
         let initial_rate = wallet_manager.gas_per_rjoule();
         Self {
@@ -57,6 +63,10 @@ impl WalletGasCalibrator {
     }
 
     /// Configure how far back the first calibration pass searches for events.
+    ///
+    /// REQ: GAS-CALIB-005
+    /// pre:  lookback is a positive duration
+    /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
         let now = Utc::now();
@@ -124,6 +134,10 @@ impl WalletGasCalibrator {
     ///
     /// The task runs until the runtime shuts down. Calibration errors are logged
     /// but do not crash the task.
+    ///
+    /// REQ: GAS-CALIB-005
+    /// pre:  interval > 0
+    /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
         tokio::spawn(async move {
             loop {
