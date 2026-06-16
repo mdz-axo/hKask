@@ -89,7 +89,6 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | Document | MDS | Description |
 |----------|--------|-------------|
 | [`DOCUMENTATION_STANDARDS.md`](specifications/standards/DOCUMENTATION_STANDARDS.md) | all | Metadata, citation, diagram, and lifecycle mandates |
-| [`TESTING_STANDARDS.md`](specifications/standards/TESTING_STANDARDS.md) | all | Testing protocol and classification |
 | [`WRITING_EXCELLENCE.md`](specifications/standards/WRITING_EXCELLENCE.md) | curation | The 4-perspective writing test |
 | [`DEPENDENCY_POLICY.md`](specifications/standards/DEPENDENCY_POLICY.md) | lifecycle | Dependency governance |
 
@@ -109,7 +108,6 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`TRACEABILITY_MATRIX.md`](specifications/specs/TRACEABILITY_MATRIX.md) | all | Goal spec → code → test traceability |
 | [`REPL-specification.md`](specifications/specs/REPL-specification.md) | domain, composition, lifecycle, curation | REPL specification — `kask chat` |
 | [`MDS-agent-service.md`](specifications/specs/MDS-agent-service.md) | domain, composition, trust, lifecycle | AgentService specification |
-| [`test-program.md`](specifications/specs/test-program.md) | domain, composition, trust, lifecycle, curation | Test program specification |
 | [`wallet-specification.md`](specifications/specs/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate — architectural specification |
 | [`salience-specification.md`](specifications/specs/salience-specification.md) | domain, composition | Passage salience algorithm specification |
 | [`gentle-lovelace-specification.md`](specifications/specs/gentle-lovelace-specification.md) | domain, composition, curation | Gentle Lovelace — document excellence replica specification |

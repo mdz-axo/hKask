@@ -1,9 +1,9 @@
 //! API authentication middleware — Capability token verification
 //!
 //! Extracts `Authorization: Bearer <token>` from incoming requests,
-//! verifies the HMAC-SHA256 signature using the MCP security key derived
-//! from the master key via HKDF-SHA256, checks expiry, and attaches
-//! the validated `DelegationToken` and `WebID` to request extensions.
+//! verifies the Ed25519 signature using the token's embedded public key,
+//! checks expiry, and attaches the validated `DelegationToken` and `WebID`
+//! to request extensions.
 //!
 //! Routes that don't require auth (health checks, model listing) are
 //! excluded from authentication.
@@ -22,46 +22,17 @@ use std::sync::{Arc, RwLock};
 /// Routes that bypass authentication (health checks, model listing).
 const PUBLIC_PATHS: &[&str] = &["/api/cns/health", "/api/models", "/api/models/search"];
 
-/// Service holding the master key derivation context for capability token
-/// verification.
+/// Service for capability token verification and revocation tracking.
 #[derive(Debug, Clone)]
 pub struct AuthService {
-    /// Resolved HMAC key derived from the master key via HKDF-SHA256.
-    secret: Arc<Vec<u8>>,
     /// Revoked capability token IDs (sync RwLock for use in sync verify_token)
     revoked_tokens: Arc<RwLock<HashSet<String>>>,
 }
 
 impl AuthService {
-    /// Create a new `AuthService` by deriving the MCP security key
-    /// from the keystore's resolution chain.
-    ///
-    /// Delegates to the keystore's domain-specific resolution chain.
-    pub fn new() -> Result<Self, String> {
-        let secret = hkask_keystore::resolve_mcp_security_key()
-            .map_err(|e| format!("MCP security key not available: {}", e))?;
-
-        Ok(Self {
-            secret: Arc::new((*secret).clone()),
-            revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
-        })
-    }
-
-    /// Create an `AuthService` from the MCP secret in a ServiceConfig.
-    ///
-    /// This avoids re-resolving the secret from the keystore by using
-    /// the already-resolved `config.mcp_secret`.
-    pub fn from_config(config: &hkask_services::ServiceConfig) -> Self {
+    /// Create an `AuthService` from a ServiceConfig.
+    pub fn from_config(_config: &hkask_services::ServiceConfig) -> Self {
         Self {
-            secret: Arc::new(config.mcp_secret.clone()),
-            revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
-        }
-    }
-
-    /// Create an `AuthService` from an explicit secret (useful for tests).
-    pub fn from_secret(secret: Vec<u8>) -> Self {
-        Self {
-            secret: Arc::new(secret),
             revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
         }
     }

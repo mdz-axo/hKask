@@ -59,7 +59,6 @@ pub enum AttenuationError {
     ExceedsSystemMax { level: u8, max: u8 },
 }
 
-pub(crate) mod hmac_ops;
 pub mod verification;
 
 pub mod tokens;

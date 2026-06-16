@@ -317,14 +317,17 @@ cargo test -p hkask-cns -- --nocapture
 ### Task 2.3 — Wallet Balance Conservation (G4 partial) ✅ COMPLETE (2026-06-15)
 
 **Assumption:** The wallet crate (`hkask-wallet`) manages financial transactions. The invariant "sum of inputs = sum of outputs + fees" must hold for any transaction graph. Currently verified only by example-based tests.  
-**Expected outcome:** `cargo test -p hkask-wallet` includes test on balance conservation.
+**Expected outcome:** `cargo test -p hkask-wallet` includes proptest on balance conservation.
 
 **PR 2.3.1: Encumbrance lifecycle balance conservation** ✅
 
 - File: `crates/hkask-wallet/src/manager.rs` (added to existing `#[cfg(test)]` module)
-- Test: `balance_conservation_under_encumbrance_lifecycle` — verifies balance conservation across 3 encumbrance scenarios (partial consume, full consume, release without consume)
-- **Deferred:** Full proptest blocked by `make_manager()` hitting OS keychain (too slow for 256 cases). Will convert to proptest when mock keychain is available in `hkask-test-harness`.
-- **Lines: ~50**
+- **Proptest:** 64 cases, 0 max shrink iters, 0.08s runtime. Verifies 3 invariants:
+  1. `balance == credited - consumed` (conservation)
+  2. `consumed ≤ credited` (can't spend more than deposited)
+  3. Per-key: `consumed ≤ encumbered` (can't consume more than locked)
+- **Diagnosis:** Initial proptest timeout was caused by shrinking on a failing case (FK constraint violation from missing API keys), not by slow `make_manager()` (measured at 948µs/call). Fixed by creating API keys before encumbrance and disabling shrinking.
+- **Lines: ~100**
 
 <details>
 <summary>Original aspirational code sketch (superseded)</summary>

@@ -232,7 +232,7 @@ Document (PDF, MD, HTML, TXT)
 |----------|-----------|
 | [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Current tool catalog (143 tools across 10 servers — all fully implemented) |
 | [`do../status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Test coverage per crate (413 total tests, 396 REQ tags) |
-| [`do../specifications/specs/test-program.md`](../specifications/specs/test-program.md) | MDS self-applying test methodology |
+| [`do../architecture/core/TESTING_DISCIPLINE.md`](../architecture/core/TESTING_DISCIPLINE.md) | Testing discipline (Design by Contract + Property-Based Testing) |
 | [`docs/OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) | Open questions including OQ-5 (test isolation), OQ-9 (stub MCP servers) |
 | [`AGENTS.md`](../../AGENTS.md) | Crate map with 10 listed MCP servers |
 | [`do../architecture/core/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) | P8 (test behavioral properties), C4 (extraction threshold), C8 (test depth) |
