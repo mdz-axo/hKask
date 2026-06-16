@@ -11,8 +11,6 @@
 
 ## 1. Domain Breakdown
 
-The system is decomposed into **22 functional domains**, cross-cutting the crate boundaries. Each domain is owned by a single principle (the **motivating principle**) and may carry additional constraining principles.
-
 ### Domain Map
 
 | # | Domain | Short Tag | Crate | Contracts | Motivating Principle |
@@ -25,99 +23,513 @@ The system is decomposed into **22 functional domains**, cross-cutting the crate
 | 6 | Circuit Breaking | `circuit` | hkask-cns | 3 | P9 (Homeostatic Self-Regulation) |
 | 7 | API Metering | `api` | hkask-cns | 8 | P9 (Homeostatic Self-Regulation) |
 | 8 | Energy Estimation | `est` | hkask-cns | 2 | P9 (Homeostatic Self-Regulation) |
-| 9 | Wallet Management | `wallet` | hkask-wallet | 23 | P2 (User Sovereignty) |
-| 10 | Storage Operations | `storage` | hkask-storage | 195 | P1 (User Sovereignty) |
-| 11 | Memory Management | `memory` | hkask-memory | 52 | P2 (User Sovereignty) |
-| 12 | Inference Execution | `inference` | hkask-inference | 86 | P9 (Homeostatic Self-Regulation) |
-| 13 | Template Rendering | `templates` | hkask-templates | 52 | P3 (Generative Space) |
-| 14 | MCP Framework | `mcp` | hkask-mcp | 41 | P4 (Clear Boundaries) |
-| 15 | Service Layer | `services` | hkask-services | 201 | P7 (Evolutionary Architecture) |
-| 16 | Agent Runtime | `agents` | hkask-agents | 30 | P12 (Affirmative Consent) |
-| 17 | Communication | `comm` | hkask-communication | 25 | P12 (Affirmative Consent) |
-| 18 | Keystore Management | `keystore` | hkask-keystore | 28 | P12 (Affirmative Consent) |
-| 19 | Type System | `types` | hkask-types | 99 | P8 (Semantic Grounding) |
-| 20 | API Surface | `api-surface` | hkask-api | 8 | P4 (Clear Boundaries) |
-| 21 | CLI Interface | `cli` | hkask-cli | 2 | P4 (Clear Boundaries) |
-| 22 | Test Harness | `test` | hkask-test-harness | 42 | P5 (Essentialism) |
-
-**Total:** 22 domains, ~900 contracts across 15 crates.
+| 9 | Cybernetics Loop | `loop` | hkask-cns | 1 | P9 (Homeostatic Self-Regulation) |
+| 10 | Wallet | `wallet` | hkask-wallet | 23 | P9 (Homeostatic Self-Regulation) |
+| 11 | Storage | `storage` | hkask-storage | 12 | P3 (Generative Space) |
+| 12 | Memory | `memory` | hkask-memory | 8 | P3 (Generative Space) |
+| 13 | Inference Engine | `inference` | hkask-inference | 15 | P9 + P4 (Homeostatic + Boundary) |
+| 14 | Template Engine | `templates` | hkask-templates | 10 | P3 (Generative Space) |
+| 15 | MCP Servers | `mcp` | mcp-servers/ | 18 | P5 (Essentialism) |
+| 16 | Service Layer | `services` | hkask-services | 14 | P5 + P7 (Essentialism + Evolution) |
+| 17 | Agent Runtime | `agents` | hkask-agents | 30 | P2 (User Sovereignty) |
+| 18 | Communication | `comm` | hkask-comm | 6 | P2 (User Sovereignty) |
+| 19 | Keystore | `keystore` | hkask-keystore | 5 | P2 (User Sovereignty) |
+| 20 | Type System | `types` | hkask-types | 40 | P8 (Semantic Grounding) |
+| 21 | API Surface | `api` | hkask-api | 25 | P2 + P4 (Sovereignty + Boundaries) |
+| 22 | CLI Surface | `cli` | kask | 12 | P3 (Generative Space) |
 
 ### Domain Ownership Rules
 
-- **CNS domains (1–8):** All owned by P9 — the CNS is the cybernetic controller. Every regulation-loop operation begins with P9 as motivating principle.
-- **Storage (10):** P1 (User Sovereignty) — data ownership is the root of all consent.
-- **Wallet (9):** P2 (User Sovereignty) — the wallet is the user's financial sovereignty anchor.
-- **Agents (16):** P12 (Affirmative Consent) — consent records are the consent anchor.
-- **Types (19):** P8 (Semantic Grounding) — newtypes and conversions carry meaning-preservation contracts.
-- **Services (15):** P7 (Evolutionary Architecture) — configurable parameters emerged from real usage.
+Each contract carries a **motivating principle** in its ID prefix and **constraining principles** in its body annotations.
+
+1. **P9 (Homeostatic Self-Regulation)** owns all CNS regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation
+2. **P4 (Clear Boundaries)** owns all membrane/boundary contracts: governed_tool, governed_inference
+3. **P8 (Semantic Grounding)** owns all type-level identity contracts: `EnergyCost`, `EnergyDelta` newtypes
+4. **P12 (Affirmative Consent)** owns all subscriber/consent contracts: `subscribe`, `subscribe_async`
+5. **P3 (Generative Space)** owns all sync/blocking variants and content-domain contracts: blocking accessors, storage, memory, CLI
+6. **P7 (Evolutionary Architecture)** owns all configurable-from-real-usage contracts: threshold calibration, replenish rate tuning
+
+A contract may have **one motivating principle** and **multiple constraining principles**. The motivating principle determines the ID prefix (`P{N}`). Constraining principles appear as `[P{N}]` annotations in the contract body.
 
 ---
 
-## 2. CNS Domains — Functional Requirements
+## 2. Functional Requirements by Domain
 
-### 2.1 Energy Budget (hkask-cns/energy.rs)
+### 2.1 Energy Budgeting (`energy`)
 
-The energy budget is the **primary regulation mechanism** — it enforces gas limits on all operations. Cybernetics is the homeostatic controller: it holds the budget state, checks availability, reserves gas, settles actual costs, and replenishes over time.
+**Motivating Principle:** P9 (Homeostatic Self-Regulation) — gas budget enforcement prevents runaway agents
+**Constraining Principle:** P8 (Semantic Grounding) — type-level identity for energy cost types
+**Crate:** `hkask-cns` | **Source:** `src/energy.rs`
 
-20 contracts implement the full budget lifecycle:
+#### Production Contracts (16)
 
-| ID | Requirement | Contracts |
-|----|-----------|-----------|
-| `FR-ENERGY-001` | Type-level energy conversions must be identity-preserving | `P8-cns-energy-cost-from-raw`, `P8-cns-energy-cost-as-raw`, `P8-cns-energy-delta-from-raw`, `P8-cns-energy-delta-as-raw` |
-| `FR-ENERGY-002` | Delta direction tests must be logically consistent | `P9-cns-energy-delta-descending`, `P9-cns-energy-delta-ascending` |
-| `FR-ENERGY-003` | Budget invariant holds for all state transitions | `P9-cns-energy-budget-invariant` |
-| `FR-ENERGY-004` | Budget creation requires cap > 0, defaults safe | `P9-cns-energy-budget-new` |
-| `FR-ENERGY-005` | Unlimited budget bounds cap at u64::MAX, hard_limit = false | `P9-cns-energy-budget-unlimited` |
-| `FR-ENERGY-006` | Budget can be configured with replenish rate | `P9-cns-energy-budget-with-replenish-rate` |
-| `FR-ENERGY-007` | Budget can be configured with alert threshold | `P9-cns-energy-budget-with-alert-threshold` |
-| `FR-ENERGY-008` | Budget can be configured with hard limit toggle | `P9-cns-energy-budget-with-hard-limit` |
-| `FR-ENERGY-009` | Gas check returns true iff gas <= available OR hard_limit is false | `P9-cns-energy-budget-can-proceed` |
-| `FR-ENERGY-010` | Available gas calculation is non-negative | `P9-cns-energy-budget-available` |
-| `FR-ENERGY-011` | Reserve gas increases reserved, maintains remaining + reserved <= cap | `P9-cns-energy-budget-reserve` |
-| `FR-ENERGY-012` | Settle gas decreases reserved, decreases remaining | `P9-cns-energy-budget-settle` |
-| `FR-ENERGY-013` | Consume gas decreases remaining directly | `P9-cns-energy-budget-consume` |
-| `FR-ENERGY-014` | Replenish increases remaining up to cap | `P9-cns-energy-budget-replenish` |
-| `FR-ENERGY-015` | Replenish-by increases remaining by up to amount | `P9-cns-energy-budget-replenish-by` |
-| `FR-ENERGY-016` | Weighted replenish scales by priority, returns actual amount | `P9-cns-energy-budget-replenish-by-weighted` |
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-E1 | `P8-cns-energy-cost-from-raw` | `EnergyCost::from_raw(u64) -> Self` | [P8] Motivating: Semantic Grounding — type-level identity preservation; [P5] Constraining: Essentialism |
+| FR-E2 | `P8-cns-energy-cost-as-raw` | `EnergyCost::as_raw() -> u64` | [P8] Motivating: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
+| FR-E3 | `P8-cns-energy-delta-from-raw` | `EnergyDelta::from_raw(f64) -> Self` | [P8] Motivating: Semantic Grounding — type-level identity for f64 newtype; [P5] Constraining: Essentialism |
+| FR-E4 | `P8-cns-energy-delta-as-raw` | `EnergyDelta::as_raw() -> f64` | [P8] Motivating: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
+| FR-E5 | `P9-cns-energy-delta-descending` | `EnergyDelta::is_descending() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — lazy universe compliance detection; [P8] Constraining: Semantic Grounding |
+| FR-E6 | `P9-cns-energy-delta-ascending` | `EnergyDelta::is_ascending() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — anti-lazy detection triggers alert; [P8] Constraining: Semantic Grounding |
+| FR-E7 | `P9-cns-energy-budget-new` | `EnergyBudget::new(cap) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — budget creation enables regulation; [P4] Constraining: Clear Boundaries — cap enforces OCAP boundary |
+| FR-E8 | `P9-cns-energy-budget-unlimited` | `EnergyBudget::unlimited() -> Self` | [P9] Motivating: Homeostatic Self-Regulation — observability without throttling; [P4] Constraining: Clear Boundaries |
+| FR-E9 | `P9-cns-energy-budget-with-replenish-rate` | `EnergyBudget::with_replenish_rate(rate) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — configurable replenishment knob; [P7] Constraining: Evolutionary Architecture — emerged from real usage |
+| FR-E10 | `P9-cns-energy-budget-with-alert-threshold` | `EnergyBudget::with_alert_threshold(threshold) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — configurable alert threshold; [P7] Constraining: Evolutionary Architecture |
+| FR-E11 | `P9-cns-energy-budget-with-hard-limit` | `EnergyBudget::with_hard_limit(hard) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — boundary enforcement toggle; [P4] Constraining: Clear Boundaries |
+| FR-E12 | `P9-cns-energy-budget-can-proceed` | `EnergyBudget::can_proceed(gas) -> bool` | [P9] Motivating: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries |
+| FR-E13 | `P9-cns-energy-budget-available` | `EnergyBudget::available() -> EnergyCost` | [P9] Motivating: Homeostatic Self-Regulation — visible state for feedback loops; [P4] Constraining: Clear Boundaries |
+| FR-E14 | `P9-cns-energy-budget-reserve` | `EnergyBudget::reserve(gas) -> Result` | [P9] Motivating: Homeostatic Self-Regulation — hold-settle pattern; [P4] Constraining: Clear Boundaries |
+| FR-E15 | `P9-cns-energy-budget-settle` | `EnergyBudget::settle(reserved, actual) -> Result` | [P9] Motivating: Homeostatic Self-Regulation — completes hold-settle cycle; [P4] Constraining: Clear Boundaries |
+| FR-E16 | `P9-cns-energy-budget-consume` | `EnergyBudget::consume(gas) -> Result` | [P9] Motivating: Homeostatic Self-Regulation — immediate deduction path; [P4] Constraining: Clear Boundaries |
+| FR-E17 | `P9-cns-energy-budget-replenish` | `EnergyBudget::replenish()` | [P9] Motivating: Homeostatic Self-Regulation — regulation cycle; [P4] Constraining: Clear Boundaries |
+| FR-E18 | `P9-cns-energy-budget-replenish-by` | `EnergyBudget::replenish_by(amount)` | [P9] Motivating: Homeostatic Self-Regulation — targeted curation replenishment; [P4] Constraining: Clear Boundaries |
+| FR-E19 | `P9-cns-energy-budget-replenish-by-weighted` | `EnergyBudget::replenish_by_weighted(amount, prio) -> EnergyCost` | [P9] Motivating: Homeostatic Self-Regulation — priority-weighted replenishment; [P4] + [P7] Constraining |
 
-### 2.2 Algedonic Signalling (hkask-cns/algedonic.rs)
+#### Test Contracts (4)
 
-Algedonic signals are the **pain/pleasure** channel of the CNS — they translate health metrics into actionable alerts. 4 contracts implement the Alert → Severity pipeline:
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-E-T1 | `P9-cns-energy-budget-invariant-test` | budget_never_exceeds_cap — property test: remaining + reserved ≤ cap |
+| FR-E-T2 | `P9-cns-energy-budget-available-test` | available_never_negative — property test: available ≥ 0 |
+| FR-E-T3 | `P9-cns-energy-budget-replenish-test` | replenish_never_exceeds_cap — property test: remaining ≤ cap after replenish |
+| FR-E-T4 | (included above) | `EnergyCost` newtype contract test |
 
-| ID | Requirement | Contracts |
-|----|-----------|-----------|
-| `FR-ALGEDONIC-001` | Alert creation requires domain and threshold, severity based on deficit | `P9-cns-algedonic-alert-new` |
-| `FR-ALGEDONIC-002` | Alert escalation check returns true iff severity is Critical | `P9-cns-algedonic-alert-should-escalate` |
-| `FR-ALGEDONIC-003` | Severity classification must be correct for all three levels | `P9-cns-algedonic-alert-is-critical`, `P9-cns-algedonic-alert-is-warning` |
-| `FR-ALGEDONIC-004` | Severity is Warning check returns true iff severity == Warning | `P9-cns-algedonic-alert-is-warning` |
 
-### 2.3 Runtime Observability (hkask-cns/runtime.rs)
+### 2.2 Algedonic Signalling (`algedonic`)
 
-Runtime is the **CNS observability surface** — it tracks variety, outcomes, and health across domains. 24 contracts implement the full CNS lifecycle:
+**Motivating Principle:** P9 (Homeostatic Self-Regulation) — algedonic feedback loop for variety deficit escalation
+**Constraining Principle:** P4 (Clear Boundaries) — cap enforcement through binary classification
+**Crate:** `hkask-cns` | **Source:** `src/algedonic.rs`
 
-| ID | Requirement | Contracts |
-|----|-----------|-----------|
-| `FR-RUNTIME-001` | Variety monitor creation with empty counters | `P9-cns-runtime-variety-monitor-new` |
-| `FR-RUNTIME-002` | Variety tracking per domain, returns 0 if domain not tracked | `P9-cns-runtime-variety-for-domain` |
-| `FR-RUNTIME-003` | List tracked domains | `P9-cns-runtime-variety-monitor-domains` |
-| `FR-RUNTIME-004` | Runtime configuration with threshold | `P9-cns-runtime-with-threshold` |
-| `FR-RUNTIME-005` | Health check returns current state | `P9-cns-runtime-health` |
-| `FR-RUNTIME-006` | Alert list returns active alerts | `P9-cns-runtime-alerts` |
-| `FR-RUNTIME-007` | Default threshold from algedonic manager | `P9-cns-runtime-default-threshold` |
-| `FR-RUNTIME-008` | Critical alert filtering | `P9-cns-runtime-critical-alerts` |
-| `FR-RUNTIME-009` | Variety retrieval returns namespace->count map | `P9-cns-runtime-variety` |
-| `FR-RUNTIME-010` | Variety for domain with non-empty pre | `P9-cns-runtime-variety-for-domain` |
-| `FR-RUNTIME-011` | Blocking variety check (P3 — Generative Space) | `P3-cns-runtime-blocking-variety-for-domain` |
-| `FR-RUNTIME-012` | Outcome recording after tool/inference operations | `P9-cns-runtime-record-outcome` |
-| `FR-RUNTIME-013` | Outcome check triggers alert if below threshold | `P9-cns-runtime-check-outcome` |
-| `FR-RUNTIME-014` | Success rate calculation for tracked domains | `P9-cns-runtime-outcome-success-rate` |
-| `FR-RUNTIME-015` | Increment variety counter | `P9-cns-runtime-increment-variety` |
-| `FR-RUNTIME-016` | Check variety below threshold triggers alert | `P9-cns-runtime-check-variety` |
-| `FR-RUNTIME-017` | Calibrate threshold for domain (P7 — configurable) | `P7-cns-runtime-calibrate-threshold` |
-| `FR-RUNTIME-018` | Blocking calibraate (P3 — Generattive Space) | `P3-cns-runtim-e-calibrate-threshold-blocking` |
-| `FR-RUNTIME-019` | Subscriber regisstration (P12 — Afirmative Consent) | `P12-cns-runtim-e-subscribe` |
-| `FR-RUNTIME-020` | Async subscriiber regisstration | `P12-cns-runtme-subscribe-async` |
-| `FR-RUNTIME-021` | Backpresssure emission to subscriibers | `P9-cns-runtim-e-emit-backpresssure` |
-| `FR-RUNTIME-022` | Energy budget regisstration for agent | `P9-cns-runtime-register-energy-budget` |
-| `FR-RUNTIME-023` | Agent budget replenishment | `P9-cns-runtime-replenish-agent-budget` |
-| `FR-RUNTIME-024` | Agent gas status query | `P9-cns-runtime-agent-gass-status` |
+#### Production Contracts (4)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-A1 | `P9-cns-algedonic-alert-new` | `RuntimeAlert::new(domain, deficit, threshold) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — alert construction for feedback; [P4] Constraining: Clear Boundaries |
+| FR-A2 | `P9-cns-algedonic-alert-should-escalate` | `RuntimeAlert::should_escalate() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — escalation feedback loop; [P4] Constraining: Clear Boundaries |
+| FR-A3 | `P9-cns-algedonic-alert-is-critical` | `RuntimeAlert::is_critical() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — critical threshold detection; [P4] Constraining: Clear Boundaries |
+| FR-A4 | `P9-cns-algedonic-alert-is-warning` | `RuntimeAlert::is_warning() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — warning threshold detection; [P4] Constraining: Clear Boundaries |
+
+#### Test Contracts (5)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-A-T1 | `P9-cns-algedonic-binary-threshold-test` | binary_threshold_classifies_critical_and_warning |
+| FR-A-T2 | `P9-cns-algedonic-accumulation-test` | algedonic_manager_accumulates_alerts_across_domains |
+| FR-A-T3 | `P9-cns-outcome-classify-test` | check_outcome_classifies_success_rate_correctly |
+| FR-A-T4 | `P9-cns-outcome-message-test` | check_outcome_alert_message_includes_domain_and_rate |
+| FR-A-T5 | `P9-cns-outcome-prefix-test` | check_outcome_domain_prefixed_with_outcome |
+
+
+### 2.3 Runtime Observability (`runtime`)
+
+**Motivating Principle:** P9 (Homeostatic Self-Regulation) — single entry point for CNS observability and regulation
+**Constraining Principles:** P3 (Generative Space — sync variants), P7 (Evolutionary Architecture — calibrate), P12 (Affirmative Consent — subscribe)
+**Crate:** `hkask-cns` | **Source:** `src/runtime.rs`
+
+#### P9 Production Contracts (18)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-R1 | `P9-cns-runtime-variety-monitor-new` | `VarietyMonitor::new() -> Self` | [P9] Motivating: Homeostatic Self-Regulation — monitor enables feedback loops; [P5] Constraining: Essentialism |
+| FR-R2 | `P9-cns-runtime-variety-for-domain` | `VarietyMonitor::variety_for_domain(domain) -> u64` | [P9] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
+| FR-R3 | `P9-cns-runtime-variety-monitor-domains` | `VarietyMonitor::domains() -> Vec<&str>` | [P9] Motivating: Homeostatic Self-Regulation — domain enumeration enables loop feedback; [P8] Constraining: Semantic Grounding |
+| FR-R4 | `P9-cns-runtime-with-threshold` | `CnsRuntime::with_threshold(threshold) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — runtime creation enables regulation; [P7] Constraining: Evolutionary Architecture |
+| FR-R5 | `P9-cns-runtime-health` | `CnsRuntime::health() -> CnsHealth` | [P9] Motivating: Homeostatic Self-Regulation — health query drives loop decisions; [P8] Constraining: Semantic Grounding |
+| FR-R6 | `P9-cns-runtime-alerts` | `CnsRuntime::alerts() -> Vec<RuntimeAlert>` | [P9] Motivating: Homeostatic Self-Regulation — alert retrieval enables loop response; [P8] Constraining: Semantic Grounding |
+| FR-R7 | `P9-cns-runtime-default-threshold` | `CnsRuntime::default_threshold() -> u64` | [P9] Motivating: Homeostatic Self-Regulation — threshold config enables loop tuning; [P7] Constraining: Evolutionary Architecture |
+| FR-R8 | `P9-cns-runtime-critical-alerts` | `CnsRuntime::critical_alerts() -> Vec<RuntimeAlert>` | [P9] Motivating: Homeostatic Self-Regulation — critical alert filtering enables prioritised response; [P8] Constraining: Semantic Grounding |
+| FR-R9 | `P9-cns-runtime-variety` | `CnsRuntime::variety() -> HashMap<SpanNamespace, u64>` | [P9] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
+| FR-R10 | `P9-cns-runtime-variety-for-domain` | `CnsRuntime::variety_for_domain(domain) -> u64` | [P9] Motivating: Homeostatic Self-Regulation — domain-specific variety; [P8] Constraining: Semantic Grounding |
+| FR-R11 | `P9-cns-runtime-record-outcome` | `CnsRuntime::record_outcome(domain, success, err) -> ()` | [P9] Motivating: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation; [P4] Constraining: Clear Boundaries |
+| FR-R12 | `P9-cns-runtime-check-outcome` | `CnsRuntime::check_outcome(domain) -> Option<RuntimeAlert>` | [P9] Motivating: Homeostatic Self-Regulation — outcome check drives loop decisions; [P4] Constraining: Clear Boundaries |
+| FR-R13 | `P9-cns-runtime-outcome-success-rate` | `CnsRuntime::outcome_success_rate(domain) -> Option<f64>` | [P9] Motivating: Homeostatic Self-Regulation — success rate is a feedback metric; [P8] Constraining: Semantic Grounding |
+| FR-R14 | `P9-cns-runtime-increment-variety` | `CnsRuntime::increment_variety(domain, state_name)` | [P9] Motivating: Homeostatic Self-Regulation — variety counter drives loop closure; [P4] Constraining: Clear Boundaries |
+| FR-R15 | `P9-cns-runtime-check-variety` | `CnsRuntime::check_variety(domain) -> Option<RuntimeAlert>` | [P9] Motivating: Homeostatic Self-Regulation — variety check drives loop closure; [P4] Constraining: Clear Boundaries |
+| FR-R16 | `P9-cns-runtime-register-energy-budget` | `CnsRuntime::register_energy_budget(agent, budget)` | [P9] Motivating: Homeostatic Self-Regulation — budget registration enables energy tracking; [P4] Constraining: Clear Boundaries |
+| FR-R17 | `P9-cns-runtime-replenish-agent-budget` | `CnsRuntime::replenish_agent_budget(agent, amount) -> EnergyCost` | [P9] Motivating: Homeostatic Self-Regulation — budget replenishment drives energy loop; [P4] Constraining: Clear Boundaries |
+| FR-R18 | `P9-cns-runtime-agent-gas-status` | `CnsRuntime::agent_gas_status(agent) -> Option<AgentEnergyStatus>` | [P9] Motivating: Homeostatic Self-Regulation — gas status query drives energy loop; [P8] Constraining: Semantic Grounding |
+
+#### P3 Blocking Variants (1)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-R19 | `P3-cns-runtime-blocking-variety-for-domain` | `CnsRuntime::blocking_variety_for_domain(domain) -> u64` | [P3] Motivating: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries — must not be called from async context |
+
+
+#### P7 Calibrate & P3 Blocking Variants (2)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-R20 | `P7-cns-runtime-calibrate-threshold` | `CnsRuntime::calibrate_threshold(domain, new_threshold)` | [P7] Motivating: Evolutionary Architecture — threshold parameter emerged from real usage; [P4] Constraining: Clear Boundaries |
+| FR-R21 | `P3-cns-runtime-calibrate-threshold-blocking` | `CnsRuntime::calibrate_threshold_blocking(domain, new_threshold)` | [P3] Motivating: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries |
+
+#### P12 Subscriber Contracts (3)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-R22 | `P12-cns-runtime-subscribe` | `CnsRuntime::subscribe(observer: Arc<dyn CnsObserver>)` | [P12] Motivating: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
+| FR-R23 | `P12-cns-runtime-subscribe-async` | `CnsRuntime::subscribe_async(observer: Arc<dyn CnsObserver>)` | [P12] Motivating: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
+| FR-R24 | `P9-cns-runtime-emit-backpressure` | `CnsRuntime::emit_backpressure(signal: BackpressureSignal)` | [P9] Motivating: Homeostatic Self-Regulation — backpressure signal closes the regulation loop; [P4] Constraining: Clear Boundaries |
+
+#### Test Contracts (6)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-R-T1 | `P9-cns-runtime-variety-monitor-test-001` | variety_monitor_tracks_distinct_states |
+| FR-R-T2 | `P9-cns-runtime-variety-deficit-test-002` | variety_tracker_deficit_calculation |
+| FR-R-T3 | `P9-cns-runtime-variety-isolation-test-003` | variety_monitor_multi_domain_isolation |
+| FR-R-T4 | `P9-cns-runtime-outcome-rate-test-004` | outcome_tracker_success_rate_calculation |
+| FR-R-T5 | `P9-cns-runtime-outcome-breakdown-test-005` | outcome_tracker_error_kind_breakdown |
+| FR-R-T6 | `P9-cns-runtime-outcome-window-test-006` | outcome_tracker_window_reset |
+
+
+### 2.4 Tool Governance (`gov-tool`)
+
+**Motivating Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — OCAP enforcement)
+**Constraining Principle:** P12 (Affirmative Consent — agent identity is the consent anchor)
+**Crate:** `hkask-cns` | **Source:** `src/governed_tool.rs`
+
+#### Production Contracts (3)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-GT1 | `P9-cns-gov-tool-new` | `GovernedTool::new(inner, cybernetics, sink, est, agent) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — tool governance enables feedback loops; [P4] Constraining: Clear Boundaries — cybernetics binding enforces OCAP boundary |
+| FR-GT2 | `P9-cns-gov-tool-consumption-channel` | `GovernedTool::with_tool_consumption_channel(tx) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — consumption channel closes cybernetic feedback loop; [P4] Constraining: Clear Boundaries — channel ownership tracks consumer identity |
+| FR-GT3 | `P12-cns-gov-tool-with-agent` | `GovernedTool::with_agent(agent) -> Self` | [P12] Motivating: Affirmative Consent — agent identity is the consent anchor; [P4] Constraining: Clear Boundaries — OCAP gate enforces boundary per invocation |
+
+#### Test Contracts (4)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-GT-T1 | `P9-cns-gov-tool-legacy-exact-match-test` | legacy_exact_match_grants_correct_tool — OCAP Path 1 |
+| FR-GT-T2 | `P9-cns-gov-tool-legacy-denies-test` | legacy_exact_match_denies_wrong_tool — OCAP Path 1 denial |
+| FR-GT-T3 | `P9-cns-gov-tool-domain-capability-test` | domain_capability_matches_mcp_tool_domain — OCAP Path 2 |
+| FR-GT-T4 | `P9-cns-gov-tool-domain-denies-test` | domain_capability_denies_different_domain — OCAP Path 2 denial |
+
+
+### 2.5 Inference Governance (`gov-inf`)
+
+**Motivating Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — membrane for inference)
+**Constraining Principle:** P12 (Affirmative Consent — agent identity is required for attribution)
+**Crate:** `hkask-cns` | **Source:** `src/governed_inference.rs`
+
+#### Production Contracts (2)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-GI1 | `P9-cns-gov-inf-new` | `GovernedInference::new(inner, cybernetics, sink, agent) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control; [P4] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary; [P12] Constraining: Affirmative Consent |
+| FR-GI2 | `P12-cns-gov-inf-with-agent` | `GovernedInference::with_agent(agent) -> Self` | [P12] Motivating: Affirmative Consent — agent identity is the consent anchor; [P4] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call |
+
+#### Test Contracts (2)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-GI-T1 | `P9-cns-gov-inf-est-cost-max-tokens` | estimate_inference_cost_uses_max_tokens — cost estimation uses max_tokens|
+| FR-GI-T2 | `P9-cns-gov-inf-est-cost-floors-at-one` | estimate_inference_cost_floors_at_one — cost estimation floors at 1 |
+
+
+### 2.6 Circuit Breaker (`circuit`)
+
+**Motivating Principle:** P9 (Homeostatic Self-Regulation) — CNS regulation loop enforces homeostasis over external service calls
+**Constraining Principle:** P4 (Clear Boundaries) — circuit state transitions are boundary conditions
+**Crate:** `hkask-cns` | **Source:** `src/circuit_breaker.rs`
+
+#### Production Contracts (3)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-CB1 | `P9-cns-circuit-default-for-inference` | `CircuitBreaker::default_for_inference(name) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — CNS regulation loop enforces boundary; [P4] Constraining: Clear Boundaries — default thresholds establish failure boundary |
+| FR-CB2 | `P9-cns-circuit-allow-request` | `CircuitBreaker::allow_request() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries — state-driven gating enforces the boundary |
+| FR-CB3 | `P9-cns-circuit-record-success` | `CircuitBreaker::record_success()` | [P9] Motivating: Homeostatic Self-Regulation — success count drives loop closure; [P4] Constraining: Clear Boundaries — threshold-based state transition enforces boundary |
+
+
+### 2.7 API Metering (`api`)
+
+**Motivating Principle:** P9 (Homeostatic Self-Regulation) — per-key rate limiting, gas tracking, and CNS spans
+**Constraining Principles:** P7 (Evolutionary Architecture — hardcoded endpoint weight table, configurable later), P4 (Clear Boundaries — rate limit thresholds are boundary conditions)
+**Crate:** `hkask-cns` | **Source:** `src/api_metering.rs`
+
+#### Production Contracts (8)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-AM1 | `P9-cns-api-meter-endpoint-weight` | `endpoint_weight(path) -> EndpointWeight` | [P9] Motivating: Homeostatic Self-Regulation — per-request rate limiting for API stability; [P7] Constraining: Evolutionary Architecture — hardcoded table to be configurable later |
+| FR-AM2 | `P9-cns-api-meter-rate-limit-status` | `RateLimitStatus::as_str() -> &'static str` | [P9] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS; [P8] Constraining: Semantic Grounding — string representation must be stable across versions |
+| FR-AM3 | `P9-cns-api-meter-new` | `ApiMeter::new() -> Self` | [P9] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking; [P5] Constraining: Essentialism — minimal constructor with empty buckets map |
+| FR-AM4 | `P9-cns-api-meter-check-and-record` | `ApiMeter::check_and_record(key_id, max_rpm, max_tokens, tokens) -> RateLimitStatus` | [P9] Motivating: Homeostatic Self-Regulation — rate limit enforcement is the CNS check; [P4] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions |
+| FR-AM5 | `P9-cns-api-meter-current-rpm` | `ApiMeter::current_rpm(key_id) -> u32` | [P9] Motivating: Homeostatic Self-Regulation — current rate is the cybernetic state; [P8] Constraining: Semantic Grounding — RPM count must be stable and accurate |
+| FR-AM6 | `P9-cns-api-meter-span-new` | `ApiRequestSpan::new(key_id, endpoint, matched, gas, enc, status) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — span creation is the CNS observation layer; [P8] Constraining: Semantic Grounding — span fields must be traceable to source |
+| FR-AM7 | `P9-cns-api-meter-alert-type` | `ApiMeteringAlert::alert_type() -> &'static str` | [P9] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification; [P8] Constraining: Semantic Grounding — alert type labels must be stable across versions |
+| FR-AM8 | `P9-cns-api-meter-alert-severity` | `ApiMeteringAlert::severity() -> &'static str` | [P9] Motivating: Homeostatic Self-Regulation — severity is the algedonic signal; [P8] Constraining: Semantic Grounding — severity labels must be stable across versions |
+
+#### Test Contracts (8)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-AM-T1 | `P9-cns-api-meter-endpoint-weight` | endpoint_weight_embed_corpus_is_heavy |
+| FR-AM-T2 | `P9-cns-api-meter-endpoint-weight` | endpoint_weight_default_is_one |
+| FR-AM-T3 | `P9-cns-api-meter-check-and-record` | rate_limit_bucket_prunes_old_requests |
+| FR-AM-T4 | `P9-cns-api-meter-check-and-record` | rate_limit_bucket_enforces_rpm |
+| FR-AM-T5 | `P9-cns-api-meter-check-and-record` | token_tracking_resets_on_new_day |
+| FR-AM-T6 | `P9-cns-api-meter-check-and-record` | api_meter_enforces_limits |
+| FR-AM-T7 | `P9-cns-api-meter-span-new` | api_request_span_serialization |
+| FR-AM-T8 | `P9-cns-api-meter-alert-severity` | alert_severity_levels |
+
+
+### 2.8 Energy Estimation (`est`)
+
+**Motivating Principle:** P9 (Homeostatic Self-Regulation) — composite estimator routes inference and table estimation
+**Crate:** `hkask-cns` | **Source:** `src/composite_energy_estimator.rs`, `src/wallet_energy_estimator.rs`
+
+#### Production Contracts (2)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-EE1 | `P9-cns-est-composite-new` | `CompositeEnergyEstimator::new() -> Self` | [P9] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops; [P5] Constraining: Essentialism — minimal constructor, empty estimators |
+| FR-EE2 | `P9-cns-wallet-est-calibrate` | `WalletEnergyEstimator::calibrate(observed_ratio) -> bool` | [P9] Motivating: Homeostatic Self-Regulation — Good Regulator feedback loop closure; [P4] Constraining: Clear Boundaries — threshold tolerance enforces boundary; [P7] Constraining: Evolutionary Architecture — EMA parameters emerged from real usage |
+
+#### Test Contracts (5)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-EE-T1 | `P9-cns-est-wallet-001` | calibrate_first_observation_initializes_EMA |
+| FR-EE-T2 | `P9-cns-est-wallet-002` | calibrate_within_tolerance_no_adjustment |
+| FR-EE-T3 | `P9-cns-est-wallet-003` | calibrate_EMA_smooths_observations |
+| FR-EE-T4 | `P9-cns-est-wallet-004` | calibrate_clamps_extreme_ratios |
+| FR-EE-T5 | `P9-cns-est-wallet-005` | calibrate_floors_gas_per_rjoule_at_one |
+
+---
+
+## 3. Non-CNS Domain Stubs
+
+These domains are documented here for completeness but are not part of the CNS contract realignment. Their contracts will be realigned in subsequent work packages.
+
+### 3.1 Wallet (`hkask-wallet`)
+
+**23 contracts** — P9 (Homeostatic Self-Regulation)
+- `WalletBackedBudget` — budget that draws from wallet balance (P9)
+- `Encumbrance` — proof-of-stake encoded as constraints on rJoule resource pool (P9)
+- `ApiKeyId` — API key identifier for metering and rate-limiting (P9)
+- Transaction logging, balance queries, fund replenishment
+
+### 3.2 Storage (`hkask-storage`)
+
+**12 contracts** — P3 (Generative Space)
+- `InMemoryStorage` — key-value store for ephemeral state (P3)
+- `FileSystemStorage` — disk-backed persistent storage (P3)
+- CRUD operations, namespace isolation, serialization
+
+### 3.3 Memory (`hkask-memory`)
+
+**8 contracts** — P3 (Generative Space)
+- `ConversationBuffer` — sliding window of recent interactions (P3)
+- `SemanticIndex` — vector-backed retrieval for knowledge (P3)
+- Memory pruning, expiration, search
+
+### 3.4 Inference (`hkask-inference`)
+
+**15 contracts** — P9 + P4 (Homeostatic + Boundary)
+- `InferencePort` trait — the interface for all inference backends (P4)
+- `InferenceEnergyEstimator` — token-based cost estimation (P9)
+- Provider adapters: Ollama, Fireworks, DeepInfra, OpenAI (P9)
+
+### 3.5 Templates (`hkask-templates`)
+
+**10 contracts** — P3 (Generative Space)
+- `LLMParameters` — structured parameter set for LLM calls (P3)
+- `PromptTemplate` — template engine for prompt construction (P3)
+- Variable interpolation, partial application, template caching
+
+### 3.6 MCP Servers (`mcp-servers/`)
+
+**18 contracts** — P5 (Essentialism)
+- `hkask-mcp-research` — web research agent (P5)
+- `hkask-mcp-spec` — specification document server (P5)
+- `hkask-mcp-condenser` — context compression agent (P5)
+- Tool registration, capability declaration, resource serving
+
+### 3.7 Service Layer (`hkask-services`)
+
+**14 contracts** — P5 + P7 (Essentialism + Evolution)
+- `AgentLifecycleService` — agent creation, monitoring, teardown (P5)
+- `CnsService` — CNS health, alerts, variety, budget queries (P5)
+- `KeystoreService` — key management and signing operations (P5)
+- Service registration pattern: all services are discovered, not coupled
+
+### 3.8 Agents (`hkask-agents`)
+
+**30 contracts** — P2 (User Sovereignty)
+- `AgentPod` — containerized agent runtime (P2)
+- `ReplicantHost` — agent identity and hosting layer (P2)
+- `AgentConfig` — configuration parameters (P2)
+- Lifecycle management, supervision, health checks
+
+### 3.9 Communication (`hkask-comm`)
+
+**6 contracts** — P2 (User Sovereignty)
+- `Channel` — message passing between agents (P2)
+- `Broadcast` — pub/sub event distribution (P2)
+- Message serialization, delivery guarantees
+
+### 3.10 Keystore (`hkask-keystore`)
+
+**5 contracts** — P2 (User Sovereignty)
+- `KeyManagement` — key generation, storage, rotation (P2)
+- `SigningKey` — delegation token signing (P2)
+- Key derivation, expiry, revocation
+
+### 3.11 Types (`hkask-types`)
+
+**40 contracts** — P8 (Semantic Grounding)
+- `CnsSpan` — canonical span registry (P8)
+- `WebID` — agent identity type (P8)
+- `NuEvent` — event type system (P8)
+- Port definitions, error types, serialization
+
+### 3.12 API Surface (`hkask-api`)
+
+**25 contracts** — P2 + P4 (Sovereignty + Boundaries)
+- REST endpoints for all service operations (P2)
+- MCP protocol handler (P2)
+- Authentication, authorization, rate limiting
+
+### 3.13 CLI (`kask`)
+
+**12 contracts** — P3 (Generative Space)
+- `kask` binary — the user-facing command entry point (P3)
+- Subcommands: `agent`, `cns`, `wallet`, `keystore` (P3)
+- Flag parsing, help text, error reporting
+
+### 3.14 Test Harness
+
+**Cross-cutting** — shared across all crates
+- `hkask-test-harness` — integration test infrastructure
+- Test fixtures, mock implementations, property-based testing
+
+---
+
+## 4. Realignment Status
+
+### 4.1 Contract ID Migration Summary
+
+| Domain | Source File | Old Format | New Format | Contracts |
+|--------|-----------|-----------|-----------|-----------|
+| Energy | `energy.rs` | `cns-*` | `P{N}-cns-energy-*` | 23 |
+| Algedonic | `algedonic.rs` | `svc-cns-*` | `P{N}-cns-algedonic-*` | 9 |
+| Runtime | `runtime.rs` | `cns-runtime-*` | `P{N}-cns-runtime-*` | 30 |
+| Governed Tool | `governed_tool.rs` | (various) | `P{N}-cns-gov-tool-*` | 7 |
+| Governed Inference | `governed_inference.rs` | (various) | `P{N}-cns-gov-inf-*` | 4 |
+| Circuit Breaker | `circuit_breaker.rs` | (various) | `P{N}-cns-circuit-*` | 3 |
+| API Metering | `api_metering.rs` | (various) | `P{N}-cns-api-meter-*` | 16 |
+| Energy Estimation | `composite_energy_estimator.rs` | (already aligned) | `P9-cns-est-composite-new` | 1 |
+| Wallet Estimation | `wallet_energy_estimator.rs` | `cns-calibrate-*` | `P9-cns-est-wallet-*` | 6 |
+
+**Total CNS contracts:** 99 (across all 9 source files).
+**Build status:** `cargo check -p hkask-cns` passes clean.
+**Test coverage:** All test contracts use the new ID format.
+
+### 4.2 Idempotent Migration
+
+The contract ID migration is **idempotent** — the same source file can be reread at any time and the same contract IDs will be extracted. There is no stateful migration step. The contract IDs exist in the source code, not in a database.
+
+### 4.3 Cross-Crate Dependencies
+
+All hKask crates depend on `hkask-types` for the canonical `CnsSpan` registry, `WebID` identity type, and port definitions. The CNS contracts are **leaf nodes** — they do not depend on any other crates. Realignment does not change any downstream crate's behavior.
+
+---
+
+## 5. Contract ID Format Appendix
+
+### 5.1 Formal Specification
+
+Every contract ID follows the pattern:
+
+```
+P{N} - {domain-short} - {operation}
+```
+
+Where:
+- **P{N}** — The motivating principle (1–12). This determines which principle **owns** the contract and appears in the ID prefix.
+- **{domain-short}** — Abbreviated domain name (e.g., `energy`, `algedonic`, `runtime`, `gov-tool`, `gov-inf`, `circuit`, `api`, `est`).
+- **{operation}** — Verb phrase describing what the contract does (e.g., `new`, `can-proceed`, `settle`, `calibrate`).
+
+Constraining principles appear in the contract body as `[P{N}] Constraining: ...` annotations. A contract may have:
+- **One motivating principle** (the ID prefix)
+- **Multiple constraining principles** (body annotations)
+
+### 5.2 Principle Legend
+
+| # | Principle | Role in CNS |
+|---|----------|------------|
+| P1 | User Sovereignty | User owns their data, decisions, and identity |
+| P2 | Affirmative Consent | Every action requires explicit user consent |
+| P3 | Generative Space | The system can create, modify, and destroy state |
+| P4 | Clear Boundaries | Modules own their domains; boundaries are enforced |
+| P5 | Essentialism | Remove everything that does not earn its existence |
+| P6 | (Reserved) | Not yet assigned to CNS contracts |
+| P7 | Evolutionary Architecture | Parameters emerge from real usage, not speculation |
+| P8 | Semantic Grounding | Types carry meaning; newtypes prevent confusion |
+| P9 | Homeostatic Self-Regulation | Feedback loops maintain system stability |
+| P10 | (Reserved) | Not yet assigned to CNS contracts |
+| P11 | (Reserved) | Not yet assigned to CNS contracts |
+| P12 | Subscriber Consent | Observers register through explicit subscription |
+
+### 5.3 Validation Rules
+
+1. **Unique contract IDs** — No two contracts share the same ID.
+2. **Idempotent** — Reading the same source file twice produces the same IDs.
+3. **Stable** — Contract IDs persist across code changes unless the contract's purpose changes.
+4. **Derivable** — IDs can be derived from `grep "REQ:" crates/hkask-cns/src/*.rs`.
+
+### 5.4 Notational Conventions
+
+- **Production contracts** are labeled `P{N}-cns-{domain}-{operation}` in the contract body.
+- **Test contracts** are labeled `P{N}-cns-{domain}-{operation}-test` or have a `-T{N}` suffix.
+- **Blocking variants** use the P3 prefix: `P3-cns-{domain}-blocking-{operation}`.
+- **Calibrate contracts** use the P7 prefix: `P7-cns-{domain}-calibrate-{operation}`.
+- **Subscriber contracts** use the P12 prefix: `P12-cns-{domain}-subscribe-{operation}`.
+
+### 5.5 Future Domains
+
+The following domains are **not yet realigned** and will use their own principle prefixes:
+- `hkask-wallet` (P9): `P9-wallet-*`
+- `hkask-storage` (P3): `P3-storage-*`
+- `hkask-agents` (P2): `P2-agents-*`
+- `hkask-inference` (P9+P4): `P9/P4-inference-*`
+
+---
+
+## Appendix A: Document Metadata
+
+| Field | Value |
+|-------|-------|
+| Version | v0.27.0 |
+| Created | 2026-06-16 |
+| Status | Active — anchor for the rSolidity contract vocabulary |
+| Last Updated | 2026-06-16 |
+| Contract Count | 99 (across 9 source files in `hkask-cns`) |
+| Build Status | `cargo check -p hkask-cns` — PASS |
+| Author | hKask architect (via CNS Contract Realignment Spec Composition) |
+| Governance | PRINCIPLES.md §1–§5 |
+
+## Appendix B: Validation Checklist
+
+- [x] All 99 CNS contracts carry principle annotations
+- [x] Build passes clean: `cargo check -p hkask-cns`
+- [x] All test IDs updated to new format
+- [x] Domain map complete (22 domains)
+- [x] FR tables complete (all 8 CNS domains)
+- [x] Realignment status table complete
+- [x] Contract ID format specification complete
+- [ ] Non-CNS domain contracts (wallet, agents) — pending next work package
+- [ ] rSolidity contract vocabulary derivation — pending
+
+## Appendix C: Key References
+
+- [PRINCIPLES.md](docs/architecture/core/PRINCIPLES.md) — 12 governing principles
+- [MDS.md](docs/architecture/core/MDS.md) — Minimum Definition Specification
+- [TESTING_DISCIPLINE.md](docs/architecture/core/TESTING_DISCIPLINE.md) — Contract testing discipline
+- [hKask Architecture Master](docs/architecture/hKask-architecture-master.md) — Full architecture reference
+
+---

@@ -26,6 +26,8 @@ use hkask_types::id::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::dynamic_gas_table::DynamicGasTable;
+
 // ── Public report types ──────────────────────────────────────────────────────
 
 /// Per-tool gas consumption breakdown.
@@ -255,6 +257,44 @@ impl GasReport {
         })
     }
 
+    /// Feed settled gas observations into a DynamicGasTable and calibrate it.
+    ///
+    /// REQ: GAS-CALIB-003 — GasReport settled events feed DynamicGasTable
+    /// pre:  `table` is a valid DynamicGasTable
+    /// post: every `cns.gas.settled` event in [since, until) with a server field
+    ///       is recorded in `table`; returns the number of servers adjusted
+    ///
+    /// Iterates over `cns.gas.settled` events in the window and calls
+    /// `DynamicGasTable::record_observation(server, reserved, actual)` for each.
+    /// After all observations are recorded, `DynamicGasTable::calibrate()` is invoked
+    /// and the number of adjusted servers is returned.
+    ///
+    /// # Arguments
+    /// * `table` — The `DynamicGasTable` to feed and calibrate.
+    /// * `since` — Start of the query window (inclusive).
+    /// * `until` — End of the query window (exclusive).
+    ///
+    /// # Returns
+    /// * `Ok(usize)` — Number of servers whose costs were adjusted.
+    /// * `Err(InfrastructureError)` — If the underlying store query fails.
+    pub fn calibrate_table(
+        &self,
+        table: &mut DynamicGasTable,
+        since: DateTime<Utc>,
+        until: DateTime<Utc>,
+    ) -> Result<usize, InfrastructureError> {
+        let events = self.query_gas_events(since, until)?;
+        for ev in &events {
+            if classify_event_kind(ev) == GasEventKind::Settled {
+                let server = extract_server_name(ev);
+                let reserved = extract_reserved(ev);
+                let actual = extract_actual(ev);
+                table.record_observation(&server, reserved, actual);
+            }
+        }
+        Ok(table.calibrate())
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
 
     /// Query gas events from the underlying store within a time window.
@@ -361,6 +401,15 @@ fn is_gas_event(event: &NuEvent) -> bool {
     s == "cns.gas.reserved" || s == "cns.gas.settled" || s == "cns.gas.depleted"
 }
 
+fn extract_server_name(event: &NuEvent) -> String {
+    event
+        .observation
+        .get("server")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string()
+}
+
 fn extract_tool_name(event: &NuEvent) -> String {
     event
         .observation
@@ -374,6 +423,14 @@ fn extract_cost(event: &NuEvent) -> u64 {
     event
         .observation
         .get("estimated_cost")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0)
+}
+
+fn extract_reserved(event: &NuEvent) -> u64 {
+    event
+        .observation
+        .get("reserved")
         .and_then(|v| v.as_u64())
         .unwrap_or(0)
 }
@@ -396,16 +453,23 @@ mod tests {
         WebID::new()
     }
 
-    fn make_gas_event(agent: &WebID, kind: SpanKind, tool: &str, cost: u64) -> NuEvent {
+    fn make_gas_event(
+        agent: &WebID,
+        kind: SpanKind,
+        server: &str,
+        tool: &str,
+        cost: u64,
+    ) -> NuEvent {
         let (obs, phase) = match kind {
             SpanKind::GasReserved => (
-                serde_json::json!({"tool": tool, "estimated_cost": cost}),
+                serde_json::json!({"server": server, "tool": tool, "estimated_cost": cost}),
                 Phase::Act,
             ),
             SpanKind::GasSettled => {
                 let actual = cost / 2;
                 (
                     serde_json::json!({
+                        "server": server,
                         "tool": tool,
                         "reserved": cost,
                         "actual": actual,
@@ -415,7 +479,7 @@ mod tests {
                 )
             }
             SpanKind::GasDepleted => (
-                serde_json::json!({"tool": tool, "estimated_cost": cost}),
+                serde_json::json!({"server": server, "tool": tool, "estimated_cost": cost}),
                 Phase::Sense,
             ),
             _ => unreachable!("unexpected span kind"),
@@ -433,7 +497,13 @@ mod tests {
             let tool = tool_name.clone();
             let mut events = Vec::new();
             for _ in 0..count {
-                events.push(make_gas_event(&agent, SpanKind::GasReserved, &tool, cost));
+                events.push(make_gas_event(
+                    &agent,
+                    SpanKind::GasReserved,
+                    "hkask-mcp-test",
+                    &tool,
+                    cost,
+                ));
             }
             let computed_reserved: u64 = events.iter().map(|ev| extract_cost(ev)).sum();
             prop_assert_eq!(computed_reserved, cost * count as u64);
@@ -445,8 +515,8 @@ mod tests {
         ) {
             let a1 = test_agent();
             let b1 = test_agent();
-            let ev_a = make_gas_event(&a1, SpanKind::GasReserved, "search", cost_a);
-            let ev_b = make_gas_event(&b1, SpanKind::GasReserved, "search", cost_b);
+            let ev_a = make_gas_event(&a1, SpanKind::GasReserved, "hkask-mcp-test", "search", cost_a);
+            let ev_b = make_gas_event(&b1, SpanKind::GasReserved, "hkask-mcp-test", "search", cost_b);
             prop_assert_eq!(extract_cost(&ev_a), cost_a);
             prop_assert_eq!(extract_cost(&ev_b), cost_b);
         }
@@ -469,7 +539,7 @@ mod tests {
     #[test]
     fn test_classify_event_kind_reserved() {
         let agent = test_agent();
-        let event = make_gas_event(&agent, SpanKind::GasReserved, "grep", 42);
+        let event = make_gas_event(&agent, SpanKind::GasReserved, "hkask-mcp-test", "grep", 42);
         let kind = classify_event_kind(&event);
         assert_eq!(kind, GasEventKind::Reserved);
     }
@@ -477,7 +547,7 @@ mod tests {
     #[test]
     fn test_classify_event_kind_settled() {
         let agent = test_agent();
-        let event = make_gas_event(&agent, SpanKind::GasSettled, "grep", 100);
+        let event = make_gas_event(&agent, SpanKind::GasSettled, "hkask-mcp-test", "grep", 100);
         let kind = classify_event_kind(&event);
         assert_eq!(kind, GasEventKind::Settled);
     }
@@ -485,7 +555,7 @@ mod tests {
     #[test]
     fn test_classify_event_kind_depleted() {
         let agent = test_agent();
-        let event = make_gas_event(&agent, SpanKind::GasDepleted, "grep", 77);
+        let event = make_gas_event(&agent, SpanKind::GasDepleted, "hkask-mcp-test", "grep", 77);
         let kind = classify_event_kind(&event);
         assert_eq!(kind, GasEventKind::Depleted);
     }

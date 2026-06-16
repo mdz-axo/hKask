@@ -52,7 +52,7 @@ The hKask condenser is a single MCP server (`hkask-mcp-condenser`) with 7 tools:
 - **Local CPU-only (6 tools):** `compress`, `classify`, `set_profile`, `stats`, `ping`, `persist` — no LLM dependency, compiles standalone.
 - **LLM-powered (1 tool):** `condenser_thread_summary` — calls the centralized inference router for summarization. Works with any hKask-supported backend (Ollama, Fireworks, DeepInfra, etc.). Default model: `google/gemma-4-26B-A4B-it` (hKask classifier model). Graceful degradation: without a reachable inference endpoint, thread_summary returns a clear error while all other tools continue working.
 
-**Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3), the inference backend should disable thinking to prevent the model from spending all output tokens on internal reasoning. This is backend-specific configuration — the condenser itself does not control thinking mode (the `InferencePort` trait has no thinking-mode parameter).
+**Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3, gemma4, deepseek-r1), `condenser_thread_summary` sets `disable_thinking: true` in `LLMParameters` before calling the centralized inference router. The router passes the flag through to the backend (e.g., as `enable_thinking: false` in OpenAI-compatible chat requests). Some backends ignore it — notably Ollama 0.30.8 for qwen3.5/gemma4/deepseek-r1 — in which case the tool degrades gracefully with an empty-summary error.
 
 ## Restoration Rules
 

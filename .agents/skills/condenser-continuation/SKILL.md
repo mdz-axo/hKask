@@ -41,11 +41,14 @@ The `condenser_thread_summary` tool uses the centralized hKask inference router 
 
 **Graceful degradation:** If no inference backends are reachable, `thread_summary` returns an error. All other tools continue working.
 
-**Thinking mode:** For models with reasoning/thinking mode (e.g., qwen3), the inference backend should disable thinking to prevent the model from spending output tokens on internal reasoning. This is backend-specific configuration — the condenser itself does not control thinking mode (the `InferencePort` trait has no thinking-mode parameter).
+**Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3, gemma4, deepseek-r1), `condenser_thread_summary` sets `disable_thinking: true` in `LLMParameters` before calling the centralized inference router. The router passes the flag through to the backend (e.g., as `enable_thinking: false` in OpenAI-compatible chat requests), preventing reasoning-mode models from spending all `max_tokens` on internal reasoning. Some backends ignore the flag — notably Ollama 0.30.8 for qwen3.5/gemma4/deepseek-r1 — in which case the tool degrades gracefully with an empty-summary error.
 
 ### MCP Server Configuration
 
-The condenser MCP server is registered in the MCP runtime config (not in any editor-specific settings file). The only condenser-specific credential is `INFERENCE_MODEL` (default: `google/gemma-4-26B-A4B-it`, the hKask classifier model), which can be overridden per-request via the tool's `model` parameter.
+The condenser MCP server is registered in the MCP runtime config (not in any editor-specific settings file). Condenser-specific credentials are:
+
+- `INFERENCE_MODEL` — default `google/gemma-4-26B-A4B-it` (hKask classifier model), overridable per-request via the tool's `model` parameter.
+- `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` — required only by `condenser_persist`; without them the tool returns a permission-denied error while all other tools continue working.
 
 ## Procedure
 

@@ -16,6 +16,7 @@ pub mod governed_inference; // Loop 6 → inference call membrane
 pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub(crate) mod inference_estimator; // Loop 6 → Inference energy estimation
 
+pub mod dynamic_gas_table;
 pub mod gas_report;
 pub mod runtime; // Loop 6 — runtime
 pub mod seam_watcher; // R7.3 public seam watcher — inventory, drift, CNS spans
@@ -31,6 +32,7 @@ pub use api_metering::{
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_energy_estimator::CompositeEnergyEstimator;
 pub use cybernetics_loop::CyberneticsLoop;
+pub use dynamic_gas_table::DynamicGasTable;
 pub use energy::{
     AgentEnergyStatus, DEFAULT_ENERGY_ALERT_THRESHOLD, EnergyBudget, EnergyCost, EnergyDelta,
     EnergyError,
@@ -42,6 +44,7 @@ pub use wallet_budget::WalletBackedBudget;
 pub use wallet_energy_estimator::WalletEnergyEstimator;
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
 pub use contract_discipline::{emit_contract_coverage, emit_contract_violated};
+pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};
 pub use hkask_types::cns::QueueDepth;
 pub use runtime::CnsRuntime;
 pub use runtime::NoopEventSink;
@@ -53,4 +56,3 @@ pub use set_points::{
     load_set_points,
 };
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
-pub use gas_report::{AgentGasSummary, AgentGasReport, GasReport, GasTotals, ToolGasBreakdown};

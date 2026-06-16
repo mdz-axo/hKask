@@ -172,6 +172,7 @@ impl InferencePort for GovernedInference {
                 reserved_span,
                 Phase::Act,
                 serde_json::json!({
+                    "server": crate::composite_energy_estimator::CompositeEnergyEstimator::INFERENCE_SERVER,
                     "operation": "inference",
                     "model": model_name,
                     "estimated_cost": estimated_cost.0,
@@ -247,6 +248,7 @@ impl InferencePort for GovernedInference {
                 settled_span,
                 Phase::Act,
                 serde_json::json!({
+                    "server": crate::composite_energy_estimator::CompositeEnergyEstimator::INFERENCE_SERVER,
                     "operation": "inference",
                     "model": model_name,
                     "reserved": estimated_cost.0,

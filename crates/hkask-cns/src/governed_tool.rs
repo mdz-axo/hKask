@@ -231,6 +231,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 depleted_span,
                 Phase::Sense,
                 serde_json::json!({
+                    "server": server,
                     "tool": tool,
                     "estimated_cost": estimated_cost.0,
                 }),
@@ -274,6 +275,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             reserved_span,
             Phase::Act,
             serde_json::json!({
+                "server": server,
                 "tool": tool,
                 "estimated_cost": estimated_cost.0,
             }),
@@ -357,6 +359,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             settled_span,
             Phase::Act,
             serde_json::json!({
+                "server": server,
                 "tool": tool,
                 "reserved": estimated_cost.0,
                 "actual": actual_cost,

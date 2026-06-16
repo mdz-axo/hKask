@@ -19,7 +19,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 | hkask-agents | 30 | Agent runtime |
 | hkask-api | 8 | API surface |
 | hkask-cli | 2 | CLI surface |
-| hkask-cns | 66 | CNS observability |
+| hkask-cns | 73 | CNS observability |
 | hkask-communication | 25 | Communication |
 | hkask-inference | 86 | Inference |
 | hkask-keystore | 28 | Keystore |
@@ -324,7 +324,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-cli/src/onboarding.rs:225
 
 
-### hkask-cns (66 contracts)
+### hkask-cns (73 contracts)
 
 #### P9-cns-algedonic-alert-new (🟢 full)
 
@@ -426,7 +426,52 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ✅ anchored
 - **Post:** returns CompositeEnergyEstimator with empty estimators
-- **File:** crates/hkask-cns/src/composite_energy_estimator.rs:23
+- **File:** crates/hkask-cns/src/composite_energy_estimator.rs:24
+
+#### GAS-CALIB-003—calibratedtablereplaceshardcodedTableEnergyEstimatorcosts (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  table was calibrated (or default) via DynamicGasTable::calibrate()
+- **Post:** estimate_cost(server, ...) uses table.report_table()[server] for non-inference servers
+- **File:** crates/hkask-cns/src/composite_energy_estimator.rs:40
+
+#### GAS-CALIB-001 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  `server_costs` contains known servers with initialized costs
+- **Post:** after `calibrate()`, costs reflect EMA-smoothed actual/estimated ratios
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:41
+
+#### GAS-CALIB-001 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns DynamicGasTable with default server costs and no observations
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:74
+
+#### GAS-CALIB-002—singleobservationinitializesEMAperserver (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  estimated_gas > 0 (no division by zero)
+- **Post:** ema_ratios[server] updated with EMA of actual/estimated ratio;observation_counts[server] incremented
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:96
+
+#### GAS-CALIB-001 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** server_costs[server] is updated if its EMA ratio exceeds tolerance;returns the number of servers whose costs were adjusted
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:124
+
+#### GAS-CALIB-001 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns a HashMap<String, u64> of server → cost mappings
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:152
+
+#### GAS-CALIB-002 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns a HashMap<String, f64> of server → EMA ratio mappings
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:163
 
 #### P8-cns-energy-cost-from-raw (🟡 partial)
 

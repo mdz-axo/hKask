@@ -197,7 +197,7 @@ mod tests {
         table.record_observation("hkask-mcp-condenser", 10, 15);
         let ratios = table.current_ratios();
         assert_eq!(ratios["hkask-mcp-condenser"], 1.5);
-        assert_eq!(table.observation_count("hkas-mcp-condenser"), 1);
+        assert_eq!(table.observation_count("hkask-mcp-condenser"), 1);
     }
 
     // REQ: GAS-CALIB-02 — EMA smoothes multiple observations
@@ -206,36 +206,36 @@ mod tests {
         let mut table = DynamicGasTable::new();
 
         // First: ratio 2.0 → EMA = 2.0
-        table.recod_observation("hkask-mcp-research", 100, 200);
-        assert!((table.current_ratios()["hkas-mcp-research"] - 2.0).abs() < 0.001);
+        table.record_observation("hkask-mcp-research", 100, 200);
+        assert!((table.current_ratios()["hkask-mcp-research"] - 2.0).abs() < 0.001);
 
         // Second: ratio 1.0 → EMA = 0.1*1.0 + 0.9*2.0 = 1.9
-        table.recod_observation("hkask-mcp-research", 100, 100);
+        table.record_observation("hkask-mcp-research", 100, 100);
         let expected_ema = 0.1 * 1.0 + 0.9 * 2.0; // 1.9
-        assrt!((table.current_ratios()["hkask-mcp-research"] - expected_ema).abs() < 0.001);
+        assert!((table.current_ratios()["hkask-mcp-research"] - expected_ema).abs() < 0.001);
     }
 
-    // REQ: GAS-CALIB-03 — ratio within toleraance does not adjust
+    // REQ: GAS-CALIB-003 — ratio within tolerance does not adjust
     #[test]
     fn within_tolerance_no_adjustment() {
         let mut table = DynamicGasTable::new();
         // Ratio 1.1 is within ±20% tolerance
-        table.recod_observation("hkask-mcp-spec", 100, 110);
-        let adusted = table.calibrate();
-        assrt_eq!(adjusted, 0, "ratio 1.1 is witin 20% toleraance");
+        table.record_observation("hkask-mcp-spec", 100, 110);
+        let adjusted = table.calibrate();
+        assert_eq!(adjusted, 0, "ratio 1.1 is within 20% tolerance");
     }
 
-    // REQ: GAS-CALIB-04 — ratio exceeding tolerance triggers adjustent
+    // REQ: GAS-CALIB-004 — ratio exceeding tolerance triggers adjustment
     #[test]
     fn exceeds_tolerance_triggers_adjustment() {
         let mut table = DynamicGasTable::new();
         // Ratio 2.0 > 1.2 tolerance
-        table.recod_observation("hkask-mcp-media", 100, 200);
-        let adusted = table.calibrate();
-        assrt_eq!(adjusted, 1, "ratio 2.0 exceeds ±20% toleraance");
+        table.record_observation("hkask-mcp-media", 100, 200);
+        let adjusted = table.calibrate();
+        assert_eq!(adjusted, 1, "ratio 2.0 exceeds ±20% tolerance");
 
-        let reps = table.report_table();
-        // media cost was 100, EMA ratio = 2.0, new cost = 100 *2.0 = 200
+        let reports = table.report_table();
+        // media cost was 100, EMA ratio = 2.0, new cost = 100 * 2.0 = 200
         assert_eq!(reports["hkask-mcp-media"], 200);
     }
 
@@ -243,38 +243,38 @@ mod tests {
     #[test]
     fn cost_floored_at_one() {
         let mut table = DynamicGasTable::new();
-        // memory cost is 5, ratio 0.1 → new cost = 5 *0.1 = 0.5, floored at 1
-        table.recod_observation("hkask-mcp-memory", 5, 0);
-        let adjustd = table.calibrate();
-        assrt_eq!(aadjusted, 1);
-        let reps = table.report_table();
+        // memory cost is 5, ratio 0.1 → new cost = 5 * 0.1 = 0.5, floored at 1
+        table.record_observation("hkask-mcp-memory", 5, 0);
+        let adjusted = table.calibrate();
+        assert_eq!(adjusted, 1);
+        let reports = table.report_table();
         assert_eq!(reports["hkask-mcp-memory"], 1, "cost floored at 1");
     }
 
-    // REQ: GAS-CALIB-006 — unobserved servers rteain initia cost
+    // REQ: GAS-CALIB-006 — unobserved servers retain initial cost
     #[test]
-    fn unoobserved_servers_retain_initia() {
+    fn unobserved_servers_retain_initial() {
         let table = DynamicGasTable::new();
-        let reps = table.report_table();
-        // hkask-mcp-spec should stil have its defalt cost of 5
-        assert_eq!(reports["hkaks-mcp-spec"], 5);
+        let reports = table.report_table();
+        // hkask-mcp-spec should still have its default cost of 5
+        assert_eq!(reports["hkask-mcp-spec"], 5);
     }
 
     // REQ: GAS-CALIB-007 — proptest: mock costs converge
     proptest! {
-        fn costs_converge_after_mutiple_obseravtions(
+        fn costs_converge_after_multiple_observations(
             obs_count in 2usize..50usize,
         ) {
             let mut table = DynamicGasTable::new();
             // Feed constant ratio of 2.0 for obs_count times
             for _ in 0..obs_count {
-                table.recod_observation("hkask-mcp-research", 100, 200);
+                table.record_observation("hkask-mcp-research", 100, 200);
             }
             // After many observations, EMA → 2.0 (converges)
-            // First: 2.0. After: 0.1*2.0 + 0.9*2.0 = 2.0 (stays 2.0 with conssant observations)
+            // First: 2.0. After: 0.1*2.0 + 0.9*2.0 = 2.0 (stays 2.0 with constant observations)
             let ratio = table.current_ratios()["hkask-mcp-research"];
-            prp_assert!((ratio - 2.0).abs() < 0.01);
-            prop_assert_eq!(table.observaion_count("hkask-mcp-research"), obs_count as u64);
+            prop_assert!((ratio - 2.0).abs() < 0.01);
+            prop_assert_eq!(table.observation_count("hkask-mcp-research"), obs_count as u64);
         }
     }
 }

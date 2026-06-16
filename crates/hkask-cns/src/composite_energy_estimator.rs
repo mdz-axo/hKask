@@ -1,6 +1,7 @@
 //! CompositeEnergyEstimator — Routes inference tools to InferenceEnergyEstimator,
 //! all other tools to TableEnergyEstimator.
 
+use crate::dynamic_gas_table::DynamicGasTable;
 use crate::governed_tool::EnergyEstimator;
 use crate::inference_estimator::InferenceEnergyEstimator;
 use crate::table_energy_estimator::TableEnergyEstimator;
@@ -31,11 +32,26 @@ impl CompositeEnergyEstimator {
         }
     }
 
+    /// Create a CompositeEnergyEstimator calibrated from a DynamicGasTable.
+    ///
+    /// Non-inference server costs are taken from `table.report_table()`;
+    /// inference routing still uses `InferenceEnergyEstimator`.
+    ///
+    /// REQ: GAS-CALIB-003 — calibrated table replaces hardcoded TableEnergyEstimator costs
+    /// pre:  table was calibrated (or default) via DynamicGasTable::calibrate()
+    /// post: estimate_cost(server, ...) uses table.report_table()[server] for non-inference servers
+    pub fn from_dynamic_table(table: &DynamicGasTable) -> Self {
+        Self {
+            inference: InferenceEnergyEstimator,
+            table: TableEnergyEstimator::with_server_costs(table.report_table()),
+        }
+    }
+
     /// The inference routing key used for energy estimation.
     ///
     /// Inference is no longer an MCP server — it's a direct internal
     /// call through `InferencePort`, not MCP dispatch. This key remains
-    /// for energy estimation routing when a GovernedTool wraps an
+    /// for energy estimation routing when a `GovernedTool` wraps an
     /// inference-like tool port.
     pub const INFERENCE_SERVER: &'static str = "inference";
 }
@@ -53,5 +69,66 @@ impl EnergyEstimator for CompositeEnergyEstimator {
         } else {
             self.table.estimate_cost(server, tool, args)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: GAS-CALIB-003 — calibrated table replaces hardcoded costs
+    #[test]
+    fn from_dynamic_table_uses_calibrated_server_cost() {
+        let mut table = DynamicGasTable::new();
+        // Ratio 2.0 for hkask-mcp-media triggers cost doubling (100 -> 200)
+        table.record_observation("hkask-mcp-media", 100, 200);
+        assert_eq!(table.calibrate(), 1);
+
+        let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
+        let cost = estimator.estimate_cost("hkask-mcp-media", "search", &serde_json::json!({}));
+        assert_eq!(
+            cost, 200,
+            "calibrated cost should replace hardcoded default"
+        );
+    }
+
+    // REQ: GAS-CALIB-003 — unobserved servers keep default cost
+    #[test]
+    fn from_dynamic_table_retains_default_for_unobserved_servers() {
+        let table = DynamicGasTable::new();
+        let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
+        let cost = estimator.estimate_cost("hkask-mcp-spec", "spec_query", &serde_json::json!({}));
+        assert_eq!(cost, 5, "unobserved server should retain default cost");
+    }
+
+    // REQ: P9-cns-est-composite-new — inference still routed to token estimator
+    #[test]
+    fn from_dynamic_table_still_routes_inference() {
+        let table = DynamicGasTable::new();
+        let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
+        let args = serde_json::json!({"prompt": "x", "max_tokens": 100});
+        let cost = estimator.estimate_cost(
+            CompositeEnergyEstimator::INFERENCE_SERVER,
+            "generate",
+            &args,
+        );
+        assert_eq!(
+            cost,
+            1 / 4 + 100,
+            "inference cost uses token estimator, not table"
+        );
+    }
+
+    // REQ: GAS-CALIB-003 — per-tool overrides survive calibration
+    #[test]
+    fn from_dynamic_table_preserves_tool_overrides() {
+        let table = DynamicGasTable::new();
+        let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
+        let cost = estimator.estimate_cost(
+            "hkask-mcp-condenser",
+            "condenser_thread_summary",
+            &serde_json::json!({}),
+        );
+        assert_eq!(cost, 25, "per-tool override should be preserved");
     }
 }

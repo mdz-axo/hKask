@@ -6,6 +6,7 @@ contract:
     restored_context: object
     prioritized_tasks: array
     verification_results: object
+    immediate_next_action: string
   output:
     continuation_document: string
     immediate_next_action: string
@@ -26,6 +27,8 @@ max_tokens = 3000
 thinking_budget = "minimal"
 
 You are a document assembler. Combine restored context, prioritized tasks, and verification results into a single structured continuation document. This is mechanical assembly — no synthesis or judgment needed beyond formatting.
+
+{% macro status_emoji(status) %}{% if status == "complete" %}✅{% elif status == "in_progress" %}🔄{% elif status == "blocked" %}❌{% else %}⏳{% endif %}{% endmacro %}
 
 ## Restored Context
 
@@ -74,50 +77,60 @@ Assemble the continuation document following this exact structure:
 
 ## What Was Done
 
-{{ For each accomplishment in restored_context.accomplishments: }}
-- {{ status_emoji }} {{ what }}
+{% for accomplishment in restored_context.accomplishments %}
+- {{ status_emoji(accomplishment.status) }} {{ accomplishment.what }}
+{% endfor %}
 
 ## Key Files Changed
 
-{{ For each file in restored_context.key_files_changed: }}
-- `{{ path }}` — {{ change }}
+{% for file in restored_context.key_files_changed %}
+- `{{ file.path }}` — {{ file.change }}
+{% endfor %}
 
 ## Build Health
 
 | Check | Status |
 |-------|--------|
-{{ For each result in verification_results.verification_results: }}
-| {{ command }} | {{ status_emoji }} |
+{% for result in verification_results.verification_results %}
+| {{ result.command }} | {{ status_emoji(result.status) }} |
+{% endfor %}
 
 **Overall:** {{ verification_results.overall_status }}
 
 {% if verification_results.failed_checks %}
 ### Failed Checks
-{{ For each in verification_results.failed_checks: }}
-- ❌ {{ . }}
+{% for failed in verification_results.failed_checks %}
+- ❌ {{ failed }}
+{% endfor %}
 {% endif %}
 
 ## Remaining Work
 
-{{ For each task in prioritized_tasks, grouped by priority: }}
-
+{% set priorities = ["HIGH", "MEDIUM", "LOW"] %}
+{% for priority in priorities %}
+{% set tasks = prioritized_tasks | selectattr("priority", "equalto", priority) | list %}
+{% if tasks %}
 ### {{ priority }}
 
-{{ For each task in this priority group: }}
-- **{{ title }}** — {{ strategy }}
-  - Location: `{{ location }}`
-  {% if blockers %}- Blocked by: {{ blockers | join: ", " }}{% endif %}
-  {% if requires_inference %}- ⚠️ Requires live inference endpoint{% endif %}
+{% for task in tasks %}
+- **{{ task.title }}** — {{ task.strategy }}
+  - Location: `{{ task.location }}`
+  {% if task.blockers %}- Blocked by: {{ task.blockers | join: ", " }}{% endif %}
+  {% if task.requires_inference %}- ⚠️ Requires live inference endpoint{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
 
 ## Immediate Next Action
 
-{{ prioritized_tasks.immediate_next_action }}
+{{ immediate_next_action }}
 
 ## Key Decisions
 
-{{ For each decision in restored_context.key_decisions: }}
-1. **{{ decision }}** — {{ rationale }}
-   - Alternatives considered: {{ alternatives | join: ", " }}
+{% for decision in restored_context.key_decisions %}
+1. **{{ decision.decision }}** — {{ decision.rationale }}
+   - Alternatives considered: {{ decision.alternatives | join: ", " }}
+{% endfor %}
 
 ## Recommended Skills
 

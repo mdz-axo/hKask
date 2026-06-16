@@ -1,0 +1,96 @@
+// REQ: GAS-CALIB-003 — GasReport settled events feed DynamicGasTable
+//
+// Integration test: real NuEventStore with cns.gas.settled events is read by
+// GasReport, which calibrates a DynamicGasTable. The calibrated table is then
+// used to build a CompositeEnergyEstimator whose per-server costs reflect the
+// observed actual/estimated ratios.
+
+use chrono::{Duration, Utc};
+use hkask_cns::composite_energy_estimator::CompositeEnergyEstimator;
+use hkask_cns::dynamic_gas_table::DynamicGasTable;
+use hkask_cns::gas_report::GasReport;
+use hkask_cns::governed_tool::EnergyEstimator;
+use hkask_storage::{NuEventStore, in_memory_db};
+use hkask_types::NuEventSink;
+use hkask_types::WebID;
+use hkask_types::event::{NuEvent, Phase, Span, SpanKind};
+use std::sync::Arc;
+
+fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> NuEvent {
+    NuEvent::new(
+        agent,
+        Span::from_kind(SpanKind::GasSettled),
+        Phase::Act,
+        serde_json::json!({
+            "server": server,
+            "tool": "test_tool",
+            "reserved": reserved,
+            "actual": actual,
+            "refunded": reserved.saturating_sub(actual),
+        }),
+        0,
+    )
+}
+
+// REQ: GAS-CALIB-003 — settled events calibrate DynamicGasTable server costs
+#[test]
+fn gas_report_calibrates_dynamic_table_from_settled_events() {
+    let agent = WebID::new();
+    let server = "hkask-mcp-media";
+
+    let db = in_memory_db();
+    let conn = db.conn_arc();
+    let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(conn));
+
+    // Actual cost is double the reserved cost → ratio 2.0 → cost should double.
+    let event = settled_event(agent, server, 100, 200);
+    store.persist(&event).expect("persist settled event");
+
+    let report = GasReport::new(Arc::clone(&store));
+    let mut table = DynamicGasTable::new();
+
+    let since = Utc::now() - Duration::minutes(1);
+    let until = Utc::now() + Duration::minutes(1);
+    let adjusted = report
+        .calibrate_table(&mut table, since, until)
+        .expect("calibrate table");
+
+    assert_eq!(adjusted, 1, "server with ratio 2.0 should be adjusted");
+    assert_eq!(
+        table.report_table()[server],
+        200,
+        "media cost should double from 100 to 200"
+    );
+}
+
+// REQ: GAS-CALIB-003 — calibrated table flows into CompositeEnergyEstimator
+#[test]
+fn calibrated_table_flows_into_composite_estimator() {
+    let agent = WebID::new();
+    let server = "hkask-mcp-spec";
+
+    let db = in_memory_db();
+    let conn = db.conn_arc();
+    let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(conn));
+
+    // Actual is half of reserved → ratio 0.5 → cost should halve (5 → 2, floored at 1).
+    let event = settled_event(agent, server, 10, 5);
+    store.persist(&event).expect("persist settled event");
+
+    let report = GasReport::new(Arc::clone(&store));
+    let mut table = DynamicGasTable::new();
+    report
+        .calibrate_table(
+            &mut table,
+            Utc::now() - Duration::minutes(1),
+            Utc::now() + Duration::minutes(1),
+        )
+        .expect("calibrate table");
+
+    let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
+    let cost = estimator.estimate_cost(server, "spec_query", &serde_json::json!({}));
+    assert_eq!(
+        cost, 2,
+        "estimator should use calibrated cost from settled event"
+    );
+}
