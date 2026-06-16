@@ -74,7 +74,7 @@ impl TestDb {
     /// Borrow the underlying SQLite connection (locks the mutex).
     ///
     /// REQ: HARN-013
-    /// post: returns MutexGuard<Connection> for direct SQL access
+    /// post: returns `MutexGuard<Connection>` for direct SQL access
     pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().expect("mutex should not be poisoned")
     }
@@ -82,7 +82,7 @@ impl TestDb {
     /// Get the Arc<Mutex<Connection>> for Store constructors.
     ///
     /// REQ: HARN-014
-    /// post: returns Arc<Mutex<Connection>> clone for Store::new()
+    /// post: returns `Arc<Mutex<Connection>>` clone for Store::new()
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }

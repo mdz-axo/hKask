@@ -139,7 +139,8 @@ impl DiscoveryService {
     /// `hkask-mcp-research` server with configured providers.
     /// `token` is a delegation token for OCAP-gated tool invocation.
     ///
-    /// REQ: SVC-166
+    /// REQ: P5-svc-discover-svc-166
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  req.author_name must be non-empty; mcp must be connected; token must be valid
     /// post: returns DiscoverResult with discovered works, sources, and academic works; output and cache directories created; Err on MCP or I/O failure
     pub async fn discover(
@@ -451,7 +452,8 @@ impl DiscoveryService {
 /// they are included in the generated config. Sets `corpus_type: "academic"`
 /// since this is the academic discovery pipeline.
 ///
-/// REQ: SVC-167
+/// REQ: P5-svc-discover-svc-167
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  author_slug must be non-empty; works must be non-empty; output_dir must exist
 /// post: corpus.yaml is written to output_dir; returns PathBuf to the written file; Err on serialization or I/O failure
 pub fn generate_corpus_yaml(
@@ -521,7 +523,8 @@ pub fn generate_corpus_yaml(
 /// Shared between `generate_corpus_yaml` and the CLI curation section
 /// to prevent default drift. All corpus config defaults live here.
 ///
-/// REQ: SVC-168
+/// REQ: P5-svc-discover-svc-168
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  author_slug must be non-empty
 /// post: returns CorpusConfig with default embedding, chunking, validation, and budget settings
 pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
@@ -1290,7 +1293,8 @@ async fn fetch_youtube_transcript(
 
 /// Download content from a URL and cache it to disk.
 ///
-/// REQ: SVC-169
+/// REQ: P5-svc-discover-svc-169
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  url must be a valid HTTP/HTTPS URL; cache_path's parent directory must exist
 /// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
@@ -1423,7 +1427,8 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 
-/// REQ: SVC-170
+/// REQ: P5-svc-discover-svc-170
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  s may be any string (including empty)
 /// post: returns lowercase, alphanumeric-only slug with hyphens; empty string becomes empty slug
 pub fn slugify(s: &str) -> String {
@@ -1532,21 +1537,21 @@ mod tests {
 
     // ── slugify ─────────────────────────────────────────────────────────
 
-    // REQ: svc-discover-001 — slugify produces lowercase hyphenated ASCII name
+    // REQ: P5-svc-discover-svc-discover-001 — slugify produces lowercase hyphenated ASCII name
     #[test]
     fn slugify_ascii_name() {
         let s = slugify("David Dunning");
         assert_eq!(s, "david-dunning");
     }
 
-    // REQ: svc-discover-002 — slugify strips special characters and preserves name core
+    // REQ: P5-svc-discover-svc-discover-002 — slugify strips special characters and preserves name core
     #[test]
     fn slugify_with_special_chars() {
         let s = slugify("J. R. R. Tolkien");
         assert!(s.contains("tolkien"));
     }
 
-    // REQ: svc-discover-003 — slugify falls back to UUID for non-ASCII input
+    // REQ: P5-svc-discover-svc-discover-003 — slugify falls back to UUID for non-ASCII input
     #[test]
     fn slugify_non_ascii_fallback() {
         // All non-ASCII characters produce empty slug → UUID fallback
@@ -1557,7 +1562,7 @@ mod tests {
         assert_eq!(s.chars().filter(|c| *c == '-').count(), 4);
     }
 
-    // REQ: svc-discover-004 — slugify falls back to UUID for empty string input
+    // REQ: P5-svc-discover-svc-discover-004 — slugify falls back to UUID for empty string input
     #[test]
     fn slugify_empty_string() {
         let s = slugify("");
@@ -1567,27 +1572,27 @@ mod tests {
 
     // ── parse_template_model ────────────────────────────────────────────
 
-    // REQ: svc-discover-005 — parse_template_model extracts model directive from template
+    // REQ: P5-svc-discover-svc-discover-005 — parse_template_model extracts model directive from template
     #[test]
     fn parse_model_directive_present() {
         let src = "{# model: OM/qwen3:14b #}\nrest of template";
         assert_eq!(parse_template_model(src), Some("OM/qwen3:14b".to_string()));
     }
 
-    // REQ: svc-discover-006 — parse_template_model returns None when no directive present
+    // REQ: P5-svc-discover-svc-discover-006 — parse_template_model returns None when no directive present
     #[test]
     fn parse_model_directive_absent() {
         let src = "You are analyzing the academic work of {{ author_name }}.";
         assert_eq!(parse_template_model(src), None);
     }
 
-    // REQ: svc-discover-007 — parse_template_model returns None for empty template string
+    // REQ: P5-svc-discover-svc-discover-007 — parse_template_model returns None for empty template string
     #[test]
     fn parse_model_directive_empty_template() {
         assert_eq!(parse_template_model(""), None);
     }
 
-    // REQ: svc-discover-008 — parse_template_model handles leading/trailing whitespace around directive
+    // REQ: P5-svc-discover-svc-discover-008 — parse_template_model handles leading/trailing whitespace around directive
     #[test]
     fn parse_model_directive_whitespace_handling() {
         let src = "  {# model: DI/meta-llama/Llama-3.3-70B-Instruct #}  \nrest";
@@ -1599,7 +1604,7 @@ mod tests {
 
     // ── default_corpus_config ───────────────────────────────────────────
 
-    // REQ: svc-discover-009 — default_corpus_config produces correct field defaults for author
+    // REQ: P5-svc-discover-svc-discover-009 — default_corpus_config produces correct field defaults for author
     #[test]
     fn default_corpus_config_has_correct_defaults() {
         let config = default_corpus_config("test-author");
@@ -1614,7 +1619,7 @@ mod tests {
         assert!(config.foundational_rules.is_empty());
     }
 
-    // REQ: svc-discover-010 — default_corpus_config academic entities are empty by default
+    // REQ: P5-svc-discover-svc-discover-010 — default_corpus_config academic entities are empty by default
     #[test]
     fn default_corpus_config_academic_entities_empty_by_default() {
         let config = default_corpus_config("author");
@@ -1626,7 +1631,7 @@ mod tests {
 
     // ── DiscoveredWork with abstract ────────────────────────────────────
 
-    // REQ: svc-discover-011 — DiscoveredWork serializes abstract_text field when Some
+    // REQ: P5-svc-discover-svc-discover-011 — DiscoveredWork serializes abstract_text field when Some
     #[test]
     fn discovered_work_serializes_abstract() {
         let work = DiscoveredWork {
@@ -1643,7 +1648,7 @@ mod tests {
         assert!(json.contains("This paper explores"));
     }
 
-    // REQ: svc-discover-012 — DiscoveredWork serializes abstract_text as null when None
+    // REQ: P5-svc-discover-svc-discover-012 — DiscoveredWork serializes abstract_text as null when None
     #[test]
     fn discovered_work_omits_none_abstract() {
         let work = DiscoveredWork {
@@ -1662,7 +1667,7 @@ mod tests {
 
     // ── extract_search_terms ────────────────────────────────────────────
 
-    // REQ: svc-discover-013 — extract_search_terms prepends author name to extracted terms
+    // REQ: P5-svc-discover-svc-discover-013 — extract_search_terms prepends author name to extracted terms
     #[test]
     fn extract_search_terms_from_titles() {
         let titles = vec![
@@ -1675,7 +1680,7 @@ mod tests {
         assert!(!terms.is_empty());
     }
 
-    // REQ: svc-discover-014 — extract_search_terms returns author name only for empty titles
+    // REQ: P5-svc-discover-svc-discover-014 — extract_search_terms returns author name only for empty titles
     #[test]
     fn extract_search_terms_empty_titles() {
         let terms = extract_search_terms("Author", &[]);
@@ -1684,7 +1689,7 @@ mod tests {
 
     // ── DiscoverRequest defaults ────────────────────────────────────────
 
-    // REQ: svc-discover-015 — DiscoverRequest fields hold expected values after construction
+    // REQ: P5-svc-discover-svc-discover-015 — DiscoverRequest fields hold expected values after construction
     #[test]
     fn discover_request_defaults() {
         let req = DiscoverRequest {
@@ -1707,7 +1712,7 @@ mod tests {
         assert!(req.biographical_details.is_none());
     }
 
-    // REQ: svc-discover-016 — DiscoverRequest stores biographical_details when provided
+    // REQ: P5-svc-discover-svc-discover-016 — DiscoverRequest stores biographical_details when provided
     #[test]
     fn discover_request_with_bio() {
         let req = DiscoverRequest {

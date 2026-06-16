@@ -53,7 +53,8 @@ pub struct PodService;
 impl PodService {
     /// Create a new agent pod from a template and persona YAML.
     ///
-    /// REQ: SVC-128
+    /// REQ: P5-svc-pods-svc-128
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized; req.template must be non-empty; req.persona_yaml must be valid YAML
     /// post: pod is created and returns PodResponse with pod_id; Err(ValidationError) on invalid persona YAML; Err(Pod) on upstream error
     /// # Returns
@@ -82,7 +83,8 @@ impl PodService {
 
     /// List all registered pods.
     ///
-    /// REQ: SVC-129
+    /// REQ: P5-svc-pods-svc-129
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized
     /// post: returns Vec<PodStatusResponse> for all pods; empty Vec if none; Err(Pod) on upstream error
     pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusResponse>, ServiceError> {
@@ -93,7 +95,8 @@ impl PodService {
 
     /// Activate a pod by ID.
     ///
-    /// REQ: SVC-130
+    /// REQ: P5-svc-pods-svc-130
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
     /// post: pod is activated; Ok(()) on success; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
     pub async fn activate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
@@ -107,7 +110,8 @@ impl PodService {
 
     /// Deactivate a pod by ID.
     ///
-    /// REQ: SVC-131
+    /// REQ: P5-svc-pods-svc-131
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
     /// post: pod is deactivated; Ok(()) on success; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
     pub async fn deactivate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
@@ -121,7 +125,8 @@ impl PodService {
 
     /// Get pod status by ID.
     ///
-    /// REQ: SVC-132
+    /// REQ: P5-svc-pods-svc-132
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
     /// post: returns PodStatusResponse with pod state, webid, agent_type, template, etc.; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
     pub async fn get_pod_status(
@@ -150,7 +155,8 @@ impl PodService {
 
     /// Assign an MCP role to a replicant by name.
     ///
-    /// REQ: SVC-133
+    /// REQ: P5-svc-pods-svc-133
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized; name and role must be non-empty
     /// post: role is assigned to the replicant; Ok(()) on success; Err(Pod) on upstream error
     pub async fn assign_role(
@@ -167,7 +173,8 @@ impl PodService {
     /// Set the agent mode for a replicant by name.
     /// Mode: "server" (requires role), "chat", or "exit".
     ///
-    /// REQ: SVC-134
+    /// REQ: P5-svc-pods-svc-134
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.pod_manager() must be initialized; name and mode must be non-empty; mode must be "server", "chat", or "exit"
     /// post: agent mode is set; Ok(()) on success; Err(Pod) on upstream error
     pub async fn set_mode(
@@ -189,7 +196,7 @@ impl PodService {
 mod tests {
     use super::*;
 
-    // REQ: MDS-pod-svc-001 — parse_pod_id validates UUID format
+    // REQ: P5-svc-pods-mds-pod-svc-001 — parse_pod_id validates UUID format
     #[test]
     fn parse_pod_id_rejects_invalid_uuid() {
         let result = PodService::parse_pod_id("not-a-uuid");
@@ -202,7 +209,7 @@ mod tests {
         }
     }
 
-    // REQ: MDS-pod-svc-002 — parse_pod_id accepts valid UUID
+    // REQ: P5-svc-pods-mds-pod-svc-002 — parse_pod_id accepts valid UUID
     #[test]
     fn parse_pod_id_accepts_valid_uuid() {
         let valid = uuid::Uuid::new_v4().to_string();
@@ -210,7 +217,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: MDS-pod-svc-003 — PodStatus → PodStatusResponse preserves all fields
+    // REQ: P5-svc-pods-mds-pod-svc-003 — PodStatus → PodStatusResponse preserves all fields
     #[test]
     fn pod_status_to_response_maps_fields() {
         let status = PodStatus {

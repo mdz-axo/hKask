@@ -74,7 +74,7 @@ fn json_value_strategy() -> BoxedStrategy<Value> {
 /// valid phases, string observations, and recursion depth 0–7.
 ///
 /// REQ: HARN-007
-/// post: returns BoxedStrategy<NuEvent> with valid observer, span, phase, observation, depth 0–7
+/// post: returns `BoxedStrategy<NuEvent>` with valid observer, span, phase, observation, depth 0–7
 pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
     (
         webid_strategy(),
@@ -95,7 +95,7 @@ pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
 /// string JSON values, and random owner WebIDs.
 ///
 /// REQ: HARN-008
-/// post: returns BoxedStrategy<Triple> with non-empty entity, attribute, value, owner
+/// post: returns `BoxedStrategy<Triple>` with non-empty entity, attribute, value, owner
 pub fn any_triple() -> BoxedStrategy<Triple> {
     (
         non_empty_string(),

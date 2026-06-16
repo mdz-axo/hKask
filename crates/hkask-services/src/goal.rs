@@ -45,7 +45,8 @@ pub struct GoalService;
 impl GoalService {
     /// Create a new goal for the given owner.
     ///
-    /// REQ: SVC-125
+    /// REQ: P5-svc-goal-svc-125
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; req.text must be non-empty; req.visibility must be "private" or "public"
     /// post: goal is persisted and returned as GoalResponse; Err(ValidationError) on invalid visibility; Err(GoalRepo) on store failure
     pub fn create_goal(
@@ -70,7 +71,8 @@ impl GoalService {
 
     /// List goals for the given owner, optionally filtered by state.
     ///
-    /// REQ: SVC-126
+    /// REQ: P5-svc-goal-svc-126
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; owner must be a valid WebID; state_filter if Some must be a valid GoalState string
     /// post: returns Vec<GoalResponse> for matching goals; empty Vec if none; Err(ValidationError) on invalid state filter; Err(GoalRepo) on store failure
     pub fn list_goals(
@@ -98,7 +100,8 @@ impl GoalService {
 
     /// Set the state of an existing goal.
     ///
-    /// REQ: SVC-127
+    /// REQ: P5-svc-goal-svc-127
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; goal_id_str must be a valid GoalID; new_state_str must be a valid GoalState
     /// post: goal state is updated and returned as GoalResponse; Err(ValidationError) on invalid ID or state; Err(GoalRepo) on store failure
     pub fn set_goal_state(
@@ -158,14 +161,14 @@ impl GoalService {
 mod tests {
     use super::*;
 
-    // REQ: MDS-goal-svc-001 — create_goal delegates to GoalRepository and produces GoalResponse
+    // REQ: P5-svc-goal-mds-goal-svc-001 — create_goal delegates to GoalRepository and produces GoalResponse
     #[test]
     fn create_goal_converts_visibility_and_returns_response() {
         let err = Visibility::parse_str("bogus");
         assert!(err.is_none(), "bogus should not parse as a Visibility");
     }
 
-    // REQ: MDS-goal-svc-002 — list_goals respects optional state filter
+    // REQ: P5-svc-goal-mds-goal-svc-002 — list_goals respects optional state filter
     #[test]
     fn list_goals_parses_state_filter() {
         assert!(GoalState::parse_str("pending").is_some());
@@ -174,7 +177,7 @@ mod tests {
         assert!(GoalState::parse_str("bogus").is_none());
     }
 
-    // REQ: MDS-goal-svc-003 — Goal::into() → GoalResponse preserves all fields
+    // REQ: P5-svc-goal-mds-goal-svc-003 — Goal::into() → GoalResponse preserves all fields
     #[test]
     fn goal_to_response_maps_all_fields() {
         let goal = Goal::new(WebID::new(), "Test goal", Visibility::Private);

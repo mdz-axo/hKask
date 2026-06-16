@@ -60,7 +60,7 @@ mod tests {
     use hkask_agents::consent::ConsentManager;
     use hkask_storage::{ConsentStore, Database};
 
-    // REQ: svc-sovereignty-001 — service delegates to ConsentManager
+    // REQ: P5-svc-sovereignty-svc-sovereignty-001 — service delegates to ConsentManager
     //
     // A fresh SovereigntyService wrapping an empty ConsentManager should
     // report no consent and return zero granted categories.
@@ -84,7 +84,7 @@ mod tests {
         );
     }
 
-    // REQ: svc-sovereignty-002 — grant and revoke return ServiceError, not ConsentError
+    // REQ: P5-svc-sovereignty-svc-sovereignty-002 — grant and revoke return ServiceError, not ConsentError
     //
     // Before fix, grant_consent/revoke_consent returned ConsentError, leaking
     // domain internals through the service layer boundary.

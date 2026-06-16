@@ -154,13 +154,14 @@ pub struct ComposeService;
 impl ComposeService {
     /// Execute the full style composition pipeline.
     ///
-    /// REQ: SVC-095
+    /// REQ: P5-svc-compose-svc-095
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  request.db_path must point to a valid database; request.prompt must be non-empty; request.cognition must have valid embedding config
     /// post: returns ComposeResult with generated_prose, exemplar_count, and optional CentroidValidation; Err on DB open failure, embedding failure, or inference failure
-    /// # REQ: svc-compose-001 — compose returns generated prose with exemplar retrieval
-    /// # REQ: svc-compose-002 — compose validates centroid distance when no_validate is false
-    /// # REQ: svc-compose-003 — compose returns validation=None when no_validate is true
-    /// # REQ: svc-compose-004 — compose uses Jinja2 template from cognition config
+    /// # REQ: P5-svc-compose-svc-compose-001 — compose returns generated prose with exemplar retrieval
+    /// # REQ: P5-svc-compose-svc-compose-002 — compose validates centroid distance when no_validate is false
+    /// # REQ: P5-svc-compose-svc-compose-003 — compose returns validation=None when no_validate is true
+    /// # REQ: P5-svc-compose-svc-compose-004 — compose uses Jinja2 template from cognition config
     pub async fn compose(request: ComposeRequest) -> Result<ComposeResult, ServiceError> {
         // 1. Open DB + construct memory infrastructure
         let db = Database::open(&request.db_path.to_string_lossy(), &request.db_passphrase)?;
@@ -447,7 +448,8 @@ fn generic_system_prompt(
 /// Compute cosine distance between two vectors.
 /// Returns 0.0 for identical vectors, 2.0 for opposite vectors.
 ///
-/// REQ: SVC-096
+/// REQ: P5-svc-compose-svc-096
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  a and b must be non-empty f32 slices of equal length; mismatched or empty returns 2.0
 /// post: returns f64 in range [0.0, 2.0]; 0.0 = identical, 1.0 = orthogonal, 2.0 = opposite or degenerate
 pub fn cosine_distance(a: &[f32], b: &[f32]) -> f64 {

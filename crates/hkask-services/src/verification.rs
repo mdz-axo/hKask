@@ -98,13 +98,15 @@ pub struct VerificationReport {
 pub struct VerificationService;
 
 impl VerificationService {
-    /// REQ: SVC-232
+    /// REQ: P5-svc-verification-svc-232
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter if Some must be a valid principle name; manifests must be loadable
     /// post: returns VerificationReport with principle results, pass/fail/gap/skip counts, and total assertions
     pub fn verify(filter: Option<&str>) -> VerificationReport {
         build_report(&load_manifests(), filter)
     }
-    /// REQ: SVC-233
+    /// REQ: P5-svc-verification-svc-233
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter if Some must be a valid principle name
     /// post: returns serde_json::Value with principles array, totals, and escalation_required flag
     pub fn verify_json(filter: Option<&str>) -> serde_json::Value {

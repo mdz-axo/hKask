@@ -102,7 +102,8 @@ impl BackupService {
     /// If an encryption passphrase is available via the `HKASK_BACKUP_PASSPHRASE`
     /// env var or OS keychain, encryption is enabled automatically.
     ///
-    /// REQ: SVC-142
+    /// REQ: P5-svc-backup-svc-142
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cas must be a valid GitCASPort
     /// post: returns BackupService with config loaded from disk and encryption key derived if passphrase available
     pub fn new(cas: Arc<dyn GitCASPort>) -> Self {
@@ -117,7 +118,8 @@ impl BackupService {
 
     /// Create a new backup service with an explicit config (for testing).
     ///
-    /// REQ: SVC-143
+    /// REQ: P5-svc-backup-svc-143
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cas must be a valid GitCASPort; config must be a valid BackupConfig
     /// post: returns BackupService with explicit config and derived encryption key
     pub fn with_config(cas: Arc<dyn GitCASPort>, config: BackupConfig) -> Self {
@@ -190,7 +192,8 @@ impl BackupService {
     ///
     /// CNS span: `backup.snapshot` — records artifact_count, repos, duration_ms.
     ///
-    /// REQ: SVC-144
+    /// REQ: P5-svc-backup-svc-144
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  scope must be a valid BackupScope; artifacts must be non-empty after filtering tracked types
     /// post: returns SnapshotMetadata with commits, artifact_count, trigger=Manual, and timestamp; Err(NoSnapshots) if no artifacts after filtering; Err(Config) if scope types not tracked
     #[instrument(skip(self, artifacts), fields(artifact_count, repo_count))]
@@ -273,7 +276,8 @@ impl BackupService {
     /// Callers are responsible for writing restored data back to the
     /// appropriate store (registry, memory, etc.).
     ///
-    /// REQ: SVC-145
+    /// REQ: P5-svc-backup-svc-145
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
     /// post: returns Vec<(ArtifactType, String, Vec<u8>)> of restored artifacts; empty Vec if none match; Err on CAS or deserialization failure
     pub async fn restore(
@@ -336,7 +340,8 @@ impl BackupService {
     /// Returns snapshots across all tracked repos, filtered by artifact type
     /// and limited by count. Newest first.
     ///
-    /// REQ: SVC-146
+    /// REQ: P5-svc-backup-svc-146
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter.limit defaults to 20 if None
     /// post: returns Vec<SnapshotMetadata> sorted by timestamp descending, truncated to limit; Err(NoSnapshots) if no snapshots found
     pub async fn list(&self, filter: ListFilter) -> Result<Vec<SnapshotMetadata>, BackupError> {
@@ -379,7 +384,8 @@ impl BackupService {
     /// then monthly beyond. In dry-run mode, reports what WOULD be removed.
     /// In execute mode, rewrites git history to remove pruned commits.
     ///
-    /// REQ: SVC-147
+    /// REQ: P5-svc-backup-svc-147
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  retention policy must be configured; dry_run=true only reports, dry_run=false executes pruning
     /// post: returns PruneReport with evaluated count, removed commits, and retained count; empty report if no retention policy configured
     pub async fn prune(&self, dry_run: bool) -> Result<PruneReport, BackupError> {
@@ -486,7 +492,8 @@ impl BackupService {
     /// CNS span: `backup.verify` — records total_blobs, corrupt_count per repo.
     /// CNS alert: `backup.integrity_failure` if any repo has corrupt blobs.
     ///
-    /// REQ: SVC-148
+    /// REQ: P5-svc-backup-svc-148
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  tracked repos must be accessible via CAS
     /// post: returns Vec<VerificationReport> per repo with total_blobs and corrupt_hashes; empty Vec if no tracked repos
     #[instrument(skip(self), fields(repo_count, total_blobs, corrupt_count))]
@@ -540,7 +547,8 @@ impl BackupService {
 
     /// 6. Get current backup configuration.
     ///
-    /// REQ: SVC-149
+    /// REQ: P5-svc-backup-svc-149
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns reference to current BackupConfig
     pub fn config(&self) -> &BackupConfig {
@@ -549,7 +557,8 @@ impl BackupService {
 
     /// 7. Update backup configuration and persist to disk.
     ///
-    /// REQ: SVC-150
+    /// REQ: P5-svc-backup-svc-150
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be a valid BackupConfig
     /// post: config is persisted to disk and self.config is updated; encryption key is re-derived; Err(Config) on save failure
     pub fn update_config(&mut self, config: BackupConfig) -> Result<(), BackupError> {
@@ -563,7 +572,8 @@ impl BackupService {
     /// Enable encryption with a passphrase.
     /// Generates a random salt, derives the key, and saves the config.
     ///
-    /// REQ: SVC-151
+    /// REQ: P5-svc-backup-svc-151
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  passphrase must be non-empty
     /// post: encryption is enabled with random salt; config is persisted; encryption_key is derived; Err(Config) on save failure; Err(Encryption) on Argon2 failure
     pub fn enable_encryption(&mut self, passphrase: &str) -> Result<(), BackupError> {
@@ -591,7 +601,8 @@ impl BackupService {
     /// Run a daily backup snapshot of all tracked artifact types.
     /// Called by the backup scheduler (daemon loop).
     ///
-    /// REQ: SVC-152
+    /// REQ: P5-svc-backup-svc-152
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  auto_snapshot must be enabled in config
     /// post: returns SnapshotMetadata from full snapshot; Err on snapshot failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
@@ -609,7 +620,8 @@ impl BackupService {
     /// - `RestoreScope::ByType`: restore all artifacts of one type (registry-level)
     /// - `RestoreScope::ByIds`: restore specific artifacts by ID (file-level)
     ///
-    /// REQ: SVC-153
+    /// REQ: P5-svc-backup-svc-153
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
     /// post: returns Vec of restored artifacts matching the scope; delegates to restore()
     pub async fn scoped_restore(
@@ -739,7 +751,7 @@ mod tests {
         BackupService::with_config(mock, test_config())
     }
 
-    // REQ: BACKUP-SNAPSHOT-001 — Snapshot of tracked type produces commits
+    // REQ: P5-svc-backup-backup-snapshot-001 — Snapshot of tracked type produces commits
     #[tokio::test]
     async fn snapshot_tracked_type_produces_commits() {
         let svc = test_service();
@@ -756,7 +768,7 @@ mod tests {
         assert!(!result.commits.is_empty());
     }
 
-    // REQ: BACKUP-SNAPSHOT-002 — Snapshot of untracked type is rejected
+    // REQ: P5-svc-backup-backup-snapshot-002 — Snapshot of untracked type is rejected
     #[tokio::test]
     async fn snapshot_untracked_type_rejected() {
         let svc = test_service();
@@ -771,7 +783,7 @@ mod tests {
         assert!(matches!(result, Err(BackupError::NotTracked(_))));
     }
 
-    // REQ: BACKUP-SNAPSHOT-003 — Full snapshot with no tracked types errors
+    // REQ: P5-svc-backup-backup-snapshot-003 — Full snapshot with no tracked types errors
     #[tokio::test]
     async fn full_snapshot_no_tracked_types_errors() {
         let mock = Arc::new(MockGitCas::new());
@@ -780,7 +792,7 @@ mod tests {
         assert!(matches!(result, Err(BackupError::Config(_))));
     }
 
-    // REQ: BACKUP-RESTORE-001 — Restore reproduces artifact state
+    // REQ: P5-svc-backup-backup-restore-001 — Restore reproduces artifact state
     #[tokio::test]
     async fn restore_reproduces_state() {
         let mock = Arc::new(MockGitCas::new());
@@ -806,7 +818,7 @@ mod tests {
         assert_eq!(restored[0].1, "tpl-1");
     }
 
-    // REQ: BACKUP-LIST-001 — List returns snapshots for tracked repos
+    // REQ: P5-svc-backup-backup-list-001 — List returns snapshots for tracked repos
     #[tokio::test]
     async fn list_returns_snapshots() {
         let svc = test_service();
@@ -823,7 +835,7 @@ mod tests {
         assert!(!snapshots.is_empty());
     }
 
-    // REQ: BACKUP-PRUNE-001 — Prune with retention removes old snapshots
+    // REQ: P5-svc-backup-backup-prune-001 — Prune with retention removes old snapshots
     #[tokio::test]
     async fn prune_with_retention_identifies_expired() {
         let mock = Arc::new(MockGitCas::new());
@@ -856,7 +868,7 @@ mod tests {
         assert_eq!(report.retained, 1);
     }
 
-    // REQ: BACKUP-VERIFY-001 — Verify returns reports for tracked repos
+    // REQ: P5-svc-backup-backup-verify-001 — Verify returns reports for tracked repos
     #[tokio::test]
     async fn verify_returns_reports() {
         let svc = test_service();
@@ -865,7 +877,7 @@ mod tests {
         assert!(!reports.is_empty());
     }
 
-    // REQ: BACKUP-CONFIG-004 — Update config persists and reflects changes
+    // REQ: P5-svc-backup-backup-config-004 — Update config persists and reflects changes
     #[tokio::test]
     async fn update_config_persists_and_reflects() {
         let mut svc = test_service();

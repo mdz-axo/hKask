@@ -1,4 +1,5 @@
-    Blocking waiting for file lock on build directory
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.52s
+   Compiling hkask-services v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-services)
+   Compiling hkask-api v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-api)
+   Compiling hkask-cli v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.88s
      Running `target/debug/kask skill audit --json --fail-below 0.0`
-Audit failed: one or more skills are below threshold or a FlowDef was declared on a .j2 file.

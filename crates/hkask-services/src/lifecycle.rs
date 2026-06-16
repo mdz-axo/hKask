@@ -38,7 +38,8 @@ pub enum ServerHealth {
 impl ServerHealth {
     /// Returns true if the server is healthy (not degraded and not stopped).
     ///
-    /// REQ: SVC-171
+    /// REQ: P5-svc-lifecycle-svc-171
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServerHealth variant
     /// post: returns true for Healthy; false for Degraded or Stopped
     pub fn is_healthy(&self) -> bool {
@@ -114,7 +115,8 @@ pub struct ServerLifecycleConfig {
 impl ServerLifecycleConfig {
     /// Create from environment variables.
     ///
-    /// REQ: SVC-172
+    /// REQ: P5-svc-lifecycle-svc-172
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  name and version must be non-empty; env vars HKASK_DB_PATH, HKASK_DB_PASSPHRASE, HKASK_MEMORY_DB_PATH, HKASK_MEMORY_DB_PASSPHRASE are read if set
     /// post: returns ServerLifecycleConfig with env-derived or default values
     pub fn from_env(name: &str, version: &str) -> Self {
@@ -144,7 +146,8 @@ impl ServerLifecycleConfig {
 ///
 /// Health checks are the caller's responsibility (e.g., from a CNS polling loop).
 ///
-/// REQ: SVC-173
+/// REQ: P5-svc-lifecycle-svc-173
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must be a valid ServerLifecycleConfig; server must implement ServerLifecycle
 /// post: server is initialized, started, and result returned; CNS spans emitted for start/stop/failure
 pub async fn run_lifecycle<S>(
@@ -231,7 +234,7 @@ mod tests {
         }
     }
 
-    // REQ: lifecycle-001 — init_succeeds_with_valid_config
+    // REQ: P5-svc-lifecycle-lifecycle-001 — init_succeeds_with_valid_config
     #[tokio::test]
     async fn init_succeeds_with_valid_config() {
         let config = ServerLifecycleConfig {
@@ -249,7 +252,7 @@ mod tests {
         assert!(server.init(&config).await.is_ok());
     }
 
-    // REQ: lifecycle-002 — health_reports_correct_status
+    // REQ: P5-svc-lifecycle-lifecycle-002 — health_reports_correct_status
     #[tokio::test]
     async fn health_reports_correct_status() {
         let _config = ServerLifecycleConfig {
@@ -273,7 +276,7 @@ mod tests {
         assert!(!degraded_server.health().await.unwrap().is_healthy());
     }
 
-    // REQ: lifecycle-003 — run_lifecycle_emits_cns_spans
+    // REQ: P5-svc-lifecycle-lifecycle-003 — run_lifecycle_emits_cns_spans
     #[tokio::test]
     async fn run_lifecycle_emits_cns_spans() {
         let config = ServerLifecycleConfig {

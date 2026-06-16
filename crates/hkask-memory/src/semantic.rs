@@ -84,7 +84,7 @@ impl SemanticMemory {
     /// \[P3\] Motivating: Generative Space — recalls deduplicated public semantic triples
     /// \[P4\] Constraining: Clear Boundaries — filters to Public visibility
     /// pre:  entity is non-empty
-    /// post: returns Vec<Triple> filtered to Public visibility, deduplicated by EAV hash
+    /// post: returns `Vec<Triple>` filtered to Public visibility, deduplicated by EAV hash
     pub fn query_deduped(&self, entity: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         let triples = self.triple_store.query_by_entity(entity)?;
         let filtered: Vec<Triple> = triples

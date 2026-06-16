@@ -116,7 +116,8 @@ impl ServiceConfig {
     /// and `HKASK_MEMORY_DB_PATH` from environment. ACP and MCP secrets are
     /// resolved via `hkask_keystore`. Falls back to defaults for missing values.
     ///
-    /// REQ: SVC-221
+    /// REQ: P5-svc-config-svc-221
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  keystore must have acp_secret, db_passphrase, and mcp_secret configured
     /// post: returns ServiceConfig with env-derived values and keystore secrets; Err(Keystore) on secret resolution failure
     pub fn from_env() -> Result<Self, ServiceError> {
@@ -179,7 +180,8 @@ impl ServiceConfig {
     /// This avoids re-resolving from the keychain, which is important
     /// for the REPL's interactive onboarding flow.
     ///
-    /// REQ: SVC-222
+    /// REQ: P5-svc-config-svc-222
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  acp_secret, db_passphrase, mcp_secret, agent_name must be non-empty
     /// post: returns ServiceConfig with provided secrets and env-derived or default values
     pub fn from_secrets(
@@ -222,7 +224,8 @@ impl ServiceConfig {
     ///
     /// Uses in-memory databases and synthetic secrets. Never use in production.
     ///
-    /// REQ: SVC-223
+    /// REQ: P5-svc-config-svc-223
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns ServiceConfig with :memory: DB, zeroed secrets, and test agent name
     pub fn in_memory() -> Self {
@@ -255,7 +258,8 @@ impl ServiceConfig {
     ///
     /// Returns `None` when `in_memory: true` (memory stores are ephemeral).
     ///
-    /// REQ: SVC-224
+    /// REQ: P5-svc-config-svc-224
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns Some(path) if not in_memory; None if in_memory; derives from db_path if memory_db_path not set
     pub fn effective_memory_db_path(&self) -> Option<String> {

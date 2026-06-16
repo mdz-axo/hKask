@@ -58,7 +58,8 @@ impl OnboardingService {
     /// If `store` is true, stores secrets in the OS keychain for future sessions.
     /// Returns `ResolvedSecrets` carrying the ACP secret and DB passphrase.
     ///
-    /// REQ: SVC-188
+    /// REQ: P5-svc-onboarding-svc-188
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  passphrase must be non-empty; store=true requires writable keychain
     /// post: returns ResolvedSecrets with acp_secret and db_passphrase; if store=true, secrets are persisted to keychain; Err(Keystore) on keychain failure
     pub fn derive_secrets(passphrase: &str, store: bool) -> Result<ResolvedSecrets, ServiceError> {
@@ -90,7 +91,8 @@ impl OnboardingService {
     /// persisted agent registrations, and returns both the ACP runtime and
     /// the registry store ready for use.
     ///
-    /// REQ: SVC-189
+    /// REQ: P5-svc-onboarding-svc-189
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must have valid db_path, db_passphrase, and acp_secret
     /// post: returns RegistryHandle with ACP runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
     pub async fn init_registry(config: &ServiceConfig) -> Result<RegistryHandle, ServiceError> {
@@ -136,7 +138,8 @@ impl OnboardingService {
     /// If `user_profile` is provided, the replicant's display name follows
     /// the naming protocol: "{chosen_name} r{human_last_name}".
     ///
-    /// REQ: SVC-190
+    /// REQ: P5-svc-onboarding-svc-190
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  acp must be initialized; store must be initialized; name and description must be non-empty
     /// post: replicant is registered in ACP with default capabilities and persisted to store; Err(Acp) on registration failure; Err(AgentRegistryStore) on persistence failure
     pub async fn register_replicant(
@@ -201,7 +204,8 @@ impl OnboardingService {
 
     /// Store the human user's profile in the registry.
     ///
-    /// REQ: SVC-191
+    /// REQ: P5-svc-onboarding-svc-191
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; profile must be a valid UserProfile
     /// post: profile is persisted to the registry store; Err(AgentRegistryStore) on store failure
     pub fn store_user_profile(
@@ -215,7 +219,8 @@ impl OnboardingService {
 
     /// Retrieve the human user's profile from the registry.
     ///
-    /// REQ: SVC-192
+    /// REQ: P5-svc-onboarding-svc-192
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized
     /// post: returns Some(UserProfile) if stored; None if no profile; Err(AgentRegistryStore) on store failure
     pub fn get_user_profile(
@@ -232,7 +237,8 @@ impl OnboardingService {
     /// On success, stores the secrets in the keychain for future sessions
     /// and returns a `SignInOutcome`.
     ///
-    /// REQ: SVC-193
+    /// REQ: P5-svc-onboarding-svc-193
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be valid; agent_name must match a registered replicant; resolved_secrets must be valid
     /// post: returns SignInOutcome on success; secrets stored in keychain; Err(AgentNotFound) if replicant missing; Err on registry init failure
     pub async fn try_sign_in(
@@ -277,7 +283,8 @@ impl OnboardingService {
     ///
     /// Returns an empty Vec if the DB can't be opened or has no replicants.
     ///
-    /// REQ: SVC-194
+    /// REQ: P5-svc-onboarding-svc-194
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config.db_path must be set; returns empty Vec on any failure
     /// post: returns Vec<RegisteredAgent> of replicants; empty Vec if DB inaccessible or no replicants
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
@@ -312,7 +319,8 @@ impl OnboardingService {
     /// current passphrase), it's orphaned and should be removed before
     /// starting a fresh onboarding. Returns `true` if cleanup was performed.
     ///
-    /// REQ: SVC-195
+    /// REQ: P5-svc-onboarding-svc-195
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config.db_path must be set; :memory: paths are never orphaned
     /// post: returns true if orphaned DB was cleaned up; false if DB has replicants or doesn't exist
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
@@ -358,7 +366,8 @@ impl OnboardingService {
     /// stored but registration failed). Prevents orphaned state from
     /// poisoning subsequent attempts.
     ///
-    /// REQ: SVC-196
+    /// REQ: P5-svc-onboarding-svc-196
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be valid; best-effort cleanup (errors are silently ignored)
     /// post: keychain entries (acp-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
@@ -394,7 +403,8 @@ impl OnboardingService {
     ///
     /// Returns the created user IDs for display in the onboarding summary.
     ///
-    /// REQ: SVC-197
+    /// REQ: P5-svc-onboarding-svc-197
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  user_profile must have first_name and last_name; replicant_display_name must be non-empty; passphrase must be non-empty; homeserver_url must be valid
     /// post: returns MatrixRegistrationResult with human and replicant user IDs; credentials stored in keychain; Err(Matrix) on registration failure
     pub async fn register_matrix_accounts(
@@ -478,7 +488,8 @@ impl OnboardingService {
     ///
     /// Returns the created user IDs keyed by bot name.
     ///
-    /// REQ: SVC-198
+    /// REQ: P5-svc-onboarding-svc-198
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  homeserver_url must be valid and reachable
     /// post: returns HashMap<String, String> of bot_name → user_id for successfully registered bots; failed registrations are silently skipped
     pub async fn register_system_accounts(
@@ -645,7 +656,8 @@ async fn register_on_conduit(
 /// Performs a GET to `/_matrix/client/versions`. Returns `true` if the
 /// server responds with a successful HTTP status.
 ///
-/// REQ: SVC-199
+/// REQ: P5-svc-onboarding-svc-199
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  homeserver_url must be a valid HTTP URL
 /// post: returns true if server responds with 2xx; false on connection error or non-2xx status
 pub async fn conduit_health_check(homeserver_url: &str) -> bool {

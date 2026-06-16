@@ -1,6 +1,15 @@
 # CNS Energy Tracking Configuration
 # ℏKask v0.21.2
 
+manifest:
+  id: cns-gas-tracking
+  name: CNS Gas Tracking
+  description: CNS energy budget and alert configuration
+  version: 0.21.2
+  functional_role: flowdef
+  editor: curator-or-human-admin
+  visibility: Shared
+
 gas_budget:
   caps:
     template_render: 1000

@@ -50,7 +50,8 @@ async fn build_test_service() -> AgentService {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-/// REQ: INT-001.1 — Service build with in-memory config
+/// REQ: P5-svc-cli_to_storage_integration-int-001.1 — Service build with in-memory config
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// `AgentService::build()` with `ServiceConfig::in_memory()` succeeds
 /// and all accessors return valid references.
@@ -77,7 +78,8 @@ async fn service_builds_with_in_memory_config() {
     let _sovereignty = svc.sovereignty();
 }
 
-/// REQ: INT-001.2 — Sovereignty consent write→read round-trip
+/// REQ: P5-svc-cli_to_storage_integration-int-001.2 — Sovereignty consent write→read round-trip
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// Grant consent through the sovereignty service and verify
 /// the consent manager reflects the grant.
@@ -102,7 +104,8 @@ async fn sovereignty_consent_round_trip() {
     assert!(has_consent, "consent should be granted after grant_consent");
 }
 
-/// REQ: INT-001.3 — Goal write→read round-trip
+/// REQ: P5-svc-cli_to_storage_integration-int-001.3 — Goal write→read round-trip
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// Create a goal through the goal repository and read it back.
 #[tokio::test]
@@ -130,7 +133,8 @@ async fn goal_write_read_round_trip() {
     assert_eq!(retrieved.webid, webid);
 }
 
-/// REQ: INT-001.4 — Spec write→read round-trip
+/// REQ: P5-svc-cli_to_storage_integration-int-001.4 — Spec write→read round-trip
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// Create a specification and read it back.
 #[tokio::test]
@@ -149,7 +153,8 @@ async fn spec_write_read_round_trip() {
     assert_eq!(retrieved.category, SpecCategory::Lifecycle);
 }
 
-/// REQ: INT-001.5 — Cross-store visibility: consent → CNS events
+/// REQ: P5-svc-cli_to_storage_integration-int-001.5 — Cross-store visibility: consent → CNS events
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// After granting consent, a CNS event can be persisted in the
 /// shared event store (visible because all stores share one DB).
@@ -179,7 +184,8 @@ async fn cross_store_consent_visible_to_cns_events() {
         .expect("event sink should accept events on shared connection");
 }
 
-/// REQ: GAS-CALIB-004 — Service energy estimator calibrates from CNS gas events
+/// REQ: P7-svc-cli_to_storage_integration-gas-calib-004 — Service energy estimator calibrates from CNS gas events
+/// [P7] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
 ///
 /// The shared CalibratedEnergyEstimator observes cns.gas.settled events persisted
 /// through the CNS event sink and updates per-server cost estimates.
@@ -224,7 +230,8 @@ async fn service_energy_estimator_calibrates_from_events() {
     );
 }
 
-/// REQ: INT-001.6 — Wallet store accessible on shared connection
+/// REQ: P5-svc-cli_to_storage_integration-int-001.6 — Wallet store accessible on shared connection
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
 /// The wallet store is wired into the shared database and can
 /// perform balance operations.

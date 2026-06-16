@@ -79,7 +79,7 @@ impl NuEventStore {
     /// REQ: P3-sto-nu-event-replay
     /// \[P3\] Motivating: Generative Space — replay events with temporal decay
     /// pre:  observer is valid, category is valid, lookback_secs > 0
-    /// post: returns Vec<NuEvent> within lookback window, weighted by recency
+    /// post: returns `Vec<NuEvent>` within lookback window, weighted by recency
     pub fn replay_weighted(
         &self,
         since: chrono::DateTime<chrono::Utc>,

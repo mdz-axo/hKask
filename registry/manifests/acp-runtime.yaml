@@ -1,6 +1,15 @@
 # ACP Runtime Configuration
 # ℏKask v0.21.2
 
+manifest:
+  id: acp-runtime
+  name: ACP Runtime
+  description: Agent Capability Protocol runtime configuration
+  version: 0.21.2
+  functional_role: flowdef
+  editor: curator-or-human-admin
+  visibility: Shared
+
 root_authority:
   webid: "did:web:hkask.dev#system"
   secret:

@@ -100,7 +100,8 @@ impl SpecService {
     /// (API path). Criteria are parsed from the comma-separated `criteria`
     /// field when present; otherwise auto-seeded from description sentences.
     ///
-    /// REQ: SVC-081
+    /// REQ: P5-svc-spec-svc-081
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.spec_store() must be initialized; req.name_or_description must be non-empty
     /// post: spec is persisted to the spec store; returns SpecCaptureResponse with spec_id, name, category, domain_anchor, and complete flag
     pub fn capture(
@@ -153,7 +154,8 @@ impl SpecService {
 
     /// List all specs, optionally filtered by category.
     ///
-    /// REQ: SVC-082
+    /// REQ: P5-svc-spec-svc-082
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.spec_store() must be initialized; category_filter if Some must be a valid SpecCategory string
     /// post: returns Vec<SpecListEntry> for all matching specs; Err(ValidationError) on invalid category
     pub fn list(
@@ -181,7 +183,8 @@ impl SpecService {
 
     /// Get a single spec by ID (full struct with goals).
     ///
-    /// REQ: SVC-083
+    /// REQ: P5-svc-spec-svc-083
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
     /// post: returns the full Spec with goals on success; Err(ValidationError) on invalid UUID; Err(Spec) on store error
     pub fn get_full(ctx: &AgentService, spec_id_str: &str) -> Result<Spec, ServiceError> {
@@ -192,7 +195,8 @@ impl SpecService {
 
     /// Get a single spec by ID (summary detail).
     ///
-    /// REQ: SVC-084
+    /// REQ: P5-svc-spec-svc-084
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
     /// post: returns SpecDetail with spec_id, name, category, domain_anchor, and flattened requirements; Err on invalid ID or store error
     pub fn get_by_id(ctx: &AgentService, spec_id_str: &str) -> Result<SpecDetail, ServiceError> {
@@ -218,7 +222,8 @@ impl SpecService {
     /// This is distinct from the MCP server's `spec_graph_coherence` which uses
     /// Jaccard similarity via `Spec::collection_coherence` for agent-driven assessment.
     ///
-    /// REQ: SVC-085
+    /// REQ: P5-svc-spec-svc-085
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.spec_store() must be initialized
     /// post: returns CoherenceResult with coherence_score (0.0–1.0), missing category violations, and suggestions; score=0.0 when store is empty
     pub fn category_coverage(ctx: &AgentService) -> Result<CoherenceResult, ServiceError> {
@@ -263,7 +268,8 @@ impl SpecService {
     /// This is distinct from the MCP server's `assess_writing_quality` which performs
     /// embedding-based comparison against persona centroids for agent-driven assessment.
     ///
-    /// REQ: SVC-086
+    /// REQ: P5-svc-spec-svc-086
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
     /// post: returns WritingQualityResult with dimensions_passing count and meets_publication_standard flag (true when all 4 dimensions pass)
     pub fn structural_quality_check(
@@ -297,7 +303,8 @@ impl SpecService {
     /// This is the single method for spec evaluation; former `cultivate` call sites
     /// should use `validate` directly (the methods were identical).
     ///
-    /// REQ: SVC-087
+    /// REQ: P5-svc-spec-svc-087
+    /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
     /// post: returns SpecCurationRecord from DefaultSpecCurator evaluation; Err on invalid ID or store/curation error
     pub fn validate(
@@ -331,7 +338,7 @@ fn parse_spec_id(s: &str) -> Result<SpecId, ServiceError> {
 mod tests {
     use super::*;
 
-    // REQ: MDS-spec-svc-001 — infer_spec_category maps context keywords to MDS categories
+    // REQ: P5-svc-spec-mds-spec-svc-001 — infer_spec_category maps context keywords to MDS categories
     #[test]
     fn infer_category_maps_trust_context() {
         assert_eq!(infer_spec_category(Some("trust")), SpecCategory::Trust);
@@ -345,7 +352,7 @@ mod tests {
         );
     }
 
-    // REQ: MDS-spec-svc-001 — infer category maps composition context
+    // REQ: P5-svc-spec-mds-spec-svc-001-1 — infer category maps composition context
     #[test]
     fn infer_category_maps_composition_context() {
         assert_eq!(
@@ -358,7 +365,7 @@ mod tests {
         );
     }
 
-    // REQ: MDS-spec-svc-001 — infer category maps lifecycle context
+    // REQ: P5-svc-spec-mds-spec-svc-001-2 — infer category maps lifecycle context
     #[test]
     fn infer_category_maps_lifecycle_context() {
         assert_eq!(
@@ -371,7 +378,7 @@ mod tests {
         );
     }
 
-    // REQ: MDS-spec-svc-001 — infer category maps curation context
+    // REQ: P5-svc-spec-mds-spec-svc-001-3 — infer category maps curation context
     #[test]
     fn infer_category_maps_curation_context() {
         assert_eq!(
@@ -384,7 +391,7 @@ mod tests {
         );
     }
 
-    // REQ: MDS-spec-svc-001 — infer category defaults to domain
+    // REQ: P5-svc-spec-mds-spec-svc-001-4 — infer category defaults to domain
     #[test]
     fn infer_category_defaults_to_domain() {
         assert_eq!(infer_spec_category(None), SpecCategory::Domain);
@@ -394,7 +401,7 @@ mod tests {
         );
     }
 
-    // REQ: MDS-spec-svc-002 — parse_spec_id validates UUID format
+    // REQ: P5-svc-spec-mds-spec-svc-002 — parse_spec_id validates UUID format
     #[test]
     fn parse_spec_id_rejects_invalid() {
         assert!(parse_spec_id("not-a-uuid").is_err());

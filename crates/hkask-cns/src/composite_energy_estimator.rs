@@ -39,7 +39,7 @@ impl CompositeEnergyEstimator {
     ///
     /// REQ: GAS-CALIB-003 — calibrated table replaces hardcoded TableEnergyEstimator costs
     /// pre:  table was calibrated (or default) via DynamicGasTable::calibrate()
-    /// post: estimate_cost(server, ...) uses table.report_table()[server] for non-inference servers
+    /// post: estimate_cost(server, ...) uses table.report_table()\[server\] for non-inference servers
     pub fn from_dynamic_table(table: &DynamicGasTable) -> Self {
         Self {
             inference: InferenceEnergyEstimator,

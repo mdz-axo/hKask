@@ -1,5 +1,5 @@
 //! Artifact serialization for git blob storage.
-//! # REQ: F1 (Snapshot Serialization Format) — deterministic byte representation.
+//! # REQ: P5-svc-backup-serialization-f1 (Snapshot Serialization Format) — deterministic byte representation.
 //!
 //! Each artifact type serializes to a deterministic byte sequence so that
 //! identical artifact state produces identical blob hashes (git deduplication).
@@ -15,7 +15,8 @@ use super::scope::ArtifactType;
 /// The serialization must be deterministic: same artifact → same bytes → same
 /// BLAKE3 hash → git deduplication works. JSON with sorted keys satisfies this.
 ///
-/// REQ: SVC-159
+/// REQ: P5-svc-backup-serialization-svc-159
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty; data must be Serialize
 /// post: returns Vec<u8> of JSON-encoded ArtifactEnvelope; Err on serialization failure
 pub fn serialize_artifact(
@@ -36,7 +37,8 @@ pub fn serialize_artifact(
 ///
 /// Returns the raw JSON value — callers interpret based on artifact type.
 ///
-/// REQ: SVC-160
+/// REQ: P5-svc-backup-serialization-svc-160
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  blob must be valid JSON matching ArtifactEnvelopeValue schema
 /// post: returns ArtifactEnvelopeValue with artifact_type, artifact_id, and payload; Err on invalid JSON
 pub fn deserialize_artifact(blob: &[u8]) -> Result<ArtifactEnvelopeValue, serde_json::Error> {
@@ -75,7 +77,8 @@ pub struct ArtifactEnvelopeValue {
 /// This organizes blobs hierarchically in the git tree, enabling
 /// scoped list_tree operations (e.g., `prefix = "template/"`).
 ///
-/// REQ: SVC-161
+/// REQ: P5-svc-backup-serialization-svc-161
+/// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty
 /// post: returns String path in format "{label}/{id}.json"
 pub fn artifact_git_path(artifact_type: &ArtifactType, artifact_id: &str) -> String {
@@ -89,7 +92,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    // REQ: BACKUP-SERIALIZE-001 — Same artifact produces same bytes (deterministic)
+    // REQ: P5-svc-backup-serialization-backup-serialize-001 — Same artifact produces same bytes (deterministic)
     #[test]
     fn same_artifact_produces_same_bytes() {
         let data = json!({"name": "test", "value": 42});
@@ -98,7 +101,7 @@ mod tests {
         assert_eq!(bytes1, bytes2);
     }
 
-    // REQ: BACKUP-SERIALIZE-002 — Different IDs produce different bytes
+    // REQ: P5-svc-backup-serialization-backup-serialize-002 — Different IDs produce different bytes
     #[test]
     fn different_ids_produce_different_bytes() {
         let data = json!({"name": "test"});
@@ -107,7 +110,7 @@ mod tests {
         assert_ne!(bytes1, bytes2);
     }
 
-    // REQ: BACKUP-SERIALIZE-003 — Round-trip: serialize → deserialize preserves data
+    // REQ: P5-svc-backup-serialization-backup-serialize-003 — Round-trip: serialize → deserialize preserves data
     #[test]
     fn roundtrip_preserves_data() {
         let data = json!({"name": "test", "value": 42});
@@ -118,7 +121,7 @@ mod tests {
         assert_eq!(envelope.payload, data);
     }
 
-    // REQ: BACKUP-SERIALIZE-004 — Git path follows convention
+    // REQ: P5-svc-backup-serialization-backup-serialize-004 — Git path follows convention
     #[test]
     fn git_path_follows_convention() {
         let path = artifact_git_path(&ArtifactType::Template, "my-template");

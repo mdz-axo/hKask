@@ -11,7 +11,7 @@ use std::fmt;
 /// BLAKE3 content hash — 32 bytes, displayed as hex.
 ///
 /// Addresses blob content within a CAS repository. Produced by
-/// [`ContentHash::from_blake3`] which wraps [`crate::blake3_hash`].
+/// [`ContentHash::from_blake3`] which wraps the crate's BLAKE3 hashing helper.
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ContentHash(pub [u8; 32]);
 
