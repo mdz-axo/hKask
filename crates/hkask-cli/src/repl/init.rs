@@ -41,6 +41,10 @@ pub(super) fn init_repl_state(
     let onboarding_outcome = match rt.block_on(crate::onboarding::run_onboarding()) {
         Ok(outcome) => outcome,
         Err(e) => {
+            // Cancelled is a deliberate user action — exit silently.
+            if matches!(e, crate::onboarding::OnboardingError::Cancelled) {
+                return None;
+            }
             eprintln!("Onboarding failed: {}", e);
             eprintln!("Run `kask chat` to set up your replicant identity.");
             return None;

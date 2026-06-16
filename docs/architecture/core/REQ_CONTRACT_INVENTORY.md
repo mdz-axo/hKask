@@ -19,7 +19,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 | hkask-agents | 30 | Agent runtime |
 | hkask-api | 8 | API surface |
 | hkask-cli | 1 | CLI surface |
-| hkask-cns | 71 | CNS observability |
+| hkask-cns | 66 | CNS observability |
 | hkask-communication | 25 | Communication |
 | hkask-inference | 86 | Inference |
 | hkask-keystore | 28 | Keystore |
@@ -316,7 +316,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-cli/src/lib.rs:13
 
 
-### hkask-cns (71 contracts)
+### hkask-cns (66 contracts)
 
 #### CNS-050 (🟢 full)
 
@@ -420,170 +420,135 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns CompositeEnergyEstimator with empty estimators
 - **File:** crates/hkask-cns/src/composite_energy_estimator.rs:24
 
-#### CNS-ENERGY-004 (🟡 partial)
+#### P8-cns-energy-cost-from-raw (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** result.0 == value
 - **File:** crates/hkask-cns/src/energy.rs:35
 
-#### CNS-ENERGY-004 (🟡 partial)
+#### P8-cns-energy-cost-as-raw (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** result == self.0
-- **File:** crates/hkask-cns/src/energy.rs:43
+- **File:** crates/hkask-cns/src/energy.rs:45
 
-#### CNS-ENERGY-005 (🟡 partial)
+#### P8-cns-energy-delta-from-raw (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** result.0 == value
-- **File:** crates/hkask-cns/src/energy.rs:107
+- **File:** crates/hkask-cns/src/energy.rs:111
 
-#### CNS-ENERGY-005 (🟡 partial)
+#### P8-cns-energy-delta-as-raw (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** result == self.0
-- **File:** crates/hkask-cns/src/energy.rs:115
+- **File:** crates/hkask-cns/src/energy.rs:121
 
-#### CNS-ENERGY-005 (🟡 partial)
+#### P9-cns-energy-delta-descending (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** result == (self.0 <= 0.0)
-- **File:** crates/hkask-cns/src/energy.rs:125
-
-#### CNS-ENERGY-005 (🟡 partial)
-
-- **Principle:** ⚠ unanchored
-- **Post:** result == (self.0 > 0.0);is_ascending() == !is_descending()  self.0 == 0.0
 - **File:** crates/hkask-cns/src/energy.rs:133
 
-#### CNS-001 (🟡 partial)
+#### P9-cns-energy-delta-ascending (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
+- **Post:** result == (self.0 > 0.0);is_ascending() == !is_descending()  self.0 == 0.0
+- **File:** crates/hkask-cns/src/energy.rs:143
+
+#### P9-cns-energy-budget-invariant (🟡 partial)
+
+- **Principle:** ✅ anchored
 - **Inv:** remaining + reserved ≤ cap (budget cap invariant);remaining ≥ 0, reserved ≥ 0
-- **File:** crates/hkask-cns/src/energy.rs:182
+- **File:** crates/hkask-cns/src/energy.rs:194
 
-#### CNS-001 (🟢 full)
+#### P9-cns-energy-budget-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  cap > 0
 - **Post:** remaining == cap, reserved == 0, hard_limit == true;replenish_rate == cap / 10, alert_threshold == DEFAULT_ENERGY_ALERT_THRESHOLD
-- **File:** crates/hkask-cns/src/energy.rs:213
+- **File:** crates/hkask-cns/src/energy.rs:227
 
-#### CNS-001 (🟡 partial)
+#### P9-cns-energy-budget-unlimited (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** cap == u64::MAX, hard_limit == false
-- **File:** crates/hkask-cns/src/energy.rs:233
+- **File:** crates/hkask-cns/src/energy.rs:250
 
-#### CNS-003 (🟡 partial)
+#### P9-cns-energy-budget-with-replenish-rate (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** self.replenish_rate == rate
-- **File:** crates/hkask-cns/src/energy.rs:244
-
-#### CNS-001 (🟢 full)
-
-- **Principle:** ⚠ unanchored
-- **Pre:**  threshold is a valid ratio
-- **Post:** self.alert_threshold == threshold.clamp(0.0, 1.0)
-- **File:** crates/hkask-cns/src/energy.rs:253
-
-#### CNS-001 (🟡 partial)
-
-- **Principle:** ⚠ unanchored
-- **Post:** self.hard_limit == hard
 - **File:** crates/hkask-cns/src/energy.rs:263
 
-#### CNS-001 (🟢 full)
+#### P9-cns-energy-budget-with-alert-threshold (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
+- **Pre:**  threshold is a valid ratio
+- **Post:** self.alert_threshold == threshold.clamp(0.0, 1.0)
+- **File:** crates/hkask-cns/src/energy.rs:274
+
+#### P9-cns-energy-budget-with-hard-limit (🟡 partial)
+
+- **Principle:** ✅ anchored
+- **Post:** self.hard_limit == hard
+- **File:** crates/hkask-cns/src/energy.rs:286
+
+#### P9-cns-energy-budget-can-proceed (🟢 full)
+
+- **Principle:** ✅ anchored
 - **Pre:**  gas is a valid EnergyCost
 - **Post:** returns true iff gas <= available OR hard_limit is false
-- **File:** crates/hkask-cns/src/energy.rs:272
+- **File:** crates/hkask-cns/src/energy.rs:297
 
-#### CNS-002 (🟡 partial)
+#### P9-cns-energy-budget-available (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** [NORMATIVE] post: result >= 0 (available never negative) (P9 — Homeostatic Self-Regulation);result == remaining.saturating_sub(reserved)
-- **File:** crates/hkask-cns/src/energy.rs:283
+- **File:** crates/hkask-cns/src/energy.rs:310
 
-#### CNS-001 (🟢 full)
+#### P9-cns-energy-budget-reserve (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gas is a valid EnergyCost
 - **Post:** if hard_limit && gas > available → Err(BudgetExceeded);if Ok → reserved increased by gas, remaining unchanged
 - **Inv:**  remaining + reserved ≤ cap (maintained)
-- **File:** crates/hkask-cns/src/energy.rs:292
-
-#### CNS-087 (🟢 full)
-
-- **Principle:** ⚠ unanchored
-- **Pre:**  gas > 0
-- **Post:** if hard_limit && gas > available → Err;if Ok → reserved increased by gas
-- **File:** crates/hkask-cns/src/energy.rs:303
-
-#### CNS-001 (🟢 full)
-
-- **Principle:** ⚠ unanchored
-- **Pre:** [NORMATIVE] pre:  reserved_gas ≤ self.reserved (caller must track reservations) (P9 — Homeostatic Self-Regulation)
-- **Post:** reserved decreased by reserved_gas;if hard_limit && actual > remaining → Err(BudgetExceeded);if Ok → remaining decreased by actual
-- **Inv:**  remaining + reserved ≤ cap (maintained)
 - **File:** crates/hkask-cns/src/energy.rs:321
 
-#### CNS-088 (🟢 full)
+#### P9-cns-energy-budget-settle (🟢 full)
 
-- **Principle:** ⚠ unanchored
-- **Pre:**  reserved_gas ≤ self.reserved
-- **Post:** reserved decreased, remaining decreased by actual
-- **File:** crates/hkask-cns/src/energy.rs:337
+- **Principle:** ✅ anchored
+- **Pre:** [NORMATIVE] pre:  reserved_gas ≤ self.reserved (caller must track reservations) (P9 — Homeostatic Self-Regulation)
+- **Post:** reserved decreased by reserved_gas;if hard_limit && actual > remaining → Err(BudgetExceeded);if Ok → remaining decreased by actual
+- **File:** crates/hkask-cns/src/energy.rs:346
 
-#### CNS-001 (🟢 full)
+#### P9-cns-energy-budget-consume (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gas is a valid EnergyCost
 - **Post:** if hard_limit && gas > remaining → Err(BudgetExceeded);if Ok → remaining decreased by gas
 - **Inv:**  remaining + reserved ≤ cap (maintained)
-- **File:** crates/hkask-cns/src/energy.rs:361
+- **File:** crates/hkask-cns/src/energy.rs:383
 
-#### CNS-089 (🟢 full)
+#### P9-cns-energy-budget-replenish (🟡 partial)
 
-- **Principle:** ⚠ unanchored
-- **Pre:**  gas > 0
-- **Post:** if hard_limit && gas > remaining → Err;if Ok → remaining decreased by gas
-- **File:** crates/hkask-cns/src/energy.rs:371
-
-#### CNS-003 (🟡 partial)
-
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** remaining ≤ cap (never exceeds cap);if replenish_rate > 0 → remaining increased by up to replenish_rate
-- **File:** crates/hkask-cns/src/energy.rs:388
+- **File:** crates/hkask-cns/src/energy.rs:406
 
-#### CNS-090 (🟡 partial)
+#### P9-cns-energy-budget-replenish-by (🟢 full)
 
-- **Principle:** ⚠ unanchored
-- **Post:** remaining increased by replenish_rate, capped at cap
-- **File:** crates/hkask-cns/src/energy.rs:396
-
-#### CNS-003 (🟢 full)
-
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  amount is a valid EnergyCost
 - **Post:** remaining ≤ cap (never exceeds cap);remaining increased by up to amount
-- **File:** crates/hkask-cns/src/energy.rs:411
+- **File:** crates/hkask-cns/src/energy.rs:427
 
-#### CNS-003 (🟢 full)
+#### P9-cns-energy-budget-replenish-by-weighted (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  amount is a valid EnergyCost, priority in [0.0, 1.0]
 - **Post:** remaining ≤ cap (never exceeds cap);returns the actual amount replenished (≥ 1 if amount * priority > 0)
-- **File:** crates/hkask-cns/src/energy.rs:421
-
-#### CNS-091 (🟢 full)
-
-- **Principle:** ⚠ unanchored
-- **Pre:**  amount > 0, priority in [0.0, 1.0]
-- **Post:** remaining increased by amount * priority, capped at cap;returns actual amount replenished
-- **File:** crates/hkask-cns/src/energy.rs:431
+- **File:** crates/hkask-cns/src/energy.rs:439
 
 #### CNS-092 (🟢 full)
 
@@ -617,166 +582,166 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns Self with agent set (builder pattern)
 - **File:** crates/hkask-cns/src/governed_tool.rs:132
 
-#### CNS-054 (🟡 partial)
+#### P9-cns-runtime-variety-monitor-new (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns VarietyMonitor with empty counters
 - **File:** crates/hkask-cns/src/runtime.rs:192
 
-#### CNS-055 (🟢 full)
+#### P9-cns-runtime-variety-for-domain (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty
 - **Post:** returns variety count, 0 if domain not tracked
-- **File:** crates/hkask-cns/src/runtime.rs:206
+- **File:** crates/hkask-cns/src/runtime.rs:208
 
-#### CNS-056 (🟡 partial)
+#### P9-cns-runtime-variety-monitor-domains (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of domain name strings
-- **File:** crates/hkask-cns/src/runtime.rs:215
+- **File:** crates/hkask-cns/src/runtime.rs:219
 
-#### CNS-057 (🟢 full)
+#### P9-cns-runtime-with-threshold (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  threshold > 0
 - **Post:** returns CnsRuntime with configured threshold
-- **File:** crates/hkask-cns/src/runtime.rs:272
+- **File:** crates/hkask-cns/src/runtime.rs:278
 
-#### CNS-058 (🟡 partial)
+#### P9-cns-runtime-health (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns CnsHealth with current state
-- **File:** crates/hkask-cns/src/runtime.rs:286
+- **File:** crates/hkask-cns/src/runtime.rs:294
 
-#### CNS-059 (🟡 partial)
+#### P9-cns-runtime-alerts (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of RuntimeAlert
-- **File:** crates/hkask-cns/src/runtime.rs:298
-
-#### CNS-060 (🟡 partial)
-
-- **Principle:** ⚠ unanchored
-- **Post:** returns threshold value from algedonic manager
 - **File:** crates/hkask-cns/src/runtime.rs:308
 
-#### CNS-061 (🟡 partial)
+#### P9-cns-runtime-default-threshold (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
+- **Post:** returns threshold value from algedonic manager
+- **File:** crates/hkask-cns/src/runtime.rs:320
+
+#### P9-cns-runtime-critical-alerts (🟡 partial)
+
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of critical RuntimeAlert
-- **File:** crates/hkask-cns/src/runtime.rs:317
+- **File:** crates/hkask-cns/src/runtime.rs:331
 
-#### CNS-062 (🟡 partial)
+#### P9-cns-runtime-variety (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns HashMap of namespace → variety count
-- **File:** crates/hkask-cns/src/runtime.rs:336
+- **File:** crates/hkask-cns/src/runtime.rs:352
 
-#### CNS-063 (🟢 full)
+#### P9-cns-runtime-variety-for-domain (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty
 - **Post:** returns variety count for domain
-- **File:** crates/hkask-cns/src/runtime.rs:365
+- **File:** crates/hkask-cns/src/runtime.rs:383
 
-#### CNS-064 (🟢 full)
+#### P3-cns-runtime-blocking-variety-for-domain (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty
 - **Post:** returns variety count
-- **File:** crates/hkask-cns/src/runtime.rs:378
+- **File:** crates/hkask-cns/src/runtime.rs:398
 
-#### CNS-065 (🟢 full)
+#### P9-cns-runtime-record-outcome (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty
 - **Post:** outcome tracked for domain
-- **File:** crates/hkask-cns/src/runtime.rs:395
-
-#### CNS-066 (🟢 full)
-
-- **Principle:** ⚠ unanchored
-- **Pre:**  domain is non-empty
-- **Post:** returns Some(alert) if success rate below threshold, None if healthy
 - **File:** crates/hkask-cns/src/runtime.rs:418
 
-#### CNS-067 (🟢 full)
+#### P9-cns-runtime-check-outcome (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
+- **Pre:**  domain is non-empty
+- **Post:** returns Some(alert) if success rate below threshold, None if healthy
+- **File:** crates/hkask-cns/src/runtime.rs:443
+
+#### P9-cns-runtime-outcome-success-rate (🟢 full)
+
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty
 - **Post:** returns Some(rate) if domain tracked, None otherwise
-- **File:** crates/hkask-cns/src/runtime.rs:451
+- **File:** crates/hkask-cns/src/runtime.rs:478
 
-#### CNS-068 (🟢 full)
+#### P9-cns-runtime-increment-variety (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain and state_name are non-empty
 - **Post:** variety counter incremented
-- **File:** crates/hkask-cns/src/runtime.rs:464
+- **File:** crates/hkask-cns/src/runtime.rs:493
 
-#### CNS-069 (🟢 full)
+#### P9-cns-runtime-check-variety (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty
 - **Post:** returns Some(alert) if variety below threshold, None if healthy
-- **File:** crates/hkask-cns/src/runtime.rs:502
+- **File:** crates/hkask-cns/src/runtime.rs:533
 
-#### CNS-070 (🟢 full)
+#### P7-cns-runtime-calibrate-threshold (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty, new_threshold > 0
 - **Post:** threshold updated for domain
-- **File:** crates/hkask-cns/src/runtime.rs:536
+- **File:** crates/hkask-cns/src/runtime.rs:569
 
-#### CNS-071 (🟢 full)
+#### P3-cns-runtime-calibrate-threshold-blocking (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty, new_threshold > 0
 - **Post:** threshold updated
-- **File:** crates/hkask-cns/src/runtime.rs:556
+- **File:** crates/hkask-cns/src/runtime.rs:591
 
-#### CNS-072 (🟢 full)
+#### P12-cns-runtime-subscribe (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  observer is valid
 - **Post:** observer added to subscribers
-- **File:** crates/hkask-cns/src/runtime.rs:579
+- **File:** crates/hkask-cns/src/runtime.rs:617
 
-#### CNS-073 (🟢 full)
+#### P12-cns-runtime-subscribe-async (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  observer is valid
 - **Post:** observer added to subscribers
-- **File:** crates/hkask-cns/src/runtime.rs:593
+- **File:** crates/hkask-cns/src/runtime.rs:633
 
-#### CNS-074 (🟢 full)
+#### P9-cns-runtime-emit-backpressure (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  signal is valid
 - **Post:** backpressure signal emitted to subscribers
-- **File:** crates/hkask-cns/src/runtime.rs:607
+- **File:** crates/hkask-cns/src/runtime.rs:649
 
-#### CNS-075 (🟢 full)
+#### P9-cns-runtime-register-energy-budget (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent is valid, budget is valid
 - **Post:** budget registered for agent
-- **File:** crates/hkask-cns/src/runtime.rs:622
+- **File:** crates/hkask-cns/src/runtime.rs:666
 
-#### CNS-076 (🟢 full)
+#### P9-cns-runtime-replenish-agent-budget (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent is registered, amount > 0
 - **Post:** budget replenished, returns actual amount added
-- **File:** crates/hkask-cns/src/runtime.rs:637
+- **File:** crates/hkask-cns/src/runtime.rs:683
 
-#### CNS-077 (🟢 full)
+#### P9-cns-runtime-agent-gas-status (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent is valid
 - **Post:** returns Some(status) if budget exists, None otherwise
-- **File:** crates/hkask-cns/src/runtime.rs:665
+- **File:** crates/hkask-cns/src/runtime.rs:713
 
 #### P9—GoodRegulatorfeedbackloopclosure (🟢 full)
 

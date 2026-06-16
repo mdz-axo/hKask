@@ -166,7 +166,6 @@ impl CondenserAlgorithm for SaliencyRankAlgorithm {
         &[
             ContextCategory::ConversationHistory,
             ContextCategory::LogOutput,
-            ContextCategory::Unknown,
         ]
     }
     fn compress(
@@ -277,6 +276,7 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
         &[
             ContextCategory::FileContents,
             ContextCategory::StructuredData,
+            ContextCategory::Unknown,
         ]
     }
     fn compress(
@@ -670,15 +670,15 @@ mod tests {
         );
     }
 
-    // REQ: CNS-CONDENSER-REGISTRY — AlgorithmRegistry falls back to last algorithm for unmatched categories
-    // Note: SaliencyRank's default_for includes Unknown, so "flashrank" is NOT the fallback.
+    // REQ: CNS-CONDENSER-REGISTRY — AlgorithmRegistry dispatches Unknown to flashrank
+    // Flashrank is the universal fallback — its greedy marginal-utility selection works on
+    // any text type without needing category-specific structural markers.
     #[test]
-    fn algorithm_registry_fallback_to_last() {
+    fn algorithm_registry_fallback_for_unknown() {
         let registry = AlgorithmRegistry::new();
-        // Unknown → saliency_rank (not flashrank — saliency_rank claims Unknown)
         assert_eq!(
             registry.select(ContextCategory::Unknown).name(),
-            "saliency_rank"
+            "flashrank"
         );
     }
 
@@ -745,6 +745,22 @@ mod tests {
             let (compressed, _) = algo.compress(&input, profile, category);
             prop_assert!(compressed.len() <= input.len(),
                 "compressed {} > original {}", compressed.len(), input.len());
+        }
+    }
+
+    // REQ: CON-003 — Flashrank as universal fallback is size-monotonic on Unknown input
+    // Flashrank's greedy marginal-utility selection works on any content type — it must never
+    // expand input even when given arbitrary Unknown-category content.
+    proptest! {
+        #[test]
+        fn flashrank_fallback_never_expands(
+            input in arbitrary_input(),
+            profile in select(&[Profile::Heavy, Profile::Normal, Profile::Soft, Profile::Light]),
+        ) {
+            let algo = FlashrankAlgorithm;
+            let (compressed, _) = algo.compress(&input, profile, ContextCategory::Unknown);
+            prop_assert!(compressed.len() <= input.len(),
+                "flashrank fallback expanded: compressed {} > original {}", compressed.len(), input.len());
         }
     }
 }

@@ -33,7 +33,8 @@ echo "|-------|-------|--------|" >> "$TMP"
 
 for dir in crates/hkask-*; do
     crate=$(basename "$dir")
-    count=$(grep -rn "/// REQ:" "$dir/src/"*.rs 2>/dev/null | wc -l || echo 0)
+    count=$(grep -rn "/// REQ:" "$dir/src/"*.rs 2>/dev/null | wc -l) || true
+    count="${count// /}"
     [ "$count" -gt 0 ] || continue
     case "$crate" in
         hkask-services) d="Service layer" ;;
@@ -58,8 +59,10 @@ for dir in crates/hkask-*; do
 done
 
 for dir in mcp-servers/mcp-*; do
+    [ -d "$dir" ] || continue
     server=$(basename "$dir")
-    count=$(grep -rn "/// REQ:" "$dir/src/"*.rs 2>/dev/null | wc -l || echo 0)
+    count=$(grep -rn "/// REQ:" "$dir/src/"*.rs 2>/dev/null | wc -l) || true
+    count="${count// /}"
     [ "$count" -gt 0 ] || continue
     echo "| $server | $count | MCP server |" >> "$TMP"
 done
@@ -72,7 +75,8 @@ echo "" >> "$TMP"
 for dir in crates/hkask-* mcp-servers/mcp-*; do
     crate=$(basename "$dir")
     [ -d "$dir" ] || continue
-    count=$(grep -rn "/// REQ:" "$dir/src/"*.rs 2>/dev/null | wc -l || echo 0)
+    count=$(grep -rn "/// REQ:" "$dir/src/"*.rs 2>/dev/null | wc -l) || true
+    count="${count// /}"
     [ "$count" -gt 0 ] || continue
 
     echo "### $crate ($count contracts)" >> "$TMP"

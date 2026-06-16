@@ -452,6 +452,10 @@ pub fn run_chat(
         let onboarding_outcome = match rt.block_on(crate::onboarding::run_onboarding()) {
             Ok(outcome) => outcome,
             Err(e) => {
+                // Cancelled is a deliberate user action — don't treat it as an error.
+                if matches!(e, crate::onboarding::OnboardingError::Cancelled) {
+                    std::process::exit(0);
+                }
                 eprintln!("Cannot chat: {}", e);
                 eprintln!("Run `kask chat` first to complete onboarding interactively.");
                 std::process::exit(1);

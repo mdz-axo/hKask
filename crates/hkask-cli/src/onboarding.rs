@@ -150,7 +150,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     // Q3: Model selection
     println!();
     println!("  \x1b[1mChoose a model\x1b[0m for this replicant.");
-    let selected_model = select_model().await;
+    let selected_model = select_model().await?;
 
     OnboardingService::register_replicant(
         &handle.acp,
@@ -308,7 +308,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     println!();
     println!("  \x1b[1mChoose a model\x1b[0m for your replicant to use.");
     println!("  Models determine how your replicant thinks and responds.");
-    let selected_model = select_model().await;
+    let selected_model = select_model().await?;
 
     // Q8: Master passphrase (with confirmation)
     println!();
@@ -409,7 +409,7 @@ const ONBOARDING_MODELS: &[&str] = &[
 ];
 
 /// Let the user select a model from the curated cloud frontier list.
-async fn select_model() -> String {
+async fn select_model() -> Result<String, OnboardingError> {
     let default_model = hkask_inference::InferenceConfig::from_env().default_model;
 
     println!("  \x1b[1mAvailable models\x1b[0m (via DeepInfra):");
@@ -436,16 +436,16 @@ async fn select_model() -> String {
     );
 
     match choice {
-        Ok(n) if n <= ONBOARDING_MODELS.len() => ONBOARDING_MODELS[n - 1].to_string(),
+        Ok(n) if n <= ONBOARDING_MODELS.len() => Ok(ONBOARDING_MODELS[n - 1].to_string()),
         Ok(_) => {
-            let input = prompt_line("  Model name:");
-            match input {
-                Ok(s) if s.trim().is_empty() => default_model,
-                Ok(s) => s.trim().to_string(),
-                Err(_) => default_model,
+            let input = prompt_line("  Model name:")?;
+            if input.trim().is_empty() {
+                Ok(default_model)
+            } else {
+                Ok(input.trim().to_string())
             }
         }
-        Err(_) => default_model,
+        Err(e) => Err(e),
     }
 }
 
@@ -836,20 +836,43 @@ fn read_line() -> Result<String, std::io::Error> {
     Ok(input)
 }
 
-/// Prompt the user and return their response (trims whitespace)
-fn prompt_line(prompt: &str) -> Result<String, std::io::Error> {
-    use std::io::Write;
-    print!("{prompt} ");
-    std::io::stdout().flush()?;
-    read_line().map(|l| l.trim().to_string())
+/// Check if an input signals cancellation (case-insensitive exit/quit, or /exit /quit).
+/// Returns `true` if the user wants to cancel the current interaction.
+fn is_cancel_input(input: &str) -> bool {
+    let trimmed = input.trim();
+    trimmed.eq_ignore_ascii_case("exit")
+        || trimmed.eq_ignore_ascii_case("quit")
+        || trimmed.eq_ignore_ascii_case("/exit")
+        || trimmed.eq_ignore_ascii_case("/quit")
 }
 
-/// Prompt for a passphrase (no echo)
-fn prompt_passphrase(prompt: &str) -> Result<String, std::io::Error> {
+/// Prompt the user and return their response (trims whitespace).
+/// Returns `OnboardingError::Cancelled` if the user types exit, quit, /exit, or /quit.
+fn prompt_line(prompt: &str) -> Result<String, OnboardingError> {
     use std::io::Write;
     print!("{prompt} ");
     std::io::stdout().flush()?;
-    rpassword::read_password()
+    let raw = read_line()?;
+    let trimmed = raw.trim();
+    if is_cancel_input(trimmed) {
+        println!("  Onboarding cancelled.");
+        return Err(OnboardingError::Cancelled);
+    }
+    Ok(trimmed.to_string())
+}
+
+/// Prompt for a passphrase (no echo).
+/// Returns `OnboardingError::Cancelled` on Ctrl+C (which produces a `std::io::Error`
+/// with `ErrorKind::Interrupted` from rpassword).
+fn prompt_passphrase(prompt: &str) -> Result<String, OnboardingError> {
+    use std::io::Write;
+    print!("{prompt} ");
+    std::io::stdout().flush()?;
+    match rpassword::read_password() {
+        Ok(pw) => Ok(pw),
+        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => Err(OnboardingError::Cancelled),
+        Err(e) => Err(OnboardingError::Io(e)),
+    }
 }
 
 /// Evaluate passphrase strength and return a label + color code.
@@ -875,8 +898,10 @@ fn passphrase_strength(pass: &str) -> (&'static str, &'static str) {
     }
 }
 
-/// Prompt for passphrase with confirmation and strength feedback
-fn prompt_passphrase_with_confirm() -> Result<String, std::io::Error> {
+/// Prompt for passphrase with confirmation and strength feedback.
+/// Returns `OnboardingError::Cancelled` if the user interrupts with Ctrl+C (which
+/// produces a std::io::Error from rpassword).
+fn prompt_passphrase_with_confirm() -> Result<String, OnboardingError> {
     loop {
         let pass = prompt_passphrase("  Master passphrase:")?;
         if pass.is_empty() {
@@ -901,11 +926,12 @@ fn prompt_passphrase_with_confirm() -> Result<String, std::io::Error> {
     }
 }
 
-/// Prompt for a numeric choice within a range
+/// Prompt for a numeric choice within a range.
+/// Returns `OnboardingError::Cancelled` if the user types exit, quit, /exit, or /quit.
 fn prompt_choice(
     prompt: &str,
     range: std::ops::RangeInclusive<usize>,
-) -> Result<usize, std::io::Error> {
+) -> Result<usize, OnboardingError> {
     loop {
         let input = prompt_line(prompt)?;
         if input.trim().is_empty() {
@@ -915,7 +941,7 @@ fn prompt_choice(
         match input.parse::<usize>() {
             Ok(n) if range.contains(&n) => return Ok(n),
             _ => println!(
-                "  Please enter a number between {} and {}.",
+                "  Please enter a number between {} and {}.\n  (or type 'exit' to cancel)",
                 range.start(),
                 range.end()
             ),

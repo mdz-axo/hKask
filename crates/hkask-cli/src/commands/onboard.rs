@@ -13,6 +13,10 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     match rt.block_on(crate::onboarding::run_add_replicant()) {
         Ok(()) => {}
         Err(e) => {
+            // Cancelled is a deliberate user action — exit cleanly.
+            if matches!(e, crate::onboarding::OnboardingError::Cancelled) {
+                std::process::exit(0);
+            }
             eprintln!("Onboarding failed: {}", e);
             std::process::exit(1);
         }

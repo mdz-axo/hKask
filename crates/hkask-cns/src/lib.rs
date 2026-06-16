@@ -16,6 +16,7 @@ pub mod governed_inference; // Loop 6 → inference call membrane
 pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub(crate) mod inference_estimator; // Loop 6 → Inference energy estimation
 
+pub mod gas_report;
 pub mod runtime; // Loop 6 — runtime
 pub mod seam_watcher; // R7.3 public seam watcher — inventory, drift, CNS spans
 pub mod set_points; // Loop 6 — set-points config & loaders
@@ -52,3 +53,4 @@ pub use set_points::{
     load_set_points,
 };
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
+pub use gas_report::{AgentGasSummary, AgentGasReport, GasReport, GasTotals, ToolGasBreakdown};

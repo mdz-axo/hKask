@@ -6,6 +6,7 @@ license.workspace = true
 description = "Cybernetic Nervous System for hKask"
 
 [dependencies]
+hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 hkask-wallet = { path = "../hkask-wallet" }
 serde.workspace = true
@@ -21,6 +22,6 @@ parking_lot.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
-hkask-storage = { path = "../hkask-storage" }
 hkask-test-harness = { path = "../hkask-test-harness" }
+hkask-storage = { path = "../hkask-storage" }
 proptest = "1"
