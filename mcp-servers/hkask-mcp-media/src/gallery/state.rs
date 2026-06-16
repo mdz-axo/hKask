@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-use hkask_types::now_rfc3339;
+use hkask_types::time::now_rfc3339;
 
 pub use hkask_storage::GalleryMode;
 

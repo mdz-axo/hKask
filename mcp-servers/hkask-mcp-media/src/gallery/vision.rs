@@ -13,7 +13,7 @@
 //! All prompts are backed by Jinja2 templates embedded in templates.rs.
 
 use hkask_inference::InferenceRouter;
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

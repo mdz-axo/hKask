@@ -27,9 +27,10 @@
 
 use crate::ports::{McpPort, Result, TemplateError};
 use hkask_types::ports::{InferencePort, InferenceResult};
+use hkask_types::bundle::BundleManifestStep;
+use hkask_types::template::LLMParameters;
 use hkask_types::{
-    BundleManifest, BundleManifestStep, DelegationAction, DelegationResource, DelegationToken,
-    LLMParameters, WebID,
+    BundleManifest, DelegationAction, DelegationResource, DelegationToken, WebID,
 };
 use minijinja::UndefinedBehavior;
 use serde_json::Value;

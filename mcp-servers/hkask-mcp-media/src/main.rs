@@ -21,9 +21,10 @@ use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError, Store};
+use hkask_types::time::now_rfc3339;
 use hkask_types::{
     InferencePort, McpErrorKind, TimedWord, TranscriptBundle, TranscriptSegment, VoiceDesign,
-    WebID, now_rfc3339,
+    WebID,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -2044,7 +2045,7 @@ impl MediaServer {
         };
 
         let (vision_model, _vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
+        let params = hkask_types::template::LLMParameters::default();
         let result = self
             .inference
             .generate_vision(&prompt, &[image_url], &params, Some(vision_model))
@@ -3394,7 +3395,7 @@ impl MediaServer {
         };
 
         let (vision_model, _vision_label) = self.resolve_vision_model().await;
-        let params = hkask_types::LLMParameters::default();
+        let params = hkask_types::template::LLMParameters::default();
         let result = self
             .inference
             .generate_vision(&prompt, &image_urls, &params, Some(vision_model))
@@ -3573,7 +3574,7 @@ impl MediaServer {
             }
         };
 
-        let params = hkask_types::LLMParameters::default();
+        let params = hkask_types::template::LLMParameters::default();
         // Use Llama 3.3 70B for structured JSON voice design generation
         let result = self
             .inference

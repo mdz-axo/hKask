@@ -10,9 +10,8 @@
 //!   Any agent with a capability token can read semantic triples.
 //!   Only agents with consolidation capability can store semantic triples.
 
-use hkask_types::{
-    AccessControl, Confidence, DelegationToken, ExperienceClassification, Visibility, WebID,
-};
+use hkask_types::visibility::AccessControl;
+use hkask_types::{Confidence, DelegationToken, ExperienceClassification, Visibility, WebID};
 use serde_json::Value;
 
 // ── Request value objects (P2.4/P1.5: eliminate data clumps) ───────────────

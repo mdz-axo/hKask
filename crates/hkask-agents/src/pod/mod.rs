@@ -65,10 +65,11 @@ mod nu_event;
 mod types;
 
 use hkask_types::capability::derive_signing_key;
-use hkask_types::derivation_contexts;
+use hkask_types::secret::derivation_contexts;
 use hkask_types::secret::SecretRef;
+use hkask_types::sovereignty::DataCategory;
 use hkask_types::{
-    CapabilitySpec, DataCategory, DelegationAction, DelegationResource, DelegationToken,
+    CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
     SYSTEM_MAX_ATTENUATION, VoiceDesign, WebID,
 };
 use std::sync::Arc;
@@ -83,7 +84,7 @@ use hkask_mcp::GitCasAdapter;
 pub use context::PodContext;
 pub use manager::{PodManager, PodStatus};
 
-pub use hkask_types::{TemplateCrate, TemplateFile};
+pub use hkask_types::template::{TemplateCrate, TemplateFile};
 pub use types::{AgentKind, AgentMode, AgentPersona, PodID, PodLifecycleState};
 
 /// Agent Pod — Runtime container for ACP agents

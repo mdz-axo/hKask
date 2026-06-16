@@ -3,8 +3,8 @@
 use hkask_types::lexicon::TemplateType as Type;
 
 /// Parse a string into a DataCategory (delegates to DataCategory::parse)
-pub fn parse_data_category(s: &str) -> hkask_types::DataCategory {
-    hkask_types::DataCategory::parse(s)
+pub fn parse_data_category(s: &str) -> hkask_types::sovereignty::DataCategory {
+    hkask_types::sovereignty::DataCategory::parse(s)
 }
 
 /// Parse a template type string into a TemplateType enum

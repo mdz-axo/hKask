@@ -38,7 +38,8 @@
 use chrono::Datelike;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
-use hkask_types::{McpErrorKind, WebID, now_rfc3339};
+use hkask_types::time::now_rfc3339;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;

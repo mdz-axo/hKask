@@ -13,9 +13,10 @@
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
 use hkask_types::ports::ToolPort;
+use hkask_types::sovereignty::DataCategory;
 use hkask_types::{
-    CapabilityChecker, Confidence, DataCategory, DelegationAction, DelegationResource,
-    DelegationToken, ExperienceClassification, InferencePort, WebID,
+    CapabilityChecker, Confidence, DelegationAction, DelegationResource, DelegationToken,
+    ExperienceClassification, InferencePort, WebID,
 };
 use std::sync::Arc;
 

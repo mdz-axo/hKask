@@ -8,7 +8,7 @@ use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use hkask_types::now_rfc3339;
+use hkask_types::time::now_rfc3339;
 
 // ── Transaction ─────────────────────────────────────────────────────
 

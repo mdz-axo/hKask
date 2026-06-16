@@ -11,10 +11,11 @@ use hkask_keystore::resolve_wallet_seed;
 use hkask_storage::WalletStore;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+#[cfg(test)]
+use hkask_types::wallet::EncumbranceStatus;
 use hkask_types::wallet::{
-    ApiKeyId, ChainId, DepositAddress, DepositReference, Encumbrance, EncumbranceStatus,
-    PrivacyMode, RJoule, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError,
-    WalletId, WalletTransaction,
+    ApiKeyId, ChainId, DepositAddress, DepositReference, Encumbrance, PrivacyMode, RJoule,
+    TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletId, WalletTransaction,
 };
 use std::collections::HashMap;
 use std::sync::Arc;

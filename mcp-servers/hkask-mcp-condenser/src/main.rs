@@ -27,7 +27,9 @@ use hkask_mcp::server::{CapabilityTier, McpToolError, ToolSpanGuard};
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Database, Triple};
 use hkask_types::ports::InferencePort;
-use hkask_types::{LLMParameters, McpErrorKind, Visibility, WebID, now_rfc3339};
+use hkask_types::template::LLMParameters;
+use hkask_types::time::now_rfc3339;
+use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::{Arc, Mutex};
 

@@ -19,7 +19,7 @@ use hkask_cns::CnsRuntime;
 use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
 use hkask_types::template::LLMParameters;
-use hkask_types::now_rfc3339;
+use hkask_types::time::now_rfc3339;
 use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

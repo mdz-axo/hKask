@@ -59,7 +59,9 @@ use hkask_mcp_training::providers::{
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::ports::InferencePort;
-use hkask_types::{LLMParameters, McpErrorKind, Visibility, WebID, now_rfc3339};
+use hkask_types::template::LLMParameters;
+use hkask_types::time::now_rfc3339;
+use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;

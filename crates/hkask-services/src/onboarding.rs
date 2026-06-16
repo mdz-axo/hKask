@@ -7,9 +7,8 @@ use hex;
 use hkask_agents::AcpRuntime;
 use hkask_keystore::{Keychain, derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
-use hkask_types::{
-    AgentDefinition, AgentKind, Charter, RegisteredAgent, UserProfile, WebID, now_rfc3339,
-};
+use hkask_types::time::now_rfc3339;
+use hkask_types::{AgentDefinition, AgentKind, Charter, RegisteredAgent, UserProfile, WebID};
 
 use crate::config::ServiceConfig;
 use crate::error::ServiceError;

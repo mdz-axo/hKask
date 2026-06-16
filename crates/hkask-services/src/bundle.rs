@@ -166,7 +166,7 @@ impl BundleService {
             visibility.as_str()
         );
 
-        let params = hkask_types::LLMParameters::default();
+        let params = hkask_types::template::LLMParameters::default();
         let result = inference_port
             .generate(&prompt, &params)
             .await

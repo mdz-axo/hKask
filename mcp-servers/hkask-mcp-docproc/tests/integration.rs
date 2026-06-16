@@ -145,7 +145,7 @@ impl OcrExecutor for RealExecutor {
             .generate_vision(
                 "Extract all text from this image. Output only the extracted text, nothing else.",
                 &[b64],
-                &hkask_types::LLMParameters {
+                &hkask_types::template::LLMParameters {
                     temperature: 0.1,
                     max_tokens: 8192,
                     ..Default::default()

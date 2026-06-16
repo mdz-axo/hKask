@@ -157,27 +157,40 @@ fn get_wallet(state: &ApiState) -> Result<&hkask_services::WalletService, Status
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)
 }
 
-fn parse_chain(s: Option<&str>) -> ChainId {
+fn parse_chain(s: Option<&str>) -> Result<ChainId, &'static str> {
     match s {
-        Some("hedera") => ChainId::Hedera,
-        _ => ChainId::Solana,
+        None | Some("solana") => Ok(ChainId::Solana),
+        Some("hedera") => Ok(ChainId::Hedera),
+        _ => Err("Invalid chain (expected 'solana' or 'hedera')"),
     }
 }
 
-fn resolve_wallet_id(wallet_arg: Option<&str>, ctx: Option<&WalletContext>) -> WalletId {
-    // Prefer explicit query param
-    if let Some(s) = wallet_arg {
-        return s.parse().unwrap_or_else(|_| {
-            tracing::warn!(target: "hkask.api.wallet", wallet_id_arg = %s, "Invalid wallet ID — using default");
-            WalletId::default()
-        });
-    }
-    // Fall back to authenticated API key's wallet
+fn resolve_wallet_id(
+    wallet_arg: Option<&str>,
+    ctx: Option<&WalletContext>,
+) -> Result<WalletId, &'static str> {
+    // If request is API-key authenticated, the wallet is fixed by the key.
     if let Some(wc) = ctx {
-        return wc.wallet_id;
+        if let Some(s) = wallet_arg {
+            let requested: WalletId = s
+                .parse()
+                .map_err(|_| "Invalid wallet_id format (expected UUID)")?;
+            if requested != wc.wallet_id {
+                return Err("wallet_id does not match authenticated API key wallet");
+            }
+        }
+        return Ok(wc.wallet_id);
     }
-    // System default
-    WalletId::default()
+
+    // Unauthenticated/system path: optional explicit wallet_id, else default.
+    if let Some(s) = wallet_arg {
+        let parsed: WalletId = s
+            .parse()
+            .map_err(|_| "Invalid wallet_id format (expected UUID)")?;
+        return Ok(parsed);
+    }
+
+    Ok(WalletId::default())
 }
 
 // ── GET /api/wallet/balance ─────────────────────────────────────────────────
@@ -206,7 +219,11 @@ async fn get_balance(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0));
+    let wallet_id =
+        match resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0)) {
+            Ok(id) => id,
+            Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+        };
     match svc.get_balance(wallet_id) {
         Ok(balance) => (
             StatusCode::OK,
@@ -251,8 +268,15 @@ async fn get_deposit_address(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0));
-    let chain = parse_chain(q.chain.as_deref());
+    let wallet_id =
+        match resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0)) {
+            Ok(id) => id,
+            Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+        };
+    let chain = match parse_chain(q.chain.as_deref()) {
+        Ok(c) => c,
+        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+    };
     let privacy = if q.private.unwrap_or(false) {
         PrivacyMode::Shielded
     } else {
@@ -293,8 +317,14 @@ async fn create_deposit_reference(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref(), None);
-    let chain = parse_chain(Some(&req.chain));
+    let wallet_id = match resolve_wallet_id(req.wallet_id.as_deref(), None) {
+        Ok(id) => id,
+        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+    };
+    let chain = match parse_chain(Some(&req.chain)) {
+        Ok(c) => c,
+        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+    };
 
     match svc.generate_deposit_reference(wallet_id, chain, 24) {
         Ok(dep_ref) => (
@@ -331,7 +361,11 @@ async fn get_transactions(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0));
+    let wallet_id =
+        match resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0)) {
+            Ok(id) => id,
+            Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+        };
     let limit = q.limit.unwrap_or(50);
     let offset = q.offset.unwrap_or(0);
 
@@ -374,13 +408,22 @@ async fn create_key(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref(), None);
+    let wallet_id = match resolve_wallet_id(req.wallet_id.as_deref(), None) {
+        Ok(id) => id,
+        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+    };
     let privacy = if req.private.unwrap_or(false) {
         PrivacyMode::Shielded
     } else {
         PrivacyMode::Transparent
     };
-    let preferred_chain = req.chain.as_deref().map(|c| parse_chain(Some(c)));
+    let preferred_chain = match req.chain.as_deref() {
+        Some(c) => match parse_chain(Some(c)) {
+            Ok(chain) => Some(chain),
+            Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+        },
+        None => None,
+    };
 
     // Ensure wallet exists
     if let Err(e) = svc.ensure_wallet(wallet_id) {
@@ -433,7 +476,11 @@ async fn list_keys(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0));
+    let wallet_id =
+        match resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0)) {
+            Ok(id) => id,
+            Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+        };
 
     match svc.list_keys(wallet_id) {
         Ok(keys) => (
@@ -527,8 +574,14 @@ async fn withdraw(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref(), None);
-    let chain = parse_chain(req.chain.as_deref());
+    let wallet_id = match resolve_wallet_id(req.wallet_id.as_deref(), None) {
+        Ok(id) => id,
+        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+    };
+    let chain = match parse_chain(req.chain.as_deref()) {
+        Ok(c) => c,
+        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+    };
     let privacy = if req.private.unwrap_or(false) {
         PrivacyMode::Shielded
     } else {
@@ -556,5 +609,48 @@ async fn withdraw(
         )
             .into_response(),
         Err(e) => wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::wallet::ApiKeyId;
+
+    fn wallet_ctx(wallet_id: WalletId) -> WalletContext {
+        WalletContext {
+            wallet_id,
+            key_id: ApiKeyId::new(),
+            spending_limit_rj: RJoule::new(1000),
+            spent_rj: RJoule::ZERO,
+        }
+    }
+
+    // REQ: wallet-api-auth-001 — authenticated wallet routes must not allow cross-wallet override
+    #[test]
+    fn resolve_wallet_id_rejects_mismatched_wallet_for_authenticated_request() {
+        let authed_wallet = WalletId::new();
+        let other_wallet = WalletId::new();
+        let ctx = wallet_ctx(authed_wallet);
+
+        let result = resolve_wallet_id(Some(&other_wallet.to_string()), Some(&ctx));
+        assert!(result.is_err());
+    }
+
+    // REQ: wallet-api-auth-002 — authenticated wallet routes accept matching wallet_id override
+    #[test]
+    fn resolve_wallet_id_accepts_matching_wallet_for_authenticated_request() {
+        let authed_wallet = WalletId::new();
+        let ctx = wallet_ctx(authed_wallet);
+
+        let result = resolve_wallet_id(Some(&authed_wallet.to_string()), Some(&ctx));
+        assert_eq!(result.unwrap(), authed_wallet);
+    }
+
+    // REQ: wallet-api-parse-001 — invalid chain values are rejected (fail-closed)
+    #[test]
+    fn parse_chain_rejects_invalid_value() {
+        let result = parse_chain(Some("bitcoin"));
+        assert!(result.is_err());
     }
 }

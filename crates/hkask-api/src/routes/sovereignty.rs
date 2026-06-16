@@ -15,8 +15,8 @@ fn consent_name(value: bool) -> &'static str {
     if value { "required" } else { "open" }
 }
 
-fn parse_data_category(s: &str) -> hkask_types::DataCategory {
-    hkask_types::DataCategory::parse(s)
+fn parse_data_category(s: &str) -> hkask_types::sovereignty::DataCategory {
+    hkask_types::sovereignty::DataCategory::parse(s)
 }
 
 pub fn sovereignty_router() -> OpenApiRouter<ApiState> {

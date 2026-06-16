@@ -29,7 +29,7 @@ use hkask_services::AgentService;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
-use hkask_types::ZeroizingSecret;
+use hkask_types::secret::ZeroizingSecret;
 use hkask_types::ports::InferencePort;
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};

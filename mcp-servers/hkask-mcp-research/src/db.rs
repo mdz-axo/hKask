@@ -3,7 +3,7 @@ use rusqlite::Connection;
 use crate::rss_types::EditTagRequest;
 // P4.3: Use the canonical timestamp helper from `hkask-types` rather than
 // inlining `chrono::Utc::now().to_rfc3339()` at every call site.
-use hkask_types::now_rfc3339;
+use hkask_types::time::now_rfc3339;
 
 // RSS schema DDL — executed as extensions via Database::open_with_extensions()
 

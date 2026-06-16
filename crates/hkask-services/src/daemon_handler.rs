@@ -22,7 +22,7 @@ use hkask_agents::pod::PodManager;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_storage::user_store::UserStore;
 use hkask_types::template::LLMParameters;
-use hkask_types::now_rfc3339;
+use hkask_types::time::now_rfc3339;
 use hkask_types::ports::InferencePort;
 use tracing;
 

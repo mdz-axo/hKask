@@ -68,7 +68,7 @@ pub async fn agent_register(
     let reg = RegisteredAgent {
         definition: def,
         token_hash: hex::encode(token.signature_bytes()),
-        registered_at: hkask_types::now_rfc3339(),
+        registered_at: hkask_types::time::now_rfc3339(),
         source_yaml: "cli-register".to_string(),
     };
     ctx.agent_registry_store()

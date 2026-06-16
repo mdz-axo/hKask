@@ -7,7 +7,7 @@
 use async_trait::async_trait;
 use base64::Engine;
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 use hkask_types::ocr::{OcrBackend, OcrResult};
 use image::DynamicImage;
 use std::time::Instant;

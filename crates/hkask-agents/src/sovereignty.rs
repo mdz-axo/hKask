@@ -11,7 +11,8 @@
 //! `ConsentManager`-backed port so that grants via `kask sovereignty grant`
 //! or `POST /consent/grant` are observed on the next sovereignty check.
 
-use hkask_types::{DataCategory, UserSovereigntyState, WebID};
+use hkask_types::WebID;
+use hkask_types::sovereignty::{DataCategory, UserSovereigntyState};
 use std::sync::Arc;
 
 /// Port for resolving explicit user consent for a (webid, category) pair.
@@ -113,7 +114,7 @@ impl SovereigntyChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::DataCategory;
+    use hkask_types::sovereignty::DataCategory;
     use std::sync::Arc;
 
     fn test_webid() -> WebID {

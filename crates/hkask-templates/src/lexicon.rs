@@ -4,7 +4,7 @@
 //! `registry/hlexicon/hlexicon-workspace.yaml` and validates
 //! lexicon_terms against it during template registration.
 
-use hkask_types::{HLexicon, LexiconTerm, TemplateType};
+use hkask_types::lexicon::{HLexicon, LexiconTerm, TemplateType};
 use std::path::Path;
 
 /// Intermediate YAML deserialization structure matching the workspace YAML format:

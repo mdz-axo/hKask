@@ -18,10 +18,11 @@ use hkask_storage::spec_types::{
     DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, infer_spec_category,
 };
 use hkask_storage::{Database, EmbeddingStore, SpecStore};
+use hkask_types::time::now_rfc3339;
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind,
     TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER, VerificationOutcome,
-    WebID, now_rfc3339, token_err_insufficient_access, verify_delegation_token_now,
+    WebID, token_err_insufficient_access, verify_delegation_token_now,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};

@@ -20,7 +20,7 @@ use hkask_inference::InferenceRouter;
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_memory::SemanticMemory;
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 use hkask_types::McpErrorKind;
 use hkask_types::ports::InferencePort;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};

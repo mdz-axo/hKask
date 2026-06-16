@@ -12,7 +12,8 @@ use base64::Engine;
 use hkask_mcp::server::{
     CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard, validate_tool_url,
 };
-use hkask_types::{McpErrorKind, WebID, now_rfc3339};
+use hkask_types::time::now_rfc3339;
+use hkask_types::{McpErrorKind, WebID};
 use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use rusqlite::Connection;

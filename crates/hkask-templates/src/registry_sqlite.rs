@@ -8,8 +8,10 @@ use crate::ports::{Result, TemplateError};
 use hkask_types::ports::{
     BundleRegistryIndex, RegistryEntry, RegistryIndex, SkillRegistryIndex, SkillZone,
 };
+use hkask_types::bundle::SkillPolarity;
+use hkask_types::lexicon::{HLexicon, TemplateType};
 use hkask_types::{
-    BundleManifest, HLexicon, InfrastructureError, Skill, SkillPolarity, TemplateType, Visibility,
+    BundleManifest, InfrastructureError, Skill, Visibility,
 };
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};

@@ -13,7 +13,8 @@ pub mod gix_adapter;
 
 pub use gix_adapter::GixCasAdapter;
 
-use hkask_types::{InfrastructureError, TemplateCrate, TemplateFile};
+use hkask_types::InfrastructureError;
+use hkask_types::template::{TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
 
 /// Git CAS Adapter — Concrete implementation for template crate loading

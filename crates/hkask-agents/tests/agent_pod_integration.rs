@@ -260,7 +260,7 @@ async fn inference_port_wiring() {
     // Verify it's the same mock (by calling it)
     let port = retrieved.unwrap();
     let result = port
-        .generate("hello world", &hkask_types::LLMParameters::default())
+        .generate("hello world", &hkask_types::template::LLMParameters::default())
         .await
         .expect("mock inference should succeed");
     assert_eq!(result.text, "Hello from mock inference!");
@@ -270,7 +270,7 @@ async fn inference_port_wiring() {
         "test error".into(),
     ));
     let result = port
-        .generate("any prompt", &hkask_types::LLMParameters::default())
+        .generate("any prompt", &hkask_types::template::LLMParameters::default())
         .await;
     assert!(result.is_err(), "error injection should propagate");
     inference.clear_error();

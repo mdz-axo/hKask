@@ -18,9 +18,9 @@ use hkask_agents::ports::{
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::ports::{InferencePort, StructuredToolCall};
+use hkask_types::template::LLMParameters;
 use hkask_types::{
-    AuthContext, Confidence, DelegationAction, DelegationToken, LLMParameters, PersonaConstraints,
-    WebID,
+    AuthContext, Confidence, DelegationAction, DelegationToken, PersonaConstraints, WebID,
 };
 
 use crate::error::ServiceError;

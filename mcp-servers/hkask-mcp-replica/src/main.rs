@@ -15,7 +15,8 @@ use hkask_services::{
     EmbedProgress, EmbedService, HkaskSettings, InferenceContext, cosine_distance,
 };
 use hkask_storage::{Database, EmbeddingStore};
-use hkask_types::{McpErrorKind, WebID, now_rfc3339};
+use hkask_types::time::now_rfc3339;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;

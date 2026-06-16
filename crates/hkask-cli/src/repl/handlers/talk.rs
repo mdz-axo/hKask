@@ -188,7 +188,7 @@ pub(crate) fn summarize_for_speech(
 
     let prompt = format!("{}{}", SPEECH_SUMMARIZE_PROMPT, response_text);
 
-    let params = hkask_types::LLMParameters {
+    let params = hkask_types::template::LLMParameters {
         temperature: 0.3,
         max_tokens: 120,
         ..Default::default()

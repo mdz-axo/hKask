@@ -10,7 +10,8 @@
 //! 7. CNS Active — Activate all bots, begin monitoring
 
 use hkask_keystore::{Keychain, derive_all_internal_secrets};
-use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
+use hkask_types::WebID;
+use hkask_types::r7::{R7BotIdentity, default_r7_bots};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{error, info};
