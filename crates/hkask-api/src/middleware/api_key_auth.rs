@@ -115,7 +115,7 @@ impl ApiKeyAuthService {
         // REQ: MUST-6 — constant-time public key verification (defense-in-depth)
         // The DB query already matches by public_key, but a constant-time comparison
         // protects against hypothetical DB corruption or timing side-channels.
-        if bool::from(capability.public_key.as_bytes().ct_eq(&public_key_bytes)) == false {
+        if !bool::from(capability.public_key.as_bytes().ct_eq(&public_key_bytes)) {
             return Err(ApiKeyAuthError::UnknownApiKey);
         }
 

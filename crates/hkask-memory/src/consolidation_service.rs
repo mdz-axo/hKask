@@ -32,7 +32,9 @@ impl ConsolidationService {
     ///
     /// The token must be issued by the Curator (system-level authority).
     ///
-    /// REQ: MEM-012
+    /// REQ: P3-mem-consolidation-service-new
+    /// [P3] Motivating: Generative Space — user-facing entry point for memory consolidation and cleanup
+    /// [P4] Constraining: Clear Boundaries — requires Curator-issued ConsolidationToken
     /// pre:  bridge and semantic are initialized
     /// pre:  token.issuer() == expected curator
     /// post: returns ConsolidationService ready for consolidation operations
@@ -57,7 +59,10 @@ impl ConsolidationService {
     /// 3. **Max triples** — delete lowest-confidence semantic triples until
     ///    count is at or below `max_semantic_triples` (if specified)
     ///
-    /// REQ: MEM-013
+    /// REQ: P3-mem-consolidation-service-consolidate
+    /// [P3] Motivating: Generative Space — combines episodic promotion with semantic cleanup
+    /// [P9] Constraining: Homeostatic Self-Regulation — enforces confidence floor and max triple limits
+    /// [P4] Constraining: Clear Boundaries — delegates to token-gated bridge
     /// pre:  perspective is a valid WebID
     /// pre:  request.limit > 0
     /// post: episodic triples consolidated into semantic memory
@@ -206,7 +211,9 @@ impl ConsolidationService {
 
     /// Count episodic consolidation candidates for a perspective.
     ///
-    /// REQ: MEM-014
+    /// REQ: P3-mem-consolidation-service-candidate-count
+    /// [P3] Motivating: Generative Space — reports how many episodic triples can be promoted
+    /// [P9] Constraining: Homeostatic Self-Regulation — count-only, graceful degradation on error
     /// pre:  perspective is a valid WebID
     /// post: returns count of episodic triples available for consolidation
     pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
@@ -215,7 +222,9 @@ impl ConsolidationService {
 
     /// Count semantic triples at or below a confidence threshold.
     ///
-    /// REQ: MEM-015
+    /// REQ: P3-mem-consolidation-service-low-confidence-count
+    /// [P3] Motivating: Generative Space — reports low-confidence semantic triples for cleanup
+    /// [P9] Constraining: Homeostatic Self-Regulation — threshold-driven pruning signal
     /// pre:  threshold in [0.0, 1.0]
     /// post: returns count of semantic triples with confidence ≤ threshold
     /// post: returns 0 on error (graceful degradation)
@@ -225,7 +234,9 @@ impl ConsolidationService {
 
     /// Get current semantic triple count.
     ///
-    /// REQ: MEM-016
+    /// REQ: P3-mem-consolidation-service-triple-count
+    /// [P3] Motivating: Generative Space — reports total semantic memory size
+    /// [P9] Constraining: Homeostatic Self-Regulation — count used for budget monitoring
     /// post: returns total count of triples in semantic memory
     /// post: returns 0 on error (graceful degradation)
     pub fn semantic_triple_count(&self) -> usize {

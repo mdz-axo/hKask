@@ -15,6 +15,7 @@ use std::sync::Arc;
 /// Supported registries:
 /// - `styles` — lists all built style corpora (queries `style:*:centroid` in EmbeddingStore)
 /// - `templates` — lists all registered templates
+///
 /// REQ: CLI-085
 /// pre:  rt is a valid tokio Runtime; template_registry is a valid SqliteRegistry; registry is "styles" or "templates"
 /// post: lists artifacts in the specified registry; prints results or error for unknown registries

@@ -46,7 +46,9 @@ impl SemanticLoop {
     /// Default storage budget: 25,000 triples.
     /// Default low-confidence threshold: 0.33 (33%).
     ///
-    /// REQ: MEM-017
+    /// REQ: P3-mem-semantic-loop-new
+    /// [P3] Motivating: Generative Space — wraps semantic memory in a regulated knowledge loop
+    /// [P9] Constraining: Homeostatic Self-Regulation — default budget and low-confidence threshold are set-points
     /// pre:  memory is initialized
     /// post: returns SemanticLoop with DEFAULT_SEMANTIC_STORAGE_BUDGET and DEFAULT_LOW_CONFIDENCE_THRESHOLD
     pub fn new(memory: Arc<SemanticMemory>) -> Self {
@@ -61,7 +63,9 @@ impl SemanticLoop {
     ///
     /// Use this for per-user or per-agent budget customization.
     ///
-    /// REQ: MEM-018
+    /// REQ: P3-mem-semantic-loop-with-budget
+    /// [P3] Motivating: Generative Space — customizes storage budget per user or agent
+    /// [P9] Constraining: Homeostatic Self-Regulation — configurable set-point for memory homeostasis
     /// pre:  memory is initialized, storage_budget > 0
     /// post: returns SemanticLoop with custom budget, default threshold
     pub fn with_budget(memory: Arc<SemanticMemory>, storage_budget: usize) -> Self {
@@ -77,7 +81,9 @@ impl SemanticLoop {
     ///
     /// Use this for full per-user or per-agent customization.
     ///
-    /// REQ: MEM-019
+    /// REQ: P3-mem-semantic-loop-with-budget-threshold
+    /// [P3] Motivating: Generative Space — customizes both budget and cleanup threshold
+    /// [P7] Constraining: Evolutionary Architecture — thresholds emerge from usage patterns
     /// pre:  memory is initialized, storage_budget > 0
     /// pre:  low_confidence_threshold in [0.0, 1.0]
     /// post: returns SemanticLoop with custom budget and threshold
@@ -95,7 +101,9 @@ impl SemanticLoop {
 
     /// Get the configured storage budget (set-point).
     ///
-    /// REQ: MEM-020
+    /// REQ: P3-mem-semantic-loop-storage-budget
+    /// [P3] Motivating: Generative Space — exposes the semantic storage set-point
+    /// [P9] Constraining: Homeostatic Self-Regulation — immutable budget reference for regulation
     /// post: returns the storage_budget value set at construction
     pub fn storage_budget(&self) -> usize {
         self.storage_budget
@@ -103,7 +111,9 @@ impl SemanticLoop {
 
     /// Get the configured low-confidence threshold.
     ///
-    /// REQ: MEM-021
+    /// REQ: P3-mem-semantic-loop-low-confidence-threshold
+    /// [P3] Motivating: Generative Space — exposes the low-confidence cleanup set-point
+    /// [P9] Constraining: Homeostatic Self-Regulation — threshold triggers pruning of uncertain knowledge
     /// post: returns the low_confidence_threshold value set at construction
     pub fn low_confidence_threshold(&self) -> f64 {
         self.low_confidence_threshold

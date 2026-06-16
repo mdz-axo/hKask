@@ -46,7 +46,9 @@ pub(crate) struct ConsolidationResult {
 impl ConsolidationBridge {
     /// Create a new ConsolidationBridge.
     ///
-    /// REQ: MEM-003
+    /// REQ: P3-mem-consolidation-bridge-new
+    /// [P3] Motivating: Generative Space — bridges episodic experience into shared semantic memory
+    /// [P4] Constraining: Clear Boundaries — links stores without bypassing their membranes
     /// pre:  episodic and semantic are initialized memory stores
     /// post: returns ConsolidationBridge linking the two stores
     pub fn new(episodic: Arc<EpisodicMemory>, semantic: Arc<SemanticMemory>) -> Self {
@@ -158,7 +160,10 @@ impl ConsolidationBridge {
     ///
     /// Requires ConsolidationToken proving Cybernetics authority.
     ///
-    /// REQ: MEM-004
+    /// REQ: P3-mem-consolidation-bridge-consolidate
+    /// [P3] Motivating: Generative Space — promotes sovereign episodic triples to shared knowledge
+    /// [P1] Constraining: User Sovereignty — strips perspective only under Curator authority
+    /// [P4] Constraining: Clear Boundaries — requires ConsolidationToken from expected curator
     /// pre:  token.issuer() == expected curator WebID
     /// pre:  perspective is a valid WebID
     /// post: episodic triples stripped of perspective, stored in semantic memory
@@ -197,7 +202,9 @@ impl ConsolidationBridge {
 
     /// Count consolidation candidates for a perspective.
     ///
-    /// REQ: MEM-005
+    /// REQ: P3-mem-consolidation-candidate-count
+    /// [P3] Motivating: Generative Space — surfaces how much episodic content is ready for promotion
+    /// [P9] Constraining: Homeostatic Self-Regulation — count-only query avoids loading full store
     /// pre:  perspective is a valid WebID
     /// post: returns count of triples in episodic storage for this perspective
     /// post: returns 0 on error (graceful degradation)

@@ -649,11 +649,9 @@ fn parse_chain(s: Option<&str>) -> Result<ChainId, String> {
     }
 }
 
-fn resolve_privacy_mode(private: bool, transparent: bool) -> PrivacyMode {
+fn resolve_privacy_mode(_private: bool, transparent: bool) -> PrivacyMode {
     if transparent {
         PrivacyMode::Transparent
-    } else if private {
-        PrivacyMode::Shielded
     } else {
         PrivacyMode::Shielded
     }

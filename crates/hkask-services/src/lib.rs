@@ -34,6 +34,7 @@ pub mod pods;
 pub mod scheduler;
 pub mod settings;
 pub mod skill;
+pub mod skills;
 pub mod sovereignty;
 pub mod spec;
 pub mod verification;
@@ -102,6 +103,9 @@ pub use settings::{HkaskSettings, settings_path};
 pub use skill::{
     SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
     publish_skill, read_skill_namespace, read_skill_visibility, resolve_replicant_name,
+};
+pub use skills::{
+    SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,
 };
 pub use sovereignty::SovereigntyService;
 pub use spec::{

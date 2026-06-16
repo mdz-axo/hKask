@@ -195,6 +195,6 @@ These go beyond what `strangler-fig` and `deep-module` already cover:
 [ ] cargo clippy --workspace -- -D warnings passes
 [ ] Deletion test applied to every module in hkask-services
 [ ] Every // REQ: tag references a valid spec requirement
-[ ] docs/status/test-inventory.md updated
+[ ] docs/status/corpus_inventory.yaml updated if new test surface was added
 [ ] OPEN_QUESTIONS.md updated with F1–F8
 ```

@@ -11,7 +11,9 @@ use chrono::Datelike;
 /// `k` is the smoothing constant (commonly 60). Each rank position is
 /// 0-based (rank 0 = first result).
 ///
-/// REQ: MEM-009
+/// REQ: P3-mem-ranking-rrf-score
+/// [P3] Motivating: Generative Space — fuses rank positions for context retrieval
+/// [P8] Constraining: Semantic Grounding — reciprocal rank fusion is a standard ranking signal
 /// pre:  k > 0, ranks contains valid 0-based positions
 /// post: returns sum of 1/(k + rank + 1) for each rank
 /// post: result is always ≥ 0.0
@@ -28,7 +30,9 @@ pub fn rrf_score(k: u64, ranks: &[usize]) -> f64 {
 /// fuzzy dates like "Jan 15, 2024", and "published ..." prefixes.
 /// Returns -1.0 for unparseable input.
 ///
-/// REQ: MEM-010
+/// REQ: P3-mem-ranking-parse-age
+/// [P3] Motivating: Generative Space — converts human-readable age strings into comparable temporal signals
+/// [P5] Constraining: Essentialism — returns -1.0 for unparseable input, no exceptions
 /// pre:  age is a valid &str
 /// post: returns days as f64 (≥ 0.0 for valid dates)
 /// post: returns -1.0 for unparseable or empty input
@@ -165,7 +169,9 @@ fn parse_fuzzy_date(s: &str) -> f64 {
 ///
 /// Returns one of: "today", "this week", "this month", "older", "unknown".
 ///
-/// REQ: MEM-011
+/// REQ: P3-mem-ranking-normalize-date-bucket
+/// [P3] Motivating: Generative Space — buckets parsed age into human-readable recency labels
+/// [P8] Constraining: Semantic Grounding — five fixed buckets preserve stable ordering
 /// pre:  published is a valid &str
 /// post: returns one of five bucket labels based on age in days
 /// post: returns "unknown" for unparseable input
