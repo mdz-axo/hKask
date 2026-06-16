@@ -38,8 +38,8 @@ use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;
 use hkask_storage::user_store::UserStore;
 use hkask_storage::{
-    ConsentStore, Database, DatabaseError, EmbeddingStore, SovereigntyBoundaryStore,
-    SqliteSpecStore, TripleStore, WalletStore, in_memory_db,
+    ConsentStore, Database, EmbeddingStore, SovereigntyBoundaryStore, SqliteSpecStore, TripleStore,
+    WalletStore, in_memory_db,
 };
 use hkask_templates::SqliteRegistry;
 use hkask_types::CapabilityChecker;
@@ -52,7 +52,7 @@ use hkask_types::ports::InferencePort;
 use hkask_types::ports::git_cas::GitCASPort;
 use hkask_types::wallet::ChainId;
 use hkask_types::wallet::WalletId;
-use hkask_wallet::{ApiKeyIssuer, WalletManager};
+use hkask_wallet::{ApiKeyIssuer, WalletManager, resolve_price_feed};
 use std::collections::HashMap;
 
 use crate::ServiceConfig;
@@ -1051,19 +1051,93 @@ impl AgentService {
                 }
             }
 
+            // Optional Hinkal privacy adapter.
+            #[allow(unused_mut)]
+            let mut privacy: Option<Box<dyn hkask_wallet::PrivacyPort>> = None;
+
+            #[cfg(feature = "hinkal")]
+            if config.wallet_config.privacy_enabled {
+                let relayer_url = config
+                    .wallet_config
+                    .hinkal_relayer_url
+                    .clone()
+                    .or_else(|| std::env::var("HINKAL_RELAYER_URL").ok());
+                let treasury_account = std::env::var("HINKAL_TREASURY_ACCOUNT").ok();
+
+                match (relayer_url, treasury_account) {
+                    (Some(relayer_url), Some(treasury_account)) => {
+                        match hkask_wallet::hinkal::HinkalPort::new(&relayer_url, &treasury_account)
+                        {
+                            Ok(chain_port) => {
+                                tracing::info!(
+                                    target: "cns.wallet.chain",
+                                    chain = "hinkal",
+                                    relayer_url = %relayer_url,
+                                    "HinkalPort initialized for chain routing"
+                                );
+                                chains.insert(ChainId::Hinkal, Box::new(chain_port));
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    target: "cns.wallet.chain",
+                                    chain = "hinkal",
+                                    error = %e,
+                                    "Failed to initialize Hinkal chain adapter"
+                                );
+                            }
+                        }
+
+                        match hkask_wallet::hinkal::HinkalPort::new(&relayer_url, &treasury_account)
+                        {
+                            Ok(privacy_port) => {
+                                tracing::info!(
+                                    target: "cns.wallet.chain",
+                                    chain = "hinkal",
+                                    relayer_url = %relayer_url,
+                                    "Hinkal privacy adapter initialized"
+                                );
+                                privacy = Some(Box::new(privacy_port));
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    target: "cns.wallet.chain",
+                                    chain = "hinkal",
+                                    error = %e,
+                                    "Failed to initialize Hinkal privacy adapter"
+                                );
+                            }
+                        }
+                    }
+                    _ => {
+                        tracing::warn!(
+                            target: "cns.wallet.chain",
+                            "Privacy is enabled but Hinkal env is incomplete. Set HINKAL_RELAYER_URL and HINKAL_TREASURY_ACCOUNT."
+                        );
+                    }
+                }
+            }
+
             if chains.is_empty() {
                 tracing::info!(
                     target: "cns.wallet.chain",
-                    "No chain ports configured — wallet running in read-only mode. Set SOLANA_RPC_URL + SOLANA_TREASURY_PUBKEY or HEDERA_TREASURY_ACCOUNT to enable deposits/withdrawals."
+                    "No chain ports configured — wallet running in read-only mode. Set SOLANA_RPC_URL + SOLANA_TREASURY_PUBKEY or HEDERA_TREASURY_ACCOUNT (and optionally HINKAL_RELAYER_URL + HINKAL_TREASURY_ACCOUNT) to enable deposits/withdrawals."
                 );
             }
+
+            let price_feed = resolve_price_feed(&config.wallet_config.price_feed).map_err(|e| {
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: "Failed to resolve price feed".into(),
+                }
+            })?;
 
             let wallet_manager = Arc::new(
                 WalletManager::build(
                     config.wallet_config.clone(),
                     Arc::clone(&wallet_store),
                     chains,
-                    None, // privacy port — empty until Hinkal integration
+                    privacy,
+                    price_feed,
                 )
                 .map_err(|e| ServiceError::Wallet {
                     source: Some(Box::new(e)),

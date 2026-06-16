@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Emitted after every pipeline run for homeostatic monitoring.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub(crate) struct OcrVerificationSpan {
     pub total_pages: usize,
     pub error_count: usize,
@@ -16,6 +17,7 @@ pub(crate) struct OcrVerificationSpan {
 
 /// Per-backend usage count for CNS reporting.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub(crate) struct BackendUsage {
     pub backend: super::config::OcrBackend,
     pub page_count: usize,
@@ -26,6 +28,7 @@ pub(crate) struct BackendUsage {
 /// Emitted per dual-routed page. Observation only — no autonomous
 /// routing change (P4: affirmative consent required for behavioral change).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub(crate) struct OcrCrossValidationSpan {
     pub page_index: usize,
     pub similarity: f32,

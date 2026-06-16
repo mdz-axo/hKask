@@ -66,6 +66,29 @@ struct DepositAddressRow {
 // ── WalletStore implementation ──────────────────────────────────────────────────
 
 impl WalletStore {
+    /// Enable SQLite WAL (Write-Ahead Logging) mode for better concurrency.
+    ///
+    /// WAL mode allows concurrent reads while a write is in progress,
+    /// significantly improving throughput under multi-agent API key spend loads.
+    /// Without WAL, all operations serialize on the connection mutex.
+    ///
+    /// REQ: SHOULD-8 — WAL mode for wallet store concurrency
+    /// post: journal_mode set to WAL
+    /// post: synchronous set to NORMAL (balance durability vs performance)
+    ///
+    /// Call once after store creation, before any wallet operations.
+    pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
+        let conn = self.lock_conn()?;
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL; \
+             PRAGMA synchronous=NORMAL; \
+             PRAGMA busy_timeout=5000;",
+        )
+        .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?;
+        tracing::info!(target: "hkask.storage", "WalletStore WAL mode enabled");
+        Ok(())
+    }
+
     // ── Balance ──────────────────────────────────────────────────────────────
 
     /// Get the current balance for a wallet, or None if the wallet doesn't exist.
@@ -669,16 +692,33 @@ impl WalletStore {
         )?;
 
         if rows == 0 {
-            // Check why it failed
-            let enc = self.get_encumbrance(key_id)?;
-            match enc {
-                Some(e) if !e.is_active() => {
-                    return Err(WalletError::EncumbranceNotFound { key_id });
-                }
-                Some(e) => {
+            // Check why it failed — query inline on already-held conn to avoid
+            // Mutex deadlock (std::sync::Mutex is not reentrant).
+            let enc_row: Option<(String, i64, i64, String)> = conn
+                .query_row(
+                    "SELECT wallet_id, amount_rj, consumed_rj, status FROM encumbrances WHERE key_id = ?1",
+                    rusqlite::params![key_id.to_string()],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, i64>(1)?,
+                            row.get::<_, i64>(2)?,
+                            row.get::<_, String>(3)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            match enc_row {
+                Some((_wallet_id_str, amount, consumed, status_str)) => {
+                    let status = EncumbranceStatus::from_str(&status_str)
+                        .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?;
+                    if status != EncumbranceStatus::Active {
+                        return Err(WalletError::EncumbranceNotFound { key_id });
+                    }
+                    let remaining = (amount as u64).saturating_sub(consumed as u64);
                     return Err(WalletError::EncumbranceInsufficient {
                         key_id,
-                        remaining: RJoule::new(e.remaining_rj()),
+                        remaining: RJoule::new(remaining),
                         need: cost_rj,
                     });
                 }
@@ -908,6 +948,19 @@ mod tests {
     fn make_store() -> WalletStore {
         let db = in_memory_db();
         WalletStore::new(db.conn_arc())
+    }
+
+    // REQ: SHOULD-8 — WAL mode can be enabled on wallet store
+    #[test]
+    fn enable_wal_mode_succeeds() {
+        let store = make_store();
+        // WAL mode should succeed on in-memory databases (no-op but no error)
+        let result = store.enable_wal_mode();
+        assert!(
+            result.is_ok(),
+            "WAL mode enable should succeed: {:?}",
+            result
+        );
     }
 
     // REQ: P2-wallet-store — credit_rjoules increases balance

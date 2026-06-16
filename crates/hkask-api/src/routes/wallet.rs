@@ -160,9 +160,18 @@ fn get_wallet(state: &ApiState) -> Result<&hkask_services::WalletService, Status
 
 fn parse_chain(s: Option<&str>) -> Result<ChainId, &'static str> {
     match s {
-        None | Some("solana") => Ok(ChainId::Solana),
+        None | Some("hinkal") => Ok(ChainId::Hinkal),
+        Some("solana") => Ok(ChainId::Solana),
         Some("hedera") => Ok(ChainId::Hedera),
-        _ => Err("Invalid chain (expected 'solana' or 'hedera')"),
+        _ => Err("Invalid chain (expected 'hinkal', 'solana', or 'hedera')"),
+    }
+}
+
+fn resolve_privacy_mode(private: Option<bool>) -> PrivacyMode {
+    if private.unwrap_or(true) {
+        PrivacyMode::Shielded
+    } else {
+        PrivacyMode::Transparent
     }
 }
 
@@ -278,11 +287,7 @@ async fn get_deposit_address(
         Ok(c) => c,
         Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
     };
-    let privacy = if q.private.unwrap_or(false) {
-        PrivacyMode::Shielded
-    } else {
-        PrivacyMode::Transparent
-    };
+    let privacy = resolve_privacy_mode(q.private);
 
     match svc.get_deposit_address(wallet_id, chain, privacy) {
         Ok(addr) => (
@@ -413,17 +418,13 @@ async fn create_key(
         Ok(id) => id,
         Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
     };
-    let privacy = if req.private.unwrap_or(false) {
-        PrivacyMode::Shielded
-    } else {
-        PrivacyMode::Transparent
-    };
+    let privacy = resolve_privacy_mode(req.private);
     let preferred_chain = match req.chain.as_deref() {
         Some(c) => match parse_chain(Some(c)) {
             Ok(chain) => Some(chain),
             Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
         },
-        None => None,
+        None => Some(ChainId::Hinkal),
     };
 
     // Ensure wallet exists
@@ -584,11 +585,7 @@ async fn withdraw(
         Ok(c) => c,
         Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
     };
-    let privacy = if req.private.unwrap_or(false) {
-        PrivacyMode::Shielded
-    } else {
-        PrivacyMode::Transparent
-    };
+    let privacy = resolve_privacy_mode(req.private);
 
     // Derive a WebID for the consent check from the wallet context or wallet_id.
     // When authenticated via API key, the wallet_id identifies the owning user.
@@ -666,5 +663,31 @@ mod tests {
     fn parse_chain_rejects_invalid_value() {
         let result = parse_chain(Some("bitcoin"));
         assert!(result.is_err());
+    }
+
+    // REQ: wallet-api-parse-002 — chain defaults to Hinkal when omitted
+    #[test]
+    fn parse_chain_defaults_to_hinkal() {
+        let result = parse_chain(None).unwrap();
+        assert_eq!(result, ChainId::Hinkal);
+    }
+
+    // REQ: wallet-api-parse-003 — explicit Hinkal chain is accepted
+    #[test]
+    fn parse_chain_accepts_hinkal() {
+        let result = parse_chain(Some("hinkal")).unwrap();
+        assert_eq!(result, ChainId::Hinkal);
+    }
+
+    // REQ: wallet-api-privacy-001 — privacy defaults to shielded when omitted
+    #[test]
+    fn resolve_privacy_mode_defaults_to_shielded() {
+        assert_eq!(resolve_privacy_mode(None), PrivacyMode::Shielded);
+    }
+
+    // REQ: wallet-api-privacy-002 — explicit private=false opts into transparent mode
+    #[test]
+    fn resolve_privacy_mode_allows_explicit_transparent_opt_out() {
+        assert_eq!(resolve_privacy_mode(Some(false)), PrivacyMode::Transparent);
     }
 }

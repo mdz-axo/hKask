@@ -31,20 +31,21 @@ solana-sdk = { version = "2", optional = true }
 spl-token = { version = "6", optional = true }
 spl-associated-token-account = { version = "6", optional = true }
 bincode = { version = "1", optional = true }
-# Hedera — mirror node REST API + gRPC via hiero-sdk-proto + tonic (rustls, no openssl)
-reqwest = { version = "0.12", optional = true, default-features = false, features = ["rustls-tls", "json"] }
+# HTTP client — required for live price feeds (EODHD, CoinGecko) and chain RPC
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 hiero-sdk-proto = { version = "0.22", optional = true }
 tonic = { version = "0.12", optional = true, default-features = false, features = ["transport", "codegen", "prost"] }
 prost = { version = "0.13", optional = true }
 
 [features]
 default = []
-solana = ["dep:solana-sdk", "dep:spl-token", "dep:spl-associated-token-account", "dep:bincode", "dep:reqwest"]
-hedera = ["dep:reqwest", "dep:hiero-sdk-proto", "dep:tonic", "dep:prost"]
-hinkal = ["dep:reqwest"]
+solana = ["dep:solana-sdk", "dep:spl-token", "dep:spl-associated-token-account", "dep:bincode"]
+hedera = ["dep:hiero-sdk-proto", "dep:tonic", "dep:prost"]
+hinkal = []
 
 [dev-dependencies]
 hkask-storage = { path = "../hkask-storage" }
 proptest = "1"
 hkask-test-harness = { path = "../hkask-test-harness" }
 tokio = { workspace = true, features = ["macros", "rt"] }
+wiremock = "0.6"

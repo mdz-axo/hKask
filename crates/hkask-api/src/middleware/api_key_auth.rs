@@ -312,7 +312,7 @@ mod tests {
     use hkask_storage::WalletStore;
     use hkask_storage::database::in_memory_db;
     use hkask_types::wallet::{ApiKeyCapability, Ed25519PublicKey, PrivacyMode, WalletConfig};
-    use hkask_wallet::{ApiKeyIssuer, WalletManager};
+    use hkask_wallet::{ApiKeyIssuer, StaticPriceFeed, WalletManager};
 
     fn make_auth_service_with_key(spent_rj: u64, limit_rj: u64) -> (ApiKeyAuthService, String) {
         // SAFETY: test-only setup for deterministic wallet manager construction.
@@ -331,6 +331,7 @@ mod tests {
                 Arc::clone(&store),
                 Default::default(),
                 None,
+                Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
         );
@@ -419,6 +420,7 @@ mod tests {
                 Arc::clone(&store),
                 Default::default(),
                 None,
+                Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
         );
@@ -490,6 +492,7 @@ mod tests {
                 Arc::clone(&store),
                 Default::default(),
                 None,
+                Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
         );
@@ -560,6 +563,7 @@ mod tests {
                 Arc::clone(&store),
                 Default::default(),
                 None,
+                Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
         );
@@ -625,6 +629,7 @@ mod tests {
                 Arc::clone(&store),
                 Default::default(),
                 None,
+                Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
         );
@@ -725,6 +730,7 @@ mod tests {
                 Arc::clone(&store),
                 Default::default(),
                 None,
+                Arc::new(StaticPriceFeed::new()),
             )
             .unwrap(),
         );

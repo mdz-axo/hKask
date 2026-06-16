@@ -19,8 +19,10 @@ pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 /// [NORMATIVE] Typed attenuation level (0..SYSTEM_MAX_RECURSION). New code should use this over raw `u8`. (P5 — Essentialism).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
+#[allow(dead_code)]
 pub(crate) struct AttenuationLevel(u8);
 
+#[allow(dead_code)]
 impl AttenuationLevel {
     pub fn new(level: u8) -> Result<Self, AttenuationError> {
         if level > SYSTEM_MAX_RECURSION {
@@ -51,6 +53,7 @@ impl std::fmt::Display for AttenuationLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[allow(dead_code)]
 pub(crate) enum AttenuationError {
     #[error("attenuation level {level} exceeds system maximum {max}")]
     ExceedsSystemMax { level: u8, max: u8 },
@@ -80,7 +83,7 @@ pub(crate) struct Caveat {
 /// [NORMATIVE] Wraps a 64-byte Ed25519 signature. Verification uses the
 /// token's `public_key` field — no shared secret required (P4 — Clear Boundaries).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub(crate) struct TokenSignature(#[serde(with = "hex::serde")] pub [u8; 64]);
+pub struct TokenSignature(#[serde(with = "hex::serde")] pub [u8; 64]);
 
 /// Ed25519-signed OCAP token for inter-agent capability delegation.
 ///

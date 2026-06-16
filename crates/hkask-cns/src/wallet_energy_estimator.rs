@@ -3,6 +3,13 @@
 //! Wraps the existing `CompositeEnergyEstimator` and adds `gas_per_rjoule`
 //! for use by `WalletBackedBudget`. The estimator itself produces gas costs;
 //! conversion to rJoules happens at reserve/settle time in `WalletBackedBudget`.
+//!
+//! # Calibration `[OUGHT-DECL]`
+//! The `gas_per_rjoule` rate is initially static (default 1000). Over time,
+//! the CNS cybernetics loop monitors `cns.gas.settled` spans (emitted by
+//! `GovernedTool`) and computes the ratio of actual_gas / estimated_gas per tool.
+//! Systematic over/under-estimation triggers calibration adjustments via
+//! `calibrate()`, which applies an exponential moving average to the conversion rate.
 
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
 use crate::governed_tool::EnergyEstimator;
@@ -14,12 +21,24 @@ use serde_json::Value;
 /// The estimator produces dimensionless gas costs (same as the standard
 /// estimator). The `gas_per_rjoule` field is consumed by `WalletBackedBudget`
 /// at reserve/settle time to convert gas to rJoules for wallet debiting.
+///
+/// # Calibration
+/// The conversion rate can be adjusted at runtime via `calibrate()` based on
+/// observed actual_gas / estimated_gas ratios from `GovernedTool` settlements.
+/// This closes the Good Regulator feedback loop (P9): the estimator's model
+/// of gas costs is continuously validated against reality.
 pub struct WalletEnergyEstimator {
     /// The underlying composite estimator (inference → token-based, others → table).
     inner: CompositeEnergyEstimator,
     /// Conversion rate: how many gas units equal 1 rJoule.
     /// Default: 1000 gas = 1 rJ.
     pub gas_per_rjoule: u64,
+    /// Exponential moving average (EMA) alpha for calibration smoothing.
+    /// Default: 0.1 — each observation contributes 10% to the moving average.
+    ema_alpha: f64,
+    /// Current EMA of the observed actual/estimated gas ratio.
+    /// None until first calibration observation.
+    ema_ratio: Option<f64>,
 }
 
 impl WalletEnergyEstimator {
@@ -28,12 +47,129 @@ impl WalletEnergyEstimator {
         Self {
             inner: CompositeEnergyEstimator::new(),
             gas_per_rjoule,
+            ema_alpha: 0.1,
+            ema_ratio: None,
         }
+    }
+
+    /// Calibrate the gas→rJoule conversion rate based on an observed
+    /// actual_gas / estimated_gas ratio from a tool settlement.
+    ///
+    /// REQ: P9 — Good Regulator feedback loop closure
+    /// pre:  observed_ratio > 0.0 (actual_gas / estimated_gas)
+    /// post: ema_ratio updated via exponential moving average
+    /// post: if ema_ratio deviates significantly from 1.0, gas_per_rjoule adjusted
+    ///
+    /// Uses an exponential moving average (EMA) to smooth observations.
+    /// When the EMA ratio consistently exceeds 1.0 (systematic underestimation)
+    /// or falls below 1.0 (systematic overestimation), `gas_per_rjoule` is
+    /// adjusted to bring the ratio toward 1.0.
+    ///
+    /// # Returns
+    /// `true` if `gas_per_rjoule` was adjusted, `false` if within tolerance.
+    pub fn calibrate(&mut self, observed_ratio: f64) -> bool {
+        // Clamp ratio to reasonable bounds (0.1 to 10.0)
+        let ratio = observed_ratio.clamp(0.1, 10.0);
+
+        // Update EMA
+        let new_ema = match self.ema_ratio {
+            Some(current) => self.ema_alpha * ratio + (1.0 - self.ema_alpha) * current,
+            None => ratio, // first observation — initialize EMA
+        };
+        self.ema_ratio = Some(new_ema);
+
+        // Adjust gas_per_rjoule if EMA deviates beyond tolerance (±20%)
+        let tolerance: f64 = 0.2;
+        if (new_ema - 1.0).abs() > tolerance {
+            // Scale gas_per_rjoule by the EMA ratio to bring it toward 1.0
+            // If EMA = 1.5 (actual 50% higher than estimated), increase rate by 50%
+            // If EMA = 0.5 (actual 50% lower than estimated), decrease rate by 50%
+            let adjusted = (self.gas_per_rjoule as f64 * new_ema) as u64;
+            // Floor at 1 — gas_per_rjoule must be positive
+            self.gas_per_rjoule = adjusted.max(1);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Current EMA ratio, or 1.0 if no observations yet.
+    pub fn current_ratio(&self) -> f64 {
+        self.ema_ratio.unwrap_or(1.0)
     }
 }
 
 impl EnergyEstimator for WalletEnergyEstimator {
     fn estimate_cost(&self, server: &str, tool: &str, args: &Value) -> u64 {
         self.inner.estimate_cost(server, tool, args)
+    }
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // REQ: cns-calibrate-001 — first observation initializes EMA
+    #[test]
+    fn calibrate_first_observation_initializes_ema() {
+        let mut estimator = WalletEnergyEstimator::new(1000);
+        assert_eq!(estimator.current_ratio(), 1.0);
+
+        // First observation: actual = 1500, estimated = 1000 → ratio = 1.5
+        let adjusted = estimator.calibrate(1.5);
+        assert!(adjusted, "ratio 1.5 exceeds 20% tolerance");
+        assert_eq!(estimator.current_ratio(), 1.5);
+        // gas_per_rjoule should be scaled: 1000 * 1.5 = 1500
+        assert_eq!(estimator.gas_per_rjoule, 1500);
+    }
+
+    // REQ: cns-calibrate-002 — ratio within tolerance does not adjust
+    #[test]
+    fn calibrate_within_tolerance_no_adjustment() {
+        let mut estimator = WalletEnergyEstimator::new(1000);
+        // Ratio 1.1 is within ±20% tolerance
+        let adjusted = estimator.calibrate(1.1);
+        assert!(!adjusted, "ratio 1.1 is within 20% tolerance");
+        assert_eq!(estimator.gas_per_rjoule, 1000, "rate unchanged");
+    }
+
+    // REQ: cns-calibrate-003 — EMA smooths multiple observations
+    #[test]
+    fn calibrate_ema_smooths_observations() {
+        let mut estimator = WalletEnergyEstimator::new(1000);
+        // First: ratio 2.0 → EMA = 2.0, rate = 2000
+        estimator.calibrate(2.0);
+        assert_eq!(estimator.gas_per_rjoule, 2000);
+
+        // Second: ratio 1.0 → EMA = 0.1*1.0 + 0.9*2.0 = 1.9
+        // 1.9 still exceeds tolerance → rate = 2000 * 1.9 = 3800
+        estimator.calibrate(1.0);
+        let expected_ema = 0.1 * 1.0 + 0.9 * 2.0; // 1.9
+        assert!((estimator.current_ratio() - expected_ema).abs() < 0.001);
+    }
+
+    // REQ: cns-calibrate-004 — ratio clamped to reasonable bounds
+    #[test]
+    fn calibrate_clamps_extreme_ratios() {
+        let mut estimator = WalletEnergyEstimator::new(1000);
+        // Ratio 0.001 → clamped to 0.1
+        estimator.calibrate(0.001);
+        assert_eq!(estimator.current_ratio(), 0.1);
+
+        // Ratio 100.0 → clamped to 10.0
+        let mut estimator2 = WalletEnergyEstimator::new(1000);
+        estimator2.calibrate(100.0);
+        assert_eq!(estimator2.current_ratio(), 10.0);
+    }
+
+    // REQ: cns-calibrate-005 — gas_per_rjoule floors at 1
+    #[test]
+    fn calibrate_floors_gas_per_rjoule_at_one() {
+        let mut estimator = WalletEnergyEstimator::new(10);
+        // Ratio 0.1 → EMA = 0.1, rate = 10 * 0.1 = 1 (floored)
+        estimator.calibrate(0.1);
+        assert_eq!(estimator.gas_per_rjoule, 1, "rate floored at 1");
     }
 }

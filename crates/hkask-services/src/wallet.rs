@@ -16,8 +16,10 @@ use hkask_types::WebID;
 use hkask_types::sovereignty::DataCategory;
 use hkask_types::wallet::{
     ApiKeyCapability, ApiKeyId, ApiKeyMaterial, ChainId, DepositAddress, DepositReference,
-    PrivacyMode, RJoule, TxHash, WalletBalance, WalletId, WalletTransaction,
+    PrivacyMode, RJoule, TxHash, WalletBalance, WalletError, WalletId, WalletTransaction,
 };
+#[cfg(test)]
+use hkask_wallet::price_feed::StaticPriceFeed;
 use hkask_wallet::{ApiKeyIssuer, WalletManager};
 use tokio::sync::RwLock;
 
@@ -205,6 +207,15 @@ impl WalletService {
             .await
             .map_err(|e| {
                 let msg = e.to_string();
+                // REQ: P9 — emit chain_error span for CNS feedback loop closure
+                if matches!(
+                    e,
+                    WalletError::ChainNotEnabled { .. }
+                        | WalletError::ChainError { .. }
+                        | WalletError::PrivacyUnavailable { .. }
+                ) {
+                    self.manager.emit_chain_error(chain, "withdraw", &msg);
+                }
                 ServiceError::Wallet {
                     source: Some(Box::new(e)),
                     message: msg,
@@ -436,7 +447,14 @@ mod tests {
         let store = Arc::new(WalletStore::new(db.conn_arc()));
         let config = WalletConfig::default();
         let manager = Arc::new(
-            WalletManager::build(config, Arc::clone(&store), Default::default(), None).unwrap(),
+            WalletManager::build(
+                config,
+                Arc::clone(&store),
+                Default::default(),
+                None,
+                Arc::new(StaticPriceFeed),
+            )
+            .unwrap(),
         );
         let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).unwrap());
         WalletService::new(manager, issuer)

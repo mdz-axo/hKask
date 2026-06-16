@@ -19,6 +19,8 @@ use crate::energy::{EnergyCost, EnergyError};
 use chrono::Utc;
 use hkask_types::wallet::{ApiKeyCapability, ApiKeyId, RJoule, WalletId};
 use hkask_wallet::WalletManager;
+#[cfg(test)]
+use hkask_wallet::price_feed::StaticPriceFeed;
 use std::sync::Arc;
 
 /// Health status of an API key tracked by a wallet-backed budget.
@@ -257,7 +259,14 @@ mod tests {
             .unwrap();
 
         let manager = Arc::new(
-            WalletManager::build(WalletConfig::default(), store, Default::default(), None).unwrap(),
+            WalletManager::build(
+                WalletConfig::default(),
+                store,
+                Default::default(),
+                None,
+                Arc::new(StaticPriceFeed),
+            )
+            .unwrap(),
         );
 
         WalletBackedBudget::new(wallet_id, manager).with_api_key(key_id, RJoule::new(limit_rj))

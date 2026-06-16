@@ -705,6 +705,7 @@ mod tests {
                     "curation" | "spec" => SpanCategory::Curation,
                     "inference" => SpanCategory::Inference,
                     "agent_pod" | "connector" => SpanCategory::Episodic,
+                    "wallet" => SpanCategory::Wallet,
                     _ => SpanCategory::Unknown,
                 };
                 prop_assert!(category == expected,

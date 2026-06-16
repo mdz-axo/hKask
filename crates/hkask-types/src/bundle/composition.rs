@@ -26,7 +26,7 @@ macro_rules! enum_str_ops {
 /// What kind of conflict exists between two skills
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub(crate) enum ConflictType {
+pub enum ConflictType {
     CancelOut,
     ContradictoryDirective,
     OrderingCollision,
@@ -43,7 +43,7 @@ enum_str_ops!(ConflictType, {
 /// How to resolve a declared conflict
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub(crate) enum ConflictResolution {
+pub enum ConflictResolution {
     DomainSeparation,
     PhaseSeparation,
     SpecificityOverride,
@@ -62,7 +62,7 @@ enum_str_ops!(ConflictResolution, {
 /// How two skills enhance each other
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub(crate) enum ComplementarityType {
+pub enum ComplementarityType {
     SequentialFeed,
     ParallelAmplify,
     CrossDomainEnhance,

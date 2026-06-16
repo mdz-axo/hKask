@@ -75,13 +75,27 @@ impl std::fmt::Debug for LoadedKey {
 /// - No key material is returned to the caller — only the signature
 /// - Per-operation key loading: key derived fresh each call, not held long-term
 pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
+    sign_bytes(chain, tx_bytes)
+}
+
+/// Sign an arbitrary message with the Hinkal treasury key.
+///
+/// REQ: HINKAL-006
+/// pre:  message is any byte slice (including empty)
+/// post: returns Ok(signature) — 64-byte Ed25519 signature
+/// post: treasury key loaded, used, and zeroized within this call
+pub fn sign_message(message: &[u8]) -> Result<Vec<u8>, WalletError> {
+    sign_bytes(ChainId::Hinkal, message)
+}
+
+fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
     let treasury_key: Zeroizing<Vec<u8>> = resolve_treasury_key(chain).map_err(|e| {
         WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
     })?;
 
     let loaded = LoadedKey::from_zeroizing(treasury_key)?;
     let signing_key = ed25519_dalek::SigningKey::from_bytes(loaded.as_bytes());
-    let signature = signing_key.sign(tx_bytes);
+    let signature = signing_key.sign(bytes);
     Ok(signature.to_bytes().to_vec())
     // loaded (Secret) drops here → key material zeroed
     // treasury_key (Zeroizing) already dropped at from_zeroizing
@@ -191,6 +205,15 @@ mod tests {
             64,
             "empty tx_bytes should still produce valid signature"
         );
+    }
+
+    // REQ: P4-signing — sign_message produces valid signature bytes
+    #[test]
+    fn sign_message_produces_signature() {
+        set_test_master_key();
+        let msg = b"Authorize Hinkal session\nSession ID: abc";
+        let sig = sign_message(msg).unwrap();
+        assert_eq!(sig.len(), 64);
     }
 
     // REQ: P4-signing — sign_capability detects tampered capability

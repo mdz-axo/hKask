@@ -8,7 +8,7 @@ use hkask_services::WalletService;
 use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
 use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletConfig, WalletId};
-use hkask_wallet::{ApiKeyIssuer, WalletManager};
+use hkask_wallet::{ApiKeyIssuer, WalletManager, resolve_price_feed};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -20,8 +20,9 @@ pub fn run(action: WalletAction) {
         WalletAction::DepositAddress {
             chain,
             private,
+            transparent,
             wallet,
-        } => handle_deposit_address(&svc, chain, private, wallet),
+        } => handle_deposit_address(&svc, chain, private, transparent, wallet),
         WalletAction::DepositReference { chain, wallet } => {
             handle_deposit_reference(&svc, chain, wallet)
         }
@@ -32,8 +33,9 @@ pub fn run(action: WalletAction) {
             to,
             chain,
             private,
+            transparent,
             wallet,
-        } => handle_withdraw(&svc, amount_rj, to, chain, private, wallet),
+        } => handle_withdraw(&svc, amount_rj, to, chain, private, transparent, wallet),
         WalletAction::Encumber {
             key_id,
             amount,
@@ -48,9 +50,16 @@ fn build_wallet_service() -> WalletService {
     let db = in_memory_db();
     let store = Arc::new(WalletStore::new(db.conn_arc()));
     let config = WalletConfig::default();
+    let price_feed = resolve_price_feed(&config.price_feed).expect("Failed to resolve price feed");
     let manager = Arc::new(
-        WalletManager::build(config, Arc::clone(&store), Default::default(), None)
-            .expect("Failed to build WalletManager"),
+        WalletManager::build(
+            config,
+            Arc::clone(&store),
+            Default::default(),
+            None,
+            price_feed,
+        )
+        .expect("Failed to build WalletManager"),
     );
     let issuer =
         Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).expect("Failed to build ApiKeyIssuer"));
@@ -85,15 +94,12 @@ fn handle_deposit_address(
     svc: &WalletService,
     chain: Option<String>,
     private: bool,
+    transparent: bool,
     wallet: Option<String>,
 ) {
     let wallet_id = resolve_wallet(wallet);
     let chain = parse_chain(chain.as_deref());
-    let privacy = if private {
-        PrivacyMode::Shielded
-    } else {
-        PrivacyMode::Transparent
-    };
+    let privacy = resolve_privacy_mode(private, transparent);
 
     match svc.get_deposit_address(wallet_id, chain, privacy) {
         Ok(addr) => {
@@ -103,7 +109,7 @@ fn handle_deposit_address(
             println!("  Chain:    {chain}");
             println!("  Privacy:  {privacy}");
             println!("  Address:  {}", addr.address);
-            if private {
+            if privacy == PrivacyMode::Shielded {
                 println!();
                 println!("  For shielded deposits, generate a one-time reference:");
                 println!("    kask wallet deposit-reference --chain {chain}");
@@ -180,9 +186,10 @@ fn handle_key(svc: &WalletService, action: KeyAction) {
             limit,
             expiry,
             private,
+            transparent,
             chain,
             wallet,
-        } => handle_key_create(svc, limit, expiry, private, chain, wallet),
+        } => handle_key_create(svc, limit, expiry, private, transparent, chain, wallet),
         KeyAction::List { wallet } => handle_key_list(svc, wallet),
         KeyAction::Revoke { key_id } => handle_key_revoke(svc, key_id),
     }
@@ -193,16 +200,16 @@ fn handle_key_create(
     limit: u64,
     expiry: Option<u32>,
     private: bool,
+    transparent: bool,
     chain: Option<String>,
     wallet: Option<String>,
 ) {
     let wallet_id = resolve_wallet(wallet);
-    let privacy = if private {
-        PrivacyMode::Shielded
-    } else {
-        PrivacyMode::Transparent
-    };
-    let preferred_chain = chain.as_deref().map(|c| parse_chain(Some(c)));
+    let privacy = resolve_privacy_mode(private, transparent);
+    let preferred_chain = chain
+        .as_deref()
+        .map(|c| parse_chain(Some(c)))
+        .or(Some(ChainId::Hinkal));
 
     // Ensure wallet exists
     if let Err(e) = svc.ensure_wallet(wallet_id) {
@@ -315,15 +322,12 @@ fn handle_withdraw(
     to: String,
     chain: Option<String>,
     private: bool,
+    transparent: bool,
     wallet: Option<String>,
 ) {
     let wallet_id = resolve_wallet(wallet);
     let chain = parse_chain(chain.as_deref());
-    let privacy = if private {
-        PrivacyMode::Shielded
-    } else {
-        PrivacyMode::Transparent
-    };
+    let privacy = resolve_privacy_mode(private, transparent);
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     // CLI user is the operator — use deterministic operator WebID for consent check
@@ -525,8 +529,19 @@ fn resolve_wallet(wallet_arg: Option<String>) -> WalletId {
 
 fn parse_chain(s: Option<&str>) -> ChainId {
     match s {
+        Some("solana") => ChainId::Solana,
         Some("hedera") => ChainId::Hedera,
-        Some("hinkal") => ChainId::Hinkal,
-        _ => ChainId::Solana, // default
+        Some("hinkal") | None => ChainId::Hinkal,
+        _ => ChainId::Hinkal,
+    }
+}
+
+fn resolve_privacy_mode(private: bool, transparent: bool) -> PrivacyMode {
+    if transparent {
+        PrivacyMode::Transparent
+    } else if private {
+        PrivacyMode::Shielded
+    } else {
+        PrivacyMode::Shielded
     }
 }

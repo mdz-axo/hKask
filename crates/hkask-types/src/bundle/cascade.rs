@@ -11,6 +11,7 @@ macro_rules! enum_str_ops {
                     $($ty::$variant => $pascal),+
                 }
             }
+            #[allow(dead_code)]
             pub fn parse_str(s: &str) -> Option<Self> {
                 match s {
                     $($pascal | $snake => Some($ty::$variant)),+,
@@ -24,7 +25,7 @@ macro_rules! enum_str_ops {
 /// Cascade phase — where a step sits in the Pre/Core/Post pipeline
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub(crate) enum CascadePhase {
+pub enum CascadePhase {
     Pre,
     #[default]
     Core,

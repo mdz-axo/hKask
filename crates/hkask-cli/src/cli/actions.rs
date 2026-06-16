@@ -664,19 +664,22 @@ pub enum WalletAction {
     },
     /// Show or derive a deposit address for receiving USDC
     DepositAddress {
-        /// Blockchain network (solana or hedera)
+        /// Blockchain network (hinkal, solana, or hedera). Defaults to hinkal.
         #[arg(short, long)]
         chain: Option<String>,
-        /// Use shielded/privacy mode
+        /// Use shielded/privacy mode (default behavior).
         #[arg(short, long)]
         private: bool,
+        /// Opt out to transparent mode (public on-chain visibility).
+        #[arg(long)]
+        transparent: bool,
         /// Wallet ID (UUID). Defaults to system wallet if omitted.
         #[arg(short, long)]
         wallet: Option<String>,
     },
     /// Generate a one-time deposit reference for shielded deposits
     DepositReference {
-        /// Blockchain network (solana or hedera)
+        /// Blockchain network (hinkal, solana, or hedera)
         #[arg(short, long)]
         chain: String,
         /// Wallet ID (UUID). Defaults to system wallet if omitted.
@@ -704,12 +707,15 @@ pub enum WalletAction {
         /// Destination address (Solana base58 or Hedera 0.0.XXXXX)
         #[arg(short, long)]
         to: String,
-        /// Blockchain network (solana or hedera)
+        /// Blockchain network (hinkal, solana, or hedera). Defaults to hinkal.
         #[arg(short, long)]
         chain: Option<String>,
-        /// Use shielded/privacy mode
+        /// Use shielded/privacy mode (default behavior).
         #[arg(short, long)]
         private: bool,
+        /// Opt out to transparent mode (public on-chain visibility).
+        #[arg(long)]
+        transparent: bool,
         /// Wallet ID (UUID). Defaults to system wallet if omitted.
         #[arg(short, long)]
         wallet: Option<String>,
@@ -753,10 +759,13 @@ pub enum KeyAction {
         /// Expiry in days (no expiry if omitted)
         #[arg(short, long)]
         expiry: Option<u32>,
-        /// Restrict to shielded/privacy mode
+        /// Restrict to shielded/privacy mode (default behavior).
         #[arg(short, long)]
         private: bool,
-        /// Restrict to a specific chain
+        /// Opt out to transparent mode (public on-chain visibility).
+        #[arg(long)]
+        transparent: bool,
+        /// Restrict to a specific chain (defaults to hinkal)
         #[arg(short, long)]
         chain: Option<String>,
         /// Wallet ID (UUID). Defaults to system wallet if omitted.

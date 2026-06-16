@@ -57,13 +57,52 @@ impl fmt::Display for RJoule {
 
 // ── WalletConfig — wallet subsystem configuration ──────────────────────────────
 
+/// User-configurable price feed source selection.
+///
+/// # User sovereignty `[OUGHT-DECL]`
+/// The user chooses which price sources to use and in what priority order.
+/// No source is hardcoded — the wallet resolves the user's choice at build time.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PriceFeedConfig {
+    /// Hardcoded rates for development/testing (no network dependency).
+    Static,
+    /// EODHD API — primary canonical source (requires `HKASK_EODHD_API_KEY`).
+    Eodhd,
+    /// CoinGecko free public API (no API key required).
+    CoinGecko,
+    /// Composite: try sources in priority order, cache results, fall back on failure.
+    Composite {
+        /// Ordered list of source names: "eodhd", "coingecko".
+        /// First successful source wins; subsequent sources are fallbacks.
+        sources: Vec<String>,
+        /// Cache TTL in seconds (default: 30).
+        #[serde(default = "default_price_cache_ttl")]
+        cache_ttl_secs: u64,
+    },
+}
+
+fn default_price_cache_ttl() -> u64 {
+    30
+}
+
+impl Default for PriceFeedConfig {
+    fn default() -> Self {
+        PriceFeedConfig::Composite {
+            sources: vec!["eodhd".to_string(), "coingecko".to_string()],
+            cache_ttl_secs: 30,
+        }
+    }
+}
+
 /// Configuration for the wallet subsystem.
 ///
 /// # Defaults `[OUGHT-DECL]`
 /// - 1 USDC = 1000 rJoules
 /// - 1 rJoule = 1000 gas units
-/// - Both Solana and Hedera enabled
-/// - Privacy disabled by default (opt-in per P2 Affirmative Consent)
+/// - Hinkal, Solana, and Hedera enabled
+/// - Privacy enabled by default (shielded-first operation)
+/// - Price feed: composite (EODHD → CoinGecko fallback) with 30s cache
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WalletConfig {
     /// rJoules credited per 1 USDC deposited (default: 1000)
@@ -78,6 +117,9 @@ pub struct WalletConfig {
     pub privacy_enabled: bool,
     /// Hinkal relayer endpoint URL (if privacy is enabled)
     pub hinkal_relayer_url: Option<String>,
+    /// Price feed source configuration (user-selectable).
+    #[serde(default)]
+    pub price_feed: PriceFeedConfig,
 }
 
 impl Default for WalletConfig {
@@ -86,9 +128,10 @@ impl Default for WalletConfig {
             rj_per_usdc: 1000,
             gas_per_rjoule: 1000,
             min_deposit_usdc_micro: 1_000_000, // $1.00
-            enabled_chains: vec![ChainId::Solana, ChainId::Hedera],
-            privacy_enabled: false,
+            enabled_chains: vec![ChainId::Hinkal, ChainId::Solana, ChainId::Hedera],
+            privacy_enabled: true,
             hinkal_relayer_url: None,
+            price_feed: PriceFeedConfig::default(),
         }
     }
 }
@@ -260,9 +303,10 @@ mod tests {
         assert_eq!(cfg.rj_per_usdc, 1000);
         assert_eq!(cfg.gas_per_rjoule, 1000);
         assert_eq!(cfg.min_deposit_usdc_micro, 1_000_000);
+        assert!(cfg.enabled_chains.contains(&ChainId::Hinkal));
         assert!(cfg.enabled_chains.contains(&ChainId::Solana));
         assert!(cfg.enabled_chains.contains(&ChainId::Hedera));
-        assert!(!cfg.privacy_enabled); // opt-in per P2
+        assert!(cfg.privacy_enabled);
     }
 
     // REQ: P1-wallet-types — WalletError Display impls are human-readable

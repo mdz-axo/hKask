@@ -186,7 +186,6 @@ impl std::fmt::Display for DimensionMismatch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::PoisonError;
 
     // REQ: types-error-001 — McpErrorKind::is_retryable() only for Unavailable/Timeout/RateLimited
     #[test]

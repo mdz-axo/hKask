@@ -3,8 +3,8 @@
 //! Re-export facade. Submodules organized by concern:
 //! - `manifest`: BundleManifest, BundleManifestStep, BundleSkill, SkillPolarity, ValidationResult
 //! - `config`: ConvergenceConfig, GasConfig, ErrorHandlingConfig, OcapConfig, CnsConfig, AuditConfig
-//! - `composition`: BundleComplementarity, BundleConflict (enum types are pub(crate))
-//! - `cascade`: CascadePhase (pub(crate))
+//! - `composition`: BundleComplementarity, BundleConflict, ConflictType, ConflictResolution, ComplementarityType
+//! - `cascade`: CascadePhase
 
 pub mod cascade;
 pub mod composition;

@@ -72,6 +72,6 @@ pub use visibility::{Confidence, Visibility};
 pub use voice::VoiceDesign;
 pub use wallet::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
-    Encumbrance, EncumbranceStatus, PrivacyMode, RJoule, RateLimitConfig, TransactionType,
-    WalletBalance, WalletConfig, WalletError, WalletTransaction,
+    Encumbrance, EncumbranceStatus, PriceFeedConfig, PrivacyMode, RJoule, RateLimitConfig,
+    TransactionType, WalletBalance, WalletConfig, WalletError, WalletTransaction,
 };

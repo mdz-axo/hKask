@@ -1,76 +1,584 @@
-//! HinkalPort — privacy-preserving deposits and withdrawals via Hinkal protocol.
+//! HinkalPort — privacy-preserving deposits and withdrawals via Hinkal REST API.
 //!
 //! # Feature gate
 //! This module is only compiled when the `hinkal` feature is enabled.
 //! Default builds have zero Hinkal dependencies.
 //!
 //! # Hinkal protocol `[IS-DECL]`
-//! Hinkal provides shielded/private transactions across multiple chains.
-//! Integration requires the Hinkal SDK or direct RPC interaction with
-//! Hinkal relayers. This is deferred to a future integration sprint.
+//! Hinkal provides shielded/private transactions across Ethereum, Solana, Tron,
+//! Polygon, Base, Arbitrum, Optimism, and Arc. The protocol uses a Shielded Pool
+//! with zkSNARKs (Groth16), stealth addresses, and relayers.
 //!
-//! # Current capability
-//! - **Reads:** Not yet implemented — requires Hinkal relayer API
-//! - **Writes:** Not yet implemented — requires shielded transaction construction
-//!
-//! # Security `[OUGHT-DECL]`
-//! - Does NOT hold treasury keys — signing is delegated to `signing.rs`
-//! - HTTP client uses rustls (no openssl)
-//! - Shielded addresses derived deterministically from treasury public key
+//! # REST API integration `[IS-DECL]`
+//! Hinkal exposes a REST API at `https://api.hinkal.io` running inside a
+//! GCP Confidential VM (AMD SEV). The API handles all cryptography internally:
+//! UTXO decryption, zero-knowledge proof generation, and transaction building.
+//! Callers authenticate with wallet-signed messages — no SDK required.
 
 use async_trait::async_trait;
-use hkask_types::wallet::{ChainId, TxHash, WalletError};
+use chrono::Utc;
+use hkask_types::wallet::{ChainId, TxHash, WalletError, WalletId};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::sync::{
+    Mutex,
+    atomic::{AtomicBool, AtomicI64, AtomicU32, Ordering},
+};
 use std::time::Duration;
 
 use crate::chain::{ChainPort, DepositEvent};
+use crate::privacy::{PrivacyPort, ShieldedTransfer};
+use crate::signing;
 
-/// HTTP request timeout.
+/// HTTP request timeout for Hinkal API calls.
 const REQUEST_TIMEOUT_SECS: u64 = 30;
 
-/// Hinkal chain port — privacy-preserving deposits via Hinkal protocol.
-///
-/// # Ownership
-/// - Owns a `reqwest::Client` for relayer API requests
-/// - Holds the treasury account identifier for deposit address derivation
-/// - Does NOT hold the treasury private key (signing is external)
+/// Hinkal API base URL.
+const HINKAL_API_BASE: &str = "https://api.hinkal.io";
+
+/// Solana mainnet chain ID in Hinkal API.
+const HINKAL_SOLANA_CHAIN_ID: u64 = 501;
+
+/// Solana USDC mint.
+const SOLANA_USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+/// Circuit breaker: maximum consecutive health check failures before
+/// the port is considered unhealthy and fails open to transparent mode.
+const MAX_CONSECUTIVE_FAILURES: u32 = 3;
+
+/// Circuit breaker: cooldown duration after max failures before retrying.
+const CIRCUIT_BREAKER_COOLDOWN_SECS: u64 = 60;
+
+/// Hinkal session TTL (server-side validity window).
+const SESSION_TTL_SECS: i64 = 24 * 60 * 60;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateSessionRequest {
+    address: String,
+    chain_id: u64,
+    nonce: String,
+    signature: String,
+    write_access: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateSessionResponse {
+    success: Option<bool>,
+    error: Option<String>,
+    message: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct SessionMaterial {
+    nonce: String,
+    signature: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WithdrawUnsignedPayload {
+    nonce: String,
+    to_public: String,
+    amount_usdc_micro: u64,
+    chain_id: u64,
+    token: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WithdrawRequest {
+    address: String,
+    chain_id: u64,
+    recipient: String,
+    nonce: String,
+    token_amounts: Vec<TokenAmountRequest>,
+    message: String,
+    signature: String,
+    session_nonce: String,
+    session_signature: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TokenAmountRequest {
+    token: String,
+    amount: String,
+}
+
+#[derive(Debug, Clone)]
+struct BalanceTokenAmount {
+    token: String,
+    amount_usdc_micro: u64,
+    memo: Option<String>,
+    commitment: Option<String>,
+}
+
+/// Hinkal chain port — privacy-preserving deposits via Hinkal REST API.
 pub struct HinkalPort {
-    /// HTTP client for relayer API (rustls, no openssl).
-    #[allow(dead_code)]
+    /// HTTP client for Hinkal API (rustls, no openssl).
     client: Client,
-    /// Relayer API base URL.
-    #[allow(dead_code)]
-    relayer_url: String,
-    /// Treasury account identifier.
-    #[allow(dead_code)]
-    treasury_account: String,
+    /// Hinkal API base URL.
+    api_base_url: String,
+    /// Treasury public key for session authentication.
+    treasury_pubkey: String,
+    /// Circuit breaker: count of consecutive health check failures.
+    consecutive_failures: AtomicU32,
+    /// Circuit breaker: timestamp of when cooldown started (Unix seconds).
+    cooldown_start: AtomicI64,
+    /// Last observed balance per token (micro units) for delta-based transfer detection.
+    last_balances: Mutex<HashMap<String, u64>>,
+    /// Cached Hinkal session nonce (read/write auth context).
+    session_nonce: Mutex<Option<String>>,
+    /// Cached Hinkal session signature paired with `session_nonce`.
+    session_signature: Mutex<Option<String>>,
+    /// Whether the cached session has write access.
+    session_write_access: AtomicBool,
+    /// Cached session expiration timestamp (Unix seconds).
+    session_expires_at: AtomicI64,
 }
 
 impl HinkalPort {
-    /// Create a new HinkalPort connected to the given relayer.
+    /// Create a new HinkalPort connected to the Hinkal API.
     ///
-    /// `treasury_account` is the account identifier used for deposit
-    /// address derivation within the Hinkal shielded pool.
-    pub fn new(relayer_url: &str, treasury_account: &str) -> Result<Self, WalletError> {
+    /// REQ: HINKAL-001
+    /// pre:  api_base_url is a valid absolute URL
+    /// pre:  treasury_pubkey is a non-empty account/public key string
+    /// post: HTTP client initialized with rustls TLS
+    /// post: circuit breaker initialized with zero failures
+    pub fn new(api_base_url: &str, treasury_pubkey: &str) -> Result<Self, WalletError> {
+        if api_base_url.trim().is_empty() {
+            return Err(Self::chain_error("Hinkal API base URL must not be empty"));
+        }
+        if treasury_pubkey.trim().is_empty() {
+            return Err(Self::chain_error(
+                "Hinkal treasury account must not be empty",
+            ));
+        }
+
+        let trimmed = api_base_url.trim();
+        let is_insecure_nonlocal = trimmed.starts_with("http://")
+            && !(trimmed.starts_with("http://127.0.0.1")
+                || trimmed.starts_with("http://localhost")
+                || trimmed.starts_with("http://[::1]"));
+        if is_insecure_nonlocal {
+            return Err(Self::chain_error(
+                "Hinkal API base URL must use https (http allowed only for localhost tests)",
+            ));
+        }
+
         let client = Client::builder()
             .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .build()
             .map_err(|e| {
                 WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
-                    "failed to build HTTP client: {e}"
+                    "failed to build HTTP client for Hinkal API: {e}"
                 )))
             })?;
 
         Ok(HinkalPort {
             client,
-            relayer_url: relayer_url.to_string(),
-            treasury_account: treasury_account.to_string(),
+            api_base_url: api_base_url.trim_end_matches('/').to_string(),
+            treasury_pubkey: treasury_pubkey.to_string(),
+            consecutive_failures: AtomicU32::new(0),
+            cooldown_start: AtomicI64::new(0),
+            last_balances: Mutex::new(HashMap::new()),
+            session_nonce: Mutex::new(None),
+            session_signature: Mutex::new(None),
+            session_write_access: AtomicBool::new(false),
+            session_expires_at: AtomicI64::new(0),
         })
     }
 
-    /// Derive a shielded deposit address from the treasury account + index.
-    fn derive_account_id(&self, _index: u64) -> String {
-        self.treasury_account.clone()
+    /// Create a HinkalPort with default production base URL.
+    pub fn with_default_base(treasury_pubkey: &str) -> Result<Self, WalletError> {
+        Self::new(HINKAL_API_BASE, treasury_pubkey)
+    }
+
+    fn chain_error(message: impl Into<String>) -> WalletError {
+        WalletError::ChainError {
+            chain: ChainId::Hinkal,
+            message: message.into(),
+        }
+    }
+
+    fn parse_amount_field(v: &serde_json::Value) -> Option<u64> {
+        match v {
+            serde_json::Value::Number(n) => n.as_u64(),
+            serde_json::Value::String(s) => s.parse::<u64>().ok(),
+            _ => None,
+        }
+    }
+
+    fn generate_nonce() -> String {
+        let bytes: [u8; 16] = rand::random();
+        hex::encode(bytes)
+    }
+
+    fn build_session_message(nonce: &str, write_access: bool) -> String {
+        let mut lines = vec![
+            "Authorize Hinkal session".to_string(),
+            format!("Session ID: {nonce}"),
+        ];
+        if write_access {
+            lines.push("This signature can also be used to submit transactions.".to_string());
+        }
+        lines.join("\n")
+    }
+
+    fn build_withdraw_message(
+        nonce: &str,
+        chain_id: u64,
+        token_address: &str,
+        amount: u64,
+        recipient: &str,
+    ) -> String {
+        format!(
+            "Hinkal Enclave\n\nPrimary Type: Withdraw\nNonce: {nonce}\nChain ID: {chain_id}\n\
+             Token Amounts:\n  0:\n    Token: {token_address}\n    Amount: {amount}\n\
+             Recipient: {recipient}"
+        )
+    }
+
+    async fn read_response_body(resp: reqwest::Response) -> String {
+        let status = resp.status();
+        let text = resp
+            .text()
+            .await
+            .unwrap_or_else(|_| "<unreadable-body>".to_string());
+        format!("HTTP {}: {}", status.as_u16(), text)
+    }
+
+    fn now_unix_seconds() -> i64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64
+    }
+
+    fn cached_session(&self, write_access: bool) -> Result<Option<SessionMaterial>, WalletError> {
+        let now = Self::now_unix_seconds();
+        let expires_at = self.session_expires_at.load(Ordering::Relaxed);
+        if expires_at <= now {
+            self.session_write_access.store(false, Ordering::Relaxed);
+            self.session_expires_at.store(0, Ordering::Relaxed);
+            let mut nonce = self
+                .session_nonce
+                .lock()
+                .map_err(|_| Self::chain_error("session nonce lock poisoned"))?;
+            let mut signature = self
+                .session_signature
+                .lock()
+                .map_err(|_| Self::chain_error("session signature lock poisoned"))?;
+            *nonce = None;
+            *signature = None;
+            return Ok(None);
+        }
+
+        let cached_write = self.session_write_access.load(Ordering::Relaxed);
+        if write_access && !cached_write {
+            return Ok(None);
+        }
+
+        let nonce = self
+            .session_nonce
+            .lock()
+            .map_err(|_| Self::chain_error("session nonce lock poisoned"))?
+            .clone();
+        let signature = self
+            .session_signature
+            .lock()
+            .map_err(|_| Self::chain_error("session signature lock poisoned"))?
+            .clone();
+
+        match (nonce, signature) {
+            (Some(nonce), Some(signature)) => Ok(Some(SessionMaterial { nonce, signature })),
+            _ => Ok(None),
+        }
+    }
+
+    fn store_cached_session(
+        &self,
+        nonce: String,
+        signature: String,
+        write_access: bool,
+    ) -> Result<(), WalletError> {
+        *self
+            .session_nonce
+            .lock()
+            .map_err(|_| Self::chain_error("session nonce lock poisoned"))? = Some(nonce);
+        *self
+            .session_signature
+            .lock()
+            .map_err(|_| Self::chain_error("session signature lock poisoned"))? = Some(signature);
+        self.session_write_access
+            .store(write_access, Ordering::Relaxed);
+        self.session_expires_at.store(
+            Self::now_unix_seconds() + SESSION_TTL_SECS,
+            Ordering::Relaxed,
+        );
+        Ok(())
+    }
+
+    async fn create_session(&self, write_access: bool) -> Result<SessionMaterial, WalletError> {
+        if let Some(session) = self.cached_session(write_access)? {
+            return Ok(session);
+        }
+
+        let nonce = Self::generate_nonce();
+        let message = Self::build_session_message(&nonce, write_access);
+        let signature = signing::sign_message(message.as_bytes())?;
+        let signature_hex = hex::encode(signature);
+
+        let req = CreateSessionRequest {
+            address: self.treasury_pubkey.clone(),
+            chain_id: HINKAL_SOLANA_CHAIN_ID,
+            nonce: nonce.clone(),
+            signature: signature_hex.clone(),
+            write_access,
+        };
+
+        let url = format!("{}/create-session", self.api_base_url);
+        let resp = self
+            .client
+            .post(&url)
+            .json(&req)
+            .send()
+            .await
+            .map_err(|e| Self::chain_error(format!("create-session request failed: {e}")))?;
+
+        if !resp.status().is_success() {
+            let body = Self::read_response_body(resp).await;
+            return Err(Self::chain_error(format!(
+                "create-session rejected (write_access={write_access}, nonce={nonce}): {body}"
+            )));
+        }
+
+        let body: CreateSessionResponse = resp.json().await.map_err(|e| {
+            Self::chain_error(format!(
+                "create-session returned invalid JSON response: {e}"
+            ))
+        })?;
+
+        if body.success == Some(false) {
+            return Err(Self::chain_error(format!(
+                "create-session failed: {}",
+                body.error
+                    .or(body.message)
+                    .unwrap_or_else(|| "unknown error".to_string())
+            )));
+        }
+
+        self.store_cached_session(nonce.clone(), signature_hex.clone(), write_access)?;
+
+        Ok(SessionMaterial {
+            nonce,
+            signature: signature_hex,
+        })
+    }
+
+    fn parse_balance_entries(
+        &self,
+        root: &serde_json::Value,
+    ) -> Result<Vec<BalanceTokenAmount>, WalletError> {
+        fn select_entries(value: &serde_json::Value) -> Option<&Vec<serde_json::Value>> {
+            value
+                .get("balance")
+                .and_then(|v| v.as_array())
+                .or_else(|| value.get("balances").and_then(|v| v.as_array()))
+                .or_else(|| {
+                    value
+                        .get("data")
+                        .and_then(|d| d.get("balance"))
+                        .and_then(|v| v.as_array())
+                })
+                .or_else(|| {
+                    value
+                        .get("data")
+                        .and_then(|d| d.get("balances"))
+                        .and_then(|v| v.as_array())
+                })
+        }
+
+        let entries = select_entries(root)
+            .ok_or_else(|| Self::chain_error("balance response missing balance array"))?;
+
+        let mut out = Vec::with_capacity(entries.len());
+        for row in entries {
+            let token = row
+                .get("token")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| Self::chain_error("balance row missing token"))?
+                .to_string();
+
+            let amount_value = row
+                .get("amount")
+                .ok_or_else(|| Self::chain_error("balance row missing amount"))?;
+
+            let amount_usdc_micro = Self::parse_amount_field(amount_value)
+                .ok_or_else(|| Self::chain_error("balance row amount must be u64/string-u64"))?;
+
+            let memo = row
+                .get("memo")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let commitment = row
+                .get("commitment")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            out.push(BalanceTokenAmount {
+                token,
+                amount_usdc_micro,
+                memo,
+                commitment,
+            });
+        }
+
+        Ok(out)
+    }
+
+    async fn fetch_balance(
+        &self,
+        session: &SessionMaterial,
+    ) -> Result<Vec<BalanceTokenAmount>, WalletError> {
+        let url = format!("{}/balance", self.api_base_url);
+        let resp = self
+            .client
+            .get(&url)
+            .query(&[
+                ("address", self.treasury_pubkey.as_str()),
+                ("chainId", "501"),
+                ("nonce", session.nonce.as_str()),
+                ("signature", session.signature.as_str()),
+            ])
+            .send()
+            .await
+            .map_err(|e| Self::chain_error(format!("balance request failed: {e}")))?;
+
+        if !resp.status().is_success() {
+            let body = Self::read_response_body(resp).await;
+            return Err(Self::chain_error(format!(
+                "balance request rejected (nonce={}): {}",
+                session.nonce, body
+            )));
+        }
+
+        let value: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| Self::chain_error(format!("balance returned invalid JSON: {e}")))?;
+        self.parse_balance_entries(&value)
+    }
+
+    fn decode_signed_withdraw_payload(
+        &self,
+        signed_tx_bytes: &[u8],
+    ) -> Result<(WithdrawUnsignedPayload, String), WalletError> {
+        if signed_tx_bytes.len() <= 64 {
+            return Err(Self::chain_error(
+                "signed unshield payload too short (expected payload + 64-byte ed25519 signature)",
+            ));
+        }
+
+        let unsigned_len = signed_tx_bytes.len() - 64;
+        let (unsigned, signature) = signed_tx_bytes.split_at(unsigned_len);
+
+        let payload: WithdrawUnsignedPayload = serde_json::from_slice(unsigned)
+            .map_err(|e| Self::chain_error(format!("invalid unshield payload bytes: {e}")))?;
+
+        if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
+            return Err(Self::chain_error(format!(
+                "unsupported withdraw chain_id={} for Hinkal adapter",
+                payload.chain_id
+            )));
+        }
+        if payload.amount_usdc_micro == 0 {
+            return Err(Self::chain_error("unshield amount must be > 0"));
+        }
+        if payload.to_public.trim().is_empty() {
+            return Err(Self::chain_error("withdraw recipient must not be empty"));
+        }
+
+        Ok((payload, hex::encode(signature)))
+    }
+
+    fn transfer_commitment(
+        &self,
+        token: &str,
+        prev: u64,
+        current: u64,
+        explicit: Option<&str>,
+    ) -> String {
+        if let Some(c) = explicit {
+            return c.to_string();
+        }
+        let mut hasher = Sha256::new();
+        hasher.update(self.treasury_pubkey.as_bytes());
+        hasher.update(token.as_bytes());
+        hasher.update(prev.to_le_bytes());
+        hasher.update(current.to_le_bytes());
+        let digest = hasher.finalize();
+        hex::encode(digest)
+    }
+
+    // ── Circuit breaker ──────────────────────────────────────────────────────
+
+    /// Check Hinkal relayer health via `GET /ping`.
+    pub async fn check_relayer_health(&self) -> bool {
+        let cooldown = self.cooldown_start.load(Ordering::Relaxed);
+        if cooldown > 0 {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
+            if now - cooldown < CIRCUIT_BREAKER_COOLDOWN_SECS as i64 {
+                return false;
+            }
+            self.cooldown_start.store(0, Ordering::Relaxed);
+            self.consecutive_failures.store(0, Ordering::Relaxed);
+        }
+
+        let url = format!("{}/ping", self.api_base_url);
+        match self.client.get(&url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                self.consecutive_failures.store(0, Ordering::Relaxed);
+                true
+            }
+            _ => {
+                let failures = self.consecutive_failures.fetch_add(1, Ordering::Relaxed) + 1;
+                if failures >= MAX_CONSECUTIVE_FAILURES {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs() as i64;
+                    self.cooldown_start.store(now, Ordering::Relaxed);
+                    tracing::warn!(
+                        target: "hkask.wallet.hinkal",
+                        failures = failures,
+                        cooldown_secs = CIRCUIT_BREAKER_COOLDOWN_SECS,
+                        "Hinkal relay unhealthy — circuit breaker engaged"
+                    );
+                }
+                false
+            }
+        }
+    }
+
+    /// Whether the relay is currently in cooldown (circuit breaker open).
+    pub fn in_cooldown(&self) -> bool {
+        let cooldown = self.cooldown_start.load(Ordering::Relaxed);
+        if cooldown == 0 {
+            return false;
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        now - cooldown < CIRCUIT_BREAKER_COOLDOWN_SECS as i64
     }
 }
 
@@ -80,26 +588,17 @@ impl ChainPort for HinkalPort {
         ChainId::Hinkal
     }
 
-    fn derive_deposit_address(&self, index: u64) -> Result<String, WalletError> {
-        Ok(self.derive_account_id(index))
+    fn derive_deposit_address(&self, _index: u64) -> Result<String, WalletError> {
+        Ok(self.treasury_pubkey.clone())
     }
 
     async fn monitor_deposits(
         &self,
         _addresses: &[String],
     ) -> Result<Vec<DepositEvent>, WalletError> {
-        // Hinkal shielded deposits require relayer API integration.
-        // The relayer provides shielded transaction events that can be
-        // decoded to reveal deposit amounts to the treasury.
-        //
-        // Integration path:
-        // 1. Add Hinkal SDK or direct relayer RPC client
-        // 2. Query shielded pool events for treasury addresses
-        // 3. Decode shielded transfers to extract deposit amounts
-        Err(WalletError::ChainError {
-            chain: ChainId::Hinkal,
-            message: "Deposit monitoring not yet implemented — requires Hinkal relayer API integration. See crates/hkask-wallet/src/hinkal.rs for integration path.".into(),
-        })
+        Err(Self::chain_error(
+            "Hinkal transparent deposit monitoring is not supported; use monitor_shielded_transfers via PrivacyPort",
+        ))
     }
 
     fn build_withdrawal_tx(
@@ -107,45 +606,390 @@ impl ChainPort for HinkalPort {
         _to_address: &str,
         _amount_usdc_micro: u64,
     ) -> Result<Vec<u8>, WalletError> {
-        // Shielded withdrawal transaction construction requires the Hinkal
-        // protocol's zero-knowledge proof generation and relayer coordination.
-        //
-        // Integration path:
-        // 1. Add Hinkal SDK for proof generation
-        // 2. Construct shielded withdrawal with recipient address
-        // 3. Coordinate with relayer for submission
-        Err(WalletError::ChainError {
-            chain: ChainId::Hinkal,
-            message: "Withdrawal transactions not yet implemented — requires Hinkal SDK for shielded proof generation. See crates/hkask-wallet/src/hinkal.rs for integration path.".into(),
-        })
+        Err(Self::chain_error(
+            "Hinkal chain adapter supports shielded withdrawal path only; use PrivacyMode::Shielded",
+        ))
     }
 
     async fn submit_signed_tx(&self, _signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
-        Err(WalletError::ChainError {
-            chain: ChainId::Hinkal,
-            message: "Transaction submission not yet implemented — see build_withdrawal_tx documentation.".into(),
-        })
+        Err(Self::chain_error(
+            "Hinkal chain submit path is unavailable; use PrivacyPort::submit_signed_tx for shielded flow",
+        ))
     }
 
     async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
-        // Hinkal shielded transactions have probabilistic finality
-        // based on the underlying chain's consensus.
+        Err(Self::chain_error(
+            "confirmation checking requires underlying chain RPC integration",
+        ))
+    }
+
+    async fn native_token_usd_rate(&self) -> Result<f64, WalletError> {
+        Err(Self::chain_error(
+            "native token rate requires external price feed integration",
+        ))
+    }
+}
+
+#[async_trait]
+impl PrivacyPort for HinkalPort {
+    fn our_shielded_address(&self) -> Result<String, WalletError> {
+        Ok(self.treasury_pubkey.clone())
+    }
+
+    fn shielded_deposit_address(&self, _wallet_id: WalletId) -> Result<String, WalletError> {
+        Ok(self.treasury_pubkey.clone())
+    }
+
+    async fn monitor_shielded_transfers(&self) -> Result<Vec<ShieldedTransfer>, WalletError> {
+        let session = self.create_session(false).await?;
+        let balances = self.fetch_balance(&session).await?;
+
+        let mut transfers = Vec::new();
+        let mut last = self
+            .last_balances
+            .lock()
+            .map_err(|_| Self::chain_error("balance state lock poisoned"))?;
+
+        for row in balances {
+            let prev = last.get(&row.token).copied().unwrap_or(0);
+            if row.amount_usdc_micro > prev {
+                let commitment = self.transfer_commitment(
+                    &row.token,
+                    prev,
+                    row.amount_usdc_micro,
+                    row.commitment.as_deref(),
+                );
+                transfers.push(ShieldedTransfer {
+                    commitment,
+                    from_shielded: "hinkal-pool".to_string(),
+                    to_shielded: self.treasury_pubkey.clone(),
+                    amount_usdc_micro: row.amount_usdc_micro - prev,
+                    memo: row.memo,
+                    block_time: Utc::now(),
+                });
+            }
+            last.insert(row.token, row.amount_usdc_micro);
+        }
+
+        Ok(transfers)
+    }
+
+    fn build_shield_tx(
+        &self,
+        _amount_usdc_micro: u64,
+        chain: ChainId,
+    ) -> Result<Vec<u8>, WalletError> {
         Err(WalletError::ChainError {
-            chain: ChainId::Hinkal,
+            chain,
             message:
-                "Confirmation checking not yet implemented — requires relayer API integration."
+                "Shielding (deposit) transaction build requires Hinkal POST /deposit integration"
                     .into(),
         })
     }
 
-    async fn native_token_usd_rate(&self) -> Result<f64, WalletError> {
-        // Hinkal operates across multiple chains; native token rate
-        // depends on the settlement layer.
-        Err(WalletError::ChainError {
-            chain: ChainId::Hinkal,
-            message:
-                "Native token rate not yet implemented — depends on settlement chain configuration."
-                    .into(),
-        })
+    fn build_unshield_tx(
+        &self,
+        to_public: &str,
+        amount_usdc_micro: u64,
+    ) -> Result<Vec<u8>, WalletError> {
+        if to_public.trim().is_empty() {
+            return Err(Self::chain_error("withdraw recipient must not be empty"));
+        }
+        if amount_usdc_micro == 0 {
+            return Err(Self::chain_error("withdraw amount must be > 0"));
+        }
+
+        let payload = WithdrawUnsignedPayload {
+            nonce: Self::generate_nonce(),
+            to_public: to_public.to_string(),
+            amount_usdc_micro,
+            chain_id: HINKAL_SOLANA_CHAIN_ID,
+            token: SOLANA_USDC_MINT.to_string(),
+        };
+
+        serde_json::to_vec(&payload)
+            .map_err(|e| Self::chain_error(format!("failed to encode unshield payload: {e}")))
+    }
+
+    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+        let (payload, _tx_signature_hex) = self.decode_signed_withdraw_payload(signed_tx_bytes)?;
+
+        let session = self.create_session(true).await?;
+        let withdraw_message = Self::build_withdraw_message(
+            &payload.nonce,
+            payload.chain_id,
+            &payload.token,
+            payload.amount_usdc_micro,
+            &payload.to_public,
+        );
+        let withdraw_signature = signing::sign_message(withdraw_message.as_bytes())?;
+
+        let req = WithdrawRequest {
+            address: self.treasury_pubkey.clone(),
+            chain_id: payload.chain_id,
+            recipient: payload.to_public,
+            nonce: payload.nonce,
+            token_amounts: vec![TokenAmountRequest {
+                token: payload.token,
+                amount: payload.amount_usdc_micro.to_string(),
+            }],
+            message: withdraw_message,
+            signature: hex::encode(withdraw_signature),
+            session_nonce: session.nonce,
+            session_signature: session.signature,
+        };
+
+        let url = format!("{}/withdraw", self.api_base_url);
+        let resp = self
+            .client
+            .post(&url)
+            .json(&req)
+            .send()
+            .await
+            .map_err(|e| Self::chain_error(format!("withdraw request failed: {e}")))?;
+
+        if !resp.status().is_success() {
+            let body = Self::read_response_body(resp).await;
+            return Err(Self::chain_error(format!("withdraw rejected: {body}")));
+        }
+
+        let v: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| Self::chain_error(format!("withdraw returned invalid JSON: {e}")))?;
+
+        let tx_hash = v
+            .get("txHash")
+            .and_then(|x| x.as_str())
+            .or_else(|| v.get("tx_hash").and_then(|x| x.as_str()))
+            .or_else(|| v.get("hash").and_then(|x| x.as_str()))
+            .or_else(|| {
+                v.get("data")
+                    .and_then(|d| d.get("txHash"))
+                    .and_then(|x| x.as_str())
+            })
+            .ok_or_else(|| Self::chain_error("withdraw response missing tx hash"))?;
+
+        Ok(TxHash(tx_hash.to_string()))
+    }
+
+    fn available_for_chain(&self, chain: ChainId) -> bool {
+        if chain != ChainId::Hinkal {
+            return false;
+        }
+        !self.in_cooldown()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wiremock::matchers::{body_partial_json, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn test_port(base: &str) -> HinkalPort {
+        HinkalPort::new(base, "treasury_pubkey_test").expect("port")
+    }
+
+    // REQ: HINKAL-003 — session message format matches Hinkal API spec
+    #[test]
+    fn session_message_read_format() {
+        let msg = HinkalPort::build_session_message("test-nonce-123", false);
+        assert!(msg.contains("Authorize Hinkal session"));
+        assert!(msg.contains("Session ID: test-nonce-123"));
+        assert!(!msg.contains("submit transactions"));
+    }
+
+    // REQ: HINKAL-003 — write session message includes transaction authorization
+    #[test]
+    fn session_message_write_format() {
+        let msg = HinkalPort::build_session_message("test-nonce-456", true);
+        assert!(msg.contains("Authorize Hinkal session"));
+        assert!(msg.contains("Session ID: test-nonce-456"));
+        assert!(msg.contains("This signature can also be used to submit transactions."));
+    }
+
+    // REQ: HINKAL-004 — Solana withdraw message format matches Hinkal API spec
+    #[test]
+    fn withdraw_message_format() {
+        let msg = HinkalPort::build_withdraw_message(
+            "nonce-789",
+            501,
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            1_000_000,
+            "recipient_solana_address",
+        );
+        assert!(msg.contains("Hinkal Enclave"));
+        assert!(msg.contains("Primary Type: Withdraw"));
+        assert!(msg.contains("Nonce: nonce-789"));
+        assert!(msg.contains("Chain ID: 501"));
+        assert!(msg.contains("Token: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"));
+        assert!(msg.contains("Amount: 1000000"));
+        assert!(msg.contains("Recipient: recipient_solana_address"));
+    }
+
+    // REQ: HINKAL-005 — circuit breaker initial state is healthy
+    #[test]
+    fn circuit_breaker_initial_state() {
+        let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey").unwrap();
+        assert!(!port.in_cooldown());
+        assert!(port.available_for_chain(ChainId::Hinkal));
+    }
+
+    // REQ: HINKAL-005 — circuit breaker denies non-Hinkal chains
+    #[test]
+    fn available_for_chain_rejects_non_hinkal() {
+        let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey").unwrap();
+        assert!(!port.available_for_chain(ChainId::Solana));
+        assert!(!port.available_for_chain(ChainId::Hedera));
+    }
+
+    // REQ: HINKAL-006 — session bootstrap success path maps request/response correctly
+    #[tokio::test]
+    async fn create_session_success() {
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/create-session"))
+            .and(body_partial_json(serde_json::json!({
+                "address": "treasury_pubkey_test",
+                "chainId": 501,
+                "writeAccess": false
+            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "success": true
+            })))
+            .mount(&server)
+            .await;
+
+        let port = test_port(&server.uri());
+        let session = port.create_session(false).await.expect("session");
+        assert!(!session.nonce.is_empty());
+        assert!(!session.signature.is_empty());
+    }
+
+    // REQ: HINKAL-006 — cached session is reused while unexpired
+    #[test]
+    fn cached_session_reused_within_ttl() {
+        let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
+        port.store_cached_session("nonce-1".to_string(), "sig-1".to_string(), false)
+            .expect("cache");
+
+        let session = port.cached_session(false).expect("cached").expect("some");
+        assert_eq!(session.nonce, "nonce-1");
+        assert_eq!(session.signature, "sig-1");
+    }
+
+    // REQ: HINKAL-006 — write-access lookup does not reuse read-only cached session
+    #[test]
+    fn cached_read_session_not_reused_for_write() {
+        let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
+        port.store_cached_session("nonce-1".to_string(), "sig-1".to_string(), false)
+            .expect("cache");
+
+        let read = port.cached_session(false).expect("read cached");
+        let write = port.cached_session(true).expect("write cached");
+
+        assert!(read.is_some());
+        assert!(write.is_none());
+    }
+
+    // REQ: HINKAL-007 — nonce reuse/server rejection is propagated fail-closed
+    #[tokio::test]
+    async fn create_session_nonce_reuse_propagates_error() {
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/create-session"))
+            .respond_with(
+                ResponseTemplate::new(400)
+                    .set_body_json(serde_json::json!({ "error": "nonce already used" })),
+            )
+            .mount(&server)
+            .await;
+
+        let port = test_port(&server.uri());
+        let err = port.create_session(false).await.expect_err("must fail");
+        match err {
+            WalletError::ChainError { chain, message } => {
+                assert_eq!(chain, ChainId::Hinkal);
+                assert!(message.contains("create-session rejected"));
+                assert!(message.contains("nonce="));
+            }
+            other => panic!("expected ChainError, got {other:?}"),
+        }
+    }
+
+    // REQ: HINKAL-008 — invalid/partial balance payload fails closed
+    #[tokio::test]
+    async fn monitor_shielded_transfers_rejects_invalid_balance_payload() {
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/create-session"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "success": true
+            })))
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/balance"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "balance": [
+                    { "token": "USDC" }
+                ]
+            })))
+            .mount(&server)
+            .await;
+
+        let port = test_port(&server.uri());
+        let err = port
+            .monitor_shielded_transfers()
+            .await
+            .expect_err("must fail closed");
+
+        match err {
+            WalletError::ChainError { chain, message } => {
+                assert_eq!(chain, ChainId::Hinkal);
+                assert!(message.contains("missing amount"));
+            }
+            other => panic!("expected ChainError, got {other:?}"),
+        }
+    }
+
+    // REQ: HINKAL-009 — build_unshield_tx encodes deterministic request payload fields
+    #[test]
+    fn build_unshield_tx_encodes_payload() {
+        let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
+        let bytes = port
+            .build_unshield_tx("recipient_pubkey", 1_500_000)
+            .expect("payload");
+        let payload: WithdrawUnsignedPayload = serde_json::from_slice(&bytes).expect("json");
+
+        assert_eq!(payload.to_public, "recipient_pubkey");
+        assert_eq!(payload.amount_usdc_micro, 1_500_000);
+        assert_eq!(payload.chain_id, 501);
+        assert_eq!(payload.token, SOLANA_USDC_MINT);
+        assert_eq!(payload.nonce.len(), 32);
     }
 }

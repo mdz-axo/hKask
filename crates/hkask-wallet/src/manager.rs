@@ -22,6 +22,7 @@ use std::sync::Arc;
 use zeroize::Zeroizing;
 
 use crate::chain::{ChainPort, DepositEvent};
+use crate::price_feed::PriceFeed;
 use crate::privacy::{PrivacyPort, ShieldedTransfer};
 use crate::signing;
 
@@ -45,13 +46,17 @@ pub struct WalletManager {
     /// Optional CNS event sink for span emission (Phase 5).
     /// When present, wallet operations emit cns.wallet.* spans.
     event_sink: Option<Arc<dyn NuEventSink>>,
+    /// Price feed for native token USD rates (fee estimation).
+    /// Resolved from user's `PriceFeedConfig` at build time.
+    price_feed: Arc<dyn PriceFeed>,
 }
 
 impl WalletManager {
-    /// Build a WalletManager from configuration, store, and chain/privacy ports.
+    /// Build a WalletManager from configuration, store, chain/privacy ports, and price feed.
     ///
     /// REQ: WALLET-001
     /// pre:  config is valid, store is initialized, chains is non-empty
+    /// pre:  price_feed is a resolved PriceFeed implementation
     /// post: returns Ok(WalletManager) with resolved wallet_seed
     /// post: returns Err if wallet_seed resolution fails
     pub fn build(
@@ -59,6 +64,7 @@ impl WalletManager {
         store: Arc<WalletStore>,
         chains: HashMap<ChainId, Box<dyn ChainPort>>,
         privacy: Option<Box<dyn PrivacyPort>>,
+        price_feed: Arc<dyn PriceFeed>,
     ) -> Result<Self, WalletError> {
         let seed_bytes = resolve_wallet_seed().map_err(|e| {
             WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
@@ -72,6 +78,7 @@ impl WalletManager {
             privacy,
             wallet_seed: Zeroizing::new(seed_arr),
             event_sink: None,
+            price_feed,
         })
     }
 
@@ -80,6 +87,18 @@ impl WalletManager {
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
+    }
+
+    /// Replace the price feed (for testing or runtime reconfiguration).
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_price_feed(mut self, feed: Arc<dyn PriceFeed>) -> Self {
+        self.price_feed = feed;
+        self
+    }
+
+    /// Get a reference to the price feed.
+    pub fn price_feed(&self) -> &Arc<dyn PriceFeed> {
+        &self.price_feed
     }
 
     /// Emit a CNS span if an event sink is configured (canonical namespaces only).
@@ -124,6 +143,25 @@ impl WalletManager {
                 }),
             );
         }
+    }
+
+    /// Emit a CNS span for chain-level errors (RPC failure, tx rejection, etc.).
+    ///
+    /// REQ: P9 — feedback loop closure for cns.wallet.chain_error
+    /// pre:  chain is a valid ChainId
+    /// post: emits cns.wallet.chain_error span with error details (Sense phase)
+    /// post: if event_sink is None → no-op (graceful degradation)
+    pub fn emit_chain_error(&self, chain: ChainId, operation: &str, error_msg: &str) {
+        self.emit_span(
+            CnsSpan::WalletChainError,
+            "error",
+            Phase::Sense,
+            serde_json::json!({
+                "chain": chain.to_string(),
+                "operation": operation,
+                "error": error_msg,
+            }),
+        );
     }
 
     // ── Balance ──────────────────────────────────────────────────────────────
@@ -519,10 +557,17 @@ impl WalletManager {
                     return Err(WalletError::PrivacyUnavailable { chain });
                 }
                 let tx_bytes = privacy_port.build_unshield_tx(to_address, amount_usdc_micro)?;
-                let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
-                let mut signed_tx = tx_bytes;
-                signed_tx.extend_from_slice(&signature);
-                privacy_port.submit_signed_tx(&signed_tx).await?
+
+                if chain == ChainId::Hinkal {
+                    // Hinkal submit path signs the protocol withdraw message internally.
+                    // Avoid appending a redundant signature over the serialized request payload.
+                    privacy_port.submit_signed_tx(&tx_bytes).await?
+                } else {
+                    let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
+                    let mut signed_tx = tx_bytes;
+                    signed_tx.extend_from_slice(&signature);
+                    privacy_port.submit_signed_tx(&signed_tx).await?
+                }
             }
         };
 
@@ -804,10 +849,60 @@ mod tests {
     use super::*;
     use crate::ApiKeyIssuer;
     use crate::chain::DepositEvent;
+    use crate::price_feed::StaticPriceFeed;
     use hkask_storage::database::in_memory_db;
 
     struct MockChainPort {
         chain: ChainId,
+    }
+
+    struct MockPrivacyPort {
+        available: bool,
+    }
+
+    #[async_trait::async_trait]
+    impl PrivacyPort for MockPrivacyPort {
+        fn our_shielded_address(&self) -> Result<String, WalletError> {
+            Ok("mock_shielded_addr".into())
+        }
+
+        fn shielded_deposit_address(&self, _wallet_id: WalletId) -> Result<String, WalletError> {
+            Ok("mock_shielded_addr".into())
+        }
+
+        async fn monitor_shielded_transfers(&self) -> Result<Vec<ShieldedTransfer>, WalletError> {
+            Ok(vec![])
+        }
+
+        fn build_shield_tx(
+            &self,
+            _amount_usdc_micro: u64,
+            _chain: ChainId,
+        ) -> Result<Vec<u8>, WalletError> {
+            Ok(b"mock_shield_tx".to_vec())
+        }
+
+        fn build_unshield_tx(
+            &self,
+            _to_public: &str,
+            _amount_usdc_micro: u64,
+        ) -> Result<Vec<u8>, WalletError> {
+            Ok(b"mock_unshield_tx".to_vec())
+        }
+
+        async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+            if signed_tx_bytes != b"mock_unshield_tx" {
+                return Err(WalletError::ChainError {
+                    chain: ChainId::Hinkal,
+                    message: "expected raw unshield payload (no appended signature)".into(),
+                });
+            }
+            Ok(TxHash("mock_privacy_hash".into()))
+        }
+
+        fn available_for_chain(&self, chain: ChainId) -> bool {
+            self.available && chain == ChainId::Hinkal
+        }
     }
 
     #[async_trait::async_trait]
@@ -856,7 +951,37 @@ mod tests {
                 chain: ChainId::Solana,
             }) as Box<dyn ChainPort>,
         );
-        WalletManager::build(WalletConfig::default(), store, chains, None).unwrap()
+        WalletManager::build(
+            WalletConfig::default(),
+            store,
+            chains,
+            None,
+            Arc::new(StaticPriceFeed::new()),
+        )
+        .unwrap()
+    }
+
+    fn make_manager_with_hinkal_privacy() -> WalletManager {
+        // SAFETY: test-only env var set in single-threaded test context;
+        // SAFETY: no other threads read HKASK_MASTER_KEY concurrently.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let chains = HashMap::new();
+        let privacy = Some(Box::new(MockPrivacyPort { available: true }) as Box<dyn PrivacyPort>);
+        WalletManager::build(
+            WalletConfig::default(),
+            store,
+            chains,
+            privacy,
+            Arc::new(StaticPriceFeed::new()),
+        )
+        .unwrap()
     }
 
     // REQ: P4-manager — gas_to_rjoules converts correctly
@@ -1104,8 +1229,14 @@ mod tests {
             }) as Box<dyn ChainPort>,
         );
 
-        let mgr = WalletManager::build(WalletConfig::default(), Arc::clone(&store), chains, None)
-            .unwrap();
+        let mgr = WalletManager::build(
+            WalletConfig::default(),
+            Arc::clone(&store),
+            chains,
+            None,
+            Arc::new(StaticPriceFeed::new()),
+        )
+        .unwrap();
 
         // Run one monitor cycle
         mgr.poll_deposits_once().await;
@@ -1127,8 +1258,14 @@ mod tests {
                 deposit: Some(deposit_event),
             }) as Box<dyn ChainPort>,
         );
-        let mgr2 = WalletManager::build(WalletConfig::default(), Arc::clone(&store), chains2, None)
-            .unwrap();
+        let mgr2 = WalletManager::build(
+            WalletConfig::default(),
+            Arc::clone(&store),
+            chains2,
+            None,
+            Arc::new(StaticPriceFeed::new()),
+        )
+        .unwrap();
         mgr2.poll_deposits_once().await;
         let balance_after = store.get_balance(wallet_id).unwrap().unwrap();
         assert_eq!(
@@ -1205,8 +1342,14 @@ mod tests {
             }) as Box<dyn ChainPort>,
         );
 
-        let mgr = WalletManager::build(WalletConfig::default(), Arc::clone(&store), chains, None)
-            .unwrap();
+        let mgr = WalletManager::build(
+            WalletConfig::default(),
+            Arc::clone(&store),
+            chains,
+            None,
+            Arc::new(StaticPriceFeed::new()),
+        )
+        .unwrap();
 
         mgr.poll_deposits_once().await;
 
@@ -1524,5 +1667,36 @@ mod tests {
             Err(WalletError::ChainNotEnabled { .. }) => {} // expected
             other => panic!("expected ChainNotEnabled, got {:?}", other),
         }
+    }
+
+    // REQ: wallet-int-006 — shielded Hinkal withdrawal uses privacy adapter path
+    #[tokio::test]
+    async fn withdraw_shielded_hinkal_uses_privacy_path() {
+        let mgr = make_manager_with_hinkal_privacy();
+        let wallet_id = WalletId::from_name("shielded_hinkal_test");
+        mgr.store.ensure_wallet(wallet_id).unwrap();
+        mgr.store
+            .credit_rjoules(wallet_id, RJoule::new(10_000))
+            .unwrap();
+
+        let tx_hash = mgr
+            .withdraw(
+                wallet_id,
+                RJoule::new(1_500),
+                "recipient_addr_hinkal",
+                ChainId::Hinkal,
+                PrivacyMode::Shielded,
+            )
+            .await
+            .expect("shielded withdraw should route to privacy adapter");
+
+        assert_eq!(tx_hash.0, "mock_privacy_hash");
+
+        let txs = mgr.get_transactions(wallet_id, 10, 0).unwrap();
+        let withdrawal_tx = txs
+            .iter()
+            .find(|tx| matches!(tx.tx_type, TransactionType::Withdrawal { .. }))
+            .expect("withdrawal tx should be recorded");
+        assert_eq!(withdrawal_tx.rjoules_delta, -1500);
     }
 }
