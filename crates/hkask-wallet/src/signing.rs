@@ -60,7 +60,7 @@ impl std::fmt::Debug for LoadedKey {
 
 /// Sign a withdrawal transaction for a specific chain.
 ///
-/// REQ: P9-wlt-sign-withdrawal
+/// REQ: P9-wallet-sign-withdrawal
 /// [P9] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow
 /// [P1] Constraining: User Sovereignty — treasury key derived from user master key
 /// [P4] Constraining: Clear Boundaries — key material never leaves this module
@@ -83,7 +83,7 @@ pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, Walle
 
 /// Sign an arbitrary message with the Hinkal treasury key.
 ///
-/// REQ: P9-wlt-sign-hinkal-message
+/// REQ: P9-wallet-sign-hinkal-message
 /// [P9] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow
 /// [P4] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin
 /// pre:  message is any byte slice (including empty)
@@ -108,7 +108,7 @@ fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
 
 /// Sign an API key capability token with the wallet's Ed25519 key.
 ///
-/// REQ: P9-wlt-sign-capability
+/// REQ: P9-wallet-sign-capability
 /// [P9] Motivating: Homeostatic Self-Regulation — signing authorizes API key capability
 /// [P1] Constraining: User Sovereignty — treasury key derived from user master key
 /// [P4] Constraining: Clear Boundaries — key material never leaves this module
@@ -144,7 +144,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-wlt-sign-withdrawal-signature-test — sign_withdrawal produces valid signature bytes
+    // REQ: P9-wallet-sign-withdrawal-signature-test — sign_withdrawal produces valid signature bytes
     #[test]
     fn sign_withdrawal_produces_signature() {
         set_test_master_key();
@@ -153,7 +153,7 @@ mod tests {
         assert_eq!(sig.len(), 64); // Ed25519 signature is 64 bytes
     }
 
-    // REQ: P9-wlt-sign-withdrawal-per-chain-test — sign_withdrawal produces different signatures per chain
+    // REQ: P9-wallet-sign-withdrawal-per-chain-test — sign_withdrawal produces different signatures per chain
     #[test]
     fn sign_withdrawal_differs_per_chain() {
         set_test_master_key();
@@ -163,7 +163,7 @@ mod tests {
         assert_ne!(sol_sig, hed_sig);
     }
 
-    // REQ: P9-wlt-sign-capability-hex-test — sign_capability produces hex-encoded signature
+    // REQ: P9-wallet-sign-capability-hex-test — sign_capability produces hex-encoded signature
     #[test]
     fn sign_capability_produces_hex_signature() {
         set_test_master_key();
@@ -185,7 +185,7 @@ mod tests {
         assert_eq!(sig.len(), 128); // 64 bytes → 128 hex chars
     }
 
-    // REQ: P9-wlt-sign-withdrawal-all-chains-test — sign_withdrawal works for all valid ChainId variants
+    // REQ: P9-wallet-sign-withdrawal-all-chains-test — sign_withdrawal works for all valid ChainId variants
     #[test]
     fn sign_withdrawal_all_chains() {
         set_test_master_key();
@@ -202,7 +202,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-wlt-sign-withdrawal-empty-test — sign_withdrawal handles empty tx_bytes gracefully
+    // REQ: P9-wallet-sign-withdrawal-empty-test — sign_withdrawal handles empty tx_bytes gracefully
     #[test]
     fn sign_withdrawal_empty_tx_bytes() {
         set_test_master_key();
@@ -215,7 +215,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wlt-sign-hinkal-message-signature-test — sign_message produces valid signature bytes
+    // REQ: P9-wallet-sign-hinkal-message-signature-test — sign_message produces valid signature bytes
     #[test]
     fn sign_message_produces_signature() {
         set_test_master_key();
@@ -224,7 +224,7 @@ mod tests {
         assert_eq!(sig.len(), 64);
     }
 
-    // REQ: P9-wlt-sign-capability-tamper-test — sign_capability detects tampered capability
+    // REQ: P9-wallet-sign-capability-tamper-test — sign_capability detects tampered capability
     #[test]
     fn sign_capability_tampered_produces_different_signature() {
         set_test_master_key();

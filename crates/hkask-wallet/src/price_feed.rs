@@ -541,14 +541,14 @@ mod tests {
 
     // ── StaticPriceFeed tests ──────────────────────────────────────────────
 
-    // REQ: P9-wlt-price-static-rate-test — static price feed returns correct rates
+    // REQ: P9-wallet-price-static-rate-test — static price feed returns correct rates
     #[test]
     fn static_price_feed_returns_expected_rates() {
         assert!((StaticPriceFeed::hardcoded_rate(ChainId::Solana) - 150.0).abs() < f64::EPSILON);
         assert!((StaticPriceFeed::hardcoded_rate(ChainId::Hedera) - 0.08).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wlt-price-fee-nonzero-test — fee estimation produces non-zero rJoule fee
+    // REQ: P9-wallet-price-fee-nonzero-test — fee estimation produces non-zero rJoule fee
     #[test]
     fn fee_estimation_produces_non_zero_fee() {
         let rate = ExchangeRate {
@@ -560,7 +560,7 @@ mod tests {
         assert!(fee.usdc_micro > 0);
     }
 
-    // REQ: P9-wlt-price-fee-floor-test — fee estimation floors at 1 rJ
+    // REQ: P9-wallet-price-fee-floor-test — fee estimation floors at 1 rJ
     #[test]
     fn fee_estimation_floors_at_one_rj() {
         let rate = ExchangeRate {
@@ -571,7 +571,7 @@ mod tests {
         assert_eq!(fee.rjoules, 1);
     }
 
-    // REQ: P9-wlt-price-chain-diff-test — different chains produce different fees
+    // REQ: P9-wallet-price-chain-diff-test — different chains produce different fees
     #[test]
     fn different_chains_produce_different_fees() {
         let rate = ExchangeRate {
@@ -585,7 +585,7 @@ mod tests {
 
     // ── EodhdPriceFeed tests ──────────────────────────────────────────────
 
-    // REQ: P9-wlt-price-eodhd-parse-test — EODHD feed parses real-time response correctly
+    // REQ: P9-wallet-price-eodhd-parse-test — EODHD feed parses real-time response correctly
     #[tokio::test]
     async fn eodhd_feed_parses_close_field() {
         let server = MockServer::start().await;
@@ -616,7 +616,7 @@ mod tests {
 
     // ── CoinGeckoPriceFeed tests ──────────────────────────────────────────
 
-    // REQ: P9-wlt-price-coingecko-parse-test — CoinGecko feed parses simple/price response
+    // REQ: P9-wallet-price-coingecko-parse-test — CoinGecko feed parses simple/price response
     #[tokio::test]
     async fn coingecko_feed_parses_usd_field() {
         let server = MockServer::start().await;
@@ -659,7 +659,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-wlt-price-composite-primary-test — composite returns from primary source on success
+    // REQ: P9-wallet-price-composite-primary-test — composite returns from primary source on success
     #[tokio::test]
     async fn composite_uses_primary_source() {
         let primary = Box::new(MockRateFeed {
@@ -676,7 +676,7 @@ mod tests {
         assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wlt-price-composite-fallback-test — composite falls back when primary fails
+    // REQ: P9-wallet-price-composite-fallback-test — composite falls back when primary fails
     #[tokio::test]
     async fn composite_falls_back_on_primary_failure() {
         let primary = Box::new(MockRateFeed {
@@ -693,7 +693,7 @@ mod tests {
         assert!((rate.usd_per_token - 0.08).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wlt-price-composite-cache-test — composite returns cached rate within TTL
+    // REQ: P9-wallet-price-composite-cache-test — composite returns cached rate within TTL
     #[tokio::test]
     async fn composite_caches_within_ttl() {
         let source = Box::new(MockRateFeed {
@@ -714,7 +714,7 @@ mod tests {
         assert!((rate2.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wlt-price-composite-stale-test — composite returns stale cache on total failure
+    // REQ: P9-wallet-price-composite-stale-test — composite returns stale cache on total failure
     #[tokio::test]
     async fn composite_stale_fallback_on_total_failure() {
         // First, populate cache with a working source
@@ -736,7 +736,7 @@ mod tests {
         assert!(err.to_string().contains("exhausted"));
     }
 
-    // REQ: P9-wlt-price-composite-empty-test — composite errors when no sources configured
+    // REQ: P9-wallet-price-composite-empty-test — composite errors when no sources configured
     #[tokio::test]
     async fn composite_errors_on_empty_sources() {
         let composite = CompositePriceFeed::new(vec![], 30);
@@ -746,7 +746,7 @@ mod tests {
 
     // ── resolve_price_feed tests ─────────────────────────────────────────
 
-    // REQ: P9-wlt-price-resolve-static-test — resolve_price_feed maps Static config
+    // REQ: P9-wallet-price-resolve-static-test — resolve_price_feed maps Static config
     #[test]
     fn resolve_static_config() {
         let feed = resolve_price_feed(&PriceFeedConfig::Static).unwrap();
@@ -756,7 +756,7 @@ mod tests {
         assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wlt-price-resolve-coingecko-test — resolve_price_feed maps CoinGecko config
+    // REQ: P9-wallet-price-resolve-coingecko-test — resolve_price_feed maps CoinGecko config
     #[test]
     fn resolve_coingecko_config() {
         let feed = resolve_price_feed(&PriceFeedConfig::CoinGecko).unwrap();
@@ -764,7 +764,7 @@ mod tests {
         let _ = feed;
     }
 
-    // REQ: P9-wlt-price-resolve-composite-test — resolve_price_feed maps Composite config
+    // REQ: P9-wallet-price-resolve-composite-test — resolve_price_feed maps Composite config
     #[test]
     fn resolve_composite_config() {
         let config = PriceFeedConfig::Composite {
@@ -775,7 +775,7 @@ mod tests {
         let _ = feed;
     }
 
-    // REQ: P9-wlt-price-resolve-skip-unknown-test — resolve_price_feed skips unknown sources in composite
+    // REQ: P9-wallet-price-resolve-skip-unknown-test — resolve_price_feed skips unknown sources in composite
     #[test]
     fn resolve_composite_skips_unknown_sources() {
         let config = PriceFeedConfig::Composite {
@@ -787,7 +787,7 @@ mod tests {
         let _ = feed;
     }
 
-    // REQ: P9-wlt-price-resolve-all-unknown-test — resolve_price_feed errors when composite resolves no sources
+    // REQ: P9-wallet-price-resolve-all-unknown-test — resolve_price_feed errors when composite resolves no sources
     #[test]
     fn resolve_composite_errors_on_all_unknown() {
         let config = PriceFeedConfig::Composite {

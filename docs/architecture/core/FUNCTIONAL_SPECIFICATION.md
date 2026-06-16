@@ -510,10 +510,23 @@ These domains are documented here for completeness but are not part of the CNS c
 | Wallet — Price Feed | `price_feed.rs` | `wallet-price-*` | `P9-wlt-price-*` | 0 (tests only) |
 | Wallet — Hedera Tests | `hedera.rs` | `hedera-int-*` | `P9-wlt-hedera-*` | 0 (tests only) |
 | Wallet — Solana Tests | `solana.rs` | `solana-int-*` | `P9-wlt-solana-*` | 0 (tests only) |
+| Agents — Consent | `consent.rs` | `AGT-038`–`AGT-048` | `P2-agt-consent-*` | 11 |
+| Agents — Sovereignty | `sovereignty.rs` | `AGT-119`–`AGT-121` | `P1-agt-sovereignty-*` | 3 |
+| Agents — Loop System | `loop_system.rs` | `AGT-062`–`AGT-072` | `P9-agt-loop-*` | 11 |
+| Agents — Prompt Analysis | `prompt_analysis.rs` | `AGT-087` | `P9-agt-prompt-*` | 1 |
+| Agents — Registry | `registry_loader.rs`, `adapters/registry_source.rs` | `AGT-108`, `AGT-115`–`AGT-118` | `P3-agt-registry-*` | 5 |
+| Agents — ACP | `acp/**/*.rs` | `AGT-073`–`AGT-086` | `P4-agt-acp-*` | 14 |
+| Agents — MCP Adapters | `adapters/mcp_runtime.rs` | `AGT-113`–`AGT-114` | `P4-agt-mcp-*` | 2 |
+| Agents — Memory | `adapters/memory_loop_adapter.rs`, `ports/memory_storage.rs` | `AGT-032`–`AGT-037`, `AGT-109`–`AGT-112` | `P3-agt-memory-*` | 10 |
+| Agents — Curator | `curator/**/*.rs` | `AGT-049`–`AGT-061` | `P9-agt-curator-*` | 13 |
+| Agents — Curator Agent | `curator_agent/**/*.rs` | `AGT-088`–`AGT-107`, `BOT-HEALTH-001` | `P9-agt-curator-agent-*`, `P9-agt-bot-health-*` | 20 |
+| Agents — Pod Lifecycle | `pod/mod.rs`, `pod/types.rs` | `AGT-122`–`AGT-137`, `AGT-161` | `P1-agt-pod-*`, `P4-agt-pod-lifecycle-*` | 17 |
+| Agents — Pod Manager | `pod/manager.rs` | `AGT-138`–`AGT-160` | `P1-agt-pod-manager-*` | 23 |
 
 **Total CNS contracts:** 99 (across all 9 source files).
-**Total wallet contracts:** 23 production occurrences (11 unique IDs) + test/annotation occurrences (across 8 source/test files).
-**Build status:** `cargo check -p hkask-cns` and `cargo check -p hkask-wallet` pass clean.
+**Total wallet contracts:** 23 production occurrences (11 unique IDs).
+**Total agents contracts:** 174 production occurrences (30 unique IDs).
+**Build status:** `cargo check -p hkask-cns`, `cargo check -p hkask-wallet`, and `cargo check -p hkask-agents` pass clean.
 
 ### 4.2 Idempotent Migration
 
@@ -592,6 +605,7 @@ The following domains are **not yet realigned** and will use their own principle
 - `mcp-servers/` (P5): `P5-mcp-*`
 
 `hkask-wallet` is **complete** as of this revision: `P9-wlt-*`.
+`hkask-agents` is **complete** as of this revision: `P1-agt-*`, `P2-agt-*`, `P3-agt-*`, `P4-agt-*`, `P9-agt-*`.
 
 ---
 

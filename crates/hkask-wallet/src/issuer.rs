@@ -28,7 +28,7 @@ use crate::signing;
 
 /// Issues Ed25519-signed API key capability tokens.
 ///
-/// REQ: P9-wlt-issuer-key-lifecycle
+/// REQ: P9-wallet-issuer-key-lifecycle
 /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
 /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
 /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -52,7 +52,7 @@ pub struct ApiKeyIssuer {
 impl ApiKeyIssuer {
     /// Create a new ApiKeyIssuer.
     ///
-    /// REQ: P9-wlt-issuer-key-lifecycle
+    /// REQ: P9-wallet-issuer-key-lifecycle
     /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
     /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -95,7 +95,7 @@ impl ApiKeyIssuer {
 
     /// "Print" a new API key.
     ///
-    /// REQ: P9-wlt-issuer-key-lifecycle
+    /// REQ: P9-wallet-issuer-key-lifecycle
     /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
     /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -179,7 +179,7 @@ impl ApiKeyIssuer {
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     /// Idempotent — revoking an already-revoked key is a no-op.
     ///
-    /// REQ: P9-wlt-issuer-key-lifecycle
+    /// REQ: P9-wallet-issuer-key-lifecycle
     /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
     /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -207,7 +207,7 @@ impl ApiKeyIssuer {
 
     /// List active (non-revoked) API keys for a wallet.
     ///
-    /// REQ: P9-wlt-issuer-key-lifecycle
+    /// REQ: P9-wallet-issuer-key-lifecycle
     /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
     /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -239,7 +239,7 @@ mod tests {
         ApiKeyIssuer::new(store).unwrap()
     }
 
-    // REQ: P9-wlt-issuer-test — create_key produces valid Ed25519 keypair
+    // REQ: P9-wallet-issuer-test — create_key produces valid Ed25519 keypair
     #[test]
     fn create_key_produces_valid_keypair() {
         let issuer = make_issuer();
@@ -266,7 +266,7 @@ mod tests {
         assert!(retrieved.is_some());
     }
 
-    // REQ: P9-wlt-issuer-test — create_key with expiry sets expiry field
+    // REQ: P9-wallet-issuer-test — create_key with expiry sets expiry field
     #[test]
     fn create_key_with_expiry() {
         let issuer = make_issuer();
@@ -289,7 +289,7 @@ mod tests {
         assert!(material.capability.expiry.is_some());
     }
 
-    // REQ: P9-wlt-issuer-test — revoke_key returns unspent rJoules
+    // REQ: P9-wallet-issuer-test — revoke_key returns unspent rJoules
     #[test]
     fn revoke_key_returns_unspent_rjoules() {
         let issuer = make_issuer();
@@ -328,7 +328,7 @@ mod tests {
         assert_eq!(balance.rjoules, 8800); // 10000 - 5000 + 3800 unspent
     }
 
-    // REQ: P9-wlt-issuer-test — list_keys returns active keys
+    // REQ: P9-wallet-issuer-test — list_keys returns active keys
     #[test]
     fn list_keys_returns_active_keys() {
         let issuer = make_issuer();

@@ -35,7 +35,7 @@ use crate::signing;
 /// - Holds `wallet_seed` in `Zeroizing` for deposit reference generation
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
 ///
-/// REQ: P9-wlt-mgr-build
+/// REQ: P9-wallet-mgr-build
 /// [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
 /// [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
 /// inv: wallet_seed is zeroized on drop (Zeroizing wrapper)
@@ -57,7 +57,7 @@ pub struct WalletManager {
 impl WalletManager {
     /// Build a WalletManager from configuration, store, chain/privacy ports, and price feed.
     ///
-    /// REQ: P9-wlt-mgr-build
+    /// REQ: P9-wallet-mgr-build
     /// [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
     /// [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
     /// pre:  config is valid, store is initialized, chains is non-empty
@@ -168,7 +168,7 @@ impl WalletManager {
 
     /// Emit a CNS span for chain-level errors (RPC failure, tx rejection, etc.).
     ///
-    /// REQ: P9-wlt-mgr-chain-error-span
+    /// REQ: P9-wallet-mgr-chain-error-span
     /// [P9] Motivating: Homeostatic Self-Regulation — chain errors feed the CNS sense loop
     /// [P12] Constraining: Replicant Host Mandate — actor identity is recorded
     /// pre:  chain is a valid ChainId
@@ -204,7 +204,7 @@ impl WalletManager {
 
     /// Get the current rJoule balance for a wallet.
     ///
-    /// REQ: P9-wlt-mgr-balance
+    /// REQ: P9-wallet-mgr-balance
     /// [P9] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state
     /// [P8] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically
     /// pre:  wallet_id is a valid WalletId
@@ -227,7 +227,7 @@ impl WalletManager {
     /// Get an API key's capability metadata for CNS health monitoring.
     /// Returns `None` if the key doesn't exist or has been revoked.
     ///
-    /// REQ: P9-wlt-mgr-api-key-get
+    /// REQ: P9-wallet-mgr-api-key-get
     /// [P9] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops
     /// [P4] Constraining: Clear Boundaries — revoked keys are excluded
     /// pre:  key_id is a valid ApiKeyId
@@ -820,7 +820,7 @@ impl WalletManager {
 
     /// Estimate network withdrawal fee in rJoules/native units/USDC using configured PriceFeed.
     ///
-    /// REQ: P9-wlt-mgr-fee-estimate
+    /// REQ: P9-wallet-mgr-fee-estimate
     /// [P9] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
     /// [P8] Constraining: Semantic Grounding — derived from live/native USD rate
     /// pre:  chain is a valid ChainId
@@ -859,7 +859,7 @@ impl WalletManager {
 
     /// Check if a wallet can afford a given rJoule cost.
     ///
-    /// REQ: P9-wlt-mgr-reserve-settle
+    /// REQ: P9-wallet-mgr-reserve-settle
     /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
     /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, cost_rj is a valid RJoule
@@ -873,7 +873,7 @@ impl WalletManager {
     /// Reserve rJoules for an in-flight operation (optimistic).
     /// The actual debit happens at settle time.
     ///
-    /// REQ: P9-wlt-mgr-reserve-settle
+    /// REQ: P9-wallet-mgr-reserve-settle
     /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
     /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, amount is a valid RJoule
@@ -895,7 +895,7 @@ impl WalletManager {
     /// Settle rJoules after an operation completes.
     /// Debits the actual cost (may be less than reserved on failure).
     ///
-    /// REQ: P9-wlt-mgr-reserve-settle
+    /// REQ: P9-wallet-mgr-reserve-settle
     /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
     /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, reserved and actual are valid RJoule
@@ -960,7 +960,7 @@ impl WalletManager {
 
     /// Encumber rJoules from a wallet for an API key's allocation.
     ///
-    /// REQ: P9-wlt-mgr-encumbrance
+    /// REQ: P9-wallet-mgr-encumbrance
     /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
     /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
     /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
@@ -992,7 +992,7 @@ impl WalletManager {
 
     /// Release an encumbrance, returning unspent rJoules to the wallet.
     ///
-    /// REQ: P9-wlt-mgr-encumbrance
+    /// REQ: P9-wallet-mgr-encumbrance
     /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
     /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
     /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
@@ -1016,7 +1016,7 @@ impl WalletManager {
 
     /// Atomically consume rJoules from an API key's encumbrance.
     ///
-    /// REQ: P9-wlt-mgr-encumbrance
+    /// REQ: P9-wallet-mgr-encumbrance
     /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
     /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
     /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
@@ -1033,7 +1033,7 @@ impl WalletManager {
 
     /// Get the encumbrance for an API key.
     ///
-    /// REQ: P9-wlt-mgr-encumbrance
+    /// REQ: P9-wallet-mgr-encumbrance
     /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
     /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
     /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
@@ -1216,7 +1216,7 @@ mod tests {
         .unwrap()
     }
 
-    // REQ: P9-wlt-mgr-test — gas_to_rjoules converts correctly
+    // REQ: P9-wallet-mgr-test — gas_to_rjoules converts correctly
     #[test]
     fn gas_to_rjoules_conversion() {
         let mgr = make_manager();
@@ -1225,7 +1225,7 @@ mod tests {
         assert_eq!(mgr.gas_to_rjoules(0), RJoule::ZERO);
     }
 
-    // REQ: P9-wlt-mgr-test — rjoules_to_gas converts correctly
+    // REQ: P9-wallet-mgr-test — rjoules_to_gas converts correctly
     #[test]
     fn rjoules_to_gas_conversion() {
         let mgr = make_manager();
@@ -1233,7 +1233,7 @@ mod tests {
         assert_eq!(mgr.rjoules_to_gas(RJoule::new(5)), 5000);
     }
 
-    // REQ: P9-wlt-mgr-fee-estimate — estimate_withdrawal_fee uses configured price feed
+    // REQ: P9-wallet-mgr-fee-estimate — estimate_withdrawal_fee uses configured price feed
     /// [P9] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
     /// [P8] Constraining: Semantic Grounding — derived from live/native USD rate
     #[tokio::test]
@@ -1249,7 +1249,7 @@ mod tests {
         assert!(fee.native_units > 0.0);
     }
 
-    // REQ: P9-wlt-mgr-test — can_afford checks balance
+    // REQ: P9-wallet-mgr-test — can_afford checks balance
     #[test]
     fn can_afford_checks_balance() {
         let mgr = make_manager();
@@ -1259,7 +1259,7 @@ mod tests {
         assert!(!mgr.can_afford(wallet, RJoule::new(200)).unwrap());
     }
 
-    // REQ: P9-wlt-mgr-test — reserve_rjoules rejects insufficient balance
+    // REQ: P9-wallet-mgr-test — reserve_rjoules rejects insufficient balance
     #[test]
     fn reserve_rejects_insufficient_balance() {
         let mgr = make_manager();
@@ -1269,7 +1269,7 @@ mod tests {
         assert!(mgr.reserve_rjoules(wallet, RJoule::new(100)).is_err());
     }
 
-    // REQ: P9-wlt-mgr-test — settle_rjoules debits actual cost
+    // REQ: P9-wallet-mgr-test — settle_rjoules debits actual cost
     #[test]
     fn settle_debits_actual_cost() {
         let mgr = make_manager();
@@ -1281,7 +1281,7 @@ mod tests {
         assert_eq!(balance.rjoules, 70); // 100 - 30
     }
 
-    // REQ: P9-wlt-mgr-test — deposit reference generation and verification
+    // REQ: P9-wallet-mgr-test — deposit reference generation and verification
     #[test]
     fn deposit_reference_generation() {
         let mgr = make_manager();
@@ -1325,14 +1325,14 @@ mod tests {
         let _ = store.store_api_key(&capability);
     }
 
-    // REQ: P9-wlt-mgr-balance-conservation-pbt — Balance conservation under encumbrance lifecycle (P4, P9)
+    // REQ: P9-wallet-mgr-balance-conservation-pbt — Balance conservation under encumbrance lifecycle (P4, P9)
     // After any sequence of credit, encumber, consume, and release operations:
     // - Wallet balance = total_credited - total_consumed (conservation)
     // - Total consumed ≤ total credited (can't spend more than deposited)
     // - Per key: consumed ≤ encumbered (can't consume more than locked)
     proptest! {
         #![proptest_config(ProptestConfig { max_shrink_iters: 0, .. ProptestConfig::with_cases(64) })]
-        // REQ: P9-wlt-mgr-balance-conservation-pbt — balance conservation under encumbrance lifecycle
+        // REQ: P9-wallet-mgr-balance-conservation-pbt — balance conservation under encumbrance lifecycle
         #[test]
         fn balance_conservation_under_encumbrance_lifecycle(
             credits in prop::collection::vec(arbitrary_rjoule(), 1..10),
@@ -1438,7 +1438,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-wlt-mgr-deposit-monitor-idempotent-test — deposit monitor credits balance and is idempotent
+    // REQ: P9-wallet-mgr-deposit-monitor-idempotent-test — deposit monitor credits balance and is idempotent
     #[tokio::test]
     async fn deposit_monitor_credits_and_is_idempotent() {
         // SAFETY: test-only
@@ -1529,7 +1529,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wlt-mgr-multi-chain-deposit-test — poll_deposits_once processes deposits from multiple chains
+    // REQ: P9-wallet-mgr-multi-chain-deposit-test — poll_deposits_once processes deposits from multiple chains
     #[tokio::test]
     async fn poll_deposits_once_multi_chain() {
         // SAFETY: test-only
@@ -1624,7 +1624,7 @@ mod tests {
         assert_eq!(deposit_count, 2, "two deposits should be recorded");
     }
 
-    // REQ: P9-wlt-mgr-payment-lifecycle-test — full payment lifecycle: deposit → encumber → consume → report
+    // REQ: P9-wallet-mgr-payment-lifecycle-test — full payment lifecycle: deposit → encumber → consume → report
     #[test]
     fn end_to_end_payment_lifecycle() {
         // SAFETY: test-only
@@ -1789,7 +1789,7 @@ mod tests {
 
     // ── Withdrawal pipeline tests ─────────────────────────────────────────
 
-    // REQ: P9-wlt-mgr-withdraw-pipeline-test — withdraw full pipeline: debit → build → sign → submit → record
+    // REQ: P9-wallet-mgr-withdraw-pipeline-test — withdraw full pipeline: debit → build → sign → submit → record
     #[tokio::test]
     async fn withdraw_full_pipeline_success() {
         // SAFETY: test-only
@@ -1844,7 +1844,7 @@ mod tests {
         assert_eq!(wtx.balance_after, 8000, "balance after withdrawal");
     }
 
-    // REQ: P9-wlt-mgr-withdraw-insufficient-test — withdraw rejects insufficient balance
+    // REQ: P9-wallet-mgr-withdraw-insufficient-test — withdraw rejects insufficient balance
     #[tokio::test]
     async fn withdraw_rejects_insufficient_balance() {
         // SAFETY: test-only
@@ -1890,7 +1890,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wlt-mgr-withdraw-unsupported-chain-test — withdraw rejects unsupported chain
+    // REQ: P9-wallet-mgr-withdraw-unsupported-chain-test — withdraw rejects unsupported chain
     #[tokio::test]
     async fn withdraw_rejects_unsupported_chain() {
         // SAFETY: test-only
@@ -1938,7 +1938,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wlt-mgr-multi-chain-deposit-test — shielded Hinkal withdrawal uses privacy adapter path
+    // REQ: P9-wallet-mgr-multi-chain-deposit-test — shielded Hinkal withdrawal uses privacy adapter path
     #[tokio::test]
     async fn withdraw_shielded_hinkal_uses_privacy_path() {
         let mgr = make_manager_with_hinkal_privacy();
@@ -1971,7 +1971,7 @@ mod tests {
         assert_eq!(withdrawal_tx.rjoules_delta, -1500);
     }
 
-    // REQ: P9-wlt-mgr-shielded-deposit-test — shield_assets routes through privacy port with zero rJoule delta
+    // REQ: P9-wallet-mgr-shielded-deposit-test — shield_assets routes through privacy port with zero rJoule delta
     #[tokio::test]
     async fn shield_assets_uses_privacy_path() {
         let mgr = make_manager_with_hinkal_privacy();

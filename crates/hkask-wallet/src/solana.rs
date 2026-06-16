@@ -663,7 +663,7 @@ mod integration_tests {
         SolanaPort::new_devnet(&pubkey).expect("Failed to create devnet SolanaPort")
     }
 
-    // REQ: P9-wlt-solana-chain-error-actor-test — chain_error emission uses caller-provided actor identity
+    // REQ: P9-wallet-solana-chain-error-actor-test — chain_error emission uses caller-provided actor identity
     #[test]
     fn emit_chain_error_uses_provided_actor() {
         let pubkey = "11111111111111111111111111111111";
@@ -685,7 +685,7 @@ mod integration_tests {
         assert_eq!(event.observation["operation"], "unit_test");
     }
 
-    // REQ: P9-wlt-solana-build-withdrawal-tx-test — build_withdrawal_tx produces valid serialized payload
+    // REQ: P9-wallet-solana-build-withdrawal-tx-test — build_withdrawal_tx produces valid serialized payload
     #[test]
     fn build_withdrawal_tx_produces_valid_payload() {
         let port = devnet_port();
@@ -705,7 +705,7 @@ mod integration_tests {
         assert_eq!(payload.payer, port.treasury_pubkey);
     }
 
-    // REQ: P9-wlt-solana-signing-roundtrip-test — full withdrawal flow round-trips through signing
+    // REQ: P9-wallet-solana-signing-roundtrip-test — full withdrawal flow round-trips through signing
     #[test]
     fn withdrawal_payload_signing_roundtrip() {
         // SAFETY: test-only — sets master key env var in isolated test process.
@@ -739,7 +739,7 @@ mod integration_tests {
         assert_eq!(sig_part.len(), 64);
     }
 
-    // REQ: P9-wlt-solana-submit-signed-tx-test — submit_signed_tx against devnet (ignored — needs funded treasury)
+    // REQ: P9-wallet-solana-submit-signed-tx-test — submit_signed_tx against devnet (ignored — needs funded treasury)
     #[test]
     #[ignore = "requires funded treasury on Solana devnet with USDC"]
     fn submit_withdrawal_to_devnet() {
@@ -800,7 +800,7 @@ mod integration_tests {
         }
     }
 
-    // REQ: P9-wlt-solana-monitor-deposits-test — monitor_deposits detects USDC transfer and extracts sender
+    // REQ: P9-wallet-solana-monitor-deposits-test — monitor_deposits detects USDC transfer and extracts sender
     #[tokio::test]
     async fn monitor_deposits_detects_usdc_transfer() {
         let server = wiremock::MockServer::start().await;

@@ -669,7 +669,7 @@ mod integration_tests {
         .expect("Failed to create testnet HederaPort")
     }
 
-    // REQ: P9-wlt-hedera-chain-error-actor-test — chain_error emission uses caller-provided actor identity
+    // REQ: P9-wallet-hedera-chain-error-actor-test — chain_error emission uses caller-provided actor identity
     #[test]
     fn emit_chain_error_uses_provided_actor() {
         let sink = Arc::new(CaptureSink::default());
@@ -695,14 +695,14 @@ mod integration_tests {
         assert_eq!(event.observation["operation"], "unit_test");
     }
 
-    // REQ: P9-wlt-hedera-build-withdrawal-tx-test — port construction succeeds with valid parameters
+    // REQ: P9-wallet-hedera-build-withdrawal-tx-test — port construction succeeds with valid parameters
     #[test]
     fn port_construction_succeeds() {
         let port = testnet_port();
         assert_eq!(port.chain_id(), ChainId::Hedera);
     }
 
-    // REQ: P9-wlt-hedera-signing-roundtrip-test — build_withdrawal_tx produces valid protobuf
+    // REQ: P9-wallet-hedera-signing-roundtrip-test — build_withdrawal_tx produces valid protobuf
     #[test]
     fn build_withdrawal_tx_produces_valid_protobuf() {
         let port = testnet_port();
@@ -720,7 +720,7 @@ mod integration_tests {
         );
     }
 
-    // REQ: P9-wlt-hedera-submit-signed-tx-test — withdrawal payload signing roundtrip
+    // REQ: P9-wallet-hedera-submit-signed-tx-test — withdrawal payload signing roundtrip
     #[test]
     fn withdrawal_payload_signing_roundtrip() {
         // SAFETY: test-only
@@ -748,7 +748,7 @@ mod integration_tests {
         assert!(signed_tx.len() > 64);
     }
 
-    // REQ: P9-wlt-hedera-monitor-deposits-test — submit_signed_tx against testnet (ignored — needs funded treasury)
+    // REQ: P9-wallet-hedera-monitor-deposits-test — submit_signed_tx against testnet (ignored — needs funded treasury)
     #[test]
     #[ignore = "requires funded treasury on Hedera testnet with HTS USDC"]
     fn submit_withdrawal_to_testnet() {
@@ -800,7 +800,7 @@ mod integration_tests {
         }
     }
 
-    // REQ: P9-wlt-hedera-monitor-hts-usdc-test — monitor_deposits detects HTS USDC transfer via mirror node
+    // REQ: P9-wallet-hedera-monitor-hts-usdc-test — monitor_deposits detects HTS USDC transfer via mirror node
     #[tokio::test]
     async fn monitor_deposits_detects_usdc_transfer() {
         let server = wiremock::MockServer::start().await;
