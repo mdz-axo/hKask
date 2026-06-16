@@ -183,3 +183,79 @@ async fn missing_tool_returns_none() {
     assert!(runtime.get_tool_info("nonexistent").await.is_none());
     assert!(runtime.discover_tools().await.is_empty());
 }
+
+// ── Schema validation contract tests ──────────────────────────────────────
+
+/// REQ: MCP-SCHEMA-001 — Tool input validates against JSON Schema
+///
+/// Valid input conforming to the schema passes validation.
+#[test]
+fn valid_input_passes_schema_validation() {
+    let tool = McpTool {
+        name: "echo".into(),
+        description: "Echo tool".into(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "message": { "type": "string" },
+                "count": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["message"]
+        }),
+        server_id: "test".into(),
+    };
+
+    // Valid: all required fields present, types correct
+    assert!(
+        tool.validate_input(&json!({"message": "hello", "count": 3}))
+            .is_ok()
+    );
+
+    // Valid: only required field
+    assert!(tool.validate_input(&json!({"message": "hi"})).is_ok());
+}
+
+/// REQ: MCP-SCHEMA-001 — Invalid input fails schema validation
+#[test]
+fn invalid_input_fails_schema_validation() {
+    let tool = McpTool {
+        name: "echo".into(),
+        description: "Echo tool".into(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "message": { "type": "string" }
+            },
+            "required": ["message"]
+        }),
+        server_id: "test".into(),
+    };
+
+    // Missing required field
+    let result = tool.validate_input(&json!({}));
+    assert!(result.is_err());
+    assert!(!result.unwrap_err().is_empty());
+
+    // Wrong type
+    let result = tool.validate_input(&json!({"message": 123}));
+    assert!(result.is_err());
+}
+
+/// REQ: MCP-SCHEMA-001 — Empty schema passes all input (graceful degradation)
+#[test]
+fn empty_schema_passes_all_input() {
+    let tool = McpTool {
+        name: "no-schema".into(),
+        description: "No schema tool".into(),
+        input_schema: json!({}),
+        server_id: "test".into(),
+    };
+
+    // Empty schema → everything passes
+    assert!(tool.validate_input(&json!({})).is_ok());
+    assert!(tool.validate_input(&json!({"anything": [1, 2, 3]})).is_ok());
+    assert!(
+        tool.validate_input(&json!("string instead of object"))
+            .is_ok()
+    );
+}

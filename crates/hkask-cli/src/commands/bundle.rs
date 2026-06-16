@@ -84,8 +84,8 @@ pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
                     println!(
                         "    - {} ↔ {}: {}",
                         conflict.skills.join(", "),
-                        conflict.conflict_type.as_str(),
-                        conflict.resolution.as_str()
+                        conflict.conflict_type_str(),
+                        conflict.resolution_str()
                     );
                 }
             }
@@ -98,7 +98,7 @@ pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
                     println!(
                         "    - {} → {}: {}",
                         comp.skills.join(", "),
-                        comp.complementarity_type.as_str(),
+                        comp.complementarity_type_str(),
                         comp.detail
                     );
                 }
@@ -109,7 +109,7 @@ pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
                     "    {}. {} [{}] — gas: {}, timeout: {}s",
                     step.ordinal,
                     step.description,
-                    step.phase.as_str(),
+                    step.phase_str(),
                     step.gas_cap,
                     step.timeout_seconds
                 );

@@ -1,9 +1,12 @@
-//! ID types for hKask entities
-
-// G2 Justification: This module exposes 25 public items because it defines strongly-typed ID newtypes for domain-driven design. Each ID type prevents accidental confusion between different entity kinds (WebID vs PodID vs GoalID). Merging would defeat their purpose.
+//! Core ID system — generic UUID-based identifiers with phantom type parameters.
+//!
+//! G2 Justification: 7 public items (IdKind, Id, 5 kind types). The generic `Id<T>`
+//! struct and its kind types are a single cohesive abstraction — splitting them
+//! would break the phantom-type pattern that prevents accidental ID confusion.
 
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use uuid::Uuid;
 
 mod private {
     pub trait Sealed {}
@@ -47,7 +50,7 @@ impl<T: IdKind> PartialEq for Id<T> {
 
 impl<T: IdKind> Eq for Id<T> {}
 
-impl<T: IdKind> Hash for Id<T> {
+impl<T: IdKind> std::hash::Hash for Id<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.uuid.hash(state);
     }
@@ -115,6 +118,8 @@ impl<T: IdKind> std::fmt::Display for Id<T> {
     }
 }
 
+// ── Kind types (sealed, empty enums for phantom type parameters) ─────────
+
 pub enum TemplateKind {}
 impl private::Sealed for TemplateKind {}
 impl IdKind for TemplateKind {}
@@ -163,6 +168,8 @@ pub enum EscalationKind {}
 impl private::Sealed for EscalationKind {}
 impl IdKind for EscalationKind {}
 
+// ── Type aliases ──────────────────────────────────────────────────────────
+
 pub type TemplateID = Id<TemplateKind>;
 pub type BotID = Id<BotKind>;
 pub type TripleID = Id<TripleKind>;
@@ -175,96 +182,3 @@ pub type PodID = Id<PodKind>;
 pub type WalletId = Id<WalletKind>;
 pub type ApiKeyId = Id<ApiKeyKind>;
 pub type EscalationID = Id<EscalationKind>;
-
-use std::hash::Hash;
-use uuid::Uuid;
-
-/// WebID — Unique identifier for agents (bots and replicants)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct WebID(Uuid);
-
-impl WebID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-
-    pub fn from_uuid(uuid: Uuid) -> Self {
-        Self(uuid)
-    }
-
-    pub fn as_uuid(&self) -> Uuid {
-        self.0
-    }
-
-    /// Derive WebID deterministically from persona using UUID v5
-    ///
-    /// Uses SHA-1 name-based UUID with a fixed namespace.
-    /// Same persona bytes → same WebID.
-    ///
-    /// Note: This uses a default namespace. For namespace isolation,
-    /// use `from_persona_with_namespace` instead.
-    pub fn from_persona(persona_bytes: &[u8]) -> Self {
-        Self::from_persona_with_namespace(persona_bytes, "hkask")
-    }
-
-    /// Derive WebID deterministically from persona with namespace isolation (R10)
-    ///
-    /// Uses SHA-1 name-based UUID with a fixed namespace.
-    /// Combines namespace and persona bytes to prevent collisions across
-    /// different agent registries.
-    ///
-    /// Same namespace + persona bytes → same WebID.
-    pub fn from_persona_with_namespace(persona_bytes: &[u8], namespace: &str) -> Self {
-        // Fixed namespace UUID for hKask personas
-        // UUID: 686b6173-6b2d-7065-7273-6f6e612d6e73
-        let base_namespace = Uuid::parse_str("686b6173-6b2d-7065-7273-6f6e612d6e73")
-            .expect("Invalid namespace UUID");
-
-        // Combine namespace and persona bytes to create isolated WebIDs
-        let mut combined = Vec::with_capacity(namespace.len() + 1 + persona_bytes.len());
-        combined.extend_from_slice(namespace.as_bytes());
-        combined.push(b':');
-        combined.extend_from_slice(persona_bytes);
-
-        Self(Uuid::new_v5(&base_namespace, &combined))
-    }
-
-    /// Redacted display format — shows first 8 chars of UUID + "..."
-    /// Use at INFO level and below to prevent full UUID leakage in logs.
-    pub fn redacted_display(&self) -> String {
-        let full = self.0.to_string();
-        format!("{}...", &full[..8])
-    }
-
-    /// Full display format — shows complete UUID.
-    /// Use only at TRACE level with HKASK_TRACE_WEBIDS=1.
-    #[allow(dead_code)] // reserved for future trace-level diagnostics
-    pub(crate) fn full_display(&self) -> String {
-        self.0.to_string()
-    }
-}
-
-impl std::str::FromStr for WebID {
-    type Err = uuid::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Uuid::parse_str(s).map(WebID)
-    }
-}
-
-impl Default for WebID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for WebID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<BotID> for WebID {
-    fn from(bot_id: BotID) -> Self {
-        WebID(bot_id.as_uuid())
-    }
-}

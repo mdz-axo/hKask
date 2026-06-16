@@ -32,6 +32,42 @@ pub struct McpTool {
     pub server_id: String,
 }
 
+impl McpTool {
+    /// Validate tool input arguments against the tool's JSON Schema.
+    ///
+    /// REQ: MCP-SCHEMA-001
+    /// pre:  input is a valid JSON Value
+    /// post: returns Ok(()) if input conforms to self.input_schema
+    /// post: returns Err with validation errors if input violates schema
+    /// post: returns Ok(()) if input_schema is empty or not a valid JSON Schema (graceful)
+    pub fn validate_input(&self, input: &Value) -> Result<(), Vec<String>> {
+        // If schema is empty or not an object, skip validation (graceful degradation)
+        if !self.input_schema.is_object()
+            || self
+                .input_schema
+                .as_object()
+                .map(|o| o.is_empty())
+                .unwrap_or(true)
+        {
+            return Ok(());
+        }
+
+        match jsonschema::validator_for(&self.input_schema) {
+            Ok(validator) => {
+                if validator.is_valid(input) {
+                    Ok(())
+                } else {
+                    Err(vec!["Input does not conform to tool schema".into()])
+                }
+            }
+            Err(_) => {
+                // Schema compilation failed — graceful degradation
+                Ok(())
+            }
+        }
+    }
+}
+
 /// MCP server registration
 #[derive(Debug, Clone)]
 pub struct McpServer {

@@ -7,11 +7,13 @@
 //! The config sub-structs (ConvergenceConfig, GasConfig, etc.) mirror the
 //! fields found in existing process manifests under `registry/manifests/`.
 
-// G2 Justification: This module exposes 17 public items because it defines skill bundle composition types — BundleId, BundleManifest, ComposeRequest, EvolveRequest, and related types. Each represents a distinct composition concept.
-
 use serde::{Deserialize, Serialize};
 
-use crate::lexicon::TemplateType;
+use super::cascade::CascadePhase;
+use super::composition::{BundleComplementarity, BundleConflict};
+use super::config::{
+    AuditConfig, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
+};
 use crate::visibility::Visibility;
 
 /// Generates `as_str()` and `parse_str()` for a PascalCase enum.
@@ -32,8 +34,6 @@ macro_rules! enum_str_ops {
         }
     };
 }
-
-// Enums
 
 /// Skill polarity — cybernetic role in a bundle
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -60,75 +60,6 @@ impl SkillPolarity {
     }
 }
 
-/// What kind of conflict exists between two skills
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub enum ConflictType {
-    CancelOut,
-    ContradictoryDirective,
-    OrderingCollision,
-    ResourceContention,
-}
-
-enum_str_ops!(ConflictType, {
-    CancelOut => ("CancelOut", "cancel_out"),
-    ContradictoryDirective => ("ContradictoryDirective", "contradictory_directive"),
-    OrderingCollision => ("OrderingCollision", "ordering_collision"),
-    ResourceContention => ("ResourceContention", "resource_contention"),
-});
-
-/// How to resolve a declared conflict
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub enum ConflictResolution {
-    DomainSeparation,
-    PhaseSeparation,
-    SpecificityOverride,
-    ManifestOverride,
-    UserIntent,
-}
-
-enum_str_ops!(ConflictResolution, {
-    DomainSeparation => ("DomainSeparation", "domain_separation"),
-    PhaseSeparation => ("PhaseSeparation", "phase_separation"),
-    SpecificityOverride => ("SpecificityOverride", "specificity_override"),
-    ManifestOverride => ("ManifestOverride", "manifest_override"),
-    UserIntent => ("UserIntent", "user_intent"),
-});
-
-/// How two skills enhance each other
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub enum ComplementarityType {
-    SequentialFeed,
-    ParallelAmplify,
-    CrossDomainEnhance,
-}
-
-enum_str_ops!(ComplementarityType, {
-    SequentialFeed => ("SequentialFeed", "sequential_feed"),
-    ParallelAmplify => ("ParallelAmplify", "parallel_amplify"),
-    CrossDomainEnhance => ("CrossDomainEnhance", "cross_domain_enhance"),
-});
-
-/// Cascade phase — where a step sits in the Pre/Core/Post pipeline
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub enum CascadePhase {
-    Pre,
-    #[default]
-    Core,
-    Post,
-}
-
-enum_str_ops!(CascadePhase, {
-    Pre => ("Pre", "pre"),
-    Core => ("Core", "core"),
-    Post => ("Post", "post"),
-});
-
-// Structs — Bundle skill, conflict, complementarity
-
 /// A skill reference within a bundle
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BundleSkill {
@@ -138,26 +69,6 @@ pub struct BundleSkill {
     pub manifest_ref: String,
     pub content_hash: String,
 }
-
-/// A declared conflict between exactly two skills in a bundle
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BundleConflict {
-    pub skills: Vec<String>,
-    pub domain: TemplateType,
-    pub conflict_type: ConflictType,
-    pub resolution: ConflictResolution,
-    pub resolution_detail: String,
-}
-
-/// A declared complementarity between exactly two skills in a bundle
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BundleComplementarity {
-    pub skills: Vec<String>,
-    pub complementarity_type: ComplementarityType,
-    pub detail: String,
-}
-
-// Structs — Bundle manifest step
 
 /// A single step in a bundle's cascade
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -178,136 +89,12 @@ pub struct BundleManifestStep {
     pub phase: CascadePhase,
 }
 
-// Config sub-structs — mirror existing manifest YAML fields
-
-/// Loaded from manifest YAML. Not yet enforced by ManifestExecutor (future wiring target).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ConvergenceConfig {
-    pub threshold: f64,
-    pub max_iterations: u32,
-    pub on_not_reached: String,
-}
-
-impl Default for ConvergenceConfig {
-    fn default() -> Self {
-        Self {
-            threshold: 0.1,
-            max_iterations: 3,
-            on_not_reached: "abort".to_string(),
-        }
+impl BundleManifestStep {
+    /// String representation of the cascade phase (PascalCase).
+    pub fn phase_str(&self) -> &'static str {
+        self.phase.as_str()
     }
 }
-
-/// Gas (energy budget) configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct GasConfig {
-    pub cap: u32,
-    pub cost_per_token: f64,
-    pub alert_threshold: f64,
-    pub hard_limit: bool,
-}
-impl Default for GasConfig {
-    fn default() -> Self {
-        Self {
-            cap: 10000,
-            cost_per_token: 0.25,
-            alert_threshold: 0.8,
-            hard_limit: true,
-        }
-    }
-}
-
-/// Error handling configuration. Loaded from manifest YAML, future wiring target.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ErrorHandlingConfig {
-    pub on_gas_exceeded: String,
-    pub on_timeout: String,
-    pub max_retries: u32,
-    pub retry_backoff_seconds: u32,
-    pub on_validation_failure: String,
-}
-impl Default for ErrorHandlingConfig {
-    fn default() -> Self {
-        Self {
-            on_gas_exceeded: "abort".into(),
-            on_timeout: "retry".into(),
-            max_retries: 2,
-            retry_backoff_seconds: 1,
-            on_validation_failure: "abort".into(),
-        }
-    }
-}
-
-/// OCAP configuration. Loaded from manifest YAML, future wiring target.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct OcapConfig {
-    pub delegation_chain_required: bool,
-    pub signature_algorithm: String,
-    pub capability_expiry_seconds: u32,
-    pub template_scoped: bool,
-}
-impl Default for OcapConfig {
-    fn default() -> Self {
-        Self {
-            delegation_chain_required: true,
-            signature_algorithm: "ed25519".into(),
-            capability_expiry_seconds: 3600,
-            template_scoped: true,
-        }
-    }
-}
-
-/// CNS monitoring configuration. Loaded from manifest YAML, spans handled by GovernedTool at runtime.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CnsConfig {
-    pub emit_spans: bool,
-    pub span_namespace: String,
-    pub variety_monitoring: bool,
-    pub algedonic_threshold: u32,
-    pub escalation_target: String,
-}
-impl Default for CnsConfig {
-    fn default() -> Self {
-        Self {
-            emit_spans: true,
-            span_namespace: String::new(),
-            variety_monitoring: true,
-            algedonic_threshold: 100,
-            escalation_target: "Curator".into(),
-        }
-    }
-}
-
-/// Audit trail configuration. Loaded from manifest YAML, future wiring target.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct AuditConfig {
-    pub enabled: bool,
-    pub log_level: String,
-    pub include_input: bool,
-    pub include_output: bool,
-    pub include_gas_cost: bool,
-    pub include_cns_events: bool,
-}
-impl Default for AuditConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            log_level: "info".into(),
-            include_input: true,
-            include_output: true,
-            include_gas_cost: true,
-            include_cns_events: true,
-        }
-    }
-}
-
-// Top-level BundleManifest
 
 /// Composed bundle of skills with declared conflicts, complementarities, and cascade steps.
 #[derive(Debug, Clone, Serialize, Deserialize)]

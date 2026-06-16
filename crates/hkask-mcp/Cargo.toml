@@ -27,6 +27,7 @@ hex.workspace = true
 async-trait.workspace = true
 dirs = "6"
 gix = { workspace = true }
+jsonschema = "0.28"
 
 [dev-dependencies]
 tempfile.workspace = true

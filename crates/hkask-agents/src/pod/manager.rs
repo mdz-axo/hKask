@@ -173,7 +173,11 @@ impl PodManager {
             .map(|pod| Arc::new(pod.sovereignty_checker.clone()))
     }
 
-    pub fn new_mock() -> Self {
+    /// Create a mock PodManager for testing.
+    ///
+    /// If `inference_port` is provided, agent pods can perform inference
+    /// (e.g., improv interactions). Default: no inference (pods are orchestration-only).
+    pub fn new_mock(inference_port: Option<Arc<dyn InferencePort>>) -> Self {
         const MOCK_ACP_SECRET: &[u8] = b"xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let capability_checker = Arc::new(CapabilityChecker::new(MOCK_ACP_SECRET));
@@ -184,7 +188,7 @@ impl PodManager {
             mcp_runtime: Arc::new(CapabilityOnlyAdapter::new(Arc::clone(&capability_checker))),
             episodic_storage: adapter.clone(),
             semantic_storage: adapter,
-            inference_port: None,
+            inference_port,
             capability_checker: Some(capability_checker),
             governed_tool: None,
             nu_event_sink: None,
@@ -439,7 +443,7 @@ impl PodManager {
 
 impl Default for PodManager {
     fn default() -> Self {
-        Self::new_mock()
+        Self::new_mock(None)
     }
 }
 

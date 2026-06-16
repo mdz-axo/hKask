@@ -54,19 +54,32 @@ pub use agent_def::{
 };
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
 pub use audit::{AuditEntry, AuditOutcome};
-pub use bundle::{
-    BundleManifest,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::bundle::BundleComplementarity instead")]
-    BundleComplementarity,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::bundle::BundleConflict instead")]
-    BundleConflict,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::bundle::BundleManifestStep instead")]
-    BundleManifestStep,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::bundle::BundleSkill instead")]
-    BundleSkill,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::bundle::SkillPolarity instead")]
-    SkillPolarity,
-};
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::bundle::BundleComplementarity instead"
+)]
+pub use bundle::BundleComplementarity;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::bundle::BundleConflict instead"
+)]
+pub use bundle::BundleConflict;
+pub use bundle::BundleManifest;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::bundle::BundleManifestStep instead"
+)]
+pub use bundle::BundleManifestStep;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::bundle::BundleSkill instead"
+)]
+pub use bundle::BundleSkill;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::bundle::SkillPolarity instead"
+)]
+pub use bundle::SkillPolarity;
 pub use capability::{
     AuthContext, CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource,
     DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
@@ -85,25 +98,39 @@ pub use id::{
     TripleID, UserID, WalletId, WebID,
 };
 
-pub use identity::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::identity::HumanUser instead")]
-    HumanUser,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::identity::RegistrationRequest instead")]
-    RegistrationRequest,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::identity::ReplicantIdentity instead")]
-    ReplicantIdentity,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::identity::UserSession instead")]
-    UserSession,
-};
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::identity::HumanUser instead"
+)]
+pub use identity::HumanUser;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::identity::RegistrationRequest instead"
+)]
+pub use identity::RegistrationRequest;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::identity::ReplicantIdentity instead"
+)]
+pub use identity::ReplicantIdentity;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::identity::UserSession instead"
+)]
+pub use identity::UserSession;
 
-pub use lexicon::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::lexicon::HLexicon instead")]
-    HLexicon,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::lexicon::LexiconTerm instead")]
-    LexiconTerm,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::lexicon::TemplateType instead")]
-    TemplateType,
-};
+#[deprecated(since = "0.28.0", note = "Use hkask_types::lexicon::HLexicon instead")]
+pub use lexicon::HLexicon;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::lexicon::LexiconTerm instead"
+)]
+pub use lexicon::LexiconTerm;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::lexicon::TemplateType instead"
+)]
+pub use lexicon::TemplateType;
 pub use loops::{CurationInput, CuratorHandle, ExperienceClassification};
 
 pub use ports::{
@@ -112,50 +139,72 @@ pub use ports::{
     RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone, StructuredToolCall,
     ToolInfo, ToolPort, ToolPortError,
 };
-pub use r7::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::r7::R7BotIdentity instead")]
-    R7BotIdentity,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::r7::default_r7_bots instead")]
-    default_r7_bots,
-};
-pub use secret::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::secret::SecretRef instead")]
-    SecretRef,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::secret::ZeroizingSecret instead")]
-    ZeroizingSecret,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::secret::derivation_contexts instead")]
-    derivation_contexts,
-};
-pub use sovereignty::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::sovereignty::DataCategory instead")]
-    DataCategory,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::sovereignty::UserSovereigntyState instead")]
-    UserSovereigntyState,
-};
-pub use template::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::template::LLMParameters instead")]
-    LLMParameters,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::template::TemplateCrate instead")]
-    TemplateCrate,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::template::TemplateFile instead")]
-    TemplateFile,
-};
-pub use text::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::text::blake3_hash instead")]
-    blake3_hash,
-};
-pub use time::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::time::now_rfc3339 instead")]
-    now_rfc3339,
-};
-pub use visibility::{
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::visibility::AccessControl instead")]
-    AccessControl,
-    Confidence,
-    #[deprecated(since = "0.28.0", note = "Use hkask_types::visibility::TemporalBounds instead")]
-    TemporalBounds,
-    Visibility,
-};
+#[deprecated(since = "0.28.0", note = "Use hkask_types::r7::R7BotIdentity instead")]
+pub use r7::R7BotIdentity;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::r7::default_r7_bots instead"
+)]
+pub use r7::default_r7_bots;
+
+#[deprecated(since = "0.28.0", note = "Use hkask_types::secret::SecretRef instead")]
+pub use secret::SecretRef;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::secret::ZeroizingSecret instead"
+)]
+pub use secret::ZeroizingSecret;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::secret::derivation_contexts instead"
+)]
+pub use secret::derivation_contexts;
+
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::sovereignty::DataCategory instead"
+)]
+pub use sovereignty::DataCategory;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::sovereignty::UserSovereigntyState instead"
+)]
+pub use sovereignty::UserSovereigntyState;
+
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::template::LLMParameters instead"
+)]
+pub use template::LLMParameters;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::template::TemplateCrate instead"
+)]
+pub use template::TemplateCrate;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::template::TemplateFile instead"
+)]
+pub use template::TemplateFile;
+
+#[deprecated(since = "0.28.0", note = "Use hkask_types::text::blake3_hash instead")]
+pub use text::blake3_hash;
+
+#[deprecated(since = "0.28.0", note = "Use hkask_types::time::now_rfc3339 instead")]
+pub use time::now_rfc3339;
+
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::visibility::AccessControl instead"
+)]
+pub use visibility::AccessControl;
+pub use visibility::Confidence;
+#[deprecated(
+    since = "0.28.0",
+    note = "Use hkask_types::visibility::TemporalBounds instead"
+)]
+pub use visibility::TemporalBounds;
+pub use visibility::Visibility;
 pub use wallet::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
     Encumbrance, EncumbranceStatus, PrivacyMode, RJoule, RateLimitConfig, TransactionType,

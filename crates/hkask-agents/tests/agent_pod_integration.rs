@@ -17,7 +17,9 @@
 //! migration plan.
 
 use hkask_agents::{AgentPersona, PodManager};
+use hkask_test_harness::mocks::MockInferencePort;
 use hkask_types::PodID;
+use std::sync::Arc;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,7 +66,7 @@ fn set_test_master_key() {
 #[tokio::test]
 async fn two_pod_creation_and_activation() {
     set_test_master_key();
-    let manager = PodManager::new_mock();
+    let manager = PodManager::new_mock(None);
 
     // Ensure template directories exist
     ensure_template_dir("alice-template");
@@ -112,7 +114,7 @@ async fn two_pod_creation_and_activation() {
 #[tokio::test]
 async fn list_pods_after_multi_pod_creation() {
     set_test_master_key();
-    let manager = PodManager::new_mock();
+    let manager = PodManager::new_mock(None);
 
     let alice = test_persona("alice", "Replicant");
     let bob = test_persona("bob", "Bot");
@@ -150,7 +152,7 @@ async fn list_pods_after_multi_pod_creation() {
 #[tokio::test]
 async fn mode_transitions_on_activated_pod() {
     set_test_master_key();
-    let manager = PodManager::new_mock();
+    let manager = PodManager::new_mock(None);
     ensure_template_dir("test");
     let persona = test_persona("agent", "Replicant");
     let pod_id = manager
@@ -190,7 +192,7 @@ async fn mode_transitions_on_activated_pod() {
 #[tokio::test]
 async fn deactivation_and_reactivation() {
     set_test_master_key();
-    let manager = PodManager::new_mock();
+    let manager = PodManager::new_mock(None);
     ensure_template_dir("test");
     let persona = test_persona("agent", "Replicant");
     let pod_id = manager.create_pod("test", &persona, None).await.unwrap();
@@ -212,7 +214,7 @@ async fn deactivation_and_reactivation() {
 /// Querying a non-existent pod returns PodNotFound.
 #[tokio::test]
 async fn nonexistent_pod_returns_error() {
-    let manager = PodManager::new_mock();
+    let manager = PodManager::new_mock(None);
     let fake_id = PodID::new();
 
     let result = manager.get_pod_status(&fake_id).await;
@@ -221,4 +223,55 @@ async fn nonexistent_pod_returns_error() {
         result.unwrap_err().to_string().contains("not found"),
         "Error should mention pod not found"
     );
+}
+
+/// REQ: INT-005.6 — Inference port wiring
+///
+/// A PodManager constructed with a MockInferencePort exposes it
+/// via `inference_port()` and pods can be created/activated with
+/// inference available for improv interactions.
+#[tokio::test]
+async fn inference_port_wiring() {
+    set_test_master_key();
+    ensure_template_dir("test");
+
+    // Build a PodManager with mock inference
+    let inference = Arc::new(
+        MockInferencePort::new()
+            .with_response("hello", "Hello from mock inference!")
+            .with_default("Mock default response"),
+    );
+    let manager = PodManager::new(
+        None,                    // git_cas → defaults to ./registry/templates
+        None,                    // acp_runtime → defaults
+        None,                    // mcp_runtime → defaults
+        None,                    // episodic_storage → in-memory
+        None,                    // semantic_storage → in-memory
+        Some(inference.clone()), // inference_port
+        None,                    // capability_checker
+        None,                    // governed_tool
+        None,                    // nu_event_sink
+    );
+
+    // Verify inference port is accessible
+    let retrieved = manager.inference_port();
+    assert!(retrieved.is_some(), "inference_port should be accessible");
+
+    // Verify it's the same mock (by calling it)
+    let port = retrieved.unwrap();
+    let result = port
+        .generate("hello world", &hkask_types::LLMParameters::default())
+        .await
+        .expect("mock inference should succeed");
+    assert_eq!(result.text, "Hello from mock inference!");
+
+    // Verify error injection works through the manager
+    inference.set_error(hkask_types::ports::InferenceError::Generation(
+        "test error".into(),
+    ));
+    let result = port
+        .generate("any prompt", &hkask_types::LLMParameters::default())
+        .await;
+    assert!(result.is_err(), "error injection should propagate");
+    inference.clear_error();
 }
