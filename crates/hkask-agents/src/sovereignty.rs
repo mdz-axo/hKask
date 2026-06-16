@@ -27,7 +27,7 @@ pub trait SovereigntyConsent: Send + Sync {
 
 /// Default `SovereigntyConsent` implementation: deny everything.
 ///
-/// Sovereignty must fail closed. New `PodManager`s use this until
+/// [NORMATIVE] Sovereignty must fail closed. New `PodManager`s use this until (P1 — User Sovereignty).
 /// `with_consent_port` is called with a real backend. This guarantees
 /// that a misconfigured or partially-initialized agent cannot access
 /// sovereign data without an explicit grant.
@@ -42,7 +42,7 @@ impl SovereigntyConsent for DenyAllConsent {
 /// Test/scaffolding `SovereigntyConsent` implementation: grant everything.
 ///
 /// Used in unit tests that don't care about the consent semantics, only
-/// about the access path. Production must never use this — it bypasses
+/// [NORMATIVE] about the access path. Production must never use this — it bypasses (P1 — User Sovereignty).
 /// the Magna Carta's explicit-consent requirement.
 pub struct AllowAllConsent;
 

@@ -204,9 +204,17 @@ impl WalletManager {
 
         // For transparent deposits, the to_address IS the wallet identifier.
         // We look up which wallet owns this deposit address.
-        // For now, we use a single wallet model — all deposits credit the default wallet.
-        // Multi-wallet support is a future enhancement.
-        let wallet_id = WalletId::default(); // TODO: resolve from deposit address lookup
+        let wallet_id = self
+            .store
+            .resolve_wallet_for_address(&event.to_address)?
+            .unwrap_or_else(|| {
+                tracing::warn!(
+                    target: "hkask.wallet",
+                    to_address = %event.to_address,
+                    "Deposit to unknown address — crediting default wallet"
+                );
+                WalletId::default()
+            });
 
         // CNS span: deposit detected
         self.emit_span(

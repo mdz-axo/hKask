@@ -17,7 +17,7 @@ pub struct AuthContext {
     pub webid: super::WebID,
 }
 
-/// Typed attenuation level (0..SYSTEM_MAX_RECURSION). New code should use this over raw `u8`.
+/// [NORMATIVE] Typed attenuation level (0..SYSTEM_MAX_RECURSION). New code should use this over raw `u8`. (P5 — Essentialism).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct AttenuationLevel(u8);

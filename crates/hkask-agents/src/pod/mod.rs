@@ -396,9 +396,9 @@ impl AgentPod {
     /// Enter server mode for a specific MCP role.
     ///
     /// P4 Dual Gate:
-    /// 1. Agent must be Activated (lifecycle gate)
-    /// 2. Agent must be assigned to the role (sovereignty/consent gate)
-    /// 3. Agent must not already be in another mode (mutual exclusion)
+    /// 1. [NORMATIVE] Agent must be Activated (lifecycle gate) (P4 — Clear Boundaries)
+    /// 2. [NORMATIVE] Agent must be assigned to the role (sovereignty/consent gate) (P2 — Affirmative Consent)
+    /// 3. [NORMATIVE] Agent must not already be in another mode (mutual exclusion) (P4 — Clear Boundaries)
     ///
     /// Capability verification (P4 Gate 1) is performed by the daemon
     /// at connection time, not here.
@@ -556,7 +556,7 @@ fn current_timestamp() -> Result<i64, AgentPodError> {
 ///
 /// - Derives from the master passphrase via Argon2id → HKDF-SHA256
 /// - Different WebIDs produce independent sub-keys (HKDF domain separation)
-/// - Same WebID always produces the same key (UUID v5 from persona)
+/// - [DECLARATIVE] Same WebID always produces the same key (UUID v5 from persona)
 /// - No random generation — ADR-027 compliant
 /// - No keystore dependency per pod — only the master key needs storage
 fn derive_ocap_secret(webid: &WebID) -> AgentPodResult<Zeroizing<String>> {

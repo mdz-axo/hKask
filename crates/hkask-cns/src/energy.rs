@@ -233,8 +233,8 @@ impl EnergyBudget {
     /// REQ: CNS-001
     /// post: cap == u64::MAX, hard_limit == false
     ///
-    /// Useful for agents that should never be throttled. The budget still
-    /// tracks usage for observability but never hard-rejects.
+    /// [NORMATIVE] Useful for agents that should never be throttled (P9 — Homeostatic Self-Regulation). The budget still
+    /// [DECLARATIVE] tracks usage for observability but never hard-rejects. (P9 — Homeostatic Self-Regulation).
     pub fn unlimited() -> Self {
         Self::new(EnergyCost(u64::MAX)).with_hard_limit(false)
     }
@@ -281,7 +281,7 @@ impl EnergyBudget {
     /// Available gas = remaining - reserved.
     ///
     /// REQ: CNS-002
-    /// post: result >= 0 (available never negative)
+    /// [NORMATIVE] post: result >= 0 (available never negative) (P9 — Homeostatic Self-Regulation)
     /// post: result == remaining.saturating_sub(reserved)
     pub fn available(&self) -> EnergyCost {
         EnergyCost(self.remaining.0.saturating_sub(self.reserved.0))
@@ -313,7 +313,7 @@ impl EnergyBudget {
     /// Settle a reserved operation: deduct actual cost from remaining.
     ///
     /// REQ: CNS-001
-    /// pre:  reserved_gas ≤ self.reserved (caller must track reservations)
+    /// [NORMATIVE] pre:  reserved_gas ≤ self.reserved (caller must track reservations) (P9 — Homeostatic Self-Regulation)
     /// post: reserved decreased by reserved_gas
     /// post: if hard_limit && actual > remaining → Err(BudgetExceeded)
     /// post: if Ok → remaining decreased by actual
@@ -321,7 +321,7 @@ impl EnergyBudget {
     ///
     /// Since `reserve()` only tracks reserved gas without deducting from remaining,
     /// settlement simply removes the reservation and deducts the actual cost.
-    /// If actual < reserved, the remaining budget was never reduced for the
+    /// [DECLARATIVE] If actual < reserved, the remaining budget was never reduced for the
     /// reservation, so the difference is implicitly refunded.
     ///
     /// If actual > reserved (under-estimation), the extra is deducted from
@@ -402,7 +402,7 @@ impl EnergyBudget {
     /// post: remaining ≤ cap (never exceeds cap)
     /// post: returns the actual amount replenished (≥ 1 if amount * priority > 0)
     ///
-    /// The effective replenishment is `(amount * priority).round()`, never exceeding cap.
+    /// [NORMATIVE] The effective replenishment is `(amount * priority).round()`, never exceeding cap (P9 — Homeostatic Self-Regulation).
     /// If `amount * priority` rounds to 0, at least 1 unit is replenished (so
     /// low-priority directives still have effect).
     pub fn replenish_by_weighted(&mut self, amount: EnergyCost, priority: f64) -> EnergyCost {

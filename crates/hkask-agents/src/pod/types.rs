@@ -48,7 +48,7 @@ impl PodLifecycleState {
     /// The lifecycle is a linear progression:
     /// `Populated → Registered → Activated → Deactivated`
     ///
-    /// Re-stating the current state is a no-op and always permitted.
+    /// [DECLARATIVE] Re-stating the current state is a no-op and always permitted. (P7 — Evolutionary Architecture).
     /// Terminal state `Deactivated` admits no further transitions.
     pub fn can_transition_to(&self, next: PodLifecycleState) -> bool {
         if *self == next {

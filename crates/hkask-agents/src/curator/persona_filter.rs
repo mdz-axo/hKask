@@ -20,7 +20,7 @@ pub struct PersonaCheckResult {
 ///
 /// Returns a `PersonaCheckResult` indicating whether the output passes and
 /// listing any violations. The `forbidden` field of `PersonaConstraints`
-/// contains patterns that must not appear in Curator output.
+/// [NORMATIVE] contains patterns that must not appear in Curator output. (P3 — Generative Space).
 pub fn check_persona_constraints(
     output: &str,
     constraints: &PersonaConstraints,

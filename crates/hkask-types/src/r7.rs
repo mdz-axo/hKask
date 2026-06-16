@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 /// Loop: Communication
 /// An R7 bot identity — one of the seven "c" curators
 ///
-/// Invariant: `webid` is always `WebID::from_persona(id.as_bytes())`.
+/// [DECLARATIVE] Invariant: `webid` is always `WebID::from_persona(id.as_bytes())`. (P8 — Semantic Grounding).
 /// The `webid` field is computed on construction, not serialized.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R7BotIdentity {

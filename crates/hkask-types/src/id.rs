@@ -78,6 +78,17 @@ impl<T: IdKind> Id<T> {
         }
     }
 
+    /// Derive a deterministic Id from a name string using UUID v5.
+    ///
+    /// Same name → same Id. Useful for creating stable identifiers
+    /// for entities that need to be looked up by name (e.g., wallets
+    /// bound to replicant names).
+    pub fn from_name(name: &str) -> Self {
+        let namespace = Uuid::parse_str("686b6173-6b2d-7065-7273-6f6e612d6e73")
+            .expect("Invalid namespace UUID");
+        Self::from_uuid(Uuid::new_v5(&namespace, name.as_bytes()))
+    }
+
     pub fn as_uuid(&self) -> Uuid {
         self.uuid
     }

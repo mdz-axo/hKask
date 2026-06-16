@@ -120,13 +120,15 @@ impl ApiState {
 
         // Extract wallet service before moving ctx into Arc
         let wallet_service = ctx.wallet().cloned();
+        let system_webid = *ctx.identity().0;
 
-        // Build API key auth service if wallet store is available
-        let api_key_auth_service = ctx.wallet_store().map(|store| {
-            Arc::new(middleware::api_key_auth::ApiKeyAuthService::new(
-                Arc::clone(store),
-            ))
-        });
+        // Build API key auth service if wallet store and wallet service are available
+        let api_key_auth_service = match (ctx.wallet_store().cloned(), wallet_service.clone()) {
+            (Some(store), Some(svc)) => Some(Arc::new(
+                middleware::api_key_auth::ApiKeyAuthService::new(store, svc, system_webid),
+            )),
+            _ => None,
+        };
 
         Ok(Self {
             agent_service: Arc::new(ctx),

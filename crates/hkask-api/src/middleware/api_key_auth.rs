@@ -24,7 +24,9 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ed25519_dalek::SigningKey;
+use hkask_services::WalletService;
 use hkask_storage::WalletStore;
+use hkask_types::WebID;
 use hkask_types::wallet::{ApiKeyId, RJoule, WalletId};
 use std::sync::Arc;
 
@@ -41,12 +43,22 @@ pub struct WalletContext {
 #[derive(Clone)]
 pub struct ApiKeyAuthService {
     wallet_store: Arc<WalletStore>,
+    wallet_service: Arc<WalletService>,
+    system_webid: WebID,
 }
 
 impl ApiKeyAuthService {
-    /// Create a new API key auth service backed by a WalletStore.
-    pub fn new(wallet_store: Arc<WalletStore>) -> Self {
-        Self { wallet_store }
+    /// Create a new API key auth service backed by a WalletStore and WalletService.
+    pub fn new(
+        wallet_store: Arc<WalletStore>,
+        wallet_service: Arc<WalletService>,
+        system_webid: WebID,
+    ) -> Self {
+        Self {
+            wallet_store,
+            wallet_service,
+            system_webid,
+        }
     }
 
     /// Authenticate a request using an Ed25519 API key Bearer token.
@@ -191,14 +203,27 @@ impl IntoResponse for ApiKeyAuthError {
 
 /// Axum middleware function for API key authentication.
 ///
-/// Only applied to wallet routes. Non-wallet routes use the existing
-/// capability token auth middleware.
+/// After authenticating the API key, registers a wallet-backed energy budget
+/// in the CNS so that subsequent tool/inference calls in this request consume
+/// rJoules from the key's encumbrance.
 pub async fn api_key_auth_middleware(
     State(auth): State<Arc<ApiKeyAuthService>>,
     request: Request<Body>,
     next: Next,
 ) -> Result<Response, ApiKeyAuthError> {
     let ctx = auth.authenticate(&request)?;
+
+    // Register wallet-backed budget so GovernedTool/GovernedInference
+    // debit from this key's encumbrance during the request.
+    let _ = auth
+        .wallet_service
+        .register_wallet_budget_for_key(
+            auth.system_webid,
+            ctx.wallet_id,
+            ctx.key_id,
+            ctx.spending_limit_rj,
+        )
+        .await;
 
     // Attach wallet context to request extensions for downstream handlers
     let mut request = request;

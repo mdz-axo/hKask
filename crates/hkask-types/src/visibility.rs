@@ -62,7 +62,7 @@ impl Visibility {
 
 /// Access control grouping for triples and other stored artifacts.
 ///
-/// Bundles the three fields that always appear together:
+/// [DECLARATIVE] Bundles the three fields that always appear together: (P5 — Essentialism).
 /// `perspective`, `visibility`, and `owner_webid`. This value object
 /// replaces the repeated pattern of passing these three as separate
 /// parameters (Fowler H10: Group Data Clump Into Object).

@@ -67,7 +67,7 @@ fn verify_grant_access(
 /// Capability-only adapter for ACP token verification.
 ///
 /// Can verify and grant capabilities but cannot invoke tools —
-/// `invoke_tool` and `resolve_tool_server` always return errors.
+/// [DECLARATIVE] `invoke_tool` and `resolve_tool_server` always return errors. (P4 — Clear Boundaries).
 ///
 /// Use this when you need token verification gate logic but no live
 /// MCP server connections (e.g., in tests or lightweight embeds).

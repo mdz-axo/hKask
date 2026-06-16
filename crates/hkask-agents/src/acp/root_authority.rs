@@ -25,7 +25,7 @@ use super::AcpError;
 ///
 /// # OCAP Discipline
 ///
-/// - No ambient authority: capabilities must be explicitly granted
+/// [NORMATIVE] - No ambient authority: capabilities must be explicitly granted (P4 — Clear Boundaries).
 /// - Attenuation chain: each delegation reduces authority
 pub(crate) struct RootAuthority {
     /// Root authority WebID (system identity)

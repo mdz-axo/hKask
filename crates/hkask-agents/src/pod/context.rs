@@ -32,7 +32,7 @@ use crate::ports::{
 ///
 /// Provides access to all ports (inference, memory, MCP, CNS) for a specific pod.
 /// This is the unit of access that enforces the pod invariant: all interactions
-/// with memory, inference, and tools must go through a pod context.
+/// [NORMATIVE] with memory, inference, and tools must go through a pod context. (P4 — Clear Boundaries).
 pub struct PodContext {
     pub pod_id: PodID,
     pub webid: WebID,
@@ -119,7 +119,7 @@ impl PodContext {
     /// classification with explicit-consent lookup).
     ///
     /// When no sovereignty checker is configured (a misconfiguration),
-    /// the call denies by default — sovereignty must fail closed.
+    /// [NORMATIVE] the call denies by default — sovereignty must fail closed. (P1 — User Sovereignty).
     pub fn require_sovereignty(
         &self,
         data_category: &DataCategory,

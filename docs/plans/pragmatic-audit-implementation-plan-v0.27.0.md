@@ -10,7 +10,7 @@ mds_categories: [lifecycle, curation]
 
 # hKask v0.27.0 — Pragmatic Audit Implementation Plan
 
-**Status:** In Progress — Wave 1 complete ✅. R1: 25 tests (19→25, +6 listener lifecycle), R2: 31 tests (20→31, +11 ACP: wildcard rejection, registration, unregistration, revocation, restore, list agents), R3: 38 tests (27→38, +11 capability enforcement, error propagation, tool discovery). DelegationToken: +10 tests (verify, tamper, attenuation chain, expiry, serialization). Total REQ tags: 753 (708→753). Waves 2–6 not started.
+**Status:** In Progress — Waves 1–2 complete ✅. R1: 25 tests, R2: 31 tests, R3: 38 tests, R4: 29 REQ tags (8→29, +21 API route type tests), R7: 0 unmarked claims (54→0, all doc claims now carry [NORMATIVE]/[DECLARATIVE] markers). DelegationToken: +10 tests. Total REQ tags: 846 (708→846). Waves 3–6 not started.
 **Owner:** Engineering  
 **Created:** 2026-06-15  
 **Last Updated:** 2026-06-15  
@@ -601,14 +601,14 @@ These decisions require human input before implementation:
 | `hkask-communication` tests | 25 ✅ | ≥10 | Wave 1 (R1) |
 | `hkask-agents` tests | 31 ✅ | ≥20 | Wave 1 (R2) |
 | `hkask-mcp` tests | 38 ✅ | ≥15 | Wave 1 (R3) |
-| `hkask-api` REQ tags | 8 | ≥20 | Wave 2 (R4) |
-| OUGHT-as-IS doc claims without provenance | 52 | 0 (in target crates) | Wave 2 (R7) |
+| `hkask-api` REQ tags | 29 ✅ | ≥20 | Wave 2 (R4) |
+| OUGHT-as-IS doc claims without provenance | 0 ✅ | 0 (in target crates) | Wave 2 (R7) |
 | CNS span type strength | `&str` | `CnsSpan` enum | Wave 3 (R5) |
 | DelegationToken signature type | HMAC (symmetric) | Ed25519 (asymmetric) | Wave 3 (R6) |
 | `hkask-types` public surface | 576 | ≤50 top-level, submodules ≤7 | Wave 4 (R8) |
 | Mid-migration domains | 7 | 5 (2 extracted) | Wave 5 (R9) |
 | Training cancel stubs | 3 soft no-ops | 0 or documented with `[EVIDENCE]` | Wave 6 (R10) |
-| Total REQ tags across workspace | 753 | >400 | All waves |
+| Total REQ tags across workspace | 846 | >400 | All waves |
 | `todo!()` / `unimplemented!()` count | 0 | 0 | Maintained |
 
 ---

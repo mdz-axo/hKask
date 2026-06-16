@@ -68,9 +68,11 @@ More-specific categories are checked first — `test` matches before `run`, so `
 
 ## Thinking Mode
 
-For models with reasoning/thinking mode (e.g., qwen3), `condenser_thread_summary` and `ChatService::condense_history` set `disable_thinking: true` in `LLMParameters`. This maps to `enable_thinking: false` in the OpenAI-compatible chat request, instructing the model to skip internal reasoning and produce output directly. Without this, reasoning-mode models can consume all `max_tokens` on internal thought, producing empty visible output.
+For models with reasoning/thinking mode (e.g., qwen3, gemma4, deepseek-r1), `condenser_thread_summary` and `ChatService::condense_history` set `disable_thinking: true` in `LLMParameters`. This maps to `enable_thinking: false` in the OpenAI-compatible chat request, instructing the model to skip internal reasoning and produce output directly. Without this, reasoning-mode models can consume all `max_tokens` on internal thought, producing empty visible output.
 
 The `enable_thinking` field is only serialized when `false` — backends that don't support it are unaffected.
+
+**Known limitation (2026-06-15):** Ollama 0.30.8 does not honor `enable_thinking: false` for qwen3.5, gemma4, or deepseek-r1 models — they always use thinking mode regardless of the parameter. The condenser gracefully degrades: when a thinking model returns an empty summary, the tool responds with `"Inference engine returned an empty summary"`. **Workaround:** use a non-thinking model (e.g., `llama3.1:8b`) for summarization. A future Ollama version may add support for this parameter.
 
 ## Running
 

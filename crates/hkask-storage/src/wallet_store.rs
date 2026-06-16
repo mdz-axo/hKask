@@ -468,6 +468,27 @@ impl WalletStore {
         Ok(rows)
     }
 
+    /// Resolve which wallet owns a deposit address (reverse lookup).
+    ///
+    /// Used by the deposit monitor to credit incoming transfers to the
+    /// correct wallet in a multi-wallet setup.
+    pub fn resolve_wallet_for_address(
+        &self,
+        address: &str,
+    ) -> Result<Option<WalletId>, WalletError> {
+        let conn = self.lock_conn()?;
+        let mut stmt =
+            conn.prepare("SELECT wallet_id FROM deposit_addresses WHERE address = ?1")?;
+        let wallet_id_str: Option<String> = stmt
+            .query_row(rusqlite::params![address], |row| row.get(0))
+            .optional()
+            .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?;
+        match wallet_id_str {
+            Some(s) => Ok(Some(WalletId::from_str(&s)?)),
+            None => Ok(None),
+        }
+    }
+
     // ── Deposit References ───────────────────────────────────────────────────
 
     /// Store a one-time shielded deposit reference.

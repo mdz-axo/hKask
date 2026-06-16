@@ -262,6 +262,35 @@ impl WalletService {
         Ok(())
     }
 
+    /// Register a wallet-backed energy budget with an API key for encumbrance tracking.
+    ///
+    /// Unlike `register_wallet_budget`, this attaches the API key so that
+    /// gas consumption is debited from the key's encumbrance (not raw wallet
+    /// balance). The spending limit is also tracked per-key.
+    pub async fn register_wallet_budget_for_key(
+        &self,
+        agent: hkask_types::WebID,
+        wallet_id: WalletId,
+        key_id: ApiKeyId,
+        spending_limit_rj: RJoule,
+    ) -> Result<(), ServiceError> {
+        let loop_ = self
+            .cybernetics
+            .as_ref()
+            .ok_or_else(|| ServiceError::Wallet {
+                source: None,
+                message: "CyberneticsLoop not attached to WalletService — call with_cybernetics() during construction".into(),
+            })?;
+        let budget = hkask_cns::WalletBackedBudget::new(wallet_id, Arc::clone(&self.manager))
+            .with_api_key(key_id, spending_limit_rj);
+        loop_
+            .read()
+            .await
+            .register_wallet_budget(agent, budget)
+            .await;
+        Ok(())
+    }
+
     // ── Encumbrance ──────────────────────────────────────────────────────────
 
     /// Encumber rJoules from a wallet for an API key's allocation.

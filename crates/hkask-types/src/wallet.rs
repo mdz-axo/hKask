@@ -21,7 +21,7 @@ pub use crate::id::{ApiKeyId, WalletId};
 /// Internal gas: 1 rJoule = configurable gas units (default: 1000 gas).
 ///
 /// # Invariant `[OUGHT-DECL]`
-/// `RJoule` values are always non-negative. Arithmetic saturates at 0 and `u64::MAX`.
+/// [DECLARATIVE] `RJoule` values are always non-negative. Arithmetic saturates at 0 and `u64::MAX`. (P4 — Clear Boundaries).
 ///
 /// # Provenance `[IS-DECL]`
 /// Every `RJoule` in the system originates from a verified on-chain deposit
@@ -109,7 +109,7 @@ impl FromStr for ChainId {
 /// # Semantic distinction from bool `[OUGHT-DECL]`
 /// `PrivacyMode::Transparent` and `PrivacyMode::Shielded` carry meaning.
 /// A bare `bool` (`is_private: true`) would be "boolean blindness" —
-/// the reader must decode what `true` means at every use site.
+/// [NORMATIVE] the reader must decode what `true` means at every use site. (P8 — Semantic Grounding).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PrivacyMode {
     /// Direct on-chain deposit/withdrawal — visible to public explorers

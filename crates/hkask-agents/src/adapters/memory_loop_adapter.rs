@@ -157,7 +157,7 @@ impl MemoryLoopForwarder {
     /// Create with in-memory storage, panicking on failure.
     ///
     /// Use this in builder patterns and test fixtures where an in-memory DB
-    /// failure is always a bug, never a recoverable condition. For recoverable
+    /// [DECLARATIVE] failure is always a bug, never a recoverable condition. For recoverable (P5 — Essentialism).
     /// contexts, use `in_memory()` and propagate the error with `?`.
     pub fn in_memory_unchecked() -> Self {
         Self::in_memory().expect("In-memory storage initialization should never fail")

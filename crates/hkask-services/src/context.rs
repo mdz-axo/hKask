@@ -1074,7 +1074,7 @@ impl AgentService {
                     .with_cybernetics(Arc::clone(&cybernetics_loop)),
             );
 
-            // Ensure default wallet exists
+            // Ensure default wallet exists (system-wide fallback)
             let default_wallet = WalletId::default();
             wallet_manager
                 .ensure_wallet(default_wallet)
@@ -1083,31 +1083,66 @@ impl AgentService {
                     message: "Failed to ensure default wallet".into(),
                 })?;
 
-            // Bind default wallet to the system replicant (multi-wallet foundation)
+            // Bind wallets to all registered replicants (multi-wallet foundation).
+            // Each replicant gets a unique WalletId derived from its name.
+            // Replicants without wallets get one created; existing bindings are preserved.
             {
                 let user_guard = user_store.lock().map_err(|_| {
                     ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
                         hkask_types::InfrastructureError::LockPoisoned,
                     ))
                 })?;
-                // Set wallet_id on the agent's replicant identity if it exists
-                let agent_name = config.agent_name.clone();
-                if let Ok(Some(_identity)) = user_guard.get_replicant(&agent_name) {
-                    if let Err(e) = user_guard.set_wallet_id(&agent_name, default_wallet) {
-                        tracing::warn!(
-                            target: "cns.wallet",
-                            replicant = %agent_name,
-                            error = %e,
-                            "Failed to bind wallet to replicant"
-                        );
-                    } else {
-                        tracing::info!(
-                            target: "cns.wallet",
-                            replicant = %agent_name,
-                            wallet_id = %default_wallet,
-                            "Wallet bound to replicant"
-                        );
+                // Get the system replicant to discover the user_id
+                if let Ok(Some(system_identity)) = user_guard.get_replicant(&config.agent_name) {
+                    let user_id = system_identity.user_id;
+                    let replicants = user_guard
+                        .list_replicants(&user_id)
+                        .map_err(ServiceError::UserStore)?;
+                    for identity in &replicants {
+                        // Skip replicants that already have a wallet bound
+                        if identity.wallet_id.is_some() {
+                            tracing::debug!(
+                                target: "cns.wallet",
+                                replicant = %identity.replicant_name,
+                                wallet_id = %identity.wallet_id.as_ref().unwrap(),
+                                "Wallet already bound — skipping"
+                            );
+                            continue;
+                        }
+                        // Derive a deterministic WalletId from the replicant name
+                        let wallet_id = WalletId::from_name(&identity.replicant_name);
+                        if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
+                            tracing::warn!(
+                                target: "cns.wallet",
+                                replicant = %identity.replicant_name,
+                                error = %e,
+                                "Failed to create wallet for replicant"
+                            );
+                            continue;
+                        }
+                        if let Err(e) =
+                            user_guard.set_wallet_id(&identity.replicant_name, wallet_id)
+                        {
+                            tracing::warn!(
+                                target: "cns.wallet",
+                                replicant = %identity.replicant_name,
+                                error = %e,
+                                "Failed to bind wallet to replicant"
+                            );
+                        } else {
+                            tracing::info!(
+                                target: "cns.wallet",
+                                replicant = %identity.replicant_name,
+                                wallet_id = %wallet_id,
+                                "Wallet created and bound to replicant"
+                            );
+                        }
                     }
+                } else {
+                    tracing::info!(
+                        target: "cns.wallet",
+                        "No system replicant found — skipping wallet binding"
+                    );
                 }
             }
 

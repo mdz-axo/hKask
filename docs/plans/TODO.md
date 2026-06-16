@@ -41,6 +41,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web + hkask-mcp-rss-reader → hkask-mcp-research (1,044 LOC, ~17 tools) (consolidated 2026-06-11) |
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have mds_categories (2026-05-28) |
 | **P1-09** | Face recognition system for media server | Media bot | High | ✅ Complete | `docs/plans/mcp-media-server-design.md` §10. Face registry table with ArcFace embedding, validation gate, dual-path auto-matching (ONNX primary, vision LLM fallback). 5 tools: face_validate, face_register (with --force), face_list, face_remove, gallery_name_face (with face_id lookup). ONNX integration via `face_id` crate (SCRFD + ArcFace). |
+| **P1-10** | Condenser live integration testing — thinking mode + auto-condense | Dev | Medium | 🔄 In Progress | ✅ Code complete (63/63 tests pass). Live tested 2026-06-15: `llama3.1:8b` works perfectly — produces structured summaries with `original_tokens_approx` and `summary_tokens_approx`. **Finding:** `enable_thinking: false` is sent correctly but Ollama 0.30.8 ignores it for qwen3.5:4b, gemma4:e2b, deepseek-r1:8b — these models always consume tokens on reasoning. Workaround: use non-thinking models (llama3.1:8b) for summarization. Graceful degradation confirmed: condenser returns clear error when thinking model produces empty output. Remaining: (a) auto-condense trigger at 87.5% context window; (b) multi-backend validation (DeepInfra, Fireworks). |
 
 ---
 
@@ -224,6 +225,19 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **C-25** | MCP server tool completeness verified — all 10 servers audited | 2026-06-15 | 143/143 tools fully implemented: condenser (7), spec (6), replica (8), training (8), docproc (9), communication (9), memory (16), research (17), companies (27), media (36) |
 | **C-26** | Condenser completion verified — all 7 tools functional | 2026-06-15 | `hkask-mcp-condenser` — ping, compress, classify, persist, set_profile, stats, thread_summary all implemented with inference router integration and CNS span emission |
 | **C-27** | Pragmatics codebase audit — 7-task principle-grounded review | 2026-06-15 | All 7 tasks converge at δ=0. Zero P1–P12 violations. Key findings: CNS feedback loop closed, OCAP tokens cryptographically unforgeable (HMAC-SHA256), zero unsafe blocks, zero Rc<RefCell>, condenser complete, services extraction ~70%+ |
+
+---
+
+## Completed (2026-06-15 Condenser Thinking Mode + Token Estimation)
+
+| ID | Task | Date | Evidence |
+|----|------|------|----------|
+| **C-28** | Condenser thinking mode — `disable_thinking` through full inference pipeline | 2026-06-15 | `LLMParameters.disable_thinking` → `ChatRequest.enable_thinking` → Ollama API. Set `true` in `condenser_thread_summary` and `ChatService::condense_history`. 2 tests verify wire-format mapping. All 4 backends use same `build_chat_request` — no per-backend changes. |
+| **C-29** | Condenser token estimation — whitespace-split → ~4 chars/token heuristic | 2026-06-15 | `approx_token_count` changed from word-count to `text.len() / 4` (industry standard). Fixes latent bug: auto-condense threshold was comparing words against token threshold, effectively disabled. 3 new tests. |
+| **C-30** | Condenser context window tracking — `original_tokens_approx` in output | 2026-06-15 | `ThreadSummaryOutput` now carries both `original_tokens_approx` and `summary_tokens_approx` for context-window budgeting. `build_summary_output` signature updated. |
+| **C-31** | Condenser-continuation skill documentation drift fixed | 2026-06-15 | SKILL.md: 4 wrong file paths corrected (mcp-servers/ → crates/), stale Option A/B framing removed, thinking mode clarified. All 4 registry templates + manifest.yaml updated (0.23.0→0.27.0). |
+| **C-32** | Condenser README updated — Token Estimation + Thinking Mode sections | 2026-06-15 | `mcp-servers/hkask-mcp-condenser/README.md` — new sections documenting ~4 chars/token heuristic, thinking mode pipeline, and context window tracking. |
+| **C-33** | Pre-existing `wallet_id` bug fixed in `user_store.rs` | 2026-06-15 | `replicant_from_row` missing `wallet_id` field after it was added to `ReplicantIdentity`. Added `wallet_id: None`. |
 
 ---
 

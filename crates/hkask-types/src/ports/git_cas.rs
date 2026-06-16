@@ -258,7 +258,7 @@ pub struct RetentionTier {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetentionPolicy {
     /// Ordered list of tiers, from youngest to oldest.
-    /// The last tier's `max_age_secs` should be `u64::MAX` (forever).
+    /// [NORMATIVE] The last tier's `max_age_secs` should be `u64::MAX` (forever). (P5 — Essentialism).
     pub tiers: Vec<RetentionTier>,
 }
 

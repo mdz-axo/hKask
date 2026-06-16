@@ -218,9 +218,9 @@ pub trait EpisodicStoragePort: Send + Sync {
     /// Store an episodic triple (private, agent-scoped).
     ///
     /// # Requires
-    /// - `request.access` must carry an episodic access control (perspective-bound)
-    /// - `request.access.owner_webid` must match the agent storing the triple
-    /// - `token` must grant Write action on the Manifest resource
+    /// - [NORMATIVE] `request.access` must carry an episodic access control (perspective-bound) (P4 — Clear Boundaries)
+    /// - [NORMATIVE] `request.access.owner_webid` must match the agent storing the triple (P1 — User Sovereignty)
+    /// - [NORMATIVE] `token` must grant Write action on the Manifest resource (P4 — OCAP)
     /// - The triple is stored with the agent's perspective (WebID)
     fn store_episodic(
         &self,
@@ -231,7 +231,7 @@ pub trait EpisodicStoragePort: Send + Sync {
     /// Recall episodic triples for the agent's own perspective.
     ///
     /// # Requires
-    /// - `request.token` must grant Read action on the Manifest resource
+    /// - [NORMATIVE] `request.token` must grant Read action on the Manifest resource (P4 — OCAP)
     /// - Returns only triples matching the agent's perspective
     fn recall_episodic(
         &self,
@@ -262,9 +262,9 @@ pub trait EpisodicStoragePort: Send + Sync {
     /// - `Failure` → 0.3
     ///
     /// # Requires
-    /// - `request.access` must carry an episodic access control (perspective-bound)
-    /// - `request.access.owner_webid` must match the agent storing the triple
-    /// - `token` must grant Write action on the Manifest resource
+    /// - [NORMATIVE] `request.access` must carry an episodic access control (perspective-bound) (P4 — Clear Boundaries)
+    /// - [NORMATIVE] `request.access.owner_webid` must match the agent storing the triple (P1 — User Sovereignty)
+    /// - [NORMATIVE] `token` must grant Write action on the Manifest resource (P4 — OCAP)
     fn store_episodic_classified(
         &self,
         request: StorageRequest,
@@ -286,8 +286,8 @@ pub trait SemanticStoragePort: Send + Sync {
     /// Store a semantic triple (shared, public knowledge).
     ///
     /// # Requires
-    /// - `request.access` must carry semantic access control (shared, no perspective)
-    /// - `token` must grant Write action on the Manifest resource
+    /// - [NORMATIVE] `request.access` must carry semantic access control (shared, no perspective) (P4 — Clear Boundaries)
+    /// - [NORMATIVE] `token` must grant Write action on the Manifest resource (P4 — OCAP)
     /// - The triple is stored without perspective (consolidated from episodic)
     fn store_semantic(
         &self,
@@ -298,7 +298,7 @@ pub trait SemanticStoragePort: Send + Sync {
     /// Recall semantic triples (shared, deduplicated knowledge).
     ///
     /// # Requires
-    /// - `request.token` must grant Read action on the Manifest resource
+    /// - [NORMATIVE] `request.token` must grant Read action on the Manifest resource (P4 — OCAP)
     /// - Returns all triples matching the query (no perspective filter)
     fn recall_semantic(
         &self,

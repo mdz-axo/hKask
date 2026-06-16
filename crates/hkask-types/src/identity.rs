@@ -125,7 +125,7 @@ pub struct RegistrationRequest {
 /// Loop: Cybernetics
 ///
 /// Variants are grouped by shared recovery path:
-/// - `InvalidReplicantName` — name must be 1–64 alphanumeric/hyphen/underscore chars
+/// - `InvalidReplicantName` — [NORMATIVE] name must be 1–64 alphanumeric/hyphen/underscore chars (P6 — Space for Replicants).
 /// - `EmptyName` — required name field is missing
 /// - `InvalidContact` — email or phone format is wrong
 /// - `InvalidPassphrase` — passphrase doesn't meet requirements

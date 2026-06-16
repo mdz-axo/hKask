@@ -40,7 +40,7 @@ pub struct KeyHealth {
 /// delegates balance checks, reservations, and settlements to `WalletManager`.
 ///
 /// # Hard limit
-/// Wallet-backed budgets always have `hard_limit = true`. When the wallet
+/// [DECLARATIVE] Wallet-backed budgets always have `hard_limit = true`. When the wallet (P4 — Clear Boundaries).
 /// balance is insufficient, operations are rejected — there is no "soft limit"
 /// fallback because rJoules represent real value.
 pub struct WalletBackedBudget {
@@ -86,16 +86,31 @@ impl WalletBackedBudget {
 
     /// Check whether an operation costing `gas` can proceed.
     ///
-    /// Converts gas to rJoules and checks the wallet balance.
-    /// If an API key is attached, also checks the key's spending limit.
-    /// Returns `true` if the wallet can afford the cost.
+    /// When an API key is attached, checks the key's encumbrance remaining
+    /// instead of the raw wallet balance. This enforces the encumbrance
+    /// membrane: only explicitly allocated rJoules can be spent.
+    /// When no key is attached, falls back to direct wallet balance check.
     pub fn can_proceed(&self, gas: EnergyCost) -> bool {
         let cost_rj = self.gas_to_rjoules(gas.0);
-        // Check wallet balance
-        match self.wallet_manager.can_afford(self.wallet_id, cost_rj) {
-            Ok(true) => {}
-            Ok(false) | Err(_) => return false,
+
+        // If a key is attached, check encumbrance instead of wallet balance
+        if let Some(key_id) = self.key_id {
+            match self.wallet_manager.get_encumbrance(key_id) {
+                Ok(Some(ref enc)) if enc.is_active() => {
+                    if enc.remaining_rj() < cost_rj.as_u64() {
+                        return false;
+                    }
+                }
+                _ => return false,
+            }
+        } else {
+            // No key — check raw wallet balance
+            match self.wallet_manager.can_afford(self.wallet_id, cost_rj) {
+                Ok(true) => {}
+                Ok(false) | Err(_) => return false,
+            }
         }
+
         // Check key spending limit if a key is attached
         if let Some(limit) = self.spending_limit_rj
             && let Some(health) = self.check_key_health()
@@ -110,9 +125,8 @@ impl WalletBackedBudget {
 
     /// Reserve rJoules for an in-flight operation.
     ///
-    /// Converts gas to rJoules and optimistically reserves the amount.
-    /// The actual debit happens at `settle()` time.
-    /// Also checks key spending limit if a key is attached.
+    /// When an API key is attached, checks the encumbrance (not wallet balance).
+    /// The actual debit happens at `settle()` time via `consume_encumbrance`.
     pub fn reserve(&self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         if !self.can_proceed(gas) {
             return Err(EnergyError::BudgetExceeded {
@@ -120,34 +134,42 @@ impl WalletBackedBudget {
                 remaining: EnergyCost(0),
             });
         }
-        let cost_rj = self.gas_to_rjoules(gas.0);
-        self.wallet_manager
-            .reserve_rjoules(self.wallet_id, cost_rj)
-            .map_err(|_e| EnergyError::BudgetExceeded {
-                requested: gas,
-                remaining: EnergyCost(0),
-            })?;
+        // Reservation is optimistic — can_proceed already verified encumbrance/wallet.
+        // No debit happens here; actual consumption occurs in settle().
         Ok(gas)
     }
 
     /// Settle rJoules after an operation completes.
     ///
-    /// Converts both reserved and actual gas to rJoules, then debits
-    /// the actual cost. If actual < reserved, the difference is
-    /// implicitly refunded (only actual is debited).
+    /// When an API key is attached, consumes from the key's encumbrance
+    /// via `WalletManager::consume()` (atomic encumbrance debit).
+    /// When no key is attached, debits directly from wallet balance.
     pub fn settle(
         &self,
         reserved_gas: EnergyCost,
         actual_gas: EnergyCost,
     ) -> Result<EnergyCost, EnergyError> {
-        let reserved_rj = self.gas_to_rjoules(reserved_gas.0);
         let actual_rj = self.gas_to_rjoules(actual_gas.0);
-        self.wallet_manager
-            .settle_rjoules(self.wallet_id, reserved_rj, actual_rj)
-            .map_err(|_e| EnergyError::BudgetExceeded {
-                requested: actual_gas,
-                remaining: EnergyCost(0),
-            })?;
+
+        if let Some(key_id) = self.key_id {
+            // Consume from encumbrance (atomic — no separate check+deduct)
+            self.wallet_manager
+                .consume(key_id, actual_rj)
+                .map_err(|_e| EnergyError::BudgetExceeded {
+                    requested: actual_gas,
+                    remaining: EnergyCost(0),
+                })?;
+        } else {
+            // Direct wallet debit
+            let reserved_rj = self.gas_to_rjoules(reserved_gas.0);
+            self.wallet_manager
+                .settle_rjoules(self.wallet_id, reserved_rj, actual_rj)
+                .map_err(|_e| EnergyError::BudgetExceeded {
+                    requested: actual_gas,
+                    remaining: EnergyCost(0),
+                })?;
+        }
+
         Ok(actual_gas)
     }
 

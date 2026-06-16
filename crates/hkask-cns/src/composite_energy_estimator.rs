@@ -9,7 +9,7 @@ use serde_json::Value;
 /// Composite gas estimator that routes inference tools to InferenceEnergyEstimator
 /// and all other tools to TableEnergyEstimator.
 ///
-/// This is the production estimator — it should be the default for all
+/// [NORMATIVE] This is the production estimator — it should be the default for all (P9 — Homeostatic Self-Regulation).
 /// GovernedTool instances. Inference calls use token-based estimation;
 /// everything else uses the per-server table.
 pub struct CompositeEnergyEstimator {

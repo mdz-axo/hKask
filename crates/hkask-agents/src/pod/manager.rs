@@ -119,7 +119,7 @@ impl PodManager {
     /// Register a hook to be called after every successful pod activation.
     ///
     /// The hook receives the pod's WebID and display name. Use this for
-    /// cross-cutting concerns like Matrix registration that should happen
+    /// [NORMATIVE] cross-cutting concerns like Matrix registration that should happen (P6 — Space for Replicants).
     /// whenever a pod becomes active.
     pub async fn register_activation_hook(&self, hook: Box<dyn Fn(WebID, String) + Send + Sync>) {
         self.activation_hooks.write().await.push(hook);
