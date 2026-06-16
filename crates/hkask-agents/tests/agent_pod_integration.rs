@@ -7,9 +7,9 @@
 //! # Scope
 //!
 //! Tests pod orchestration (create → activate → mode → list → deactivate).
-//! Actual improv interaction between pods requires the inference port
-//! (`InferencePort`), which is not available in the mock manager.
-//! Improv integration tests are deferred until mock inference is available.
+//! Mock inference is available via `MockInferencePort` for basic wiring tests.
+//! Full improv interaction between pods (using `hkask-improv` modes) requires
+//! integrating the improv protocol with the inference port — deferred to L4.
 //!
 //! # REQ tags
 //!
@@ -260,7 +260,10 @@ async fn inference_port_wiring() {
     // Verify it's the same mock (by calling it)
     let port = retrieved.unwrap();
     let result = port
-        .generate("hello world", &hkask_types::template::LLMParameters::default())
+        .generate(
+            "hello world",
+            &hkask_types::template::LLMParameters::default(),
+        )
         .await
         .expect("mock inference should succeed");
     assert_eq!(result.text, "Hello from mock inference!");
@@ -270,7 +273,10 @@ async fn inference_port_wiring() {
         "test error".into(),
     ));
     let result = port
-        .generate("any prompt", &hkask_types::template::LLMParameters::default())
+        .generate(
+            "any prompt",
+            &hkask_types::template::LLMParameters::default(),
+        )
         .await;
     assert!(result.is_err(), "error injection should propagate");
     inference.clear_error();

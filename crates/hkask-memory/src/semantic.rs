@@ -60,6 +60,11 @@ pub struct SemanticMemory {
 }
 
 impl SemanticMemory {
+    /// Create a new SemanticMemory with triple and embedding stores.
+    ///
+    /// REQ: MEM-035
+    /// pre:  triple_store and embedding_store are initialized
+    /// post: returns SemanticMemory wrapping both stores
     pub fn new(triple_store: TripleStore, embedding_store: EmbeddingStore) -> Self {
         Self {
             triple_store,
@@ -72,6 +77,10 @@ impl SemanticMemory {
     /// Filters duplicate triples at recall time. Two triples are considered
     /// duplicates if they share the same entity, attribute, and canonical value —
     /// regardless of timestamps, confidence, or perspective metadata.
+    ///
+    /// REQ: MEM-036
+    /// pre:  entity is non-empty
+    /// post: returns Vec<Triple> filtered to Public visibility, deduplicated by EAV hash
     pub fn query_deduped(&self, entity: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         let triples = self.triple_store.query_by_entity(entity)?;
         let filtered: Vec<Triple> = triples
@@ -81,6 +90,14 @@ impl SemanticMemory {
         Ok(recall_dedup::dedup_triples(filtered))
     }
 
+    /// Store a semantic triple (must be Public, no perspective).
+    ///
+    /// REQ: MEM-037
+    /// pre:  triple.access.visibility == Public
+    /// pre:  triple.access.perspective is None
+    /// post: triple inserted into triple_store
+    /// post: returns Err(InvalidVisibility) if not Public
+    /// post: returns Err(HasPerspective) if perspective is set
     pub fn store(&self, triple: Triple) -> Result<(), SemanticMemoryError> {
         if triple.access.visibility != Visibility::Public {
             return Err(SemanticMemoryError::InvalidVisibility(format!(
@@ -100,15 +117,28 @@ impl SemanticMemory {
         Ok(())
     }
 
+    /// Count all semantic triples.
+    ///
+    /// REQ: MEM-038
+    /// post: returns total count of semantic triples in store
     pub fn triple_count(&self) -> Result<usize, SemanticMemoryError> {
         Ok(self.triple_store.count_semantic()?)
     }
 
+    /// Count semantic triples for a specific entity.
+    ///
+    /// REQ: MEM-039
+    /// pre:  entity is non-empty
+    /// post: returns count of semantic triples for this entity
     pub fn triple_count_for_entity(&self, entity: &str) -> Result<usize, SemanticMemoryError> {
         Ok(self.triple_store.count_semantic_by_entity(entity)?)
     }
 
     /// Query all triples with a given attribute.
+    ///
+    /// REQ: MEM-040
+    /// pre:  attribute is non-empty
+    /// post: returns Vec<Triple> with matching attribute
     pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         Ok(self.triple_store.query_by_attribute(attribute)?)
     }
@@ -119,6 +149,11 @@ impl SemanticMemory {
     ///
     /// The embedding is indexed by the triple's ID (`entity_ref`), enabling
     /// similarity search to find semantically related triples.
+    ///
+    /// REQ: MEM-041
+    /// pre:  entity_ref is non-empty, vector is non-empty, model is valid
+    /// post: embedding stored and indexed by entity_ref
+    /// post: returns embedding ID
     pub fn store_embedding(
         &self,
         entity_ref: &str,
@@ -134,6 +169,10 @@ impl SemanticMemory {
     /// Use this for context assembly that goes beyond exact entity matches —
     /// given a query embedding, find triples that are semantically close even
     /// if their entity keys differ.
+    ///
+    /// REQ: MEM-042
+    /// pre:  query_vector is non-empty, limit > 0
+    /// post: returns Vec<SimilarityResult> ordered by ascending distance
     pub fn search_similar(
         &self,
         query_vector: &[f32],
@@ -143,12 +182,18 @@ impl SemanticMemory {
     }
 
     /// Count stored embeddings.
+    ///
+    /// REQ: MEM-043
+    /// post: returns total count of embeddings in store
     pub fn embedding_count(&self) -> Result<usize, SemanticMemoryError> {
         Ok(self.embedding.count()?)
     }
 
     /// Access the underlying EmbeddingStore for direct operations
     /// (e.g., centroid computation, KNN search).
+    ///
+    /// REQ: MEM-044
+    /// post: returns reference to the EmbeddingStore
     pub fn embedding_store(&self) -> &EmbeddingStore {
         &self.embedding
     }
@@ -175,6 +220,12 @@ impl SemanticMemory {
     ///
     /// If `store_as` is provided, the centroid is also stored as an embedding
     /// under that entity_ref, enabling one-step compute+store.
+    ///
+    /// REQ: MEM-045
+    /// pre:  prefix is non-empty, dim > 0
+    /// post: returns CentroidResult with mean vector and passage count
+    /// post: returns Err(NoEmbeddingsForCentroid) if no matching embeddings
+    /// post: centroid stored if store_as and model are provided
     pub fn compute_centroid(
         &self,
         prefix: &str,
@@ -254,6 +305,11 @@ impl SemanticMemory {
     ///
     /// Used for idempotent re-ingest: purge an author's existing embeddings
     /// before re-downloading and re-embedding their corpus.
+    ///
+    /// REQ: MEM-046
+    /// pre:  prefix is non-empty
+    /// post: all embeddings with matching prefix deleted
+    /// post: returns count of deleted embeddings
     pub fn purge_by_prefix(&self, prefix: &str) -> Result<usize, SemanticMemoryError> {
         let to_delete = self.entity_refs_by_prefix(prefix)?;
 
@@ -283,6 +339,12 @@ impl SemanticMemory {
     ///
     /// Returns (entity_ref, text) pairs with entity_ref formatted as
     /// `{entity_ref_prefix}:{chunk_index}`.
+    ///
+    /// REQ: MEM-047
+    /// pre:  text is non-empty, entity_ref_prefix is non-empty
+    /// pre:  min_words > 0, max_words >= min_words
+    /// post: returns Vec of (entity_ref, text) chunks
+    /// post: each chunk has word count between min_words and max_words (best-effort)
     pub fn chunk_text(
         text: &str,
         entity_ref_prefix: &str,
@@ -388,6 +450,11 @@ impl SemanticMemory {
     /// Strip Project Gutenberg headers and footers from text.
     ///
     /// Looks for the standard `*** START OF` / `*** END OF` markers.
+    ///
+    /// REQ: MEM-048
+    /// pre:  text is a valid &str
+    /// post: returns text between START OF and END OF markers
+    /// post: returns full text if markers not found
     pub fn strip_gutenberg_headers(text: &str) -> String {
         let start_marker = "*** START OF";
         let end_marker = "*** END OF";
@@ -421,6 +488,11 @@ impl SemanticMemory {
     ///
     /// When the semantic storage budget is exceeded or consolidation cleanup
     /// targets low-confidence triples, they are deleted outright.
+    ///
+    /// REQ: MEM-049
+    /// pre:  id is a valid TripleID
+    /// post: triple deleted from store
+    /// post: returns Err if triple not found
     pub fn delete_triple(&self, id: &hkask_storage::TripleID) -> Result<(), SemanticMemoryError> {
         tracing::info!(
             target: "cns.semantic",
@@ -437,6 +509,10 @@ impl SemanticMemory {
     ///
     /// Returns up to `limit` triples with `perspective IS NULL`, ordered by
     /// confidence ascending then `valid_from` ascending (oldest first).
+    ///
+    /// REQ: MEM-050
+    /// pre:  limit > 0
+    /// post: returns up to `limit` triples ordered by confidence ascending
     pub fn lowest_confidence_triples(
         &self,
         limit: usize,
@@ -448,6 +524,10 @@ impl SemanticMemory {
     ///
     /// Used by `SemanticLoop::sense()` and `ConsolidationService`
     /// for the consolidation trigger signal.
+    ///
+    /// REQ: MEM-051
+    /// pre:  threshold in [0.0, 1.0]
+    /// post: returns count of triples with confidence ≤ threshold
     pub fn low_confidence_count(&self, threshold: f64) -> Result<usize, SemanticMemoryError> {
         Ok(self
             .triple_store
@@ -461,6 +541,10 @@ impl SemanticMemory {
     ///
     /// Used by `SemanticLoop::act()` and `ConsolidationService`
     /// for the consolidation trigger.
+    ///
+    /// REQ: MEM-052
+    /// pre:  threshold in [0.0, 1.0], limit > 0
+    /// post: returns up to `limit` triples with confidence ≤ threshold
     pub fn low_confidence_triples(
         &self,
         threshold: f64,

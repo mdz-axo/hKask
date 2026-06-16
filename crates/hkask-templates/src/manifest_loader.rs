@@ -163,6 +163,11 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
 /// - A manifest ID: looked up from the registry
 ///
 /// Returns `None` if the manifest cannot be found or loaded (logs a warning).
+///
+/// REQ: TPL-004
+/// pre:  reference is non-empty, registry is initialized
+/// post: returns Some(BundleManifest) if found via registry or file path
+/// post: returns None if not found (graceful degradation)
 pub fn resolve_manifest(
     reference: &str,
     registry: &dyn hkask_types::ports::BundleRegistryIndex,

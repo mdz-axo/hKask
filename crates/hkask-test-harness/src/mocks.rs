@@ -41,6 +41,9 @@ pub struct MockInferencePort {
 
 impl MockInferencePort {
     /// Create a new mock with a default response of "Mock response".
+    ///
+    /// REQ: HARN-001
+    /// post: returns MockInferencePort with empty responses, default="Mock response", model="mock-model"
     pub fn new() -> Self {
         Self {
             responses: Mutex::new(HashMap::new()),
@@ -52,6 +55,11 @@ impl MockInferencePort {
 
     /// Register a canned response for prompts starting with `prompt_prefix`.
     /// Later registrations take precedence (insert order).
+    ///
+    /// REQ: HARN-002
+    /// pre:  prompt_prefix and response are non-empty
+    /// post: response registered for prefix matching
+    /// post: returns Self for builder chaining
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_response(self, prompt_prefix: &str, response: &str) -> Self {
         self.responses
@@ -62,6 +70,11 @@ impl MockInferencePort {
     }
 
     /// Set the default response for unmatched prompts.
+    ///
+    /// REQ: HARN-003
+    /// pre:  response is non-empty
+    /// post: default_response updated
+    /// post: returns Self for builder chaining
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_default(mut self, response: &str) -> Self {
         self.default_response = response.to_string();
@@ -69,6 +82,11 @@ impl MockInferencePort {
     }
 
     /// Set the model name reported in results.
+    ///
+    /// REQ: HARN-004
+    /// pre:  model is non-empty
+    /// post: model_name updated
+    /// post: returns Self for builder chaining
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_model(mut self, model: &str) -> Self {
         self.model_name = model.to_string();
@@ -77,11 +95,17 @@ impl MockInferencePort {
 
     /// Inject an error — all subsequent `generate` calls will fail with this error.
     /// Call `clear_error()` to restore normal operation.
+    ///
+    /// REQ: HARN-005
+    /// post: error_override set — subsequent generate() calls return Err
     pub fn set_error(&self, error: InferenceError) {
         *self.error_override.lock().unwrap() = Some(error);
     }
 
     /// Clear any injected error, restoring normal responses.
+    ///
+    /// REQ: HARN-006
+    /// post: error_override cleared — subsequent generate() calls return Ok
     pub fn clear_error(&self) {
         *self.error_override.lock().unwrap() = None;
     }

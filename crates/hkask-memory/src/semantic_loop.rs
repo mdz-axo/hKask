@@ -45,6 +45,10 @@ impl SemanticLoop {
     ///
     /// Default storage budget: 25,000 triples.
     /// Default low-confidence threshold: 0.33 (33%).
+    ///
+    /// REQ: MEM-017
+    /// pre:  memory is initialized
+    /// post: returns SemanticLoop with DEFAULT_SEMANTIC_STORAGE_BUDGET and DEFAULT_LOW_CONFIDENCE_THRESHOLD
     pub fn new(memory: Arc<SemanticMemory>) -> Self {
         Self {
             memory,
@@ -56,6 +60,10 @@ impl SemanticLoop {
     /// Create a new Semantic Loop with a custom storage budget.
     ///
     /// Use this for per-user or per-agent budget customization.
+    ///
+    /// REQ: MEM-018
+    /// pre:  memory is initialized, storage_budget > 0
+    /// post: returns SemanticLoop with custom budget, default threshold
     pub fn with_budget(memory: Arc<SemanticMemory>, storage_budget: usize) -> Self {
         Self {
             memory,
@@ -68,6 +76,11 @@ impl SemanticLoop {
     /// low-confidence threshold.
     ///
     /// Use this for full per-user or per-agent customization.
+    ///
+    /// REQ: MEM-019
+    /// pre:  memory is initialized, storage_budget > 0
+    /// pre:  low_confidence_threshold in [0.0, 1.0]
+    /// post: returns SemanticLoop with custom budget and threshold
     pub fn with_budget_and_threshold(
         memory: Arc<SemanticMemory>,
         storage_budget: usize,
@@ -81,11 +94,17 @@ impl SemanticLoop {
     }
 
     /// Get the configured storage budget (set-point).
+    ///
+    /// REQ: MEM-020
+    /// post: returns the storage_budget value set at construction
     pub fn storage_budget(&self) -> usize {
         self.storage_budget
     }
 
     /// Get the configured low-confidence threshold.
+    ///
+    /// REQ: MEM-021
+    /// post: returns the low_confidence_threshold value set at construction
     pub fn low_confidence_threshold(&self) -> f64 {
         self.low_confidence_threshold
     }

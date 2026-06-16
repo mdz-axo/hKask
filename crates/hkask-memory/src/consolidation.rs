@@ -44,6 +44,11 @@ pub(crate) struct ConsolidationResult {
 }
 
 impl ConsolidationBridge {
+    /// Create a new ConsolidationBridge.
+    ///
+    /// REQ: MEM-003
+    /// pre:  episodic and semantic are initialized memory stores
+    /// post: returns ConsolidationBridge linking the two stores
     pub fn new(episodic: Arc<EpisodicMemory>, semantic: Arc<SemanticMemory>) -> Self {
         Self { episodic, semantic }
     }
@@ -152,6 +157,14 @@ impl ConsolidationBridge {
     /// Consolidate episodic triples into semantic memory (public API).
     ///
     /// Requires ConsolidationToken proving Cybernetics authority.
+    ///
+    /// REQ: MEM-004
+    /// pre:  token.issuer() == expected curator WebID
+    /// pre:  perspective is a valid WebID
+    /// post: episodic triples stripped of perspective, stored in semantic memory
+    /// post: consolidated episodic sources expired (soft-deleted)
+    /// post: returns ConsolidationOutcome with counts
+    /// post: returns Err if token is unauthorized
     pub fn consolidate(
         &self,
         token: &ConsolidationToken,
@@ -182,6 +195,12 @@ impl ConsolidationBridge {
         })
     }
 
+    /// Count consolidation candidates for a perspective.
+    ///
+    /// REQ: MEM-005
+    /// pre:  perspective is a valid WebID
+    /// post: returns count of triples in episodic storage for this perspective
+    /// post: returns 0 on error (graceful degradation)
     pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
         // Use storage_usage (COUNT query) instead of loading all candidates
         // into memory just to count them.

@@ -20,9 +20,12 @@
 //! - Account IDs derived deterministically from treasury public key
 
 use async_trait::async_trait;
+use hkask_types::cns::CnsSpan;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{ChainId, TxHash, WalletError};
 use reqwest::Client;
 use serde::Deserialize;
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::chain::{ChainPort, DepositEvent};
@@ -132,6 +135,8 @@ pub struct HederaPort {
     usdc_token: String,
     /// Consensus node gRPC endpoint URL.
     consensus_node_url: String,
+    /// Optional CNS event sink for chain error span emission.
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl HederaPort {
@@ -161,7 +166,36 @@ impl HederaPort {
             treasury_account: treasury_account.to_string(),
             usdc_token: usdc_token.unwrap_or(USDC_TOKEN_MAINNET).to_string(),
             consensus_node_url: consensus_node_url.to_string(),
+            event_sink: None,
         })
+    }
+
+    /// Attach a CNS event sink for chain error span emission.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
+    }
+
+    /// Emit a CNS chain_error span if an event sink is configured.
+    fn emit_chain_error(&self, operation: &str, error_msg: &str) {
+        if let Some(ref sink) = self.event_sink {
+            let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
+            let event = NuEvent::new(
+                hkask_types::WebID::new(),
+                span_obj,
+                Phase::Sense,
+                serde_json::json!({
+                    "chain": "hedera",
+                    "operation": operation,
+                    "error": error_msg,
+                }),
+                0,
+            );
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(target: "hkask.wallet.hedera", error = %e, "Failed to persist CNS chain_error span");
+            }
+        }
     }
 
     /// Create a HederaPort for testnet.
@@ -344,26 +378,28 @@ impl ChainPort for HederaPort {
                 self.mirror_node_url, addr
             );
 
-            let resp = self
-                .client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| WalletError::ChainError {
+            let resp = self.client.get(&url).send().await.map_err(|e| {
+                let msg = format!("Mirror node HTTP error (monitor_deposits): {e}");
+                self.emit_chain_error("monitor_deposits", &msg);
+                WalletError::ChainError {
                     chain: ChainId::Hedera,
-                    message: format!("Mirror node HTTP error: {e}"),
-                })?;
+                    message: msg,
+                }
+            })?;
 
             if !resp.status().is_success() {
                 // Account might not exist yet — skip
                 continue;
             }
 
-            let body: MirrorTransactionsResponse =
-                resp.json().await.map_err(|e| WalletError::ChainError {
+            let body: MirrorTransactionsResponse = resp.json().await.map_err(|e| {
+                let msg = format!("Mirror node JSON parse error (monitor_deposits): {e}");
+                self.emit_chain_error("monitor_deposits", &msg);
+                WalletError::ChainError {
                     chain: ChainId::Hedera,
-                    message: format!("Mirror node JSON parse error: {e}"),
-                })?;
+                    message: msg,
+                }
+            })?;
 
             for tx in body.transactions {
                 // Only process CRYPTOTRANSFER transactions
@@ -427,8 +463,10 @@ impl ChainPort for HederaPort {
     async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
         // The signing.rs module appends the Ed25519 signature (64 bytes) to the body bytes.
         if signed_tx_bytes.len() < 64 {
+            let msg = "signed transaction too short".to_string();
+            self.emit_chain_error("submit_signed_tx", &msg);
             return Err(WalletError::Infra(
-                hkask_types::InfrastructureError::Database("signed transaction too short".into()),
+                hkask_types::InfrastructureError::Database(msg),
             ));
         }
 
@@ -436,9 +474,9 @@ impl ChainPort for HederaPort {
 
         // Deserialize the transaction body
         let body = TransactionBody::decode(body_bytes).map_err(|e| {
-            WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
-                "failed to decode transaction body: {e}"
-            )))
+            let msg = format!("failed to decode transaction body: {e}");
+            self.emit_chain_error("submit_signed_tx", &msg);
+            WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })?;
 
         // Build signature map with the Ed25519 signature
@@ -467,49 +505,63 @@ impl ChainPort for HederaPort {
 
         // Connect to consensus node and submit
         let channel = Channel::from_shared(self.consensus_node_url.clone())
-            .map_err(|e| WalletError::ChainError {
-                chain: ChainId::Hedera,
-                message: format!("Invalid consensus node URL: {e}"),
+            .map_err(|e| {
+                let msg = format!("Invalid consensus node URL: {e}");
+                self.emit_chain_error("submit_signed_tx", &msg);
+                WalletError::ChainError {
+                    chain: ChainId::Hedera,
+                    message: msg,
+                }
             })?
             .connect()
             .await
-            .map_err(|e| WalletError::ChainError {
-                chain: ChainId::Hedera,
-                message: format!("Failed to connect to consensus node: {e}"),
+            .map_err(|e| {
+                let msg = format!("Failed to connect to consensus node: {e}");
+                self.emit_chain_error("submit_signed_tx", &msg);
+                WalletError::ChainError {
+                    chain: ChainId::Hedera,
+                    message: msg,
+                }
             })?;
 
         let mut client = CryptoServiceClient::new(channel);
 
         // Submit the transaction via gRPC
         let request = tonic::Request::new(transaction);
-        let response =
-            client
-                .crypto_transfer(request)
-                .await
-                .map_err(|e| WalletError::ChainError {
-                    chain: ChainId::Hedera,
-                    message: format!("gRPC cryptoTransfer failed: {e}"),
-                })?;
+        let response = client.crypto_transfer(request).await.map_err(|e| {
+            let msg = format!("gRPC cryptoTransfer failed: {e}");
+            self.emit_chain_error("submit_signed_tx", &msg);
+            WalletError::ChainError {
+                chain: ChainId::Hedera,
+                message: msg,
+            }
+        })?;
 
         let receipt: TransactionResponse = response.into_inner();
 
         // The response contains node_transaction_precheck_code.
         // A value of 0 (OK) means the transaction passed pre-check.
         if receipt.node_transaction_precheck_code != 0 {
+            let msg = format!(
+                "Transaction pre-check failed with code: {}",
+                receipt.node_transaction_precheck_code
+            );
+            self.emit_chain_error("submit_signed_tx", &msg);
             return Err(WalletError::ChainError {
                 chain: ChainId::Hedera,
-                message: format!(
-                    "Transaction pre-check failed with code: {}",
-                    receipt.node_transaction_precheck_code
-                ),
+                message: msg,
             });
         }
 
         // The tx_hash is derived from the TransactionID we built.
         // Format: account_id@seconds.nanos
-        let tx_id = body.transaction_id.ok_or_else(|| WalletError::ChainError {
-            chain: ChainId::Hedera,
-            message: "No transaction ID in body".into(),
+        let tx_id = body.transaction_id.ok_or_else(|| {
+            let msg = "No transaction ID in body".to_string();
+            self.emit_chain_error("submit_signed_tx", &msg);
+            WalletError::ChainError {
+                chain: ChainId::Hedera,
+                message: msg,
+            }
         })?;
         let tx_hash = format!(
             "{}@{}.{:09}",
@@ -559,13 +611,6 @@ impl ChainPort for HederaPort {
             Ok(0) // Not found or pending
         }
     }
-
-    async fn native_token_usd_rate(&self) -> Result<f64, WalletError> {
-        // HBAR/USD rate — for production, use a price feed.
-        // For now, return a reasonable estimate.
-        // TODO: Integrate with a price feed (CoinGecko, Hedera mirror node exchange rate API)
-        Ok(0.08) // ~$0.08 HBAR
-    }
 }
 
 // ── Integration tests ──────────────────────────────────────────────────────────
@@ -604,14 +649,9 @@ mod integration_tests {
             .build_withdrawal_tx(dest, 1_000_000) // 1 USDC
             .expect("build_withdrawal_tx should succeed");
 
-        // Payload should be deserializable as a SignedTransaction protobuf
-        let signed_tx = SignedTransaction::decode(payload_bytes.as_slice())
-            .expect("payload should decode as SignedTransaction");
-
-        // Verify the body contains a cryptoTransfer
-        let body_bytes = signed_tx.body_bytes.expect("should have body_bytes");
-        let body = TransactionBody::decode(body_bytes.as_slice())
-            .expect("body should decode as TransactionBody");
+        // Payload is a TransactionBody protobuf (unsigned envelope).
+        let body = TransactionBody::decode(payload_bytes.as_slice())
+            .expect("payload should decode as TransactionBody");
         assert!(
             body.data.is_some(),
             "transaction body should have data field"

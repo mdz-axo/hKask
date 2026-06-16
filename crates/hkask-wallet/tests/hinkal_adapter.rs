@@ -54,6 +54,45 @@ async fn submit_signed_tx_posts_withdraw_and_returns_tx_hash() {
     let unsigned = port
         .build_unshield_tx("recipient_pubkey", 1_500_000)
         .expect("unsigned payload");
+
+    let tx_hash = port
+        .submit_signed_tx(&unsigned)
+        .await
+        .expect("withdraw should succeed");
+
+    assert_eq!(tx_hash.0, "0xwithdrawhash");
+}
+
+// REQ: HINKAL-013 — submit_signed_tx accepts backward-compatible payload+signature envelope
+#[tokio::test]
+async fn submit_signed_tx_accepts_legacy_payload_plus_signature() {
+    set_test_master_key();
+
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/create-session"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "success": true
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/withdraw"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "txHash": "0xlegacyhash"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let port = HinkalPort::new(&server.uri(), "treasury_pubkey_test").expect("port");
+
+    let unsigned = port
+        .build_unshield_tx("recipient_pubkey", 1_500_000)
+        .expect("unsigned payload");
     let mut signed = unsigned.clone();
     let sig = sign_withdrawal(ChainId::Hinkal, &unsigned).expect("signature");
     signed.extend_from_slice(&sig);
@@ -61,9 +100,9 @@ async fn submit_signed_tx_posts_withdraw_and_returns_tx_hash() {
     let tx_hash = port
         .submit_signed_tx(&signed)
         .await
-        .expect("withdraw should succeed");
+        .expect("legacy payload+signature should still be accepted");
 
-    assert_eq!(tx_hash.0, "0xwithdrawhash");
+    assert_eq!(tx_hash.0, "0xlegacyhash");
 }
 
 // REQ: HINKAL-011 — withdraw fails closed when API omits tx hash in success payload

@@ -54,10 +54,14 @@ impl McpTool {
 
         match jsonschema::validator_for(&self.input_schema) {
             Ok(validator) => {
-                if validator.is_valid(input) {
+                let errors: Vec<String> = validator
+                    .iter_errors(input)
+                    .map(|e| format!("{}: {}", e.instance_path, e))
+                    .collect();
+                if errors.is_empty() {
                     Ok(())
                 } else {
-                    Err(vec!["Input does not conform to tool schema".into()])
+                    Err(errors)
                 }
             }
             Err(_) => {

@@ -17,13 +17,15 @@
 
 use async_trait::async_trait;
 use chrono::Utc;
+use hkask_types::cns::CnsSpan;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{ChainId, TxHash, WalletError, WalletId};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::{
-    Mutex,
+    Arc, Mutex,
     atomic::{AtomicBool, AtomicI64, AtomicU32, Ordering},
 };
 use std::time::Duration;
@@ -139,6 +141,8 @@ pub struct HinkalPort {
     session_write_access: AtomicBool,
     /// Cached session expiration timestamp (Unix seconds).
     session_expires_at: AtomicI64,
+    /// Optional CNS event sink for chain error span emission.
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl HinkalPort {
@@ -190,12 +194,41 @@ impl HinkalPort {
             session_signature: Mutex::new(None),
             session_write_access: AtomicBool::new(false),
             session_expires_at: AtomicI64::new(0),
+            event_sink: None,
         })
     }
 
     /// Create a HinkalPort with default production base URL.
     pub fn with_default_base(treasury_pubkey: &str) -> Result<Self, WalletError> {
         Self::new(HINKAL_API_BASE, treasury_pubkey)
+    }
+
+    /// Attach a CNS event sink for chain error span emission.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
+    }
+
+    /// Emit a CNS chain_error span if an event sink is configured.
+    fn emit_cns_chain_error(&self, operation: &str, error_msg: &str) {
+        if let Some(ref sink) = self.event_sink {
+            let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
+            let event = NuEvent::new(
+                hkask_types::WebID::new(),
+                span_obj,
+                Phase::Sense,
+                serde_json::json!({
+                    "chain": "hinkal",
+                    "operation": operation,
+                    "error": error_msg,
+                }),
+                0,
+            );
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(target: "hkask.wallet.hinkal", error = %e, "Failed to persist CNS chain_error span");
+            }
+        }
     }
 
     fn chain_error(message: impl Into<String>) -> WalletError {
@@ -348,28 +381,36 @@ impl HinkalPort {
             .json(&req)
             .send()
             .await
-            .map_err(|e| Self::chain_error(format!("create-session request failed: {e}")))?;
+            .map_err(|e| {
+                let msg = format!("create-session request failed: {e}");
+                self.emit_cns_chain_error("create_session", &msg);
+                Self::chain_error(msg)
+            })?;
 
         if !resp.status().is_success() {
             let body = Self::read_response_body(resp).await;
-            return Err(Self::chain_error(format!(
+            let msg = format!(
                 "create-session rejected (write_access={write_access}, nonce={nonce}): {body}"
-            )));
+            );
+            self.emit_cns_chain_error("create_session", &msg);
+            return Err(Self::chain_error(msg));
         }
 
         let body: CreateSessionResponse = resp.json().await.map_err(|e| {
-            Self::chain_error(format!(
-                "create-session returned invalid JSON response: {e}"
-            ))
+            let msg = format!("create-session returned invalid JSON response: {e}");
+            self.emit_cns_chain_error("create_session", &msg);
+            Self::chain_error(msg)
         })?;
 
         if body.success == Some(false) {
-            return Err(Self::chain_error(format!(
+            let msg = format!(
                 "create-session failed: {}",
                 body.error
                     .or(body.message)
                     .unwrap_or_else(|| "unknown error".to_string())
-            )));
+            );
+            self.emit_cns_chain_error("create_session", &msg);
+            return Err(Self::chain_error(msg));
         }
 
         self.store_cached_session(nonce.clone(), signature_hex.clone(), write_access)?;
@@ -457,39 +498,61 @@ impl HinkalPort {
             ])
             .send()
             .await
-            .map_err(|e| Self::chain_error(format!("balance request failed: {e}")))?;
+            .map_err(|e| {
+                let msg = format!("balance request failed: {e}");
+                self.emit_cns_chain_error("fetch_balance", &msg);
+                Self::chain_error(msg)
+            })?;
 
         if !resp.status().is_success() {
             let body = Self::read_response_body(resp).await;
-            return Err(Self::chain_error(format!(
+            let msg = format!(
                 "balance request rejected (nonce={}): {}",
                 session.nonce, body
-            )));
+            );
+            self.emit_cns_chain_error("fetch_balance", &msg);
+            return Err(Self::chain_error(msg));
         }
 
-        let value: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| Self::chain_error(format!("balance returned invalid JSON: {e}")))?;
+        let value: serde_json::Value = resp.json().await.map_err(|e| {
+            let msg = format!("balance returned invalid JSON: {e}");
+            self.emit_cns_chain_error("fetch_balance", &msg);
+            Self::chain_error(msg)
+        })?;
         self.parse_balance_entries(&value)
     }
 
-    fn decode_signed_withdraw_payload(
+    /// Poll Hinkal balance endpoint using session authentication.
+    async fn monitor_deposits(&self) -> Result<Vec<BalanceTokenAmount>, WalletError> {
+        let session = self.create_session(false).await?;
+        self.fetch_balance(&session).await
+    }
+
+    fn decode_withdraw_payload(
         &self,
-        signed_tx_bytes: &[u8],
-    ) -> Result<(WithdrawUnsignedPayload, String), WalletError> {
-        if signed_tx_bytes.len() <= 64 {
-            return Err(Self::chain_error(
-                "signed unshield payload too short (expected payload + 64-byte ed25519 signature)",
-            ));
+        tx_bytes: &[u8],
+    ) -> Result<WithdrawUnsignedPayload, WalletError> {
+        // Preferred format: raw JSON payload from build_unshield_tx.
+        if let Ok(payload) = serde_json::from_slice::<WithdrawUnsignedPayload>(tx_bytes) {
+            return Self::validate_withdraw_payload(payload);
         }
 
-        let unsigned_len = signed_tx_bytes.len() - 64;
-        let (unsigned, signature) = signed_tx_bytes.split_at(unsigned_len);
-
+        // Backward-compatible format: payload bytes with appended 64-byte signature.
+        if tx_bytes.len() <= 64 {
+            return Err(Self::chain_error(
+                "invalid unshield payload bytes: expected JSON payload or payload+64-byte signature",
+            ));
+        }
+        let unsigned_len = tx_bytes.len() - 64;
+        let (unsigned, _sig) = tx_bytes.split_at(unsigned_len);
         let payload: WithdrawUnsignedPayload = serde_json::from_slice(unsigned)
             .map_err(|e| Self::chain_error(format!("invalid unshield payload bytes: {e}")))?;
+        Self::validate_withdraw_payload(payload)
+    }
 
+    fn validate_withdraw_payload(
+        payload: WithdrawUnsignedPayload,
+    ) -> Result<WithdrawUnsignedPayload, WalletError> {
         if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
             return Err(Self::chain_error(format!(
                 "unsupported withdraw chain_id={} for Hinkal adapter",
@@ -502,8 +565,7 @@ impl HinkalPort {
         if payload.to_public.trim().is_empty() {
             return Err(Self::chain_error("withdraw recipient must not be empty"));
         }
-
-        Ok((payload, hex::encode(signature)))
+        Ok(payload)
     }
 
     fn transfer_commitment(
@@ -622,12 +684,6 @@ impl ChainPort for HinkalPort {
             "confirmation checking requires underlying chain RPC integration",
         ))
     }
-
-    async fn native_token_usd_rate(&self) -> Result<f64, WalletError> {
-        Err(Self::chain_error(
-            "native token rate requires external price feed integration",
-        ))
-    }
 }
 
 #[async_trait]
@@ -641,8 +697,7 @@ impl PrivacyPort for HinkalPort {
     }
 
     async fn monitor_shielded_transfers(&self) -> Result<Vec<ShieldedTransfer>, WalletError> {
-        let session = self.create_session(false).await?;
-        let balances = self.fetch_balance(&session).await?;
+        let balances = self.monitor_deposits().await?;
 
         let mut transfers = Vec::new();
         let mut last = self
@@ -712,7 +767,7 @@ impl PrivacyPort for HinkalPort {
     }
 
     async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
-        let (payload, _tx_signature_hex) = self.decode_signed_withdraw_payload(signed_tx_bytes)?;
+        let payload = self.decode_withdraw_payload(signed_tx_bytes)?;
 
         let session = self.create_session(true).await?;
         let withdraw_message = Self::build_withdraw_message(
@@ -746,17 +801,24 @@ impl PrivacyPort for HinkalPort {
             .json(&req)
             .send()
             .await
-            .map_err(|e| Self::chain_error(format!("withdraw request failed: {e}")))?;
+            .map_err(|e| {
+                let msg = format!("withdraw request failed: {e}");
+                self.emit_cns_chain_error("submit_signed_tx", &msg);
+                Self::chain_error(msg)
+            })?;
 
         if !resp.status().is_success() {
             let body = Self::read_response_body(resp).await;
-            return Err(Self::chain_error(format!("withdraw rejected: {body}")));
+            let msg = format!("withdraw rejected: {body}");
+            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            return Err(Self::chain_error(msg));
         }
 
-        let v: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| Self::chain_error(format!("withdraw returned invalid JSON: {e}")))?;
+        let v: serde_json::Value = resp.json().await.map_err(|e| {
+            let msg = format!("withdraw returned invalid JSON: {e}");
+            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            Self::chain_error(msg)
+        })?;
 
         let tx_hash = v
             .get("txHash")
@@ -768,7 +830,11 @@ impl PrivacyPort for HinkalPort {
                     .and_then(|d| d.get("txHash"))
                     .and_then(|x| x.as_str())
             })
-            .ok_or_else(|| Self::chain_error("withdraw response missing tx hash"))?;
+            .ok_or_else(|| {
+                let msg = "withdraw response missing tx hash".to_string();
+                self.emit_cns_chain_error("submit_signed_tx", &msg);
+                Self::chain_error(msg)
+            })?;
 
         Ok(TxHash(tx_hash.to_string()))
     }
@@ -991,5 +1057,89 @@ mod tests {
         assert_eq!(payload.chain_id, 501);
         assert_eq!(payload.token, SOLANA_USDC_MINT);
         assert_eq!(payload.nonce.len(), 32);
+    }
+
+    // REQ: HINKAL-010 — monitor_shielded_transfers emits only positive balance deltas
+    #[tokio::test]
+    async fn monitor_shielded_transfers_emits_balance_deltas() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/balance"))
+            .and(wiremock::matchers::query_param("nonce", "nonce-1"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "balance": [{ "token": "USDC", "amount": "1000000" }]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/balance"))
+            .and(wiremock::matchers::query_param("nonce", "nonce-2"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "balance": [{ "token": "USDC", "amount": "1500000" }]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let port = test_port(&server.uri());
+        port.store_cached_session("nonce-1".to_string(), "sig-1".to_string(), false)
+            .expect("cache-1");
+        let first = port.monitor_shielded_transfers().await.expect("first poll");
+
+        port.store_cached_session("nonce-2".to_string(), "sig-2".to_string(), false)
+            .expect("cache-2");
+        let second = port
+            .monitor_shielded_transfers()
+            .await
+            .expect("second poll");
+
+        assert_eq!(first.len(), 1);
+        assert_eq!(first[0].amount_usdc_micro, 1_000_000);
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].amount_usdc_micro, 500_000);
+    }
+
+    // REQ: HINKAL-011 — monitor_shielded_transfers suppresses non-increasing balances
+    #[tokio::test]
+    async fn monitor_shielded_transfers_suppresses_non_increasing_balances() {
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/balance"))
+            .and(wiremock::matchers::query_param("nonce", "nonce-a"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "balance": [{ "token": "USDC", "amount": "1000000" }]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/balance"))
+            .and(wiremock::matchers::query_param("nonce", "nonce-b"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "balance": [{ "token": "USDC", "amount": "1000000" }]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let port = test_port(&server.uri());
+        port.store_cached_session("nonce-a".to_string(), "sig-a".to_string(), false)
+            .expect("cache-a");
+        let first = port.monitor_shielded_transfers().await.expect("first poll");
+
+        port.store_cached_session("nonce-b".to_string(), "sig-b".to_string(), false)
+            .expect("cache-b");
+        let second = port
+            .monitor_shielded_transfers()
+            .await
+            .expect("second poll");
+
+        assert_eq!(first.len(), 1);
+        assert!(second.is_empty());
     }
 }

@@ -52,6 +52,11 @@ pub struct EpisodicMemory {
 }
 
 impl EpisodicMemory {
+    /// Create a new EpisodicMemory with default decay rate and storage budget.
+    ///
+    /// REQ: MEM-022
+    /// pre:  triple_store is initialized
+    /// post: returns EpisodicMemory with DEFAULT_DECAY_RATE and DEFAULT_EPISODIC_BUDGET
     pub fn new(triple_store: TripleStore) -> Self {
         Self {
             triple_store,
@@ -63,6 +68,13 @@ impl EpisodicMemory {
     // Store
 
     /// Store an episodic triple (private by default, with perspective).
+    ///
+    /// REQ: MEM-023
+    /// pre:  triple.access.visibility != Public (episodic is sovereign)
+    /// pre:  triple.access.perspective is Some (must have owner)
+    /// post: triple inserted into triple_store
+    /// post: returns Err(InvalidVisibility) if visibility is Public
+    /// post: returns Err(MissingPerspective) if perspective is None
     pub fn store(&self, triple: Triple) -> Result<(), EpisodicMemoryError> {
         if triple.access.visibility == Visibility::Public {
             return Err(EpisodicMemoryError::InvalidVisibility(
@@ -86,6 +98,11 @@ impl EpisodicMemory {
     /// `Confidence::decay()`, then deduplicates by EAV hash.
     ///
     /// Emits `cns.memory.decay` span for each triple that undergoes decay.
+    ///
+    /// REQ: MEM-024
+    /// pre:  entity is non-empty, perspective is valid
+    /// post: returns Vec<Triple> filtered by perspective, decayed, deduped, sorted by recency
+    /// post: confidence decayed via e^(-λt) for each triple
     pub fn query_for_deduped(
         &self,
         entity: &str,
@@ -128,6 +145,10 @@ impl EpisodicMemory {
     /// Get the current storage usage for a perspective (number of triples).
     ///
     /// Uses a COUNT query instead of loading all triples into memory.
+    ///
+    /// REQ: MEM-025
+    /// pre:  perspective is a valid WebID
+    /// post: returns count of triples for this perspective
     pub fn storage_usage(&self, perspective: &WebID) -> Result<usize, EpisodicMemoryError> {
         let count = self.triple_store.count_by_perspective(perspective)?;
         Ok(count)
@@ -196,6 +217,9 @@ impl EpisodicMemory {
     }
 
     /// Get the configured storage budget.
+    ///
+    /// REQ: MEM-026
+    /// post: returns the storage_budget value set at construction
     pub fn storage_budget(&self) -> usize {
         self.storage_budget
     }
@@ -206,6 +230,11 @@ impl EpisodicMemory {
     /// (sorted by decayed confidence, oldest/lowest first). This is the
     /// count-only version of `consolidation_candidates` — safe to expose
     /// publicly because it doesn't return triple data.
+    ///
+    /// REQ: MEM-027
+    /// pre:  perspective is a valid WebID
+    /// post: returns count of triples eligible for consolidation
+    /// post: returns 0 on error (graceful degradation)
     pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
         match self.consolidation_candidates(*perspective, usize::MAX) {
             Ok(candidates) => candidates.len(),

@@ -72,6 +72,9 @@ fn json_value_strategy() -> BoxedStrategy<Value> {
 ///
 /// Produces events with random observer WebIDs, canonical CNS spans,
 /// valid phases, string observations, and recursion depth 0–7.
+///
+/// REQ: HARN-007
+/// post: returns BoxedStrategy<NuEvent> with valid observer, span, phase, observation, depth 0–7
 pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
     (
         webid_strategy(),
@@ -90,6 +93,9 @@ pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
 ///
 /// Produces triples with random entity/attribute strings,
 /// string JSON values, and random owner WebIDs.
+///
+/// REQ: HARN-008
+/// post: returns BoxedStrategy<Triple> with non-empty entity, attribute, value, owner
 pub fn any_triple() -> BoxedStrategy<Triple> {
     (
         non_empty_string(),
@@ -106,6 +112,9 @@ pub fn any_triple() -> BoxedStrategy<Triple> {
 /// Strategy generating valid `CapabilitySpec` instances.
 ///
 /// Produces specs with random resource types, actions, and resource IDs.
+///
+/// REQ: HARN-009
+/// post: returns BoxedStrategy<CapabilitySpec> with valid resource, action, resource_id
 pub fn any_capability_spec() -> BoxedStrategy<CapabilitySpec> {
     (
         select(&[
@@ -133,6 +142,9 @@ pub fn any_capability_spec() -> BoxedStrategy<CapabilitySpec> {
 ///
 /// Produces goals with random text, states, visibility, depth 0–7,
 /// and optional display names.
+///
+/// REQ: HARN-010
+/// post: returns BoxedStrategy<Goal> with valid webid, text, state, visibility, depth 0–7
 pub fn any_goal() -> BoxedStrategy<Goal> {
     (
         webid_strategy(),
@@ -169,6 +181,9 @@ pub fn any_goal() -> BoxedStrategy<Goal> {
 ///
 /// Produces segments with random text, start times 0–1hr,
 /// and durations 100ms–30s.
+///
+/// REQ: HARN-011
+/// post: returns BoxedStrategy<TranscriptSegment> with non-empty text, start_ms 0–1hr, duration 100ms–30s
 pub fn any_transcript_segment() -> BoxedStrategy<TranscriptSegment> {
     (non_empty_string(), (0u64..3600000u64), (100u64..30000u64))
         .prop_map(|(text, start_ms, duration_ms)| TranscriptSegment {

@@ -81,6 +81,11 @@ pub struct MethodSignals {
 ///
 /// All signals are cheap substring/character operations. No allocations
 /// beyond what's needed for word splitting.
+///
+/// REQ: MEM-028
+/// pre:  text is a valid &str
+/// post: returns MethodSignals with computed linguistic features
+/// post: returns MethodSignals::default() for empty text
 pub fn compute_method_signals(text: &str) -> MethodSignals {
     let words: Vec<&str> = text.split_whitespace().collect();
     let word_count = words.len();
@@ -549,6 +554,11 @@ pub struct MethodThresholds {
 
 impl DeclaredMethod {
     /// Check whether a passage's signals match this method's thresholds.
+    ///
+    /// REQ: MEM-029
+    /// pre:  signals is a valid MethodSignals
+    /// post: returns true iff all configured min/max thresholds are satisfied
+    /// post: unconfigured thresholds (None) are always satisfied
     pub fn matches(&self, signals: &MethodSignals) -> bool {
         let t = &self.signal;
         check_min(t.parataxis_ratio_min, signals.parataxis_ratio)
@@ -600,6 +610,11 @@ pub struct EntityTags {
 ///
 /// Uses simple case-insensitive substring matching. Returns distinct
 /// tags only (no duplicates within a category).
+///
+/// REQ: MEM-030
+/// pre:  text is non-empty, entity lists are valid
+/// post: returns EntityTags with matched entities per category
+/// post: methods field is empty (filled separately)
 pub fn tag_entities(
     text: &str,
     characters: &[String],
@@ -627,6 +642,9 @@ fn filter_matches(lower_text: &str, candidates: &[String]) -> Vec<String> {
 
 impl EntityTags {
     /// All entity and method names as a single iterator for graph construction.
+    ///
+    /// REQ: MEM-031
+    /// post: returns iterator over all tag strings across all categories
     pub fn all_tags(&self) -> impl Iterator<Item = &str> {
         self.characters
             .iter()
@@ -638,6 +656,9 @@ impl EntityTags {
     }
 
     /// Number of distinct tags across all categories.
+    ///
+    /// REQ: MEM-032
+    /// post: returns sum of lengths of all tag category vectors
     pub fn tag_count(&self) -> usize {
         self.characters.len()
             + self.places.len()
@@ -677,6 +698,12 @@ impl EntityTags {
 /// All expansion steps are capped at 50 sampled neighbors to bound
 /// worst-case complexity at O(n × k × d) where k=50, d=average degree.
 /// Foundational rules (passages with zero tags) get salience 0.0.
+///
+/// REQ: MEM-033
+/// pre:  all_tags is a slice of EntityTags
+/// post: returns Vec<f32> with one salience score per passage
+/// post: passages with zero tags get salience 0.0
+/// post: returns empty Vec for empty input
 pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {
     let n = all_tags.len();
     if n == 0 {
@@ -817,6 +844,11 @@ impl BudgetConfig {
     /// `total_passages` caps the passage count (0 = no cap, use actual count).
     /// For `PerPage`: budget = (passage_count / 250) × per_100_pages.
     /// The constant 250 assumes ~250 passages ≈ 100 pages.
+    ///
+    /// REQ: MEM-034
+    /// pre:  passage_count ≥ 0
+    /// post: returns computed absolute triple budget
+    /// post: Flat variant caps at total_passages if set and smaller
     pub fn resolve(&self, passage_count: usize) -> usize {
         match self {
             BudgetConfig::Flat {

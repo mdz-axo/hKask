@@ -22,6 +22,9 @@ pub struct CapabilityAwareValidator;
 
 impl CapabilityAwareValidator {
     /// Create a new validator.
+    ///
+    /// REQ: TPL-001
+    /// post: returns CapabilityAwareValidator
     pub fn new() -> Self {
         Self
     }
@@ -31,6 +34,12 @@ impl CapabilityAwareValidator {
     /// Returns `Ok(())` if all required capabilities are satisfied by at least one
     /// held token. Returns `Err(TemplateError::CapabilityDenied)` with details about
     /// the first unsatisfied requirement.
+    ///
+    /// REQ: TPL-002
+    /// pre:  template_id is non-empty
+    /// post: returns Ok(()) if all required capabilities are satisfied
+    /// post: returns Ok(()) if required_capabilities is empty
+    /// post: returns Err(CapabilityDenied) for first unsatisfied requirement
     pub fn validate_capabilities(
         &self,
         template_id: &str,

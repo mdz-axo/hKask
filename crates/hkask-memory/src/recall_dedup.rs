@@ -16,6 +16,11 @@ use std::collections::HashSet;
 /// excluding metadata (timestamps, confidence, perspective, visibility)
 /// so that the same factual content stored at different times or with
 /// different confidence levels is recognized as a duplicate.
+///
+/// REQ: MEM-001
+/// pre:  triple is a valid Triple with entity, attribute, value
+/// post: returns deterministic 32-byte BLAKE3 hash of canonical EAV content
+/// post: same EAV content → same hash (metadata-independent)
 pub fn eav_hash(triple: &Triple) -> [u8; 32] {
     let canonical = format!(
         "{}\x00{}\x00{}",
@@ -53,6 +58,12 @@ fn canonical_value(value: &serde_json::Value) -> String {
 ///
 /// Returns only the first occurrence of each unique EAV content.
 /// Preserves the original ordering (first-seen wins).
+///
+/// REQ: MEM-002
+/// pre:  triples is a Vec of valid Triples
+/// post: returns Vec with duplicates removed (by EAV hash)
+/// post: preserves original ordering (first occurrence kept)
+/// post: result.len() ≤ triples.len()
 pub fn dedup_triples(triples: Vec<Triple>) -> Vec<Triple> {
     let mut seen = HashSet::new();
     let mut result = Vec::with_capacity(triples.len());

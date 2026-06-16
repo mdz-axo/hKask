@@ -24,10 +24,19 @@ use thiserror::Error;
 pub struct RoomId(pub String);
 
 impl RoomId {
+    /// Create a new RoomId from a string.
+    ///
+    /// REQ: COMM-022
+    /// pre:  id is a valid Matrix room ID (e.g., "!abc123:localhost")
+    /// post: returns RoomId wrapping the string
     pub fn new(id: &str) -> Self {
         Self(id.to_string())
     }
 
+    /// Return the room ID as a string slice.
+    ///
+    /// REQ: COMM-023
+    /// post: returns &str of the inner room ID
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -38,10 +47,19 @@ impl RoomId {
 pub struct UserId(pub String);
 
 impl UserId {
+    /// Create a new UserId from a string.
+    ///
+    /// REQ: COMM-024
+    /// pre:  id is a valid Matrix user ID (e.g., "@agent:localhost")
+    /// post: returns UserId wrapping the string
     pub fn new(id: &str) -> Self {
         Self(id.to_string())
     }
 
+    /// Return the user ID as a string slice.
+    ///
+    /// REQ: COMM-025
+    /// post: returns &str of the inner user ID
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -112,6 +130,10 @@ impl MatrixTransport {
     /// Create a new Matrix transport pointed at the given homeserver URL.
     ///
     /// Does not connect or authenticate — call `login()` first.
+    ///
+    /// REQ: COMM-001
+    /// pre:  homeserver_url is a valid URL string
+    /// post: returns MatrixTransport with client=None, homeserver_url set
     pub fn new(homeserver_url: &str) -> Self {
         Self {
             client: None,
@@ -122,6 +144,11 @@ impl MatrixTransport {
     /// Check whether the homeserver is reachable.
     ///
     /// Performs `GET /_matrix/client/versions` to verify Conduit is running.
+    ///
+    /// REQ: COMM-002
+    /// pre:  homeserver_url is set
+    /// post: returns Ok(true) if homeserver responds
+    /// post: returns Err(Unavailable) if homeserver is unreachable
     pub async fn health_check(&mut self) -> Result<bool, MatrixError> {
         let client = matrix_sdk::Client::builder()
             .homeserver_url(&self.homeserver_url)
@@ -143,6 +170,12 @@ impl MatrixTransport {
     ///
     /// Stores the authenticated client for subsequent operations.
     /// Must be called before `send_message()`, `get_messages()`, etc.
+    ///
+    /// REQ: COMM-003
+    /// pre:  username and password are non-empty
+    /// post: if successful, self.client is set to authenticated client
+    /// post: returns Err(Auth) if credentials are invalid
+    /// post: returns Err(Unavailable) if homeserver is unreachable
     pub async fn login(&mut self, username: &str, password: &str) -> Result<(), MatrixError> {
         let client = matrix_sdk::Client::builder()
             .homeserver_url(&self.homeserver_url)
@@ -173,6 +206,14 @@ impl MatrixTransport {
     /// Performs a one-shot poll of the room's timeline. Does not require
     /// a continuous sync loop. Call this when the agent is activated to
     /// check for new messages.
+    ///
+    /// REQ: COMM-004
+    /// pre:  client is authenticated (login() called)
+    /// pre:  room_id is a valid Matrix room ID
+    /// pre:  limit > 0
+    /// post: returns Vec<MatrixMessage> with at most `limit` messages
+    /// post: returns Err(NotLoggedIn) if not authenticated
+    /// post: returns Err(Room) if room not found
     pub async fn get_messages(
         &self,
         room_id: &RoomId,
@@ -245,6 +286,14 @@ impl MatrixTransport {
     /// If `structured` is provided, it is attached as JSON in the
     /// message's `org.matrix.custom.html` formatted body for machine
     /// consumption while the plain `body` remains human-readable.
+    ///
+    /// REQ: COMM-005
+    /// pre:  client is authenticated (login() called)
+    /// pre:  room_id is a valid Matrix room ID
+    /// pre:  body is non-empty
+    /// post: message sent to room
+    /// post: returns Err(NotLoggedIn) if not authenticated
+    /// post: returns Err(Network) if send fails
     pub async fn send_message(
         &self,
         room_id: &RoomId,
@@ -286,6 +335,13 @@ impl MatrixTransport {
     }
 
     /// Create a new Matrix room.
+    ///
+    /// REQ: COMM-006
+    /// pre:  client is authenticated (login() called)
+    /// pre:  name is non-empty
+    /// post: returns Ok(RoomId) for the newly created room
+    /// post: room name is set to `name`
+    /// post: returns Err(NotLoggedIn) if not authenticated
     pub async fn create_room(
         &self,
         name: &str,
@@ -319,6 +375,14 @@ impl MatrixTransport {
     }
 
     /// Invite a user to a room.
+    ///
+    /// REQ: COMM-007
+    /// pre:  client is authenticated (login() called)
+    /// pre:  room_id is a valid Matrix room ID
+    /// pre:  user_id is a valid Matrix user ID
+    /// post: user invited to room
+    /// post: returns Err(NotLoggedIn) if not authenticated
+    /// post: returns Err(Room) if room not found or invite fails
     pub async fn invite_user(&self, room_id: &RoomId, user_id: &UserId) -> Result<(), MatrixError> {
         let client = self.client.as_ref().ok_or(MatrixError::NotLoggedIn)?;
 
@@ -347,6 +411,12 @@ impl MatrixTransport {
     }
 
     /// List joined rooms.
+    ///
+    /// REQ: COMM-008
+    /// pre:  client is authenticated (login() called)
+    /// post: returns Vec<Thread> with all joined rooms
+    /// post: each Thread has room_id, title, and participants populated
+    /// post: returns Err(NotLoggedIn) if not authenticated
     pub async fn list_rooms(&self) -> Result<Vec<Thread>, MatrixError> {
         let client = self.client.as_ref().ok_or(MatrixError::NotLoggedIn)?;
 
@@ -378,6 +448,9 @@ impl MatrixTransport {
     }
 
     /// Check whether the client is authenticated.
+    ///
+    /// REQ: COMM-009
+    /// post: returns true iff client is Some (login() succeeded)
     pub fn healthy(&self) -> bool {
         self.client.is_some()
     }
@@ -388,6 +461,11 @@ impl MatrixTransport {
     /// Call this when the connection drops or the homeserver restarts.
     /// Requires `HKASK_MATRIX_AGENT_USERNAME` and `HKASK_MATRIX_AGENT_PASSWORD`
     /// environment variables to be set.
+    ///
+    /// REQ: COMM-010
+    /// pre:  HKASK_MATRIX_AGENT_USERNAME and HKASK_MATRIX_AGENT_PASSWORD env vars are set
+    /// post: self.client is reset and re-authenticated
+    /// post: returns Err(Auth) if env vars are missing or credentials invalid
     pub async fn reconnect(&mut self) -> Result<(), MatrixError> {
         self.client = None;
 
@@ -411,6 +489,10 @@ impl MatrixTransport {
     /// Returns `true` if the client is authenticated AND the homeserver
     /// responds to a version check. Returns `false` if either fails.
     /// Does not mutate state — safe to call from health probes.
+    ///
+    /// REQ: COMM-011
+    /// post: returns true iff client is authenticated and whoami succeeds
+    /// post: does not mutate self
     pub async fn is_healthy(&self) -> bool {
         let Some(client) = &self.client else {
             return false;
@@ -422,6 +504,10 @@ impl MatrixTransport {
     }
 
     /// Get the current logged-in user ID, if authenticated.
+    ///
+    /// REQ: COMM-012
+    /// post: returns Some(user_id) if authenticated
+    /// post: returns None if not authenticated or whoami fails
     pub async fn current_user_id(&self) -> Option<String> {
         let client = self.client.as_ref()?;
         client.whoami().await.ok().map(|r| r.user_id.to_string())

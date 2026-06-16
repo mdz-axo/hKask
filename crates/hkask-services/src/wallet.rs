@@ -7,20 +7,29 @@
 //! - `WalletManager` — balance, deposits, withdrawals, gas conversion
 //! - `ApiKeyIssuer` — API key creation, revocation, listing
 //! - `CyberneticsLoop` (optional) — CNS wallet budget registration
+//!
+//! # Construction
+//! Use `WalletService::build()` to construct from config + store + event sink.
+//! This encapsulates chain port assembly, price feed resolution, and CNS wiring
+//! — keeping `context.rs` focused on orchestration, not wallet internals.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use hkask_agents::consent::ConsentManager;
 use hkask_cns::CyberneticsLoop;
+use hkask_storage::WalletStore;
 use hkask_types::WebID;
+use hkask_types::event::NuEventSink;
 use hkask_types::sovereignty::DataCategory;
 use hkask_types::wallet::{
     ApiKeyCapability, ApiKeyId, ApiKeyMaterial, ChainId, DepositAddress, DepositReference,
-    PrivacyMode, RJoule, TxHash, WalletBalance, WalletError, WalletId, WalletTransaction,
+    PrivacyMode, RJoule, TxHash, WalletBalance, WalletConfig, WalletError, WalletId,
+    WalletTransaction,
 };
 #[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
-use hkask_wallet::{ApiKeyIssuer, WalletManager};
+use hkask_wallet::{ApiKeyIssuer, WalletManager, resolve_price_feed};
 use tokio::sync::RwLock;
 
 use crate::ServiceError;
@@ -69,6 +78,204 @@ impl WalletService {
     pub fn with_consent_manager(mut self, cm: Arc<ConsentManager>) -> Self {
         self.consent_manager = Some(cm);
         self
+    }
+
+    /// Access the underlying WalletManager (for orchestration: ensure_wallet, deposit monitor).
+    pub fn manager(&self) -> &Arc<WalletManager> {
+        &self.manager
+    }
+
+    /// Build a fully-wired WalletService from config, store, and CNS infrastructure.
+    ///
+    /// Encapsulates chain port assembly (Solana, Hedera, Hinkal), price feed
+    /// resolution, WalletManager construction, and ApiKeyIssuer creation.
+    /// This is the single entry point for production wallet construction —
+    /// `context.rs` calls this and handles only orchestration (replicant binding,
+    /// deposit monitor spawning).
+    ///
+    /// # Parameters
+    /// - `config`: Wallet subsystem configuration (chains, privacy, price feed)
+    /// - `store`: Shared wallet store for balances, keys, transactions
+    /// - `event_sink`: CNS event sink for span emission (chain errors, key alerts)
+    /// - `cybernetics`: CNS loop for wallet-backed energy budget registration
+    pub fn build(
+        config: &WalletConfig,
+        store: Arc<WalletStore>,
+        event_sink: Arc<dyn NuEventSink>,
+        cybernetics: Arc<RwLock<CyberneticsLoop>>,
+    ) -> Result<Arc<Self>, ServiceError> {
+        // ── Build chain ports from environment ────────────────────────────
+        #[allow(unused_mut)]
+        let mut chains: HashMap<ChainId, Box<dyn hkask_wallet::ChainPort>> = HashMap::new();
+
+        // Solana — self-custody via raw JSON-RPC
+        #[cfg(feature = "solana")]
+        if let Ok(rpc_url) = std::env::var("SOLANA_RPC_URL")
+            && let Ok(treasury_pubkey) = std::env::var("SOLANA_TREASURY_PUBKEY")
+        {
+            match hkask_wallet::solana::SolanaPort::new(&rpc_url, &treasury_pubkey, None) {
+                Ok(port) => {
+                    let port = port.with_event_sink(Arc::clone(&event_sink));
+                    tracing::info!(
+                        target: "cns.wallet.chain",
+                        chain = "solana",
+                        rpc_url = %rpc_url,
+                        "SolanaPort initialized"
+                    );
+                    chains.insert(ChainId::Solana, Box::new(port));
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.wallet.chain",
+                        chain = "solana",
+                        error = %e,
+                        "Failed to initialize SolanaPort"
+                    );
+                }
+            }
+        }
+
+        // Hedera — self-custody via mirror node + gRPC
+        #[cfg(feature = "hedera")]
+        if let Ok(treasury_account) = std::env::var("HEDERA_TREASURY_ACCOUNT") {
+            let mirror_url = std::env::var("HEDERA_MIRROR_NODE_URL")
+                .unwrap_or_else(|_| "https://mainnet-public.mirrornode.hedera.com".to_string());
+            match hkask_wallet::hedera::HederaPort::new(
+                &mirror_url,
+                &treasury_account,
+                None,
+                "https://35.232.244.145:50211",
+            ) {
+                Ok(port) => {
+                    let port = port.with_event_sink(Arc::clone(&event_sink));
+                    tracing::info!(
+                        target: "cns.wallet.chain",
+                        chain = "hedera",
+                        mirror_url = %mirror_url,
+                        "HederaPort initialized"
+                    );
+                    chains.insert(ChainId::Hedera, Box::new(port));
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.wallet.chain",
+                        chain = "hedera",
+                        error = %e,
+                        "Failed to initialize HederaPort"
+                    );
+                }
+            }
+        }
+
+        // Optional Hinkal privacy adapter
+        #[allow(unused_mut)]
+        let mut privacy: Option<Box<dyn hkask_wallet::PrivacyPort>> = None;
+
+        #[cfg(feature = "hinkal")]
+        if config.privacy_enabled {
+            let relayer_url = config
+                .hinkal_relayer_url
+                .clone()
+                .or_else(|| std::env::var("HINKAL_RELAYER_URL").ok());
+            let treasury_account = std::env::var("HINKAL_TREASURY_ACCOUNT").ok();
+
+            match (relayer_url, treasury_account) {
+                (Some(relayer_url), Some(treasury_account)) => {
+                    match hkask_wallet::hinkal::HinkalPort::new(&relayer_url, &treasury_account) {
+                        Ok(chain_port) => {
+                            let chain_port = chain_port.with_event_sink(Arc::clone(&event_sink));
+                            tracing::info!(
+                                target: "cns.wallet.chain",
+                                chain = "hinkal",
+                                relayer_url = %relayer_url,
+                                "HinkalPort initialized for chain routing"
+                            );
+                            chains.insert(ChainId::Hinkal, Box::new(chain_port));
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "cns.wallet.chain",
+                                chain = "hinkal",
+                                error = %e,
+                                "Failed to initialize Hinkal chain adapter"
+                            );
+                        }
+                    }
+
+                    match hkask_wallet::hinkal::HinkalPort::new(&relayer_url, &treasury_account) {
+                        Ok(privacy_port) => {
+                            let privacy_port =
+                                privacy_port.with_event_sink(Arc::clone(&event_sink));
+                            tracing::info!(
+                                target: "cns.wallet.chain",
+                                chain = "hinkal",
+                                relayer_url = %relayer_url,
+                                "Hinkal privacy adapter initialized"
+                            );
+                            privacy = Some(Box::new(privacy_port));
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "cns.wallet.chain",
+                                chain = "hinkal",
+                                error = %e,
+                                "Failed to initialize Hinkal privacy adapter"
+                            );
+                        }
+                    }
+                }
+                _ => {
+                    tracing::warn!(
+                        target: "cns.wallet.chain",
+                        "Privacy enabled but Hinkal env incomplete"
+                    );
+                }
+            }
+        }
+
+        if chains.is_empty() {
+            tracing::info!(
+                target: "cns.wallet.chain",
+                "No chain ports configured — wallet running in read-only mode"
+            );
+        }
+
+        // ── Resolve price feed from user config ──────────────────────────
+        let price_feed =
+            resolve_price_feed(&config.price_feed).map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: "Failed to resolve price feed".into(),
+            })?;
+
+        // ── Build WalletManager ──────────────────────────────────────────
+        let manager = Arc::new(
+            WalletManager::build(
+                config.clone(),
+                Arc::clone(&store),
+                chains,
+                privacy,
+                price_feed,
+            )
+            .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: "Failed to build WalletManager".into(),
+            })?
+            .with_event_sink(Arc::clone(&event_sink)),
+        );
+
+        // ── Build ApiKeyIssuer ───────────────────────────────────────────
+        let issuer = Arc::new(
+            ApiKeyIssuer::new(Arc::clone(&store))
+                .map_err(|e| ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: "Failed to build ApiKeyIssuer".into(),
+                })?
+                .with_event_sink(Arc::clone(&event_sink)),
+        );
+
+        Ok(Arc::new(
+            Self::new(manager, issuer).with_cybernetics(cybernetics),
+        ))
     }
 
     // ── Balance ──────────────────────────────────────────────────────────────

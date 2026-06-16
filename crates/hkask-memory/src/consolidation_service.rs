@@ -31,6 +31,11 @@ impl ConsolidationService {
     /// Create a new ConsolidationService.
     ///
     /// The token must be issued by the Curator (system-level authority).
+    ///
+    /// REQ: MEM-012
+    /// pre:  bridge and semantic are initialized
+    /// pre:  token.issuer() == expected curator
+    /// post: returns ConsolidationService ready for consolidation operations
     pub fn new(
         bridge: Arc<ConsolidationBridge>,
         semantic: Arc<SemanticMemory>,
@@ -51,6 +56,14 @@ impl ConsolidationService {
     ///    confidence floor (if specified)
     /// 3. **Max triples** — delete lowest-confidence semantic triples until
     ///    count is at or below `max_semantic_triples` (if specified)
+    ///
+    /// REQ: MEM-013
+    /// pre:  perspective is a valid WebID
+    /// pre:  request.limit > 0
+    /// post: episodic triples consolidated into semantic memory
+    /// post: low-confidence semantic triples deleted if confidence_floor set
+    /// post: excess semantic triples deleted if max_semantic_triples set
+    /// post: returns ConsolidationOutcome with counts
     pub fn consolidate(
         &self,
         perspective: &WebID,
@@ -192,16 +205,29 @@ impl ConsolidationService {
     }
 
     /// Count episodic consolidation candidates for a perspective.
+    ///
+    /// REQ: MEM-014
+    /// pre:  perspective is a valid WebID
+    /// post: returns count of episodic triples available for consolidation
     pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
         self.bridge.consolidation_candidate_count(perspective)
     }
 
     /// Count semantic triples at or below a confidence threshold.
+    ///
+    /// REQ: MEM-015
+    /// pre:  threshold in [0.0, 1.0]
+    /// post: returns count of semantic triples with confidence ≤ threshold
+    /// post: returns 0 on error (graceful degradation)
     pub fn semantic_low_confidence_count(&self, threshold: f64) -> usize {
         self.semantic.low_confidence_count(threshold).unwrap_or(0)
     }
 
     /// Get current semantic triple count.
+    ///
+    /// REQ: MEM-016
+    /// post: returns total count of triples in semantic memory
+    /// post: returns 0 on error (graceful degradation)
     pub fn semantic_triple_count(&self) -> usize {
         self.semantic.triple_count().unwrap_or(0)
     }

@@ -17,6 +17,7 @@ struct ManifestFile {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ManifestHeader {
     id: String,
     name: String,

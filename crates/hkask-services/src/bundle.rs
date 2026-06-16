@@ -25,7 +25,6 @@ use hkask_templates::BundleManifest;
 use hkask_types::Visibility;
 use hkask_types::ports::{BundleRegistryIndex, InferencePort, SkillRegistryIndex};
 
-use crate::context::AgentService;
 use crate::error::ServiceError;
 
 /// Result of composing a bundle from skill IDs.
@@ -62,7 +61,7 @@ impl BundleService {
     /// `ServiceError::Skill` if a skill ID is not found in the registry.
     #[allow(clippy::too_many_arguments)]
     pub async fn compose(
-        ctx: &AgentService,
+        registry: &Arc<tokio::sync::Mutex<hkask_templates::SqliteRegistry>>,
         skill_ids: &[String],
         name: Option<&str>,
         visibility: Visibility,
@@ -77,7 +76,6 @@ impl BundleService {
         }
 
         // Resolve skill metadata from the registry.
-        let registry = ctx.registry();
         let registry_guard = registry.lock().await;
         let skills: Vec<hkask_types::ports::Skill> = skill_ids
             .iter()
@@ -221,15 +219,18 @@ impl BundleService {
     }
 
     /// List all bundles in the registry.
-    pub async fn list(ctx: &AgentService) -> Result<Vec<BundleManifest>, ServiceError> {
-        let registry = ctx.registry();
+    pub async fn list(
+        registry: &Arc<tokio::sync::Mutex<hkask_templates::SqliteRegistry>>,
+    ) -> Result<Vec<BundleManifest>, ServiceError> {
         let guard = registry.lock().await;
         Ok(guard.list_bundles())
     }
 
     /// Get a bundle by ID.
-    pub async fn get(ctx: &AgentService, id: &str) -> Result<Option<BundleManifest>, ServiceError> {
-        let registry = ctx.registry();
+    pub async fn get(
+        registry: &Arc<tokio::sync::Mutex<hkask_templates::SqliteRegistry>>,
+        id: &str,
+    ) -> Result<Option<BundleManifest>, ServiceError> {
         let guard = registry.lock().await;
         Ok(guard.get_bundle(id))
     }
@@ -237,8 +238,10 @@ impl BundleService {
     /// Apply a bundle to the current session.
     ///
     /// Returns the bundle manifest if found, or `ServiceError::Compose` if not.
-    pub async fn apply(ctx: &AgentService, id: &str) -> Result<BundleManifest, ServiceError> {
-        let registry = ctx.registry();
+    pub async fn apply(
+        registry: &Arc<tokio::sync::Mutex<hkask_templates::SqliteRegistry>>,
+        id: &str,
+    ) -> Result<BundleManifest, ServiceError> {
         let guard = registry.lock().await;
         guard.get_bundle(id).ok_or_else(|| ServiceError::Compose {
             source: None,
@@ -251,12 +254,12 @@ impl BundleService {
     /// Re-loads skill metadata, re-runs composition, and updates the manifest.
     /// Returns the evolved manifest.
     pub async fn evolve(
-        ctx: &AgentService,
+        registry: &Arc<tokio::sync::Mutex<hkask_templates::SqliteRegistry>>,
         id: &str,
         inference_port: Arc<dyn InferencePort>,
         editor: &str,
     ) -> Result<BundleComposeResult, ServiceError> {
-        let existing = Self::get(ctx, id).await?;
+        let existing = Self::get(registry, id).await?;
         let existing = existing.ok_or_else(|| ServiceError::Compose {
             source: None,
             message: format!("Bundle '{}' not found", id),
@@ -265,7 +268,7 @@ impl BundleService {
         // Re-compose using the same skill IDs.
         let skill_ids = existing.skill_ids();
         let result = Self::compose(
-            ctx,
+            registry,
             &skill_ids,
             Some(&existing.name),
             existing.visibility,
@@ -276,7 +279,6 @@ impl BundleService {
 
         // Remove the old bundle and register the new one.
         {
-            let registry = ctx.registry();
             let mut guard = registry.lock().await;
             guard.remove_bundle(id);
             guard.register_bundle(result.manifest.clone());
@@ -292,9 +294,8 @@ impl BundleService {
 
     /// List available skills from the registry.
     pub async fn list_skills(
-        ctx: &AgentService,
+        registry: &Arc<tokio::sync::Mutex<hkask_templates::SqliteRegistry>>,
     ) -> Result<Vec<hkask_types::ports::Skill>, ServiceError> {
-        let registry = ctx.registry();
         let guard = registry.lock().await;
         // list_skills() returns Vec<Skill> — an owned type from SkillRegistryIndex
         Ok(hkask_types::ports::SkillRegistryIndex::list_skills(&*guard))

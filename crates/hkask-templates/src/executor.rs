@@ -26,12 +26,10 @@
 //! both of which are already dependencies of this crate.
 
 use crate::ports::{McpPort, Result, TemplateError};
-use hkask_types::ports::{InferencePort, InferenceResult};
 use hkask_types::bundle::BundleManifestStep;
+use hkask_types::ports::{InferencePort, InferenceResult};
 use hkask_types::template::LLMParameters;
-use hkask_types::{
-    BundleManifest, DelegationAction, DelegationResource, DelegationToken, WebID,
-};
+use hkask_types::{BundleManifest, DelegationAction, DelegationResource, DelegationToken, WebID};
 use minijinja::UndefinedBehavior;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -70,6 +68,10 @@ pub struct ManifestExecutor {
 
 impl ManifestExecutor {
     /// Create a new executor with the given infrastructure ports.
+    ///
+    /// REQ: TPL-003
+    /// pre:  inference and mcp are initialized, acp_secret is non-empty
+    /// post: returns ManifestExecutor with default template_base_path
     pub fn new(
         inference: Arc<dyn InferencePort>,
         mcp: Arc<dyn McpPort>,

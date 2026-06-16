@@ -21,6 +21,10 @@ pub enum PromptStrategy {
 
 impl PromptStrategy {
     /// Analyze input text to determine the best prompt strategy.
+    ///
+    /// REQ: TPL-005
+    /// pre:  input is non-empty
+    /// post: returns Answer for questions, Instruct for creation, Assist otherwise
     pub fn from_input(input: &str) -> Self {
         if input.contains('?') || input.contains("what") || input.contains("how") {
             PromptStrategy::Answer
@@ -32,6 +36,10 @@ impl PromptStrategy {
     }
 
     /// Apply the strategy to frame a prompt.
+    ///
+    /// REQ: TPL-006
+    /// pre:  input is non-empty
+    /// post: returns framed prompt string with strategy-specific prefix
     pub fn frame(&self, input: &str) -> String {
         match self {
             PromptStrategy::Answer => format!("Answer concisely: {}", input),
@@ -41,6 +49,9 @@ impl PromptStrategy {
     }
 
     /// Strategy name for tagging/logging.
+    ///
+    /// REQ: TPL-007
+    /// post: returns lowercase strategy name
     pub fn name(&self) -> &'static str {
         match self {
             PromptStrategy::Answer => "answer",

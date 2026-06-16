@@ -89,7 +89,4 @@ pub trait ChainPort: Send + Sync {
 
     /// Get the number of confirmations for a transaction.
     async fn confirmations(&self, tx_hash: &TxHash) -> Result<u64, WalletError>;
-
-    /// Get the current USD value of the native token (for fee estimation).
-    async fn native_token_usd_rate(&self) -> Result<f64, WalletError>;
 }

@@ -32,6 +32,9 @@ pub struct AgentRegistry {
 
 impl AgentRegistry {
     /// Create an empty agent registry.
+    ///
+    /// REQ: COMM-013
+    /// post: returns AgentRegistry with empty entries and watchlists
     pub fn new() -> Self {
         Self::default()
     }
@@ -41,6 +44,11 @@ impl AgentRegistry {
     /// Called after `kask matrix register --agent` succeeds.
     /// Does NOT perform Matrix registration — that is done by the CLI
     /// via Conduit's admin API.
+    ///
+    /// REQ: COMM-014
+    /// pre:  webid is a valid WebID, user_id is a valid Matrix UserId
+    /// post: mapping stored in entries
+    /// post: idempotent — overwrites existing mapping for same webid
     pub async fn record_mapping(&self, webid: &WebID, user_id: &UserId) {
         self.entries
             .write()
@@ -55,6 +63,11 @@ impl AgentRegistry {
     }
 
     /// Deregister a replicant.
+    ///
+    /// REQ: COMM-015
+    /// pre:  webid is a valid WebID
+    /// post: mapping removed from entries if present
+    /// post: idempotent — removing non-existent entry is Ok(())
     pub async fn deregister(&self, webid: &WebID) -> Result<(), AgentRegistrationError> {
         let webid_str = webid.to_string();
         let removed = self.entries.write().await.remove(&webid_str);
@@ -69,11 +82,22 @@ impl AgentRegistry {
     }
 
     /// Resolve a WebID to its Matrix UserId.
+    ///
+    /// REQ: COMM-016
+    /// pre:  webid is a valid WebID
+    /// post: returns Some(UserId) if mapping exists
+    /// post: returns None if no mapping for webid
     pub async fn resolve(&self, webid: &WebID) -> Option<UserId> {
         self.entries.read().await.get(&webid.to_string()).cloned()
     }
 
     /// Add a thread to an agent's watchlist.
+    ///
+    /// REQ: COMM-017
+    /// pre:  webid is registered (record_mapping called)
+    /// pre:  room_id is a valid RoomId
+    /// post: room_id added to agent's watchlist
+    /// post: returns Err(NotRegistered) if webid not in entries
     pub async fn monitor_thread(
         &self,
         webid: &WebID,
@@ -102,6 +126,11 @@ impl AgentRegistry {
     }
 
     /// Get agents monitoring a given thread.
+    ///
+    /// REQ: COMM-018
+    /// pre:  room_id is a valid RoomId
+    /// post: returns Vec of WebID strings watching this thread
+    /// post: returns empty Vec if no watchers
     pub async fn get_watchers(&self, room_id: &RoomId) -> Vec<String> {
         self.thread_watchlists
             .read()

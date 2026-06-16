@@ -10,6 +10,11 @@ use chrono::Datelike;
 ///
 /// `k` is the smoothing constant (commonly 60). Each rank position is
 /// 0-based (rank 0 = first result).
+///
+/// REQ: MEM-009
+/// pre:  k > 0, ranks contains valid 0-based positions
+/// post: returns sum of 1/(k + rank + 1) for each rank
+/// post: result is always ≥ 0.0
 pub fn rrf_score(k: u64, ranks: &[usize]) -> f64 {
     ranks
         .iter()
@@ -22,6 +27,11 @@ pub fn rrf_score(k: u64, ranks: &[usize]) -> f64 {
 /// Supports: "3 days ago", "2 weeks ago", ISO dates like "2024-01-15",
 /// fuzzy dates like "Jan 15, 2024", and "published ..." prefixes.
 /// Returns -1.0 for unparseable input.
+///
+/// REQ: MEM-010
+/// pre:  age is a valid &str
+/// post: returns days as f64 (≥ 0.0 for valid dates)
+/// post: returns -1.0 for unparseable or empty input
 pub fn parse_age_to_days(age: &str) -> f64 {
     let lower = age.to_lowercase();
     let lower = lower.trim();
@@ -154,6 +164,11 @@ fn parse_fuzzy_date(s: &str) -> f64 {
 /// Classify a date string into a human-readable bucket.
 ///
 /// Returns one of: "today", "this week", "this month", "older", "unknown".
+///
+/// REQ: MEM-011
+/// pre:  published is a valid &str
+/// post: returns one of five bucket labels based on age in days
+/// post: returns "unknown" for unparseable input
 pub fn normalize_date_bucket(published: &str) -> &'static str {
     let days = parse_age_to_days(published);
     if days < 0.0 {

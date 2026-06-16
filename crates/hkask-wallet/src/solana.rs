@@ -17,6 +17,8 @@
 //! - Deposit addresses derived deterministically from treasury public key
 
 use async_trait::async_trait;
+use hkask_types::cns::CnsSpan;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{ChainId, TxHash, WalletError};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -27,6 +29,7 @@ use solana_sdk::{
 use spl_associated_token_account::get_associated_token_address;
 use spl_token::instruction as spl_token_ix;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::chain::{ChainPort, DepositEvent};
@@ -68,6 +71,8 @@ pub struct SolanaPort {
     usdc_mint: Pubkey,
     /// Minimum confirmations for deposit finality.
     min_confirmations: u64,
+    /// Optional CNS event sink for chain error span emission.
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl SolanaPort {
@@ -108,7 +113,36 @@ impl SolanaPort {
             treasury_pubkey,
             usdc_mint,
             min_confirmations: MIN_CONFIRMATIONS,
+            event_sink: None,
         })
+    }
+
+    /// Attach a CNS event sink for chain error span emission.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
+    }
+
+    /// Emit a CNS chain_error span if an event sink is configured.
+    fn emit_chain_error(&self, operation: &str, error_msg: &str) {
+        if let Some(ref sink) = self.event_sink {
+            let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
+            let event = NuEvent::new(
+                hkask_types::WebID::new(),
+                span_obj,
+                Phase::Sense,
+                serde_json::json!({
+                    "chain": "solana",
+                    "operation": operation,
+                    "error": error_msg,
+                }),
+                0,
+            );
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(target: "hkask.wallet.solana", error = %e, "Failed to persist CNS chain_error span");
+            }
+        }
     }
 
     /// Create a SolanaPort for devnet testing.
@@ -146,20 +180,30 @@ impl SolanaPort {
             .json(&body)
             .send()
             .await
-            .map_err(|e| WalletError::ChainError {
-                chain: ChainId::Solana,
-                message: format!("RPC HTTP error: {e}"),
+            .map_err(|e| {
+                let msg = format!("RPC HTTP error ({method}): {e}");
+                self.emit_chain_error(method, &msg);
+                WalletError::ChainError {
+                    chain: ChainId::Solana,
+                    message: msg,
+                }
             })?;
 
-        let json: Value = resp.json().await.map_err(|e| WalletError::ChainError {
-            chain: ChainId::Solana,
-            message: format!("RPC JSON parse error: {e}"),
+        let json: Value = resp.json().await.map_err(|e| {
+            let msg = format!("RPC JSON parse error ({method}): {e}");
+            self.emit_chain_error(method, &msg);
+            WalletError::ChainError {
+                chain: ChainId::Solana,
+                message: msg,
+            }
         })?;
 
         if let Some(err) = json.get("error") {
+            let msg = format!("RPC error ({method}): {err}");
+            self.emit_chain_error(method, &msg);
             return Err(WalletError::ChainError {
                 chain: ChainId::Solana,
-                message: format!("RPC error: {err}"),
+                message: msg,
             });
         }
 
@@ -436,16 +480,18 @@ impl ChainPort for SolanaPort {
     async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
         // The signing.rs module appends the Ed25519 signature (64 bytes) to the payload.
         if signed_tx_bytes.len() < 64 {
+            let msg = "signed transaction too short".to_string();
+            self.emit_chain_error("submit_signed_tx", &msg);
             return Err(WalletError::Infra(
-                hkask_types::InfrastructureError::Database("signed transaction too short".into()),
+                hkask_types::InfrastructureError::Database(msg),
             ));
         }
 
         let (payload_bytes, sig_bytes) = signed_tx_bytes.split_at(signed_tx_bytes.len() - 64);
         let payload: WithdrawalPayload = bincode::deserialize(payload_bytes).map_err(|e| {
-            WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
-                "failed to deserialize withdrawal payload: {e}"
-            )))
+            let msg = format!("failed to deserialize withdrawal payload: {e}");
+            self.emit_chain_error("submit_signed_tx", &msg);
+            WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })?;
 
         let mut sig_arr = [0u8; 64];
@@ -466,9 +512,9 @@ impl ChainPort for SolanaPort {
 
         // Serialize the full transaction for submission
         let full_tx_bytes = bincode::serialize(&tx).map_err(|e| {
-            WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
-                "failed to serialize transaction: {e}"
-            )))
+            let msg = format!("failed to serialize transaction: {e}");
+            self.emit_chain_error("submit_signed_tx", &msg);
+            WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })?;
 
         // Submit via RPC
@@ -491,13 +537,6 @@ impl ChainPort for SolanaPort {
             .and_then(|s| s.get("confirmations"))
             .and_then(|c| c.as_u64())
             .unwrap_or(0))
-    }
-
-    async fn native_token_usd_rate(&self) -> Result<f64, WalletError> {
-        // SOL/USD rate — for production, use a price feed oracle.
-        // For now, return a reasonable estimate.
-        // TODO: Integrate with a price feed (Pyth, Switchboard, or CoinGecko API)
-        Ok(150.0) // ~$150 SOL
     }
 }
 

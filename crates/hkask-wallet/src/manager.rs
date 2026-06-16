@@ -928,9 +928,6 @@ mod tests {
         async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
             Ok(32)
         }
-        async fn native_token_usd_rate(&self) -> Result<f64, WalletError> {
-            Ok(1.0)
-        }
     }
 
     fn make_manager() -> WalletManager {
@@ -1177,9 +1174,6 @@ mod tests {
         }
         async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
             Ok(32)
-        }
-        async fn native_token_usd_rate(&self) -> Result<f64, WalletError> {
-            Ok(1.0)
         }
     }
 

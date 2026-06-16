@@ -8,7 +8,7 @@ use hkask_services::WalletService;
 use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
 use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletConfig, WalletId};
-use hkask_wallet::{ApiKeyIssuer, WalletManager, resolve_price_feed};
+use hkask_wallet::{ApiKeyIssuer, StaticPriceFeed, WalletManager};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -50,14 +50,13 @@ fn build_wallet_service() -> WalletService {
     let db = in_memory_db();
     let store = Arc::new(WalletStore::new(db.conn_arc()));
     let config = WalletConfig::default();
-    let price_feed = resolve_price_feed(&config.price_feed).expect("Failed to resolve price feed");
     let manager = Arc::new(
         WalletManager::build(
             config,
             Arc::clone(&store),
             Default::default(),
             None,
-            price_feed,
+            Arc::new(StaticPriceFeed::new()),
         )
         .expect("Failed to build WalletManager"),
     );
