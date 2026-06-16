@@ -1,0 +1,26 @@
+crate:
+  name: review
+  version: "0.27.0"
+  description: >
+    Self-critique a reasoning output for contradictions, unsupported claims,
+    logical gaps, and confidence calibration. Use before finalizing an answer or
+    before entering an iterative refinement loop.
+
+templates:
+  - id: review/self-critique
+    path: self_critique.j2
+    type: WordAct
+    lexicon_terms:
+      [critique, evaluate, contradiction, gap, confidence, calibration, verify]
+    description: >
+      Evaluate derived knowledge against a goal for missing information,
+      contradictions, unsupported claims, logical gaps, and calibration.
+
+hlexicon_terms:
+  - critique
+  - evaluate
+  - contradiction
+  - gap
+  - confidence
+  - calibration
+  - verify

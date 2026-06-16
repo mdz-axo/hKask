@@ -96,12 +96,12 @@ status: VERIFIED
    the markdown was corrupted → restore from git; or it evolved intentionally →
    run step 2 and commit. The derived YAML is **never** silently overwritten.
 
-**Counting note:** the tables define **89 term-slots** (28 WordAct + 35 FlowDef
-+ 26 KnowAct). One term, `transform`, is intentionally shared between WordAct
-(Declarative) and FlowDef (Data Flow), so there are **88 globally-unique term
-strings**. The lexicon is keyed by term string and therefore holds 88 entries;
+**Counting note:** the tables define **92 term-slots** (28 WordAct + 35 FlowDef
++ 29 KnowAct). One term, `transform`, is intentionally shared between WordAct
+(Declarative) and FlowDef (Data Flow), so there are **91 globally-unique term
+strings**. The lexicon is keyed by term string and therefore holds 91 entries;
 `transform` takes its first/primary domain (WordAct), leaving 34 unique FlowDef
-keys. `load_workspace_lexicon()` reflects this 88-term functional set.
+keys. `load_workspace_lexicon()` reflects this 91-term functional set.
 Requirement: [`REQ-DOM-004`](../../specifications/specs/REQUIREMENTS.md).
 
 ---
@@ -314,6 +314,8 @@ Speech acts distinguish between:
 | `abduct` | Best explanation | "abduct: most likely cause" |
 | `analogy` | Map similarity | "analogy: like previous case" |
 | `critique` | Evaluate reasoning | "critique: identify fallacies" |
+| `contradiction` | Detect mutually incompatible claims | "contradiction: between fact A and fact B" |
+| `confidence` | Degree of certainty given evidence | "confidence: 0.85 given 3 sources" |
 
 ### 3.3 Learning (5 terms) — Knowledge acquisition
 
@@ -325,6 +327,7 @@ Speech acts distinguish between:
 | `adapt` | Adjust to context | "adapt: template parameters" |
 | `calibrate` | Tune accuracy | "calibrate: confidence scores" |
 | `revise` | Improve by iteration | "revise: template based on critique" |
+| `calibration` | Process of tuning confidence against outcomes | "calibration: map confidence to accuracy" |
 
 ### 3.4 Metacognition (6 terms) — Thinking about thinking
 

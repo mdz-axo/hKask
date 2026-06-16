@@ -10,9 +10,13 @@
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "test-against-target.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "test-against-target.j2: unknown hlexicon terms [\"test\", \"resist\", \"robustness\"]",
+        "multi-turn-attack.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "multi-turn-attack.j2: unknown hlexicon terms [\"attack\", \"multi-turn\", \"drain\"]",
+        "select-target.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "select-target.j2: unknown hlexicon terms [\"target\", \"vulnerability\", \"adversarial\"]",
+        "generate-adversarial.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "generate-adversarial.j2: unknown hlexicon terms [\"generate\", \"adversarial\", \"inject\"]"
       ],
       "template_summary": {
@@ -24,13 +28,11 @@
     },
     {
       "skill_name": "caveman",
-      "zed_layer_present": false,
+      "zed_layer_present": true,
       "registry_layer_present": true,
-      "health_score": 0.75,
-      "status": "StaleWarning",
-      "defects": [
-        "missing Zed layer (SKILL.md)"
-      ],
+      "health_score": 1.0,
+      "status": "Active",
+      "defects": [],
       "template_summary": {
         "total": 1,
         "word_act": 1,
@@ -42,12 +44,14 @@
       "skill_name": "chain-of-density",
       "zed_layer_present": false,
       "registry_layer_present": true,
-      "health_score": 0.36,
-      "status": "Critical",
+      "health_score": 0.05999999999999997,
+      "status": "RecommendDeprecation",
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "density-pass.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "density-pass.j2: unknown hlexicon terms [\"condense\", \"density\", \"entity\"]",
+        "initial-summary.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "initial-summary.j2: unknown hlexicon terms [\"identify\", \"entity\", \"density\"]"
       ],
       "template_summary": {
@@ -186,9 +190,13 @@
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "record-decision.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "record-decision.j2: unknown hlexicon terms [\"record\", \"decision\", \"context\"]",
+        "compute-brier.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "compute-brier.j2: unknown hlexicon terms [\"brier\", \"probability\", \"outcome\"]",
+        "define-expected-outcomes.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "define-expected-outcomes.j2: unknown hlexicon terms [\"outcome\", \"probability\", \"confidence\"]",
+        "revisit-evaluate.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "revisit-evaluate.j2: unknown hlexicon terms [\"actual\", \"outcome\", \"bias\"]"
       ],
       "template_summary": {
@@ -230,15 +238,15 @@
       "skill_name": "document-update",
       "zed_layer_present": true,
       "registry_layer_present": true,
-      "health_score": 0.4600000000000001,
-      "status": "Critical",
+      "health_score": 0.55,
+      "status": "StaleWarning",
       "defects": [
         "doc-quality-gate.j2: unknown hlexicon terms [\"improve\"]",
-        "doc-align-metadata.j2: unknown hlexicon terms [\"align\", \"migrate\", \"update\"]",
-        "doc-archive.j2: unknown hlexicon terms [\"archive\", \"remove\", \"supersede\"]",
-        "doc-drift-resolve.j2: unknown hlexicon terms [\"align\", \"implement\", \"update\"]",
+        "doc-align-metadata.j2: unknown hlexicon terms [\"align\", \"restore\", \"migrate\"]",
+        "doc-archive.j2: unknown hlexicon terms [\"archive\", \"supersede\", \"migrate\"]",
+        "doc-drift-resolve.j2: unknown hlexicon terms [\"align\", \"update\"]",
         "doc-inventory.j2: unknown hlexicon terms [\"inventory\", \"walk\", \"flag\"]",
-        "doc-refresh-portal.j2: unknown hlexicon terms [\"refresh\", \"update\", \"index\"]"
+        "doc-refresh-portal.j2: unknown hlexicon terms [\"refresh\", \"update\"]"
       ],
       "template_summary": {
         "total": 7,
@@ -425,10 +433,12 @@
       "skill_name": "kata",
       "zed_layer_present": true,
       "registry_layer_present": true,
-      "health_score": 0.97,
+      "health_score": 0.8799999999999999,
       "status": "Active",
       "defects": [
-        "consent-and-select.j2: unknown hlexicon terms [\"consent\"]"
+        "kata-switch-check.j2: unknown hlexicon terms [\"decide\"]",
+        "consent-and-select.j2: unknown hlexicon terms [\"consent\"]",
+        "iteration-check.j2: unknown hlexicon terms [\"decide\", \"iterate\"]"
       ],
       "template_summary": {
         "total": 7,
@@ -441,9 +451,13 @@
       "skill_name": "kata-coaching",
       "zed_layer_present": true,
       "registry_layer_present": true,
-      "health_score": 1.0,
+      "health_score": 0.8799999999999999,
       "status": "Active",
-      "defects": [],
+      "defects": [
+        "coaching-q1-target.j2: unknown hlexicon terms [\"clarify\", \"target\"]",
+        "coaching-q5-learn.j2: unknown hlexicon terms [\"iterate\"]",
+        "coaching-cycle.j2: unknown hlexicon terms [\"iterate\"]"
+      ],
       "template_summary": {
         "total": 6,
         "word_act": 5,
@@ -455,9 +469,14 @@
       "skill_name": "kata-improvement",
       "zed_layer_present": true,
       "registry_layer_present": true,
-      "health_score": 1.0,
-      "status": "Active",
-      "defects": [],
+      "health_score": 0.7899999999999998,
+      "status": "StaleWarning",
+      "defects": [
+        "improvement-step2-current.j2: unknown hlexicon terms [\"collect\", \"measure\"]",
+        "improvement-cycle.j2: unknown hlexicon terms [\"iterate\"]",
+        "improvement-step1-direction.j2: unknown hlexicon terms [\"target\", \"measure\"]",
+        "improvement-step3-target.j2: unknown hlexicon terms [\"target\", \"measure\"]"
+      ],
       "template_summary": {
         "total": 5,
         "word_act": 4,
@@ -528,9 +547,13 @@
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "identify-criteria.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "identify-criteria.j2: unknown hlexicon terms [\"identify\", \"criteria\", \"benefit\"]",
+        "rank-alternatives.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "rank-alternatives.j2: unknown hlexicon terms [\"order\", \"top\", \"compensation\"]",
+        "weight-and-score.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "weight-and-score.j2: unknown hlexicon terms [\"weight\", \"normalize\", \"method\"]",
+        "sensitivity-analysis.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "sensitivity-analysis.j2: unknown hlexicon terms [\"sensitivity\", \"perturbation\", \"robustness\"]"
       ],
       "template_summary": {
@@ -604,11 +627,12 @@
       "skill_name": "metacognition",
       "zed_layer_present": false,
       "registry_layer_present": true,
-      "health_score": 0.48,
+      "health_score": 0.32999999999999996,
       "status": "Critical",
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "meta_decompose.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "meta_decompose.j2: unknown hlexicon terms [\"subgoal\", \"dependency\", \"strategy\"]"
       ],
       "template_summary": {
@@ -669,8 +693,11 @@
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "analyze-attack-surface.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "analyze-attack-surface.j2: unknown hlexicon terms [\"surface\", \"capability\", \"tool\"]",
+        "classify-threat.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "classify-threat.j2: unknown hlexicon terms [\"threat\", \"injection\", \"jailbreak\"]",
+        "recommend-defenses.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "recommend-defenses.j2: unknown hlexicon terms [\"defend\", \"sanitize\", \"canary\"]"
       ],
       "template_summary": {
@@ -684,13 +711,16 @@
       "skill_name": "rag",
       "zed_layer_present": false,
       "registry_layer_present": true,
-      "health_score": 0.15,
+      "health_score": 0.0,
       "status": "RecommendDeprecation",
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "synthesize-grounded.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "synthesize-grounded.j2: unknown hlexicon terms [\"grounded\", \"cite\", \"source\"]",
+        "reformulate-query.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "reformulate-query.j2: unknown hlexicon terms [\"reformulate\", \"expand\", \"sub-question\"]",
+        "verify-citations.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "verify-citations.j2: unknown hlexicon terms [\"citation\", \"support\", \"entailment\"]"
       ],
       "template_summary": {
@@ -709,9 +739,13 @@
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "ishikawa-6m.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "ishikawa-6m.j2: unknown hlexicon terms [\"ishikawa\", \"fishbone\", \"brainstorm\"]",
+        "corrective-action.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "corrective-action.j2: unknown hlexicon terms [\"corrective\", \"action\", \"prevent\"]",
+        "define-problem.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "define-problem.j2: unknown hlexicon terms [\"define\", \"problem\", \"precise\"]",
+        "five-whys-chain.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "five-whys-chain.j2: unknown hlexicon terms [\"why\", \"chain\", \"causal\"]"
       ],
       "template_summary": {
@@ -834,10 +868,15 @@
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "axes-and-narratives.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "axes-and-narratives.j2: unknown hlexicon terms [\"axis\", \"narrative\", \"scenario\"]",
+        "key-forces.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "key-forces.j2: unknown hlexicon terms [\"force\", \"micro\", \"proximate\"]",
+        "implications-indicators.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "implications-indicators.j2: unknown hlexicon terms [\"implication\", \"indicator\", \"robust\"]",
+        "focal-question.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "focal-question.j2: unknown hlexicon terms [\"focal\", \"question\", \"decision\"]",
+        "driving-forces.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "driving-forces.j2: unknown hlexicon terms [\"driving\", \"macro\", \"steep\"]"
       ],
       "template_summary": {
@@ -851,13 +890,16 @@
       "skill_name": "self-critique-revision",
       "zed_layer_present": false,
       "registry_layer_present": true,
-      "health_score": 0.21,
-      "status": "Critical",
+      "health_score": 0.0,
+      "status": "RecommendDeprecation",
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "generate.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "generate.j2: unknown hlexicon terms [\"generate\", \"draft\", \"produce\"]",
+        "revise.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "revise.j2: unknown hlexicon terms [\"improve\", \"address\", \"incorporate\"]",
+        "critique.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "critique.j2: unknown hlexicon terms [\"identify\", \"weakness\", \"improvement\"]"
       ],
       "template_summary": {
@@ -992,13 +1034,16 @@
       "skill_name": "structured-extraction",
       "zed_layer_present": false,
       "registry_layer_present": true,
-      "health_score": 0.09,
+      "health_score": 0.0,
       "status": "RecommendDeprecation",
       "defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
+        "extract-relations.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "extract-relations.j2: unknown hlexicon terms [\"identify\", \"relate\", \"connect\"]",
+        "identify-entities.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "identify-entities.j2: unknown hlexicon terms [\"identify\", \"entity\", \"scan\"]",
+        "map-to-schema.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "map-to-schema.j2: unknown hlexicon terms [\"schema\", \"conform\", \"normalize\"]"
       ],
       "template_summary": {

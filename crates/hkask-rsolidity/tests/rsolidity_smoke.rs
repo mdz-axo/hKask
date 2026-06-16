@@ -1,15 +1,19 @@
 //! Smoke tests for the rSolidity macro vocabulary.
 
 use hkask_rsolidity::{self as rs, Ocap};
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::Phase;
-use serde_json::json;
+use serde::Serialize;
 
 // REQ: P9-rsolidity-ocap-gate — OCAP attribute delegates to receiver trait
 #[derive(Debug, PartialEq)]
 struct OcapError(&'static str);
 
 struct Vault;
+
+#[derive(Debug, Serialize)]
+#[allow(dead_code)]
+enum Phase {
+    Act,
+}
 
 impl Ocap for Vault {
     type Error = OcapError;
@@ -89,10 +93,10 @@ fn revert_returns_error() {
 #[test]
 fn emit_does_not_panic() {
     rs::emit!(
-        CnsSpan::WalletWithdrawal,
+        "cns.wallet.withdrawal",
         "submitted",
         Phase::Act,
-        json!({ "actor": "did:web:alice", "tx_hash": "0x01" })
+        serde_json::json!({ "actor": "did:web:alice", "tx_hash": "0x01" })
     );
 }
 

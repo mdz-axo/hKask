@@ -3937,6 +3937,7 @@ version = "0.27.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "hkask-rsolidity",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4325,6 +4326,25 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "hkask-rsolidity"
+version = "0.27.0"
+dependencies = [
+ "hkask-rsolidity-macros",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "hkask-rsolidity-macros"
+version = "0.27.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]

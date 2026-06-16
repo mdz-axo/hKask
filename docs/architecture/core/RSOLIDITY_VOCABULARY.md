@@ -1,17 +1,16 @@
 # rSolidity Contract Vocabulary
 
-**Status:** Design complete — awaiting macro crate implementation  
+**Status:** Macro crate implemented — first migration target (`hkask-cns` energy budget contracts) complete  
 **Source anchor:** [`FUNCTIONAL_SPECIFICATION.md`](./FUNCTIONAL_SPECIFICATION.md)  
-**Machine-readable manifest:** [`data/rsolidity_contract_manifest.json`](../../data/rsolidity_contract_manifest.json)  
 **Version:** 0.27.0
 
 ---
 
 ## 1. Purpose
 
-rSolidity is the runtime-contract layer for hKask. It translates the declarative `/// REQ:` contracts in Rust source into executable pre/post/invariant checks, OCAP boundary enforcement, and CNS span emission. This document defines the vocabulary and establishes the rewrite pattern from spec contracts to rSolidity macros.
+rSolidity is the runtime-contract layer for hKask. It makes the declarative `/// REQ:` contracts in Rust source executable via macros and attributes, while keeping the source comments authoritative for `scripts/contract-audit.sh`. This document defines the vocabulary and the rewrite pattern from spec contracts to rSolidity macros.
 
-The design goal is **mechanical fidelity**: every `pre:`, `post:`, and `inv:` line in a `/// REQ:` block becomes one rSolidity macro invocation. Principle annotations (`[P9] Motivating`, `[P4] Constraining`) become compile-time metadata used for span namespace selection and algedonic escalation.
+The design goal is **mechanical fidelity where the type system is insufficient**: every `pre:`, `post:`, and `inv:` clause becomes a `require!`, `assert!`, `revert!`, or `emit!` invocation. Principle annotations (`[P9] Motivating`, `[P4] Constraining`) are carried as compile-time metadata on `#[contract(...)]` for validation and future span namespace selection.
 
 ---
 
@@ -19,12 +18,12 @@ The design goal is **mechanical fidelity**: every `pre:`, `post:`, and `inv:` li
 
 | Macro | Solidity Analog | Role in hKask | Emits CNS Span |
 |-------|-----------------|---------------|----------------|
-| `require!(condition, "contract-id", "msg")` | `require` | **Precondition** — must hold on entry; panics/reverts if false | No |
-| `assert!(condition, "contract-id", "msg")` | `assert` | **Postcondition / invariant** — must hold after execution; panics if false | No |
-| `revert!("contract-id", "msg")` | `revert` | **Explicit failure path** — returns an `EnergyError` or domain error | Optional |
-| `emit!(span, verb, phase, payload)` | `emit` | **CNS span emission** — Sense/Act/Decide events | Yes |
-| `#[ocap(resource, operation)]` | modifier / capability check | **OCAP boundary gate** — verifies caller owns the resource before executing the annotated function | Yes |
-| `#[contract(id = "...", principle = "P9", pre = "...", post = "...", inv = "...")]` | n/a | **Compile-time contract registration** — generates the `/// REQ:` doc comment and links to the manifest | No |
+| `require!(condition, "contract-id", "msg")` | `require` | **Precondition** — must hold on entry; panics with the contract id if false | No |
+| `assert!(condition, "contract-id", "msg")` | `assert` | **Postcondition / invariant** — must hold after execution; panics in debug if false | No |
+| `revert!("contract-id", err)` | `revert` | **Explicit failure path** — returns `Err(err)` from the current function, tagged with a contract id | Optional |
+| `emit!(span, verb, phase, payload)` | `emit` | **CNS span emission** — logs the event via `tracing` (`target: "rsolidity.emit"`); the CNS sink listens on the same target | Yes |
+| `#[ocap(resource, operation)]` | modifier / capability check | **OCAP boundary gate** — injects `<Self as Ocap>::verify_ocap(...)` at the start of a method | Yes |
+| `#[contract(id = "...", principle = "P9", pre = "...", post = "...", inv = "...")]` | n/a | **Compile-time contract metadata** — validates id/principle format and re-emits the item; source `/// REQ:` comments remain authoritative | No |
 
 ### 2.1 `require!`
 
@@ -37,8 +36,9 @@ require!(
 ```
 
 - Evaluates the condition.
-- On failure, returns `EnergyError::BudgetExceeded` (or a principle-mapped error type).
+- On failure, panics with a message containing the contract id and the supplied description.
 - Does **not** emit a span by default; combine with `emit!` for algedonic feedback.
+- Use only for programmer-error preconditions; recoverable domain errors should use `revert!`.
 
 ### 2.2 `assert!`
 
@@ -51,7 +51,7 @@ assert!(
 ```
 
 - Evaluates the condition after the guarded code runs.
-- Panics in debug builds; logs and continues in release builds (configurable).
+- Panics on violation (all builds, via `core::assert!`).
 - Used for invariants and postconditions that cannot be enforced by construction.
 
 ### 2.3 `revert!`
@@ -79,9 +79,12 @@ emit!(
 );
 ```
 
-- Emits a `NuEvent` to the configured sink.
-- `phase` is `Sense | Act | Decide` from [`MDS.md`](./MDS.md).
-- Optional `actor` parameter defaults to the caller’s `WebID`.
+- Logs the event via `tracing::info!` with `target: "rsolidity.emit"`.
+- `span` is any type implementing `Display + Serialize` (e.g. `CnsSpan`).
+- `verb` is any `Display` value (typically `"submitted"`, `"measured"`, etc.).
+- `phase` is any `Debug + Serialize` value (e.g. `Phase::Act` from `hkask_types::event`).
+- `payload` is any `Debug + Serialize` value (e.g. `serde_json::json!({...})`).
+- The CNS sink subscribes to the same `rsolidity.emit` target, so emitted events are ingested without a direct crate dependency.
 
 ### 2.5 `#[ocap(resource, operation)]`
 
@@ -111,8 +114,9 @@ pub fn can_proceed(&self, gas: EnergyCost) -> bool {
 ```
 
 - Purely compile-time metadata.
-- Generates the `/// REQ:` doc comment from the spec.
-- Registers the contract in the build-time manifest so `scripts/contract-audit.sh` can validate it.
+- Validates that `id` matches `P#-...` and `principle` is `P1`–`P12`.
+- Re-emits the annotated item unchanged so the existing source `/// REQ:` comment remains the authoritative audit signal.
+- Future releases may generate a build-time manifest from these attributes; for now `scripts/contract-audit.sh` continues to scan source comments.
 
 ---
 
@@ -252,30 +256,28 @@ pub fn reserve(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
 
 ## 5. Crate Structure
 
-Future implementation: `crates/hkask-rsolidity/`
+Implemented:
 
 ```text
 crates/hkask-rsolidity/
-├── Cargo.toml
+├── Cargo.toml              # re-exports macros and attributes from hkask-rsolidity-macros
 ├── src/
-│   ├── lib.rs          # re-exports macros and attributes
-│   ├── macros/
-│   │   ├── require.rs
-│   │   ├── assert.rs
-│   │   ├── revert.rs
-│   │   └── emit.rs
-│   └── attr/
-│       ├── contract.rs
-│       └── ocap.rs
+│   └── lib.rs              # Ocap trait, __private_emit helper, declarative macros
 └── tests/
-    └── energy_budget.rs
+    └── rsolidity_smoke.rs  # smoke tests for all six vocabulary items
+
+crates/hkask-rsolidity-macros/
+├── Cargo.toml              # proc-macro crate
+└── src/
+    └── lib.rs              # #[ocap] and #[contract] attribute macros
 ```
 
 ### 5.1 Dependencies
 
-- `proc-macro2`, `quote`, `syn` for macro authoring.
-- `hkask-types` for `CnsSpan`, `Phase`, `NuEvent`, and error types.
-- `serde_json` for span payloads.
+- `hkask-rsolidity-macros` provides the proc-macro attributes.
+- `proc-macro2`, `quote`, `syn` (in the macros crate only) for macro authoring.
+- `serde` and `serde_json` for typed span payloads in `emit!`.
+- `tracing` for the `emit!` sink.
 
 ### 5.2 Non-goals
 
@@ -299,17 +301,20 @@ crates/hkask-rsolidity/
 
 A contract is correctly migrated when:
 
-- `grep "REQ:" crates/<crate>/src/*.rs` shows only `#[contract(...)]` registrations (no free-form pre/post/inv comments).
+- `#[contract(...)]` metadata is present above the function and matches the source `/// REQ:` id.
 - `cargo test -p hkask-rsolidity` passes for the macro tests.
-- `scripts/contract-audit.sh --summary` still reports the same number of contracts.
+- `scripts/contract-audit.sh --summary` still reports the same number of contracts (source comments remain authoritative).
 - `kask cns health` shows no new algedonic alerts.
 
----
+## 8. Tooling Policy
 
-## 8. References
+rSolidity is a Rust layer. Python generator scripts are **not** retained in the repository; any ad-hoc Python used during exploration must be deleted before the work is considered complete. The contract inventory is maintained by `scripts/contract-audit.sh` scanning source `REQ:` comments.
+
+## 9. References
 
 - [`FUNCTIONAL_SPECIFICATION.md`](./FUNCTIONAL_SPECIFICATION.md) — spec anchor
-- [`data/rsolidity_contract_manifest.json`](../../data/rsolidity_contract_manifest.json) — 406 extracted contract IDs
 - [`PRINCIPLES.md`](./PRINCIPLES.md) — P1–P12 definitions
 - [`MDS.md`](./MDS.md) — Minimum Definition Specification
-- [`crates/hkask-cns/src/energy.rs`](../../crates/hkask-cns/src/energy.rs) — starting migration target
+- [`crates/hkask-cns/src/energy.rs`](../../crates/hkask-cns/src/energy.rs) — first migration target
+- [`crates/hkask-rsolidity/src/lib.rs`](../../crates/hkask-rsolidity/src/lib.rs) — macro and trait implementations
+- [`crates/hkask-rsolidity-macros/src/lib.rs`](../../crates/hkask-rsolidity-macros/src/lib.rs) — attribute proc-macro implementations

@@ -36,18 +36,15 @@ The `goal:` block is the single source of truth for the audit. Everything else i
 
 ## Audit Cascade
 
-The runtime executes a `FlowDef` (`registry/templates/skill-logic-audit/user-review-loop.j2`) that orchestrates:
+The skill-logic-audit cascade is composed of four templates in `registry/templates/skill-logic-audit/`:
 
-1. **load-goal** (`WordAct`, `registry/templates/skill-logic-audit/load-goal.j2`) — parse the `goal:` block from the target artifact.
-2. **critique-template** (`KnowAct`, `registry/templates/skill-logic-audit/critique-template.j2`) — adversarial critique anchored to the goal.
-3. **critique-critique** (`KnowAct`, `registry/templates/skill-logic-audit/critique-critique.j2`) — soundness filter; separate valid concerns from spurious ones.
-4. **compose-proposal** (`KnowAct`, `registry/templates/skill-logic-audit/compose-proposal.j2`) — produce a concrete revised artifact and a diff.
-5. **user-choice** (`WordAct`, `registry/templates/skill-logic-audit/user-choice.j2`) — present the proposal and branch on:
-   - `accept`: write the revised artifact and re-run the audit.
-   - `reject`: discard the proposal and stop.
-   - `counter-proposal`: capture user edits and route back to `compose-proposal`.
+1. **load-goal** (`WordAct`, `load-goal.j2`) — parse the `goal:` block from the target artifact.
+2. **critique-template** (`KnowAct`, `critique-template.j2`) — adversarial critique anchored to the goal.
+3. **critique-critique** (`KnowAct`, `critique-critique.j2`) — soundness filter; separate valid concerns from spurious ones.
+4. **compose-proposal** (`KnowAct`, `compose-proposal.j2`) — produce a concrete revised artifact and a diff.
+5. **user-review-loop** (`KnowAct`, `user-review-loop.j2`) — plan the bounded accept/reject/counter-proposal loop and route to the next step.
 
-The loop increments a depth counter; after the configured maximum it escalates to the user rather than continuing.
+When this cascade is wired into a runtime FlowDef, the FlowDef must live in `registry/manifests/` as YAML, not in a `.j2` file. The `user-review-loop` template produces the routing decision; the runtime executes it.
 
 ## Constraints
 

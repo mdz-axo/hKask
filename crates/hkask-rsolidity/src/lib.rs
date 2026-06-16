@@ -1,10 +1,11 @@
 //! rSolidity — runtime contract vocabulary for hKask.
 //!
-//! Provides macros and attributes that make the declarative `/// REQ:` contracts
+//! Provides macros and attributes that make the declarative source `REQ:` contracts
 //! in the spec executable: preconditions, postconditions, invariants, OCAP gates,
 //! and CNS span emission. The detailed contract text remains in source comments
-//! (`/// REQ:`) so `scripts/contract-audit.sh` can continue to use it as the
-//! authoritative audit signal during the strangler-fig migration.
+//! (lines that begin with the REQ: contract tag) so `scripts/contract-audit.sh` can
+//! continue to use them as the authoritative audit signal during the
+//! strangler-fig migration.
 
 pub use hkask_rsolidity_macros::{contract, ocap};
 
@@ -18,6 +19,7 @@ pub trait Ocap {
     fn verify_ocap(&self, resource: &str, operation: &str) -> Result<(), Self::Error>;
 }
 
+/// REQ: P9-rsolidity-emit-helper
 /// Private helper used by the `emit!` macro.
 #[doc(hidden)]
 pub fn __private_emit<S, V, P, T>(span: S, verb: V, phase: P, payload: T)

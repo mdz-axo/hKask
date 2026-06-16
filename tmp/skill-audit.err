@@ -1,10 +1,4 @@
-   Compiling hkask-cns v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-cns)
-   Compiling hkask-inference v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-inference)
-   Compiling hkask-mcp v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp)
-   Compiling hkask-improv v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-improv)
-   Compiling hkask-agents v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-agents)
-   Compiling hkask-services v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-services)
-   Compiling hkask-api v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-api)
-   Compiling hkask-cli v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-cli)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 33.27s
+    Blocking waiting for file lock on build directory
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.52s
      Running `target/debug/kask skill audit --json --fail-below 0.0`
+Audit failed: one or more skills are below threshold or a FlowDef was declared on a .j2 file.

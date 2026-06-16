@@ -193,6 +193,8 @@ hlexicon:
       definition: "Interpolate between style vectors for mashup generation"
     - term: calibrate
       definition: "Tune accuracy"
+    - term: calibration
+      definition: "Process of tuning confidence against outcomes"
     - term: catalog
       definition: "Enumerate and classify artifacts by reference"
     - term: classify
@@ -205,8 +207,12 @@ hlexicon:
       definition: "Assemble parts into a structured whole"
     - term: compress
       definition: "Distill and reduce context volume"
+    - term: confidence
+      definition: "Degree of certainty given evidence"
     - term: contextualise
       definition: "Situate an artifact within its meaningful environment"
+    - term: contradiction
+      definition: "Detect mutually incompatible claims"
     - term: converge
       definition: "Approach a common point, state, or value through iterative refinement"
     - term: critique

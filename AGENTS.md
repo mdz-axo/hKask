@@ -37,6 +37,18 @@ These are **Prohibitions**, not guidelines. See PRINCIPLES.md §2.1–2.4 for th
 
 ---
 
+## Tooling Policy
+
+hKask is a Rust project. Python is **not** an acceptable project dependency. Ad-hoc Python scripts may be used during exploration, but they must be deleted before the work is considered complete. Any generated artifacts produced by Python scripts (JSON manifests, inventories, etc.) must also be removed. The repository will be periodically scanned for Python files and purged as a coding violation.
+
+Preferred auxiliary tooling:
+
+- Shell (`bash`) for repository-level scripts under `scripts/`.
+- Rust binaries or `build.rs` for anything that needs to parse source or Cargo metadata.
+- `scripts/contract-audit.sh` remains the source-of-truth for contract coverage; it scans `/// REQ:` and `// REQ:` comments directly.
+
+---
+
 ## Key Docs
 
 | Topic | Location |

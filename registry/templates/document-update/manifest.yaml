@@ -27,11 +27,11 @@ templates:
   - id: document-update/doc-align-metadata
     path: doc-align-metadata.j2
     type: KnowAct
-    lexicon_terms: [align, fix, migrate, update, verify]
+    lexicon_terms: [align, restore, migrate, update, verify]
     description: >
       Apply surgical edits to YAML frontmatter on flagged documents:
       migrate ddmvss_categories to mds_categories (5-category taxonomy),
-      fix stale status values, add missing audience/mds_categories fields,
+      restore stale status values, add missing audience/mds_categories fields,
       update last_updated to edit date. Metadata-only — do not touch
       document body content.
 
@@ -60,7 +60,7 @@ templates:
   - id: document-update/doc-drift-resolve
     path: doc-drift-resolve.j2
     type: KnowAct
-    lexicon_terms: [resolve, align, implement, update, verify]
+    lexicon_terms: [resolve, align, apply, update, verify]
     description: >
       Resolve spec-code drift items per curation decisions. For
       spec_ahead: add minimal stubs with FocusingAssumption annotations.
@@ -71,17 +71,17 @@ templates:
   - id: document-update/doc-archive
     path: doc-archive.j2
     type: KnowAct
-    lexicon_terms: [archive, remove, deprecate, supersede, migrate]
+    lexicon_terms: [archive, retire, deprecate, supersede, migrate]
     description: >
       Move deprecated/superseded documents to docs/archive/YYYY-MM-DD-<label>/.
-      Git rm removed documents. Update all cross-references in active
+      Git rm retired documents. Update all cross-references in active
       documents. Remove formerly/previously-known-as annotations.
       Git history is the archive of record.
 
   - id: document-update/doc-refresh-portal
     path: doc-refresh-portal.j2
     type: KnowAct
-    lexicon_terms: [refresh, update, index, verify, navigate]
+    lexicon_terms: [refresh, update, catalog, verify, orient]
     description: >
       Update docs/README.md portal to reflect current corpus: verify
       every listed document exists, add missing entries, remove archived
@@ -96,7 +96,7 @@ hlexicon_terms:
   - extract
   - flag
   - align
-  - fix
+  - restore
   - migrate
   - update
   - verify
@@ -108,11 +108,11 @@ hlexicon_terms:
   - resolve
   - trace
   - ground
-  - implement
+  - apply
   - archive
-  - remove
+  - retire
   - deprecate
   - supersede
   - refresh
-  - index
-  - navigate
+  - catalog
+  - orient

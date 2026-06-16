@@ -46,8 +46,7 @@ assertions:
         methods:
           - sign
           - attenuate_with_expiry
-          - verify_delegation_token
-          - verify_delegation_token_now
+          - verify
         fields:
           - SYSTEM_MAX_ATTENUATION
           - signature

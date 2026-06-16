@@ -28,8 +28,8 @@ governance:
     distribution:
       wordact: 28
       flowdef: 35
-      knowact: 26
-    current_usage: 89
+      knowact: 29
+    current_usage: 92
     overage_justification: |
       Git evolution terms (clone, branch, merge, rebase, pr, upstream, downstream)
       were deemed essential for artifact management despite exceeding the original allocation.

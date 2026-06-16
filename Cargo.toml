@@ -18,6 +18,8 @@ members = [
     "crates/hkask-api",
     "crates/hkask-improv",
     "crates/hkask-communication",
+    "crates/hkask-rsolidity",
+    "crates/hkask-rsolidity-macros",
     "crates/hkask-test-harness",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
@@ -116,6 +118,11 @@ crossterm = "0.28"
 
 # Pattern matching (for migration)
 regex = "1"
+
+# Proc-macro support
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
 
 # Futures utilities
 futures-util = "0.3"

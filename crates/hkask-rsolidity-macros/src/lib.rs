@@ -43,8 +43,7 @@ fn get_named_value<'a>(pairs: &'a [MetaNameValue], name: &str) -> Option<&'a Met
     pairs.iter().find(|nv| nv.path.is_ident(name))
 }
 
-/// Attribute macro: `#[ocap(resource = "...", operation = "...")]`
-///
+/// REQ: P9-rsolidity-macros-ocap
 /// Injects a capability check at the start of the annotated method. The
 /// receiver type must implement `::hkask_rsolidity::Ocap`.
 #[proc_macro_attribute]
@@ -106,11 +105,10 @@ pub fn ocap(args: TokenStream, input: TokenStream) -> TokenStream {
     quote!(#item).into()
 }
 
-/// Attribute macro: `#[contract(id = "...", principle = "P#", ...)]`
-///
+/// REQ: P9-rsolidity-macros-contract
 /// Compile-time contract metadata. Validates the contract ID and principle
-/// format, then re-emits the annotated item unchanged so the existing
-/// `/// REQ:` source comments remain the authoritative audit signal.
+/// format, then re-emits the annotated item unchanged so the existing source
+/// REQ comments remain the authoritative audit signal.
 #[proc_macro_attribute]
 pub fn contract(args: TokenStream, input: TokenStream) -> TokenStream {
     let pairs = match parse_name_value_args(args) {
