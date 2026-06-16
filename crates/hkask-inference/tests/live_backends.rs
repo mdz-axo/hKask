@@ -95,7 +95,7 @@ async fn deepinfra_summarization() {
 
     let result = router
         .generate_with_model(
-            &prompt,
+            prompt,
             &condenser_params(),
             Some("DI/meta-llama/Llama-3.3-70B-Instruct-Turbo"),
         )
@@ -128,7 +128,7 @@ async fn together_summarization() {
 
     let result = router
         .generate_with_model(
-            &prompt,
+            prompt,
             &condenser_params(),
             Some("TG/meta-llama/Llama-3.3-70B-Instruct-Turbo"),
         )

@@ -463,7 +463,7 @@ mod tests {
             let next_agent = test_webid(&format!("agent-{}", i));
             let attenuated = current
                 .attenuate(next_agent, &sk, 100_000)
-                .expect(&format!("Attenuation {} should succeed", i));
+                .unwrap_or_else(|| panic!("Attenuation {} should succeed", i));
             assert!(attenuated.verify());
             assert_eq!(attenuated.attenuation_level, i as u8);
             current = attenuated;

@@ -897,16 +897,13 @@
               "relaxable": "boolean",
               "magna_carta_mapping": "string",
               "reasoning": "string"
-            }
-          },
-          "energy_cap": 4096,
-          "visibility": "Shared"
+            },
+            "energy_cap": 4096,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       },
       {
         "skill": "constraint-forces",
@@ -930,19 +927,16 @@
               "winner": "string",
               "resolution": "string",
               "rationale": "string"
-            }
-          },
-          "energy_cap": 4096,
-          "visibility": "Shared"
+            },
+            "energy_cap": 4096,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       }
     ],
-    "score": 0.7
+    "score": 1.0
   },
   {
     "skill": "curator",
@@ -3641,8 +3635,8 @@
           "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: read",
           "contract input 'expectations' not obviously used in template body",
-          "contract input 'biases' not obviously used in template body",
-          "contract input 'assumptions' not obviously used in template body"
+          "contract input 'assumptions' not obviously used in template body",
+          "contract input 'biases' not obviously used in template body"
         ]
       },
       {
@@ -4642,12 +4636,12 @@
           "type": "KnowAct",
           "lexicon_terms": [
             "decompose",
-            "identify",
-            "eliminate",
+            "recognize",
+            "simplify",
             "verify",
             "converge",
-            "iterate",
-            "delegate",
+            "reflect",
+            "route",
             "compose",
             "discriminate",
             "evaluate"
@@ -4661,7 +4655,7 @@
           "type": "KnowAct",
           "lexicon_terms": [
             "converge",
-            "compare",
+            "classify",
             "evaluate",
             "verify",
             "discriminate"
@@ -4670,28 +4664,22 @@
           "flags": []
         }
       ],
-      "errors": [
-        "manifest hlexicon term not in workspace: identify",
-        "manifest hlexicon term not in workspace: eliminate",
-        "manifest hlexicon term not in workspace: iterate",
-        "manifest hlexicon term not in workspace: delegate",
-        "manifest hlexicon term not in workspace: compare"
-      ],
+      "errors": [],
       "crate_name": "pragmatic-laziness",
       "version": "0.27.0",
       "description": "Procedural composition skill that finds the path of least action through meaning-space. Orchestrates pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me through a 3-phase lazy loop.",
       "hlexicon_terms": [
         "decompose",
-        "identify",
-        "eliminate",
+        "recognize",
+        "simplify",
         "verify",
         "converge",
-        "iterate",
-        "delegate",
+        "reflect",
+        "route",
         "compose",
         "discriminate",
         "evaluate",
-        "compare"
+        "classify"
       ]
     },
     "j2_templates": [
@@ -4702,7 +4690,7 @@
           "template_type": "KnowAct",
           "lexicon_terms": [
             "converge",
-            "discriminate",
+            "classify",
             "evaluate",
             "verify",
             "discriminate"
@@ -4753,16 +4741,13 @@
                 "type": "string",
                 "description": "What changed between iterations and why"
               }
-            }
-          },
-          "energy_cap": 4096,
-          "visibility": "Shared"
+            },
+            "energy_cap": 4096,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       },
       {
         "skill": "pragmatic-laziness",
@@ -4772,10 +4757,10 @@
           "lexicon_terms": [
             "decompose",
             "recognize",
-            "prune",
+            "simplify",
             "verify",
             "converge",
-            "iteration",
+            "reflect",
             "route",
             "compose",
             "discriminate",
@@ -4833,19 +4818,16 @@
                 "type": "string",
                 "description": "Narrative summary of findings and reductions"
               }
-            }
-          },
-          "energy_cap": 12288,
-          "visibility": "Shared"
+            },
+            "energy_cap": 8192,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       }
     ],
-    "score": 0.45
+    "score": 1.0
   },
   {
     "skill": "pragmatic-semantics",
@@ -4945,16 +4927,13 @@
               "provenance": "string",
               "confidence": "float",
               "reasoning": "string"
-            }
-          },
-          "energy_cap": 4096,
-          "visibility": "Shared"
+            },
+            "energy_cap": 4096,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       },
       {
         "skill": "pragmatic-semantics",
@@ -4978,16 +4957,13 @@
               "winner": "string",
               "resolution": "string",
               "reasoning": "string"
-            }
-          },
-          "energy_cap": 4096,
-          "visibility": "Shared"
+            },
+            "energy_cap": 4096,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       },
       {
         "skill": "pragmatic-semantics",
@@ -5010,19 +4986,16 @@
               "provenance_chain": "array",
               "confidence_level": "string",
               "recommendations_for_verification": "array"
-            }
-          },
-          "energy_cap": 4096,
-          "visibility": "Shared"
+            },
+            "energy_cap": 4096,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       }
     ],
-    "score": 0.55
+    "score": 1.0
   },
   {
     "skill": "prompt-defense",
@@ -8263,16 +8236,13 @@
               "gaps": "array",
               "deferrals": "array",
               "coverage_percentage": "float"
-            }
-          },
-          "energy_cap": 4096,
-          "visibility": "Shared"
+            },
+            "energy_cap": 4096,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       },
       {
         "skill": "tdd",
@@ -8301,16 +8271,13 @@
               "priority_order": "array",
               "assumptions": "array",
               "plan_approved": "boolean"
-            }
-          },
-          "energy_cap": 6144,
-          "visibility": "Shared"
+            },
+            "energy_cap": 6144,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       },
       {
         "skill": "tdd",
@@ -8335,15 +8302,13 @@
               "refactor_steps": "array",
               "each_step_passes": "boolean",
               "simplification_notes": "array"
-            }
-          },
-          "energy_cap": 6144,
-          "visibility": "Shared"
+            },
+            "energy_cap": 6144,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
         "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract",
           "contract input 'refactor_candidates' not obviously used in template body",
           "Template may ask LLM to execute shell commands: ['es  1. **One refactor step at a time.** Run tests after each step. 2. **Never change beh']"
         ]
@@ -8377,16 +8342,13 @@
               "spec_id": "string",
               "test_passes": "boolean",
               "verification_command": "string"
-            }
-          },
-          "energy_cap": 8192,
-          "visibility": "Shared"
+            },
+            "energy_cap": 8192,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract"
-        ]
+        "flags": []
       },
       {
         "skill": "tdd",
@@ -8417,21 +8379,19 @@
               "functional_gaps": "array",
               "violations": "array",
               "passed": "boolean"
-            }
-          },
-          "energy_cap": 4096,
-          "visibility": "Shared"
+            },
+            "energy_cap": 4096,
+            "visibility": "Shared"
+          }
         },
         "errors": [],
         "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract",
           "contract input 'clippy_commands' not obviously used in template body",
           "contract input 'test_commands' not obviously used in template body"
         ]
       }
     ],
-    "score": 0.05
+    "score": 0.8
   },
   {
     "skill": "templates/doc-knowledge",

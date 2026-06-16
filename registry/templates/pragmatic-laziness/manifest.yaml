@@ -16,12 +16,12 @@ templates:
     lexicon_terms:
       [
         decompose,
-        identify,
-        eliminate,
+        recognize,
+        simplify,
         verify,
         converge,
-        iterate,
-        delegate,
+        reflect,
+        route,
         compose,
         discriminate,
         evaluate,
@@ -33,20 +33,20 @@ templates:
   - id: pragmatic-laziness/pragmatic-laziness-converge
     path: pragmatic-laziness-converge.j2
     type: KnowAct
-    lexicon_terms: [converge, compare, evaluate, verify, discriminate]
+    lexicon_terms: [converge, classify, evaluate, verify, discriminate]
     description: >
       δS = 0 convergence check. Compares current and previous configurations
       to decide whether the lazy loop has reached a stationary point.
 
 hlexicon_terms:
   - decompose
-  - identify
-  - eliminate
+  - recognize
+  - simplify
   - verify
   - converge
-  - iterate
-  - delegate
+  - reflect
+  - route
   - compose
   - discriminate
   - evaluate
-  - compare
+  - classify

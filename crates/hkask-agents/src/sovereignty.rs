@@ -156,14 +156,14 @@ mod tests {
     fn sovereignty_checker_sovereign_data_requires_consent_and_owner() {
         let owner = test_webid();
         let consent = Arc::new(DenyAllConsent);
-        let checker = SovereigntyChecker::new(owner.clone(), consent);
+        let checker = SovereigntyChecker::new(owner, consent);
 
         // Sovereign data with DenyAllConsent: denied even for owner
         assert!(!checker.can_access(&DataCategory::EpisodicMemory, &owner));
 
         // With AllowAllConsent: owner can access sovereign data
         let consent = Arc::new(AllowAllConsent);
-        let checker = SovereigntyChecker::new(owner.clone(), consent);
+        let checker = SovereigntyChecker::new(owner, consent);
         assert!(checker.can_access(&DataCategory::EpisodicMemory, &owner));
 
         // But a different requester is still denied (not the owner)

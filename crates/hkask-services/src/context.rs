@@ -1036,7 +1036,8 @@ async fn build_mcp_and_pods(
     let mcp_runtime = McpRuntime::new();
     let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
     let energy_estimator: Arc<CalibratedEnergyEstimator> = Arc::new(
-        CalibratedEnergyEstimator::new(Arc::clone(&f.gas_event_store)),
+        CalibratedEnergyEstimator::new(Arc::clone(&f.gas_event_store))
+            .with_event_sink(Arc::clone(&f.cns_event_sink)),
     );
     energy_estimator
         .clone()
@@ -1344,10 +1345,13 @@ fn build_registry_and_wallet(
 
     // Spawn wallet gas calibrator (P9 feedback loop for gas→rJoule rate).
     let wallet_gas_calibrator = {
-        let calibrator = Arc::new(hkask_cns::WalletGasCalibrator::new(
-            Arc::clone(&f.gas_event_store),
-            Arc::clone(wallet_manager),
-        ));
+        let calibrator = Arc::new(
+            hkask_cns::WalletGasCalibrator::new(
+                Arc::clone(&f.gas_event_store),
+                Arc::clone(wallet_manager),
+            )
+            .with_event_sink(Arc::clone(&f.cns_event_sink)),
+        );
         calibrator
             .clone()
             .spawn_calibration(hkask_cns::DEFAULT_WALLET_CALIBRATION_INTERVAL);

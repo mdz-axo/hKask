@@ -1,13 +1,13 @@
 {
   "summary": {
     "workspace_version": "0.27.0",
-    "total_skills": 67,
+    "total_skills": 65,
     "complete_both_layers": 30,
-    "zed_only": 1,
-    "registry_only": 36,
-    "active": 24,
+    "zed_only": 0,
+    "registry_only": 35,
+    "active": 23,
     "stale_warning": 12,
-    "critical": 6,
+    "critical": 5,
     "recommend_deprecation": 25
   },
   "skills": [
@@ -1095,10 +1095,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "statement": "string",
               "context": "string"
@@ -1135,10 +1135,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "constraint_a": "string",
               "constraint_b": "string",
@@ -1740,19 +1740,19 @@
             "type": "KnowAct",
             "lexicon_terms": [
               "assess",
-              "count",
-              "estimate",
               "classify",
-              "evaluate"
+              "evaluate",
+              "detect",
+              "infer"
             ],
-            "description": "Assess module depth: count public interface items, estimate behavior complexity, compute depth score, classify as Deep/Adequate/Shallow/ Very Shallow. Identify interface cost drivers and behavior gaps.\n"
+            "description": "Assess module depth: enumerate public interface items, evaluate behavior complexity, compute depth score, classify as Deep/Adequate/Shallow/ Very Shallow. Identify interface cost drivers and behavior gaps.\n"
           },
           {
             "id": "deep-module/deep-module-delete",
             "path": "deep-module-delete.j2",
             "type": "KnowAct",
             "lexicon_terms": [
-              "delete",
+              "critique",
               "evaluate",
               "discriminate",
               "audit",
@@ -1777,11 +1777,11 @@
         "templates_list_non_empty": true,
         "manifest_hlexicon_terms": [
           "assess",
-          "count",
-          "estimate",
           "classify",
           "evaluate",
-          "delete",
+          "detect",
+          "infer",
+          "critique",
           "discriminate",
           "audit",
           "verify",
@@ -1791,11 +1791,7 @@
           "specify",
           "structure"
         ],
-        "unknown_manifest_hlexicon_terms": [
-          "count",
-          "estimate",
-          "delete"
-        ],
+        "unknown_manifest_hlexicon_terms": [],
         "j2_files": [
           {
             "path": "registry/templates/deep-module/deep-module-assess.j2",
@@ -1806,10 +1802,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "module_path": "string",
               "module_source": "string",
@@ -1827,10 +1823,10 @@
             "contract_present": true,
             "lexicon_terms": [
               "assess",
-              "catalog",
-              "predict",
               "classify",
-              "evaluate"
+              "evaluate",
+              "detect",
+              "infer"
             ],
             "unknown_lexicon_terms": [],
             "body_present": true,
@@ -1849,10 +1845,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "module_assessment": "object",
               "caller_code": "object",
@@ -1868,7 +1864,7 @@
             },
             "contract_present": true,
             "lexicon_terms": [
-              "prune",
+              "critique",
               "evaluate",
               "discriminate",
               "audit",
@@ -1891,10 +1887,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "deletion_test_result": "object",
               "domain_requirements": "object",
@@ -2722,130 +2718,6 @@
       "health_score": 1.0,
       "status": "active",
       "top_defects": []
-    },
-    {
-      "skill_name": "flowdef",
-      "zed_layer": {
-        "present": false,
-        "path": null,
-        "name": null,
-        "description": null,
-        "description_length": 0,
-        "has_frontmatter": false,
-        "name_matches_dir": false
-      },
-      "registry_layer": {
-        "present": true,
-        "manifest_present": false,
-        "manifest_parse_error": false,
-        "crate_name": null,
-        "crate_version": null,
-        "templates": [],
-        "templates_list_non_empty": false,
-        "manifest_hlexicon_terms": [],
-        "unknown_manifest_hlexicon_terms": [],
-        "j2_files": [
-          {
-            "path": "registry/templates/flowdef/dispatch.j2",
-            "filename": "dispatch.j2",
-            "frontmatter_present": true,
-            "template_type": "FlowDef",
-            "template_type_valid": true,
-            "ddmvss_alias": false,
-            "visibility": "Shared",
-            "visibility_valid": true,
-            "visibility_misplaced": false,
-            "energy_cap": 2000,
-            "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
-            "contract_input": {
-              "tool_name": "string",
-              "tool_input": "object",
-              "capability_token": "object"
-            },
-            "contract_output": {
-              "tool_output": "object",
-              "execution_time_ms": "integer"
-            },
-            "contract_present": true,
-            "lexicon_terms": [
-              "dispatch",
-              "route",
-              "invoke",
-              "tool",
-              "capability"
-            ],
-            "unknown_lexicon_terms": [
-              "dispatch",
-              "invoke",
-              "tool",
-              "capability"
-            ],
-            "body_present": true,
-            "version_mentions": [
-              "v0.27.0"
-            ],
-            "version_stale": false,
-            "defects": []
-          },
-          {
-            "path": "registry/templates/flowdef/memory_recall.j2",
-            "filename": "memory_recall.j2",
-            "frontmatter_present": true,
-            "template_type": "FlowDef",
-            "template_type_valid": true,
-            "ddmvss_alias": false,
-            "visibility": "Shared",
-            "visibility_valid": true,
-            "visibility_misplaced": false,
-            "energy_cap": 4096,
-            "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
-            "contract_input": {
-              "query": "string",
-              "visibility": "string",
-              "max_results": "integer",
-              "similarity_threshold": "float"
-            },
-            "contract_output": {
-              "facts": "array",
-              "recall_source": "string"
-            },
-            "contract_present": true,
-            "lexicon_terms": [
-              "recall",
-              "retrieve",
-              "remember",
-              "activate",
-              "salience"
-            ],
-            "unknown_lexicon_terms": [
-              "recall",
-              "retrieve",
-              "remember",
-              "activate",
-              "salience"
-            ],
-            "body_present": true,
-            "version_mentions": [
-              "v0.27.0"
-            ],
-            "version_stale": false,
-            "defects": []
-          }
-        ],
-        "j2_count": 2,
-        "has_flowdef": true,
-        "has_wordact": false,
-        "has_knowact": false
-      },
-      "health_score": 0.32999999999999996,
-      "status": "critical",
-      "top_defects": [
-        "missing Zed layer (SKILL.md)",
-        "missing manifest.yaml",
-        "dispatch.j2: unknown hlexicon terms ['dispatch', 'invoke', 'tool', 'capability']"
-      ]
     },
     {
       "skill_name": "gentle-lovelace",
@@ -6663,12 +6535,12 @@
             "type": "KnowAct",
             "lexicon_terms": [
               "decompose",
-              "identify",
-              "eliminate",
+              "recognize",
+              "simplify",
               "verify",
               "converge",
-              "iterate",
-              "delegate",
+              "reflect",
+              "route",
               "compose",
               "discriminate",
               "evaluate"
@@ -6681,7 +6553,7 @@
             "type": "KnowAct",
             "lexicon_terms": [
               "converge",
-              "compare",
+              "classify",
               "evaluate",
               "verify",
               "discriminate"
@@ -6692,24 +6564,18 @@
         "templates_list_non_empty": true,
         "manifest_hlexicon_terms": [
           "decompose",
-          "identify",
-          "eliminate",
+          "recognize",
+          "simplify",
           "verify",
           "converge",
-          "iterate",
-          "delegate",
+          "reflect",
+          "route",
           "compose",
           "discriminate",
           "evaluate",
-          "compare"
+          "classify"
         ],
-        "unknown_manifest_hlexicon_terms": [
-          "identify",
-          "eliminate",
-          "iterate",
-          "delegate",
-          "compare"
-        ],
+        "unknown_manifest_hlexicon_terms": [],
         "j2_files": [
           {
             "path": "registry/templates/pragmatic-laziness/pragmatic-laziness-converge.j2",
@@ -6720,10 +6586,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "current_config": {
                 "type": "object",
@@ -6773,7 +6639,7 @@
             "contract_present": true,
             "lexicon_terms": [
               "converge",
-              "discriminate",
+              "classify",
               "evaluate",
               "verify",
               "discriminate"
@@ -6795,10 +6661,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
-            "energy_cap": 12288,
+            "visibility_misplaced": true,
+            "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "situation": {
                 "type": "string",
@@ -6855,10 +6721,10 @@
             "lexicon_terms": [
               "decompose",
               "recognize",
-              "prune",
+              "simplify",
               "verify",
               "converge",
-              "iteration",
+              "reflect",
               "route",
               "compose",
               "discriminate",
@@ -6968,10 +6834,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "statement": "string",
               "system_context": "string"
@@ -7009,10 +6875,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "conflicting_statements": "array",
               "context": "string"
@@ -7048,10 +6914,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "claim": "string",
               "available_evidence": "string"
@@ -7086,26 +6952,6 @@
       "health_score": 1.0,
       "status": "active",
       "top_defects": []
-    },
-    {
-      "skill_name": "pragmatics",
-      "zed_layer": {
-        "present": true,
-        "path": ".agents/skills/pragmatics/SKILL.md",
-        "name": "pragmatics",
-        "description": "Meta-cognitive codebase review bundle. Composes pragmatic-semantics, pragmatic-cybernetics, pragmatic-laziness, essentialist, and coding-guidelines into a unified architecture analysis and refactoring discipline. Use when reviewing codebase patterns, analyzing architecture against principles, auditing for principle violations, or when the user says 'pragmatics review', 'analyze the codebase', 'audit architecture', or 'apply the principles'.",
-        "description_length": 444,
-        "has_frontmatter": true,
-        "name_matches_dir": true
-      },
-      "registry_layer": {
-        "present": false
-      },
-      "health_score": 0.75,
-      "status": "stale_warning",
-      "top_defects": [
-        "missing registry layer"
-      ]
     },
     {
       "skill_name": "prompt-defense",
@@ -9625,73 +9471,20 @@
         "present": true,
         "path": ".agents/skills/skill-logic-audit/SKILL.md",
         "name": "skill-logic-audit",
-        "description": "Audit any .j2 template or manifest.yaml against its annotated goal. Uses a recursive critique loop with bounded depth.",
-        "description_length": 118,
+        "description": "Audit any .j2 template or manifest.yaml against its own stated goal. Adversarial critique, soundness filter, concrete revision proposal, and bounded user-review loop. Use when a template's logic may be redundant, ambiguous, or inefficient, or as a self-application gate before committing skill changes.",
+        "description_length": 302,
         "has_frontmatter": true,
         "name_matches_dir": true
       },
       "registry_layer": {
         "present": true,
         "manifest_present": true,
-        "manifest_parse_error": false,
-        "crate_name": "skill-logic-audit",
-        "crate_version": "0.27.0",
-        "templates": [
-          {
-            "id": "skill-logic-audit/load-goal",
-            "path": "load-goal.j2",
-            "type": "WordAct",
-            "description": "Parse the annotated goal block from a target template or manifest."
-          },
-          {
-            "id": "skill-logic-audit/critique-template",
-            "path": "critique-template.j2",
-            "type": "KnowAct",
-            "description": "Adversarial critique of a template body against its goal."
-          },
-          {
-            "id": "skill-logic-audit/critique-critique",
-            "path": "critique-critique.j2",
-            "type": "KnowAct",
-            "description": "Soundness review of the first critique, separating valid and spurious concerns."
-          },
-          {
-            "id": "skill-logic-audit/compose-proposal",
-            "path": "compose-proposal.j2",
-            "type": "KnowAct",
-            "description": "Compose a revised template body and diff from calibrated concerns."
-          },
-          {
-            "id": "skill-logic-audit/user-review-loop",
-            "path": "user-review-loop.j2",
-            "type": "FlowDef",
-            "description": "Orchestrate accept/reject/counter-proposal with a bounded depth counter."
-          }
-        ],
-        "templates_list_non_empty": true,
-        "manifest_hlexicon_terms": [
-          "extract",
-          "parse",
-          "recognize",
-          "critique",
-          "evaluate",
-          "discriminate",
-          "assess",
-          "analyze",
-          "reflect",
-          "calibrate",
-          "synthesize",
-          "compose",
-          "design",
-          "simplify",
-          "specify",
-          "sequence",
-          "choice",
-          "iteration",
-          "escalate",
-          "route",
-          "abort"
-        ],
+        "manifest_parse_error": true,
+        "crate_name": null,
+        "crate_version": null,
+        "templates": [],
+        "templates_list_non_empty": false,
+        "manifest_hlexicon_terms": [],
         "unknown_manifest_hlexicon_terms": [],
         "j2_files": [
           {
@@ -9901,9 +9694,11 @@
         "has_wordact": true,
         "has_knowact": true
       },
-      "health_score": 1.0,
-      "status": "active",
-      "top_defects": []
+      "health_score": 0.7000000000000001,
+      "status": "stale_warning",
+      "top_defects": [
+        "manifest.yaml parse error"
+      ]
     },
     {
       "skill_name": "skill-maintenance",
@@ -11305,10 +11100,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "spec_requirements": "array",
               "tested_behaviors": "array",
@@ -11347,10 +11142,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "task_description": "string",
               "crate_scope": "string",
@@ -11391,10 +11186,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "crate_scope": "string",
               "passing_tests": "array",
@@ -11431,10 +11226,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "behavior_description": "string",
               "spec_id": "string",
@@ -11477,10 +11272,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "crate_scope": "string",
               "behaviors_tested": "array",

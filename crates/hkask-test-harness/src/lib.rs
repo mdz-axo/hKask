@@ -49,6 +49,14 @@ pub struct TestDb {
     conn: Arc<Mutex<Connection>>,
 }
 
+impl Default for TestDb {
+    /// REQ: HARN-012b
+    /// post: returns TestDb with in-memory SQLite connection and full schema initialized
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestDb {
     /// Create a new in-memory test database with full schema.
     ///
@@ -101,6 +109,14 @@ pub struct TestKeystore {
     master_key: [u8; 32],
 }
 
+impl Default for TestKeystore {
+    /// REQ: HARN-016b
+    /// post: returns TestKeystore with temp dir, key file written, 32-byte master key
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestKeystore {
     /// Create a new test keystore with a randomly generated master key.
     ///
@@ -110,7 +126,7 @@ impl TestKeystore {
         let dir = TempDir::new().expect("temp dir creation should succeed");
         let key_path = dir.path().join("master.key");
         let master_key: [u8; 32] = rand::rng().random();
-        std::fs::write(&key_path, &master_key).expect("key file write should succeed");
+        std::fs::write(&key_path, master_key).expect("key file write should succeed");
         Self {
             dir,
             key_path,

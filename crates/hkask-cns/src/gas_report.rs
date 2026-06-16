@@ -486,7 +486,7 @@ mod tests {
             ),
             _ => unreachable!("unexpected span kind"),
         };
-        NuEvent::new(agent.clone(), Span::from_kind(kind), phase, obs, 0)
+        NuEvent::new(*agent, Span::from_kind(kind), phase, obs, 0)
     }
 
     proptest! {
@@ -507,7 +507,7 @@ mod tests {
                     cost,
                 ));
             }
-            let computed_reserved: u64 = events.iter().map(|ev| extract_cost(ev)).sum();
+            let computed_reserved: u64 = events.iter().map(extract_cost).sum();
             prop_assert_eq!(computed_reserved, cost * count as u64);
         }
 

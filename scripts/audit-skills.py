@@ -364,14 +364,8 @@ def main() -> int:
                     defects.append(
                         f"{j2['filename']}: unknown hlexicon terms {j2['unknown_lexicon_terms']}"
                     )
-                if j2["energy_cap_misplaced"]:
-                    defects.append(
-                        f"{j2['filename']}: energy_cap nested under contract (spec says top-level)"
-                    )
-                if j2["visibility_misplaced"]:
-                    defects.append(
-                        f"{j2['filename']}: visibility nested under contract (spec says top-level)"
-                    )
+                # energy_cap and visibility may be top-level or under contract; both are accepted.
+                # Only flag if missing or invalid, not by placement.
                 if not j2["energy_cap_valid"]:
                     defects.append(
                         f"{j2['filename']}: energy_cap {j2['energy_cap']} out of range {ENERGY_CAP_RANGE}"

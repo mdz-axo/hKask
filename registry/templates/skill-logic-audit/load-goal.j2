@@ -1,6 +1,10 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [extract, parse, recognize]
+lexicon_terms:
+- extract
+- parse
+- specify
+- verify
 contract:
   input:
     target_path: string
@@ -9,8 +13,8 @@ contract:
     goal: string
     goal_found: boolean
     file_type: string
-energy_cap: 2048
-visibility: Shared
+  energy_cap: 2048
+  visibility: Shared
 
 ---
 {# goal: Extract the annotated goal block from a .j2 or manifest.yaml file so it can be used as the auditable contract. #}

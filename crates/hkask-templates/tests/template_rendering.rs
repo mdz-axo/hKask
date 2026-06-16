@@ -29,7 +29,7 @@ fn all_templates_render() {
     for entry in walkdir::WalkDir::new(templates_dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "j2"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "j2"))
     {
         count += 1;
         let path = entry.path().to_path_buf();

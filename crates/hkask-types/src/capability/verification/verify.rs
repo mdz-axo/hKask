@@ -162,7 +162,7 @@ mod tests {
             "test_tool".into(),
             DelegationAction::Execute,
             from,
-            to.clone(),
+            to,
             &sk,
         );
         let outcome = verify_delegation_token(

@@ -269,14 +269,12 @@ impl<'a> SkillAuditor<'a> {
             }
         }
 
-        if zed.present && reg.present {
-            if zed.name != reg.crate_name && !reg.crate_name.is_empty() {
-                score -= 0.10;
-                defects.push(format!(
-                    "name mismatch: SKILL.md '{}' vs manifest '{}'",
-                    zed.name, reg.crate_name
-                ));
-            }
+        if zed.present && reg.present && zed.name != reg.crate_name && !reg.crate_name.is_empty() {
+            score -= 0.10;
+            defects.push(format!(
+                "name mismatch: SKILL.md '{}' vs manifest '{}'",
+                zed.name, reg.crate_name
+            ));
         }
 
         score = score.clamp(0.0, 1.0);
@@ -537,12 +535,12 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
     let map = yaml.as_mapping()?;
 
     let template_type = map
-        .get(&serde_yaml::Value::String("template_type".to_string()))
+        .get(serde_yaml::Value::String("template_type".to_string()))
         .and_then(|v| v.as_str())
         .and_then(TemplateType::parse_str);
 
     let lexicon_terms = map
-        .get(&serde_yaml::Value::String("lexicon_terms".to_string()))
+        .get(serde_yaml::Value::String("lexicon_terms".to_string()))
         .and_then(|v| v.as_sequence())
         .map(|seq| {
             seq.iter()
@@ -552,18 +550,18 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
         .unwrap_or_default();
 
     let contract = map
-        .get(&serde_yaml::Value::String("contract".to_string()))
+        .get(serde_yaml::Value::String("contract".to_string()))
         .and_then(|v| v.as_mapping());
     let (contract_input, contract_output, nested_energy_cap, nested_visibility) =
         if let Some(c) = contract {
             (
-                c.get(&serde_yaml::Value::String("input".to_string()))
+                c.get(serde_yaml::Value::String("input".to_string()))
                     .cloned(),
-                c.get(&serde_yaml::Value::String("output".to_string()))
+                c.get(serde_yaml::Value::String("output".to_string()))
                     .cloned(),
-                c.get(&serde_yaml::Value::String("energy_cap".to_string()))
+                c.get(serde_yaml::Value::String("energy_cap".to_string()))
                     .and_then(|v| v.as_i64()),
-                c.get(&serde_yaml::Value::String("visibility".to_string()))
+                c.get(serde_yaml::Value::String("visibility".to_string()))
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string()),
             )
@@ -572,12 +570,12 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
         };
 
     let top_level_energy_cap = map
-        .get(&serde_yaml::Value::String("energy_cap".to_string()))
+        .get(serde_yaml::Value::String("energy_cap".to_string()))
         .and_then(|v| v.as_i64())
         .or(nested_energy_cap);
 
     let top_level_visibility = map
-        .get(&serde_yaml::Value::String("visibility".to_string()))
+        .get(serde_yaml::Value::String("visibility".to_string()))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .or(nested_visibility);
@@ -601,8 +599,6 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // Property-based test skeleton to write once the harness has an in-memory
     // registry fixture:
     //

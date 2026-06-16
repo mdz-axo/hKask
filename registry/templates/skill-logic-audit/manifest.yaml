@@ -10,23 +10,34 @@ templates:
   - id: skill-logic-audit/load-goal
     path: load-goal.j2
     type: WordAct
-    description: Parse the annotated goal block from a target template or manifest.
+    lexicon_terms: [extract, parse, recognize]
+    description: >
+      Parse the annotated goal block from a target template or manifest.
   - id: skill-logic-audit/critique-template
     path: critique-template.j2
     type: KnowAct
-    description: Adversarial critique of a template body against its goal.
+    lexicon_terms: [critique, evaluate, discriminate, assess, analyze]
+    description: >
+      Adversarial critique of a template body against its goal.
   - id: skill-logic-audit/critique-critique
     path: critique-critique.j2
     type: KnowAct
-    description: Soundness review of the first critique, separating valid and spurious concerns.
+    lexicon_terms: [reflect, calibrate, discriminate, evaluate, critique]
+    description: >
+      Soundness review of the first critique, separating valid and spurious concerns.
   - id: skill-logic-audit/compose-proposal
     path: compose-proposal.j2
     type: KnowAct
-    description: Compose a revised template body and diff from calibrated concerns.
+    lexicon_terms: [synthesize, compose, design, simplify, specify]
+    description: >
+      Compose a revised template body and diff from calibrated concerns.
   - id: skill-logic-audit/user-review-loop
     path: user-review-loop.j2
     type: FlowDef
-    description: Orchestrate accept/reject/counter-proposal with a bounded depth counter.
+    lexicon_terms:
+      [sequence, choice, iteration, escalate, route, abort, compose]
+    description: >
+      Orchestrate accept/reject/counter-proposal with a bounded depth counter.
 
 hlexicon_terms:
   - extract

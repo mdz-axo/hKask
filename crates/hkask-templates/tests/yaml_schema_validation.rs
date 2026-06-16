@@ -42,7 +42,7 @@ fn all_skill_manifests_are_well_formed() {
     for entry in walkdir::WalkDir::new(manifest_dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "yaml"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "yaml"))
     {
         count += 1;
         let path = entry.path();

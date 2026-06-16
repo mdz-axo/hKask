@@ -24,6 +24,8 @@ use crate::governed_tool::EnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use hkask_storage::NuEventStore;
 use hkask_types::InfrastructureError;
+use hkask_types::WebID;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -47,6 +49,7 @@ pub const DEFAULT_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hours(1);
 /// - `CalibratedEnergyEstimator` (struct)
 /// - `new()` — construct from an event store
 /// - `with_initial_lookback()` — configure first-calibration window
+/// - `with_event_sink()` — attach a CNS event sink for calibration spans
 /// - `calibrate()` — run one calibration pass
 /// - `spawn_calibration()` — spawn a background calibration task
 /// - `current_table()` — diagnostic snapshot of the calibrated table
@@ -55,14 +58,17 @@ pub struct CalibratedEnergyEstimator {
     table: RwLock<DynamicGasTable>,
     estimator: RwLock<CompositeEnergyEstimator>,
     last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl CalibratedEnergyEstimator {
     /// Create a calibrated estimator backed by the given event store.
     ///
     /// REQ: GAS-CALIB-004 — runtime calibration loop wired to production estimator
+    /// pre:  store is a valid NuEventStore
     /// post: returns CalibratedEnergyEstimator with default table and no observations
     /// post: first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
+    /// post: no event sink attached until `with_event_sink` is called
     pub fn new(store: Arc<NuEventStore>) -> Self {
         let table = DynamicGasTable::new();
         let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
@@ -71,6 +77,7 @@ impl CalibratedEnergyEstimator {
             table: RwLock::new(table),
             estimator: RwLock::new(estimator),
             last_calibrated_at: tokio::sync::Mutex::new(Utc::now() - DEFAULT_INITIAL_LOOKBACK),
+            event_sink: None,
         }
     }
 
@@ -84,6 +91,17 @@ impl CalibratedEnergyEstimator {
         let now = Utc::now();
         // Update last_calibrated_at so the first pass covers [now - lookback, now].
         self.last_calibrated_at = tokio::sync::Mutex::new(now - lookback);
+        self
+    }
+
+    /// Attach a CNS event sink for calibration span emission.
+    ///
+    /// REQ: GAS-CALIB-004-obs — calibration adjustments emit cns.gas spans
+    /// pre:  sink is a valid NuEventSink
+    /// post: subsequent successful calibrations that adjust costs emit a span
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
         self
     }
 
@@ -124,7 +142,47 @@ impl CalibratedEnergyEstimator {
             adjusted_servers = adjusted,
             "Calibrated energy estimator"
         );
+
+        if adjusted > 0 {
+            self.emit_calibration_span(since, until, adjusted, &table.report_table());
+        }
+
         Ok(adjusted)
+    }
+
+    fn emit_calibration_span(
+        &self,
+        since: DateTime<Utc>,
+        until: DateTime<Utc>,
+        adjusted: usize,
+        table: &std::collections::HashMap<String, u64>,
+    ) {
+        if let Some(ref sink) = self.event_sink {
+            let span = Span::new(hkask_types::cns::CnsSpan::Gas.into(), "calibrated");
+            let event = NuEvent::new(
+                Self::default_actor(),
+                span,
+                Phase::Act,
+                serde_json::json!({
+                    "since": since,
+                    "until": until,
+                    "adjusted_servers": adjusted,
+                    "server_costs": table,
+                }),
+                0,
+            );
+            if let Err(e) = sink.persist(&event) {
+                warn!(
+                    target: "cns.gas.calibration",
+                    error = %e,
+                    "Failed to persist calibration CNS span"
+                );
+            }
+        }
+    }
+
+    fn default_actor() -> WebID {
+        WebID::from_persona_with_namespace(b"calibrated-energy-estimator", "cns-surface")
     }
 
     /// Spawn a background task that calls `calibrate()` at the given interval.
@@ -181,9 +239,32 @@ mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
     use hkask_storage::in_memory_db;
-    use hkask_types::NuEventSink;
     use hkask_types::WebID;
-    use hkask_types::event::{NuEvent, Phase, Span, SpanKind};
+    use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanKind};
+    use std::sync::Mutex;
+
+    /// A test event sink that captures the last persisted event.
+    struct CaptureSink {
+        last_event: Mutex<Option<NuEvent>>,
+    }
+
+    impl CaptureSink {
+        fn new() -> Self {
+            Self {
+                last_event: Mutex::new(None),
+            }
+        }
+        fn last_event(&self) -> Option<NuEvent> {
+            self.last_event.lock().unwrap().clone()
+        }
+    }
+
+    impl NuEventSink for CaptureSink {
+        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+            *self.last_event.lock().unwrap() = Some(event.clone());
+            Ok(())
+        }
+    }
 
     fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> NuEvent {
         NuEvent::new(
@@ -282,6 +363,62 @@ mod tests {
         assert_eq!(
             estimator.estimate_cost("hkask-mcp-media", "search", &serde_json::json!({})),
             100
+        );
+    }
+
+    // REQ: GAS-CALIB-004-obs — calibration emits a cns.gas span when costs adjust
+    #[tokio::test]
+    async fn calibrate_emits_cns_gas_span_when_adjusted() {
+        let agent = WebID::new();
+        let server = "hkask-mcp-media";
+
+        let db = in_memory_db();
+        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let sink = Arc::new(CaptureSink::new());
+
+        let estimator = Arc::new(
+            CalibratedEnergyEstimator::new(Arc::clone(&store))
+                .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
+        );
+
+        store
+            .persist(&settled_event(agent, server, 100, 200))
+            .unwrap();
+
+        let adjusted = estimator.calibrate().await.unwrap();
+        assert_eq!(adjusted, 1);
+
+        let event = sink
+            .last_event()
+            .expect("calibration span should be emitted");
+        assert_eq!(event.span.as_str(), "cns.gas.calibrated");
+        assert_eq!(event.phase, Phase::Act);
+        assert_eq!(
+            event
+                .observation
+                .get("adjusted_servers")
+                .and_then(|v| v.as_u64()),
+            Some(1)
+        );
+    }
+
+    // REQ: GAS-CALIB-004-obs — no adjustment means no calibration span emitted
+    #[tokio::test]
+    async fn calibrate_does_not_emit_span_when_not_adjusted() {
+        let db = in_memory_db();
+        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let sink = Arc::new(CaptureSink::new());
+
+        let estimator = Arc::new(
+            CalibratedEnergyEstimator::new(Arc::clone(&store))
+                .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
+        );
+
+        let adjusted = estimator.calibrate().await.unwrap();
+        assert_eq!(adjusted, 0);
+        assert!(
+            sink.last_event().is_none(),
+            "no adjustment should not emit a calibration span"
         );
     }
 }

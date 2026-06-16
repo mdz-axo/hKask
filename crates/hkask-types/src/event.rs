@@ -486,7 +486,7 @@ mod tests {
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
         let obs = serde_json::json!({"key": "value"});
 
-        let event = NuEvent::new(webid.clone(), span, Phase::Sense, obs.clone(), 0);
+        let event = NuEvent::new(webid, span, Phase::Sense, obs.clone(), 0);
 
         assert_eq!(event.observer_webid, webid);
         assert_eq!(event.phase, Phase::Sense);
@@ -508,7 +508,7 @@ mod tests {
         let event = NuEvent::new(webid, span, Phase::Act, serde_json::json!({}), 1)
             .with_outcome(serde_json::json!({"result": "ok"}))
             .with_regulation(serde_json::json!({"adj": 0.5}))
-            .with_parent(parent_id.clone())
+            .with_parent(parent_id)
             .with_visibility("public");
 
         assert_eq!(event.outcome, Some(serde_json::json!({"result": "ok"})));

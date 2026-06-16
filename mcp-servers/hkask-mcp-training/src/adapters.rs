@@ -61,6 +61,7 @@ pub struct AdapterMetrics {
 
 impl LoRAAdapter {
     /// Create a new adapter metadata entry.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         base_model: String,
@@ -507,6 +508,7 @@ impl JobStore {
     }
 
     /// Store a new training job.
+    #[allow(clippy::too_many_arguments)]
     pub fn store(
         &self,
         id: &str,

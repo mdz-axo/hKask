@@ -63,7 +63,7 @@ fn span_strategy() -> BoxedStrategy<Span> {
 }
 
 fn json_value_strategy() -> BoxedStrategy<Value> {
-    non_empty_string().prop_map(|s| Value::String(s)).boxed()
+    non_empty_string().prop_map(Value::String).boxed()
 }
 
 // ── Public strategy functions ─────────────────────────────────────────────────

@@ -5,13 +5,13 @@ Workspace version: 0.27.0
 | Metric | Count |
 |--------|-------|
 | workspace_version | 0.27.0 |
-| total_skills | 67 |
+| total_skills | 65 |
 | complete_both_layers | 30 |
-| zed_only | 1 |
-| registry_only | 36 |
-| active | 24 |
+| zed_only | 0 |
+| registry_only | 35 |
+| active | 23 |
 | stale_warning | 12 |
-| critical | 6 |
+| critical | 5 |
 | recommend_deprecation | 25 |
 
 ## Skill Details
@@ -98,13 +98,6 @@ Workspace version: 0.27.0
 ### essentialist — active (1.00)
 - Zed: ✓, Registry: ✓
 - Templates: 1 .j2 | WordAct=False KnowAct=False FlowDef=True
-
-### flowdef — critical (0.33)
-- Zed: ✗, Registry: ✓
-- Templates: 2 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ dispatch.j2: unknown hlexicon terms ['dispatch', 'invoke', 'tool', 'capability']
 
 ### gentle-lovelace — stale_warning (0.54)
 - Zed: ✗, Registry: ✓
@@ -243,10 +236,6 @@ Workspace version: 0.27.0
 - Zed: ✓, Registry: ✓
 - Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
 
-### pragmatics — stale_warning (0.75)
-- Zed: ✓, Registry: ✗
-- ⚠ missing registry layer
-
 ### prompt-defense — recommend_deprecation (0.00)
 - Zed: ✗, Registry: ✓
 - Templates: 3 .j2 | WordAct=False KnowAct=False FlowDef=True
@@ -325,9 +314,10 @@ Workspace version: 0.27.0
 - Zed: ✓, Registry: ✓
 - Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
 
-### skill-logic-audit — active (1.00)
+### skill-logic-audit — stale_warning (0.70)
 - Zed: ✓, Registry: ✓
 - Templates: 5 .j2 | WordAct=True KnowAct=True FlowDef=True
+- ⚠ manifest.yaml parse error
 
 ### skill-maintenance — active (1.00)
 - Zed: ✓, Registry: ✓

@@ -56,8 +56,10 @@ fn make_wallet_budget_with_key(
     encumber_rj: u64,
     limit_rj: u64,
 ) -> (WalletId, ApiKeyId, Arc<WalletManager>, WalletBackedBudget) {
-    let mut config = WalletConfig::default();
-    config.gas_per_rjoule = gas_per_rjoule;
+    let config = WalletConfig {
+        gas_per_rjoule,
+        ..Default::default()
+    };
 
     let db = in_memory_db();
     let store = Arc::new(WalletStore::new(db.conn_arc()));

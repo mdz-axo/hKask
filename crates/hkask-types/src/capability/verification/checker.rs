@@ -284,7 +284,7 @@ mod tests {
         // Verify it can verify a token it created
         let from = WebID::from_persona(b"issuer");
         let to = WebID::from_persona(b"holder");
-        let token = checker.grant_tool("test_tool".into(), from, to.clone());
+        let token = checker.grant_tool("test_tool".into(), from, to);
         assert!(checker.verify(&token));
     }
 }

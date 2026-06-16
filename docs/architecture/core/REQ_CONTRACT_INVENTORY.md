@@ -19,18 +19,18 @@ mds_categories: [domain, composition, trust, lifecycle]
 | hkask-agents | 30 | Agent runtime |
 | hkask-api | 8 | API surface |
 | hkask-cli | 2 | CLI surface |
-| hkask-cns | 80 | CNS observability |
+| hkask-cns | 91 | CNS observability |
 | hkask-communication | 25 | Communication |
 | hkask-inference | 86 | Inference |
 | hkask-keystore | 28 | Keystore |
 | hkask-mcp | 41 | MCP framework |
 | hkask-memory | 52 | Memory |
-| hkask-services | 202 | Service layer |
+| hkask-services | 208 | Service layer |
 | hkask-storage | 195 | Storage |
 | hkask-templates | 52 | Templates |
 | hkask-test-harness | 42 | Test harness |
 | hkask-types | 99 | Type system |
-| hkask-wallet | 26 | Wallet |
+| hkask-wallet | 27 | Wallet |
 
 ## Per-Crate Contract Detail
 
@@ -324,7 +324,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-cli/src/onboarding.rs:225
 
 
-### hkask-cns (80 contracts)
+### hkask-cns (91 contracts)
 
 #### P9-cns-algedonic-alert-new (🟢 full)
 
@@ -403,18 +403,56 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns severity label
 - **File:** crates/hkask-cns/src/api_metering.rs:315
 
-#### GAS-CALIB-004—runtimecalibrationloopwiredtoproductionestimator (🟡 partial)
+#### GAS-CALIB-004—runtimecalibrationloopwiredtoproductionestimator (🔴 bare)
 
 - **Principle:** ⚠ unanchored
-- **Post:** returns CalibratedEnergyEstimator with default table and no observations;first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
-- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:59
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:37
+
+#### GAS-CALIB-004 (🔴 bare)
+
+- **Principle:** ⚠ unanchored
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:42
+
+#### GAS-CALIB-004—runtimecalibrationloopwiredtoproductionestimator (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  store is a valid NuEventStore
+- **Post:** returns CalibratedEnergyEstimator with default table and no observations;first calibration will look back `DEFAULT_INITIAL_LOOKBACK`;no event sink attached until `with_event_sink` is called
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:67
+
+#### GAS-CALIB-004 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  lookback is a positive duration
+- **Post:** first calibration will search [Utc::now() - lookback, Utc::now()]
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:86
+
+#### GAS-CALIB-004-obs—calibrationadjustmentsemitcns.gasspans (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  sink is a valid NuEventSink
+- **Post:** subsequent successful calibrations that adjust costs emit a span
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:99
 
 #### GAS-CALIB-004 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  `self.store` is a valid NuEventStore
 - **Post:** all settled gas events since the last calibration are fed into
-- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:83
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:110
+
+#### GAS-CALIB-004 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  interval > 0
+- **Post:** a Tokio task is spawned; it calls `calibrate()` every `interval`
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:193
+
+#### GAS-CALIB-004 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns a copy of the internal server_costs map
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:215
 
 #### P9-cns-circuit-default-for-inference (🟢 full)
 
@@ -485,6 +523,12 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Post:** returns a HashMap<String, f64> of server → EMA ratio mappings
 - **File:** crates/hkask-cns/src/dynamic_gas_table.rs:179
+
+#### GAS-CALIB-002 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns the count of recorded observations for `server`, or 0 if unobserved
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:189
 
 #### P8-cns-energy-cost-from-raw (🟡 partial)
 
@@ -621,7 +665,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Pre:**  `table` is a valid DynamicGasTable
 - **Post:** every `cns.gas.settled` event in [since, until) with a server field
-- **File:** crates/hkask-cns/src/gas_report.rs:262
+- **File:** crates/hkask-cns/src/gas_report.rs:263
 
 #### P9-cns-gov-inf-new (🟢 full)
 
@@ -837,18 +881,43 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** ema_ratio updated via exponential moving average;if ema_ratio deviates significantly from 1.0, gas_per_rjoule adjusted
 - **File:** crates/hkask-cns/src/wallet_energy_estimator.rs:63
 
-#### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🟡 partial)
+#### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🔴 bare)
 
 - **Principle:** ⚠ unanchored
-- **Post:** returns WalletGasCalibrator with the manager's current gas_per_rjoule rate
-- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:45
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:23
+
+#### GAS-CALIB-005 (🔴 bare)
+
+- **Principle:** ⚠ unanchored
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:28
+
+#### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  store is a valid NuEventStore; wallet_manager is valid
+- **Post:** returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate;first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:49
+
+#### GAS-CALIB-005 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  lookback is a positive duration
+- **Post:** first calibration will search [Utc::now() - lookback, Utc::now()]
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:67
 
 #### GAS-CALIB-005 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  `self.store` is a valid NuEventStore; `self.wallet_manager` is valid
 - **Post:** if settled events exist and the aggregate ratio exceeds tolerance,;returns true if the rate was adjusted
-- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:74
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:84
+
+#### GAS-CALIB-005 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  interval > 0
+- **Post:** a Tokio task is spawned; it calls `calibrate()` every `interval`
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:138
 
 
 ### hkask-communication (25 contracts)
@@ -2035,362 +2104,362 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 ### hkask-memory (52 contracts)
 
-#### MEM-003 (🟢 full)
+#### P3-mem-consolidation-bridge-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  episodic and semantic are initialized memory stores
 - **Post:** returns ConsolidationBridge linking the two stores
 - **File:** crates/hkask-memory/src/consolidation.rs:49
 
-#### MEM-004 (🟢 full)
+#### P3-mem-consolidation-bridge-consolidate (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  token.issuer() == expected curator WebID; perspective is a valid WebID
-- **Post:** episodic triples stripped of perspective, stored in semantic memory;consolidated episodic sources expired (soft-deleted);returns ConsolidationOutcome with counts;returns Err if token is unauthorized
-- **File:** crates/hkask-memory/src/consolidation.rs:161
+- **Post:** episodic triples stripped of perspective, stored in semantic memory
+- **File:** crates/hkask-memory/src/consolidation.rs:163
 
-#### MEM-005 (🟢 full)
+#### P3-mem-consolidation-candidate-count (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  perspective is a valid WebID
 - **Post:** returns count of triples in episodic storage for this perspective;returns 0 on error (graceful degradation)
-- **File:** crates/hkask-memory/src/consolidation.rs:200
+- **File:** crates/hkask-memory/src/consolidation.rs:205
 
-#### MEM-012 (🟢 full)
+#### P3-mem-consolidation-service-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  bridge and semantic are initialized; token.issuer() == expected curator
 - **Post:** returns ConsolidationService ready for consolidation operations
 - **File:** crates/hkask-memory/src/consolidation_service.rs:35
 
-#### MEM-013 (🟢 full)
+#### P3-mem-consolidation-service-consolidate (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  perspective is a valid WebID; request.limit > 0
-- **Post:** episodic triples consolidated into semantic memory;low-confidence semantic triples deleted if confidence_floor set;excess semantic triples deleted if max_semantic_triples set;returns ConsolidationOutcome with counts
-- **File:** crates/hkask-memory/src/consolidation_service.rs:60
+- **Post:** episodic triples consolidated into semantic memory
+- **File:** crates/hkask-memory/src/consolidation_service.rs:62
 
-#### MEM-014 (🟢 full)
+#### P3-mem-consolidation-service-candidate-count (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  perspective is a valid WebID
 - **Post:** returns count of episodic triples available for consolidation
-- **File:** crates/hkask-memory/src/consolidation_service.rs:209
+- **File:** crates/hkask-memory/src/consolidation_service.rs:214
 
-#### MEM-015 (🟢 full)
+#### P3-mem-consolidation-service-low-confidence-count (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  threshold in [0.0, 1.0]
 - **Post:** returns count of semantic triples with confidence ≤ threshold;returns 0 on error (graceful degradation)
-- **File:** crates/hkask-memory/src/consolidation_service.rs:218
+- **File:** crates/hkask-memory/src/consolidation_service.rs:225
 
-#### MEM-016 (🟡 partial)
+#### P3-mem-consolidation-service-triple-count (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns total count of triples in semantic memory;returns 0 on error (graceful degradation)
-- **File:** crates/hkask-memory/src/consolidation_service.rs:228
+- **File:** crates/hkask-memory/src/consolidation_service.rs:237
 
-#### MEM-006 (🟢 full)
+#### P3-mem-episodic-loop-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  memory is initialized, perspective is valid, storage_budget > 0
 - **Post:** returns EpisodicLoop without consolidation bridge
 - **File:** crates/hkask-memory/src/episodic_loop.rs:42
 
-#### MEM-007 (🟢 full)
+#### P3-mem-episodic-loop-with-consolidation (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  memory is initialized, perspective is valid, storage_budget > 0; consolidation_token.issuer() == expected curator
 - **Post:** returns EpisodicLoop with consolidation bridge and token
-- **File:** crates/hkask-memory/src/episodic_loop.rs:61
+- **File:** crates/hkask-memory/src/episodic_loop.rs:63
 
-#### MEM-008 (🟡 partial)
+#### P3-mem-episodic-loop-storage-budget (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns the storage_budget value set at construction
-- **File:** crates/hkask-memory/src/episodic_loop.rs:83
+- **File:** crates/hkask-memory/src/episodic_loop.rs:87
 
-#### MEM-022 (🟢 full)
+#### P3-mem-episodic-memory-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  triple_store is initialized
 - **Post:** returns EpisodicMemory with DEFAULT_DECAY_RATE and DEFAULT_EPISODIC_BUDGET
 - **File:** crates/hkask-memory/src/episodic.rs:57
 
-#### MEM-023 (🟢 full)
+#### P3-mem-episodic-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  triple.access.visibility != Public (episodic is sovereign); triple.access.perspective is Some (must have owner)
-- **Post:** triple inserted into triple_store;returns Err(InvalidVisibility) if visibility is Public;returns Err(MissingPerspective) if perspective is None
-- **File:** crates/hkask-memory/src/episodic.rs:72
+- **Post:** triple inserted into triple_store
+- **File:** crates/hkask-memory/src/episodic.rs:74
 
-#### MEM-024 (🟢 full)
+#### P3-mem-episodic-query-deduped (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity is non-empty, perspective is valid
 - **Post:** returns Vec<Triple> filtered by perspective, decayed, deduped, sorted by recency;confidence decayed via e^(-λt) for each triple
-- **File:** crates/hkask-memory/src/episodic.rs:102
+- **File:** crates/hkask-memory/src/episodic.rs:107
 
-#### MEM-025 (🟢 full)
+#### P3-mem-episodic-storage-usage (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  perspective is a valid WebID
 - **Post:** returns count of triples for this perspective
-- **File:** crates/hkask-memory/src/episodic.rs:149
+- **File:** crates/hkask-memory/src/episodic.rs:156
 
-#### MEM-026 (🟡 partial)
+#### P3-mem-episodic-storage-budget (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns the storage_budget value set at construction
-- **File:** crates/hkask-memory/src/episodic.rs:221
+- **File:** crates/hkask-memory/src/episodic.rs:230
 
-#### MEM-027 (🟢 full)
+#### P3-mem-episodic-candidate-count (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  perspective is a valid WebID
 - **Post:** returns count of triples eligible for consolidation;returns 0 on error (graceful degradation)
-- **File:** crates/hkask-memory/src/episodic.rs:234
+- **File:** crates/hkask-memory/src/episodic.rs:245
 
-#### MEM-009 (🟢 full)
+#### P3-mem-ranking-rrf-score (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  k > 0, ranks contains valid 0-based positions
 - **Post:** returns sum of 1/(k + rank + 1) for each rank;result is always ≥ 0.0
 - **File:** crates/hkask-memory/src/ranking.rs:14
 
-#### MEM-010 (🟢 full)
+#### P3-mem-ranking-parse-age (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  age is a valid &str
 - **Post:** returns days as f64 (≥ 0.0 for valid dates);returns -1.0 for unparseable or empty input
-- **File:** crates/hkask-memory/src/ranking.rs:31
+- **File:** crates/hkask-memory/src/ranking.rs:33
 
-#### MEM-011 (🟢 full)
+#### P3-mem-ranking-normalize-date-bucket (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  published is a valid &str
 - **Post:** returns one of five bucket labels based on age in days;returns "unknown" for unparseable input
-- **File:** crates/hkask-memory/src/ranking.rs:168
+- **File:** crates/hkask-memory/src/ranking.rs:172
 
-#### MEM-001 (🟢 full)
+#### P3-mem-recall-eav-hash (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  triple is a valid Triple with entity, attribute, value
 - **Post:** returns deterministic 32-byte BLAKE3 hash of canonical EAV content;same EAV content → same hash (metadata-independent)
 - **File:** crates/hkask-memory/src/recall_dedup.rs:20
 
-#### MEM-002 (🟢 full)
+#### P3-mem-recall-dedup-triples (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  triples is a Vec of valid Triples
 - **Post:** returns Vec with duplicates removed (by EAV hash);preserves original ordering (first occurrence kept);result.len() ≤ triples.len()
-- **File:** crates/hkask-memory/src/recall_dedup.rs:62
+- **File:** crates/hkask-memory/src/recall_dedup.rs:64
 
-#### MEM-028 (🟢 full)
+#### P3-mem-salience-method-signals (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  text is a valid &str
 - **Post:** returns MethodSignals with computed linguistic features;returns MethodSignals::default() for empty text
 - **File:** crates/hkask-memory/src/salience.rs:85
 
-#### MEM-029 (🟢 full)
+#### P3-mem-salience-declared-method-matches (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  signals is a valid MethodSignals
 - **Post:** returns true iff all configured min/max thresholds are satisfied;unconfigured thresholds (None) are always satisfied
-- **File:** crates/hkask-memory/src/salience.rs:558
+- **File:** crates/hkask-memory/src/salience.rs:560
 
-#### MEM-030 (🟢 full)
+#### P3-mem-salience-tag-entities (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  text is non-empty, entity lists are valid
 - **Post:** returns EntityTags with matched entities per category;methods field is empty (filled separately)
-- **File:** crates/hkask-memory/src/salience.rs:614
+- **File:** crates/hkask-memory/src/salience.rs:618
 
-#### MEM-031 (🟡 partial)
+#### P3-mem-salience-all-tags (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns iterator over all tag strings across all categories
-- **File:** crates/hkask-memory/src/salience.rs:646
+- **File:** crates/hkask-memory/src/salience.rs:652
 
-#### MEM-032 (🟡 partial)
+#### P3-mem-salience-tag-count (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns sum of lengths of all tag category vectors
-- **File:** crates/hkask-memory/src/salience.rs:660
+- **File:** crates/hkask-memory/src/salience.rs:668
 
-#### MEM-033 (🟢 full)
+#### P3-mem-salience-compute-batch (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  all_tags is a slice of EntityTags
 - **Post:** returns Vec<f32> with one salience score per passage;passages with zero tags get salience 0.0;returns empty Vec for empty input
-- **File:** crates/hkask-memory/src/salience.rs:702
+- **File:** crates/hkask-memory/src/salience.rs:712
 
-#### MEM-034 (🟢 full)
+#### P3-mem-salience-budget-resolve (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  passage_count ≥ 0
 - **Post:** returns computed absolute triple budget;Flat variant caps at total_passages if set and smaller
-- **File:** crates/hkask-memory/src/salience.rs:848
+- **File:** crates/hkask-memory/src/salience.rs:860
 
-#### MEM-017 (🟢 full)
+#### P3-mem-semantic-loop-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  memory is initialized
 - **Post:** returns SemanticLoop with DEFAULT_SEMANTIC_STORAGE_BUDGET and DEFAULT_LOW_CONFIDENCE_THRESHOLD
 - **File:** crates/hkask-memory/src/semantic_loop.rs:49
 
-#### MEM-018 (🟢 full)
+#### P3-mem-semantic-loop-with-budget (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  memory is initialized, storage_budget > 0
 - **Post:** returns SemanticLoop with custom budget, default threshold
-- **File:** crates/hkask-memory/src/semantic_loop.rs:64
+- **File:** crates/hkask-memory/src/semantic_loop.rs:66
 
-#### MEM-019 (🟢 full)
+#### P3-mem-semantic-loop-with-budget-threshold (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  memory is initialized, storage_budget > 0; low_confidence_threshold in [0.0, 1.0]
 - **Post:** returns SemanticLoop with custom budget and threshold
-- **File:** crates/hkask-memory/src/semantic_loop.rs:80
+- **File:** crates/hkask-memory/src/semantic_loop.rs:84
 
-#### MEM-020 (🟡 partial)
+#### P3-mem-semantic-loop-storage-budget (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns the storage_budget value set at construction
-- **File:** crates/hkask-memory/src/semantic_loop.rs:98
+- **File:** crates/hkask-memory/src/semantic_loop.rs:104
 
-#### MEM-021 (🟡 partial)
+#### P3-mem-semantic-loop-low-confidence-threshold (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns the low_confidence_threshold value set at construction
-- **File:** crates/hkask-memory/src/semantic_loop.rs:106
+- **File:** crates/hkask-memory/src/semantic_loop.rs:114
 
-#### MEM-035 (🟢 full)
+#### P3-mem-semantic-memory-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  triple_store and embedding_store are initialized
 - **Post:** returns SemanticMemory wrapping both stores
 - **File:** crates/hkask-memory/src/semantic.rs:65
 
-#### MEM-036 (🟢 full)
+#### P3-mem-semantic-query-deduped (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity is non-empty
 - **Post:** returns Vec<Triple> filtered to Public visibility, deduplicated by EAV hash
-- **File:** crates/hkask-memory/src/semantic.rs:81
+- **File:** crates/hkask-memory/src/semantic.rs:83
 
-#### MEM-037 (🟢 full)
+#### P3-mem-semantic-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  triple.access.visibility == Public; triple.access.perspective is None
-- **Post:** triple inserted into triple_store;returns Err(InvalidVisibility) if not Public;returns Err(HasPerspective) if perspective is set
-- **File:** crates/hkask-memory/src/semantic.rs:95
+- **Post:** triple inserted into triple_store;returns Err(InvalidVisibility) if not Public
+- **File:** crates/hkask-memory/src/semantic.rs:99
 
-#### MEM-038 (🟡 partial)
+#### P3-mem-semantic-triple-count (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns total count of semantic triples in store
-- **File:** crates/hkask-memory/src/semantic.rs:122
+- **File:** crates/hkask-memory/src/semantic.rs:128
 
-#### MEM-039 (🟢 full)
+#### P3-mem-semantic-triple-count-entity (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity is non-empty
 - **Post:** returns count of semantic triples for this entity
-- **File:** crates/hkask-memory/src/semantic.rs:130
+- **File:** crates/hkask-memory/src/semantic.rs:138
 
-#### MEM-040 (🟢 full)
+#### P3-mem-semantic-query-attribute (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  attribute is non-empty
 - **Post:** returns Vec<Triple> with matching attribute
-- **File:** crates/hkask-memory/src/semantic.rs:139
+- **File:** crates/hkask-memory/src/semantic.rs:149
 
-#### MEM-041 (🟢 full)
+#### P3-mem-semantic-store-embedding (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity_ref is non-empty, vector is non-empty, model is valid
 - **Post:** embedding stored and indexed by entity_ref;returns embedding ID
-- **File:** crates/hkask-memory/src/semantic.rs:153
+- **File:** crates/hkask-memory/src/semantic.rs:165
 
-#### MEM-042 (🟢 full)
+#### P3-mem-semantic-search-similar (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  query_vector is non-empty, limit > 0
 - **Post:** returns Vec<SimilarityResult> ordered by ascending distance
-- **File:** crates/hkask-memory/src/semantic.rs:173
+- **File:** crates/hkask-memory/src/semantic.rs:187
 
-#### MEM-043 (🟡 partial)
+#### P3-mem-semantic-embedding-count (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns total count of embeddings in store
-- **File:** crates/hkask-memory/src/semantic.rs:186
+- **File:** crates/hkask-memory/src/semantic.rs:202
 
-#### MEM-044 (🟡 partial)
+#### P3-mem-semantic-embedding-store (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns reference to the EmbeddingStore
-- **File:** crates/hkask-memory/src/semantic.rs:195
+- **File:** crates/hkask-memory/src/semantic.rs:213
 
-#### MEM-045 (🟢 full)
+#### P3-mem-semantic-compute-centroid (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prefix is non-empty, dim > 0
 - **Post:** returns CentroidResult with mean vector and passage count;returns Err(NoEmbeddingsForCentroid) if no matching embeddings;centroid stored if store_as and model are provided
-- **File:** crates/hkask-memory/src/semantic.rs:224
+- **File:** crates/hkask-memory/src/semantic.rs:244
 
-#### MEM-046 (🟢 full)
+#### P3-mem-semantic-purge-prefix (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prefix is non-empty
 - **Post:** all embeddings with matching prefix deleted;returns count of deleted embeddings
-- **File:** crates/hkask-memory/src/semantic.rs:309
+- **File:** crates/hkask-memory/src/semantic.rs:331
 
-#### MEM-047 (🟢 full)
+#### P3-mem-semantic-chunk-text (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  text is non-empty, entity_ref_prefix is non-empty; min_words > 0, max_words >= min_words
 - **Post:** returns Vec of (entity_ref, text) chunks;each chunk has word count between min_words and max_words (best-effort)
-- **File:** crates/hkask-memory/src/semantic.rs:343
+- **File:** crates/hkask-memory/src/semantic.rs:367
 
-#### MEM-048 (🟢 full)
+#### P3-mem-semantic-strip-gutenberg (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  text is a valid &str
 - **Post:** returns text between START OF and END OF markers;returns full text if markers not found
-- **File:** crates/hkask-memory/src/semantic.rs:454
+- **File:** crates/hkask-memory/src/semantic.rs:480
 
-#### MEM-049 (🟢 full)
+#### P3-mem-semantic-delete-triple (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  id is a valid TripleID
 - **Post:** triple deleted from store;returns Err if triple not found
-- **File:** crates/hkask-memory/src/semantic.rs:492
+- **File:** crates/hkask-memory/src/semantic.rs:520
 
-#### MEM-050 (🟢 full)
+#### P3-mem-semantic-lowest-confidence (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  limit > 0
 - **Post:** returns up to `limit` triples ordered by confidence ascending
-- **File:** crates/hkask-memory/src/semantic.rs:513
+- **File:** crates/hkask-memory/src/semantic.rs:543
 
-#### MEM-051 (🟢 full)
+#### P3-mem-semantic-low-confidence-count (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  threshold in [0.0, 1.0]
 - **Post:** returns count of triples with confidence ≤ threshold
-- **File:** crates/hkask-memory/src/semantic.rs:528
+- **File:** crates/hkask-memory/src/semantic.rs:560
 
-#### MEM-052 (🟢 full)
+#### P3-mem-semantic-low-confidence-triples (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  threshold in [0.0, 1.0], limit > 0
 - **Post:** returns up to `limit` triples with confidence ≤ threshold
-- **File:** crates/hkask-memory/src/semantic.rs:545
+- **File:** crates/hkask-memory/src/semantic.rs:579
 
 
-### hkask-services (203 contracts)
+### hkask-services (208 contracts)
 
 #### SVC-217 (🟢 full)
 
@@ -3560,6 +3629,38 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Pre:**  none (always succeeds)
 - **Post:** returns a non-empty String — env var, git user.name, or "local" fallback
 - **File:** crates/hkask-services/src/skill.rs:257
+
+#### SVC-096 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  registry and skill_index are valid; project_root points to hKask root
+- **Post:** returns an auditor configured for both layers
+- **File:** crates/hkask-services/src/skills.rs:22
+
+#### SVC-097 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns a report with a health score and defects per skill
+- **File:** crates/hkask-services/src/skills.rs:51
+
+#### SVC-098 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  name is non-empty
+- **Post:** returns the skill's health score or an error if audit fails
+- **File:** crates/hkask-services/src/skills.rs:67
+
+#### SVC-099 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns a JSON string representation of the report
+- **File:** crates/hkask-services/src/skills.rs:85
+
+#### SVC-100 (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns true iff health_score >= 0.8
+- **File:** crates/hkask-services/src/skills.rs:108
 
 #### SVC-081 (🟢 full)
 
@@ -6387,7 +6488,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-types/src/voice.rs:116
 
 
-### hkask-wallet (26 contracts)
+### hkask-wallet (27 contracts)
 
 #### P9-wallet-hinkal-port-new (🟢 full)
 
@@ -6485,68 +6586,74 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns gas equivalent using the current gas_per_rjoule rate
 - **File:** crates/hkask-wallet/src/manager.rs:829
 
+#### P9-wallet-mgr-gas-per-rjoule (🟡 partial)
+
+- **Principle:** ✅ anchored
+- **Post:** returns the manager's current gas_per_rjoule rate
+- **File:** crates/hkask-wallet/src/manager.rs:838
+
 #### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  rate > 0
 - **Post:** subsequent gas_to_rjoules/rjoules_to_gas use the new rate
-- **File:** crates/hkask-wallet/src/manager.rs:843
+- **File:** crates/hkask-wallet/src/manager.rs:846
 
 #### P9-wallet-mgr-fee-estimate (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  chain is a valid ChainId
 - **Post:** returns fee estimate derived from live/native USD rate when available;returns Err if configured price feed cannot provide a rate
-- **File:** crates/hkask-wallet/src/manager.rs:853
+- **File:** crates/hkask-wallet/src/manager.rs:856
 
 #### P9-wallet-mgr-can-afford (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, cost_rj is a valid RJoule
 - **Post:** returns Ok(true) iff balance.rjoules >= cost_rj;returns Ok(false) iff balance.rjoules < cost_rj
-- **File:** crates/hkask-wallet/src/manager.rs:892
+- **File:** crates/hkask-wallet/src/manager.rs:895
 
 #### P9-wallet-mgr-reserve (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, amount is a valid RJoule
 - **Post:** if can_afford → Ok(()), reservation is optimistic (no debit);if !can_afford → Err(InsufficientBalance)
-- **File:** crates/hkask-wallet/src/manager.rs:906
+- **File:** crates/hkask-wallet/src/manager.rs:909
 
 #### P9-wallet-mgr-settle (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, reserved and actual are valid RJoule
 - **Post:** wallet balance debited by actual (not reserved);if actual < reserved, difference is implicitly refunded
-- **File:** crates/hkask-wallet/src/manager.rs:928
+- **File:** crates/hkask-wallet/src/manager.rs:931
 
 #### P9-wallet-mgr-encumber (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, key_id is a valid ApiKeyId, amount > 0
 - **Post:** amount rJoules locked against wallet for key_id;emits cns.wallet.encumbered span if event_sink configured
-- **File:** crates/hkask-wallet/src/manager.rs:993
+- **File:** crates/hkask-wallet/src/manager.rs:996
 
 #### P9-wallet-mgr-release-encumbrance (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** unspent rJoules returned to wallet;idempotent — releasing already-released/consumed encumbrance is no-op
-- **File:** crates/hkask-wallet/src/manager.rs:1025
+- **File:** crates/hkask-wallet/src/manager.rs:1028
 
 #### P9-wallet-mgr-consume (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId, gas_rj > 0
 - **Post:** gas_rj deducted from key's active encumbrance (atomic);if encumbrance fully consumed → status transitions to 'consumed'
-- **File:** crates/hkask-wallet/src/manager.rs:1049
+- **File:** crates/hkask-wallet/src/manager.rs:1052
 
 #### P9-wallet-mgr-get-encumbrance (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** returns Ok(Some(encumbrance)) if key has active encumbrance;returns Ok(None) if key has no encumbrance
-- **File:** crates/hkask-wallet/src/manager.rs:1066
+- **File:** crates/hkask-wallet/src/manager.rs:1069
 
 #### P9-wallet-sign-withdrawal (🟢 full)
 

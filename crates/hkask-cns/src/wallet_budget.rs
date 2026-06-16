@@ -378,4 +378,30 @@ mod tests {
             "reserve should fail when encumbrance insufficient"
         );
     }
+
+    // REQ: cns-wallet-budget-008 — live gas_per_rjoule rate is read at check time
+    #[test]
+    fn wallet_budget_reads_live_gas_per_rjoule_rate() {
+        let budget = make_wallet_budget_with_key(0, 5_000);
+        // Encumbrance = 2000 rJ. At default gas_per_rjoule = 1000,
+        // 1_500_000 gas → 1500 rJ, which is within encumbrance.
+        assert!(
+            budget.can_proceed(EnergyCost(1_500_000)),
+            "1500 rJ should fit in 2000 rJ encumbrance at rate 1000"
+        );
+
+        // Halve the rate: 1_500_000 gas / 500 = 3000 rJ, exceeding encumbrance.
+        budget.wallet_manager.set_gas_per_rjoule(500);
+        assert!(
+            !budget.can_proceed(EnergyCost(1_500_000)),
+            "3000 rJ should exceed 2000 rJ encumbrance at rate 500"
+        );
+
+        // Double the rate: 1_500_000 gas / 2000 = 750 rJ, fitting again.
+        budget.wallet_manager.set_gas_per_rjoule(2_000);
+        assert!(
+            budget.can_proceed(EnergyCost(1_500_000)),
+            "750 rJ should fit in 2000 rJ encumbrance at rate 2000"
+        );
+    }
 }

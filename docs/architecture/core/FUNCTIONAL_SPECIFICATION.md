@@ -26,7 +26,7 @@
 | 9 | Cybernetics Loop | `loop` | hkask-cns | 1 | P9 (Homeostatic Self-Regulation) |
 | 10 | Wallet | `wallet` | hkask-wallet | 23 | P9 (Homeostatic Self-Regulation) |
 | 11 | Storage | `storage` | hkask-storage | 12 | P3 (Generative Space) |
-| 12 | Memory | `memory` | hkask-memory | 8 | P3 (Generative Space) |
+| 12 | Memory | `memory` | hkask-memory | 52 | P3 (Generative Space) |
 | 13 | Inference Engine | `inference` | hkask-inference | 15 | P9 + P4 (Homeostatic + Boundary) |
 | 14 | Template Engine | `templates` | hkask-templates | 10 | P3 (Generative Space) |
 | 15 | MCP Servers | `mcp` | mcp-servers/ | 18 | P5 (Essentialism) |
@@ -424,10 +424,91 @@ These domains are documented here for completeness but are not part of the CNS c
 
 ### 3.3 Memory (`hkask-memory`)
 
-**8 contracts** — P3 (Generative Space)
-- `ConversationBuffer` — sliding window of recent interactions (P3)
-- `SemanticIndex` — vector-backed retrieval for knowledge (P3)
-- Memory pruning, expiration, search
+**52 production contracts** + **16 test contracts** — P3 (Generative Space)
+
+**Crate:** `hkask-memory` | **Sources:** `src/recall_dedup.rs`, `src/consolidation.rs`, `src/consolidation_service.rs`, `src/episodic.rs`, `src/episodic_loop.rs`, `src/semantic.rs`, `src/semantic_loop.rs`, `src/salience.rs`, `src/ranking.rs`
+
+Memory provides the generative substrate for experience and knowledge: episodic first-person storage, semantic shared storage, consolidation bridges, salience-based budget gating, and cybernetic regulation loops.
+
+#### Production Contracts (52 unique IDs)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-M001 | `P3-mem-consolidation-bridge-new` | `new()` | [P3] Motivating: Generative Space — bridges episodic experience into shared semantic memory; [P4] Constraining: Clear Boundaries — links stores without bypassing their membranes |
+| FR-M002 | `P3-mem-consolidation-bridge-consolidate` | `consolidate()` | [P3] Motivating: Generative Space — promotes sovereign episodic triples to shared knowledge; [P1] Constraining: User Sovereignty — strips perspective only under Curator authority; [P4] Constraining: Clear Boundaries — requires ConsolidationToken from expected curator |
+| FR-M003 | `P3-mem-consolidation-candidate-count` | `consolidation_candidate_count()` | [P3] Motivating: Generative Space — surfaces how much episodic content is ready for promotion; [P9] Constraining: Homeostatic Self-Regulation — count-only query avoids loading full store |
+| FR-M004 | `P3-mem-consolidation-service-new` | `new()` | [P3] Motivating: Generative Space — user-facing entry point for memory consolidation and cleanup; [P4] Constraining: Clear Boundaries — requires Curator-issued ConsolidationToken |
+| FR-M005 | `P3-mem-consolidation-service-consolidate` | `consolidate()` | [P3] Motivating: Generative Space — combines episodic promotion with semantic cleanup; [P9] Constraining: Homeostatic Self-Regulation — enforces confidence floor and max triple limits; [P4] Constraining: Clear Boundaries — delegates to token-gated bridge |
+| FR-M006 | `P3-mem-consolidation-service-candidate-count` | `consolidation_candidate_count()` | [P3] Motivating: Generative Space — reports how many episodic triples can be promoted; [P9] Constraining: Homeostatic Self-Regulation — count-only, graceful degradation on error |
+| FR-M007 | `P3-mem-consolidation-service-low-confidence-count` | `semantic_low_confidence_count()` | [P3] Motivating: Generative Space — reports low-confidence semantic triples for cleanup; [P9] Constraining: Homeostatic Self-Regulation — threshold-driven pruning signal |
+| FR-M008 | `P3-mem-consolidation-service-triple-count` | `semantic_triple_count()` | [P3] Motivating: Generative Space — reports total semantic memory size; [P9] Constraining: Homeostatic Self-Regulation — count used for budget monitoring |
+| FR-M009 | `P3-mem-episodic-memory-new` | `new()` | [P3] Motivating: Generative Space — creates a sovereign first-person experience store; [P9] Constraining: Homeostatic Self-Regulation — default decay and budget are regulation defaults |
+| FR-M010 | `P3-mem-episodic-store` | `store()` | [P3] Motivating: Generative Space — stores a first-person experience triple; [P1] Constraining: User Sovereignty — rejects Public visibility (episodic is sovereign); [P4] Constraining: Clear Boundaries — requires perspective owner |
+| FR-M011 | `P3-mem-episodic-query-deduped` | `query_for_deduped()` | [P3] Motivating: Generative Space — recalls deduplicated episodic triples for an entity; [P9] Constraining: Homeostatic Self-Regulation — applies confidence decay and temporal attention at recall |
+| FR-M012 | `P3-mem-episodic-storage-usage` | `storage_usage()` | [P3] Motivating: Generative Space — reports episodic storage usage per perspective; [P9] Constraining: Homeostatic Self-Regulation — COUNT query avoids loading full store |
+| FR-M013 | `P3-mem-episodic-storage-budget` | `storage_budget()` | [P3] Motivating: Generative Space — exposes the episodic storage set-point; [P9] Constraining: Homeostatic Self-Regulation — budget bounds per-agent experience growth |
+| FR-M014 | `P3-mem-episodic-candidate-count` | `consolidation_candidate_count()` | [P3] Motivating: Generative Space — reports how many episodic triples are eligible for consolidation; [P9] Constraining: Homeostatic Self-Regulation — uses decayed confidence for prioritization |
+| FR-M015 | `P3-mem-episodic-loop-new` | `new()` | [P3] Motivating: Generative Space — wraps episodic memory in a regulated generative loop; [P9] Constraining: Homeostatic Self-Regulation — storage_budget is the cybernetic set-point |
+| FR-M016 | `P3-mem-episodic-loop-with-consolidation` | `with_consolidation()` | [P3] Motivating: Generative Space — enables promotion path when episodic budget is exceeded; [P9] Constraining: Homeostatic Self-Regulation — consolidation bridge fires only under token authority |
+| FR-M017 | `P3-mem-episodic-loop-storage-budget` | `storage_budget()` | [P3] Motivating: Generative Space — exposes the generative budget set-point for context assembly; [P9] Constraining: Homeostatic Self-Regulation — budget value is immutable after construction |
+| FR-M018 | `P3-mem-ranking-rrf-score` | `rrf_score()` | [P3] Motivating: Generative Space — fuses rank positions for context retrieval; [P8] Constraining: Semantic Grounding — reciprocal rank fusion is a standard ranking signal |
+| FR-M019 | `P3-mem-ranking-parse-age` | `parse_age_to_days()` | [P3] Motivating: Generative Space — converts human-readable age strings into comparable temporal signals; [P5] Constraining: Essentialism — returns -1.0 for unparseable input, no exceptions |
+| FR-M020 | `P3-mem-ranking-normalize-date-bucket` | `normalize_date_bucket()` | [P3] Motivating: Generative Space — buckets parsed age into human-readable recency labels; [P8] Constraining: Semantic Grounding — five fixed buckets preserve stable ordering |
+| FR-M021 | `P3-mem-recall-eav-hash` | `eav_hash()` | [P3] Motivating: Generative Space — canonical recall dedup enables reuse of factual content across memory; [P8] Constraining: Semantic Grounding — deterministic BLAKE3 hash over canonical EAV content |
+| FR-M022 | `P3-mem-recall-dedup-triples` | `dedup_triples()` | [P3] Motivating: Generative Space — deduplication preserves generative storage budget; [P5] Constraining: Essentialism — first-seen wins, no speculative retention policy |
+| FR-M023 | `P3-mem-salience-method-signals` | `compute_method_signals()` | [P3] Motivating: Generative Space — extracts cheap stylometric signals for method-aware retrieval; [P8] Constraining: Semantic Grounding — signals are deterministic heuristics over raw text |
+| FR-M024 | `P3-mem-salience-declared-method-matches` | `matches()` | [P3] Motivating: Generative Space — matches passage signals against declared method thresholds; [P8] Constraining: Semantic Grounding — unconfigured thresholds are always satisfied |
+| FR-M025 | `P3-mem-salience-tag-entities` | `tag_entities()` | [P3] Motivating: Generative Space — tags passages with declared entities for the salience graph; [P8] Constraining: Semantic Grounding — case-insensitive substring matching |
+| FR-M026 | `P3-mem-salience-all-tags` | `all_tags()` | [P3] Motivating: Generative Space — flattens entity categories for graph construction; [P5] Constraining: Essentialism — minimal iterator over existing vectors |
+| FR-M027 | `P3-mem-salience-tag-count` | `tag_count()` | [P3] Motivating: Generative Space — counts distinct tags across all categories; [P5] Constraining: Essentialism — simple sum of category lengths |
+| FR-M028 | `P3-mem-salience-compute-batch` | `compute_salience_batch()` | [P3] Motivating: Generative Space — scores passage salience to gate triple storage budget; [P9] Constraining: Homeostatic Self-Regulation — graph centrality bounded by neighbor sampling |
+| FR-M029 | `P3-mem-salience-budget-resolve` | `resolve()` | [P3] Motivating: Generative Space — resolves passage count into absolute triple budget; [P9] Constraining: Homeostatic Self-Regulation — budget caps generative storage growth |
+| FR-M030 | `P3-mem-semantic-memory-new` | `new()` | [P3] Motivating: Generative Space — creates shared semantic knowledge store; [P8] Constraining: Semantic Grounding — unifies triple and embedding stores |
+| FR-M031 | `P3-mem-semantic-query-deduped` | `query_deduped()` | [P3] Motivating: Generative Space — recalls deduplicated public semantic triples; [P4] Constraining: Clear Boundaries — filters to Public visibility |
+| FR-M032 | `P3-mem-semantic-store` | `store()` | [P3] Motivating: Generative Space — stores shared semantic triple; [P4] Constraining: Clear Boundaries — requires Public visibility and no perspective |
+| FR-M033 | `P3-mem-semantic-triple-count` | `triple_count()` | [P3] Motivating: Generative Space — reports total shared knowledge triples; [P9] Constraining: Homeostatic Self-Regulation — count feeds storage budget loop |
+| FR-M034 | `P3-mem-semantic-triple-count-entity` | `triple_count_for_entity()` | [P3] Motivating: Generative Space — reports semantic triples per entity; [P9] Constraining: Homeostatic Self-Regulation — per-entity budget monitoring |
+| FR-M035 | `P3-mem-semantic-query-attribute` | `query_by_attribute()` | [P3] Motivating: Generative Space — queries shared triples by attribute; [P8] Constraining: Semantic Grounding — attribute-based recall expands context |
+| FR-M036 | `P3-mem-semantic-store-embedding` | `store_embedding()` | [P3] Motivating: Generative Space — indexes embedding vector for similarity retrieval; [P8] Constraining: Semantic Grounding — vector indexed by triple entity_ref |
+| FR-M037 | `P3-mem-semantic-search-similar` | `search_similar()` | [P3] Motivating: Generative Space — KNN search augments recall beyond exact matches; [P8] Constraining: Semantic Grounding — results ordered by embedding distance |
+| FR-M038 | `P3-mem-semantic-embedding-count` | `embedding_count()` | [P3] Motivating: Generative Space — reports indexed embedding count; [P9] Constraining: Homeostatic Self-Regulation — count used for embedding budget monitoring |
+| FR-M039 | `P3-mem-semantic-embedding-store` | `embedding_store()` | [P3] Motivating: Generative Space — exposes embedding store for advanced operations; [P5] Constraining: Essentialism — direct accessor avoids duplicate wrappers |
+| FR-M040 | `P3-mem-semantic-compute-centroid` | `compute_centroid()` | [P3] Motivating: Generative Space — computes mean style vector for corpus validation; [P8] Constraining: Semantic Grounding — arithmetic mean over matching embeddings |
+| FR-M041 | `P3-mem-semantic-purge-prefix` | `purge_by_prefix()` | [P3] Motivating: Generative Space — purges embeddings for idempotent re-ingest; [P5] Constraining: Essentialism — prefix-based deletion, count of successes returned |
+| FR-M042 | `P3-mem-semantic-chunk-text` | `chunk_text()` | [P3] Motivating: Generative Space — chunks text into passage-sized units for embedding; [P5] Constraining: Essentialism — paragraph/sentence boundary splitting with min/max words |
+| FR-M043 | `P3-mem-semantic-strip-gutenberg` | `strip_gutenberg_headers()` | [P3] Motivating: Generative Space — removes boilerplate for clean corpus ingestion; [P5] Constraining: Essentialism — marker-based trim, no regex |
+| FR-M044 | `P3-mem-semantic-delete-triple` | `delete_triple()` | [P3] Motivating: Generative Space — deletes semantic triple for budget enforcement or cleanup; [P9] Constraining: Homeostatic Self-Regulation — used by regulation loops to free space |
+| FR-M045 | `P3-mem-semantic-lowest-confidence` | `lowest_confidence_triples()` | [P3] Motivating: Generative Space — identifies lowest-confidence triples for pruning; [P9] Constraining: Homeostatic Self-Regulation — ordered by confidence and age |
+| FR-M046 | `P3-mem-semantic-low-confidence-count` | `low_confidence_count()` | [P3] Motivating: Generative Space — counts uncertain semantic triples; [P9] Constraining: Homeostatic Self-Regulation — threshold-driven count |
+| FR-M047 | `P3-mem-semantic-low-confidence-triples` | `low_confidence_triples()` | [P3] Motivating: Generative Space — retrieves uncertain semantic triples for review; [P9] Constraining: Homeostatic Self-Regulation — bounded by threshold and limit |
+| FR-M048 | `P3-mem-semantic-loop-new` | `new()` | [P3] Motivating: Generative Space — wraps semantic memory in a regulated knowledge loop; [P9] Constraining: Homeostatic Self-Regulation — default budget and low-confidence threshold are set-points |
+| FR-M049 | `P3-mem-semantic-loop-with-budget` | `with_budget()` | [P3] Motivating: Generative Space — customizes storage budget per user or agent; [P9] Constraining: Homeostatic Self-Regulation — configurable set-point for memory homeostasis |
+| FR-M050 | `P3-mem-semantic-loop-with-budget-threshold` | `with_budget_and_threshold()` | [P3] Motivating: Generative Space — customizes both budget and cleanup threshold; [P7] Constraining: Evolutionary Architecture — thresholds emerge from usage patterns |
+| FR-M051 | `P3-mem-semantic-loop-storage-budget` | `storage_budget()` | [P3] Motivating: Generative Space — exposes the semantic storage set-point; [P9] Constraining: Homeostatic Self-Regulation — immutable budget reference for regulation |
+| FR-M052 | `P3-mem-semantic-loop-low-confidence-threshold` | `low_confidence_threshold()` | [P3] Motivating: Generative Space — exposes the low-confidence cleanup set-point; [P9] Constraining: Homeostatic Self-Regulation — threshold triggers pruning of uncertain knowledge |
+
+#### Test Contracts (16 unique IDs)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-MT001 | `P3-mem-salience-hemingway-test` | `method_signals_hemingway_like()` |
+| FR-MT002 | `P3-mem-salience-wilde-test` | `method_signals_wilde_like()` |
+| FR-MT003 | `P3-mem-salience-declared-method-test` | `declared_method_matches()` |
+| FR-MT004 | `P3-mem-salience-zero-empty-test` | `salience_zero_for_empty_tags()` |
+| FR-MT005 | `P3-mem-salience-shared-entities-test` | `salience_increases_with_shared_entities()` |
+| FR-MT006 | `P3-mem-salience-clustering-zero-test` | `clustering_zero_when_neighbors_disconnected()` |
+| FR-MT007 | `P3-mem-salience-bridge-higher-test` | `bridge_scores_higher_than_dense_clique()` |
+| FR-MT008 | `P3-mem-salience-methods-graph-test` | `methods_participate_in_graph()` |
+| FR-MT009 | `P3-mem-salience-budget-per-page-test` | `budget_per_page_resolve()` |
+| FR-MT010 | `P3-mem-salience-budget-absolute-test` | `budget_absolute()` |
+| FR-MT011 | `P3-mem-salience-tag-case-insensitive-test` | `entity_tagging_case_insensitive()` |
+| FR-MT012 | `P3-mem-salience-dialogue-ratio-test` | `dialogue_ratio_detection()` |
+| FR-MT013 | `P3-mem-salience-valid-range-test` | `salience_scores_in_valid_range()` |
+| FR-MT014 | `P3-mem-salience-empty-tags-proptest` | `empty_tags_produce_zero_salience()` |
+| FR-MT015 | `P3-mem-semantic-centroid-dimensions-test` | `centroid_accumulation_skips_out_of_range_dimensions()` |
+| FR-MT016 | `P3-mem-semantic-centroid-short-test` | `centroid_accumulation_handles_short_embedding()` |
+
+> **Note:** The original handoff estimated ~8 memory contracts; the actual source contains **52 production** and **16 test** unique contract IDs. All have been realigned to `P3-mem-*`.
 
 ### 3.4 Inference (`hkask-inference`)
 
@@ -588,12 +669,14 @@ These domains are documented here for completeness but are not part of the CNS c
 | Storage — Triples | `triples.rs` | `STO-116`–`STO-137` | `P3-sto-triple-*` | 22 |
 | Storage — Wallet Store | `wallet_store.rs` | `STO-138`–`STO-162`, `SHOULD-8`, `MUST-10`, `wallet-*` | `P3-sto-wallet-*`, `P1-sto-wallet-*` | 25 |
 | Storage — Contract Tests | `tests/contract/services_storage_contract.rs` | `CTR-002` | `P4-sto-services-contract-test` | 0 (tests only) |
+| Memory | `src/**/*.rs` | `MEM-*`, `memory-salience-*`, `semantic-*` | `P3-mem-*` | 68 |
 
 **Total CNS contracts:** 99 (across all 9 source files).
 **Total wallet contracts:** 23 production occurrences (11 unique IDs).
 **Total agents contracts:** 174 production occurrences (30 unique IDs).
 **Total storage contracts:** 247 production occurrences (168 unique IDs).
-**Build status:** `cargo check -p hkask-cns`, `cargo check -p hkask-wallet`, `cargo check -p hkask-agents`, and `cargo check -p hkask-storage` pass clean.
+**Total memory contracts:** 67 production occurrences (52 unique production IDs + 16 test IDs).
+**Build status:** `cargo check -p hkask-cns`, `cargo check -p hkask-wallet`, `cargo check -p hkask-agents`, `cargo check -p hkask-storage`, and `cargo check -p hkask-memory` pass clean.
 
 ### 4.2 Idempotent Migration
 
@@ -685,8 +768,8 @@ The following domains are **not yet realigned** and will use their own principle
 | Created | 2026-06-16 |
 | Status | Active — anchor for the rSolidity contract vocabulary |
 | Last Updated | 2026-06-16 |
-| Contract Count | 99 CNS + wallet realignment (406 total in manifest) |
-| Build Status | `cargo check -p hkask-cns -p hkask-wallet` — PASS |
+| Contract Count | 99 CNS + wallet/agents/storage/memory realignment (473 total in manifest) |
+| Build Status | `cargo check -p hkask-cns -p hkask-wallet -p hkask-agents -p hkask-storage -p hkask-memory` — PASS |
 | rSolidity Status | Design complete — see `RSOLIDITY_VOCABULARY.md` |
 | Governance | PRINCIPLES.md §1–§5 |
 

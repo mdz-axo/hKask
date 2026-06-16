@@ -112,11 +112,7 @@ mod tests {
             "generate",
             &args,
         );
-        assert_eq!(
-            cost,
-            1 / 4 + 100,
-            "inference cost uses token estimator, not table"
-        );
+        assert_eq!(cost, 100, "inference cost uses token estimator, not table");
     }
 
     // REQ: GAS-CALIB-003 — per-tool overrides survive calibration
