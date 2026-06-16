@@ -27,7 +27,8 @@ pub struct CuratorContext {
 }
 
 impl CuratorContext {
-    /// REQ: AGT-057
+    /// REQ: P9-agt-curator-context-new
+    /// [P9] Motivating: Homeostatic Self-Regulation — CuratorContext bundles regulatory dependencies
     /// pre:  `handle` is a valid `CuratorHandle`; `cns` is a valid
     ///       `Arc<CnsRuntime>`; `curator_directive_tx` is `Some` or `None`;
     ///       `escalation_queue` is a valid `Arc<EscalationQueue>`.
@@ -51,7 +52,8 @@ impl CuratorContext {
 
     /// Create CuratorContext with a NuEvent store for algedonic review.
     ///
-    /// REQ: AGT-058
+    /// REQ: P9-agt-curator-context-with-store
+    /// [P9] Motivating: Homeostatic Self-Regulation — NuEvent store enables algedonic review
     /// pre:  All arguments are valid (same as `new`); `nu_event_store` is
     ///       a valid `Arc<NuEventStore>`.
     /// post: Returns a `CuratorContext` with `nu_event_store` set and no
@@ -75,7 +77,8 @@ impl CuratorContext {
 
     /// Builder: attach an ACP port for A2A bot-directed messaging.
     ///
-    /// REQ: AGT-059
+    /// REQ: P9-agt-curator-context-with-acp
+    /// [P4] Motivating: Clear Boundaries — ACP port lets Curator direct bots
     /// pre:  `acp` is a valid `Arc<dyn AcpPort>`.
     /// post: Returns `self` with `acp` set to `Some(acp)`.
     pub fn with_acp(mut self, acp: Arc<dyn AcpPort>) -> Self {
@@ -85,7 +88,8 @@ impl CuratorContext {
 
     /// Access the CuratorHandle (capability handle).
     ///
-    /// REQ: AGT-060
+    /// REQ: P9-agt-curator-context-handle
+    /// [P9] Motivating: Homeostatic Self-Regulation — accessor for the Curator capability handle
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `CuratorHandle`.
     pub fn handle(&self) -> &CuratorHandle {
@@ -125,7 +129,8 @@ impl CuratorContext {
     ///
     /// When no channel is configured (e.g., standalone CLI), this is a no-op.
     ///
-    /// REQ: AGT-061
+    /// REQ: P9-agt-curator-context-directive
+    /// [P9] Motivating: Homeostatic Self-Regulation — issue directives to the Curation Loop
     /// pre:  `directive` is a valid `CuratorDirective`.
     /// post: If `curator_directive_tx` is `Some`, the directive is sent;
     ///       logs a warning if the send fails. If `None`, this is a no-op.

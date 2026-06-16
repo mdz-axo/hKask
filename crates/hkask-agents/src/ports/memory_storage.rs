@@ -42,7 +42,9 @@ pub struct StorageRequest {
 impl StorageRequest {
     /// Create a new `StorageRequest` with all fields specified.
     ///
-    /// REQ: AGT-032
+    /// REQ: P3-agt-memory-request-new
+    /// [P3] Motivating: Generative Space — StorageRequest creates a memory triple
+    /// [P1] Constraining: User Sovereignty — access.owner_webid carries ownership
     /// pre:  `entity` and `attribute` are non-empty strings after `.into()`;
     ///       `confidence` is in range [0.0, 1.0]; `access` carries a valid
     ///       `AccessControl` variant (episodic or semantic).
@@ -69,7 +71,8 @@ impl StorageRequest {
     ///
     /// Convenience constructor that sets `access` to `AccessControl::episodic`.
     ///
-    /// REQ: AGT-033
+    /// REQ: P3-agt-memory-request-episodic
+    /// [P3] Motivating: Generative Space — episodic request binds perspective to owner
     /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
     ///       `entity` and `attribute` are non-empty after `.into()`.
     /// post: Returns a `StorageRequest` with `access` set to episodic
@@ -94,7 +97,8 @@ impl StorageRequest {
     ///
     /// Convenience constructor that sets `access` to `AccessControl::semantic`.
     ///
-    /// REQ: AGT-034
+    /// REQ: P3-agt-memory-request-semantic
+    /// [P3] Motivating: Generative Space — semantic request is perspective-free
     /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
     ///       `entity` and `attribute` are non-empty after `.into()`.
     /// post: Returns a `StorageRequest` with `access` set to semantic
@@ -121,7 +125,8 @@ impl StorageRequest {
     /// - `Success` → 0.9
     /// - `Failure` → 0.3
     ///
-    /// REQ: AGT-035
+    /// REQ: P3-agt-memory-confidence-map
+    /// [P8] Motivating: Semantic Grounding — classification maps to confidence scalar
     /// pre:  `classification` is a valid `ExperienceClassification` variant;
     ///       `confidence_override`, if `Some`, is in [0.0, 1.0];
     ///       `producer_webid` is a valid WebID.
@@ -159,7 +164,9 @@ pub struct RecallRequest {
 impl RecallRequest {
     /// Create an episodic recall request (perspective-bound).
     ///
-    /// REQ: AGT-036
+    /// REQ: P3-agt-memory-recall-episodic
+    /// [P3] Motivating: Generative Space — episodic recall requires delegation token
+    /// [P4] Constraining: Clear Boundaries — token proves capability
     /// pre:  `query` is non-empty after `.into()`; `owner` is a valid WebID;
     ///       `token` is a valid `DelegationToken`.
     /// post: Returns a `RecallRequest` with `perspective = Some(owner)`.
@@ -173,7 +180,9 @@ impl RecallRequest {
 
     /// Create a semantic recall request (perspective-free).
     ///
-    /// REQ: AGT-037
+    /// REQ: P3-agt-memory-recall-semantic
+    /// [P3] Motivating: Generative Space — semantic recall requires delegation token
+    /// [P4] Constraining: Clear Boundaries — token proves capability
     /// pre:  `query` is non-empty after `.into()`; `token` is a valid
     ///       `DelegationToken`.
     /// post: Returns a `RecallRequest` with `perspective = None`.

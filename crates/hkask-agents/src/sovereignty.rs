@@ -78,7 +78,9 @@ impl Clone for SovereigntyChecker {
 }
 
 impl SovereigntyChecker {
-    /// REQ: AGT-119
+    /// REQ: P1-agt-sovereignty-checker-new
+    /// [P1] Motivating: User Sovereignty — checker enforces the user-data boundary
+    /// [P2] Constraining: Affirmative Consent — delegates to consent port
     /// pre:  `owner_webid` is a valid `WebID`; `consent` is a valid
     ///       `Arc<dyn SovereigntyConsent>`.
     /// post: Returns a `SovereigntyChecker` with a fresh
@@ -96,7 +98,8 @@ impl SovereigntyChecker {
         self.consent.has_consent(&webid.to_string(), category)
     }
 
-    /// REQ: AGT-120
+    /// REQ: P1-agt-sovereignty-checker-can-access
+    /// [P1] Motivating: User Sovereignty — access decision combines consent + ownership
     /// pre:  `data_category` is a valid `DataCategory`; `requester` is a
     ///       valid `WebID`.
     /// post: Returns `true` iff the requester is permitted to access the
@@ -114,7 +117,8 @@ impl SovereigntyChecker {
         self.state.boundary.is_category_public(data_category)
     }
 
-    /// REQ: AGT-121
+    /// REQ: P1-agt-sovereignty-checker-can-perform
+    /// [P1] Motivating: User Sovereignty — action decision combines consent + operation
     /// pre:  `operation` is a non-empty string; `data_category` is a
     ///       valid `DataCategory`.
     /// post: For "acquisition", returns `true` iff affirmative consent is
@@ -138,7 +142,7 @@ mod tests {
         WebID::new()
     }
 
-    // REQ: P1-sovereignty-001 — DenyAllConsent always returns false (fail-closed default)
+    // REQ: P1-agt-sovereignty-deny-all-test — DenyAllConsent always returns false (fail-closed default)
     #[test]
     fn deny_all_consent_always_denies() {
         let consent = DenyAllConsent;
@@ -147,7 +151,7 @@ mod tests {
         assert!(!consent.has_consent("user:bob", &DataCategory::EpisodicMemory));
     }
 
-    // REQ: P1-sovereignty-002 — SovereigntyChecker enforces sovereign boundary (consent + owner match)
+    // REQ: P1-agt-sovereignty-boundary-test — SovereigntyChecker enforces sovereign boundary (consent + owner match)
     #[test]
     fn sovereignty_checker_sovereign_data_requires_consent_and_owner() {
         let owner = test_webid();

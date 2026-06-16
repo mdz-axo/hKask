@@ -127,7 +127,7 @@ grep -r "todo!\|unimplemented!" mcp-servers/ --include="*.rs" | wc -l
 
 - [`MDS.md`](../core/MDS.md) — Capability membrane model
 - [`MDS.md`](../core/MDS.md) — Security model
-- [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) FUT-004 — MCP gateway membrane question
+- [`OPEN_QUESTIONS.md`](../../OPEN_QUESTIONS.md) FUT-004 — MCP gateway membrane question
 
 ## References
 

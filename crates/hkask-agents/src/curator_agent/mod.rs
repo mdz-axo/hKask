@@ -58,7 +58,8 @@ impl CuratorAgent {
     /// The agent internally creates both the `MetacognitionLoop` and
     /// `CurationLoop`, connecting them through the shared `CuratorContext`.
     ///
-    /// REQ: AGT-094
+    /// REQ: P9-agt-curator-agent-new
+    /// [P9] Motivating: Homeostatic Self-Regulation — CuratorAgent composes Curation + Metacognition
     /// pre:  `context` is a valid `Arc<CuratorContext>`.
     /// post: Returns a `CuratorAgent` with default `MetacognitionConfig`,
     ///       a new `CurationLoop`, and a default `DefaultSpecCurator`.
@@ -80,7 +81,9 @@ impl CuratorAgent {
 
     /// Create a Curator Agent with custom metacognition configuration.
     ///
-    /// REQ: AGT-095
+    /// REQ: P9-agt-curator-agent-new-with-config
+    /// [P9] Motivating: Homeostatic Self-Regulation — custom metacognition configuration
+    /// [P7] Constraining: Evolutionary Architecture — thresholds emerge from real usage
     /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
     ///       valid `MetacognitionConfig`.
     /// post: Returns a `CuratorAgent` with the given config, a new
@@ -112,7 +115,8 @@ impl CuratorAgent {
     /// `inbox_rx` — unified CurationInput channel from Cybernetics + SpecCurator.
     /// `inbox_tx` — transmits CurationInput to the same channel (for SpecCurator).
     ///
-    /// REQ: AGT-096
+    /// REQ: P9-agt-curator-agent-new-with-consolidation
+    /// [P9] Motivating: Homeostatic Self-Regulation — consolidation wired into CuratorAgent
     /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
     ///       valid `MetacognitionConfig`; `consolidation` is a valid
     ///       `Arc<ConsolidationBridge>`; `inbox_rx` and `inbox_tx` are
@@ -153,7 +157,8 @@ impl CuratorAgent {
 
     /// Access the Curation Loop (pure regulatory).
     ///
-    /// REQ: AGT-097
+    /// REQ: P9-agt-curator-agent-curation-loop
+    /// [P9] Motivating: Homeostatic Self-Regulation — accessor for the pure regulatory loop
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CurationLoop>`.
     pub fn curation_loop(&self) -> &Arc<CurationLoop> {
@@ -162,7 +167,8 @@ impl CuratorAgent {
 
     /// Access the Metacognition Loop (persona/agent).
     ///
-    /// REQ: AGT-098
+    /// REQ: P9-agt-curator-agent-metacognition-loop
+    /// [P9] Motivating: Homeostatic Self-Regulation — accessor for the persona/agent loop
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<MetacognitionLoop>`.
     pub fn metacognition(&self) -> &Arc<metacognition::MetacognitionLoop> {
@@ -171,7 +177,8 @@ impl CuratorAgent {
 
     /// Access the CuratorContext (capability-disciplined runtime references).
     ///
-    /// REQ: AGT-099
+    /// REQ: P9-agt-curator-agent-context
+    /// [P9] Motivating: Homeostatic Self-Regulation — accessor for capability-disciplined context
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CuratorContext>`.
     pub fn context(&self) -> &Arc<CuratorContext> {
@@ -183,7 +190,8 @@ impl CuratorAgent {
     /// When `CuratorContext` has a `loop_dispatch_tx`, the spec curator
     /// sends `SpecDriftAlert` payloads through the Communication Loop.
     ///
-    /// REQ: AGT-100
+    /// REQ: P9-agt-curator-agent-spec-curator
+    /// [P9] Motivating: Homeostatic Self-Regulation — DefaultSpecCurator detects specification drift
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `DefaultSpecCurator`.
     pub fn spec_curator(&self) -> &spec_curator::DefaultSpecCurator {

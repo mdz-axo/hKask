@@ -64,7 +64,9 @@ impl PodStatus {
 
 impl PodManager {
     #[allow(clippy::too_many_arguments)]
-    /// REQ: AGT-138
+    /// REQ: P1-agt-pod-manager-new
+    /// [P1] Motivating: User Sovereignty — PodManager orchestrates user agent pods
+    /// [P4] Constraining: Clear Boundaries — default DenyAllConsent
     /// pre:  All `Option` arguments may be `Some` or `None`; defaults are
     ///       provided for absent ports.
     /// post: Returns a `PodManager` with all ports set (or defaulted),
@@ -117,7 +119,8 @@ impl PodManager {
         }
     }
 
-    /// REQ: AGT-139
+    /// REQ: P1-agt-pod-manager-with-consent
+    /// [P2] Constraining: Affirmative Consent — replace default consent policy
     /// pre:  `consent` is a valid `Arc<dyn SovereigntyConsent>`.
     /// post: Returns `self` with `consent` updated.
     pub fn with_consent_port(mut self, consent: Arc<dyn crate::SovereigntyConsent>) -> Self {
@@ -131,13 +134,15 @@ impl PodManager {
     /// [NORMATIVE] cross-cutting concerns like Matrix registration that should happen (P6 — Space for Replicants).
     /// whenever a pod becomes active.
     ///
-    /// REQ: AGT-140
+    /// REQ: P1-agt-pod-manager-activation-hook
+    /// [P3] Motivating: Generative Space — hook runs when pod becomes active
     /// pre:  `hook` is a valid boxed closure.
     /// post: The hook is appended to the activation hooks list.
     pub async fn register_activation_hook(&self, hook: Box<dyn Fn(WebID, String) + Send + Sync>) {
         self.activation_hooks.write().await.push(hook);
     }
-    /// REQ: AGT-141
+    /// REQ: P1-agt-pod-manager-with-checker
+    /// [P4] Constraining: Clear Boundaries — set capability checker
     /// pre:  `checker` is a valid `CapabilityChecker`.
     /// post: Returns `self` with `capability_checker` set to
     ///       `Some(Arc::new(checker))`.
@@ -145,14 +150,16 @@ impl PodManager {
         self.capability_checker = Some(Arc::new(checker));
         self
     }
-    /// REQ: AGT-142
+    /// REQ: P1-agt-pod-manager-with-sink
+    /// [P9] Motivating: Homeostatic Self-Regulation — attach CNS event sink
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `nu_event_sink` set to `Some(sink)`.
     pub fn with_nu_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.nu_event_sink = Some(sink);
         self
     }
-    /// REQ: AGT-143
+    /// REQ: P1-agt-pod-manager-with-governed-tool
+    /// [P4] Constraining: Clear Boundaries — wire governed tool for capability gating
     /// pre:  `tool` is a valid `Arc<GovernedTool<RawMcpToolPort>>`.
     /// post: Returns `self` with `governed_tool` set to `Some(tool)`.
     pub fn with_governed_tool(mut self, tool: Arc<GovernedTool<RawMcpToolPort>>) -> Self {
@@ -160,7 +167,8 @@ impl PodManager {
         self
     }
 
-    /// REQ: AGT-144
+    /// REQ: P1-agt-pod-manager-with-ports
+    /// [P1] Motivating: User Sovereignty — configure runtime ports for pods
     /// pre:  All arguments are valid, non-null `Arc`s.
     /// post: Returns a `PodManager` with all ports set (no optional
     ///       defaults), `DenyAllConsent`, and empty pod registry.
@@ -185,14 +193,16 @@ impl PodManager {
         )
     }
 
-    /// REQ: AGT-145
+    /// REQ: P1-agt-pod-manager-inference-port
+    /// [P8] Motivating: Semantic Grounding — accessor for inference port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Option<Arc<dyn InferencePort>>`.
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
 
-    /// REQ: AGT-146
+    /// REQ: P1-agt-pod-manager-sovereignty-checker
+    /// [P1] Motivating: User Sovereignty — get per-pod sovereignty checker
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Some(Arc<SovereigntyChecker>)` if the pod exists;
     ///       `None` otherwise.
@@ -212,7 +222,8 @@ impl PodManager {
     /// If `inference_port` is provided, agent pods can perform inference
     /// (e.g., improv interactions). Default: no inference (pods are orchestration-only).
     ///
-    /// REQ: AGT-147
+    /// REQ: P1-agt-pod-manager-default
+    /// [P5] Motivating: Essentialism — default manager with in-memory mocks
     /// pre:  `inference_port` is `Some` or `None`.
     /// post: Returns a `PodManager` with in-memory storage, a mock ACP
     ///       runtime, and `DenyAllConsent`.
@@ -238,7 +249,8 @@ impl PodManager {
 }
 
 impl PodManager {
-    /// REQ: AGT-148
+    /// REQ: P1-agt-pod-manager-create-pod
+    /// [P1] Motivating: User Sovereignty — create a new agent pod from template + persona
     /// pre:  `template_name` is a non-empty string; `persona` is a valid
     ///       `AgentPersona` with validated fields; `name` is `Some` or
     ///       `None`.
@@ -271,7 +283,8 @@ impl PodManager {
         Ok(pod_id)
     }
 
-    /// REQ: AGT-149
+    /// REQ: P1-agt-pod-manager-activate-pod
+    /// [P1] Motivating: User Sovereignty — activate pod (register + grant MCP)
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: If the pod is `Populated`, registers it with ACP, then
     ///       activates it via MCP. Runs activation hooks on success.
@@ -335,7 +348,8 @@ impl PodManager {
         Ok(())
     }
 
-    /// REQ: AGT-150
+    /// REQ: P1-agt-pod-manager-deactivate-pod
+    /// [P1] Motivating: User Sovereignty — deactivate pod and revoke capabilities
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: Deactivates the pod and attempts to revoke its capability
     ///       token; logs a warning if revocation fails (pod is still
@@ -370,7 +384,8 @@ impl PodManager {
         Ok(())
     }
 
-    /// REQ: AGT-151
+    /// REQ: P1-agt-pod-manager-recall-lifecycle
+    /// [P3] Motivating: Generative Space — recall pod lifecycle episodes
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: Returns `Ok(Vec<RecalledEpisode>)` with lifecycle events
     ///       for the pod; `Err` if the pod is not found or recall fails.
@@ -388,7 +403,8 @@ impl PodManager {
             .map_err(AgentPodError::from)
     }
 
-    /// REQ: AGT-152
+    /// REQ: P1-agt-pod-manager-status
+    /// [P8] Motivating: Semantic Grounding — get pod status
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Ok(PodStatus)` if the pod exists; `Err(PodNotFound)`
     ///       otherwise.
@@ -401,7 +417,8 @@ impl PodManager {
             .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))
     }
 
-    /// REQ: AGT-153
+    /// REQ: P1-agt-pod-manager-list-status
+    /// [P8] Motivating: Semantic Grounding — list all pod statuses
     /// pre:  (none).
     /// post: Returns `Ok(Vec<PodStatus>)` with status for all registered
     ///       pods (may be empty).
@@ -415,7 +432,8 @@ impl PodManager {
             .collect())
     }
 
-    /// REQ: AGT-154
+    /// REQ: P1-agt-pod-manager-acp-port
+    /// [P4] Constraining: Clear Boundaries — accessor for ACP port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Arc<dyn AcpPort + Send + Sync>`.
     pub fn acp_runtime(&self) -> Arc<dyn crate::ports::AcpPort + Send + Sync> {
@@ -426,7 +444,8 @@ impl PodManager {
 
     /// Find a pod ID by replicant name (matches persona.agent.name).
     ///
-    /// REQ: AGT-155
+    /// REQ: P1-agt-pod-manager-find-by-name
+    /// [P8] Motivating: Semantic Grounding — lookup pod by replicant name
     /// pre:  `name` is a non-empty string.
     /// post: Returns `Some(PodID)` if a pod with matching name exists;
     ///       `None` otherwise.
@@ -442,7 +461,8 @@ impl PodManager {
 
     /// Get the WebID for a pod.
     ///
-    /// REQ: AGT-156
+    /// REQ: P1-agt-pod-manager-webid
+    /// [P1] Motivating: User Sovereignty — get pod's WebID
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Some(WebID)` if the pod exists; `None` otherwise.
     pub async fn get_pod_webid(&self, pod_id: &PodID) -> Option<WebID> {
@@ -451,7 +471,8 @@ impl PodManager {
 
     /// Check if a pod is assigned to a specific MCP role.
     ///
-    /// REQ: AGT-157
+    /// REQ: P1-agt-pod-manager-has-role
+    /// [P4] Constraining: Clear Boundaries — check MCP role assignment
     /// pre:  `pod_id` is a valid `PodID`; `role` is a non-empty string.
     /// post: Returns `true` if the pod exists and has the role assigned;
     ///       `false` otherwise (including if pod not found).
@@ -467,7 +488,8 @@ impl PodManager {
     /// Check if a pod holds a specific capability.
     /// Capabilities are stored as strings like "web_search:execute" or "web_search".
     ///
-    /// REQ: AGT-158
+    /// REQ: P1-agt-pod-manager-has-capability
+    /// [P4] Constraining: Clear Boundaries — check tool capability
     /// pre:  `pod_id` is a valid `PodID`; `tool` is a non-empty string.
     /// post: Returns `true` if the pod exists and has a capability
     ///       matching `tool` (exact or prefix match with `:` separator);
@@ -488,7 +510,8 @@ impl PodManager {
 
     /// Assign an MCP role to a pod by name.
     ///
-    /// REQ: AGT-159
+    /// REQ: P1-agt-pod-manager-assign-role
+    /// [P1] Motivating: User Sovereignty — assign MCP role to named pod
     /// pre:  `name` is a non-empty string matching an existing pod;
     ///       `role` is a non-empty string.
     /// post: If the pod exists and doesn't already have the role, it is
@@ -512,7 +535,8 @@ impl PodManager {
     /// Set the agent mode for a pod by name.
     /// Mode can be "server" (with role), "chat", or "exit".
     ///
-    /// REQ: AGT-160
+    /// REQ: P1-agt-pod-manager-set-mode
+    /// [P1] Motivating: User Sovereignty — set pod mode (server/chat/exit)
     /// pre:  `name` is a non-empty string matching an existing pod;
     ///       `mode` is "server", "chat", or "exit"; `role` is required
     ///       for "server" mode.

@@ -37,7 +37,9 @@ pub struct DefaultSpecCurator {
 }
 
 impl DefaultSpecCurator {
-    /// REQ: AGT-101
+    /// REQ: P9-agt-curator-agent-spec-new
+    /// [P9] Motivating: Homeostatic Self-Regulation — initialize spec curator with coherence threshold
+    /// [P7] Constraining: Evolutionary Architecture — thresholds calibrated from observations
     /// pre:  `coherence_threshold` is in range [0.0, 1.0] (clamped).
     /// post: Returns a `DefaultSpecCurator` with the given coherence
     ///       threshold, drift_threshold=0.5, max_iterations=SYSTEM_MAX_RECURSION,
@@ -65,7 +67,9 @@ impl DefaultSpecCurator {
     ///
     /// MDS §5: Coherence threshold calibration — FUT-013.
     ///
-    /// REQ: AGT-102
+    /// REQ: P9-agt-curator-agent-spec-calibrate
+    /// [P9] Motivating: Homeostatic Self-Regulation — calibrate threshold from historical coherence
+    /// [P7] Constraining: Evolutionary Architecture — 25th-percentile heuristic emerged from usage
     /// pre:  `curation_store` is a valid `SqliteCurationRecordStore`.
     /// post: Returns `Some(f64)` — the 25th-percentile coherence score —
     ///       if ≥10 records exist; `None` otherwise.
@@ -110,7 +114,8 @@ impl DefaultSpecCurator {
     ///
     /// Logs the actual threshold values at construction time for post-hoc analysis.
     ///
-    /// REQ: AGT-103
+    /// REQ: P9-agt-curator-agent-spec-with-config
+    /// [P9] Motivating: Homeostatic Self-Regulation — apply explicit curation threshold config
     /// pre:  `config` is a valid `CurationThresholdConfig` with thresholds
     ///       in [0.0, 1.0] (clamped).
     /// post: Returns a `DefaultSpecCurator` with thresholds from the config,
@@ -134,7 +139,8 @@ impl DefaultSpecCurator {
 
     /// Create with a custom drift threshold.
     ///
-    /// REQ: AGT-104
+    /// REQ: P9-agt-curator-agent-spec-drift-threshold
+    /// [P9] Motivating: Homeostatic Self-Regulation — drift threshold triggers escalation
     /// pre:  `threshold` is in range [0.0, 1.0] (clamped).
     /// post: Returns `self` with `drift_threshold` updated.
     pub fn with_drift_threshold(mut self, threshold: f64) -> Self {
@@ -144,7 +150,8 @@ impl DefaultSpecCurator {
 
     /// Provide a `NuEventSink` for emitting algedonic events on drift escalation.
     ///
-    /// REQ: AGT-105
+    /// REQ: P9-agt-curator-agent-spec-with-sink
+    /// [P9] Motivating: Homeostatic Self-Regulation — emit algedonic events on drift escalation
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `event_sink` set to `Some(sink)`.
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
@@ -154,7 +161,8 @@ impl DefaultSpecCurator {
 
     /// Wire the direct spec event channel: SpecCurator → CurationLoop.
     ///
-    /// REQ: AGT-106
+    /// REQ: P9-agt-curator-agent-spec-channel
+    /// [P9] Motivating: Homeostatic Self-Regulation — wire spec events into CurationLoop
     /// pre:  `tx` is a valid `UnboundedSender<CurationInput>`.
     /// post: Returns `self` with `spec_tx` set to `Some(tx)`.
     #[must_use = "builder methods must be chained or assigned"]
@@ -177,7 +185,8 @@ impl DefaultSpecCurator {
     /// side-channel that records the fact that sovereignty was considered
     /// during curation.
     ///
-    /// REQ: AGT-107
+    /// REQ: P9-agt-curator-agent-spec-check
+    /// [P9] Motivating: Homeostatic Self-Regulation — check spec coherence and emit drift alerts
     /// pre:  `spec_id` is a non-empty string; `categories` is a slice of
     ///       category name strings.
     /// post: If `event_sink` is `Some`, emits a `cns.sovereignty.checked`

@@ -145,7 +145,8 @@ pub type MemoryLoopAdapter = MemoryLoopForwarder;
 impl MemoryLoopForwarder {
     /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
     ///
-    /// REQ: AGT-109
+    /// REQ: P3-agt-memory-adapter-new
+    /// [P3] Motivating: Generative Space — MemoryLoopForwarder wires episodic + semantic
     /// pre:  `episodic` is a valid `EpisodicMemory`; `semantic` is a valid
     ///       `SemanticMemory`.
     /// post: Returns a `MemoryLoopForwarder` holding both memory instances.
@@ -155,7 +156,8 @@ impl MemoryLoopForwarder {
 
     /// Create with in-memory storage for testing.
     ///
-    /// REQ: AGT-110
+    /// REQ: P3-agt-memory-adapter-in-memory
+    /// [P3] Motivating: Generative Space — in-memory SQLite adapter for tests
     /// pre:  (none).
     /// post: Returns `Ok(Self)` with an in-memory SQLite database;
     ///       returns `Err(MemoryError)` if database creation fails.
@@ -170,7 +172,8 @@ impl MemoryLoopForwarder {
     /// [DECLARATIVE] failure is always a bug, never a recoverable condition. For recoverable (P5 — Essentialism).
     /// contexts, use `in_memory()` and propagate the error with `?`.
     ///
-    /// REQ: AGT-111
+    /// REQ: P3-agt-memory-adapter-in-memory-unwrap
+    /// [P3] Motivating: Generative Space — infallible in-memory constructor for tests
     /// pre:  (none).
     /// post: Returns `Self` with an in-memory database; panics if
     ///       database creation fails (considered a bug).
@@ -180,7 +183,9 @@ impl MemoryLoopForwarder {
 
     /// Create from database path and passphrase (encrypted).
     ///
-    /// REQ: AGT-112
+    /// REQ: P3-agt-memory-adapter-encrypted
+    /// [P1] Motivating: User Sovereignty — encrypted on-disk memory adapter
+    /// [P4] Constraining: Clear Boundaries — passphrase protects the store
     /// pre:  `path` is a valid filesystem path; `passphrase` is a
     ///       non-empty string.
     /// post: Returns `Ok(Self)` with an encrypted SQLite database at

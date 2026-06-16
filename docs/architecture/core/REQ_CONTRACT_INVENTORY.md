@@ -25,7 +25,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 | hkask-keystore | 28 | Keystore |
 | hkask-mcp | 41 | MCP framework |
 | hkask-memory | 52 | Memory |
-| hkask-services | 201 | Service layer |
+| hkask-services | 202 | Service layer |
 | hkask-storage | 195 | Storage |
 | hkask-templates | 52 | Templates |
 | hkask-test-harness | 42 | Test harness |
@@ -36,215 +36,215 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 ### hkask-agents (30 contracts)
 
-#### AGT-038 (🟢 full)
+#### P2-agt-consent-record-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `webid` is a non-empty string.
 - **Post:** Returns a new `ConsentRecord` with empty granted categories,
 - **File:** crates/hkask-agents/src/consent.rs:47
 
-#### AGT-039 (🟢 full)
+#### P2-agt-consent-record-grant (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `category` is a non-empty string.
 - **Post:** `category` is added to `granted_categories`; `active` is set
-- **File:** crates/hkask-agents/src/consent.rs:62
+- **File:** crates/hkask-agents/src/consent.rs:64
 
-#### AGT-040 (🟢 full)
+#### P2-agt-consent-record-revoke (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  (none — revoke is always valid).
 - **Post:** `revoked_at` is set to the current UTC timestamp;
-- **File:** crates/hkask-agents/src/consent.rs:72
+- **File:** crates/hkask-agents/src/consent.rs:75
 
-#### AGT-041 (🟢 full)
+#### P2-agt-consent-record-is-active (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  (none).
 - **Post:** Returns `true` iff `active == true` AND `revoked_at` is `None`.
-- **File:** crates/hkask-agents/src/consent.rs:81
+- **File:** crates/hkask-agents/src/consent.rs:85
 
-#### AGT-042 (🟢 full)
+#### P2-agt-consent-record-has-category (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `category` is a non-empty string.
 - **Post:** Returns `true` iff the record is active AND `category` is
-- **File:** crates/hkask-agents/src/consent.rs:88
+- **File:** crates/hkask-agents/src/consent.rs:93
 
-#### AGT-043 (🟢 full)
+#### P2-agt-consent-manager-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `store` is a valid, initialized `ConsentStore`.
 - **Post:** Returns a `ConsentManager` with an empty in-memory cache;
-- **File:** crates/hkask-agents/src/consent.rs:143
+- **File:** crates/hkask-agents/src/consent.rs:149
 
-#### AGT-044 (🟢 full)
+#### P2-agt-consent-manager-with-sink (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `sink` is a valid `Arc<dyn NuEventSink>`.
 - **Post:** Returns `self` with `event_sink` set to `Some(sink)`.
-- **File:** crates/hkask-agents/src/consent.rs:168
+- **File:** crates/hkask-agents/src/consent.rs:175
 
-#### AGT-045 (🟢 full)
+#### P2-agt-consent-manager-grant (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `webid` is a non-empty string; `category` is a valid
 - **Post:** If a record exists for `webid`, the category is granted and
-- **File:** crates/hkask-agents/src/consent.rs:228
+- **File:** crates/hkask-agents/src/consent.rs:236
 
-#### AGT-046 (🟢 full)
+#### P2-agt-consent-manager-revoke (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `webid` is a non-empty string.
 - **Post:** If a record exists for `webid`, it is revoked and persisted;
-- **File:** crates/hkask-agents/src/consent.rs:260
+- **File:** crates/hkask-agents/src/consent.rs:269
 
-#### AGT-047 (🟢 full)
+#### P2-agt-consent-manager-check (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `webid` is a non-empty string; `category` is a valid
 - **Post:** Returns `Ok(true)` if an active record for `webid` has the
-- **File:** crates/hkask-agents/src/consent.rs:283
+- **File:** crates/hkask-agents/src/consent.rs:293
 
-#### AGT-048 (🟢 full)
+#### P2-agt-consent-manager-granted-categories (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `webid` is a non-empty string.
 - **Post:** Returns `Ok(Vec<String>)` containing all granted category
-- **File:** crates/hkask-agents/src/consent.rs:335
+- **File:** crates/hkask-agents/src/consent.rs:347
 
-#### AGT-062 (🟢 full)
+#### P9-agt-loop-id (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `loop_id` is one of `Inference`, `Memory`, `Cybernetics`, or
 - **Post:** Returns the default tick `Duration` for the given loop:
 - **File:** crates/hkask-agents/src/loop_system.rs:58
 
-#### AGT-063 (🟢 full)
+#### P9-agt-loop-system-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  (none).
 - **Post:** Returns a `LoopSystem` with an empty loop registry, a fresh
-- **File:** crates/hkask-agents/src/loop_system.rs:101
+- **File:** crates/hkask-agents/src/loop_system.rs:102
 
-#### AGT-064 (🟢 full)
+#### P9-agt-loop-system-interval (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `loop_id` is a valid `LoopId`; `interval` is a positive
 - **Post:** Returns `self` with the tick interval for `loop_id` updated
-- **File:** crates/hkask-agents/src/loop_system.rs:124
+- **File:** crates/hkask-agents/src/loop_system.rs:127
 
-#### AGT-065 (🟢 full)
+#### P9-agt-loop-system-register (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `loop_instance` is a valid `Arc<dyn HkaskLoop>`.
 - **Post:** The loop is added to the registry under its `LoopId`;
-- **File:** crates/hkask-agents/src/loop_system.rs:139
+- **File:** crates/hkask-agents/src/loop_system.rs:144
 
-#### AGT-066 (🟢 full)
+#### P9-agt-loop-system-cancel-token (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  (none — accessor).
 - **Post:** Returns a clone of the inner `CancellationToken`.
-- **File:** crates/hkask-agents/src/loop_system.rs:157
+- **File:** crates/hkask-agents/src/loop_system.rs:163
 
-#### AGT-067 (🟢 full)
+#### P9-agt-loop-system-run (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  Loops have been registered via `register_loop`.
 - **Post:** Spawns a tokio task per loop instance; each task ticks
-- **File:** crates/hkask-agents/src/loop_system.rs:169
+- **File:** crates/hkask-agents/src/loop_system.rs:176
 
-#### AGT-068 (🟢 full)
+#### P9-agt-loop-system-tick (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  Loops have been registered.
 - **Post:** Each registered loop is ticked once in authority order;
-- **File:** crates/hkask-agents/src/loop_system.rs:226
+- **File:** crates/hkask-agents/src/loop_system.rs:234
 
-#### AGT-069 (🟢 full)
+#### P9-agt-loop-system-run-ticks (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `max_ticks` > 0.
 - **Post:** Calls `tick()` `max_ticks` times sequentially; logs each
-- **File:** crates/hkask-agents/src/loop_system.rs:243
+- **File:** crates/hkask-agents/src/loop_system.rs:252
 
-#### AGT-070 (🟢 full)
+#### P9-agt-loop-system-stop (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  (none — idempotent).
 - **Post:** The cancellation token is triggered; all spawned tick tasks
-- **File:** crates/hkask-agents/src/loop_system.rs:261
+- **File:** crates/hkask-agents/src/loop_system.rs:271
 
-#### AGT-071 (🟢 full)
+#### P9-agt-loop-system-count (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  (none).
 - **Post:** Returns the sum of `Vec::len()` across all entries in the
-- **File:** crates/hkask-agents/src/loop_system.rs:272
+- **File:** crates/hkask-agents/src/loop_system.rs:283
 
-#### AGT-072 (🟢 full)
+#### P9-agt-loop-system-ids (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  (none).
 - **Post:** Returns a `Vec<LoopId>` containing all keys currently in
-- **File:** crates/hkask-agents/src/loop_system.rs:282
+- **File:** crates/hkask-agents/src/loop_system.rs:294
 
-#### AGT-087 (🟢 full)
+#### P9-agt-prompt-classify (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `prompt` is a valid UTF-8 string (may be empty).
 - **Post:** Returns a `PromptAnalysis` with sentence decompositions, clause
 - **File:** crates/hkask-agents/src/prompt_analysis.rs:578
 
-#### AGT-115 (🟢 full)
+#### P3-agt-registry-loader-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `registry_path` is a valid `PathBuf`; `acp_runtime` is a
 - **Post:** Returns an `AgentRegistryLoader` with all fields set.
 - **File:** crates/hkask-agents/src/registry_loader.rs:231
 
-#### AGT-116 (🟢 full)
+#### P3-agt-registry-loader-restore (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  The store schema has been initialized.
 - **Post:** If existing agents are found in the store, returns them
-- **File:** crates/hkask-agents/src/registry_loader.rs:251
+- **File:** crates/hkask-agents/src/registry_loader.rs:252
 
-#### AGT-117 (🟢 full)
+#### P3-agt-registry-loader-load (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  The registry path contains valid YAML agent definitions.
 - **Post:** Returns `Ok(Vec<RegisteredAgent>)` with all successfully
-- **File:** crates/hkask-agents/src/registry_loader.rs:272
+- **File:** crates/hkask-agents/src/registry_loader.rs:274
 
-#### AGT-118 (🟢 full)
+#### P3-agt-registry-loader-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  (none — accessor).
 - **Post:** Returns a reference to the inner `AgentRegistryStore`.
-- **File:** crates/hkask-agents/src/registry_loader.rs:382
+- **File:** crates/hkask-agents/src/registry_loader.rs:385
 
-#### AGT-119 (🟢 full)
+#### P1-agt-sovereignty-checker-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `owner_webid` is a valid `WebID`; `consent` is a valid
 - **Post:** Returns a `SovereigntyChecker` with a fresh
 - **File:** crates/hkask-agents/src/sovereignty.rs:81
 
-#### AGT-120 (🟢 full)
+#### P1-agt-sovereignty-checker-can-access (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `data_category` is a valid `DataCategory`; `requester` is a
 - **Post:** Returns `true` iff the requester is permitted to access the
-- **File:** crates/hkask-agents/src/sovereignty.rs:99
+- **File:** crates/hkask-agents/src/sovereignty.rs:101
 
-#### AGT-121 (🟢 full)
+#### P1-agt-sovereignty-checker-can-perform (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  `operation` is a non-empty string; `data_category` is a
 - **Post:** For "acquisition", returns `true` iff affirmative consent is
-- **File:** crates/hkask-agents/src/sovereignty.rs:117
+- **File:** crates/hkask-agents/src/sovereignty.rs:120
 
 
 ### hkask-api (8 contracts)
@@ -375,33 +375,33 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is valid
 - **Post:** returns Ok if within limit, Err if rate limited
-- **File:** crates/hkask-cns/src/api_metering.rs:166
+- **File:** crates/hkask-cns/src/api_metering.rs:167
 
 #### P9-cns-api-meter-current-rpm (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is valid
 - **Post:** returns current requests per minute
-- **File:** crates/hkask-cns/src/api_metering.rs:201
+- **File:** crates/hkask-cns/src/api_metering.rs:202
 
 #### P9-cns-api-meter-span-new (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  path and method are non-empty
 - **Post:** returns ApiRequestSpan
-- **File:** crates/hkask-cns/src/api_metering.rs:244
+- **File:** crates/hkask-cns/src/api_metering.rs:245
 
 #### P9-cns-api-meter-alert-type (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** returns alert type label
-- **File:** crates/hkask-cns/src/api_metering.rs:297
+- **File:** crates/hkask-cns/src/api_metering.rs:298
 
 #### P9-cns-api-meter-alert-severity (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** returns severity label
-- **File:** crates/hkask-cns/src/api_metering.rs:314
+- **File:** crates/hkask-cns/src/api_metering.rs:315
 
 #### GAS-CALIB-004—runtimecalibrationloopwiredtoproductionestimator (🟡 partial)
 
@@ -2370,7 +2370,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-memory/src/semantic.rs:545
 
 
-### hkask-services (201 contracts)
+### hkask-services (202 contracts)
 
 #### SVC-217 (🟢 full)
 
@@ -2678,224 +2678,231 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns reference to ServiceConfig
-- **File:** crates/hkask-services/src/context.rs:206
+- **File:** crates/hkask-services/src/context.rs:209
 
 #### SVC-246 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns Some(&Arc<WalletService>) if wallet configured; None otherwise
-- **File:** crates/hkask-services/src/context.rs:215
+- **File:** crates/hkask-services/src/context.rs:218
 
 #### SVC-247 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns Some(&Arc<WalletStore>) if wallet store configured; None otherwise
-- **File:** crates/hkask-services/src/context.rs:224
+- **File:** crates/hkask-services/src/context.rs:227
 
 #### SVC-248 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns (&episodic_storage, &semantic_storage) tuple
-- **File:** crates/hkask-services/src/context.rs:235
+- **File:** crates/hkask-services/src/context.rs:238
 
 #### SVC-249 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<Mutex<SqliteRegistry>>
-- **File:** crates/hkask-services/src/context.rs:245
+- **File:** crates/hkask-services/src/context.rs:248
 
 #### SVC-250 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<SqliteGoalRepository>
-- **File:** crates/hkask-services/src/context.rs:253
+- **File:** crates/hkask-services/src/context.rs:256
 
 #### SVC-251 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<RwLock<CnsRuntime>>
-- **File:** crates/hkask-services/src/context.rs:263
+- **File:** crates/hkask-services/src/context.rs:266
 
 #### SVC-252 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<RwLock<CyberneticsLoop>>
-- **File:** crates/hkask-services/src/context.rs:271
+- **File:** crates/hkask-services/src/context.rs:274
 
 #### SVC-253 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<LoopSystem>
-- **File:** crates/hkask-services/src/context.rs:279
+- **File:** crates/hkask-services/src/context.rs:282
 
 #### SVC-254 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<dyn NuEventSink>
-- **File:** crates/hkask-services/src/context.rs:287
+- **File:** crates/hkask-services/src/context.rs:290
+
+#### GAS-CALIB-004—runtimecalibrationloopwiredtoproductionestimator (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  self must be fully built
+- **Post:** returns &Arc<CalibratedEnergyEstimator> sharing the same background
+- **File:** crates/hkask-services/src/context.rs:299
 
 #### SVC-255 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<RwLock<Option<SeamWatcher>>>
-- **File:** crates/hkask-services/src/context.rs:297
+- **File:** crates/hkask-services/src/context.rs:311
 
 #### SVC-256 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<CapabilityChecker>
-- **File:** crates/hkask-services/src/context.rs:307
+- **File:** crates/hkask-services/src/context.rs:321
 
 #### SVC-257 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<McpDispatcher>
-- **File:** crates/hkask-services/src/context.rs:316
+- **File:** crates/hkask-services/src/context.rs:330
 
 #### SVC-258 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<EscalationQueue>
-- **File:** crates/hkask-services/src/context.rs:324
+- **File:** crates/hkask-services/src/context.rs:338
 
 #### SVC-259 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns Some(Arc<dyn InferencePort>) if configured; None otherwise
-- **File:** crates/hkask-services/src/context.rs:334
+- **File:** crates/hkask-services/src/context.rs:348
 
 #### SVC-260 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<McpRuntime>
-- **File:** crates/hkask-services/src/context.rs:342
+- **File:** crates/hkask-services/src/context.rs:356
 
 #### SVC-261 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<PodManager>
-- **File:** crates/hkask-services/src/context.rs:350
+- **File:** crates/hkask-services/src/context.rs:364
 
 #### SVC-262 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns (&WebID, &Arc<AcpRuntime>) tuple
-- **File:** crates/hkask-services/src/context.rs:360
+- **File:** crates/hkask-services/src/context.rs:374
 
 #### SVC-263 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns SovereigntyService wrapping the consent manager
-- **File:** crates/hkask-services/src/context.rs:370
+- **File:** crates/hkask-services/src/context.rs:384
 
 #### SVC-264 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Option<UnboundedSender<CurationInput>>
-- **File:** crates/hkask-services/src/context.rs:387
+- **File:** crates/hkask-services/src/context.rs:401
 
 #### SVC-265 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &SovereigntyBoundaryStore
-- **File:** crates/hkask-services/src/context.rs:397
+- **File:** crates/hkask-services/src/context.rs:411
 
 #### SVC-266 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &SqliteSpecStore
-- **File:** crates/hkask-services/src/context.rs:409
+- **File:** crates/hkask-services/src/context.rs:423
 
 #### SVC-267 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &AgentRegistryStore
-- **File:** crates/hkask-services/src/context.rs:419
+- **File:** crates/hkask-services/src/context.rs:433
 
 #### SVC-268 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<Mutex<UserStore>>
-- **File:** crates/hkask-services/src/context.rs:429
+- **File:** crates/hkask-services/src/context.rs:443
 
 #### SVC-269 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<ServiceDaemonHandler>
-- **File:** crates/hkask-services/src/context.rs:438
+- **File:** crates/hkask-services/src/context.rs:452
 
 #### SVC-270 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns Some(&Arc<Mutex<MatrixTransport>>) if connected; None otherwise
-- **File:** crates/hkask-services/src/context.rs:450
+- **File:** crates/hkask-services/src/context.rs:464
 
 #### SVC-271 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  db must be a valid opened Database
 - **Post:** returns PerAgentMemory with episodic_storage, semantic_storage, and consolidation_service all sharing the same DB
-- **File:** crates/hkask-services/src/context.rs:468
+- **File:** crates/hkask-services/src/context.rs:482
 
 #### SVC-272 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must have valid db_path and db_passphrase
 - **Post:** returns Arc<EscalationQueue> initialized from DB; Err on DB open or schema init failure
-- **File:** crates/hkask-services/src/context.rs:510
+- **File:** crates/hkask-services/src/context.rs:524
 
 #### SVC-273 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must have valid db_path and db_passphrase
 - **Post:** returns SqliteSpecStore with schema initialized; Err on DB open or schema init failure
-- **File:** crates/hkask-services/src/context.rs:520
+- **File:** crates/hkask-services/src/context.rs:534
 
 #### SVC-274 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must have valid db_path and db_passphrase
 - **Post:** returns (Arc<ConsentManager>, SovereigntyBoundaryStore) with schemas initialized; Err on DB open or schema init failure
-- **File:** crates/hkask-services/src/context.rs:532
+- **File:** crates/hkask-services/src/context.rs:546
 
 #### SVC-275 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must have valid db_path, db_passphrase, and acp_secret
 - **Post:** returns (Arc<AcpRuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
-- **File:** crates/hkask-services/src/context.rs:554
+- **File:** crates/hkask-services/src/context.rs:568
 
 #### SVC-276 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must be a valid ServiceConfig with resolved secrets
 - **Post:** returns fully assembled AgentService with all infrastructure wired; Err on any construction step failure
-- **File:** crates/hkask-services/src/context.rs:584
+- **File:** crates/hkask-services/src/context.rs:598
 
 #### SVC-213 (🟢 full)
 

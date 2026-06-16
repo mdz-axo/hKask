@@ -761,10 +761,9 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         }
     };
 
-    // CNS event sink — uses primary DB for persistence.
-    let cns_event_sink: Arc<dyn NuEventSink> =
-        Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
+    // CNS event sink + gas event store — share one NuEventStore on primary DB.
     let gas_event_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
+    let cns_event_sink: Arc<dyn NuEventSink> = Arc::clone(&gas_event_store) as Arc<dyn NuEventSink>;
 
     // Spawn periodic seam drift check (R7.3 background watcher).
     spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);

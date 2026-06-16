@@ -22,10 +22,12 @@
 //! Each test carries a `// REQ:` tag linking it to the contract-first
 //! migration plan.
 
+use hkask_cns::governed_tool::EnergyEstimator;
 use hkask_services::{AgentService, ServiceConfig};
 use hkask_storage::spec_store::SpecStore;
 use hkask_storage::{DomainAnchor, Spec, SpecCategory};
 use hkask_types::WebID;
+use hkask_types::event::{NuEvent, Phase, Span, SpanKind};
 use hkask_types::sovereignty::DataCategory;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -175,6 +177,51 @@ async fn cross_store_consent_visible_to_cns_events() {
     event_sink
         .persist(&test_event)
         .expect("event sink should accept events on shared connection");
+}
+
+/// REQ: GAS-CALIB-004 — Service energy estimator calibrates from CNS gas events
+///
+/// The shared CalibratedEnergyEstimator observes cns.gas.settled events persisted
+/// through the CNS event sink and updates per-server cost estimates.
+#[tokio::test]
+async fn service_energy_estimator_calibrates_from_events() {
+    let svc = build_test_service().await;
+    let agent = WebID::new();
+    let server = "hkask-mcp-media";
+
+    // Before calibration, default cost applies.
+    let estimator = svc.energy_estimator();
+    let before = estimator.estimate_cost(server, "search", &serde_json::json!({}));
+    assert_eq!(before, 100);
+
+    // Persist a settled gas event via the shared CNS event sink.
+    let event = NuEvent::new(
+        agent,
+        Span::from_kind(SpanKind::GasSettled),
+        Phase::Act,
+        serde_json::json!({
+            "server": server,
+            "tool": "search",
+            "reserved": 100,
+            "actual": 200,
+            "refunded": 0,
+        }),
+        0,
+    );
+    svc.event_sink()
+        .persist(&event)
+        .expect("persist settled gas event");
+
+    // Calibrate the estimator directly (background loop also runs, but direct
+    // call keeps the test deterministic).
+    let adjusted = estimator.calibrate().await.expect("calibrate");
+    assert_eq!(adjusted, 1, "media server should be adjusted");
+
+    let after = estimator.estimate_cost(server, "search", &serde_json::json!({}));
+    assert_eq!(
+        after, 200,
+        "media cost should double after ratio 2.0 observation"
+    );
 }
 
 /// REQ: INT-001.6 — Wallet store accessible on shared connection

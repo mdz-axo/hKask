@@ -195,7 +195,9 @@ pub type AgentPodResult<T> = Result<T, AgentPodError>;
 impl AgentPod {
     /// Create a new AgentPod.
     ///
-    /// REQ: AGT-122
+    /// REQ: P1-agt-pod-new
+    /// [P1] Motivating: User Sovereignty — AgentPod is the user's agent container
+    /// [P4] Constraining: Clear Boundaries — OCAP secret + capability token on creation
     /// pre:  `crate_name` is a non-empty string; `persona` is a valid
     ///       `AgentPersona`; `git` is a valid `GitCasAdapter`; `consent`
     ///       is a valid `Arc<dyn SovereigntyConsent>`.
@@ -265,7 +267,8 @@ impl AgentPod {
     /// * `Ok(())` — Registration successful
     /// * `Err(AgentPodError)` — ACP registration failed
     ///
-    /// REQ: AGT-123
+    /// REQ: P1-agt-pod-register
+    /// [P1] Motivating: User Sovereignty — register pod with ACP under its WebID
     /// pre:  `self.state` must be `Populated` (or `Registered` for
     ///       idempotent re-registration); `acp` is a valid `AcpPort`.
     /// post: On success, `self.state` is `Registered` and
@@ -314,7 +317,9 @@ impl AgentPod {
     /// * `Ok(())` — Activation successful
     /// * `Err(AgentPodError)` — MCP access grant failed
     ///
-    /// REQ: AGT-124
+    /// REQ: P1-agt-pod-activate
+    /// [P1] Motivating: User Sovereignty — activate grants MCP access
+    /// [P4] Constraining: Clear Boundaries — requires Registered state
     /// pre:  `self.state` must be `Registered` (or `Activated` for
     ///       idempotent re-activation); `mcp` is a valid `MCPRuntimePort`.
     /// post: On success, `self.state` is `Activated` and MCP tool access
@@ -353,7 +358,8 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(())` — Deactivation successful
     ///
-    /// REQ: AGT-125
+    /// REQ: P1-agt-pod-deactivate
+    /// [P1] Motivating: User Sovereignty — deactivate terminates MCP access
     /// pre:  `self.state` must be `Activated` (or `Deactivated` for
     ///       idempotent re-deactivation).
     /// post: `self.state` is `Deactivated`.
@@ -392,7 +398,9 @@ impl AgentPod {
     /// * `Ok(DelegationToken)` — Attenuated child token
     /// * `Err(AgentPodError)` — Attenuation limit exceeded or keystore error
     ///
-    /// REQ: AGT-126
+    /// REQ: P1-agt-pod-delegate
+    /// [P4] Motivating: Clear Boundaries — delegate capability to another holder with attenuation
+    /// [P7] Constraining: Evolutionary Architecture — attenuation limit emerged from usage
     /// pre:  `new_holder` is a valid `WebID`; `current_time` is a valid
     ///       Unix timestamp; `self.capability_token.attenuation_level`
     ///       must be < `self.max_attenuation`.
@@ -422,7 +430,8 @@ impl AgentPod {
 
     /// Check if the pod can perform A2A operations.
     ///
-    /// REQ: AGT-127
+    /// REQ: P1-agt-pod-is-active
+    /// [P8] Motivating: Semantic Grounding — state accessor for Activated
     /// pre:  (none).
     /// post: Returns `true` iff `self.state == PodLifecycleState::Activated`.
     pub fn is_active(&self) -> bool {
@@ -431,7 +440,8 @@ impl AgentPod {
 
     /// Get the current lifecycle state.
     ///
-    /// REQ: AGT-128
+    /// REQ: P1-agt-pod-state
+    /// [P8] Motivating: Semantic Grounding — lifecycle state accessor
     /// pre:  (none — accessor).
     /// post: Returns the current `PodLifecycleState`.
     pub fn state(&self) -> PodLifecycleState {
@@ -450,7 +460,9 @@ impl AgentPod {
     /// Capability verification (P4 Gate 1) is performed by the daemon
     /// at connection time, not here.
     ///
-    /// REQ: AGT-129
+    /// REQ: P1-agt-pod-enter-server-mode
+    /// [P1] Motivating: User Sovereignty — enter server mode to serve MCP role
+    /// [P4] Constraining: Clear Boundaries — requires Activated + assigned role
     /// pre:  `self.state == Activated`; `self.mode == None`; `role` is
     ///       in `self.assigned_mcp_roles`.
     /// post: `self.mode` is set to `Some(AgentMode::Server)`.
@@ -484,7 +496,9 @@ impl AgentPod {
     ///
     /// Requires: Activated state, not already in another mode.
     ///
-    /// REQ: AGT-130
+    /// REQ: P1-agt-pod-enter-chat-mode
+    /// [P1] Motivating: User Sovereignty — enter chat mode for interactive use
+    /// [P4] Constraining: Clear Boundaries — requires Activated + no other mode
     /// pre:  `self.state == Activated`; `self.mode == None`.
     /// post: `self.mode` is set to `Some(AgentMode::Chat)`.
     ///       Returns `Err` if any precondition fails.
@@ -508,7 +522,8 @@ impl AgentPod {
 
     /// Exit the current mode, returning the agent to no active mode.
     ///
-    /// REQ: AGT-131
+    /// REQ: P1-agt-pod-exit-mode
+    /// [P1] Motivating: User Sovereignty — exit current mode
     /// pre:  (none — always valid).
     /// post: `self.mode` is set to `None`; the previous mode (if any)
     ///       is logged. Always returns `Ok(())`.
@@ -529,7 +544,8 @@ impl AgentPod {
 
     /// Check if the agent is currently in server mode.
     ///
-    /// REQ: AGT-132
+    /// REQ: P1-agt-pod-is-server-mode
+    /// [P8] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Server)`.
     pub fn is_in_server_mode(&self) -> bool {
@@ -540,7 +556,8 @@ impl AgentPod {
 
     /// Set the agent's voice design for TTS speech generation.
     ///
-    /// REQ: AGT-133
+    /// REQ: P1-agt-pod-set-voice
+    /// [P3] Motivating: Generative Space — configure voice design
     /// pre:  `voice` is a valid `VoiceDesign`.
     /// post: `self.voice_design` is set to `Some(voice)`; logs the change.
     pub fn set_voice(&mut self, voice: VoiceDesign) {
@@ -555,7 +572,8 @@ impl AgentPod {
 
     /// Get the agent's voice design, if one has been set.
     ///
-    /// REQ: AGT-134
+    /// REQ: P1-agt-pod-get-voice
+    /// [P8] Motivating: Semantic Grounding — voice design accessor
     /// pre:  (none — accessor).
     /// post: Returns `Some(&VoiceDesign)` if set, `None` otherwise.
     pub fn get_voice(&self) -> Option<&VoiceDesign> {
@@ -565,7 +583,8 @@ impl AgentPod {
     /// Get the TTS description for this agent's voice.
     /// Returns the default neutral voice description if no voice is set.
     ///
-    /// REQ: AGT-135
+    /// REQ: P1-agt-pod-voice-description
+    /// [P8] Motivating: Semantic Grounding — return TTS description
     /// pre:  (none).
     /// post: Returns the TTS description string for the configured voice,
     ///       or the default `VoiceDesign::default()` description if none
@@ -579,7 +598,8 @@ impl AgentPod {
 
     /// Check if the agent is currently in chat mode.
     ///
-    /// REQ: AGT-136
+    /// REQ: P1-agt-pod-is-chat-mode
+    /// [P8] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Chat)`.
     pub fn is_in_chat_mode(&self) -> bool {
@@ -601,7 +621,9 @@ impl AgentPod {
     /// * `Ok(false)` — Action denied by sovereignty check
     /// * `Err(AgentPodError)` — Sovereignty check error
     ///
-    /// REQ: AGT-137
+    /// REQ: P1-agt-pod-check-sovereignty
+    /// [P1] Motivating: User Sovereignty — verify action against sovereignty/consent
+    /// [P2] Constraining: Affirmative Consent — delegates to consent boundary
     /// pre:  `action` is a non-empty string; `data_category` is a valid
     ///       `DataCategory`; `requester` is a valid `WebID`.
     /// post: Returns `Ok(true)` if both `check_operation` and `can_access`
@@ -696,7 +718,7 @@ mod tests {
         .expect("test pod creation")
     }
 
-    // REQ: P4-dual-gate — Mode transitions require Activated state
+    // REQ: P4-agt-pod-dual-gate-test — Mode transitions require Activated state
     #[test]
     fn mode_requires_activation() {
         let mut pod = test_pod();
@@ -707,7 +729,7 @@ mod tests {
         assert!(matches!(err, AgentPodError::ModeRequiresActivation(_)));
     }
 
-    // REQ: P4-dual-gate — Mode mutual exclusion (initially single-mode)
+    // REQ: P4-agt-pod-dual-gate-test — Mode mutual exclusion (initially single-mode)
     #[test]
     fn mode_mutual_exclusion() {
         let mut pod = test_pod();
@@ -735,7 +757,7 @@ mod tests {
         ));
     }
 
-    // REQ: P4-dual-gate — Role assignment check (sovereignty/consent gate)
+    // REQ: P4-agt-pod-dual-gate-test — Role assignment check (sovereignty/consent gate)
     #[test]
     fn role_not_assigned_denied() {
         let mut pod = test_pod();
@@ -747,7 +769,7 @@ mod tests {
         assert!(matches!(err, AgentPodError::RoleNotAssigned(_, _)));
     }
 
-    // REQ: P4-dual-gate — Mode exit and re-entry
+    // REQ: P4-agt-pod-dual-gate-test — Mode exit and re-entry
     #[test]
     fn mode_exit_and_switch() {
         let mut pod = test_pod();
@@ -768,7 +790,7 @@ mod tests {
         assert!(pod.is_in_server_mode());
     }
 
-    // REQ: types-pod-001 — PodLifecycleState valid transitions
+    // REQ: P1-agt-pod-lifecycle-transition-test — PodLifecycleState valid transitions
     #[test]
     fn lifecycle_state_valid_transitions() {
         assert!(PodLifecycleState::Populated.can_transition_to(PodLifecycleState::Registered));
@@ -776,7 +798,7 @@ mod tests {
         assert!(PodLifecycleState::Activated.can_transition_to(PodLifecycleState::Deactivated));
     }
 
-    // REQ: types-pod-002 — PodLifecycleState rejects invalid transitions
+    // REQ: P1-agt-pod-lifecycle-invalid-test — PodLifecycleState rejects invalid transitions
     #[test]
     fn lifecycle_state_rejects_invalid_transitions() {
         assert!(!PodLifecycleState::Populated.can_transition_to(PodLifecycleState::Activated));
@@ -785,7 +807,7 @@ mod tests {
         assert!(!PodLifecycleState::Deactivated.can_transition_to(PodLifecycleState::Activated));
     }
 
-    // REQ: types-pod-003 — new AgentPod starts with correct defaults
+    // REQ: P1-agt-pod-new-defaults-test — new AgentPod starts with correct defaults
     #[test]
     fn new_pod_has_correct_defaults() {
         let pod = test_pod();
@@ -798,7 +820,7 @@ mod tests {
         assert!(!pod.is_in_chat_mode());
     }
 
-    // REQ: types-pod-004 — is_active() only true when Activated
+    // REQ: P1-agt-pod-is-active-test — is_active() only true when Activated
     #[test]
     fn is_active_only_when_activated() {
         let mut pod = test_pod();
@@ -811,7 +833,7 @@ mod tests {
         assert!(!pod.is_active());
     }
 
-    // REQ: types-pod-005 — voice_design set/get round-trip
+    // REQ: P1-agt-pod-voice-roundtrip-test — voice_design set/get round-trip
     #[test]
     fn voice_design_set_get_roundtrip() {
         let mut pod = test_pod();
@@ -822,7 +844,7 @@ mod tests {
         assert!(!pod.voice_description().is_empty());
     }
 
-    // REQ: types-pod-006 — AgentPodError Display is human-readable
+    // REQ: P1-agt-pod-error-display-test — AgentPodError Display is human-readable
     #[test]
     fn agent_pod_error_display_is_readable() {
         let err = AgentPodError::ModeRequiresActivation(PodLifecycleState::Populated);

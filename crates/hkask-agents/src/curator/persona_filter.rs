@@ -22,7 +22,9 @@ pub struct PersonaCheckResult {
 /// listing any violations. The `forbidden` field of `PersonaConstraints`
 /// [NORMATIVE] contains patterns that must not appear in Curator output. (P3 — Generative Space).
 ///
-/// REQ: AGT-049
+/// REQ: P9-agt-curator-persona-check
+/// [P9] Motivating: Homeostatic Self-Regulation — persona filter prevents harmful output
+/// [P4] Constraining: Clear Boundaries — forbidden patterns are explicit
 /// pre:  `output` is a valid UTF-8 string (may be empty); `constraints`
 ///       is a valid `PersonaConstraints` with a non-empty `forbidden` list.
 /// post: Returns a `PersonaCheckResult` with `passed = true` if no
@@ -58,7 +60,8 @@ pub fn check_persona_constraints(
 /// Replaces each forbidden pattern occurrence with an empty string.
 /// Returns the cleaned output and a list of violations that were stripped.
 ///
-/// REQ: AGT-050
+/// REQ: P9-agt-curator-persona-strip
+/// [P9] Motivating: Homeostatic Self-Regulation — stripping reduces harm while preserving utility
 /// pre:  `output` is a valid UTF-8 string; `constraints` is a valid
 ///       `PersonaConstraints` with a non-empty `forbidden` list.
 /// post: Returns `(cleaned_output, violations)` where `cleaned_output`
@@ -99,7 +102,7 @@ mod tests {
         }
     }
 
-    // REQ: persona-filter-001 — non-ASCII output does not panic on byte-boundary check
+    // REQ: P4-agt-persona-filter-non-ascii-check-test — non-ASCII output does not panic on byte-boundary check
     #[test]
     fn check_does_not_panic_on_non_ascii_output() {
         // 'é' is 2 bytes in UTF-8. The forbidden pattern "great" is ASCII.
@@ -115,7 +118,7 @@ mod tests {
         );
     }
 
-    // REQ: persona-filter-002 — strip does not panic on non-ASCII output
+    // REQ: P4-agt-persona-filter-non-ascii-strip-test — strip does not panic on non-ASCII output
     #[test]
     fn strip_does_not_panic_on_non_ascii_output() {
         let c = constraints(&["great"]);
@@ -125,7 +128,7 @@ mod tests {
         assert!(!cleaned.contains("Great"), "should strip the pattern");
     }
 
-    // REQ: persona-filter-003 — ASCII output: clean detection and stripping
+    // REQ: P4-agt-persona-filter-ascii-detect-test — ASCII output: clean detection and stripping
     #[test]
     fn check_detects_ascii_forbidden_pattern() {
         let c = constraints(&["Great", "Certainly"]);
@@ -134,7 +137,7 @@ mod tests {
         assert_eq!(result.violations.len(), 2);
     }
 
-    // REQ: persona-filter-004 — no false positives on clean output
+    // REQ: P4-agt-persona-filter-clean-test — no false positives on clean output
     #[test]
     fn check_passes_clean_output() {
         let c = constraints(&["Great", "Certainly"]);

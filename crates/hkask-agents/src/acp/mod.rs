@@ -207,7 +207,8 @@ impl A2AMessageVisitor for RouteFields<'_> {
 impl A2AMessage {
     /// Dispatch a visitor over the variant. Single match site in the codebase.
     ///
-    /// REQ: AGT-075
+    /// REQ: P4-agt-acp-message-visit
+    /// [P4] Motivating: Clear Boundaries — single dispatch site for A2A message variants
     /// pre:  `visitor` is a valid `&mut dyn A2AMessageVisitor`.
     /// post: Calls the appropriate visitor method based on the message
     ///       variant (`on_template_dispatch`, `on_template_response`,
@@ -255,7 +256,9 @@ impl A2AMessage {
     /// Returns `Some` for `TemplateDispatch` (from) and `MemoryArtifact` (producer),
     /// `None` for `TemplateResponse` (no sender).
     ///
-    /// REQ: AGT-076
+    /// REQ: P4-agt-acp-message-sender
+    /// [P4] Motivating: Clear Boundaries — sender identity is explicit per variant
+    /// [P1] Constraining: User Sovereignty — identity belongs to the agent/user
     /// pre:  (none).
     /// post: Returns `Some(&WebID)` for variants with a sender field;
     ///       `None` for `TemplateResponse`.
@@ -273,7 +276,8 @@ impl A2AMessage {
     /// `TemplateDispatch` and `TemplateResponse` use `correlation_id`,
     /// `MemoryArtifact` uses `artifact_id`.
     ///
-    /// REQ: AGT-077
+    /// REQ: P4-agt-acp-message-id
+    /// [P4] Motivating: Clear Boundaries — correlation/artifact IDs enable traceability
     /// pre:  (none).
     /// post: Returns the correlation/artifact ID string for the message
     ///       variant.
@@ -287,7 +291,8 @@ impl A2AMessage {
 
     /// Get a human-readable message type name.
     ///
-    /// REQ: AGT-078
+    /// REQ: P4-agt-acp-message-type
+    /// [P8] Motivating: Semantic Grounding — stable message type labels
     /// pre:  (none).
     /// post: Returns a `&'static str`: `"template_dispatch"`,
     ///       `"template_response"`, or `"memory_artifact"`.
@@ -330,7 +335,9 @@ impl AcpRuntime {
     /// `secret` is the master key for HKDF agent-secret derivation.
     /// The Ed25519 signing key for token issuance is derived from it.
     ///
-    /// REQ: AGT-079
+    /// REQ: P4-agt-acp-runtime-new
+    /// [P4] Motivating: Clear Boundaries — ACP runtime derives root authority from master secret
+    /// [P1] Constraining: User Sovereignty — root WebID is user-derived
     /// pre:  `secret` is a non-empty byte slice (master key material).
     /// post: Returns an `AcpRuntime` with a derived root WebID, signing
     ///       key, empty agent state, and a fresh audit log.
@@ -352,7 +359,9 @@ impl AcpRuntime {
 
     /// Keys are cryptographically independent — compromising one doesn't compromise others.
     ///
-    /// REQ: AGT-080
+    /// REQ: P4-agt-acp-secret-derive
+    /// [P4] Motivating: Clear Boundaries — HKDF isolates per-agent secrets
+    /// [P1] Constraining: User Sovereignty — secrets are bound to agent identity
     /// pre:  `agent_webid` is a valid `WebID`.
     /// post: Returns an `AgentSecret` derived via HKDF-SHA256 with the
     ///       agent WebID as domain separator; caches the result for
@@ -384,7 +393,9 @@ impl AcpRuntime {
 
     /// Returns primary DelegationToken for the agent.
     ///
-    /// REQ: AGT-081
+    /// REQ: P4-agt-acp-token-issue
+    /// [P4] Motivating: Clear Boundaries — DelegationToken attenuates capabilities
+    /// [P1] Constraining: User Sovereignty — tokens are issued to named agents
     /// pre:  `webid` is a valid `WebID`; `agent_type` is a valid
     ///       `AgentKind`; `capabilities` is a list of capability strings
     ///       (no wildcards allowed).
@@ -458,7 +469,8 @@ impl AcpRuntime {
         Ok(primary_token)
     }
 
-    /// REQ: AGT-082
+    /// REQ: P4-agt-acp-agent-unregister
+    /// [P4] Motivating: Clear Boundaries — unregister revokes all agent capabilities
     /// pre:  `webid` is a valid `WebID`.
     /// post: If the agent exists, removes it and its capability tokens
     ///       and derived key, returns `Ok(())`. If not found, returns
@@ -485,7 +497,8 @@ impl AcpRuntime {
 
     /// R2: Persist Agent State. Returns count of agents restored.
     ///
-    /// REQ: AGT-083
+    /// REQ: P4-agt-acp-agents-restore
+    /// [P4] Motivating: Clear Boundaries — restore preserves capability graph
     /// pre:  `agents` is a list of `AcpAgent` records; `tokens` is a map
     ///       of WebID → `Vec<DelegationToken>`.
     /// post: All agents and tokens are inserted into the runtime state;
@@ -583,7 +596,8 @@ impl AcpRuntime {
 
     /// List all registered agents.
     ///
-    /// REQ: AGT-084
+    /// REQ: P4-agt-acp-agents-list
+    /// [P4] Motivating: Clear Boundaries — enumerate registered agents
     /// pre:  (none).
     /// post: Returns a `Vec<AcpAgent>` containing clones of all currently
     ///       registered agents.
@@ -673,7 +687,7 @@ mod tests {
 
     // ── ACP Wildcard Rejection ──────────────────────────────────────────────
 
-    // REQ: acp-wildcard-001 — ACP rejects wildcard capability "*"
+    // REQ: P4-agt-acp-wildcard-reject-test — ACP rejects wildcard capability "*"
     #[tokio::test]
     async fn acp_rejects_wildcard_capability() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -690,7 +704,7 @@ mod tests {
         }
     }
 
-    // REQ: acp-wildcard-002 — ACP rejects wildcard mixed with valid capabilities
+    // REQ: P4-agt-acp-wildcard-mixed-reject-test — ACP rejects wildcard mixed with valid capabilities
     #[tokio::test]
     async fn acp_rejects_wildcard_mixed_with_valid_capabilities() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -713,7 +727,7 @@ mod tests {
 
     // ── ACP Registration ────────────────────────────────────────────────────
 
-    // REQ: acp-register-001 — ACP registers agent and returns delegation token
+    // REQ: P4-agt-acp-register-test — ACP registers agent and returns delegation token
     #[tokio::test]
     async fn acp_registers_agent_and_returns_token() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -730,7 +744,7 @@ mod tests {
         assert!(acp.is_registered(&webid).await);
     }
 
-    // REQ: acp-register-002 — ACP rejects duplicate agent registration
+    // REQ: P4-agt-acp-register-dup-test — ACP rejects duplicate agent registration
     #[tokio::test]
     async fn acp_rejects_duplicate_registration() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -751,7 +765,7 @@ mod tests {
         }
     }
 
-    // REQ: acp-register-003 — Root authority creates delegation tokens for all requested capabilities
+    // REQ: P4-agt-acp-register-capabilities-test — Root authority creates delegation tokens for all requested capabilities
     #[tokio::test]
     async fn root_authority_creates_tokens_for_all_capabilities() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -783,7 +797,7 @@ mod tests {
 
     // ── ACP Unregistration ──────────────────────────────────────────────────
 
-    // REQ: acp-unregister-001 — ACP unregisters agent and removes tokens
+    // REQ: P4-agt-acp-unregister-test — ACP unregisters agent and removes tokens
     #[tokio::test]
     async fn acp_unregisters_agent_and_removes_tokens() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -804,7 +818,7 @@ mod tests {
         assert!(acp.get_capabilities(&webid).await.is_empty());
     }
 
-    // REQ: acp-unregister-002 — ACP unregister of unknown agent returns error
+    // REQ: P4-agt-acp-unregister-unknown-test — ACP unregister of unknown agent returns error
     #[tokio::test]
     async fn acp_unregister_unknown_agent_returns_error() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -820,7 +834,7 @@ mod tests {
 
     // ── ACP Token Revocation ────────────────────────────────────────────────
 
-    // REQ: acp-revoke-001 — ACP revokes token and denies subsequent access
+    // REQ: P4-agt-acp-revoke-test — ACP revokes token and denies subsequent access
     #[tokio::test]
     async fn acp_revokes_token() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -840,7 +854,7 @@ mod tests {
 
     // ── ACP Restore ─────────────────────────────────────────────────────────
 
-    // REQ: acp-restore-001 — ACP restored from storage has same capabilities
+    // REQ: P4-agt-acp-restore-test — ACP restored from storage has same capabilities
     #[tokio::test]
     async fn acp_restore_preserves_capabilities() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -883,7 +897,7 @@ mod tests {
 
     // ── ACP List Agents ─────────────────────────────────────────────────────
 
-    // REQ: acp-list-001 — ACP lists all registered agents
+    // REQ: P4-agt-acp-list-test — ACP lists all registered agents
     #[tokio::test]
     async fn acp_lists_registered_agents() {
         let acp = AcpRuntime::new(TEST_SECRET);
@@ -906,7 +920,7 @@ mod tests {
         assert!(webids.contains(&bob));
     }
 
-    // REQ: acp-list-002 — ACP list is empty when no agents registered
+    // REQ: P4-agt-acp-list-empty-test — ACP list is empty when no agents registered
     #[tokio::test]
     async fn acp_list_empty_when_no_agents() {
         let acp = AcpRuntime::new(TEST_SECRET);
