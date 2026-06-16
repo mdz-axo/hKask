@@ -17,6 +17,10 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::ApiState;
 
 /// Create CNS router
+///
+/// REQ: API-006
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with CNS routes registered
 pub fn cns_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(cns_health))

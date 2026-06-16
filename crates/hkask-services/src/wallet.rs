@@ -106,7 +106,7 @@ impl WalletService {
     ) -> Result<Arc<Self>, ServiceError> {
         // ── Build chain ports from environment ────────────────────────────
         #[allow(unused_mut)]
-        let mut chains: HashMap<ChainId, Box<dyn hkask_wallet::ChainPort>> = HashMap::new();
+        let mut chains: HashMap<ChainId, Arc<dyn hkask_wallet::ChainPort>> = HashMap::new();
 
         // Solana — self-custody via raw JSON-RPC
         #[cfg(feature = "solana")]
@@ -122,7 +122,7 @@ impl WalletService {
                         rpc_url = %rpc_url,
                         "SolanaPort initialized"
                     );
-                    chains.insert(ChainId::Solana, Box::new(port));
+                    chains.insert(ChainId::Solana, Arc::new(port));
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -157,7 +157,7 @@ impl WalletService {
                         consensus_url = %consensus_url,
                         "HederaPort initialized"
                     );
-                    chains.insert(ChainId::Hedera, Box::new(port));
+                    chains.insert(ChainId::Hedera, Arc::new(port));
                 }
                 Err(e) => {
                     tracing::warn!(

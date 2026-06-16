@@ -31,6 +31,10 @@ use crate::error::ServiceErrorResponse;
 use crate::middleware::auth::AuthContext;
 
 /// Create MCP router
+///
+/// REQ: API-018
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with MCP routes registered
 pub fn mcp_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_servers))

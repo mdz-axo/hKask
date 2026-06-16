@@ -28,6 +28,11 @@ pub struct NuEvent {
 }
 
 impl NuEvent {
+    /// Create a new NuEvent.
+    ///
+    /// REQ: TYP-170
+    /// pre:  observer is valid, span is valid, phase is valid
+    /// post: returns NuEvent
     pub fn new(
         observer_webid: WebID,
         span: Span,
@@ -147,6 +152,11 @@ const CANONICAL_NAMESPACES: &[&str] = &[
 impl SpanNamespace {
     /// Create a validated span namespace. Panics if the namespace is not canonical.
     /// Use `from_str` for fallible construction.
+    /// Create a new SpanNamespace.
+    ///
+    /// REQ: TYP-171
+    /// pre:  namespace is non-empty
+    /// post: returns SpanNamespace
     pub fn new(namespace: &str) -> Self {
         assert!(
             CANONICAL_NAMESPACES.contains(&namespace),
@@ -159,6 +169,10 @@ impl SpanNamespace {
     /// Accepts both short ("tool") and full ("cns.tool") forms.
     ///
     /// Implements `FromStr` so that `"variety".parse::<SpanNamespace>()` works.
+    /// Parse a SpanNamespace from string.
+    ///
+    /// REQ: TYP-172
+    /// post: returns Some(SpanNamespace) if valid, None otherwise
     pub fn parse(s: &str) -> Option<Self> {
         let full = if s.starts_with("cns.") {
             s.to_string()
@@ -300,6 +314,11 @@ impl Span {
     /// Create a new span with validated namespace.
     ///
     /// Example: `Span::new(SpanNamespace::new("cns.tool"), "invoked")`
+    /// Create a new Span.
+    ///
+    /// REQ: TYP-173
+    /// pre:  namespace is valid, path is non-empty
+    /// post: returns Span
     pub fn new(namespace: SpanNamespace, path: &str) -> Self {
         let full_path = format!("{}.{}", namespace.as_str(), path);
         Self {
@@ -317,6 +336,11 @@ impl Span {
     ///
     /// Eliminates string typos at construction sites for the most common
     /// span paths. Each variant maps to a canonical (namespace, path) pair.
+    /// Create a Span from a SpanKind.
+    ///
+    /// REQ: TYP-174
+    /// pre:  kind is valid
+    /// post: returns Span with canonical namespace and path
     pub fn from_kind(kind: SpanKind) -> Self {
         let (ns, local_path) = kind.namespace_and_path();
         Span::new(SpanNamespace::new(ns), local_path)

@@ -43,6 +43,9 @@ pub struct ListPodsResponse {
     pub pods: Vec<PodStatusResponse>,
 }
 
+/// REQ: API-004
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with pod routes registered
 pub fn pods_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/pods", axum::routing::get(list_pods))

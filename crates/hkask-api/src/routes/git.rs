@@ -50,6 +50,10 @@ pub struct ResolveShaResponse {
 }
 
 /// Create git router
+///
+/// REQ: API-002
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with git routes registered
 pub fn git_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(archive))

@@ -80,6 +80,9 @@ pub struct UpdateSettingsRequest {
     pub auto_condense: Option<bool>,
 }
 
+/// REQ: API-011
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with settings route registered
 pub fn settings_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new().route("/api/settings", get(get_settings).put(update_settings))
 }

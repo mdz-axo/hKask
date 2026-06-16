@@ -6,6 +6,10 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{ApiState, GrantCapabilityRequest};
 
 /// Create bots router
+///
+/// REQ: API-005
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with bot routes registered
 pub fn bots_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_capabilities))

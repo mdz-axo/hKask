@@ -53,6 +53,10 @@ pub struct ApiKeyAuthService {
 
 impl ApiKeyAuthService {
     /// Create a new API key auth service backed by a WalletStore and WalletService.
+    ///
+    /// REQ: API-020
+    /// pre:  wallet_store and wallet_service are valid Arcs
+    /// post: returns ApiKeyAuthService ready for middleware use
     pub fn new(wallet_store: Arc<WalletStore>, wallet_service: Arc<WalletService>) -> Self {
         Self {
             wallet_store,
@@ -266,6 +270,12 @@ impl IntoResponse for ApiKeyAuthError {
 /// When a valid Bearer token is present, registers a wallet-backed energy budget
 /// in the CNS so that subsequent tool/inference calls consume rJoules from the
 /// key's encumbrance.
+///
+/// REQ: API-021
+/// pre:  auth is a valid ApiKeyAuthService
+/// post: if no Bearer header → pass-through (next.run)
+/// post: if valid Bearer token → WalletContext injected, budget registered
+/// post: if invalid Bearer token → Err(ApiKeyAuthError)
 pub async fn api_key_auth_middleware(
     State(auth): State<Arc<ApiKeyAuthService>>,
     request: Request<Body>,

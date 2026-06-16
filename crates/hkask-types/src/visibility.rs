@@ -215,6 +215,10 @@ impl AccessControl {
     /// F-SYN-004: this is the explicit operation to take a triple
     /// from *episodic* (perspective-bound) to *semantic* (shared,
     /// perspective-free). It does not change the visibility mode.
+    /// Remove perspective (for legitimate sharing).
+    ///
+    /// REQ: TYP-134
+    /// post: returns Self with perspective set to None
     pub fn without_perspective(mut self) -> Self {
         self.perspective = None;
         self
@@ -232,11 +236,20 @@ pub struct Confidence(f64);
 
 impl Confidence {
     /// Create a confidence value, clamping to [0.0, 1.0].
+    /// Create a new Confidence value.
+    ///
+    /// REQ: TYP-135
+    /// pre:  value in [0.0, 1.0]
+    /// post: returns Confidence
     pub fn new(value: f64) -> Self {
         Self(value.clamp(0.0, 1.0))
     }
 
     /// Full confidence (1.0) — the default for new triples.
+    /// Full confidence (1.0).
+    ///
+    /// REQ: TYP-136
+    /// post: returns Confidence(1.0)
     pub fn full() -> Self {
         Self(1.0)
     }
@@ -254,6 +267,10 @@ impl Confidence {
     }
 
     /// Get the raw f64 value by reference.
+    /// Get the raw confidence value.
+    ///
+    /// REQ: TYP-137
+    /// post: returns f64 value
     pub fn value(&self) -> f64 {
         self.0
     }
@@ -262,6 +279,11 @@ impl Confidence {
     ///
     /// Used by Episodic Loop for Bayesian confidence decay.
     /// The result is clamped to [0.0, 1.0].
+    /// Apply exponential decay: value * e^(-rate * time).
+    ///
+    /// REQ: TYP-138
+    /// pre:  rate >= 0, time >= 0
+    /// post: returns decayed Confidence
     pub fn decay(&self, rate: f64, time: f64) -> Self {
         Self((self.0 * (-rate * time).exp()).clamp(0.0, 1.0))
     }
@@ -298,6 +320,10 @@ pub struct TemporalBounds {
 
 impl TemporalBounds {
     /// Create temporal bounds starting now with no end (current/active).
+    /// Create a TemporalContext with now as valid_from.
+    ///
+    /// REQ: TYP-139
+    /// post: returns TemporalContext with valid_from=now, valid_to=None
     pub fn now() -> Self {
         Self {
             valid_from: Utc::now(),
@@ -306,6 +332,10 @@ impl TemporalBounds {
     }
 
     /// Create temporal bounds with explicit start and optional end.
+    /// Create a TemporalContext with explicit bounds.
+    ///
+    /// REQ: TYP-140
+    /// post: returns TemporalContext
     pub fn new(valid_from: DateTime<Utc>, valid_to: Option<DateTime<Utc>>) -> Self {
         Self {
             valid_from,
@@ -314,11 +344,19 @@ impl TemporalBounds {
     }
 
     /// Is this triple currently active (no end time)?
+    /// Check if this temporal context is currently valid.
+    ///
+    /// REQ: TYP-141
+    /// post: returns true iff valid_to is None or in the future
     pub fn is_current(&self) -> bool {
         self.valid_to.is_none()
     }
 
     /// Supercede: create new bounds with valid_to set to now.
+    /// Mark as superseded (set valid_to to now).
+    ///
+    /// REQ: TYP-142
+    /// post: returns Self with valid_to=now
     pub fn superseded(&self) -> Self {
         Self {
             valid_from: self.valid_from,

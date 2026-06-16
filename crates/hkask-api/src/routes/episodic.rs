@@ -18,6 +18,10 @@ use hkask_services::ServiceError;
 use hkask_types::Confidence;
 
 /// Create episodic memory router
+///
+/// REQ: API-007
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with episodic routes registered
 pub fn episodic_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(store_episode))

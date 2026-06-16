@@ -41,6 +41,9 @@ pub struct ConsolidateResponse {
 
 // Router
 
+/// REQ: API-009
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with consolidation route registered
 pub fn consolidation_router() -> OpenApiRouter<crate::ApiState> {
     OpenApiRouter::new().routes(routes!(consolidate))
 }

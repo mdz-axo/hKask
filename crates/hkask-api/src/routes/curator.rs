@@ -74,6 +74,9 @@ pub struct MetacognitionStatusResponse {
     pub bot_reports: Vec<BotStatusReportResponse>,
 }
 
+/// REQ: API-013
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with curator routes registered
 pub fn curator_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_escalations))

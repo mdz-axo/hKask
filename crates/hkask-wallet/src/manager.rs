@@ -9,6 +9,7 @@
 use chrono::{Duration, Utc};
 use hkask_keystore::resolve_wallet_seed;
 use hkask_storage::WalletStore;
+use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 #[cfg(test)]
@@ -40,8 +41,8 @@ use crate::signing;
 pub struct WalletManager {
     config: WalletConfig,
     store: Arc<WalletStore>,
-    chains: HashMap<ChainId, Box<dyn ChainPort>>,
-    privacy: Option<Box<dyn PrivacyPort>>,
+    chains: HashMap<ChainId, Arc<dyn ChainPort>>,
+    privacy: Option<Arc<dyn PrivacyPort>>,
     wallet_seed: Zeroizing<[u8; 32]>,
     /// Optional CNS event sink for span emission (Phase 5).
     /// When present, wallet operations emit cns.wallet.* spans.
@@ -62,8 +63,8 @@ impl WalletManager {
     pub fn build(
         config: WalletConfig,
         store: Arc<WalletStore>,
-        chains: HashMap<ChainId, Box<dyn ChainPort>>,
-        privacy: Option<Box<dyn PrivacyPort>>,
+        chains: HashMap<ChainId, Arc<dyn ChainPort>>,
+        privacy: Option<Arc<dyn PrivacyPort>>,
         price_feed: Arc<dyn PriceFeed>,
     ) -> Result<Self, WalletError> {
         let seed_bytes = resolve_wallet_seed().map_err(|e| {
@@ -101,19 +102,31 @@ impl WalletManager {
         &self.price_feed
     }
 
+    fn default_actor() -> WebID {
+        WebID::from_persona_with_namespace(b"wallet-manager", "wallet-surface")
+    }
+
     /// Emit a CNS span if an event sink is configured (canonical namespaces only).
-    fn emit_span(&self, span: CnsSpan, verb: &str, phase: Phase, obs: serde_json::Value) {
+    fn emit_span_with_actor(
+        &self,
+        actor: &WebID,
+        span: CnsSpan,
+        verb: &str,
+        phase: Phase,
+        obs: serde_json::Value,
+    ) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(SpanNamespace::from(span), verb);
-            let actor = hkask_types::WebID::from_persona_with_namespace(
-                b"wallet-manager",
-                "wallet-surface",
-            );
-            let event = NuEvent::new(actor, span_obj, phase, obs, 0);
+            let event = NuEvent::new(actor.clone(), span_obj, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
                 tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist CNS span");
             }
         }
+    }
+
+    fn emit_span(&self, span: CnsSpan, verb: &str, phase: Phase, obs: serde_json::Value) {
+        let actor = Self::default_actor();
+        self.emit_span_with_actor(&actor, span, verb, phase, obs);
     }
 
     /// Emit a CNS algedonic alert for API key health events.
@@ -155,17 +168,30 @@ impl WalletManager {
     /// pre:  chain is a valid ChainId
     /// post: emits cns.wallet.chain_error span with error details (Sense phase)
     /// post: if event_sink is None → no-op (graceful degradation)
-    pub fn emit_chain_error(&self, chain: ChainId, operation: &str, error_msg: &str) {
-        self.emit_span(
+    pub fn emit_chain_error_for_actor(
+        &self,
+        actor: &WebID,
+        chain: ChainId,
+        operation: &str,
+        error_msg: &str,
+    ) {
+        self.emit_span_with_actor(
+            actor,
             CnsSpan::WalletChainError,
             "error",
             Phase::Sense,
             serde_json::json!({
+                "actor": actor.to_string(),
                 "chain": chain.to_string(),
                 "operation": operation,
                 "error": error_msg,
             }),
         );
+    }
+
+    pub fn emit_chain_error(&self, chain: ChainId, operation: &str, error_msg: &str) {
+        let actor = Self::default_actor();
+        self.emit_chain_error_for_actor(&actor, chain, operation, error_msg);
     }
 
     // ── Balance ──────────────────────────────────────────────────────────────
@@ -478,6 +504,7 @@ impl WalletManager {
     /// 7. Record transaction in ledger
     pub async fn withdraw(
         &self,
+        actor: &WebID,
         wallet_id: WalletId,
         amount_rj: RJoule,
         to_address: &str,
@@ -507,11 +534,13 @@ impl WalletManager {
         let amount_usdc_micro = self.rjoules_to_usdc(amount_rj);
 
         // CNS span: conversion
-        self.emit_span(
+        self.emit_span_with_actor(
+            actor,
             CnsSpan::WalletConversion,
             "converted",
             Phase::Act,
             serde_json::json!({
+                "actor": actor.to_string(),
                 "wallet_id": wallet_id.to_string(),
                 "rjoules": amount_rj.as_u64(),
                 "usdc_micro": amount_usdc_micro,
@@ -527,11 +556,13 @@ impl WalletManager {
                     let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
 
                     // CNS span: withdrawal built
-                    self.emit_span(
+                    self.emit_span_with_actor(
+                        actor,
                         CnsSpan::WalletWithdrawal,
                         "built",
                         Phase::Act,
                         serde_json::json!({
+                            "actor": actor.to_string(),
                             "chain": chain.to_string(),
                             "to_address": to_address,
                             "amount_usdc_micro": amount_usdc_micro,
@@ -542,11 +573,13 @@ impl WalletManager {
                     let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
 
                     // CNS span: withdrawal signed
-                    self.emit_span(
+                    self.emit_span_with_actor(
+                        actor,
                         CnsSpan::WalletWithdrawal,
                         "signed",
                         Phase::Act,
                         serde_json::json!({
+                            "actor": actor.to_string(),
                             "chain": chain.to_string(),
                         }),
                     );
@@ -581,11 +614,13 @@ impl WalletManager {
         let tx_hash = match tx_hash_result {
             Ok(tx_hash) => {
                 // CNS span: withdrawal submitted
-                self.emit_span(
+                self.emit_span_with_actor(
+                    actor,
                     CnsSpan::WalletWithdrawal,
                     "submitted",
                     Phase::Act,
                     serde_json::json!({
+                        "actor": actor.to_string(),
                         "chain": chain.to_string(),
                         "tx_hash": tx_hash.0,
                     }),
@@ -595,7 +630,8 @@ impl WalletManager {
             Err(err) => {
                 // Compensating action: refund debited rJoules when submit path fails.
                 if let Err(refund_err) = self.store.credit_rjoules(wallet_id, amount_rj) {
-                    self.emit_chain_error(
+                    self.emit_chain_error_for_actor(
+                        actor,
                         chain,
                         "withdraw_refund_failed",
                         &format!("original_error={err}; refund_error={refund_err}"),
@@ -692,10 +728,16 @@ impl WalletManager {
     /// post: returns Err if configured price feed cannot provide a rate
     pub async fn estimate_withdrawal_fee(
         &self,
+        actor: &WebID,
         chain: ChainId,
     ) -> Result<WithdrawalFee, WalletError> {
         let rate = self.price_feed.get_rate(chain).await.map_err(|e| {
-            self.emit_chain_error(chain, "estimate_withdrawal_fee", &e.to_string());
+            self.emit_chain_error_for_actor(
+                actor,
+                chain,
+                "estimate_withdrawal_fee",
+                &e.to_string(),
+            );
             e
         })?;
         Ok(estimate_withdrawal_fee(

@@ -75,6 +75,10 @@ pub struct AgentListResponse {
 }
 
 /// Create ACP router
+///
+/// REQ: API-014
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with ACP routes registered
 pub fn acp_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/v1/acp/register", axum::routing::post(acp_register))

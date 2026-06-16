@@ -10,6 +10,9 @@ use crate::ApiState;
 use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
+/// REQ: API-003
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with goal routes registered
 pub fn goal_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_goals))

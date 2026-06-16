@@ -93,6 +93,11 @@ impl ApiState {
     /// The API server is headless and cannot run interactive onboarding — the caller
     /// is responsible for ensuring secrets are available via the keystore.
     /// Run `kask chat` interactively first to complete onboarding and store secrets.
+    ///
+    /// REQ: API-027
+    /// pre:  environment variables and keystore are configured
+    /// post: if config/secrets available → Ok(ApiState) with full infrastructure
+    /// post: if config/secrets missing → Err(ApiError::Internal)
     pub async fn with_defaults() -> Result<Self, ApiError> {
         let config = hkask_services::ServiceConfig::from_env().map_err(|e| ApiError::Internal {
             message: format!("Failed to resolve service config: {e}"),
@@ -112,6 +117,12 @@ impl ApiState {
     /// governed tool, pod manager, stores) comes from `AgentService`.
     /// Surface-specific fields (git CAS) are constructed from AgentService
     /// fields or initialized to defaults.
+    ///
+    /// REQ: API-028
+    /// pre:  ctx is a fully-built AgentService
+    /// post: returns Ok(ApiState) with all shared infra from ctx
+    /// post: git_cas initialized from ctx or defaults
+    /// post: api_key_auth_service initialized if wallet_store + wallet_service available
     pub async fn from_service_context(ctx: AgentService) -> Result<Self, ApiError> {
         // Surface-specific: Git CAS adapters (legacy template archival)
         let GitCasBundle {
@@ -141,12 +152,20 @@ impl ApiState {
     }
 
     /// Set the spec store for MDS specifications
+    ///
+    /// REQ: API-029
+    /// pre:  store is a valid Arc<SqliteSpecStore>
+    /// post: self.spec_store = Some(store); returns self
     pub fn with_spec_store(mut self, store: Arc<hkask_storage::SqliteSpecStore>) -> Self {
         self.spec_store = Some(store);
         self
     }
 
     /// Attach a wallet service for rJoule payments and API key management.
+    ///
+    /// REQ: API-030
+    /// pre:  svc is a valid Arc<WalletService>
+    /// post: self.wallet_service = Some(svc); returns self
     pub fn with_wallet_service(mut self, svc: Arc<WalletService>) -> Self {
         self.wallet_service = Some(svc);
         self
@@ -156,6 +175,11 @@ impl ApiState {
     ///
     /// Call this after the API server starts listening. The loops run in
     /// background tokio tasks until `shutdown_loops()` is called.
+    ///
+    /// REQ: API-031
+    /// pre:  self.agent_service.loop_system() is initialized
+    /// post: all registered loops begin tick cycles
+    /// post: returns Ok(()) on success, Err(InfrastructureError) on failure
     pub async fn start_loops(&self) -> Result<(), hkask_types::InfrastructureError> {
         let loops = self.agent_service.loop_system();
         tracing::info!(
@@ -167,6 +191,10 @@ impl ApiState {
     }
 
     /// Signal the loop system to shut down.
+    ///
+    /// REQ: API-032
+    /// pre:  self.agent_service.loop_system() is initialized
+    /// post: loop system shutdown signal sent; background tasks begin winding down
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
         let loops = self.agent_service.loop_system();

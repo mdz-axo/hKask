@@ -18,8 +18,8 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
 use hkask_services::{ChatRequest as ServiceChatRequest, ChatService};
-use hkask_types::template::LLMParameters;
 use hkask_types::ports::InferencePort;
+use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -53,6 +53,10 @@ pub struct ChatResponse {
 }
 
 /// Create chat router
+///
+/// REQ: API-015
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with chat routes registered
 pub fn chat_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(chat))

@@ -41,6 +41,10 @@ pub struct GrantCapabilityRequest {
 }
 
 /// Create templates router
+///
+/// REQ: API-012
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with template routes registered
 pub fn templates_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_templates))

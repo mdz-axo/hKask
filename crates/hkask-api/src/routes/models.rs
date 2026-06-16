@@ -18,6 +18,10 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::ApiState;
 
 /// Create models router
+///
+/// REQ: API-010
+/// pre:  none
+/// post: returns OpenApiRouter<ApiState> with model routes registered
 pub fn models_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(list_models))
