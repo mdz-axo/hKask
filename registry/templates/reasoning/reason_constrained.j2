@@ -1,6 +1,13 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [reason, converge, diverge, evidence, constraint, tool, verify]
+lexicon_terms:
+- reason
+- converge
+- diverge
+- evidence
+- constraint
+- tool
+- verify
 contract:
   input:
     agent_identity: string
@@ -18,12 +25,11 @@ contract:
     reasoning: string
     key_claims: array
     structured_facts: array
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 # Reasoning — Constrained Reasoning Template
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.3

@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [translate, adapt, extract, compose, verify]
+lexicon_terms:
+- translate
+- adapt
+- extract
+- compose
+- verify
 contract:
   input:
     source_skill: string
@@ -9,13 +14,12 @@ contract:
   output:
     translated_skill: string
     translation_summary: object
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: skill-translator/skill-translator-translate.j2 #}
 {# KnowAct — Translate classified skill to hKask format #}
-{# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

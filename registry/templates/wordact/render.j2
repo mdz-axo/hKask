@@ -1,18 +1,21 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [render, compose, format, bind]
+lexicon_terms:
+- render
+- compose
+- format
+- bind
 contract:
   input:
     template_source: string
     bindings: object
   output:
     rendered: string
-  energy_cap: 1000
-  visibility: Shared
-
+energy_cap: 1000
+visibility: Shared
 ---
 # Prompt — Template Renderer
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.0

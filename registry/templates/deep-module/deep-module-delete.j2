@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [delete, evaluate, discriminate, audit, verify]
+lexicon_terms:
+- delete
+- evaluate
+- discriminate
+- audit
+- verify
 contract:
   input:
     module_assessment: object
@@ -13,9 +18,8 @@ contract:
     recommendation: string
     rationale: string
     merge_target: string
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: deep-module/deep-module-delete.j2 #}
 {# KnowAct — Execute Ousterhout's deletion test in both directions #}

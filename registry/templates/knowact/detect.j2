@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [detect, drift, calibrate, monitor, variance]
+lexicon_terms:
+- detect
+- drift
+- calibrate
+- monitor
+- variance
 contract:
   input:
     agent_id: string
@@ -10,12 +15,11 @@ contract:
     drift_detected: boolean
     drift_score: float
     affected_dimensions: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 # Cognition — Drift Detection
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.1

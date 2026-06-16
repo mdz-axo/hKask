@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [rank, order, top, choice, compensation, veto]
+lexicon_terms:
+- rank
+- order
+- top
+- choice
+- compensation
+- veto
 contract:
   input:
     decision_question: string
@@ -14,11 +20,10 @@ contract:
     recommendation: string
 energy_cap: 4096
 visibility: Shared
-
 ---
 {# Template: mcda/rank-alternatives.j2 #}
 {# Process — Alternative ranking with compensation masking detection #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [focal, question, decision, horizon, scope, bound, strategic]
+lexicon_terms:
+- focal
+- question
+- decision
+- horizon
+- scope
+- bound
+- strategic
 contract:
   input:
     focal_question: string
@@ -12,15 +19,14 @@ contract:
     time_bound: string
     scope_boundaries: object
     current_state_summary: string
-  energy_cap: 2048
-  visibility: Shared
-
+energy_cap: 2048
+visibility: Shared
 ---
 {# Template: scenario/focal-question.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: refined_focal_question #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

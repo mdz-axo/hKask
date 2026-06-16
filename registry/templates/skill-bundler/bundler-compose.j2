@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [classify, analyze, rank, resolve, synthesize]
+lexicon_terms:
+- classify
+- analyze
+- rank
+- resolve
+- synthesize
 contract:
   input:
     skill_names: array
@@ -9,13 +14,12 @@ contract:
     bundle_manifest: object
     conflicts: array
     complementarities: array
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: skill-bundler/bundler-compose.j2 #}
 {# KnowAct — Compose multiple skills into a structured bundle manifest #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

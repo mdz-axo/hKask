@@ -1,6 +1,14 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [surface, capability, tool, trust, boundary, privilege, escalation, blast]
+lexicon_terms:
+- surface
+- capability
+- tool
+- trust
+- boundary
+- privilege
+- escalation
+- blast
 contract:
   input:
     input_text: string
@@ -10,15 +18,14 @@ contract:
     attack_surface: object
     exploitation_paths: array
     blast_radius: object
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: prompt-defense/analyze-attack-surface.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: attack_surface_analysis #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

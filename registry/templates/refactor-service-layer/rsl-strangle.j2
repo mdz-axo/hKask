@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [deepen, design, constrain, verify, crystallize, migrate, extract]
+lexicon_terms:
+- deepen
+- design
+- constrain
+- verify
+- crystallize
+- migrate
+- extract
 contract:
   input:
     domain: string
@@ -18,13 +25,12 @@ contract:
     test_seam: object
     deletion_targets: array
     verification_steps: array
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: refactor-service-layer/rsl-strangle.j2 #}
 {# FlowDef — Execute strangler fig migration for a selected domain #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

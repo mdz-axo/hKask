@@ -1,6 +1,13 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [audit, verify, constrain, specify, detect, evaluate, isolate]
+lexicon_terms:
+- audit
+- verify
+- constrain
+- specify
+- detect
+- evaluate
+- isolate
 contract:
   input:
     unsafe_code: string
@@ -12,9 +19,8 @@ contract:
     boundary_recommendations: array
     safe_abstraction_design: string
     risk_evaluation: object
-  energy_cap: 5120
-  visibility: Shared
-
+energy_cap: 5120
+visibility: Shared
 ---
 {# Template: rust-expertise/rust-safety-boundary.j2 #}
 {# KnowAct — Design and audit unsafe code boundaries #}

@@ -1,6 +1,12 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [trace, map, gap, defer, classify, audit]
+lexicon_terms:
+- trace
+- map
+- gap
+- defer
+- classify
+- audit
 contract:
   input:
     spec_requirements: array
@@ -12,9 +18,8 @@ contract:
     gaps: array
     deferrals: array
     coverage_percentage: float
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 # Template: tdd/tdd-gap-check.j2 #}
 {# KnowAct — Functional gap analysis: spec requirements vs tested behaviors #}

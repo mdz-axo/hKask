@@ -1,6 +1,10 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [detect, evaluate, regulate, orient]
+lexicon_terms:
+- detect
+- evaluate
+- regulate
+- orient
 contract:
   input:
     topic: string
@@ -11,13 +15,12 @@ contract:
     new_level: integer
     action: string
     reason: string
-  energy_cap: 2048
-  visibility: Shared
-
+energy_cap: 2048
+visibility: Shared
 ---
 {# Template: grill-me/grill-me-escalate.j2 #}
 {# KnowAct — Difficulty escalation decision #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1

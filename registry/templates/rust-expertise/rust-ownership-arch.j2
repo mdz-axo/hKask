@@ -1,6 +1,12 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [design, structure, map, analyze, constrain, specify]
+lexicon_terms:
+- design
+- structure
+- map
+- analyze
+- constrain
+- specify
 contract:
   input:
     data_entities: array
@@ -15,9 +21,8 @@ contract:
     interior_mutability_justifications: array
     alternatives_considered: array
     architecture_notes: array
-  energy_cap: 5120
-  visibility: Shared
-
+energy_cap: 5120
+visibility: Shared
 ---
 {# Template: rust-expertise/rust-ownership-arch.j2 #}
 {# KnowAct — Architect ownership and borrowing patterns for Rust data structures #}

@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [trace, detect, assess, verify, evaluate]
+lexicon_terms:
+- trace
+- detect
+- assess
+- verify
+- evaluate
 contract:
   input:
     claim: string
@@ -9,13 +14,12 @@ contract:
     provenance_chain: array
     confidence_level: string
     recommendations_for_verification: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: pragmatic-semantics/semantics-provenance-trace.j2 #}
 {# KnowAct — Trace provenance of a claim through hKask data layers #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

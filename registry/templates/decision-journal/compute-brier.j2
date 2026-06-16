@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [score, brier, calibrate, probability, outcome, accuracy, aggregate]
+lexicon_terms:
+- score
+- brier
+- calibrate
+- probability
+- outcome
+- accuracy
+- aggregate
 contract:
   input:
     outcome_comparisons: array
@@ -10,15 +17,14 @@ contract:
     calibration_data: array
     overconfidence_detected: boolean
     underconfidence_detected: boolean
-  energy_cap: 2048
-  visibility: Shared
-
+energy_cap: 2048
+visibility: Shared
 ---
 {# Template: decision-journal/compute-brier.j2 #}
 {# Functional Role: KnowAct (knowledge-action — Brier score computation) #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: brier_scores, calibration_data #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1

@@ -1,6 +1,11 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [search, fetch, scrape, extract, web]
+lexicon_terms:
+- search
+- fetch
+- scrape
+- extract
+- web
 contract:
   input:
     query: string
@@ -12,12 +17,11 @@ contract:
     results: array
     total_found: integer
     search_metadata: object
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 # MCP Web — Web Search & Extract Template
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.1

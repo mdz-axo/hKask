@@ -1,6 +1,14 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [identify, relate, connect, subject, predicate, object, link, context]
+lexicon_terms:
+- identify
+- relate
+- connect
+- subject
+- predicate
+- object
+- link
+- context
 contract:
   input:
     source_text: string
@@ -9,15 +17,14 @@ contract:
     relations: array
     relation_count: integer
     orphan_entities: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: structured-extraction/extract-relations.j2 #}
 {# Functional Role: KnowAct (knowledge-action — relation extraction) #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: entity_relation_triples #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

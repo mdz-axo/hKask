@@ -1,6 +1,14 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [force, micro, proximate, factor, market, competitor, demand, regulatory]
+lexicon_terms:
+- force
+- micro
+- proximate
+- factor
+- market
+- competitor
+- demand
+- regulatory
 contract:
   input:
     refined_question: string
@@ -9,15 +17,14 @@ contract:
   output:
     key_forces: array
     clustered_themes: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: scenario/key-forces.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: key_forces_analysis #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.5

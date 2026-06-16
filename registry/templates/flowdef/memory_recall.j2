@@ -1,6 +1,11 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [recall, retrieve, remember, activate, salience]
+lexicon_terms:
+- recall
+- retrieve
+- remember
+- activate
+- salience
 contract:
   input:
     query: string
@@ -10,12 +15,11 @@ contract:
   output:
     facts: array
     recall_source: string
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 # Process — Memory Recall
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.1

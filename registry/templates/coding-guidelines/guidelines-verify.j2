@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [verify, evaluate, discriminate, calibrate, audit]
+lexicon_terms:
+- verify
+- evaluate
+- discriminate
+- calibrate
+- audit
 contract:
   input:
     task_description: string
@@ -13,13 +18,12 @@ contract:
     compliance_score: object
     passed: boolean
     recommendations: array
-  energy_cap: 5120
-  visibility: Shared
-
+energy_cap: 5120
+visibility: Shared
 ---
 {# Template: coding-guidelines/guidelines-verify.j2 #}
 {# KnowAct — Post-implementation verification against Karpathy principles #}
-{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1

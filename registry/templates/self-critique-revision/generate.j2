@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [generate, draft, produce, initial, quality, baseline]
+lexicon_terms:
+- generate
+- draft
+- produce
+- initial
+- quality
+- baseline
 contract:
   input:
     task_prompt: string
@@ -9,13 +15,12 @@ contract:
     output: string
     initial_quality_score: number
     draft_number: integer
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: self-critique-revision/generate.j2 #}
 {# Process — Initial output generation #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.4

@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [synthesize, grounded, cite, source, context, attribute, generate]
+lexicon_terms:
+- synthesize
+- grounded
+- cite
+- source
+- context
+- attribute
+- generate
 contract:
   input:
     query: string
@@ -14,11 +21,10 @@ contract:
     confidence: number
 energy_cap: 8192
 visibility: Shared
-
 ---
 {# Template: rag/synthesize-grounded.j2 #}
 {# Process — Grounded answer synthesis from retrieved context #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

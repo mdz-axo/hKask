@@ -1,6 +1,14 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [implication, indicator, robust, contingent, strategy, tripwire, monitor, hedge]
+lexicon_terms:
+- implication
+- indicator
+- robust
+- contingent
+- strategy
+- tripwire
+- monitor
+- hedge
 contract:
   input:
     refined_question: string
@@ -11,15 +19,14 @@ contract:
     contingent_strategies: array
     early_indicators: array
     monitoring_plan: string
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: scenario/implications-indicators.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: implications_and_indicators #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.4

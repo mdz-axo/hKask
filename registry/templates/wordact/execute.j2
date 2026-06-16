@@ -1,18 +1,21 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [execute, respond, complete, dispatch]
+lexicon_terms:
+- execute
+- respond
+- complete
+- dispatch
 contract:
   input:
     rendered_prompt: string
   output:
     response: string
     tokens_used: integer
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 # Prompt — Template Executor
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.5

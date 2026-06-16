@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [query, reformulate, decompose, expand, sub-question, intent]
+lexicon_terms:
+- query
+- reformulate
+- decompose
+- expand
+- sub-question
+- intent
 contract:
   input:
     query: string
@@ -13,11 +19,10 @@ contract:
     expansion_terms: array
 energy_cap: 2048
 visibility: Shared
-
 ---
 {# Template: rag/reformulate-query.j2 #}
 {# Process — Query reformulation for improved retrieval #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

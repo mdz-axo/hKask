@@ -1,6 +1,13 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [critique, evaluate, contradiction, gap, confidence, calibration, verify]
+lexicon_terms:
+- critique
+- evaluate
+- contradiction
+- gap
+- confidence
+- calibration
+- verify
 contract:
   input:
     agent_identity: string
@@ -21,12 +28,11 @@ contract:
     tools_available: array|null
   output:
     critique: object
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 # Review — Self-Critique Template
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.2

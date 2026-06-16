@@ -1,6 +1,11 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [compose, synthesize, structure, redact, document]
+lexicon_terms:
+- compose
+- synthesize
+- structure
+- redact
+- document
 contract:
   input:
     session_purpose: string
@@ -17,13 +22,12 @@ contract:
     output_path: string
     sections_count: integer
     redaction_count: integer
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: handoff/handoff-compose.j2 #}
 {# Composition — Final handoff document assembly #}
-{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

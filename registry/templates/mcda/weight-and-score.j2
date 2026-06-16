@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [weight, score, normalize, aggregate, method, direct, swing]
+lexicon_terms:
+- weight
+- score
+- normalize
+- aggregate
+- method
+- direct
+- swing
 contract:
   input:
     decision_question: string
@@ -13,11 +20,10 @@ contract:
     composite_scores: array
 energy_cap: 8192
 visibility: Shared
-
 ---
 {# Template: mcda/weight-and-score.j2 #}
 {# Process — Criteria weighting, alternative scoring, and composite aggregation #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

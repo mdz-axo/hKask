@@ -1,6 +1,16 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [defend, sanitize, isolate, canary, restrict, monitor, audit, layer, mitigate, tradeoff]
+lexicon_terms:
+- defend
+- sanitize
+- isolate
+- canary
+- restrict
+- monitor
+- audit
+- layer
+- mitigate
+- tradeoff
 contract:
   input:
     input_text: string
@@ -11,15 +21,14 @@ contract:
     critical_gaps: array
     rust_level_changes: array
     summary: string
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: prompt-defense/recommend-defenses.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: defense_recommendations #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

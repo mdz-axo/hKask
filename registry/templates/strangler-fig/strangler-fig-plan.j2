@@ -1,6 +1,12 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [assess, map, classify, orient, plan, sequence]
+lexicon_terms:
+- assess
+- map
+- classify
+- orient
+- plan
+- sequence
 contract:
   input:
     migration_target: string
@@ -15,9 +21,8 @@ contract:
     migration_plan: array
     risk_assessment: object
     assumptions: array
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: strangler-fig/strangler-fig-plan.j2 #}
 {# KnowAct — Domain mapping and migration sequencing for Strangler Fig pattern #}

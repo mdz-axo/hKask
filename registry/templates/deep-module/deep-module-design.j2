@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [design, simplify, constrain, specify, structure]
+lexicon_terms:
+- design
+- simplify
+- constrain
+- specify
+- structure
 contract:
   input:
     deletion_test_result: object
@@ -14,9 +19,8 @@ contract:
     error_design: object
     config_design: object
     depth_projection: object
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: deep-module/deep-module-design.j2 #}
 {# KnowAct — Design a deep module interface from deletion test results #}

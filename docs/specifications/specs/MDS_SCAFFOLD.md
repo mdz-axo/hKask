@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Maps the MDS 5-category taxonomy to directory locations and enforces the lifecycle policy. Two jobs, nothing else.
 
-**Role:** This document tells you what documentation to produce and where to put it. Verification that what you produced is correct is governed by [`DOCUMENTATION_STANDARDS.md`](../standards/DOCUMENTATION_STANDARDS.md). Current inventory lives in [`docs/README.md`](../README.md) (portal) and [`docs/status/corpus_inventory.yaml`](../../status/corpus_inventory.yaml) (lifecycle classification) — this scaffold does not duplicate them.
+**Role:** This document tells you what documentation to produce and where to put it. Verification that what you produced is correct is governed by [`DOCUMENTATION_STANDARDS.md`](../standards/DOCUMENTATION_STANDARDS.md). Current inventory lives in [`docs/README.md`](../../README.md) (portal) and [`docs/status/corpus_inventory.yaml`](../../status/corpus_inventory.yaml) (lifecycle classification) — this scaffold does not duplicate them.
 
 **MDS Reference:** [`architecture/MDS.md`](../../architecture/core/MDS.md)
 

@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [probe, instrument, constrain, isolate, verify]
+lexicon_terms:
+- probe
+- instrument
+- constrain
+- isolate
+- verify
 contract:
   input:
     bug_description: string
@@ -12,13 +17,12 @@ contract:
     diagnostic_tags: array
     probe_type: string
     isolation_strategy: string
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: diagnose/diagnose-instrument.j2 #}
 {# KnowAct — Targeted instrumentation mapped to hypotheses #}
-{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

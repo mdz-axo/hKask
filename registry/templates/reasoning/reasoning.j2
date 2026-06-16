@@ -1,6 +1,12 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [reason, derive, fact, atomic, confidence, evidence]
+lexicon_terms:
+- reason
+- derive
+- fact
+- atomic
+- confidence
+- evidence
 contract:
   input:
     agent_identity: string
@@ -13,12 +19,11 @@ contract:
     constraints: array|null
   output:
     facts: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 # Reasoning — Atomic Fact Extraction Template
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.2

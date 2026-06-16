@@ -1,6 +1,14 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [corrective, action, prevent, verify, assign, owner, deadline, systemic]
+lexicon_terms:
+- corrective
+- action
+- prevent
+- verify
+- assign
+- owner
+- deadline
+- systemic
 contract:
   input:
     problem_statement: string
@@ -10,15 +18,14 @@ contract:
     corrective_actions: array
     systemic_improvements: array
     verification_plan: string
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: rca/corrective-action.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: corrective_action_plan #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

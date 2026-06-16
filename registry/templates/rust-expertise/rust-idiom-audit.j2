@@ -1,6 +1,13 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [audit, detect, classify, evaluate, score, verify, analyze]
+lexicon_terms:
+- audit
+- detect
+- classify
+- evaluate
+- score
+- verify
+- analyze
 contract:
   input:
     code_snippets: array
@@ -11,9 +18,8 @@ contract:
     compliance_scores: object
     corrective_recommendations: array
     audit_summary: string
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: rust-expertise/rust-idiom-audit.j2 #}
 {# KnowAct — Audit Rust code for idiomatic compliance across six dimensions #}

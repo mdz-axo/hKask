@@ -1,37 +1,58 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [evaluate, score, diagnose, assess, compare, recommend]
+lexicon_terms:
+- evaluate
+- score
+- diagnose
+- assess
+- compare
+- recommend
 contract:
   input:
     dimension_scores:
       type: object
-      description: "Per-dimension cosine distance scores from replica_compare"
+      description: Per-dimension cosine distance scores from replica_compare
       properties:
-        gentle: { type: float, description: "Agent-correctness (Gentle dimension)" }
-        schriver: { type: float, description: "Findability (Schriver dimension)" }
-        hopper: { type: float, description: "Accessibility (Hopper dimension)" }
-        lovelace: { type: float, description: "Precision (Lovelace dimension)" }
-        composite: { type: float, description: "Weighted composite score" }
+        gentle:
+          type: float
+          description: Agent-correctness (Gentle dimension)
+        schriver:
+          type: float
+          description: Findability (Schriver dimension)
+        hopper:
+          type: float
+          description: Accessibility (Hopper dimension)
+        lovelace:
+          type: float
+          description: Precision (Lovelace dimension)
+        composite:
+          type: float
+          description: Weighted composite score
     document_type:
       type: string
-      description: "Document type per MDS_SCAFFOLD.md §2"
+      description: Document type per MDS_SCAFFOLD.md §2
     exemplar_context:
       type: array
-      description: "Retrieved exemplar passages for qualitative reference"
+      description: Retrieved exemplar passages for qualitative reference
   output:
     summary: string
     dimension_scores:
       type: object
       properties:
-        accessibility: { type: float }
-        precision: { type: float }
-        findability: { type: float }
-        agent_correctness: { type: float }
-    overall_score: { type: float }
-    recommendations: { type: array }
-  energy_cap: 2048
-  visibility: Shared
-
+        accessibility:
+          type: float
+        precision:
+          type: float
+        findability:
+          type: float
+        agent_correctness:
+          type: float
+    overall_score:
+      type: float
+    recommendations:
+      type: array
+energy_cap: 2048
+visibility: Shared
 ---
 # Gentle Lovelace — Writing Quality Evaluation Report
 # hKask v0.27.0 — Replica Comparison Template

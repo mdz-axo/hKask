@@ -1,44 +1,63 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [sequence, iterate, evaluate, classify, discriminate, verify, audit, simplify, reduce, calibrate]
+lexicon_terms:
+- sequence
+- iterate
+- evaluate
+- classify
+- discriminate
+- verify
+- audit
+- simplify
+- reduce
+- calibrate
 contract:
   input:
     artifact:
       type: artifact
-      description: "The artifact to interrogate (module, function, trait, type, or interface)"
+      description: The artifact to interrogate (module, function, trait, type, or
+        interface)
     code_context:
       type: object
-      description: "Surrounding code: callers, dependencies, module structure"
+      description: 'Surrounding code: callers, dependencies, module structure'
     mode:
       type: string
-      enum: [autonomous, advisory]
-      default: "advisory"
-      description: "autonomous = agent evaluates/reduces without pause; advisory = agent presents findings, awaits human accept/reject/override per gate"
+      enum:
+      - autonomous
+      - advisory
+      default: advisory
+      description: autonomous = agent evaluates/reduces without pause; advisory =
+        agent presents findings, awaits human accept/reject/override per gate
     max_rounds:
       type: integer
       default: 3
-      description: "Maximum full G1→G2→G3 rounds before escalation"
+      description: Maximum full G1→G2→G3 rounds before escalation
     max_retries_per_gate:
       type: integer
       default: 3
-      description: "Agent-level retries per gate before escalating to human"
+      description: Agent-level retries per gate before escalating to human
     scope:
       type: string
-      default: "auto"
-      description: "Initial scope: 'auto' (full artifact), 'public', 'internal', or explicit path"
+      default: auto
+      description: 'Initial scope: ''auto'' (full artifact), ''public'', ''internal'',
+        or explicit path'
   output:
     elimination_report:
       type: object
-      description: "Full report: deletions per gate, constraint-force breakdown (required vs suggested), essentialism score, escalation flag, human decisions (if advisory)"
+      description: 'Full report: deletions per gate, constraint-force breakdown (required
+        vs suggested), essentialism score, escalation flag, human decisions (if advisory)'
     surviving_artifact:
       type: artifact
-      description: "The artifact after all gates pass (may be reduced or empty)"
+      description: The artifact after all gates pass (may be reduced or empty)
     status:
       type: string
-      enum: [completed, escalated, aborted, awaiting_human]
-  energy_cap: 12288
-  visibility: Shared
-
+      enum:
+      - completed
+      - escalated
+      - aborted
+      - awaiting_human
+energy_cap: 12288
+visibility: Shared
 ---
 {# Template: essentialist/essentialist-flow.j2 #}
 {# FlowDef — 3-gate eliminative interrogation loop #}

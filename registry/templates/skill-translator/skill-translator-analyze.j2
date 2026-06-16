@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [detect, classify, analyze, discriminate, orient]
+lexicon_terms:
+- detect
+- classify
+- analyze
+- discriminate
+- orient
 contract:
   input:
     source_skill_content: string
@@ -9,13 +14,12 @@ contract:
     format_analysis: object
     step_classifications: array
     translation_feasibility: string
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: skill-translator/skill-translator-analyze.j2 #}
 {# KnowAct — Source skill format analysis #}
-{# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

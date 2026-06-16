@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [catalog, reference, classify, detect, redact]
+lexicon_terms:
+- catalog
+- reference
+- classify
+- detect
+- redact
 contract:
   input:
     session_context: object
@@ -9,13 +14,12 @@ contract:
   output:
     artifacts: array
     redacted_fields: array
-  energy_cap: 3072
-  visibility: Shared
-
+energy_cap: 3072
+visibility: Shared
 ---
 {# Template: handoff/handoff-artifacts.j2 #}
 {# KnowAct — Artifact catalog and sensitive data redaction #}
-{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1

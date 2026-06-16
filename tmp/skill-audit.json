@@ -6,9 +6,9 @@
     "zed_only": 1,
     "registry_only": 36,
     "active": 23,
-    "stale_warning": 11,
+    "stale_warning": 12,
     "critical": 6,
-    "recommend_deprecation": 26
+    "recommend_deprecation": 25
   },
   "skills": [
     {
@@ -42,10 +42,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "target_output": "string",
               "domain": "string",
@@ -85,9 +85,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -99,10 +99,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "target_output": "string",
               "domain": "string",
@@ -132,9 +132,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -146,10 +146,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "target_output": "string",
               "target_domain": "string",
@@ -181,9 +181,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -195,10 +195,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "target_output": "string",
               "domain": "string",
@@ -230,9 +230,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -300,10 +300,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "draft_response": "string",
               "context_topic": "string"
@@ -326,9 +326,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -337,12 +337,10 @@
         "has_wordact": true,
         "has_knowact": false
       },
-      "health_score": 0.73,
+      "health_score": 0.75,
       "status": "stale_warning",
       "top_defects": [
-        "missing Zed layer (SKILL.md)",
-        "caveman-compress.j2: energy_cap nested under contract (spec says top-level)",
-        "caveman-compress.j2: visibility nested under contract (spec says top-level)"
+        "missing Zed layer (SKILL.md)"
       ]
     },
     {
@@ -376,10 +374,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "source_text": "string",
               "prior_summary": "string",
@@ -414,9 +412,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -428,10 +426,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "source_text": "string",
               "target_length": "integer"
@@ -460,9 +458,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -471,7 +469,7 @@
         "has_wordact": false,
         "has_knowact": false
       },
-      "health_score": 0.31999999999999995,
+      "health_score": 0.36,
       "status": "critical",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -633,10 +631,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "task_description": "string",
               "assumptions": "array",
@@ -661,9 +659,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -675,10 +673,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 5120,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "task_description": "string",
               "code_context": "object"
@@ -701,9 +699,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -715,10 +713,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 5120,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "task_description": "string",
               "assumptions": "array",
@@ -743,9 +741,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -754,13 +752,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.94,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "guidelines-apply.j2: energy_cap nested under contract (spec says top-level)",
-        "guidelines-apply.j2: visibility nested under contract (spec says top-level)",
-        "guidelines-assess.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "condenser-continuation",
@@ -870,10 +864,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 3000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "restored_context": "object",
               "prioritized_tasks": "array",
@@ -896,9 +890,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -910,10 +904,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "accomplishments": "array",
               "condenser_status": "string",
@@ -937,9 +931,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -951,10 +945,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "session_context": "object",
               "next_focus": "string"
@@ -980,9 +974,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -994,10 +988,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 3000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "target_crates": "array",
               "check_commands": "array",
@@ -1022,9 +1016,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -1033,12 +1027,11 @@
         "has_wordact": true,
         "has_knowact": true
       },
-      "health_score": 0.8299999999999998,
+      "health_score": 0.9099999999999999,
       "status": "active",
       "top_defects": [
-        "condenser-continuation-compose.j2: energy_cap nested under contract (spec says top-level)",
-        "condenser-continuation-compose.j2: visibility nested under contract (spec says top-level)",
-        "condenser-continuation-prioritize.j2: energy_cap nested under contract (spec says top-level)"
+        "condenser-continuation-restore.j2: unknown hlexicon terms ['restore']",
+        "condenser-continuation-verify.j2: unknown hlexicon terms ['check', 'test']"
       ]
     },
     {
@@ -1110,10 +1103,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "statement": "string",
               "context": "string"
@@ -1136,9 +1129,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -1150,10 +1143,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "constraint_a": "string",
               "constraint_b": "string",
@@ -1175,9 +1168,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -1186,13 +1179,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.96,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "constraint-forces-classify.j2: energy_cap nested under contract (spec says top-level)",
-        "constraint-forces-classify.j2: visibility nested under contract (spec says top-level)",
-        "constraint-forces-resolve.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "curator",
@@ -1411,10 +1400,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "orientation": "string",
               "mode": "string",
@@ -1440,9 +1429,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -1454,10 +1443,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "query": "string"
             },
@@ -1481,9 +1470,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -1492,7 +1481,7 @@
         "has_wordact": true,
         "has_knowact": false
       },
-      "health_score": 0.31999999999999995,
+      "health_score": 0.36,
       "status": "critical",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -1531,10 +1520,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "outcome_comparisons": "array"
             },
@@ -1563,9 +1552,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -1577,10 +1566,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "decision": "string",
               "context": "string",
@@ -1613,9 +1602,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -1627,10 +1616,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "decision": "string",
               "context": "string",
@@ -1667,9 +1656,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -1681,10 +1670,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "decision_record": "object",
               "expected_outcomes": "array",
@@ -1716,9 +1705,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -1825,10 +1814,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "module_path": "string",
               "module_source": "string",
@@ -1871,10 +1860,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "module_assessment": "object",
               "caller_code": "object",
@@ -1915,10 +1904,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "deletion_test_result": "object",
               "domain_requirements": "object",
@@ -1959,8 +1948,7 @@
       "status": "active",
       "top_defects": [
         "deep-module-assess.j2: unknown hlexicon terms ['count', 'estimate']",
-        "deep-module-assess.j2: energy_cap nested under contract (spec says top-level)",
-        "deep-module-assess.j2: visibility nested under contract (spec says top-level)"
+        "deep-module-delete.j2: unknown hlexicon terms ['delete']"
       ]
     },
     {
@@ -2066,10 +2054,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "bug_description": "string",
               "hypothesis": "string",
@@ -2097,9 +2085,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -2111,10 +2099,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "bug_description": "string",
               "symptom": "string",
@@ -2137,9 +2125,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -2151,10 +2139,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "bug_description": "string",
               "hypotheses": "array",
@@ -2178,9 +2166,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -2192,10 +2180,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "bug_description": "string",
               "crate_scope": "string",
@@ -2220,9 +2208,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -2231,13 +2219,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.9199999999999999,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "diagnose-fix.j2: energy_cap nested under contract (spec says top-level)",
-        "diagnose-fix.j2: visibility nested under contract (spec says top-level)",
-        "diagnose-hypothesise.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "document-update",
@@ -2667,10 +2651,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 12288,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "artifact": {
                 "type": "artifact",
@@ -2757,9 +2741,7 @@
       "health_score": 0.94,
       "status": "active",
       "top_defects": [
-        "essentialist-flow.j2: unknown hlexicon terms ['iterate', 'reduce']",
-        "essentialist-flow.j2: energy_cap nested under contract (spec says top-level)",
-        "essentialist-flow.j2: visibility nested under contract (spec says top-level)"
+        "essentialist-flow.j2: unknown hlexicon terms ['iterate', 'reduce']"
       ]
     },
     {
@@ -2793,10 +2775,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "tool_name": "string",
               "tool_input": "object",
@@ -2822,9 +2804,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -2836,10 +2818,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "query": "string",
               "visibility": "string",
@@ -2867,9 +2849,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -2878,7 +2860,7 @@
         "has_wordact": false,
         "has_knowact": false
       },
-      "health_score": 0.2899999999999999,
+      "health_score": 0.32999999999999996,
       "status": "critical",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -2917,10 +2899,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "dimension_scores": {
                 "type": "object",
@@ -3558,10 +3540,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "topic": "string",
               "all_answers": "array",
@@ -3583,9 +3565,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -3597,10 +3579,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "topic": "string",
               "current_level": "integer",
@@ -3622,9 +3604,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -3636,10 +3618,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "topic": "string",
               "current_level": "integer",
@@ -3667,9 +3649,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -3678,13 +3660,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.94,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "grill-me-assess.j2: energy_cap nested under contract (spec says top-level)",
-        "grill-me-assess.j2: visibility nested under contract (spec says top-level)",
-        "grill-me-escalate.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "handoff",
@@ -3790,10 +3768,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 3072,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "session_context": "object",
               "project_root": "string",
@@ -3814,9 +3792,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -3828,10 +3806,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "next_session_focus": "string",
               "session_context": "object"
@@ -3853,9 +3831,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -3867,10 +3845,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "session_purpose": "string",
               "progress_summary": "array",
@@ -3899,9 +3877,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -3913,10 +3891,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "next_session_focus": "string",
               "current_state": "string",
@@ -3938,9 +3916,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -3949,13 +3927,9 @@
         "has_wordact": true,
         "has_knowact": true
       },
-      "health_score": 0.9199999999999999,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "handoff-artifacts.j2: energy_cap nested under contract (spec says top-level)",
-        "handoff-artifacts.j2: visibility nested under contract (spec says top-level)",
-        "handoff-compact.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "improv",
@@ -4267,10 +4241,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "friction_points": "array",
               "shallow_modules": "array",
@@ -4293,9 +4267,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -4307,10 +4281,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "selected_candidate": "object",
               "focus_area": "string",
@@ -4335,9 +4309,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -4349,10 +4323,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "focus_area": "string",
               "code_context": "object",
@@ -4375,9 +4349,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -4386,13 +4360,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.94,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "arch-candidates.j2: energy_cap nested under contract (spec says top-level)",
-        "arch-candidates.j2: visibility nested under contract (spec says top-level)",
-        "arch-deepen.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "inference",
@@ -5320,10 +5290,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "drift_analysis": "object",
               "current_behavior": "object",
@@ -5349,9 +5319,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5363,10 +5333,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "agent_id": "string",
               "behavior_history": "array",
@@ -5391,9 +5361,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5405,10 +5375,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "text": "string",
               "expectations": "array",
@@ -5432,9 +5402,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5446,10 +5416,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "input_criticism": "string",
               "context": "string",
@@ -5475,9 +5445,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5489,10 +5459,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "cycle_outcomes": "array",
               "strategy_used": "string",
@@ -5517,9 +5487,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -5528,8 +5498,8 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.16999999999999998,
-      "status": "recommend_deprecation",
+      "health_score": 0.27,
+      "status": "critical",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
@@ -5621,10 +5591,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "principle": "string",
               "version": "string",
@@ -5646,9 +5616,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5660,10 +5630,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "principle": "string",
               "version": "string",
@@ -5686,9 +5656,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5700,10 +5670,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "principle": "string",
               "assertions": "array",
@@ -5724,9 +5694,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -5735,13 +5705,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.94,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "mc-verify-procedure.j2: energy_cap nested under contract (spec says top-level)",
-        "mc-verify-procedure.j2: visibility nested under contract (spec says top-level)",
-        "mc-verify-report.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "mcda",
@@ -5808,9 +5774,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5855,9 +5821,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5905,9 +5871,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -5953,9 +5919,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -6003,10 +5969,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "session_transcript": "string",
               "max_tokens": "integer|null",
@@ -6035,9 +6001,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -6049,10 +6015,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "document_content": "string",
               "document_type": "string",
@@ -6078,9 +6044,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -6092,10 +6058,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "prompt": "string",
               "temperature": "float|null",
@@ -6124,9 +6090,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -6138,10 +6104,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "research_query": "string",
               "databases": "array|null",
@@ -6171,9 +6137,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -6185,10 +6151,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "query": "string",
               "sources": "array|null",
@@ -6216,9 +6182,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -6227,7 +6193,7 @@
         "has_wordact": true,
         "has_knowact": false
       },
-      "health_score": 0.049999999999999975,
+      "health_score": 0.15000000000000002,
       "status": "recommend_deprecation",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -6436,10 +6402,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "goal": "string",
               "session_history": "string|null",
@@ -6468,9 +6434,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -6479,7 +6445,7 @@
         "has_wordact": false,
         "has_knowact": false
       },
-      "health_score": 0.45999999999999996,
+      "health_score": 0.48,
       "status": "critical",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -6575,10 +6541,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "loop_description": "string",
               "system_context": "string"
@@ -6603,9 +6569,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -6617,10 +6583,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "system_variety": "string",
               "regulator_variety": "string"
@@ -6642,9 +6608,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -6656,10 +6622,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "focus_area": "string"
             },
@@ -6679,9 +6645,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -6690,13 +6656,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.94,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "cybernetics-analyze-loop.j2: energy_cap nested under contract (spec says top-level)",
-        "cybernetics-analyze-loop.j2: visibility nested under contract (spec says top-level)",
-        "cybernetics-variety-check.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "pragmatic-laziness",
@@ -6779,10 +6741,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "current_config": {
                 "type": "object",
@@ -6856,10 +6818,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 12288,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "situation": {
                 "type": "string",
@@ -6948,8 +6910,7 @@
       "status": "active",
       "top_defects": [
         "pragmatic-laziness-converge.j2: unknown hlexicon terms ['compare']",
-        "pragmatic-laziness-converge.j2: energy_cap nested under contract (spec says top-level)",
-        "pragmatic-laziness-converge.j2: visibility nested under contract (spec says top-level)"
+        "pragmatic-laziness-flow.j2: unknown hlexicon terms ['identify', 'eliminate', 'iterate', 'delegate']"
       ]
     },
     {
@@ -7038,10 +6999,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "statement": "string",
               "system_context": "string"
@@ -7065,9 +7026,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7079,10 +7040,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "conflicting_statements": "array",
               "context": "string"
@@ -7104,9 +7065,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7118,10 +7079,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "claim": "string",
               "available_evidence": "string"
@@ -7142,9 +7103,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -7153,13 +7114,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.94,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "semantics-classify-statement.j2: energy_cap nested under contract (spec says top-level)",
-        "semantics-classify-statement.j2: visibility nested under contract (spec says top-level)",
-        "semantics-conflict-resolve.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "pragmatics",
@@ -7212,10 +7169,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "input_text": "string",
               "agent_context": "object",
@@ -7249,9 +7206,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7263,10 +7220,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "input_text": "string",
               "defense_level": "string"
@@ -7299,9 +7256,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7313,10 +7270,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "input_text": "string",
               "threat_classification": "array",
@@ -7352,9 +7309,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -7434,9 +7391,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7484,9 +7441,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7533,9 +7490,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -7544,7 +7501,7 @@
         "has_wordact": false,
         "has_knowact": false
       },
-      "health_score": 0.08999999999999996,
+      "health_score": 0.15,
       "status": "recommend_deprecation",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -7583,10 +7540,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "problem_statement": "string",
               "validated_root_causes": "array",
@@ -7619,9 +7576,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7633,10 +7590,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "problem_description": "string",
               "context": "string",
@@ -7670,9 +7627,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7684,10 +7641,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "problem_statement": "string",
               "prioritized_causes": "array"
@@ -7719,9 +7676,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7733,10 +7690,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "problem_statement": "string",
               "context": "string",
@@ -7776,9 +7733,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -7826,10 +7783,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "agent_identity": "string",
               "active_project": "string",
@@ -7867,9 +7824,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -7881,10 +7838,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "agent_identity": "string",
               "active_project": "string",
@@ -7917,9 +7874,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -7928,7 +7885,7 @@
         "has_wordact": true,
         "has_knowact": false
       },
-      "health_score": 0.22999999999999995,
+      "health_score": 0.26999999999999996,
       "status": "critical",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -8029,10 +7986,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "focus_area": "string",
               "code_context": "object",
@@ -8060,9 +8017,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -8074,10 +8031,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "domain": "string",
               "service_module_name": "string",
@@ -8111,9 +8068,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -8125,10 +8082,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "domain": "string",
               "migration_phase": "string",
@@ -8155,9 +8112,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -8166,11 +8123,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.9099999999999999,
+      "health_score": 0.97,
       "status": "active",
       "top_defects": [
-        "rsl-audit.j2: energy_cap nested under contract (spec says top-level)",
-        "rsl-audit.j2: visibility nested under contract (spec says top-level)",
         "rsl-strangle.j2: unknown hlexicon terms ['migrate']"
       ]
     },
@@ -8350,10 +8305,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "agent_identity": "string",
               "active_project": "string",
@@ -8392,9 +8347,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -8403,8 +8358,8 @@
         "has_wordact": true,
         "has_knowact": false
       },
-      "health_score": 0.49,
-      "status": "critical",
+      "health_score": 0.51,
+      "status": "stale_warning",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
         "missing manifest.yaml",
@@ -8568,10 +8523,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "failure_modes": "array",
               "crate_type": "string",
@@ -8612,10 +8567,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "code_snippets": "array",
               "audit_dimensions": "array",
@@ -8654,10 +8609,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 5120,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "data_entities": "array",
               "ownership_conflicts": "array",
@@ -8699,10 +8654,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "design_problem": "string",
               "code_context": "object",
@@ -8745,10 +8700,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "violations": "array",
               "codebase_context": "string",
@@ -8790,10 +8745,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 5120,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "unsafe_code": "string",
               "safety_invariants": "array",
@@ -8833,10 +8788,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 5120,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "type_name": "string",
               "invariant": "string",
@@ -8878,11 +8833,7 @@
       },
       "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "rust-error-design.j2: energy_cap nested under contract (spec says top-level)",
-        "rust-error-design.j2: visibility nested under contract (spec says top-level)",
-        "rust-idiom-audit.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "scenario",
@@ -8915,10 +8866,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "refined_question": "string",
               "critical_uncertainties": "array",
@@ -8956,9 +8907,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -8970,10 +8921,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "refined_question": "string",
               "key_forces": "array"
@@ -9010,9 +8961,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9024,10 +8975,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "focal_question": "string",
               "planning_horizon": "string",
@@ -9061,9 +9012,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9075,10 +9026,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "refined_question": "string",
               "scenarios": "array"
@@ -9112,9 +9063,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9126,10 +9077,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "refined_question": "string",
               "planning_horizon": "string",
@@ -9162,9 +9113,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -9212,10 +9163,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "task_prompt": "string",
               "current_output": "string",
@@ -9244,9 +9195,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9258,10 +9209,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "task_prompt": "string",
               "quality_criteria": "array"
@@ -9290,9 +9241,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9304,10 +9255,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "task_prompt": "string",
               "current_output": "string",
@@ -9341,9 +9292,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -9352,7 +9303,7 @@
         "has_wordact": false,
         "has_knowact": false
       },
-      "health_score": 0.11999999999999998,
+      "health_score": 0.18000000000000002,
       "status": "recommend_deprecation",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -9442,10 +9393,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "skill_names": "array",
               "existing_bundles": "array"
@@ -9466,9 +9417,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9480,10 +9431,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "bundle_name": "string",
               "current_manifest": "object",
@@ -9504,9 +9455,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9518,10 +9469,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "bundle_manifest": "object"
             },
@@ -9541,9 +9492,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.23.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -9552,13 +9503,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.94,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "bundler-compose.j2: energy_cap nested under contract (spec says top-level)",
-        "bundler-compose.j2: visibility nested under contract (spec says top-level)",
-        "bundler-evolve.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "skill-discovery",
@@ -9630,10 +9577,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "task_patterns": "array",
               "existing_skills": "array"
@@ -9653,9 +9600,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.24.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9667,10 +9614,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "candidate_skill_content": "string"
             },
@@ -9692,9 +9639,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.24.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -9703,13 +9650,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.96,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "skill-discovery-detect-gap.j2: energy_cap nested under contract (spec says top-level)",
-        "skill-discovery-detect-gap.j2: visibility nested under contract (spec says top-level)",
-        "skill-discovery-evaluate.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "skill-maintenance",
@@ -9782,10 +9725,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "skill_name": "string",
               "workspace_context": "object"
@@ -9807,9 +9750,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.24.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9821,10 +9764,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "existing_skills": "array",
               "task_patterns": "array"
@@ -9846,9 +9789,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.24.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -9857,13 +9800,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.96,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "skill-maintenance-audit.j2: energy_cap nested under contract (spec says top-level)",
-        "skill-maintenance-audit.j2: visibility nested under contract (spec says top-level)",
-        "skill-maintenance-coverage.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "skill-manager",
@@ -9936,10 +9875,10 @@
             "ddmvss_alias": false,
             "visibility": "Private",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "skill_description": "string",
               "scope": "string"
@@ -9961,9 +9900,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.24.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -9975,10 +9914,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "skill_name": "string",
               "skills_directory": "string"
@@ -9999,9 +9938,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.24.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -10010,13 +9949,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.96,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "skill-manager-build.j2: energy_cap nested under contract (spec says top-level)",
-        "skill-manager-build.j2: visibility nested under contract (spec says top-level)",
-        "skill-manager-validate.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "skill-translator",
@@ -10089,10 +10024,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "source_skill_content": "string",
               "source_format_hint": "string"
@@ -10113,9 +10048,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.24.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -10127,10 +10062,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "source_skill": "string",
               "format_analysis": "object",
@@ -10151,9 +10086,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.24.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -10162,13 +10097,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.96,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "skill-translator-analyze.j2: energy_cap nested under contract (spec says top-level)",
-        "skill-translator-analyze.j2: visibility nested under contract (spec says top-level)",
-        "skill-translator-translate.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "spec",
@@ -10448,10 +10379,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "migration_plan": "object",
               "current_step": "object",
@@ -10494,10 +10425,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "migration_target": "string",
               "current_architecture": "string",
@@ -10539,10 +10470,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "migration_plan": "object",
               "current_state": "object",
@@ -10581,9 +10512,7 @@
       "health_score": 0.91,
       "status": "active",
       "top_defects": [
-        "strangler-fig-execute.j2: unknown hlexicon terms ['execute', 'wire', 'migrate']",
-        "strangler-fig-execute.j2: energy_cap nested under contract (spec says top-level)",
-        "strangler-fig-execute.j2: visibility nested under contract (spec says top-level)"
+        "strangler-fig-execute.j2: unknown hlexicon terms ['execute', 'wire', 'migrate']"
       ]
     },
     {
@@ -10617,10 +10546,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "source_text": "string",
               "entities": "array"
@@ -10653,9 +10582,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -10667,10 +10596,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "source_text": "string",
               "target_schema": "object",
@@ -10699,9 +10628,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -10713,10 +10642,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "source_text": "string",
               "target_schema": "object",
@@ -10751,9 +10680,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -10762,7 +10691,7 @@
         "has_wordact": false,
         "has_knowact": false
       },
-      "health_score": 0.02999999999999999,
+      "health_score": 0.09,
       "status": "recommend_deprecation",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -11131,10 +11060,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "spec_requirements": "array",
               "tested_behaviors": "array",
@@ -11173,10 +11102,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "task_description": "string",
               "crate_scope": "string",
@@ -11217,10 +11146,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 6144,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "crate_scope": "string",
               "passing_tests": "array",
@@ -11257,10 +11186,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "behavior_description": "string",
               "spec_id": "string",
@@ -11303,10 +11232,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "crate_scope": "string",
               "behaviors_tested": "array",
@@ -11348,11 +11277,7 @@
       },
       "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "tdd-gap-check.j2: energy_cap nested under contract (spec says top-level)",
-        "tdd-gap-check.j2: visibility nested under contract (spec says top-level)",
-        "tdd-plan.j2: energy_cap nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "templates",
@@ -11614,10 +11539,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "rendered_prompt": "string"
             },
@@ -11640,9 +11565,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -11654,10 +11579,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 1000,
             "energy_cap_valid": false,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "template_source": "string",
               "bindings": "object"
@@ -11679,9 +11604,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -11693,10 +11618,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 2000,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "context": "string",
               "available_templates": "array"
@@ -11719,9 +11644,9 @@
             ],
             "body_present": true,
             "version_mentions": [
-              "v0.21.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           },
           {
@@ -11778,7 +11703,7 @@
         "has_wordact": true,
         "has_knowact": false
       },
-      "health_score": 0.009999999999999995,
+      "health_score": 0.07000000000000005,
       "status": "recommend_deprecation",
       "top_defects": [
         "missing Zed layer (SKILL.md)",
@@ -11837,10 +11762,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": true,
+            "visibility_misplaced": false,
             "energy_cap": 8192,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": true,
+            "energy_cap_misplaced": false,
             "contract_input": {
               "focus_module": "string",
               "focus_crate": "string",
@@ -11865,9 +11790,9 @@
             "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
-              "v0.22.0"
+              "v0.27.0"
             ],
-            "version_stale": true,
+            "version_stale": false,
             "defects": []
           }
         ],
@@ -11876,12 +11801,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.98,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "zoom-out-context.j2: energy_cap nested under contract (spec says top-level)",
-        "zoom-out-context.j2: visibility nested under contract (spec says top-level)"
-      ]
+      "top_defects": []
     }
   ]
 }

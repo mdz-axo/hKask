@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [condense, merge, density, entity, optimize, converge]
+lexicon_terms:
+- condense
+- merge
+- density
+- entity
+- optimize
+- converge
 contract:
   input:
     source_text: string
@@ -17,13 +23,12 @@ contract:
     density_improvement: number
     entities_added_this_pass: array
     converged: boolean
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: chain-of-density/density-pass.j2 #}
 {# Process — Density-increase pass (Gao et al. 2024) #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

@@ -1,6 +1,17 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [ishikawa, fishbone, brainstorm, category, 6m, machine, method, material, measurement, man, environment]
+lexicon_terms:
+- ishikawa
+- fishbone
+- brainstorm
+- category
+- 6m
+- machine
+- method
+- material
+- measurement
+- man
+- environment
 contract:
   input:
     problem_statement: string
@@ -10,15 +21,14 @@ contract:
     categories: object
     total_causes: integer
     prioritized_causes: array
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: rca/ishikawa-6m.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: ishikawa_6m_diagram #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.5

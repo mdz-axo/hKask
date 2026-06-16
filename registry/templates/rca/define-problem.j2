@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [define, problem, precise, measurable, scope, symptom, incident]
+lexicon_terms:
+- define
+- problem
+- precise
+- measurable
+- scope
+- symptom
+- incident
 contract:
   input:
     problem_description: string
@@ -12,15 +19,14 @@ contract:
     scope: object
     symptom_vs_cause: string
     precision_score: number
-  energy_cap: 2048
-  visibility: Shared
-
+energy_cap: 2048
+visibility: Shared
 ---
 {# Template: rca/define-problem.j2 #}
 {# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# produces: problem_definition #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

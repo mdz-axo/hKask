@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [execute, wire, verify, constrain, migrate]
+lexicon_terms:
+- execute
+- wire
+- verify
+- constrain
+- migrate
 contract:
   input:
     migration_plan: object
@@ -13,9 +18,8 @@ contract:
     rolled_back: boolean
     warnings: array
     next_step: object
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: strangler-fig/strangler-fig-execute.j2 #}
 {# KnowAct — Execute one domain migration step in the Strangler Fig pattern #}

@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [revise, improve, address, incorporate, refine, converge]
+lexicon_terms:
+- revise
+- improve
+- address
+- incorporate
+- refine
+- converge
 contract:
   input:
     task_prompt: string
@@ -15,13 +21,12 @@ contract:
     revised_quality_score: number
     quality_improvement: number
     draft_number: integer
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: self-critique-revision/revise.j2 #}
 {# Process — Revision based on critique #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

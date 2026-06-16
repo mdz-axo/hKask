@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [audit, detect, score, classify, recommend]
+lexicon_terms:
+- audit
+- detect
+- score
+- classify
+- recommend
 contract:
   input:
     skill_name: string
@@ -10,13 +15,12 @@ contract:
     health_scores: object
     coverage_gaps: array
     deprecation_recommendations: array
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: skill-maintenance/skill-maintenance-audit.j2 #}
 {# KnowAct — Skill staleness audit and health scoring #}
-{# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

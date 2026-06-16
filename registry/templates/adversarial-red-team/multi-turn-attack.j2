@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [probe, attack, multi-turn, drain, escalate, sequence, exploit]
+lexicon_terms:
+- probe
+- attack
+- multi-turn
+- drain
+- escalate
+- sequence
+- exploit
 contract:
   input:
     target_output: string
@@ -11,15 +18,14 @@ contract:
   output:
     multi_turn_scripts: array
     total_turns: integer
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: adversarial-red-team/multi-turn-attack.j2 #}
 {# Functional Role: FlowDef (multi-step adversarial probe script generation) #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: multi_turn_attack_scripts #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.7

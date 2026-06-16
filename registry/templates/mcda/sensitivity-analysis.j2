@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [sensitivity, perturbation, robustness, reversal, stability, tornado]
+lexicon_terms:
+- sensitivity
+- perturbation
+- robustness
+- reversal
+- stability
+- tornado
 contract:
   input:
     decision_question: string
@@ -15,11 +21,10 @@ contract:
     recommendation: string
 energy_cap: 8192
 visibility: Shared
-
 ---
 {# Template: mcda/sensitivity-analysis.j2 #}
 {# Process — Weight sensitivity analysis and robustness classification #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1

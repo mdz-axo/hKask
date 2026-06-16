@@ -1,41 +1,49 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [converge, compare, evaluate, verify, discriminate]
+lexicon_terms:
+- converge
+- compare
+- evaluate
+- verify
+- discriminate
 contract:
   input:
     current_config:
       type: object
-      description: "The current reduced configuration from the latest iteration"
+      description: The current reduced configuration from the latest iteration
     previous_config:
       type: object
-      description: "The configuration from the previous iteration (empty on first iteration)"
+      description: The configuration from the previous iteration (empty on first iteration)
     iteration:
       type: integer
-      description: "Current iteration number"
+      description: Current iteration number
     max_iterations:
       type: integer
       default: 3
-      description: "Maximum allowed iterations"
+      description: Maximum allowed iterations
   output:
     stationary:
       type: boolean
-      description: "Whether δS = 0 — no further action reduction is possible"
+      description: Whether δS = 0 — no further action reduction is possible
     action_delta:
       type: string
-      enum: [negative, zero, positive]
-      description: "negative = action decreased (progress); zero = stationary; positive = action increased (regression)"
+      enum:
+      - negative
+      - zero
+      - positive
+      description: negative = action decreased (progress); zero = stationary; positive
+        = action increased (regression)
     should_continue:
       type: boolean
-      description: "Whether another iteration is warranted"
+      description: Whether another iteration is warranted
     escalate:
       type: boolean
-      description: "Whether to escalate to human (max iterations reached without convergence)"
+      description: Whether to escalate to human (max iterations reached without convergence)
     summary:
       type: string
-      description: "What changed between iterations and why"
-  energy_cap: 4096
-  visibility: Shared
-
+      description: What changed between iterations and why
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: pragmatic-laziness/pragmatic-laziness-converge.j2 #}
 {# KnowAct — δS = 0 convergence check for the lazy loop #}

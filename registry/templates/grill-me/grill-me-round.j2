@@ -1,6 +1,13 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [probe, challenge, discriminate, classify, evaluate, infer, detect]
+lexicon_terms:
+- probe
+- challenge
+- discriminate
+- classify
+- evaluate
+- infer
+- detect
 contract:
   input:
     topic: string
@@ -14,13 +21,12 @@ contract:
     evaluations: array
     current_level: integer
     round_verdict: string
-  energy_cap: 8000
-  visibility: Shared
-
+energy_cap: 8000
+visibility: Shared
 ---
 {# Template: grill-me/grill-me-round.j2 #}
 {# KnowAct — Socratic interrogation round generator #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.4

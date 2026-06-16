@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [summarize, identify, entity, density, extract, condense]
+lexicon_terms:
+- summarize
+- identify
+- entity
+- density
+- extract
+- condense
 contract:
   input:
     source_text: string
@@ -11,13 +17,12 @@ contract:
     word_count: integer
     entity_density: number
     missing_entities: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: chain-of-density/initial-summary.j2 #}
 {# Process — Initial summary generation with entity identification #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

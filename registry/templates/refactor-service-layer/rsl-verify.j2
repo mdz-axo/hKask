@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [verify, assess, validate, discriminate, crystallize]
+lexicon_terms:
+- verify
+- assess
+- validate
+- discriminate
+- crystallize
 contract:
   input:
     domain: string
@@ -15,13 +20,12 @@ contract:
     clippy_result: string
     test_result: string
     checklist: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: refactor-service-layer/rsl-verify.j2 #}
 {# KnowAct — Verify surgical completeness after domain migration #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

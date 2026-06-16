@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [assess, rank, propose, evaluate, regulate]
+lexicon_terms:
+- assess
+- rank
+- propose
+- evaluate
+- regulate
 contract:
   input:
     system_variety: string
@@ -10,13 +15,12 @@ contract:
     attenuation_recommendations: array
     amplification_recommendations: array
     ashby_status: string
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: pragmatic-cybernetics/cybernetics-variety-check.j2 #}
 {# KnowAct — Evaluate variety balance (Ashby's Law) #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

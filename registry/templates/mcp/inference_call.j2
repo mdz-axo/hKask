@@ -1,6 +1,11 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [infer, generate, complete, respond, model]
+lexicon_terms:
+- infer
+- generate
+- complete
+- respond
+- model
 contract:
   input:
     prompt: string
@@ -12,12 +17,11 @@ contract:
     tokens_used: integer
     model_used: string
     finish_reason: string
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 # MCP Inference — LLM Call Template
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = {{ temperature | default(0.5) }}

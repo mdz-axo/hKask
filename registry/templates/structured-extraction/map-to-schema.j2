@@ -1,6 +1,15 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [map, transform, schema, conform, resolve, normalize, infer, relate, triple]
+lexicon_terms:
+- map
+- transform
+- schema
+- conform
+- resolve
+- normalize
+- infer
+- relate
+- triple
 contract:
   input:
     source_text: string
@@ -13,13 +22,12 @@ contract:
     field_coverage: object
     inferred_fields: array
     unresolved_fields: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: structured-extraction/map-to-schema.j2 #}
 {# Process — Map identified entities to target schema #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

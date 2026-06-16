@@ -1,6 +1,14 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [evaluate, compare, predict, actual, outcome, bias, hindsight, calibrate]
+lexicon_terms:
+- evaluate
+- compare
+- predict
+- actual
+- outcome
+- bias
+- hindsight
+- calibrate
 contract:
   input:
     decision_record: object
@@ -11,15 +19,14 @@ contract:
     hindsight_bias_check: object
     process_quality: object
     overall_narrative: string
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: decision-journal/revisit-evaluate.j2 #}
 {# Functional Role: KnowAct (knowledge-action — decision evaluation) #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: outcome_comparisons, bias_check, process_evaluation #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

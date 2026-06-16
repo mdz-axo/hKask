@@ -1,6 +1,11 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [compose, synthesize, structure, document, redact]
+lexicon_terms:
+- compose
+- synthesize
+- structure
+- document
+- redact
 contract:
   input:
     restored_context: object
@@ -11,13 +16,12 @@ contract:
     continuation_document: string
     immediate_next_action: string
     recommended_skills: array
-  energy_cap: 3000
-  visibility: Shared
-
+energy_cap: 3000
+visibility: Shared
 ---
 {# Template: condenser-continuation/condenser-continuation-compose.j2 #}
 {# WordAct — Assemble continuation document #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1

@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [identify, extract, entity, scan, detect, classify, locate]
+lexicon_terms:
+- identify
+- extract
+- entity
+- scan
+- detect
+- classify
+- locate
 contract:
   input:
     source_text: string
@@ -10,13 +17,12 @@ contract:
     entities: array
     unmapped_text: array
     entity_count: integer
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: structured-extraction/identify-entities.j2 #}
 {# Process — Entity identification from unstructured text #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

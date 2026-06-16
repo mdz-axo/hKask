@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [calibrate, affirm, select, execute, verify]
+lexicon_terms:
+- calibrate
+- affirm
+- select
+- execute
+- verify
 contract:
   input:
     input_criticism: string
@@ -11,12 +16,11 @@ contract:
   output:
     perspective: string
     variance_report: object
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 # Cognition — Falstaffian Perspective Engine
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 {# Falstaffian Perspective Generator — ℏKask Registry Version
    Owner: The Curator (hKask)

@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [validate, verify, classify, audit, recommend]
+lexicon_terms:
+- validate
+- verify
+- classify
+- audit
+- recommend
 contract:
   input:
     skill_name: string
@@ -9,13 +14,12 @@ contract:
     validation_results: array
     pass_fail_counts: object
     fix_suggestions: array
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: skill-manager/skill-manager-validate.j2 #}
 {# KnowAct — Skill format/quality/safety validation #}
-{# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1

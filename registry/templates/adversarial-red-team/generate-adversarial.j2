@@ -1,6 +1,16 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [generate, adversarial, inject, hijack, manipulate, exploit, attack, indirect, tool_misuse, exfiltrate]
+lexicon_terms:
+- generate
+- adversarial
+- inject
+- hijack
+- manipulate
+- exploit
+- attack
+- indirect
+- tool_misuse
+- exfiltrate
 contract:
   input:
     target_output: string
@@ -12,13 +22,12 @@ contract:
   output:
     adversarial_inputs: array
     attack_count: integer
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: adversarial-red-team/generate-adversarial.j2 #}
 {# Process — Adversarial input generation #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.7

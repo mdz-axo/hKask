@@ -1,6 +1,13 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [test, resist, evaluate, robustness, failure, defense, adversarial]
+lexicon_terms:
+- test
+- resist
+- evaluate
+- robustness
+- failure
+- defense
+- adversarial
 contract:
   input:
     target_output: string
@@ -11,13 +18,12 @@ contract:
     test_results: array
     resistance_rate: number
     critical_failures: array
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: adversarial-red-team/test-against-target.j2 #}
 {# Process — Adversarial testing against target output #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

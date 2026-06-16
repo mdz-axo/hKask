@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [deepen, design, constrain, verify, crystallize]
+lexicon_terms:
+- deepen
+- design
+- constrain
+- verify
+- crystallize
 contract:
   input:
     selected_candidate: object
@@ -13,13 +18,12 @@ contract:
     test_surface: object
     glossary_updates: array
     adr_proposals: array
-  energy_cap: 8192
-  visibility: Shared
-
+energy_cap: 8192
+visibility: Shared
 ---
 {# Template: improve-codebase-architecture/arch-deepen.j2 #}
 {# KnowAct — Grill loop for deepening a selected candidate #}
-{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [critique, evaluate, identify, weakness, gap, improvement]
+lexicon_terms:
+- critique
+- evaluate
+- identify
+- weakness
+- gap
+- improvement
 contract:
   input:
     task_prompt: string
@@ -12,13 +18,12 @@ contract:
     overall_quality_score: number
     critical_issues: integer
     improvement_areas: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: self-critique-revision/critique.j2 #}
 {# Process — Self-critique of generated output #}
-{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

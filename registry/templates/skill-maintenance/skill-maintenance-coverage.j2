@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [map, trace, gap, classify, prioritize]
+lexicon_terms:
+- map
+- trace
+- gap
+- classify
+- prioritize
 contract:
   input:
     existing_skills: array
@@ -10,13 +15,12 @@ contract:
     uncovered_patterns: array
     partial_coverage: array
     recommendations: array
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: skill-maintenance/skill-maintenance-coverage.j2 #}
 {# KnowAct — Skill corpus coverage analysis #}
-{# ℏKask v0.24.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

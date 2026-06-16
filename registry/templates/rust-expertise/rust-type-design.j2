@@ -1,6 +1,12 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [design, specify, constrain, structure, compose, simplify]
+lexicon_terms:
+- design
+- specify
+- constrain
+- structure
+- compose
+- simplify
 contract:
   input:
     type_name: string
@@ -16,9 +22,8 @@ contract:
     trait_impls: array
     validation_rationale: string
     design_notes: array
-  energy_cap: 5120
-  visibility: Shared
-
+energy_cap: 5120
+visibility: Shared
 ---
 {# Template: rust-expertise/rust-type-design.j2 #}
 {# KnowAct — Design Rust types that make invalid states unrepresentable #}

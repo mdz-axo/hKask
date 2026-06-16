@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [prioritize, rank, classify, discriminate, recommend]
+lexicon_terms:
+- prioritize
+- rank
+- classify
+- discriminate
+- recommend
 contract:
   input:
     accomplishments: array
@@ -12,13 +17,12 @@ contract:
     immediate_next_action: string
     inference_dependencies: array
     risks: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: condenser-continuation/condenser-continuation-prioritize.j2 #}
 {# KnowAct — Prioritize remaining condenser tasks #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.2

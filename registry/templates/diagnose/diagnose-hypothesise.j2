@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [infer, discriminate, rank, predict, evaluate]
+lexicon_terms:
+- infer
+- discriminate
+- rank
+- predict
+- evaluate
 contract:
   input:
     bug_description: string
@@ -11,13 +16,12 @@ contract:
     hypotheses: array
     ranked_hypotheses: array
     user_review_requested: boolean
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: diagnose/diagnose-hypothesise.j2 #}
 {# KnowAct — Generate ranked falsifiable hypotheses #}
-{# ℏKask v0.22.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.4

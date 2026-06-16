@@ -1,6 +1,11 @@
 [inference]
 template_type: WordAct
-lexicon_terms: [scholar, paper, citation, academic, research]
+lexicon_terms:
+- scholar
+- paper
+- citation
+- academic
+- research
 contract:
   input:
     research_query: string
@@ -12,12 +17,11 @@ contract:
     papers: array
     total_found: integer
     search_metadata: object
-  energy_cap: 6000
-  visibility: Shared
-
+energy_cap: 6000
+visibility: Shared
 ---
 # MCP Scholar — Academic Research Template
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.1

@@ -1,6 +1,12 @@
 [inference]
 template_type: FlowDef
-lexicon_terms: [decompose, subgoal, dependency, strategy, effort, calibrate]
+lexicon_terms:
+- decompose
+- subgoal
+- dependency
+- strategy
+- effort
+- calibrate
 contract:
   input:
     goal: string
@@ -11,12 +17,11 @@ contract:
     root: object
     strategy: string
     estimated_effort: float
-  energy_cap: 6000
-  visibility: Shared
-
+energy_cap: 6000
+visibility: Shared
 ---
 # Metacognition — Goal Decomposition Process
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.27.0 - A Minimal Viable Container for Agents
 
 [inference]
 temperature = 0.3

@@ -1,45 +1,61 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [decompose, identify, eliminate, verify, converge, iterate, delegate, compose, discriminate, evaluate]
+lexicon_terms:
+- decompose
+- identify
+- eliminate
+- verify
+- converge
+- iterate
+- delegate
+- compose
+- discriminate
+- evaluate
 contract:
   input:
     situation:
       type: string
-      description: "The design, artifact, or problem to find the least-action path for"
+      description: The design, artifact, or problem to find the least-action path
+        for
     context:
       type: object
-      description: "Surrounding context: code, architecture, constraints, existing feedback loops"
+      description: 'Surrounding context: code, architecture, constraints, existing
+        feedback loops'
     scope:
       type: string
-      enum: [full, phase1_only, phase2_only, phase3_only]
-      default: "full"
-      description: "full = all 3 phases; phase1_only = decompose only; phase2_only = identify loops only; phase3_only = find stationary action only"
+      enum:
+      - full
+      - phase1_only
+      - phase2_only
+      - phase3_only
+      default: full
+      description: full = all 3 phases; phase1_only = decompose only; phase2_only
+        = identify loops only; phase3_only = find stationary action only
     max_iterations:
       type: integer
       default: 3
-      description: "Maximum iterations of the full loop before escalation"
+      description: Maximum iterations of the full loop before escalation
   output:
     lazy_path:
       type: object
-      description: "The identified least-action configuration"
+      description: The identified least-action configuration
     phases_completed:
       type: array
-      description: "Which phases were executed"
+      description: Which phases were executed
     iterations:
       type: integer
-      description: "Number of loop iterations performed"
+      description: Number of loop iterations performed
     stationary:
       type: boolean
-      description: "Whether δS = 0 was reached (action is stationary)"
+      description: Whether δS = 0 was reached (action is stationary)
     escalation:
       type: boolean
-      description: "Whether the loop escalated to human after exhausting iterations"
+      description: Whether the loop escalated to human after exhausting iterations
     report:
       type: string
-      description: "Narrative summary of findings and reductions"
-  energy_cap: 12288
-  visibility: Shared
-
+      description: Narrative summary of findings and reductions
+energy_cap: 12288
+visibility: Shared
 ---
 {# Template: pragmatic-laziness/pragmatic-laziness-flow.j2 #}
 {# KnowAct — 3-phase lazy loop for least-action path finding #}

@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [map, classify, orient, integrate, assess]
+lexicon_terms:
+- map
+- classify
+- orient
+- integrate
+- assess
 contract:
   input:
     focus_area: string
@@ -8,13 +13,12 @@ contract:
     vsm_mapping: object
     viability_assessment: string
     unviable_components: array
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: pragmatic-cybernetics/cybernetics-vsm-map.j2 #}
 {# KnowAct — Map hKask components to VSM S1–S5 #}
-{# ℏKask v0.23.0 — A Minimal Viable Container for Agents #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3

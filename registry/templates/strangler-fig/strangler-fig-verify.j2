@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [verify, evaluate, audit, detect, calibrate]
+lexicon_terms:
+- verify
+- evaluate
+- audit
+- detect
+- calibrate
 contract:
   input:
     migration_plan: object
@@ -13,9 +18,8 @@ contract:
     old_path_intact: boolean
     reversibility_check: object
     recommendations: array
-  energy_cap: 6144
-  visibility: Shared
-
+energy_cap: 6144
+visibility: Shared
 ---
 {# Template: strangler-fig/strangler-fig-verify.j2 #}
 {# KnowAct — Verify system functional at intermediate Strangler Fig migration step #}

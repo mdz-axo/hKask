@@ -1,6 +1,13 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [verify, evaluate, audit, calibrate, classify, trace, map]
+lexicon_terms:
+- verify
+- evaluate
+- audit
+- calibrate
+- classify
+- trace
+- map
 contract:
   input:
     crate_scope: string
@@ -15,9 +22,8 @@ contract:
     functional_gaps: array
     violations: array
     passed: boolean
-  energy_cap: 4096
-  visibility: Shared
-
+energy_cap: 4096
+visibility: Shared
 ---
 {# Template: tdd/tdd-verify.j2 #}
 {# KnowAct — TDD cycle verification with functional coverage check #}
