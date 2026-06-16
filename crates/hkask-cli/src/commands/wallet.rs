@@ -69,7 +69,13 @@ fn build_wallet_service() -> WalletService {
 // ── Balance ──────────────────────────────────────────────────────────────────
 
 fn handle_balance(svc: &WalletService, wallet: Option<String>) {
-    let wallet_id = resolve_wallet(wallet);
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
     match svc.get_balance(wallet_id) {
         Ok(balance) => {
             println!("Wallet Balance");
@@ -97,8 +103,20 @@ fn handle_deposit_address(
     transparent: bool,
     wallet: Option<String>,
 ) {
-    let wallet_id = resolve_wallet(wallet);
-    let chain = parse_chain(chain.as_deref());
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
+    let chain = match parse_chain(chain.as_deref()) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
     let privacy = resolve_privacy_mode(private, transparent);
 
     match svc.get_deposit_address(wallet_id, chain, privacy) {
@@ -124,8 +142,20 @@ fn handle_deposit_address(
 // ── Deposit reference ────────────────────────────────────────────────────────
 
 fn handle_deposit_reference(svc: &WalletService, chain: String, wallet: Option<String>) {
-    let wallet_id = resolve_wallet(wallet);
-    let chain = parse_chain(Some(&chain));
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
+    let chain = match parse_chain(Some(&chain)) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
 
     match svc.generate_deposit_reference(wallet_id, chain, 24) {
         Ok(dep_ref) => {
@@ -150,7 +180,13 @@ fn handle_deposit_reference(svc: &WalletService, chain: String, wallet: Option<S
 // ── History ──────────────────────────────────────────────────────────────────
 
 fn handle_history(svc: &WalletService, limit: Option<u32>, wallet: Option<String>) {
-    let wallet_id = resolve_wallet(wallet);
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
     let limit = limit.unwrap_or(20);
 
     match svc.get_transactions(wallet_id, limit, 0) {
@@ -181,7 +217,13 @@ fn handle_history(svc: &WalletService, limit: Option<u32>, wallet: Option<String
 // ── Fee quote ───────────────────────────────────────────────────────────────
 
 fn handle_fee(svc: &WalletService, chain: Option<String>) {
-    let chain = parse_chain(chain.as_deref());
+    let chain = match parse_chain(chain.as_deref()) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
     match tokio::runtime::Runtime::new() {
         Ok(rt) => match rt.block_on(svc.estimate_withdrawal_fee(chain)) {
             Ok(fee) => {
@@ -228,12 +270,24 @@ fn handle_key_create(
     chain: Option<String>,
     wallet: Option<String>,
 ) {
-    let wallet_id = resolve_wallet(wallet);
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
     let privacy = resolve_privacy_mode(private, transparent);
-    let preferred_chain = chain
-        .as_deref()
-        .map(|c| parse_chain(Some(c)))
-        .or(Some(ChainId::Hinkal));
+    let preferred_chain = match chain.as_deref() {
+        Some(c) => match parse_chain(Some(c)) {
+            Ok(chain_id) => Some(chain_id),
+            Err(e) => {
+                eprintln!("{e}");
+                return;
+            }
+        },
+        None => Some(ChainId::Hinkal),
+    };
 
     // Ensure wallet exists
     if let Err(e) = svc.ensure_wallet(wallet_id) {
@@ -279,7 +333,13 @@ fn handle_key_create(
 }
 
 fn handle_key_list(svc: &WalletService, wallet: Option<String>) {
-    let wallet_id = resolve_wallet(wallet);
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
     match svc.list_keys(wallet_id) {
         Ok(keys) => {
             println!("API Keys");
@@ -349,8 +409,20 @@ fn handle_withdraw(
     transparent: bool,
     wallet: Option<String>,
 ) {
-    let wallet_id = resolve_wallet(wallet);
-    let chain = parse_chain(chain.as_deref());
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
+    let chain = match parse_chain(chain.as_deref()) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
     let privacy = resolve_privacy_mode(private, transparent);
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
@@ -397,7 +469,13 @@ fn handle_encumber(svc: &WalletService, key_id_str: String, amount: u64, wallet:
             return;
         }
     };
-    let wallet_id = resolve_wallet(wallet);
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
 
     match svc.encumber_key(wallet_id, key_id, RJoule::new(amount)) {
         Ok(()) => {
@@ -442,7 +520,13 @@ fn handle_report(svc: &WalletService, key_id_str: String, wallet: Option<String>
             return;
         }
     };
-    let wallet_id = resolve_wallet(wallet);
+    let wallet_id = match resolve_wallet(wallet) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
 
     // Get the API key capability for context
     let key_info = match svc.get_api_key(key_id) {
@@ -538,25 +622,24 @@ fn handle_report(svc: &WalletService, key_id_str: String, wallet: Option<String>
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-fn resolve_wallet(wallet_arg: Option<String>) -> WalletId {
+fn resolve_wallet(wallet_arg: Option<String>) -> Result<WalletId, String> {
     match wallet_arg {
-        Some(ref s) => match WalletId::from_str(s) {
-            Ok(id) => id,
-            Err(e) => {
-                eprintln!("Invalid wallet ID '{}': {} — using default wallet", s, e);
-                WalletId::default()
-            }
-        },
-        None => WalletId::default(),
+        Some(ref s) => {
+            WalletId::from_str(s).map_err(|e| format!("Invalid wallet ID '{}': {}", s, e))
+        }
+        None => Ok(WalletId::default()),
     }
 }
 
-fn parse_chain(s: Option<&str>) -> ChainId {
+fn parse_chain(s: Option<&str>) -> Result<ChainId, String> {
     match s {
-        Some("solana") => ChainId::Solana,
-        Some("hedera") => ChainId::Hedera,
-        Some("hinkal") | None => ChainId::Hinkal,
-        _ => ChainId::Hinkal,
+        Some("solana") => Ok(ChainId::Solana),
+        Some("hedera") => Ok(ChainId::Hedera),
+        Some("hinkal") | None => Ok(ChainId::Hinkal),
+        Some(other) => Err(format!(
+            "Invalid chain '{}'. Expected one of: hinkal, solana, hedera",
+            other
+        )),
     }
 }
 

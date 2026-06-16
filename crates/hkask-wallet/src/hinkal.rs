@@ -246,8 +246,12 @@ impl HinkalPort {
     fn emit_cns_chain_error(&self, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
+            let actor = hkask_types::WebID::from_persona_with_namespace(
+                self.treasury_pubkey.as_bytes(),
+                "wallet-hinkal",
+            );
             let event = NuEvent::new(
-                hkask_types::WebID::new(),
+                actor,
                 span_obj,
                 Phase::Sense,
                 serde_json::json!({
@@ -646,173 +650,12 @@ impl HinkalPort {
             .as_secs() as i64;
         now - cooldown < CIRCUIT_BREAKER_COOLDOWN_SECS as i64
     }
-}
-
-#[async_trait]
-impl ChainPort for HinkalPort {
-    fn chain_id(&self) -> ChainId {
-        ChainId::Hinkal
-    }
-
-    fn derive_deposit_address(&self, _index: u64) -> Result<String, WalletError> {
-        Ok(self.treasury_pubkey.clone())
-    }
-
-    async fn monitor_deposits(
-        &self,
-        _addresses: &[String],
-    ) -> Result<Vec<DepositEvent>, WalletError> {
-        Err(Self::chain_error(
-            "Hinkal transparent deposit monitoring is not supported; use monitor_shielded_transfers via PrivacyPort",
-        ))
-    }
-
-    fn build_withdrawal_tx(
-        &self,
-        _to_address: &str,
-        _amount_usdc_micro: u64,
-    ) -> Result<Vec<u8>, WalletError> {
-        Err(Self::chain_error(
-            "Hinkal chain adapter supports shielded withdrawal path only; use PrivacyMode::Shielded",
-        ))
-    }
-
-    async fn submit_signed_tx(&self, _signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
-        Err(Self::chain_error(
-            "Hinkal chain submit path is unavailable; use PrivacyPort::submit_signed_tx for shielded flow",
-        ))
-    }
-
-    async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
-        Err(Self::chain_error(
-            "confirmation checking requires underlying chain RPC integration",
-        ))
-    }
-}
-
-#[async_trait]
-impl PrivacyPort for HinkalPort {
-    fn our_shielded_address(&self) -> Result<String, WalletError> {
-        Ok(self.treasury_pubkey.clone())
-    }
-
-    fn shielded_deposit_address(&self, _wallet_id: WalletId) -> Result<String, WalletError> {
-        Ok(self.treasury_pubkey.clone())
-    }
-
-    async fn monitor_shielded_transfers(&self) -> Result<Vec<ShieldedTransfer>, WalletError> {
-        let balances = self.monitor_deposits().await?;
-
-        let mut transfers = Vec::new();
-        let mut last = self
-            .last_balances
-            .lock()
-            .map_err(|_| Self::chain_error("balance state lock poisoned"))?;
-
-        for row in balances {
-            let prev = last.get(&row.token).copied().unwrap_or(0);
-            if row.amount_usdc_micro > prev {
-                let commitment = self.transfer_commitment(
-                    &row.token,
-                    prev,
-                    row.amount_usdc_micro,
-                    row.commitment.as_deref(),
-                );
-                transfers.push(ShieldedTransfer {
-                    commitment,
-                    from_shielded: "hinkal-pool".to_string(),
-                    to_shielded: self.treasury_pubkey.clone(),
-                    amount_usdc_micro: row.amount_usdc_micro - prev,
-                    memo: row.memo,
-                    block_time: Utc::now(),
-                });
-            }
-            last.insert(row.token, row.amount_usdc_micro);
-        }
-
-        Ok(transfers)
-    }
-
-    fn build_shield_tx(
-        &self,
-        amount_usdc_micro: u64,
-        chain: ChainId,
-    ) -> Result<Vec<u8>, WalletError> {
-        if amount_usdc_micro == 0 {
-            return Err(Self::chain_error("shield amount must be > 0"));
-        }
-        // Only Solana settlement is currently supported
-        if chain != ChainId::Hinkal && chain != ChainId::Solana {
-            return Err(WalletError::ChainError {
-                chain,
-                message: format!(
-                    "Hinkal shielding only supports Solana settlement layer (got {chain:?})"
-                ),
-            });
-        }
-
-        let payload = ShieldDepositPayload {
-            nonce: Self::generate_nonce(),
-            amount_usdc_micro,
-            chain_id: HINKAL_SOLANA_CHAIN_ID,
-            token: SOLANA_USDC_MINT.to_string(),
-        };
-
-        serde_json::to_vec(&payload)
-            .map_err(|e| Self::chain_error(format!("failed to encode shield payload: {e}")))
-    }
-
-    fn build_unshield_tx(
-        &self,
-        to_public: &str,
-        amount_usdc_micro: u64,
-    ) -> Result<Vec<u8>, WalletError> {
-        if to_public.trim().is_empty() {
-            return Err(Self::chain_error("withdraw recipient must not be empty"));
-        }
-        if amount_usdc_micro == 0 {
-            return Err(Self::chain_error("withdraw amount must be > 0"));
-        }
-
-        let payload = WithdrawUnsignedPayload {
-            nonce: Self::generate_nonce(),
-            to_public: to_public.to_string(),
-            amount_usdc_micro,
-            chain_id: HINKAL_SOLANA_CHAIN_ID,
-            token: SOLANA_USDC_MINT.to_string(),
-        };
-
-        serde_json::to_vec(&payload)
-            .map_err(|e| Self::chain_error(format!("failed to encode unshield payload: {e}")))
-    }
-
-    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
-        // Decode the payload — strip trailing 64-byte signature if present
-        let payload_bytes = if signed_tx_bytes.len() > 64 {
-            &signed_tx_bytes[..signed_tx_bytes.len() - 64]
-        } else {
-            signed_tx_bytes
-        };
-
-        // Try to deserialize as HinkalPayload (untagged enum: tries Withdraw then Shield)
-        let hinkal_payload: HinkalPayload = serde_json::from_slice(payload_bytes).map_err(|e| {
-            let msg = format!("failed to decode Hinkal payload: {e}");
-            self.emit_cns_chain_error("submit_signed_tx", &msg);
-            Self::chain_error(msg)
-        })?;
-
-        match hinkal_payload {
-            HinkalPayload::Withdraw(payload) => self.submit_withdraw(&payload).await,
-            HinkalPayload::Shield(payload) => self.submit_shield(&payload).await,
-        }
-    }
 
     /// Submit a withdraw (unshield) transaction to POST /withdraw.
     async fn submit_withdraw(
         &self,
         payload: &WithdrawUnsignedPayload,
     ) -> Result<TxHash, WalletError> {
-        // Validate
         if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
             return Err(Self::chain_error(format!(
                 "unsupported chain_id={} for Hinkal withdraw",
@@ -898,7 +741,6 @@ impl PrivacyPort for HinkalPort {
 
     /// Submit a shield (deposit) transaction to POST /deposit.
     async fn submit_shield(&self, payload: &ShieldDepositPayload) -> Result<TxHash, WalletError> {
-        // Validate
         if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
             return Err(Self::chain_error(format!(
                 "unsupported chain_id={} for Hinkal shield",
@@ -975,6 +817,174 @@ impl PrivacyPort for HinkalPort {
             })?;
 
         Ok(TxHash(tx_hash.to_string()))
+    }
+}
+
+#[async_trait]
+impl ChainPort for HinkalPort {
+    fn chain_id(&self) -> ChainId {
+        ChainId::Hinkal
+    }
+
+    fn derive_deposit_address(&self, _index: u64) -> Result<String, WalletError> {
+        Ok(self.treasury_pubkey.clone())
+    }
+
+    async fn monitor_deposits(
+        &self,
+        _addresses: &[String],
+    ) -> Result<Vec<DepositEvent>, WalletError> {
+        Err(Self::chain_error(
+            "Hinkal transparent deposit monitoring is not supported; use monitor_shielded_transfers via PrivacyPort",
+        ))
+    }
+
+    fn build_withdrawal_tx(
+        &self,
+        _to_address: &str,
+        _amount_usdc_micro: u64,
+    ) -> Result<Vec<u8>, WalletError> {
+        Err(Self::chain_error(
+            "Hinkal chain adapter supports shielded withdrawal path only; use PrivacyMode::Shielded",
+        ))
+    }
+
+    async fn submit_signed_tx(&self, _signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+        Err(Self::chain_error(
+            "Hinkal chain submit path is unavailable; use PrivacyPort::submit_signed_tx for shielded flow",
+        ))
+    }
+
+    async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
+        Err(Self::chain_error(
+            "confirmation checking requires underlying chain RPC integration",
+        ))
+    }
+}
+
+#[async_trait]
+impl PrivacyPort for HinkalPort {
+    fn our_shielded_address(&self) -> Result<String, WalletError> {
+        Ok(self.treasury_pubkey.clone())
+    }
+
+    fn shielded_deposit_address(&self, _wallet_id: WalletId) -> Result<String, WalletError> {
+        Ok(self.treasury_pubkey.clone())
+    }
+
+    async fn monitor_shielded_transfers(&self) -> Result<Vec<ShieldedTransfer>, WalletError> {
+        let balances = self.monitor_deposits().await?;
+
+        let mut transfers = Vec::new();
+        let mut last = self
+            .last_balances
+            .lock()
+            .map_err(|_| Self::chain_error("balance state lock poisoned"))?;
+
+        for row in balances {
+            let prev = last.get(&row.token).copied().unwrap_or(0);
+            if row.amount_usdc_micro > prev {
+                let commitment = self.transfer_commitment(
+                    &row.token,
+                    prev,
+                    row.amount_usdc_micro,
+                    row.commitment.as_deref(),
+                );
+                transfers.push(ShieldedTransfer {
+                    commitment,
+                    from_shielded: "hinkal-pool".to_string(),
+                    to_shielded: self.treasury_pubkey.clone(),
+                    amount_usdc_micro: row.amount_usdc_micro - prev,
+                    chain: ChainId::Solana, // Hinkal currently settles on Solana
+                    memo: row.memo,
+                    block_time: Utc::now(),
+                });
+            }
+            last.insert(row.token, row.amount_usdc_micro);
+        }
+
+        Ok(transfers)
+    }
+
+    fn build_shield_tx(
+        &self,
+        amount_usdc_micro: u64,
+        chain: ChainId,
+    ) -> Result<Vec<u8>, WalletError> {
+        if amount_usdc_micro == 0 {
+            return Err(Self::chain_error("shield amount must be > 0"));
+        }
+        // Only Solana settlement is currently supported
+        if chain != ChainId::Hinkal && chain != ChainId::Solana {
+            return Err(WalletError::ChainError {
+                chain,
+                message: format!(
+                    "Hinkal shielding only supports Solana settlement layer (got {chain:?})"
+                ),
+            });
+        }
+
+        let payload = ShieldDepositPayload {
+            nonce: Self::generate_nonce(),
+            amount_usdc_micro,
+            chain_id: HINKAL_SOLANA_CHAIN_ID,
+            token: SOLANA_USDC_MINT.to_string(),
+        };
+
+        serde_json::to_vec(&payload)
+            .map_err(|e| Self::chain_error(format!("failed to encode shield payload: {e}")))
+    }
+
+    fn build_unshield_tx(
+        &self,
+        to_public: &str,
+        amount_usdc_micro: u64,
+    ) -> Result<Vec<u8>, WalletError> {
+        if to_public.trim().is_empty() {
+            return Err(Self::chain_error("withdraw recipient must not be empty"));
+        }
+        if amount_usdc_micro == 0 {
+            return Err(Self::chain_error("withdraw amount must be > 0"));
+        }
+
+        let payload = WithdrawUnsignedPayload {
+            nonce: Self::generate_nonce(),
+            to_public: to_public.to_string(),
+            amount_usdc_micro,
+            chain_id: HINKAL_SOLANA_CHAIN_ID,
+            token: SOLANA_USDC_MINT.to_string(),
+        };
+
+        serde_json::to_vec(&payload)
+            .map_err(|e| Self::chain_error(format!("failed to encode unshield payload: {e}")))
+    }
+
+    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+        // Try raw payload first (from build_unshield_tx / build_shield_tx).
+        if let Ok(payload) = serde_json::from_slice::<HinkalPayload>(signed_tx_bytes) {
+            return match payload {
+                HinkalPayload::Withdraw(p) => self.submit_withdraw(&p).await,
+                HinkalPayload::Shield(p) => self.submit_shield(&p).await,
+            };
+        }
+
+        // Fallback: legacy format with appended 64-byte Ed25519 signature.
+        if signed_tx_bytes.len() <= 64 {
+            let msg = "invalid payload: too short for legacy signature format".to_string();
+            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            return Err(Self::chain_error(msg));
+        }
+        let payload_bytes = &signed_tx_bytes[..signed_tx_bytes.len() - 64];
+        let hinkal_payload: HinkalPayload = serde_json::from_slice(payload_bytes).map_err(|e| {
+            let msg = format!("failed to decode Hinkal payload: {e}");
+            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            Self::chain_error(msg)
+        })?;
+
+        match hinkal_payload {
+            HinkalPayload::Withdraw(payload) => self.submit_withdraw(&payload).await,
+            HinkalPayload::Shield(payload) => self.submit_shield(&payload).await,
+        }
     }
 
     fn available_for_chain(&self, chain: ChainId) -> bool {

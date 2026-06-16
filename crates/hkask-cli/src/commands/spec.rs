@@ -7,6 +7,11 @@ use crate::cli::SpecAction;
 use hkask_services::{SpecCaptureRequest, SpecService};
 use hkask_storage::spec_types::SpecCategory;
 
+/// Run a spec command.
+///
+/// REQ: CLI-003
+/// pre:  action is valid
+/// post: spec command executed
 pub fn run(action: SpecAction) {
     match action {
         SpecAction::Capture {

@@ -181,8 +181,12 @@ impl HederaPort {
     fn emit_chain_error(&self, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
+            let actor = hkask_types::WebID::from_persona_with_namespace(
+                self.treasury_account.as_bytes(),
+                "wallet-hedera",
+            );
             let event = NuEvent::new(
-                hkask_types::WebID::new(),
+                actor,
                 span_obj,
                 Phase::Sense,
                 serde_json::json!({
@@ -409,6 +413,13 @@ impl ChainPort for HederaPort {
 
                 // Parse transfers to find USDC token transfers TO our address
                 if let Some(ref transfers) = tx.transfers {
+                    // Find the sender: the account with negative amount for the same token
+                    let sender = transfers
+                        .iter()
+                        .find(|t| t.amount < 0 && t.token_id.as_deref() == Some(&self.usdc_token))
+                        .map(|t| t.account.clone())
+                        .unwrap_or_else(|| "unknown".to_string());
+
                     for transfer in transfers {
                         // Check if this is a USDC token transfer to our address
                         if transfer.account == *addr
@@ -416,8 +427,7 @@ impl ChainPort for HederaPort {
                             && transfer.token_id.as_deref() == Some(&self.usdc_token)
                         {
                             // USDC has 6 decimals on Hedera (same as Solana)
-                            // Mirror node returns amounts in tinybars (10^-8 HBAR) for HBAR
-                            // or in token base units for HTS tokens.
+                            // Mirror node returns amounts in token base units for HTS tokens.
                             // For USDC with 6 decimals, amount is in micro-USDC.
                             let amount_usdc_micro = transfer.amount as u64;
 
@@ -435,7 +445,7 @@ impl ChainPort for HederaPort {
 
                                 events.push(DepositEvent {
                                     tx_hash: TxHash(tx.transaction_id.clone()),
-                                    from_address: transfer.account.clone(),
+                                    from_address: sender.clone(),
                                     to_address: addr.clone(),
                                     amount_usdc_micro,
                                     confirmations: 1, // Hedera finality is deterministic

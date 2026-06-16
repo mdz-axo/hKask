@@ -15,6 +15,10 @@ pub enum AgentKind {
 }
 
 impl AgentKind {
+    /// Get string representation of agent kind.
+    ///
+    /// REQ: TYP-117
+    /// post: returns "Bot" or "Replicant"
     pub fn as_str(&self) -> &'static str {
         match self {
             AgentKind::Bot => "Bot",
@@ -25,6 +29,10 @@ impl AgentKind {
     /// Return the persona kind string for this agent kind.
     ///
     /// Maps `Bot` → `"bot"`, `Replicant` → `"replicant"`.
+    /// Return the persona kind string.
+    ///
+    /// REQ: TYP-118
+    /// post: returns "bot" or "replicant"
     pub fn as_persona_kind(&self) -> &'static str {
         match self {
             AgentKind::Bot => "bot",
@@ -32,6 +40,10 @@ impl AgentKind {
         }
     }
 
+    /// Parse agent kind from string.
+    ///
+    /// REQ: TYP-119
+    /// post: returns Some(AgentKind) if valid, None otherwise
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "Bot" | "bot" => Some(AgentKind::Bot),
@@ -100,10 +112,18 @@ pub struct AgentDefinition {
 }
 
 impl AgentDefinition {
+    /// Get flattened rights strings.
+    ///
+    /// REQ: TYP-120
+    /// post: returns Vec of display strings for all rights
     pub fn rights_flat(&self) -> Vec<String> {
         self.rights.iter().map(|r| r.to_display_string()).collect()
     }
 
+    /// Get flattened responsibilities strings.
+    ///
+    /// REQ: TYP-121
+    /// post: returns Vec of display strings for all responsibilities
     pub fn responsibilities_flat(&self) -> Vec<String> {
         self.responsibilities
             .iter()
@@ -111,6 +131,10 @@ impl AgentDefinition {
             .collect()
     }
 
+    /// Compose a system prompt from the agent definition.
+    ///
+    /// REQ: TYP-122
+    /// post: returns formatted system prompt string
     pub fn compose_system_prompt(&self) -> String {
         let mut prompt = String::new();
 
@@ -158,6 +182,11 @@ impl AgentDefinition {
         prompt
     }
 
+    /// Check if the agent has a specific capability.
+    ///
+    /// REQ: TYP-123
+    /// pre:  cap is non-empty
+    /// post: returns true iff capability is in the list
     pub fn has_capability(&self, cap: &str) -> bool {
         self.capabilities.iter().any(|c| c == cap)
     }

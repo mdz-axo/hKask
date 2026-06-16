@@ -17,12 +17,12 @@
 
 use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::EnergyCost;
-use hkask_types::template::LLMParameters;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult};
+use hkask_types::template::LLMParameters;
 
 use std::pin::Pin;
 use std::sync::Arc;
@@ -54,6 +54,11 @@ pub struct GovernedInference {
 
 impl GovernedInference {
     /// Create a new GovernedInference membrane wrapping an inner InferencePort.
+    /// Create a new governed inference wrapper.
+    ///
+    /// REQ: CNS-092
+    /// pre:  inference is valid, cns is valid
+    /// post: returns GovernedInference
     pub fn new(
         inner: Arc<dyn InferencePort>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
@@ -70,6 +75,10 @@ impl GovernedInference {
 
     /// Builder: change the agent for this membrane.
     #[must_use = "builder methods must be chained or assigned"]
+    /// Set the agent WebID for attribution.
+    ///
+    /// REQ: CNS-093
+    /// post: returns Self with agent set (builder pattern)
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
         self

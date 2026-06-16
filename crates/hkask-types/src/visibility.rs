@@ -37,6 +37,10 @@ pub enum Visibility {
 }
 
 impl Visibility {
+    /// Get string representation of visibility.
+    ///
+    /// REQ: TYP-124
+    /// post: returns "private", "shared", or "public"
     pub fn as_str(&self) -> &'static str {
         match self {
             Visibility::Private => "private",
@@ -44,6 +48,10 @@ impl Visibility {
         }
     }
 
+    /// Parse visibility from string.
+    ///
+    /// REQ: TYP-125
+    /// post: returns Some(Visibility) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "private" | "Private" => Some(Visibility::Private),
@@ -80,6 +88,11 @@ pub struct AccessControl {
 
 impl AccessControl {
     /// Create a default access control: private, no perspective, owned by `owner`.
+    /// Create a new AccessControl with owner.
+    ///
+    /// REQ: TYP-126
+    /// pre:  owner is valid
+    /// post: returns AccessControl with Private visibility, no perspective
     pub fn new(owner: WebID) -> Self {
         Self {
             perspective: None,
@@ -89,6 +102,11 @@ impl AccessControl {
     }
 
     /// Create an episodic (perspective-bound) access control: private, owned by `owner`.
+    /// Create episodic access control.
+    ///
+    /// REQ: TYP-127
+    /// pre:  perspective and owner are valid
+    /// post: returns AccessControl with Private visibility and perspective
     pub fn episodic(perspective: WebID, owner: WebID) -> Self {
         Self {
             perspective: Some(perspective),
@@ -98,6 +116,11 @@ impl AccessControl {
     }
 
     /// Create a semantic (public, perspective-free) access control.
+    /// Create semantic access control.
+    ///
+    /// REQ: TYP-128
+    /// pre:  owner is valid
+    /// post: returns AccessControl with Public visibility, no perspective
     pub fn semantic(owner: WebID) -> Self {
         Self {
             perspective: None,
@@ -107,6 +130,10 @@ impl AccessControl {
     }
 
     /// Convert to semantic access control: strip perspective, set visibility to Public.
+    /// Convert to semantic access (strip perspective, set Public).
+    ///
+    /// REQ: TYP-129
+    /// post: returns AccessControl with Public visibility, no perspective
     pub fn to_semantic(&self) -> Self {
         Self {
             perspective: None,
@@ -116,16 +143,28 @@ impl AccessControl {
     }
 
     /// Is this an episodic (perspective-bound) access control?
+    /// Check if this is episodic (has perspective).
+    ///
+    /// REQ: TYP-130
+    /// post: returns true iff perspective is Some
     pub fn is_episodic(&self) -> bool {
         self.perspective.is_some()
     }
 
     /// Is this a semantic (public, perspective-free) access control?
+    /// Check if this is semantic (Public, no perspective).
+    ///
+    /// REQ: TYP-131
+    /// post: returns true iff visibility is Public and perspective is None
     pub fn is_semantic(&self) -> bool {
         self.perspective.is_none() && self.visibility == Visibility::Public
     }
 
     #[must_use = "builder methods must be chained or assigned"]
+    /// Set perspective (builder).
+    ///
+    /// REQ: TYP-132
+    /// post: returns Self with perspective set
     pub fn with_perspective(mut self, perspective: WebID) -> Self {
         self.perspective = Some(perspective);
         self
@@ -139,6 +178,10 @@ impl AccessControl {
     /// audience without removing the perspective, which is the
     /// privacy-laundering pattern. To legitimately share an
     /// episodic triple, call `without_perspective()` first.
+    /// Set visibility (builder).
+    ///
+    /// REQ: TYP-133
+    /// post: returns Self with visibility set
     pub fn with_visibility(mut self, visibility: Visibility) -> Self {
         // F-SYN-004: refuse perspective-locked flips.
         if self.is_episodic() {

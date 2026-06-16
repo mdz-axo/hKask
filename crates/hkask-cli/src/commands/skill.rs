@@ -15,6 +15,11 @@ fn project_root() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
+/// Run a skill command.
+///
+/// REQ: CLI-004
+/// pre:  action is valid
+/// post: skill command executed
 pub fn run_skill(action: SkillAction) {
     match action {
         SkillAction::List { visibility } => {

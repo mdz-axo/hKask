@@ -19,6 +19,10 @@ pub struct CompositeEnergyEstimator {
 
 impl CompositeEnergyEstimator {
     /// Create a new CompositeEnergyEstimator with default table costs.
+    /// Create a new composite energy estimator.
+    ///
+    /// REQ: CNS-086
+    /// post: returns CompositeEnergyEstimator with empty estimators
     pub fn new() -> Self {
         Self {
             inference: InferenceEnergyEstimator,

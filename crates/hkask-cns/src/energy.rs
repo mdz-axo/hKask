@@ -298,6 +298,12 @@ impl EnergyBudget {
     /// Returns `Ok(reserved)` if gas was reserved, `Err` if insufficient.
     /// Reserved gas is deducted from available but not from remaining until
     /// `settle()` is called.
+    /// Reserve gas for an in-flight operation.
+    ///
+    /// REQ: CNS-087
+    /// pre:  gas > 0
+    /// post: if hard_limit && gas > available → Err
+    /// post: if Ok → reserved increased by gas
     pub fn reserve(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         let available = self.available();
         if self.hard_limit && gas.0 > available.0 {
@@ -326,6 +332,11 @@ impl EnergyBudget {
     ///
     /// If actual > reserved (under-estimation), the extra is deducted from
     /// remaining as well.
+    /// Settle a reserved operation.
+    ///
+    /// REQ: CNS-088
+    /// pre:  reserved_gas ≤ self.reserved
+    /// post: reserved decreased, remaining decreased by actual
     pub fn settle(
         &mut self,
         reserved_gas: EnergyCost,
@@ -355,6 +366,12 @@ impl EnergyBudget {
     ///
     /// For operations where the cost is known exactly at call time
     /// (no hold-settle needed).
+    /// Consume gas immediately (non-reserved).
+    ///
+    /// REQ: CNS-089
+    /// pre:  gas > 0
+    /// post: if hard_limit && gas > remaining → Err
+    /// post: if Ok → remaining decreased by gas
     pub fn consume(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         if self.hard_limit && gas.0 > self.remaining.0 {
             return Err(EnergyError::BudgetExceeded {
@@ -374,6 +391,10 @@ impl EnergyBudget {
     ///
     /// Called by the Cybernetics Loop on its regulation cycle.
     /// Never exceeds cap.
+    /// Replenish energy budget.
+    ///
+    /// REQ: CNS-090
+    /// post: remaining increased by replenish_rate, capped at cap
     pub fn replenish(&mut self) {
         if self.replenish_rate.0 > 0 {
             self.remaining = EnergyCost(
@@ -405,6 +426,12 @@ impl EnergyBudget {
     /// [NORMATIVE] The effective replenishment is `(amount * priority).round()`, never exceeding cap (P9 — Homeostatic Self-Regulation).
     /// If `amount * priority` rounds to 0, at least 1 unit is replenished (so
     /// low-priority directives still have effect).
+    /// Replenish by weighted amount.
+    ///
+    /// REQ: CNS-091
+    /// pre:  amount > 0, priority in [0.0, 1.0]
+    /// post: remaining increased by amount * priority, capped at cap
+    /// post: returns actual amount replenished
     pub fn replenish_by_weighted(&mut self, amount: EnergyCost, priority: f64) -> EnergyCost {
         let scaled = (amount.0 as f64 * priority.clamp(0.0, 1.0)).round() as u64;
         let effective = scaled.max(1);

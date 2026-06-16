@@ -78,6 +78,11 @@ fn parse_restore_scope(s: &str) -> RestoreScope {
     }
 }
 
+/// Run a backup operation.
+///
+/// REQ: CLI-002
+/// pre:  rt is valid, action is valid
+/// post: backup operation executed
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
     match action {
         BackupAction::Snapshot { scope } => {

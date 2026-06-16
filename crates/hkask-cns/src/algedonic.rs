@@ -53,6 +53,10 @@ pub struct RuntimeAlert {
 
 impl RuntimeAlert {
     /// Create an alert using binary thresholds.
+    ///
+    /// REQ: CNS-050
+    /// pre:  domain is non-empty, threshold > 0
+    /// post: returns RuntimeAlert with severity based on deficit vs threshold
     pub fn new(domain: &str, deficit: u64, threshold: u64) -> Self {
         let severity = if deficit > threshold {
             AlertSeverity::Critical
@@ -76,14 +80,26 @@ impl RuntimeAlert {
         }
     }
 
+    /// Check if alert should be escalated.
+    ///
+    /// REQ: CNS-051
+    /// post: returns true iff severity is Critical
     pub fn should_escalate(&self) -> bool {
         self.escalated
     }
 
+    /// Check if alert is critical severity.
+    ///
+    /// REQ: CNS-052
+    /// post: returns true iff severity == Critical
     pub fn is_critical(&self) -> bool {
         self.severity == AlertSeverity::Critical
     }
 
+    /// Check if alert is warning severity.
+    ///
+    /// REQ: CNS-053
+    /// post: returns true iff severity == Warning
     pub fn is_warning(&self) -> bool {
         self.severity == AlertSeverity::Warning
     }

@@ -90,6 +90,11 @@ pub struct GovernedTool<P: ToolPort> {
 
 impl<P: ToolPort> GovernedTool<P> {
     /// Create a new GovernedTool membrane wrapping an inner ToolPort.
+    /// Create a new governed tool membrane.
+    ///
+    /// REQ: CNS-094
+    /// pre:  inner is valid, cns is valid
+    /// post: returns GovernedTool
     pub fn new(
         inner: Arc<P>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
@@ -109,6 +114,10 @@ impl<P: ToolPort> GovernedTool<P> {
 
     /// Wire the direct tool consumption channel: GovernedTool → Cybernetics.
     #[must_use = "builder methods must be chained or assigned"]
+    /// Set the tool consumption channel.
+    ///
+    /// REQ: CNS-095
+    /// post: returns Self with channel set (builder pattern)
     pub fn with_tool_consumption_channel(
         mut self,
         tx: mpsc::UnboundedSender<ToolConsumptionEvent>,
@@ -118,6 +127,10 @@ impl<P: ToolPort> GovernedTool<P> {
     }
 
     /// Builder: change the agent for this membrane.
+    /// Set the agent WebID for attribution.
+    ///
+    /// REQ: CNS-096
+    /// post: returns Self with agent set (builder pattern)
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
         self

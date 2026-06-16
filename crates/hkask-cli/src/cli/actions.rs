@@ -668,10 +668,10 @@ pub enum WalletAction {
         #[arg(short, long)]
         chain: Option<String>,
         /// Use shielded/privacy mode (default behavior).
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "transparent")]
         private: bool,
         /// Opt out to transparent mode (public on-chain visibility).
-        #[arg(long)]
+        #[arg(long, conflicts_with = "private")]
         transparent: bool,
         /// Wallet ID (UUID). Defaults to system wallet if omitted.
         #[arg(short, long)]
@@ -717,10 +717,10 @@ pub enum WalletAction {
         #[arg(short, long)]
         chain: Option<String>,
         /// Use shielded/privacy mode (default behavior).
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "transparent")]
         private: bool,
         /// Opt out to transparent mode (public on-chain visibility).
-        #[arg(long)]
+        #[arg(long, conflicts_with = "private")]
         transparent: bool,
         /// Wallet ID (UUID). Defaults to system wallet if omitted.
         #[arg(short, long)]
@@ -766,10 +766,10 @@ pub enum KeyAction {
         #[arg(short, long)]
         expiry: Option<u32>,
         /// Restrict to shielded/privacy mode (default behavior).
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "transparent")]
         private: bool,
         /// Opt out to transparent mode (public on-chain visibility).
-        #[arg(long)]
+        #[arg(long, conflicts_with = "private")]
         transparent: bool,
         /// Restrict to a specific chain (defaults to hinkal)
         #[arg(short, long)]

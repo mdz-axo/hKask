@@ -28,6 +28,11 @@ impl Default for EndpointWeight {
 
 /// Look up the weight for an endpoint path.
 /// Hardcoded table — configurable in future release.
+/// Get endpoint weight for rate limiting.
+///
+/// REQ: CNS-078
+/// pre:  path is non-empty
+/// post: returns EndpointWeight based on path pattern
 pub fn endpoint_weight(path: &str) -> EndpointWeight {
     if path.contains("embed-corpus") || path.contains("compose") {
         EndpointWeight(5.0)
@@ -104,6 +109,10 @@ pub enum RateLimitStatus {
 }
 
 impl RateLimitStatus {
+    /// Get string representation of alert type.
+    ///
+    /// REQ: CNS-079
+    /// post: returns lowercase alert type string
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Ok => "ok",
@@ -126,6 +135,10 @@ pub struct ApiMeter {
 
 impl ApiMeter {
     /// Create a new empty meter.
+    /// Create a new API meter.
+    ///
+    /// REQ: CNS-080
+    /// post: returns ApiMeter with empty buckets
     pub fn new() -> Self {
         Self {
             buckets: HashMap::new(),
@@ -142,6 +155,11 @@ impl ApiMeter {
     /// * `max_rpm` — Maximum requests per minute for this key.
     /// * `max_tokens_per_day` — Maximum tokens per day for this key.
     /// * `tokens_this_request` — Estimated tokens for this request.
+    /// Check rate limit and record request.
+    ///
+    /// REQ: CNS-081
+    /// pre:  key_id is valid
+    /// post: returns Ok if within limit, Err if rate limited
     pub fn check_and_record(
         &mut self,
         key_id: ApiKeyId,
@@ -170,6 +188,11 @@ impl ApiMeter {
     }
 
     /// Get the current request count in the last minute for a key.
+    /// Get current RPM for a key.
+    ///
+    /// REQ: CNS-082
+    /// pre:  key_id is valid
+    /// post: returns current requests per minute
     pub fn current_rpm(&self, key_id: ApiKeyId) -> u32 {
         let now = Instant::now();
         self.buckets
@@ -206,6 +229,11 @@ pub struct ApiRequestSpan {
 
 impl ApiRequestSpan {
     /// Build a span observation from metering data.
+    /// Create a new API request span.
+    ///
+    /// REQ: CNS-083
+    /// pre:  path and method are non-empty
+    /// post: returns ApiRequestSpan
     pub fn new(
         key_id: &str,
         endpoint: &str,
@@ -252,6 +280,10 @@ pub enum ApiMeteringAlert {
 
 impl ApiMeteringAlert {
     /// CNS alert type string for span emission.
+    /// Get alert type string.
+    ///
+    /// REQ: CNS-084
+    /// post: returns alert type label
     pub fn alert_type(&self) -> &'static str {
         match self {
             Self::RateLimitExceeded { .. } => "cns.api.rate_limit_exceeded",
@@ -263,6 +295,10 @@ impl ApiMeteringAlert {
     }
 
     /// Severity level for CNS algedonic signaling.
+    /// Get severity string.
+    ///
+    /// REQ: CNS-085
+    /// post: returns severity label
     pub fn severity(&self) -> &'static str {
         match self {
             Self::RateLimitExceeded { .. } => "warning",

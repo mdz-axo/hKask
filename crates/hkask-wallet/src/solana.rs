@@ -128,8 +128,12 @@ impl SolanaPort {
     fn emit_chain_error(&self, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
+            let actor = hkask_types::WebID::from_persona_with_namespace(
+                self.treasury_pubkey.to_string().as_bytes(),
+                "wallet-solana",
+            );
             let event = NuEvent::new(
-                hkask_types::WebID::new(),
+                actor,
                 span_obj,
                 Phase::Sense,
                 serde_json::json!({
@@ -219,18 +223,19 @@ impl SolanaPort {
             )
             .await?;
 
-        let blockhash_str =
-            result["value"]["blockhash"]
-                .as_str()
-                .ok_or_else(|| WalletError::ChainError {
-                    chain: ChainId::Solana,
-                    message: "missing blockhash in RPC response".into(),
-                })?;
+        let blockhash_str = result["value"]["blockhash"].as_str().ok_or_else(|| {
+            let msg = "missing blockhash in RPC response".to_string();
+            self.emit_chain_error("getLatestBlockhash", &msg);
+            WalletError::ChainError {
+                chain: ChainId::Solana,
+                message: msg,
+            }
+        })?;
 
         solana_sdk::hash::Hash::from_str(blockhash_str).map_err(|e| {
-            WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
-                "invalid blockhash: {e}"
-            )))
+            let msg = format!("invalid blockhash: {e}");
+            self.emit_chain_error("getLatestBlockhash", &msg);
+            WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })
     }
 
@@ -277,15 +282,19 @@ impl SolanaPort {
             )
             .await?;
 
-        let sig_str = result.as_str().ok_or_else(|| WalletError::ChainError {
-            chain: ChainId::Solana,
-            message: "missing signature in sendTransaction response".into(),
+        let sig_str = result.as_str().ok_or_else(|| {
+            let msg = "missing signature in sendTransaction response".to_string();
+            self.emit_chain_error("sendTransaction", &msg);
+            WalletError::ChainError {
+                chain: ChainId::Solana,
+                message: msg,
+            }
         })?;
 
         Signature::from_str(sig_str).map_err(|e| {
-            WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
-                "invalid signature from RPC: {e}"
-            )))
+            let msg = format!("invalid signature from RPC: {e}");
+            self.emit_chain_error("sendTransaction", &msg);
+            WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })
     }
 
@@ -422,7 +431,9 @@ impl ChainPort for SolanaPort {
 
                             let delta = post_amount - pre_amount;
                             if delta > 0.0 {
-                                let amount_usdc_micro = (delta * 1_000_000.0) as u64;
+                                // uiTokenAmount.amount is already in the token's base unit
+                                // (micro-USDC for USDC with 6 decimals). No conversion needed.
+                                let amount_usdc_micro = delta as u64;
                                 if amount_usdc_micro > 0 {
                                     let block_time = tx["blockTime"]
                                         .as_i64()

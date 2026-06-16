@@ -187,6 +187,10 @@ pub struct VarietyMonitor {
 }
 
 impl VarietyMonitor {
+    /// Create a new variety monitor.
+    ///
+    /// REQ: CNS-054
+    /// post: returns VarietyMonitor with empty counters
     pub fn new() -> Self {
         Self {
             counters: HashMap::new(),
@@ -197,10 +201,19 @@ impl VarietyMonitor {
         self.counters.entry(domain.to_string()).or_default()
     }
 
+    /// Get variety count for a domain.
+    ///
+    /// REQ: CNS-055
+    /// pre:  domain is non-empty
+    /// post: returns variety count, 0 if domain not tracked
     pub fn variety_for_domain(&self, domain: &str) -> u64 {
         self.counters.get(domain).map(|c| c.variety()).unwrap_or(0)
     }
 
+    /// List all tracked domains.
+    ///
+    /// REQ: CNS-056
+    /// post: returns Vec of domain name strings
     pub fn domains(&self) -> Vec<&str> {
         self.counters.keys().map(|s| s.as_str()).collect()
     }
@@ -254,6 +267,11 @@ pub struct CnsRuntime {
 }
 
 impl CnsRuntime {
+    /// Create a CNS runtime with a custom threshold.
+    ///
+    /// REQ: CNS-057
+    /// pre:  threshold > 0
+    /// post: returns CnsRuntime with configured threshold
     pub fn with_threshold(threshold: u64) -> Self {
         Self {
             state: Arc::new(RwLock::new(CnsState::new(threshold))),
@@ -263,6 +281,10 @@ impl CnsRuntime {
 
     // ── Health & Alerts ──
 
+    /// Get CNS health status.
+    ///
+    /// REQ: CNS-058
+    /// post: returns CnsHealth with current state
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
         {
@@ -271,17 +293,29 @@ impl CnsRuntime {
         }
     }
 
+    /// Get all alerts.
+    ///
+    /// REQ: CNS-059
+    /// post: returns Vec of RuntimeAlert
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         state.algedonic.read().alerts().to_vec()
     }
 
     /// Get the configured default threshold from the algedonic manager.
+    /// Get the configured default threshold.
+    ///
+    /// REQ: CNS-060
+    /// post: returns threshold value from algedonic manager
     pub async fn default_threshold(&self) -> u64 {
         let state = self.state.read().await;
         state.algedonic.read().default_threshold()
     }
 
+    /// Get critical alerts only.
+    ///
+    /// REQ: CNS-061
+    /// post: returns Vec of critical RuntimeAlert
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         {
@@ -297,6 +331,10 @@ impl CnsRuntime {
 
     // ── Variety ──
 
+    /// Get variety counts across all domains.
+    ///
+    /// REQ: CNS-062
+    /// post: returns HashMap of namespace → variety count
     pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
         let state = self.state.read().await;
         let domains: Vec<String> = state
@@ -322,6 +360,11 @@ impl CnsRuntime {
         results
     }
 
+    /// Get variety for a specific domain.
+    ///
+    /// REQ: CNS-063
+    /// pre:  domain is non-empty
+    /// post: returns variety count for domain
     pub async fn variety_for_domain(&self, domain: &str) -> u64 {
         let state = self.state.read().await;
         state.tracker.variety_for_domain(domain)
@@ -330,6 +373,11 @@ impl CnsRuntime {
     /// Synchronous version of variety_for_domain — uses blocking_read() on the
     /// internal tokio RwLock. This enables sync contexts (e.g., metric collectors,
     /// CLI closures) to query CNS variety counters without requiring async.
+    /// Get variety for a domain (blocking).
+    ///
+    /// REQ: CNS-064
+    /// pre:  domain is non-empty
+    /// post: returns variety count
     pub fn blocking_variety_for_domain(&self, domain: &str) -> u64 {
         let state = self.state.blocking_read();
         state.tracker.variety_for_domain(domain)
@@ -342,6 +390,11 @@ impl CnsRuntime {
     /// Complements variety tracking by measuring not just *what* was done
     /// but *how well*. After recording, checks outcome thresholds and emits
     /// alerts if success rate drops below warning/critical levels.
+    /// Record an outcome (success/failure) for a domain.
+    ///
+    /// REQ: CNS-065
+    /// pre:  domain is non-empty
+    /// post: outcome tracked for domain
     pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
         {
             let mut state = self.state.write().await;
@@ -360,6 +413,11 @@ impl CnsRuntime {
     /// Thresholds: success_rate < 0.50 → Warning, < 0.25 → Critical.
     /// Only checks when at least 5 operations have been recorded (avoids
     /// alert storms from small sample sizes).
+    /// Check outcome health for a domain.
+    ///
+    /// REQ: CNS-066
+    /// pre:  domain is non-empty
+    /// post: returns Some(alert) if success rate below threshold, None if healthy
     pub async fn check_outcome(&self, domain: &str) -> Option<RuntimeAlert> {
         let (success_rate, total_ops) = {
             let state = self.state.read().await;
@@ -388,6 +446,11 @@ impl CnsRuntime {
     }
 
     /// Get outcome success rate for a domain.
+    /// Get outcome success rate for a domain.
+    ///
+    /// REQ: CNS-067
+    /// pre:  domain is non-empty
+    /// post: returns Some(rate) if domain tracked, None otherwise
     pub async fn outcome_success_rate(&self, domain: &str) -> Option<f64> {
         let state = self.state.read().await;
         state.outcome.get(domain).map(|t| t.success_rate())
@@ -396,6 +459,11 @@ impl CnsRuntime {
     /// Increment variety and check thresholds — the loop closes here.
     /// After persisting variety, notifies subscribers whose interest mask
     /// includes the relevant span namespace.
+    /// Increment variety counter for a domain.
+    ///
+    /// REQ: CNS-068
+    /// pre:  domain and state_name are non-empty
+    /// post: variety counter incremented
     pub async fn increment_variety(&self, domain: &str, state_name: &str) {
         {
             let mut state = self.state.write().await;
@@ -429,6 +497,11 @@ impl CnsRuntime {
         }
     }
 
+    /// Check variety health for a domain.
+    ///
+    /// REQ: CNS-069
+    /// pre:  domain is non-empty
+    /// post: returns Some(alert) if variety below threshold, None if healthy
     pub async fn check_variety(&self, domain: &str) -> Option<RuntimeAlert> {
         let counter = {
             let state = self.state.read().await;
@@ -458,6 +531,11 @@ impl CnsRuntime {
         alert
     }
 
+    /// Calibrate the variety threshold for a domain.
+    ///
+    /// REQ: CNS-070
+    /// pre:  domain is non-empty, new_threshold > 0
+    /// post: threshold updated for domain
     pub async fn calibrate_threshold(&self, domain: &str, new_threshold: u64) {
         let state = self.state.write().await;
         {
@@ -473,6 +551,11 @@ impl CnsRuntime {
     ///
     /// Uses `blocking_write()` on the internal `ParkingRwLock` — safe because
     /// this is called during bootstrap before the async runtime is fully active.
+    /// Calibrate threshold (blocking).
+    ///
+    /// REQ: CNS-071
+    /// pre:  domain is non-empty, new_threshold > 0
+    /// post: threshold updated
     pub fn calibrate_threshold_blocking(&self, domain: &str, new_threshold: u64) {
         let state = self.state.blocking_write();
         state
@@ -491,6 +574,11 @@ impl CnsRuntime {
     /// - A backpressure signal fires (on_backpressure)
     ///
     /// Use `subscribe_async` when calling from an async context.
+    /// Subscribe an observer to CNS events.
+    ///
+    /// REQ: CNS-072
+    /// pre:  observer is valid
+    /// post: observer added to subscribers
     pub fn subscribe(&self, observer: Arc<dyn CnsObserver>) {
         let mut subscribers = self.subscribers.blocking_write();
         subscribers.push(observer);
@@ -500,6 +588,11 @@ impl CnsRuntime {
     ///
     /// This is the async version of subscribe, preferred when called from
     /// an async context (e.g., during bootstrap or from the API).
+    /// Subscribe an observer (async).
+    ///
+    /// REQ: CNS-073
+    /// pre:  observer is valid
+    /// post: observer added to subscribers
     pub async fn subscribe_async(&self, observer: Arc<dyn CnsObserver>) {
         let mut subscribers = self.subscribers.write().await;
         subscribers.push(observer);
@@ -509,6 +602,11 @@ impl CnsRuntime {
     ///
     /// Called by the Cybernetics Loop when energy budget depletion
     /// reaches critical levels, signaling downstream loops to throttle.
+    /// Emit a backpressure signal.
+    ///
+    /// REQ: CNS-074
+    /// pre:  signal is valid
+    /// post: backpressure signal emitted to subscribers
     pub async fn emit_backpressure(&self, signal: BackpressureSignal) {
         let subscribers = self.subscribers.read().await;
         for observer in subscribers.iter() {
@@ -519,6 +617,11 @@ impl CnsRuntime {
     /// Register a energy budget for an agent.
     ///
     /// Called during agent pod creation so the CNS can track and replenish budgets.
+    /// Register an energy budget for an agent.
+    ///
+    /// REQ: CNS-075
+    /// pre:  agent is valid, budget is valid
+    /// post: budget registered for agent
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         let state = self.state.read().await;
         let mut budgets = state.energy_budgets.write().await;
@@ -529,6 +632,11 @@ impl CnsRuntime {
     ///
     /// Returns the new remaining gas after replenishment, or 0 if the agent
     /// has no registered budget.
+    /// Replenish an agent's energy budget.
+    ///
+    /// REQ: CNS-076
+    /// pre:  agent is registered, amount > 0
+    /// post: budget replenished, returns actual amount added
     pub async fn replenish_agent_budget(&self, agent: &WebID, amount: EnergyCost) -> EnergyCost {
         let state = self.state.read().await;
         let mut budgets = state.energy_budgets.write().await;
@@ -552,6 +660,11 @@ impl CnsRuntime {
     ///
     /// Returns `None` if the agent has no registered budget.
     /// Used by the CNS service.
+    /// Get agent energy status.
+    ///
+    /// REQ: CNS-077
+    /// pre:  agent is valid
+    /// post: returns Some(status) if budget exists, None otherwise
     pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {
         let state = self.state.read().await;
         let budgets = state.energy_budgets.read().await;
