@@ -1,3 +1,19 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- declare
+- target
+- measure
+- plan
+- explore
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Improvement Kata — Step 1: Understand the Direction #}
 You are {{ learner_bot }}, an agent practicing the Toyota Improvement Kata.
 This is Step 1 of 4: UNDERSTAND THE DIRECTION.

@@ -1,3 +1,19 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- prompt
+- pledge
+- promise
+- commit
+- instruct
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Kata Bundle — Habit Intervention
    Triggered when practice decays (3+ day gap, declining automaticity).
    This is encouragement, not punishment. The goal: restart momentum with

@@ -7,300 +7,313 @@
 
 hlexicon:
   wordact:
-    - term: query
-      definition: "Ask for information"
-    - term: request
-      definition: "Ask for action"
-    - term: instruct
-      definition: "Give step-by-step direction"
-    - term: command
-      definition: "Authoritative directive"
-    - term: prompt
-      definition: "Elicit a response"
-    - term: probe
-      definition: "Deep inquiry"
-    - term: challenge
-      definition: "Question validity"
-    - term: summon
-      definition: "Call forth knowledge"
-    - term: pledge
-      definition: "Commit to action"
-    - term: propose
-      definition: "Offer a plan"
-    - term: promise
-      definition: "Guarantee outcome"
-    - term: undertake
-      definition: "Accept task"
-    - term: commit
-      definition: "Bind to course"
-    - term: assert
-      definition: "State as fact"
-    - term: claim
-      definition: "State with uncertainty"
-    - term: report
-      definition: "Present findings"
-    - term: declare
-      definition: "Formal statement"
-    - term: affirm
-      definition: "Confirm truth"
-    - term: testify
-      definition: "Witness-based statement"
-    - term: acknowledge
-      definition: "Recognize receipt"
-    - term: apologize
-      definition: "Express regret"
-    - term: celebrate
-      definition: "Express joy"
-    - term: create
-      definition: "Bring into existence"
     - term: abolish
       definition: "End existence"
-    - term: transform
-      definition: "Change state"
-    - term: specify
-      definition: "Define a binding constraint or intent"
-    - term: require
-      definition: "State a non-negotiable condition"
+    - term: acknowledge
+      definition: "Recognize receipt"
+    - term: affirm
+      definition: "Confirm truth"
+    - term: apologize
+      definition: "Express regret"
+    - term: assert
+      definition: "State as fact"
+    - term: celebrate
+      definition: "Express joy"
+    - term: challenge
+      definition: "Question validity"
+    - term: claim
+      definition: "State with uncertainty"
+    - term: command
+      definition: "Authoritative directive"
+    - term: commit
+      definition: "Bind to course"
     - term: constrain
       definition: "Limit the solution space"
+    - term: create
+      definition: "Bring into existence"
+    - term: declare
+      definition: "Formal statement"
+    - term: embed_corpus
+      definition: "Convert an author's works into vector embeddings"
     - term: extract
       definition: "Pull specific structured data from a source"
     - term: gap
       definition: "Identify an uncovered requirement or missing capability"
+    - term: instruct
+      definition: "Give step-by-step direction"
+    - term: mashup
+      definition: "Blend two authorial styles via centroid interpolation"
+    - term: pledge
+      definition: "Commit to action"
+    - term: probe
+      definition: "Deep inquiry"
+    - term: promise
+      definition: "Guarantee outcome"
+    - term: prompt
+      definition: "Elicit a response"
+    - term: propose
+      definition: "Offer a plan"
+    - term: query
+      definition: "Ask for information"
+    - term: replicate
+      definition: "Generate prose in a stylistic replica of an author"
+    - term: report
+      definition: "Present findings"
     - term: reproduce
       definition: "Re-create a bug or behavior from a known procedure"
+    - term: request
+      definition: "Ask for action"
+    - term: require
+      definition: "State a non-negotiable condition"
+    - term: specify
+      definition: "Define a binding constraint or intent"
     - term: substitute
       definition: "Replace a term or reference with an equivalent"
+    - term: summon
+      definition: "Call forth knowledge"
+    - term: testify
+      definition: "Witness-based statement"
+    - term: transform
+      definition: "Change state"
+    - term: undertake
+      definition: "Accept task"
     - term: validate
       definition: "Confirm an artifact meets defined criteria"
     - term: write
       definition: "Produce or persist content"
   flowdef:
-    - term: sequence
-      definition: "Linear ordering"
-    - term: parallel
-      definition: "Concurrent execution"
-    - term: choice
-      definition: "Exclusive branching"
-    - term: iteration
-      definition: "Repetition"
-    - term: fork
-      definition: "Split into branches"
-    - term: join
-      definition: "Merge branches"
-    - term: sync
-      definition: "Synchronization point"
-    - term: async
-      definition: "Non-blocking"
-    - term: filter
-      definition: "Select subset"
+    - term: abort
+      definition: "Terminate"
     - term: aggregate
       definition: "Combine results"
-    - term: route
-      definition: "Direct to destination"
+    - term: async
+      definition: "Non-blocking"
+    - term: branch
+      definition: "Divergent development line"
     - term: broadcast
       definition: "Send to multiple"
     - term: catch
       definition: "Handle error"
-    - term: fallback
-      definition: "Alternative path"
-    - term: compensate
-      definition: "Undo action"
-    - term: escalate
-      definition: "Raise to higher level"
-    - term: abort
-      definition: "Terminate"
-    - term: delay
-      definition: "Wait duration"
-    - term: timeout
-      definition: "Maximum wait"
-    - term: schedule
-      definition: "Plan for time"
-    - term: expire
-      definition: "Become invalid"
-    - term: compose
-      definition: "Combine flows"
-    - term: decompose
-      definition: "Break into parts"
+    - term: choice
+      definition: "Exclusive branching"
     - term: clone
       definition: "Copy without modification intent"
-    - term: branch
-      definition: "Divergent development line"
-    - term: merge
-      definition: "Combine divergent versions"
-    - term: rebase
-      definition: "Reapply changes on new base"
-    - term: pr
-      definition: "Pull request to merge fork"
-    - term: upstream
-      definition: "Original source of fork"
-    - term: downstream
-      definition: "Forks of this artifact"
+    - term: compensate
+      definition: "Undo action"
+    - term: compose
+      definition: "Combine flows"
     - term: curate
       definition: "Select, contextualise, and integrate artifacts"
-    - term: elicit
-      definition: "Draw out latent goals or requirements"
-    - term: reconcile
-      definition: "Resolve conflicts between goals or requirements"
+    - term: decompose
+      definition: "Break into parts"
     - term: defer
       definition: "Postpone action pending future evidence"
+    - term: delay
+      definition: "Wait duration"
     - term: deprecate
       definition: "Mark for future removal while remaining functional"
+    - term: downstream
+      definition: "Forks of this artifact"
+    - term: elicit
+      definition: "Draw out latent goals or requirements"
     - term: enforce
       definition: "Ensure a constraint or rule is obeyed"
+    - term: escalate
+      definition: "Raise to higher level"
+    - term: expire
+      definition: "Become invalid"
+    - term: fallback
+      definition: "Alternative path"
+    - term: filter
+      definition: "Select subset"
+    - term: fork
+      definition: "Split into branches"
     - term: install
       definition: "Place an artifact into its operational location"
+    - term: iteration
+      definition: "Repetition"
+    - term: join
+      definition: "Merge branches"
     - term: list
       definition: "Enumerate items in a collection"
+    - term: merge
+      definition: "Combine divergent versions"
+    - term: parallel
+      definition: "Concurrent execution"
+    - term: pr
+      definition: "Pull request to merge fork"
     - term: prune
       definition: "Remove an artifact from the corpus"
+    - term: rebase
+      definition: "Reapply changes on new base"
+    - term: reconcile
+      definition: "Resolve conflicts between goals or requirements"
     - term: retire
       definition: "Permanently remove a deprecated artifact"
+    - term: route
+      definition: "Direct to destination"
+    - term: schedule
+      definition: "Plan for time"
     - term: search
       definition: "Look for candidates across available sources"
+    - term: select
+      definition: "Choose the best-fit item from a set"
+    - term: sequence
+      definition: "Linear ordering"
+    - term: sync
+      definition: "Synchronization point"
+    - term: timeout
+      definition: "Maximum wait"
+    - term: transform
+      definition: "Convert data"
+    - term: upstream
+      definition: "Original source of fork"
   knowact:
-    - term: recognize
-      definition: "Identify pattern"
-    - term: classify
-      definition: "Categorize"
-    - term: detect
-      definition: "Notice anomaly"
-    - term: match
-      definition: "Find similarity"
-    - term: discriminate
-      definition: "Distinguish"
-    - term: parse
-      definition: "Analyze structure"
-    - term: infer
-      definition: "Draw conclusion"
-    - term: deduce
-      definition: "Logical derivation"
-    - term: induce
-      definition: "Generalize"
     - term: abduct
       definition: "Best explanation"
-    - term: analogy
-      definition: "Map similarity"
-    - term: critique
-      definition: "Evaluate reasoning"
     - term: acquire
       definition: "Gain knowledge"
-    - term: integrate
-      definition: "Merge with existing"
-    - term: crystallize
-      definition: "Stabilize memory"
     - term: adapt
       definition: "Adjust to context"
-    - term: calibrate
-      definition: "Tune accuracy"
-    - term: reflect
-      definition: "Observe own process"
-    - term: monitor
-      definition: "Track performance"
-    - term: evaluate
-      definition: "Assess quality"
-    - term: regulate
-      definition: "Adjust behavior"
-    - term: orient
-      definition: "Direct attention"
-    - term: ground
-      definition: "Anchor in reality"
-    - term: contextualise
-      definition: "Situate an artifact within its meaningful environment"
-    - term: cultivate
-      definition: "Nurture growth and coherence over time"
-    - term: compact
-      definition: "Distill and compress context into essential facts"
-    - term: distill
-      definition: "Extract the essential from the voluminous"
-    - term: summarize
-      definition: "Produce a concise representation of content"
-    - term: catalog
-      definition: "Enumerate and classify artifacts by reference"
-    - term: reference
-      definition: "Point to an artifact by path or URL without duplication"
-    - term: redact
-      definition: "Remove or mask sensitive data before transfer"
-    - term: suggest
-      definition: "Recommend a skill or action based on context"
-    - term: prioritize
-      definition: "Rank by importance or urgency"
-    - term: recommend
-      definition: "Advise a specific course of action"
-    - term: compose
-      definition: "Assemble parts into a structured whole"
-    - term: structure
-      definition: "Organize into a defined arrangement"
-    - term: document
-      definition: "Create a persistent, transferable record"
-    - term: handoff
-      definition: "Transfer session context to a fresh agent"
-    - term: assess
-      definition: "Evaluate a task against principles before action"
-    - term: simplify
-      definition: "Reduce to the minimum code that solves the problem"
-    - term: verify
-      definition: "Confirm compliance with defined criteria"
-    - term: audit
-      definition: "Systematic examination for violations and compliance"
-    - term: apply
-      definition: "Enforce constraints and guardrails on implementation"
     - term: amplify
       definition: "Increase regulatory or response variety"
+    - term: analogy
+      definition: "Map similarity"
     - term: analyze
       definition: "Decompose into components for understanding"
+    - term: apply
+      definition: "Enforce constraints and guardrails on implementation"
+    - term: assess
+      definition: "Evaluate a task against principles before action"
     - term: attenuate
       definition: "Reduce system or disturbance variety"
+    - term: audit
+      definition: "Systematic examination for violations and compliance"
+    - term: blend
+      definition: "Interpolate between style vectors for mashup generation"
+    - term: calibrate
+      definition: "Tune accuracy"
+    - term: catalog
+      definition: "Enumerate and classify artifacts by reference"
+    - term: classify
+      definition: "Categorize"
+    - term: compact
+      definition: "Distill and compress context into essential facts"
+    - term: compare
+      definition: "Measure stylistic distance between author centroids"
+    - term: compose
+      definition: "Assemble parts into a structured whole"
     - term: compress
       definition: "Distill and reduce context volume"
+    - term: contextualise
+      definition: "Situate an artifact within its meaningful environment"
+    - term: converge
+      definition: "Approach a common point, state, or value through iterative refinement"
+    - term: critique
+      definition: "Evaluate reasoning"
+    - term: crystallize
+      definition: "Stabilize memory"
+    - term: cultivate
+      definition: "Nurture growth and coherence over time"
+    - term: deduce
+      definition: "Logical derivation"
     - term: deepen
       definition: "Extract a smaller interface from a shallow module"
     - term: design
       definition: "Define structure and interfaces of a component"
+    - term: detect
+      definition: "Notice anomaly"
+    - term: discriminate
+      definition: "Distinguish"
+    - term: distill
+      definition: "Extract the essential from the voluminous"
+    - term: document
+      definition: "Create a persistent, transferable record"
+    - term: energy_landscape
+      definition: "Configuration space representation where energy or cost is encoded as elevation"
+    - term: equilibrium
+      definition: "State of balance where opposing forces or tendencies cancel"
+    - term: evaluate
+      definition: "Assess quality"
     - term: explore
       definition: "Search systematically for patterns or friction"
     - term: fix
       definition: "Apply a corrective change to resolve a defect"
+    - term: gradient_descent
+      definition: "Iterative optimization following the direction of steepest decrease"
+    - term: ground
+      definition: "Anchor in reality"
+    - term: handoff
+      definition: "Determine what context to transfer to the next agent"
+    - term: homeostasis
+      definition: "Self-regulating stability maintained through feedback mechanisms"
+    - term: induce
+      definition: "Generalize"
+    - term: infer
+      definition: "Draw conclusion"
     - term: instrument
       definition: "Add targeted observation points to a code path"
+    - term: integrate
+      definition: "Merge with existing"
     - term: isolate
       definition: "Separate a concern or variable from its context"
     - term: map
       definition: "Produce a structured representation of component relationships"
+    - term: match
+      definition: "Find similarity"
+    - term: minimize
+      definition: "Reduce to the lowest possible state or value"
+    - term: monitor
+      definition: "Track performance"
     - term: observe
       definition: "Watch and record system behavior without intervention"
+    - term: orient
+      definition: "Direct attention"
+    - term: parse
+      definition: "Analyze structure"
     - term: plan
       definition: "Define ordered steps toward a goal before execution"
     - term: predict
       definition: "Forecast an outcome from current evidence"
+    - term: prioritize
+      definition: "Rank by importance or urgency"
     - term: rank
       definition: "Order items by a comparative criterion"
+    - term: recognize
+      definition: "Identify pattern"
+    - term: recommend
+      definition: "Advise a specific course of action"
+    - term: redact
+      definition: "Remove or mask sensitive data before transfer"
+    - term: reference
+      definition: "Point to an artifact by path or URL without duplication"
+    - term: reflect
+      definition: "Observe own process"
+    - term: regulate
+      definition: "Adjust behavior"
     - term: resolve
       definition: "Determine a winner or course from competing alternatives"
+    - term: revise
+      definition: "Improve by iteration"
     - term: score
       definition: "Assign a numeric assessment to an artifact"
+    - term: simplify
+      definition: "Reduce to the minimum code that solves the problem"
+    - term: stationary_action
+      definition: "Path where small variations produce no first-order change in the action integral"
+    - term: structure
+      definition: "Organize into a defined arrangement"
+    - term: suggest
+      definition: "Recommend a skill or action based on context"
+    - term: summarize
+      definition: "Produce a concise representation of content"
     - term: synthesize
       definition: "Combine disparate elements into a coherent whole"
     - term: trace
       definition: "Follow a causal or provenance chain"
     - term: translate
       definition: "Convert from one representation or format to another"
-    # Lazy Universe terms — least-action grounding (TASK 1.2)
-    - term: minimize
-      definition: "Reduce to the lowest possible state or value"
-    - term: equilibrium
-      definition: "State of balance where opposing forces or tendencies cancel"
-    - term: homeostasis
-      definition: "Self-regulating stability maintained through feedback mechanisms"
-    - term: converge
-      definition: "Approach a common point, state, or value through iterative refinement"
-    - term: stationary_action
-      definition: "Path where small variations produce no first-order change in the action integral"
-      academic_citation: "Hamilton's principle — δS = 0"
     - term: variational_principle
       definition: "Principle that physical systems evolve along paths extremizing an integral quantity"
-      academic_citation: "Coopersmith, The Lazy Universe (2017)"
-    - term: gradient_descent
-      definition: "Iterative optimization following the direction of steepest decrease"
-    - term: energy_landscape
-      definition: "Configuration space representation where energy or cost is encoded as elevation"
+    - term: verify
+      definition: "Confirm compliance with defined criteria"

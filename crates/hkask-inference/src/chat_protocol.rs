@@ -68,7 +68,8 @@ pub struct ChatMessage {
 /// transfer encoding from confusing JSON parsers.
 /// Build an OpenAI-compatible chat completion request body.
 ///
-/// REQ: INFER-026
+/// REQ: P9-inf-build-chat-request
+/// [P9] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload
 /// pre:  model is non-empty, prompt is non-empty
 /// post: returns serde_json::Value with model, messages, and parameters
 pub fn build_chat_request(
@@ -198,7 +199,8 @@ pub struct StreamDelta {
 /// If no `/` separator, server is empty and the full name is the tool.
 /// Map raw tool calls from API response to structured ToolCall format.
 ///
-/// REQ: INFER-027
+/// REQ: P9-inf-map-tool-calls
+/// [P9] Motivating: Homeostatic Self-Regulation — structured tool-call results for routing
 /// pre:  calls is a valid slice of RawToolCall
 /// post: returns Vec<StructuredToolCall> with parsed arguments
 pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
@@ -224,7 +226,8 @@ pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
 /// Convert raw token probabilities to `TokenProbability`.
 /// Map raw token probabilities to structured TokenProbability format.
 ///
-/// REQ: INFER-028
+/// REQ: P9-inf-map-token-probs
+/// [P9] Motivating: Homeostatic Self-Regulation — token probability metadata for monitoring
 /// pre:  probs is a valid slice of RawTokenProb
 /// post: returns Vec<TokenProbability> with mapped fields
 pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
@@ -248,7 +251,8 @@ pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
 /// Convert a `ChatResponse` into an `InferenceResult`.
 /// Convert a chat completion response to InferenceResult.
 ///
-/// REQ: INFER-029
+/// REQ: P9-inf-chat-response-to-result
+/// [P9] Motivating: Homeostatic Self-Regulation — normalizes provider response for monitoring
 /// pre:  response is a valid ChatResponse
 /// post: returns Ok(InferenceResult) with text, usage, finish_reason
 /// post: returns Err if no choices in response
@@ -284,7 +288,8 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
 /// Parse SSE stream lines into `InferenceStreamChunk` vec.
 /// Parse an SSE stream into InferenceStreamChunks.
 ///
-/// REQ: INFER-030
+/// REQ: P9-inf-parse-sse-stream
+/// [P9] Motivating: Homeostatic Self-Regulation — parses streaming response chunks for regulated output
 /// pre:  stream is a valid SSE byte stream
 /// post: returns stream of InferenceStreamChunk parsed from SSE data lines
 pub fn parse_sse_stream(
@@ -348,7 +353,8 @@ pub fn parse_sse_stream(
 
 /// Validate a prompt string.
 ///
-/// REQ: INFER-001
+/// REQ: P9-inf-validate-prompt
+/// [P9] Motivating: Homeostatic Self-Regulation — input validation prevents token overconsumption
 /// pre:  prompt is a valid &str
 /// post: returns Err(Generation) if prompt is empty
 /// post: returns Err(Generation) if prompt.len() > 1_000_000
@@ -366,7 +372,8 @@ pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
 mod tests {
     use super::*;
 
-    /// REQ: chat-proto-001 — ChatResponse deserializes OpenAI-compatible format
+    /// REQ: P9-inf-test-chat-response-deserializes — ChatResponse deserializes OpenAI-compatible format
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates response normalization
     #[test]
     fn chat_response_deserializes_openai_format() {
         let raw = r#"{
@@ -402,7 +409,8 @@ mod tests {
         assert_eq!(resp.usage.total_tokens, 16);
     }
 
-    /// REQ: chat-proto-002 — build_chat_request produces valid JSON with stream:false
+    /// REQ: P9-inf-test-build-chat-request-stream-false — build_chat_request produces valid JSON with stream:false
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates non-streaming request payload
     #[test]
     fn build_chat_request_stream_false() {
         let params = LLMParameters {
@@ -432,14 +440,16 @@ mod tests {
         assert_eq!(json["messages"][0]["content"], "Write a sentence.");
     }
 
-    /// REQ: chat-proto-003 — validate_prompt rejects empty and overlong prompts
+    /// REQ: P9-inf-test-validate-prompt-rejects — validate_prompt rejects empty and overlong prompts
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates prompt guardrails
     #[test]
     fn validate_prompt_rejects_invalid() {
         assert!(validate_prompt("").is_err());
         assert!(validate_prompt("hello").is_ok());
     }
 
-    /// REQ: chat-proto-004 — disable_thinking maps to enable_thinking: false in wire format
+    /// REQ: P9-inf-test-disable-thinking-wire — disable_thinking maps to enable_thinking: false in wire format
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates reasoning-mode suppression
     #[test]
     fn disable_thinking_maps_to_wire_format() {
         let params = LLMParameters {
@@ -460,7 +470,8 @@ mod tests {
         assert_eq!(json["enable_thinking"], serde_json::json!(false));
     }
 
-    /// REQ: chat-proto-005 — enable_thinking is omitted from JSON when true (default)
+    /// REQ: P9-inf-test-enable-thinking-omitted — enable_thinking is omitted from JSON when true (default)
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates default reasoning-mode omission
     #[test]
     fn enable_thinking_omitted_when_true() {
         let params = LLMParameters {
@@ -482,7 +493,8 @@ mod tests {
         assert!(json.get("enable_thinking").is_none());
     }
 
-    // REQ: INFER-001 — validate_prompt contract (property-based)
+    // REQ: P9-inf-validate-prompt — validate_prompt contract (property-based)
+    // [P9] Motivating: Homeostatic Self-Regulation — input validation prevents token overconsumption
     // For any non-empty string ≤ 1_000_000 chars, validate_prompt returns Ok(()).
     // For empty string, returns Err. For strings > 1_000_000, returns Err.
     #[test]

@@ -13,25 +13,51 @@ crate:
 templates:
   - id: kata-improvement/improvement-cycle
     path: improvement-cycle.j2
-    type: FlowDef
+    type: KnowAct
+    lexicon_terms: [sequence, iterate, reflect, converge, evaluate]
     description: Full 4-step Improvement Kata cycle with cybernetic feedback loop.
 
   - id: kata-improvement/improvement-step1-direction
     path: improvement-step1-direction.j2
     type: WordAct
+    lexicon_terms: [declare, target, measure, plan, explore]
     description: Step 1 — Understand the direction. Articulate challenge, target, measurement plan, knowledge threshold.
 
   - id: kata-improvement/improvement-step2-current
     path: improvement-step2-current.j2
     type: WordAct
-    description: Step 2 — Grasp the current condition. Collect data, identify patterns, establish baseline metrics.
+    lexicon_terms: [observe, collect, detect, measure, report]
+    description: Step 2 — Grasp the current condition. Collect data, detect patterns, establish baseline metrics.
 
   - id: kata-improvement/improvement-step3-target
     path: improvement-step3-target.j2
     type: WordAct
-    description: Step 3 — Establish next target condition. Declare measurable target, identify obstacles, pick ONE focus obstacle.
+    lexicon_terms: [target, measure, detect, prioritize, select]
+    description: Step 3 — Establish next target condition. Declare measurable target, detect obstacles, pick ONE focus obstacle.
 
   - id: kata-improvement/improvement-step4-experiment
     path: improvement-step4-experiment.j2
     type: WordAct
+    lexicon_terms: [plan, predict, apply, evaluate, reflect]
     description: Step 4 — Experiment toward target. Design PDCA experiment with specific prediction and measurement plan.
+
+hlexicon_terms:
+  - sequence
+  - iterate
+  - reflect
+  - converge
+  - evaluate
+  - declare
+  - target
+  - measure
+  - plan
+  - explore
+  - observe
+  - collect
+  - detect
+  - report
+  - prioritize
+  - select
+  - predict
+  - apply
+  - verify

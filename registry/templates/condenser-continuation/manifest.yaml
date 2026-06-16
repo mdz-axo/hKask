@@ -34,7 +34,7 @@ templates:
   - id: condenser-continuation/condenser-continuation-verify
     path: condenser-continuation-verify.j2
     type: KnowAct
-    lexicon_terms: [verify, validate, check, test, regulate]
+    lexicon_terms: [verify, validate, discriminate, test, regulate]
     description: >
       Produce a structured verification plan (cargo check, build, clippy, MCP
       handshake test) with expected outcomes and success criteria for an agent
@@ -61,7 +61,6 @@ hlexicon_terms:
   - recommend
   - verify
   - validate
-  - check
   - test
   - regulate
   - compose

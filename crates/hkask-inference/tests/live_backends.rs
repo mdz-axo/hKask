@@ -79,7 +79,8 @@ fn make_config(provider: ProviderId, base_url: &str, api_key: &str) -> Inference
     }
 }
 
-// REQ: LIVE-001 — DeepInfra backend produces valid summary with disable_thinking
+// REQ: P9-inf-test-deepinfra-live-summary — DeepInfra backend produces valid summary with disable_thinking
+// [P9] Motivating: Homeostatic Self-Regulation — live DeepInfra generation with reasoning disabled
 #[tokio::test]
 #[ignore = "requires DI_API_KEY or DEEPINFRA_API_KEY"]
 async fn deepinfra_summarization() {
@@ -114,7 +115,8 @@ async fn deepinfra_summarization() {
     );
 }
 
-// REQ: LIVE-002 — Together backend produces valid summary with disable_thinking
+// REQ: P9-inf-test-together-live-summary — Together backend produces valid summary with disable_thinking
+// [P9] Motivating: Homeostatic Self-Regulation — live Together AI generation with reasoning disabled
 #[tokio::test]
 #[ignore = "requires TOGETHER_API_KEY"]
 async fn together_summarization() {

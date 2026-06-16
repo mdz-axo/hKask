@@ -1,3 +1,17 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- analyze
+- evaluate
+- classify
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Yes But — Accept whole contribution, constrain without contradicting.
    Constraint narrows scope, does not contradict the accepted base. #}
 

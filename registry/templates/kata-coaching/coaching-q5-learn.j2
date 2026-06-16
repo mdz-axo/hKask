@@ -1,3 +1,19 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- query
+- observe
+- verify
+- reflect
+- iterate
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Coaching Kata — Q5: How quickly can we go and see?
    Final question closes the feedback loop. The learner commits to a
    specific time and measurement. Without this, experiments drift into

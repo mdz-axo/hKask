@@ -1,0 +1,13 @@
+[package]
+name = "hkask-rsolidity"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "rSolidity runtime contract vocabulary for hKask"
+
+[dependencies]
+hkask-rsolidity-macros = { path = "../hkask-rsolidity-macros" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }

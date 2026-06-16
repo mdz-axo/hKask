@@ -13,8 +13,11 @@ crate:
 templates:
   - id: improv/improv-cycle
     path: improv-cycle.j2
-    type: FlowDef
-    description: Full improv mode selection and application cycle.
+    type: KnowAct
+    lexicon_terms: [select, compose, route, improvise, adapt]
+    description: >
+      Select and apply an improv mode given context and intent.
+      KnowAct — reason about which mode fits, do not execute a runtime FlowDef.
 
   - id: improv/improv-plussing
     path: improv-plussing.j2

@@ -83,10 +83,6 @@ assertions:
           - query_algedonic
           - replay_weighted
           - insert
-      - crate: hkask-mcp
-        module: git_cas::snapshot_writer
-        methods:
-          - put_consent_record
 
   - id: p1e
     name: atomic_consent

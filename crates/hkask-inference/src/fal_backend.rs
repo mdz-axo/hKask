@@ -30,7 +30,8 @@ impl FalBackend {
     ///
     /// Returns an error if `fal_api_key` is empty.
     ///
-    /// REQ: INFER-012
+    /// REQ: P4-inf-fal-backend-new
+    /// [P4] Motivating: Clear Boundaries — fal.ai provider membrane requires valid API key
     /// pre:  config.fal_api_key is set
     /// post: returns FalBackend with configured HTTP client
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
@@ -52,7 +53,8 @@ impl FalBackend {
 
     /// Send a chat completion request to fal.ai.
     ///
-    /// REQ: INFER-047
+    /// REQ: P9-inf-fal-generate
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated text generation
     /// pre:  model is a valid fal.ai model name
     /// pre:  prompt is non-empty (validated by validate_prompt)
     /// pre:  params is a valid LLMParameters
@@ -105,7 +107,8 @@ impl FalBackend {
 
     /// Vision/multimodal inference with base64-encoded images.
     ///
-    /// REQ: INFER-048
+    /// REQ: P9-inf-fal-generate-vision
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
     /// pre:  model is a valid fal.ai vision-capable model name
     /// pre:  prompt is non-empty
     /// pre:  images is non-empty (at least one base64-encoded image)
@@ -170,7 +173,8 @@ impl FalBackend {
     /// Stream a chat completion from fal.ai via SSE.
     /// Generate a streaming completion from Fal.
     ///
-    /// REQ: INFER-013
+    /// REQ: P9-inf-fal-generate-stream
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
     /// pre:  model is a valid Fal model name
     /// post: returns stream of inference chunks
     pub fn generate_stream(
@@ -239,7 +243,8 @@ impl FalBackend {
     /// Returns a curated list of vision-capable models known to work
     /// with the OpenAI-compatible chat completions endpoint.
     ///
-    /// REQ: INFER-049
+    /// REQ: P9-inf-fal-list-models
+    /// [P9] Motivating: Homeostatic Self-Regulation — static model catalog for variety
     /// pre:  none (static catalog, no API call)
     /// post: returns Ok(Vec<FalModelEntry>) with curated model list
     pub async fn list_models(&self) -> Result<Vec<FalModelEntry>, InferenceError> {
@@ -402,7 +407,8 @@ impl FalBackend {
     /// Generate an image from a text prompt.
     /// Endpoint: fal-ai/flux/schnell (fast) or fal-ai/flux-pro (quality).
     ///
-    /// REQ: INFER-050
+    /// REQ: P9-inf-fal-generate-image
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated image generation
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated image data
     /// post: if API call fails → Err(InferenceError::Connection)
@@ -423,7 +429,8 @@ impl FalBackend {
     /// Transform an existing image with a prompt (image-to-image).
     /// Endpoint: fal-ai/flux/dev/image-to-image
     ///
-    /// REQ: INFER-051
+    /// REQ: P9-inf-fal-image-to-image
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated image editing
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  prompt is a non-empty transformation instruction
     /// post: returns Ok(serde_json::Value) with transformed image data
@@ -448,7 +455,8 @@ impl FalBackend {
     /// Remove background from an image.
     /// Endpoint: fal-ai/birefnet
     ///
-    /// REQ: INFER-052
+    /// REQ: P9-inf-fal-remove-background
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated image transformation
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with background-removed image data
     /// post: if API call fails → Err(InferenceError::Connection)
@@ -463,7 +471,8 @@ impl FalBackend {
     /// Upscale an image.
     /// Endpoint: fal-ai/seedvr2 (queue)
     ///
-    /// REQ: INFER-053
+    /// REQ: P9-inf-fal-upscale
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated image upscaling
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with upscaled image data
     /// post: if API call fails → Err(InferenceError::Connection)
@@ -482,7 +491,8 @@ impl FalBackend {
     /// Generate a video from a text prompt.
     /// Endpoint: fal-ai/minimax/video-01-live (queue)
     ///
-    /// REQ: INFER-054
+    /// REQ: P9-inf-fal-generate-video
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated video generation
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated video data
     /// post: if API call fails → Err(InferenceError::Connection)
@@ -502,7 +512,8 @@ impl FalBackend {
     /// Animate a still image into a video.
     /// Endpoint: fal-ai/seedance-2.0/image-to-video (queue)
     ///
-    /// REQ: INFER-055
+    /// REQ: P9-inf-fal-image-to-video
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated video generation
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with generated video data
     /// post: if API call fails → Err(InferenceError::Connection)
@@ -526,7 +537,8 @@ impl FalBackend {
     /// Segment/extract a specific object from an image.
     /// Endpoint: fal-ai/florence-2-large/referring-expression-segmentation
     ///
-    /// REQ: INFER-056
+    /// REQ: P9-inf-fal-segment-object
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated image segmentation
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  object_description is a non-empty description of the object to segment
     /// post: returns Ok(serde_json::Value) with segmented object data
@@ -553,7 +565,8 @@ impl FalBackend {
     /// Callum, River, Liam, Charlotte, Alice, Matilda, Will, Jessica, Eric,
     /// Chris, Brian, Daniel, Lily, Bill. Default: "Rachel".
     ///
-    /// REQ: INFER-057
+    /// REQ: P9-inf-fal-generate-speech
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated speech synthesis
     /// pre:  text is non-empty
     /// pre:  voice is a valid voice preset name
     /// post: returns Ok(serde_json::Value) with generated speech audio data
@@ -574,7 +587,8 @@ impl FalBackend {
     /// Transcribe speech audio to text using Whisper.
     /// Endpoint: fal-ai/whisper
     ///
-    /// REQ: INFER-058
+    /// REQ: P9-inf-fal-transcribe
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated speech transcription
     /// pre:  audio_url is a valid, accessible audio file URL
     /// post: returns Ok(serde_json::Value) with transcription data
     /// post: if API call fails → Err(InferenceError::Connection)
@@ -598,7 +612,8 @@ pub struct FalModelEntry {
 mod tests {
     use super::*;
 
-    /// REQ: inf-fal-01 — Construction fails without API key
+    /// REQ: P9-inf-test-fal-backend-new-fails — Construction fails without API key
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates boundary enforcement without key
     #[test]
     fn construction_fails_without_api_key() {
         let config = InferenceConfig::default();
@@ -613,7 +628,8 @@ mod tests {
         );
     }
 
-    /// REQ: inf-fal-02 — Construction succeeds with API key
+    /// REQ: P9-inf-test-fal-backend-new-succeeds — Construction succeeds with API key
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates boundary construction with key
     #[test]
     fn construction_succeeds_with_api_key() {
         let config = InferenceConfig {
@@ -628,7 +644,8 @@ mod tests {
         );
     }
 
-    /// REQ: inf-fal-03 — Static catalog returns known vision models
+    /// REQ: P9-inf-test-fal-static-catalog — Static catalog returns known vision models
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates model variety catalog
     #[tokio::test]
     async fn static_catalog_returns_vision_models() {
         let config = InferenceConfig {
@@ -650,7 +667,8 @@ mod tests {
         assert!(ids.contains(&"docres"), "catalog should include docres");
     }
 
-    /// REQ: inf-fal-04 — Vision support heuristic recognizes fal.ai models
+    /// REQ: P9-inf-test-fal-vision-support — Vision support heuristic recognizes fal.ai models
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates vision model heuristic
     #[test]
     fn vision_support_heuristic_recognizes_fal_models() {
         use crate::RouterModelEntry;

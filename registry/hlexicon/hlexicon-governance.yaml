@@ -27,12 +27,13 @@ governance:
     total_allocation: 90
     distribution:
       wordact: 28
-      flowdef: 34
-      knowact: 28
-    current_usage: 87
+      flowdef: 35
+      knowact: 26
+    current_usage: 89
     overage_justification: |
       Git evolution terms (clone, branch, merge, rebase, pr, upstream, downstream)
       were deemed essential for artifact management despite exceeding the original allocation.
+      Added `select` (FlowDef) and `revise` (KnowAct) to support skill-logic-audit templates.
       Note: `fork` is a control-flow term (FlowDef 2.1) reused for git semantics, so it is
       counted once in control flow, not duplicated in the git-evolution group.
       hLexicon terms are allocated, not consumed. Terms are not depleted by use;

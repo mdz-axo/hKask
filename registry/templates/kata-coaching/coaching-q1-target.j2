@@ -1,3 +1,19 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- query
+- orient
+- clarify
+- plan
+- target
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Coaching Kata — Q1: What is the Target Condition?
    First question grounds the learner in their stated goal. If the learner
    cannot articulate a specific, measurable target, the coaching reveals

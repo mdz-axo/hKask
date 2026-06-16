@@ -1,3 +1,20 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- resolve
+- align
+- implement
+- update
+- verify
+contract:
+  input:
+    context: object
+  output:
+    analysis: object
+    recommendation: string
+energy_cap: 4096
+visibility: Shared
+---
 {# document-update/doc-drift-resolve.j2 — KnowAct: Spec-Code Drift Resolution #}
 {# hKask v0.27.0 — hLexicon terms: resolve, align, implement, update, verify #}
 

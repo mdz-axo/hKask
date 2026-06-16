@@ -1,3 +1,20 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- sequence
+- iterate
+- reflect
+- converge
+- evaluate
+contract:
+  input:
+    context: object
+  output:
+    analysis: object
+    recommendation: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Improvement Kata — Full 4-Step Cycle
    Sequences the Improvement Kata: Direction → Current → Target → Experiment.
    The cybernetic loop closes with before/after measurement. This is not a

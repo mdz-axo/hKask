@@ -2,392 +2,70 @@
 
 Workspace version: 0.27.0
 
-| Metric | Count |
-|--------|-------|
-| workspace_version | 0.27.0 |
-| total_skills | 65 |
-| complete_both_layers | 30 |
-| zed_only | 0 |
-| registry_only | 35 |
-| active | 24 |
-| stale_warning | 11 |
-| critical | 5 |
-| recommend_deprecation | 25 |
-
-## Skill Details
-
-### adversarial-red-team — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 4 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ generate-adversarial.j2: unknown hlexicon terms ['generate', 'adversarial', 'inject', 'hijack', 'manipulate', 'exploit', 'attack', 'indirect', 'tool_misuse', 'exfiltrate']
-
-### caveman — stale_warning (0.75)
-- Zed: ✗, Registry: ✓
-- Templates: 1 .j2 | WordAct=True KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-
-### chain-of-density — critical (0.36)
-- Zed: ✗, Registry: ✓
-- Templates: 2 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ density-pass.j2: unknown hlexicon terms ['condense', 'density', 'entity', 'optimize']
-
-### chat-template — stale_warning (0.60)
-- Zed: ✗, Registry: ✓
-- Templates: 0 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-
-### cns — stale_warning (0.60)
-- Zed: ✗, Registry: ✓
-- Templates: 0 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-
-### coding-guidelines — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### condenser-continuation — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 4 .j2 | WordAct=True KnowAct=True FlowDef=True
-
-### constraint-forces — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### curator — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 6 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ metacognition-calibrate.j2: missing [inference] frontmatter
-
-### dct-pipeline — critical (0.36)
-- Zed: ✗, Registry: ✓
-- Templates: 2 .j2 | WordAct=True KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ classification.j2: unknown hlexicon terms ['categorize', 'parent', 'ontological', 'epistemic']
-
-### decision-journal — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 4 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ compute-brier.j2: unknown hlexicon terms ['brier', 'probability', 'outcome', 'accuracy']
-
-### deep-module — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### diagnose — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 4 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### document-update — recommend_deprecation (0.00)
-- Zed: ✓, Registry: ✓
-- Templates: 7 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ doc-align-metadata.j2: missing [inference] frontmatter
-- ⚠ doc-align-metadata.j2: invalid visibility None
-- ⚠ doc-align-metadata.j2: missing/empty contract
-
-### essentialist — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 1 .j2 | WordAct=False KnowAct=False FlowDef=True
-
-### gentle-lovelace — stale_warning (0.54)
-- Zed: ✗, Registry: ✓
-- Templates: 1 .j2 | WordAct=False KnowAct=True FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ replica-report.j2: unknown hlexicon terms ['diagnose', 'compare']
-
-### git — stale_warning (0.60)
-- Zed: ✗, Registry: ✓
-- Templates: 0 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-
-### gml — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 10 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ assess-coherence.j2: missing [inference] frontmatter
-
-### goal — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 4 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ create.j2: missing [inference] frontmatter
-
-### grill-me — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### handoff — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 4 .j2 | WordAct=True KnowAct=True FlowDef=False
-
-### improv — recommend_deprecation (0.00)
-- Zed: ✓, Registry: ✓
-- Templates: 6 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ improv-cycle.j2: missing [inference] frontmatter
-- ⚠ improv-cycle.j2: invalid visibility None
-- ⚠ improv-cycle.j2: missing/empty contract
-
-### improve-codebase-architecture — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### inference — stale_warning (0.60)
-- Zed: ✗, Registry: ✓
-- Templates: 0 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-
-### kata — recommend_deprecation (0.00)
-- Zed: ✓, Registry: ✓
-- Templates: 7 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ consent-and-select.j2: missing [inference] frontmatter
-- ⚠ consent-and-select.j2: invalid visibility None
-- ⚠ consent-and-select.j2: missing/empty contract
-
-### kata-coaching — recommend_deprecation (0.00)
-- Zed: ✓, Registry: ✓
-- Templates: 6 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ coaching-cycle.j2: missing [inference] frontmatter
-- ⚠ coaching-cycle.j2: invalid visibility None
-- ⚠ coaching-cycle.j2: missing/empty contract
-
-### kata-improvement — recommend_deprecation (0.00)
-- Zed: ✓, Registry: ✓
-- Templates: 5 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ improvement-cycle.j2: missing [inference] frontmatter
-- ⚠ improvement-cycle.j2: invalid visibility None
-- ⚠ improvement-cycle.j2: missing/empty contract
-
-### kata-starter — recommend_deprecation (0.00)
-- Zed: ✓, Registry: ✓
-- Templates: 5 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ starter-cycle.j2: missing [inference] frontmatter
-- ⚠ starter-cycle.j2: invalid visibility None
-- ⚠ starter-cycle.j2: missing/empty contract
-
-### knowact — critical (0.27)
-- Zed: ✗, Registry: ✓
-- Templates: 5 .j2 | WordAct=False KnowAct=True FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ calibrate.j2: unknown hlexicon terms ['baseline', 'adjust', 'normalize', 'align']
-
-### magna-carta-verifier — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### mcda — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 4 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ identify-criteria.j2: unknown hlexicon terms ['identify', 'criteria', 'benefit', 'cost', 'independent', 'dimension']
-
-### mcp — recommend_deprecation (0.15)
-- Zed: ✗, Registry: ✓
-- Templates: 5 .j2 | WordAct=True KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ condense_session.j2: unknown hlexicon terms ['condense', 'gist']
-
-### media — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 4 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ classify_style.j2: missing [inference] frontmatter
-
-### memory — stale_warning (0.60)
-- Zed: ✗, Registry: ✓
-- Templates: 0 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-
-### metacognition — critical (0.48)
-- Zed: ✗, Registry: ✓
-- Templates: 1 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ meta_decompose.j2: unknown hlexicon terms ['subgoal', 'dependency', 'strategy', 'effort']
-
-### pragmatic-cybernetics — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### pragmatic-laziness — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### pragmatic-semantics — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### prompt-defense — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ analyze-attack-surface.j2: unknown hlexicon terms ['surface', 'capability', 'tool', 'trust', 'boundary', 'privilege', 'escalation', 'blast']
-
-### rag — recommend_deprecation (0.15)
-- Zed: ✗, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ reformulate-query.j2: unknown hlexicon terms ['reformulate', 'expand', 'sub-question', 'intent']
-
-### rca — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 4 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ corrective-action.j2: unknown hlexicon terms ['corrective', 'action', 'prevent', 'assign', 'owner', 'deadline', 'systemic']
-
-### reasoning — critical (0.27)
-- Zed: ✗, Registry: ✓
-- Templates: 2 .j2 | WordAct=True KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ reason_constrained.j2: unknown hlexicon terms ['reason', 'diverge', 'evidence', 'constraint', 'tool']
-
-### refactor-service-layer — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=True
-
-### registry — stale_warning (0.60)
-- Zed: ✗, Registry: ✓
-- Templates: 0 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-
-### replica — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ discovery-corpus.j2: missing [inference] frontmatter
-
-### review — stale_warning (0.51)
-- Zed: ✗, Registry: ✓
-- Templates: 1 .j2 | WordAct=True KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ self_critique.j2: unknown hlexicon terms ['contradiction', 'confidence', 'calibration']
-
-### rust-expertise — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 7 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### scenario — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 5 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ axes-and-narratives.j2: unknown hlexicon terms ['axis', 'narrative', 'scenario', 'diverge', 'plausible', 'consistent', '2x2', 'quadrant', 'story']
-
-### self-critique-revision — recommend_deprecation (0.18)
-- Zed: ✗, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ critique.j2: unknown hlexicon terms ['identify', 'weakness', 'improvement']
-
-### skill-bundler — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### skill-discovery — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### skill-logic-audit — active (0.94)
-- Zed: ✓, Registry: ✓
-- Templates: 5 .j2 | WordAct=True KnowAct=True FlowDef=False
-- ⚠ compose-proposal.j2: unknown hlexicon terms ['revise']
-- ⚠ user-choice.j2: unknown hlexicon terms ['select']
-
-### skill-maintenance — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### skill-manager — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### skill-translator — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### spec — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 6 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ constraint-bind.j2: missing [inference] frontmatter
-
-### strangler-fig — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### structured-extraction — recommend_deprecation (0.09)
-- Zed: ✗, Registry: ✓
-- Templates: 3 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ extract-relations.j2: unknown hlexicon terms ['identify', 'relate', 'connect', 'subject', 'predicate', 'object', 'link', 'context']
-
-### superforecasting — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 8 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ stage_0_triage.j2: missing [inference] frontmatter
-
-### tdd — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 5 .j2 | WordAct=False KnowAct=True FlowDef=False
-
-### templates — stale_warning (0.60)
-- Zed: ✗, Registry: ✓
-- Templates: 0 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-
-### traceability-assurance — stale_warning (0.60)
-- Zed: ✗, Registry: ✓
-- Templates: 0 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-
-### web — recommend_deprecation (0.00)
-- Zed: ✗, Registry: ✓
-- Templates: 5 .j2 | WordAct=False KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ extract-synthesize.j2: missing [inference] frontmatter
-
-### wordact — recommend_deprecation (0.07)
-- Zed: ✗, Registry: ✓
-- Templates: 4 .j2 | WordAct=True KnowAct=False FlowDef=False
-- ⚠ missing Zed layer (SKILL.md)
-- ⚠ missing manifest.yaml
-- ⚠ execute.j2: unknown hlexicon terms ['execute', 'respond', 'complete', 'dispatch']
-
-### zoom-out — active (1.00)
-- Zed: ✓, Registry: ✓
-- Templates: 1 .j2 | WordAct=False KnowAct=True FlowDef=False
-
+| Skill | Zed | Registry | Score | Status | Defects |
+|-------|-----|----------|-------|--------|---------|
+| adversarial-red-team | ✗ | ✓ | 0.00 | RecommendDeprecation | 6 |
+| caveman | ✗ | ✓ | 0.75 | StaleWarning | 1 |
+| chain-of-density | ✗ | ✓ | 0.36 | Critical | 4 |
+| chat-template | ✗ | ✓ | 0.60 | StaleWarning | 2 |
+| cns | ✗ | ✓ | 0.60 | StaleWarning | 2 |
+| coding-guidelines | ✓ | ✓ | 1.00 | Active | 0 |
+| condenser-continuation | ✓ | ✓ | 0.94 | Active | 1 |
+| constraint-forces | ✓ | ✓ | 1.00 | Active | 0 |
+| curator | ✗ | ✓ | 0.00 | RecommendDeprecation | 8 |
+| dct-pipeline | ✗ | ✓ | 0.36 | Critical | 4 |
+| decision-journal | ✗ | ✓ | 0.00 | RecommendDeprecation | 6 |
+| deep-module | ✓ | ✓ | 1.00 | Active | 0 |
+| diagnose | ✓ | ✓ | 1.00 | Active | 0 |
+| document-update | ✓ | ✓ | 0.46 | Critical | 6 |
+| essentialist | ✓ | ✓ | 0.97 | Active | 1 |
+| gentle-lovelace | ✗ | ✓ | 0.57 | StaleWarning | 3 |
+| git | ✗ | ✓ | 0.60 | StaleWarning | 2 |
+| gml | ✗ | ✓ | 0.00 | RecommendDeprecation | 12 |
+| goal | ✗ | ✓ | 0.20 | Critical | 6 |
+| grill-me | ✓ | ✓ | 1.00 | Active | 0 |
+| handoff | ✓ | ✓ | 1.00 | Active | 0 |
+| improv | ✓ | ✓ | 0.97 | Active | 1 |
+| improve-codebase-architecture | ✓ | ✓ | 1.00 | Active | 0 |
+| inference | ✗ | ✓ | 0.60 | StaleWarning | 2 |
+| kata | ✓ | ✓ | 0.97 | Active | 1 |
+| kata-coaching | ✓ | ✓ | 1.00 | Active | 0 |
+| kata-improvement | ✓ | ✓ | 1.00 | Active | 0 |
+| kata-starter | ✓ | ✓ | 0.85 | Active | 3 |
+| knowact | ✗ | ✓ | 0.30 | Critical | 7 |
+| magna-carta-verifier | ✓ | ✓ | 1.00 | Active | 0 |
+| mcda | ✗ | ✓ | 0.00 | RecommendDeprecation | 6 |
+| mcp | ✗ | ✓ | 0.15 | RecommendDeprecation | 7 |
+| media | ✗ | ✓ | 0.20 | Critical | 6 |
+| memory | ✗ | ✓ | 0.60 | StaleWarning | 2 |
+| metacognition | ✗ | ✓ | 0.48 | Critical | 3 |
+| pragmatic-cybernetics | ✓ | ✓ | 1.00 | Active | 0 |
+| pragmatic-laziness | ✓ | ✓ | 1.00 | Active | 0 |
+| pragmatic-semantics | ✓ | ✓ | 1.00 | Active | 0 |
+| prompt-defense | ✗ | ✓ | 0.00 | RecommendDeprecation | 5 |
+| rag | ✗ | ✓ | 0.15 | RecommendDeprecation | 5 |
+| rca | ✗ | ✓ | 0.00 | RecommendDeprecation | 6 |
+| reasoning | ✗ | ✓ | 0.27 | Critical | 4 |
+| refactor-service-layer | ✓ | ✓ | 0.97 | Active | 1 |
+| registry | ✗ | ✓ | 0.60 | StaleWarning | 2 |
+| replica | ✗ | ✓ | 0.30 | Critical | 5 |
+| review | ✗ | ✓ | 0.51 | StaleWarning | 3 |
+| rust-expertise | ✓ | ✓ | 1.00 | Active | 0 |
+| scenario | ✗ | ✓ | 0.00 | RecommendDeprecation | 7 |
+| self-critique-revision | ✗ | ✓ | 0.21 | Critical | 5 |
+| skill-bundler | ✓ | ✓ | 1.00 | Active | 0 |
+| skill-discovery | ✓ | ✓ | 1.00 | Active | 0 |
+| skill-logic-audit | ✓ | ✓ | 1.00 | Active | 0 |
+| skill-maintenance | ✓ | ✓ | 1.00 | Active | 0 |
+| skill-manager | ✓ | ✓ | 1.00 | Active | 0 |
+| skill-translator | ✓ | ✓ | 1.00 | Active | 0 |
+| spec | ✗ | ✓ | 0.00 | RecommendDeprecation | 8 |
+| strangler-fig | ✓ | ✓ | 1.00 | Active | 0 |
+| structured-extraction | ✗ | ✓ | 0.09 | RecommendDeprecation | 5 |
+| superforecasting | ✗ | ✓ | 0.00 | RecommendDeprecation | 10 |
+| tdd | ✓ | ✓ | 1.00 | Active | 0 |
+| web | ✗ | ✓ | 0.10 | RecommendDeprecation | 7 |
+| wordact | ✗ | ✓ | 0.10 | RecommendDeprecation | 8 |
+| zoom-out | ✓ | ✓ | 1.00 | Active | 0 |
+
+Totals: 63 skills, 30 complete, 33 registry-only, 29 active, 9 stale, 10 critical, 15 deprecated.

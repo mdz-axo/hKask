@@ -425,9 +425,7 @@ impl<'a> SkillAuditor<'a> {
             if DDMVSS_ALIASES.contains(&raw.as_str()) {
                 info.ddmvss_alias = true;
             }
-            if raw == "FlowDef" {
-                info.template_type_valid = false;
-            } else if TemplateType::parse_str(raw).is_some() {
+            if TemplateType::parse_str(raw).is_some() {
                 info.template_type_valid = true;
             }
         }

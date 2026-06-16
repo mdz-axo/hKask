@@ -608,6 +608,15 @@ pub enum SkillAction {
     Publish {
         name: String,
     },
+    /// Run the dual-layer skill audit and optionally fail the process for CI.
+    Audit {
+        /// Fail the process if any skill scores below this threshold.
+        #[arg(long, default_value = "0.8")]
+        fail_below: f64,
+        /// Emit machine-readable JSON instead of human-readable tables.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Kata actions — list, inspect, and execute kata manifests

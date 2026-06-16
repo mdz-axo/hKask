@@ -1,3 +1,20 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- align
+- fix
+- migrate
+- update
+- verify
+contract:
+  input:
+    context: object
+  output:
+    analysis: object
+    recommendation: string
+energy_cap: 4096
+visibility: Shared
+---
 {# document-update/doc-align-metadata.j2 — KnowAct: Metadata Header Alignment #}
 {# hKask v0.27.0 — hLexicon terms: align, fix, migrate, update, verify #}
 

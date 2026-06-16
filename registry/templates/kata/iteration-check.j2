@@ -1,3 +1,20 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- compare
+- decide
+- converge
+- iterate
+contract:
+  input:
+    context: object
+  output:
+    analysis: object
+    recommendation: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Kata Bundle — Iteration Check
    After each PDCA cycle, determines whether another iteration is needed.
    Has the target condition been reached? If yes, celebrate and set new

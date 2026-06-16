@@ -10,6 +10,7 @@
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
+use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 
 // Re-export domain newtypes that live in the substrate crate (hkask-types).
@@ -222,6 +223,7 @@ pub struct EnergyBudget {
 }
 
 impl EnergyBudget {
+    #[rs::contract(id = "P9-cns-energy-budget-new", principle = "P9")]
     /// Create a new energy budget with the given cap.
     ///
     /// REQ: P9-cns-energy-budget-new
@@ -245,6 +247,7 @@ impl EnergyBudget {
         }
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-unlimited", principle = "P9")]
     /// Create a energy budget with unlimited capacity (u64::MAX).
     ///
     /// REQ: P9-cns-energy-budget-unlimited
@@ -258,6 +261,7 @@ impl EnergyBudget {
         Self::new(EnergyCost(u64::MAX)).with_hard_limit(false)
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-with-replenish-rate", principle = "P9")]
     /// Set the replenishment rate (gas units per cycle).
     ///
     /// REQ: P9-cns-energy-budget-with-replenish-rate
@@ -269,6 +273,7 @@ impl EnergyBudget {
         self
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-with-alert-threshold", principle = "P9")]
     /// Set the alert threshold (0.0–1.0).
     ///
     /// REQ: P9-cns-energy-budget-with-alert-threshold
@@ -281,6 +286,7 @@ impl EnergyBudget {
         self
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-with-hard-limit", principle = "P9")]
     /// Set whether to hard-reject on exhaustion.
     ///
     /// REQ: P9-cns-energy-budget-with-hard-limit
@@ -292,6 +298,7 @@ impl EnergyBudget {
         self
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-can-proceed", principle = "P9")]
     /// Check whether an operation costing `gas` can proceed.
     ///
     /// REQ: P9-cns-energy-budget-can-proceed
@@ -305,6 +312,7 @@ impl EnergyBudget {
         gas.0 <= available.0 || !self.hard_limit
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-available", principle = "P9")]
     /// Available gas = remaining - reserved.
     ///
     /// REQ: P9-cns-energy-budget-available
@@ -316,6 +324,7 @@ impl EnergyBudget {
         EnergyCost(self.remaining.0.saturating_sub(self.reserved.0))
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-reserve", principle = "P9")]
     /// Reserve gas for an in-flight operation (hold-settle pattern).
     ///
     /// REQ: P9-cns-energy-budget-reserve
@@ -332,15 +341,19 @@ impl EnergyBudget {
     pub fn reserve(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         let available = self.available();
         if self.hard_limit && gas.0 > available.0 {
-            return Err(EnergyError::BudgetExceeded {
-                requested: gas,
-                remaining: available,
-            });
+            rs::revert!(
+                "P9-cns-energy-budget-reserve",
+                EnergyError::BudgetExceeded {
+                    requested: gas,
+                    remaining: available,
+                }
+            );
         }
         self.reserved = EnergyCost(self.reserved.0.saturating_add(gas.0));
         Ok(gas)
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-settle", principle = "P9")]
     /// Settle a reserved operation: deduct actual cost from remaining.
     ///
     /// REQ: P9-cns-energy-budget-settle
@@ -369,15 +382,19 @@ impl EnergyBudget {
 
         // Deduct actual cost from remaining
         if self.hard_limit && actual_gas.0 > self.remaining.0 {
-            return Err(EnergyError::BudgetExceeded {
-                requested: actual_gas,
-                remaining: self.remaining,
-            });
+            rs::revert!(
+                "P9-cns-energy-budget-settle",
+                EnergyError::BudgetExceeded {
+                    requested: actual_gas,
+                    remaining: self.remaining,
+                }
+            );
         }
         self.remaining = EnergyCost(self.remaining.0.saturating_sub(actual_gas.0));
         Ok(actual_gas)
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-consume", principle = "P9")]
     /// Consume gas immediately (non-reserved path).
     ///
     /// REQ: P9-cns-energy-budget-consume
@@ -392,15 +409,19 @@ impl EnergyBudget {
     /// (no hold-settle needed).
     pub fn consume(&mut self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
         if self.hard_limit && gas.0 > self.remaining.0 {
-            return Err(EnergyError::BudgetExceeded {
-                requested: gas,
-                remaining: self.remaining,
-            });
+            rs::revert!(
+                "P9-cns-energy-budget-consume",
+                EnergyError::BudgetExceeded {
+                    requested: gas,
+                    remaining: self.remaining,
+                }
+            );
         }
         self.remaining = EnergyCost(self.remaining.0.saturating_sub(gas.0));
         Ok(gas)
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-replenish", principle = "P9")]
     /// Replenish energy budget by the configured replenish_rate.
     ///
     /// REQ: P9-cns-energy-budget-replenish
@@ -422,6 +443,7 @@ impl EnergyBudget {
         }
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-replenish-by", principle = "P9")]
     /// Replenish energy budget by a specific amount (used by CuratorDirective::ReplenishBudget).
     ///
     /// REQ: P9-cns-energy-budget-replenish-by
@@ -434,6 +456,7 @@ impl EnergyBudget {
         self.remaining = EnergyCost(self.remaining.0.saturating_add(amount.0).min(self.cap.0));
     }
 
+    #[rs::contract(id = "P9-cns-energy-budget-replenish-by-weighted", principle = "P9")]
     /// Replenish energy budget by `amount * priority`, weighted by the given priority.
     ///
     /// REQ: P9-cns-energy-budget-replenish-by-weighted

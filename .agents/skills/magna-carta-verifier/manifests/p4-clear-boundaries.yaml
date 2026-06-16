@@ -42,7 +42,7 @@ assertions:
     method: structural_audit
     targets:
       - crate: hkask-types
-        module: capability
+        module: capability::token_types
         methods:
           - sign
           - attenuate_with_expiry
@@ -94,8 +94,9 @@ assertions:
         methods:
           - InferenceConfig
           - ollama_base_url
-          - fireworks_base_url
           - deepinfra_base_url
+          - fal_base_url
+          - together_base_url
       - crate: hkask-types
         module: ports
         methods:
@@ -103,4 +104,5 @@ assertions:
       - crate: hkask-api
         module: lib
         methods:
-          - with_ensemble_inferencer
+          - create_router
+          - ApiState

@@ -13,34 +13,64 @@ templates:
   - id: kata/kata-selector
     path: kata-selector.j2
     type: KnowAct
+    lexicon_terms: [select, route, classify, discriminate, recommend]
     description: Route agent to appropriate kata (starter/improvement/coaching/intervention).
 
   - id: kata/consent-and-select
     path: consent-and-select.j2
     type: KnowAct
+    lexicon_terms: [consent, verify, route, classify, select]
     description: Verify P2 consent then route to selected kata type.
 
   - id: kata/outcome-and-habit
     path: outcome-and-habit.j2
     type: KnowAct
+    lexicon_terms: [synthesize, assess, compare, monitor, reflect]
     description: Synthesize kata outcome with habit assessment (automaticity, streak, delta).
 
   - id: kata/habit-intervention
     path: habit-intervention.j2
     type: WordAct
+    lexicon_terms: [prompt, pledge, promise, commit, instruct]
     description: Generate encouraging intervention message when practice habit decays.
 
   - id: kata/iteration-check
     path: iteration-check.j2
     type: KnowAct
+    lexicon_terms: [evaluate, compare, decide, converge, iterate]
     description: Determine if kata cycle should be re-run (variance, confidence, budget).
 
   - id: kata/iteration-comparison
     path: iteration-comparison.j2
     type: KnowAct
+    lexicon_terms: [compare, evaluate, classify, discriminate, select]
     description: Compare iteration outputs for variance, consistency, and best run.
 
   - id: kata/kata-switch-check
     path: kata-switch-check.j2
     type: KnowAct
+    lexicon_terms: [evaluate, route, decide, classify, monitor]
     description: Check if kata composition switching is appropriate mid-session.
+
+hlexicon_terms:
+  - select
+  - route
+  - classify
+  - discriminate
+  - recommend
+  - consent
+  - verify
+  - synthesize
+  - assess
+  - compare
+  - monitor
+  - reflect
+  - prompt
+  - pledge
+  - promise
+  - commit
+  - instruct
+  - evaluate
+  - decide
+  - converge
+  - iterate

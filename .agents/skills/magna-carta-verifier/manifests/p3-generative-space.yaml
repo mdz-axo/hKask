@@ -28,12 +28,14 @@ assertions:
         methods:
           - InferenceConfig
           - ollama_base_url
-          - fireworks_base_url
           - deepinfra_base_url
+          - fal_base_url
+          - together_base_url
       - crate: hkask-api
         module: lib
         methods:
-          - with_ensemble_inferencer
+          - create_router
+          - ApiState
 
   - id: p3b
     name: no_privileged_engineer_access
@@ -68,12 +70,14 @@ assertions:
         methods:
           - InferenceConfig
           - ollama_base_url
-          - fireworks_base_url
           - deepinfra_base_url
+          - fal_base_url
+          - together_base_url
       - crate: hkask-api
         module: lib
         methods:
-          - with_ensemble_inferencer
+          - create_router
+          - ApiState
     note: >
       Structural audit verifies that inference configuration is exposed
       and configurable. Closed-source providers fail on architectural

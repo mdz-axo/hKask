@@ -1,3 +1,19 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- query
+- observe
+- report
+- ground
+- discriminate
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Coaching Kata — Q2: What is the Actual Condition now?
    Second question grounds the learner in facts, not assumptions. The coach
    probes: "Where did that number come from? Did you measure it or assume?"

@@ -56,7 +56,8 @@ impl ProviderId {
     /// Returns `None` if the model name has no recognized prefix.
     /// Returns `Some((provider, stripped_model))` if a prefix is found.
     ///
-    /// REQ: INFER-021
+    /// REQ: P9-inf-parse-provider-from-model
+    /// [P9] Motivating: Homeostatic Self-Regulation — model-name routing to provider boundary
     /// pre:  model is non-empty
     /// post: returns Some((ProviderId, stripped_model)) for OM/, DI/, FA/, TG/ prefixes
     /// post: returns None for unrecognized or missing prefix
@@ -84,7 +85,8 @@ impl ProviderId {
 
     /// Format a model name with this provider's prefix.
     ///
-    /// REQ: INFER-022
+    /// REQ: P9-inf-prefix-model
+    /// [P9] Motivating: Homeostatic Self-Regulation — canonical provider-prefixed model naming
     /// pre:  model is non-empty
     /// post: returns "{prefix}/{model}" string
     pub fn prefix_model(&self, model: &str) -> String {
@@ -93,7 +95,8 @@ impl ProviderId {
 
     /// Two-letter code for this provider.
     ///
-    /// REQ: INFER-023
+    /// REQ: P9-inf-provider-as-str
+    /// [P9] Motivating: Homeostatic Self-Regulation — stable provider code for routing
     /// post: returns "OM", "DI", "FA", or "TG"
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -182,7 +185,8 @@ impl InferenceConfig {
     /// Also accepts `DEEPINFRA_API_KEY` and `FAL_API_KEY`
     /// as legacy environment variable names.
     ///
-    /// REQ: INFER-024
+    /// REQ: P9-inf-config-from-env
+    /// [P9] Motivating: Homeostatic Self-Regulation — inference configuration resolved from environment
     /// post: returns InferenceConfig resolved from env vars and keychain
     /// post: defaults to Ollama localhost if env vars unset
     pub fn from_env() -> Self {
@@ -224,7 +228,8 @@ impl InferenceConfig {
 
     /// Build a reqwest HTTP client with the configured timeout and pool settings.
     ///
-    /// REQ: INFER-025
+    /// REQ: P9-inf-build-http-client
+    /// [P9] Motivating: Homeostatic Self-Regulation — bounded HTTP client for regulated requests
     /// post: returns reqwest::Client with timeout and pool settings from config
     pub fn build_client(&self) -> Result<reqwest::Client, String> {
         reqwest::Client::builder()
@@ -296,7 +301,8 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 mod tests {
     use super::*;
 
-    /// REQ: inf-cfg-001 — ProviderId::parse_from_model parses all three prefixes
+    /// REQ: P9-inf-test-parse-provider-prefix — ProviderId::parse_from_model parses all three prefixes
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates provider routing parser
     #[test]
     fn parse_provider_prefix() {
         assert_eq!(
@@ -313,14 +319,16 @@ mod tests {
         );
     }
 
-    /// REQ: inf-cfg-002 — unprefixed model names return None
+    /// REQ: P9-inf-test-unprefixed-model-none — unprefixed model names return None
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates default-provider fallback
     #[test]
     fn parse_no_prefix_returns_none() {
         assert_eq!(ProviderId::parse_from_model("deepseek-v4-pro"), None);
         assert_eq!(ProviderId::parse_from_model("qwen3:8b"), None);
     }
 
-    /// REQ: inf-cfg-003 — empty model after prefix returns None
+    /// REQ: P9-inf-test-empty-model-none — empty model after prefix returns None
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates malformed model rejection
     #[test]
     fn parse_empty_model_returns_none() {
         assert_eq!(ProviderId::parse_from_model("OM/"), None);
@@ -328,7 +336,8 @@ mod tests {
         assert_eq!(ProviderId::parse_from_model("DI/"), None);
     }
 
-    /// REQ: inf-cfg-004 — too-short strings return None
+    /// REQ: P9-inf-test-too-short-none — too-short strings return None
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates malformed model rejection
     #[test]
     fn parse_too_short_returns_none() {
         assert_eq!(ProviderId::parse_from_model("OM"), None);
@@ -336,14 +345,16 @@ mod tests {
         assert_eq!(ProviderId::parse_from_model("X"), None);
     }
 
-    /// REQ: inf-cfg-005 — unknown prefix returns None
+    /// REQ: P9-inf-test-unknown-prefix-none — unknown prefix returns None
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates unknown provider rejection
     #[test]
     fn parse_unknown_prefix_returns_none() {
         assert_eq!(ProviderId::parse_from_model("XX/model"), None);
         assert_eq!(ProviderId::parse_from_model("AB/test"), None);
     }
 
-    /// REQ: inf-cfg-006 — prefix_model formats correctly for all providers
+    /// REQ: P9-inf-test-prefix-model-format — prefix_model formats correctly for all providers
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates canonical model naming
     #[test]
     fn prefix_model_format() {
         assert_eq!(ProviderId::Ollama.prefix_model("qwen3:8b"), "OM/qwen3:8b");
@@ -358,7 +369,8 @@ mod tests {
         assert_eq!(ProviderId::Fal.prefix_model("paddleocr"), "FA/paddleocr");
     }
 
-    /// REQ: inf-cfg-007 — FA/ prefix parses correctly
+    /// REQ: P9-inf-test-fal-prefix — FA/ prefix parses correctly
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates fal.ai routing
     #[test]
     fn parse_fal_prefix() {
         assert_eq!(
@@ -373,7 +385,8 @@ mod tests {
 
     // ── parse_provider_code ────────────────────────────────────────────
 
-    /// REQ: inf-cfg-008 — parse_provider_code parses all four provider codes
+    /// REQ: P9-inf-test-provider-code — parse_provider_code parses all four provider codes
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates provider code parser
     #[test]
     fn parse_provider_code_all_codes() {
         assert_eq!(parse_provider_code("OM"), ProviderId::Ollama);
@@ -382,7 +395,8 @@ mod tests {
         assert_eq!(parse_provider_code("TG"), ProviderId::Together);
     }
 
-    /// REQ: inf-cfg-009 — unknown or empty provider code defaults to Ollama
+    /// REQ: P9-inf-test-provider-code-default — unknown or empty provider code defaults to Ollama
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates safe default provider
     #[test]
     fn parse_provider_code_unknown_defaults_to_ollama() {
         assert_eq!(parse_provider_code("XX"), ProviderId::Ollama);
@@ -393,7 +407,8 @@ mod tests {
 
     // ── resolve_api_key ──────────────────────────────────────────────────
 
-    /// REQ: inf-cfg-010 — resolve_api_key reads from primary env var
+    /// REQ: P9-inf-test-resolve-api-key-primary — resolve_api_key reads from primary env var
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates API key resolution
     #[test]
     fn resolve_api_key_primary_env() {
         // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).
@@ -406,7 +421,8 @@ mod tests {
         unsafe { std::env::remove_var("HKASK_TEST_KEY_010") };
     }
 
-    /// REQ: inf-cfg-011 — resolve_api_key falls back to legacy env var names
+    /// REQ: P9-inf-test-resolve-api-key-fallback — resolve_api_key falls back to legacy env var names
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates API key fallback
     #[test]
     fn resolve_api_key_fallback_env() {
         // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).
@@ -419,7 +435,8 @@ mod tests {
         unsafe { std::env::remove_var("HKASK_TEST_LEGACY_011") };
     }
 
-    /// REQ: inf-cfg-012 — resolve_api_key returns empty when no key found
+    /// REQ: P9-inf-test-resolve-api-key-empty — resolve_api_key returns empty when no key found
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates missing key handling
     #[test]
     fn resolve_api_key_empty_when_missing() {
         // SAFETY: Test cleanup — removing environment variables is safe in single-threaded test context.
@@ -433,7 +450,8 @@ mod tests {
         );
     }
 
-    /// REQ: inf-cfg-013 — resolve_api_key prefers primary over fallback
+    /// REQ: P9-inf-test-resolve-api-key-priority — resolve_api_key prefers primary over fallback
+    /// [P9] Motivating: Homeostatic Self-Regulation — validates keychain/env priority
     #[test]
     fn resolve_api_key_primary_wins_over_fallback() {
         // SAFETY: Setting/removing test environment variables in test code is safe in a single-threaded test context (Rust runs tests serially by default).

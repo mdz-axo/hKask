@@ -1,3 +1,19 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- query
+- plan
+- predict
+- propose
+- commit
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Coaching Kata — Q4: Next Step? What do you expect?
    Fourth question drives action with a testable prediction. The learner
    must declare what they will do AND what they predict will happen.

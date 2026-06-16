@@ -1,3 +1,20 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- select
+- route
+- classify
+- discriminate
+- recommend
+contract:
+  input:
+    context: object
+  output:
+    analysis: object
+    recommendation: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Kata Bundle — Selector
    Routes agents to the appropriate kata: starter, improvement, coaching,
    or intervention. Based on automaticity, practice history, and declared

@@ -41,7 +41,8 @@ impl TogetherBackend {
     ///
     /// Returns an error if `together_api_key` is empty.
     ///
-    /// REQ: INFER-016
+    /// REQ: P4-inf-together-backend-new
+    /// [P4] Motivating: Clear Boundaries — Together AI provider membrane requires valid API key
     /// pre:  config.together_api_key is set
     /// post: returns TogetherBackend with configured HTTP client
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
@@ -63,7 +64,8 @@ impl TogetherBackend {
 
     /// Send a chat completion request to Together AI.
     ///
-    /// REQ: INFER-041
+    /// REQ: P9-inf-together-generate
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated text generation
     /// pre:  model is a valid Together AI model name
     /// pre:  prompt is non-empty (validated by validate_prompt)
     /// pre:  params is a valid LLMParameters
@@ -119,7 +121,8 @@ impl TogetherBackend {
     /// Stream a chat completion from Together AI via SSE.
     /// Generate a streaming completion from Together.
     ///
-    /// REQ: INFER-017
+    /// REQ: P9-inf-together-generate-stream
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
     /// pre:  model is a valid Together model name
     /// post: returns stream of inference chunks
     pub fn generate_stream(
@@ -184,7 +187,8 @@ impl TogetherBackend {
 
     /// Vision/multimodal inference with base64-encoded images.
     ///
-    /// REQ: INFER-042
+    /// REQ: P9-inf-together-generate-stream
+    /// [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
     /// pre:  model is a valid Together AI vision-capable model name
     /// pre:  prompt is non-empty
     /// pre:  images is non-empty (at least one base64-encoded image)
@@ -238,7 +242,8 @@ impl TogetherBackend {
 
     /// List available models from Together AI.
     ///
-    /// REQ: INFER-043
+    /// REQ: P9-inf-together-list-models
+    /// [P9] Motivating: Homeostatic Self-Regulation — model variety discovery
     /// pre:  self.client and self.base_url are initialized
     /// post: returns Ok(Vec<TogetherModel>) with all available models
     /// post: if API returns non-success → Err(InferenceError::Connection)

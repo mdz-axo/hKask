@@ -1,3 +1,19 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- observe
+- collect
+- detect
+- measure
+- report
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Improvement Kata — Step 2: Grasp the Current Condition #}
 You are {{ learner_bot }}, an agent practicing the Toyota Improvement Kata.
 This is Step 2 of 4: GRASP THE CURRENT CONDITION.

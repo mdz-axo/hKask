@@ -5,6 +5,8 @@
 
 use crate::cli::SkillAction;
 use hkask_services::skill;
+use hkask_services::skills::{SkillAuditor, SkillStatus};
+use hkask_templates::{Registry, SkillLoader};
 use hkask_types::ports::SkillZone;
 use hkask_types::visibility::Visibility;
 
@@ -30,6 +32,9 @@ pub fn run_skill(action: SkillAction) {
         }
         SkillAction::Publish { name } => {
             skill_publish(&name);
+        }
+        SkillAction::Audit { fail_below, json } => {
+            skill_audit(fail_below, json);
         }
     }
 }
@@ -170,5 +175,97 @@ fn skill_publish(name: &str) {
             eprintln!("Publish failed: {e}");
             std::process::exit(1);
         }
+    }
+}
+
+/// Run the dual-layer skill audit and emit a report.
+///
+/// REQ: CLI-005
+/// pre:  fail_below is in [0.0, 1.0]
+/// post: JSON or table report printed; process exits 1 if any score < fail_below
+///       or any FlowDef is declared on a .j2 template
+fn skill_audit(fail_below: f64, json: bool) {
+    let root = project_root();
+    let mut registry = Registry::new();
+    let loader = SkillLoader::new(&root);
+    let _load_result = loader.load_into(&mut registry);
+
+    let auditor = match SkillAuditor::new(&registry, &registry, &root) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("Audit initialization failed: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let report = match auditor.audit_all() {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Audit failed: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let threshold = fail_below.clamp(0.0, 1.0);
+    let mut failed = report.flowdef_on_j2_count() > 0;
+
+    if json {
+        match report.to_json() {
+            Ok(output) => println!("{output}"),
+            Err(e) => {
+                eprintln!("Failed to serialize audit report: {e}");
+                std::process::exit(1);
+            }
+        }
+    } else {
+        println!("Skill audit report (fail_below={threshold:.2})");
+        println!();
+        println!(
+            "{:<30} {:>6} {:>14} {:>8} {}",
+            "skill", "score", "status", "active", "defects"
+        );
+        for entry in &report.entries {
+            let active = if entry.is_active() { "yes" } else { "no" };
+            let status_label = status_label(entry.status);
+            println!(
+                "{:<30} {:>6.2} {:>14} {:>8} {}",
+                entry.skill_name,
+                entry.health_score,
+                status_label,
+                active,
+                entry.defects.len()
+            );
+            if !entry.defects.is_empty() {
+                for defect in &entry.defects {
+                    println!("    - {defect}");
+                }
+            }
+            if entry.health_score < threshold {
+                failed = true;
+            }
+        }
+        println!();
+        println!(
+            "Active: {}/{}, FlowDef-on-.j2 defects: {}",
+            report.active_count(),
+            report.entries.len(),
+            report.flowdef_on_j2_count()
+        );
+    }
+
+    if failed {
+        eprintln!(
+            "Audit failed: one or more skills are below threshold or a FlowDef was declared on a .j2 file."
+        );
+        std::process::exit(1);
+    }
+}
+
+fn status_label(status: SkillStatus) -> &'static str {
+    match status {
+        SkillStatus::Active => "active",
+        SkillStatus::StaleWarning => "stale",
+        SkillStatus::Critical => "critical",
+        SkillStatus::RecommendDeprecation => "deprecate",
     }
 }

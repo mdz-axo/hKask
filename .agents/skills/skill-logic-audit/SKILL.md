@@ -36,13 +36,13 @@ The `goal:` block is the single source of truth for the audit. Everything else i
 
 ## Audit Cascade
 
-The runtime executes a `FlowDef` (`registry/manifests/skill-logic-audit/audit-flow.yaml`) that orchestrates:
+The runtime executes a `FlowDef` (`registry/templates/skill-logic-audit/user-review-loop.j2`) that orchestrates:
 
-1. **load-goal** (`WordAct`) — parse the `goal:` block from the target artifact.
-2. **critique-template** (`KnowAct`) — adversarial critique anchored to the goal.
-3. **critique-critique** (`KnowAct`) — soundness filter; separate valid concerns from spurious ones.
-4. **compose-proposal** (`KnowAct`) — produce a concrete revised artifact and a diff.
-5. **user-review-loop** (`FlowDef` step) — present the proposal and branch on:
+1. **load-goal** (`WordAct`, `registry/templates/skill-logic-audit/load-goal.j2`) — parse the `goal:` block from the target artifact.
+2. **critique-template** (`KnowAct`, `registry/templates/skill-logic-audit/critique-template.j2`) — adversarial critique anchored to the goal.
+3. **critique-critique** (`KnowAct`, `registry/templates/skill-logic-audit/critique-critique.j2`) — soundness filter; separate valid concerns from spurious ones.
+4. **compose-proposal** (`KnowAct`, `registry/templates/skill-logic-audit/compose-proposal.j2`) — produce a concrete revised artifact and a diff.
+5. **user-choice** (`WordAct`, `registry/templates/skill-logic-audit/user-choice.j2`) — present the proposal and branch on:
    - `accept`: write the revised artifact and re-run the audit.
    - `reject`: discard the proposal and stop.
    - `counter-proposal`: capture user edits and route back to `compose-proposal`.

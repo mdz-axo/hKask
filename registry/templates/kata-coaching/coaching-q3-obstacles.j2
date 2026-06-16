@@ -1,3 +1,19 @@
+[inference]
+template_type: WordAct
+lexicon_terms:
+- query
+- detect
+- prioritize
+- discriminate
+- select
+contract:
+  input:
+    context: object
+  output:
+    response: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Coaching Kata — Q3: What Obstacles? Which ONE?
    Third question forces prioritization. The gap between target and actual
    reveals multiple obstacles — but you address only ONE at a time. The

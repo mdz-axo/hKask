@@ -12,25 +12,51 @@ crate:
 templates:
   - id: kata-starter/starter-cycle
     path: starter-cycle.j2
-    type: FlowDef
-    description: Starter Kata practice cycle — select drill, practice, record, reflect.
+    type: KnowAct
+    lexicon_terms: [sequence, iterate, exercise, reflect, write]
+    description: Starter Kata practice cycle — select drill, exercise, reflect, write.
 
   - id: kata-starter/starter-selector
     path: starter-selector.j2
     type: KnowAct
+    lexicon_terms: [select, classify, assess, recommend, route]
     description: Select appropriate starter drill based on history and automaticity.
 
   - id: kata-starter/starter-five-questions
     path: starter-five-questions.j2
-    type: FlowDef
-    description: Five Questions Drill — practice asking the 5 coaching questions in order.
+    type: KnowAct
+    lexicon_terms: [probe, query, challenge, exercise, iterate]
+    description: Five Questions Drill — exercise asking the 5 coaching questions in order.
 
   - id: kata-starter/starter-pdca-cycle
     path: starter-pdca-cycle.j2
-    type: FlowDef
+    type: KnowAct
+    lexicon_terms: [plan, apply, evaluate, iterate, reflect]
     description: PDCA Cycle Drill — practice Plan-Do-Check-Act on a trivial process.
 
   - id: kata-starter/starter-observation-drill
     path: starter-observation-drill.j2
-    type: FlowDef
+    type: KnowAct
+    lexicon_terms: [observe, classify, discriminate, verify, reflect]
     description: Observation Drill — practice separating facts (IS) from interpretations (OUGHT).
+
+hlexicon_terms:
+  - sequence
+  - iterate
+  - exercise
+  - reflect
+  - write
+  - select
+  - classify
+  - assess
+  - recommend
+  - route
+  - probe
+  - query
+  - challenge
+  - plan
+  - apply
+  - evaluate
+  - observe
+  - discriminate
+  - verify

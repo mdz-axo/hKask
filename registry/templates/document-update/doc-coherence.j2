@@ -1,3 +1,20 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- validate
+- verify
+- resolve
+- trace
+- ground
+contract:
+  input:
+    context: object
+  output:
+    analysis: object
+    recommendation: string
+energy_cap: 4096
+visibility: Shared
+---
 {# document-update/doc-coherence.j2 — KnowAct: Cross-Corpus Coherence Validation #}
 {# hKask v0.27.0 — hLexicon terms: validate, verify, resolve, trace, ground #}
 

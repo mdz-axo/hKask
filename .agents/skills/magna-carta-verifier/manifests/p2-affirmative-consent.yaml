@@ -107,7 +107,7 @@ assertions:
         methods:
           - require_sovereignty
       - crate: hkask-types
-        module: capability
+        module: capability::token_types
         methods:
           - attenuate_with_expiry
 

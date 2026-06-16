@@ -96,12 +96,12 @@ status: VERIFIED
    the markdown was corrupted → restore from git; or it evolved intentionally →
    run step 2 and commit. The derived YAML is **never** silently overwritten.
 
-**Counting note:** the tables define **87 term-slots** (28 WordAct + 34 FlowDef
-+ 25 KnowAct). One term, `transform`, is intentionally shared between WordAct
-(Declarative) and FlowDef (Data Flow), so there are **86 globally-unique term
-strings**. The lexicon is keyed by term string and therefore holds 86 entries;
-`transform` takes its first/primary domain (WordAct), leaving 33 unique FlowDef
-keys. `load_workspace_lexicon()` reflects this 86-term functional set.
+**Counting note:** the tables define **89 term-slots** (28 WordAct + 35 FlowDef
++ 26 KnowAct). One term, `transform`, is intentionally shared between WordAct
+(Declarative) and FlowDef (Data Flow), so there are **88 globally-unique term
+strings**. The lexicon is keyed by term string and therefore holds 88 entries;
+`transform` takes its first/primary domain (WordAct), leaving 34 unique FlowDef
+keys. `load_workspace_lexicon()` reflects this 88-term functional set.
 Requirement: [`REQ-DOM-004`](../../specifications/specs/REQUIREMENTS.md).
 
 ---
@@ -214,6 +214,7 @@ Speech acts distinguish between:
 | `join` | Merge branches | "join: aggregate results" |
 | `sync` | Synchronization point | "sync: wait for all" |
 | `async` | Non-blocking | "async: dispatch without waiting" |
+| `select` | Choose the best-fit item from a set | "select: best-fit template from registry" |
 
 ### 2.2 Data Flow (5 terms) — Movement of information
 
@@ -323,6 +324,7 @@ Speech acts distinguish between:
 | `crystallize` | Stabilize memory | "crystallize: frequent recall" |
 | `adapt` | Adjust to context | "adapt: template parameters" |
 | `calibrate` | Tune accuracy | "calibrate: confidence scores" |
+| `revise` | Improve by iteration | "revise: template based on critique" |
 
 ### 3.4 Metacognition (6 terms) — Thinking about thinking
 

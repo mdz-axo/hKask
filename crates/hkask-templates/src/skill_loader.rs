@@ -277,13 +277,15 @@ impl SkillLoader {
 
         let yaml_str = &rest[..end_marker];
 
-        let fm: HashMap<String, String> = serde_yaml::from_str(yaml_str)
+        let fm: HashMap<String, serde_yaml::Value> = serde_yaml::from_str(yaml_str)
             .map_err(|e| format!("SKILL.md YAML parse error: {}", e))?;
 
-        let name = fm.get("name").cloned().unwrap_or_default();
-        let visibility = fm.get("visibility").cloned();
-        let namespace = fm.get("namespace").cloned();
-        let description = fm.get("description").cloned();
+        let as_string = |key: &str| fm.get(key).and_then(|v| v.as_str()).map(|s| s.to_string());
+
+        let name = as_string("name").unwrap_or_default();
+        let visibility = as_string("visibility");
+        let namespace = as_string("namespace");
+        let description = as_string("description");
 
         Ok(SkillFrontMatter {
             name,

@@ -1,3 +1,20 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- sequence
+- probe
+- query
+- reflect
+- iterate
+contract:
+  input:
+    context: object
+  output:
+    analysis: object
+    recommendation: string
+energy_cap: 4096
+visibility: Shared
+---
 {# Coaching Kata — 5-Question Dialogue Cycle
    The meta-cognitive engine of Toyota Kata. Coach asks 5 questions in
    sequence to reveal the learner's thinking pattern. The learner must
