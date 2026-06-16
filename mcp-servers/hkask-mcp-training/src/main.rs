@@ -2162,7 +2162,10 @@ impl TrainingServer {
         let mut pipeline = if let Some(ref dir) = cache_dir {
             DatasetPipeline::new(PathBuf::from(dir))
         } else {
-            self.pipeline.lock().unwrap().clone()
+            self.pipeline
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone()
         };
 
         let format = hkask_mcp_training::dataset::DatasetFormat::detect(&file_path);

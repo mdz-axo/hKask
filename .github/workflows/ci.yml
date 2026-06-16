@@ -202,51 +202,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: No unwrap on hot paths (CNS, agents)
-        run: bash scripts/check-unwrap-hotpaths.sh
+        run: bash scripts/check-unwrap.sh
 
       - name: No wildcard capabilities
-        run: |
-          # Find "*" usage in capability/token context (excl. CapabilityChecker authority,
-          # boundary-matching checks, enforcement rejections, and test code)
-          violations=$(grep -rnF '"*"' crates/ --include="*.rs" \
-            | grep -v "cfg(test)" | grep -v "test_" | grep -v "// REQ:" \
-            | grep -v "registry.rs" | grep -v "checker.rs" | grep -v "register_agent" | grep -v 'vec!["' \
-            | grep -v "verification.rs" \
-            | grep -v '== "\*"' | grep -v '!= "\*"' \
-            | grep -v 'Wildcard' | grep -v 'Err(' \
-            | grep -v '"\*",$' || true)
-          if [ -n "$violations" ]; then
-            echo "SECURITY INVARIANT VIOLATED: Wildcard capabilities detected:"
-            echo "$violations"
-            exit 1
-          fi
+        run: bash scripts/check-wildcard-capabilities.sh
 
       - name: No hardcoded secrets
-        run: |
-          violations=$(grep -rn 'FW_API_KEY[[:space:]]*=[[:space:]]*"\|DI_API_KEY[[:space:]]*=[[:space:]]*"\|password[[:space:]]*=[[:space:]]*"' crates/ --include="*.rs" || true)
-          if [ -n "$violations" ]; then
-            echo "SECURITY INVARIANT VIOLATED: Hardcoded secrets detected:"
-            echo "$violations"
-            exit 1
-          fi
+        run: bash scripts/check-hardcoded-secrets.sh
 
       - name: No todo!/unimplemented! stubs (P6)
-        run: |
-          violations=$(grep -rn 'todo!\|unimplemented!' crates/ --include="*.rs" | grep -v "cfg(test)" || true)
-          if [ -n "$violations" ]; then
-            echo "CONSTRAINT P6 VIOLATED: Stubs detected in production code:"
-            echo "$violations"
-            exit 1
-          fi
+        run: bash scripts/check-stubs.sh
 
       - name: No deprecated (P7)
-        run: |
-          violations=$(grep -rn '#\[deprecated\]' crates/ --include="*.rs" || true)
-          if [ -n "$violations" ]; then
-            echo "CONSTRAINT P7 VIOLATED: Deprecated code detected:"
-            echo "$violations"
-            exit 1
-          fi
+        run: bash scripts/check-deprecated.sh
 
       - name: No undocumented unsafe blocks
         run: bash scripts/check-unsafe.sh
@@ -255,13 +223,7 @@ jobs:
         run: bash scripts/public-seam-inventory.sh
 
       - name: No visual UI infrastructure
-        run: |
-          violations=$(grep -r 'grafana\|prometheus\|dashboard\|visual.*ui' crates/ --include="*.rs" || true)
-          if [ -n "$violations" ]; then
-            echo "HEADLESS CONSTRAINT VIOLATED: Visual UI references detected:"
-            echo "$violations"
-            exit 1
-          fi
+        run: bash scripts/check-visual-ui.sh
 
       - name: Contract coverage trend (Testing Discipline §9.2)
         run: |

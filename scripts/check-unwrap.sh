@@ -7,6 +7,8 @@
 # Uses awk to strip #[cfg(test)] modules before scanning, avoiding
 # false positives from test-only code. Skips files in /tests/ dirs.
 #
+# Called by: ci-quality-gates.sh (hard gate), ci.yml security-invariants
+#
 # Exit 0 = clean. Exit 1 = violations found.
 
 set -euo pipefail
