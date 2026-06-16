@@ -115,7 +115,7 @@ Assemble the continuation document following this exact structure:
 {% for task in tasks %}
 - **{{ task.title }}** — {{ task.strategy }}
   - Location: `{{ task.location }}`
-  {% if task.blockers %}- Blocked by: {{ task.blockers | join: ", " }}{% endif %}
+  {% if task.blockers %}- Blocked by: {{ task.blockers | join(", ") }}{% endif %}
   {% if task.requires_inference %}- ⚠️ Requires live inference endpoint{% endif %}
 {% endfor %}
 {% endif %}
@@ -129,7 +129,7 @@ Assemble the continuation document following this exact structure:
 
 {% for decision in restored_context.key_decisions %}
 1. **{{ decision.decision }}** — {{ decision.rationale }}
-   - Alternatives considered: {{ decision.alternatives | join: ", " }}
+   - Alternatives considered: {{ decision.alternatives | join(", ") }}
 {% endfor %}
 
 ## Recommended Skills
