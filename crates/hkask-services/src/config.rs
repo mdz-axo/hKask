@@ -115,6 +115,10 @@ impl ServiceConfig {
     /// Reads `HKASK_DB_PATH`, `HKASK_TEMPLATE_CACHE_PATH`,
     /// and `HKASK_MEMORY_DB_PATH` from environment. ACP and MCP secrets are
     /// resolved via `hkask_keystore`. Falls back to defaults for missing values.
+    ///
+    /// REQ: SVC-221
+    /// pre:  keystore must have acp_secret, db_passphrase, and mcp_secret configured
+    /// post: returns ServiceConfig with env-derived values and keystore secrets; Err(Keystore) on secret resolution failure
     pub fn from_env() -> Result<Self, ServiceError> {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string());
@@ -174,6 +178,10 @@ impl ServiceConfig {
     ///
     /// This avoids re-resolving from the keychain, which is important
     /// for the REPL's interactive onboarding flow.
+    ///
+    /// REQ: SVC-222
+    /// pre:  acp_secret, db_passphrase, mcp_secret, agent_name must be non-empty
+    /// post: returns ServiceConfig with provided secrets and env-derived or default values
     pub fn from_secrets(
         acp_secret: String,
         db_passphrase: String,
@@ -213,6 +221,10 @@ impl ServiceConfig {
     /// Create a config suitable for integration tests.
     ///
     /// Uses in-memory databases and synthetic secrets. Never use in production.
+    ///
+    /// REQ: SVC-223
+    /// pre:  none (always succeeds)
+    /// post: returns ServiceConfig with :memory: DB, zeroed secrets, and test agent name
     pub fn in_memory() -> Self {
         let inference_config = InferenceConfig::default();
         Self {
@@ -242,6 +254,10 @@ impl ServiceConfig {
     /// `-memory.db` (e.g., `hkask.db` → `hkask-memory.db`).
     ///
     /// Returns `None` when `in_memory: true` (memory stores are ephemeral).
+    ///
+    /// REQ: SVC-224
+    /// pre:  none (always succeeds)
+    /// post: returns Some(path) if not in_memory; None if in_memory; derives from db_path if memory_db_path not set
     pub fn effective_memory_db_path(&self) -> Option<String> {
         if self.in_memory {
             return None;

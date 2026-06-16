@@ -57,6 +57,10 @@ impl OnboardingService {
     ///
     /// If `store` is true, stores secrets in the OS keychain for future sessions.
     /// Returns `ResolvedSecrets` carrying the ACP secret and DB passphrase.
+    ///
+    /// REQ: SVC-188
+    /// pre:  passphrase must be non-empty; store=true requires writable keychain
+    /// post: returns ResolvedSecrets with acp_secret and db_passphrase; if store=true, secrets are persisted to keychain; Err(Keystore) on keychain failure
     pub fn derive_secrets(passphrase: &str, store: bool) -> Result<ResolvedSecrets, ServiceError> {
         let secrets = derive_all_internal_secrets(passphrase);
         if store {
@@ -85,6 +89,10 @@ impl OnboardingService {
     /// Opens the database, initializes the schema, restores ACP state from
     /// persisted agent registrations, and returns both the ACP runtime and
     /// the registry store ready for use.
+    ///
+    /// REQ: SVC-189
+    /// pre:  config must have valid db_path, db_passphrase, and acp_secret
+    /// post: returns RegistryHandle with ACP runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
     pub async fn init_registry(config: &ServiceConfig) -> Result<RegistryHandle, ServiceError> {
         let acp = Arc::new(AcpRuntime::new(&config.acp_secret));
 
@@ -127,6 +135,10 @@ impl OnboardingService {
     ///
     /// If `user_profile` is provided, the replicant's display name follows
     /// the naming protocol: "{chosen_name} r{human_last_name}".
+    ///
+    /// REQ: SVC-190
+    /// pre:  acp must be initialized; store must be initialized; name and description must be non-empty
+    /// post: replicant is registered in ACP with default capabilities and persisted to store; Err(Acp) on registration failure; Err(AgentRegistryStore) on persistence failure
     pub async fn register_replicant(
         acp: &Arc<AcpRuntime>,
         store: &AgentRegistryStore,
@@ -188,6 +200,10 @@ impl OnboardingService {
     }
 
     /// Store the human user's profile in the registry.
+    ///
+    /// REQ: SVC-191
+    /// pre:  store must be initialized; profile must be a valid UserProfile
+    /// post: profile is persisted to the registry store; Err(AgentRegistryStore) on store failure
     pub fn store_user_profile(
         store: &AgentRegistryStore,
         profile: &UserProfile,
@@ -198,6 +214,10 @@ impl OnboardingService {
     }
 
     /// Retrieve the human user's profile from the registry.
+    ///
+    /// REQ: SVC-192
+    /// pre:  store must be initialized
+    /// post: returns Some(UserProfile) if stored; None if no profile; Err(AgentRegistryStore) on store failure
     pub fn get_user_profile(
         store: &AgentRegistryStore,
     ) -> Result<Option<UserProfile>, ServiceError> {
@@ -211,6 +231,10 @@ impl OnboardingService {
     ///
     /// On success, stores the secrets in the keychain for future sessions
     /// and returns a `SignInOutcome`.
+    ///
+    /// REQ: SVC-193
+    /// pre:  config must be valid; agent_name must match a registered replicant; resolved_secrets must be valid
+    /// post: returns SignInOutcome on success; secrets stored in keychain; Err(AgentNotFound) if replicant missing; Err on registry init failure
     pub async fn try_sign_in(
         config: &ServiceConfig,
         agent_name: &str,
@@ -252,6 +276,10 @@ impl OnboardingService {
     /// an ACP runtime. Used to determine which onboarding path to take.
     ///
     /// Returns an empty Vec if the DB can't be opened or has no replicants.
+    ///
+    /// REQ: SVC-194
+    /// pre:  config.db_path must be set; returns empty Vec on any failure
+    /// post: returns Vec<RegisteredAgent> of replicants; empty Vec if DB inaccessible or no replicants
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
         let db_path = &config.db_path;
 
@@ -283,6 +311,10 @@ impl OnboardingService {
     /// If the DB exists but has no replicants (or can't be opened with the
     /// current passphrase), it's orphaned and should be removed before
     /// starting a fresh onboarding. Returns `true` if cleanup was performed.
+    ///
+    /// REQ: SVC-195
+    /// pre:  config.db_path must be set; :memory: paths are never orphaned
+    /// post: returns true if orphaned DB was cleaned up; false if DB has replicants or doesn't exist
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
         let db_path = &config.db_path;
         if db_path == ":memory:" {
@@ -325,6 +357,10 @@ impl OnboardingService {
     /// Called when onboarding fails after partial setup (e.g., keychain
     /// stored but registration failed). Prevents orphaned state from
     /// poisoning subsequent attempts.
+    ///
+    /// REQ: SVC-196
+    /// pre:  config must be valid; best-effort cleanup (errors are silently ignored)
+    /// post: keychain entries (acp-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
         let keychain = Keychain::default();
         let _ = keychain.delete_by_key("acp-secret");
@@ -357,6 +393,10 @@ impl OnboardingService {
     /// Credentials are stored in the OS keychain.
     ///
     /// Returns the created user IDs for display in the onboarding summary.
+    ///
+    /// REQ: SVC-197
+    /// pre:  user_profile must have first_name and last_name; replicant_display_name must be non-empty; passphrase must be non-empty; homeserver_url must be valid
+    /// post: returns MatrixRegistrationResult with human and replicant user IDs; credentials stored in keychain; Err(Matrix) on registration failure
     pub async fn register_matrix_accounts(
         user_profile: &UserProfile,
         replicant_display_name: &str,
@@ -437,6 +477,10 @@ impl OnboardingService {
     /// rooms and escalate via CNS, not active chat participants.
     ///
     /// Returns the created user IDs keyed by bot name.
+    ///
+    /// REQ: SVC-198
+    /// pre:  homeserver_url must be valid and reachable
+    /// post: returns HashMap<String, String> of bot_name → user_id for successfully registered bots; failed registrations are silently skipped
     pub async fn register_system_accounts(
         homeserver_url: &str,
     ) -> Result<std::collections::HashMap<String, String>, ServiceError> {
@@ -600,6 +644,10 @@ async fn register_on_conduit(
 ///
 /// Performs a GET to `/_matrix/client/versions`. Returns `true` if the
 /// server responds with a successful HTTP status.
+///
+/// REQ: SVC-199
+/// pre:  homeserver_url must be a valid HTTP URL
+/// post: returns true if server responds with 2xx; false on connection error or non-2xx status
 pub async fn conduit_health_check(homeserver_url: &str) -> bool {
     let url = format!(
         "{}/_matrix/client/versions",

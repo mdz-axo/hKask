@@ -436,6 +436,10 @@ impl ServiceError {
     ///
     /// Non-retryable: not-found, invalid input, permission denied, database
     /// corruption, encryption failures, lock poisoning.
+    ///
+    /// REQ: SVC-225
+    /// pre:  self must be a valid ServiceError variant
+    /// post: returns true for retryable errors (network, rate-limit, keystore); false for non-retryable (not-found, validation, permission)
     pub fn is_retryable(&self) -> bool {
         match self {
             // ── Retryable ────────────────────────────────────────────
@@ -530,6 +534,10 @@ impl ServiceError {
     /// Surface adapters use this key for translation lookup instead of
     /// parsing `Display` strings. Keys follow the pattern
     /// `error.<domain>.<condition>`.
+    ///
+    /// REQ: SVC-226
+    /// pre:  self must be a valid ServiceError variant
+    /// post: returns &'static str i18n key (e.g., "error.curator.escalation_not_found")
     pub fn message_key(&self) -> &'static str {
         match self {
             // ── Curator domain ──────────────────────────────────────
@@ -625,6 +633,10 @@ impl ServiceError {
     ///
     /// The observer WebID is freshly generated per event — these are
     /// system-level observations, not agent-specific.
+    ///
+    /// REQ: SVC-227
+    /// pre:  self must be a valid ServiceError variant
+    /// post: returns Some(NuEvent) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
     pub fn nu_event(&self) -> Option<hkask_types::event::NuEvent> {
         use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
         use hkask_types::id::WebID;

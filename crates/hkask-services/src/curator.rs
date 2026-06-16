@@ -57,6 +57,9 @@ pub struct CuratorService;
 impl CuratorService {
     /// List pending escalations.
     ///
+    /// REQ: SVC-213
+    /// pre:  ctx.escalation_queue() must be initialized
+    /// post: returns Vec<EscalationResponse> of pending escalations; empty Vec if none; Err(Escalation) on queue error
     /// # Returns
     /// `ServiceError::Escalation` on queue error.
     pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {
@@ -67,6 +70,9 @@ impl CuratorService {
 
     /// Resolve an escalation by ID.
     ///
+    /// REQ: SVC-214
+    /// pre:  ctx.escalation_queue() must be initialized; id must be a valid escalation ID; resolved_by must be non-empty
+    /// post: escalation is resolved; CNS event emitted; Ok(()) on success; Err(EscalationNotFound) if ID not found; Err(Escalation) on queue error
     /// # Returns
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
@@ -101,6 +107,9 @@ impl CuratorService {
 
     /// Dismiss an escalation by ID.
     ///
+    /// REQ: SVC-215
+    /// pre:  ctx.escalation_queue() must be initialized; id must be a valid escalation ID; dismissed_by must be non-empty
+    /// post: escalation is dismissed; CNS event emitted; Ok(()) on success; Err(EscalationNotFound) if ID not found; Err(Escalation) on queue error
     /// # Returns
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
@@ -138,6 +147,9 @@ impl CuratorService {
     /// Constructs a `CuratorAgent` from the AgentService's escalation queue
     /// and CNS runtime, runs one metacognition cycle, and generates a summary.
     ///
+    /// REQ: SVC-216
+    /// pre:  ctx.escalation_queue() and ctx.cns_runtime() must be initialized
+    /// post: returns human-readable summary string from metacognition cycle; Err(Metacognition) on cycle failure; Err(Cns) if CNS runtime unavailable
     /// # Returns
     /// `ServiceError::Metacognition` on cycle failure.
     /// `ServiceError::Cns` if CNS runtime is unavailable.

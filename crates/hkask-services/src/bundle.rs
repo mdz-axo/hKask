@@ -48,6 +48,9 @@ impl BundleService {
     /// and produces a validated `BundleManifest`. The result is registered
     /// into the `BundleRegistryIndex` for persistence.
     ///
+    /// REQ: SVC-200
+    /// pre:  skill_ids must have at least 2 entries; ctx.registry() must be initialized; inference_port must be valid
+    /// post: returns BundleComposeResult with validated manifest and warnings; Err(Compose) if <2 skills, skills not found, or validation fails
     /// # Arguments
     /// - `ctx` — The shared AgentService context.
     /// - `skill_ids` — Skill IDs to bundle (at least 2).
@@ -221,6 +224,10 @@ impl BundleService {
     }
 
     /// List all bundles in the registry.
+    ///
+    /// REQ: SVC-201
+    /// pre:  ctx.registry() must be initialized
+    /// post: returns Vec<BundleManifest> of all registered bundles; empty Vec if none
     pub async fn list(ctx: &AgentService) -> Result<Vec<BundleManifest>, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
@@ -228,6 +235,10 @@ impl BundleService {
     }
 
     /// Get a bundle by ID.
+    ///
+    /// REQ: SVC-202
+    /// pre:  ctx.registry() must be initialized; id must be non-empty
+    /// post: returns Some(BundleManifest) if found; None if not found
     pub async fn get(ctx: &AgentService, id: &str) -> Result<Option<BundleManifest>, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
@@ -237,6 +248,10 @@ impl BundleService {
     /// Apply a bundle to the current session.
     ///
     /// Returns the bundle manifest if found, or `ServiceError::Compose` if not.
+    ///
+    /// REQ: SVC-203
+    /// pre:  ctx.registry() must be initialized; id must be non-empty
+    /// post: returns BundleManifest if found; Err(Compose) if bundle not found
     pub async fn apply(ctx: &AgentService, id: &str) -> Result<BundleManifest, ServiceError> {
         let registry = ctx.registry();
         let guard = registry.lock().await;
@@ -250,6 +265,10 @@ impl BundleService {
     ///
     /// Re-loads skill metadata, re-runs composition, and updates the manifest.
     /// Returns the evolved manifest.
+    ///
+    /// REQ: SVC-204
+    /// pre:  ctx.registry() must be initialized; id must reference an existing bundle; inference_port must be valid
+    /// post: returns BundleComposeResult with evolved manifest; old bundle removed, new one registered; Err(Compose) if bundle not found
     pub async fn evolve(
         ctx: &AgentService,
         id: &str,
@@ -286,11 +305,19 @@ impl BundleService {
     }
 
     /// Deactivate the current bundle (no-op — bundles are session-scoped).
+    ///
+    /// REQ: SVC-205
+    /// pre:  none (always succeeds)
+    /// post: always returns Ok(())
     pub fn deactivate() -> Result<(), ServiceError> {
         Ok(())
     }
 
     /// List available skills from the registry.
+    ///
+    /// REQ: SVC-206
+    /// pre:  ctx.registry() must be initialized
+    /// post: returns Vec<Skill> of all registered skills; empty Vec if none
     pub async fn list_skills(
         ctx: &AgentService,
     ) -> Result<Vec<hkask_types::ports::Skill>, ServiceError> {

@@ -667,7 +667,85 @@ mod tests {
     use super::*;
     use hkask_storage::WalletStore;
     use hkask_storage::database::in_memory_db;
-    use hkask_types::wallet::WalletConfig;
+    use hkask_types::cns::CnsSpan;
+    use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+    use hkask_types::wallet::{TxHash, WalletConfig};
+    use hkask_wallet::{ChainPort, DepositEvent};
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct CaptureSink {
+        events: Mutex<Vec<NuEvent>>,
+    }
+
+    impl NuEventSink for CaptureSink {
+        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+            self.events.lock().expect("lock").push(event.clone());
+            Ok(())
+        }
+    }
+
+    struct FailingActorChain {
+        sink: Arc<dyn NuEventSink>,
+    }
+
+    #[async_trait::async_trait]
+    impl ChainPort for FailingActorChain {
+        fn chain_id(&self) -> ChainId {
+            ChainId::Solana
+        }
+
+        fn derive_deposit_address(&self, _index: u64) -> Result<String, WalletError> {
+            Ok("mock_addr".into())
+        }
+
+        async fn monitor_deposits(
+            &self,
+            _actor: &WebID,
+            _addresses: &[String],
+        ) -> Result<Vec<DepositEvent>, WalletError> {
+            Ok(vec![])
+        }
+
+        fn build_withdrawal_tx(
+            &self,
+            _to_address: &str,
+            _amount_usdc_micro: u64,
+        ) -> Result<Vec<u8>, WalletError> {
+            Ok(b"mock-withdraw-payload".to_vec())
+        }
+
+        async fn submit_signed_tx(
+            &self,
+            actor: &WebID,
+            _signed_tx_bytes: &[u8],
+        ) -> Result<TxHash, WalletError> {
+            let event = NuEvent::new(
+                actor.clone(),
+                Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
+                Phase::Sense,
+                serde_json::json!({
+                    "chain": "solana",
+                    "operation": "submit_signed_tx",
+                    "error": "forced adapter failure"
+                }),
+                0,
+            );
+            let _ = self.sink.persist(&event);
+            Err(WalletError::ChainError {
+                chain: ChainId::Solana,
+                message: "forced adapter failure".into(),
+            })
+        }
+
+        async fn confirmations(
+            &self,
+            _actor: &WebID,
+            _tx_hash: &TxHash,
+        ) -> Result<u64, WalletError> {
+            Ok(0)
+        }
+    }
 
     fn make_service() -> WalletService {
         // Set master key for keystore resolution
@@ -736,6 +814,76 @@ mod tests {
         assert!(fee.rjoules > 0);
         assert!(fee.usdc_micro > 0);
         assert!(fee.native_units > 0.0);
+    }
+
+    // REQ: svc-wallet-008 — actor continuity from service request to adapter-originated chain_error span
+    #[tokio::test]
+    async fn withdraw_propagates_actor_into_adapter_chain_error_span() {
+        // SAFETY: test-only env var set in isolated test process.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let sink = Arc::new(CaptureSink::default());
+
+        let mut chains: std::collections::HashMap<ChainId, Arc<dyn ChainPort>> =
+            std::collections::HashMap::new();
+        chains.insert(
+            ChainId::Solana,
+            Arc::new(FailingActorChain {
+                sink: Arc::clone(&sink) as Arc<dyn NuEventSink>,
+            }) as Arc<dyn ChainPort>,
+        );
+
+        let manager = Arc::new(
+            WalletManager::build(
+                WalletConfig::default(),
+                Arc::clone(&store),
+                chains,
+                None,
+                Arc::new(StaticPriceFeed),
+            )
+            .expect("build manager")
+            .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
+        );
+        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).expect("issuer"));
+        let svc = WalletService::new(manager, issuer);
+
+        let wallet = WalletId::new();
+        svc.ensure_wallet(wallet).expect("ensure wallet");
+
+        let actor = WebID::from_persona(b"svc-wallet-actor");
+        let err = svc
+            .withdraw(
+                &actor,
+                wallet,
+                RJoule::ZERO,
+                "some_destination",
+                ChainId::Solana,
+                PrivacyMode::Transparent,
+            )
+            .await
+            .expect_err("forced adapter failure should bubble up");
+        assert!(matches!(err, ServiceError::Wallet { .. }));
+
+        let events = sink.events.lock().expect("lock");
+        let adapter_event = events
+            .iter()
+            .find(|e| {
+                e.observation.get("operation") == Some(&serde_json::json!("submit_signed_tx"))
+            })
+            .expect("adapter chain_error event must be emitted");
+
+        assert_eq!(
+            adapter_event.observer_webid.to_string(),
+            actor.to_string(),
+            "adapter-originated chain_error span should preserve request actor"
+        );
     }
 
     // REQ: svc-wallet-004 — create_key produces valid material

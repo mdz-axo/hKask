@@ -40,6 +40,10 @@ pub struct InferenceContext {
 impl InferenceContext {
     /// Construct from individual parts (for CLI/API surfaces that don't
     /// have a full `AgentService`).
+    ///
+    /// REQ: SVC-228
+    /// pre:  default_model must be non-empty; inference_config must be valid
+    /// post: returns InferenceContext with provided parts; shared_port may be None
     pub fn from_parts(
         shared_port: Option<Arc<dyn InferencePort>>,
         default_model: impl Into<String>,
@@ -103,6 +107,9 @@ impl InferenceService {
     /// the default configured model. Falls back to creating a fresh
     /// `InferenceRouter` instance for other models.
     ///
+    /// REQ: SVC-229
+    /// pre:  ctx must have valid inference_config; model must be non-empty
+    /// post: returns Arc<dyn InferencePort> — shared port if model matches default, else fresh InferenceRouter; Err on connection failure
     /// # REQ: svc-inf-001 — resolve_port returns shared port for default model
     /// # REQ: svc-inf-002 — resolve_port creates fresh instance for non-default model
     /// # REQ: svc-inf-003 — resolve_port returns Inference error on connection failure
@@ -124,6 +131,9 @@ impl InferenceService {
 
     /// List all locally available models from all configured providers.
     ///
+    /// REQ: SVC-230
+    /// pre:  ctx must have valid inference_config
+    /// post: returns Vec<ModelInfo> from all configured providers; empty Vec if none
     /// # REQ: svc-inf-004 — list_models returns model metadata from all providers
     pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
         let router = InferenceRouter::new(ctx.inference_config.clone());
@@ -133,6 +143,9 @@ impl InferenceService {
 
     /// Search available models by name (case-insensitive substring match).
     ///
+    /// REQ: SVC-231
+    /// pre:  ctx must have valid inference_config; query must be non-empty
+    /// post: returns Vec<ModelInfo> matching query; empty Vec if no matches
     /// # REQ: svc-inf-005 — search_models filters models by query substring
     pub async fn search_models(
         ctx: &InferenceContext,
