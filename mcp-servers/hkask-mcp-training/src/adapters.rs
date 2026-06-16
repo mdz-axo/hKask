@@ -609,3 +609,228 @@ impl JobStore {
         Ok(jobs)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_storage::Database;
+
+    fn setup_db() -> Database {
+        let db = Database::in_memory().expect("in-memory db");
+        let conn = db.conn_arc();
+        let conn_guard = conn.lock().unwrap();
+        conn_guard
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS lora_adapters (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                base_model TEXT NOT NULL,
+                dataset_hash TEXT NOT NULL,
+                training_job_id TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                skill_name TEXT NOT NULL DEFAULT '',
+                version INTEGER NOT NULL DEFAULT 1,
+                metrics_json TEXT
+            );
+            CREATE TABLE IF NOT EXISTS lora_blobs (
+                adapter_id TEXT PRIMARY KEY,
+                data BLOB NOT NULL,
+                FOREIGN KEY (adapter_id) REFERENCES lora_adapters(id) ON DELETE CASCADE
+            );
+            CREATE TABLE IF NOT EXISTS training_jobs (
+                id TEXT PRIMARY KEY,
+                base_model TEXT NOT NULL,
+                dataset_path TEXT NOT NULL,
+                params_json TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'queued',
+                created_at INTEGER NOT NULL,
+                provider TEXT NOT NULL
+            );",
+            )
+            .expect("migration");
+        drop(conn_guard);
+        db
+    }
+
+    /// REQ: training-store-01 — SqliteAdapterStore stores and retrieves with version + skill_name
+    #[tokio::test]
+    async fn sqlite_store_version_and_skill_name() {
+        let db = setup_db();
+        let store = SqliteAdapterStore::new(db);
+
+        let adapter = LoRAAdapter {
+            id: "test-adapter-1".to_string(),
+            name: "constraint-forces-v3".to_string(),
+            base_model: "Qwen3.5-9B".to_string(),
+            dataset_hash: "abc123".to_string(),
+            training_job_id: "job-1".to_string(),
+            created_at: 1000,
+            size_bytes: 200_000_000,
+            skill_name: "constraint-forces".to_string(),
+            version: 3,
+            metrics: Some(AdapterMetrics {
+                loss: Some(0.12),
+                perplexity: Some(1.5),
+                training_duration_secs: Some(420),
+                tokens_processed: Some(50_000),
+            }),
+        };
+
+        store.store_metadata(&adapter).await.expect("store");
+
+        let retrieved = store
+            .get_metadata("test-adapter-1")
+            .await
+            .expect("get")
+            .expect("found");
+
+        assert_eq!(retrieved.skill_name, "constraint-forces");
+        assert_eq!(retrieved.version, 3);
+        assert_eq!(retrieved.name, "constraint-forces-v3");
+        assert!(retrieved.metrics.is_some());
+        assert_eq!(retrieved.metrics.unwrap().loss, Some(0.12));
+    }
+
+    /// REQ: training-store-02 — SqliteAdapterStore list_all returns multiple adapters
+    #[tokio::test]
+    async fn sqlite_store_list_all() {
+        let db = setup_db();
+        let store = SqliteAdapterStore::new(db);
+
+        for i in 1..=3 {
+            let adapter = LoRAAdapter {
+                id: format!("adapter-{}", i),
+                name: format!("skill-v{}", i),
+                base_model: "Qwen3.5-9B".to_string(),
+                dataset_hash: "hash".to_string(),
+                training_job_id: format!("job-{}", i),
+                created_at: 1000 + i,
+                size_bytes: 100_000_000,
+                skill_name: "test-skill".to_string(),
+                version: i as u32,
+                metrics: None,
+            };
+            store.store_metadata(&adapter).await.expect("store");
+        }
+
+        let all = store.list_all().await.expect("list");
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0].version, 3);
+        assert_eq!(all[2].version, 1);
+    }
+
+    /// REQ: training-store-03 — SqliteAdapterStore delete removes metadata and blob
+    #[tokio::test]
+    async fn sqlite_store_delete() {
+        let db = setup_db();
+        let store = SqliteAdapterStore::new(db);
+
+        let adapter = LoRAAdapter {
+            id: "to-delete".to_string(),
+            name: "temp".to_string(),
+            base_model: "test".to_string(),
+            dataset_hash: "hash".to_string(),
+            training_job_id: "job".to_string(),
+            created_at: 1,
+            size_bytes: 0,
+            skill_name: "test".to_string(),
+            version: 1,
+            metrics: None,
+        };
+        store.store_metadata(&adapter).await.expect("store");
+        store
+            .store_blob("to-delete", vec![1, 2, 3])
+            .await
+            .expect("store blob");
+
+        store.delete("to-delete").await.expect("delete");
+
+        let meta = store.get_metadata("to-delete").await.expect("get");
+        assert!(meta.is_none(), "metadata should be deleted");
+
+        let blob = store.get_blob("to-delete").await.expect("get blob");
+        assert!(blob.is_none(), "blob should be deleted");
+    }
+
+    /// REQ: training-job-01 — JobStore stores and retrieves jobs
+    #[test]
+    fn job_store_store_and_get() {
+        let db = setup_db();
+        let conn = db.conn_arc();
+        let store = JobStore::new(conn);
+
+        store
+            .store(
+                "job-1",
+                "Qwen3.5-9B",
+                "/data/train.jsonl",
+                "{}",
+                "queued",
+                1000,
+                "together",
+            )
+            .expect("store");
+
+        let job = store.get("job-1").expect("get").expect("found");
+        assert_eq!(job.base_model, "Qwen3.5-9B");
+        assert_eq!(job.status, "queued");
+        assert_eq!(job.provider, "together");
+    }
+
+    /// REQ: training-job-02 — JobStore update_status changes job status
+    #[test]
+    fn job_store_update_status() {
+        let db = setup_db();
+        let conn = db.conn_arc();
+        let store = JobStore::new(conn);
+
+        store
+            .store(
+                "job-2",
+                "model",
+                "/data.jsonl",
+                "{}",
+                "queued",
+                2000,
+                "axolotl",
+            )
+            .expect("store");
+
+        store.update_status("job-2", "running").expect("update");
+
+        let job = store.get("job-2").expect("get").expect("found");
+        assert_eq!(job.status, "running");
+    }
+
+    /// REQ: training-job-03 — JobStore list_all returns jobs in order
+    #[test]
+    fn job_store_list_all() {
+        let db = setup_db();
+        let conn = db.conn_arc();
+        let store = JobStore::new(conn);
+
+        store
+            .store("j1", "m1", "/d1", "{}", "queued", 100, "t")
+            .expect("store");
+        store
+            .store("j2", "m2", "/d2", "{}", "completed", 200, "t")
+            .expect("store");
+
+        let all = store.list_all().expect("list");
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].id, "j2");
+        assert_eq!(all[1].id, "j1");
+    }
+
+    /// REQ: training-job-04 — JobStore returns None for missing job
+    #[test]
+    fn job_store_missing_returns_none() {
+        let db = setup_db();
+        let conn = db.conn_arc();
+        let store = JobStore::new(conn);
+
+        let result = store.get("nonexistent").expect("get");
+        assert!(result.is_none());
+    }
+}

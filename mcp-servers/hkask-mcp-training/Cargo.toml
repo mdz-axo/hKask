@@ -30,6 +30,7 @@ thiserror.workspace = true
 async-trait.workspace = true
 blake3.workspace = true
 reqwest = { workspace = true, features = ["multipart"] }
+base64.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

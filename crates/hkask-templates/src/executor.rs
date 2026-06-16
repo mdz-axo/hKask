@@ -209,13 +209,17 @@ impl ManifestExecutor {
             });
 
         // Create a delegation token for tool invocation
+        let secret_bytes: [u8; 32] = self.acp_secret[..32]
+            .try_into()
+            .expect("acp_secret must be at least 32 bytes");
+        let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
         let token = DelegationToken::new(
             DelegationResource::Tool,
             mcp_ref.to_string(),
             DelegationAction::Execute,
             WebID::from_persona(b"manifest-executor"),
             WebID::from_persona(b"manifest-executor"),
-            &self.acp_secret,
+            &signing_key,
         );
 
         let result = self

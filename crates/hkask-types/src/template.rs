@@ -59,6 +59,14 @@ pub struct LLMParameters {
     /// Default: false (thinking enabled). Set to true for condenser tasks.
     #[serde(default)]
     pub disable_thinking: bool,
+
+    /// LoRA adapter to apply at inference time (for multi-LoRA serving).
+    /// When set, the adapter is appended to the model name in provider-specific
+    /// format (e.g., Baseten: `model#adapter`). For Together AI fine-tuned models,
+    /// use the fine-tuned model name directly instead of this field.
+    /// Default: None (no adapter).
+    #[serde(default)]
+    pub adapter: Option<String>,
 }
 
 impl LLMParameters {
@@ -76,6 +84,7 @@ impl LLMParameters {
             max_tokens: 2048,
             seed: None,
             disable_thinking: false,
+            adapter: None,
         }
     }
 }

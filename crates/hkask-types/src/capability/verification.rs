@@ -5,7 +5,7 @@
 
 use super::{DelegationAction, DelegationResource, DelegationToken};
 use crate::WebID;
-use zeroize::Zeroizing;
+use ed25519_dalek::SigningKey;
 
 // ── Token error constants (P2.8) ──────────────────────────────────────────
 // Centralised here so that all MCP servers and adapters reference the same
@@ -36,22 +36,34 @@ pub enum VerificationOutcome {
     NoChecker,
 }
 
-/// Capability checker for composition operations
+/// Capability checker for composition operations.
+///
+/// [NORMATIVE] With Ed25519 tokens, verification uses the token's own public key —
+/// no shared secret is required. The checker validates structural properties
+/// (expiry, resource match, holder match) against the token (P4 — Clear Boundaries).
 pub struct CapabilityChecker {
-    secret: Zeroizing<Vec<u8>>,
+    /// Optional Ed25519 signing key for token creation (grant_* methods).
+    /// When absent, grant_* methods panic — token issuance requires a signing key.
+    signing_key: Option<SigningKey>,
 }
 
 impl CapabilityChecker {
-    /// Create a new capability checker with the given secret
-    pub fn new(secret: &[u8]) -> Self {
+    /// Create a new capability checker without a signing key (verify-only).
+    /// The `secret` parameter is retained for backward compatibility but unused.
+    pub fn new(_secret: &[u8]) -> Self {
+        Self { signing_key: None }
+    }
+
+    /// Create a capability checker with a signing key for token issuance.
+    pub fn with_signing_key(signing_key: SigningKey) -> Self {
         Self {
-            secret: Zeroizing::new(secret.to_vec()),
+            signing_key: Some(signing_key),
         }
     }
 
-    /// Verify a capability token
+    /// Verify a capability token's Ed25519 signature.
     pub fn verify(&self, token: &DelegationToken) -> bool {
-        token.verify(&self.secret)
+        token.verify()
     }
 
     /// Check if token is valid and not expired
@@ -83,15 +95,17 @@ impl CapabilityChecker {
         self.verify(token) && token.delegated_to == *holder && token.grants_resource(resource)
     }
 
-    /// Create a capability token for a tool
+    /// Create a capability token for a tool.
+    /// Requires a signing key — panics if constructed via `new()` instead of `with_signing_key()`.
     pub fn grant_tool(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
+        let sk = self.signing_key.as_ref().expect("CapabilityChecker::grant_tool requires a signing key. Use with_signing_key() to construct.");
         DelegationToken::new(
             DelegationResource::Tool,
             tool_name,
             DelegationAction::Execute,
             from,
             to,
-            &self.secret,
+            sk,
         )
     }
 
@@ -103,13 +117,17 @@ impl CapabilityChecker {
         from: WebID,
         to: WebID,
     ) -> DelegationToken {
+        let sk = self
+            .signing_key
+            .as_ref()
+            .expect("CapabilityChecker::grant_template requires a signing key");
         DelegationToken::new(
             DelegationResource::Template,
             template_id,
             action,
             from,
             to,
-            &self.secret,
+            sk,
         )
     }
 
@@ -121,13 +139,17 @@ impl CapabilityChecker {
         from: WebID,
         to: WebID,
     ) -> DelegationToken {
+        let sk = self
+            .signing_key
+            .as_ref()
+            .expect("CapabilityChecker::grant_manifest requires a signing key");
         DelegationToken::new(
             DelegationResource::Registry,
             manifest_id,
             action,
             from,
             to,
-            &self.secret,
+            sk,
         )
     }
 
@@ -138,13 +160,17 @@ impl CapabilityChecker {
         from: WebID,
         to: WebID,
     ) -> DelegationToken {
+        let sk = self
+            .signing_key
+            .as_ref()
+            .expect("CapabilityChecker::grant_registry requires a signing key");
         DelegationToken::new(
             DelegationResource::Registry,
             "*".to_string(),
             action,
             from,
             to,
-            &self.secret,
+            sk,
         )
     }
 
@@ -156,13 +182,17 @@ impl CapabilityChecker {
         from: WebID,
         to: WebID,
     ) -> DelegationToken {
+        let sk = self
+            .signing_key
+            .as_ref()
+            .expect("CapabilityChecker::grant_cascade requires a signing key");
         DelegationToken::new(
             DelegationResource::Registry,
             cascade_id,
             action,
             from,
             to,
-            &self.secret,
+            sk,
         )
     }
 
@@ -174,14 +204,11 @@ impl CapabilityChecker {
         from: WebID,
         to: WebID,
     ) -> DelegationToken {
-        DelegationToken::new(
-            DelegationResource::Registry,
-            spec_id,
-            action,
-            from,
-            to,
-            &self.secret,
-        )
+        let sk = self
+            .signing_key
+            .as_ref()
+            .expect("CapabilityChecker::grant_spec requires a signing key");
+        DelegationToken::new(DelegationResource::Registry, spec_id, action, from, to, sk)
     }
 
     /// Create an attenuated token for delegation
@@ -191,7 +218,8 @@ impl CapabilityChecker {
         new_to: WebID,
         current_time: i64,
     ) -> Option<DelegationToken> {
-        token.attenuate(new_to, &self.secret, current_time)
+        let sk = self.signing_key.as_ref()?;
+        token.attenuate(new_to, sk, current_time)
     }
 }
 
@@ -342,14 +370,14 @@ mod tests {
     fn verify_delegation_token_returns_no_checker_when_none() {
         let from = WebID::from_persona(b"issuer");
         let to = WebID::from_persona(b"holder");
-        let secret = b"test-secret-32-bytes-long!!";
+        let sk = SigningKey::from_bytes(&[0x42u8; 32]);
         let token = DelegationToken::new(
             DelegationResource::Tool,
             "test_tool".into(),
             DelegationAction::Execute,
             from,
             to.clone(),
-            secret,
+            &sk,
         );
         let outcome = verify_delegation_token(
             None,
@@ -368,14 +396,14 @@ mod tests {
     fn require_write_access_accepts_write_token() {
         let from = WebID::from_persona(b"issuer");
         let to = WebID::from_persona(b"holder");
-        let secret = b"test-secret-32-bytes-long!!";
+        let sk = SigningKey::from_bytes(&[0x42u8; 32]);
         let token = DelegationToken::new(
             DelegationResource::Tool,
             "episodic".into(),
             DelegationAction::Write,
             from,
             to,
-            secret,
+            &sk,
         );
         assert!(require_write_access(&token, "episodic").is_ok());
     }
@@ -385,14 +413,14 @@ mod tests {
     fn require_write_access_rejects_read_only_token() {
         let from = WebID::from_persona(b"issuer");
         let to = WebID::from_persona(b"holder");
-        let secret = b"test-secret-32-bytes-long!!";
+        let sk = SigningKey::from_bytes(&[0x42u8; 32]);
         let token = DelegationToken::new(
             DelegationResource::Tool,
             "episodic".into(),
             DelegationAction::Read,
             from,
             to,
-            secret,
+            &sk,
         );
         let result = require_write_access(&token, "episodic");
         assert!(result.is_err());

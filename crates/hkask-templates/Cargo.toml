@@ -19,6 +19,7 @@ uuid.workspace = true
 rusqlite.workspace = true
 tokio.workspace = true
 async-trait.workspace = true
+ed25519-dalek.workspace = true
 
 [dev-dependencies]
 hkask-test-harness = { path = "../hkask-test-harness" }

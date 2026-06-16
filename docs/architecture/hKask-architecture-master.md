@@ -546,6 +546,20 @@ docs/architecture/
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
 ├── matrix-integration-architecture.md     # Specification (Matrix transport, Conduit sidecar)
+├── PUBLIC_SURFACE-hkask-agents.md
+├── PUBLIC_SURFACE-hkask-api.md
+├── PUBLIC_SURFACE-hkask-cns.md
+├── PUBLIC_SURFACE-hkask-improv.md
+├── PUBLIC_SURFACE-hkask-inference.md
+├── PUBLIC_SURFACE-hkask-keystore.md
+├── PUBLIC_SURFACE-hkask-mcp.md
+├── PUBLIC_SURFACE-hkask-mcp-training.md    # Training MCP (15 tools, 5 providers)
+├── PUBLIC_SURFACE-hkask-memory.md
+├── PUBLIC_SURFACE-hkask-services.md
+├── PUBLIC_SURFACE-hkask-storage.md
+├── PUBLIC_SURFACE-hkask-templates.md
+├── PUBLIC_SURFACE-hkask-types.md
+├── PUBLIC_SURFACE-hkask-wallet.md
 ├── core/
 │   ├── magna-carta.md                     # Foundation (4 inviolable principles)
 │   ├── PRINCIPLES.md                      # Framework (P1-P12)
@@ -572,7 +586,7 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 22 active architecture documents (3 core + 1 mandate + 4 root + 9 ADRs + 1 template + 6 reference artifacts).
+**Total:** 22 active architecture documents (3 core + 1 mandate + 4 root + 9 ADRs + 1 template + 6 reference artifacts) + 14 PUBLIC_SURFACE justifications.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.)
 

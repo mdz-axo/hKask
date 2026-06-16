@@ -21,7 +21,10 @@ fn load_env() {
             if let Some((k, v)) = line.split_once('=') {
                 let v = v.trim().trim_matches('"').trim_matches('\'');
                 if std::env::var(k).is_err() {
-                    std::env::set_var(k, v);
+                    // SAFETY: test-only — runs in isolated test process
+                    unsafe {
+                        std::env::set_var(k, v);
+                    }
                 }
             }
         }
@@ -40,6 +43,7 @@ fn condenser_params() -> LLMParameters {
         max_tokens: 200,
         seed: None,
         disable_thinking: true,
+        adapter: None,
     }
 }
 

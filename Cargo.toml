@@ -63,7 +63,7 @@ sha2 = "0.10"
 hmac = "0.12"
 ed25519-dalek = "2"
 zeroize = { version = "1", features = ["zeroize_derive"] }
-hex = "0.4"
+hex = { version = "0.4", features = ["serde"] }
 subtle = "2"
 
 # Git

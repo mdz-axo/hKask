@@ -3724,6 +3724,9 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "hf-hub"
@@ -3772,7 +3775,6 @@ dependencies = [
  "chrono",
  "hex",
  "hkask-cns",
- "hkask-improv",
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
@@ -4229,6 +4231,7 @@ version = "0.27.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "blake3",
  "chrono",
  "dotenvy",
@@ -4339,6 +4342,7 @@ version = "0.27.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "ed25519-dalek 2.2.0",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4378,6 +4382,7 @@ dependencies = [
  "base64 0.21.7",
  "blake3",
  "chrono",
+ "ed25519-dalek 2.2.0",
  "futures-util",
  "hex",
  "hkask-test-harness",

@@ -66,6 +66,7 @@ fn default_params() -> LLMParameters {
         typical_p: 0.0,
         seed: None,
         disable_thinking: false,
+        adapter: None,
     }
 }
 
@@ -373,6 +374,7 @@ async fn disable_thinking_flows_to_wire_format() {
         presence_penalty: 0.0,
         seed: None,
         disable_thinking: true,
+        adapter: None,
     };
 
     let result = router

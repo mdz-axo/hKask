@@ -1381,8 +1381,15 @@ peft_config = LoraConfig(
     task_type="CAUSAL_LM",
 )
 
-# Load dataset
-dataset_path = os.getenv("HKASK_DATASET_PATH", "dataset.jsonl")
+# Load dataset (from URL or local path)
+import urllib.request
+dataset_url = os.getenv("HKASK_DATASET_URL", "")
+if dataset_url:
+    print(f"Downloading dataset: {{dataset_url}}")
+    urllib.request.urlretrieve(dataset_url, "dataset.jsonl")
+    dataset_path = "dataset.jsonl"
+else:
+    dataset_path = os.getenv("HKASK_DATASET_PATH", "dataset.jsonl")
 print(f"Loading dataset: {{dataset_path}}")
 dataset = load_dataset("json", data_files=dataset_path, split="train")
 
@@ -1442,20 +1449,24 @@ print("Training complete. Checkpoints saved to BT_CHECKPOINT_DIR.")
 impl TrainingProvider for BasetenProvider {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
         // Resolve HuggingFace model ID from the provider-prefixed base_model.
-        // Strip provider prefix (e.g., "TOGETHER/" → "") to get raw HF model ID.
-        let hf_model_id = if let Some(idx) = job.base_model.find('/') {
-            let prefix = &job.base_model[..idx];
-            if prefix.len() <= 10 {
-                &job.base_model[idx + 1..]
-            } else {
-                &job.base_model
+        // Strip known provider prefixes (OM/, DI/, FA/, TG/) to get raw HF model ID.
+        // Model IDs without a known prefix (e.g., "Qwen/Qwen3.5-9B") are used as-is.
+        let hf_model_id = {
+            let known_prefixes = ["OM/", "DI/", "FA/", "TG/"];
+            let mut model = job.base_model.as_str();
+            for prefix in &known_prefixes {
+                if model.starts_with(prefix) {
+                    model = &model[prefix.len()..];
+                    break;
+                }
             }
-        } else {
-            &job.base_model
+            model
         };
 
-        // Generate train.py
+        // Generate train.py and encode as base64 for safe shell transport
         let train_script = self.build_train_script(job, hf_model_id);
+        use base64::Engine;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(train_script.as_bytes());
 
         let gpu = std::env::var("BASETEN_GPU").unwrap_or_else(|_| "H100".to_string());
         let gpu_count: u32 = std::env::var("BASETEN_GPU_COUNT")
@@ -1463,6 +1474,7 @@ impl TrainingProvider for BasetenProvider {
             .and_then(|s| s.parse().ok())
             .unwrap_or(1);
         let hf_token = std::env::var("HF_TOKEN").unwrap_or_default();
+        let dataset_url = std::env::var("HKASK_DATASET_URL").unwrap_or_default();
 
         let body = json!({
             "training_job": {
@@ -1482,13 +1494,13 @@ impl TrainingProvider for BasetenProvider {
                 "runtime": {
                     "start_commands": [
                         "pip install peft trl datasets accelerate",
-                        format!("echo '{}' > train.py", train_script.replace('\'', "'\\''")),
+                        format!("python -c \"import base64; open('train.py','w').write(base64.b64decode('{}').decode())\"", encoded),
                         "python train.py",
                     ],
                     "environment_variables": {
                         "HKASK_JOB_ID": job.id,
                         "HKASK_BASE_MODEL": job.base_model,
-                        "HKASK_DATASET_PATH": job.dataset_path.to_string_lossy().to_string(),
+                        "HKASK_DATASET_URL": dataset_url,
                         "HKASK_NUM_EPOCHS": job.params.num_epochs.to_string(),
                         "HKASK_LORA_R": job.params.lora_r.to_string(),
                         "HF_TOKEN": hf_token,

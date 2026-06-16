@@ -65,16 +65,22 @@ impl RootAuthority {
 
         let context_nonce = format!("root-{}-{}", self.root_webid, token_id);
 
+        let secret_bytes: [u8; 32] = self.root_secret[..32]
+            .try_into()
+            .expect("root_secret must be at least 32 bytes");
+        let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
+
         let token = DelegationTokenBuilder::new(
             resource,
             resource_id,
             action,
             self.root_webid,
             delegated_to,
+            &signing_key,
         )
         .attenuation(0, SYSTEM_MAX_ATTENUATION)
         .context_nonce(context_nonce)
-        .sign(self.root_secret.as_ref());
+        .sign();
 
         Ok(token)
     }

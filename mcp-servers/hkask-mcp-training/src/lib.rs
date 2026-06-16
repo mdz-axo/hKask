@@ -15,6 +15,7 @@
 //! - `training_record_invocation` — Record an adapter invocation for continuous training
 //! - `training_curate_feedback` — Curate feedback from stored QA pairs for continuous skills training
 //! - `training_retrain` — Retrain an adapter with curated feedback (closes the continuous loop)
+//! - `training_ingest_dataset` — Ingest a raw dataset into the normalized cache
 //!
 //! Architecture:
 //!   Dataset → DatasetPipeline (ingest/normalize/validate/cache)

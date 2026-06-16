@@ -16,7 +16,7 @@
 //! Each test carries a `// REQ:` tag linking it to the contract-first
 //! migration plan.
 
-use hkask_agents::{AgentMode, AgentPersona, PodManager, PodStatus};
+use hkask_agents::{AgentPersona, PodManager};
 use hkask_types::PodID;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,6 +30,31 @@ fn test_persona(name: &str, agent_type: &str) -> AgentPersona {
     AgentPersona::from_yaml(&yaml).expect("test persona parse")
 }
 
+/// Ensure a template crate directory exists for PodManager::new_mock().
+/// The mock manager uses `/tmp/hkask-mock` as its GitCasAdapter root.
+fn ensure_template_dir(template_name: &str) {
+    let dir = std::path::PathBuf::from("/tmp/hkask-mock").join(template_name);
+    std::fs::create_dir_all(&dir).ok();
+    std::fs::write(
+        dir.join("agent_persona.yaml"),
+        format!("agent:\n  name: {}\n  type: Bot\n", template_name),
+    )
+    .ok();
+    std::fs::write(dir.join("dispatch_manifest.yaml"), "name: test\n").ok();
+}
+
+/// Set the master key env var for tests that need key derivation.
+/// SAFETY: integration tests run in isolated processes — no other code
+/// reads HKASK_MASTER_KEY concurrently.
+fn set_test_master_key() {
+    unsafe {
+        std::env::set_var(
+            "HKASK_MASTER_KEY",
+            "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+        );
+    }
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 /// REQ: INT-005.1 — Two-pod creation and activation
@@ -38,7 +63,12 @@ fn test_persona(name: &str, agent_type: &str) -> AgentPersona {
 /// through the full lifecycle (Populated → Registered → Activated).
 #[tokio::test]
 async fn two_pod_creation_and_activation() {
+    set_test_master_key();
     let manager = PodManager::new_mock();
+
+    // Ensure template directories exist
+    ensure_template_dir("alice-template");
+    ensure_template_dir("bob-template");
 
     // Create two pods with different personas
     let alice_persona = test_persona("alice", "Replicant");
@@ -81,11 +111,16 @@ async fn two_pod_creation_and_activation() {
 /// `list_pods()` returns all created pods with correct status.
 #[tokio::test]
 async fn list_pods_after_multi_pod_creation() {
+    set_test_master_key();
     let manager = PodManager::new_mock();
 
     let alice = test_persona("alice", "Replicant");
     let bob = test_persona("bob", "Bot");
-    let carol = test_persona("carol", "Curator");
+    let carol = test_persona("carol", "Bot");
+
+    ensure_template_dir("a");
+    ensure_template_dir("b");
+    ensure_template_dir("c");
 
     let a_id = manager.create_pod("a", &alice, None).await.unwrap();
     let b_id = manager.create_pod("b", &bob, None).await.unwrap();
@@ -95,17 +130,17 @@ async fn list_pods_after_multi_pod_creation() {
     manager.activate_pod(&a_id).await.unwrap();
     manager.activate_pod(&b_id).await.unwrap();
 
-    let pods = manager.list_pods().await;
+    let pods = manager.list_pods().await.unwrap();
     assert_eq!(pods.len(), 3, "Should list all 3 pods");
 
     // Verify states
-    let alice_status = pods.iter().find(|s| s.pod_id == a_id).unwrap();
+    let alice_status = pods.iter().find(|s| s.pod_id == a_id.to_string()).unwrap();
     assert!(format!("{:?}", alice_status.state).contains("Activated"));
 
-    let bob_status = pods.iter().find(|s| s.pod_id == b_id).unwrap();
+    let bob_status = pods.iter().find(|s| s.pod_id == b_id.to_string()).unwrap();
     assert!(format!("{:?}", bob_status.state).contains("Activated"));
 
-    let carol_status = pods.iter().find(|s| s.pod_id == c_id).unwrap();
+    let carol_status = pods.iter().find(|s| s.pod_id == c_id.to_string()).unwrap();
     assert!(format!("{:?}", carol_status.state).contains("Populated"));
 }
 
@@ -114,17 +149,22 @@ async fn list_pods_after_multi_pod_creation() {
 /// An activated pod can enter server mode, exit, and enter chat mode.
 #[tokio::test]
 async fn mode_transitions_on_activated_pod() {
+    set_test_master_key();
     let manager = PodManager::new_mock();
+    ensure_template_dir("test");
     let persona = test_persona("agent", "Replicant");
-    let pod_id = manager.create_pod("test", &persona, None).await.unwrap();
+    let pod_id = manager
+        .create_pod("test", &persona, Some("agent".into()))
+        .await
+        .unwrap();
 
     // Activate and assign a role
     manager.activate_pod(&pod_id).await.unwrap();
-    manager.assign_role(&pod_id, "research").await.unwrap();
+    manager.assign_role("agent", "research").await.unwrap();
 
     // Enter server mode
     manager
-        .set_mode(&pod_id, AgentMode::Server("research".into()))
+        .set_mode("agent", "server", Some("research"))
         .await
         .expect("enter server mode");
 
@@ -133,13 +173,13 @@ async fn mode_transitions_on_activated_pod() {
 
     // Exit mode
     manager
-        .set_mode(&pod_id, AgentMode::None)
+        .set_mode("agent", "exit", None)
         .await
         .expect("exit mode");
 
     // Enter chat mode
     manager
-        .set_mode(&pod_id, AgentMode::Chat)
+        .set_mode("agent", "chat", None)
         .await
         .expect("enter chat mode");
 }
@@ -149,7 +189,9 @@ async fn mode_transitions_on_activated_pod() {
 /// A pod can be deactivated and its state transitions correctly.
 #[tokio::test]
 async fn deactivation_and_reactivation() {
+    set_test_master_key();
     let manager = PodManager::new_mock();
+    ensure_template_dir("test");
     let persona = test_persona("agent", "Replicant");
     let pod_id = manager.create_pod("test", &persona, None).await.unwrap();
 

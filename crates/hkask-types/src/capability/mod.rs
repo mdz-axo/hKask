@@ -1,7 +1,7 @@
 //! Delegation tokens (OCAP) — inter-agent capability delegation
 //
 //! Two token kinds: **Loop authority** (ZST tokens in `tokens.rs`) prove loop-authorized operations;
-//! **Delegation** (`DelegationToken`) are HMAC-signed tokens for inter-agent delegation with cryptographic attenuation.
+//! **Delegation** (`DelegationToken`) are Ed25519-signed tokens for inter-agent delegation with cryptographic attenuation.
 
 /// Shared structural bound: capability attenuation, cascade depth, subgoal nesting.
 pub const SYSTEM_MAX_RECURSION: u8 = 7;
@@ -70,10 +70,22 @@ pub use verification::{
 };
 
 use crate::WebID;
+use crate::wallet::Ed25519PublicKey;
 use base64::Engine;
+use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
+/// Derive an Ed25519 signing key from arbitrary secret bytes.
+///
+/// [NORMATIVE] Hashes the input with SHA-256 to produce a 32-byte seed,
+/// then constructs a `SigningKey`. This allows existing HMAC-secret-based
+/// callers to migrate to Ed25519 without changing their secret management (P4 — Clear Boundaries).
+pub fn derive_signing_key(secret: &[u8]) -> SigningKey {
+    let seed: [u8; 32] = Sha256::digest(secret).into();
+    SigningKey::from_bytes(&seed)
+}
 
 fn b64(data: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(data)
@@ -558,60 +570,82 @@ mod tests {
         WebID::from_persona(label.as_bytes())
     }
 
-    // REQ: token-verify-001 — DelegationToken verifies with correct secret
-    #[test]
-    fn token_verifies_with_correct_secret() {
-        let token = DelegationToken::new(
-            DelegationResource::Tool,
-            "execute".to_string(),
-            DelegationAction::Execute,
-            test_webid("root"),
-            test_webid("agent"),
-            TOKEN_SECRET,
-        );
-        assert!(token.verify(TOKEN_SECRET));
+    fn test_signing_key() -> SigningKey {
+        derive_signing_key(TOKEN_SECRET)
     }
 
-    // REQ: token-verify-002 — DelegationToken rejects wrong secret
+    // REQ: token-verify-001 — DelegationToken verifies with correct public key
     #[test]
-    fn token_rejects_wrong_secret() {
+    fn token_verifies_with_correct_key() {
+        let sk = test_signing_key();
         let token = DelegationToken::new(
             DelegationResource::Tool,
             "execute".to_string(),
             DelegationAction::Execute,
             test_webid("root"),
             test_webid("agent"),
-            TOKEN_SECRET,
+            &sk,
         );
-        let wrong_secret = b"wrong-secret-32-bytes-minimum!";
-        assert!(!token.verify(wrong_secret));
+        assert!(token.verify());
+    }
+
+    // REQ: token-verify-002 — DelegationToken rejects wrong public key
+    #[test]
+    fn token_rejects_wrong_key() {
+        let sk = test_signing_key();
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            &sk,
+        );
+        // Create a token with a different key and try to verify with original
+        let wrong_sk = derive_signing_key(b"wrong-secret-32-bytes-minimum!");
+        let wrong_token = DelegationToken::new(
+            DelegationResource::Tool,
+            "execute".to_string(),
+            DelegationAction::Execute,
+            test_webid("root"),
+            test_webid("agent"),
+            &wrong_sk,
+        );
+        // Each token verifies with its own public key
+        assert!(token.verify());
+        assert!(wrong_token.verify());
+        // But they have different public keys
+        assert_ne!(token.public_key.0, wrong_token.public_key.0);
     }
 
     // REQ: token-verify-003 — DelegationToken rejects tampered signature
     #[test]
     fn token_rejects_tampered_signature() {
+        let sk = test_signing_key();
         let mut token = DelegationToken::new(
             DelegationResource::Tool,
             "execute".to_string(),
             DelegationAction::Execute,
             test_webid("root"),
             test_webid("agent"),
-            TOKEN_SECRET,
+            &sk,
         );
-        token.signature.push_str("tampered");
-        assert!(!token.verify(TOKEN_SECRET));
+        // Tamper with the signature bytes
+        token.signature.0[0] ^= 0xFF;
+        assert!(!token.verify());
     }
 
     // REQ: token-attenuation-001 — DelegationToken can_attenuate when below max
     #[test]
     fn token_can_attenuate_when_below_max() {
+        let sk = test_signing_key();
         let token = DelegationToken::new(
             DelegationResource::Tool,
             "execute".to_string(),
             DelegationAction::Execute,
             test_webid("root"),
             test_webid("agent"),
-            TOKEN_SECRET,
+            &sk,
         );
         assert!(token.can_attenuate());
     }
@@ -619,6 +653,7 @@ mod tests {
     // REQ: token-attenuation-002 — DelegationToken attenuation enforced at max
     #[test]
     fn token_attenuation_enforced_at_max() {
+        let sk = test_signing_key();
         let root = test_webid("root");
         let agent = test_webid("agent");
 
@@ -628,45 +663,42 @@ mod tests {
             DelegationAction::Execute,
             root,
             agent,
-            TOKEN_SECRET,
+            &sk,
         );
 
         for i in 1..=7 {
             let next_agent = test_webid(&format!("agent-{}", i));
             let attenuated = current
-                .attenuate(next_agent, TOKEN_SECRET, 100_000)
+                .attenuate(next_agent, &sk, 100_000)
                 .expect(&format!("Attenuation {} should succeed", i));
-            assert!(attenuated.verify(TOKEN_SECRET));
+            assert!(attenuated.verify());
             assert_eq!(attenuated.attenuation_level, i as u8);
             current = attenuated;
         }
 
         assert!(!current.can_attenuate());
         let next_agent = test_webid("agent-8");
-        assert!(
-            current
-                .attenuate(next_agent, TOKEN_SECRET, 100_000)
-                .is_none()
-        );
+        assert!(current.attenuate(next_agent, &sk, 100_000).is_none());
     }
 
     // REQ: token-attenuation-003 — DelegationToken attenuation preserves signature validity
     #[test]
     fn token_attenuation_preserves_signature_validity() {
+        let sk = test_signing_key();
         let token = DelegationToken::new(
             DelegationResource::Tool,
             "execute".to_string(),
             DelegationAction::Execute,
             test_webid("root"),
             test_webid("agent"),
-            TOKEN_SECRET,
+            &sk,
         );
 
         let attenuated = token
-            .attenuate(test_webid("agent-2"), TOKEN_SECRET, 100_000)
+            .attenuate(test_webid("agent-2"), &sk, 100_000)
             .expect("Attenuation should succeed");
 
-        assert!(attenuated.verify(TOKEN_SECRET));
+        assert!(attenuated.verify());
         assert_eq!(attenuated.attenuation_level, 1);
         assert_eq!(attenuated.delegated_from, token.delegated_to);
         assert_eq!(attenuated.delegated_to, test_webid("agent-2"));
@@ -675,6 +707,7 @@ mod tests {
     // REQ: token-attenuation-004 — DelegationToken verify_attenuation_chain
     #[test]
     fn token_verify_attenuation_chain() {
+        let sk = test_signing_key();
         let root = test_webid("root");
         let token = DelegationToken::new(
             DelegationResource::Tool,
@@ -682,13 +715,13 @@ mod tests {
             DelegationAction::Execute,
             root,
             test_webid("agent"),
-            TOKEN_SECRET,
+            &sk,
         );
 
         let root_nonce = token.root_context_nonce().to_string();
 
         let attenuated = token
-            .attenuate(test_webid("agent-2"), TOKEN_SECRET, 100_000)
+            .attenuate(test_webid("agent-2"), &sk, 100_000)
             .expect("Attenuation should succeed");
 
         assert!(attenuated.verify_attenuation_chain(&root_nonce, 1));
@@ -699,13 +732,14 @@ mod tests {
     // REQ: token-expiry-001 — DelegationToken is_expired when past expiry
     #[test]
     fn token_is_expired_when_past_expiry() {
+        let sk = test_signing_key();
         let mut token = DelegationToken::new(
             DelegationResource::Tool,
             "execute".to_string(),
             DelegationAction::Execute,
             test_webid("root"),
             test_webid("agent"),
-            TOKEN_SECRET,
+            &sk,
         );
         token.expires_at = Some(1000);
         assert!(token.is_expired(2000));
@@ -715,13 +749,14 @@ mod tests {
     // REQ: token-expiry-002 — DelegationToken without expiry never expires
     #[test]
     fn token_without_expiry_never_expires() {
+        let sk = test_signing_key();
         let token = DelegationToken::new(
             DelegationResource::Tool,
             "execute".to_string(),
             DelegationAction::Execute,
             test_webid("root"),
             test_webid("agent"),
-            TOKEN_SECRET,
+            &sk,
         );
         assert!(!token.is_expired(i64::MAX));
     }
@@ -729,13 +764,14 @@ mod tests {
     // REQ: token-serialization-001 — DelegationToken base64 round-trip
     #[test]
     fn token_base64_round_trip() {
+        let sk = test_signing_key();
         let token = DelegationToken::new(
             DelegationResource::Tool,
             "execute".to_string(),
             DelegationAction::Execute,
             test_webid("root"),
             test_webid("agent"),
-            TOKEN_SECRET,
+            &sk,
         );
 
         let encoded = token.to_base64().expect("Base64 encoding should succeed");
@@ -745,7 +781,7 @@ mod tests {
         assert_eq!(token.id, decoded.id);
         assert_eq!(token.resource, decoded.resource);
         assert_eq!(token.delegated_to, decoded.delegated_to);
-        assert!(decoded.verify(TOKEN_SECRET));
+        assert!(decoded.verify());
     }
 }
 
@@ -756,7 +792,18 @@ pub(crate) struct Caveat {
     pub data: String,
 }
 
-/// HMAC-signed OCAP token for inter-agent capability delegation.
+/// Ed25519 signature for delegation token authentication.
+///
+/// [NORMATIVE] Wraps a 64-byte Ed25519 signature. Verification uses the
+/// token's `public_key` field — no shared secret required (P4 — Clear Boundaries).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct TokenSignature(#[serde(with = "hex::serde")] pub [u8; 64]);
+
+/// Ed25519-signed OCAP token for inter-agent capability delegation.
+///
+/// [NORMATIVE] Signatures are asymmetric (Ed25519) — the issuer signs with
+/// a private key, verifiers use the public key. Token forgery requires the
+/// private key (P4 — Clear Boundaries).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DelegationToken {
     pub id: String,
@@ -765,7 +812,10 @@ pub struct DelegationToken {
     pub action: DelegationAction,
     pub delegated_from: WebID,
     pub delegated_to: WebID,
-    pub signature: String,
+    /// Ed25519 signature over the token payload.
+    pub signature: TokenSignature,
+    /// Ed25519 public key for signature verification.
+    pub public_key: Ed25519PublicKey,
     pub expires_at: Option<i64>,
     /// 0 = full authority, increases with each delegation
     pub attenuation_level: u8,
@@ -782,6 +832,7 @@ struct SigningPayload {
     action: DelegationAction,
     from: WebID,
     to: WebID,
+    public_key: Ed25519PublicKey,
     caveats: Vec<Caveat>,
 }
 
@@ -797,6 +848,7 @@ pub struct DelegationTokenBuilder {
     max_attenuation: u8,
     context_nonce: Option<String>,
     caveats: Vec<Caveat>,
+    signing_key: SigningKey,
 }
 
 impl DelegationTokenBuilder {
@@ -806,6 +858,7 @@ impl DelegationTokenBuilder {
         action: DelegationAction,
         delegated_from: WebID,
         delegated_to: WebID,
+        signing_key: &SigningKey,
     ) -> Self {
         Self {
             resource,
@@ -818,6 +871,7 @@ impl DelegationTokenBuilder {
             max_attenuation: SYSTEM_MAX_ATTENUATION,
             context_nonce: None,
             caveats: Vec::new(),
+            signing_key: signing_key.clone(),
         }
     }
     pub fn expires_at(mut self, ts: i64) -> Self {
@@ -837,7 +891,7 @@ impl DelegationTokenBuilder {
         self.caveats.push(c);
         self
     }
-    pub fn sign(self, secret: &[u8]) -> DelegationToken {
+    pub fn sign(self) -> DelegationToken {
         let id = DelegationToken::generate_id(
             &self.resource,
             &self.resource_id,
@@ -845,6 +899,7 @@ impl DelegationTokenBuilder {
             &self.delegated_from,
             &self.delegated_to,
         );
+        let public_key = Ed25519PublicKey(self.signing_key.verifying_key().to_bytes());
         let payload = SigningPayload {
             id,
             resource: self.resource,
@@ -852,9 +907,10 @@ impl DelegationTokenBuilder {
             action: self.action,
             from: self.delegated_from,
             to: self.delegated_to,
+            public_key,
             caveats: self.caveats,
         };
-        let signature = DelegationToken::sign_payload(&payload, secret);
+        let signature = DelegationToken::sign_payload(&payload, &self.signing_key);
         let context_nonce = self
             .context_nonce
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
@@ -866,6 +922,7 @@ impl DelegationTokenBuilder {
             delegated_from: payload.from,
             delegated_to: payload.to,
             signature,
+            public_key,
             expires_at: self.expires_at,
             attenuation_level: self.attenuation_level,
             max_attenuation: self.max_attenuation,
@@ -882,10 +939,17 @@ impl DelegationToken {
         action: DelegationAction,
         delegated_from: WebID,
         delegated_to: WebID,
-        secret: &[u8],
+        signing_key: &SigningKey,
     ) -> Self {
-        DelegationTokenBuilder::new(resource, resource_id, action, delegated_from, delegated_to)
-            .sign(secret)
+        DelegationTokenBuilder::new(
+            resource,
+            resource_id,
+            action,
+            delegated_from,
+            delegated_to,
+            signing_key,
+        )
+        .sign()
     }
 
     fn generate_id(
@@ -904,37 +968,44 @@ impl DelegationToken {
         hex::encode(hasher.finalize())
     }
 
-    fn sign_payload(payload: &SigningPayload, secret: &[u8]) -> String {
-        let mut builder = hmac_ops::HmacBuilder::new(secret);
-        builder.update(payload.id.as_bytes());
-        builder.update(payload.resource.as_str().as_bytes());
-        builder.update(payload.resource_id.as_bytes());
-        builder.update(payload.action.as_str().as_bytes());
-        builder.update(wid(&payload.from).as_bytes());
-        builder.update(wid(&payload.to).as_bytes());
-        // Include caveats in signature for tamper-evidence
+    fn sign_payload(payload: &SigningPayload, signing_key: &SigningKey) -> TokenSignature {
+        // Build canonical byte representation for signing
+        let mut buf = Vec::new();
+        buf.extend_from_slice(payload.id.as_bytes());
+        buf.extend_from_slice(payload.resource.as_str().as_bytes());
+        buf.extend_from_slice(payload.resource_id.as_bytes());
+        buf.extend_from_slice(payload.action.as_str().as_bytes());
+        buf.extend_from_slice(wid(&payload.from).as_bytes());
+        buf.extend_from_slice(wid(&payload.to).as_bytes());
+        buf.extend_from_slice(&payload.public_key.0);
         for caveat in &payload.caveats {
-            builder.update(caveat.caveat_id.as_bytes());
-            builder.update(caveat.data.as_bytes());
+            buf.extend_from_slice(caveat.caveat_id.as_bytes());
+            buf.extend_from_slice(caveat.data.as_bytes());
         }
-        builder.finalize_hex()
+        let signature = signing_key.sign(&buf);
+        TokenSignature(signature.to_bytes())
     }
 
-    /// Constant-time HMAC verification. Also aliased as `verify_cryptographic`.
-    pub fn verify(&self, secret: &[u8]) -> bool {
-        let payload = SigningPayload {
-            id: self.id.clone(),
-            resource: self.resource,
-            resource_id: self.resource_id.clone(),
-            action: self.action,
-            from: self.delegated_from,
-            to: self.delegated_to,
-            caveats: self.caveats.clone(),
+    /// Ed25519 signature verification using the token's public key.
+    pub fn verify(&self) -> bool {
+        let verifying_key = match VerifyingKey::from_bytes(&self.public_key.0) {
+            Ok(vk) => vk,
+            Err(_) => return false,
         };
-        let expected = Self::sign_payload(&payload, secret);
-
-        // Constant-time comparison to prevent timing attacks
-        hmac_ops::verify_hmac_constant_time(expected.as_bytes(), self.signature.as_bytes())
+        let mut buf = Vec::new();
+        buf.extend_from_slice(self.id.as_bytes());
+        buf.extend_from_slice(self.resource.as_str().as_bytes());
+        buf.extend_from_slice(self.resource_id.as_bytes());
+        buf.extend_from_slice(self.action.as_str().as_bytes());
+        buf.extend_from_slice(wid(&self.delegated_from).as_bytes());
+        buf.extend_from_slice(wid(&self.delegated_to).as_bytes());
+        buf.extend_from_slice(&self.public_key.0);
+        for caveat in &self.caveats {
+            buf.extend_from_slice(caveat.caveat_id.as_bytes());
+            buf.extend_from_slice(caveat.data.as_bytes());
+        }
+        let signature = ed25519_dalek::Signature::from_bytes(&self.signature.0);
+        verifying_key.verify(&buf, &signature).is_ok()
     }
 
     pub fn is_expired(&self, current_time: i64) -> bool {
@@ -959,20 +1030,21 @@ impl DelegationToken {
         self.attenuation_level < self.max_attenuation
     }
     /// Attenuate with 1-hour expiry from `current_time`.
+    /// Requires the issuer's signing key to produce a valid signature.
     pub fn attenuate(
         &self,
         new_to: WebID,
-        secret: &[u8],
+        signing_key: &SigningKey,
         current_time: i64,
     ) -> Option<DelegationToken> {
-        self.attenuate_with_expiry(new_to, secret, Some(current_time + 3600))
+        self.attenuate_with_expiry(new_to, signing_key, Some(current_time + 3600))
     }
 
     /// Create attenuated child token with custom expiry.
     pub fn attenuate_with_expiry(
         &self,
         new_to: WebID,
-        secret: &[u8],
+        signing_key: &SigningKey,
         expires_at: Option<i64>,
     ) -> Option<DelegationToken> {
         if !self.can_attenuate() {
@@ -985,6 +1057,7 @@ impl DelegationToken {
             self.action,
             self.delegated_to,
             new_to,
+            signing_key,
         )
         .attenuation(self.attenuation_level + 1, self.max_attenuation)
         .context_nonce(format!(
@@ -997,12 +1070,11 @@ impl DelegationToken {
             builder = builder.expires_at(ts);
         }
 
-        // Preserve parent's caveats
         for caveat in &self.caveats {
             builder = builder.caveat(caveat.clone());
         }
 
-        Some(builder.sign(secret))
+        Some(builder.sign())
     }
 
     pub fn is_valid_for(
@@ -1048,8 +1120,8 @@ impl DelegationToken {
     }
 
     /// Cryptographic verification for distributed/Paxos use.
-    pub fn verify_cryptographic(&self, secret: &[u8]) -> bool {
-        self.verify(secret)
+    pub fn verify_cryptographic(&self) -> bool {
+        self.verify()
     }
     pub fn caveat_ids(&self) -> Vec<&str> {
         self.caveats.iter().map(|c| c.caveat_id.as_str()).collect()

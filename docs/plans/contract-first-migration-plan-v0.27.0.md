@@ -259,17 +259,26 @@ scripts/contract-audit.sh --summary   # table format
 2. Rejection emits `cns.contract.rejected` CNS span
 3. Rejected contract is archived as a curation decision
 
-### 5.4 CNS Integration (Phase B4)
+### 5.4 CNS Integration (Phase B4) 🟡 PARTIAL (2026-06-15)
 
-**New CNS spans (register in PRINCIPLES.md §1.4 and CANONICAL_NAMESPACES):**
+**New CNS spans (registered in PRINCIPLES.md §1.4 and CANONICAL_NAMESPACES):**
 
-| Span | Emitted When | Observer |
-|------|-------------|----------|
-| `cns.contract.proposed` | Replicant opens a contract proposal PR | Curator |
-| `cns.contract.accepted` | Human approves and merges a contract proposal | Curator |
-| `cns.contract.rejected` | Human rejects a contract proposal | Curator |
-| `cns.contract.violated` | A contracted function's proptest fails | CNS algedonic |
-| `cns.contract.coverage` | Periodic coverage measurement | CNS variety |
+| Span | Emitted When | Observer | Status |
+|------|-------------|----------|--------|
+| `cns.contract.proposed` | Replicant opens a contract proposal PR | Curator | ⬜ Not yet implemented |
+| `cns.contract.accepted` | Human approves and merges a contract proposal | Curator | ⬜ Not yet implemented |
+| `cns.contract.rejected` | Human rejects a contract proposal | Curator | ⬜ Not yet implemented |
+| `cns.contract.violated` | A contracted function's proptest fails | CNS algedonic | ✅ Emission function implemented (`emit_contract_violated`) |
+| `cns.contract.coverage` | Periodic coverage measurement | CNS variety | ✅ Emission function implemented (`emit_contract_coverage`) |
+
+**Delivered:** `crates/hkask-cns/src/contract_discipline.rs` — public module with:
+- `emit_contract_violated(sink, function_name, contract_id, failure_reason)` — emits `cns.contract.violated`
+- `emit_contract_coverage(sink, total_pub_fns, contracted_fns, coverage_pct)` — emits `cns.contract.coverage`
+- 2 self-tests with `CaptureSink` verifying event persistence
+
+**Wiring points:**
+- `emit_contract_violated` → called by CI when proptest with `// REQ:` tag fails
+- `emit_contract_coverage` → called by Cybernetics Loop regulation cycle or `scripts/contract-audit.sh` CI job
 
 ### 5.5 Phase B1–B4 Timeline
 

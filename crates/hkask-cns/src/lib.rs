@@ -7,6 +7,7 @@ pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
 pub mod api_metering; // API key metering — rate limits, CNS spans, alerts
 pub mod circuit_breaker; // Loop 6 — regulation
 pub mod composite_energy_estimator; // Composite routing: inference → token-based, others → table
+pub mod contract_discipline; // Contract CNS span emission (Testing Discipline §9.3)
 pub mod cybernetics_loop; // Loop 6
 pub(crate) mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — energy budgets (hJoules)
@@ -39,6 +40,7 @@ pub use governed_tool::{EnergyEstimator, GovernedTool};
 pub use wallet_budget::WalletBackedBudget;
 pub use wallet_energy_estimator::WalletEnergyEstimator;
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
+pub use contract_discipline::{emit_contract_coverage, emit_contract_violated};
 pub use hkask_types::cns::QueueDepth;
 pub use runtime::CnsRuntime;
 pub use runtime::NoopEventSink;

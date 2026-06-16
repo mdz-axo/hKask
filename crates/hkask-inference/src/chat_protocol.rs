@@ -321,6 +321,12 @@ pub fn parse_sse_stream(
 }
 
 /// Validate a prompt string.
+///
+/// REQ: INFER-001
+/// pre:  prompt is a valid &str
+/// post: returns Err(Generation) if prompt is empty
+/// post: returns Err(Generation) if prompt.len() > 1_000_000
+/// post: returns Ok(()) for all other inputs
 pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
     if prompt.is_empty() {
         return Err(InferenceError::Generation("Prompt is empty".to_string()));
@@ -385,6 +391,7 @@ mod tests {
             max_tokens: 512,
             seed: None,
             disable_thinking: false,
+            adapter: None,
         };
         let req = build_chat_request(
             "qwen3:4b",
@@ -418,9 +425,10 @@ mod tests {
             typical_p: 0.0,
             frequency_penalty: 0.0,
             presence_penalty: 0.0,
-            max_tokens: 500,
+            max_tokens: 256,
             seed: None,
             disable_thinking: true,
+            adapter: None,
         };
         let req = build_chat_request("qwen3:8b", "Summarize.", None, &params, Some(false), None);
         let json = serde_json::to_value(&req).expect("serialization must succeed");
@@ -441,10 +449,29 @@ mod tests {
             max_tokens: 512,
             seed: None,
             disable_thinking: false,
+            adapter: None,
         };
         let req = build_chat_request("qwen3:4b", "Hello.", None, &params, Some(false), None);
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         // enable_thinking should NOT appear in JSON when true (skip_serializing_if)
         assert!(json.get("enable_thinking").is_none());
+    }
+
+    // REQ: INFER-001 — validate_prompt contract (property-based)
+    // For any non-empty string ≤ 1_000_000 chars, validate_prompt returns Ok(()).
+    // For empty string, returns Err. For strings > 1_000_000, returns Err.
+    #[test]
+    fn validate_prompt_contract() {
+        // Empty → error
+        assert!(validate_prompt("").is_err());
+
+        // Normal prompts → ok
+        assert!(validate_prompt("hello").is_ok());
+        assert!(validate_prompt("a").is_ok());
+        assert!(validate_prompt(&"x".repeat(1000)).is_ok());
+        assert!(validate_prompt(&"x".repeat(1_000_000)).is_ok());
+
+        // Overlong → error
+        assert!(validate_prompt(&"x".repeat(1_000_001)).is_err());
     }
 }

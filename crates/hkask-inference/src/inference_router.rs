@@ -435,6 +435,12 @@ impl InferencePort for InferenceRouter {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(e) }),
         };
+        // Apply LoRA adapter for multi-LoRA serving
+        let model = if let Some(ref adapter) = parameters.adapter {
+            format!("{}#{}", model, adapter)
+        } else {
+            model.to_string()
+        };
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
 
@@ -445,28 +451,28 @@ impl InferencePort for InferenceRouter {
                     self.ollama
                         .as_ref()
                         .unwrap()
-                        .generate(model, &prompt, &parameters)
+                        .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::DeepInfra => {
                     self.deepinfra
                         .as_ref()
                         .unwrap()
-                        .generate(model, &prompt, &parameters)
+                        .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::Fal => {
                     self.fal
                         .as_ref()
                         .unwrap()
-                        .generate(model, &prompt, &parameters)
+                        .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::Together => {
                     self.together
                         .as_ref()
                         .unwrap()
-                        .generate(model, &prompt, &parameters)
+                        .generate(&model, &prompt, &parameters)
                         .await
                 }
             }
@@ -488,7 +494,12 @@ impl InferencePort for InferenceRouter {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(e) }),
         };
-        let model = model.to_string();
+        // Apply LoRA adapter for multi-LoRA serving (Baseten format: model#adapter)
+        let model = if let Some(ref adapter) = parameters.adapter {
+            format!("{}#{}", model, adapter)
+        } else {
+            model.to_string()
+        };
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
 
