@@ -2,10 +2,10 @@
 template_type: KnowAct
 lexicon_terms:
 - assess
-- catalog
-- predict
 - classify
 - evaluate
+- detect
+- infer
 contract:
   input:
     module_path: string
@@ -19,11 +19,11 @@ contract:
     classification: string
     red_flags: array
     recommendations: array
-energy_cap: 6144
-visibility: Shared
+  energy_cap: 6144
+  visibility: Shared
 ---
 {# Template: deep-module/deep-module-assess.j2 #}
-{# KnowAct — Assess module depth: count interface, estimate behavior, compute depth score #}
+{# KnowAct — Assess module depth: enumerate public interface, evaluate behavior, compute depth score #}
 {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]

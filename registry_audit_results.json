@@ -35,14 +35,16 @@
             "output": {
               "adversarial_inputs": "array",
               "attack_count": "integer"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: generate",
           "frontmatter hlexicon term not in workspace: adversarial",
           "frontmatter hlexicon term not in workspace: inject",
@@ -80,14 +82,16 @@
             "output": {
               "multi_turn_scripts": "array",
               "total_turns": "integer"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: attack",
           "frontmatter hlexicon term not in workspace: multi-turn",
           "frontmatter hlexicon term not in workspace: drain",
@@ -120,14 +124,16 @@
               "vulnerability_surface": "array",
               "categories_to_test": "array",
               "intensity_level": "string"
-            },
-            "energy_cap": 2048,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: select",
           "frontmatter hlexicon term not in workspace: target",
           "frontmatter hlexicon term not in workspace: vulnerability",
@@ -160,14 +166,16 @@
               "test_results": "array",
               "resistance_rate": "number",
               "critical_failures": "array"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: test",
           "frontmatter hlexicon term not in workspace: resist",
           "frontmatter hlexicon term not in workspace: robustness",
@@ -240,16 +248,19 @@
               "compressed_token_estimate": "integer",
               "compression_ratio": "float",
               "clarity_exceptions": "array"
-            },
-            "energy_cap": 2048,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 0.75
+    "score": 0.6
   },
   {
     "skill": "chain-of-density",
@@ -288,14 +299,16 @@
               "density_improvement": "number",
               "entities_added_this_pass": "array",
               "converged": "boolean"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: condense",
           "frontmatter hlexicon term not in workspace: density",
           "frontmatter hlexicon term not in workspace: entity",
@@ -326,14 +339,16 @@
               "word_count": "integer",
               "entity_density": "number",
               "missing_entities": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: identify",
           "frontmatter hlexicon term not in workspace: entity",
           "frontmatter hlexicon term not in workspace: density",
@@ -341,7 +356,7 @@
         ]
       }
     ],
-    "score": 0.05
+    "score": 0.0
   },
   {
     "skill": "chat-template/templates",
@@ -480,13 +495,16 @@
               "constrained_plan": "array",
               "guardrails": "object",
               "assumption_log": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "coding-guidelines",
@@ -511,13 +529,16 @@
               "scope_creep_warnings": "array",
               "success_criteria": "array",
               "plan": "array"
-            },
-            "energy_cap": 5120,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 5120,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "coding-guidelines",
@@ -544,200 +565,19 @@
               "compliance_score": "object",
               "passed": "boolean",
               "recommendations": "array"
-            },
-            "energy_cap": 5120,
-            "visibility": "Shared"
-          }
-        },
-        "errors": [],
-        "flags": []
-      }
-    ],
-    "score": 1.0
-  },
-  {
-    "skill": "composition",
-    "has_manifest": false,
-    "has_j2": true,
-    "has_zed_counterpart": false,
-    "manifest": null,
-    "j2_templates": [
-      {
-        "skill": "composition",
-        "j2_path": "registry/templates/composition/agatha-eliot-mashup.j2",
-        "frontmatter": {
-          "template_type": "WordAct",
-          "lexicon_terms": [
-            "compose",
-            "synthesize",
-            "write",
-            "render",
-            "evoke",
-            "interrogate",
-            "unveil"
-          ],
-          "contract": {
-            "input": {
-              "prompt": "string",
-              "exemplar_passages": "array",
-              "centroid_distance_threshold": "float"
-            },
-            "output": {
-              "prose": "string",
-              "centroid_distance": "float"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 5120,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "frontmatter hlexicon term not in workspace: render",
-          "frontmatter hlexicon term not in workspace: evoke",
-          "frontmatter hlexicon term not in workspace: interrogate",
-          "frontmatter hlexicon term not in workspace: unveil",
-          "contract input 'exemplar_passages' not obviously used in template body"
-        ]
-      },
-      {
-        "skill": "composition",
-        "j2_path": "registry/templates/composition/answer_composition.j2",
-        "frontmatter": {
-          "template_type": "WordAct",
-          "lexicon_terms": [
-            "compose",
-            "synthesize",
-            "answer",
-            "evidence",
-            "supplement"
-          ],
-          "contract": {
-            "input": {
-              "goal_query": "string",
-              "derived_facts": "array"
-            },
-            "output": {
-              "answer": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
-        },
-        "errors": [],
-        "flags": [
-          "frontmatter hlexicon term not in workspace: answer",
-          "frontmatter hlexicon term not in workspace: evidence",
-          "frontmatter hlexicon term not in workspace: supplement"
-        ]
-      },
-      {
-        "skill": "composition",
-        "j2_path": "registry/templates/composition/hemingway-style-synthesizer.j2",
-        "frontmatter": {
-          "template_type": "WordAct",
-          "lexicon_terms": [
-            "compose",
-            "synthesize",
-            "write",
-            "edit",
-            "refine",
-            "render"
-          ],
-          "contract": {
-            "input": {
-              "prompt": "string",
-              "exemplar_passages": "array",
-              "centroid_distance_threshold": "float"
-            },
-            "output": {
-              "prose": "string",
-              "centroid_distance": "float"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
-        },
-        "errors": [],
-        "flags": [
-          "frontmatter hlexicon term not in workspace: edit",
-          "frontmatter hlexicon term not in workspace: refine",
-          "frontmatter hlexicon term not in workspace: render",
-          "contract input 'exemplar_passages' not obviously used in template body"
-        ]
-      },
-      {
-        "skill": "composition",
-        "j2_path": "registry/templates/composition/ulysses-s-twain-mashup.j2",
-        "frontmatter": {
-          "template_type": "WordAct",
-          "lexicon_terms": [
-            "compose",
-            "synthesize",
-            "write",
-            "edit",
-            "refine",
-            "render",
-            "mashup",
-            "report"
-          ],
-          "contract": {
-            "input": {
-              "prompt": "string",
-              "exemplar_passages": "array",
-              "centroid_distance_threshold": "float"
-            },
-            "output": {
-              "prose": "string",
-              "centroid_distance": "float"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
-        },
-        "errors": [],
-        "flags": [
-          "frontmatter hlexicon term not in workspace: edit",
-          "frontmatter hlexicon term not in workspace: refine",
-          "frontmatter hlexicon term not in workspace: render",
-          "frontmatter hlexicon term not in workspace: mashup",
-          "contract input 'exemplar_passages' not obviously used in template body"
-        ]
-      },
-      {
-        "skill": "composition",
-        "j2_path": "registry/templates/composition/woolf-style-synthesizer.j2",
-        "frontmatter": {
-          "template_type": "WordAct",
-          "lexicon_terms": [
-            "compose",
-            "synthesize",
-            "write",
-            "render",
-            "evoke"
-          ],
-          "contract": {
-            "input": {
-              "prompt": "string",
-              "exemplar_passages": "array",
-              "centroid_distance_threshold": "float"
-            },
-            "output": {
-              "prose": "string",
-              "centroid_distance": "float"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
-        },
-        "errors": [],
-        "flags": [
-          "frontmatter hlexicon term not in workspace: render",
-          "frontmatter hlexicon term not in workspace: evoke",
-          "contract input 'exemplar_passages' not obviously used in template body"
+          "energy_cap missing from contract",
+          "visibility missing from contract"
         ]
       }
     ],
-    "score": 0.0
+    "score": 0.55
   },
   {
     "skill": "condenser-continuation",
@@ -859,13 +699,16 @@
               "continuation_document": "string",
               "immediate_next_action": "string",
               "recommended_skills": "array"
-            },
-            "energy_cap": 3000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 3000,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "condenser-continuation",
@@ -891,13 +734,16 @@
               "immediate_next_action": "string",
               "inference_dependencies": "array",
               "risks": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "condenser-continuation",
@@ -909,7 +755,7 @@
             "distill",
             "extract",
             "classify",
-            "restore"
+            "contextualise"
           ],
           "contract": {
             "input": {
@@ -923,14 +769,15 @@
               "key_files_changed": "array",
               "key_decisions": "array",
               "inference_engine": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "frontmatter hlexicon term not in workspace: restore"
+          "energy_cap missing from contract",
+          "visibility missing from contract"
         ]
       },
       {
@@ -941,8 +788,8 @@
           "lexicon_terms": [
             "verify",
             "validate",
-            "check",
-            "test",
+            "verify",
+            "validate",
             "regulate"
           ],
           "contract": {
@@ -955,21 +802,21 @@
               "verification_results": "array",
               "overall_status": "string",
               "failed_checks": "array"
-            },
-            "energy_cap": 3000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 3000,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
-          "frontmatter hlexicon term not in workspace: check",
-          "frontmatter hlexicon term not in workspace: test",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "Template may ask LLM to execute shell commands: ['ed checks\"   ] } ```  ## Constraints  - Run commands in order \u2014 do not parallelize. - Recor']"
         ]
       }
     ],
-    "score": 0.5
+    "score": 0.05
   },
   {
     "skill": "constraint-forces",
@@ -1050,13 +897,16 @@
               "relaxable": "boolean",
               "magna_carta_mapping": "string",
               "reasoning": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "constraint-forces",
@@ -1080,16 +930,19 @@
               "winner": "string",
               "resolution": "string",
               "rationale": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.7
   },
   {
     "skill": "curator",
@@ -1183,14 +1036,15 @@
             },
             "output": {
               "classifications": "array"
-            },
-            "energy_cap": 2000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2000,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "energy_cap 2000 outside [2048, 8192]",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: categorize",
           "frontmatter hlexicon term not in workspace: parent",
           "frontmatter hlexicon term not in workspace: ontological",
@@ -1217,14 +1071,15 @@
             "output": {
               "sentences": "array",
               "relations": "array"
-            },
-            "energy_cap": 2000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2000,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "energy_cap 2000 outside [2048, 8192]",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: decimate",
           "frontmatter hlexicon term not in workspace: atomic",
           "frontmatter hlexicon term not in workspace: relation",
@@ -1232,7 +1087,7 @@
         ]
       }
     ],
-    "score": 0.2
+    "score": 0.0
   },
   {
     "skill": "decision-journal",
@@ -1265,14 +1120,16 @@
               "calibration_data": "array",
               "overconfidence_detected": "boolean",
               "underconfidence_detected": "boolean"
-            },
-            "energy_cap": 2048,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: brier",
           "frontmatter hlexicon term not in workspace: probability",
           "frontmatter hlexicon term not in workspace: outcome",
@@ -1305,14 +1162,16 @@
               "worst_case": "string",
               "most_likely": "string",
               "confidence_distribution": "object"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: outcome",
           "frontmatter hlexicon term not in workspace: probability",
           "frontmatter hlexicon term not in workspace: confidence",
@@ -1348,14 +1207,16 @@
             "output": {
               "decision_record": "object",
               "recorded_at": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: record",
           "frontmatter hlexicon term not in workspace: decision",
           "frontmatter hlexicon term not in workspace: context",
@@ -1394,14 +1255,16 @@
               "hindsight_bias_check": "object",
               "process_quality": "object",
               "overall_narrative": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: compare",
           "frontmatter hlexicon term not in workspace: actual",
           "frontmatter hlexicon term not in workspace: outcome",
@@ -1427,10 +1290,10 @@
           "type": "KnowAct",
           "lexicon_terms": [
             "assess",
-            "count",
-            "estimate",
             "classify",
-            "evaluate"
+            "evaluate",
+            "detect",
+            "infer"
           ],
           "exists": true,
           "flags": []
@@ -1440,7 +1303,7 @@
           "path": "deep-module-delete.j2",
           "type": "KnowAct",
           "lexicon_terms": [
-            "delete",
+            "critique",
             "evaluate",
             "discriminate",
             "audit",
@@ -1464,21 +1327,17 @@
           "flags": []
         }
       ],
-      "errors": [
-        "manifest hlexicon term not in workspace: count",
-        "manifest hlexicon term not in workspace: estimate",
-        "manifest hlexicon term not in workspace: delete"
-      ],
+      "errors": [],
       "crate_name": "deep-module",
       "version": "0.27.0",
       "description": "Module design discipline based on John Ousterhout's \"A Philosophy of Software Design.\" Apply the deletion test to evaluate whether a module deserves to exist: delete the callers \u2014 if complexity reappears, extract. Delete the module \u2014 if complexity vanishes, don't create it. Enforces depth (high benefit/cost ratio), interface minimalism (\u22647 public functions), and dependency direction.",
       "hlexicon_terms": [
         "assess",
-        "count",
-        "estimate",
         "classify",
         "evaluate",
-        "delete",
+        "detect",
+        "infer",
+        "critique",
         "discriminate",
         "audit",
         "verify",
@@ -1497,10 +1356,10 @@
           "template_type": "KnowAct",
           "lexicon_terms": [
             "assess",
-            "count",
-            "estimate",
             "classify",
-            "evaluate"
+            "evaluate",
+            "detect",
+            "infer"
           ],
           "contract": {
             "input": {
@@ -1522,10 +1381,7 @@
           }
         },
         "errors": [],
-        "flags": [
-          "frontmatter hlexicon term not in workspace: count",
-          "frontmatter hlexicon term not in workspace: estimate"
-        ]
+        "flags": []
       },
       {
         "skill": "deep-module",
@@ -1533,7 +1389,7 @@
         "frontmatter": {
           "template_type": "KnowAct",
           "lexicon_terms": [
-            "delete",
+            "critique",
             "evaluate",
             "discriminate",
             "audit",
@@ -1558,9 +1414,7 @@
           }
         },
         "errors": [],
-        "flags": [
-          "frontmatter hlexicon term not in workspace: delete"
-        ]
+        "flags": []
       },
       {
         "skill": "deep-module",
@@ -1597,7 +1451,7 @@
         "flags": []
       }
     ],
-    "score": 0.7
+    "score": 1.0
   },
   {
     "skill": "diagnose",
@@ -1719,13 +1573,16 @@
               "diagnostic_tags_removed": "boolean",
               "postmortem": "string",
               "architecture_note": "string"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "diagnose",
@@ -1750,13 +1607,16 @@
               "hypotheses": "array",
               "ranked_hypotheses": "array",
               "user_review_requested": "boolean"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "diagnose",
@@ -1782,13 +1642,16 @@
               "diagnostic_tags": "array",
               "probe_type": "string",
               "isolation_strategy": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "diagnose",
@@ -1815,16 +1678,19 @@
               "repro_command": "string",
               "repro_confidence": "string",
               "can_reproduce": "boolean"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.4
   },
   {
     "skill": "document-update",
@@ -2053,71 +1919,6 @@
     "score": 0.0
   },
   {
-    "skill": "ensemble",
-    "has_manifest": false,
-    "has_j2": true,
-    "has_zed_counterpart": false,
-    "manifest": null,
-    "j2_templates": [
-      {
-        "skill": "ensemble",
-        "j2_path": "registry/templates/ensemble/standing_session_administrator_view.j2",
-        "frontmatter": {},
-        "errors": [
-          "No [inference] frontmatter"
-        ],
-        "flags": []
-      },
-      {
-        "skill": "ensemble",
-        "j2_path": "registry/templates/ensemble/standing_session_curator_instruction.j2",
-        "frontmatter": {},
-        "errors": [
-          "No [inference] frontmatter"
-        ],
-        "flags": []
-      },
-      {
-        "skill": "ensemble",
-        "j2_path": "registry/templates/ensemble/standing_session_metacognition_update.j2",
-        "frontmatter": {},
-        "errors": [
-          "No [inference] frontmatter"
-        ],
-        "flags": []
-      },
-      {
-        "skill": "ensemble",
-        "j2_path": "registry/templates/ensemble/standing_session_status_report.j2",
-        "frontmatter": {},
-        "errors": [
-          "No [inference] frontmatter"
-        ],
-        "flags": []
-      }
-    ],
-    "score": 0.35
-  },
-  {
-    "skill": "ensemble/selectors",
-    "has_manifest": false,
-    "has_j2": true,
-    "has_zed_counterpart": false,
-    "manifest": null,
-    "j2_templates": [
-      {
-        "skill": "selectors",
-        "j2_path": "registry/templates/ensemble/selectors/participant-selector.j2",
-        "frontmatter": {},
-        "errors": [
-          "No [inference] frontmatter"
-        ],
-        "flags": []
-      }
-    ],
-    "score": 0.65
-  },
-  {
     "skill": "essentialist",
     "has_manifest": true,
     "has_j2": true,
@@ -2176,14 +1977,14 @@
           "template_type": "FlowDef",
           "lexicon_terms": [
             "sequence",
-            "iterate",
+            "iteration",
             "evaluate",
             "classify",
             "discriminate",
             "verify",
             "audit",
             "simplify",
-            "reduce",
+            "simplify",
             "calibrate"
           ],
           "contract": {
@@ -2239,104 +2040,20 @@
                   "awaiting_human"
                 ]
               }
-            },
-            "energy_cap": 12288,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 12288,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
-          "energy_cap 12288 outside [2048, 8192]",
-          "frontmatter hlexicon term not in workspace: iterate",
-          "frontmatter hlexicon term not in workspace: reduce"
+          "energy_cap missing from contract",
+          "visibility missing from contract"
         ]
       }
     ],
     "score": 0.6
-  },
-  {
-    "skill": "flowdef",
-    "has_manifest": false,
-    "has_j2": true,
-    "has_zed_counterpart": false,
-    "manifest": null,
-    "j2_templates": [
-      {
-        "skill": "flowdef",
-        "j2_path": "registry/templates/flowdef/dispatch.j2",
-        "frontmatter": {
-          "template_type": "FlowDef",
-          "lexicon_terms": [
-            "dispatch",
-            "route",
-            "invoke",
-            "tool",
-            "capability"
-          ],
-          "contract": {
-            "input": {
-              "tool_name": "string",
-              "tool_input": "object",
-              "capability_token": "object"
-            },
-            "output": {
-              "tool_output": "object",
-              "execution_time_ms": "integer"
-            },
-            "energy_cap": 2000,
-            "visibility": "Shared"
-          }
-        },
-        "errors": [],
-        "flags": [
-          "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
-          "energy_cap 2000 outside [2048, 8192]",
-          "frontmatter hlexicon term not in workspace: dispatch",
-          "frontmatter hlexicon term not in workspace: invoke",
-          "frontmatter hlexicon term not in workspace: tool",
-          "frontmatter hlexicon term not in workspace: capability"
-        ]
-      },
-      {
-        "skill": "flowdef",
-        "j2_path": "registry/templates/flowdef/memory_recall.j2",
-        "frontmatter": {
-          "template_type": "FlowDef",
-          "lexicon_terms": [
-            "recall",
-            "retrieve",
-            "remember",
-            "activate",
-            "salience"
-          ],
-          "contract": {
-            "input": {
-              "query": "string",
-              "visibility": "string",
-              "max_results": "integer",
-              "similarity_threshold": "float"
-            },
-            "output": {
-              "facts": "array",
-              "recall_source": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
-        },
-        "errors": [],
-        "flags": [
-          "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
-          "frontmatter hlexicon term not in workspace: recall",
-          "frontmatter hlexicon term not in workspace: retrieve",
-          "frontmatter hlexicon term not in workspace: remember",
-          "frontmatter hlexicon term not in workspace: activate",
-          "frontmatter hlexicon term not in workspace: salience"
-        ]
-      }
-    ],
-    "score": 0.0
   },
   {
     "skill": "gentle-lovelace",
@@ -2420,19 +2137,21 @@
               "recommendations": {
                 "type": "array"
               }
-            },
-            "energy_cap": 2048,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: diagnose",
           "frontmatter hlexicon term not in workspace: compare"
         ]
       }
     ],
-    "score": 0.65
+    "score": 0.5
   },
   {
     "skill": "git/selectors",
@@ -2697,13 +2416,16 @@
               "summary": "array",
               "recommendations": "array",
               "overall_assessment": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "grill-me",
@@ -2727,13 +2449,16 @@
               "new_level": "integer",
               "action": "string",
               "reason": "string"
-            },
-            "energy_cap": 2048,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "grill-me",
@@ -2763,16 +2488,19 @@
               "evaluations": "array",
               "current_level": "integer",
               "round_verdict": "string"
-            },
-            "energy_cap": 8000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8000,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.55
   },
   {
     "skill": "handoff",
@@ -2888,13 +2616,16 @@
             "output": {
               "artifacts": "array",
               "redacted_fields": "array"
-            },
-            "energy_cap": 3072,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 3072,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "handoff",
@@ -2918,13 +2649,16 @@
               "progress_summary": "array",
               "key_decisions": "array",
               "current_state": "string"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "handoff",
@@ -2955,13 +2689,16 @@
               "output_path": "string",
               "sections_count": "integer",
               "redaction_count": "integer"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "handoff",
@@ -2985,16 +2722,19 @@
             "output": {
               "suggested_skills": "array",
               "open_questions": "array"
-            },
-            "energy_cap": 2048,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.4
   },
   {
     "skill": "improv",
@@ -3216,13 +2956,16 @@
               "candidates": "array",
               "top_recommendation": "string",
               "question_for_user": "string"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "improve-codebase-architecture",
@@ -3249,13 +2992,16 @@
               "test_surface": "object",
               "glossary_updates": "array",
               "adr_proposals": "array"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "improve-codebase-architecture",
@@ -3280,16 +3026,19 @@
               "shallow_modules": "array",
               "deletion_test_results": "array",
               "exploration_notes": "array"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.55
   },
   {
     "skill": "inference/selectors",
@@ -3809,13 +3558,15 @@
             "output": {
               "calibration_adjustments": "array",
               "new_baseline": "object"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: baseline",
           "frontmatter hlexicon term not in workspace: adjust",
           "frontmatter hlexicon term not in workspace: normalize",
@@ -3844,13 +3595,15 @@
               "drift_detected": "boolean",
               "drift_score": "float",
               "affected_dimensions": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: drift",
           "frontmatter hlexicon term not in workspace: variance"
         ]
@@ -3877,16 +3630,18 @@
             },
             "output": {
               "analysis": "object"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: read",
-          "contract input 'biases' not obviously used in template body",
           "contract input 'expectations' not obviously used in template body",
+          "contract input 'biases' not obviously used in template body",
           "contract input 'assumptions' not obviously used in template body"
         ]
       },
@@ -3913,13 +3668,15 @@
             "output": {
               "perspective": "string",
               "variance_report": "object"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: select",
           "frontmatter hlexicon term not in workspace: execute",
           "contract input 'input_criticism' not obviously used in template body"
@@ -3947,13 +3704,15 @@
             "output": {
               "reflection": "string",
               "recommended_adaptations": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: metacognitive",
           "frontmatter hlexicon term not in workspace: learn"
         ]
@@ -4056,13 +3815,16 @@
               "procedures": "array",
               "total_assertions": "integer",
               "methods_used": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "magna-carta-verifier",
@@ -4087,13 +3849,16 @@
               "overall_status": "string",
               "compliance_score": "float",
               "gaps": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "magna-carta-verifier",
@@ -4116,16 +3881,19 @@
             "output": {
               "test_code": "string",
               "test_count": "integer"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.55
   },
   {
     "skill": "mcda",
@@ -4339,13 +4107,15 @@
               "tokens_original": "integer",
               "tokens_condensed": "integer",
               "compression_ratio": "float"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: condense",
           "frontmatter hlexicon term not in workspace: gist"
         ]
@@ -4374,13 +4144,15 @@
               "metadata": "object",
               "confidence": "float",
               "extraction_notes": "string"
-            },
-            "energy_cap": 6000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6000,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: metadata"
         ]
       },
@@ -4408,13 +4180,15 @@
               "tokens_used": "integer",
               "model_used": "string",
               "finish_reason": "string"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: generate",
           "frontmatter hlexicon term not in workspace: complete",
           "frontmatter hlexicon term not in workspace: respond",
@@ -4445,13 +4219,15 @@
               "papers": "array",
               "total_found": "integer",
               "search_metadata": "object"
-            },
-            "energy_cap": 6000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6000,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: scholar",
           "frontmatter hlexicon term not in workspace: paper",
           "frontmatter hlexicon term not in workspace: citation",
@@ -4483,13 +4259,15 @@
               "results": "array",
               "total_found": "integer",
               "search_metadata": "object"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: fetch",
           "frontmatter hlexicon term not in workspace: scrape",
           "frontmatter hlexicon term not in workspace: web"
@@ -4651,14 +4429,16 @@
               "root": "object",
               "strategy": "string",
               "estimated_effort": "float"
-            },
-            "energy_cap": 6000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6000,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: subgoal",
           "frontmatter hlexicon term not in workspace: dependency",
           "frontmatter hlexicon term not in workspace: strategy",
@@ -4666,56 +4446,7 @@
         ]
       }
     ],
-    "score": 0.4
-  },
-  {
-    "skill": "pragmatic-composition",
-    "has_manifest": false,
-    "has_j2": true,
-    "has_zed_counterpart": false,
-    "manifest": null,
-    "j2_templates": [
-      {
-        "skill": "pragmatic-composition",
-        "j2_path": "registry/templates/pragmatic-composition/prompt_template.j2",
-        "frontmatter": {
-          "template_type": "WordAct",
-          "lexicon_terms": [
-            "compose",
-            "bind",
-            "render",
-            "format",
-            "inject"
-          ],
-          "contract": {
-            "input": {
-              "prompt_id": "string",
-              "variables": "object",
-              "context": "object|null",
-              "lexicon_bindings": "array"
-            },
-            "output": {
-              "rendered_prompt": "string",
-              "variable_count": "integer",
-              "lexicon_validated": "boolean",
-              "energy_cost": "integer"
-            }
-          }
-        },
-        "errors": [],
-        "flags": [
-          "energy_cap missing from contract",
-          "visibility missing from contract",
-          "frontmatter hlexicon term not in workspace: bind",
-          "frontmatter hlexicon term not in workspace: render",
-          "frontmatter hlexicon term not in workspace: format",
-          "frontmatter hlexicon term not in workspace: inject",
-          "contract input 'variables' not obviously used in template body",
-          "contract input 'prompt_id' not obviously used in template body"
-        ]
-      }
-    ],
-    "score": 0.3
+    "score": 0.25
   },
   {
     "skill": "pragmatic-cybernetics",
@@ -4818,13 +4549,16 @@
               "fidelity": "string",
               "broken_loop_diagnosis": "string",
               "remediation": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "pragmatic-cybernetics",
@@ -4848,13 +4582,16 @@
               "attenuation_recommendations": "array",
               "amplification_recommendations": "array",
               "ashby_status": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "pragmatic-cybernetics",
@@ -4876,23 +4613,87 @@
               "vsm_mapping": "object",
               "viability_assessment": "string",
               "unviable_components": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.55
   },
   {
     "skill": "pragmatic-laziness",
-    "has_manifest": false,
+    "has_manifest": true,
     "has_j2": true,
     "has_zed_counterpart": true,
-    "manifest": null,
+    "manifest": {
+      "skill": "pragmatic-laziness",
+      "manifest_path": "registry/templates/pragmatic-laziness/manifest.yaml",
+      "templates": [
+        {
+          "id": "pragmatic-laziness/pragmatic-laziness-flow",
+          "path": "pragmatic-laziness-flow.j2",
+          "type": "KnowAct",
+          "lexicon_terms": [
+            "decompose",
+            "identify",
+            "eliminate",
+            "verify",
+            "converge",
+            "iterate",
+            "delegate",
+            "compose",
+            "discriminate",
+            "evaluate"
+          ],
+          "exists": true,
+          "flags": []
+        },
+        {
+          "id": "pragmatic-laziness/pragmatic-laziness-converge",
+          "path": "pragmatic-laziness-converge.j2",
+          "type": "KnowAct",
+          "lexicon_terms": [
+            "converge",
+            "compare",
+            "evaluate",
+            "verify",
+            "discriminate"
+          ],
+          "exists": true,
+          "flags": []
+        }
+      ],
+      "errors": [
+        "manifest hlexicon term not in workspace: identify",
+        "manifest hlexicon term not in workspace: eliminate",
+        "manifest hlexicon term not in workspace: iterate",
+        "manifest hlexicon term not in workspace: delegate",
+        "manifest hlexicon term not in workspace: compare"
+      ],
+      "crate_name": "pragmatic-laziness",
+      "version": "0.27.0",
+      "description": "Procedural composition skill that finds the path of least action through meaning-space. Orchestrates pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me through a 3-phase lazy loop.",
+      "hlexicon_terms": [
+        "decompose",
+        "identify",
+        "eliminate",
+        "verify",
+        "converge",
+        "iterate",
+        "delegate",
+        "compose",
+        "discriminate",
+        "evaluate",
+        "compare"
+      ]
+    },
     "j2_templates": [
       {
         "skill": "pragmatic-laziness",
@@ -4901,7 +4702,7 @@
           "template_type": "KnowAct",
           "lexicon_terms": [
             "converge",
-            "compare",
+            "discriminate",
             "evaluate",
             "verify",
             "discriminate"
@@ -4952,29 +4753,30 @@
                 "type": "string",
                 "description": "What changed between iterations and why"
               }
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "frontmatter hlexicon term not in workspace: compare"
+          "energy_cap missing from contract",
+          "visibility missing from contract"
         ]
       },
       {
         "skill": "pragmatic-laziness",
         "j2_path": "registry/templates/pragmatic-laziness/pragmatic-laziness-flow.j2",
         "frontmatter": {
-          "template_type": "FlowDef",
+          "template_type": "KnowAct",
           "lexicon_terms": [
             "decompose",
-            "identify",
-            "eliminate",
+            "recognize",
+            "prune",
             "verify",
             "converge",
-            "iterate",
-            "delegate",
+            "iteration",
+            "route",
             "compose",
             "discriminate",
             "evaluate"
@@ -5031,23 +4833,19 @@
                 "type": "string",
                 "description": "Narrative summary of findings and reductions"
               }
-            },
-            "energy_cap": 12288,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 12288,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
-          "energy_cap 12288 outside [2048, 8192]",
-          "frontmatter hlexicon term not in workspace: identify",
-          "frontmatter hlexicon term not in workspace: eliminate",
-          "frontmatter hlexicon term not in workspace: iterate",
-          "frontmatter hlexicon term not in workspace: delegate"
+          "energy_cap missing from contract",
+          "visibility missing from contract"
         ]
       }
     ],
-    "score": 0.55
+    "score": 0.45
   },
   {
     "skill": "pragmatic-semantics",
@@ -5147,13 +4945,16 @@
               "provenance": "string",
               "confidence": "float",
               "reasoning": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "pragmatic-semantics",
@@ -5177,13 +4978,16 @@
               "winner": "string",
               "resolution": "string",
               "reasoning": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "pragmatic-semantics",
@@ -5206,16 +5010,19 @@
               "provenance_chain": "array",
               "confidence_level": "string",
               "recommendations_for_verification": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.55
   },
   {
     "skill": "prompt-defense",
@@ -5249,14 +5056,16 @@
               "attack_surface": "object",
               "exploitation_paths": "array",
               "blast_radius": "object"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: surface",
           "frontmatter hlexicon term not in workspace: capability",
           "frontmatter hlexicon term not in workspace: tool",
@@ -5292,14 +5101,16 @@
               "overall_threat_level": "string",
               "attack_vectors": "array",
               "benign_explanation": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: threat",
           "frontmatter hlexicon term not in workspace: injection",
           "frontmatter hlexicon term not in workspace: jailbreak",
@@ -5337,14 +5148,16 @@
               "critical_gaps": "array",
               "rust_level_changes": "array",
               "summary": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: defend",
           "frontmatter hlexicon term not in workspace: sanitize",
           "frontmatter hlexicon term not in workspace: canary",
@@ -5526,14 +5339,16 @@
               "corrective_actions": "array",
               "systemic_improvements": "array",
               "verification_plan": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: corrective",
           "frontmatter hlexicon term not in workspace: action",
           "frontmatter hlexicon term not in workspace: prevent",
@@ -5569,14 +5384,16 @@
               "scope": "object",
               "symptom_vs_cause": "string",
               "precision_score": "number"
-            },
-            "energy_cap": 2048,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: define",
           "frontmatter hlexicon term not in workspace: problem",
           "frontmatter hlexicon term not in workspace: precise",
@@ -5610,14 +5427,16 @@
               "chains": "array",
               "validated_root_causes": "array",
               "cross_reference": "object"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: why",
           "frontmatter hlexicon term not in workspace: chain",
           "frontmatter hlexicon term not in workspace: causal",
@@ -5655,14 +5474,16 @@
               "categories": "object",
               "total_causes": "integer",
               "prioritized_causes": "array"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: ishikawa",
           "frontmatter hlexicon term not in workspace: fishbone",
           "frontmatter hlexicon term not in workspace: brainstorm",
@@ -5718,13 +5539,15 @@
               "reasoning": "string",
               "key_claims": "array",
               "structured_facts": "array"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: reason",
           "frontmatter hlexicon term not in workspace: diverge",
           "frontmatter hlexicon term not in workspace: evidence",
@@ -5758,13 +5581,15 @@
             },
             "output": {
               "facts": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: reason",
           "frontmatter hlexicon term not in workspace: derive",
           "frontmatter hlexicon term not in workspace: fact",
@@ -5774,7 +5599,7 @@
         ]
       }
     ],
-    "score": 0.2
+    "score": 0.0
   },
   {
     "skill": "refactor-service-layer",
@@ -5885,13 +5710,16 @@
               "deletion_test_results": "array",
               "constraint_force_map": "array",
               "top_recommendation": "string"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "refactor-service-layer",
@@ -5904,7 +5732,7 @@
             "constrain",
             "verify",
             "crystallize",
-            "migrate",
+            "transform",
             "extract"
           ],
           "contract": {
@@ -5925,15 +5753,16 @@
               "test_seam": "object",
               "deletion_targets": "array",
               "verification_steps": "array"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
-          "frontmatter hlexicon term not in workspace: migrate"
+          "energy_cap missing from contract",
+          "visibility missing from contract"
         ]
       },
       {
@@ -5963,16 +5792,19 @@
               "clippy_result": "string",
               "test_result": "string",
               "checklist": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 0.75
+    "score": 0.35
   },
   {
     "skill": "registry/selectors",
@@ -6072,20 +5904,22 @@
             },
             "output": {
               "critique": "object"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: contradiction",
           "frontmatter hlexicon term not in workspace: confidence",
           "frontmatter hlexicon term not in workspace: calibration"
         ]
       }
     ],
-    "score": 0.6
+    "score": 0.45
   },
   {
     "skill": "rust-expertise",
@@ -6263,13 +6097,16 @@
               "boundary_conversions": "array",
               "display_messages": "array",
               "design_rationale": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "rust-expertise",
@@ -6296,13 +6133,16 @@
               "compliance_scores": "object",
               "corrective_recommendations": "array",
               "audit_summary": "string"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "rust-expertise",
@@ -6332,13 +6172,16 @@
               "interior_mutability_justifications": "array",
               "alternatives_considered": "array",
               "architecture_notes": "array"
-            },
-            "energy_cap": 5120,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 5120,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "rust-expertise",
@@ -6369,13 +6212,16 @@
               "module_depth_assessment": "object",
               "philosophical_alignment": "object",
               "design_recommendations": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "rust-expertise",
@@ -6405,13 +6251,16 @@
               "unsafe_consolidations": "array",
               "module_restructuring": "array",
               "migration_notes": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "rust-expertise",
@@ -6439,13 +6288,16 @@
               "boundary_recommendations": "array",
               "safe_abstraction_design": "string",
               "risk_evaluation": "object"
-            },
-            "energy_cap": 5120,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 5120,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "rust-expertise",
@@ -6476,16 +6328,19 @@
               "trait_impls": "array",
               "validation_rationale": "string",
               "design_notes": "array"
-            },
-            "energy_cap": 5120,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 5120,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.0
   },
   {
     "skill": "scenario",
@@ -6522,14 +6377,16 @@
               "scenarios": "array",
               "divergence_check": "object",
               "challenges_current_assumptions": "boolean"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: axis",
           "frontmatter hlexicon term not in workspace: narrative",
           "frontmatter hlexicon term not in workspace: scenario",
@@ -6567,14 +6424,16 @@
               "driving_forces": "array",
               "importance_uncertainty_matrix": "object",
               "critical_uncertainties": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: driving",
           "frontmatter hlexicon term not in workspace: macro",
           "frontmatter hlexicon term not in workspace: steep",
@@ -6613,14 +6472,16 @@
               "time_bound": "string",
               "scope_boundaries": "object",
               "current_state_summary": "string"
-            },
-            "energy_cap": 2048,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: focal",
           "frontmatter hlexicon term not in workspace: question",
           "frontmatter hlexicon term not in workspace: decision",
@@ -6656,14 +6517,16 @@
               "contingent_strategies": "array",
               "early_indicators": "array",
               "monitoring_plan": "string"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: implication",
           "frontmatter hlexicon term not in workspace: indicator",
           "frontmatter hlexicon term not in workspace: robust",
@@ -6697,14 +6560,16 @@
             "output": {
               "key_forces": "array",
               "clustered_themes": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: force",
           "frontmatter hlexicon term not in workspace: micro",
           "frontmatter hlexicon term not in workspace: proximate",
@@ -6750,14 +6615,16 @@
               "overall_quality_score": "number",
               "critical_issues": "integer",
               "improvement_areas": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: identify",
           "frontmatter hlexicon term not in workspace: weakness",
           "frontmatter hlexicon term not in workspace: improvement"
@@ -6785,14 +6652,16 @@
               "output": "string",
               "initial_quality_score": "number",
               "draft_number": "integer"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: generate",
           "frontmatter hlexicon term not in workspace: draft",
           "frontmatter hlexicon term not in workspace: produce",
@@ -6829,14 +6698,16 @@
               "revised_quality_score": "number",
               "quality_improvement": "number",
               "draft_number": "integer"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: revise",
           "frontmatter hlexicon term not in workspace: improve",
           "frontmatter hlexicon term not in workspace: address",
@@ -6938,13 +6809,16 @@
               "bundle_manifest": "object",
               "conflicts": "array",
               "complementarities": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "skill-bundler",
@@ -6967,13 +6841,16 @@
             "output": {
               "evolved_manifest": "object",
               "changes": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "skill-bundler",
@@ -6995,16 +6872,19 @@
               "valid": "boolean",
               "violations": "array",
               "warnings": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.55
   },
   {
     "skill": "skill-discovery",
@@ -7083,13 +6963,16 @@
             "output": {
               "gap_list": "array",
               "priority_ranking": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "skill-discovery",
@@ -7113,16 +6996,273 @@
               "safety_evaluation": "object",
               "overall_score": "number",
               "recommendation": "string"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.7
+  },
+  {
+    "skill": "skill-logic-audit",
+    "has_manifest": true,
+    "has_j2": true,
+    "has_zed_counterpart": true,
+    "manifest": {
+      "skill": "skill-logic-audit",
+      "manifest_path": "registry/templates/skill-logic-audit/manifest.yaml",
+      "templates": [
+        {
+          "id": "skill-logic-audit/load-goal",
+          "path": "load-goal.j2",
+          "type": "WordAct",
+          "lexicon_terms": [],
+          "exists": true,
+          "flags": []
+        },
+        {
+          "id": "skill-logic-audit/critique-template",
+          "path": "critique-template.j2",
+          "type": "KnowAct",
+          "lexicon_terms": [],
+          "exists": true,
+          "flags": []
+        },
+        {
+          "id": "skill-logic-audit/critique-critique",
+          "path": "critique-critique.j2",
+          "type": "KnowAct",
+          "lexicon_terms": [],
+          "exists": true,
+          "flags": []
+        },
+        {
+          "id": "skill-logic-audit/compose-proposal",
+          "path": "compose-proposal.j2",
+          "type": "KnowAct",
+          "lexicon_terms": [],
+          "exists": true,
+          "flags": []
+        },
+        {
+          "id": "skill-logic-audit/user-review-loop",
+          "path": "user-review-loop.j2",
+          "type": "FlowDef",
+          "lexicon_terms": [],
+          "exists": true,
+          "flags": []
+        }
+      ],
+      "errors": [],
+      "crate_name": "skill-logic-audit",
+      "version": "0.27.0",
+      "description": "Audit any .j2 template or manifest.yaml against its annotated goal through a bounded recursive critique loop: load-goal \u2192 critique-template \u2192 critique-critique \u2192 compose-proposal \u2192 user-review-loop.",
+      "hlexicon_terms": [
+        "extract",
+        "parse",
+        "recognize",
+        "critique",
+        "evaluate",
+        "discriminate",
+        "assess",
+        "analyze",
+        "reflect",
+        "calibrate",
+        "synthesize",
+        "compose",
+        "design",
+        "simplify",
+        "specify",
+        "sequence",
+        "choice",
+        "iteration",
+        "escalate",
+        "route",
+        "abort"
+      ]
+    },
+    "j2_templates": [
+      {
+        "skill": "skill-logic-audit",
+        "j2_path": "registry/templates/skill-logic-audit/compose-proposal.j2",
+        "frontmatter": {
+          "template_type": "KnowAct",
+          "lexicon_terms": [
+            "synthesize",
+            "compose",
+            "design",
+            "simplify",
+            "specify"
+          ],
+          "contract": {
+            "input": {
+              "goal": "string",
+              "target_path": "string",
+              "original_content": "string",
+              "valid_concerns": "array",
+              "user_counter_proposal": "string|null"
+            },
+            "output": {
+              "revised_content": "string",
+              "diff": "string",
+              "rationale": "string",
+              "confidence": "float"
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
+        },
+        "errors": [],
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
+      },
+      {
+        "skill": "skill-logic-audit",
+        "j2_path": "registry/templates/skill-logic-audit/critique-critique.j2",
+        "frontmatter": {
+          "template_type": "KnowAct",
+          "lexicon_terms": [
+            "reflect",
+            "calibrate",
+            "discriminate",
+            "evaluate",
+            "critique"
+          ],
+          "contract": {
+            "input": {
+              "goal": "string",
+              "prior_critique": "object"
+            },
+            "output": {
+              "valid_concerns": "array",
+              "spurious_concerns": "array",
+              "downgraded_concerns": "array",
+              "calibrated_verdict": "string"
+            }
+          },
+          "energy_cap": 3072,
+          "visibility": "Shared"
+        },
+        "errors": [],
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
+      },
+      {
+        "skill": "skill-logic-audit",
+        "j2_path": "registry/templates/skill-logic-audit/critique-template.j2",
+        "frontmatter": {
+          "template_type": "KnowAct",
+          "lexicon_terms": [
+            "critique",
+            "evaluate",
+            "discriminate",
+            "assess",
+            "analyze"
+          ],
+          "contract": {
+            "input": {
+              "goal": "string",
+              "target_path": "string",
+              "target_content": "string",
+              "template_type": "string"
+            },
+            "output": {
+              "flaws": "array",
+              "valid_concerns": "array",
+              "spurious_concerns": "array",
+              "verdict": "string"
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
+        },
+        "errors": [],
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
+      },
+      {
+        "skill": "skill-logic-audit",
+        "j2_path": "registry/templates/skill-logic-audit/load-goal.j2",
+        "frontmatter": {
+          "template_type": "WordAct",
+          "lexicon_terms": [
+            "extract",
+            "parse",
+            "recognize"
+          ],
+          "contract": {
+            "input": {
+              "target_path": "string",
+              "target_content": "string"
+            },
+            "output": {
+              "goal": "string",
+              "goal_found": "boolean",
+              "file_type": "string"
+            }
+          },
+          "energy_cap": 2048,
+          "visibility": "Shared"
+        },
+        "errors": [],
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
+      },
+      {
+        "skill": "skill-logic-audit",
+        "j2_path": "registry/templates/skill-logic-audit/user-review-loop.j2",
+        "frontmatter": {
+          "template_type": "FlowDef",
+          "lexicon_terms": [
+            "sequence",
+            "choice",
+            "iteration",
+            "escalate",
+            "route",
+            "abort",
+            "compose"
+          ],
+          "contract": {
+            "input": {
+              "target_path": "string",
+              "goal": "string",
+              "max_depth": "integer",
+              "current_depth": "integer",
+              "proposal": "object"
+            },
+            "output": {
+              "action": "string",
+              "next_template_id": "string|null",
+              "state": "object"
+            }
+          },
+          "energy_cap": 3072,
+          "visibility": "Shared"
+        },
+        "errors": [],
+        "flags": [
+          "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
+      }
+    ],
+    "score": 0.1
   },
   {
     "skill": "skill-maintenance",
@@ -7204,13 +7344,16 @@
               "health_scores": "object",
               "coverage_gaps": "array",
               "deprecation_recommendations": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "skill-maintenance",
@@ -7234,16 +7377,19 @@
               "uncovered_patterns": "array",
               "partial_coverage": "array",
               "recommendations": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.7
   },
   {
     "skill": "skill-manager",
@@ -7325,13 +7471,16 @@
               "sk_description": "string",
               "sk_directory": "string",
               "sk_body_outline": "string"
-            },
-            "energy_cap": 8192,
-            "visibility": "Private"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Private"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "skill-manager",
@@ -7354,16 +7503,19 @@
               "validation_results": "array",
               "pass_fail_counts": "object",
               "fix_suggestions": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.7
   },
   {
     "skill": "skill-translator",
@@ -7444,13 +7596,16 @@
               "format_analysis": "object",
               "step_classifications": "array",
               "translation_feasibility": "string"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "skill-translator",
@@ -7473,16 +7628,19 @@
             "output": {
               "translated_skill": "string",
               "translation_summary": "object"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.7
   },
   {
     "skill": "spec",
@@ -7634,11 +7792,11 @@
         "frontmatter": {
           "template_type": "KnowAct",
           "lexicon_terms": [
-            "execute",
-            "wire",
+            "install",
+            "route",
             "verify",
             "constrain",
-            "migrate"
+            "transform"
           ],
           "contract": {
             "input": {
@@ -7653,16 +7811,15 @@
               "rolled_back": "boolean",
               "warnings": "array",
               "next_step": "object"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "frontmatter hlexicon term not in workspace: execute",
-          "frontmatter hlexicon term not in workspace: wire",
-          "frontmatter hlexicon term not in workspace: migrate"
+          "energy_cap missing from contract",
+          "visibility missing from contract"
         ]
       },
       {
@@ -7693,13 +7850,16 @@
               "migration_plan": "array",
               "risk_assessment": "object",
               "assumptions": "array"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "strangler-fig",
@@ -7726,18 +7886,20 @@
               "old_path_intact": "boolean",
               "reversibility_check": "object",
               "recommendations": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "Template may ask LLM to execute shell commands: [' and safe \u2014 proceed to next step\",     \"Run cargo clippy before proceeding to detect any ']"
         ]
       }
     ],
-    "score": 0.65
+    "score": 0.35
   },
   {
     "skill": "structured-extraction",
@@ -7770,14 +7932,16 @@
               "relations": "array",
               "relation_count": "integer",
               "orphan_entities": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: identify",
           "frontmatter hlexicon term not in workspace: relate",
           "frontmatter hlexicon term not in workspace: connect",
@@ -7812,14 +7976,16 @@
               "entities": "array",
               "unmapped_text": "array",
               "entity_count": "integer"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: identify",
           "frontmatter hlexicon term not in workspace: entity",
           "frontmatter hlexicon term not in workspace: scan",
@@ -7855,14 +8021,16 @@
               "field_coverage": "object",
               "inferred_fields": "array",
               "unresolved_fields": "array"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
           "FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: schema",
           "frontmatter hlexicon term not in workspace: conform",
           "frontmatter hlexicon term not in workspace: normalize",
@@ -8095,13 +8263,16 @@
               "gaps": "array",
               "deferrals": "array",
               "coverage_percentage": "float"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "tdd",
@@ -8130,13 +8301,16 @@
               "priority_order": "array",
               "assumptions": "array",
               "plan_approved": "boolean"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "tdd",
@@ -8161,13 +8335,15 @@
               "refactor_steps": "array",
               "each_step_passes": "boolean",
               "simplification_notes": "array"
-            },
-            "energy_cap": 6144,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 6144,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "contract input 'refactor_candidates' not obviously used in template body",
           "Template may ask LLM to execute shell commands: ['es  1. **One refactor step at a time.** Run tests after each step. 2. **Never change beh']"
         ]
@@ -8201,13 +8377,16 @@
               "spec_id": "string",
               "test_passes": "boolean",
               "verification_command": "string"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       },
       {
         "skill": "tdd",
@@ -8238,19 +8417,21 @@
               "functional_gaps": "array",
               "violations": "array",
               "passed": "boolean"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "contract input 'clippy_commands' not obviously used in template body",
           "contract input 'test_commands' not obviously used in template body"
         ]
       }
     ],
-    "score": 0.8
+    "score": 0.05
   },
   {
     "skill": "templates/doc-knowledge",
@@ -8495,13 +8676,15 @@
             "output": {
               "response": "string",
               "tokens_used": "integer"
-            },
-            "energy_cap": 4096,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 4096,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: execute",
           "frontmatter hlexicon term not in workspace: respond",
           "frontmatter hlexicon term not in workspace: complete",
@@ -8526,14 +8709,15 @@
             },
             "output": {
               "rendered": "string"
-            },
-            "energy_cap": 1000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 1000,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "energy_cap 1000 outside [2048, 8192]",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: render",
           "frontmatter hlexicon term not in workspace: format",
           "frontmatter hlexicon term not in workspace: bind"
@@ -8560,14 +8744,15 @@
               "selected_template_id": "string",
               "confidence": "float",
               "rationale": "string"
-            },
-            "energy_cap": 2000,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 2000,
+          "visibility": "Shared"
         },
         "errors": [],
         "flags": [
-          "energy_cap 2000 outside [2048, 8192]",
+          "energy_cap missing from contract",
+          "visibility missing from contract",
           "frontmatter hlexicon term not in workspace: select"
         ]
       },
@@ -8677,15 +8862,18 @@
               "boundary_summary": "array",
               "key_invariants": "array",
               "uncertainty_flags": "array"
-            },
-            "energy_cap": 8192,
-            "visibility": "Shared"
-          }
+            }
+          },
+          "energy_cap": 8192,
+          "visibility": "Shared"
         },
         "errors": [],
-        "flags": []
+        "flags": [
+          "energy_cap missing from contract",
+          "visibility missing from contract"
+        ]
       }
     ],
-    "score": 1.0
+    "score": 0.85
   }
 ]

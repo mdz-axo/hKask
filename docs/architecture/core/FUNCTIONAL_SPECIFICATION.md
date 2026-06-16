@@ -685,9 +685,9 @@ The following domains are **not yet realigned** and will use their own principle
 | Created | 2026-06-16 |
 | Status | Active — anchor for the rSolidity contract vocabulary |
 | Last Updated | 2026-06-16 |
-| Contract Count | 99 (across 9 source files in `hkask-cns`) |
-| Build Status | `cargo check -p hkask-cns` — PASS |
-| Author | hKask architect (via CNS Contract Realignment Spec Composition) |
+| Contract Count | 99 CNS + wallet realignment (406 total in manifest) |
+| Build Status | `cargo check -p hkask-cns -p hkask-wallet` — PASS |
+| rSolidity Status | Design complete — see `RSOLIDITY_VOCABULARY.md` |
 | Governance | PRINCIPLES.md §1–§5 |
 
 ## Appendix B: Validation Checklist
@@ -699,14 +699,15 @@ The following domains are **not yet realigned** and will use their own principle
 - [x] FR tables complete (all 8 CNS domains)
 - [x] Realignment status table complete
 - [x] Contract ID format specification complete
-- [ ] Non-CNS domain contracts (wallet, agents) — pending next work package
-- [ ] rSolidity contract vocabulary derivation — pending
+- [x] Non-CNS domain contracts (wallet) — realigned to `P9-wallet-*`
+- [x] rSolidity contract vocabulary derivation — see `RSOLIDITY_VOCABULARY.md` and `data/rsolidity_contract_manifest.json`
 
 ## Appendix C: Key References
 
 - [PRINCIPLES.md](PRINCIPLES.md) — 12 governing principles
 - [MDS.md](MDS.md) — Minimum Definition Specification
 - [TESTING_DISCIPLINE.md](TESTING_DISCIPLINE.md) — Contract testing discipline
+- [RSOLIDITY_VOCABULARY.md](RSOLIDITY_VOCABULARY.md) — rSolidity macro vocabulary design
 - [hKask Architecture Master](../hKask-architecture-master.md) — Full architecture reference
 
 ---

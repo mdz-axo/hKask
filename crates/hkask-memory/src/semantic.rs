@@ -594,7 +594,7 @@ impl SemanticMemory {
 
 #[cfg(test)]
 mod tests {
-    // REQ: P3-mem-semantic-centroid-dimensions-test— compute_centroid does not panic on mismatched embedding dimensions
+    // REQ: P3-mem-semantic-centroid-dimensions-test — compute_centroid does not panic on mismatched embedding dimensions
     //
     // Before fix, `centroid[i] += v` was called without checking `i < dim`,
     // causing an index-out-of-bounds panic when an embedding vector was longer
@@ -616,7 +616,7 @@ mod tests {
         assert_eq!(centroid, vec![1.0, 2.0, 3.0, 4.0]);
     }
 
-    // REQ: P3-mem-semantic-centroid-short-test— compute_centroid does not panic on short embedding dimensions
+    // REQ: P3-mem-semantic-centroid-short-test — compute_centroid does not panic on short embedding dimensions
     #[test]
     fn centroid_accumulation_handles_short_embedding() {
         let dim = 4usize;

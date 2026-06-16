@@ -15,16 +15,16 @@ templates:
   - id: deep-module/deep-module-assess
     path: deep-module-assess.j2
     type: KnowAct
-    lexicon_terms: [assess, count, estimate, classify, evaluate]
+    lexicon_terms: [assess, classify, evaluate, detect, infer]
     description: >
-      Assess module depth: count public interface items, estimate behavior
+      Assess module depth: enumerate public interface items, evaluate behavior
       complexity, compute depth score, classify as Deep/Adequate/Shallow/
       Very Shallow. Identify interface cost drivers and behavior gaps.
 
   - id: deep-module/deep-module-delete
     path: deep-module-delete.j2
     type: KnowAct
-    lexicon_terms: [delete, evaluate, discriminate, audit, verify]
+    lexicon_terms: [critique, evaluate, discriminate, audit, verify]
     description: >
       Execute the deletion test in both directions: caller's perspective
       (complexity reappears?) and module's perspective (complexity vanishes?).
@@ -41,11 +41,11 @@ templates:
 
 hlexicon_terms:
   - assess
-  - count
-  - estimate
   - classify
   - evaluate
-  - delete
+  - detect
+  - infer
+  - critique
   - discriminate
   - audit
   - verify

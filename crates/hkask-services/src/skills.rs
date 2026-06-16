@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use hkask_templates::SkillLoader;
 use hkask_types::lexicon::{HLexicon, TemplateType};
-use hkask_types::ports::{RegistryIndex, Skill, SkillRegistryIndex};
+use hkask_types::ports::{RegistryIndex, SkillRegistryIndex};
 use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 
@@ -164,6 +164,16 @@ impl<'a> SkillAuditor<'a> {
                 if entry.path().is_dir() {
                     names.insert(entry.file_name().to_string_lossy().into_owned());
                 }
+            }
+        }
+
+        // Cross-check with the loaded runtime indexes.
+        for skill in self.skill_index.list_skills() {
+            names.insert(skill.id);
+        }
+        for entry in self.registry.list(None) {
+            if let Some(skill_name) = entry.id.split('/').next() {
+                names.insert(skill_name.to_string());
             }
         }
 
@@ -377,7 +387,7 @@ impl<'a> SkillAuditor<'a> {
         };
 
         info.template_type = front.template_type;
-        info.visibility = front.visibility;
+        info.visibility = front.visibility.clone();
         info.energy_cap = front.energy_cap;
         info.contract_valid = front.contract_input.is_some() && front.contract_output.is_some();
 
