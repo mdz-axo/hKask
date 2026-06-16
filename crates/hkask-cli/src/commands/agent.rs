@@ -67,7 +67,7 @@ pub async fn agent_register(
     };
     let reg = RegisteredAgent {
         definition: def,
-        token_hash: token.signature.clone(),
+        token_hash: hex::encode(token.signature.0),
         registered_at: hkask_types::now_rfc3339(),
         source_yaml: "cli-register".to_string(),
     };
@@ -76,7 +76,7 @@ pub async fn agent_register(
         .map_err(ServiceError::from)?;
     Ok(AgentReceipt {
         webid: webid_str.to_string(),
-        token_hash: token.signature,
+        token_hash: hex::encode(token.signature.0),
         registered_at: reg.registered_at,
     })
 }

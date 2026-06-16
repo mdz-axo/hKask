@@ -22,6 +22,7 @@ rusqlite.workspace = true
 hex.workspace = true
 chrono.workspace = true
 dotenvy.workspace = true
+ed25519-dalek.workspace = true
 
 # F-SYN-020: the `lib` target exists so that integration tests in
 # `tests/` can `use hkask_mcp_spec::types::...`. Without this,

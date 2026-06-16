@@ -315,6 +315,7 @@ impl ComposeService {
             max_tokens: 512,
             seed: None,
             disable_thinking: false,
+            adapter: None,
         };
         let result = inference.generate(&system_prompt, &params).await?;
         let generated_prose = result.text.trim().to_string();

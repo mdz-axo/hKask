@@ -8,13 +8,13 @@
 //! - No ambient authority: capabilities must be explicitly granted
 //! - Attenuation chain: each delegation reduces authority
 
+use ed25519_dalek::SigningKey;
 use hkask_types::{
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
     SYSTEM_MAX_ATTENUATION, WebID,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zeroize::Zeroizing;
 
 use super::AcpError;
 
@@ -30,18 +30,18 @@ use super::AcpError;
 pub(crate) struct RootAuthority {
     /// Root authority WebID (system identity)
     root_webid: WebID,
-    /// Root secret for HMAC signing (Arc to avoid copying on Clone)
-    root_secret: Arc<Zeroizing<Vec<u8>>>,
+    /// Ed25519 signing key for token issuance
+    signing_key: SigningKey,
     /// Next token ID counter
     token_counter: Arc<RwLock<u64>>,
 }
 
 impl RootAuthority {
     /// Create new root authority
-    pub fn new(root_webid: WebID, root_secret: &[u8]) -> Self {
+    pub fn new(root_webid: WebID, signing_key: &SigningKey) -> Self {
         Self {
             root_webid,
-            root_secret: Arc::new(Zeroizing::new(root_secret.to_vec())),
+            signing_key: signing_key.clone(),
             token_counter: Arc::new(RwLock::new(0)),
         }
     }
@@ -65,18 +65,13 @@ impl RootAuthority {
 
         let context_nonce = format!("root-{}-{}", self.root_webid, token_id);
 
-        let secret_bytes: [u8; 32] = self.root_secret[..32]
-            .try_into()
-            .expect("root_secret must be at least 32 bytes");
-        let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
-
         let token = DelegationTokenBuilder::new(
             resource,
             resource_id,
             action,
             self.root_webid,
             delegated_to,
-            &signing_key,
+            &self.signing_key,
         )
         .attenuation(0, SYSTEM_MAX_ATTENUATION)
         .context_nonce(context_nonce)

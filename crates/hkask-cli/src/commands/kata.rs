@@ -6,7 +6,6 @@
 
 use crate::cli::KataAction;
 use hkask_cns::CnsRuntime;
-use hkask_inference::InferenceConfig;
 use hkask_services::{CliExperienceRecorder, KataEngine, KataError, KataHistory, PracticeEntry};
 use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
@@ -212,17 +211,12 @@ fn start_kata(
     );
 
     // Build engine with shared registry (has bootstrapped templates)
-    let inf_cfg = InferenceConfig::from_env();
-    let inference = hkask_inference::InferenceRouter::new(inf_cfg);
-    let inference_port: std::sync::Arc<dyn hkask_types::ports::InferencePort> =
-        std::sync::Arc::new(inference);
-
-    // Build engine with shared registry (has bootstrapped templates)
+    // Inference construction is encapsulated in KataEngine::from_env()
     let cns_rt = Arc::new(RwLock::new(CnsRuntime::with_threshold(
         hkask_cns::DEFAULT_THRESHOLD,
     )));
 
-    let mut engine = KataEngine::new(inference_port, registry.clone())
+    let mut engine = KataEngine::from_env(registry.clone())
         .with_history(history)
         .with_cns_runtime(cns_rt)
         .with_metrics(move |_agent: &str, _metric: &str| {

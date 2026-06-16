@@ -83,8 +83,8 @@ impl AuthService {
 
     /// Verify a capability token cryptographically and check expiry.
     pub fn verify_token(&self, token: &DelegationToken) -> TokenVerification {
-        // 1. Verify HMAC-SHA256 signature
-        if !token.verify_cryptographic(&self.secret) {
+        // 1. Verify Ed25519 cryptographic signature
+        if !token.verify_cryptographic() {
             return TokenVerification::Invalid;
         }
 

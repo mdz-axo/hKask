@@ -86,7 +86,7 @@ impl Default for CapabilityAwareValidator {
 mod tests {
     use super::*;
     use hkask_types::WebID;
-    use hkask_types::capability::{DelegationAction, DelegationResource};
+    use hkask_types::capability::{DelegationAction, DelegationResource, derive_signing_key};
 
     fn make_token(
         resource: DelegationResource,
@@ -101,7 +101,7 @@ mod tests {
             action,
             from,
             to,
-            b"test-secret-32-bytes-long!!",
+            &derive_signing_key(b"test-secret-32-bytes-long!!"),
         )
     }
 

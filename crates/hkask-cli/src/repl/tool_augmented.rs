@@ -26,6 +26,7 @@ pub const TOOL_CALL_FORMAT_INTRO: &str = "\n## Tool Calls\n\
          {\"key\": \"value\"}\n\
          >>\n\
          \n";
+use hkask_types::capability::derive_signing_key;
 use hkask_types::ports::{StructuredToolCall, ToolInfo, ToolPort};
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
 use std::collections::BTreeMap;
@@ -193,7 +194,7 @@ pub async fn invoke_tool_call(
         DelegationAction::Execute,
         WebID::new(),
         *agent_webid,
-        acp_secret,
+        &derive_signing_key(acp_secret),
     );
 
     governed_tool

@@ -10,7 +10,7 @@ mds_categories: [lifecycle, curation]
 
 # hKask v0.27.0 — Pragmatic Audit Implementation Plan
 
-**Status:** In Progress — Waves 1–3 partial. R1–R4, R7 complete ✅. R5: CnsSpan enum defined (51 variants + ToolSubsystem + Display/FromStr + 6 tests), hkask-cns/services/agents/wallet migrated to typed spans, `From<CnsSpan> for SpanNamespace` bridge. R6–R10 not started.
+**Status:** In Progress — Waves 1–5 complete ✅. R1–R7 done. R5: CnsSpan enum. R6: Ed25519 tokens. R8: pending. R9: KataEngine::from_env() factory method (CLI no longer imports InferenceConfig/InferenceRouter), SpecService::get_full() (CLI no longer imports SpecStore). R10 not started.
 **Owner:** Engineering  
 **Created:** 2026-06-15  
 **Last Updated:** 2026-06-15  

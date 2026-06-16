@@ -351,13 +351,15 @@ pub fn token_err_tool_access_denied(tool_name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::capability::derive_signing_key;
     use crate::id::WebID;
 
-    // REQ: types-cap-verify-001 — CapabilityChecker::new() creates checker with secret
+    // REQ: types-cap-verify-001 — CapabilityChecker::with_signing_key() creates checker with signing key
     #[test]
     fn capability_checker_new_creates_checker() {
         let secret = b"test-secret-32-bytes-long!!";
-        let checker = CapabilityChecker::new(secret);
+        let sk = derive_signing_key(secret);
+        let checker = CapabilityChecker::with_signing_key(sk);
         // Verify it can verify a token it created
         let from = WebID::from_persona(b"issuer");
         let to = WebID::from_persona(b"holder");

@@ -3,6 +3,7 @@
 //! Mints a capability token from the session's ACP secret, then routes
 //! the invocation through GovernedTool (OCAP + energy budget + CNS observability).
 
+use hkask_types::capability::derive_signing_key;
 use hkask_types::ports::ToolPort;
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
 
@@ -81,7 +82,7 @@ pub(crate) fn handle_invoke(
         DelegationAction::Execute,
         from_webid,
         to_webid,
-        acp_secret,
+        &derive_signing_key(acp_secret),
     );
 
     // Invoke through the GovernedTool membrane — all governance

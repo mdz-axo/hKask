@@ -64,6 +64,7 @@ mod manager;
 mod nu_event;
 mod types;
 
+use hkask_types::capability::derive_signing_key;
 use hkask_types::derivation_contexts;
 use hkask_types::secret::SecretRef;
 use hkask_types::{
@@ -220,7 +221,7 @@ impl AgentPod {
             spec.action,
             WebID::new(),
             persona.webid(),
-            ocap_secret.as_bytes(),
+            &derive_signing_key(ocap_secret.as_bytes()),
         );
 
         // Initialize sovereignty checker for this pod, wired to the live
@@ -377,7 +378,11 @@ impl AgentPod {
         let ocap_secret = derive_ocap_secret(&self.webid)?;
 
         self.capability_token
-            .attenuate(new_holder, ocap_secret.as_bytes(), current_time)
+            .attenuate(
+                new_holder,
+                &derive_signing_key(ocap_secret.as_bytes()),
+                current_time,
+            )
             .ok_or(AgentPodError::AttenuationLimitExceeded)
     }
 

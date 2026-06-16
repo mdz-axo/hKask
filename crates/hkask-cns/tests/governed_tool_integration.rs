@@ -22,6 +22,7 @@ use hkask_storage::{NuEventStore, in_memory_db};
 use hkask_types::WebID;
 use hkask_types::capability::{
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
+    derive_signing_key,
 };
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
 use std::sync::Arc;
@@ -113,14 +114,16 @@ async fn governed_tool_full_membrane_ocap_domain_path() {
     );
 
     // 6. Create a domain-scoped DelegationToken for CNS
+    let sk = derive_signing_key(b"test-secret-32-bytes-long!!");
     let token = DelegationTokenBuilder::new(
         DelegationResource::Tool,
         "cns".into(),
         DelegationAction::Execute,
         WebID::new(),
         WebID::new(),
+        &sk,
     )
-    .sign(&[0u8; 32]);
+    .sign();
 
     // 7. Invoke — exercises ALL 6 membrane steps
     let result = governed

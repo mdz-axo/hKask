@@ -334,7 +334,7 @@ impl AgentRegistryLoader {
 
         let registered = RegisteredAgent {
             definition: definition.clone(),
-            token_hash: token.signature.clone(),
+            token_hash: hex::encode(token.signature.0),
             registered_at: now_rfc3339(),
             source_yaml: path.to_string(),
         };

@@ -31,6 +31,7 @@ pub use audit::AuditEntry;
 pub(crate) use audit::AuditLog;
 pub(crate) use root_authority::RootAuthority;
 
+use hkask_types::capability::derive_signing_key;
 use hkask_types::{
     AgentKind, AuditOutcome, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
     WebID,
@@ -305,12 +306,14 @@ pub struct AcpRuntime {
 }
 
 impl AcpRuntime {
-    /// `secret` is HMAC key (zeroized on drop).
+    /// `secret` is the master key for HKDF agent-secret derivation.
+    /// The Ed25519 signing key for token issuance is derived from it.
     pub fn new(secret: &[u8]) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
         let root_persona = b"hkask-root-authority";
         let root_webid = WebID::from_persona(root_persona);
-        let root_authority = Arc::new(RootAuthority::new(root_webid, secret));
+        let signing_key = derive_signing_key(secret);
+        let root_authority = Arc::new(RootAuthority::new(root_webid, &signing_key));
         let secret_arc = Arc::new(Zeroizing::new(secret.to_vec()));
 
         Self {
@@ -666,7 +669,7 @@ mod tests {
 
         assert_eq!(token.delegated_to, webid);
         assert_eq!(token.resource, DelegationResource::Tool);
-        assert!(token.verify(TEST_SECRET));
+        assert!(token.verify());
         assert!(acp.is_registered(&webid).await);
     }
 
@@ -716,7 +719,7 @@ mod tests {
         );
 
         for token in &stored_tokens {
-            assert!(token.verify(TEST_SECRET));
+            assert!(token.verify());
             assert_eq!(token.delegated_to, webid);
         }
     }
@@ -818,7 +821,7 @@ mod tests {
         let restored_tokens = acp2.get_capabilities(&webid).await;
         assert_eq!(restored_tokens.len(), 1);
         assert_eq!(restored_tokens[0].id, token.id);
-        assert!(restored_tokens[0].verify(TEST_SECRET));
+        assert!(restored_tokens[0].verify());
     }
 
     // ── ACP List Agents ─────────────────────────────────────────────────────

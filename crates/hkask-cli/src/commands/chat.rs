@@ -234,6 +234,7 @@ pub async fn chat_with_agent_streaming(
         max_tokens: 512,
         seed: None,
         disable_thinking: false,
+        adapter: None,
     };
 
     let stream = prepared.inference_port.generate_stream_with_model(

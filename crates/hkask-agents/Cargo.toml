@@ -25,6 +25,7 @@ uuid.workspace = true
 zeroize.workspace = true
 rusqlite.workspace = true
 tokio-util.workspace = true
+ed25519-dalek.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

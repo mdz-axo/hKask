@@ -444,17 +444,20 @@ mod tests {
     use hkask_types::WebID;
     use hkask_types::capability::{
         DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
+        derive_signing_key,
     };
 
     fn make_token(resource_id: &str) -> DelegationToken {
+        let sk = derive_signing_key(b"test-secret-32-bytes-long!!");
         DelegationTokenBuilder::new(
             DelegationResource::Tool,
             resource_id.into(),
             DelegationAction::Execute,
             WebID::new(),
             WebID::new(),
+            &sk,
         )
-        .sign(&[0u8; 32])
+        .sign()
     }
 
     // REQ: svc-cns-governed-001 — legacy_exact_match_grants_correct_tool

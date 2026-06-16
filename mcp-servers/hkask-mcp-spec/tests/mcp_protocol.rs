@@ -33,6 +33,8 @@ const TEST_WEBID_STR: &str = "00000000-0000-0000-0000-000000000001";
 /// the server's `verify_capability` check.
 fn make_capability_token(resource_id: &str, action: DelegationAction) -> String {
     let secret = hex::decode(TEST_OCAP_SECRET_HEX).expect("valid hex");
+    let secret_bytes: [u8; 32] = secret[..32].try_into().expect("secret must be 32 bytes");
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
     let webid = WebID::from_str(TEST_WEBID_STR).expect("valid UUID");
     let token = DelegationToken::new(
         DelegationResource::Registry,
@@ -40,7 +42,7 @@ fn make_capability_token(resource_id: &str, action: DelegationAction) -> String 
         action,
         webid, // delegated_from = same as to (root delegation)
         webid, // delegated_to = server's WebID
-        &secret,
+        &signing_key,
     );
     token.to_base64().expect("base64 encode")
 }

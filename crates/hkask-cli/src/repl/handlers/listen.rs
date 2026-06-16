@@ -16,6 +16,7 @@ use hkask_types::DelegationResource;
 use hkask_types::DelegationToken;
 use hkask_types::ToolPort;
 use hkask_types::WebID;
+use hkask_types::capability::derive_signing_key;
 use std::path::PathBuf;
 
 /// Directory where transcripts are saved.
@@ -73,7 +74,7 @@ fn handle_start(duration_arg: &str, state: &mut ReplState, rt: &tokio::runtime::
         DelegationAction::Execute,
         WebID::new(),
         state.agent_webid,
-        acp_secret,
+        &derive_signing_key(acp_secret),
     );
 
     // Step 1: Capture audio

@@ -363,6 +363,7 @@ impl CondenserServer {
             max_tokens: max_tok,
             seed: None,
             disable_thinking: true,
+            adapter: None,
         };
 
         let result = match self

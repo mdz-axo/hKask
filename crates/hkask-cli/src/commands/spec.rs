@@ -5,7 +5,6 @@
 
 use crate::cli::SpecAction;
 use hkask_services::{SpecCaptureRequest, SpecService};
-use hkask_storage::SpecStore;
 use hkask_storage::spec_types::SpecCategory;
 
 pub fn run(action: SpecAction) {
@@ -111,14 +110,12 @@ pub fn run(action: SpecAction) {
             );
 
             let ctx = super::helpers::build_service_context();
-            let store = &ctx.spec_store();
 
             let render_ctx = if let Some(sid) = spec_id {
-                let parsed_id = super::helpers::or_exit(
-                    hkask_storage::spec_types::SpecId::from_string(&sid),
-                    "Invalid spec ID",
+                let spec = super::helpers::or_exit(
+                    SpecService::get_full(&ctx, &sid),
+                    "Failed to load spec",
                 );
-                let spec = super::helpers::or_exit(store.load(parsed_id), "Failed to load spec");
                 minijinja::context! {
                     spec_id => spec.id.to_string(),
                     goal_name => spec.name,

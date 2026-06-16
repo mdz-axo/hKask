@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use hex;
 use hkask_agents::AcpRuntime;
 use hkask_keystore::{Keychain, derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
@@ -175,7 +176,7 @@ impl OnboardingService {
 
         let registered = RegisteredAgent {
             definition,
-            token_hash: token.signature.clone(),
+            token_hash: hex::encode(token.signature.0),
             registered_at: now_rfc3339(),
             source_yaml: "onboarding".to_string(),
         };

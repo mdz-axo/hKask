@@ -90,14 +90,14 @@ mod tests {
     }
 
     fn test_token(from: WebID, to: WebID) -> DelegationToken {
-        use hkask_types::capability::{DelegationAction, DelegationResource};
+        use hkask_types::capability::{DelegationAction, DelegationResource, derive_signing_key};
         DelegationToken::new(
             DelegationResource::Registry,
             "test".into(),
             DelegationAction::Execute,
             from,
             to,
-            b"test-hmac-secret-32-bytes-long!!",
+            &derive_signing_key(b"test-hmac-secret-32-bytes-long!!"),
         )
     }
 
@@ -480,6 +480,7 @@ impl ChatService {
             max_tokens: 512,
             seed: None,
             disable_thinking: false,
+            adapter: None,
         });
 
         // REQ: P9 (Homeostatic) — CNS span before inference (NuEvent, not just tracing)
@@ -823,6 +824,7 @@ impl ChatService {
             max_tokens: 500,
             seed: None,
             disable_thinking: true,
+            adapter: None,
         };
 
         let port = ctx.inference_port()?;

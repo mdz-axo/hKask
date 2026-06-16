@@ -1544,6 +1544,7 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
         max_tokens: 4096,
         seed: None,
         disable_thinking: false,
+        adapter: None,
     };
 
     match router

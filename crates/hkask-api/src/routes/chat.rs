@@ -171,6 +171,7 @@ pub(crate) async fn chat_stream(
         max_tokens: 512,
         seed: None,
         disable_thinking: false,
+        adapter: None,
     };
 
     let inference = state.agent_service.inference_port();

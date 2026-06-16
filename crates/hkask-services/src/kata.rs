@@ -591,6 +591,17 @@ impl KataEngine {
         }
     }
 
+    /// Create a KataEngine with inference configured from environment.
+    ///
+    /// [NORMATIVE] Encapsulates `InferenceConfig::from_env()` and
+    /// `InferenceRouter::new()` so CLI and API surfaces don't construct
+    /// inference directly (P7 — Evolutionary Architecture).
+    pub fn from_env(registry: SqliteRegistry) -> Self {
+        let inf_cfg = hkask_inference::InferenceConfig::from_env();
+        let inference = hkask_inference::InferenceRouter::new(inf_cfg);
+        Self::new(Arc::new(inference), registry)
+    }
+
     /// Set a consent checker that gates kata execution.
     pub fn with_consent<F>(mut self, check: F) -> Self
     where
@@ -1674,6 +1685,7 @@ fn default_llm_params() -> LLMParameters {
         max_tokens: 512,
         seed: None,
         disable_thinking: false,
+        adapter: None,
     }
 }
 

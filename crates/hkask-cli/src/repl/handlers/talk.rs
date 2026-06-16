@@ -11,6 +11,7 @@ use hkask_types::DelegationAction;
 use hkask_types::DelegationResource;
 use hkask_types::DelegationToken;
 use hkask_types::WebID;
+use hkask_types::capability::derive_signing_key;
 use hkask_types::ports::ToolPort;
 
 /// Speech summarizer prompt — condenses agent response for spoken output.
@@ -112,7 +113,7 @@ pub(crate) fn handle_talk(
                 DelegationAction::Execute,
                 WebID::new(),
                 state.agent_webid,
-                acp_secret,
+                &derive_signing_key(acp_secret),
             );
 
             println!("  \x1b[2mDesigning voice from description...\x1b[0m");
@@ -236,7 +237,7 @@ pub(crate) fn speak_response(
         DelegationAction::Execute,
         WebID::new(),
         state.agent_webid,
-        acp_secret,
+        &derive_signing_key(acp_secret),
     );
 
     let voice_design = state.voice_design.clone();

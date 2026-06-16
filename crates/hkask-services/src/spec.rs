@@ -171,7 +171,14 @@ impl SpecService {
         Ok(specs.into_iter().map(SpecListEntry::from).collect())
     }
 
-    /// Get a single spec by ID.
+    /// Get a single spec by ID (full struct with goals).
+    pub fn get_full(ctx: &AgentService, spec_id_str: &str) -> Result<Spec, ServiceError> {
+        let id = parse_spec_id(spec_id_str)?;
+        let store = ctx.spec_store();
+        store.load(id).map_err(ServiceError::Spec)
+    }
+
+    /// Get a single spec by ID (summary detail).
     pub fn get_by_id(ctx: &AgentService, spec_id_str: &str) -> Result<SpecDetail, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();

@@ -396,6 +396,7 @@ pub(crate) fn to_llm_params(settings: &ReplSettings) -> LLMParameters {
         max_tokens: settings.max_tokens,
         seed: settings.seed.map(|s| s as u64),
         disable_thinking: false,
+        adapter: None,
     }
 }
 
