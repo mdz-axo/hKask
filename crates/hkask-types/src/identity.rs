@@ -64,10 +64,20 @@ pub struct ReplicantIdentity {
 }
 
 impl ReplicantIdentity {
+    /// REQ: TYP-188
+    /// pre:  replicant_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
+    /// post: returns a deterministic WebID with the "replicant" namespace;
+    ///       same replicant_name always produces the same WebID
     pub fn derive_webid(replicant_name: &str) -> WebID {
         WebID::from_persona_with_namespace(replicant_name.as_bytes(), "replicant")
     }
 
+    /// REQ: TYP-189
+    /// pre:  replicant_name is non-empty; user_id is a valid UserID;
+    ///       first_name_enc and last_name_enc are encrypted byte vectors
+    /// post: returns a ReplicantIdentity with derived webid, wallet_id=None,
+    ///       persona_yaml=None, created_at set to current Unix timestamp,
+    ///       last_login=None
     pub fn new(
         replicant_name: String,
         user_id: UserID,
@@ -104,6 +114,11 @@ pub struct UserSession {
 }
 
 impl UserSession {
+    /// REQ: TYP-190
+    /// pre:  now is a Unix timestamp (i64); self.expires_at is a valid
+    ///       expiry timestamp set at session creation
+    /// post: returns true if now > self.expires_at (session has expired);
+    ///       returns false if now <= self.expires_at (session still valid)
     pub fn is_expired(&self, now: i64) -> bool {
         now > self.expires_at
     }

@@ -113,11 +113,23 @@ pub enum McpErrorKind {
 
 impl McpErrorKind {
     /// Whether errors of this kind are retryable with backoff.
+    ///
+    /// REQ: TYP-198
+    /// pre:  self is any McpErrorKind variant
+    /// post: returns true only for Unavailable, Timeout, and RateLimited;
+    ///       returns false for Internal, NotFound, InvalidArgument,
+    ///       PermissionDenied, and FailedPrecondition
     pub fn is_retryable(self) -> bool {
         matches!(self, Self::Unavailable | Self::Timeout | Self::RateLimited)
     }
 
     /// Whether this error requires user/admin intervention.
+    ///
+    /// REQ: TYP-199
+    /// pre:  self is any McpErrorKind variant
+    /// post: returns true only for PermissionDenied and FailedPrecondition;
+    ///       returns false for Internal, Unavailable, Timeout, NotFound,
+    ///       InvalidArgument, and RateLimited
     pub fn requires_intervention(self) -> bool {
         matches!(self, Self::PermissionDenied | Self::FailedPrecondition)
     }

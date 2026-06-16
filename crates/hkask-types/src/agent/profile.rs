@@ -13,6 +13,9 @@ pub enum Right {
 }
 
 impl Right {
+    /// REQ: TYP-191
+    /// pre:  self is a valid Right variant (Read, Write, Execute, Coordinate, or EscalateTo)
+    /// post: returns a human-readable display string like "read: resource_name"
     pub fn to_display_string(&self) -> String {
         match self {
             Right::Read { resource } => format!("read: {}", resource),
@@ -42,6 +45,10 @@ pub enum Responsibility {
 }
 
 impl Responsibility {
+    /// REQ: TYP-192
+    /// pre:  self is a valid Responsibility variant
+    /// post: returns a human-readable display string describing the
+    ///       responsibility (e.g., "monitor: target", "synthesize: input -> output")
     pub fn to_display_string(&self) -> String {
         match self {
             Responsibility::Monitor { target } => format!("monitor: {}", target),
@@ -76,6 +83,10 @@ impl UserProfile {
     /// Compose a replicant's full display name from the user-chosen first name
     /// and the human's last name, following the naming protocol:
     /// "{chosen_name} r{human_last_name}"
+    ///
+    /// REQ: TYP-193
+    /// pre:  chosen_first_name is a non-empty string; self.last_name is non-empty
+    /// post: returns "{chosen_first_name} r{self.last_name}"
     pub fn replicant_display_name(&self, chosen_first_name: &str) -> String {
         format!("{} r{}", chosen_first_name, self.last_name)
     }

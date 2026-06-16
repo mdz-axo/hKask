@@ -41,6 +41,12 @@ impl R7BotIdentity {
     }
 
     /// Get the bot's WebID (always valid by construction)
+    ///
+    /// REQ: TYP-186
+    /// pre:  self is a valid R7BotIdentity (constructed via new or deserialized
+    ///       with a valid webid field)
+    /// post: returns the deterministic WebID derived from the bot's id at
+    ///       construction time
     pub fn webid(&self) -> WebID {
         self.webid
     }
@@ -76,6 +82,11 @@ static DEFAULT_R7_BOTS: OnceLock<Vec<R7BotIdentity>> = OnceLock::new();
 /// by the Curator at runtime, but the identity roster is fixed.
 ///
 /// Returns a reference to a statically cached `Vec<R7BotIdentity>`.
+///
+/// REQ: TYP-187
+/// pre:  (none — always callable)
+/// post: returns a &'static [R7BotIdentity] slice of exactly 7 entries
+///       (R7.1 through R7.7), cached after the first call via OnceLock
 pub fn default_r7_bots() -> &'static [R7BotIdentity] {
     DEFAULT_R7_BOTS.get_or_init(|| {
         vec![

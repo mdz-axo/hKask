@@ -83,6 +83,12 @@ pub(crate) struct AuditContext {
 
 impl AuditEntry {
     /// Create a new audit entry
+    ///
+    /// REQ: TYP-194
+    /// pre:  actor is a valid WebID; action and resource are non-empty strings;
+    ///       outcome is a valid AuditOutcome variant
+    /// post: returns an AuditEntry with a new v4 UUID id, current Utc timestamp,
+    ///       and default (empty) AuditContext
     pub fn new(
         actor: WebID,
         action: impl Into<String>,
@@ -101,18 +107,30 @@ impl AuditEntry {
     }
 
     /// Add correlation ID
+    ///
+    /// REQ: TYP-195
+    /// pre:  self is a valid AuditEntry; correlation_id is a non-empty string
+    /// post: returns self with context.correlation_id set to Some(correlation_id)
     pub fn with_correlation_id(mut self, correlation_id: impl Into<String>) -> Self {
         self.context.correlation_id = Some(correlation_id.into());
         self
     }
 
     /// Add recipient
+    ///
+    /// REQ: TYP-196
+    /// pre:  self is a valid AuditEntry; recipient is a valid WebID
+    /// post: returns self with context.recipient set to Some(recipient)
     pub fn with_recipient(mut self, recipient: WebID) -> Self {
         self.context.recipient = Some(recipient);
         self
     }
 
     /// Add metadata
+    ///
+    /// REQ: TYP-197
+    /// pre:  self is a valid AuditEntry; metadata is any valid serde_json::Value
+    /// post: returns self with context.metadata set to the given value
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.context.metadata = metadata;
         self

@@ -29,6 +29,9 @@ const API_SERVERS: &[(&str, &str)] = &[
 /// Resolves configuration from the keystore and environment, builds a
 /// `AgentService` with all shared infrastructure, starts API MCP servers
 /// on the AgentService's runtime, and creates an `ApiState` from it.
+/// REQ: CLI-087
+/// pre:  port is a valid u16; host is a non-empty bind address string
+/// post: starts the HTTP API server on the given host:port; returns Ok(()) on successful bind or Error on failure
 pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error::Error>> {
     // Resolve configuration from keystore and environment
     let config = hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {

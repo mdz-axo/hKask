@@ -441,11 +441,12 @@ impl WalletService {
     /// Shield transparently-held USDC into the Hinkal privacy pool.
     pub async fn shield_assets(
         &self,
+        wallet_id: WalletId,
         amount_usdc_micro: u64,
         chain: ChainId,
     ) -> Result<TxHash, ServiceError> {
         self.manager
-            .shield_assets(amount_usdc_micro, chain)
+            .shield_assets(wallet_id, amount_usdc_micro, chain)
             .await
             .map_err(|e| {
                 let msg = e.to_string();

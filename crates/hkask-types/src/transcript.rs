@@ -73,6 +73,12 @@ pub struct TranscriptBundle {
 
 impl TranscriptBundle {
     /// Create a new bundle with format marker.
+    ///
+    /// REQ: TYP-179
+    /// pre:  audio_path is a non-empty file path string; audio_duration_secs >= 0.0;
+    ///       full_text is a valid transcript string (may be empty)
+    /// post: returns a TranscriptBundle with format "hkask-transcript-v1",
+    ///       empty words/segments vectors, and None for language/model
     pub fn new(audio_path: String, audio_duration_secs: f32, full_text: String) -> Self {
         Self {
             format: "hkask-transcript-v1".to_string(),
@@ -87,11 +93,20 @@ impl TranscriptBundle {
     }
 
     /// Total word count.
+    ///
+    /// REQ: TYP-180
+    /// pre:  self is a valid TranscriptBundle
+    /// post: returns the number of TimedWord entries in self.words (usize)
     pub fn word_count(&self) -> usize {
         self.words.len()
     }
 
     /// Find the word at a given millisecond position.
+    ///
+    /// REQ: TYP-181
+    /// pre:  ms is any u64 millisecond offset
+    /// post: returns Some(&TimedWord) if a word spans ms (start_ms <= ms < end_ms);
+    ///       returns None if no word covers that position
     pub fn word_at_ms(&self, ms: u64) -> Option<&TimedWord> {
         self.words
             .iter()
@@ -99,6 +114,11 @@ impl TranscriptBundle {
     }
 
     /// Get the segment containing a given millisecond position.
+    ///
+    /// REQ: TYP-182
+    /// pre:  ms is any u64 millisecond offset
+    /// post: returns Some(&TranscriptSegment) if a segment spans ms
+    ///       (start_ms <= ms < end_ms); returns None otherwise
     pub fn segment_at_ms(&self, ms: u64) -> Option<&TranscriptSegment> {
         self.segments
             .iter()

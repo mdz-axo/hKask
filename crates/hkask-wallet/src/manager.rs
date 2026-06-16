@@ -681,6 +681,7 @@ impl WalletManager {
     /// 5. Record transaction in ledger (zero rJoule delta)
     pub async fn shield_assets(
         &self,
+        wallet_id: WalletId,
         amount_usdc_micro: u64,
         chain: ChainId,
     ) -> Result<TxHash, WalletError> {
@@ -734,7 +735,7 @@ impl WalletManager {
         // 4. Record transaction (zero rJoule delta — pure asset layer transition).
         self.store.record_transaction(&WalletTransaction {
             id: 0,
-            wallet_id: WalletId::default(), // system-level operation
+            wallet_id,
             tx_type: TransactionType::Shield {
                 chain,
                 tx_hash: tx_hash.0.clone(),
@@ -1915,19 +1916,19 @@ mod tests {
     async fn shield_assets_uses_privacy_path() {
         let mgr = make_manager_with_hinkal_privacy();
 
-        // Ensure the default wallet exists (shield records against it)
-        let default_wallet = WalletId::default();
-        mgr.store.ensure_wallet(default_wallet).unwrap();
+        // Use deterministic wallet ID (WalletId::default() is random each call)
+        let wallet_id = WalletId::from_name("shield_test");
+        mgr.store.ensure_wallet(wallet_id).unwrap();
 
         let tx_hash = mgr
-            .shield_assets(1_000_000, ChainId::Hinkal)
+            .shield_assets(wallet_id, 1_000_000, ChainId::Hinkal)
             .await
             .expect("shield_assets should succeed");
 
         assert_eq!(tx_hash.0, "mock_privacy_hash");
 
         // Shield transaction should be recorded with zero rJoule delta
-        let txs = mgr.get_transactions(default_wallet, 10, 0).unwrap();
+        let txs = mgr.get_transactions(wallet_id, 10, 0).unwrap();
         let shield_tx = txs
             .iter()
             .find(|tx| matches!(tx.tx_type, TransactionType::Shield { .. }))
