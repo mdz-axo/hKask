@@ -2,6 +2,7 @@
 # Routes template dispatch requests through selection → population → execution
 
 manifest:
+  id: dispatch
   name: dispatch
   version: "0.1.0"
   description: Template dispatch orchestration with selector-driven routing

@@ -724,6 +724,7 @@ mod tests {
 
     /// Property-based skeleton: once proptest is wired, assert that any skill
     /// with both layers present and all .j2 files valid scores >= 0.8.
+    // REQ: P9-services-skill-health-threshold — complete skills score ≥ 0.8
     #[test]
     #[ignore = "requires proptest fixture for arbitrary complete skills"]
     fn complete_skill_scores_above_threshold() {

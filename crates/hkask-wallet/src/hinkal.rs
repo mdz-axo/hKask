@@ -1134,6 +1134,8 @@ mod tests {
     // REQ: P9-wallet-hinkal-session-create-test — session bootstrap success path maps request/response correctly
     #[tokio::test]
     async fn create_session_success() {
+        // SAFETY: test-only — sets HKASK_MASTER_KEY env var for test fixture;
+        // no concurrent access in single-threaded test context.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",
@@ -1191,6 +1193,8 @@ mod tests {
     // REQ: P9-wallet-hinkal-nonce-reuse-test — nonce reuse/server rejection is propagated fail-closed
     #[tokio::test]
     async fn create_session_nonce_reuse_propagates_error() {
+        // SAFETY: test-only — sets HKASK_MASTER_KEY env var for test fixture;
+        // no concurrent access in single-threaded test context.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",
@@ -1227,6 +1231,8 @@ mod tests {
     // REQ: P9-wallet-hinkal-invalid-balance-test — invalid/partial balance payload fails closed
     #[tokio::test]
     async fn monitor_shielded_transfers_rejects_invalid_balance_payload() {
+        // SAFETY: test-only — sets HKASK_MASTER_KEY env var for test fixture;
+        // no concurrent access in single-threaded test context.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",

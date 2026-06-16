@@ -4,7 +4,7 @@
 manifest:
   id: starter-kata
   name: Starter Kata
-  kata_type: starter
+  version: "0.1.0"
   description: >
     Simple practice routines to internalize scientific thinking patterns.
     Used by Curator for daily capability practice with 7R7 bots.

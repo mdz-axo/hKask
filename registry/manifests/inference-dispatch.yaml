@@ -2,6 +2,7 @@
 # Orchestrates LLM inference with model tier selection
 
 manifest:
+  id: inference-dispatch
   name: inference-dispatch
   version: "0.1.0"
   description: Inference orchestration with model tier balancing
@@ -15,6 +16,7 @@ steps:
     output_schema:
       type: object
       properties:
+        model_tier:
           type: string
           enum: [fast_local, balanced, high_quality]
         model_name:

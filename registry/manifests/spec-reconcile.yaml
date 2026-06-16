@@ -3,6 +3,7 @@
 # Per DDMVSS §6.3: Reconciliation as tension preservation
 
 manifest:
+  id: spec-reconcile
   name: spec-reconcile
   version: "0.1.0"
   description: Resolve conflicts between specifications while preserving productive tensions

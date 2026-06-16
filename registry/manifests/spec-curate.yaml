@@ -3,6 +3,7 @@
 # Per DDMVSS §6.3: Curation as ongoing coherence maintenance
 
 manifest:
+  id: spec-curate
   name: spec-curate
   version: "0.1.0"
   description: Evaluate specification collection coherence and recommend cultivation actions

@@ -4,7 +4,7 @@
 manifest:
   id: improvement-kata
   name: Improvement Kata
-  kata_type: improvement
+  version: "0.1.0"
   description: >
     4-step scientific pattern for achieving challenging goals
     through iterative experimentation. Used by Curator to develop

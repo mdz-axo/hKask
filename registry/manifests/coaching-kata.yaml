@@ -4,7 +4,7 @@
 manifest:
   id: coaching-kata
   name: Coaching Kata
-  kata_type: coaching
+  version: "0.1.0"
   description: >
     5-question coaching cycle used by Curator to teach scientific
     thinking to bots. Each cycle ~20 minutes. Questions reveal

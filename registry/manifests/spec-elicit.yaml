@@ -3,6 +3,7 @@
 # Per DDMVSS §6.3: Elicitation as collaborative specification
 
 manifest:
+  id: spec-elicit
   name: spec-elicit
   version: "0.1.0"
   description: Elicit user goals through structured questioning and refinement

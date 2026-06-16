@@ -2,6 +2,7 @@
 # Handles semantic/episodic memory operations with Bayesian confidence
 
 manifest:
+  id: memory-ops
   name: memory-ops
   version: "0.1.0"
   description: Memory operations with visibility gating and Bayesian confidence

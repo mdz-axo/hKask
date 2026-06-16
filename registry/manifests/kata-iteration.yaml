@@ -9,7 +9,7 @@
 manifest:
   id: kata-iteration
   name: Kata Iteration
-  kata_type: improvement
+  version: "0.1.0"
   description: >
     Iterate on a completed PDCA cycle to assess variance and build confidence.
     Re-executes the kata template with higher temperature, then compares

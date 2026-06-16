@@ -1,7 +1,8 @@
 manifest:
+  id: goal-verification
   name: goal-verification
+  version: "0.1.0"
   description: Verify goal completion via KnowAct templates
-  functional_role: knowact
   functional_role: knowact
   lexicon_terms: [sequence, evaluate, critique, assert]
 
@@ -12,7 +13,7 @@ cascade:
         type: Cognition
         lexicon_terms: [recognize, classify]
       description: "Recognize goal type and completion criteria"
-    
+
   core:
     - ordinal: 2
       template:
@@ -24,7 +25,7 @@ cascade:
         verdict: string
         reason: string
         confidence: float
-    
+
     - ordinal: 3
       template:
         type: Process
@@ -38,7 +39,7 @@ cascade:
             action: continue_loop
           - condition: "verdict == 'blocked'"
             action: escalate
-    
+
   post:
     - ordinal: 4
       template:

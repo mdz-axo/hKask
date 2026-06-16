@@ -2,6 +2,7 @@
 # Routes MCP tool calls with OCAP capability verification
 
 manifest:
+  id: mcp-dispatch
   name: mcp-dispatch
   version: "0.1.0"
   description: MCP tool dispatch with capability gating and rate limiting

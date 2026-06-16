@@ -2,6 +2,7 @@
 # Manages Git CAS operations for artifact versioning
 
 manifest:
+  id: git-ops
   name: git-ops
   version: "0.1.0"
   description: Git CAS operations with SHA-based versioning
@@ -33,7 +34,7 @@ steps:
   - ordinal: 3
     action: execute
     target: git_operation
-    mcp: null  # internal GitCASPort was hkask-mcp-git
+    mcp: null # internal GitCASPort was hkask-mcp-git
     tool: "${operation}"
     output_schema:
       type: object

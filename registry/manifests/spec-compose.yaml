@@ -3,6 +3,7 @@
 # Per DDMVSS §6.3: Declarative Manifest-Driven Multi-Stage Specification System
 
 manifest:
+  id: spec-compose
   name: spec-compose
   version: "0.1.0"
   description: Compose specifications from user intent through template selection and population

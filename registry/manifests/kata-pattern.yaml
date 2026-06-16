@@ -4,6 +4,7 @@
 manifest:
   id: kata-pattern
   name: Kata Pattern
+  version: "0.1.0"
   description: >
     Unified Kata execution pattern. Selects and executes one of three
     Kata patterns: Improvement (4-step), Coaching (5-question), or Starter

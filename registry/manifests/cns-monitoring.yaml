@@ -2,10 +2,10 @@
 # Monitors system health, variety counters, and triggers algedonic alerts
 
 manifest:
+  id: cns-monitoring
   name: cns-monitoring
   version: "0.1.0"
   description: Cybernetic Nervous System monitoring and calibration
-  functional_role: knowact
   functional_role: knowact
 
 steps:
@@ -33,7 +33,7 @@ steps:
   - ordinal: 3
     action: execute
     target: cns_alert
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     tool: cns_alert
     output_schema:
       type: object

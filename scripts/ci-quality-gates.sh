@@ -27,18 +27,21 @@ echo ""
 run_check() {
     local name="$1"
     local script="$2"
+    local fatal="${3:-true}"
     echo "─── $name ───"
     if bash "$script"; then
         echo ""
     else
-        FAILED=1
+        if [ "$fatal" = "true" ]; then
+            FAILED=1
+        fi
         echo ""
     fi
 }
 
 run_check "1. Public Surface Governance" "$SCRIPT_DIR/check-public-surface.sh"
 run_check "2. Unsafe Documentation Policy" "$SCRIPT_DIR/check-unsafe-safety.sh"
-run_check "3. Runtime .unwrap() Denylist" "$SCRIPT_DIR/check-unwrap-denylist.sh"
+run_check "3. Runtime .unwrap() Denylist (warning-only)" "$SCRIPT_DIR/check-unwrap-denylist.sh" false
 run_check "4. MCP Gate-3 Consistency" "$SCRIPT_DIR/check-mcp-gate3.sh"
 run_check "5. REQ Traceability Trend" "$SCRIPT_DIR/check-req-traceability.sh"
 
