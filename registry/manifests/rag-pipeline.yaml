@@ -94,7 +94,7 @@ steps:
       to supplement memory context with fresh external information.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-web
+    mcp: hkask-mcp-research
     tool: web_search
     arguments:
       query: "${step1.reformulated_queries[0]}"

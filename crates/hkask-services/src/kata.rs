@@ -264,7 +264,7 @@ pub struct PracticeEntry {
 impl KataHistory {
     /// Load history from a JSON file, or return empty if not found.
     ///
-    /// REQ: P5-svc-kata-svc-097
+    /// REQ: P9-svc-kata-097
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  path may or may not exist; if missing, returns default empty history
     /// post: returns KataHistory from JSON file; Err(LoadFailed) on I/O error; Err(ParseFailed) on invalid JSON
@@ -285,7 +285,7 @@ impl KataHistory {
 
     /// Save history to a JSON file.
     ///
-    /// REQ: P5-svc-kata-svc-098
+    /// REQ: P9-svc-kata-098
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid KataHistory; path's parent directory must exist
     /// post: history is serialized as pretty JSON and written to path; Err(LoadFailed) on serialization or I/O error
@@ -304,7 +304,7 @@ impl KataHistory {
 
     /// Record a practice entry for an agent.
     ///
-    /// REQ: P5-svc-kata-svc-099
+    /// REQ: P9-svc-kata-099
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  agent must be non-empty; entry must have valid date and kata_type
     /// post: entry is appended to the agent's practice history; creates agent entry if not present
@@ -317,7 +317,7 @@ impl KataHistory {
 
     /// Compute the agent's practice streak (consecutive days, counting backward from today).
     ///
-    /// REQ: P5-svc-kata-svc-100
+    /// REQ: P9-svc-kata-100
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  agent may or may not have entries; today must be ISO 8601 date (YYYY-MM-DD)
     /// post: returns u32 streak count; 0 if no entries or today not practiced; counts consecutive days backward from today
@@ -355,7 +355,7 @@ impl KataHistory {
     /// Formula: auto = min(1.0, streak_days / 21.0)
     /// Decay: auto *= 0.8^(days_since_last / 3) when days_since_last > 3
     ///
-    /// REQ: P5-svc-kata-svc-101
+    /// REQ: P9-svc-kata-101
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  agent may or may not have entries; today must be ISO 8601 date
     /// post: returns f64 in [0.0, 1.0]; 0.0 = no practice; 1.0 = 21+ day streak; decay applied after 3+ days gap
@@ -375,7 +375,7 @@ impl KataHistory {
 
     /// Days since the agent's last practice.
     ///
-    /// REQ: P5-svc-kata-svc-102
+    /// REQ: P9-svc-kata-102
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  agent may or may not have entries; today must be ISO 8601 date
     /// post: returns u32 days since last practice; u32::MAX if no entries or parse failure
@@ -393,7 +393,7 @@ impl KataHistory {
 
     /// Check if agent meets graduation criteria for starter kata (automaticity > 0.5).
     ///
-    /// REQ: P5-svc-kata-svc-103
+    /// REQ: P9-svc-kata-103
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  agent may or may not have entries; today must be ISO 8601 date
     /// post: returns true if compute_automaticity > 0.5; false otherwise
@@ -403,7 +403,7 @@ impl KataHistory {
 
     /// Check if agent needs habit intervention (3+ days since last practice).
     ///
-    /// REQ: P5-svc-kata-svc-104
+    /// REQ: P9-svc-kata-104
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  agent may or may not have entries; today must be ISO 8601 date
     /// post: returns true if days_since_last is in range [3, u32::MAX); false otherwise
@@ -537,7 +537,7 @@ pub struct KataState {
 impl KataState {
     /// Save state to a JSON file for later resumption.
     ///
-    /// REQ: P5-svc-kata-svc-105
+    /// REQ: P9-svc-kata-105
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid KataState; path's parent directory must exist
     /// post: state is serialized as pretty JSON and written to path; Err(LoadFailed) on serialization or I/O error
@@ -556,7 +556,7 @@ impl KataState {
 
     /// Load state from a previously saved JSON file.
     ///
-    /// REQ: P5-svc-kata-svc-106
+    /// REQ: P9-svc-kata-106
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  path must exist and contain valid JSON
     /// post: returns KataState deserialized from file; Err(LoadFailed) on I/O error; Err(ParseFailed) on invalid JSON
@@ -628,7 +628,7 @@ pub struct KataEngine {
 }
 
 impl KataEngine {
-    /// REQ: P5-svc-kata-svc-107
+    /// REQ: P9-svc-kata-107
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  inference must be a valid InferencePort; registry must be initialized
     /// post: returns KataEngine with inference and registry wired; all optional components (consent, CNS, history, metrics) default to None
@@ -651,7 +651,7 @@ impl KataEngine {
     /// `InferenceRouter::new()` so CLI and API surfaces don't construct
     /// inference directly (P7 — Evolutionary Architecture).
     ///
-    /// REQ: P5-svc-kata-svc-108
+    /// REQ: P9-svc-kata-108
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  registry must be initialized; inference env vars must be set or defaults used
     /// post: returns KataEngine with InferenceRouter built from env config
@@ -663,7 +663,7 @@ impl KataEngine {
 
     /// Set a consent checker that gates kata execution.
     ///
-    /// REQ: P5-svc-kata-svc-109
+    /// REQ: P9-svc-kata-109
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  check must be a valid Fn(&str, &str) -> Result<(), KataError>
     /// post: returns self with consent_check set; kata execution will call check before running
@@ -677,7 +677,7 @@ impl KataEngine {
 
     /// Set a CNS observer called after each step completes.
     ///
-    /// REQ: P5-svc-kata-svc-110
+    /// REQ: P9-svc-kata-110
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  observer must be a valid Fn(&str, u32, &str)
     /// post: returns self with cns_observer set; observer is called after each kata step
@@ -691,7 +691,7 @@ impl KataEngine {
 
     /// Set a kata practice history for habit tracking and automaticity scoring.
     ///
-    /// REQ: P5-svc-kata-svc-111
+    /// REQ: P9-svc-kata-111
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  history must be a valid KataHistory
     /// post: returns self with history set; starter kata uses it for automaticity computation
@@ -706,7 +706,7 @@ impl KataEngine {
     /// (or instead of) the JSON file. This enables CNS queries against practice
     /// data and cross-session persistence through the daemon's memory pipeline.
     ///
-    /// REQ: P5-svc-kata-svc-112
+    /// REQ: P9-svc-kata-112
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be a valid Arc<KataHistoryStore>
     /// post: returns self with history_store set; record_history_entry will persist to SQLite
@@ -717,7 +717,7 @@ impl KataEngine {
 
     /// Set a metric collector for before/after measurement.
     ///
-    /// REQ: P5-svc-kata-svc-113
+    /// REQ: P9-svc-kata-113
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  collector must be a valid Fn(&str, &str) -> Result<Value, KataError>
     /// post: returns self with metric_collector set; improvement kata captures before/after metrics
@@ -734,7 +734,7 @@ impl KataEngine {
     /// When present, kata execution increments CNS variety counters for each
     /// practice and checks algedonic thresholds after cycle completion.
     ///
-    /// REQ: P5-svc-kata-svc-114
+    /// REQ: P9-svc-kata-114
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cns must be a valid Arc<RwLock<CnsRuntime>>
     /// post: returns self with cns_runtime set; kata cycles will increment variety and check alerts
@@ -749,7 +749,7 @@ impl KataEngine {
     /// memory pipeline. When the store is not set, this is a no-op — the
     /// caller should fall back to JSON-based persistence.
     ///
-    /// REQ: P5-svc-kata-svc-115
+    /// REQ: P9-svc-kata-115
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  agent_name, date, kata_type, practice_name must be non-empty
     /// post: returns Some(row_id) if history_store is set and record succeeds; None if store not configured; Err on store failure
@@ -781,7 +781,7 @@ impl KataEngine {
 
     /// Load a kata manifest from a YAML file.
     ///
-    /// REQ: P5-svc-kata-svc-116
+    /// REQ: P9-svc-kata-116
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  path must exist and contain valid YAML
     /// post: returns KataManifest deserialized from file; Err(LoadFailed) on I/O error; Err(ParseFailed) on invalid YAML
@@ -800,7 +800,7 @@ impl KataEngine {
     /// Instead, they use a selector template to route to the appropriate kata
     /// based on the agent's history, automaticity, and context.
     ///
-    /// REQ: P5-svc-kata-svc-117
+    /// REQ: P9-svc-kata-117
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  manifest must have at least one step for selector; learner_bot must be non-empty
     /// post: returns KataResult from the selected kata execution; Err on selector failure or kata execution error
@@ -870,7 +870,7 @@ impl KataEngine {
     /// - "coaching" → run coaching questions (requires optional IK state reference)
     /// - "starter" → run practice routines with habit tracking
     ///
-    /// REQ: P5-svc-kata-svc-118
+    /// REQ: P9-svc-kata-118
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  manifest.manifest.kata_type must be "improvement", "coaching", or "starter"; learner_bot must be non-empty
     /// post: returns KataResult with steps_completed, gas_consumed, and kata-type-specific outputs; Err(UnknownType) on invalid kata_type
@@ -1159,7 +1159,7 @@ impl KataEngine {
 
     /// Resume an Improvement Kata from saved state, skipping completed steps.
     ///
-    /// REQ: P5-svc-kata-svc-119
+    /// REQ: P9-svc-kata-119
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  manifest must have at least one step; state.learner_bot must be non-empty
     /// post: returns KataResult with steps_completed, gas_consumed, and step_experiences; Err(NoSteps) if manifest has no steps; Err(GasExceeded) if gas cap exceeded
@@ -1329,7 +1329,7 @@ impl KataEngine {
     /// If the state contains an `ik_state_ref`, coaching questions are grounded
     /// in the learner's actual Improvement Kata storyboard data.
     ///
-    /// REQ: P5-svc-kata-svc-120
+    /// REQ: P9-svc-kata-120
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  manifest must have at least one question; state.learner_bot must be non-empty
     /// post: returns KataResult with steps_completed (question count), gas_consumed, and step_experiences; Err(NoSteps) if no questions; Err(GasExceeded) if gas cap exceeded
@@ -1471,7 +1471,7 @@ impl KataEngine {
     /// tracks practice frequency, computes automaticity, and emits CNS
     /// automaticity signals. No LLM calls — starter kata is pure habit formation.
     ///
-    /// REQ: P5-svc-kata-svc-121
+    /// REQ: P9-svc-kata-121
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  manifest must have at least one practice; state.learner_bot must be non-empty
     /// post: returns KataResult with steps_completed (practice count), automaticity_delta, and step_experiences; Err(NoSteps) if no practices
@@ -1696,7 +1696,7 @@ impl KataEngine {
 mod tests {
     use super::*;
 
-    // REQ: P5-svc-kata-kata-template-001 — templates render with standard context
+    // REQ: P9-svc-kata-kata-template-001 — templates render with standard context
     //
     // All 23 kata templates must render without errors when given
     // a typical KataState with learner_bot, context, and previous_steps.
@@ -1751,7 +1751,7 @@ mod tests {
         }
     }
 
-    // REQ: P5-svc-kata-kata-template-002 — templates contain learner_bot reference
+    // REQ: P9-svc-kata-kata-template-002 — templates contain learner_bot reference
     //
     // Every kata template must reference the learner's identity so the
     // LLM knows who it's acting as. Missing {{ learner_bot }} means the

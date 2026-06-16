@@ -1,10 +1,14 @@
 # File: registry/manifests/tool_dispatch.yaml
 # Tool dispatch workflow for MCP tool invocation
 
-id: process/dispatch
-name: Tool Dispatch
-description: Dispatches tool calls via ACP/MCP with capability resolution
-functional_role: flowdef
+manifest:
+  id: process/dispatch
+  name: Tool Dispatch
+  description: Dispatches tool calls via ACP/MCP with capability resolution
+  functional_role: flowdef
+  version: 0.27.0
+  editor: curator-or-human-admin
+  visibility: Shared
 
 steps:
   - ordinal: 1

@@ -1,11 +1,14 @@
 # File: registry/manifests/memory_recall.yaml
 # Memory recall workflow for semantic/episodic triples
 
-id: process/memory/recall
-name: Memory Recall
-description: Recalls semantic/episodic memory triples with confidence scoring
-functional_role: flowdef
-functional_role: flowdef
+manifest:
+  id: process/memory/recall
+  name: Memory Recall
+  description: Recalls semantic/episodic memory triples with confidence scoring
+  functional_role: flowdef
+  version: 0.27.0
+  editor: curator-or-human-admin
+  visibility: Shared
 
 steps:
   - ordinal: 1
@@ -24,4 +27,4 @@ steps:
     action: execute
     description: Execute memory retrieval via storage MCP
     template_ref: ""
-    mcp: hkask-mcp-memory  # was hkask-mcp-storage
+    mcp: hkask-mcp-memory # was hkask-mcp-storage

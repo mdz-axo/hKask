@@ -42,7 +42,7 @@ pub struct TokenUsage {
 impl TokenUsage {
     /// Total tokens as energy cost. Uses a 1:1 mapping — one gas unit per token.
     ///
-    /// REQ: P5-svc-chat-svc-234
+    /// REQ: P3-svc-chat-234
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self.total_tokens must be set
     /// post: returns total_tokens as u64 gas cost
@@ -60,7 +60,7 @@ mod tests {
     use hkask_agents::ports::memory_storage::RecalledEpisode;
     use hkask_types::loops::episodic::ExperienceClassification;
 
-    // REQ: P5-svc-chat-mds-chat-gas-001 — Token usage maps to gas cost at 1:1 ratio
+    // REQ: P3-svc-chat-gas-001 — Token usage maps to gas cost at 1:1 ratio
     #[test]
     fn token_usage_gas_cost_one_to_one() {
         let usage = TokenUsage {
@@ -71,7 +71,7 @@ mod tests {
         assert_eq!(usage.gas_cost(), 150, "Gas cost must equal total_tokens");
     }
 
-    // REQ: P5-svc-chat-mds-chat-gas-002 — Gas cost of zero tokens is zero
+    // REQ: P3-svc-chat-gas-002 — Gas cost of zero tokens is zero
     #[test]
     fn token_usage_zero_tokens_zero_gas() {
         let usage = TokenUsage {
@@ -82,7 +82,7 @@ mod tests {
         assert_eq!(usage.gas_cost(), 0);
     }
 
-    // REQ: P5-svc-chat-mds-chat-gas-003 — Gas cost derived from total_tokens
+    // REQ: P3-svc-chat-gas-003 — Gas cost derived from total_tokens
     #[test]
     fn token_usage_gas_uses_total_not_sum_of_parts() {
         let usage = TokenUsage {
@@ -169,7 +169,7 @@ mod tests {
         }
     }
 
-    // REQ: P5-svc-chat-mds-chat-memory-001 — recall_semantic returns None when no triples match
+    // REQ: P3-svc-chat-memory-001 — recall_semantic returns None when no triples match
     #[test]
     fn recall_semantic_empty_returns_none() {
         let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort { triples: vec![] });
@@ -179,7 +179,7 @@ mod tests {
         assert!(result.is_none());
     }
 
-    // REQ: P5-svc-chat-mds-chat-memory-002 — recall_semantic joins string values with newlines
+    // REQ: P3-svc-chat-memory-002 — recall_semantic joins string values with newlines
     #[test]
     fn recall_semantic_joins_values_with_newlines() {
         let t = |s: &str| RecalledSemantic {
@@ -200,7 +200,7 @@ mod tests {
         assert_eq!(result, Some("A\nB".into()));
     }
 
-    // REQ: P5-svc-chat-mds-chat-memory-003 — recall_semantic filters non-string values
+    // REQ: P3-svc-chat-memory-003 — recall_semantic filters non-string values
     #[test]
     fn recall_semantic_filters_non_string_values() {
         let t1 = RecalledSemantic {
@@ -230,7 +230,7 @@ mod tests {
         assert_eq!(result, Some("Text".into()));
     }
 
-    // REQ: P5-svc-chat-mds-chat-episodic-001 — store_episodic stores input+response as JSON
+    // REQ: P3-svc-chat-episodic-001 — store_episodic stores input+response as JSON
     #[test]
     fn store_episodic_records_chat_exchange() {
         let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
@@ -247,7 +247,7 @@ mod tests {
         assert_eq!(r.value["agent_response"], "Hi!");
     }
 
-    // REQ: P5-svc-chat-mds-chat-episodic-002 — store_episodic confidence 0.7
+    // REQ: P3-svc-chat-episodic-002 — store_episodic confidence 0.7
     #[test]
     fn store_episodic_uses_fixed_confidence() {
         let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
@@ -260,7 +260,7 @@ mod tests {
         assert!((req.as_ref().unwrap().confidence.value() - 0.7).abs() < 0.001);
     }
 
-    // REQ: P5-svc-chat-mds-chat-episodic-003 — store_episodic never panics
+    // REQ: P3-svc-chat-episodic-003 — store_episodic never panics
     #[test]
     fn store_episodic_never_panics() {
         let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
@@ -350,7 +350,7 @@ impl ChatService {
     /// and resolves the inference port. Returns a `PreparedChat`
     /// that the caller can use to stream inference output.
     ///
-    /// REQ: P5-svc-chat-svc-235
+    /// REQ: P3-svc-chat-235
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty; agent must be registered
     /// post: returns PreparedChat with prompt, model, agent_webid, capability_token, inference_port, episodic_port, and agent_name; Err(AgentNotFound) if agent not registered
@@ -473,7 +473,7 @@ impl ChatService {
     /// For streaming, use `prepare_chat()` + `generate_stream_with_model()`
     /// directly on the inference port.
     ///
-    /// REQ: P5-svc-chat-svc-236
+    /// REQ: P3-svc-chat-236
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty
     /// post: returns ChatResponse with text, usage, finish_reason, and tool_calls; CNS spans emitted; episodic trace stored; Err on agent lookup or inference failure
@@ -578,7 +578,7 @@ impl ChatService {
 
     /// Recall semantic memory triples relevant to the input.
     ///
-    /// REQ: P5-svc-chat-svc-237
+    /// REQ: P3-svc-chat-237
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  semantic_port must be initialized; input must be non-empty; token must be valid
     /// post: returns Some(String) of concatenated triple values if matches found; None if no matches or recall fails
@@ -607,7 +607,7 @@ impl ChatService {
 
     /// Store the chat exchange as an episodic triple.
     ///
-    /// REQ: P5-svc-chat-svc-238
+    /// REQ: P3-svc-chat-238
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; input and response must be non-empty; agent_webid must be valid; token must be valid
     /// post: chat exchange is stored as episodic triple with confidence 0.7; failures are logged but not returned (best-effort)
@@ -654,12 +654,12 @@ impl ChatService {
     /// Each episode stores `user_input` + `agent_response` from `store_episodic()`.
     /// Formatted as "[Previous conversation]\nUser: ...\nAgent: ...\n[/Previous conversation]"
     ///
-    /// REQ: P5-svc-chat-svc-239
+    /// REQ: P3-svc-chat-239
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
     /// post: returns Some(String) of formatted recent turns; None if no episodes or recall fails
-    /// # REQ: P5-svc-chat-p2-session-history — every history access routes through episodic storage
-    /// # REQ: P5-svc-chat-p4-ocap-history — recall requires DelegationToken with Read on Manifest
+    /// # REQ: P2-svc-chat-session-history — every history access routes through episodic storage
+    /// # REQ: P4-svc-chat-ocap-history — recall requires DelegationToken with Read on Manifest
     pub fn recall_recent_turns(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,
@@ -699,7 +699,7 @@ impl ChatService {
     /// passing to the condenser's `condenser_thread_summary` MCP tool.
     /// Each episode yields one user message and one assistant message.
     ///
-    /// REQ: P5-svc-chat-svc-240
+    /// REQ: P3-svc-chat-240
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
     /// post: returns Vec<Value> of {role, content} messages; empty Vec if no episodes or recall fails
@@ -735,7 +735,7 @@ impl ChatService {
     /// definition) that enriches the user input with context before inference.
     /// Returns `None` if the agent has no manifest or execution fails.
     ///
-    /// REQ: P5-svc-chat-svc-241
+    /// REQ: P3-svc-chat-241
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  executor must be initialized; manifest must be valid; input and agent_name must be non-empty
     /// post: returns Some(String) of concatenated step outputs if cascade completes; None if no manifest or execution fails
@@ -792,7 +792,7 @@ impl ChatService {
 
     /// Wrap input with manifest context when a cascade completed successfully.
     ///
-    /// REQ: P5-svc-chat-svc-242
+    /// REQ: P3-svc-chat-242
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  input and manifest_context must be non-empty
     /// post: returns formatted string with [Manifest Context] block prepended to input
@@ -805,7 +805,7 @@ impl ChatService {
 
     /// Apply persona constraints to filter forbidden patterns from a response.
     ///
-    /// REQ: P5-svc-chat-svc-243
+    /// REQ: P3-svc-chat-243
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  response must be non-empty; constraints if Some must be valid PersonaConstraints
     /// post: returns cleaned response with forbidden patterns stripped; violations logged; returns original if constraints is None
@@ -914,7 +914,7 @@ impl ChatService {
     /// on the next iteration via a new `TurnRequest` (only `input`,
     /// `tool_results`, and iteration counter fields matter for continuations).
     ///
-    /// REQ: P5-svc-chat-svc-244
+    /// REQ: P3-svc-chat-244
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty; req.agent_name must be registered
     /// post: returns TurnResult with response text, token usage, tool calls, and iteration count; manifest cascade and history suffix applied; persona filter applied; Err on inference failure

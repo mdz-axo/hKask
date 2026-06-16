@@ -53,7 +53,7 @@ pub struct ServiceDaemonHandler {
 }
 
 impl ServiceDaemonHandler {
-    /// REQ: P5-svc-daemon_handler-svc-135
+    /// REQ: P7-svc-daemon_handler-135
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  pod_manager must be a valid Arc<PodManager>; user_store must be a valid Arc<Mutex<UserStore>>
     /// post: returns ServiceDaemonHandler with all fields initialized; inference_port may be None

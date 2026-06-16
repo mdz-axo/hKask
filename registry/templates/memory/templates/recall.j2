@@ -12,9 +12,9 @@ You are a memory retrieval engine for hKask.
 
 ## Requester Context
 
-**Agent:** {{ agent_name }}  
-**Requester WebID:** {{ requester_webid }}  
-**Memory Type:** {{ memory_type }} (semantic or episodic)  
+**Agent:** {{ agent_name }}
+**Requester WebID:** {{ requester_webid }}
+**Memory Type:** {{ memory_type }} (semantic or episodic)
 **Visibility Filter:** {{ visibility_filter | default('public') }}
 
 ## Search Parameters
@@ -46,7 +46,7 @@ You are a memory retrieval engine for hKask.
 2. Apply vector similarity search if query is natural language
 3. Filter by requester's OCAP visibility permissions
 4. Rank by confidence score (Bayesian-weighted)
-{% elsif memory_type == 'episodic' %}
+{% elif memory_type == 'episodic' %}
 1. Search episodic triples where perspective = requester WebID OR visibility = public
 2. Filter by time range if specified
 3. Apply OCAP visibility gating

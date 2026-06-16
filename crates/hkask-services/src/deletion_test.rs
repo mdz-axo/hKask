@@ -123,7 +123,7 @@ mod tests {
         }
     }
 
-    // REQ: P5-svc-deletion_test-svc-deletion-test-001 — deep_module_has_positive_deletion_energy
+    // REQ: P5-svc-deletion_test-deletion-test-001 — deep_module_has_positive_deletion_energy
     //
     // TASK 4.3 lazy-universe property: a deep module (small interface, large
     // internals) must have positive deletion energy — deleting it would
@@ -139,7 +139,7 @@ mod tests {
         assert!(energy.as_raw() > 0.0);
     }
 
-    // REQ: P5-svc-deletion_test-svc-deletion-test-002 — shallow_module_has_negative_deletion_energy
+    // REQ: P5-svc-deletion_test-deletion-test-002 — shallow_module_has_negative_deletion_energy
     //
     // TASK 4.3 lazy-universe property: a shallow module (large interface, small
     // internals) must have negative deletion energy — deleting it moves the
@@ -155,7 +155,7 @@ mod tests {
         assert!(energy.as_raw() < 0.0);
     }
 
-    // REQ: P5-svc-deletion_test-svc-deletion-test-003 — energy_delta_zero_is_descending
+    // REQ: P5-svc-deletion_test-deletion-test-003 — energy_delta_zero_is_descending
     //
     // Zero delta (stationary point) is considered descending — the system
     // has found its minimal-action configuration. This is the equilibrium
@@ -170,7 +170,7 @@ mod tests {
         assert!(!zero.is_ascending());
     }
 
-    // REQ: P5-svc-deletion_test-svc-deletion-test-004 — energy_delta_display_shows_direction
+    // REQ: P5-svc-deletion_test-deletion-test-004 — energy_delta_display_shows_direction
     #[test]
     fn energy_delta_display_shows_direction() {
         let descending = EnergyDelta::from_raw(-2.5);
@@ -195,7 +195,7 @@ mod tests {
         );
     }
 
-    // REQ: P5-svc-deletion_test-svc-deletion-test-005 — alert_threshold_is_five_consecutive_ascending
+    // REQ: P5-svc-deletion_test-deletion-test-005 — alert_threshold_is_five_consecutive_ascending
     //
     // The algedonic threshold for anti-lazy drift is 5 consecutive positive
     // deltas. This matches the existing CNS pattern (variety deficit > threshold/2

@@ -27,7 +27,7 @@ steps:
       Returns enriched results with scores, provider agreement, and related questions.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-web
+    mcp: hkask-mcp-research
     tool: web_search
     arguments:
       query: "${input.query}"
@@ -49,7 +49,7 @@ steps:
       Only runs if Exa provider is configured and top result has a valid URL.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-web
+    mcp: hkask-mcp-research
     tool: web_find_similar
     arguments:
       url: "${step1.results[0].url}"
@@ -67,7 +67,7 @@ steps:
       Iterates over the merged result set and extracts markdown content.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-web
+    mcp: hkask-mcp-research
     tool: web_extract
     arguments:
       url: "${item.url}"
@@ -86,7 +86,7 @@ steps:
       Searches for each related question to fill gaps in coverage.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-web
+    mcp: hkask-mcp-research
     tool: web_search
     arguments:
       query: "${item}"

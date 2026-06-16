@@ -35,7 +35,7 @@ pub enum ArtifactType {
 impl ArtifactType {
     /// Map this artifact type to its storage repository.
     ///
-    /// REQ: P5-svc-backup-scope-svc-162
+    /// REQ: P7-svc-backup-scope-svc-162
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ArtifactType variant
     /// post: returns the corresponding RepoId for storage routing
@@ -57,7 +57,7 @@ impl ArtifactType {
 
     /// Human-readable label for CLI/API display.
     ///
-    /// REQ: P5-svc-backup-scope-svc-163
+    /// REQ: P7-svc-backup-scope-svc-163
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ArtifactType variant
     /// post: returns &'static str label (e.g., "template", "goal", "spec")
@@ -103,7 +103,7 @@ pub enum BackupScope {
 impl BackupScope {
     /// Human-readable description for commit messages.
     ///
-    /// REQ: P5-svc-backup-scope-svc-164
+    /// REQ: P7-svc-backup-scope-svc-164
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid BackupScope variant
     /// post: returns String description (e.g., "full backup", "backup: template", "backup: template (id1, id2)")

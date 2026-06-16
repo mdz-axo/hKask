@@ -59,14 +59,8 @@
 {%- endmacro %}
 
 {% macro check_port_compatibility(effector, ports) -%}
-{% for port in ports %}
-{% if port.effector_shape == effector.shape %}
-{{ {'compatible': true, 'port': port} | tojson }}
-{% break %}
-{% endif %}
-{% else %}
-{{ {'compatible': false, 'port': null} | tojson }}
-{% endfor %}
+{% set matches = ports | selectattr("effector_shape", "equalto", effector.shape) | list %}
+{% if matches | length > 0 %}{{ {'compatible': true, 'port': matches[0]} | tojson }}{% else %}{{ {'compatible': false, 'port': null} | tojson }}{% endif %}
 {%- endmacro %}
 
 {% macro check_effector_budget(capability, concentration) -%}

@@ -90,14 +90,14 @@ understanding what excellence looks like in each dimension:
 
 {% for exemplar in exemplar_context %}
 ### {{ exemplar.work_title }} ({{ exemplar.dimension }})
-> {{ exemplar.text | truncate(500) }}
+> {{ exemplar.text[:500] }}
 {% endfor %}
 {% endif %}
 
 ## Document Under Evaluation
 
 **Type:** {{ document_type | default("unspecified") }}
-**Content:** {{ document_content | truncate(8000) }}
+**Content:** {{ document_content[:8000] }}
 
 ## Evaluation Results
 

@@ -32,9 +32,11 @@ struct ManifestHeader {
 
 #[test]
 fn all_skill_manifests_are_well_formed() {
-    let manifest_dir = Path::new("registry/manifests");
+    let crate_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root = crate_dir.join("../..");
+    let manifest_dir = workspace_root.join("registry/manifests");
     if !manifest_dir.exists() {
-        eprintln!("registry/manifests/ not found — skipping test");
+        eprintln!("{} not found — skipping test", manifest_dir.display());
         return;
     }
 

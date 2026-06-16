@@ -4,10 +4,18 @@
 # This manifest defines the pipeline for importing external skill definitions
 # (Claude Skills, Zapier Actions, LangChain Tools, etc.) into hKask registry.
 
+manifest:
+  id: skill-translation
+  name: Skill Translation Pipeline
+  description: Skill import pipeline with CNS tracking.
+  functional_role: flowdef
+  version: 0.21.2
+  editor: curator-or-human-admin
+  visibility: Shared
+
 pipeline:
   version: 0.21.2
   description: Skill import pipeline with CNS tracking
-  functional_role: flowdef
   stages:
     - parse
     - map
@@ -29,7 +37,7 @@ format_parsers:
       description: $.description
       prompts: $.prompts[*]
       capabilities: $.capabilities[*]
-  
+
   zapier_action:
     file_extension: .action.yaml
     root_element: action
@@ -39,7 +47,7 @@ format_parsers:
       description: $.description
       prompts: $.steps[*].prompt
       capabilities: $.triggers[*].action
-  
+
   langchain_tool:
     file_extension: .tool.yaml
     root_element: tool
@@ -49,7 +57,7 @@ format_parsers:
       description: $.description
       prompts: $.examples[*].prompt
       capabilities: $.functions[*].name
-  
+
   crewai_agent:
     file_extension: .agent.yaml
     root_element: agent
@@ -68,7 +76,7 @@ semantic_mapping:
     multi_prompt: Prompt
     with_process: Process
     with_reasoning: Cognition
-  
+
   # Map skill steps to manifest steps
   process_to_steps:
     - pattern: "probe.*"
@@ -77,7 +85,7 @@ semantic_mapping:
       action: execute
     - pattern: "validate.*"
       action: validate
-  
+
   # Extract capabilities from skill
   capability_extraction: |
     capabilities = skill.capabilities || []

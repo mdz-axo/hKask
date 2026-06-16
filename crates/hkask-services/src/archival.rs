@@ -40,7 +40,7 @@ impl ArchivalService {
     /// Uses the GitHub Contents API to create or update a file. If the file
     /// already exists, its SHA is fetched first for conflict detection.
     ///
-    /// REQ: P5-svc-archival-svc-217
+    /// REQ: P5-svc-archival-217
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name, branch, path, content must be non-empty; GitHub credentials must be in keychain
     /// post: returns ArchiveResult with path and commit_sha; file created or updated on GitHub; Err(Archival) on API failure
@@ -105,7 +105,7 @@ impl ArchivalService {
     /// Fetches file content using the GitHub Contents API and decodes
     /// the base64-encoded response.
     ///
-    /// REQ: P5-svc-archival-svc-218
+    /// REQ: P5-svc-archival-218
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name, git_ref must be non-empty; target_path defaults to "registry" if "."
     /// post: returns decoded file content as String; Err(Archival) on API failure, missing content, or decode error
@@ -165,7 +165,7 @@ impl ArchivalService {
     /// Uses the GitHub Commits API to list commits that touched the
     /// registry file.
     ///
-    /// REQ: P5-svc-archival-svc-219
+    /// REQ: P5-svc-archival-219
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name must be non-empty; GitHub credentials must be in keychain
     /// post: returns Vec<String> of commit SHAs; empty Vec if no commits; Err(Archival) on API failure
@@ -205,7 +205,7 @@ impl ArchivalService {
     /// Reads the local registry database, serializes it to JSON, and
     /// pushes it to GitHub as a snapshot commit using the Contents API.
     ///
-    /// REQ: P5-svc-archival-svc-220
+    /// REQ: P5-svc-archival-220
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name, message must be non-empty; agent_registry_store must be initialized
     /// post: returns SnapshotResult with commit_sha; registry content pushed to GitHub; Err(Archival) on API or serialization failure

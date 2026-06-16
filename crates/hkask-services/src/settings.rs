@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// Returns the canonical path to `~/.config/hkask/settings.json`,
 /// creating the parent directory if needed.
 ///
-/// REQ: P5-svc-settings-svc-178
+/// REQ: P3-svc-settings-178
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  none (always succeeds)
 /// post: returns PathBuf to ~/.config/hkask/settings.json; parent directory created if missing
@@ -89,7 +89,7 @@ impl HkaskSettings {
     /// Load settings from `~/.config/hkask/settings.json`.
     /// Falls back to defaults if the file doesn't exist or is unreadable.
     ///
-    /// REQ: P5-svc-settings-svc-179
+    /// REQ: P3-svc-settings-179
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns HkaskSettings from disk; HkaskSettings::default() if file missing or unparseable
@@ -110,7 +110,7 @@ impl HkaskSettings {
 
     /// Resolve the effective model, preferring env var over settings over default.
     ///
-    /// REQ: P5-svc-settings-svc-180
+    /// REQ: P3-svc-settings-180
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  env_var name must be valid; settings_value and default must be non-empty strings
     /// post: returns env var value if set and non-empty; else settings_value if non-empty; else default
@@ -129,7 +129,7 @@ impl HkaskSettings {
 
     /// Resolve the generation model with env/settings/default priority.
     ///
-    /// REQ: P5-svc-settings-svc-181
+    /// REQ: P3-svc-settings-181
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns effective generation model string (env > settings > default)
@@ -143,7 +143,7 @@ impl HkaskSettings {
 
     /// Resolve the embedding model with env/settings/default priority.
     ///
-    /// REQ: P5-svc-settings-svc-182
+    /// REQ: P3-svc-settings-182
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns effective embedding model string (env > settings > default)
@@ -157,7 +157,7 @@ impl HkaskSettings {
 
     /// Resolve the classifier model with env/settings/default priority.
     ///
-    /// REQ: P5-svc-settings-svc-183
+    /// REQ: P3-svc-settings-183
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns effective classifier model string (env > settings > default)
@@ -171,7 +171,7 @@ impl HkaskSettings {
 
     /// Resolve the OCR model with env/settings/default priority.
     ///
-    /// REQ: P5-svc-settings-svc-184
+    /// REQ: P3-svc-settings-184
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns effective OCR model string (env > settings > default)
@@ -181,7 +181,7 @@ impl HkaskSettings {
 
     /// Save settings to `~/.config/hkask/settings.json`.
     ///
-    /// REQ: P5-svc-settings-svc-185
+    /// REQ: P3-svc-settings-185
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid HkaskSettings
     /// post: settings are written as pretty JSON to settings_path(); Err on serialization or I/O failure
@@ -198,7 +198,7 @@ impl HkaskSettings {
 /// This is the shared load path for CLI (`ReplSettings`), API (`SettingsResponse`),
 /// and any future surface that needs LLM parameter persistence.
 ///
-/// REQ: P5-svc-settings-svc-186
+/// REQ: P3-svc-settings-186
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  T must implement DeserializeOwned + Default
 /// post: returns T from disk; T::default() if file missing or unparseable
@@ -221,7 +221,7 @@ pub fn load_settings<T: serde::de::DeserializeOwned + Default>() -> T {
 ///
 /// This is the shared save path for CLI, API, and any future surface.
 ///
-/// REQ: P5-svc-settings-svc-187
+/// REQ: P3-svc-settings-187
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  settings must implement Serialize
 /// post: settings are written as pretty JSON to settings_path(); Err(ServiceError::Infra) on serialization or I/O failure
@@ -241,7 +241,7 @@ pub fn save_settings<T: serde::Serialize>(settings: &T) -> Result<(), crate::Ser
 mod tests {
     use super::*;
 
-    // REQ: P5-svc-settings-services-settings-001 — load_settings returns default when file missing
+    // REQ: P3-svc-settings-001 — load_settings returns default when file missing
     #[test]
     fn load_settings_returns_default_when_file_missing() {
         // Use a non-existent path by temporarily overriding — just test the fallback
@@ -250,7 +250,7 @@ mod tests {
         assert!(!settings.generation_model.is_empty());
     }
 
-    // REQ: P5-svc-settings-services-settings-002 — save_settings and load_settings round-trip
+    // REQ: P3-svc-settings-002 — save_settings and load_settings round-trip
     #[test]
     fn save_and_load_roundtrip() {
         let original = HkaskSettings::default();

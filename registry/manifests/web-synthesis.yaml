@@ -26,7 +26,7 @@ steps:
       Search all providers with full fusion and reranking.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-web
+    mcp: hkask-mcp-research
     tool: web_search
     arguments:
       query: "${input.query}"
@@ -44,7 +44,7 @@ steps:
       Extract full content from top results for synthesis.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-web
+    mcp: hkask-mcp-research
     tool: web_extract
     arguments:
       url: "${item.url}"

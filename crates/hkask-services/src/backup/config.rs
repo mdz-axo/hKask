@@ -103,7 +103,7 @@ impl RetentionPolicy {
     /// After that, one per week for `weekly_weeks` weeks.
     /// After that, one per month.
     ///
-    /// REQ: P5-svc-backup-config-svc-154
+    /// REQ: P7-svc-backup-config-svc-154
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  commit_index=0 always kept; timestamp_secs and now_secs must be valid Unix timestamps
     /// post: returns true if snapshot should be retained per 3-tier policy; false if expired
@@ -135,7 +135,7 @@ impl RetentionPolicy {
 
     /// Parse a duration string like "30d", "24h", or "60m" into a RetentionPolicy.
     ///
-    /// REQ: P5-svc-backup-config-svc-155
+    /// REQ: P7-svc-backup-config-svc-155
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  s must be a valid duration string with numeric value and unit suffix (d, h, m)
     /// post: returns RetentionPolicy with daily_days derived from duration; weekly_weeks defaults to 12; Err on invalid format
@@ -171,7 +171,7 @@ fn split_duration(s: &str) -> Result<(u64, &str), String> {
 
 /// Path to the backup configuration file.
 ///
-/// REQ: P5-svc-backup-config-svc-156
+/// REQ: P7-svc-backup-config-svc-156
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  none (always succeeds)
 /// post: returns ~/.config/hkask/backup.json path; falls back to ./hkask/backup.json if config dir unavailable
@@ -183,7 +183,7 @@ pub fn backup_config_path() -> std::path::PathBuf {
 /// Load backup config from disk, falling back to defaults if the file
 /// doesn't exist or is unreadable.
 ///
-/// REQ: P5-svc-backup-config-svc-157
+/// REQ: P7-svc-backup-config-svc-157
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  none (always succeeds)
 /// post: returns BackupConfig from disk; BackupConfig::default() if file missing or unparseable
@@ -197,7 +197,7 @@ pub fn load_backup_config() -> BackupConfig {
 
 /// Persist backup config to disk.
 ///
-/// REQ: P5-svc-backup-config-svc-158
+/// REQ: P7-svc-backup-config-svc-158
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must be a valid BackupConfig
 /// post: config is written as pretty JSON to backup_config_path(); parent directories created if needed; Err on I/O or serialization failure
@@ -216,7 +216,7 @@ pub fn save_backup_config(config: &BackupConfig) -> Result<(), std::io::Error> {
 mod tests {
     use super::*;
 
-    // REQ: P5-svc-backup-config-backup-config-001 — Default config tracks nothing, keeps forever
+    // REQ: P7-svc-backup-config-backup-config-001 — Default config tracks nothing, keeps forever
     #[test]
     fn default_config_tracks_nothing() {
         let config = BackupConfig::default();
@@ -227,7 +227,7 @@ mod tests {
         assert!(config.encryption.is_none());
     }
 
-    // REQ: P5-svc-backup-config-backup-config-002 — RetentionPolicy defaults are correct
+    // REQ: P7-svc-backup-config-backup-config-002 — RetentionPolicy defaults are correct
     #[test]
     fn retention_policy_defaults() {
         let p = RetentionPolicy::default();
@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(p.weekly_weeks, 12);
     }
 
-    // REQ: P5-svc-backup-config-backup-config-003 — RetentionPolicy keeps recent snapshots
+    // REQ: P7-svc-backup-config-backup-config-003 — RetentionPolicy keeps recent snapshots
     #[test]
     fn retention_policy_keeps_recent() {
         let p = RetentionPolicy::default();

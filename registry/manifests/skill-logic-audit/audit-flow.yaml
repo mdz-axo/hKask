@@ -1,0 +1,172 @@
+manifest:
+  id: skill-logic-audit/audit-flow
+  name: skill-logic-audit
+  description: >
+    Bounded dual-layer logic audit cascade for hKask templates and manifests.
+    Loads the annotated goal, critiques the artifact against that goal, filters
+    the critique for soundness, composes a concrete revised artifact and diff,
+    and drives a bounded accept/reject/counter-proposal loop.
+  version: "0.27.0"
+  editor: hkask
+  visibility: Shared
+  functional_role: flowdef
+
+inputs:
+  - name: target_path
+    type: string
+    description: Path to the template or manifest being audited.
+    required: true
+  - name: target_content
+    type: string
+    description: Full content of the target artifact.
+    required: true
+  - name: template_type
+    type: string
+    description: j2 or manifest.
+    required: true
+  - name: loop_depth
+    type: integer
+    description: Current review-loop depth.
+    required: true
+  - name: max_depth
+    type: integer
+    description: Maximum allowed review-loop depth.
+    required: true
+  - name: user_counter_proposal
+    type: string|null
+    description: User edits supplied during a counter-proposal step.
+    required: false
+
+gas:
+  cap: 12000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+steps:
+  - ordinal: 1
+    action: populate
+    description: Parse the annotated goal block from the target artifact.
+    renderer: minijinja
+    template_ref: skill-logic-audit/load-goal
+    gas_cap: 2048
+    timeout_seconds: 30
+    input_mapping:
+      target_path: "{{ target_path }}"
+      target_content: "{{ target_content }}"
+      template_type: "{{ template_type }}"
+    output_schema:
+      type: object
+      properties:
+        goal:
+          type: string
+        goal_valid:
+          type: boolean
+
+  - ordinal: 2
+    action: populate
+    description: Adversarial critique anchored to the extracted goal.
+    renderer: minijinja
+    template_ref: skill-logic-audit/critique-template
+    gas_cap: 4096
+    timeout_seconds: 60
+    input_mapping:
+      target_path: "{{ target_path }}"
+      target_content: "{{ target_content }}"
+      template_type: "{{ template_type }}"
+      goal: "{{ ordinal_1.goal }}"
+    output_schema:
+      type: object
+      properties:
+        concerns:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+              summary:
+                type: string
+              goal_anchor:
+                type: string
+
+  - ordinal: 3
+    action: populate
+    description: Soundness filter — separate valid concerns from spurious ones.
+    renderer: minijinja
+    template_ref: skill-logic-audit/critique-critique
+    gas_cap: 2048
+    timeout_seconds: 30
+    input_mapping:
+      goal: "{{ ordinal_1.goal }}"
+      concerns: "{{ ordinal_2.concerns }}"
+    output_schema:
+      type: object
+      properties:
+        valid_concerns:
+          type: array
+          items:
+            type: object
+        spurious_concerns:
+          type: array
+          items:
+            type: object
+
+  - ordinal: 4
+    action: populate
+    description: Compose a concrete revised artifact and diff.
+    renderer: minijinja
+    template_ref: skill-logic-audit/compose-proposal
+    gas_cap: 4096
+    timeout_seconds: 60
+    input_mapping:
+      target_path: "{{ target_path }}"
+      target_content: "{{ target_content }}"
+      template_type: "{{ template_type }}"
+      goal: "{{ ordinal_1.goal }}"
+      valid_concerns: "{{ ordinal_3.valid_concerns }}"
+      user_counter_proposal: "{{ user_counter_proposal | default(null) }}"
+    output_schema:
+      type: object
+      properties:
+        revised_content:
+          type: string
+        diff:
+          type: string
+        rationale:
+          type: string
+        confidence:
+          type: number
+
+  - ordinal: 5
+    action: populate
+    description: Present the proposal and capture accept/reject/counter-proposal.
+    renderer: minijinja
+    template_ref: skill-logic-audit/user-choice
+    gas_cap: 2048
+    timeout_seconds: 30
+    input_mapping:
+      target_path: "{{ target_path }}"
+      proposal: "{{ ordinal_4.revised_content }}"
+      diff: "{{ ordinal_4.diff }}"
+      rationale: "{{ ordinal_4.rationale }}"
+      confidence: "{{ ordinal_4.confidence }}"
+      loop_depth: "{{ loop_depth }}"
+      max_depth: "{{ max_depth }}"
+    output_schema:
+      type: object
+      properties:
+        user_choice:
+          type: string
+          enum: [accept, reject, counter-proposal]
+        next_bindings:
+          type: object
+        terminal:
+          type: boolean
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 1
+  retry_backoff_seconds: 1
+  on_validation_failure: abort

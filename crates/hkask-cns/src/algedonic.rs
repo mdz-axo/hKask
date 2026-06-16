@@ -11,6 +11,7 @@
 
 use crate::runtime::VarietyTracker;
 use chrono::{DateTime, Utc};
+use hkask_rsolidity as rs;
 use hkask_types::cns::CnsHealth;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -52,6 +53,12 @@ pub struct RuntimeAlert {
 }
 
 impl RuntimeAlert {
+    #[rs::contract(
+        id = "P9-cns-algedonic-alert-new",
+        principle = "P9",
+        pre = "domain is non-empty, threshold > 0",
+        post = "returns RuntimeAlert with severity based on deficit vs threshold"
+    )]
     /// Create an alert using binary thresholds.
     ///
     /// REQ: P9-cns-algedonic-alert-new
@@ -61,6 +68,17 @@ impl RuntimeAlert {
     /// pre:  domain is non-empty, threshold > 0
     /// post: returns RuntimeAlert with severity based on deficit vs threshold
     pub fn new(domain: &str, deficit: u64, threshold: u64) -> Self {
+        rs::require!(
+            !domain.is_empty(),
+            "P9-cns-algedonic-alert-new",
+            "domain must be non-empty"
+        );
+        rs::require!(
+            threshold > 0,
+            "P9-cns-algedonic-alert-new",
+            "threshold must be > 0"
+        );
+
         let severity = if deficit > threshold {
             AlertSeverity::Critical
         } else if deficit > threshold / 2 {
@@ -69,7 +87,7 @@ impl RuntimeAlert {
             AlertSeverity::Info
         };
 
-        Self {
+        let result = Self {
             domain: domain.to_string(),
             deficit,
             threshold,
@@ -80,9 +98,24 @@ impl RuntimeAlert {
                 "Variety deficit {} in domain '{}' (threshold: {})",
                 deficit, domain, threshold
             ),
-        }
+        };
+        rs::assert!(
+            (result.severity == AlertSeverity::Critical && deficit > threshold)
+                || (result.severity == AlertSeverity::Warning
+                    && deficit > threshold / 2
+                    && deficit <= threshold)
+                || (result.severity == AlertSeverity::Info && deficit <= threshold / 2),
+            "P9-cns-algedonic-alert-new",
+            "severity must match deficit vs threshold"
+        );
+        result
     }
 
+    #[rs::contract(
+        id = "P9-cns-algedonic-alert-should-escalate",
+        principle = "P9",
+        post = "returns true iff severity is Critical"
+    )]
     /// Check if alert should be escalated.
     ///
     /// REQ: P9-cns-algedonic-alert-should-escalate
@@ -90,9 +123,20 @@ impl RuntimeAlert {
     /// \[P4\] Constraining: Clear Boundaries — binary threshold boundary check
     /// post: returns true iff severity is Critical
     pub fn should_escalate(&self) -> bool {
-        self.escalated
+        let result = self.escalated;
+        rs::assert!(
+            result == (self.severity == AlertSeverity::Critical),
+            "P9-cns-algedonic-alert-should-escalate",
+            "result must match critical severity"
+        );
+        result
     }
 
+    #[rs::contract(
+        id = "P9-cns-algedonic-alert-is-critical",
+        principle = "P9",
+        post = "returns true iff severity == Critical"
+    )]
     /// Check if alert is critical severity.
     ///
     /// REQ: P9-cns-algedonic-alert-is-critical
@@ -100,9 +144,20 @@ impl RuntimeAlert {
     /// \[P4\] Constraining: Clear Boundaries — severity boundary check
     /// post: returns true iff severity == Critical
     pub fn is_critical(&self) -> bool {
-        self.severity == AlertSeverity::Critical
+        let result = self.severity == AlertSeverity::Critical;
+        rs::assert!(
+            result == (self.severity == AlertSeverity::Critical),
+            "P9-cns-algedonic-alert-is-critical",
+            "result must match critical severity"
+        );
+        result
     }
 
+    #[rs::contract(
+        id = "P9-cns-algedonic-alert-is-warning",
+        principle = "P9",
+        post = "returns true iff severity == Warning"
+    )]
     /// Check if alert is warning severity.
     ///
     /// REQ: P9-cns-algedonic-alert-is-warning
@@ -110,7 +165,13 @@ impl RuntimeAlert {
     /// \[P4\] Constraining: Clear Boundaries — mid-range boundary check
     /// post: returns true iff severity == Warning
     pub fn is_warning(&self) -> bool {
-        self.severity == AlertSeverity::Warning
+        let result = self.severity == AlertSeverity::Warning;
+        rs::assert!(
+            result == (self.severity == AlertSeverity::Warning),
+            "P9-cns-algedonic-alert-is-warning",
+            "result must match warning severity"
+        );
+        result
     }
 }
 

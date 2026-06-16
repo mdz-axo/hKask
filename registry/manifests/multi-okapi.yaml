@@ -1,6 +1,15 @@
 # Multi-Provider Inference Configuration
 # ℏKask v0.28.0
 
+manifest:
+  id: multi-okapi
+  name: Multi-Okapi Inference
+  description: Multi-provider inference configuration for Okapi inference routing.
+  functional_role: flowdef
+  version: 0.28.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
 providers:
   - id: ollama-local
     prefix: OM

@@ -209,7 +209,7 @@ impl AgentService {
 
     /// Access configuration.
     ///
-    /// REQ: P5-svc-context-svc-245
+    /// REQ: P3-svc-context-245
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns reference to ServiceConfig
@@ -219,7 +219,7 @@ impl AgentService {
 
     /// Access the wallet service for rJoule payments and API key management.
     ///
-    /// REQ: P5-svc-context-svc-246
+    /// REQ: P3-svc-context-246
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns Some(&Arc<WalletService>) if wallet configured; None otherwise
@@ -229,7 +229,7 @@ impl AgentService {
 
     /// Access the wallet store for API key lookup and balance queries.
     ///
-    /// REQ: P5-svc-context-svc-247
+    /// REQ: P3-svc-context-247
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns Some(&Arc<WalletStore>) if wallet store configured; None otherwise
@@ -251,7 +251,7 @@ impl AgentService {
     // # REQ: P4 (Clear Boundaries)
 
     // --- Memory ---
-    /// REQ: P5-svc-context-svc-248
+    /// REQ: P3-svc-context-248
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns (&episodic_storage, &semantic_storage) tuple
@@ -262,7 +262,7 @@ impl AgentService {
     // --- Storage ---
     /// Template registry (tokio-Mutex-guarded for async lock compatibility).
     ///
-    /// REQ: P5-svc-context-svc-249
+    /// REQ: P3-svc-context-249
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<Mutex<SqliteRegistry>>
@@ -271,7 +271,7 @@ impl AgentService {
     }
     /// Goal repository.
     ///
-    /// REQ: P5-svc-context-svc-250
+    /// REQ: P3-svc-context-250
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<SqliteGoalRepository>
@@ -282,7 +282,7 @@ impl AgentService {
     // --- CNS ---
     /// CNS runtime for variety sensing and health checks.
     ///
-    /// REQ: P5-svc-context-svc-251
+    /// REQ: P3-svc-context-251
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<RwLock<CnsRuntime>>
@@ -291,7 +291,7 @@ impl AgentService {
     }
     /// Cybernetics loop for energy budget regulation.
     ///
-    /// REQ: P5-svc-context-svc-252
+    /// REQ: P3-svc-context-252
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<RwLock<CyberneticsLoop>>
@@ -300,7 +300,7 @@ impl AgentService {
     }
     /// Loop system for 6-loop regulation.
     ///
-    /// REQ: P5-svc-context-svc-253
+    /// REQ: P3-svc-context-253
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<LoopSystem>
@@ -309,7 +309,7 @@ impl AgentService {
     }
     /// CNS event sink for the audit trail.
     ///
-    /// REQ: P5-svc-context-svc-254
+    /// REQ: P3-svc-context-254
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<dyn NuEventSink>
@@ -332,7 +332,7 @@ impl AgentService {
     /// Returns a read lock on the watcher. For summary data, call
     /// `.read().await` and then `.as_ref().map(|w| w.summary())`.
     ///
-    /// REQ: P5-svc-context-svc-255
+    /// REQ: P3-svc-context-255
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<RwLock<Option<SeamWatcher>>>
@@ -343,7 +343,7 @@ impl AgentService {
     // --- Governance ---
     /// Capability checker for OCAP verification.
     ///
-    /// REQ: P5-svc-context-svc-256
+    /// REQ: P3-svc-context-256
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<CapabilityChecker>
@@ -353,7 +353,7 @@ impl AgentService {
     }
     /// MCP dispatcher for OCAP-gated tool invocation.
     ///
-    /// REQ: P5-svc-context-svc-257
+    /// REQ: P3-svc-context-257
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<McpDispatcher>
@@ -362,7 +362,7 @@ impl AgentService {
     }
     /// Escalation queue for Curator escalations.
     ///
-    /// REQ: P5-svc-context-svc-258
+    /// REQ: P3-svc-context-258
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<EscalationQueue>
@@ -373,7 +373,7 @@ impl AgentService {
     // --- Coordination ---
     /// Shared inference port (returns a clone of the `Option<Arc>`).
     ///
-    /// REQ: P5-svc-context-svc-259
+    /// REQ: P3-svc-context-259
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns Some(Arc<dyn InferencePort>) if configured; None otherwise
@@ -382,7 +382,7 @@ impl AgentService {
     }
     /// MCP runtime for tool discovery and invocation.
     ///
-    /// REQ: P5-svc-context-svc-260
+    /// REQ: P3-svc-context-260
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<McpRuntime>
@@ -391,7 +391,7 @@ impl AgentService {
     }
     /// Pod manager for agent lifecycle.
     ///
-    /// REQ: P5-svc-context-svc-261
+    /// REQ: P3-svc-context-261
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<PodManager>
@@ -402,7 +402,7 @@ impl AgentService {
     // --- Identity ---
     /// System WebID + ACP runtime.
     ///
-    /// REQ: P5-svc-context-svc-262
+    /// REQ: P3-svc-context-262
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns (&WebID, &Arc<AcpRuntime>) tuple
@@ -413,7 +413,7 @@ impl AgentService {
     /// Sovereignty: consent management service.
     /// consent_manager is PRIVATE — no raw store access.
     ///
-    /// REQ: P5-svc-context-svc-263
+    /// REQ: P3-svc-context-263
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns SovereigntyService wrapping the consent manager
@@ -431,7 +431,7 @@ impl AgentService {
 
     /// Access curation inbox transmitter.
     ///
-    /// REQ: P5-svc-context-svc-264
+    /// REQ: P3-svc-context-264
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Option<UnboundedSender<CurationInput>>
@@ -442,7 +442,7 @@ impl AgentService {
     /// Access sovereignty boundary store for Magna Carta compliance.
     /// TODO: Category 4 — migrate to service methods.
     ///
-    /// REQ: P5-svc-context-svc-265
+    /// REQ: P3-svc-context-265
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &SovereigntyBoundaryStore
@@ -455,7 +455,7 @@ impl AgentService {
     /// Access spec store for specification capture, validation, and cultivation.
     /// TODO: Move to ApiState.
     ///
-    /// REQ: P5-svc-context-svc-266
+    /// REQ: P3-svc-context-266
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &SqliteSpecStore
@@ -466,7 +466,7 @@ impl AgentService {
     /// Access agent registry store for persistent agent records.
     /// TODO: Move to ApiState.
     ///
-    /// REQ: P5-svc-context-svc-267
+    /// REQ: P3-svc-context-267
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &AgentRegistryStore
@@ -477,7 +477,7 @@ impl AgentService {
     /// Access user store for replicant identity and authentication.
     /// TODO: Move to ApiState.
     ///
-    /// REQ: P5-svc-context-svc-268
+    /// REQ: P3-svc-context-268
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<Mutex<UserStore>>
@@ -487,7 +487,7 @@ impl AgentService {
 
     /// Access daemon handler for MCP binary communication.
     ///
-    /// REQ: P5-svc-context-svc-269
+    /// REQ: P3-svc-context-269
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<ServiceDaemonHandler>
@@ -500,7 +500,7 @@ impl AgentService {
     /// Returns `None` if Matrix is not configured or Conduit is unreachable.
     /// The transport is wrapped in a Mutex because `login`/`reconnect` take `&mut self`.
     ///
-    /// REQ: P5-svc-context-svc-270
+    /// REQ: P3-svc-context-270
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns Some(&Arc<Mutex<MatrixTransport>>) if connected; None otherwise
@@ -519,7 +519,7 @@ impl AgentService {
     /// This is used by the REPL to build agent-scoped memory (separate from
     /// the shared `AgentService` memory adapted for loops).
     ///
-    /// REQ: P5-svc-context-svc-271
+    /// REQ: P3-svc-context-271
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  db must be a valid opened Database
     /// post: returns PerAgentMemory with episodic_storage, semantic_storage, and consolidation_service all sharing the same DB
@@ -562,7 +562,7 @@ impl AgentService {
 
 /// Open an escalation queue from config.
 ///
-/// REQ: P5-svc-context-svc-272
+/// REQ: P3-svc-context-272
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must have valid db_path and db_passphrase
 /// post: returns Arc<EscalationQueue> initialized from DB; Err on DB open or schema init failure
@@ -573,7 +573,7 @@ pub fn open_escalation_queue(config: &ServiceConfig) -> Result<Arc<EscalationQue
 
 /// Open a spec store from config.
 ///
-/// REQ: P5-svc-context-svc-273
+/// REQ: P3-svc-context-273
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must have valid db_path and db_passphrase
 /// post: returns SqliteSpecStore with schema initialized; Err on DB open or schema init failure
@@ -586,7 +586,7 @@ pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, Servic
 
 /// Open a consent manager from config.
 ///
-/// REQ: P5-svc-context-svc-274
+/// REQ: P3-svc-context-274
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must have valid db_path and db_passphrase
 /// post: returns (Arc<ConsentManager>, SovereigntyBoundaryStore) with schemas initialized; Err on DB open or schema init failure
@@ -609,7 +609,7 @@ pub fn open_consent_manager(
 
 /// Build an ACP runtime + agent registry store from config.
 ///
-/// REQ: P5-svc-context-svc-275
+/// REQ: P3-svc-context-275
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must have valid db_path, db_passphrase, and acp_secret
 /// post: returns (Arc<AcpRuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
@@ -640,7 +640,7 @@ impl AgentService {
     /// secrets, opens databases, constructs CNS/loop system, governed
     /// tool membrane, and session manager in the correct dependency order.
     ///
-    /// REQ: P5-svc-context-svc-276
+    /// REQ: P3-svc-context-276
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be a valid ServiceConfig with resolved secrets
     /// post: returns fully assembled AgentService with all infrastructure wired; Err on any construction step failure

@@ -48,7 +48,7 @@ impl BundleService {
     /// and produces a validated `BundleManifest`. The result is registered
     /// into the `BundleRegistryIndex` for persistence.
     ///
-    /// REQ: P5-svc-bundle-svc-200
+    /// REQ: P5-svc-bundle-200
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  skill_ids must have at least 2 entries; ctx.registry() must be initialized; inference_port must be valid
     /// post: returns BundleComposeResult with validated manifest and warnings; Err(Compose) if <2 skills, skills not found, or validation fails
@@ -226,7 +226,7 @@ impl BundleService {
 
     /// List all bundles in the registry.
     ///
-    /// REQ: P5-svc-bundle-svc-201
+    /// REQ: P5-svc-bundle-201
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.registry() must be initialized
     /// post: returns Vec<BundleManifest> of all registered bundles; empty Vec if none
@@ -238,7 +238,7 @@ impl BundleService {
 
     /// Get a bundle by ID.
     ///
-    /// REQ: P5-svc-bundle-svc-202
+    /// REQ: P5-svc-bundle-202
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.registry() must be initialized; id must be non-empty
     /// post: returns Some(BundleManifest) if found; None if not found
@@ -252,7 +252,7 @@ impl BundleService {
     ///
     /// Returns the bundle manifest if found, or `ServiceError::Compose` if not.
     ///
-    /// REQ: P5-svc-bundle-svc-203
+    /// REQ: P5-svc-bundle-203
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.registry() must be initialized; id must be non-empty
     /// post: returns BundleManifest if found; Err(Compose) if bundle not found
@@ -270,7 +270,7 @@ impl BundleService {
     /// Re-loads skill metadata, re-runs composition, and updates the manifest.
     /// Returns the evolved manifest.
     ///
-    /// REQ: P5-svc-bundle-svc-204
+    /// REQ: P5-svc-bundle-204
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.registry() must be initialized; id must reference an existing bundle; inference_port must be valid
     /// post: returns BundleComposeResult with evolved manifest; old bundle removed, new one registered; Err(Compose) if bundle not found
@@ -311,7 +311,7 @@ impl BundleService {
 
     /// Deactivate the current bundle (no-op — bundles are session-scoped).
     ///
-    /// REQ: P5-svc-bundle-svc-205
+    /// REQ: P5-svc-bundle-205
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: always returns Ok(())
@@ -321,7 +321,7 @@ impl BundleService {
 
     /// List available skills from the registry.
     ///
-    /// REQ: P5-svc-bundle-svc-206
+    /// REQ: P5-svc-bundle-206
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.registry() must be initialized
     /// post: returns Vec<Skill> of all registered skills; empty Vec if none

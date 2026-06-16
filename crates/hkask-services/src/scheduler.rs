@@ -12,7 +12,7 @@ pub struct SchedulerService;
 impl SchedulerService {
     /// Schedule a recurring task for an agent.
     ///
-    /// REQ: P5-svc-scheduler-svc-207
+    /// REQ: P7-svc-scheduler-207
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; agent_name, trigger, action, next_run must be non-empty
     /// post: task is persisted to the registry store; Err(AgentRegistryStore) on store failure
@@ -39,7 +39,7 @@ impl SchedulerService {
 
     /// List all scheduled tasks for an agent.
     ///
-    /// REQ: P5-svc-scheduler-svc-208
+    /// REQ: P7-svc-scheduler-208
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; agent_name must be non-empty
     /// post: returns Vec<ScheduledTask> for the agent; empty Vec if none; Err(AgentRegistryStore) on store failure
@@ -54,7 +54,7 @@ impl SchedulerService {
 
     /// Get all due tasks across all agents (for the curation loop).
     ///
-    /// REQ: P5-svc-scheduler-svc-209
+    /// REQ: P7-svc-scheduler-209
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; now must be a valid timestamp string
     /// post: returns Vec<ScheduledTask> of all due tasks; empty Vec if none; Err(AgentRegistryStore) on store failure
@@ -69,7 +69,7 @@ impl SchedulerService {
 
     /// Update a task's next run time after it fires.
     ///
-    /// REQ: P5-svc-scheduler-svc-210
+    /// REQ: P7-svc-scheduler-210
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; agent_name, trigger, new_next_run must be non-empty
     /// post: task's next_run is updated in the store; Err(AgentRegistryStore) on store failure

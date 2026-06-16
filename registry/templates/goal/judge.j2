@@ -1,29 +1,23 @@
-{# goal_judge.j2 — Verify goal completion via semantic evaluation #}
-{# functional_role: knowact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [evaluate, assert, ground] #}
+{# goal/judge.j2 — Verify goal completion via semantic evaluation #}
 [inference]
 template_type: KnowAct
-functional_role: KnowAct
-implementation_type: jinja2
-lexicon_terms: [evaluate, assert, ground]
+lexicon_terms:
+- evaluate
+- assert
+- ground
 contract:
   input:
     goal_text: string
     outcome_summary: string
     artifacts: array
   output:
-    verdict: "done|continue|blocked"
+    verdict: string
     reason: string
-    confidence: float
-  verification:
-    - type: semantic
-      evaluator: llm
-      criteria: "Outcome explicitly confirms goal completion"
-
+    confidence: number
+  energy_cap: 4096
+  visibility: Shared
 ---
 # Goal Judge — Completion Verification Template
-# KnowAct: evaluate, assert, ground
 
 You are a strict judge evaluating whether an autonomous agent has achieved a user's stated goal.
 
@@ -55,11 +49,9 @@ Otherwise the goal is **NOT DONE** — agent must CONTINUE.
 
 ## Your Task
 
-{{ evaluate(on="goal completion") }}
-
-{{ ground(in="observable outcome and artifacts") }}
-
-{{ assert(confidence_score) }}
+- Evaluate goal completion.
+- Ground the verdict in observable outcome and artifacts.
+- Assert a confidence score.
 
 ---
 
@@ -68,6 +60,6 @@ Reply ONLY with valid JSON:
 {
   "verdict": "done|continue|blocked",
   "reason": "One-sentence rationale",
-  "confidence": 0.0-1.0
+  "confidence": 0.0
 }
 ```

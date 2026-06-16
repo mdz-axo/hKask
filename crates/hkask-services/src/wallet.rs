@@ -54,7 +54,7 @@ pub struct WalletService {
 impl WalletService {
     /// Create a new WalletService from its components.
     ///
-    /// REQ: P5-svc-wallet-svc-279
+    /// REQ: P9-svc-wallet-279
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  manager must be a valid Arc<WalletManager>; issuer must be a valid Arc<ApiKeyIssuer>
     /// post: returns WalletService with manager and issuer wired; cybernetics and consent_manager default to None
@@ -69,7 +69,7 @@ impl WalletService {
 
     /// Attach a CyberneticsLoop for CNS wallet budget registration.
     ///
-    /// REQ: P5-svc-wallet-svc-280
+    /// REQ: P9-svc-wallet-280
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  loop_ must be a valid Arc<RwLock<CyberneticsLoop>>
     /// post: returns self with cybernetics set
@@ -85,7 +85,7 @@ impl WalletService {
     /// via `DataCategory::Custom("wallet_withdrawal")`. Without a consent manager,
     /// withdrawals proceed unchecked (backward compatible for standalone mode).
     ///
-    /// REQ: P5-svc-wallet-svc-281
+    /// REQ: P9-svc-wallet-281
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cm must be a valid Arc<ConsentManager>
     /// post: returns self with consent_manager set
@@ -97,7 +97,7 @@ impl WalletService {
 
     /// Access the underlying WalletManager (for orchestration: ensure_wallet, deposit monitor).
     ///
-    /// REQ: P5-svc-wallet-svc-282
+    /// REQ: P9-svc-wallet-282
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be constructed
     /// post: returns &Arc<WalletManager>
@@ -113,7 +113,7 @@ impl WalletService {
     /// `context.rs` calls this and handles only orchestration (replicant binding,
     /// deposit monitor spawning).
     ///
-    /// REQ: P5-svc-wallet-svc-283
+    /// REQ: P9-svc-wallet-283
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be valid; store must be initialized; event_sink must be valid; cybernetics must be valid
     /// post: returns Arc<WalletService> with chain ports, price feed, WalletManager, and ApiKeyIssuer all wired; Err on construction failure
@@ -293,7 +293,7 @@ impl WalletService {
 
     /// Get the current rJoule balance for a wallet.
     ///
-    /// REQ: P5-svc-wallet-svc-284
+    /// REQ: P9-svc-wallet-284
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid
     /// post: returns WalletBalance; Err(Wallet) on manager error
@@ -309,7 +309,7 @@ impl WalletService {
 
     /// Check if a wallet can afford a given rJoule cost.
     ///
-    /// REQ: P5-svc-wallet-svc-285
+    /// REQ: P9-svc-wallet-285
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid; cost_rj must be >= 0
     /// post: returns true if balance >= cost_rj; false otherwise; Err(Wallet) on manager error
@@ -325,7 +325,7 @@ impl WalletService {
 
     /// Ensure a wallet row exists (idempotent — creates if missing).
     ///
-    /// REQ: P5-svc-wallet-svc-286
+    /// REQ: P9-svc-wallet-286
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid
     /// post: wallet row exists in store; Ok(()) on success; Err(Wallet) on manager error
@@ -343,7 +343,7 @@ impl WalletService {
 
     /// Get or derive a deposit address for a wallet on a specific chain.
     ///
-    /// REQ: P5-svc-wallet-svc-287
+    /// REQ: P9-svc-wallet-287
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid; chain must be a configured ChainId; privacy must be a valid PrivacyMode
     /// post: returns DepositAddress; Err(Wallet) on manager error
@@ -366,7 +366,7 @@ impl WalletService {
 
     /// Generate a one-time deposit reference for shielded deposits.
     ///
-    /// REQ: P5-svc-wallet-svc-288
+    /// REQ: P9-svc-wallet-288
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid; chain must be configured; validity_hours must be > 0
     /// post: returns DepositReference with expiry; Err(Wallet) on manager error
@@ -390,7 +390,7 @@ impl WalletService {
 
     /// Get paginated transaction history for a wallet.
     ///
-    /// REQ: P5-svc-wallet-svc-289
+    /// REQ: P9-svc-wallet-289
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid; limit must be > 0
     /// post: returns Vec<WalletTransaction>; empty Vec if no transactions; Err(Wallet) on manager error
@@ -415,7 +415,7 @@ impl WalletService {
 
     /// Withdraw rJoules as USDC to a user's primary wallet address.
     ///
-    /// REQ: P5-svc-wallet-must-4 — requires P2 affirmative consent when ConsentManager is configured.
+    /// REQ: P2-svc-wallet-withdraw-consent — requires P2 affirmative consent when ConsentManager is configured.
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  webid identifies the user requesting the withdrawal
     /// post: if consent_manager is Some and consent denied → Err(ConsentDenied)
@@ -429,7 +429,7 @@ impl WalletService {
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<TxHash, ServiceError> {
-        // REQ: P5-svc-wallet-must-4-1 — P2 affirmative consent gate for withdrawal signing
+        // REQ: P2-svc-wallet-withdraw-consent-gate — P2 affirmative consent gate for withdrawal signing
         if let Some(ref cm) = self.consent_manager {
             let category = DataCategory::Custom("wallet_withdrawal".into());
             let has_consent = cm.has_consent(&webid.to_string(), &category).map_err(|e| {
@@ -475,7 +475,7 @@ impl WalletService {
 
     /// Estimate network withdrawal fee for a chain using configured price feed.
     ///
-    /// REQ: P5-svc-wallet-svc-290
+    /// REQ: P9-svc-wallet-290
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  webid must be valid; chain must be configured
     /// post: returns WithdrawalFee estimate; Err(Wallet) on manager error
@@ -500,7 +500,7 @@ impl WalletService {
 
     /// Shield transparently-held USDC into the Hinkal privacy pool.
     ///
-    /// REQ: P5-svc-wallet-svc-291
+    /// REQ: P9-svc-wallet-291
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid; amount_usdc_micro must be > 0; chain must support shielding
     /// post: returns TxHash of shield transaction; Err(Wallet) on failure
@@ -527,7 +527,7 @@ impl WalletService {
 
     /// Create a new API key with the specified limits, scope, and purpose.
     ///
-    /// REQ: P5-svc-wallet-svc-292
+    /// REQ: P9-svc-wallet-292
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid; spending_limit_rj must be >= 0; purpose must be non-empty
     /// post: returns ApiKeyMaterial with key secret; Err(Wallet) on issuer error
@@ -565,7 +565,7 @@ impl WalletService {
 
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     ///
-    /// REQ: P5-svc-wallet-svc-293
+    /// REQ: P9-svc-wallet-293
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  key_id must be a valid, non-revoked key
     /// post: key is revoked; unspent rJoules returned to wallet; Err(Wallet) on issuer error
@@ -581,7 +581,7 @@ impl WalletService {
 
     /// List active (non-revoked) API keys for a wallet.
     ///
-    /// REQ: P5-svc-wallet-svc-294
+    /// REQ: P9-svc-wallet-294
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid
     /// post: returns Vec<ApiKeyCapability> of active keys; empty Vec if none; Err(Wallet) on issuer error
@@ -597,7 +597,7 @@ impl WalletService {
 
     /// Get a single API key capability by key ID.
     ///
-    /// REQ: P5-svc-wallet-svc-295
+    /// REQ: P9-svc-wallet-295
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  key_id must be valid
     /// post: returns Some(ApiKeyCapability) if found; None if not found; Err(Wallet) on manager error
@@ -615,7 +615,7 @@ impl WalletService {
 
     /// Convert gas units to rJoules.
     ///
-    /// REQ: P5-svc-wallet-svc-296
+    /// REQ: P9-svc-wallet-296
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  gas must be >= 0
     /// post: returns RJoule equivalent using manager's conversion rate
@@ -625,7 +625,7 @@ impl WalletService {
 
     /// Convert rJoules to gas units.
     ///
-    /// REQ: P5-svc-wallet-svc-297
+    /// REQ: P9-svc-wallet-297
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  rj must be >= 0
     /// post: returns u64 gas equivalent using manager's conversion rate
@@ -641,7 +641,7 @@ impl WalletService {
     /// instead of consuming from the dimensionless gas pool.
     /// The gas→rJoule conversion rate is taken from the WalletManager's config.
     ///
-    /// REQ: P5-svc-wallet-svc-298
+    /// REQ: P9-svc-wallet-298
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cybernetics must be attached via with_cybernetics(); agent must be a valid WebID; wallet_id must be valid
     /// post: wallet-backed budget is registered in CNS for the agent; Err(Wallet) if cybernetics not attached
@@ -672,7 +672,7 @@ impl WalletService {
     /// gas consumption is debited from the key's encumbrance (not raw wallet
     /// balance). The spending limit is also tracked per-key.
     ///
-    /// REQ: P5-svc-wallet-svc-299
+    /// REQ: P9-svc-wallet-299
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cybernetics must be attached; agent must be valid; wallet_id and key_id must be valid; spending_limit_rj must be >= 0
     /// post: wallet-backed budget with API key tracking is registered in CNS; Err(Wallet) if cybernetics not attached
@@ -704,7 +704,7 @@ impl WalletService {
 
     /// Encumber rJoules from a wallet for an API key's allocation.
     ///
-    /// REQ: P5-svc-wallet-svc-300
+    /// REQ: P9-svc-wallet-300
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  wallet_id must be valid with sufficient balance; key_id must be valid; amount must be > 0
     /// post: rJoules are encumbered from wallet to key; Err(Wallet) on manager error
@@ -727,7 +727,7 @@ impl WalletService {
 
     /// Release an encumbrance, returning unspent rJoules to the wallet.
     ///
-    /// REQ: P5-svc-wallet-svc-301
+    /// REQ: P9-svc-wallet-301
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  key_id must have an active encumbrance
     /// post: encumbrance is released; unspent rJoules returned to wallet; Err(Wallet) on manager error
@@ -743,7 +743,7 @@ impl WalletService {
 
     /// Atomically consume rJoules from an API key's encumbrance.
     ///
-    /// REQ: P5-svc-wallet-svc-302
+    /// REQ: P9-svc-wallet-302
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  key_id must have sufficient encumbered balance; gas_rj must be > 0
     /// post: rJoules are atomically debited from key's encumbrance; Err(Wallet) on manager error or insufficient balance
@@ -759,7 +759,7 @@ impl WalletService {
 
     /// Get the encumbrance for an API key.
     ///
-    /// REQ: P5-svc-wallet-svc-303
+    /// REQ: P9-svc-wallet-303
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  key_id must be valid
     /// post: returns Some(Encumbrance) if key has active encumbrance; None if none; Err(Wallet) on manager error
@@ -781,7 +781,7 @@ impl WalletService {
     /// Delegates to `WalletManager::emit_key_alert`. When the manager has
     /// no event sink configured, this is a no-op (graceful degradation).
     ///
-    /// REQ: P5-svc-wallet-svc-304
+    /// REQ: P9-svc-wallet-304
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  key_id must be valid; exhausted and expired are boolean flags
     /// post: CNS alert emitted if event sink configured; no-op otherwise
@@ -1022,7 +1022,7 @@ mod tests {
         )
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-001 — get_balance returns zero for new wallet
+    // REQ: P9-svc-wallet-001 — get_balance returns zero for new wallet
     #[test]
     fn get_balance_returns_zero_for_new_wallet() {
         let svc = make_service();
@@ -1033,7 +1033,7 @@ mod tests {
         assert_eq!(balance.rjoules, 0);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-002 — gas_to_rjoules conversion
+    // REQ: P9-svc-wallet-002 — gas_to_rjoules conversion
     #[test]
     fn gas_to_rjoules_conversion() {
         let svc = make_service();
@@ -1043,7 +1043,7 @@ mod tests {
         assert_eq!(svc.gas_to_rjoules(2000).as_u64(), 2);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-003 — rjoules_to_gas conversion
+    // REQ: P9-svc-wallet-003 — rjoules_to_gas conversion
     #[test]
     fn rjoules_to_gas_conversion() {
         let svc = make_service();
@@ -1051,7 +1051,7 @@ mod tests {
         assert_eq!(svc.rjoules_to_gas(RJoule::new(5)), 5000);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-007 — estimate_withdrawal_fee returns positive fee
+    // REQ: P9-svc-wallet-007 — estimate_withdrawal_fee returns positive fee
     #[tokio::test]
     async fn estimate_withdrawal_fee_returns_positive_fee() {
         let svc = make_service();
@@ -1065,7 +1065,7 @@ mod tests {
         assert!(fee.native_units > 0.0);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-008 — actor continuity from service request to adapter-originated chain_error span
+    // REQ: P9-svc-wallet-008 — actor continuity from service request to adapter-originated chain_error span
     #[tokio::test]
     async fn withdraw_propagates_actor_into_adapter_chain_error_span() {
         set_test_master_key();
@@ -1102,7 +1102,7 @@ mod tests {
         assert_event_actor(&sink, "submit_signed_tx", &actor);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-009 — actor continuity for fee-estimation error span
+    // REQ: P9-svc-wallet-009 — actor continuity for fee-estimation error span
     #[tokio::test]
     async fn estimate_fee_error_span_preserves_request_actor() {
         set_test_master_key();
@@ -1124,7 +1124,7 @@ mod tests {
         assert_event_actor(&sink, "estimate_withdrawal_fee", &actor);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-010 — actor continuity for shielded withdraw adapter error span
+    // REQ: P9-svc-wallet-010 — actor continuity for shielded withdraw adapter error span
     #[tokio::test]
     async fn shielded_withdraw_error_span_preserves_request_actor() {
         set_test_master_key();
@@ -1158,7 +1158,7 @@ mod tests {
         assert_event_actor(&sink, "privacy_submit_signed_tx", &actor);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-004 — create_key produces valid material
+    // REQ: P9-svc-wallet-004 — create_key produces valid material
     #[test]
     fn create_key_produces_valid_material() {
         let svc = make_service();
@@ -1181,7 +1181,7 @@ mod tests {
         assert!(material.capability.spending_limit_rj.as_u64() == 5000);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-005 — list_keys returns created keys
+    // REQ: P9-svc-wallet-005 — list_keys returns created keys
     #[test]
     fn list_keys_returns_created_keys() {
         let svc = make_service();
@@ -1215,7 +1215,7 @@ mod tests {
         assert_eq!(keys.len(), 2);
     }
 
-    // REQ: P5-svc-wallet-svc-wallet-006 — revoke_key removes from active list
+    // REQ: P9-svc-wallet-006 — revoke_key removes from active list
     #[test]
     fn revoke_key_removes_from_active_list() {
         let svc = make_service();

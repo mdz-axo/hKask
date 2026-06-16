@@ -1,16 +1,11 @@
-{# goal_create.j2 — Extract structured goal from user intent #}
-{# functional_role: wordact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [pledge, commit, undertake, promise] #}
-{# goal_create.j2 — Extract structured goal from user intent #}
-{# functional_role: wordact #}
-{# implementation_type: jinja2 #}
-{# lexicon_terms: [pledge, commit, undertake, promise] #}
+{# goal/create.j2 — Extract structured goal from user intent #}
 [inference]
 template_type: WordAct
-functional_role: WordAct
-implementation_type: jinja2
-lexicon_terms: [pledge, commit, undertake, promise]
+lexicon_terms:
+- articulate
+- criteria
+- visibility
+- priority
 contract:
   input:
     user_intent: string
@@ -20,11 +15,10 @@ contract:
     criteria: array
     visibility: string
     priority: string
-  target: llm
-
+  energy_cap: 4096
+  visibility: Shared
 ---
 # Goal Creation — Intention Extraction Template
-# WordAct: pledge, commit, undertake, promise
 
 You help users articulate clear, actionable goals from their natural language intentions.
 
@@ -42,13 +36,10 @@ You help users articulate clear, actionable goals from their natural language in
 
 ## Your Task
 
-{{ pledge(to="clear goal articulation") }}
-
-{{ commit(to="observable completion criteria") }}
-
-{{ undertake(to="minimal coordination substrate") }}
-
-{{ promise(to="shared language + shared goals = collaboration") }}
+- Pledge to clear goal articulation.
+- Commit to observable completion criteria.
+- Undertake the minimal coordination substrate.
+- Promise that shared language + shared goals = collaboration.
 
 ---
 

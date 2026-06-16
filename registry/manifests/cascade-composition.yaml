@@ -1,25 +1,34 @@
 # Cascade Composition Configuration
 # ℏKask v0.21.2 - A Minimal Viable Container for Agents
 
-functional_role: flowdef
+manifest:
+  id: cascade-composition
+  name: Cascade Composition
+  description: >
+    Cascade composition configuration for template execution limits,
+    cycle detection, and template pre/post processing.
+  functional_role: flowdef
+  version: 0.21.2
+  editor: curator-or-human-admin
+  visibility: Shared
 
 # Cascade execution limits
 cascade_limits:
   # Maximum recursion depth (Miller's law: 7 ± 2)
   max_depth: 7
-  
+
   # Energy budget per cascade level
   energy_per_level: 1000
-  
+
   # Timeout per cascade level (milliseconds)
   timeout_ms: 10000
 
 # Cycle detection configuration
 cycle_detection:
   enabled: true
-  algorithm: dfs  # depth-first search
+  algorithm: dfs # depth-first search
   max_path_length: 20
-  
+
   # Action on cycle detection
   on_cycle_detected: error_with_path
 
@@ -31,12 +40,12 @@ template_cascade:
       templates:
         - template/validate_input
       condition: "input.requires_validation"
-    
+
     - name: context_enrichment
       templates:
         - template/enrich_context
       condition: "context.available"
-  
+
   # Core processing templates
   core:
     - name: main_execution
@@ -44,20 +53,20 @@ template_cascade:
         - template/render
         - template/execute
       condition: "capabilities.valid"
-    
+
     - name: sub_delegation
       templates:
         - template/delegate
       condition: "delegation.required"
       max_sub_depth: 3
-  
+
   # Post-processing templates
   post:
     - name: output_validation
       templates:
         - template/validate_output
       condition: "output.requires_validation"
-    
+
     - name: result_caching
       templates:
         - template/cache_result
@@ -69,21 +78,21 @@ manifest_cascade:
   sub_process:
     enabled: true
     max_depth: 5
-    
+
     # Inheritance rules
     inheritance:
-      capabilities: attenuate  # pass, attenuate, block
-      energy: proportional  # full, proportional, fixed
-      context: inherit  # inherit, isolate, merge
-  
+      capabilities: attenuate # pass, attenuate, block
+      energy: proportional # full, proportional, fixed
+      context: inherit # inherit, isolate, merge
+
   # Parallel execution
   parallel:
     enabled: true
     max_concurrent: 4
-    
+
     # Synchronization
     sync:
-      strategy: barrier  # barrier, async, ordered
+      strategy: barrier # barrier, async, ordered
       timeout_ms: 30000
 
 # Energy management
@@ -92,13 +101,13 @@ gas:
   budget:
     total_per_cascade: 50000
     reserve_percent: 10
-  
+
   # Degradation strategy
   degradation:
     at_80_percent: skip_optional_stages
     at_90_percent: disable_caching
     at_95_percent: curator_escalation
-  
+
   # Tracking
   tracking:
     emit_cns_spans: true
@@ -111,12 +120,12 @@ capabilities:
   attenuation:
     on_dispatch: decrement_level
     max_attenuation_level: 7
-    
+
     # Minimum required capabilities
     minimum:
       - tool:execute
       - template:render
-  
+
   # Validation
   validation:
     check_on_each_call: true
@@ -129,14 +138,14 @@ cns_feedback:
     emit_on_stage_start: true
     emit_on_stage_complete: true
     emit_on_error: true
-  
+
   # Variety tracking
   variety:
     track_template_diversity: true
     track_manifest_diversity: true
     alert_on_low_variety: true
     variety_threshold: 100
-  
+
   # Calibration
   calibration:
     adjust_timeout_on_failure: true
