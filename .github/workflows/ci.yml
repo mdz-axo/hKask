@@ -184,11 +184,11 @@ jobs:
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
 
-      - name: Run cybernetic tests (cyber_ prefix)
+      - name: Run cybernetic tests (cyber prefix)
         run: |
-          cargo test -p hkask-cns cyber_
-          cargo test -p hkask-mcp cyber_
-          cargo test -p hkask-memory cyber_
+          cargo test -p hkask-cns cyber
+          cargo test -p hkask-mcp cyber
+          cargo test -p hkask-memory cyber
 
   # ============================================================================
   # Security Invariant Verification
