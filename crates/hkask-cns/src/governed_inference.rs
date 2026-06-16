@@ -17,7 +17,7 @@
 
 use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::EnergyCost;
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;

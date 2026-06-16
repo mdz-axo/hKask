@@ -4,7 +4,8 @@ use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::id::{TripleID, WebID};
 use hkask_types::ports::git_cas::TripleEntry;
-use hkask_types::{AccessControl, Confidence, InfrastructureError, TemporalBounds, Visibility};
+use hkask_types::visibility::{AccessControl, TemporalBounds};
+use hkask_types::{Confidence, InfrastructureError, Visibility};
 use serde_json::Value;
 use thiserror::Error;
 

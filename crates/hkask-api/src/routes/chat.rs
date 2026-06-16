@@ -18,7 +18,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
 use hkask_services::{ChatRequest as ServiceChatRequest, ChatService};
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

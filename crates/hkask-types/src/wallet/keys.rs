@@ -70,12 +70,27 @@ impl ApiKeyCapability {
 ///
 /// The `private_key_hex` IS the API key — the user stores this and presents it
 /// as a Bearer token. It is shown exactly once at creation time.
+///
+/// # Security `[OUGHT-DECL]`
+/// Debug output redacts `private_key_hex` to prevent accidental key leakage
+/// in logs, error messages, or debug formatting (MUST-2).
 pub struct ApiKeyMaterial {
     pub key_id: ApiKeyId,
     /// Ed25519 private key, hex-encoded — THIS IS THE API KEY
     pub private_key_hex: String,
     /// Public metadata about the key (limits, expiry, privacy mode)
     pub capability: ApiKeyCapability,
+}
+
+// REQ: MUST-2 — Debug impl redacts private key material
+impl fmt::Debug for ApiKeyMaterial {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ApiKeyMaterial")
+            .field("key_id", &self.key_id)
+            .field("private_key_hex", &"[REDACTED]")
+            .field("capability", &self.capability)
+            .finish()
+    }
 }
 
 // ── EncumbranceStatus — lifecycle of an rJoule lock ────────────────────────────

@@ -4,7 +4,7 @@ use crate::cli::TemplateAction;
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_services::ServiceError;
 use hkask_templates::SqliteRegistry;
-use hkask_types::TemplateType;
+use hkask_types::lexicon::TemplateType;
 use hkask_types::ports::{RegistryEntry, RegistryIndex};
 use serde_json::Value;
 

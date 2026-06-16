@@ -1,9 +1,9 @@
 //! OS keychain integration
 
 use ed25519_dalek::Signer;
-use hkask_types::SecretRef;
 use hkask_types::WebID;
-use hkask_types::derivation_contexts;
+use hkask_types::secret::SecretRef;
+use hkask_types::secret::derivation_contexts;
 use hkask_types::wallet::{ApiKeyCapability, ChainId};
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;

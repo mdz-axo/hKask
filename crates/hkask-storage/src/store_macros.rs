@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 // (Kept as a re-export inside the macro module so the path
 // `crate::store_macros::now_rfc3339` still resolves for any caller that
 // reaches for the canonical implementation directly.)
-pub use hkask_types::now_rfc3339;
+pub use hkask_types::time::now_rfc3339;
 
 /// Shared trait for all SQLite-backed stores.
 ///

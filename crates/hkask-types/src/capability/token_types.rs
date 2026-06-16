@@ -19,7 +19,7 @@ pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 /// [NORMATIVE] Typed attenuation level (0..SYSTEM_MAX_RECURSION). New code should use this over raw `u8`. (P5 — Essentialism).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct AttenuationLevel(u8);
+pub(crate) struct AttenuationLevel(u8);
 
 impl AttenuationLevel {
     pub fn new(level: u8) -> Result<Self, AttenuationError> {
@@ -51,7 +51,7 @@ impl std::fmt::Display for AttenuationLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum AttenuationError {
+pub(crate) enum AttenuationError {
     #[error("attenuation level {level} exceeds system maximum {max}")]
     ExceedsSystemMax { level: u8, max: u8 },
 }
@@ -80,7 +80,7 @@ pub(crate) struct Caveat {
 /// [NORMATIVE] Wraps a 64-byte Ed25519 signature. Verification uses the
 /// token's `public_key` field — no shared secret required (P4 — Clear Boundaries).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct TokenSignature(#[serde(with = "hex::serde")] pub [u8; 64]);
+pub(crate) struct TokenSignature(#[serde(with = "hex::serde")] pub [u8; 64]);
 
 /// Ed25519-signed OCAP token for inter-agent capability delegation.
 ///
@@ -289,6 +289,11 @@ impl DelegationToken {
         }
         let signature = ed25519_dalek::Signature::from_bytes(&self.signature.0);
         verifying_key.verify(&buf, &signature).is_ok()
+    }
+
+    /// Raw Ed25519 signature bytes (64 bytes).
+    pub fn signature_bytes(&self) -> &[u8; 64] {
+        &self.signature.0
     }
 
     pub fn is_expired(&self, current_time: i64) -> bool {

@@ -29,6 +29,7 @@ use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::wallet::{ApiKeyId, RJoule, WalletId};
 use std::sync::Arc;
+use subtle::ConstantTimeEq;
 
 /// Wallet context attached to authenticated requests.
 #[derive(Debug, Clone)]
@@ -102,6 +103,13 @@ impl ApiKeyAuthService {
             .get_api_key_by_public_key(&public_key_bytes)
             .map_err(|_| ApiKeyAuthError::StoreError)?
             .ok_or(ApiKeyAuthError::UnknownApiKey)?;
+
+        // REQ: MUST-6 — constant-time public key verification (defense-in-depth)
+        // The DB query already matches by public_key, but a constant-time comparison
+        // protects against hypothetical DB corruption or timing side-channels.
+        if bool::from(capability.public_key.as_bytes().ct_eq(&public_key_bytes)) == false {
+            return Err(ApiKeyAuthError::UnknownApiKey);
+        }
 
         // Verify key is not expired
         if let Some(expiry) = capability.expiry

@@ -12,7 +12,7 @@ use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
 use crate::ollama_backend::OllamaBackend;
 use crate::together_backend::TogetherBackend;
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
 use std::pin::Pin;
 use tracing::warn;

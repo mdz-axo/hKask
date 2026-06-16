@@ -9,7 +9,7 @@ use crate::chat_protocol::{
 };
 use crate::config::InferenceConfig;
 use futures_util::StreamExt;
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 use hkask_types::ports::{InferenceError, InferenceResult, InferenceStreamChunk};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

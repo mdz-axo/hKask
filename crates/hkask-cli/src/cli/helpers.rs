@@ -1,6 +1,6 @@
 //! CLI helper utilities
 
-use hkask_types::TemplateType as Type;
+use hkask_types::lexicon::TemplateType as Type;
 
 /// Parse a string into a DataCategory (delegates to DataCategory::parse)
 pub fn parse_data_category(s: &str) -> hkask_types::DataCategory {

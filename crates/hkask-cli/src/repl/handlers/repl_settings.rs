@@ -5,7 +5,7 @@
 //! inference parameter that was previously hardcoded.
 
 use super::super::ReplState;
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 
 /// Show all REPL settings.
 pub(crate) fn handle_repl_show(state: &ReplState) {

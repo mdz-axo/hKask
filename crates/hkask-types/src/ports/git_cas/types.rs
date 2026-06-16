@@ -2,7 +2,7 @@
 //!
 //! Content is addressed by BLAKE3 hash. Snapshots are git commits.
 
-use crate::blake3_hash;
+use crate::text::blake3_hash;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

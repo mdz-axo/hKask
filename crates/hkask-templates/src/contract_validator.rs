@@ -9,7 +9,7 @@
 //! ensuring template metadata is consistent with the hLexicon vocabulary.
 
 use crate::ports::TemplateError;
-use hkask_types::HLexicon;
+use hkask_types::lexicon::HLexicon;
 
 /// Validation mode — controls whether unknown terms cause hard or soft rejection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

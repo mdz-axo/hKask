@@ -1,35 +1,63 @@
+# hKask — cargo-deny configuration for supply-chain audit
+# REQ: SHOULD-5 — cargo-deny in CI for dependency license and security auditing
+#
+# Run: cargo deny check
+
+[graph]
+all-features = true
+no-default-features = false
+
 [advisories]
-version = 2
+vulnerability = "deny"
+unmaintained = "warn"
+unsound = "deny"
+yanked = "deny"
+notice = "warn"
 ignore = [
     { id = "RUSTSEC-2024-0436", reason = "paste is unmaintained but has no safe upgrade; transitive dep of utoipa-axum" },
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 is unmaintained; transitive dep of aquamarine→matrix-sdk→hkask-communication; no safe upgrade" },
 ]
 
 [licenses]
-version = 2
-allow = [
-    "MIT",
-    "Apache-2.0",
-    "BSD-2-Clause",
-    "BSD-3-Clause",
-    "ISC",
-    "Zlib",
-    "Unicode-3.0",
-    "MPL-2.0",
-    "BSL-1.0",
-    "CDLA-Permissive-2.0",
-    "NCSA",
+unlicensed = "deny"
+allow-osi-fsf-free = "either"
+copyleft = "deny"
+default = "deny"
+confidence-threshold = 0.8
+exceptions = [
+    # Each exception entry is { name = "crate-name", version = "*" (or specific), allow = ["license-id"] }
 ]
 
-exceptions = [
-    { name = "face_id", version = "*", allow = ["MIT"] },
-    { name = "nom-exif", version = "*", allow = ["MIT"] },
-]
+[[licenses.clarify]]
+name = "ring"
+expression = "ISC AND MIT AND OpenSSL"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 [bans]
 multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+
+# Forbidden dependencies per wallet spec §4.5
+[[bans.deny]]
+name = "openssl"
+wrappers = []
+
+[[bans.deny]]
+name = "openssl-sys"
+wrappers = []
+
+[[bans.deny]]
+name = "libsodium"
+wrappers = []
+
+[[bans.deny]]
+name = "libsodium-sys"
+wrappers = []
 
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

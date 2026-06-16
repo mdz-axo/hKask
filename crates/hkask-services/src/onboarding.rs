@@ -176,7 +176,7 @@ impl OnboardingService {
 
         let registered = RegisteredAgent {
             definition,
-            token_hash: hex::encode(token.signature.0),
+            token_hash: hex::encode(token.signature_bytes()),
             registered_at: now_rfc3339(),
             source_yaml: "onboarding".to_string(),
         };

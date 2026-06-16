@@ -12,8 +12,9 @@ use hkask_storage::WalletStore;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{
-    ApiKeyId, ChainId, DepositAddress, DepositReference, Encumbrance, PrivacyMode, RJoule,
-    TransactionType, TxHash, WalletBalance, WalletConfig, WalletError, WalletId, WalletTransaction,
+    ApiKeyId, ChainId, DepositAddress, DepositReference, Encumbrance, EncumbranceStatus,
+    PrivacyMode, RJoule, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError,
+    WalletId, WalletTransaction,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -646,11 +647,13 @@ impl WalletManager {
     ) -> Result<DepositReference, WalletError> {
         let nonce: [u8; 16] = rand::random();
         let expiry = Utc::now() + validity_duration;
+        // REQ: MUST-3 — HKDF context includes nonce to bind reference to its specific random nonce
         let context = format!(
-            "hkask:deposit-ref:{}:{}:{}",
+            "hkask:deposit-ref:{}:{}:{}:{}",
             wallet_id,
             chain,
-            expiry.timestamp()
+            expiry.timestamp(),
+            hex::encode(nonce)
         );
         // HKDF-expand from wallet seed
         let ref_bytes = hkdf_expand(&*self.wallet_seed, context.as_bytes())?;
@@ -1175,6 +1178,89 @@ mod tests {
             capability.spent_rj.as_u64(),
             0,
             "spent_rj tracked at DB level"
+        );
+    }
+
+    // REQ: MUST-10 — EncumbranceStatus state machine: Released cannot transition back to Active
+    // Proves that once an encumbrance is released, no operation can re-activate it.
+    #[test]
+    fn encumbrance_status_state_machine_no_released_to_active() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let mgr = make_manager();
+        let wallet_id = WalletId::from_name("state_machine_test");
+        mgr.store.ensure_wallet(wallet_id).unwrap();
+        mgr.store
+            .credit_rjoules(wallet_id, RJoule::new(10_000))
+            .unwrap();
+
+        // Create a key and encumber rJoules
+        let issuer = ApiKeyIssuer::new(Arc::clone(&mgr.store)).unwrap();
+        let material = issuer
+            .create_key(
+                wallet_id,
+                RJoule::new(5_000),
+                None,
+                PrivacyMode::Transparent,
+                None,
+                vec![],
+                "state machine test key".into(),
+                None,
+            )
+            .unwrap();
+        let key_id = material.key_id;
+
+        // Encumber 2000 rJ
+        mgr.encumber(wallet_id, key_id, RJoule::new(2_000)).unwrap();
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert!(enc.is_active(), "initial state: Active");
+
+        // Consume some
+        mgr.consume(key_id, RJoule::new(500)).unwrap();
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert!(enc.is_active(), "still Active after partial consume");
+
+        // Release the encumbrance
+        mgr.release_encumbrance(key_id).unwrap();
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert!(!enc.is_active(), "state after release: Released");
+        assert_eq!(enc.status, EncumbranceStatus::Released);
+
+        // Attempt to consume from Released encumbrance — MUST fail
+        let result = mgr.consume(key_id, RJoule::new(100));
+        assert!(result.is_err(), "consume on Released encumbrance must fail");
+        match result {
+            Err(WalletError::EncumbranceNotFound { .. }) => {} // expected
+            other => panic!("expected EncumbranceNotFound, got {:?}", other),
+        }
+
+        // Verify encumbrance is still Released (not re-activated)
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert_eq!(
+            enc.status,
+            EncumbranceStatus::Released,
+            "status remains Released"
+        );
+
+        // Attempt to release again — idempotent, no error
+        mgr.release_encumbrance(key_id).unwrap();
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert_eq!(
+            enc.status,
+            EncumbranceStatus::Released,
+            "double release is idempotent"
+        );
+
+        // Verify wallet balance: 10_000 - 2_000 (encumbered) + 1_500 (unspent returned) = 9_500
+        let balance = mgr.get_balance(wallet_id).unwrap();
+        assert_eq!(
+            balance.rjoules, 9_500,
+            "wallet balance after release + refund"
         );
     }
 }

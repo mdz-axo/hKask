@@ -8,7 +8,7 @@
 //! an abstraction layer. Each backend owns its HTTP client, auth, and
 //! model listing endpoint independently.
 
-use hkask_types::LLMParameters;
+use hkask_types::template::LLMParameters;
 use hkask_types::ports::{
     InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage, StructuredToolCall,
     TokenProb, TokenProbability,

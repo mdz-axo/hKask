@@ -3,8 +3,9 @@
 use crate::Store;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
+use hkask_types::identity::{HumanUser, ReplicantIdentity, UserSession};
 use hkask_types::wallet::WalletId;
-use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession};
+use hkask_types::{InfrastructureError, UserID};
 use rand::RngCore;
 use rusqlite::params;
 use thiserror::Error;

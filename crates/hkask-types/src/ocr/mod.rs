@@ -2,7 +2,6 @@ pub mod cns;
 pub mod config;
 pub mod document;
 
-pub use cns::*;
 pub use config::*;
 pub use document::*;
 

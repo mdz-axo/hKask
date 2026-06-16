@@ -8,10 +8,11 @@
 //! - `deposit_references` — one-time shielded deposit references (anti-replay)
 
 use crate::Store;
+use hkask_types::time::now_rfc3339;
 use hkask_types::{
     ApiKeyCapability, ApiKeyId, ChainId, DepositAddress, DepositReference, Ed25519PublicKey,
     Encumbrance, EncumbranceStatus, InfrastructureError, PrivacyMode, RJoule, RateLimitConfig,
-    TransactionType, WalletBalance, WalletError, WalletId, WalletTransaction, now_rfc3339,
+    TransactionType, WalletBalance, WalletError, WalletId, WalletTransaction,
 };
 use rusqlite::OptionalExtension;
 use std::str::FromStr;

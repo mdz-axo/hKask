@@ -107,11 +107,13 @@ impl ApiKeyIssuer {
         rate_limit: Option<RateLimitConfig>,
     ) -> Result<ApiKeyMaterial, WalletError> {
         // Generate fresh Ed25519 keypair for this API key
+        // REQ: MUST-8 — key generation seed wrapped in Zeroizing for automatic zeroize on drop
         let mut rng = rand::rng();
-        let mut seed = [0u8; 32];
-        rng.fill(&mut seed);
-        let signing_key = SigningKey::from_bytes(&seed);
+        let mut seed = Zeroizing::new([0u8; 32]);
+        rng.fill(&mut *seed);
+        let signing_key = SigningKey::from_bytes(&*seed);
         let private_key_bytes = signing_key.to_bytes();
+        // seed (Zeroizing) drops here → key material zeroized
         let public_key = Ed25519PublicKey(signing_key.verifying_key().to_bytes());
 
         let key_id = ApiKeyId::new();

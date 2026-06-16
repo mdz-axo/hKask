@@ -31,7 +31,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use hkask_types::SecretRef;
+use hkask_types::secret::SecretRef;
 
 /// Two-letter provider identifier for inference routing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

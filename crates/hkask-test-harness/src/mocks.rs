@@ -7,8 +7,8 @@
 //! - P5 (Essentialism): each mock does one thing well
 //! - P8 (Semantic Grounding): mock responses are deterministic and verifiable
 
-use hkask_types::LLMParameters;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceUsage};
+use hkask_types::template::LLMParameters;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Mutex;
@@ -161,7 +161,7 @@ impl InferencePort for MockInferencePort {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::LLMParameters;
+    use hkask_types::template::LLMParameters;
 
     fn test_params() -> LLMParameters {
         LLMParameters::default()

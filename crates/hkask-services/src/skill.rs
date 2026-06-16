@@ -109,7 +109,7 @@ pub fn read_skill_visibility(skill_md_path: &Path) -> Visibility {
 /// Compute BLAKE3 hash of a SKILL.md file's contents.
 fn compute_content_hash(skill_md_path: &Path) -> Option<String> {
     let content = fs::read_to_string(skill_md_path).ok()?;
-    let hash = hkask_types::blake3_hash(content.as_bytes());
+    let hash = hkask_types::text::blake3_hash(content.as_bytes());
     Some(hex::encode(hash))
 }
 
@@ -123,7 +123,7 @@ pub fn read_skill_namespace(skill_md_path: &Path) -> Option<String> {
 /// Compute BLAKE3 hash of an arbitrary file's contents.
 pub fn compute_file_hash(path: &Path) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
-    let hash = hkask_types::blake3_hash(content.as_bytes());
+    let hash = hkask_types::text::blake3_hash(content.as_bytes());
     Some(hex::encode(hash))
 }
 

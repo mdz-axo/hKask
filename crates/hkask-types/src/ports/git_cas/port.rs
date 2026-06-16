@@ -2,7 +2,7 @@
 
 use super::error::GitCasError;
 use super::types::{CommitHash, ContentHash, FileDiff, RepoId, TreeEntry, TreeEntryKind};
-use crate::blake3_hash;
+use crate::text::blake3_hash;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
