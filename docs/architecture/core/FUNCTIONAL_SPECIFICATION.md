@@ -312,67 +312,115 @@ These domains are documented here for completeness but are not part of the CNS c
 **Crate:** `hkask-wallet`
 **Sources:** `src/manager.rs`, `src/issuer.rs`, `src/signing.rs`, `src/hinkal.rs`, `src/price_feed.rs`, `src/hedera.rs`, `src/solana.rs`, `tests/hinkal_adapter.rs`
 
-#### Production Contracts (23 occurrences, 11 unique IDs)
+#### Production Contracts (27)
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-W1 | `P9-wlt-mgr-build` | `WalletManager` struct + `WalletManager::build(...)` | [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor; [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized |
-| FR-W2 | `P9-wlt-mgr-balance` | `WalletManager::get_balance(wallet_id)` | [P9] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state; [P8] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically |
-| FR-W3 | `P9-wlt-mgr-api-key-get` | `WalletManager::get_api_key(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops; [P4] Constraining: Clear Boundaries — revoked keys are excluded |
-| FR-W4 | `P9-wlt-mgr-reserve-settle` | `WalletManager::can_afford`, `reserve_rjoules`, `settle_rjoules` | [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
-| FR-W5 | `P9-wlt-mgr-encumbrance` | `WalletManager::encumber`, `release_encumbrance`, `consume`, `get_encumbrance` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
-| FR-W6 | `P9-wlt-issuer-key-lifecycle` | `ApiKeyIssuer` struct + `new`, `create_key`, `revoke_key`, `list_keys` | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued; [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries; [P1] Constraining: User Sovereignty — private keys are returned once and never stored |
-| FR-W7 | `P9-wlt-sign-withdrawal` | `sign_withdrawal`, `sign_capability` | [P9] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow; [P1] Constraining: User Sovereignty — treasury key derived from user master key; [P4] Constraining: Clear Boundaries — key material never leaves this module |
-| FR-W8 | `P9-wlt-sign-hinkal-message` | `sign_message(message)` | [P9] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow; [P4] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin |
-| FR-W9 | `P9-wlt-mgr-chain-error-span` | `WalletManager::emit_chain_error_for_actor` | [P9] Motivating: Homeostatic Self-Regulation — chain errors feed the CNS sense loop; [P12] Constraining: Replicant Host Mandate — actor identity is recorded |
-| FR-W10 | `P9-wlt-mgr-fee-estimate` | `WalletManager::estimate_withdrawal_fee` | [P9] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal; [P8] Constraining: Semantic Grounding — derived from live/native USD rate |
-| FR-W11 | `P9-wlt-hinkal-port-new` | `HinkalPort::new` | [P9] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop; [P4] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey |
+| FR-W1 | `P9-wallet-mgr-struct` | `WalletManager` struct | [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor; [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized |
+| FR-W2 | `P9-wallet-mgr-build` | `WalletManager::build(...)` | [P9] Motivating: Homeostatic Self-Regulation — wallet construction; [P1] Constraining: User Sovereignty — wallet_seed resolved and zeroized |
+| FR-W3 | `P9-wallet-mgr-balance` | `WalletManager::get_balance(wallet_id)` | [P9] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state; [P8] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically |
+| FR-W4 | `P9-wallet-mgr-api-key-get` | `WalletManager::get_api_key(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops; [P4] Constraining: Clear Boundaries — revoked keys are excluded |
+| FR-W5 | `P9-wallet-mgr-chain-error-span` | `WalletManager::emit_chain_error_for_actor` | [P9] Motivating: Homeostatic Self-Regulation — chain errors feed the CNS sense loop; [P12] Constraining: Subscriber Consent — actor identity is recorded |
+| FR-W6 | `P9-wallet-mgr-can-afford` | `WalletManager::can_afford(wallet_id, cost_rj)` | [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
+| FR-W7 | `P9-wallet-mgr-reserve` | `WalletManager::reserve_rjoules(wallet_id, amount)` | [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
+| FR-W8 | `P9-wallet-mgr-settle` | `WalletManager::settle_rjoules(wallet_id, reserved, actual)` | [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
+| FR-W9 | `P9-wallet-mgr-encumber` | `WalletManager::encumber(wallet_id, key_id, amount)` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W10 | `P9-wallet-mgr-release-encumbrance` | `WalletManager::release_encumbrance(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W11 | `P9-wallet-mgr-consume` | `WalletManager::consume(key_id, gas_rj)` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W12 | `P9-wallet-mgr-get-encumbrance` | `WalletManager::get_encumbrance(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W13 | `P9-wallet-mgr-fee-estimate` | `WalletManager::estimate_withdrawal_fee` | [P9] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal; [P8] Constraining: Semantic Grounding — derived from live/native USD rate |
+| FR-W14 | `P9-wallet-mgr-key-alert-span` | `WalletManager::emit_key_alert` | [P9] Motivating: Homeostatic Self-Regulation — algedonic feedback closure for API key lifecycle; [P12] Constraining: Subscriber Consent — emits span only if sink subscribed |
+| FR-W15 | `P9-wallet-mgr-deposit-ref-nonce` | `WalletManager::generate_deposit_reference` HKDF context | [P9] Motivating: Homeostatic Self-Regulation — deposit attribution supports energy inflow; [P4] Constraining: Clear Boundaries — nonce binds reference to specific invocation |
+| FR-W16 | `P9-wallet-issuer-struct` | `ApiKeyIssuer` struct | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued; [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries; [P1] Constraining: User Sovereignty — private keys are returned once and never stored |
+| FR-W17 | `P9-wallet-issuer-new` | `ApiKeyIssuer::new(store)` | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P1] Constraining: User Sovereignty — wallet_seed resolved and zeroized |
+| FR-W18 | `P9-wallet-issuer-create-key` | `ApiKeyIssuer::create_key(...)` | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued; [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries; [P1] Constraining: User Sovereignty — private keys are returned once and never stored |
+| FR-W19 | `P9-wallet-issuer-revoke-key` | `ApiKeyIssuer::revoke_key(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — revocable capabilities; [P1] Constraining: User Sovereignty — unspent balance returned |
+| FR-W20 | `P9-wallet-issuer-list-keys` | `ApiKeyIssuer::list_keys(wallet_id)` | [P9] Motivating: Homeostatic Self-Regulation — API key inventory for feedback loops; [P4] Constraining: Clear Boundaries — only active keys returned |
+| FR-W21 | `P9-wallet-issuer-zeroize-seed` | `ApiKeyIssuer::create_key` key generation | [P1] Constraining: User Sovereignty — Ed25519 seed wrapped in Zeroizing for automatic zeroize on drop |
+| FR-W22 | `P9-wallet-sign-withdrawal` | `sign_withdrawal(chain, tx_bytes)` | [P9] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow; [P1] Constraining: User Sovereignty — treasury key derived from user master key; [P4] Constraining: Clear Boundaries — key material never leaves this module |
+| FR-W23 | `P9-wallet-sign-hinkal-message` | `sign_message(message)` | [P9] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow; [P4] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin |
+| FR-W24 | `P9-wallet-sign-capability` | `sign_capability(capability)` | [P9] Motivating: Homeostatic Self-Regulation — signing authorizes API key capability; [P1] Constraining: User Sovereignty — treasury key derived from user master key; [P4] Constraining: Clear Boundaries — key material never leaves this module |
+| FR-W25 | `P2-wallet-signing-debug-redact` | `LoadedKey` Debug impl | [P2] Constraining: Affirmative Consent — key material redacted from debug output |
+| FR-W26 | `P2-wallet-signing-key-boundary` | `LoadedKey` never leaves `signing.rs` | [P2] Constraining: Affirmative Consent — no un-zeroized key material crosses module boundary |
+| FR-W27 | `P9-wallet-hinkal-port-new` | `HinkalPort::new` | [P9] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop; [P4] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey |
 
-#### Test Contracts (32)
+#### Test Contracts (36)
 
 | FR# | Contract ID | Test Name |
 |-----|------------|-----------|
-| FR-W-T1 | `P9-wlt-mgr-gas-to-rjoules-test` | gas_to_rjoules_conversion |
-| FR-W-T2 | `P9-wlt-mgr-rjoules-to-gas-test` | rjoules_to_gas_conversion |
-| FR-W-T3 | `P9-wlt-mgr-fee-estimate-test` | estimate_withdrawal_fee_uses_price_feed |
-| FR-W-T4 | `P9-wlt-mgr-can-afford-test` | can_afford_checks_balance |
-| FR-W-T5 | `P9-wlt-mgr-reserve-insufficient-test` | reserve_rejects_insufficient_balance |
-| FR-W-T6 | `P9-wlt-mgr-settle-debits-test` | settle_debits_actual_cost |
-| FR-W-T7 | `P9-wlt-mgr-deposit-reference-test` | deposit_reference_generation |
-| FR-W-T8 | `P9-wlt-mgr-balance-conservation-pbt` | balance_conservation_under_encumbrance_lifecycle |
-| FR-W-T9 | `P9-wlt-mgr-deposit-monitor-idempotent-test` | deposit_monitor_credits_and_is_idempotent |
-| FR-W-T10 | `P9-wlt-mgr-payment-lifecycle-test` | end_to_end_payment_lifecycle |
-| FR-W-T11 | `P9-wlt-mgr-withdraw-pipeline-test` | withdraw_full_pipeline_success |
-| FR-W-T12 | `P9-wlt-mgr-withdraw-insufficient-test` | withdraw_rejects_insufficient_balance |
-| FR-W-T13 | `P9-wlt-mgr-withdraw-unsupported-chain-test` | withdraw_rejects_unsupported_chain |
-| FR-W-T14 | `P9-wlt-mgr-multi-chain-deposit-test` | poll_deposits_once_multi_chain |
-| FR-W-T15 | `P9-wlt-mgr-shielded-deposit-test` | shield_assets_uses_privacy_path |
-| FR-W-T16 | `P9-wlt-issuer-create-key-test` | create_key_produces_valid_keypair |
-| FR-W-T17 | `P9-wlt-issuer-expiry-test` | create_key_with_expiry |
-| FR-W-T18 | `P9-wlt-issuer-revoke-test` | revoke_key_returns_unspent_rjoules |
-| FR-W-T19 | `P9-wlt-issuer-list-keys-test` | list_keys_returns_active_keys |
-| FR-W-T20 | `P9-wlt-sign-withdrawal-signature-test` | sign_withdrawal_produces_signature |
-| FR-W-T21 | `P9-wlt-sign-withdrawal-chain-test` | sign_withdrawal_differs_per_chain |
-| FR-W-T22 | `P9-wlt-sign-capability-hex-test` | sign_capability_produces_hex_signature |
-| FR-W-T23 | `P9-wlt-sign-all-chains-test` | sign_withdrawal_all_chains |
-| FR-W-T24 | `P9-wlt-sign-empty-tx-test` | sign_withdrawal_empty_tx_bytes |
-| FR-W-T25 | `P9-wlt-sign-message-test` | sign_message_produces_signature |
-| FR-W-T26 | `P9-wlt-sign-tamper-test` | sign_capability_tampered_produces_different_signature |
-| FR-W-T27 | `P9-wlt-price-static-rate-test` | static_price_feed_returns_expected_rates |
-| FR-W-T28 | `P9-wlt-price-fee-nonzero-test` | fee_estimation_produces_non_zero_fee |
-| FR-W-T29 | `P9-wlt-price-fee-floor-test` | fee_estimation_floors_at_one_rj |
-| FR-W-T30 | `P9-wlt-price-chain-diff-test` | different_chains_produce_different_fees |
-| FR-W-T31 | `P9-wlt-price-eodhd-parse-test` | eodhd_feed_parses_close_field |
-| FR-W-T32 | `P9-wlt-price-coingecko-parse-test` | coingecko_feed_parses_usd_field |
+| FR-W-T1 | `P9-wallet-mgr-gas-conversion-test` | gas_to_rjoules_conversion |
+| FR-W-T2 | `P9-wallet-mgr-rjoules-to-gas-test` | rjoules_to_gas_conversion |
+| FR-W-T3 | `P9-wallet-mgr-fee-estimate-test` | estimate_withdrawal_fee_uses_price_feed |
+| FR-W-T4 | `P9-wallet-mgr-can-afford-test` | can_afford_checks_balance |
+| FR-W-T5 | `P9-wallet-mgr-reserve-rejects-test` | reserve_rejects_insufficient_balance |
+| FR-W-T6 | `P9-wallet-mgr-settle-debits-test` | settle_debits_actual_cost |
+| FR-W-T7 | `P9-wallet-mgr-deposit-ref-gen-test` | deposit_reference_generation |
+| FR-W-T8 | `P9-wallet-mgr-balance-conservation-pbt` | balance_conservation_under_encumbrance_lifecycle |
+| FR-W-T9 | `P9-wallet-mgr-deposit-monitor-idempotent-test` | deposit_monitor_credits_and_is_idempotent |
+| FR-W-T10 | `P9-wallet-mgr-multi-chain-deposit-test` | poll_deposits_once_multi_chain |
+| FR-W-T11 | `P9-wallet-mgr-payment-lifecycle-test` | end_to_end_payment_lifecycle |
+| FR-W-T12 | `P9-wallet-mgr-encumbrance-state-machine-test` | encumbrance_status_state_machine_no_released_to_active |
+| FR-W-T13 | `P9-wallet-mgr-withdraw-pipeline-test` | withdraw_full_pipeline_success |
+| FR-W-T14 | `P9-wallet-mgr-withdraw-insufficient-test` | withdraw_rejects_insufficient_balance |
+| FR-W-T15 | `P9-wallet-mgr-withdraw-unsupported-chain-test` | withdraw_rejects_unsupported_chain |
+| FR-W-T16 | `P9-wallet-mgr-shielded-withdraw-privacy-test` | withdraw_shielded_hinkal_uses_privacy_path |
+| FR-W-T17 | `P9-wallet-mgr-shielded-deposit-test` | shield_assets_uses_privacy_path |
+| FR-W-T18 | `P9-wallet-issuer-create-keypair-test` | create_key_produces_valid_keypair |
+| FR-W-T19 | `P9-wallet-issuer-expiry-test` | create_key_with_expiry |
+| FR-W-T20 | `P9-wallet-issuer-revoke-unspent-test` | revoke_key_returns_unspent_rjoules |
+| FR-W-T21 | `P9-wallet-issuer-list-active-test` | list_keys_returns_active_keys |
+| FR-W-T22 | `P9-wallet-sign-withdrawal-signature-test` | sign_withdrawal_produces_signature |
+| FR-W-T23 | `P9-wallet-sign-withdrawal-per-chain-test` | sign_withdrawal_differs_per_chain |
+| FR-W-T24 | `P9-wallet-sign-capability-hex-test` | sign_capability_produces_hex_signature |
+| FR-W-T25 | `P9-wallet-sign-withdrawal-all-chains-test` | sign_withdrawal_all_chains |
+| FR-W-T26 | `P9-wallet-sign-withdrawal-empty-test` | sign_withdrawal_empty_tx_bytes |
+| FR-W-T27 | `P9-wallet-sign-hinkal-message-signature-test` | sign_message_produces_signature |
+| FR-W-T28 | `P9-wallet-sign-capability-tamper-test` | sign_capability_tampered_produces_different_signature |
+| FR-W-T29 | `P9-wallet-price-static-rate-test` | static_price_feed_returns_expected_rates |
+| FR-W-T30 | `P9-wallet-price-fee-nonzero-test` | fee_estimation_produces_non_zero_fee |
+| FR-W-T31 | `P9-wallet-price-fee-floor-test` | fee_estimation_floors_at_one_rj |
+| FR-W-T32 | `P9-wallet-price-chain-diff-test` | different_chains_produce_different_fees |
+| FR-W-T33 | `P9-wallet-price-eodhd-parse-test` | eodhd_feed_parses_close_field |
+| FR-W-T34 | `P9-wallet-price-coingecko-parse-test` | coingecko_feed_parses_usd_field |
+| FR-W-T35 | `P9-wallet-price-composite-primary-test` | composite_returns_from_primary_source_on_success |
+| FR-W-T36 | `P9-wallet-price-composite-fallback-test` | composite_falls_back_when_primary_fails |
 
-> **Note:** Chain-adapter integration tests for Hedera, Solana, and Hinkal are realigned to `P9-wlt-hedera-*`, `P9-wlt-solana-*`, and `P9-wlt-hinkal-*` test IDs and are enumerated in the contract inventory. They are omitted above for brevity; see `docs/architecture/core/REQ_CONTRACT_INVENTORY.md` for the complete list.
+> **Note:** Chain-adapter integration tests for Hedera, Solana, and Hinkal are realigned to `P9-wallet-hedera-*`, `P9-wallet-solana-*`, and `P9-wallet-hinkal-*` test IDs and are enumerated in the contract inventory. They are omitted above for brevity; see `docs/architecture/core/REQ_CONTRACT_INVENTORY.md` for the complete list.
 
 ### 3.2 Storage (`hkask-storage`)
 
-**12 contracts** — P3 (Generative Space)
-- `InMemoryStorage` — key-value store for ephemeral state (P3)
-- `FileSystemStorage` — disk-backed persistent storage (P3)
-- CRUD operations, namespace isolation, serialization
+**168 contracts** — storage spans multiple principles:
+- **P3 (Generative Space)** — CRUD stores: agent registry, embeddings, gallery, goals, triples, wallet store, kata history, escalation, NuEvent store, spec store
+- **P1 (User Sovereignty)** — user store, sovereignty boundaries, wallet-store tests
+- **P2 (Affirmative Consent)** — consent store
+- **P4 (Clear Boundaries)** — lock helpers, path safety, encrypted database, service→storage contract tests
+- **P8 (Semantic Grounding)** — spec types, embedding/gallery/triple counts
+
+**Crate:** `hkask-storage` | **Sources:** all `src/*.rs` and `tests/contract/services_storage_contract.rs`
+
+#### Production Contracts (168 unique IDs)
+
+| Domain | Principle | Contract Count | Representative IDs |
+|--------|-----------|----------------|-------------------|
+| Lock helpers | P4 | 3 | `P4-sto-lock-mutex`, `P4-sto-lock-read`, `P4-sto-lock-write` |
+| Path safety | P4 | 1 | `P4-sto-path-safe-join` |
+| Consent store | P2 | 4 | `P2-sto-consent-schema`, `P2-sto-consent-store`, `P2-sto-consent-get`, `P2-sto-consent-delete` |
+| Sovereignty boundaries | P1 | 4 | `P1-sto-sovereignty-schema`, `P1-sto-sovereignty-store`, `P1-sto-sovereignty-get`, `P1-sto-sovereignty-delete` |
+| NuEvent store | P3/P9 | 5 | `P3-sto-nu-event-replay`, `P3-sto-nu-event-decay`, `P3-sto-nu-event-cursor-store`, `P3-sto-nu-event-cursor-load`, `P3-sto-nu-event-algedonic-query` |
+| Spec store | P3 | 6 | `P3-sto-spec-schema`, `P3-sto-spec-curation-*` |
+| Spec types | P8 | 6 | `P8-sto-spec-str-enum-*`, `P8-sto-spec-id-*`, `P8-sto-spec-category-*`, `P8-sto-spec-infer-category` |
+| Database | P4 | 7 | `P4-sto-database-open`, `P4-sto-database-in-memory`, `P4-sto-database-conn-arc`, `P4-sto-database-*-unwrap` |
+| Kata history | P3 | 7 | `P3-sto-kata-record`, `P3-sto-kata-list-agent`, `P3-sto-kata-count-*`, `P3-sto-kata-last`, `P3-sto-kata-range`, `P3-sto-kata-delete-before` |
+| Embeddings | P3 | 8 | `P3-sto-embedding-new`, `P3-sto-embedding-store`, `P3-sto-embedding-get`, `P3-sto-embedding-search`, `P3-sto-embedding-delete`, `P3-sto-embedding-count`, `P3-sto-embedding-prefix` |
+| Escalation | P3 | 10 | `P3-sto-escalation-pending`, `P3-sto-escalation-queue-new`, `P3-sto-escalation-add`, `P3-sto-escalation-list-pending`, `P3-sto-escalation-get`, `P3-sto-escalation-resolve`, `P3-sto-escalation-dismiss`, `P3-sto-escalation-stats`, `P3-sto-escalation-summary-new`, `P3-sto-escalation-summary-text` |
+| User store | P1 | 13 | `P1-sto-user-schema`, `P1-sto-user-register`, `P1-sto-user-login`, `P1-sto-user-logout`, `P1-sto-user-passphrase-change`, `P1-sto-user-passphrase-expired`, `P1-sto-user-session-get`, `P1-sto-user-session-list`, `P1-sto-user-replicant-get`, `P1-sto-user-human-get`, `P1-sto-user-replicant-list`, `P1-sto-user-wallet-get`, `P1-sto-user-wallet-set` |
+| Gallery | P3 | 14 | `P3-sto-gallery-mode-str`, `P3-sto-gallery-schema`, `P3-sto-gallery-create`, `P3-sto-gallery-add-image`, `P3-sto-gallery-get-image`, `P3-sto-gallery-tag-image`, `P3-sto-gallery-get-tags`, `P3-sto-gallery-get`, `P3-sto-gallery-all-tags`, `P3-sto-gallery-face-register`, `P3-sto-gallery-face-list`, `P3-sto-gallery-face-get`, `P3-sto-gallery-face-remove`, `P3-sto-gallery-face-update` |
+| Agent registry | P3 | 15 | `P3-sto-agent-registry-schema`, `P3-sto-agent-registry-insert`, `P3-sto-agent-registry-get`, `P3-sto-agent-registry-list`, `P3-sto-agent-registry-list-by-kind`, `P3-sto-agent-registry-remove`, `P3-sto-agent-registry-profile-*`, `P3-sto-agent-registry-contact-*`, `P3-sto-agent-registry-task-*` |
+| Goals | P3 | 18 | `P3-sto-goal-repo-new`, `P3-sto-goal-repo-telemetry`, `P3-sto-goal-try-row`, `P3-sto-goal-row-parse`, `P3-sto-goal-create`, `P3-sto-goal-get`, `P3-sto-goal-update-state`, `P3-sto-goal-list`, `P3-sto-goal-criterion-add`, `P3-sto-goal-artifact-add`, `P3-sto-goal-criteria-get`, `P3-sto-goal-artifacts-get`, `P3-sto-goal-subgoal-create`, `P3-sto-goal-subgoal-list`, `P3-sto-goal-delete`, `P3-sto-goal-quarantine`, `P3-sto-goal-repair`, `P3-sto-goal-quarantine-list` |
+| Triples | P3 | 22 | `P3-sto-triple-new`, `P3-sto-triple-with-*`, `P3-sto-triple-is-episodic`, `P3-sto-triple-is-semantic`, `P3-sto-triple-insert`, `P3-sto-triple-query-*`, `P3-sto-triple-update`, `P3-sto-triple-get-id`, `P3-sto-triple-low-confidence`, `P3-sto-triple-count-*`, `P3-sto-triple-query-below`, `P3-sto-triple-soft-delete`, `P3-sto-triple-hard-delete`, `P3-sto-triple-delete-prefix` |
+| Wallet store | P3 | 25 | `P3-sto-wallet-wal-mode`, `P3-sto-wallet-balance-get`, `P3-sto-wallet-ensure`, `P3-sto-wallet-list-ids`, `P3-sto-wallet-credit`, `P3-sto-wallet-debit`, `P3-sto-wallet-tx-record`, `P3-sto-wallet-tx-list`, `P3-sto-wallet-tx-hash-exists`, `P3-sto-wallet-api-key-*`, `P3-sto-wallet-spent-rj-update`, `P3-sto-wallet-address-*`, `P3-sto-wallet-reference-*`, `P3-sto-wallet-encumber`, `P3-sto-wallet-encumbrance-release`, `P3-sto-wallet-encumbrance-consume`, `P3-sto-wallet-encumbrance-get` |
+
+> **Note:** The original handoff estimated 12 storage contracts; the actual source contains **168 unique contract IDs**. Storage is the largest domain. All have been realigned to `P{N}-sto-*`.
 
 ### 3.3 Memory (`hkask-memory`)
 
@@ -503,13 +551,13 @@ These domains are documented here for completeness but are not part of the CNS c
 | API Metering | `api_metering.rs` | (various) | `P{N}-cns-api-meter-*` | 16 |
 | Energy Estimation | `composite_energy_estimator.rs` | (already aligned) | `P9-cns-est-composite-new` | 1 |
 | Wallet Estimation | `wallet_energy_estimator.rs` | `cns-calibrate-*` | `P9-cns-est-wallet-*` | 6 |
-| Wallet — Manager | `manager.rs` | `WALLET-*`, `wallet-int-*` | `P9-wlt-mgr-*` | 11 |
-| Wallet — Issuer | `issuer.rs` | `WALLET-006`, `P4-issuer` | `P9-wlt-issuer-*` | 1 |
-| Wallet — Signing | `signing.rs` | `WALLET-007`, `HINKAL-006`, `P4-signing` | `P9-wlt-sign-*` | 2 |
-| Wallet — Hinkal Adapter | `hinkal.rs` | `HINKAL-*` | `P9-wlt-hinkal-*` | 1 |
-| Wallet — Price Feed | `price_feed.rs` | `wallet-price-*` | `P9-wlt-price-*` | 0 (tests only) |
-| Wallet — Hedera Tests | `hedera.rs` | `hedera-int-*` | `P9-wlt-hedera-*` | 0 (tests only) |
-| Wallet — Solana Tests | `solana.rs` | `solana-int-*` | `P9-wlt-solana-*` | 0 (tests only) |
+| Wallet — Manager | `manager.rs` | `WALLET-*`, `wallet-int-*` | `P9-wallet-mgr-*` | 34 |
+| Wallet — Issuer | `issuer.rs` | `WALLET-006`, `P4-issuer` | `P9-wallet-issuer-*` | 10 |
+| Wallet — Signing | `signing.rs` | `WALLET-007`, `HINKAL-006`, `P4-signing` | `P9-wallet-sign-*` | 10 |
+| Wallet — Hinkal Adapter | `hinkal.rs` | `HINKAL-*` | `P9-wallet-hinkal-*` | 20 |
+| Wallet — Price Feed | `price_feed.rs` | `wallet-price-*` | `P9-wallet-price-*` | 16 |
+| Wallet — Hedera Tests | `hedera.rs` | `hedera-int-*` | `P9-wallet-hedera-*` | 6 |
+| Wallet — Solana Tests | `solana.rs` | `solana-int-*` | `P9-wallet-solana-*` | 5 |
 | Agents — Consent | `consent.rs` | `AGT-038`–`AGT-048` | `P2-agt-consent-*` | 11 |
 | Agents — Sovereignty | `sovereignty.rs` | `AGT-119`–`AGT-121` | `P1-agt-sovereignty-*` | 3 |
 | Agents — Loop System | `loop_system.rs` | `AGT-062`–`AGT-072` | `P9-agt-loop-*` | 11 |
@@ -522,11 +570,30 @@ These domains are documented here for completeness but are not part of the CNS c
 | Agents — Curator Agent | `curator_agent/**/*.rs` | `AGT-088`–`AGT-107`, `BOT-HEALTH-001` | `P9-agt-curator-agent-*`, `P9-agt-bot-health-*` | 20 |
 | Agents — Pod Lifecycle | `pod/mod.rs`, `pod/types.rs` | `AGT-122`–`AGT-137`, `AGT-161` | `P1-agt-pod-*`, `P4-agt-pod-lifecycle-*` | 17 |
 | Agents — Pod Manager | `pod/manager.rs` | `AGT-138`–`AGT-160` | `P1-agt-pod-manager-*` | 23 |
+| Storage — Lock Helpers | `lock_helpers.rs` | `STO-001`–`STO-003` | `P4-sto-lock-*` | 3 |
+| Storage — Path Safety | `security.rs` | `STO-004` | `P4-sto-path-safe-join` | 1 |
+| Storage — Consent | `consent_store.rs` | `STO-005`–`STO-008` | `P2-sto-consent-*` | 4 |
+| Storage — Sovereignty | `sovereignty.rs` | `STO-009`–`STO-012` | `P1-sto-sovereignty-*` | 4 |
+| Storage — NuEvent | `nu_event_store.rs` | `STO-013`–`STO-017` | `P3-sto-nu-event-*` | 5 |
+| Storage — Spec Store | `spec_store.rs` | `STO-018`–`STO-023` | `P3-sto-spec-*` | 6 |
+| Storage — Spec Types | `spec_types.rs` | `STO-163`–`STO-168`, `MDS-spec-svc-001` | `P8-sto-spec-*` | 6 |
+| Storage — Database | `database.rs` | `STO-024`–`STO-030` | `P4-sto-database-*` | 7 |
+| Storage — Kata History | `kata_history.rs` | `STO-031`–`STO-037` | `P3-sto-kata-*` | 7 |
+| Storage — Embeddings | `embeddings.rs` | `STO-038`–`STO-045` | `P3-sto-embedding-*` | 8 |
+| Storage — Escalation | `escalation.rs` | `STO-046`–`STO-055` | `P3-sto-escalation-*` | 10 |
+| Storage — User Store | `user_store.rs` | `STO-056`–`STO-068` | `P1-sto-user-*` | 13 |
+| Storage — Gallery | `gallery.rs` | `STO-069`–`STO-082`, `media-*` | `P3-sto-gallery-*` | 14 |
+| Storage — Agent Registry | `agent_registry.rs` | `STO-083`–`STO-097` | `P3-sto-agent-registry-*` | 15 |
+| Storage — Goals | `goals.rs` | `STO-098`–`STO-115` | `P3-sto-goal-*` | 18 |
+| Storage — Triples | `triples.rs` | `STO-116`–`STO-137` | `P3-sto-triple-*` | 22 |
+| Storage — Wallet Store | `wallet_store.rs` | `STO-138`–`STO-162`, `SHOULD-8`, `MUST-10`, `wallet-*` | `P3-sto-wallet-*`, `P1-sto-wallet-*` | 25 |
+| Storage — Contract Tests | `tests/contract/services_storage_contract.rs` | `CTR-002` | `P4-sto-services-contract-test` | 0 (tests only) |
 
 **Total CNS contracts:** 99 (across all 9 source files).
 **Total wallet contracts:** 23 production occurrences (11 unique IDs).
 **Total agents contracts:** 174 production occurrences (30 unique IDs).
-**Build status:** `cargo check -p hkask-cns`, `cargo check -p hkask-wallet`, and `cargo check -p hkask-agents` pass clean.
+**Total storage contracts:** 247 production occurrences (168 unique IDs).
+**Build status:** `cargo check -p hkask-cns`, `cargo check -p hkask-wallet`, `cargo check -p hkask-agents`, and `cargo check -p hkask-storage` pass clean.
 
 ### 4.2 Idempotent Migration
 
@@ -583,7 +650,7 @@ Constraining principles appear in the contract body as `[P{N}] Constraining: ...
 
 ### 5.4 Notational Conventions
 
-- **Production contracts** are labeled `P{N}-{domain}-{operation}` in the contract body (e.g., `P9-cns-energy-budget-new`, `P9-wlt-mgr-build`).
+- **Production contracts** are labeled `P{N}-{domain}-{operation}` in the contract body (e.g., `P9-cns-energy-budget-new`, `P9-wallet-mgr-build`).
 - **Test contracts** are labeled `P{N}-{domain}-{operation}-test` or have a `-T{N}` suffix.
 - **Blocking variants** use the P3 prefix: `P3-cns-{domain}-blocking-{operation}`.
 - **Calibrate contracts** use the P7 prefix: `P7-cns-{domain}-calibrate-{operation}`.
@@ -604,8 +671,9 @@ The following domains are **not yet realigned** and will use their own principle
 - `kask` CLI (P3): `P3-cli-*`
 - `mcp-servers/` (P5): `P5-mcp-*`
 
-`hkask-wallet` is **complete** as of this revision: `P9-wlt-*`.
-`hkask-agents` is **complete** as of this revision: `P1-agt-*`, `P2-agt-*`, `P3-agt-*`, `P4-agt-*`, `P9-agt-*`.
+- `hkask-wallet` is **complete** as of this revision: `P9-wallet-*`.
+- `hkask-agents` is **complete** as of this revision: `P1-agt-*`, `P2-agt-*`, `P3-agt-*`, `P4-agt-*`, `P9-agt-*`.
+- `hkask-storage` is **complete** as of this revision: `P1-sto-*`, `P2-sto-*`, `P3-sto-*`, `P4-sto-*`, `P8-sto-*`.
 
 ---
 

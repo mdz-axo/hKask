@@ -27,8 +27,8 @@ use zeroize::Zeroizing;
 ///
 /// # Security `[OUGHT-DECL]`
 /// - Wrapped in `Zeroizing<[u8; 32]>` for automatic zeroize on drop
-/// - `Debug` impl redacts key material (MUST-2)
-/// - Never leaves this module in un-zeroized form (MUST-11)
+/// - `Debug` impl redacts key material (P2-wallet-signing-debug-redact)
+/// - Never leaves this module in un-zeroized form (P2-wallet-signing-key-boundary)
 struct LoadedKey {
     bytes: Zeroizing<[u8; 32]>,
 }

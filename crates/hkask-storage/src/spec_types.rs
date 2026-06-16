@@ -16,14 +16,16 @@ macro_rules! str_enum {
         impl $enum {
             /// Get string representation.
             ///
-            /// REQ: STO-163
+            /// REQ: P8-sto-spec-str-enum-as-str
+            /// [P8] Motivating: Semantic Grounding — stable string representation
             /// post: returns lowercase string
             pub fn as_str(&self) -> &'static str {
                 match self { $($enum::$variant => $s),+ }
             }
             /// Parse from string.
             ///
-            /// REQ: STO-164
+            /// REQ: P8-sto-spec-str-enum-parse
+            /// [P8] Motivating: Semantic Grounding — parse from string
             /// post: returns Some if valid, None otherwise
             pub fn parse_str(s: &str) -> Option<Self> {
                 match s.to_lowercase().as_str() {
@@ -41,14 +43,16 @@ pub struct SpecId(pub Uuid);
 impl SpecId {
     /// Create a new SpecId.
     ///
-    /// REQ: STO-165
+    /// REQ: P8-sto-spec-id-new
+    /// [P8] Motivating: Semantic Grounding — new SpecId
     /// post: returns new random SpecId
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
     /// Create a SpecId from a string.
     ///
-    /// REQ: STO-166
+    /// REQ: P8-sto-spec-id-from-str
+    /// [P8] Motivating: Semantic Grounding — SpecId from string
     /// pre:  s is a valid UUID string
     /// post: returns SpecId
     pub fn from_string(s: &str) -> Result<Self, SpecError> {
@@ -91,7 +95,8 @@ pub enum SpecCategory {
 impl SpecCategory {
     /// Get string representation of category.
     ///
-    /// REQ: STO-167
+    /// REQ: P8-sto-spec-category-as-str
+    /// [P8] Motivating: Semantic Grounding — category string label
     /// post: returns snake_case string
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -106,7 +111,8 @@ impl SpecCategory {
     /// Parse a string into a `SpecCategory`, mapping legacy DDMVSS names to
     /// their MDS equivalents.
     ///
-    /// REQ: STO-168
+    /// REQ: P8-sto-spec-category-parse
+    /// [P8] Motivating: Semantic Grounding — parse category
     /// post: returns Some(SpecCategory) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
@@ -137,7 +143,8 @@ impl SpecCategory {
 /// `hkask-services::SpecService` (CLI/API surface).
 ///
 /// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
-// REQ: MDS-spec-svc-001 — infer_spec_category maps context keywords to MDS categories
+// REQ: P8-sto-spec-infer-category — infer_spec_category maps context keywords to MDS categories
+/// [P8] Motivating: Semantic Grounding — infer MDS category from context
 pub fn infer_spec_category(context: Option<&str>) -> SpecCategory {
     let ctx = match context {
         Some(c) => c.to_lowercase(),
@@ -442,7 +449,7 @@ pub trait SpecCurator: Send + Sync {
 mod tests {
     use super::*;
 
-    // REQ: storage-spec-types-001 — SpecCategory::parse_str maps legacy DDMVSS names to MDS categories
+    // REQ: P8-sto-spec-legacy-parse-test — SpecCategory::parse_str maps legacy DDMVSS names to MDS categories
     #[test]
     fn parse_str_maps_legacy_ddmvss_names() {
         assert_eq!(
@@ -463,7 +470,7 @@ mod tests {
         );
     }
 
-    // REQ: storage-spec-types-002 — SpecCategory::parse_str handles canonical MDS names
+    // REQ: P8-sto-spec-mds-parse-test — SpecCategory::parse_str handles canonical MDS names
     #[test]
     fn parse_str_handles_mds_names() {
         assert_eq!(
@@ -476,13 +483,13 @@ mod tests {
         );
     }
 
-    // REQ: storage-spec-types-003 — SpecCategory::parse_str returns None for unknown strings
+    // REQ: P8-sto-spec-parse-none-test — SpecCategory::parse_str returns None for unknown strings
     #[test]
     fn parse_str_returns_none_for_unknown() {
         assert_eq!(SpecCategory::parse_str("nonsense"), None);
     }
 
-    // REQ: storage-spec-types-004 — Spec deserializes legacy variant names to correct MDS categories
+    // REQ: P8-sto-spec-legacy-deser-test — Spec deserializes legacy variant names to correct MDS categories
     #[test]
     fn serde_deserializes_legacy_variant_names() {
         let json = r#"{"id": "00000000-0000-0000-0000-000000000001", "name": "test", "category": "Capability", "domain_anchor": "Hkask", "declared_verbs": [], "goals": [], "version": null, "signature": null, "signed_by": null, "created_at": "2026-01-01T00:00:00Z", "valid_from": null, "valid_to": null}"#;
@@ -494,7 +501,7 @@ mod tests {
         assert_eq!(spec.category, SpecCategory::Lifecycle);
     }
 
-    // REQ: storage-spec-types-005 — SpecCategory::all returns exactly five MDS variants
+    // REQ: P8-sto-spec-category-all-test — SpecCategory::all returns exactly five MDS variants
     #[test]
     fn spec_category_all_has_exactly_five_variants() {
         assert_eq!(SpecCategory::all().len(), 5);

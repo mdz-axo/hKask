@@ -36,7 +36,9 @@ pub struct Triple {
 impl Triple {
     /// Create a new Triple with required fields.
     ///
-    /// REQ: STO-116
+    /// REQ: P3-sto-triple-new
+    /// [P3] Motivating: Generative Space — create a triple
+    /// [P1] Constraining: User Sovereignty — owner_webid carries ownership
     /// pre:  entity and attribute are non-empty, owner_webid is valid
     /// post: returns Triple with defaults for temporal, confidence, access
     pub fn new(entity: &str, attribute: &str, value: Value, owner_webid: WebID) -> Self {
@@ -53,7 +55,8 @@ impl Triple {
 
     /// Set confidence on a Triple.
     ///
-    /// REQ: STO-117
+    /// REQ: P3-sto-triple-with-confidence
+    /// [P3] Motivating: Generative Space — builder: set confidence
     /// post: returns Self with confidence set (builder pattern)
     pub fn with_confidence(mut self, c: impl Into<Confidence>) -> Self {
         self.confidence = c.into();
@@ -61,7 +64,8 @@ impl Triple {
     }
     /// Set perspective on a Triple.
     ///
-    /// REQ: STO-118
+    /// REQ: P3-sto-triple-with-perspective
+    /// [P3] Motivating: Generative Space — builder: set perspective
     /// post: returns Self with perspective set (builder pattern)
     pub fn with_perspective(mut self, p: WebID) -> Self {
         self.access = self.access.with_perspective(p);
@@ -69,7 +73,8 @@ impl Triple {
     }
     /// Set visibility on a Triple.
     ///
-    /// REQ: STO-119
+    /// REQ: P3-sto-triple-with-visibility
+    /// [P3] Motivating: Generative Space — builder: set visibility
     /// post: returns Self with visibility set (builder pattern)
     pub fn with_visibility(mut self, v: Visibility) -> Self {
         self.access = self.access.with_visibility(v);
@@ -78,14 +83,16 @@ impl Triple {
 
     /// Check if this is an episodic triple (has perspective).
     ///
-    /// REQ: STO-120
+    /// REQ: P3-sto-triple-is-episodic
+    /// [P8] Motivating: Semantic Grounding — predicate for episodic
     /// post: returns true iff perspective is Some
     pub fn is_episodic(&self) -> bool {
         self.access.is_episodic()
     }
     /// Check if this is a semantic triple (public, no perspective).
     ///
-    /// REQ: STO-121
+    /// REQ: P3-sto-triple-is-semantic
+    /// [P8] Motivating: Semantic Grounding — predicate for semantic
     /// post: returns true iff visibility is Public and perspective is None
     pub fn is_semantic(&self) -> bool {
         self.access.is_semantic()
@@ -99,7 +106,8 @@ const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to
 impl TripleStore {
     /// Insert a triple into the store.
     ///
-    /// REQ: STO-122
+    /// REQ: P3-sto-triple-insert
+    /// [P3] Motivating: Generative Space — insert triple into store
     /// pre:  triple has valid entity, attribute, value
     /// post: triple inserted
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
@@ -124,7 +132,8 @@ impl TripleStore {
 
     /// Query triples by entity.
     ///
-    /// REQ: STO-123
+    /// REQ: P3-sto-triple-query-entity
+    /// [P3] Motivating: Generative Space — query by entity
     /// pre:  entity is non-empty
     /// post: returns Vec of triples matching entity
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
@@ -142,7 +151,8 @@ impl TripleStore {
 
     /// Query triples by entity and attribute.
     ///
-    /// REQ: STO-124
+    /// REQ: P3-sto-triple-query-entity-attribute
+    /// [P3] Motivating: Generative Space — query by entity + attribute
     /// pre:  entity and attribute are non-empty
     /// post: returns Vec of matching triples
     pub fn query_by_entity_attribute(
@@ -164,7 +174,8 @@ impl TripleStore {
 
     /// Query triples by perspective.
     ///
-    /// REQ: STO-125
+    /// REQ: P3-sto-triple-query-perspective
+    /// [P3] Motivating: Generative Space — query by perspective
     /// pre:  perspective is valid
     /// post: returns Vec of triples for this perspective
     pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
@@ -183,7 +194,8 @@ impl TripleStore {
     /// Query all triples with a given attribute, regardless of entity.
     /// Query triples by attribute.
     ///
-    /// REQ: STO-126
+    /// REQ: P3-sto-triple-query-attribute
+    /// [P3] Motivating: Generative Space — query by attribute
     /// pre:  attribute is non-empty
     /// post: returns Vec of triples matching attribute
     pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, TripleError> {
@@ -203,7 +215,8 @@ impl TripleStore {
     /// Wrapped in a transaction for atomicity.
     /// Update a triple's value and confidence.
     ///
-    /// REQ: STO-127
+    /// REQ: P3-sto-triple-update
+    /// [P3] Motivating: Generative Space — update value and confidence
     /// pre:  id is valid
     /// post: triple value and confidence updated
     pub fn update(
@@ -277,7 +290,8 @@ impl TripleStore {
 
     /// Get a triple by ID.
     ///
-    /// REQ: STO-128
+    /// REQ: P3-sto-triple-get-id
+    /// [P3] Motivating: Generative Space — get triple by ID
     /// pre:  id is valid
     /// post: returns Some(Triple) if found, None otherwise
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
@@ -299,7 +313,8 @@ impl TripleStore {
     /// Semantic triples with lowest confidence, ordered ASC. Used by consolidation.
     /// Query lowest-confidence semantic triples.
     ///
-    /// REQ: STO-129
+    /// REQ: P3-sto-triple-low-confidence
+    /// [P3] Motivating: Generative Space — low-confidence semantic triples
     /// pre:  limit > 0
     /// post: returns up to limit triples ordered by confidence ascending
     pub fn query_semantic_lowest_confidence(
@@ -324,7 +339,8 @@ impl TripleStore {
     /// Count semantic triples below confidence threshold. Used by consolidation.
     /// Count semantic triples below a confidence threshold.
     ///
-    /// REQ: STO-130
+    /// REQ: P3-sto-triple-count-below
+    /// [P8] Motivating: Semantic Grounding — count below threshold
     /// pre:  threshold in [0.0, 1.0]
     /// post: returns count of triples with confidence ≤ threshold
     pub fn count_semantic_below_confidence(&self, threshold: f64) -> Result<usize, TripleError> {
@@ -340,7 +356,8 @@ impl TripleStore {
     /// Semantic triples below confidence threshold, ordered ASC. Used by consolidation.
     /// Query semantic triples below a confidence threshold.
     ///
-    /// REQ: STO-131
+    /// REQ: P3-sto-triple-query-below
+    /// [P3] Motivating: Generative Space — query below threshold
     /// pre:  threshold in [0.0, 1.0], limit > 0
     /// post: returns up to limit triples with confidence ≤ threshold
     pub fn query_semantic_below_confidence(
@@ -366,7 +383,8 @@ impl TripleStore {
     /// Count semantic triples (perspective IS NULL, valid_to IS NULL).
     /// Count all semantic triples.
     ///
-    /// REQ: STO-132
+    /// REQ: P3-sto-triple-count-semantic
+    /// [P8] Motivating: Semantic Grounding — count semantic triples
     /// post: returns total count of semantic triples
     pub fn count_semantic(&self) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
@@ -381,7 +399,8 @@ impl TripleStore {
     /// Count semantic triples for a given entity.
     /// Count semantic triples for an entity.
     ///
-    /// REQ: STO-133
+    /// REQ: P3-sto-triple-count-entity
+    /// [P8] Motivating: Semantic Grounding — count per entity
     /// pre:  entity is non-empty
     /// post: returns count for entity
     pub fn count_semantic_by_entity(&self, entity: &str) -> Result<usize, TripleError> {
@@ -397,7 +416,8 @@ impl TripleStore {
     /// Count triples for a given perspective (episodic).
     /// Count triples by perspective.
     ///
-    /// REQ: STO-134
+    /// REQ: P3-sto-triple-count-perspective
+    /// [P8] Motivating: Semantic Grounding — count per perspective
     /// pre:  perspective is valid
     /// post: returns count for perspective
     pub fn count_by_perspective(&self, perspective: &WebID) -> Result<usize, TripleError> {
@@ -413,7 +433,8 @@ impl TripleStore {
     /// Soft-delete: set valid_to to close a triple.
     /// Soft-delete a triple by setting valid_to.
     ///
-    /// REQ: STO-135
+    /// REQ: P3-sto-triple-soft-delete
+    /// [P3] Motivating: Generative Space — soft-delete triple
     /// pre:  id is valid
     /// post: triple's valid_to set to now (soft-delete)
     pub fn close_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
@@ -429,7 +450,8 @@ impl TripleStore {
     /// Hard-delete a triple row entirely.
     /// Hard-delete a triple by ID.
     ///
-    /// REQ: STO-136
+    /// REQ: P3-sto-triple-hard-delete
+    /// [P3] Motivating: Generative Space — hard-delete triple
     /// pre:  id is valid
     /// post: triple permanently deleted
     pub fn delete_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
@@ -442,7 +464,8 @@ impl TripleStore {
     /// Returns the number of rows deleted.
     /// Delete triples by entity prefix.
     ///
-    /// REQ: STO-137
+    /// REQ: P3-sto-triple-delete-prefix
+    /// [P3] Motivating: Generative Space — delete by entity prefix
     /// pre:  prefix is non-empty
     /// post: matching triples deleted
     /// post: returns count of deleted triples
@@ -563,7 +586,7 @@ mod tests {
         store
     }
 
-    // REQ: triples-timestamp-001 — corrupt valid_from timestamp propagates an error
+    // REQ: P3-sto-triple-corrupt-timestamp-test — corrupt valid_from timestamp propagates an error
     //
     // Before fix, a corrupt valid_from was silently replaced with Utc::now(),
     // returning a triple with a fabricated temporal validity bound.
@@ -602,7 +625,7 @@ mod tests {
         );
     }
 
-    // REQ: triples-timestamp-002 — well-formed valid_from round-trips correctly
+    // REQ: P3-sto-triple-roundtrip-timestamp-test — well-formed valid_from round-trips correctly
     #[test]
     fn valid_from_round_trips_correctly() {
         let store = make_store();
@@ -619,7 +642,7 @@ mod tests {
         assert!(delta < 2, "valid_from should survive a round-trip");
     }
 
-    // REQ: triples-notfound-001 — get_by_id on missing id returns None, not an error
+    // REQ: P3-sto-triple-notfound-test — get_by_id on missing id returns None, not an error
     #[test]
     fn get_by_id_missing_returns_none() {
         let store = make_store();

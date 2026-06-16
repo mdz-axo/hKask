@@ -1087,7 +1087,7 @@ mod tests {
         assert!(!msg.contains("submit transactions"));
     }
 
-    // REQ: P9-wallet-hinkal-session-read-format-test — write session message includes transaction authorization
+    // REQ: P9-wallet-hinkal-session-write-format-test — write session message includes transaction authorization
     #[test]
     fn session_message_write_format() {
         let msg = HinkalPort::build_session_message("test-nonce-456", true);
@@ -1115,7 +1115,7 @@ mod tests {
         assert!(msg.contains("Recipient: recipient_solana_address"));
     }
 
-    // REQ: P9-wallet-hinkal-circuit-breaker-test — circuit breaker initial state is healthy
+    // REQ: P9-wallet-hinkal-circuit-breaker-healthy-test — circuit breaker initial state is healthy
     #[test]
     fn circuit_breaker_initial_state() {
         let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey").unwrap();
@@ -1123,7 +1123,7 @@ mod tests {
         assert!(port.available_for_chain(ChainId::Hinkal));
     }
 
-    // REQ: P9-wallet-hinkal-circuit-breaker-test — circuit breaker denies non-Hinkal chains
+    // REQ: P9-wallet-hinkal-circuit-breaker-chain-test — circuit breaker denies non-Hinkal chains
     #[test]
     fn available_for_chain_rejects_non_hinkal() {
         let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey").unwrap();
@@ -1131,7 +1131,7 @@ mod tests {
         assert!(!port.available_for_chain(ChainId::Hedera));
     }
 
-    // REQ: P9-wallet-hinkal-session-bootstrap-test — session bootstrap success path maps request/response correctly
+    // REQ: P9-wallet-hinkal-session-create-test — session bootstrap success path maps request/response correctly
     #[tokio::test]
     async fn create_session_success() {
         unsafe {
@@ -1162,7 +1162,7 @@ mod tests {
         assert!(!session.signature.is_empty());
     }
 
-    // REQ: P9-wallet-hinkal-session-bootstrap-test — cached session is reused while unexpired
+    // REQ: P9-wallet-hinkal-session-cache-ttl-test — cached session is reused while unexpired
     #[test]
     fn cached_session_reused_within_ttl() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1174,7 +1174,7 @@ mod tests {
         assert_eq!(session.signature, "sig-1");
     }
 
-    // REQ: P9-wallet-hinkal-session-bootstrap-test — write-access lookup does not reuse read-only cached session
+    // REQ: P9-wallet-hinkal-session-cache-write-test — write-access lookup does not reuse read-only cached session
     #[test]
     fn cached_read_session_not_reused_for_write() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();

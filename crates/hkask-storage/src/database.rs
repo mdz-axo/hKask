@@ -123,7 +123,9 @@ impl Database {
     /// Open database with passphrase for encryption
     /// Open an encrypted database at the given path.
     ///
-    /// REQ: STO-024
+    /// REQ: P4-sto-database-open
+    /// [P4] Motivating: Clear Boundaries — open encrypted SQLite database
+    /// [P1] Constraining: User Sovereignty — passphrase protects local data
     /// pre:  path is valid, passphrase is non-empty
     /// post: returns Database with SQLCipher encryption
     pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
@@ -144,7 +146,8 @@ impl Database {
     ///
     /// Open database with additional DDL extensions.
     ///
-    /// REQ: STO-025
+    /// REQ: P4-sto-database-open-ext
+    /// [P4] Motivating: Clear Boundaries — open encrypted DB with DDL extensions
     /// pre:  path is valid, passphrase is non-empty, extensions is valid SQL
     /// post: returns Database with extensions applied
     pub fn open_with_extensions(
@@ -171,7 +174,8 @@ impl Database {
     /// Open in-memory database (unencrypted, for testing)
     /// Open an in-memory database (unencrypted, for testing).
     ///
-    /// REQ: STO-026
+    /// REQ: P4-sto-database-in-memory
+    /// [P4] Motivating: Clear Boundaries — open in-memory DB for tests
     /// post: returns in-memory Database
     pub fn in_memory() -> Result<Self, DatabaseError> {
         Self::in_memory_impl(None)
@@ -189,7 +193,8 @@ impl Database {
     ///
     /// Open in-memory database with extensions.
     ///
-    /// REQ: STO-027
+    /// REQ: P4-sto-database-in-memory-ext
+    /// [P4] Motivating: Clear Boundaries — open in-memory DB with extensions
     /// pre:  extensions is valid SQL DDL
     /// post: returns in-memory Database with extensions
     pub fn in_memory_with_extensions(extensions: &str) -> Result<Self, DatabaseError> {
@@ -218,7 +223,8 @@ impl Database {
     /// Get database connection for shared access
     /// Get a clone of the shared connection Arc.
     ///
-    /// REQ: STO-028
+    /// REQ: P4-sto-database-conn-arc
+    /// [P4] Motivating: Clear Boundaries — share connection Arc with stores
     /// post: returns Arc<Mutex<Connection>> for Store constructors
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
@@ -234,7 +240,8 @@ impl Database {
 /// resolves the path and passphrase from environment variables or keychain.
 /// Open a database from path or :memory:.
 ///
-/// REQ: STO-029
+/// REQ: P4-sto-database-open-unwrap
+/// [P4] Motivating: Clear Boundaries — infallible encrypted DB open
 /// pre:  path is valid, passphrase is non-empty
 /// post: returns Database (in-memory if path is ":memory:")
 pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseError> {
@@ -255,7 +262,8 @@ pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseE
 /// and propagate the error with `?`.
 /// Create an in-memory database for testing.
 ///
-/// REQ: STO-030
+/// REQ: P4-sto-database-in-memory-unwrap
+/// [P4] Motivating: Clear Boundaries — infallible in-memory DB open
 /// post: returns in-memory Database (panics on failure)
 pub fn in_memory_db() -> Database {
     Database::in_memory().expect("in-memory database initialization should never fail")

@@ -72,14 +72,16 @@ impl WalletStore {
     /// significantly improving throughput under multi-agent API key spend loads.
     /// Without WAL, all operations serialize on the connection mutex.
     ///
-    /// REQ: SHOULD-8 — WAL mode for wallet store concurrency
+    /// REQ: P3-sto-wallet-wal-test — WAL mode for wallet store concurrency
     /// post: journal_mode set to WAL
     /// post: synchronous set to NORMAL (balance durability vs performance)
     ///
     /// Call once after store creation, before any wallet operations.
     /// Enable WAL mode for better concurrency.
     ///
-    /// REQ: STO-138
+    /// REQ: P3-sto-wallet-wal-mode
+    /// [P3] Motivating: Generative Space — enable WAL for wallet concurrency
+    /// [P7] Constraining: Evolutionary Architecture — WAL mode emerged from multi-agent load
     /// post: journal_mode set to WAL, synchronous set to NORMAL
     pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -98,7 +100,8 @@ impl WalletStore {
     /// Get the current balance for a wallet, or None if the wallet doesn't exist.
     /// Get wallet balance.
     ///
-    /// REQ: STO-139
+    /// REQ: P3-sto-wallet-balance-get
+    /// [P3] Motivating: Generative Space — get wallet balance
     /// pre:  wallet_id is valid
     /// post: returns Some(WalletBalance) if wallet exists, None otherwise
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<Option<WalletBalance>, WalletError> {
@@ -146,7 +149,8 @@ impl WalletStore {
     /// Public version that acquires its own lock.
     /// Ensure a wallet exists (idempotent).
     ///
-    /// REQ: STO-140
+    /// REQ: P3-sto-wallet-ensure
+    /// [P3] Motivating: Generative Space — idempotently ensure wallet row
     /// pre:  wallet_id is valid
     /// post: wallet row exists (created if missing)
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), WalletError> {
@@ -157,7 +161,8 @@ impl WalletStore {
     /// List all wallet IDs in the system.
     /// List all wallet IDs.
     ///
-    /// REQ: STO-141
+    /// REQ: P3-sto-wallet-list-ids
+    /// [P8] Motivating: Semantic Grounding — list wallet IDs
     /// post: returns Vec of all WalletId
     pub fn list_wallet_ids(&self) -> Result<Vec<WalletId>, WalletError> {
         let conn = self.lock_conn()?;
@@ -175,7 +180,8 @@ impl WalletStore {
     /// Creates the wallet row if it doesn't exist.
     /// Credit rJoules to a wallet.
     ///
-    /// REQ: STO-142
+    /// REQ: P3-sto-wallet-credit
+    /// [P3] Motivating: Generative Space — credit rJoules
     /// pre:  wallet_id exists, amount > 0
     /// post: balance increased by amount, transaction recorded
     pub fn credit_rjoules(
@@ -201,7 +207,8 @@ impl WalletStore {
     /// The caller must verify `balance >= amount` before calling.
     /// Debit rJoules from a wallet.
     ///
-    /// REQ: STO-143
+    /// REQ: P3-sto-wallet-debit
+    /// [P3] Motivating: Generative Space — debit rJoules
     /// pre:  wallet_id exists, amount > 0, balance >= amount
     /// post: balance decreased by amount, transaction recorded
     /// post: returns Err if insufficient balance
@@ -240,7 +247,8 @@ impl WalletStore {
     /// Record a transaction in the append-only ledger.
     /// Record a wallet transaction.
     ///
-    /// REQ: STO-144
+    /// REQ: P3-sto-wallet-tx-record
+    /// [P3] Motivating: Generative Space — record wallet transaction
     /// pre:  tx has valid wallet_id and rjoules_delta
     /// post: transaction inserted into ledger
     pub fn record_transaction(&self, tx: &WalletTransaction) -> Result<(), WalletError> {
@@ -268,7 +276,8 @@ impl WalletStore {
     /// Get paginated transaction history for a wallet.
     /// Get transactions for a wallet.
     ///
-    /// REQ: STO-145
+    /// REQ: P3-sto-wallet-tx-list
+    /// [P3] Motivating: Generative Space — list transactions
     /// pre:  wallet_id is valid
     /// post: returns Vec of transactions, optionally limited
     pub fn get_transactions(
@@ -311,7 +320,8 @@ impl WalletStore {
     /// Used for deposit idempotency — prevents double-crediting on restart.
     /// Check if a transaction hash exists.
     ///
-    /// REQ: STO-146
+    /// REQ: P3-sto-wallet-tx-hash-exists
+    /// [P4] Motivating: Clear Boundaries — anti-replay hash check
     /// pre:  tx_hash is non-empty
     /// post: returns true if hash exists (anti-replay)
     pub fn transaction_exists_by_hash(&self, tx_hash: &str) -> Result<bool, WalletError> {
@@ -329,7 +339,8 @@ impl WalletStore {
     /// Store a newly issued API key capability.
     /// Store an API key capability.
     ///
-    /// REQ: STO-147
+    /// REQ: P3-sto-wallet-api-key-store
+    /// [P3] Motivating: Generative Space — store API key capability
     /// pre:  capability has valid key_id and wallet_id
     /// post: API key stored
     pub fn store_api_key(&self, capability: &ApiKeyCapability) -> Result<(), WalletError> {
@@ -363,7 +374,8 @@ impl WalletStore {
     /// Look up an API key by its ID.
     /// Get an API key by key ID.
     ///
-    /// REQ: STO-148
+    /// REQ: P3-sto-wallet-api-key-get
+    /// [P3] Motivating: Generative Space — get API key by ID
     /// pre:  key_id is valid
     /// post: returns Some(capability) if found, None otherwise
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, WalletError> {
@@ -400,7 +412,8 @@ impl WalletStore {
     /// Look up an API key by its Ed25519 public key (for Bearer token auth).
     /// Get an API key by public key.
     ///
-    /// REQ: STO-149
+    /// REQ: P3-sto-wallet-api-key-by-pubkey
+    /// [P3] Motivating: Generative Space — get API key by public key
     /// pre:  public_key is valid
     /// post: returns Some(capability) if found, None otherwise
     pub fn get_api_key_by_public_key(
@@ -440,7 +453,8 @@ impl WalletStore {
     /// List all active (non-revoked) API keys for a wallet.
     /// List API keys for a wallet.
     ///
-    /// REQ: STO-150
+    /// REQ: P3-sto-wallet-api-key-list
+    /// [P3] Motivating: Generative Space — list API keys
     /// pre:  wallet_id is valid
     /// post: returns Vec of API key capabilities
     pub fn list_api_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
@@ -478,7 +492,8 @@ impl WalletStore {
     /// Idempotent — revoking an already-revoked key is a no-op.
     /// Revoke an API key.
     ///
-    /// REQ: STO-151
+    /// REQ: P3-sto-wallet-api-key-revoke
+    /// [P3] Motivating: Generative Space — revoke API key
     /// pre:  key_id is valid
     /// post: API key revoked, unspent rJ returned to wallet
     pub fn revoke_api_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
@@ -510,7 +525,8 @@ impl WalletStore {
     /// Update the spent_rj counter on an API key (called after each tool invocation).
     /// Update spent rJoules for an API key.
     ///
-    /// REQ: STO-152
+    /// REQ: P3-sto-wallet-spent-rj-update
+    /// [P3] Motivating: Generative Space — update spent rJ for key
     /// pre:  key_id is valid
     /// post: spent_rj updated
     pub fn update_spent_rj(&self, key_id: ApiKeyId, spent: RJoule) -> Result<(), WalletError> {
@@ -527,7 +543,8 @@ impl WalletStore {
     /// Store a derived deposit address for a wallet.
     /// Store a deposit address.
     ///
-    /// REQ: STO-153
+    /// REQ: P3-sto-wallet-address-store
+    /// [P3] Motivating: Generative Space — store deposit address
     /// pre:  address has valid wallet_id and chain
     /// post: deposit address stored
     pub fn store_deposit_address(
@@ -555,7 +572,8 @@ impl WalletStore {
     /// Get all deposit addresses for a wallet.
     /// Get deposit addresses for a wallet.
     ///
-    /// REQ: STO-154
+    /// REQ: P3-sto-wallet-address-list
+    /// [P3] Motivating: Generative Space — list deposit addresses
     /// pre:  wallet_id is valid
     /// post: returns Vec of deposit addresses
     pub fn get_deposit_addresses(
@@ -595,7 +613,8 @@ impl WalletStore {
     /// correct wallet in a multi-wallet setup.
     /// Resolve wallet for a deposit address.
     ///
-    /// REQ: STO-155
+    /// REQ: P3-sto-wallet-address-resolve
+    /// [P3] Motivating: Generative Space — resolve wallet for address
     /// pre:  chain is valid, address is non-empty
     /// post: returns Some(WalletId) if found, None otherwise
     pub fn resolve_wallet_for_address(
@@ -620,7 +639,8 @@ impl WalletStore {
     /// Store a one-time shielded deposit reference.
     /// Store a deposit reference for anti-replay.
     ///
-    /// REQ: STO-156
+    /// REQ: P3-sto-wallet-reference-store
+    /// [P3] Motivating: Generative Space — store deposit reference
     /// pre:  reference has valid fields
     /// post: deposit reference stored
     pub fn store_deposit_reference(&self, reference: &DepositReference) -> Result<(), WalletError> {
@@ -641,7 +661,8 @@ impl WalletStore {
     /// Returns None if the reference doesn't exist, is already spent, or has expired.
     /// Consume a deposit reference (anti-replay).
     ///
-    /// REQ: STO-157
+    /// REQ: P3-sto-wallet-reference-consume
+    /// [P3] Motivating: Generative Space — consume deposit reference
     /// pre:  reference is valid and not expired
     /// post: reference consumed, wallet credited
     /// post: returns Err if already consumed or expired
@@ -670,7 +691,8 @@ impl WalletStore {
     /// Purge expired deposit references. Returns count of purged rows.
     /// Purge expired deposit references.
     ///
-    /// REQ: STO-158
+    /// REQ: P3-sto-wallet-reference-purge
+    /// [P3] Motivating: Generative Space — purge expired references
     /// post: expired references deleted
     /// post: returns count of deleted references
     pub fn purge_expired_references(&self) -> Result<u64, WalletError> {
@@ -692,7 +714,8 @@ impl WalletStore {
     /// encumbrance or the wallet has insufficient balance.
     /// Encumber rJoules for an API key (lock funds for spending).
     ///
-    /// REQ: STO-159
+    /// REQ: P3-sto-wallet-encumber
+    /// [P3] Motivating: Generative Space — encumber rJoules for key
     /// pre:  wallet_id exists, key_id is valid, amount > 0, balance >= amount
     /// post: rJoules encumbered, balance decreased
     pub fn encumber_rjoules(
@@ -748,7 +771,8 @@ impl WalletStore {
     /// is a no-op.
     /// Release an encumbrance (return unspent rJoules to wallet).
     ///
-    /// REQ: STO-160
+    /// REQ: P3-sto-wallet-encumbrance-release
+    /// [P3] Motivating: Generative Space — release encumbrance
     /// pre:  key_id has active encumbrance
     /// post: encumbrance released, unspent rJ returned to wallet
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
@@ -794,7 +818,8 @@ impl WalletStore {
     /// If the encumbrance is fully consumed, status transitions to 'consumed'.
     /// Consume from an encumbrance (spend locked rJoules).
     ///
-    /// REQ: STO-161
+    /// REQ: P3-sto-wallet-encumbrance-consume
+    /// [P3] Motivating: Generative Space — consume from encumbrance
     /// pre:  key_id has active encumbrance with sufficient remaining
     /// post: consumed_rj increased, api_keys.spent_rj synced
     /// post: returns Err if insufficient or not active
@@ -868,7 +893,8 @@ impl WalletStore {
     /// Get an encumbrance by key ID.
     /// Get an encumbrance by key ID.
     ///
-    /// REQ: STO-162
+    /// REQ: P3-sto-wallet-encumbrance-get
+    /// [P3] Motivating: Generative Space — get encumbrance
     /// pre:  key_id is valid
     /// post: returns Some(Encumbrance) if found, None otherwise
     pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
@@ -1091,7 +1117,7 @@ mod tests {
         WalletStore::new(db.conn_arc())
     }
 
-    // REQ: SHOULD-8 — WAL mode can be enabled on wallet store
+    // REQ: P3-sto-wallet-wal-test — WAL mode can be enabled on wallet store
     #[test]
     fn enable_wal_mode_succeeds() {
         let store = make_store();
@@ -1104,7 +1130,7 @@ mod tests {
         );
     }
 
-    // REQ: P2-wallet-store — credit_rjoules increases balance
+    // REQ: P1-sto-wallet-store-test — credit_rjoules increases balance
     #[test]
     fn credit_rjoules_increases_balance() {
         let store = make_store();
@@ -1113,7 +1139,7 @@ mod tests {
         assert_eq!(balance.rjoules, 1000);
     }
 
-    // REQ: P2-wallet-store — debit_rjoules decreases balance
+    // REQ: P1-sto-wallet-store-test — debit_rjoules decreases balance
     #[test]
     fn debit_rjoules_decreases_balance() {
         let store = make_store();
@@ -1123,7 +1149,7 @@ mod tests {
         assert_eq!(balance.rjoules, 700);
     }
 
-    // REQ: P2-wallet-store — debit_rjoules rejects insufficient balance
+    // REQ: P1-sto-wallet-store-test — debit_rjoules rejects insufficient balance
     #[test]
     fn debit_rjoules_rejects_insufficient_balance() {
         let store = make_store();
@@ -1133,7 +1159,7 @@ mod tests {
         assert!(matches!(err, WalletError::InsufficientBalance { .. }));
     }
 
-    // REQ: P2-wallet-store — balance never goes negative
+    // REQ: P1-sto-wallet-store-test — balance never goes negative
     #[test]
     fn balance_never_negative() {
         let store = make_store();
@@ -1146,7 +1172,7 @@ mod tests {
         assert!(store.debit_rjoules(wallet, RJoule::new(1)).is_err());
     }
 
-    // REQ: P2-wallet-store — transaction ledger is append-only
+    // REQ: P1-sto-wallet-store-test — transaction ledger is append-only
     #[test]
     fn transaction_ledger_is_append_only() {
         let store = make_store();
@@ -1174,7 +1200,7 @@ mod tests {
         assert_eq!(txs[0].rjoules_delta, 1000);
     }
 
-    // REQ: P2-wallet-store — deposit reference is consumed atomically (anti-replay)
+    // REQ: P1-sto-wallet-store-test — deposit reference is consumed atomically (anti-replay)
     #[test]
     fn deposit_reference_anti_replay() {
         let store = make_store();
@@ -1199,7 +1225,7 @@ mod tests {
         assert_eq!(result2, None);
     }
 
-    // REQ: P2-wallet-store — expired deposit reference cannot be consumed
+    // REQ: P1-sto-wallet-store-test — expired deposit reference cannot be consumed
     #[test]
     fn expired_deposit_reference_rejected() {
         let store = make_store();
@@ -1219,7 +1245,7 @@ mod tests {
         assert_eq!(result, None);
     }
 
-    // REQ: P2-wallet-store — API key store and retrieve by public key
+    // REQ: P1-sto-wallet-store-test — API key store and retrieve by public key
     #[test]
     fn api_key_store_and_retrieve_by_public_key() {
         let store = make_store();
@@ -1248,7 +1274,7 @@ mod tests {
         assert_eq!(retrieved.unwrap().key_id, cap.key_id);
     }
 
-    // REQ: P2-wallet-store — API key revocation returns unspent rJoules
+    // REQ: P1-sto-wallet-store-test — API key revocation returns unspent rJoules
     #[test]
     fn api_key_revocation_returns_unspent_rjoules() {
         let store = make_store();
@@ -1282,7 +1308,7 @@ mod tests {
         assert_eq!(after.rjoules, 8800); // 5000 + 3800 unspent returned
     }
 
-    // REQ: wallet-spend-sync-001 — consume_encumbrance increments api_keys.spent_rj in lockstep
+    // REQ: P1-sto-wallet-spend-sync-test — consume_encumbrance increments api_keys.spent_rj in lockstep
     #[test]
     fn consume_encumbrance_updates_api_key_spent_rj() {
         let store = make_store();
@@ -1320,7 +1346,7 @@ mod tests {
         );
     }
 
-    // REQ: wallet-spend-sync-002 — failed/replayed consume must not drift api_keys.spent_rj
+    // REQ: P1-sto-wallet-spend-sync-drift-test — failed/replayed consume must not drift api_keys.spent_rj
     #[test]
     fn failed_consume_does_not_increment_api_key_spent_rj() {
         let store = make_store();
@@ -1364,7 +1390,7 @@ mod tests {
         );
     }
 
-    // REQ: P2-wallet-store — purge_expired_references cleans up
+    // REQ: P1-sto-wallet-store-test — purge_expired_references cleans up
     #[test]
     fn purge_expired_references_cleans_up() {
         let store = make_store();
@@ -1403,7 +1429,7 @@ mod tests {
         );
     }
 
-    // REQ: MUST-10 — sum(ledger deltas) == current_balance
+    // REQ: P1-sto-wallet-balance-conservation-test — sum(ledger deltas) == current_balance
     // Property test: for any sequence of credits and debits, the sum of all
     // transaction rjoules_delta values must equal the current wallet balance.
     #[test]
@@ -1514,7 +1540,7 @@ mod tests {
     //
     // GAP entries are documented below with regression-catching tests.
 
-    // REQ: wallet-idem-001 — ensure_wallet is idempotent (INSERT OR IGNORE)
+    // REQ: P3-sto-wallet-ensure-idempotent-test — ensure_wallet is idempotent (INSERT OR IGNORE)
     #[test]
     fn ensure_wallet_is_idempotent() {
         let store = make_store();
@@ -1534,7 +1560,7 @@ mod tests {
         );
     }
 
-    // REQ: wallet-idem-002 — release_encumbrance is idempotent (status guard)
+    // REQ: P3-sto-wallet-release-idempotent-test — release_encumbrance is idempotent (status guard)
     #[test]
     fn release_encumbrance_is_idempotent() {
         let store = make_store();
@@ -1584,7 +1610,7 @@ mod tests {
         );
     }
 
-    // REQ: wallet-idem-003 — credit_rjoules is NOT idempotent (documents gap)
+    // REQ: P3-sto-wallet-credit-not-idempotent-test — credit_rjoules is NOT idempotent (documents gap)
     //
     // This test documents the CURRENT behavior. When a transaction-hash
     // deduplication mechanism is added, this test MUST be updated to verify
@@ -1607,7 +1633,7 @@ mod tests {
         );
     }
 
-    // REQ: wallet-idem-004 — debit_rjoules is NOT idempotent (documents gap)
+    // REQ: P3-sto-wallet-debit-not-idempotent-test — debit_rjoules is NOT idempotent (documents gap)
     //
     // This test documents the CURRENT behavior. When an idempotency key
     // mechanism is added, this test MUST be updated to verify that duplicate
@@ -1631,7 +1657,7 @@ mod tests {
         );
     }
 
-    // REQ: wallet-idem-005 — consume_deposit_reference is idempotent (CAS guard)
+    // REQ: P3-sto-wallet-consume-reference-idempotent-test — consume_deposit_reference is idempotent (CAS guard)
     //
     // This is the same as the anti-replay test above but explicitly framed
     // as an idempotency contract test.

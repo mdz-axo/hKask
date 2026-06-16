@@ -65,7 +65,8 @@ impl FromStr for GalleryMode {
 impl GalleryMode {
     /// Get the string representation of the face status.
     ///
-    /// REQ: STO-069
+    /// REQ: P3-sto-gallery-mode-str
+    /// [P8] Motivating: Semantic Grounding — stable gallery mode labels
     /// post: returns "active" or "inactive"
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -139,7 +140,8 @@ impl GalleryStore {
     /// Initialize gallery tables in the database.
     /// Initialize gallery tables.
     ///
-    /// REQ: STO-070
+    /// REQ: P3-sto-gallery-schema
+    /// [P3] Motivating: Generative Space — schema for galleries, images, tags, faces
     /// pre:  conn is a valid SQLite connection
     /// post: gallery tables created if not exists
     pub fn init_tables(conn: &Connection) -> rusqlite::Result<()> {
@@ -209,10 +211,11 @@ impl GalleryStore {
 
     /// Create a new gallery. Returns the gallery record.
     ///
-    /// REQ: media-gallery-create-01
+    /// REQ: P3-sto-gallery-create-test
     /// Create a new gallery.
     ///
-    /// REQ: STO-071
+    /// REQ: P3-sto-gallery-create
+    /// [P3] Motivating: Generative Space — create a gallery
     /// pre:  name is non-empty
     /// post: gallery created and returned
     pub fn create(
@@ -256,11 +259,12 @@ impl GalleryStore {
 
     /// Add an image to the gallery index.
     ///
-    /// REQ: media-gallery-scan-01
+    /// REQ: P3-sto-gallery-add-image-test
     #[allow(clippy::too_many_arguments)]
     /// Add an image to a gallery.
     ///
-    /// REQ: STO-072
+    /// REQ: P3-sto-gallery-add-image
+    /// [P3] Motivating: Generative Space — add image to gallery
     /// pre:  gallery_id is valid, image data is non-empty
     /// post: image stored in gallery
     pub fn add_image(
@@ -310,10 +314,11 @@ impl GalleryStore {
 
     /// Get an image by index (0-based position in gallery) or by hash.
     ///
-    /// REQ: media-gallery-get-image-01
+    /// REQ: P3-sto-gallery-get-image-index-test
     /// Get an image from a gallery.
     ///
-    /// REQ: STO-073
+    /// REQ: P3-sto-gallery-get-image
+    /// [P3] Motivating: Generative Space — get image by index or hash
     /// pre:  gallery_id is valid
     /// post: returns GalleryImage if found
     pub fn get_image(
@@ -362,10 +367,11 @@ impl GalleryStore {
 
     /// Tag an image with AI-generated metadata.
     ///
-    /// REQ: media-gallery-tag-image-01
+    /// REQ: P3-sto-gallery-tag-image-test
     /// Tag an image in a gallery.
     ///
-    /// REQ: STO-074
+    /// REQ: P3-sto-gallery-tag-image
+    /// [P3] Motivating: Generative Space — tag an image
     /// pre:  gallery_id and image_hash are valid, tag is non-empty
     /// post: tag added to image
     pub fn tag_image(
@@ -406,10 +412,11 @@ impl GalleryStore {
 
     /// Get all tags for an image.
     ///
-    /// REQ: media-gallery-get-tags-01
+    /// REQ: P3-sto-gallery-get-tags-test
     /// Get tags for an image.
     ///
-    /// REQ: STO-075
+    /// REQ: P3-sto-gallery-get-tags
+    /// [P3] Motivating: Generative Space — get tags for an image
     /// pre:  gallery_id and image_hash are valid
     /// post: returns Vec of tags
     pub fn get_tags(
@@ -434,7 +441,8 @@ impl GalleryStore {
     /// Get gallery record by ID.
     /// Get a gallery by ID.
     ///
-    /// REQ: STO-076
+    /// REQ: P3-sto-gallery-get
+    /// [P3] Motivating: Generative Space — get gallery by ID
     /// pre:  gallery_id is valid
     /// post: returns Gallery if found
     pub fn get_gallery(
@@ -470,10 +478,11 @@ impl GalleryStore {
     /// Get all tags for all images in a gallery.
     ///
     /// Returns tags joined with their image's relative path for search ranking.
-    /// REQ: media-gallery-search-tags-01
+    /// REQ: P3-sto-gallery-all-tags
     /// Get all tags across all galleries.
     ///
-    /// REQ: STO-077
+    /// REQ: P3-sto-gallery-all-tags
+    /// [P3] Motivating: Generative Space — list all tags across galleries
     /// post: returns Vec of all unique tags
     pub fn get_all_tags(
         &self,
@@ -510,10 +519,11 @@ impl GalleryStore {
 
     /// Register a face in the registry.
     ///
-    /// REQ: media-face-register-01
+    /// REQ: P3-sto-gallery-face-register-test
     /// Register a face in the gallery.
     ///
-    /// REQ: STO-078
+    /// REQ: P3-sto-gallery-face-register
+    /// [P3] Motivating: Generative Space — register a face
     /// pre:  face data is valid
     /// post: face registered and returned
     pub fn register_face(
@@ -550,10 +560,11 @@ impl GalleryStore {
 
     /// List all faces in the registry, optionally filtered by status.
     ///
-    /// REQ: media-face-list-01
+    /// REQ: P3-sto-gallery-face-list-test
     /// List faces with optional status filter.
     ///
-    /// REQ: STO-079
+    /// REQ: P3-sto-gallery-face-list
+    /// [P3] Motivating: Generative Space — list faces
     /// post: returns Vec of faces, optionally filtered by status
     pub fn list_faces(
         &self,
@@ -584,10 +595,11 @@ impl GalleryStore {
 
     /// Get a face registry entry by ID.
     ///
-    /// REQ: media-face-get-01
+    /// REQ: P3-sto-gallery-face-get-test
     /// Get a face by ID.
     ///
-    /// REQ: STO-080
+    /// REQ: P3-sto-gallery-face-get
+    /// [P3] Motivating: Generative Space — get face by ID
     /// pre:  face_id is non-empty
     /// post: returns Face if found
     pub fn get_face(
@@ -612,10 +624,11 @@ impl GalleryStore {
 
     /// Remove a face from the registry by ID.
     ///
-    /// REQ: media-face-remove-01
+    /// REQ: P3-sto-gallery-face-remove-test
     /// Remove a face from the gallery.
     ///
-    /// REQ: STO-081
+    /// REQ: P3-sto-gallery-face-remove
+    /// [P3] Motivating: Generative Space — remove face
     /// pre:  face_id is non-empty
     /// post: face deleted
     pub fn remove_face(&self, face_id: &str) -> std::result::Result<(), GalleryStoreError> {
@@ -632,10 +645,11 @@ impl GalleryStore {
 
     /// Update a face registry entry's status and notes.
     ///
-    /// REQ: media-face-update-01
+    /// REQ: P3-sto-gallery-face-update-test
     /// Update a face's status.
     ///
-    /// REQ: STO-082
+    /// REQ: P3-sto-gallery-face-update
+    /// [P3] Motivating: Generative Space — update face status
     /// pre:  face_id is valid, status is valid
     /// post: face status updated
     pub fn update_face(
@@ -723,7 +737,7 @@ mod tests {
         GalleryStore::new(db.conn)
     }
 
-    /// REQ: media-gallery-create-01 — create gallery returns valid record
+    /// REQ: P3-sto-gallery-create-test — create gallery returns valid record
     #[test]
     fn create_gallery_returns_record() {
         let store = setup();
@@ -735,7 +749,7 @@ mod tests {
         assert_eq!(record.image_count, 0);
     }
 
-    /// REQ: media-gallery-create-02 — duplicate path is rejected
+    /// REQ: P3-sto-gallery-create-dup-test — duplicate path is rejected
     #[test]
     fn create_duplicate_path_rejected() {
         let store = setup();
@@ -746,7 +760,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    /// REQ: media-gallery-scan-01 — add_image stores record
+    /// REQ: P3-sto-gallery-add-image-test — add_image stores record
     #[test]
     fn add_image_stores_record() {
         let store = setup();
@@ -772,7 +786,7 @@ mod tests {
         assert_eq!(img.height, 1080);
     }
 
-    /// REQ: media-gallery-get-image-01 — get by index
+    /// REQ: P3-sto-gallery-get-image-index-test — get by index
     #[test]
     fn get_image_by_index() {
         let store = setup();
@@ -812,7 +826,7 @@ mod tests {
         assert_eq!(img.relative_path, "second.jpg");
     }
 
-    /// REQ: media-gallery-get-image-02 — get by hash
+    /// REQ: P3-sto-gallery-get-image-hash-test — get by hash
     #[test]
     fn get_image_by_hash() {
         let store = setup();
@@ -837,7 +851,7 @@ mod tests {
         assert_eq!(img.hash, "abc123");
     }
 
-    /// REQ: media-gallery-tag-image-01 — tag_image stores tag
+    /// REQ: P3-sto-gallery-tag-image-test — tag_image stores tag
     #[test]
     fn tag_image_stores_tag() {
         let store = setup();
@@ -872,7 +886,7 @@ mod tests {
         assert_eq!(tag.confidence, 0.95);
     }
 
-    /// REQ: media-gallery-get-tags-01 — get_tags returns all tags
+    /// REQ: P3-sto-gallery-get-tags-test — get_tags returns all tags
     #[test]
     fn get_tags_returns_all() {
         let store = setup();
@@ -903,7 +917,7 @@ mod tests {
         assert_eq!(tags.len(), 2);
     }
 
-    /// REQ: media-gallery-tag-dedup-01 — tag_image ignores duplicate (image_id, tag_type, value)
+    /// REQ: P3-sto-gallery-tag-dedup-test — tag_image ignores duplicate (image_id, tag_type, value)
     #[test]
     fn tag_image_ignores_duplicates() {
         let store = setup();
@@ -940,7 +954,7 @@ mod tests {
 
     // ── Face registry tests ──
 
-    /// REQ: media-face-register-01 — register_face creates a valid record
+    /// REQ: P3-sto-gallery-face-register-test — register_face creates a valid record
     #[test]
     fn register_face_creates_record() {
         let store = setup();
@@ -978,7 +992,7 @@ mod tests {
         assert!(face.notes.contains("good lighting"));
     }
 
-    /// REQ: media-face-list-01 — list_faces returns all registered faces
+    /// REQ: P3-sto-gallery-face-list-test — list_faces returns all registered faces
     #[test]
     fn list_faces_returns_all() {
         let store = setup();
@@ -1021,7 +1035,7 @@ mod tests {
         assert_eq!(faces.len(), 2);
     }
 
-    /// REQ: media-face-list-02 — list_faces filters by status
+    /// REQ: P3-sto-gallery-face-list-filter-test — list_faces filters by status
     #[test]
     fn list_faces_filters_by_status() {
         let store = setup();
@@ -1069,7 +1083,7 @@ mod tests {
         assert_eq!(rejected[0].first_name, "Bob");
     }
 
-    /// REQ: media-face-get-01 — get_face returns correct record
+    /// REQ: P3-sto-gallery-face-get-test — get_face returns correct record
     #[test]
     fn get_face_returns_record() {
         let store = setup();
@@ -1098,7 +1112,7 @@ mod tests {
         assert_eq!(retrieved.last_name, "Chen");
     }
 
-    /// REQ: media-face-get-02 — get_face errors on unknown ID
+    /// REQ: P3-sto-gallery-face-get-missing-test — get_face errors on unknown ID
     #[test]
     fn get_face_unknown_id_errors() {
         let store = setup();
@@ -1106,7 +1120,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    /// REQ: media-face-remove-01 — remove_face deletes record
+    /// REQ: P3-sto-gallery-face-remove-test — remove_face deletes record
     #[test]
     fn remove_face_deletes_record() {
         let store = setup();
@@ -1136,7 +1150,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    /// REQ: media-face-update-01 — update_face changes status and notes
+    /// REQ: P3-sto-gallery-face-update-test — update_face changes status and notes
     #[test]
     fn update_face_changes_status() {
         let store = setup();

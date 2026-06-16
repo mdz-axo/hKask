@@ -1,0 +1,52 @@
+# Template crate manifest for pragmatic-laziness skill
+# ℏKask v0.27.0
+
+crate:
+  name: pragmatic-laziness
+  version: "0.27.0"
+  description: >
+    Procedural composition skill that finds the path of least action through
+    meaning-space. Orchestrates pragmatic-semantics, pragmatic-cybernetics,
+    essentialist, and grill-me through a 3-phase lazy loop.
+
+templates:
+  - id: pragmatic-laziness/pragmatic-laziness-flow
+    path: pragmatic-laziness-flow.j2
+    type: KnowAct
+    lexicon_terms:
+      [
+        decompose,
+        identify,
+        eliminate,
+        verify,
+        converge,
+        iterate,
+        delegate,
+        compose,
+        discriminate,
+        evaluate,
+      ]
+    description: >
+      3-phase lazy loop for least-action path finding. Sequences and delegates
+      to other skills; does not add artifacts.
+
+  - id: pragmatic-laziness/pragmatic-laziness-converge
+    path: pragmatic-laziness-converge.j2
+    type: KnowAct
+    lexicon_terms: [converge, compare, evaluate, verify, discriminate]
+    description: >
+      δS = 0 convergence check. Compares current and previous configurations
+      to decide whether the lazy loop has reached a stationary point.
+
+hlexicon_terms:
+  - decompose
+  - identify
+  - eliminate
+  - verify
+  - converge
+  - iterate
+  - delegate
+  - compose
+  - discriminate
+  - evaluate
+  - compare

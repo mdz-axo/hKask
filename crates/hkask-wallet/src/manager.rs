@@ -20,6 +20,7 @@ use hkask_types::wallet::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use zeroize::Zeroizing;
 
 use crate::chain::{ChainPort, DepositEvent};
@@ -35,7 +36,7 @@ use crate::signing;
 /// - Holds `wallet_seed` in `Zeroizing` for deposit reference generation
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
 ///
-/// REQ: P9-wallet-mgr-build
+/// REQ: P9-wallet-mgr-struct
 /// [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
 /// [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
 /// inv: wallet_seed is zeroized on drop (Zeroizing wrapper)
@@ -52,6 +53,9 @@ pub struct WalletManager {
     /// Price feed for native token USD rates (fee estimation).
     /// Resolved from user's `PriceFeedConfig` at build time.
     price_feed: Arc<dyn PriceFeed>,
+    /// Runtime-adjustable gas→rJoule conversion rate.
+    /// Initialized from `config.gas_per_rjoule`; updated by the CNS calibration loop.
+    gas_per_rjoule: Arc<AtomicU64>,
 }
 
 impl WalletManager {
@@ -76,6 +80,7 @@ impl WalletManager {
         })?;
         let mut seed_arr = [0u8; 32];
         seed_arr.copy_from_slice(&seed_bytes[..32]);
+        let gas_per_rjoule = Arc::new(AtomicU64::new(config.gas_per_rjoule));
         Ok(WalletManager {
             config,
             store,
@@ -84,6 +89,7 @@ impl WalletManager {
             wallet_seed: Zeroizing::new(seed_arr),
             event_sink: None,
             price_feed,
+            gas_per_rjoule,
         })
     }
 
@@ -135,7 +141,7 @@ impl WalletManager {
 
     /// Emit a CNS algedonic alert for API key health events.
     ///
-    /// REQ: P9-wlt-issuer-key-lifecycle, MUST-6 (algedonic feedback closure)
+    /// REQ: P9-wallet-mgr-key-alert-span (algedonic feedback closure)
     /// pre:  key_id is a valid ApiKeyId
     /// post: if key is expired → emits cns.wallet.key_expired span (Sense phase)
     /// post: if key is exhausted → emits cns.wallet.key_exhausted span (Sense phase)
@@ -802,20 +808,44 @@ impl WalletManager {
     // ── Gas ↔ rJoule conversion ──────────────────────────────────────────────
 
     /// Convert gas units to rJoules.
+    ///
+    /// REQ: P9-wallet-mgr-gas-to-rjoules
+    /// pre:  gas is a non-negative integer
+    /// post: returns RJoule equivalent using the current gas_per_rjoule rate
     pub fn gas_to_rjoules(&self, gas: u64) -> RJoule {
         // Integer division: gas / gas_per_rjoule
         // Minimum 1 rJ if gas > 0 (sub-rJoule operations round up to 1 rJ)
         if gas == 0 {
             RJoule::ZERO
         } else {
-            let rj = gas / self.config.gas_per_rjoule;
+            let rate = self.gas_per_rjoule.load(Ordering::Relaxed);
+            let rj = gas / rate;
             RJoule::new(if rj == 0 { 1 } else { rj })
         }
     }
 
     /// Convert rJoules to gas units.
+    ///
+    /// REQ: P9-wallet-mgr-rjoules-to-gas
+    /// pre:  rj is a non-negative RJoule
+    /// post: returns gas equivalent using the current gas_per_rjoule rate
     pub fn rjoules_to_gas(&self, rj: RJoule) -> u64 {
-        rj.as_u64() * self.config.gas_per_rjoule
+        rj.as_u64() * self.gas_per_rjoule.load(Ordering::Relaxed)
+    }
+
+    /// Current gas→rJoule conversion rate.
+    pub fn gas_per_rjoule(&self) -> u64 {
+        self.gas_per_rjoule.load(Ordering::Relaxed)
+    }
+
+    /// Update the gas→rJoule conversion rate at runtime.
+    ///
+    /// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
+    /// pre:  rate > 0
+    /// post: subsequent gas_to_rjoules/rjoules_to_gas use the new rate
+    pub fn set_gas_per_rjoule(&self, rate: u64) {
+        let rate = rate.max(1);
+        self.gas_per_rjoule.store(rate, Ordering::Relaxed);
     }
 
     /// Estimate network withdrawal fee in rJoules/native units/USDC using configured PriceFeed.
@@ -859,7 +889,7 @@ impl WalletManager {
 
     /// Check if a wallet can afford a given rJoule cost.
     ///
-    /// REQ: P9-wallet-mgr-reserve-settle
+    /// REQ: P9-wallet-mgr-can-afford
     /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
     /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, cost_rj is a valid RJoule
@@ -873,7 +903,7 @@ impl WalletManager {
     /// Reserve rJoules for an in-flight operation (optimistic).
     /// The actual debit happens at settle time.
     ///
-    /// REQ: P9-wallet-mgr-reserve-settle
+    /// REQ: P9-wallet-mgr-reserve
     /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
     /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, amount is a valid RJoule
@@ -895,7 +925,7 @@ impl WalletManager {
     /// Settle rJoules after an operation completes.
     /// Debits the actual cost (may be less than reserved on failure).
     ///
-    /// REQ: P9-wallet-mgr-reserve-settle
+    /// REQ: P9-wallet-mgr-settle
     /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
     /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, reserved and actual are valid RJoule
@@ -933,7 +963,7 @@ impl WalletManager {
     ) -> Result<DepositReference, WalletError> {
         let nonce: [u8; 16] = rand::random();
         let expiry = Utc::now() + validity_duration;
-        // REQ: MUST-3 — HKDF context includes nonce to bind reference to its specific random nonce
+        // REQ: P9-wallet-mgr-deposit-ref-nonce — HKDF context includes nonce to bind reference to its specific random nonce
         let context = format!(
             "hkask:deposit-ref:{}:{}:{}:{}",
             wallet_id,
@@ -960,7 +990,7 @@ impl WalletManager {
 
     /// Encumber rJoules from a wallet for an API key's allocation.
     ///
-    /// REQ: P9-wallet-mgr-encumbrance
+    /// REQ: P9-wallet-mgr-encumber
     /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
     /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
     /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
@@ -992,7 +1022,7 @@ impl WalletManager {
 
     /// Release an encumbrance, returning unspent rJoules to the wallet.
     ///
-    /// REQ: P9-wallet-mgr-encumbrance
+    /// REQ: P9-wallet-mgr-release-encumbrance
     /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
     /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
     /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
@@ -1016,7 +1046,7 @@ impl WalletManager {
 
     /// Atomically consume rJoules from an API key's encumbrance.
     ///
-    /// REQ: P9-wallet-mgr-encumbrance
+    /// REQ: P9-wallet-mgr-consume
     /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
     /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
     /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
@@ -1033,7 +1063,7 @@ impl WalletManager {
 
     /// Get the encumbrance for an API key.
     ///
-    /// REQ: P9-wallet-mgr-encumbrance
+    /// REQ: P9-wallet-mgr-get-encumbrance
     /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
     /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
     /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
@@ -1216,7 +1246,7 @@ mod tests {
         .unwrap()
     }
 
-    // REQ: P9-wallet-mgr-test — gas_to_rjoules converts correctly
+    // REQ: P9-wallet-mgr-gas-conversion-test — gas_to_rjoules converts correctly
     #[test]
     fn gas_to_rjoules_conversion() {
         let mgr = make_manager();
@@ -1225,7 +1255,7 @@ mod tests {
         assert_eq!(mgr.gas_to_rjoules(0), RJoule::ZERO);
     }
 
-    // REQ: P9-wallet-mgr-test — rjoules_to_gas converts correctly
+    // REQ: P9-wallet-mgr-rjoules-to-gas-test — rjoules_to_gas converts correctly
     #[test]
     fn rjoules_to_gas_conversion() {
         let mgr = make_manager();
@@ -1249,7 +1279,7 @@ mod tests {
         assert!(fee.native_units > 0.0);
     }
 
-    // REQ: P9-wallet-mgr-test — can_afford checks balance
+    // REQ: P9-wallet-mgr-can-afford-test — can_afford checks balance
     #[test]
     fn can_afford_checks_balance() {
         let mgr = make_manager();
@@ -1259,7 +1289,7 @@ mod tests {
         assert!(!mgr.can_afford(wallet, RJoule::new(200)).unwrap());
     }
 
-    // REQ: P9-wallet-mgr-test — reserve_rjoules rejects insufficient balance
+    // REQ: P9-wallet-mgr-reserve-rejects-test — reserve_rjoules rejects insufficient balance
     #[test]
     fn reserve_rejects_insufficient_balance() {
         let mgr = make_manager();
@@ -1269,7 +1299,7 @@ mod tests {
         assert!(mgr.reserve_rjoules(wallet, RJoule::new(100)).is_err());
     }
 
-    // REQ: P9-wallet-mgr-test — settle_rjoules debits actual cost
+    // REQ: P9-wallet-mgr-settle-debits-test — settle_rjoules debits actual cost
     #[test]
     fn settle_debits_actual_cost() {
         let mgr = make_manager();
@@ -1281,7 +1311,7 @@ mod tests {
         assert_eq!(balance.rjoules, 70); // 100 - 30
     }
 
-    // REQ: P9-wallet-mgr-test — deposit reference generation and verification
+    // REQ: P9-wallet-mgr-deposit-ref-gen-test — deposit reference generation and verification
     #[test]
     fn deposit_reference_generation() {
         let mgr = make_manager();
@@ -1704,7 +1734,7 @@ mod tests {
         );
     }
 
-    // REQ: MUST-10 — EncumbranceStatus state machine: Released cannot transition back to Active
+    // REQ: P9-wallet-mgr-encumbrance-state-machine-test — EncumbranceStatus state machine: Released cannot transition back to Active
     // Proves that once an encumbrance is released, no operation can re-activate it.
     #[test]
     fn encumbrance_status_state_machine_no_released_to_active() {
@@ -1938,7 +1968,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wallet-mgr-multi-chain-deposit-test — shielded Hinkal withdrawal uses privacy adapter path
+    // REQ: P9-wallet-mgr-shielded-withdraw-privacy-test — shielded Hinkal withdrawal uses privacy adapter path
     #[tokio::test]
     async fn withdraw_shielded_hinkal_uses_privacy_path() {
         let mgr = make_manager_with_hinkal_privacy();

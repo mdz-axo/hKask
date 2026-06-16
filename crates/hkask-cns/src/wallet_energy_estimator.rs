@@ -4,12 +4,10 @@
 //! for use by `WalletBackedBudget`. The estimator itself produces gas costs;
 //! conversion to rJoules happens at reserve/settle time in `WalletBackedBudget`.
 //!
-//! # Calibration `[OUGHT-DECL]`
-//! The `gas_per_rjoule` rate is initially static (default 1000). Over time,
-//! the CNS cybernetics loop monitors `cns.gas.settled` spans (emitted by
-//! `GovernedTool`) and computes the ratio of actual_gas / estimated_gas per tool.
-//! Systematic over/under-estimation triggers calibration adjustments via
-//! `calibrate()`, which applies an exponential moving average to the conversion rate.
+//! # Calibration
+//! The conversion rate can be adjusted at runtime via `calibrate()` based on
+//! observed actual_gas / estimated_gas ratios from `GovernedTool` settlements.
+//! This closes the Good Regulator feedback loop (P9).
 
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
 use crate::governed_tool::EnergyEstimator;
@@ -21,12 +19,6 @@ use serde_json::Value;
 /// The estimator produces dimensionless gas costs (same as the standard
 /// estimator). The `gas_per_rjoule` field is consumed by `WalletBackedBudget`
 /// at reserve/settle time to convert gas to rJoules for wallet debiting.
-///
-/// # Calibration
-/// The conversion rate can be adjusted at runtime via `calibrate()` based on
-/// observed actual_gas / estimated_gas ratios from `GovernedTool` settlements.
-/// This closes the Good Regulator feedback loop (P9): the estimator's model
-/// of gas costs is continuously validated against reality.
 pub struct WalletEnergyEstimator {
     /// The underlying composite estimator (inference → token-based, others → table).
     inner: CompositeEnergyEstimator,
@@ -44,8 +36,21 @@ pub struct WalletEnergyEstimator {
 impl WalletEnergyEstimator {
     /// Create a new WalletEnergyEstimator with the given conversion rate.
     pub fn new(gas_per_rjoule: u64) -> Self {
+        Self::with_estimator(gas_per_rjoule, CompositeEnergyEstimator::new())
+    }
+
+    /// Create a WalletEnergyEstimator with a custom inner estimator.
+    ///
+    /// This allows wrapping a `CalibratedEnergyEstimator` or any pre-configured
+    /// `CompositeEnergyEstimator` so per-server cost calibration and gas→rJoule
+    /// calibration share the same gas-cost base.
+    ///
+    /// REQ: GAS-CALIB-006 — wallet estimator uses calibrated per-server costs
+    /// pre:  gas_per_rjoule > 0
+    /// post: returns WalletEnergyEstimator with the supplied inner estimator
+    pub fn with_estimator(gas_per_rjoule: u64, inner: CompositeEnergyEstimator) -> Self {
         Self {
-            inner: CompositeEnergyEstimator::new(),
+            inner,
             gas_per_rjoule,
             ema_alpha: 0.1,
             ema_ratio: None,

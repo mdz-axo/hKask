@@ -188,6 +188,9 @@ pub struct AgentService {
 
     /// Wallet store — shared between WalletManager, ApiKeyIssuer, and API key auth middleware.
     wallet_store: Option<Arc<WalletStore>>,
+
+    /// Wallet gas calibrator — runtime calibration of gas→rJoule conversion rate.
+    wallet_gas_calibrator: Option<Arc<hkask_cns::WalletGasCalibrator>>,
 }
 
 /// Per-agent memory infrastructure — storage ports and ConsolidationService
@@ -229,6 +232,15 @@ impl AgentService {
     /// post: returns Some(&Arc<WalletStore>) if wallet store configured; None otherwise
     pub fn wallet_store(&self) -> Option<&Arc<WalletStore>> {
         self.wallet_store.as_ref()
+    }
+
+    /// Access the wallet gas calibrator.
+    ///
+    /// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
+    /// pre:  self must be fully built
+    /// post: returns Some(&Arc<WalletGasCalibrator>) if wallet is configured; None otherwise
+    pub fn wallet_gas_calibrator(&self) -> Option<&Arc<hkask_cns::WalletGasCalibrator>> {
+        self.wallet_gas_calibrator.as_ref()
     }
 
     // === Named accessors (replaces positional tuple group methods) ===
@@ -656,6 +668,7 @@ impl AgentService {
             config,
             wallet_service: reg_wallet.wallet_service,
             wallet_store: reg_wallet.wallet_store,
+            wallet_gas_calibrator: reg_wallet.wallet_gas_calibrator,
         })
     }
 }
@@ -1188,6 +1201,7 @@ struct RegWallet {
     agent_registry_store: hkask_storage::AgentRegistryStore,
     wallet_service: Option<Arc<WalletService>>,
     wallet_store: Option<Arc<WalletStore>>,
+    wallet_gas_calibrator: Option<Arc<hkask_cns::WalletGasCalibrator>>,
 }
 
 fn build_registry_and_wallet(
@@ -1328,11 +1342,24 @@ fn build_registry_and_wallet(
         }
     });
 
+    // Spawn wallet gas calibrator (P9 feedback loop for gas→rJoule rate).
+    let wallet_gas_calibrator = {
+        let calibrator = Arc::new(hkask_cns::WalletGasCalibrator::new(
+            Arc::clone(&f.gas_event_store),
+            Arc::clone(&wallet_manager),
+        ));
+        calibrator
+            .clone()
+            .spawn_calibration(hkask_cns::DEFAULT_WALLET_CALIBRATION_INTERVAL);
+        Some(calibrator)
+    };
+
     Ok(RegWallet {
         registry,
         agent_registry_store,
         wallet_service: Some(svc),
         wallet_store: Some(wallet_store),
+        wallet_gas_calibrator,
     })
 }
 

@@ -76,7 +76,8 @@ impl NuEventStore {
     ///
     /// Replay events with temporal decay weighting.
     ///
-    /// REQ: STO-013
+    /// REQ: P3-sto-nu-event-replay
+    /// [P3] Motivating: Generative Space — replay events with temporal decay
     /// pre:  observer is valid, category is valid, lookback_secs > 0
     /// post: returns Vec<NuEvent> within lookback window, weighted by recency
     pub fn replay_weighted(
@@ -112,7 +113,8 @@ impl NuEventStore {
     /// The fallback is explicit at the type level via `SpanCategory::Unknown`.
     /// Get the decay lambda for a span category.
     ///
-    /// REQ: STO-014
+    /// REQ: P3-sto-nu-event-decay
+    /// [P3] Motivating: Generative Space — get decay lambda for category
     /// pre:  category is a valid SpanCategory
     /// post: returns decay lambda from config or default
     pub fn lambda_for(category: SpanCategory, config: &DecayConfig) -> f64 {
@@ -167,7 +169,8 @@ impl NuEventStore {
     /// all historical events after a restart.
     /// Persist a cursor value for event replay.
     ///
-    /// REQ: STO-015
+    /// REQ: P3-sto-nu-event-cursor-store
+    /// [P3] Motivating: Generative Space — persist replay cursor
     /// pre:  key is non-empty
     /// post: cursor value stored
     pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), InfrastructureError> {
@@ -185,7 +188,8 @@ impl NuEventStore {
     /// (e.g., first run after schema creation).
     /// Load a persisted cursor value.
     ///
-    /// REQ: STO-016
+    /// REQ: P3-sto-nu-event-cursor-load
+    /// [P3] Motivating: Generative Space — load replay cursor
     /// pre:  key is non-empty
     /// post: returns Some(value) if cursor exists, None otherwise
     pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError> {
@@ -200,7 +204,8 @@ impl NuEventStore {
 
     /// Query algedonic signals from the event store.
     ///
-    /// REQ: STO-017
+    /// REQ: P3-sto-nu-event-algedonic-query
+    /// [P9] Motivating: Homeostatic Self-Regulation — query algedonic signals
     /// post: returns Vec of algedonic signal events
     pub fn query_algedonic(
         &self,
@@ -328,7 +333,7 @@ impl NuEventSink for NuEventStore {
 mod tests {
     use hkask_types::event::{Span, SpanNamespace};
 
-    // REQ: nu-event-store-001 — span_path shorter than namespace does not panic
+    // REQ: P3-sto-nu-event-short-path-test — span_path shorter than namespace does not panic
     //
     // Before fix, `span_path[namespace.as_str().len() + 1..]` was an unconditional
     // slice that panicked when span_path did not start with the namespace prefix
@@ -356,7 +361,7 @@ mod tests {
         );
     }
 
-    // REQ: nu-event-store-002 — span_path equal to namespace prefix does not panic
+    // REQ: P3-sto-nu-event-exact-namespace-test — span_path equal to namespace prefix does not panic
     #[test]
     fn local_path_extraction_does_not_panic_on_exact_namespace_match() {
         let namespace = SpanNamespace::new("cns.gas");
@@ -378,7 +383,7 @@ mod tests {
         );
     }
 
-    // REQ: nu-event-store-003 — well-formed span_path extracts local component
+    // REQ: P3-sto-nu-event-well-formed-test — well-formed span_path extracts local component
     #[test]
     fn local_path_extraction_succeeds_on_well_formed_path() {
         let namespace = SpanNamespace::new("cns.gas");

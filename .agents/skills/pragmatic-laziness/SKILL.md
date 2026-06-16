@@ -1,5 +1,6 @@
 ---
 name: pragmatic-laziness
+visibility: public
 description: Procedural composition skill. Finds the path of least action through meaning-space by orchestrating pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me through a 3-phase lazy loop. Activate when the user says "be lazy about this", "find the lazy path", "least action", "decompose this", or "pragmatic laziness review".
 ---
 
@@ -86,8 +87,8 @@ The laziest path is not always the most obvious one. The curve of fastest descen
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `pragmatic-laziness-flow.j2` | FlowDef | Orchestrate the 3-phase cascade: delegate to semantics → cybernetics → essentialist + grill-me, loop until δS = 0 |
-| `pragmatic-laziness-converge.j2` | KnowAct | δS = 0 check: compare current configuration to previous; has action reached stationary point? |
+- `pragmatic-laziness-flow.j2` | KnowAct | Orchestrate the 3-phase cascade: delegate to semantics → cybernetics → essentialist + grill-me, loop until δS = 0
+- `pragmatic-laziness-converge.j2` | KnowAct | δS = 0 check: compare current configuration to previous; has action reached stationary point?
 
 Two templates. The skill is lazy.
 

@@ -27,7 +27,8 @@ use std::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 /// ```
 /// Lock a std::sync::Mutex, mapping poison errors to InfrastructureError.
 ///
-/// REQ: STO-001
+/// REQ: P4-sto-lock-mutex
+/// [P4] Motivating: Clear Boundaries — lock helper wraps Mutex to provide structured error
 /// post: returns Ok(MutexGuard) if lock acquired
 /// post: returns Err(LockPoisoned) if mutex is poisoned
 pub fn lock_mutex<T>(lock: &Mutex<T>) -> Result<MutexGuard<'_, T>, InfrastructureError> {
@@ -44,7 +45,8 @@ pub fn lock_mutex<T>(lock: &Mutex<T>) -> Result<MutexGuard<'_, T>, Infrastructur
 /// ```
 /// Acquire a read lock on a std::sync::RwLock.
 ///
-/// REQ: STO-002
+/// REQ: P4-sto-lock-read
+/// [P4] Motivating: Clear Boundaries — lock helper wraps RwLock read guard
 /// post: returns Ok(RwLockReadGuard) if lock acquired
 /// post: returns Err(LockPoisoned) if lock is poisoned
 pub fn read_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockReadGuard<'_, T>, InfrastructureError> {
@@ -61,7 +63,8 @@ pub fn read_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockReadGuard<'_, T>, Infras
 /// ```
 /// Acquire a write lock on a std::sync::RwLock.
 ///
-/// REQ: STO-003
+/// REQ: P4-sto-lock-write
+/// [P4] Motivating: Clear Boundaries — lock helper wraps RwLock write guard
 /// post: returns Ok(RwLockWriteGuard) if lock acquired
 /// post: returns Err(LockPoisoned) if lock is poisoned
 pub fn write_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockWriteGuard<'_, T>, InfrastructureError> {

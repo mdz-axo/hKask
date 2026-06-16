@@ -130,7 +130,8 @@ fn row_to_curation_record(
 impl SqliteSpecStore {
     /// Initialize the spec store schema.
     ///
-    /// REQ: STO-018
+    /// REQ: P3-sto-spec-schema
+    /// [P3] Motivating: Generative Space — schema for specification documents
     /// post: specs table created if not exists
     pub fn init_schema(&self) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
@@ -151,7 +152,8 @@ impl SqliteSpecStore {
 impl SqliteCurationRecordStore {
     /// Initialize the curation record store schema.
     ///
-    /// REQ: STO-019
+    /// REQ: P3-sto-spec-curation-schema
+    /// [P3] Motivating: Generative Space — schema for curation records
     /// post: spec_curation_records table created if not exists
     pub fn init_schema(&self) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
@@ -168,7 +170,8 @@ impl SqliteCurationRecordStore {
 
     /// Save a curation record.
     ///
-    /// REQ: STO-020
+    /// REQ: P3-sto-spec-curation-save
+    /// [P3] Motivating: Generative Space — save a curation decision
     /// pre:  record.spec_id is non-empty
     /// post: record inserted into spec_curation_records
     pub fn save_curation_record(&self, record: &SpecCurationRecord) -> Result<(), SpecError> {
@@ -190,7 +193,8 @@ impl SqliteCurationRecordStore {
 
     /// Load curation records for a spec.
     ///
-    /// REQ: STO-021
+    /// REQ: P3-sto-spec-curation-load
+    /// [P3] Motivating: Generative Space — load curation records for a spec
     /// pre:  spec_id is non-empty
     /// post: returns Vec of curation records for this spec
     pub fn load_curation_records(
@@ -211,7 +215,8 @@ impl SqliteCurationRecordStore {
 
     /// List curation records since a timestamp.
     ///
-    /// REQ: STO-022
+    /// REQ: P3-sto-spec-curation-since
+    /// [P3] Motivating: Generative Space — list curation records since timestamp
     /// post: returns Vec of records created after since_ts
     pub fn list_curation_records_since(
         &self,
@@ -238,7 +243,8 @@ impl SqliteCurationRecordStore {
 
     /// Load all curation records.
     ///
-    /// REQ: STO-023
+    /// REQ: P3-sto-spec-curation-all
+    /// [P3] Motivating: Generative Space — load all curation records
     /// post: returns Vec of all curation records
     pub fn load_all_curation_records(&self) -> Result<Vec<SpecCurationRecord>, SpecError> {
         let conn = self.lock_conn()?;
@@ -395,7 +401,7 @@ mod tests {
         Spec::new(name, category, DomainAnchor::Hkask)
     }
 
-    // REQ: storage-spec-store-001 — list_valid_at includes currently valid specs (valid_from <= at < valid_to)
+    // REQ: P3-sto-spec-valid-at-test — list_valid_at includes currently valid specs (valid_from <= at < valid_to)
     #[test]
     fn list_valid_at_includes_currently_valid_specs() {
         let store = make_store();
@@ -409,7 +415,7 @@ mod tests {
         assert_eq!(valid[0].name, "test");
     }
 
-    // REQ: storage-spec-store-002 — list_valid_at excludes specs whose valid_to has passed
+    // REQ: P3-sto-spec-expired-test — list_valid_at excludes specs whose valid_to has passed
     #[test]
     fn list_valid_at_excludes_expired_specs() {
         let store = make_store();
@@ -421,7 +427,7 @@ mod tests {
         assert!(store.list_valid_at(now).unwrap().is_empty());
     }
 
-    // REQ: storage-spec-store-003 — list_valid_at includes specs with valid_to IS NULL (no expiry)
+    // REQ: P3-sto-spec-no-expiry-test — list_valid_at includes specs with valid_to IS NULL (no expiry)
     #[test]
     fn list_valid_at_includes_no_expiry_specs() {
         let store = make_store();
@@ -432,7 +438,7 @@ mod tests {
         assert_eq!(store.list_valid_at(now).unwrap().len(), 1);
     }
 
-    // REQ: storage-spec-store-004 — list_valid_in_range returns specs with overlapping temporal windows
+    // REQ: P3-sto-spec-range-overlap-test — list_valid_in_range returns specs with overlapping temporal windows
     #[test]
     fn list_valid_in_range_overlap_query() {
         let store = make_store();
@@ -450,7 +456,7 @@ mod tests {
         );
     }
 
-    // REQ: storage-spec-store-005 — list_since returns specs created after a timestamp
+    // REQ: P3-sto-spec-since-test — list_since returns specs created after a timestamp
     #[test]
     fn list_since_transaction_time_query() {
         let store = make_store();
@@ -467,7 +473,7 @@ mod tests {
         assert_eq!(store.list_since(now - Duration::hours(1)).unwrap().len(), 1);
     }
 
-    // REQ: storage-spec-store-006 — expire sets valid_to and excludes spec from list_valid_at
+    // REQ: P3-sto-spec-expire-test — expire sets valid_to and excludes spec from list_valid_at
     #[test]
     fn expire_updates_valid_to() {
         let store = make_store();

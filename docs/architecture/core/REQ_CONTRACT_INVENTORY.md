@@ -19,7 +19,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 | hkask-agents | 30 | Agent runtime |
 | hkask-api | 8 | API surface |
 | hkask-cli | 2 | CLI surface |
-| hkask-cns | 77 | CNS observability |
+| hkask-cns | 80 | CNS observability |
 | hkask-communication | 25 | Communication |
 | hkask-inference | 86 | Inference |
 | hkask-keystore | 28 | Keystore |
@@ -30,7 +30,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 | hkask-templates | 52 | Templates |
 | hkask-test-harness | 42 | Test harness |
 | hkask-types | 99 | Type system |
-| hkask-wallet | 23 | Wallet |
+| hkask-wallet | 26 | Wallet |
 
 ## Per-Crate Contract Detail
 
@@ -324,7 +324,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-cli/src/onboarding.rs:225
 
 
-### hkask-cns (77 contracts)
+### hkask-cns (80 contracts)
 
 #### P9-cns-algedonic-alert-new (🟢 full)
 
@@ -823,12 +823,32 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** per-tool overrides (e.g. condenser_thread_summary) are still applied
 - **File:** crates/hkask-cns/src/table_energy_estimator.rs:114
 
+#### GAS-CALIB-006—walletestimatorusescalibratedper-servercosts (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  gas_per_rjoule > 0
+- **Post:** returns WalletEnergyEstimator with the supplied inner estimator
+- **File:** crates/hkask-cns/src/wallet_energy_estimator.rs:48
+
 #### P9-cns-wallet-est-calibrate (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  observed_ratio > 0.0 (actual_gas / estimated_gas)
 - **Post:** ema_ratio updated via exponential moving average;if ema_ratio deviates significantly from 1.0, gas_per_rjoule adjusted
-- **File:** crates/hkask-cns/src/wallet_energy_estimator.rs:58
+- **File:** crates/hkask-cns/src/wallet_energy_estimator.rs:63
+
+#### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns WalletGasCalibrator with the manager's current gas_per_rjoule rate
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:45
+
+#### GAS-CALIB-005 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  `self.store` is a valid NuEventStore; `self.wallet_manager` is valid
+- **Post:** if settled events exist and the aggregate ratio exceeds tolerance,;returns true if the rate was adjusted
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:74
 
 
 ### hkask-communication (25 contracts)
@@ -2370,7 +2390,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-memory/src/semantic.rs:545
 
 
-### hkask-services (202 contracts)
+### hkask-services (203 contracts)
 
 #### SVC-217 (🟢 full)
 
@@ -2678,231 +2698,238 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns reference to ServiceConfig
-- **File:** crates/hkask-services/src/context.rs:209
+- **File:** crates/hkask-services/src/context.rs:212
 
 #### SVC-246 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns Some(&Arc<WalletService>) if wallet configured; None otherwise
-- **File:** crates/hkask-services/src/context.rs:218
+- **File:** crates/hkask-services/src/context.rs:221
 
 #### SVC-247 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns Some(&Arc<WalletStore>) if wallet store configured; None otherwise
-- **File:** crates/hkask-services/src/context.rs:227
+- **File:** crates/hkask-services/src/context.rs:230
+
+#### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  self must be fully built
+- **Post:** returns Some(&Arc<WalletGasCalibrator>) if wallet is configured; None otherwise
+- **File:** crates/hkask-services/src/context.rs:239
 
 #### SVC-248 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns (&episodic_storage, &semantic_storage) tuple
-- **File:** crates/hkask-services/src/context.rs:238
+- **File:** crates/hkask-services/src/context.rs:250
 
 #### SVC-249 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<Mutex<SqliteRegistry>>
-- **File:** crates/hkask-services/src/context.rs:248
+- **File:** crates/hkask-services/src/context.rs:260
 
 #### SVC-250 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<SqliteGoalRepository>
-- **File:** crates/hkask-services/src/context.rs:256
+- **File:** crates/hkask-services/src/context.rs:268
 
 #### SVC-251 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<RwLock<CnsRuntime>>
-- **File:** crates/hkask-services/src/context.rs:266
+- **File:** crates/hkask-services/src/context.rs:278
 
 #### SVC-252 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<RwLock<CyberneticsLoop>>
-- **File:** crates/hkask-services/src/context.rs:274
+- **File:** crates/hkask-services/src/context.rs:286
 
 #### SVC-253 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<LoopSystem>
-- **File:** crates/hkask-services/src/context.rs:282
+- **File:** crates/hkask-services/src/context.rs:294
 
 #### SVC-254 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<dyn NuEventSink>
-- **File:** crates/hkask-services/src/context.rs:290
+- **File:** crates/hkask-services/src/context.rs:302
 
 #### GAS-CALIB-004—runtimecalibrationloopwiredtoproductionestimator (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<CalibratedEnergyEstimator> sharing the same background
-- **File:** crates/hkask-services/src/context.rs:299
+- **File:** crates/hkask-services/src/context.rs:311
 
 #### SVC-255 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<RwLock<Option<SeamWatcher>>>
-- **File:** crates/hkask-services/src/context.rs:311
+- **File:** crates/hkask-services/src/context.rs:323
 
 #### SVC-256 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<CapabilityChecker>
-- **File:** crates/hkask-services/src/context.rs:321
+- **File:** crates/hkask-services/src/context.rs:333
 
 #### SVC-257 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<McpDispatcher>
-- **File:** crates/hkask-services/src/context.rs:330
+- **File:** crates/hkask-services/src/context.rs:342
 
 #### SVC-258 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<EscalationQueue>
-- **File:** crates/hkask-services/src/context.rs:338
+- **File:** crates/hkask-services/src/context.rs:350
 
 #### SVC-259 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns Some(Arc<dyn InferencePort>) if configured; None otherwise
-- **File:** crates/hkask-services/src/context.rs:348
+- **File:** crates/hkask-services/src/context.rs:360
 
 #### SVC-260 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<McpRuntime>
-- **File:** crates/hkask-services/src/context.rs:356
+- **File:** crates/hkask-services/src/context.rs:368
 
 #### SVC-261 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<PodManager>
-- **File:** crates/hkask-services/src/context.rs:364
+- **File:** crates/hkask-services/src/context.rs:376
 
 #### SVC-262 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns (&WebID, &Arc<AcpRuntime>) tuple
-- **File:** crates/hkask-services/src/context.rs:374
+- **File:** crates/hkask-services/src/context.rs:386
 
 #### SVC-263 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns SovereigntyService wrapping the consent manager
-- **File:** crates/hkask-services/src/context.rs:384
+- **File:** crates/hkask-services/src/context.rs:396
 
 #### SVC-264 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Option<UnboundedSender<CurationInput>>
-- **File:** crates/hkask-services/src/context.rs:401
+- **File:** crates/hkask-services/src/context.rs:413
 
 #### SVC-265 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &SovereigntyBoundaryStore
-- **File:** crates/hkask-services/src/context.rs:411
+- **File:** crates/hkask-services/src/context.rs:423
 
 #### SVC-266 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &SqliteSpecStore
-- **File:** crates/hkask-services/src/context.rs:423
+- **File:** crates/hkask-services/src/context.rs:435
 
 #### SVC-267 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &AgentRegistryStore
-- **File:** crates/hkask-services/src/context.rs:433
+- **File:** crates/hkask-services/src/context.rs:445
 
 #### SVC-268 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<Mutex<UserStore>>
-- **File:** crates/hkask-services/src/context.rs:443
+- **File:** crates/hkask-services/src/context.rs:455
 
 #### SVC-269 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns &Arc<ServiceDaemonHandler>
-- **File:** crates/hkask-services/src/context.rs:452
+- **File:** crates/hkask-services/src/context.rs:464
 
 #### SVC-270 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
 - **Post:** returns Some(&Arc<Mutex<MatrixTransport>>) if connected; None otherwise
-- **File:** crates/hkask-services/src/context.rs:464
+- **File:** crates/hkask-services/src/context.rs:476
 
 #### SVC-271 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  db must be a valid opened Database
 - **Post:** returns PerAgentMemory with episodic_storage, semantic_storage, and consolidation_service all sharing the same DB
-- **File:** crates/hkask-services/src/context.rs:482
+- **File:** crates/hkask-services/src/context.rs:494
 
 #### SVC-272 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must have valid db_path and db_passphrase
 - **Post:** returns Arc<EscalationQueue> initialized from DB; Err on DB open or schema init failure
-- **File:** crates/hkask-services/src/context.rs:524
+- **File:** crates/hkask-services/src/context.rs:536
 
 #### SVC-273 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must have valid db_path and db_passphrase
 - **Post:** returns SqliteSpecStore with schema initialized; Err on DB open or schema init failure
-- **File:** crates/hkask-services/src/context.rs:534
+- **File:** crates/hkask-services/src/context.rs:546
 
 #### SVC-274 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must have valid db_path and db_passphrase
 - **Post:** returns (Arc<ConsentManager>, SovereigntyBoundaryStore) with schemas initialized; Err on DB open or schema init failure
-- **File:** crates/hkask-services/src/context.rs:546
+- **File:** crates/hkask-services/src/context.rs:558
 
 #### SVC-275 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must have valid db_path, db_passphrase, and acp_secret
 - **Post:** returns (Arc<AcpRuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
-- **File:** crates/hkask-services/src/context.rs:568
+- **File:** crates/hkask-services/src/context.rs:580
 
 #### SVC-276 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  config must be a valid ServiceConfig with resolved secrets
 - **Post:** returns fully assembled AgentService with all infrastructure wired; Err on any construction step failure
-- **File:** crates/hkask-services/src/context.rs:598
+- **File:** crates/hkask-services/src/context.rs:610
 
 #### SVC-213 (🟢 full)
 
@@ -3789,1293 +3816,1292 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 ### hkask-storage (195 contracts)
 
-#### STO-083 (🟡 partial)
+#### P3-sto-agent-registry-schema (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** agents, user_profiles, contacts, scheduled_tasks tables created
 - **File:** crates/hkask-storage/src/agent_registry.rs:29
 
-#### STO-084 (🟢 full)
+#### P3-sto-agent-registry-insert (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent.name is non-empty
 - **Post:** agent inserted into agents table
-- **File:** crates/hkask-storage/src/agent_registry.rs:71
+- **File:** crates/hkask-storage/src/agent_registry.rs:72
 
-#### STO-085 (🟢 full)
+#### P3-sto-agent-registry-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  name is non-empty
 - **Post:** returns RegisteredAgent if found
-- **File:** crates/hkask-storage/src/agent_registry.rs:95
+- **File:** crates/hkask-storage/src/agent_registry.rs:97
 
-#### STO-086 (🟡 partial)
+#### P3-sto-agent-registry-list (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of all RegisteredAgent
-- **File:** crates/hkask-storage/src/agent_registry.rs:131
+- **File:** crates/hkask-storage/src/agent_registry.rs:134
 
-#### STO-087 (🟢 full)
+#### P3-sto-agent-registry-list-by-kind (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  kind is a valid AgentKind
 - **Post:** returns Vec of agents matching kind
-- **File:** crates/hkask-storage/src/agent_registry.rs:173
+- **File:** crates/hkask-storage/src/agent_registry.rs:177
 
-#### STO-088 (🟢 full)
+#### P3-sto-agent-registry-remove (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  name is non-empty
 - **Post:** agent deleted if existed
-- **File:** crates/hkask-storage/src/agent_registry.rs:219
+- **File:** crates/hkask-storage/src/agent_registry.rs:224
 
-#### STO-089 (🟢 full)
+#### P3-sto-agent-registry-profile-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  profile has valid fields
 - **Post:** profile upserted
-- **File:** crates/hkask-storage/src/agent_registry.rs:237
+- **File:** crates/hkask-storage/src/agent_registry.rs:243
 
-#### STO-090 (🟡 partial)
+#### P3-sto-agent-registry-profile-get (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Some(profile) if exists, None otherwise
-- **File:** crates/hkask-storage/src/agent_registry.rs:253
+- **File:** crates/hkask-storage/src/agent_registry.rs:260
 
-#### STO-091 (🟢 full)
+#### P3-sto-agent-registry-contact-add (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  contact has valid fields
 - **Post:** contact inserted
-- **File:** crates/hkask-storage/src/agent_registry.rs:269
+- **File:** crates/hkask-storage/src/agent_registry.rs:277
 
-#### STO-092 (🟡 partial)
+#### P3-sto-agent-registry-contact-find (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of matching contacts
-- **File:** crates/hkask-storage/src/agent_registry.rs:291
+- **File:** crates/hkask-storage/src/agent_registry.rs:300
 
-#### STO-093 (🟢 full)
+#### P3-sto-agent-registry-contact-list (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent_name is non-empty
 - **Post:** returns Vec of contacts
-- **File:** crates/hkask-storage/src/agent_registry.rs:319
+- **File:** crates/hkask-storage/src/agent_registry.rs:329
 
-#### STO-094 (🟢 full)
+#### P3-sto-agent-registry-task-add (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  task has valid fields
 - **Post:** task inserted
-- **File:** crates/hkask-storage/src/agent_registry.rs:343
+- **File:** crates/hkask-storage/src/agent_registry.rs:354
 
-#### STO-095 (🟢 full)
+#### P3-sto-agent-registry-task-list-due (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  now is a valid timestamp
 - **Post:** returns Vec of due tasks
-- **File:** crates/hkask-storage/src/agent_registry.rs:366
+- **File:** crates/hkask-storage/src/agent_registry.rs:378
 
-#### STO-096 (🟢 full)
+#### P3-sto-agent-registry-task-list-agent (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent_name is non-empty
 - **Post:** returns Vec of tasks
-- **File:** crates/hkask-storage/src/agent_registry.rs:392
+- **File:** crates/hkask-storage/src/agent_registry.rs:405
 
-#### STO-097 (🟢 full)
+#### P3-sto-agent-registry-task-update (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  task_id is valid, next_run is valid
 - **Post:** next_run updated
-- **File:** crates/hkask-storage/src/agent_registry.rs:421
+- **File:** crates/hkask-storage/src/agent_registry.rs:435
 
-#### STO-005 (🟡 partial)
+#### P2-sto-consent-schema (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** consent_records table created if not exists
 - **File:** crates/hkask-storage/src/consent_store.rs:44
 
-#### STO-006 (🟢 full)
+#### P2-sto-consent-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  record.webid is non-empty
 - **Post:** record inserted or replaced in consent_records
-- **File:** crates/hkask-storage/src/consent_store.rs:66
+- **File:** crates/hkask-storage/src/consent_store.rs:67
 
-#### STO-007 (🟢 full)
+#### P2-sto-consent-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  webid is non-empty
 - **Post:** returns Some(record) if found, None otherwise
-- **File:** crates/hkask-storage/src/consent_store.rs:98
+- **File:** crates/hkask-storage/src/consent_store.rs:100
 
-#### STO-008 (🟢 full)
+#### P2-sto-consent-delete (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  webid is non-empty
 - **Post:** record deleted if existed
-- **File:** crates/hkask-storage/src/consent_store.rs:138
+- **File:** crates/hkask-storage/src/consent_store.rs:141
 
-#### STO-024 (🟢 full)
+#### P4-sto-database-open (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  path is valid, passphrase is non-empty
 - **Post:** returns Database with SQLCipher encryption
 - **File:** crates/hkask-storage/src/database.rs:126
 
-#### STO-025 (🟢 full)
+#### P4-sto-database-open-ext (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  path is valid, passphrase is non-empty, extensions is valid SQL
 - **Post:** returns Database with extensions applied
-- **File:** crates/hkask-storage/src/database.rs:147
+- **File:** crates/hkask-storage/src/database.rs:149
 
-#### STO-026 (🟡 partial)
+#### P4-sto-database-in-memory (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns in-memory Database
-- **File:** crates/hkask-storage/src/database.rs:174
+- **File:** crates/hkask-storage/src/database.rs:177
 
-#### STO-027 (🟢 full)
+#### P4-sto-database-in-memory-ext (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  extensions is valid SQL DDL
 - **Post:** returns in-memory Database with extensions
-- **File:** crates/hkask-storage/src/database.rs:192
+- **File:** crates/hkask-storage/src/database.rs:196
 
-#### STO-028 (🟡 partial)
+#### P4-sto-database-conn-arc (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Arc<Mutex<Connection>> for Store constructors
-- **File:** crates/hkask-storage/src/database.rs:221
+- **File:** crates/hkask-storage/src/database.rs:226
 
-#### STO-029 (🟢 full)
+#### P4-sto-database-open-unwrap (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  path is valid, passphrase is non-empty
 - **Post:** returns Database (in-memory if path is ":memory:")
-- **File:** crates/hkask-storage/src/database.rs:237
+- **File:** crates/hkask-storage/src/database.rs:243
 
-#### STO-030 (🟡 partial)
+#### P4-sto-database-in-memory-unwrap (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns in-memory Database (panics on failure)
-- **File:** crates/hkask-storage/src/database.rs:258
+- **File:** crates/hkask-storage/src/database.rs:265
 
-#### STO-038 (🟢 full)
+#### P3-sto-embedding-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  conn is a valid SQLite connection
 - **Post:** returns EmbeddingStore with default dimension
 - **File:** crates/hkask-storage/src/embeddings.rs:70
 
-#### STO-039 (🟢 full)
+#### P3-sto-embedding-new-with-dim (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  conn is valid, dim > 0
 - **Post:** returns EmbeddingStore with specified dimension
-- **File:** crates/hkask-storage/src/embeddings.rs:83
+- **File:** crates/hkask-storage/src/embeddings.rs:84
 
-#### STO-040 (🟢 full)
+#### P3-sto-embedding-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity_ref is non-empty, vector matches store dimension, model is non-empty
 - **Post:** embedding stored and indexed by entity_ref;returns embedding ID
-- **File:** crates/hkask-storage/src/embeddings.rs:133
+- **File:** crates/hkask-storage/src/embeddings.rs:135
 
-#### STO-041 (🟢 full)
+#### P3-sto-embedding-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity_ref is non-empty
 - **Post:** returns StoredEmbedding if found;returns Err(NotFound) if not found
-- **File:** crates/hkask-storage/src/embeddings.rs:193
+- **File:** crates/hkask-storage/src/embeddings.rs:196
 
-#### STO-042 (🟢 full)
+#### P3-sto-embedding-search (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  query_vector matches store dimension, limit > 0
 - **Post:** returns Vec<SimilarityResult> ordered by ascending distance
-- **File:** crates/hkask-storage/src/embeddings.rs:232
+- **File:** crates/hkask-storage/src/embeddings.rs:236
 
-#### STO-043 (🟢 full)
+#### P3-sto-embedding-delete (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity_ref is non-empty
 - **Post:** embedding deleted if existed
-- **File:** crates/hkask-storage/src/embeddings.rs:283
+- **File:** crates/hkask-storage/src/embeddings.rs:288
 
-#### STO-044 (🟡 partial)
+#### P3-sto-embedding-count (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns total count of embeddings
-- **File:** crates/hkask-storage/src/embeddings.rs:337
+- **File:** crates/hkask-storage/src/embeddings.rs:343
 
-#### STO-045 (🟢 full)
+#### P3-sto-embedding-prefix (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prefix is non-empty
 - **Post:** returns Vec of entity_refs matching prefix
-- **File:** crates/hkask-storage/src/embeddings.rs:350
+- **File:** crates/hkask-storage/src/embeddings.rs:357
 
-#### STO-046 (🟡 partial)
+#### P3-sto-escalation-pending (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns EscalationSignal with Pending status
 - **File:** crates/hkask-storage/src/escalation.rs:34
 
-#### STO-047 (🟢 full)
+#### P3-sto-escalation-queue-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  conn is a valid SQLite connection
 - **Post:** returns EscalationQueue with schema initialized
-- **File:** crates/hkask-storage/src/escalation.rs:91
+- **File:** crates/hkask-storage/src/escalation.rs:92
 
-#### STO-048 (🟢 full)
+#### P3-sto-escalation-add (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entry has valid domain and output
 - **Post:** entry inserted into escalations
-- **File:** crates/hkask-storage/src/escalation.rs:122
+- **File:** crates/hkask-storage/src/escalation.rs:124
 
-#### STO-049 (🟡 partial)
+#### P3-sto-escalation-list-pending (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of pending EscalationEntry
-- **File:** crates/hkask-storage/src/escalation.rs:157
+- **File:** crates/hkask-storage/src/escalation.rs:160
 
-#### STO-050 (🟢 full)
+#### P3-sto-escalation-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  id is non-empty
 - **Post:** returns Some(entry) if found, None otherwise
-- **File:** crates/hkask-storage/src/escalation.rs:200
+- **File:** crates/hkask-storage/src/escalation.rs:204
 
-#### STO-051 (🟢 full)
+#### P3-sto-escalation-resolve (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  id is non-empty, resolved_by is non-empty
 - **Post:** escalation status set to Resolved
-- **File:** crates/hkask-storage/src/escalation.rs:259
+- **File:** crates/hkask-storage/src/escalation.rs:264
 
-#### STO-052 (🟢 full)
+#### P3-sto-escalation-dismiss (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  id is non-empty, resolved_by is non-empty
 - **Post:** escalation status set to Dismissed
-- **File:** crates/hkask-storage/src/escalation.rs:276
+- **File:** crates/hkask-storage/src/escalation.rs:282
 
-#### STO-053 (🟡 partial)
+#### P3-sto-escalation-stats (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns EscalationStats with counts by status
-- **File:** crates/hkask-storage/src/escalation.rs:293
+- **File:** crates/hkask-storage/src/escalation.rs:300
 
-#### STO-054 (🟢 full)
+#### P3-sto-escalation-summary-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty, threshold > 0
 - **Post:** returns EscalationSummary
-- **File:** crates/hkask-storage/src/escalation.rs:335
+- **File:** crates/hkask-storage/src/escalation.rs:343
 
-#### STO-055 (🟡 partial)
+#### P3-sto-escalation-summary-text (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns summary string with counts and threshold info
-- **File:** crates/hkask-storage/src/escalation.rs:350
+- **File:** crates/hkask-storage/src/escalation.rs:359
 
-#### STO-069 (🟡 partial)
+#### P3-sto-gallery-mode-str (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns "active" or "inactive"
 - **File:** crates/hkask-storage/src/gallery.rs:68
 
-#### STO-070 (🟢 full)
+#### P3-sto-gallery-schema (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  conn is a valid SQLite connection
 - **Post:** gallery tables created if not exists
-- **File:** crates/hkask-storage/src/gallery.rs:142
+- **File:** crates/hkask-storage/src/gallery.rs:143
 
-#### media-gallery-create-01 (🟢 full)
+#### P3-sto-gallery-create-test (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  name is non-empty
 - **Post:** gallery created and returned
-- **File:** crates/hkask-storage/src/gallery.rs:212
+- **File:** crates/hkask-storage/src/gallery.rs:214
 
-#### STO-071 (🟢 full)
+#### P3-sto-gallery-create (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  name is non-empty
 - **Post:** gallery created and returned
-- **File:** crates/hkask-storage/src/gallery.rs:215
+- **File:** crates/hkask-storage/src/gallery.rs:217
 
-#### media-gallery-scan-01 (🟢 full)
+#### P3-sto-gallery-add-image-test (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
+- **Pre:**  gallery_id is valid, image data is non-empty
+- **File:** crates/hkask-storage/src/gallery.rs:262
+
+#### P3-sto-gallery-add-image (🟢 full)
+
+- **Principle:** ✅ anchored
 - **Pre:**  gallery_id is valid, image data is non-empty
 - **Post:** image stored in gallery
-- **File:** crates/hkask-storage/src/gallery.rs:259
+- **File:** crates/hkask-storage/src/gallery.rs:266
 
-#### STO-072 (🟢 full)
+#### P3-sto-gallery-get-image-index-test (🟢 full)
 
-- **Principle:** ⚠ unanchored
-- **Pre:**  gallery_id is valid, image data is non-empty
-- **Post:** image stored in gallery
-- **File:** crates/hkask-storage/src/gallery.rs:263
-
-#### media-gallery-get-image-01 (🟢 full)
-
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gallery_id is valid
 - **Post:** returns GalleryImage if found
-- **File:** crates/hkask-storage/src/gallery.rs:313
+- **File:** crates/hkask-storage/src/gallery.rs:317
 
-#### STO-073 (🟢 full)
+#### P3-sto-gallery-get-image (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gallery_id is valid
 - **Post:** returns GalleryImage if found
-- **File:** crates/hkask-storage/src/gallery.rs:316
+- **File:** crates/hkask-storage/src/gallery.rs:320
 
-#### media-gallery-tag-image-01 (🟢 full)
+#### P3-sto-gallery-tag-image-test (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gallery_id and image_hash are valid, tag is non-empty
 - **Post:** tag added to image
-- **File:** crates/hkask-storage/src/gallery.rs:365
+- **File:** crates/hkask-storage/src/gallery.rs:370
 
-#### STO-074 (🟢 full)
+#### P3-sto-gallery-tag-image (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gallery_id and image_hash are valid, tag is non-empty
 - **Post:** tag added to image
-- **File:** crates/hkask-storage/src/gallery.rs:368
+- **File:** crates/hkask-storage/src/gallery.rs:373
 
-#### media-gallery-get-tags-01 (🟢 full)
+#### P3-sto-gallery-get-tags-test (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gallery_id and image_hash are valid
 - **Post:** returns Vec of tags
-- **File:** crates/hkask-storage/src/gallery.rs:409
+- **File:** crates/hkask-storage/src/gallery.rs:415
 
-#### STO-075 (🟢 full)
+#### P3-sto-gallery-get-tags (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gallery_id and image_hash are valid
 - **Post:** returns Vec of tags
-- **File:** crates/hkask-storage/src/gallery.rs:412
+- **File:** crates/hkask-storage/src/gallery.rs:418
 
-#### STO-076 (🟢 full)
+#### P3-sto-gallery-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  gallery_id is valid
 - **Post:** returns Gallery if found
-- **File:** crates/hkask-storage/src/gallery.rs:437
+- **File:** crates/hkask-storage/src/gallery.rs:444
 
-#### media-gallery-search-tags-01 (🟡 partial)
+#### P3-sto-gallery-all-tags (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of all unique tags
-- **File:** crates/hkask-storage/src/gallery.rs:473
+- **File:** crates/hkask-storage/src/gallery.rs:481
 
-#### STO-077 (🟡 partial)
+#### P3-sto-gallery-all-tags (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of all unique tags
-- **File:** crates/hkask-storage/src/gallery.rs:476
+- **File:** crates/hkask-storage/src/gallery.rs:484
 
-#### media-face-register-01 (🟢 full)
+#### P3-sto-gallery-face-register-test (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  face data is valid
 - **Post:** face registered and returned
-- **File:** crates/hkask-storage/src/gallery.rs:513
+- **File:** crates/hkask-storage/src/gallery.rs:522
 
-#### STO-078 (🟢 full)
+#### P3-sto-gallery-face-register (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  face data is valid
 - **Post:** face registered and returned
-- **File:** crates/hkask-storage/src/gallery.rs:516
+- **File:** crates/hkask-storage/src/gallery.rs:525
 
-#### media-face-list-01 (🟡 partial)
+#### P3-sto-gallery-face-list-test (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of faces, optionally filtered by status
-- **File:** crates/hkask-storage/src/gallery.rs:553
+- **File:** crates/hkask-storage/src/gallery.rs:563
 
-#### STO-079 (🟡 partial)
+#### P3-sto-gallery-face-list (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of faces, optionally filtered by status
-- **File:** crates/hkask-storage/src/gallery.rs:556
+- **File:** crates/hkask-storage/src/gallery.rs:566
 
-#### media-face-get-01 (🟢 full)
+#### P3-sto-gallery-face-get-test (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  face_id is non-empty
 - **Post:** returns Face if found
-- **File:** crates/hkask-storage/src/gallery.rs:587
+- **File:** crates/hkask-storage/src/gallery.rs:598
 
-#### STO-080 (🟢 full)
+#### P3-sto-gallery-face-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  face_id is non-empty
 - **Post:** returns Face if found
-- **File:** crates/hkask-storage/src/gallery.rs:590
+- **File:** crates/hkask-storage/src/gallery.rs:601
 
-#### media-face-remove-01 (🟢 full)
+#### P3-sto-gallery-face-remove-test (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  face_id is non-empty
 - **Post:** face deleted
-- **File:** crates/hkask-storage/src/gallery.rs:615
+- **File:** crates/hkask-storage/src/gallery.rs:627
 
-#### STO-081 (🟢 full)
+#### P3-sto-gallery-face-remove (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  face_id is non-empty
 - **Post:** face deleted
-- **File:** crates/hkask-storage/src/gallery.rs:618
+- **File:** crates/hkask-storage/src/gallery.rs:630
 
-#### media-face-update-01 (🟢 full)
+#### P3-sto-gallery-face-update-test (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  face_id is valid, status is valid
 - **Post:** face status updated
-- **File:** crates/hkask-storage/src/gallery.rs:635
+- **File:** crates/hkask-storage/src/gallery.rs:648
 
-#### STO-082 (🟢 full)
+#### P3-sto-gallery-face-update (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  face_id is valid, status is valid
 - **Post:** face status updated
-- **File:** crates/hkask-storage/src/gallery.rs:638
+- **File:** crates/hkask-storage/src/gallery.rs:651
 
-#### media-gallery-create-01—creategalleryreturnsvalidrecord (🔴 bare)
+#### P3-sto-gallery-create-test—creategalleryreturnsvalidrecord (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:726
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:740
 
-#### media-gallery-create-02—duplicatepathisrejected (🔴 bare)
+#### P3-sto-gallery-create-dup-test—duplicatepathisrejected (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:738
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:752
 
-#### media-gallery-scan-01—add_imagestoresrecord (🔴 bare)
+#### P3-sto-gallery-add-image-test—add_imagestoresrecord (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:749
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:763
 
-#### media-gallery-get-image-01—getbyindex (🔴 bare)
+#### P3-sto-gallery-get-image-index-test—getbyindex (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:775
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:789
 
-#### media-gallery-get-image-02—getbyhash (🔴 bare)
+#### P3-sto-gallery-get-image-hash-test—getbyhash (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:815
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:829
 
-#### media-gallery-tag-image-01—tag_imagestorestag (🔴 bare)
+#### P3-sto-gallery-tag-image-test—tag_imagestorestag (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:840
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:854
 
-#### media-gallery-get-tags-01—get_tagsreturnsalltags (🔴 bare)
+#### P3-sto-gallery-get-tags-test—get_tagsreturnsalltags (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:875
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:889
 
-#### media-gallery-tag-dedup-01—tag_imageignoresduplicate(image_id,tag_type,value) (🔴 bare)
+#### P3-sto-gallery-tag-dedup-test—tag_imageignoresduplicate(image_id,tag_type,value) (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:906
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:920
 
-#### media-face-register-01—register_facecreatesavalidrecord (🔴 bare)
+#### P3-sto-gallery-face-register-test—register_facecreatesavalidrecord (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:943
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:957
 
-#### media-face-list-01—list_facesreturnsallregisteredfaces (🔴 bare)
+#### P3-sto-gallery-face-list-test—list_facesreturnsallregisteredfaces (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:981
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:995
 
-#### media-face-list-02—list_facesfiltersbystatus (🔴 bare)
+#### P3-sto-gallery-face-list-filter-test—list_facesfiltersbystatus (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:1024
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:1038
 
-#### media-face-get-01—get_facereturnscorrectrecord (🔴 bare)
+#### P3-sto-gallery-face-get-test—get_facereturnscorrectrecord (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:1072
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:1086
 
-#### media-face-get-02—get_faceerrorsonunknownID (🔴 bare)
+#### P3-sto-gallery-face-get-missing-test—get_faceerrorsonunknownID (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:1101
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:1115
 
-#### media-face-remove-01—remove_facedeletesrecord (🔴 bare)
+#### P3-sto-gallery-face-remove-test—remove_facedeletesrecord (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:1109
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:1123
 
-#### media-face-update-01—update_facechangesstatusandnotes (🔴 bare)
+#### P3-sto-gallery-face-update-test—update_facechangesstatusandnotes (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-storage/src/gallery.rs:1139
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-storage/src/gallery.rs:1153
 
-#### STO-098 (🟢 full)
+#### P3-sto-goal-repo-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  conn is a valid SQLite connection
 - **Post:** returns SqliteGoalRepository with schema initialized
 - **File:** crates/hkask-storage/src/goals.rs:95
 
-#### STO-099 (🟡 partial)
+#### P3-sto-goal-repo-telemetry (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Self with telemetry sink configured
-- **File:** crates/hkask-storage/src/goals.rs:108
+- **File:** crates/hkask-storage/src/goals.rs:109
 
-#### STO-100 (🟡 partial)
+#### P3-sto-goal-try-row (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Goal if row is valid
-- **File:** crates/hkask-storage/src/goals.rs:128
+- **File:** crates/hkask-storage/src/goals.rs:130
 
-#### STO-101 (🟡 partial)
+#### P3-sto-goal-row-parse (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Goal from row columns
-- **File:** crates/hkask-storage/src/goals.rs:143
+- **File:** crates/hkask-storage/src/goals.rs:146
 
-#### STO-102 (🟢 full)
+#### P3-sto-goal-create (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  webid is valid, text is non-empty
 - **Post:** goal created and returned
-- **File:** crates/hkask-storage/src/goals.rs:198
+- **File:** crates/hkask-storage/src/goals.rs:202
 
-#### STO-103 (🟢 full)
+#### P3-sto-goal-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  goal_id is valid
 - **Post:** returns Some(Goal) if found, None otherwise
-- **File:** crates/hkask-storage/src/goals.rs:217
+- **File:** crates/hkask-storage/src/goals.rs:222
 
-#### STO-104 (🟢 full)
+#### P3-sto-goal-update-state (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  goal_id is valid, state is valid
 - **Post:** goal state updated
-- **File:** crates/hkask-storage/src/goals.rs:232
+- **File:** crates/hkask-storage/src/goals.rs:238
 
-#### STO-105 (🟢 full)
+#### P3-sto-goal-list (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  webid is valid
 - **Post:** returns Vec of goals, optionally filtered by state
-- **File:** crates/hkask-storage/src/goals.rs:263
+- **File:** crates/hkask-storage/src/goals.rs:270
 
-#### STO-106 (🟢 full)
+#### P3-sto-goal-criterion-add (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  goal_id is valid, criterion has description
 - **Post:** criterion added to goal
-- **File:** crates/hkask-storage/src/goals.rs:286
+- **File:** crates/hkask-storage/src/goals.rs:294
 
-#### STO-107 (🟢 full)
+#### P3-sto-goal-artifact-add (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  goal_id is valid, artifact has content
 - **Post:** artifact added to goal
-- **File:** crates/hkask-storage/src/goals.rs:309
+- **File:** crates/hkask-storage/src/goals.rs:318
 
-#### STO-108 (🟢 full)
+#### P3-sto-goal-criteria-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  goal_id is valid
 - **Post:** returns Vec of GoalCriterion
-- **File:** crates/hkask-storage/src/goals.rs:331
+- **File:** crates/hkask-storage/src/goals.rs:341
 
-#### STO-109 (🟢 full)
+#### P3-sto-goal-artifacts-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  goal_id is valid
 - **Post:** returns Vec of GoalArtifact
-- **File:** crates/hkask-storage/src/goals.rs:358
+- **File:** crates/hkask-storage/src/goals.rs:369
 
-#### STO-110 (🟢 full)
+#### P3-sto-goal-subgoal-create (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  parent_id is valid, text is non-empty
 - **Post:** subgoal created with depth = parent.depth + 1
-- **File:** crates/hkask-storage/src/goals.rs:399
+- **File:** crates/hkask-storage/src/goals.rs:411
 
-#### STO-111 (🟢 full)
+#### P3-sto-goal-subgoal-list (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  parent_id is valid
 - **Post:** returns Vec of child goals
-- **File:** crates/hkask-storage/src/goals.rs:432
-
-#### STO-112 (🟢 full)
-
-- **Principle:** ⚠ unanchored
-- **Pre:**  goal_id is valid
-- **Post:** goal and subgoals deleted
 - **File:** crates/hkask-storage/src/goals.rs:445
 
-#### STO-113 (🟢 full)
+#### P3-sto-goal-delete (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
+- **Pre:**  goal_id is valid
+- **Post:** goal and subgoals deleted
+- **File:** crates/hkask-storage/src/goals.rs:459
+
+#### P3-sto-goal-quarantine (🟢 full)
+
+- **Principle:** ✅ anchored
 - **Pre:**  goal_id is valid, reason is non-empty
 - **Post:** goal moved to quarantine
-- **File:** crates/hkask-storage/src/goals.rs:463
+- **File:** crates/hkask-storage/src/goals.rs:478
 
-#### STO-114 (🟢 full)
+#### P3-sto-goal-repair (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  goal_id is valid
 - **Post:** goal restored from quarantine
-- **File:** crates/hkask-storage/src/goals.rs:488
+- **File:** crates/hkask-storage/src/goals.rs:504
 
-#### STO-115 (🟡 partial)
+#### P3-sto-goal-quarantine-list (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of QuarantinedGoal
-- **File:** crates/hkask-storage/src/goals.rs:543
+- **File:** crates/hkask-storage/src/goals.rs:560
 
-#### STO-031 (🟢 full)
+#### P3-sto-kata-record (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entry.agent_name is non-empty
 - **Post:** entry inserted into kata_history
 - **File:** crates/hkask-storage/src/kata_history.rs:65
 
-#### STO-032 (🟢 full)
+#### P3-sto-kata-list-agent (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent_name is non-empty
 - **Post:** returns Vec of entries for this agent
-- **File:** crates/hkask-storage/src/kata_history.rs:88
+- **File:** crates/hkask-storage/src/kata_history.rs:89
 
-#### STO-033 (🟢 full)
+#### P3-sto-kata-count-agent (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent_name is non-empty
 - **Post:** returns count of entries
-- **File:** crates/hkask-storage/src/kata_history.rs:134
+- **File:** crates/hkask-storage/src/kata_history.rs:136
 
-#### STO-034 (🟢 full)
+#### P3-sto-kata-count-date (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent_name is non-empty, date is valid ISO date
 - **Post:** returns count of entries on that date
-- **File:** crates/hkask-storage/src/kata_history.rs:150
+- **File:** crates/hkask-storage/src/kata_history.rs:153
 
-#### STO-035 (🟢 full)
+#### P3-sto-kata-last (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent_name is non-empty
 - **Post:** returns Some(entry) if exists, None otherwise
-- **File:** crates/hkask-storage/src/kata_history.rs:170
+- **File:** crates/hkask-storage/src/kata_history.rs:174
 
-#### STO-036 (🟢 full)
+#### P3-sto-kata-range (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  agent_name is non-empty, from/to are valid ISO dates
 - **Post:** returns Vec of entries in range
-- **File:** crates/hkask-storage/src/kata_history.rs:216
+- **File:** crates/hkask-storage/src/kata_history.rs:221
 
-#### STO-037 (🟢 full)
+#### P3-sto-kata-delete-before (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  before_date is a valid ISO date
 - **Post:** entries before date deleted;returns count of deleted entries
-- **File:** crates/hkask-storage/src/kata_history.rs:264
+- **File:** crates/hkask-storage/src/kata_history.rs:270
 
-#### STO-001 (🟡 partial)
+#### P4-sto-lock-mutex (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Ok(MutexGuard) if lock acquired;returns Err(LockPoisoned) if mutex is poisoned
 - **File:** crates/hkask-storage/src/lock_helpers.rs:30
 
-#### STO-002 (🟡 partial)
+#### P4-sto-lock-read (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Ok(RwLockReadGuard) if lock acquired;returns Err(LockPoisoned) if lock is poisoned
-- **File:** crates/hkask-storage/src/lock_helpers.rs:47
+- **File:** crates/hkask-storage/src/lock_helpers.rs:48
 
-#### STO-003 (🟡 partial)
+#### P4-sto-lock-write (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Ok(RwLockWriteGuard) if lock acquired;returns Err(LockPoisoned) if lock is poisoned
-- **File:** crates/hkask-storage/src/lock_helpers.rs:64
+- **File:** crates/hkask-storage/src/lock_helpers.rs:66
 
-#### STO-013 (🟢 full)
+#### P3-sto-nu-event-replay (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  observer is valid, category is valid, lookback_secs > 0
 - **Post:** returns Vec<NuEvent> within lookback window, weighted by recency
 - **File:** crates/hkask-storage/src/nu_event_store.rs:79
 
-#### STO-014 (🟢 full)
+#### P3-sto-nu-event-decay (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  category is a valid SpanCategory
 - **Post:** returns decay lambda from config or default
-- **File:** crates/hkask-storage/src/nu_event_store.rs:115
+- **File:** crates/hkask-storage/src/nu_event_store.rs:116
 
-#### STO-015 (🟢 full)
+#### P3-sto-nu-event-cursor-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key is non-empty
 - **Post:** cursor value stored
-- **File:** crates/hkask-storage/src/nu_event_store.rs:170
+- **File:** crates/hkask-storage/src/nu_event_store.rs:172
 
-#### STO-016 (🟢 full)
+#### P3-sto-nu-event-cursor-load (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key is non-empty
 - **Post:** returns Some(value) if cursor exists, None otherwise
-- **File:** crates/hkask-storage/src/nu_event_store.rs:188
+- **File:** crates/hkask-storage/src/nu_event_store.rs:191
 
-#### STO-017 (🟡 partial)
+#### P3-sto-nu-event-algedonic-query (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of algedonic signal events
-- **File:** crates/hkask-storage/src/nu_event_store.rs:203
+- **File:** crates/hkask-storage/src/nu_event_store.rs:207
 
-#### STO-004 (🟢 full)
+#### P4-sto-path-safe-join (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  base is a valid directory, input is a relative path
 - **Post:** returns Ok(PathBuf) if path is safe (no traversal, no null bytes);returns Err if path contains traversal or null bytes
 - **File:** crates/hkask-storage/src/security.rs:13
 
-#### STO-009 (🟡 partial)
+#### P1-sto-sovereignty-schema (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** sovereignty_boundaries table created if not exists
 - **File:** crates/hkask-storage/src/sovereignty.rs:52
 
-#### STO-010 (🟢 full)
+#### P1-sto-sovereignty-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entry.webid is non-empty
 - **Post:** entry inserted or replaced
-- **File:** crates/hkask-storage/src/sovereignty.rs:181
+- **File:** crates/hkask-storage/src/sovereignty.rs:182
 
-#### STO-011 (🟢 full)
+#### P1-sto-sovereignty-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  webid is non-empty
 - **Post:** returns Vec of entries for this WebID
-- **File:** crates/hkask-storage/src/sovereignty.rs:220
+- **File:** crates/hkask-storage/src/sovereignty.rs:222
 
-#### STO-012 (🟢 full)
+#### P1-sto-sovereignty-delete (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  webid is non-empty
 - **Post:** entries deleted for this WebID
-- **File:** crates/hkask-storage/src/sovereignty.rs:271
+- **File:** crates/hkask-storage/src/sovereignty.rs:274
 
-#### STO-018 (🟡 partial)
+#### P3-sto-spec-schema (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** specs table created if not exists
 - **File:** crates/hkask-storage/src/spec_store.rs:133
 
-#### STO-019 (🟡 partial)
+#### P3-sto-spec-curation-schema (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** spec_curation_records table created if not exists
-- **File:** crates/hkask-storage/src/spec_store.rs:154
+- **File:** crates/hkask-storage/src/spec_store.rs:155
 
-#### STO-020 (🟢 full)
+#### P3-sto-spec-curation-save (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  record.spec_id is non-empty
 - **Post:** record inserted into spec_curation_records
-- **File:** crates/hkask-storage/src/spec_store.rs:171
+- **File:** crates/hkask-storage/src/spec_store.rs:173
 
-#### STO-021 (🟢 full)
+#### P3-sto-spec-curation-load (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  spec_id is non-empty
 - **Post:** returns Vec of curation records for this spec
-- **File:** crates/hkask-storage/src/spec_store.rs:193
+- **File:** crates/hkask-storage/src/spec_store.rs:196
 
-#### STO-022 (🟡 partial)
+#### P3-sto-spec-curation-since (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of records created after since_ts
-- **File:** crates/hkask-storage/src/spec_store.rs:214
+- **File:** crates/hkask-storage/src/spec_store.rs:218
 
-#### STO-023 (🟡 partial)
+#### P3-sto-spec-curation-all (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of all curation records
-- **File:** crates/hkask-storage/src/spec_store.rs:241
+- **File:** crates/hkask-storage/src/spec_store.rs:246
 
-#### STO-163 (🟡 partial)
+#### P8-sto-spec-str-enum-as-str (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns lowercase string
 - **File:** crates/hkask-storage/src/spec_types.rs:19
 
-#### STO-164 (🟡 partial)
+#### P8-sto-spec-str-enum-parse (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Some if valid, None otherwise
-- **File:** crates/hkask-storage/src/spec_types.rs:26
+- **File:** crates/hkask-storage/src/spec_types.rs:27
 
-#### STO-165 (🟡 partial)
+#### P8-sto-spec-id-new (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns new random SpecId
-- **File:** crates/hkask-storage/src/spec_types.rs:44
+- **File:** crates/hkask-storage/src/spec_types.rs:46
 
-#### STO-166 (🟢 full)
+#### P8-sto-spec-id-from-str (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  s is a valid UUID string
 - **Post:** returns SpecId
-- **File:** crates/hkask-storage/src/spec_types.rs:51
+- **File:** crates/hkask-storage/src/spec_types.rs:54
 
-#### STO-167 (🟡 partial)
+#### P8-sto-spec-category-as-str (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns snake_case string
-- **File:** crates/hkask-storage/src/spec_types.rs:94
+- **File:** crates/hkask-storage/src/spec_types.rs:98
 
-#### STO-168 (🟡 partial)
+#### P8-sto-spec-category-parse (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Some(SpecCategory) if valid, None otherwise
-- **File:** crates/hkask-storage/src/spec_types.rs:109
+- **File:** crates/hkask-storage/src/spec_types.rs:114
 
-#### STO-116 (🟢 full)
+#### P3-sto-triple-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity and attribute are non-empty, owner_webid is valid
 - **Post:** returns Triple with defaults for temporal, confidence, access
 - **File:** crates/hkask-storage/src/triples.rs:39
 
-#### STO-117 (🟡 partial)
+#### P3-sto-triple-with-confidence (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Self with confidence set (builder pattern)
-- **File:** crates/hkask-storage/src/triples.rs:56
+- **File:** crates/hkask-storage/src/triples.rs:58
 
-#### STO-118 (🟡 partial)
+#### P3-sto-triple-with-perspective (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Self with perspective set (builder pattern)
-- **File:** crates/hkask-storage/src/triples.rs:64
+- **File:** crates/hkask-storage/src/triples.rs:67
 
-#### STO-119 (🟡 partial)
+#### P3-sto-triple-with-visibility (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Self with visibility set (builder pattern)
-- **File:** crates/hkask-storage/src/triples.rs:72
+- **File:** crates/hkask-storage/src/triples.rs:76
 
-#### STO-120 (🟡 partial)
+#### P3-sto-triple-is-episodic (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns true iff perspective is Some
-- **File:** crates/hkask-storage/src/triples.rs:81
+- **File:** crates/hkask-storage/src/triples.rs:86
 
-#### STO-121 (🟡 partial)
+#### P3-sto-triple-is-semantic (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns true iff visibility is Public and perspective is None
-- **File:** crates/hkask-storage/src/triples.rs:88
+- **File:** crates/hkask-storage/src/triples.rs:94
 
-#### STO-122 (🟢 full)
+#### P3-sto-triple-insert (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  triple has valid entity, attribute, value
 - **Post:** triple inserted
-- **File:** crates/hkask-storage/src/triples.rs:102
+- **File:** crates/hkask-storage/src/triples.rs:109
 
-#### STO-123 (🟢 full)
+#### P3-sto-triple-query-entity (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity is non-empty
 - **Post:** returns Vec of triples matching entity
-- **File:** crates/hkask-storage/src/triples.rs:127
+- **File:** crates/hkask-storage/src/triples.rs:135
 
-#### STO-124 (🟢 full)
+#### P3-sto-triple-query-entity-attribute (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity and attribute are non-empty
 - **Post:** returns Vec of matching triples
-- **File:** crates/hkask-storage/src/triples.rs:145
+- **File:** crates/hkask-storage/src/triples.rs:154
 
-#### STO-125 (🟢 full)
+#### P3-sto-triple-query-perspective (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  perspective is valid
 - **Post:** returns Vec of triples for this perspective
-- **File:** crates/hkask-storage/src/triples.rs:167
+- **File:** crates/hkask-storage/src/triples.rs:177
 
-#### STO-126 (🟢 full)
+#### P3-sto-triple-query-attribute (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  attribute is non-empty
 - **Post:** returns Vec of triples matching attribute
-- **File:** crates/hkask-storage/src/triples.rs:186
+- **File:** crates/hkask-storage/src/triples.rs:197
 
-#### STO-127 (🟢 full)
+#### P3-sto-triple-update (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  id is valid
 - **Post:** triple value and confidence updated
-- **File:** crates/hkask-storage/src/triples.rs:206
+- **File:** crates/hkask-storage/src/triples.rs:218
 
-#### STO-128 (🟢 full)
+#### P3-sto-triple-get-id (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  id is valid
 - **Post:** returns Some(Triple) if found, None otherwise
-- **File:** crates/hkask-storage/src/triples.rs:280
+- **File:** crates/hkask-storage/src/triples.rs:293
 
-#### STO-129 (🟢 full)
+#### P3-sto-triple-low-confidence (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  limit > 0
 - **Post:** returns up to limit triples ordered by confidence ascending
-- **File:** crates/hkask-storage/src/triples.rs:302
+- **File:** crates/hkask-storage/src/triples.rs:316
 
-#### STO-130 (🟢 full)
+#### P3-sto-triple-count-below (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  threshold in [0.0, 1.0]
 - **Post:** returns count of triples with confidence ≤ threshold
-- **File:** crates/hkask-storage/src/triples.rs:327
+- **File:** crates/hkask-storage/src/triples.rs:342
 
-#### STO-131 (🟢 full)
+#### P3-sto-triple-query-below (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  threshold in [0.0, 1.0], limit > 0
 - **Post:** returns up to limit triples with confidence ≤ threshold
-- **File:** crates/hkask-storage/src/triples.rs:343
+- **File:** crates/hkask-storage/src/triples.rs:359
 
-#### STO-132 (🟡 partial)
+#### P3-sto-triple-count-semantic (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns total count of semantic triples
-- **File:** crates/hkask-storage/src/triples.rs:369
+- **File:** crates/hkask-storage/src/triples.rs:386
 
-#### STO-133 (🟢 full)
+#### P3-sto-triple-count-entity (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  entity is non-empty
 - **Post:** returns count for entity
-- **File:** crates/hkask-storage/src/triples.rs:384
+- **File:** crates/hkask-storage/src/triples.rs:402
 
-#### STO-134 (🟢 full)
+#### P3-sto-triple-count-perspective (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  perspective is valid
 - **Post:** returns count for perspective
-- **File:** crates/hkask-storage/src/triples.rs:400
+- **File:** crates/hkask-storage/src/triples.rs:419
 
-#### STO-135 (🟢 full)
+#### P3-sto-triple-soft-delete (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  id is valid
 - **Post:** triple's valid_to set to now (soft-delete)
-- **File:** crates/hkask-storage/src/triples.rs:416
+- **File:** crates/hkask-storage/src/triples.rs:436
 
-#### STO-136 (🟢 full)
+#### P3-sto-triple-hard-delete (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  id is valid
 - **Post:** triple permanently deleted
-- **File:** crates/hkask-storage/src/triples.rs:432
+- **File:** crates/hkask-storage/src/triples.rs:453
 
-#### STO-137 (🟢 full)
+#### P3-sto-triple-delete-prefix (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prefix is non-empty
 - **Post:** matching triples deleted;returns count of deleted triples
-- **File:** crates/hkask-storage/src/triples.rs:445
+- **File:** crates/hkask-storage/src/triples.rs:467
 
-#### STO-056 (🟡 partial)
+#### P1-sto-user-schema (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** users, replicants, sessions tables created if not exists
 - **File:** crates/hkask-storage/src/user_store.rs:79
 
-#### STO-057 (🟢 full)
+#### P1-sto-user-register (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  replicant_name is non-empty, passphrase meets requirements
 - **Post:** replicant and user records created
-- **File:** crates/hkask-storage/src/user_store.rs:95
+- **File:** crates/hkask-storage/src/user_store.rs:96
 
-#### STO-058 (🟢 full)
+#### P1-sto-user-login (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  replicant_name is registered, passphrase is correct
 - **Post:** returns UserSession on success;returns Err if credentials invalid
-- **File:** crates/hkask-storage/src/user_store.rs:167
+- **File:** crates/hkask-storage/src/user_store.rs:170
 
-#### STO-059 (🟢 full)
+#### P1-sto-user-logout (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  session_id is valid
 - **Post:** session invalidated
-- **File:** crates/hkask-storage/src/user_store.rs:204
+- **File:** crates/hkask-storage/src/user_store.rs:208
 
-#### STO-060 (🟢 full)
+#### P1-sto-user-passphrase-change (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  replicant_name is registered, old_passphrase is correct
 - **Post:** passphrase updated
-- **File:** crates/hkask-storage/src/user_store.rs:219
+- **File:** crates/hkask-storage/src/user_store.rs:224
 
-#### STO-061 (🟢 full)
+#### P1-sto-user-passphrase-expired (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  replicant_name is registered
 - **Post:** returns true if passphrase needs rotation
-- **File:** crates/hkask-storage/src/user_store.rs:261
+- **File:** crates/hkask-storage/src/user_store.rs:267
 
-#### STO-062 (🟢 full)
+#### P1-sto-user-session-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  session_id is non-empty
 - **Post:** returns Some(session) if valid, None otherwise
-- **File:** crates/hkask-storage/src/user_store.rs:292
+- **File:** crates/hkask-storage/src/user_store.rs:299
 
-#### STO-063 (🟢 full)
+#### P1-sto-user-session-list (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  replicant_name is non-empty
 - **Post:** returns Vec of active sessions
-- **File:** crates/hkask-storage/src/user_store.rs:309
+- **File:** crates/hkask-storage/src/user_store.rs:317
 
-#### STO-064 (🟢 full)
+#### P1-sto-user-replicant-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  replicant_name is non-empty
 - **Post:** returns Some(identity) if found, None otherwise
-- **File:** crates/hkask-storage/src/user_store.rs:326
+- **File:** crates/hkask-storage/src/user_store.rs:335
 
-#### STO-065 (🟢 full)
+#### P1-sto-user-human-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  user_id is valid
 - **Post:** returns HumanUser
-- **File:** crates/hkask-storage/src/user_store.rs:343
+- **File:** crates/hkask-storage/src/user_store.rs:353
 
-#### STO-066 (🟢 full)
+#### P1-sto-user-replicant-list (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  user_id is valid
 - **Post:** returns Vec of replicants owned by user
-- **File:** crates/hkask-storage/src/user_store.rs:376
+- **File:** crates/hkask-storage/src/user_store.rs:387
 
-#### STO-067 (🟢 full)
+#### P1-sto-user-wallet-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  replicant_name is non-empty
 - **Post:** returns Some(WalletId) if set, None otherwise
-- **File:** crates/hkask-storage/src/user_store.rs:390
+- **File:** crates/hkask-storage/src/user_store.rs:402
 
-#### STO-068 (🟢 full)
+#### P1-sto-user-wallet-set (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  replicant_name is registered, wallet_id is valid
 - **Post:** wallet_id stored for replicant
-- **File:** crates/hkask-storage/src/user_store.rs:403
+- **File:** crates/hkask-storage/src/user_store.rs:416
 
-#### SHOULD-8—WALmodeforwalletstoreconcurrency (🟡 partial)
+#### P3-sto-wallet-wal-test—WALmodeforwalletstoreconcurrency (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** journal_mode set to WAL;synchronous set to NORMAL (balance durability vs performance)
 - **File:** crates/hkask-storage/src/wallet_store.rs:75
 
-#### STO-138 (🟡 partial)
+#### P3-sto-wallet-wal-mode (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** journal_mode set to WAL, synchronous set to NORMAL
 - **File:** crates/hkask-storage/src/wallet_store.rs:82
 
-#### STO-139 (🟢 full)
+#### P3-sto-wallet-balance-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is valid
 - **Post:** returns Some(WalletBalance) if wallet exists, None otherwise
-- **File:** crates/hkask-storage/src/wallet_store.rs:101
+- **File:** crates/hkask-storage/src/wallet_store.rs:103
 
-#### STO-140 (🟢 full)
+#### P3-sto-wallet-ensure (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is valid
 - **Post:** wallet row exists (created if missing)
-- **File:** crates/hkask-storage/src/wallet_store.rs:149
+- **File:** crates/hkask-storage/src/wallet_store.rs:152
 
-#### STO-141 (🟡 partial)
+#### P3-sto-wallet-list-ids (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Vec of all WalletId
-- **File:** crates/hkask-storage/src/wallet_store.rs:160
+- **File:** crates/hkask-storage/src/wallet_store.rs:164
 
-#### STO-142 (🟢 full)
+#### P3-sto-wallet-credit (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id exists, amount > 0
 - **Post:** balance increased by amount, transaction recorded
-- **File:** crates/hkask-storage/src/wallet_store.rs:178
+- **File:** crates/hkask-storage/src/wallet_store.rs:183
 
-#### STO-143 (🟢 full)
+#### P3-sto-wallet-debit (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id exists, amount > 0, balance >= amount
 - **Post:** balance decreased by amount, transaction recorded;returns Err if insufficient balance
-- **File:** crates/hkask-storage/src/wallet_store.rs:204
+- **File:** crates/hkask-storage/src/wallet_store.rs:210
 
-#### STO-144 (🟢 full)
+#### P3-sto-wallet-tx-record (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  tx has valid wallet_id and rjoules_delta
 - **Post:** transaction inserted into ledger
-- **File:** crates/hkask-storage/src/wallet_store.rs:243
+- **File:** crates/hkask-storage/src/wallet_store.rs:250
 
-#### STO-145 (🟢 full)
+#### P3-sto-wallet-tx-list (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is valid
 - **Post:** returns Vec of transactions, optionally limited
-- **File:** crates/hkask-storage/src/wallet_store.rs:271
+- **File:** crates/hkask-storage/src/wallet_store.rs:279
 
-#### STO-146 (🟢 full)
+#### P3-sto-wallet-tx-hash-exists (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  tx_hash is non-empty
 - **Post:** returns true if hash exists (anti-replay)
-- **File:** crates/hkask-storage/src/wallet_store.rs:314
+- **File:** crates/hkask-storage/src/wallet_store.rs:323
 
-#### STO-147 (🟢 full)
+#### P3-sto-wallet-api-key-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  capability has valid key_id and wallet_id
 - **Post:** API key stored
-- **File:** crates/hkask-storage/src/wallet_store.rs:332
+- **File:** crates/hkask-storage/src/wallet_store.rs:342
 
-#### STO-148 (🟢 full)
+#### P3-sto-wallet-api-key-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is valid
 - **Post:** returns Some(capability) if found, None otherwise
-- **File:** crates/hkask-storage/src/wallet_store.rs:366
+- **File:** crates/hkask-storage/src/wallet_store.rs:377
 
-#### STO-149 (🟢 full)
+#### P3-sto-wallet-api-key-by-pubkey (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  public_key is valid
 - **Post:** returns Some(capability) if found, None otherwise
-- **File:** crates/hkask-storage/src/wallet_store.rs:403
+- **File:** crates/hkask-storage/src/wallet_store.rs:415
 
-#### STO-150 (🟢 full)
+#### P3-sto-wallet-api-key-list (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is valid
 - **Post:** returns Vec of API key capabilities
-- **File:** crates/hkask-storage/src/wallet_store.rs:443
+- **File:** crates/hkask-storage/src/wallet_store.rs:456
 
-#### STO-151 (🟢 full)
+#### P3-sto-wallet-api-key-revoke (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is valid
 - **Post:** API key revoked, unspent rJ returned to wallet
-- **File:** crates/hkask-storage/src/wallet_store.rs:481
+- **File:** crates/hkask-storage/src/wallet_store.rs:495
 
-#### STO-152 (🟢 full)
+#### P3-sto-wallet-spent-rj-update (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is valid
 - **Post:** spent_rj updated
-- **File:** crates/hkask-storage/src/wallet_store.rs:513
+- **File:** crates/hkask-storage/src/wallet_store.rs:528
 
-#### STO-153 (🟢 full)
+#### P3-sto-wallet-address-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  address has valid wallet_id and chain
 - **Post:** deposit address stored
-- **File:** crates/hkask-storage/src/wallet_store.rs:530
+- **File:** crates/hkask-storage/src/wallet_store.rs:546
 
-#### STO-154 (🟢 full)
+#### P3-sto-wallet-address-list (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is valid
 - **Post:** returns Vec of deposit addresses
-- **File:** crates/hkask-storage/src/wallet_store.rs:558
+- **File:** crates/hkask-storage/src/wallet_store.rs:575
 
-#### STO-155 (🟢 full)
+#### P3-sto-wallet-address-resolve (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  chain is valid, address is non-empty
 - **Post:** returns Some(WalletId) if found, None otherwise
-- **File:** crates/hkask-storage/src/wallet_store.rs:598
+- **File:** crates/hkask-storage/src/wallet_store.rs:616
 
-#### STO-156 (🟢 full)
+#### P3-sto-wallet-reference-store (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  reference has valid fields
 - **Post:** deposit reference stored
-- **File:** crates/hkask-storage/src/wallet_store.rs:623
+- **File:** crates/hkask-storage/src/wallet_store.rs:642
 
-#### STO-157 (🟢 full)
+#### P3-sto-wallet-reference-consume (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  reference is valid and not expired
 - **Post:** reference consumed, wallet credited;returns Err if already consumed or expired
-- **File:** crates/hkask-storage/src/wallet_store.rs:644
+- **File:** crates/hkask-storage/src/wallet_store.rs:664
 
-#### STO-158 (🟡 partial)
+#### P3-sto-wallet-reference-purge (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** expired references deleted;returns count of deleted references
-- **File:** crates/hkask-storage/src/wallet_store.rs:673
+- **File:** crates/hkask-storage/src/wallet_store.rs:694
 
-#### STO-159 (🟢 full)
+#### P3-sto-wallet-encumber (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id exists, key_id is valid, amount > 0, balance >= amount
 - **Post:** rJoules encumbered, balance decreased
-- **File:** crates/hkask-storage/src/wallet_store.rs:695
+- **File:** crates/hkask-storage/src/wallet_store.rs:717
 
-#### STO-160 (🟢 full)
+#### P3-sto-wallet-encumbrance-release (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id has active encumbrance
 - **Post:** encumbrance released, unspent rJ returned to wallet
-- **File:** crates/hkask-storage/src/wallet_store.rs:751
+- **File:** crates/hkask-storage/src/wallet_store.rs:774
 
-#### STO-161 (🟢 full)
+#### P3-sto-wallet-encumbrance-consume (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id has active encumbrance with sufficient remaining
 - **Post:** consumed_rj increased, api_keys.spent_rj synced;returns Err if insufficient or not active
-- **File:** crates/hkask-storage/src/wallet_store.rs:797
+- **File:** crates/hkask-storage/src/wallet_store.rs:821
 
-#### STO-162 (🟢 full)
+#### P3-sto-wallet-encumbrance-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is valid
 - **Post:** returns Some(Encumbrance) if found, None otherwise
-- **File:** crates/hkask-storage/src/wallet_store.rs:871
+- **File:** crates/hkask-storage/src/wallet_store.rs:896
 
 
 ### hkask-templates (52 contracts)
@@ -6361,161 +6387,182 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-types/src/voice.rs:116
 
 
-### hkask-wallet (23 contracts)
+### hkask-wallet (26 contracts)
 
-#### P9-wlt-hinkal-port-new (🟢 full)
+#### P9-wallet-hinkal-port-new (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  api_base_url is a valid absolute URL; treasury_pubkey is a non-empty account/public key string
 - **Post:** HTTP client initialized with rustls TLS;circuit breaker initialized with zero failures
 - **File:** crates/hkask-wallet/src/hinkal.rs:184
 
-#### P9-wlt-issuer-key-lifecycle (🟡 partial)
+#### P9-wallet-issuer-struct (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Inv:** private keys are never stored (only public keys persisted);wallet_seed is zeroized on drop
 - **File:** crates/hkask-wallet/src/issuer.rs:31
 
-#### P9-wlt-issuer-key-lifecycle (🟢 full)
+#### P9-wallet-issuer-new (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  store is initialized
 - **Post:** returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing
 - **File:** crates/hkask-wallet/src/issuer.rs:55
 
-#### P9-wlt-issuer-key-lifecycle (🟢 full)
+#### P9-wallet-issuer-create-key (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is valid, spending_limit_rj > 0, purpose is non-empty
 - **Post:** returns Ok(ApiKeyMaterial) with fresh Ed25519 keypair
 - **File:** crates/hkask-wallet/src/issuer.rs:98
 
-#### P9-wlt-issuer-key-lifecycle (🟢 full)
+#### P9-wallet-issuer-revoke-key (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** key marked as revoked in store
 - **File:** crates/hkask-wallet/src/issuer.rs:182
 
-#### P9-wlt-issuer-key-lifecycle (🟢 full)
+#### P9-wallet-issuer-list-keys (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId
 - **Post:** returns Ok(Vec<ApiKeyCapability>) containing only non-revoked keys
 - **File:** crates/hkask-wallet/src/issuer.rs:210
 
-#### P9-wlt-mgr-build (🟡 partial)
+#### P9-wallet-mgr-struct (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Inv:** wallet_seed is zeroized on drop (Zeroizing wrapper);chains map is non-empty after successful build
-- **File:** crates/hkask-wallet/src/manager.rs:38
+- **File:** crates/hkask-wallet/src/manager.rs:39
 
-#### P9-wlt-mgr-build (🟢 full)
+#### P9-wallet-mgr-build (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  config is valid, store is initialized, chains is non-empty; price_feed is a resolved PriceFeed implementation
 - **Post:** returns Ok(WalletManager) with resolved wallet_seed;returns Err if wallet_seed resolution fails
-- **File:** crates/hkask-wallet/src/manager.rs:60
+- **File:** crates/hkask-wallet/src/manager.rs:64
 
-#### P9-wlt-issuer-key-lifecycle,MUST-6(algedonicfeedbackclosure) (🟢 full)
+#### P9-wallet-mgr-key-alert-span(algedonicfeedbackclosure) (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** if key is expired → emits cns.wallet.key_expired span (Sense phase);if key is exhausted → emits cns.wallet.key_exhausted span (Sense phase);if event_sink is None → no-op (graceful degradation)
-- **File:** crates/hkask-wallet/src/manager.rs:138
+- **File:** crates/hkask-wallet/src/manager.rs:144
 
-#### P9-wlt-mgr-chain-error-span (🟢 full)
+#### P9-wallet-mgr-chain-error-span (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  chain is a valid ChainId
 - **Post:** emits cns.wallet.chain_error span with error details (Sense phase);if event_sink is None → no-op (graceful degradation)
-- **File:** crates/hkask-wallet/src/manager.rs:171
+- **File:** crates/hkask-wallet/src/manager.rs:177
 
-#### P9-wlt-mgr-balance (🟢 full)
+#### P9-wallet-mgr-balance (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId
 - **Post:** returns Ok(balance) with rjoules, gas_equivalent, usdc_equivalent_micro;gas_equivalent == rjoules * config.gas_per_rjoule;balance.rjoules >= 0 (balances are never negative)
-- **File:** crates/hkask-wallet/src/manager.rs:207
+- **File:** crates/hkask-wallet/src/manager.rs:213
 
-#### P9-wlt-mgr-api-key-get (🟢 full)
+#### P9-wallet-mgr-api-key-get (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** returns Ok(Some(capability)) if key exists and is active;returns Ok(None) if key doesn't exist or is revoked
-- **File:** crates/hkask-wallet/src/manager.rs:230
+- **File:** crates/hkask-wallet/src/manager.rs:236
 
-#### P9-wlt-mgr-fee-estimate (🟢 full)
+#### P9-wlt-mgr-gas-to-rjoules (🟢 full)
+
+- **Principle:** ✅ anchored
+- **Pre:**  gas is a non-negative integer
+- **Post:** returns RJoule equivalent using the current gas_per_rjoule rate
+- **File:** crates/hkask-wallet/src/manager.rs:812
+
+#### P9-wlt-mgr-rjoules-to-gas (🟢 full)
+
+- **Principle:** ✅ anchored
+- **Pre:**  rj is a non-negative RJoule
+- **Post:** returns gas equivalent using the current gas_per_rjoule rate
+- **File:** crates/hkask-wallet/src/manager.rs:829
+
+#### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  rate > 0
+- **Post:** subsequent gas_to_rjoules/rjoules_to_gas use the new rate
+- **File:** crates/hkask-wallet/src/manager.rs:843
+
+#### P9-wallet-mgr-fee-estimate (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  chain is a valid ChainId
 - **Post:** returns fee estimate derived from live/native USD rate when available;returns Err if configured price feed cannot provide a rate
-- **File:** crates/hkask-wallet/src/manager.rs:823
+- **File:** crates/hkask-wallet/src/manager.rs:853
 
-#### P9-wlt-mgr-reserve-settle (🟢 full)
+#### P9-wallet-mgr-can-afford (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, cost_rj is a valid RJoule
 - **Post:** returns Ok(true) iff balance.rjoules >= cost_rj;returns Ok(false) iff balance.rjoules < cost_rj
-- **File:** crates/hkask-wallet/src/manager.rs:862
+- **File:** crates/hkask-wallet/src/manager.rs:892
 
-#### P9-wlt-mgr-reserve-settle (🟢 full)
+#### P9-wallet-mgr-reserve (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, amount is a valid RJoule
 - **Post:** if can_afford → Ok(()), reservation is optimistic (no debit);if !can_afford → Err(InsufficientBalance)
-- **File:** crates/hkask-wallet/src/manager.rs:876
+- **File:** crates/hkask-wallet/src/manager.rs:906
 
-#### P9-wlt-mgr-reserve-settle (🟢 full)
+#### P9-wallet-mgr-settle (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, reserved and actual are valid RJoule
 - **Post:** wallet balance debited by actual (not reserved);if actual < reserved, difference is implicitly refunded
-- **File:** crates/hkask-wallet/src/manager.rs:898
+- **File:** crates/hkask-wallet/src/manager.rs:928
 
-#### P9-wlt-mgr-encumbrance (🟢 full)
+#### P9-wallet-mgr-encumber (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, key_id is a valid ApiKeyId, amount > 0
 - **Post:** amount rJoules locked against wallet for key_id;emits cns.wallet.encumbered span if event_sink configured
-- **File:** crates/hkask-wallet/src/manager.rs:963
+- **File:** crates/hkask-wallet/src/manager.rs:993
 
-#### P9-wlt-mgr-encumbrance (🟢 full)
+#### P9-wallet-mgr-release-encumbrance (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** unspent rJoules returned to wallet;idempotent — releasing already-released/consumed encumbrance is no-op
-- **File:** crates/hkask-wallet/src/manager.rs:995
+- **File:** crates/hkask-wallet/src/manager.rs:1025
 
-#### P9-wlt-mgr-encumbrance (🟢 full)
+#### P9-wallet-mgr-consume (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId, gas_rj > 0
 - **Post:** gas_rj deducted from key's active encumbrance (atomic);if encumbrance fully consumed → status transitions to 'consumed'
-- **File:** crates/hkask-wallet/src/manager.rs:1019
+- **File:** crates/hkask-wallet/src/manager.rs:1049
 
-#### P9-wlt-mgr-encumbrance (🟢 full)
+#### P9-wallet-mgr-get-encumbrance (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** returns Ok(Some(encumbrance)) if key has active encumbrance;returns Ok(None) if key has no encumbrance
-- **File:** crates/hkask-wallet/src/manager.rs:1036
+- **File:** crates/hkask-wallet/src/manager.rs:1066
 
-#### P9-wlt-sign-withdrawal (🟢 full)
+#### P9-wallet-sign-withdrawal (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  chain is a valid ChainId, tx_bytes is non-empty
 - **Post:** returns Ok(signature) — 64-byte Ed25519 signature;treasury key loaded, used, and zeroized within this call
 - **File:** crates/hkask-wallet/src/signing.rs:63
 
-#### P9-wlt-sign-hinkal-message (🟢 full)
+#### P9-wallet-sign-hinkal-message (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  message is any byte slice (including empty)
 - **Post:** returns Ok(signature) — 64-byte Ed25519 signature;treasury key loaded, used, and zeroized within this call
 - **File:** crates/hkask-wallet/src/signing.rs:86
 
-#### P9-wlt-sign-capability (🟢 full)
+#### P9-wallet-sign-capability (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  capability is a valid, fully-populated ApiKeyCapability

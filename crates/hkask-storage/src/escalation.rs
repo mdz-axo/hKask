@@ -31,7 +31,8 @@ impl EscalationEntry {
     /// Create a pending escalation entry with auto-generated id, timestamps, and defaults.
     /// Create a pending escalation signal.
     ///
-    /// REQ: STO-046
+    /// REQ: P3-sto-escalation-pending
+    /// [P3] Motivating: Generative Space — create pending escalation entry
     /// post: returns EscalationSignal with Pending status
     pub fn pending(output: String, confidence: f64, error_context: String) -> Self {
         Self {
@@ -88,7 +89,8 @@ impl Store for EscalationQueue {
 impl EscalationQueue {
     /// Create a new escalation queue.
     ///
-    /// REQ: STO-047
+    /// REQ: P3-sto-escalation-queue-new
+    /// [P3] Motivating: Generative Space — create escalation queue
     /// pre:  conn is a valid SQLite connection
     /// post: returns EscalationQueue with schema initialized
     pub fn new(conn: Arc<std::sync::Mutex<rusqlite::Connection>>) -> Result<Self, EscalationError> {
@@ -119,7 +121,8 @@ impl EscalationQueue {
 
     /// Add an escalation entry.
     ///
-    /// REQ: STO-048
+    /// REQ: P3-sto-escalation-add
+    /// [P3] Motivating: Generative Space — add escalation entry
     /// pre:  entry has valid domain and output
     /// post: entry inserted into escalations
     pub fn add(
@@ -154,7 +157,8 @@ impl EscalationQueue {
 
     /// List pending escalations.
     ///
-    /// REQ: STO-049
+    /// REQ: P3-sto-escalation-list-pending
+    /// [P3] Motivating: Generative Space — list pending escalations
     /// post: returns Vec of pending EscalationEntry
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
@@ -197,7 +201,8 @@ impl EscalationQueue {
 
     /// Get an escalation by ID.
     ///
-    /// REQ: STO-050
+    /// REQ: P3-sto-escalation-get
+    /// [P3] Motivating: Generative Space — get escalation by ID
     /// pre:  id is non-empty
     /// post: returns Some(entry) if found, None otherwise
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
@@ -256,7 +261,8 @@ impl EscalationQueue {
 
     /// Resolve an escalation.
     ///
-    /// REQ: STO-051
+    /// REQ: P3-sto-escalation-resolve
+    /// [P3] Motivating: Generative Space — resolve escalation
     /// pre:  id is non-empty, resolved_by is non-empty
     /// post: escalation status set to Resolved
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
@@ -273,7 +279,8 @@ impl EscalationQueue {
 
     /// Dismiss an escalation.
     ///
-    /// REQ: STO-052
+    /// REQ: P3-sto-escalation-dismiss
+    /// [P3] Motivating: Generative Space — dismiss escalation
     /// pre:  id is non-empty, resolved_by is non-empty
     /// post: escalation status set to Dismissed
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
@@ -290,7 +297,8 @@ impl EscalationQueue {
 
     /// Get escalation statistics.
     ///
-    /// REQ: STO-053
+    /// REQ: P3-sto-escalation-stats
+    /// [P8] Motivating: Semantic Grounding — escalation statistics
     /// post: returns EscalationStats with counts by status
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
         let conn = self.lock_conn()?;
@@ -332,7 +340,8 @@ pub struct EscalationBatch {
 impl EscalationBatch {
     /// Create a new escalation summary.
     ///
-    /// REQ: STO-054
+    /// REQ: P3-sto-escalation-summary-new
+    /// [P3] Motivating: Generative Space — create escalation summary
     /// pre:  domain is non-empty, threshold > 0
     /// post: returns EscalationSummary
     pub fn new(entries: Vec<EscalationEntry>, domain: &str, threshold: usize) -> Self {
@@ -347,7 +356,8 @@ impl EscalationBatch {
 
     /// Generate a human-readable summary.
     ///
-    /// REQ: STO-055
+    /// REQ: P3-sto-escalation-summary-text
+    /// [P3] Motivating: Generative Space — generate summary text
     /// post: returns summary string with counts and threshold info
     pub fn summary(&self) -> String {
         let count = self.entries.len();
@@ -385,7 +395,7 @@ mod tests {
         EscalationQueue::new(conn).expect("init queue")
     }
 
-    // REQ: escalation-rows-001 — resolve on a missing id returns NotFound, not Ok
+    // REQ: P3-sto-escalation-resolve-missing-test — resolve on a missing id returns NotFound, not Ok
     #[test]
     fn resolve_missing_id_returns_not_found() {
         let q = make_queue();
@@ -397,7 +407,7 @@ mod tests {
         );
     }
 
-    // REQ: escalation-rows-002 — dismiss on a missing id returns NotFound
+    // REQ: P3-sto-escalation-dismiss-missing-test — dismiss on a missing id returns NotFound
     #[test]
     fn dismiss_missing_id_returns_not_found() {
         let q = make_queue();
@@ -409,7 +419,7 @@ mod tests {
         );
     }
 
-    // REQ: escalation-rows-003 — resolve on an existing entry succeeds
+    // REQ: P3-sto-escalation-resolve-existing-test — resolve on an existing entry succeeds
     #[test]
     fn resolve_existing_id_succeeds() {
         let q = make_queue();
@@ -426,7 +436,7 @@ mod tests {
         assert!(q.resolve(&id.to_string(), "tester").is_ok());
     }
 
-    // REQ: escalation-rows-004 — dismiss on an existing entry succeeds
+    // REQ: P3-sto-escalation-dismiss-existing-test — dismiss on an existing entry succeeds
     #[test]
     fn dismiss_existing_id_succeeds() {
         let q = make_queue();
