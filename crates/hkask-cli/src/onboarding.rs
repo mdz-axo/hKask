@@ -75,7 +75,8 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
     }
 
     // Setup: create the user's first replicant.
-    setup().await
+    display::print_onboarding_banner();
+    create_first_replicant_flow().await
 }
 
 /// Add a new replicant to an existing hKask installation.
@@ -123,12 +124,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         );
     }
     let name = prompt_line("  Replicant first name:")?;
-    let name = if name.trim().is_empty() {
-        println!("  Name cannot be empty. Using 'Assistant' as default.");
-        "Assistant".to_string()
-    } else {
-        name.trim().to_string()
-    };
+    let name = name.trim().to_string();
     let display_name = if let Some(ref profile) = user_profile {
         profile.replicant_display_name(&name)
     } else {
@@ -150,6 +146,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     // Q3: Model selection
     println!();
     println!("  \x1b[1mChoose a model\x1b[0m for this replicant.");
+    setup_provider().await?;
     let selected_model = select_model().await?;
 
     OnboardingService::register_replicant(
@@ -200,12 +197,6 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
 
 // ── Private helpers ────────────────────────────────────────────────────────
 
-/// Setup: create the user's first replicant.
-async fn setup() -> Result<OnboardingOutcome, OnboardingError> {
-    display::print_onboarding_banner();
-    create_first_replicant_flow().await
-}
-
 /// Select which replicant to sign into when multiple exist.
 fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, OnboardingError> {
     println!("\n  \x1b[1mRegistered replicants:\x1b[0m");
@@ -231,6 +222,10 @@ fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, Onboarding
     Ok(replicants[choice - 1].definition.name.clone())
 }
 
+/// REQ: CLI-ONBOARDING-002
+/// pre:  user must not cancel at any interactive prompt
+/// post: returns OnboardingOutcome with signed_in_agent, resolved_secrets, selected_model, is_first_run=true; all secrets derived and stored in keychain; replicant registered in ACP; user profile stored; matrix registration attempted (non-blocking)
+/// inv:  does not modify any external state before derive_secrets; cancellation at any prompt returns OnboardingError::Cancelled with zero side effects
 /// Flow: Create the user's first replicant
 async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingError> {
     println!("\n  \x1b[1mWelcome to hKask!\x1b[0m");
@@ -240,20 +235,10 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
 
     // Q1: Human first name
     let human_first = prompt_line("  What is your first name?")?;
-    let human_first = human_first.trim().to_string();
-    if human_first.is_empty() {
-        println!("  Name cannot be empty. Please enter your first name.");
-        return Err(OnboardingError::Cancelled);
-    }
 
     // Q2: Human last name
     println!();
     let human_last = prompt_line("  What is your last name?")?;
-    let human_last = human_last.trim().to_string();
-    if human_last.is_empty() {
-        println!("  Name cannot be empty. Please enter your last name.");
-        return Err(OnboardingError::Cancelled);
-    }
 
     // Q3: Human email
     println!();
@@ -268,24 +253,8 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
 
     // ── Replicant creation ──
 
-    // Q5: Replicant first name (naming protocol explained)
-    println!();
-    println!("  \x1b[1mNow, name your replicant.\x1b[0m");
-    println!(
-        "  Your replicant's full name will be \x1b[36m[chosen] r{}\x1b[0m —",
-        human_last
-    );
-    println!("  so you always know it's your assistant.");
     let name = prompt_line("  What first name should your replicant have?")?;
     let name = name.trim().to_string();
-    if name.is_empty() {
-        println!("  Name cannot be empty. Using 'Curator' as default.");
-    }
-    let name = if name.is_empty() {
-        "Curator".to_string()
-    } else {
-        name
-    };
     let display_name = user_profile.replicant_display_name(&name);
 
     // Q6: Tag line
@@ -854,7 +823,7 @@ fn prompt_line(prompt: &str) -> Result<String, OnboardingError> {
     std::io::stdout().flush()?;
     let raw = read_line()?;
     let trimmed = raw.trim();
-    if is_cancel_input(trimmed) {
+    if trimmed.is_empty() || is_cancel_input(trimmed) {
         println!("  Onboarding cancelled.");
         return Err(OnboardingError::Cancelled);
     }
