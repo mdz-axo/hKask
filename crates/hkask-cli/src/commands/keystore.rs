@@ -6,6 +6,9 @@ use crate::cli::KeystoreAction;
 use rand::RngCore;
 use std::io::Write;
 
+/// REQ: CLI-077
+/// pre:  action is a valid KeystoreAction variant
+/// post: dispatches to load, list, get, set, delete, or rotate keychain operations
 pub fn run(action: KeystoreAction) {
     let keychain = hkask_keystore::Keychain::default();
 

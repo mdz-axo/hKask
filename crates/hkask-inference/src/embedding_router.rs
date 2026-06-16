@@ -77,6 +77,13 @@ impl EmbeddingRouter {
     /// Generate embedding vectors for multiple sentences.
     ///
     /// One vector per input sentence, same order. Dimension set by model.
+    ///
+    /// REQ: INFER-031
+    /// pre:  model is a valid provider-prefixed model name
+    /// pre:  sentences is non-empty
+    /// post: returns Vec<Vec<f32>> with one vector per sentence, same order
+    /// post: if sentences is empty → Err(EmptyResponse)
+    /// post: if provider is Fal → Err(Connection) (fal.ai does not support embeddings)
     pub async fn embed_sentences(
         &self,
         model: &str,
@@ -136,6 +143,12 @@ impl EmbeddingRouter {
     }
 
     /// Convenience wrapper around `embed_sentences`.
+    ///
+    /// REQ: INFER-032
+    /// pre:  model is a valid provider-prefixed model name
+    /// pre:  sentence is a non-empty string
+    /// post: returns Vec<f32> — the first (only) embedding vector
+    /// post: delegates to embed_sentences, inherits its error conditions
     pub async fn embed_sentence(
         &self,
         model: &str,

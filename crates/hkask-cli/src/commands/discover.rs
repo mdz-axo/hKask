@@ -15,6 +15,9 @@ use hkask_templates::ports::McpPort;
 use std::io::{BufRead, Write};
 
 #[allow(clippy::too_many_arguments)]
+/// REQ: CLI-069
+/// pre:  rt is a valid tokio Runtime; author_name is non-empty; cache_dir is a valid path
+/// post: discovers academic and web works for the author; generates corpus.yaml; prints summary and next steps
 pub fn run(
     rt: &tokio::runtime::Runtime,
     author_name: String,

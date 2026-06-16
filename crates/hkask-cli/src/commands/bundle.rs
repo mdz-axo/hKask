@@ -37,6 +37,9 @@ fn resolve_editor() -> String {
     hkask_services::resolve_replicant_name()
 }
 
+/// REQ: CLI-074
+/// pre:  rt is a valid tokio Runtime; action is a valid BundleAction variant
+/// post: dispatches to compose, apply, list, show, evolve, skills, or off based on action variant
 pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
     // Build the shared service context.
     let ctx = commands::helpers::build_service_context();

@@ -15,6 +15,9 @@ use std::sync::Arc;
 /// Supported registries:
 /// - `styles` — lists all built style corpora (queries `style:*:centroid` in EmbeddingStore)
 /// - `templates` — lists all registered templates
+/// REQ: CLI-085
+/// pre:  rt is a valid tokio Runtime; template_registry is a valid SqliteRegistry; registry is "styles" or "templates"
+/// post: lists artifacts in the specified registry; prints results or error for unknown registries
 pub fn run_list(
     rt: &tokio::runtime::Runtime,
     template_registry: &SqliteRegistry,
@@ -35,6 +38,9 @@ pub fn run_list(
 ///
 /// Format: `<registry>-<artifact>` (hyphen-separated).
 /// Example: `styles-hemingway` removes the Hemingway style corpus.
+/// REQ: CLI-086
+/// pre:  rt is a valid tokio Runtime; template_registry is a mutable SqliteRegistry; target is "registry-artifact" format
+/// post: removes the specified artifact from the registry; purges embeddings, triples, and disk artifacts
 pub fn run_rm(
     rt: &tokio::runtime::Runtime,
     template_registry: &mut SqliteRegistry,

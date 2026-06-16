@@ -51,6 +51,14 @@ impl FalBackend {
     }
 
     /// Send a chat completion request to fal.ai.
+    ///
+    /// REQ: INFER-047
+    /// pre:  model is a valid fal.ai model name
+    /// pre:  prompt is non-empty (validated by validate_prompt)
+    /// pre:  params is a valid LLMParameters
+    /// post: returns Ok(InferenceResult) with generated text, model, usage stats
+    /// post: if connection fails → Err(InferenceError::Connection)
+    /// post: if prompt is empty → Err(InferenceError::Generation)
     pub async fn generate(
         &self,
         model: &str,
@@ -96,6 +104,15 @@ impl FalBackend {
     }
 
     /// Vision/multimodal inference with base64-encoded images.
+    ///
+    /// REQ: INFER-048
+    /// pre:  model is a valid fal.ai vision-capable model name
+    /// pre:  prompt is non-empty
+    /// pre:  images is non-empty (at least one base64-encoded image)
+    /// pre:  params is a valid LLMParameters
+    /// post: returns Ok(InferenceResult) with vision-generated text
+    /// post: if images is empty → Err(InferenceError::Generation("No images provided"))
+    /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn generate_vision(
         &self,
         model: &str,
@@ -221,6 +238,10 @@ impl FalBackend {
     /// fal.ai does not expose a standard `/v1/models` endpoint.
     /// Returns a curated list of vision-capable models known to work
     /// with the OpenAI-compatible chat completions endpoint.
+    ///
+    /// REQ: INFER-049
+    /// pre:  none (static catalog, no API call)
+    /// post: returns Ok(Vec<FalModelEntry>) with curated model list
     pub async fn list_models(&self) -> Result<Vec<FalModelEntry>, InferenceError> {
         // Static catalog of known fal.ai vision models.
         // These are models confirmed to work via the chat completions endpoint.
@@ -380,6 +401,11 @@ impl FalBackend {
 
     /// Generate an image from a text prompt.
     /// Endpoint: fal-ai/flux/schnell (fast) or fal-ai/flux-pro (quality).
+    ///
+    /// REQ: INFER-050
+    /// pre:  prompt is a non-empty text description
+    /// post: returns Ok(serde_json::Value) with generated image data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn generate_image(
         &self,
         prompt: &str,
@@ -396,6 +422,12 @@ impl FalBackend {
 
     /// Transform an existing image with a prompt (image-to-image).
     /// Endpoint: fal-ai/flux/dev/image-to-image
+    ///
+    /// REQ: INFER-051
+    /// pre:  image_url is a valid, accessible image URL
+    /// pre:  prompt is a non-empty transformation instruction
+    /// post: returns Ok(serde_json::Value) with transformed image data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn image_to_image(
         &self,
         image_url: &str,
@@ -415,6 +447,11 @@ impl FalBackend {
 
     /// Remove background from an image.
     /// Endpoint: fal-ai/birefnet
+    ///
+    /// REQ: INFER-052
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: returns Ok(serde_json::Value) with background-removed image data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn remove_background(
         &self,
         image_url: &str,
@@ -425,6 +462,11 @@ impl FalBackend {
 
     /// Upscale an image.
     /// Endpoint: fal-ai/seedvr2 (queue)
+    ///
+    /// REQ: INFER-053
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: returns Ok(serde_json::Value) with upscaled image data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn upscale(
         &self,
         image_url: &str,
@@ -439,6 +481,11 @@ impl FalBackend {
 
     /// Generate a video from a text prompt.
     /// Endpoint: fal-ai/minimax/video-01-live (queue)
+    ///
+    /// REQ: INFER-054
+    /// pre:  prompt is a non-empty text description
+    /// post: returns Ok(serde_json::Value) with generated video data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn generate_video(
         &self,
         prompt: &str,
@@ -454,6 +501,11 @@ impl FalBackend {
 
     /// Animate a still image into a video.
     /// Endpoint: fal-ai/seedance-2.0/image-to-video (queue)
+    ///
+    /// REQ: INFER-055
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: returns Ok(serde_json::Value) with generated video data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn image_to_video(
         &self,
         image_url: &str,
@@ -473,6 +525,12 @@ impl FalBackend {
 
     /// Segment/extract a specific object from an image.
     /// Endpoint: fal-ai/florence-2-large/referring-expression-segmentation
+    ///
+    /// REQ: INFER-056
+    /// pre:  image_url is a valid, accessible image URL
+    /// pre:  object_description is a non-empty description of the object to segment
+    /// post: returns Ok(serde_json::Value) with segmented object data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn segment_object(
         &self,
         image_url: &str,
@@ -494,6 +552,12 @@ impl FalBackend {
     /// Available voices: Rachel, Aria, Roger, Sarah, Laura, Charlie, George,
     /// Callum, River, Liam, Charlotte, Alice, Matilda, Will, Jessica, Eric,
     /// Chris, Brian, Daniel, Lily, Bill. Default: "Rachel".
+    ///
+    /// REQ: INFER-057
+    /// pre:  text is non-empty
+    /// pre:  voice is a valid voice preset name
+    /// post: returns Ok(serde_json::Value) with generated speech audio data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn generate_speech(
         &self,
         text: &str,
@@ -509,6 +573,11 @@ impl FalBackend {
 
     /// Transcribe speech audio to text using Whisper.
     /// Endpoint: fal-ai/whisper
+    ///
+    /// REQ: INFER-058
+    /// pre:  audio_url is a valid, accessible audio file URL
+    /// post: returns Ok(serde_json::Value) with transcription data
+    /// post: if API call fails → Err(InferenceError::Connection)
     pub async fn transcribe(&self, audio_url: &str) -> Result<serde_json::Value, InferenceError> {
         let body = serde_json::json!({"audio_url": audio_url});
         self.fal_sync_post("fal-ai/whisper", body).await

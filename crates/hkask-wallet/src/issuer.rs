@@ -76,7 +76,9 @@ impl ApiKeyIssuer {
     fn emit_span(&self, span: CnsSpan, verb: &str, phase: Phase, obs: serde_json::Value) {
         if let Some(ref sink) = self.event_sink {
             let event_span = Span::new(SpanNamespace::from(span), verb);
-            let event = NuEvent::new(hkask_types::WebID::new(), event_span, phase, obs, 0);
+            let actor =
+                hkask_types::WebID::from_persona_with_namespace(b"wallet-issuer", "wallet-surface");
+            let event = NuEvent::new(actor, event_span, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
                 tracing::warn!(target: "hkask.wallet", span = ?span, verb = verb, error = %e, "Failed to persist CNS span");
             }

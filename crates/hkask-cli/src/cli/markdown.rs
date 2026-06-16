@@ -5,6 +5,10 @@
 /// Emits the mandatory documentation metadata header (per
 /// `docs/specifications/DOCUMENTATION_STANDARDS.md` §2) so the generated file
 /// passes `docs/ci/check-metadata.sh` without hand-editing.
+///
+/// REQ: CLI-010
+/// pre:  none
+/// post: returns a String containing full CLI markdown documentation with metadata header
 pub fn generate_cli_markdown() -> String {
     let mut md = String::new();
 

@@ -6,6 +6,10 @@ use hkask_storage::EscalationEntry;
 use crate::block_on;
 use crate::cli::CuratorAction;
 
+/// REQ: CLI-033
+/// pre:  none
+/// post: returns Ok(Vec<EscalationEntry>) with all pending escalations
+/// post: delegates to escalation_queue.list_pending()
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     // Use the escalation queue via AgentService for raw EscalationEntry access.
@@ -13,21 +17,39 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
     queue.list_pending().map_err(ServiceError::from)
 }
 
+/// REQ: CLI-034
+/// pre:  id is a valid escalation identifier
+/// post: returns Ok(()) if escalation resolved successfully
+/// post: delegates to CuratorService::resolve
 pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     CuratorService::resolve(&ctx, id, "cli-administrator")
 }
 
+/// REQ: CLI-035
+/// pre:  id is a valid escalation identifier
+/// post: returns Ok(()) if escalation dismissed successfully
+/// post: delegates to CuratorService::dismiss
 pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     CuratorService::dismiss(&ctx, id, "cli-administrator")
 }
 
+/// REQ: CLI-036
+/// pre:  none
+/// post: returns Ok(String) with metacognition report
+/// post: delegates to CuratorService::metacognition
 pub async fn curator_metacognition() -> Result<String, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     CuratorService::metacognition(&ctx).await
 }
 
+/// REQ: CLI-037
+/// pre:  rt is a valid tokio runtime
+/// pre:  registry, runtime, handle are valid
+/// pre:  action is a valid CuratorAction variant
+/// post: dispatches to chat/escalations/resolve/dismiss/metacognition
+/// post: prints result or error to stdout
 pub fn run_curator(
     rt: &tokio::runtime::Runtime,
     registry: &mut hkask_templates::SqliteRegistry,

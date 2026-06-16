@@ -13,6 +13,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 /// Run a wallet subcommand. Builds a standalone WalletService for CLI use.
+/// REQ: CLI-081
+/// pre:  action is a valid WalletAction variant
+/// post: dispatches to balance, deposit, history, key, fee, withdraw, encumber, release, or report operations
 pub fn run(action: WalletAction) {
     let svc = build_wallet_service();
     match action {
@@ -225,21 +228,24 @@ fn handle_fee(svc: &WalletService, chain: Option<String>) {
         }
     };
     match tokio::runtime::Runtime::new() {
-        Ok(rt) => match rt.block_on(svc.estimate_withdrawal_fee(chain)) {
-            Ok(fee) => {
-                println!("Withdrawal Fee Estimate");
-                println!("=======================");
-                println!();
-                println!("  Chain:        {chain}");
-                println!("  rJoules:      {}", fee.rjoules);
-                println!("  Native units: {:.8}", fee.native_units);
-                println!(
-                    "  USDC:         ~{:.6}",
-                    fee.usdc_micro as f64 / 1_000_000.0
-                );
+        Ok(rt) => {
+            let webid = hkask_types::WebID::from_persona(b"cli-user");
+            match rt.block_on(svc.estimate_withdrawal_fee(&webid, chain)) {
+                Ok(fee) => {
+                    println!("Withdrawal Fee Estimate");
+                    println!("=======================");
+                    println!();
+                    println!("  Chain:        {chain}");
+                    println!("  rJoules:      {}", fee.rjoules);
+                    println!("  Native units: {:.8}", fee.native_units);
+                    println!(
+                        "  USDC:         ~{:.6}",
+                        fee.usdc_micro as f64 / 1_000_000.0
+                    );
+                }
+                Err(e) => eprintln!("Error estimating fee: {e}"),
             }
-            Err(e) => eprintln!("Error estimating fee: {e}"),
-        },
+        }
         Err(e) => eprintln!("Error initializing runtime: {e}"),
     }
 }

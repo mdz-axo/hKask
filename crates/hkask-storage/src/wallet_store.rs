@@ -974,6 +974,15 @@ fn tx_type_to_columns(tx_type: &TransactionType) -> TxTypeColumns {
             Some(reason.clone()),
             None,
         ),
+        TransactionType::Shield { chain, tx_hash, .. } => (
+            "shield",
+            None,
+            Some(chain.to_string()),
+            Some(tx_hash.clone()),
+            None,
+            None,
+            None,
+        ),
     }
 }
 
@@ -1007,6 +1016,12 @@ fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransactio
                 .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?,
             reason: r.tool_name.unwrap_or_default(),
             rj: RJoule::new(r.amount_rj.unsigned_abs()),
+        },
+        "shield" => TransactionType::Shield {
+            chain: ChainId::from_str(r.chain.as_deref().unwrap_or("solana"))
+                .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
+            tx_hash: r.on_chain_tx_hash.unwrap_or_default(),
+            amount_usdc_micro: 0,
         },
         other => {
             return Err(WalletError::Infra(InfrastructureError::Database(format!(

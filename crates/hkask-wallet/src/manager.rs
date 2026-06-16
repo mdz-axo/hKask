@@ -664,6 +664,90 @@ impl WalletManager {
         Ok(tx_hash)
     }
 
+    // ── Shield ───────────────────────────────────────────────────────────────
+
+    /// Shield transparently-held USDC into the Hinkal privacy pool.
+    ///
+    /// This moves assets from the transparent treasury into the shielded pool
+    /// without affecting rJoule balances. The assets were already credited as
+    /// rJoules when the transparent deposit was detected; this is a pure asset
+    /// layer transition for privacy.
+    ///
+    /// # Flow
+    /// 1. Verify privacy port availability
+    /// 2. Build unsigned shield transaction
+    /// 3. Sign (or pass raw for Hinkal which signs internally)
+    /// 4. Submit via privacy port
+    /// 5. Record transaction in ledger (zero rJoule delta)
+    pub async fn shield_assets(
+        &self,
+        amount_usdc_micro: u64,
+        chain: ChainId,
+    ) -> Result<TxHash, WalletError> {
+        // 1. Verify privacy port availability.
+        let privacy_port = self
+            .privacy
+            .as_ref()
+            .ok_or(WalletError::PrivacyUnavailable { chain })?;
+        if !privacy_port.available_for_chain(chain) {
+            return Err(WalletError::PrivacyUnavailable { chain });
+        }
+
+        // 2. Build unsigned shield transaction.
+        let tx_bytes = privacy_port.build_shield_tx(amount_usdc_micro, chain)?;
+
+        // CNS span: shield built
+        self.emit_span(
+            CnsSpan::WalletWithdrawal,
+            "shield_built",
+            Phase::Act,
+            serde_json::json!({
+                "chain": chain.to_string(),
+                "amount_usdc_micro": amount_usdc_micro,
+                "operation": "shield",
+            }),
+        );
+
+        // 3. Sign and submit.
+        let tx_hash = if chain == ChainId::Hinkal {
+            // Hinkal signs the protocol message internally via sign_message.
+            privacy_port.submit_signed_tx(&tx_bytes).await?
+        } else {
+            let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
+            let mut signed_tx = tx_bytes;
+            signed_tx.extend_from_slice(&signature);
+            privacy_port.submit_signed_tx(&signed_tx).await?
+        };
+
+        // CNS span: shield submitted
+        self.emit_span(
+            CnsSpan::WalletWithdrawal,
+            "shield_submitted",
+            Phase::Act,
+            serde_json::json!({
+                "chain": chain.to_string(),
+                "tx_hash": tx_hash.0,
+                "operation": "shield",
+            }),
+        );
+
+        // 4. Record transaction (zero rJoule delta — pure asset layer transition).
+        self.store.record_transaction(&WalletTransaction {
+            id: 0,
+            wallet_id: WalletId::default(), // system-level operation
+            tx_type: TransactionType::Shield {
+                chain,
+                tx_hash: tx_hash.0.clone(),
+                amount_usdc_micro,
+            },
+            rjoules_delta: 0,
+            balance_after: 0,
+            timestamp: Utc::now(),
+        })?;
+
+        Ok(tx_hash)
+    }
+
     // ── Deposit address ──────────────────────────────────────────────────────
 
     /// Get or derive a deposit address for a wallet on a specific chain.
@@ -993,10 +1077,10 @@ mod tests {
         }
 
         async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
-            if signed_tx_bytes != b"mock_unshield_tx" {
+            if signed_tx_bytes != b"mock_unshield_tx" && signed_tx_bytes != b"mock_shield_tx" {
                 return Err(WalletError::ChainError {
                     chain: ChainId::Hinkal,
-                    message: "expected raw unshield payload (no appended signature)".into(),
+                    message: "expected mock_unshield_tx or mock_shield_tx payload".into(),
                 });
             }
             Ok(TxHash("mock_privacy_hash".into()))
@@ -1043,12 +1127,12 @@ mod tests {
         }
         let db = in_memory_db();
         let store = Arc::new(WalletStore::new(db.conn_arc()));
-        let mut chains = HashMap::new();
+        let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
             ChainId::Solana,
-            Box::new(MockChainPort {
+            Arc::new(MockChainPort {
                 chain: ChainId::Solana,
-            }) as Box<dyn ChainPort>,
+            }) as Arc<dyn ChainPort>,
         );
         WalletManager::build(
             WalletConfig::default(),
@@ -1071,8 +1155,8 @@ mod tests {
         }
         let db = in_memory_db();
         let store = Arc::new(WalletStore::new(db.conn_arc()));
-        let chains = HashMap::new();
-        let privacy = Some(Box::new(MockPrivacyPort { available: true }) as Box<dyn PrivacyPort>);
+        let chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
+        let privacy = Some(Arc::new(MockPrivacyPort { available: true }) as Arc<dyn PrivacyPort>);
         WalletManager::build(
             WalletConfig::default(),
             store,
@@ -1104,8 +1188,9 @@ mod tests {
     #[tokio::test]
     async fn estimate_withdrawal_fee_uses_price_feed() {
         let mgr = make_manager();
+        let actor = WebID::from_persona(b"wallet-test");
         let fee = mgr
-            .estimate_withdrawal_fee(ChainId::Solana)
+            .estimate_withdrawal_fee(&actor, ChainId::Solana)
             .await
             .expect("fee estimate");
         assert!(fee.rjoules > 0);
@@ -1329,13 +1414,13 @@ mod tests {
             block_time: Utc::now(),
         };
 
-        let mut chains = HashMap::new();
+        let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
             ChainId::Solana,
-            Box::new(DepositMockPort {
+            Arc::new(DepositMockPort {
                 chain: ChainId::Solana,
                 deposit: Some(deposit_event.clone()),
-            }) as Box<dyn ChainPort>,
+            }) as Arc<dyn ChainPort>,
         );
 
         let mgr = WalletManager::build(
@@ -1359,13 +1444,13 @@ mod tests {
 
         // Verify idempotency: running again with same tx_hash should not double-credit
         let balance_before = balance.rjoules;
-        let mut chains2 = HashMap::new();
+        let mut chains2: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains2.insert(
             ChainId::Solana,
-            Box::new(DepositMockPort {
+            Arc::new(DepositMockPort {
                 chain: ChainId::Solana,
                 deposit: Some(deposit_event),
-            }) as Box<dyn ChainPort>,
+            }) as Arc<dyn ChainPort>,
         );
         let mgr2 = WalletManager::build(
             WalletConfig::default(),
@@ -1435,20 +1520,20 @@ mod tests {
             block_time: Utc::now(),
         };
 
-        let mut chains = HashMap::new();
+        let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
             ChainId::Solana,
-            Box::new(DepositMockPort {
+            Arc::new(DepositMockPort {
                 chain: ChainId::Solana,
                 deposit: Some(solana_deposit),
-            }) as Box<dyn ChainPort>,
+            }) as Arc<dyn ChainPort>,
         );
         chains.insert(
             ChainId::Hedera,
-            Box::new(DepositMockPort {
+            Arc::new(DepositMockPort {
                 chain: ChainId::Hedera,
                 deposit: Some(hedera_deposit),
-            }) as Box<dyn ChainPort>,
+            }) as Arc<dyn ChainPort>,
         );
 
         let mgr = WalletManager::build(
@@ -1664,8 +1749,10 @@ mod tests {
         assert_eq!(balance_before.rjoules, 10_000);
 
         // Execute withdrawal
+        let actor = WebID::from_persona(b"wallet-test");
         let tx_hash = mgr
             .withdraw(
+                &actor,
                 wallet_id,
                 RJoule::new(2_000),
                 "recipient_addr_123",
@@ -1713,8 +1800,10 @@ mod tests {
             .credit_rjoules(wallet_id, RJoule::new(500))
             .unwrap();
 
+        let actor = WebID::from_persona(b"wallet-test");
         let result = mgr
             .withdraw(
+                &actor,
                 wallet_id,
                 RJoule::new(10_000), // more than balance
                 "recipient_addr",
@@ -1760,8 +1849,10 @@ mod tests {
         let before = mgr.get_balance(wallet_id).unwrap();
 
         // make_manager only registers Solana — Hedera should fail
+        let actor = WebID::from_persona(b"wallet-test");
         let result = mgr
             .withdraw(
+                &actor,
                 wallet_id,
                 RJoule::new(1_000),
                 "recipient_addr",
@@ -1796,8 +1887,10 @@ mod tests {
             .credit_rjoules(wallet_id, RJoule::new(10_000))
             .unwrap();
 
+        let actor = WebID::from_persona(b"wallet-test");
         let tx_hash = mgr
             .withdraw(
+                &actor,
                 wallet_id,
                 RJoule::new(1_500),
                 "recipient_addr_hinkal",
@@ -1815,5 +1908,30 @@ mod tests {
             .find(|tx| matches!(tx.tx_type, TransactionType::Withdrawal { .. }))
             .expect("withdrawal tx should be recorded");
         assert_eq!(withdrawal_tx.rjoules_delta, -1500);
+    }
+
+    // REQ: wallet-int-007 — shield_assets routes through privacy port with zero rJoule delta
+    #[tokio::test]
+    async fn shield_assets_uses_privacy_path() {
+        let mgr = make_manager_with_hinkal_privacy();
+
+        // Ensure the default wallet exists (shield records against it)
+        let default_wallet = WalletId::default();
+        mgr.store.ensure_wallet(default_wallet).unwrap();
+
+        let tx_hash = mgr
+            .shield_assets(1_000_000, ChainId::Hinkal)
+            .await
+            .expect("shield_assets should succeed");
+
+        assert_eq!(tx_hash.0, "mock_privacy_hash");
+
+        // Shield transaction should be recorded with zero rJoule delta
+        let txs = mgr.get_transactions(default_wallet, 10, 0).unwrap();
+        let shield_tx = txs
+            .iter()
+            .find(|tx| matches!(tx.tx_type, TransactionType::Shield { .. }))
+            .expect("shield tx should be recorded");
+        assert_eq!(shield_tx.rjoules_delta, 0, "shield has zero rJoule delta");
     }
 }

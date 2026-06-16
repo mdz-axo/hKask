@@ -172,7 +172,7 @@ impl WalletService {
 
         // Optional Hinkal privacy adapter
         #[allow(unused_mut)]
-        let mut privacy: Option<Box<dyn hkask_wallet::PrivacyPort>> = None;
+        let mut privacy: Option<Arc<dyn hkask_wallet::PrivacyPort>> = None;
 
         #[cfg(feature = "hinkal")]
         if config.privacy_enabled {
@@ -184,45 +184,29 @@ impl WalletService {
 
             match (relayer_url, treasury_account) {
                 (Some(relayer_url), Some(treasury_account)) => {
+                    // Construct a single HinkalPort shared between chain and privacy roles.
+                    // This avoids double session creation and duplicate HTTP clients.
                     match hkask_wallet::hinkal::HinkalPort::new(&relayer_url, &treasury_account) {
-                        Ok(chain_port) => {
-                            let chain_port = chain_port.with_event_sink(Arc::clone(&event_sink));
+                        Ok(hinkal) => {
+                            let hinkal = Arc::new(hinkal.with_event_sink(Arc::clone(&event_sink)));
                             tracing::info!(
                                 target: "cns.wallet.chain",
                                 chain = "hinkal",
                                 relayer_url = %relayer_url,
-                                "HinkalPort initialized for chain routing"
+                                "HinkalPort initialized (shared chain + privacy adapter)"
                             );
-                            chains.insert(ChainId::Hinkal, Box::new(chain_port));
+                            chains.insert(
+                                ChainId::Hinkal,
+                                Arc::clone(&hinkal) as Arc<dyn hkask_wallet::ChainPort>,
+                            );
+                            privacy = Some(hinkal as Arc<dyn hkask_wallet::PrivacyPort>);
                         }
                         Err(e) => {
                             tracing::warn!(
                                 target: "cns.wallet.chain",
                                 chain = "hinkal",
                                 error = %e,
-                                "Failed to initialize Hinkal chain adapter"
-                            );
-                        }
-                    }
-
-                    match hkask_wallet::hinkal::HinkalPort::new(&relayer_url, &treasury_account) {
-                        Ok(privacy_port) => {
-                            let privacy_port =
-                                privacy_port.with_event_sink(Arc::clone(&event_sink));
-                            tracing::info!(
-                                target: "cns.wallet.chain",
-                                chain = "hinkal",
-                                relayer_url = %relayer_url,
-                                "Hinkal privacy adapter initialized"
-                            );
-                            privacy = Some(Box::new(privacy_port));
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                target: "cns.wallet.chain",
-                                chain = "hinkal",
-                                error = %e,
-                                "Failed to initialize Hinkal privacy adapter"
+                                "Failed to initialize HinkalPort"
                             );
                         }
                     }
@@ -413,7 +397,7 @@ impl WalletService {
         }
 
         self.manager
-            .withdraw(wallet_id, amount_rj, to_address, chain, privacy)
+            .withdraw(webid, wallet_id, amount_rj, to_address, chain, privacy)
             .await
             .map_err(|e| {
                 let msg = e.to_string();
@@ -424,7 +408,8 @@ impl WalletService {
                         | WalletError::ChainError { .. }
                         | WalletError::PrivacyUnavailable { .. }
                 ) {
-                    self.manager.emit_chain_error(chain, "withdraw", &msg);
+                    self.manager
+                        .emit_chain_error_for_actor(webid, chain, "withdraw", &msg);
                 }
                 ServiceError::Wallet {
                     source: Some(Box::new(e)),
@@ -436,13 +421,35 @@ impl WalletService {
     /// Estimate network withdrawal fee for a chain using configured price feed.
     pub async fn estimate_withdrawal_fee(
         &self,
+        webid: &WebID,
         chain: ChainId,
     ) -> Result<WithdrawalFee, ServiceError> {
         self.manager
-            .estimate_withdrawal_fee(chain)
+            .estimate_withdrawal_fee(webid, chain)
             .await
             .map_err(|e| {
                 let msg = e.to_string();
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
+            })
+    }
+
+    // ── Shield ───────────────────────────────────────────────────────────────
+
+    /// Shield transparently-held USDC into the Hinkal privacy pool.
+    pub async fn shield_assets(
+        &self,
+        amount_usdc_micro: u64,
+        chain: ChainId,
+    ) -> Result<TxHash, ServiceError> {
+        self.manager
+            .shield_assets(amount_usdc_micro, chain)
+            .await
+            .map_err(|e| {
+                let msg = e.to_string();
+                self.manager.emit_chain_error(chain, "shield_assets", &msg);
                 ServiceError::Wallet {
                     source: Some(Box::new(e)),
                     message: msg,
@@ -720,8 +727,9 @@ mod tests {
     #[tokio::test]
     async fn estimate_withdrawal_fee_returns_positive_fee() {
         let svc = make_service();
+        let actor = WebID::from_persona(b"wallet-service-test");
         let fee = svc
-            .estimate_withdrawal_fee(ChainId::Solana)
+            .estimate_withdrawal_fee(&actor, ChainId::Solana)
             .await
             .expect("fee estimate");
         assert!(fee.rjoules > 0);

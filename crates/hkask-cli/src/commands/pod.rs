@@ -4,16 +4,30 @@ use hkask_services::{PodService, PodStatusResponse, ServiceError};
 
 use crate::cli::PodAction;
 
+/// REQ: CLI-011
+/// pre:  pod_id is a valid pod identifier
+/// post: returns Ok(PodStatusResponse) with pod status
+/// post: delegates to PodService::get_pod_status
 pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusResponse, ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::get_pod_status(&ctx, pod_id).await
 }
 
+/// REQ: CLI-012
+/// pre:  none
+/// post: returns Ok(Vec<PodStatusResponse>) with all pod statuses
+/// post: delegates to PodService::list_pods
 pub async fn list_pods() -> Result<Vec<PodStatusResponse>, ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::list_pods(&ctx).await
 }
 
+/// REQ: CLI-013
+/// pre:  template is a valid template ID
+/// pre:  persona_path points to a readable YAML file
+/// post: returns Ok(String) with the created pod ID
+/// post: if persona file unreadable → Err(ServiceError::Infra)
+/// post: delegates to PodService::create_pod
 pub async fn create_pod(
     template: &str,
     persona_path: &std::path::PathBuf,
@@ -34,26 +48,49 @@ pub async fn create_pod(
     Ok(resp.pod_id)
 }
 
+/// REQ: CLI-014
+/// pre:  pod_id is a valid pod identifier
+/// post: returns Ok(()) on successful activation
+/// post: delegates to PodService::activate_pod
 pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::activate_pod(&ctx, pod_id).await
 }
 
+/// REQ: CLI-015
+/// pre:  pod_id is a valid pod identifier
+/// post: returns Ok(()) on successful deactivation
+/// post: delegates to PodService::deactivate_pod
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::deactivate_pod(&ctx, pod_id).await
 }
 
+/// REQ: CLI-016
+/// pre:  name is a valid pod name
+/// pre:  role is a valid role identifier
+/// post: returns Ok(()) on successful role assignment
+/// post: delegates to PodService::assign_role
 pub async fn assign_role(name: &str, role: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::assign_role(&ctx, name, role).await
 }
 
+/// REQ: CLI-017
+/// pre:  name is a valid pod name
+/// pre:  mode is a valid mode identifier
+/// post: returns Ok(()) on successful mode change
+/// post: delegates to PodService::set_mode
 pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     PodService::set_mode(&ctx, name, mode, role).await
 }
 
+/// REQ: CLI-018
+/// pre:  rt is a valid tokio runtime
+/// pre:  action is a valid PodAction variant
+/// post: dispatches to the appropriate pod command handler
+/// post: prints result or error to stdout
 pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
     use crate::commands;
     match action {

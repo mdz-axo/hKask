@@ -206,6 +206,7 @@ pub struct FeeEstimateQuery {
 async fn get_fee_estimate(
     State(state): State<ApiState>,
     Query(q): Query<FeeEstimateQuery>,
+    wallet_ctx: Option<Extension<WalletContext>>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
@@ -217,7 +218,14 @@ async fn get_fee_estimate(
         Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
     };
 
-    match svc.estimate_withdrawal_fee(chain).await {
+    let webid = wallet_ctx
+        .as_ref()
+        .map(|ctx| {
+            WebID::from_persona_with_namespace(ctx.wallet_id.to_string().as_bytes(), "wallet-owner")
+        })
+        .unwrap_or_else(|| WebID::from_persona_with_namespace(b"api-wallet-fee", "wallet-owner"));
+
+    match svc.estimate_withdrawal_fee(&webid, chain).await {
         Ok(fee) => (
             StatusCode::OK,
             Json(WithdrawalFeeEstimateResponse {

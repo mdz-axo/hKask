@@ -62,6 +62,14 @@ impl TogetherBackend {
     }
 
     /// Send a chat completion request to Together AI.
+    ///
+    /// REQ: INFER-041
+    /// pre:  model is a valid Together AI model name
+    /// pre:  prompt is non-empty (validated by validate_prompt)
+    /// pre:  params is a valid LLMParameters
+    /// post: returns Ok(InferenceResult) with generated text, model, usage stats
+    /// post: if connection fails → Err(InferenceError::Connection)
+    /// post: if prompt is empty → Err(InferenceError::Generation)
     pub async fn generate(
         &self,
         model: &str,
@@ -175,6 +183,14 @@ impl TogetherBackend {
     }
 
     /// Vision/multimodal inference with base64-encoded images.
+    ///
+    /// REQ: INFER-042
+    /// pre:  model is a valid Together AI vision-capable model name
+    /// pre:  prompt is non-empty
+    /// pre:  images is non-empty (at least one base64-encoded image)
+    /// pre:  params is a valid LLMParameters
+    /// post: returns Ok(InferenceResult) with vision-generated text
+    /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn generate_vision(
         &self,
         model: &str,
@@ -221,6 +237,12 @@ impl TogetherBackend {
     }
 
     /// List available models from Together AI.
+    ///
+    /// REQ: INFER-043
+    /// pre:  self.client and self.base_url are initialized
+    /// post: returns Ok(Vec<TogetherModel>) with all available models
+    /// post: if API returns non-success → Err(InferenceError::Connection)
+    /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn list_models(&self) -> Result<Vec<TogetherModel>, InferenceError> {
         let response = self
             .client

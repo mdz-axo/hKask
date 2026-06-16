@@ -203,6 +203,12 @@ impl ApiState {
 }
 
 /// Create API router with OpenAPI documentation and authentication
+///
+/// REQ: API-033
+/// pre:  state is a valid ApiState
+/// post: returns Ok(OpenApiRouter) with all route modules merged
+/// post: auth middleware layer applied
+/// post: api_key_auth middleware layer applied if available
 pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRouter, String> {
     let auth_service = std::sync::Arc::new(middleware::AuthService::from_config(
         state.agent_service.config(),
@@ -249,6 +255,10 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
 /// Builds the full `OpenApiRouter` (without state or auth middleware) to
 /// collect `#[utoipa::path]` metadata from `routes!()` calls, then extracts
 /// the complete OpenAPI specification including paths.
+///
+/// REQ: API-034
+/// pre:  none
+/// post: returns OpenApi with all route paths documented
 pub fn create_openapi() -> utoipa::openapi::OpenApi {
     use utoipa_axum::router::OpenApiRouter;
 

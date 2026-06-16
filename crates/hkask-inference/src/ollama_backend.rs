@@ -39,6 +39,14 @@ impl OllamaBackend {
     }
 
     /// Send a chat completion request to Ollama.
+    ///
+    /// REQ: INFER-044
+    /// pre:  model is a valid Ollama model name
+    /// pre:  prompt is non-empty (validated by validate_prompt)
+    /// pre:  params is a valid LLMParameters
+    /// post: returns Ok(InferenceResult) with generated text, model, usage stats
+    /// post: if connection fails → Err(InferenceError::Connection)
+    /// post: if prompt is empty → Err(InferenceError::Generation)
     pub async fn generate(
         &self,
         model: &str,
@@ -83,6 +91,15 @@ impl OllamaBackend {
     }
 
     /// Vision/multimodal inference with base64-encoded images.
+    ///
+    /// REQ: INFER-045
+    /// pre:  model is a valid Ollama vision-capable model name
+    /// pre:  prompt is non-empty
+    /// pre:  images is non-empty (at least one base64-encoded image)
+    /// pre:  params is a valid LLMParameters
+    /// post: returns Ok(InferenceResult) with vision-generated text
+    /// post: if images is empty → Err(InferenceError::Generation("No images provided"))
+    /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn generate_vision(
         &self,
         model: &str,
@@ -201,6 +218,12 @@ impl OllamaBackend {
     }
 
     /// List models available in the local Ollama instance via `/api/tags`.
+    ///
+    /// REQ: INFER-046
+    /// pre:  self.client and self.base_url are initialized
+    /// post: returns Ok(Vec<OllamaModelEntry>) with locally available models
+    /// post: if API returns non-success → Ok(Vec::new()) (graceful degradation)
+    /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn list_models(&self) -> Result<Vec<OllamaModelEntry>, InferenceError> {
         let response = self
             .client

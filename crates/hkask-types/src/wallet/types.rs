@@ -183,6 +183,13 @@ pub enum TransactionType {
         tx_hash: String,
         amount_usdc_micro: u64,
     },
+    /// Assets shielded into privacy pool (transparent → shielded movement).
+    /// Does not affect rJoule balance — pure asset layer transition.
+    Shield {
+        chain: ChainId,
+        tx_hash: String,
+        amount_usdc_micro: u64,
+    },
     /// rJoules spent via an API key
     Spend {
         key_id: ApiKeyId,

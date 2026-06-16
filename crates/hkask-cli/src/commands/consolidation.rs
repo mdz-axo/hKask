@@ -5,6 +5,9 @@ use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::ConsolidationRequest;
 
+/// REQ: CLI-070
+/// pre:  agent is an optional agent name (defaults to curator); limit > 0; passphrase required when agent specified
+/// post: executes episodic-to-semantic consolidation; prints consolidated/deleted/failed counts
 pub fn run(
     agent: Option<&str>,
     limit: usize,

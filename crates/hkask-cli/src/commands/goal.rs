@@ -4,6 +4,11 @@ use hkask_services::{CreateGoalRequest, GoalService, ServiceError};
 
 use crate::cli::GoalAction;
 
+/// REQ: CLI-029
+/// pre:  text is non-empty
+/// pre:  visibility is a valid visibility string
+/// post: returns Ok(()) and prints created goal to stdout
+/// post: delegates to GoalService::create_goal
 pub fn create(text: &str, visibility: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     let owner = hkask_types::WebID::from_persona(b"cli-user");
@@ -22,6 +27,11 @@ pub fn create(text: &str, visibility: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
+/// REQ: CLI-030
+/// pre:  state is an optional state filter string
+/// post: returns Ok(()) and prints goals to stdout
+/// post: if no goals found → prints "No goals found."
+/// post: delegates to GoalService::list_goals
 pub fn list(state: Option<&str>) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     let owner = hkask_types::WebID::from_persona(b"cli-user");
@@ -37,6 +47,11 @@ pub fn list(state: Option<&str>) -> Result<(), ServiceError> {
     Ok(())
 }
 
+/// REQ: CLI-031
+/// pre:  id is a valid goal identifier
+/// pre:  state is a valid state string
+/// post: returns Ok(()) and prints updated goal state to stdout
+/// post: delegates to GoalService::set_goal_state
 pub fn set_state(id: &str, state: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
     let goal = GoalService::set_goal_state(&ctx, id, state)?;
@@ -44,6 +59,10 @@ pub fn set_state(id: &str, state: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
+/// REQ: CLI-032
+/// pre:  action is a valid GoalAction variant
+/// post: dispatches to create/list/set_state based on action variant
+/// post: exits with error message on failure (via or_exit)
 pub fn run_goal(action: crate::cli::GoalAction) {
     let result = match action {
         GoalAction::Create { text, visibility } => create(&text, &visibility),

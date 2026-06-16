@@ -103,6 +103,11 @@ impl InferenceRouter {
     /// Queries each backend concurrently and merges results with
     /// provider prefixes applied. Graceful degradation: if one
     /// provider fails, results from others are still returned.
+    ///
+    /// REQ: INFER-059
+    /// pre:  backends are initialized (may be None)
+    /// post: returns Vec<RouterModelEntry> with all available models across providers
+    /// post: if a backend fails → its models are omitted (graceful degradation)
     pub async fn list_models(&self) -> Vec<RouterModelEntry> {
         let mut entries = Vec::new();
 
@@ -188,6 +193,11 @@ impl InferenceRouter {
     }
 
     /// Search models by name across all providers (case-insensitive substring).
+    ///
+    /// REQ: INFER-060
+    /// pre:  query may be empty (returns all models)
+    /// post: returns Vec<RouterModelEntry> filtered by case-insensitive substring match
+    /// post: if query is empty → returns all models (delegates to list_models)
     pub async fn search_models(&self, query: &str) -> Vec<RouterModelEntry> {
         let all = self.list_models().await;
         if query.is_empty() {
@@ -203,6 +213,10 @@ impl InferenceRouter {
     ///
     /// Convenience filter over `list_models()` using the heuristic
     /// `supports_vision` flag. Useful for OCR model selection.
+    ///
+    /// REQ: INFER-061
+    /// pre:  none (delegates to list_models)
+    /// post: returns Vec<RouterModelEntry> filtered to supports_vision == Some(true)
     pub async fn list_vision_models(&self) -> Vec<RouterModelEntry> {
         self.list_models()
             .await
@@ -212,6 +226,15 @@ impl InferenceRouter {
     }
 
     /// Vision/multimodal inference — dispatch to the appropriate backend with base64 images.
+    ///
+    /// REQ: INFER-062
+    /// pre:  prompt is non-empty
+    /// pre:  images is non-empty
+    /// pre:  params is a valid LLMParameters
+    /// post: dispatches to provider-resolved backend's generate_vision
+    /// post: returns Ok(InferenceResult) on success
+    /// post: if provider resolution fails → Err(InferenceError)
+    /// post: if backend call fails → Err(InferenceError)
     pub async fn generate_vision(
         &self,
         prompt: &str,
@@ -272,6 +295,11 @@ impl InferenceRouter {
 
     /// Generate an image from a text prompt.
     /// Routes to fal.ai FLUX Schnell (default) or DeepInfra FLUX 2 Klein.
+    ///
+    /// REQ: INFER-063
+    /// pre:  prompt is a non-empty text description
+    /// post: returns Ok(serde_json::Value) with generated image data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn generate_image(
         &self,
         prompt: &str,
@@ -289,6 +317,12 @@ impl InferenceRouter {
 
     /// Transform an existing image with a prompt (image-to-image).
     /// Routes to fal.ai Flux dev img2img (default) or DeepInfra Qwen Image Edit.
+    ///
+    /// REQ: INFER-064
+    /// pre:  image_url is a valid, accessible image URL
+    /// pre:  prompt is a non-empty transformation instruction
+    /// post: returns Ok(serde_json::Value) with transformed image data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn image_to_image(
         &self,
         image_url: &str,
@@ -303,6 +337,12 @@ impl InferenceRouter {
 
     /// Remove background from an image.
     /// Routes to DeepInfra Bria RMBG 2.0 (cheapest) with fal.ai Birefnet fallback.
+    ///
+    /// REQ: INFER-065
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: tries DeepInfra first, falls back to fal.ai on failure
+    /// post: returns Ok(serde_json::Value) with background-removed image data
+    /// post: if no backend available → Err(InferenceError::Connection)
     pub async fn remove_background(
         &self,
         image_url: &str,
@@ -325,6 +365,11 @@ impl InferenceRouter {
 
     /// Upscale an image.
     /// Routes to fal.ai SeedVR2 (queue).
+    ///
+    /// REQ: INFER-066
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: returns Ok(serde_json::Value) with upscaled image data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn upscale(
         &self,
         image_url: &str,
@@ -338,6 +383,11 @@ impl InferenceRouter {
 
     /// Generate a video from a text prompt.
     /// Routes to fal.ai MiniMax video-01-live (queue).
+    ///
+    /// REQ: INFER-067
+    /// pre:  prompt is a non-empty text description
+    /// post: returns Ok(serde_json::Value) with generated video data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn generate_video(
         &self,
         prompt: &str,
@@ -353,6 +403,11 @@ impl InferenceRouter {
 
     /// Animate a still image into a video.
     /// Routes to fal.ai Seedance 2.0 image-to-video (queue).
+    ///
+    /// REQ: INFER-068
+    /// pre:  image_url is a valid, accessible image URL
+    /// post: returns Ok(serde_json::Value) with generated video data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn image_to_video(
         &self,
         image_url: &str,
@@ -369,6 +424,13 @@ impl InferenceRouter {
     /// Routes to DeepInfra ElevenLabs-compatible API (default) with fal.ai fallback.
     /// Default voice: "Rachel" (ElevenLabs default, available on both providers).
     /// Default model on DeepInfra: hexgrad/Kokoro-82M.
+    ///
+    /// REQ: INFER-069
+    /// pre:  text is non-empty
+    /// pre:  voice is a valid voice preset name
+    /// post: tries DeepInfra first, falls back to fal.ai on failure
+    /// post: returns Ok(serde_json::Value) with generated speech audio data
+    /// post: if no backend available → Err(InferenceError::Connection)
     pub async fn generate_speech(
         &self,
         text: &str,
@@ -392,6 +454,12 @@ impl InferenceRouter {
 
     /// Segment/extract a specific object from an image.
     /// Routes to fal.ai Florence-2 segmentation.
+    ///
+    /// REQ: INFER-070
+    /// pre:  image_url is a valid, accessible image URL
+    /// pre:  object_description is a non-empty description of the object to segment
+    /// post: returns Ok(serde_json::Value) with segmented object data
+    /// post: if fal backend unavailable → Err(InferenceError::Connection)
     pub async fn segment_object(
         &self,
         image_url: &str,
@@ -407,6 +475,12 @@ impl InferenceRouter {
 
     /// Transcribe speech audio to text.
     /// Routes to DeepInfra Whisper (default) with fal.ai Whisper fallback.
+    ///
+    /// REQ: INFER-071
+    /// pre:  audio_url is a valid, accessible audio file URL
+    /// post: tries DeepInfra first, falls back to fal.ai on failure
+    /// post: returns Ok(serde_json::Value) with transcription data
+    /// post: if no backend available → Err(InferenceError::Connection)
     pub async fn transcribe(
         &self,
         audio_url: &str,
@@ -672,6 +746,10 @@ impl InferencePort for InferenceRouter {
 // Non-trait methods (not part of InferencePort)
 impl InferenceRouter {
     /// Generate a text embedding vector — not yet implemented.
+    ///
+    /// REQ: INFER-072
+    /// pre:  _text may be any string (currently ignored)
+    /// post: always returns Err(EmbeddingGenerationError::Connection) — not yet implemented
     pub async fn embed_text(
         &self,
         _text: &str,
