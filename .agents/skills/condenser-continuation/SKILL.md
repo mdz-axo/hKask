@@ -107,7 +107,7 @@ Assemble a structured continuation document with:
 
 ## Debug
 
-- CNS spans: `cns.tool.condenser.*` for tool invocation governance
-- `cns.inference.*` for inference governance when thread_summary is active
-- Check `kask /status` for current agent, model, and pod state
+- CNS spans: `cns.tool.condenser` for tool invocation governance
+- `cns.inference` for inference governance when thread_summary is active
+- Check `kask cns health` for current CNS state
 - Run `hkask-mcp-condenser` standalone to test MCP handshake without hKask runtime

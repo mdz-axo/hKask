@@ -194,7 +194,7 @@ cargo test -p hkask-cns
 grep -rn "/// REQ: P" crates/hkask-cns/src/ --include="*.rs" | wc -l
 
 # CNS span health:
-kask cns status
+kask cns health
 ```
 
 ---

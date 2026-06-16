@@ -74,7 +74,7 @@ grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"
 kask sovereignty verify
 
 # CNS span health
-kask cns status
+kask cns health
 
 # Contract completeness audit (Testing Discipline §9.2)
 scripts/contract-audit.sh --summary

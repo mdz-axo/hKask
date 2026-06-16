@@ -132,10 +132,10 @@ When the source references system-specific concepts, substitute for BOTH layers:
 | Source Domain | Registry Equivalent | SKILL.md Equivalent |
 |--------------|--------------------|--------------------|
 | Journal / log store | `hkask-storage` (SQLite + SQLCipher) | `hkask-storage` |
-| Sentinel / sensor | MCP tool dispatch (`cns.tool.*`) | `cns.tool.*` spans |
+| Sentinel / sensor | MCP tool dispatch (`cns.tool.<subsystem>`) | `cns.tool.<subsystem>` spans |
 | Baselines / EWMA | CNS variety counters | CNS variety counters |
 | Nurse / regulator | Curator Agent | Curator Agent |
-| Proprioception | CNS algedonic signals (`cns.cybernetics.*`) | `cns.cybernetics.*` spans |
+| Proprioception | CNS algedonic signals (`cns.cybernetics.backpressure`) | `cns.cybernetics.backpressure` spans |
 | IDRS / consent gate | OCAP capability delegation | OCAP-gated instructions |
 | REST API calls | `web` MCP server | `web` MCP server |
 | File system operations | `read_file`/`write_file`/`edit_file` tools | Same tools |
@@ -157,7 +157,7 @@ Some source concepts map to one layer but not the other. Document every asymmetr
 | Step ordinals / FSM transitions | FlowDef template chain | Section structure | Ordinal flow → section order in SKILL.md, template chain in registry |
 | Source persona voice ("I do X") | Dropped (system prompt is imperative) | Rewrite as imperative ("Do X") | Strip personality, keep methodology |
 | Source consent gates | OCAP in contract | `> Confirm before proceeding` markers | Mechanism differs between layers |
-| Source-specific observability | CNS span references in `.j2` | `## Debug` section | Map to `cns.*` namespace |
+| Source-specific observability | CNS span references in `.j2` | `## Debug` section | Map to `cns.<domain>.<operation>` namespace |
 | Script-based probes | `.j2` contract input/output | Built-in tool procedures | Agent uses terminal/grep/read_file |
 | Source manifest `symptoms` | Dropped (hKask matches by description) | Encoded in `description` frontmatter | No symptom catalog in hKask |
 

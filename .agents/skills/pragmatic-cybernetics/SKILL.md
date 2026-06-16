@@ -14,7 +14,7 @@ Every cybernetic system has five components. Here is hKask's:
 
 | Component | hKask Implementation | What It Does |
 |-----------|---------------------|-------------|
-| **Sensor** | MCP tool dispatch (`cns.tool.*` spans) | Collects observations — tool calls, inference results, prompt outcomes |
+| **Sensor** | MCP tool dispatch (`cns.tool.<subsystem>` spans) | Collects observations — tool calls, inference results, prompt outcomes |
 | **Model** | hkask-storage (SQLite + SQLCipher) + CNS variety counters | Remembers what was seen. ν-events are the canonical observations. Variety counters track diversity. |
 | **Regulator** | CNS homeostatic loop + Curator Agent | Compares current variety to threshold. Algedonic alerts when deficit exceeds limits. |
 | **Actuator** | OCAP-governed MCP dispatch | Actions gated by capability tokens. The regulator recommends; OCAP enforces boundaries. |
@@ -61,7 +61,7 @@ When diagnosing a CNS alert or system issue, analyze the relevant feedback loop 
 | Variety deficit exceeds 100 with no Curator response | Broken feedback closure — signal emitted, never consumed | Communication loop connectivity, Curator inbox |
 | Variety deficit never exceeds 50 despite known problems | Sensor stall — observation loop broken | MCP dispatch health, ν-event persistence |
 | Algedonic alerts fire repeatedly with no change | Positive feedback or gain too high | Dampener `override_cooldown` (120s), backpressure threshold |
-| CNS spans missing for expected operations | Model-reality divergence | `cns.*` span registration, tracing pipeline |
+| CNS spans missing for expected operations | Model-reality divergence | `cns.<domain>.<operation>` span registration, tracing pipeline |
 | Communication queue depth exceeds backpressure threshold | S2 coordination failure | `Arc<AtomicU64>` counter, `communication_backpressure_threshold` |
 
 ## Variety Engineering
@@ -79,7 +79,7 @@ Ashby's Law of Requisite Variety: the regulator's variety must match the system'
 1. Enumerate system variety: What failure modes, behavioral patterns, and edge cases exist?
 2. Enumerate regulator variety: What CNS spans, variety counters, and algedonic thresholds cover them?
 3. Is `regulator_variety >= system_variety`? If not, attenuate (add more spans/counters) or amplify (add more Curator escalation paths).
-4. Check `cns.variety.*` spans for gaps — unmeasured dimensions of agent behavior.
+4. Check `cns.variety` spans for gaps — unmeasured dimensions of agent behavior.
 
 ### The Context Window as Channel Capacity
 

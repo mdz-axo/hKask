@@ -54,7 +54,7 @@ Build a mature professional test harness for hKask that maximizes **confidence d
 - Every `#[test]` verifies a stated behavioral property traceable to a principle or spec (P8).
 - Test infrastructure public API ≤ 7 items; extras justified or removed (P5, essentialist G2).
 - Tests evolve from actual failures, not speculative coverage targets (P7).
-- CNS provides all test observability — `kask cns status`, not dashboards (P3, P9).
+- CNS provides all test observability — `kask cns health`, not dashboards (P3, P9).
 
 ---
 
@@ -1297,7 +1297,7 @@ grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ mcp-servers/ --include=
 grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"  # empty
 
 # CNS observability
-kask cns status  # must show test coverage metrics, no alerts
+kask cns health  # must show test coverage metrics, no alerts
 
 # Principle traceability
 grep -r "// REQ:" crates/ mcp-servers/ --include="*.rs" | wc -l  # every test has REQ tag (P8)
