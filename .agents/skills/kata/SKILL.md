@@ -82,7 +82,7 @@ This bundle's orchestration templates live in `registry/templates/kata/`:
 | `kata-selector.j2` | KnowAct | Route agent to appropriate kata based on context |
 | `consent-and-select.j2` | KnowAct | Verify consent before executing any kata |
 | `outcome-and-habit.j2` | KnowAct | Synthesize kata outcome with habit assessment |
-| `habit-intervention.j2` | WordAct | Generate intervention when habit is at risk |
+| `habit-intervention.j2` | KnowAct | Generate intervention when habit is at risk |
 | `iteration-check.j2` | KnowAct | Check if iteration is needed (variance or low confidence) |
 | `iteration-comparison.j2` | KnowAct | Compare iterations for variance and confidence |
 | `kata-switch-check.j2` | KnowAct | Validate kata switching against composition rules |
@@ -109,7 +109,7 @@ For detailed instructions on each practice, see the individual skill files:
 
 - **Deploying kata across a team:** Multiple agents at different stages need coordinated routing
 - **Full adoption:** An agent has completed starter, is running improvement cycles, and has a coach
-- **Monitoring:** CNS habit tracking requires the full system to detect decay and trigger interventions
+- **Monitoring:** CNS habit tracking derives from `hkask.kata` trace events; it does not rely on invented span namespaces.
 
 ## When NOT to Use the Bundle
 

@@ -5,10 +5,10 @@
     "complete_both_layers": 30,
     "zed_only": 1,
     "registry_only": 36,
-    "active": 23,
+    "active": 24,
     "stale_warning": 12,
     "critical": 6,
-    "recommend_deprecation": 26
+    "recommend_deprecation": 25
   },
   "skills": [
     {
@@ -9697,151 +9697,213 @@
           {
             "path": "registry/templates/skill-logic-audit/compose-proposal.j2",
             "filename": "compose-proposal.j2",
-            "frontmatter_present": false,
-            "template_type": null,
-            "template_type_valid": false,
+            "frontmatter_present": true,
+            "template_type": "KnowAct",
+            "template_type_valid": true,
             "ddmvss_alias": false,
-            "visibility": null,
-            "visibility_valid": false,
+            "visibility": "Shared",
+            "visibility_valid": true,
             "visibility_misplaced": false,
-            "energy_cap": null,
-            "energy_cap_valid": false,
+            "energy_cap": 4096,
+            "energy_cap_valid": true,
             "energy_cap_misplaced": false,
-            "contract_input": null,
-            "contract_output": null,
-            "contract_present": false,
-            "lexicon_terms": [],
+            "contract_input": {
+              "goal": "string",
+              "target_path": "string",
+              "original_content": "string",
+              "valid_concerns": "array",
+              "user_counter_proposal": "string|null"
+            },
+            "contract_output": {
+              "revised_content": "string",
+              "diff": "string",
+              "rationale": "string",
+              "confidence": "float"
+            },
+            "contract_present": true,
+            "lexicon_terms": [
+              "synthesize",
+              "compose",
+              "design",
+              "simplify",
+              "specify"
+            ],
             "unknown_lexicon_terms": [],
-            "body_present": false,
+            "body_present": true,
             "version_mentions": [
               "v0.27.0"
             ],
             "version_stale": false,
-            "defects": [
-              "missing [inference] frontmatter"
-            ]
+            "defects": []
           },
           {
             "path": "registry/templates/skill-logic-audit/critique-critique.j2",
             "filename": "critique-critique.j2",
-            "frontmatter_present": false,
-            "template_type": null,
-            "template_type_valid": false,
+            "frontmatter_present": true,
+            "template_type": "KnowAct",
+            "template_type_valid": true,
             "ddmvss_alias": false,
-            "visibility": null,
-            "visibility_valid": false,
+            "visibility": "Shared",
+            "visibility_valid": true,
             "visibility_misplaced": false,
-            "energy_cap": null,
-            "energy_cap_valid": false,
+            "energy_cap": 3072,
+            "energy_cap_valid": true,
             "energy_cap_misplaced": false,
-            "contract_input": null,
-            "contract_output": null,
-            "contract_present": false,
-            "lexicon_terms": [],
+            "contract_input": {
+              "goal": "string",
+              "prior_critique": "object"
+            },
+            "contract_output": {
+              "valid_concerns": "array",
+              "spurious_concerns": "array",
+              "downgraded_concerns": "array",
+              "calibrated_verdict": "string"
+            },
+            "contract_present": true,
+            "lexicon_terms": [
+              "reflect",
+              "calibrate",
+              "discriminate",
+              "evaluate",
+              "critique"
+            ],
             "unknown_lexicon_terms": [],
-            "body_present": false,
+            "body_present": true,
             "version_mentions": [
               "v0.27.0"
             ],
             "version_stale": false,
-            "defects": [
-              "missing [inference] frontmatter"
-            ]
+            "defects": []
           },
           {
             "path": "registry/templates/skill-logic-audit/critique-template.j2",
             "filename": "critique-template.j2",
-            "frontmatter_present": false,
-            "template_type": null,
-            "template_type_valid": false,
+            "frontmatter_present": true,
+            "template_type": "KnowAct",
+            "template_type_valid": true,
             "ddmvss_alias": false,
-            "visibility": null,
-            "visibility_valid": false,
+            "visibility": "Shared",
+            "visibility_valid": true,
             "visibility_misplaced": false,
-            "energy_cap": null,
-            "energy_cap_valid": false,
+            "energy_cap": 4096,
+            "energy_cap_valid": true,
             "energy_cap_misplaced": false,
-            "contract_input": null,
-            "contract_output": null,
-            "contract_present": false,
-            "lexicon_terms": [],
+            "contract_input": {
+              "goal": "string",
+              "target_path": "string",
+              "target_content": "string",
+              "template_type": "string"
+            },
+            "contract_output": {
+              "flaws": "array",
+              "valid_concerns": "array",
+              "spurious_concerns": "array",
+              "verdict": "string"
+            },
+            "contract_present": true,
+            "lexicon_terms": [
+              "critique",
+              "evaluate",
+              "discriminate",
+              "assess",
+              "analyze"
+            ],
             "unknown_lexicon_terms": [],
-            "body_present": false,
+            "body_present": true,
             "version_mentions": [
               "v0.27.0"
             ],
             "version_stale": false,
-            "defects": [
-              "missing [inference] frontmatter"
-            ]
+            "defects": []
           },
           {
             "path": "registry/templates/skill-logic-audit/load-goal.j2",
             "filename": "load-goal.j2",
-            "frontmatter_present": false,
-            "template_type": null,
-            "template_type_valid": false,
+            "frontmatter_present": true,
+            "template_type": "WordAct",
+            "template_type_valid": true,
             "ddmvss_alias": false,
-            "visibility": null,
-            "visibility_valid": false,
+            "visibility": "Shared",
+            "visibility_valid": true,
             "visibility_misplaced": false,
-            "energy_cap": null,
-            "energy_cap_valid": false,
+            "energy_cap": 2048,
+            "energy_cap_valid": true,
             "energy_cap_misplaced": false,
-            "contract_input": null,
-            "contract_output": null,
-            "contract_present": false,
-            "lexicon_terms": [],
+            "contract_input": {
+              "target_path": "string",
+              "target_content": "string"
+            },
+            "contract_output": {
+              "goal": "string",
+              "goal_found": "boolean",
+              "file_type": "string"
+            },
+            "contract_present": true,
+            "lexicon_terms": [
+              "extract",
+              "parse",
+              "recognize"
+            ],
             "unknown_lexicon_terms": [],
-            "body_present": false,
+            "body_present": true,
             "version_mentions": [
               "v0.27.0"
             ],
             "version_stale": false,
-            "defects": [
-              "missing [inference] frontmatter"
-            ]
+            "defects": []
           },
           {
             "path": "registry/templates/skill-logic-audit/user-review-loop.j2",
             "filename": "user-review-loop.j2",
-            "frontmatter_present": false,
-            "template_type": null,
-            "template_type_valid": false,
+            "frontmatter_present": true,
+            "template_type": "FlowDef",
+            "template_type_valid": true,
             "ddmvss_alias": false,
-            "visibility": null,
-            "visibility_valid": false,
+            "visibility": "Shared",
+            "visibility_valid": true,
             "visibility_misplaced": false,
-            "energy_cap": null,
-            "energy_cap_valid": false,
+            "energy_cap": 3072,
+            "energy_cap_valid": true,
             "energy_cap_misplaced": false,
-            "contract_input": null,
-            "contract_output": null,
-            "contract_present": false,
-            "lexicon_terms": [],
+            "contract_input": {
+              "target_path": "string",
+              "goal": "string",
+              "max_depth": "integer",
+              "current_depth": "integer",
+              "proposal": "object"
+            },
+            "contract_output": {
+              "action": "string",
+              "next_template_id": "string|null",
+              "state": "object"
+            },
+            "contract_present": true,
+            "lexicon_terms": [
+              "sequence",
+              "choice",
+              "iteration",
+              "escalate",
+              "route",
+              "abort",
+              "compose"
+            ],
             "unknown_lexicon_terms": [],
-            "body_present": false,
+            "body_present": true,
             "version_mentions": [
               "v0.27.0"
             ],
             "version_stale": false,
-            "defects": [
-              "missing [inference] frontmatter"
-            ]
+            "defects": []
           }
         ],
         "j2_count": 5,
-        "has_flowdef": false,
-        "has_wordact": false,
-        "has_knowact": false
+        "has_flowdef": true,
+        "has_wordact": true,
+        "has_knowact": true
       },
-      "health_score": 0.0,
-      "status": "recommend_deprecation",
-      "top_defects": [
-        "compose-proposal.j2: missing [inference] frontmatter",
-        "compose-proposal.j2: invalid visibility None",
-        "compose-proposal.j2: missing/empty contract"
-      ]
+      "health_score": 1.0,
+      "status": "active",
+      "top_defects": []
     },
     {
       "skill_name": "skill-maintenance",

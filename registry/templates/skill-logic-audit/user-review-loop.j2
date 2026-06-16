@@ -1,4 +1,3 @@
-{# goal: Orchestrate the skill-logic-audit loop, presenting the proposal to the user and branching on accept/reject/counter-proposal with a bounded depth counter. #}
 [inference]
 template_type: FlowDef
 lexicon_terms: [sequence, choice, iteration, escalate, route, abort, compose]
@@ -17,6 +16,7 @@ energy_cap: 3072
 visibility: Shared
 
 ---
+{# goal: Orchestrate the skill-logic-audit loop, presenting the proposal to the user and branching on accept/reject/counter-proposal with a bounded depth counter. #}
 {# Template: skill-logic-audit/user-review-loop.j2 #}
 {# FlowDef — Bounded user-review loop for template audit #}
 {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
