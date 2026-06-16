@@ -832,29 +832,33 @@ impl AgentService {
         }
 
         // ── 8b. Daemon handler + listener ──────────────────────────────────
+        // Skip daemon socket binding in test mode (in_memory) — the Unix socket
+        // address conflicts when multiple tests run in parallel.
         let daemon_handler = Arc::new(crate::daemon_handler::ServiceDaemonHandler::new(
             Arc::clone(&pod_manager),
             Arc::clone(&user_store),
             inference_port.clone(),
         ));
-        let mut daemon_listener = hkask_mcp::daemon::DaemonListener::new();
-        daemon_listener.bind().await.map_err(|e| {
-            ServiceError::Infra(hkask_types::InfrastructureError::Io(format!(
-                "Failed to bind daemon socket: {}",
-                e
-            )))
-        })?;
-        // Spawn daemon serve loop in background (fire-and-forget)
-        let serve_handler = Arc::clone(&daemon_handler);
-        tokio::spawn(async move {
-            if let Err(e) = daemon_listener.serve(serve_handler).await {
-                tracing::error!(
-                    target: "hkask.daemon",
-                    error = %e,
-                    "Daemon listener serve loop exited with error"
-                );
-            }
-        });
+        if !config.in_memory {
+            let mut daemon_listener = hkask_mcp::daemon::DaemonListener::new();
+            daemon_listener.bind().await.map_err(|e| {
+                ServiceError::Infra(hkask_types::InfrastructureError::Io(format!(
+                    "Failed to bind daemon socket: {}",
+                    e
+                )))
+            })?;
+            // Spawn daemon serve loop in background (fire-and-forget)
+            let serve_handler = Arc::clone(&daemon_handler);
+            tokio::spawn(async move {
+                if let Err(e) = daemon_listener.serve(serve_handler).await {
+                    tracing::error!(
+                        target: "hkask.daemon",
+                        error = %e,
+                        "Daemon listener serve loop exited with error"
+                    );
+                }
+            });
+        }
 
         // ── 8c. Matrix transport + 7R7 listener ────────────────────────────
         // Resolve Matrix credentials from keychain (stored during onboarding

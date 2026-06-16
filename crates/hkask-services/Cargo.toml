@@ -44,6 +44,12 @@ parking_lot = "0.12"
 [dev-dependencies]
 tempfile.workspace = true
 trybuild = "1"
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+hkask-test-harness = { path = "../hkask-test-harness" }
+
+[[test]]
+name = "cli_to_storage_integration"
+path = "tests/cli_to_storage_integration.rs"
 
 [features]
 # Pass-through to hkask-wallet for chain port selection
