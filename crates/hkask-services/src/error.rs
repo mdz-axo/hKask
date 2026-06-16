@@ -328,6 +328,12 @@ pub enum ServiceError {
         message: String,
     },
 
+    /// P2 affirmative consent denied for wallet operation.
+    /// Returned when the user has not granted consent for the requested
+    /// wallet operation (e.g., withdrawal signing per MUST-4).
+    #[error("Consent denied for wallet operation: {message}")]
+    ConsentDenied { message: String },
+
     // ── Backup domain ──────────────────────────────────────────────────
     /// Backup operation failed (CAS, serialization, config, CNS).
     #[error("Backup failed: {message}")]
@@ -470,6 +476,9 @@ impl ServiceError {
             // Permission/security: retrying won't grant capabilities
             ServiceError::Acp(_) | ServiceError::Consent(_) => false,
 
+            // P2 consent denied: retrying won't grant consent
+            ServiceError::ConsentDenied { .. } => false,
+
             // CNS energy exhaustion: retrying would waste more gas
             ServiceError::Gas(_) => false,
 
@@ -585,6 +594,7 @@ impl ServiceError {
             ServiceError::Skill { .. } => "error.pipeline.skill",
             ServiceError::Verification { .. } => "error.pipeline.verification",
             ServiceError::Wallet { .. } => "error.pipeline.wallet",
+            ServiceError::ConsentDenied { .. } => "error.pipeline.wallet.consent_denied",
 
             // ── Backup domain ──────────────────────────────────────
             ServiceError::Backup { .. } => "error.backup",
@@ -789,6 +799,11 @@ impl ServiceError {
             ServiceError::Wallet { message: msg, .. } => (
                 "cns.wallet.balance",
                 "error",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::ConsentDenied { message: msg } => (
+                "cns.wallet.withdrawal",
+                "error.consent_denied",
                 serde_json::json!({ "message": msg }),
             ),
             ServiceError::Matrix { message: msg, .. } => (

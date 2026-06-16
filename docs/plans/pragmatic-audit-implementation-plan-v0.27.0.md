@@ -286,8 +286,8 @@ grep -rn "/// .* must \|/// .* should \|/// .* shall \|/// .* never \|/// .* alw
 
 - **PR R5.1:** Define `CnsSpan` enum in `hkask-types/src/cns.rs`.
   ```rust
-  /// [NORMATIVE] Typed CNS span identifiers — the authoritative registry
-  /// in `hkask-types/src/cns.rs` (`CnsSpan`). Invalid span values are unrepresentable.
+  /// [NORMATIVE] Typed CNS span identifiers — canonical CNS span registry
+  /// in `crates/hkask-types/src/cns.rs` (`CnsSpan`). Invalid span values are unrepresentable.
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
   pub enum CnsSpan {
       Tool { subsystem: ToolSubsystem },
@@ -343,7 +343,7 @@ grep -rn "/// .* must \|/// .* should \|/// .* shall \|/// .* never \|/// .* alw
 
 **Acceptance criteria**
 - Zero `&str` CNS span constants remain in `hkask-types/src/cns.rs`.
-- All `CnsSpan` variants map 1:1 to canonical namespaces in `crates/hkask-types/src/cns.rs` (`CnsSpan`).
+- All `CnsSpan` variants map 1:1 to canonical namespaces in canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`).
 - `cargo test -p hkask-types` passes all CnsSpan tests.
 - `cargo check --workspace` passes after migration.
 

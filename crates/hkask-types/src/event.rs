@@ -101,7 +101,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.spec",
     "cns.test",
     "cns.chat",
-    // Hierarchical spans — registered in `hkask-types/src/cns.rs` (`CnsSpan`) (P2-06-D1)
+    // Hierarchical spans — registered in canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`) (P2-06-D1)
     "cns.cybernetics.backpressure",
     "cns.cybernetics.cadence",
     "cns.set_point",

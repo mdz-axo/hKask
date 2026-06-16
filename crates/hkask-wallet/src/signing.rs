@@ -162,4 +162,62 @@ mod tests {
         let sig = sign_capability(&cap).unwrap();
         assert_eq!(sig.len(), 128); // 64 bytes → 128 hex chars
     }
+
+    // REQ: P4-signing — sign_withdrawal works for all valid ChainId variants
+    #[test]
+    fn sign_withdrawal_all_chains() {
+        set_test_master_key();
+        let tx_bytes = b"test transaction";
+        // All three ChainId variants should produce valid 64-byte signatures
+        for chain in [ChainId::Solana, ChainId::Hedera, ChainId::Hinkal] {
+            let sig = sign_withdrawal(chain, tx_bytes).unwrap();
+            assert_eq!(
+                sig.len(),
+                64,
+                "chain {:?} produced wrong signature length",
+                chain
+            );
+        }
+    }
+
+    // REQ: P4-signing — sign_withdrawal handles empty tx_bytes gracefully
+    #[test]
+    fn sign_withdrawal_empty_tx_bytes() {
+        set_test_master_key();
+        // Ed25519 signs any byte sequence, including empty — should not panic
+        let sig = sign_withdrawal(ChainId::Solana, b"").unwrap();
+        assert_eq!(
+            sig.len(),
+            64,
+            "empty tx_bytes should still produce valid signature"
+        );
+    }
+
+    // REQ: P4-signing — sign_capability detects tampered capability
+    #[test]
+    fn sign_capability_tampered_produces_different_signature() {
+        set_test_master_key();
+        let mut cap = ApiKeyCapability {
+            wallet_id: WalletId::new(),
+            key_id: ApiKeyId::new(),
+            public_key: Ed25519PublicKey([0u8; 32]),
+            spending_limit_rj: RJoule::new(5000),
+            spent_rj: RJoule::ZERO,
+            scope: vec!["read-specs".to_string()],
+            purpose: "signing test".to_string(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        let sig1 = sign_capability(&cap).unwrap();
+        // Tamper with spending limit — signature must change
+        cap.spending_limit_rj = RJoule::new(9999);
+        let sig2 = sign_capability(&cap).unwrap();
+        assert_ne!(
+            sig1, sig2,
+            "tampered capability must produce different signature"
+        );
+    }
 }

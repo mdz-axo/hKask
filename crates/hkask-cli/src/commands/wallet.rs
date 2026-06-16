@@ -326,7 +326,16 @@ fn handle_withdraw(
     };
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    match rt.block_on(svc.withdraw(wallet_id, RJoule::new(amount_rj), &to, chain, privacy)) {
+    // CLI user is the operator — use deterministic operator WebID for consent check
+    let webid = hkask_types::WebID::from_persona(b"cli-user");
+    match rt.block_on(svc.withdraw(
+        &webid,
+        wallet_id,
+        RJoule::new(amount_rj),
+        &to,
+        chain,
+        privacy,
+    )) {
         Ok(tx_hash) => {
             println!("Withdrawal Submitted");
             println!("====================");

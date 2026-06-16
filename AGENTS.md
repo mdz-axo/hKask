@@ -44,7 +44,7 @@ These are **Prohibitions**, not guidelines. See PRINCIPLES.md §2.1–2.4 for th
 | Architecture master | `docs/architecture/hKask-architecture-master.md` |
 | Principles (P1–P12) | `docs/architecture/core/PRINCIPLES.md` |
 | MDS Specification | `docs/architecture/core/MDS.md` |
-| CNS spans (canonical) | `crates/hkask-types/src/cns.rs` (`CnsSpan`) |
+| Canonical CNS span registry | `crates/hkask-types/src/cns.rs` (`CnsSpan`) |
 | Testing Discipline | `docs/architecture/core/TESTING_DISCIPLINE.md` |
 
 ---

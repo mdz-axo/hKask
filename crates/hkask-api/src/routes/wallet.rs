@@ -19,6 +19,7 @@ use utoipa_axum::routes;
 
 use crate::ApiState;
 use crate::middleware::api_key_auth::WalletContext;
+use hkask_types::WebID;
 use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletId};
 
 /// Create wallet router.
@@ -568,13 +569,14 @@ async fn revoke_key(
 )]
 async fn withdraw(
     State(state): State<ApiState>,
+    wallet_ctx: Option<Extension<WalletContext>>,
     Json(req): Json<WithdrawRequest>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = match resolve_wallet_id(req.wallet_id.as_deref(), None) {
+    let wallet_id = match resolve_wallet_id(req.wallet_id.as_deref(), wallet_ctx.as_deref()) {
         Ok(id) => id,
         Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
     };
@@ -588,8 +590,20 @@ async fn withdraw(
         PrivacyMode::Transparent
     };
 
+    // Derive a WebID for the consent check from the wallet context or wallet_id.
+    // When authenticated via API key, the wallet_id identifies the owning user.
+    let webid = wallet_ctx
+        .as_ref()
+        .map(|ctx| {
+            WebID::from_persona_with_namespace(ctx.wallet_id.to_string().as_bytes(), "wallet-owner")
+        })
+        .unwrap_or_else(|| {
+            WebID::from_persona_with_namespace(wallet_id.to_string().as_bytes(), "wallet-owner")
+        });
+
     match svc
         .withdraw(
+            &webid,
             wallet_id,
             RJoule::new(req.amount_rj),
             &req.to_address,

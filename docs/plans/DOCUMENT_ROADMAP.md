@@ -30,7 +30,7 @@ mds_categories: [lifecycle, curation]
 
 ### P0-4: Consolidate Testing Documentation ✅ DONE (2026-06-15)
 
-**Status:** `docs/specifications/specs/test-program.md` and `docs/specifications/standards/TESTING_STANDARDS.md` archived to `docs/archive/2026-06-15-testing-consolidation/`. Single authoritative document: `docs/architecture/core/TESTING_DISCIPLINE.md` (565 lines, 10 sections). Anchored on Design by Contract (Meyer, 1986) + Property-Based Testing (QuickCheck, 2000). TDD skill and coding-guidelines skill updated to reference the new discipline. CNS spans `cns.contract.violated` and `cns.contract.coverage` registered in `crates/hkask-types/src/cns.rs` (`CnsSpan`) and `CANONICAL_NAMESPACES`.
+**Status:** `docs/specifications/specs/test-program.md` and `docs/specifications/standards/TESTING_STANDARDS.md` archived to `docs/archive/2026-06-15-testing-consolidation/`. Single authoritative document: `docs/architecture/core/TESTING_DISCIPLINE.md` (565 lines, 10 sections). Anchored on Design by Contract (Meyer, 1986) + Property-Based Testing (QuickCheck, 2000). TDD skill and coding-guidelines skill updated to reference the new discipline. CNS spans `cns.contract.violated` and `cns.contract.coverage` registered in canonical CNS span registry (`crates/hkask-types/src/cns.rs`, `CnsSpan`) and `CANONICAL_NAMESPACES`.
 
 ### P0-1: Fix `corpus_inventory.yaml` — CI Scripts Incorrectly Listed as Missing
 

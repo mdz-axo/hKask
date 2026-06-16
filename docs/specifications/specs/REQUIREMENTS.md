@@ -275,7 +275,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Lifecycle
 - **Text:** When a capability is invoked, I want a CNS span emitted, so I can monitor system behavior.
 - **Criteria:**
-  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see `crates/hkask-types/src/cns.rs` (`CnsSpan`))
+  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`))
   - [x] `NuEvent` with phase (Sense/Compute/Compare/Act; legacy aliases: Observe\u2192Sense, Regulate\u2192Compute, Outcome\u2192Act)
   - [x] `NuEventSink` trait for emission
 - **Implementation:** `hkask-types::event::Span`, `hkask-cns::runtime::CnsRuntime`

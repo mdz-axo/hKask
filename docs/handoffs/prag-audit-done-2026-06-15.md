@@ -75,7 +75,7 @@ The plan is complete but the documentation corpus needs updating:
 - `docs/plans/pragmatic-audit-implementation-plan-v0.27.0.md` — status line updated, metrics table updated, but task descriptions still reference old counts
 - `docs/plans/TODO.md` — should reflect completed pragmatic audit tasks
 - `docs/status/PROJECT_STATUS.md` — test counts and REQ tag counts need updating
-- `crates/hkask-types/src/cns.rs` (`CnsSpan`) — use as the canonical CNS span registry reference
+- canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`)
 
 ### MEDIUM — Pre-existing issues (not caused by this session)
 - `hkask-cli` has `LLMParameters` missing `adapter` field errors (2 locations) — pre-existing
@@ -123,3 +123,48 @@ grep -rn "todo!\|unimplemented!" crates/ mcp-servers/ --include="*.rs"
 5. **Kata extraction via factory method** — `KataEngine::from_env()` encapsulates inference construction rather than creating a separate `KataService` struct. This is lighter-weight and follows the existing builder pattern.
 
 6. **Spec extraction via `get_full()`** — Added to `SpecService` rather than exposing `SpecStore` directly. The `get_by_id()` method returns a summary `SpecDetail`; `get_full()` returns the complete `Spec` with goals for template rendering.
+
+---
+
+## 6. P1-11 Energy Security Audit (Phase 1, Wallet/API hardening)
+
+### Verified energy flow (current)
+
+`GovernedTool/Inference` → `EnergyBudgetManager` → `WalletBackedBudget` → `WalletManager` → `WalletStore`
+
+Evidence anchors:
+- Budget membrane and key checks: `crates/hkask-cns/src/wallet_budget.rs`
+- Encumbrance consume + per-key spend sync: `crates/hkask-storage/src/wallet_store.rs` (`consume_encumbrance`)
+- API key auth + budget registration + alerts: `crates/hkask-api/src/middleware/api_key_auth.rs`
+- Service boundary delegation: `crates/hkask-services/src/wallet.rs`
+
+### Drift / duplication points observed
+
+1. **Auth and budget both evaluate key exhaustion paths**
+   - API middleware enforces `spent_rj >= spending_limit_rj` and encumbrance status.
+   - `WalletBackedBudget::can_proceed` also enforces key health and encumbrance sufficiency.
+   - Current state is intentionally fail-closed but has duplicated decision sites.
+
+2. **Spend ledger gap vs counters**
+   - `encumbrances.consumed_rj` and `api_keys.spent_rj` now move in lockstep (`consume_encumbrance` updates both).
+   - `TransactionType::Spend` exists in types, but consume path does not currently append spend ledger rows.
+   - Result: counters are coherent; append-only spend history is incomplete for key-driven tool spend.
+
+3. **Alert fan-out at multiple layers**
+   - Alerts emit from API middleware (`emit_key_alert`) and CNS wallet budget checks.
+   - This is acceptable for now (visibility-first), but duplicate alert intents should be reviewed before broadening alert consumers.
+
+### Minimal, deletion-test-passing next step (recommended)
+
+**Do not add a new abstraction yet.**
+
+Single low-blast step for next session:
+- Add one focused invariant test proving consume-path accounting coherence end-to-end for key-backed execution:
+  - after `consume_encumbrance`: `consumed_rj == api_keys.spent_rj` delta,
+  - exhausted key rejected by middleware and budget checks,
+  - failed replay consume does not increment either counter.
+
+Rationale:
+- High confidence, no new module/surface,
+- strengthens correctness before any interface consolidation,
+- keeps architecture simple while preserving fail-closed behavior.

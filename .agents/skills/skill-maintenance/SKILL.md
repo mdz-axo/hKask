@@ -33,7 +33,7 @@ active → stale_warning → deprecated → retired
 | Signal | Detection | Severity |
 |--------|-----------|----------|
 | Referenced file/crate path does not exist | Read body, check paths | High |
-| CNS span name not in canonical set | Compare `crates/hkask-types/src/cns.rs` (`CnsSpan`) | Medium |
+| CNS span name not in canonical set | Compare canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`) | Medium |
 | Magna Carta P1–P4 reference outdated | Compare `docs/architecture/magna-carta.md` | High |
 | Description vague or generic | < 20 chars, no specific triggers | Medium |
 | Body contradicts current architecture | Read referenced code, check consistency | High |

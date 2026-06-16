@@ -16,7 +16,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Owner | Priority | Status | Evidence |
 |----|------|-------|----------|--------|----------|
-| **P0-01** | CNS span emission integration | CNS bot | High | ✅ Complete | CNS spans distributed across `crates/hkask-cns/src/governed_tool.rs`, `crates/hkask-types/src/event.rs`, `crates/hkask-types/src/cns.rs`; canonical listing in `crates/hkask-types/src/cns.rs` (`CnsSpan`) |
+| **P0-01** | CNS span emission integration | CNS bot | High | ✅ Complete | CNS spans distributed across `crates/hkask-cns/src/governed_tool.rs`, `crates/hkask-types/src/event.rs`, `crates/hkask-types/src/cns.rs`; canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`) |
 | **P0-02** | Git CAS integration for triples | Storage bot | High | ✅ Complete | Deleted in 2026-06-10 architecture audit (see HANDOFF.md) |
 | **P0-03** | CLI/API symmetry audit | CLI bot | High | ✅ Complete | API routes match CLI commands |
 | **P0-04** | Documentation quality gates | Curator | High | ✅ Complete | MDS-aligned refresh complete |
@@ -57,7 +57,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
 | **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved; code drift audit complete — see `do../status/corpus_inventory.yaml` and `do../status/corpus_inventory.yaml` |
 | **P2-07** | MDS audit R4: Update §9.1 self-application matrix | Curator | Medium | ✅ Complete | Trust → Pass, Observability → Pass, Persistence/Lifecycle/Curation → :partial. Updated 2026-06-08 |
-| **P2-08** | MDS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ✅ Complete | `crates/hkask-types/src/cns.rs` (`CnsSpan`) is authoritative; 5 hierarchical spans now registered in CANONICAL_NAMESPACES |
+| **P2-08** | MDS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ✅ Complete | canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`); 5 hierarchical spans now registered in CANONICAL_NAMESPACES |
 | **P2-09** | MDS audit R8: Add TemplateType vocabulary mapping to MDS.md §7.2 | Curator | Medium | ✅ Complete | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct mapping with `as_spec_name()` cross-reference. Updated 2026-06-08 |
 | **P2-10** | MDS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 MDS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |

@@ -376,7 +376,7 @@ The `// REQ:` tag traces the contract to a specification requirement. The specif
 
 **The test suite is a feedback loop.** Under the Good Regulator Theorem (Conant & Ashby, 1970), every good regulator must be a model of the system it regulates. The test suite IS that model. If the tests don't model the system's actual failure modes, they're not a good regulator.
 
-- **Contract violations are CNS events [OUGHT — requires `cns.contract.violated` span implementation].** A failed contract test SHOULD emit a `cns.contract.violated` algedonic signal. The span is registered in `crates/hkask-types/src/cns.rs` (`CnsSpan`) and `hkask-types::event::CANONICAL_NAMESPACES`. Implementation is pending (see `docs/plans/contract-first-migration-plan-v0.27.0.md` §5.4). Until implemented, contract violations are detected through CI test failures and the contract coverage trend gate.
+- **Contract violations are CNS events [OUGHT — requires `cns.contract.violated` span implementation].** A failed contract test SHOULD emit a `cns.contract.violated` algedonic signal. The span is registered in canonical CNS span registry (`crates/hkask-types/src/cns.rs`, `CnsSpan`) and `hkask-types::event::CANONICAL_NAMESPACES`. Implementation is pending (see `docs/plans/contract-first-migration-plan-v0.27.0.md` §5.4). Until implemented, contract violations are detected through CI test failures and the contract coverage trend gate.
 - **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert via `cns.contract.coverage`.
 - **Mutation testing measures regulator quality.** `cargo-mutants` injects bugs; the percentage caught measures how well the test suite models the system.
 

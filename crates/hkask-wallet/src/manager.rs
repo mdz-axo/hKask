@@ -1137,6 +1137,95 @@ mod tests {
         );
     }
 
+    // REQ: wallet-int-006 — poll_deposits_once processes deposits from multiple chains
+    #[tokio::test]
+    async fn poll_deposits_once_multi_chain() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let wallet_id = WalletId::from_name("multi_chain_wallet");
+        store.ensure_wallet(wallet_id).unwrap();
+
+        // Register deposit addresses for both chains
+        store
+            .store_deposit_address(
+                wallet_id,
+                ChainId::Solana,
+                "solana_deposit_addr",
+                0,
+                PrivacyMode::Transparent,
+            )
+            .unwrap();
+        store
+            .store_deposit_address(
+                wallet_id,
+                ChainId::Hedera,
+                "hedera_deposit_addr",
+                1,
+                PrivacyMode::Transparent,
+            )
+            .unwrap();
+
+        let solana_deposit = DepositEvent {
+            tx_hash: TxHash("sol_tx_001".into()),
+            from_address: "sender_a".into(),
+            to_address: "solana_deposit_addr".into(),
+            amount_usdc_micro: 1_000_000, // 1 USDC
+            confirmations: 32,
+            block_time: Utc::now(),
+        };
+        let hedera_deposit = DepositEvent {
+            tx_hash: TxHash("hed_tx_001".into()),
+            from_address: "sender_b".into(),
+            to_address: "hedera_deposit_addr".into(),
+            amount_usdc_micro: 2_000_000, // 2 USDC
+            confirmations: 64,
+            block_time: Utc::now(),
+        };
+
+        let mut chains = HashMap::new();
+        chains.insert(
+            ChainId::Solana,
+            Box::new(DepositMockPort {
+                chain: ChainId::Solana,
+                deposit: Some(solana_deposit),
+            }) as Box<dyn ChainPort>,
+        );
+        chains.insert(
+            ChainId::Hedera,
+            Box::new(DepositMockPort {
+                chain: ChainId::Hedera,
+                deposit: Some(hedera_deposit),
+            }) as Box<dyn ChainPort>,
+        );
+
+        let mgr = WalletManager::build(WalletConfig::default(), Arc::clone(&store), chains, None)
+            .unwrap();
+
+        mgr.poll_deposits_once().await;
+
+        // Both chains' deposits should be credited
+        let balance = store.get_balance(wallet_id).unwrap().unwrap();
+        assert!(
+            balance.rjoules > 0,
+            "balance should reflect deposits from both chains"
+        );
+
+        // Verify two deposit transactions recorded
+        let txs = store.get_transactions(wallet_id, 10, 0).unwrap();
+        let deposit_count = txs
+            .iter()
+            .filter(|tx| matches!(tx.tx_type, TransactionType::Deposit { .. }))
+            .count();
+        assert_eq!(deposit_count, 2, "two deposits should be recorded");
+    }
+
     // REQ: wallet-int-002 — full payment lifecycle: deposit → encumber → consume → report
     #[test]
     fn end_to_end_payment_lifecycle() {
@@ -1298,5 +1387,142 @@ mod tests {
             balance.rjoules, 9_500,
             "wallet balance after release + refund"
         );
+    }
+
+    // ── Withdrawal pipeline tests ─────────────────────────────────────────
+
+    // REQ: wallet-int-003 — withdraw full pipeline: debit → build → sign → submit → record
+    #[tokio::test]
+    async fn withdraw_full_pipeline_success() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let mgr = make_manager();
+        let wallet_id = WalletId::from_name("withdraw_test");
+        mgr.store.ensure_wallet(wallet_id).unwrap();
+        mgr.store
+            .credit_rjoules(wallet_id, RJoule::new(10_000))
+            .unwrap();
+
+        let balance_before = mgr.get_balance(wallet_id).unwrap();
+        assert_eq!(balance_before.rjoules, 10_000);
+
+        // Execute withdrawal
+        let tx_hash = mgr
+            .withdraw(
+                wallet_id,
+                RJoule::new(2_000),
+                "recipient_addr_123",
+                ChainId::Solana,
+                PrivacyMode::Transparent,
+            )
+            .await
+            .unwrap();
+
+        // Verify tx_hash returned
+        assert_eq!(tx_hash.0, "mock_hash");
+
+        // Verify balance debited
+        let balance_after = mgr.get_balance(wallet_id).unwrap();
+        assert_eq!(balance_after.rjoules, 8_000, "10_000 - 2_000 = 8_000");
+
+        // Verify transaction recorded in ledger
+        let txs = mgr.get_transactions(wallet_id, 10, 0).unwrap();
+        let withdrawal_tx = txs
+            .iter()
+            .find(|tx| matches!(tx.tx_type, TransactionType::Withdrawal { .. }));
+        assert!(
+            withdrawal_tx.is_some(),
+            "withdrawal transaction should be in ledger"
+        );
+        let wtx = withdrawal_tx.unwrap();
+        assert_eq!(wtx.rjoules_delta, -2000, "debit of 2000 rJ");
+        assert_eq!(wtx.balance_after, 8000, "balance after withdrawal");
+    }
+
+    // REQ: wallet-int-004 — withdraw rejects insufficient balance
+    #[tokio::test]
+    async fn withdraw_rejects_insufficient_balance() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let mgr = make_manager();
+        let wallet_id = WalletId::from_name("insufficient_test");
+        mgr.store.ensure_wallet(wallet_id).unwrap();
+        mgr.store
+            .credit_rjoules(wallet_id, RJoule::new(500))
+            .unwrap();
+
+        let result = mgr
+            .withdraw(
+                wallet_id,
+                RJoule::new(10_000), // more than balance
+                "recipient_addr",
+                ChainId::Solana,
+                PrivacyMode::Transparent,
+            )
+            .await;
+
+        assert!(
+            result.is_err(),
+            "withdraw should fail with insufficient balance"
+        );
+        match result {
+            Err(WalletError::InsufficientBalance { .. }) => {} // expected
+            other => panic!("expected InsufficientBalance, got {:?}", other),
+        }
+
+        // Verify balance unchanged
+        let balance = mgr.get_balance(wallet_id).unwrap();
+        assert_eq!(
+            balance.rjoules, 500,
+            "balance should be unchanged after failed withdrawal"
+        );
+    }
+
+    // REQ: wallet-int-005 — withdraw rejects unsupported chain
+    #[tokio::test]
+    async fn withdraw_rejects_unsupported_chain() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let mgr = make_manager();
+        let wallet_id = WalletId::from_name("chain_test");
+        mgr.store.ensure_wallet(wallet_id).unwrap();
+        mgr.store
+            .credit_rjoules(wallet_id, RJoule::new(10_000))
+            .unwrap();
+
+        // make_manager only registers Solana — Hedera should fail
+        let result = mgr
+            .withdraw(
+                wallet_id,
+                RJoule::new(1_000),
+                "recipient_addr",
+                ChainId::Hedera,
+                PrivacyMode::Transparent,
+            )
+            .await;
+
+        assert!(
+            result.is_err(),
+            "withdraw to unregistered chain should fail"
+        );
+        match result {
+            Err(WalletError::ChainNotEnabled { .. }) => {} // expected
+            other => panic!("expected ChainNotEnabled, got {:?}", other),
+        }
     }
 }

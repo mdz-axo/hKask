@@ -233,7 +233,9 @@ mod tests {
         let wallet_id = WalletId::new();
         let key_id = ApiKeyId::new();
 
-        store.credit_rjoules(wallet_id, RJoule::new(10_000)).unwrap();
+        store
+            .credit_rjoules(wallet_id, RJoule::new(10_000))
+            .unwrap();
 
         let capability = ApiKeyCapability {
             wallet_id,
@@ -286,6 +288,81 @@ mod tests {
         assert!(
             !budget.can_proceed(EnergyCost(1_000)),
             "exhausted key must be rejected by wallet-backed budget"
+        );
+    }
+
+    // REQ: cns-wallet-budget-003 — can_proceed succeeds with sufficient encumbrance
+    #[test]
+    fn wallet_budget_allows_spend_within_encumbrance() {
+        let budget = make_wallet_budget_with_key(0, 5_000);
+        // 1000 gas at gas_per_rjoule=1000 → 1 rJ. Encumbrance has 2000 rJ.
+        assert!(
+            budget.can_proceed(EnergyCost(1_000)),
+            "spend within encumbrance should be allowed"
+        );
+        // 2_000_000 gas → 2000 rJ — exactly the encumbrance amount
+        assert!(
+            budget.can_proceed(EnergyCost(2_000_000)),
+            "spend equal to encumbrance should be allowed"
+        );
+    }
+
+    // REQ: cns-wallet-budget-004 — can_proceed rejects spend exceeding encumbrance
+    #[test]
+    fn wallet_budget_rejects_spend_exceeding_encumbrance() {
+        let budget = make_wallet_budget_with_key(0, 5_000);
+        // 3_000_000 gas → 3000 rJ. Encumbrance has only 2000 rJ.
+        assert!(
+            !budget.can_proceed(EnergyCost(3_000_000)),
+            "spend exceeding encumbrance must be rejected"
+        );
+    }
+
+    // REQ: cns-wallet-budget-005 — check_key_health returns correct exhaustion/expiry
+    #[test]
+    fn check_key_health_reports_exhaustion_and_expiry() {
+        let budget = make_wallet_budget_with_key(1_000, 1_000);
+        let health = budget.check_key_health().unwrap();
+        assert!(
+            health.exhausted,
+            "key at spending limit should be exhausted"
+        );
+        assert!(!health.expired, "key without expiry should not be expired");
+        assert_eq!(health.spent_rj, 1_000);
+        assert_eq!(health.limit_rj, 1_000);
+    }
+
+    // REQ: cns-wallet-budget-006 — reserve + settle full flow with encumbrance
+    #[test]
+    fn wallet_budget_reserve_settle_flow() {
+        let budget = make_wallet_budget_with_key(0, 5_000);
+        // Reserve 1000 gas (1 rJ)
+        let reserved = budget.reserve(EnergyCost(1_000)).unwrap();
+        assert_eq!(reserved.0, 1_000);
+
+        // Settle with actual = reserved (exact match)
+        let settled = budget.settle(reserved, EnergyCost(1_000)).unwrap();
+        assert_eq!(settled.0, 1_000);
+
+        // Verify encumbrance was debited: 2000 - 1 = 1999 remaining
+        let key_id = budget.key_id.unwrap();
+        let enc = budget
+            .wallet_manager
+            .get_encumbrance(key_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(enc.remaining_rj(), 1_999, "1 rJ consumed from encumbrance");
+    }
+
+    // REQ: cns-wallet-budget-007 — reserve rejects when encumbrance insufficient
+    #[test]
+    fn wallet_budget_reserve_rejects_insufficient_encumbrance() {
+        let budget = make_wallet_budget_with_key(0, 5_000);
+        // 3_000_000 gas → 3000 rJ, but encumbrance only has 2000
+        let result = budget.reserve(EnergyCost(3_000_000));
+        assert!(
+            result.is_err(),
+            "reserve should fail when encumbrance insufficient"
         );
     }
 }

@@ -10,7 +10,10 @@
 
 use std::sync::Arc;
 
+use hkask_agents::consent::ConsentManager;
 use hkask_cns::CyberneticsLoop;
+use hkask_types::WebID;
+use hkask_types::sovereignty::DataCategory;
 use hkask_types::wallet::{
     ApiKeyCapability, ApiKeyId, ApiKeyMaterial, ChainId, DepositAddress, DepositReference,
     PrivacyMode, RJoule, TxHash, WalletBalance, WalletId, WalletTransaction,
@@ -24,6 +27,7 @@ use crate::ServiceError;
 ///
 /// Wraps `WalletManager` and `ApiKeyIssuer` behind a clean interface.
 /// Optionally integrates with CNS for wallet-backed energy budget registration.
+/// Optionally enforces P2 affirmative consent for withdrawal signing (MUST-4).
 /// Constructed during startup — never created directly by surfaces.
 #[derive(Clone)]
 pub struct WalletService {
@@ -31,6 +35,9 @@ pub struct WalletService {
     issuer: Arc<ApiKeyIssuer>,
     /// Optional CNS loop for registering wallet-backed budgets.
     cybernetics: Option<Arc<RwLock<CyberneticsLoop>>>,
+    /// Optional consent manager for P2 affirmative consent (MUST-4).
+    /// When `None`, withdrawal proceeds without consent check (backward compatible).
+    consent_manager: Option<Arc<ConsentManager>>,
 }
 
 impl WalletService {
@@ -40,6 +47,7 @@ impl WalletService {
             manager,
             issuer,
             cybernetics: None,
+            consent_manager: None,
         }
     }
 
@@ -47,6 +55,17 @@ impl WalletService {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_cybernetics(mut self, loop_: Arc<RwLock<CyberneticsLoop>>) -> Self {
         self.cybernetics = Some(loop_);
+        self
+    }
+
+    /// Attach a ConsentManager for P2 affirmative consent enforcement (MUST-4).
+    ///
+    /// When configured, withdrawal operations require explicit user consent
+    /// via `DataCategory::Custom("wallet_withdrawal")`. Without a consent manager,
+    /// withdrawals proceed unchecked (backward compatible for standalone mode).
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_consent_manager(mut self, cm: Arc<ConsentManager>) -> Self {
+        self.consent_manager = Some(cm);
         self
     }
 
@@ -145,14 +164,42 @@ impl WalletService {
     // ── Withdrawal ───────────────────────────────────────────────────────────
 
     /// Withdraw rJoules as USDC to a user's primary wallet address.
+    ///
+    /// REQ: MUST-4 — requires P2 affirmative consent when ConsentManager is configured.
+    /// pre:  webid identifies the user requesting the withdrawal
+    /// post: if consent_manager is Some and consent denied → Err(ConsentDenied)
+    /// post: if consent_manager is None → proceeds without consent check (backward compat)
     pub async fn withdraw(
         &self,
+        webid: &WebID,
         wallet_id: WalletId,
         amount_rj: RJoule,
         to_address: &str,
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<TxHash, ServiceError> {
+        // REQ: MUST-4 — P2 affirmative consent gate for withdrawal signing
+        if let Some(ref cm) = self.consent_manager {
+            let category = DataCategory::Custom("wallet_withdrawal".into());
+            let has_consent = cm.has_consent(&webid.to_string(), &category).map_err(|e| {
+                ServiceError::ConsentDenied {
+                    message: format!(
+                        "Consent check failed for {}: {e}. Denying wallet withdrawal by default",
+                        webid
+                    ),
+                }
+            })?;
+            if !has_consent {
+                return Err(ServiceError::ConsentDenied {
+                    message: format!(
+                        "User {} has not granted consent for wallet withdrawal. \
+                         Grant consent with: kask sovereignty grant {} wallet_withdrawal",
+                        webid, webid
+                    ),
+                });
+            }
+        }
+
         self.manager
             .withdraw(wallet_id, amount_rj, to_address, chain, privacy)
             .await

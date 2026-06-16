@@ -399,4 +399,381 @@ mod tests {
             "expected SpendingLimitExceeded, got {err:?}"
         );
     }
+
+    // REQ: wallet-api-auth-004 — authentication fails when encumbrance is consumed, even if key limit remains
+    #[test]
+    fn authenticate_rejects_consumed_encumbrance() {
+        // SAFETY: test-only setup for deterministic wallet manager construction.
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let manager = Arc::new(
+            WalletManager::build(
+                WalletConfig::default(),
+                Arc::clone(&store),
+                Default::default(),
+                None,
+            )
+            .unwrap(),
+        );
+        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).unwrap());
+        let wallet_service = Arc::new(WalletService::new(manager, issuer));
+
+        let wallet_id = WalletId::new();
+        store.ensure_wallet(wallet_id).unwrap();
+        store.credit_rjoules(wallet_id, RJoule::new(2_000)).unwrap();
+
+        let key_id = ApiKeyId::new();
+        let private_key = [99u8; 32];
+        let signing_key = SigningKey::from_bytes(&private_key);
+        let public_key = signing_key.verifying_key().to_bytes();
+
+        let capability = ApiKeyCapability {
+            wallet_id,
+            key_id,
+            public_key: Ed25519PublicKey(public_key),
+            spending_limit_rj: RJoule::new(1_000),
+            spent_rj: RJoule::new(100),
+            scope: vec![],
+            purpose: "middleware consumed encumbrance test key".into(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&capability).unwrap();
+
+        store
+            .encumber_rjoules(wallet_id, key_id, RJoule::new(300))
+            .unwrap();
+        store.consume_encumbrance(key_id, RJoule::new(300)).unwrap();
+
+        let auth = ApiKeyAuthService::new(store, wallet_service);
+        let request = Request::builder()
+            .uri("/api/wallet/balance")
+            .header(
+                "Authorization",
+                format!("Bearer {}", hex::encode(private_key)),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let err = auth.authenticate(&request).unwrap_err();
+        assert!(
+            matches!(err, ApiKeyAuthError::PaymentRequired(ref msg) if msg.contains("not active")),
+            "expected PaymentRequired for inactive/consumed encumbrance, got {err:?}"
+        );
+    }
+
+    // REQ: wallet-api-auth-001 — valid API key authenticates successfully
+    #[test]
+    fn authenticate_valid_key_succeeds() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let manager = Arc::new(
+            WalletManager::build(
+                WalletConfig::default(),
+                Arc::clone(&store),
+                Default::default(),
+                None,
+            )
+            .unwrap(),
+        );
+        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).unwrap());
+        let wallet_service = Arc::new(WalletService::new(manager, issuer));
+
+        let wallet_id = WalletId::new();
+        store.ensure_wallet(wallet_id).unwrap();
+        store.credit_rjoules(wallet_id, RJoule::new(5_000)).unwrap();
+
+        let key_id = ApiKeyId::new();
+        let private_key = [77u8; 32];
+        let signing_key = SigningKey::from_bytes(&private_key);
+        let public_key = signing_key.verifying_key().to_bytes();
+
+        let capability = ApiKeyCapability {
+            wallet_id,
+            key_id,
+            public_key: Ed25519PublicKey(public_key),
+            spending_limit_rj: RJoule::new(1_000),
+            spent_rj: RJoule::ZERO,
+            scope: vec![],
+            purpose: "valid key test".into(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&capability).unwrap();
+        // Encumber rJoules so the key has spendable balance
+        store
+            .encumber_rjoules(wallet_id, key_id, RJoule::new(500))
+            .unwrap();
+
+        let auth = ApiKeyAuthService::new(store, wallet_service);
+        let request = Request::builder()
+            .uri("/api/wallet/balance")
+            .header(
+                "Authorization",
+                format!("Bearer {}", hex::encode(private_key)),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let ctx = auth.authenticate(&request).unwrap();
+        assert_eq!(ctx.wallet_id, wallet_id);
+        assert_eq!(ctx.key_id, key_id);
+        assert_eq!(ctx.spending_limit_rj.as_u64(), 1_000);
+        assert_eq!(ctx.spent_rj.as_u64(), 0);
+    }
+
+    // REQ: wallet-api-auth-005 — authentication rejects expired key
+    #[test]
+    fn authenticate_rejects_expired_key() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let manager = Arc::new(
+            WalletManager::build(
+                WalletConfig::default(),
+                Arc::clone(&store),
+                Default::default(),
+                None,
+            )
+            .unwrap(),
+        );
+        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).unwrap());
+        let wallet_service = Arc::new(WalletService::new(manager, issuer));
+
+        let wallet_id = WalletId::new();
+        store.ensure_wallet(wallet_id).unwrap();
+
+        let key_id = ApiKeyId::new();
+        let private_key = [88u8; 32];
+        let signing_key = SigningKey::from_bytes(&private_key);
+        let public_key = signing_key.verifying_key().to_bytes();
+
+        let capability = ApiKeyCapability {
+            wallet_id,
+            key_id,
+            public_key: Ed25519PublicKey(public_key),
+            spending_limit_rj: RJoule::new(1_000),
+            spent_rj: RJoule::ZERO,
+            scope: vec![],
+            purpose: "expired key test".into(),
+            rate_limit: None,
+            expiry: Some(chrono::Utc::now() - chrono::Duration::days(1)), // yesterday
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&capability).unwrap();
+
+        let auth = ApiKeyAuthService::new(store, wallet_service);
+        let request = Request::builder()
+            .uri("/api/wallet/balance")
+            .header(
+                "Authorization",
+                format!("Bearer {}", hex::encode(private_key)),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let err = auth.authenticate(&request).unwrap_err();
+        assert!(
+            matches!(err, ApiKeyAuthError::KeyExpired),
+            "expected KeyExpired, got {err:?}"
+        );
+    }
+
+    // REQ: wallet-api-auth-006 — authentication rejects revoked key
+    #[test]
+    fn authenticate_rejects_revoked_key() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let manager = Arc::new(
+            WalletManager::build(
+                WalletConfig::default(),
+                Arc::clone(&store),
+                Default::default(),
+                None,
+            )
+            .unwrap(),
+        );
+        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).unwrap());
+        let wallet_service = Arc::new(WalletService::new(manager, issuer));
+
+        let wallet_id = WalletId::new();
+        store.ensure_wallet(wallet_id).unwrap();
+
+        let key_id = ApiKeyId::new();
+        let private_key = [99u8; 32];
+        let signing_key = SigningKey::from_bytes(&private_key);
+        let public_key = signing_key.verifying_key().to_bytes();
+
+        let capability = ApiKeyCapability {
+            wallet_id,
+            key_id,
+            public_key: Ed25519PublicKey(public_key),
+            spending_limit_rj: RJoule::new(1_000),
+            spent_rj: RJoule::ZERO,
+            scope: vec![],
+            purpose: "revoked key test".into(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&capability).unwrap();
+        store.revoke_api_key(key_id).unwrap();
+
+        let auth = ApiKeyAuthService::new(store, wallet_service);
+        let request = Request::builder()
+            .uri("/api/wallet/balance")
+            .header(
+                "Authorization",
+                format!("Bearer {}", hex::encode(private_key)),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let err = auth.authenticate(&request).unwrap_err();
+        assert!(
+            matches!(err, ApiKeyAuthError::UnknownApiKey),
+            "expected UnknownApiKey for revoked key, got {err:?}"
+        );
+    }
+
+    // REQ: wallet-api-auth-007 — authentication rejects missing Authorization header
+    #[test]
+    fn authenticate_rejects_missing_authorization() {
+        let (auth, _token) = make_auth_service_with_key(0, 1_000);
+        let request = Request::builder()
+            .uri("/api/wallet/balance")
+            .body(Body::empty())
+            .unwrap();
+
+        let err = auth.authenticate(&request).unwrap_err();
+        assert!(
+            matches!(err, ApiKeyAuthError::MissingAuthorization),
+            "expected MissingAuthorization, got {err:?}"
+        );
+    }
+
+    // REQ: wallet-api-auth-008 — authentication rejects invalid Bearer token format
+    #[test]
+    fn authenticate_rejects_invalid_token_format() {
+        let (auth, _token) = make_auth_service_with_key(0, 1_000);
+        // Not hex-encoded
+        let request = Request::builder()
+            .uri("/api/wallet/balance")
+            .header("Authorization", "Bearer not-hex-data!!!")
+            .body(Body::empty())
+            .unwrap();
+
+        let err = auth.authenticate(&request).unwrap_err();
+        assert!(
+            matches!(err, ApiKeyAuthError::InvalidKeyFormat),
+            "expected InvalidKeyFormat, got {err:?}"
+        );
+    }
+
+    // REQ: wallet-api-auth-009 — authentication rejects scope violation
+    #[test]
+    fn authenticate_rejects_scope_violation() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        let manager = Arc::new(
+            WalletManager::build(
+                WalletConfig::default(),
+                Arc::clone(&store),
+                Default::default(),
+                None,
+            )
+            .unwrap(),
+        );
+        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).unwrap());
+        let wallet_service = Arc::new(WalletService::new(manager, issuer));
+
+        let wallet_id = WalletId::new();
+        store.ensure_wallet(wallet_id).unwrap();
+        store.credit_rjoules(wallet_id, RJoule::new(5_000)).unwrap();
+
+        let key_id = ApiKeyId::new();
+        let private_key = [55u8; 32];
+        let signing_key = SigningKey::from_bytes(&private_key);
+        let public_key = signing_key.verifying_key().to_bytes();
+
+        let capability = ApiKeyCapability {
+            wallet_id,
+            key_id,
+            public_key: Ed25519PublicKey(public_key),
+            spending_limit_rj: RJoule::new(1_000),
+            spent_rj: RJoule::ZERO,
+            scope: vec!["/api/specs".to_string()], // only specs endpoint
+            purpose: "scope test key".into(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        store.store_api_key(&capability).unwrap();
+        store
+            .encumber_rjoules(wallet_id, key_id, RJoule::new(500))
+            .unwrap();
+
+        let auth = ApiKeyAuthService::new(store, wallet_service);
+        // Request a path outside the key's scope
+        let request = Request::builder()
+            .uri("/api/wallet/balance") // not in "/api/specs" scope
+            .header(
+                "Authorization",
+                format!("Bearer {}", hex::encode(private_key)),
+            )
+            .body(Body::empty())
+            .unwrap();
+
+        let err = auth.authenticate(&request).unwrap_err();
+        assert!(
+            matches!(err, ApiKeyAuthError::ScopeViolation { .. }),
+            "expected ScopeViolation, got {err:?}"
+        );
+    }
 }
