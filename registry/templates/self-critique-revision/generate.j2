@@ -1,12 +1,10 @@
 [inference]
-template_type: FlowDef
+template_type: WordAct
 lexicon_terms:
-- generate
-- draft
-- produce
-- initial
-- quality
-- baseline
+- create
+- specify
+- report
+- propose
 contract:
   input:
     task_prompt: string
@@ -18,8 +16,9 @@ contract:
 energy_cap: 4096
 visibility: Shared
 ---
+{# goal: Produce an initial draft response to a task prompt, with an honest self-assessed quality score, as the first step of an iterative revision cycle. #}
 {# Template: self-critique-revision/generate.j2 #}
-{# Process — Initial output generation #}
+{# WordAct — Initial draft generation #}
 {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]

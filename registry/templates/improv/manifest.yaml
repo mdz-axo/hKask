@@ -22,6 +22,7 @@ templates:
   - id: improv/improv-plussing
     path: improv-plussing.j2
     type: WordAct
+    lexicon_terms: [prompt, acknowledge, affirm, adapt, propose]
     description: >
       Plussing (Catmull) — Extract agreeable components from a contribution,
       silently discard the remainder, and build constructively on selected seeds.
@@ -30,6 +31,7 @@ templates:
   - id: improv/improv-yes-and
     path: improv-yes-and.j2
     type: WordAct
+    lexicon_terms: [prompt, affirm, amplify, claim, propose]
     description: >
       Yes And — Accept the whole contribution and extend it with a novel,
       additive layer. Extension must be additive, not substitutive.
@@ -37,6 +39,7 @@ templates:
   - id: improv/improv-yes-but
     path: improv-yes-but.j2
     type: WordAct
+    lexicon_terms: [prompt, affirm, constrain, discriminate, propose]
     description: >
       Yes But — Accept the whole contribution and append a constraint or
       redirect that narrows scope without contradicting.
@@ -44,6 +47,7 @@ templates:
   - id: improv/improv-freestyling
     path: improv-freestyling.j2
     type: WordAct
+    lexicon_terms: [prompt, query, challenge, transform, synthesize]
     description: >
       Freestyling — Rapid collaborative short-response cycling among
       participants. Time-bounded, no single owner, round-robin turns.
@@ -51,6 +55,27 @@ templates:
   - id: improv/improv-riffing
     path: improv-riffing.j2
     type: WordAct
+    lexicon_terms: [prompt, query, explore, transform, synthesize]
     description: >
       Riffing — Solo divergent exploration from a seed contribution.
       May return to group with synthesis or spawn a new thread.
+
+hlexicon_terms:
+  - select
+  - compose
+  - route
+  - improvise
+  - adapt
+  - prompt
+  - acknowledge
+  - affirm
+  - propose
+  - amplify
+  - claim
+  - constrain
+  - discriminate
+  - query
+  - challenge
+  - transform
+  - synthesize
+  - explore

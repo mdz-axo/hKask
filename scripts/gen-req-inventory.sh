@@ -82,7 +82,7 @@ for dir in crates/hkask-* mcp-servers/mcp-*; do
     echo "### $crate ($count contracts)" >> "$TMP"
     echo "" >> "$TMP"
 
-    grep -rn "/// REQ:" "$dir/src/"*.rs 2>/dev/null | while IFS=: read -r file line rest; do
+    grep -rnH "/// REQ:" "$dir/src/"*.rs 2>/dev/null | while IFS=: read -r file line rest; do
         id=$(echo "$rest" | sed 's/^[[:space:]]*\/\/\/ REQ: //' | sed 's/^[[:space:]]*//')
         id_clean=$(echo "$id" | tr -d '[:space:]')
 

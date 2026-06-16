@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 # REQ Contract Inventory
 
-**Purpose:** Catalog of every `/// REQ:` contract on public functions across crates and MCP servers. Each entry shows the REQ ID, its contract terms (pre/post/inv), and the function it annotates. This is the raw material for designing the rSolidity contract vocabulary.
+**Purpose:** Catalog of every `/// REQ:` or `// REQ:` contract on public functions across crates and MCP servers. Each entry shows the REQ ID, its contract terms (pre/post/inv), and the function it annotates. This is the raw material for the rSolidity contract vocabulary.
 
 ## Summary by Crate
 
@@ -19,16 +19,18 @@ mds_categories: [domain, composition, trust, lifecycle]
 | hkask-agents | 30 | Agent runtime |
 | hkask-api | 8 | API surface |
 | hkask-cli | 2 | CLI surface |
-| hkask-cns | 91 | CNS observability |
+| hkask-cns | 92 | CNS observability |
 | hkask-communication | 25 | Communication |
 | hkask-inference | 86 | Inference |
 | hkask-keystore | 28 | Keystore |
 | hkask-mcp | 41 | MCP framework |
 | hkask-memory | 52 | Memory |
-| hkask-services | 208 | Service layer |
+| hkask-rsolidity | 1 | Other |
+| hkask-rsolidity-macros | 2 | Other |
+| hkask-services | 211 | Service layer |
 | hkask-storage | 195 | Storage |
-| hkask-templates | 52 | Templates |
-| hkask-test-harness | 42 | Test harness |
+| hkask-templates | 53 | Templates |
+| hkask-test-harness | 44 | Test harness |
 | hkask-types | 99 | Type system |
 | hkask-wallet | 27 | Wallet |
 
@@ -324,7 +326,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-cli/src/onboarding.rs:225
 
 
-### hkask-cns (91 contracts)
+### hkask-cns (92 contracts)
 
 #### P9-cns-algedonic-alert-new (🟢 full)
 
@@ -534,88 +536,88 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ✅ anchored
 - **Post:** result.0 == value
-- **File:** crates/hkask-cns/src/energy.rs:35
+- **File:** crates/hkask-cns/src/energy.rs:36
 
 #### P8-cns-energy-cost-as-raw (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** result == self.0
-- **File:** crates/hkask-cns/src/energy.rs:45
+- **File:** crates/hkask-cns/src/energy.rs:46
 
 #### P8-cns-energy-delta-from-raw (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** result.0 == value
-- **File:** crates/hkask-cns/src/energy.rs:111
+- **File:** crates/hkask-cns/src/energy.rs:112
 
 #### P8-cns-energy-delta-as-raw (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** result == self.0
-- **File:** crates/hkask-cns/src/energy.rs:121
+- **File:** crates/hkask-cns/src/energy.rs:122
 
 #### P9-cns-energy-delta-descending (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** result == (self.0 <= 0.0)
-- **File:** crates/hkask-cns/src/energy.rs:133
+- **File:** crates/hkask-cns/src/energy.rs:134
 
 #### P9-cns-energy-delta-ascending (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** result == (self.0 > 0.0);is_ascending() == !is_descending()  self.0 == 0.0
-- **File:** crates/hkask-cns/src/energy.rs:143
+- **File:** crates/hkask-cns/src/energy.rs:144
 
 #### P9-cns-energy-budget-invariant (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Inv:** remaining + reserved ≤ cap (budget cap invariant);remaining ≥ 0, reserved ≥ 0
-- **File:** crates/hkask-cns/src/energy.rs:194
+- **File:** crates/hkask-cns/src/energy.rs:195
 
 #### P9-cns-energy-budget-new (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  cap > 0
 - **Post:** remaining == cap, reserved == 0, hard_limit == true;replenish_rate == cap / 10, alert_threshold == DEFAULT_ENERGY_ALERT_THRESHOLD
-- **File:** crates/hkask-cns/src/energy.rs:227
+- **File:** crates/hkask-cns/src/energy.rs:229
 
 #### P9-cns-energy-budget-unlimited (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** cap == u64::MAX, hard_limit == false
-- **File:** crates/hkask-cns/src/energy.rs:250
+- **File:** crates/hkask-cns/src/energy.rs:253
 
 #### P9-cns-energy-budget-with-replenish-rate (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** self.replenish_rate == rate
-- **File:** crates/hkask-cns/src/energy.rs:263
+- **File:** crates/hkask-cns/src/energy.rs:267
 
 #### P9-cns-energy-budget-with-alert-threshold (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  threshold is a valid ratio
 - **Post:** self.alert_threshold == threshold.clamp(0.0, 1.0)
-- **File:** crates/hkask-cns/src/energy.rs:274
+- **File:** crates/hkask-cns/src/energy.rs:279
 
 #### P9-cns-energy-budget-with-hard-limit (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** self.hard_limit == hard
-- **File:** crates/hkask-cns/src/energy.rs:286
+- **File:** crates/hkask-cns/src/energy.rs:292
 
 #### P9-cns-energy-budget-can-proceed (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  gas is a valid EnergyCost
 - **Post:** returns true iff gas <= available OR hard_limit is false
-- **File:** crates/hkask-cns/src/energy.rs:297
+- **File:** crates/hkask-cns/src/energy.rs:304
 
 #### P9-cns-energy-budget-available (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** [NORMATIVE] post: result >= 0 (available never negative) (P9 — Homeostatic Self-Regulation);result == remaining.saturating_sub(reserved)
-- **File:** crates/hkask-cns/src/energy.rs:310
+- **File:** crates/hkask-cns/src/energy.rs:318
 
 #### P9-cns-energy-budget-reserve (🟢 full)
 
@@ -623,14 +625,14 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Pre:**  gas is a valid EnergyCost
 - **Post:** if hard_limit && gas > available → Err(BudgetExceeded);if Ok → reserved increased by gas, remaining unchanged
 - **Inv:**  remaining + reserved ≤ cap (maintained)
-- **File:** crates/hkask-cns/src/energy.rs:321
+- **File:** crates/hkask-cns/src/energy.rs:330
 
 #### P9-cns-energy-budget-settle (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:** [NORMATIVE] pre:  reserved_gas ≤ self.reserved (caller must track reservations) (P9 — Homeostatic Self-Regulation)
 - **Post:** reserved decreased by reserved_gas;if hard_limit && actual > remaining → Err(BudgetExceeded);if Ok → remaining decreased by actual
-- **File:** crates/hkask-cns/src/energy.rs:346
+- **File:** crates/hkask-cns/src/energy.rs:359
 
 #### P9-cns-energy-budget-consume (🟢 full)
 
@@ -638,27 +640,27 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Pre:**  gas is a valid EnergyCost
 - **Post:** if hard_limit && gas > remaining → Err(BudgetExceeded);if Ok → remaining decreased by gas
 - **Inv:**  remaining + reserved ≤ cap (maintained)
-- **File:** crates/hkask-cns/src/energy.rs:383
+- **File:** crates/hkask-cns/src/energy.rs:400
 
 #### P9-cns-energy-budget-replenish (🟡 partial)
 
 - **Principle:** ✅ anchored
 - **Post:** remaining ≤ cap (never exceeds cap);if replenish_rate > 0 → remaining increased by up to replenish_rate
-- **File:** crates/hkask-cns/src/energy.rs:406
+- **File:** crates/hkask-cns/src/energy.rs:427
 
 #### P9-cns-energy-budget-replenish-by (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  amount is a valid EnergyCost
 - **Post:** remaining ≤ cap (never exceeds cap);remaining increased by up to amount
-- **File:** crates/hkask-cns/src/energy.rs:427
+- **File:** crates/hkask-cns/src/energy.rs:449
 
 #### P9-cns-energy-budget-replenish-by-weighted (🟢 full)
 
 - **Principle:** ✅ anchored
 - **Pre:**  amount is a valid EnergyCost, priority in [0.0, 1.0]
 - **Post:** remaining ≤ cap (never exceeds cap);returns the actual amount replenished (≥ 1 if amount * priority > 0)
-- **File:** crates/hkask-cns/src/energy.rs:439
+- **File:** crates/hkask-cns/src/energy.rs:462
 
 #### GAS-CALIB-003—GasReportsettledeventsfeedDynamicGasTable (🟢 full)
 
@@ -884,40 +886,47 @@ mds_categories: [domain, composition, trust, lifecycle]
 #### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🔴 bare)
 
 - **Principle:** ⚠ unanchored
-- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:23
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:25
 
 #### GAS-CALIB-005 (🔴 bare)
 
 - **Principle:** ⚠ unanchored
-- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:28
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:30
 
 #### GAS-CALIB-005—runtimecalibrationofwalletgasconversionrate (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  store is a valid NuEventStore; wallet_manager is valid
-- **Post:** returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate;first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
-- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:49
+- **Post:** returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate;first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`;no event sink attached until `with_event_sink` is called
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:53
 
 #### GAS-CALIB-005 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  lookback is a positive duration
 - **Post:** first calibration will search [Utc::now() - lookback, Utc::now()]
-- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:67
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:73
+
+#### GAS-CALIB-005-obs—walletrateadjustmentsemitcns.wallet.conversionspans (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  sink is a valid NuEventSink
+- **Post:** subsequent successful calibrations that adjust the rate emit a span
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:85
 
 #### GAS-CALIB-005 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  `self.store` is a valid NuEventStore; `self.wallet_manager` is valid
 - **Post:** if settled events exist and the aggregate ratio exceeds tolerance,;returns true if the rate was adjusted
-- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:84
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:101
 
 #### GAS-CALIB-005 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  interval > 0
 - **Post:** a Tokio task is spawned; it calls `calibrate()` every `interval`
-- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:138
+- **File:** crates/hkask-cns/src/wallet_gas_calibrator.rs:194
 
 
 ### hkask-communication (25 contracts)
@@ -1093,560 +1102,560 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 ### hkask-inference (86 contracts)
 
-#### INFER-026 (🟢 full)
+#### P9-inf-build-chat-request (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is non-empty, prompt is non-empty
 - **Post:** returns serde_json::Value with model, messages, and parameters
 - **File:** crates/hkask-inference/src/chat_protocol.rs:71
 
-#### INFER-027 (🟢 full)
+#### P9-inf-map-tool-calls (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  calls is a valid slice of RawToolCall
 - **Post:** returns Vec<StructuredToolCall> with parsed arguments
-- **File:** crates/hkask-inference/src/chat_protocol.rs:201
+- **File:** crates/hkask-inference/src/chat_protocol.rs:202
 
-#### INFER-028 (🟢 full)
+#### P9-inf-map-token-probs (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  probs is a valid slice of RawTokenProb
 - **Post:** returns Vec<TokenProbability> with mapped fields
-- **File:** crates/hkask-inference/src/chat_protocol.rs:227
+- **File:** crates/hkask-inference/src/chat_protocol.rs:229
 
-#### INFER-029 (🟢 full)
+#### P9-inf-chat-response-to-result (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  response is a valid ChatResponse
 - **Post:** returns Ok(InferenceResult) with text, usage, finish_reason;returns Err if no choices in response
-- **File:** crates/hkask-inference/src/chat_protocol.rs:251
+- **File:** crates/hkask-inference/src/chat_protocol.rs:254
 
-#### INFER-030 (🟢 full)
+#### P9-inf-parse-sse-stream (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  stream is a valid SSE byte stream
 - **Post:** returns stream of InferenceStreamChunk parsed from SSE data lines
-- **File:** crates/hkask-inference/src/chat_protocol.rs:287
+- **File:** crates/hkask-inference/src/chat_protocol.rs:291
 
-#### INFER-001 (🟢 full)
+#### P9-inf-validate-prompt (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prompt is a valid &str
 - **Post:** returns Err(Generation) if prompt is empty;returns Err(Generation) if prompt.len() > 1_000_000
-- **File:** crates/hkask-inference/src/chat_protocol.rs:351
+- **File:** crates/hkask-inference/src/chat_protocol.rs:356
 
-#### chat-proto-001—ChatResponsedeserializesOpenAI-compatibleformat (🔴 bare)
+#### P9-inf-test-chat-response-deserializes—ChatResponsedeserializesOpenAI-compatibleformat (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/chat_protocol.rs:369
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/chat_protocol.rs:375
 
-#### chat-proto-002—build_chat_requestproducesvalidJSONwithstream:false (🔴 bare)
+#### P9-inf-test-build-chat-request-stream-false—build_chat_requestproducesvalidJSONwithstream:false (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/chat_protocol.rs:405
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/chat_protocol.rs:412
 
-#### chat-proto-003—validate_promptrejectsemptyandoverlongprompts (🔴 bare)
+#### P9-inf-test-validate-prompt-rejects—validate_promptrejectsemptyandoverlongprompts (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/chat_protocol.rs:435
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/chat_protocol.rs:443
 
-#### chat-proto-004—disable_thinkingmapstoenable_thinking:falseinwireformat (🔴 bare)
+#### P9-inf-test-disable-thinking-wire—disable_thinkingmapstoenable_thinking:falseinwireformat (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/chat_protocol.rs:442
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/chat_protocol.rs:451
 
-#### chat-proto-005—enable_thinkingisomittedfromJSONwhentrue(default) (🔴 bare)
+#### P9-inf-test-enable-thinking-omitted—enable_thinkingisomittedfromJSONwhentrue(default) (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/chat_protocol.rs:463
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/chat_protocol.rs:473
 
-#### INFER-021 (🟢 full)
+#### P9-inf-parse-provider-from-model (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is non-empty
 - **Post:** returns Some((ProviderId, stripped_model)) for OM/, DI/, FA/, TG/ prefixes;returns None for unrecognized or missing prefix
 - **File:** crates/hkask-inference/src/config.rs:59
 
-#### INFER-022 (🟢 full)
+#### P9-inf-prefix-model (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is non-empty
 - **Post:** returns "{prefix}/{model}" string
-- **File:** crates/hkask-inference/src/config.rs:87
+- **File:** crates/hkask-inference/src/config.rs:88
 
-#### INFER-023 (🟡 partial)
+#### P9-inf-provider-as-str (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns "OM", "DI", "FA", or "TG"
-- **File:** crates/hkask-inference/src/config.rs:96
+- **File:** crates/hkask-inference/src/config.rs:98
 
-#### INFER-024 (🟡 partial)
+#### P9-inf-config-from-env (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns InferenceConfig resolved from env vars and keychain;defaults to Ollama localhost if env vars unset
-- **File:** crates/hkask-inference/src/config.rs:185
+- **File:** crates/hkask-inference/src/config.rs:188
 
-#### INFER-025 (🟡 partial)
+#### P9-inf-build-http-client (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns reqwest::Client with timeout and pool settings from config
-- **File:** crates/hkask-inference/src/config.rs:227
+- **File:** crates/hkask-inference/src/config.rs:231
 
-#### inf-cfg-001—ProviderId::parse_from_modelparsesallthreeprefixes (🔴 bare)
+#### P9-inf-test-parse-provider-prefix—ProviderId::parse_from_modelparsesallthreeprefixes (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:299
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:304
 
-#### inf-cfg-002—unprefixedmodelnamesreturnNone (🔴 bare)
+#### P9-inf-test-unprefixed-model-none—unprefixedmodelnamesreturnNone (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:316
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:322
 
-#### inf-cfg-003—emptymodelafterprefixreturnsNone (🔴 bare)
+#### P9-inf-test-empty-model-none—emptymodelafterprefixreturnsNone (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:323
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:330
 
-#### inf-cfg-004—too-shortstringsreturnNone (🔴 bare)
+#### P9-inf-test-too-short-none—too-shortstringsreturnNone (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:331
-
-#### inf-cfg-005—unknownprefixreturnsNone (🔴 bare)
-
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **File:** crates/hkask-inference/src/config.rs:339
 
-#### inf-cfg-006—prefix_modelformatscorrectlyforallproviders (🔴 bare)
+#### P9-inf-test-unknown-prefix-none—unknownprefixreturnsNone (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:346
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:348
 
-#### inf-cfg-007—FA/prefixparsescorrectly (🔴 bare)
+#### P9-inf-test-prefix-model-format—prefix_modelformatscorrectlyforallproviders (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:361
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:356
 
-#### inf-cfg-008—parse_provider_codeparsesallfourprovidercodes (🔴 bare)
+#### P9-inf-test-fal-prefix—FA/prefixparsescorrectly (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:376
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:372
 
-#### inf-cfg-009—unknownoremptyprovidercodedefaultstoOllama (🔴 bare)
+#### P9-inf-test-provider-code—parse_provider_codeparsesallfourprovidercodes (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:385
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:388
 
-#### inf-cfg-010—resolve_api_keyreadsfromprimaryenvvar (🔴 bare)
+#### P9-inf-test-provider-code-default—unknownoremptyprovidercodedefaultstoOllama (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:396
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:398
 
-#### inf-cfg-011—resolve_api_keyfallsbacktolegacyenvvarnames (🔴 bare)
+#### P9-inf-test-resolve-api-key-primary—resolve_api_keyreadsfromprimaryenvvar (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:409
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:410
 
-#### inf-cfg-012—resolve_api_keyreturnsemptywhennokeyfound (🔴 bare)
+#### P9-inf-test-resolve-api-key-fallback—resolve_api_keyfallsbacktolegacyenvvarnames (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:422
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:424
 
-#### inf-cfg-013—resolve_api_keyprefersprimaryoverfallback (🔴 bare)
+#### P9-inf-test-resolve-api-key-empty—resolve_api_keyreturnsemptywhennokeyfound (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/config.rs:436
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:438
 
-#### INFER-010 (🟢 full)
+#### P9-inf-test-resolve-api-key-priority—resolve_api_keyprefersprimaryoverfallback (🔴 bare)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/config.rs:453
+
+#### P4-inf-deepinfra-backend-new (🟢 full)
+
+- **Principle:** ✅ anchored
 - **Pre:**  config.deepinfra_api_key is set
 - **Post:** returns DeepInfraBackend with configured HTTP client
 - **File:** crates/hkask-inference/src/deepinfra_backend.rs:33
 
-#### INFER-033 (🟢 full)
+#### P9-inf-deepinfra-generate (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid DeepInfra model name; prompt is non-empty (validated by validate_prompt); params is a valid LLMParameters
-- **Post:** returns Ok(InferenceResult) with generated text, model, usage stats;if connection fails → Err(InferenceError::Connection);if prompt is empty → Err(InferenceError::Generation)
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:55
+- **Post:** returns Ok(InferenceResult) with generated text, model, usage stats;if connection fails → Err(InferenceError::Connection)
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:56
 
-#### INFER-034 (🟢 full)
+#### P9-inf-deepinfra-generate-vision (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid DeepInfra vision-capable model name; prompt is non-empty; images is non-empty (at least one base64-encoded image); params is a valid LLMParameters
-- **Post:** returns Ok(InferenceResult) with vision-generated text;if images is empty → Err(InferenceError::Generation("No images provided"))
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:108
+- **Post:** returns Ok(InferenceResult) with vision-generated text
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:110
 
-#### INFER-011 (🟢 full)
+#### P9-inf-deepinfra-generate-stream (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid DeepInfra model name
 - **Post:** returns stream of inference chunks
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:173
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:176
 
-#### INFER-035 (🟢 full)
+#### P9-inf-deepinfra-list-models (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  self.client and self.base_url are initialized
 - **Post:** returns Ok(Vec<DeepInfraModelEntry>) with models updated in last 180 days;if API returns non-success → Ok(Vec::new()) (graceful degradation);if connection fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:238
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:242
 
-#### INFER-036 (🟢 full)
+#### P9-inf-deepinfra-remove-background (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL
 - **Post:** returns Ok(serde_json::Value) with background-removed image data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:316
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:321
 
-#### INFER-037 (🟢 full)
+#### P9-inf-deepinfra-generate-image (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prompt is a non-empty text description
 - **Post:** returns Ok(serde_json::Value) with generated image data (1024x1024);if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:331
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:337
 
-#### INFER-038 (🟢 full)
+#### P9-inf-deepinfra-image-to-image (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL; prompt is a non-empty edit instruction
 - **Post:** returns Ok(serde_json::Value) with edited image data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:352
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:359
 
-#### INFER-039 (🟢 full)
+#### P9-inf-deepinfra-generate-speech (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  text is non-empty; voice_id is a valid voice identifier
 - **Post:** returns Ok(serde_json::Value) with base64-encoded MP3 audio;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:374
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:382
 
-#### INFER-040 (🟢 full)
+#### P9-inf-deepinfra-transcribe (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  audio_url is a valid, accessible audio file URL
 - **Post:** returns Ok(serde_json::Value) with verbose_json transcription (word+segment timestamps);if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/deepinfra_backend.rs:433
+- **File:** crates/hkask-inference/src/deepinfra_backend.rs:442
 
-#### INFER-018 (🟢 full)
+#### P4-inf-embedding-router-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  config is a valid InferenceConfig
 - **Post:** returns EmbeddingRouter with configured backends
 - **File:** crates/hkask-inference/src/embedding_router.rs:26
 
-#### INFER-031 (🟢 full)
+#### P9-inf-embed-sentences (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid provider-prefixed model name; sentences is non-empty
 - **Post:** returns Vec<Vec<f32>> with one vector per sentence, same order;if sentences is empty → Err(EmptyResponse);if provider is Fal → Err(Connection) (fal.ai does not support embeddings)
-- **File:** crates/hkask-inference/src/embedding_router.rs:81
+- **File:** crates/hkask-inference/src/embedding_router.rs:82
 
-#### INFER-032 (🟢 full)
+#### P9-inf-embed-sentence (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid provider-prefixed model name; sentence is a non-empty string
 - **Post:** returns Vec<f32> — the first (only) embedding vector;delegates to embed_sentences, inherits its error conditions
-- **File:** crates/hkask-inference/src/embedding_router.rs:147
+- **File:** crates/hkask-inference/src/embedding_router.rs:149
 
-#### INFER-012 (🟢 full)
+#### P4-inf-fal-backend-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  config.fal_api_key is set
 - **Post:** returns FalBackend with configured HTTP client
 - **File:** crates/hkask-inference/src/fal_backend.rs:33
 
-#### INFER-047 (🟢 full)
+#### P9-inf-fal-generate (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid fal.ai model name; prompt is non-empty (validated by validate_prompt); params is a valid LLMParameters
-- **Post:** returns Ok(InferenceResult) with generated text, model, usage stats;if connection fails → Err(InferenceError::Connection);if prompt is empty → Err(InferenceError::Generation)
-- **File:** crates/hkask-inference/src/fal_backend.rs:55
+- **Post:** returns Ok(InferenceResult) with generated text, model, usage stats;if connection fails → Err(InferenceError::Connection)
+- **File:** crates/hkask-inference/src/fal_backend.rs:56
 
-#### INFER-048 (🟢 full)
+#### P9-inf-fal-generate-vision (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid fal.ai vision-capable model name; prompt is non-empty; images is non-empty (at least one base64-encoded image); params is a valid LLMParameters
-- **Post:** returns Ok(InferenceResult) with vision-generated text;if images is empty → Err(InferenceError::Generation("No images provided"))
-- **File:** crates/hkask-inference/src/fal_backend.rs:108
+- **Post:** returns Ok(InferenceResult) with vision-generated text
+- **File:** crates/hkask-inference/src/fal_backend.rs:110
 
-#### INFER-013 (🟢 full)
+#### P9-inf-fal-generate-stream (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid Fal model name
 - **Post:** returns stream of inference chunks
-- **File:** crates/hkask-inference/src/fal_backend.rs:173
+- **File:** crates/hkask-inference/src/fal_backend.rs:176
 
-#### INFER-049 (🟢 full)
+#### P9-inf-fal-list-models (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  none (static catalog, no API call)
 - **Post:** returns Ok(Vec<FalModelEntry>) with curated model list
-- **File:** crates/hkask-inference/src/fal_backend.rs:242
+- **File:** crates/hkask-inference/src/fal_backend.rs:246
 
-#### INFER-050 (🟢 full)
+#### P9-inf-fal-generate-image (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prompt is a non-empty text description
 - **Post:** returns Ok(serde_json::Value) with generated image data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:405
+- **File:** crates/hkask-inference/src/fal_backend.rs:410
 
-#### INFER-051 (🟢 full)
+#### P9-inf-fal-image-to-image (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL; prompt is a non-empty transformation instruction
 - **Post:** returns Ok(serde_json::Value) with transformed image data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:426
+- **File:** crates/hkask-inference/src/fal_backend.rs:432
 
-#### INFER-052 (🟢 full)
+#### P9-inf-fal-remove-background (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL
 - **Post:** returns Ok(serde_json::Value) with background-removed image data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:451
+- **File:** crates/hkask-inference/src/fal_backend.rs:458
 
-#### INFER-053 (🟢 full)
+#### P9-inf-fal-upscale (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL
 - **Post:** returns Ok(serde_json::Value) with upscaled image data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:466
+- **File:** crates/hkask-inference/src/fal_backend.rs:474
 
-#### INFER-054 (🟢 full)
+#### P9-inf-fal-generate-video (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prompt is a non-empty text description
 - **Post:** returns Ok(serde_json::Value) with generated video data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:485
+- **File:** crates/hkask-inference/src/fal_backend.rs:494
 
-#### INFER-055 (🟢 full)
+#### P9-inf-fal-image-to-video (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL
 - **Post:** returns Ok(serde_json::Value) with generated video data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:505
+- **File:** crates/hkask-inference/src/fal_backend.rs:515
 
-#### INFER-056 (🟢 full)
+#### P9-inf-fal-segment-object (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL; object_description is a non-empty description of the object to segment
 - **Post:** returns Ok(serde_json::Value) with segmented object data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:529
+- **File:** crates/hkask-inference/src/fal_backend.rs:540
 
-#### INFER-057 (🟢 full)
+#### P9-inf-fal-generate-speech (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  text is non-empty; voice is a valid voice preset name
 - **Post:** returns Ok(serde_json::Value) with generated speech audio data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:556
+- **File:** crates/hkask-inference/src/fal_backend.rs:568
 
-#### INFER-058 (🟢 full)
+#### P9-inf-fal-transcribe (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  audio_url is a valid, accessible audio file URL
 - **Post:** returns Ok(serde_json::Value) with transcription data;if API call fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/fal_backend.rs:577
+- **File:** crates/hkask-inference/src/fal_backend.rs:590
 
-#### inf-fal-01—ConstructionfailswithoutAPIkey (🔴 bare)
+#### P9-inf-test-fal-backend-new-fails—ConstructionfailswithoutAPIkey (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/fal_backend.rs:601
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/fal_backend.rs:615
 
-#### inf-fal-02—ConstructionsucceedswithAPIkey (🔴 bare)
+#### P9-inf-test-fal-backend-new-succeeds—ConstructionsucceedswithAPIkey (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/fal_backend.rs:616
-
-#### inf-fal-03—Staticcatalogreturnsknownvisionmodels (🔴 bare)
-
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **File:** crates/hkask-inference/src/fal_backend.rs:631
 
-#### inf-fal-04—Visionsupportheuristicrecognizesfal.aimodels (🔴 bare)
+#### P9-inf-test-fal-static-catalog—Staticcatalogreturnsknownvisionmodels (🔴 bare)
 
-- **Principle:** ⚠ unanchored
-- **File:** crates/hkask-inference/src/fal_backend.rs:653
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/fal_backend.rs:647
 
-#### INFER-019 (🟢 full)
+#### P9-inf-test-fal-vision-support—Visionsupportheuristicrecognizesfal.aimodels (🔴 bare)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-inference/src/fal_backend.rs:670
+
+#### P4-inf-inference-router-new (🟢 full)
+
+- **Principle:** ✅ anchored
 - **Pre:**  config is a valid InferenceConfig
 - **Post:** returns InferenceRouter with backends for configured providers
 - **File:** crates/hkask-inference/src/inference_router.rs:44
 
-#### INFER-059 (🟢 full)
+#### P9-inf-router-list-models (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  backends are initialized (may be None)
 - **Post:** returns Vec<RouterModelEntry> with all available models across providers;if a backend fails → its models are omitted (graceful degradation)
-- **File:** crates/hkask-inference/src/inference_router.rs:107
+- **File:** crates/hkask-inference/src/inference_router.rs:108
 
-#### INFER-060 (🟢 full)
+#### P9-inf-router-search-models (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  query may be empty (returns all models)
 - **Post:** returns Vec<RouterModelEntry> filtered by case-insensitive substring match;if query is empty → returns all models (delegates to list_models)
-- **File:** crates/hkask-inference/src/inference_router.rs:197
+- **File:** crates/hkask-inference/src/inference_router.rs:199
 
-#### INFER-061 (🟢 full)
+#### P9-inf-router-list-vision-models (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  none (delegates to list_models)
 - **Post:** returns Vec<RouterModelEntry> filtered to supports_vision == Some(true)
-- **File:** crates/hkask-inference/src/inference_router.rs:217
+- **File:** crates/hkask-inference/src/inference_router.rs:220
 
-#### INFER-062 (🟢 full)
+#### P9-inf-router-generate-vision (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prompt is non-empty; images is non-empty; params is a valid LLMParameters
-- **Post:** dispatches to provider-resolved backend's generate_vision;returns Ok(InferenceResult) on success;if provider resolution fails → Err(InferenceError)
-- **File:** crates/hkask-inference/src/inference_router.rs:230
+- **Post:** dispatches to provider-resolved backend's generate_vision;returns Ok(InferenceResult) on success
+- **File:** crates/hkask-inference/src/inference_router.rs:234
 
-#### INFER-063 (🟢 full)
+#### P9-inf-router-generate-image (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prompt is a non-empty text description
 - **Post:** returns Ok(serde_json::Value) with generated image data;if fal backend unavailable → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:299
+- **File:** crates/hkask-inference/src/inference_router.rs:304
 
-#### INFER-064 (🟢 full)
+#### P9-inf-router-image-to-image (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL; prompt is a non-empty transformation instruction
 - **Post:** returns Ok(serde_json::Value) with transformed image data;if fal backend unavailable → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:321
+- **File:** crates/hkask-inference/src/inference_router.rs:327
 
-#### INFER-065 (🟢 full)
+#### P9-inf-router-remove-background (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL
 - **Post:** tries DeepInfra first, falls back to fal.ai on failure;returns Ok(serde_json::Value) with background-removed image data;if no backend available → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:341
+- **File:** crates/hkask-inference/src/inference_router.rs:348
 
-#### INFER-066 (🟢 full)
+#### P9-inf-router-upscale (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL
 - **Post:** returns Ok(serde_json::Value) with upscaled image data;if fal backend unavailable → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:369
+- **File:** crates/hkask-inference/src/inference_router.rs:377
 
-#### INFER-067 (🟢 full)
+#### P9-inf-router-generate-video (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  prompt is a non-empty text description
 - **Post:** returns Ok(serde_json::Value) with generated video data;if fal backend unavailable → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:387
+- **File:** crates/hkask-inference/src/inference_router.rs:396
 
-#### INFER-068 (🟢 full)
+#### P9-inf-router-image-to-video (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL
 - **Post:** returns Ok(serde_json::Value) with generated video data;if fal backend unavailable → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:407
+- **File:** crates/hkask-inference/src/inference_router.rs:417
 
-#### INFER-069 (🟢 full)
+#### P9-inf-router-generate-speech (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  text is non-empty; voice is a valid voice preset name
 - **Post:** tries DeepInfra first, falls back to fal.ai on failure;returns Ok(serde_json::Value) with generated speech audio data;if no backend available → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:428
+- **File:** crates/hkask-inference/src/inference_router.rs:439
 
-#### INFER-070 (🟢 full)
+#### P9-inf-router-segment-object (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  image_url is a valid, accessible image URL; object_description is a non-empty description of the object to segment
 - **Post:** returns Ok(serde_json::Value) with segmented object data;if fal backend unavailable → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:458
+- **File:** crates/hkask-inference/src/inference_router.rs:470
 
-#### INFER-071 (🟢 full)
+#### P9-inf-router-transcribe (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  audio_url is a valid, accessible audio file URL
 - **Post:** tries DeepInfra first, falls back to fal.ai on failure;returns Ok(serde_json::Value) with transcription data;if no backend available → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/inference_router.rs:479
+- **File:** crates/hkask-inference/src/inference_router.rs:492
 
-#### INFER-072 (🟢 full)
+#### P9-inf-router-embed-text (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  _text may be any string (currently ignored)
 - **Post:** always returns Err(EmbeddingGenerationError::Connection) — not yet implemented
-- **File:** crates/hkask-inference/src/inference_router.rs:750
+- **File:** crates/hkask-inference/src/inference_router.rs:764
 
-#### INFER-020 (🟢 full)
+#### P9-inf-infer-vision-support (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is non-empty
 - **Post:** returns Some(true) if model/family matches known vision families;returns None if unknown
 - **File:** crates/hkask-inference/src/lib.rs:77
 
-#### INFER-014 (🟢 full)
+#### P4-inf-ollama-backend-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  config.ollama_base_url is set
 - **Post:** returns OllamaBackend with configured HTTP client
 - **File:** crates/hkask-inference/src/ollama_backend.rs:27
 
-#### INFER-044 (🟢 full)
+#### P9-inf-ollama-generate (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid Ollama model name; prompt is non-empty (validated by validate_prompt); params is a valid LLMParameters
-- **Post:** returns Ok(InferenceResult) with generated text, model, usage stats;if connection fails → Err(InferenceError::Connection);if prompt is empty → Err(InferenceError::Generation)
-- **File:** crates/hkask-inference/src/ollama_backend.rs:43
+- **Post:** returns Ok(InferenceResult) with generated text, model, usage stats;if connection fails → Err(InferenceError::Connection)
+- **File:** crates/hkask-inference/src/ollama_backend.rs:44
 
-#### INFER-045 (🟢 full)
+#### P9-inf-ollama-generate-vision (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid Ollama vision-capable model name; prompt is non-empty; images is non-empty (at least one base64-encoded image); params is a valid LLMParameters
-- **Post:** returns Ok(InferenceResult) with vision-generated text;if images is empty → Err(InferenceError::Generation("No images provided"))
-- **File:** crates/hkask-inference/src/ollama_backend.rs:95
+- **Post:** returns Ok(InferenceResult) with vision-generated text
+- **File:** crates/hkask-inference/src/ollama_backend.rs:97
 
-#### INFER-015 (🟢 full)
+#### P9-inf-ollama-generate-stream (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid Ollama model name
 - **Post:** returns stream of inference chunks
-- **File:** crates/hkask-inference/src/ollama_backend.rs:159
+- **File:** crates/hkask-inference/src/ollama_backend.rs:162
 
-#### INFER-046 (🟢 full)
+#### P9-inf-ollama-list-models (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  self.client and self.base_url are initialized
 - **Post:** returns Ok(Vec<OllamaModelEntry>) with locally available models;if API returns non-success → Ok(Vec::new()) (graceful degradation);if connection fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/ollama_backend.rs:222
+- **File:** crates/hkask-inference/src/ollama_backend.rs:226
 
-#### INFER-016 (🟢 full)
+#### P4-inf-together-backend-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  config.together_api_key is set
 - **Post:** returns TogetherBackend with configured HTTP client
 - **File:** crates/hkask-inference/src/together_backend.rs:44
 
-#### INFER-041 (🟢 full)
+#### P9-inf-together-generate (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid Together AI model name; prompt is non-empty (validated by validate_prompt); params is a valid LLMParameters
-- **Post:** returns Ok(InferenceResult) with generated text, model, usage stats;if connection fails → Err(InferenceError::Connection);if prompt is empty → Err(InferenceError::Generation)
-- **File:** crates/hkask-inference/src/together_backend.rs:66
+- **Post:** returns Ok(InferenceResult) with generated text, model, usage stats;if connection fails → Err(InferenceError::Connection)
+- **File:** crates/hkask-inference/src/together_backend.rs:67
 
-#### INFER-017 (🟢 full)
+#### P9-inf-together-generate-stream (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid Together model name
 - **Post:** returns stream of inference chunks
-- **File:** crates/hkask-inference/src/together_backend.rs:122
+- **File:** crates/hkask-inference/src/together_backend.rs:124
 
-#### INFER-042 (🟢 full)
+#### P9-inf-together-generate-stream (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  model is a valid Together AI vision-capable model name; prompt is non-empty; images is non-empty (at least one base64-encoded image); params is a valid LLMParameters
-- **Post:** returns Ok(InferenceResult) with vision-generated text;if connection fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/together_backend.rs:187
+- **Post:** returns Ok(InferenceResult) with vision-generated text
+- **File:** crates/hkask-inference/src/together_backend.rs:190
 
-#### INFER-043 (🟢 full)
+#### P9-inf-together-list-models (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  self.client and self.base_url are initialized
 - **Post:** returns Ok(Vec<TogetherModel>) with all available models;if API returns non-success → Err(InferenceError::Connection);if connection fails → Err(InferenceError::Connection)
-- **File:** crates/hkask-inference/src/together_backend.rs:241
+- **File:** crates/hkask-inference/src/together_backend.rs:245
 
 
 ### hkask-keystore (28 contracts)
@@ -2459,7 +2468,28 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-memory/src/semantic.rs:579
 
 
-### hkask-services (208 contracts)
+### hkask-rsolidity (1 contracts)
+
+#### P9-rsolidity-emit-helper (🔴 bare)
+
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-rsolidity/src/lib.rs:22
+
+
+### hkask-rsolidity-macros (2 contracts)
+
+#### P9-rsolidity-macros-ocap (🔴 bare)
+
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-rsolidity-macros/src/lib.rs:46
+
+#### P9-rsolidity-macros-contract (🔴 bare)
+
+- **Principle:** ✅ anchored
+- **File:** crates/hkask-rsolidity-macros/src/lib.rs:108
+
+
+### hkask-services (211 contracts)
 
 #### SVC-217 (🟢 full)
 
@@ -3656,11 +3686,28 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns a JSON string representation of the report
 - **File:** crates/hkask-services/src/skills.rs:85
 
+#### SVC-099b (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns number of entries with health_score >= 0.8
+- **File:** crates/hkask-services/src/skills.rs:94
+
+#### SVC-099c (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns number of defects matching "FlowDef declared on .j2"
+- **File:** crates/hkask-services/src/skills.rs:102
+
 #### SVC-100 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns true iff health_score >= 0.8
-- **File:** crates/hkask-services/src/skills.rs:108
+- **File:** crates/hkask-services/src/skills.rs:132
+
+#### SVC-101—Acompleteskillwithbothlayersandavalid.j2template (🔴 bare)
+
+- **Principle:** ⚠ unanchored
+- **File:** crates/hkask-services/src/skills.rs:646
 
 #### SVC-081 (🟢 full)
 
@@ -5205,7 +5252,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-storage/src/wallet_store.rs:896
 
 
-### hkask-templates (52 contracts)
+### hkask-templates (53 contracts)
 
 #### TPL-001 (🟡 partial)
 
@@ -5542,222 +5589,241 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Pre:**  project_root is a valid directory path
 - **Post:** returns SkillLoader configured for the given root
-- **File:** crates/hkask-templates/src/skill_loader.rs:49
+- **File:** crates/hkask-templates/src/skill_loader.rs:64
 
 #### TPL-009 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  registry is initialized
 - **Post:** skills from private and public zones loaded and registered;returns SkillLoadResult with loaded skills and any warnings
-- **File:** crates/hkask-templates/src/skill_loader.rs:60
+- **File:** crates/hkask-templates/src/skill_loader.rs:75
+
+#### TPL-011 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  id is non-empty
+- **Post:** returns a TemplateType representing the skill's runtime domain
+- **File:** crates/hkask-templates/src/skill_loader.rs:211
 
 #### TPL-010 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  content is a valid SKILL.md file content
 - **Post:** returns SkillFrontMatter parsed from YAML front matter;returns default SkillFrontMatter if no front matter present
-- **File:** crates/hkask-templates/src/skill_loader.rs:189
+- **File:** crates/hkask-templates/src/skill_loader.rs:258
 
 
-### hkask-test-harness (42 contracts)
+### hkask-test-harness (44 contracts)
+
+#### HARN-012b (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns TestDb with in-memory SQLite connection and full schema initialized
+- **File:** crates/hkask-test-harness/src/lib.rs:53
 
 #### HARN-012 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns TestDb with in-memory SQLite connection and full schema initialized
-- **File:** crates/hkask-test-harness/src/lib.rs:55
+- **File:** crates/hkask-test-harness/src/lib.rs:63
 
 #### HARN-013 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns MutexGuard<Connection> for direct SQL access
-- **File:** crates/hkask-test-harness/src/lib.rs:68
+- **File:** crates/hkask-test-harness/src/lib.rs:76
 
 #### HARN-014 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns Arc<Mutex<Connection>> clone for Store::new()
-- **File:** crates/hkask-test-harness/src/lib.rs:76
+- **File:** crates/hkask-test-harness/src/lib.rs:84
 
 #### HARN-015 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  sql is valid SQL
 - **Post:** batch executed on the connection
-- **File:** crates/hkask-test-harness/src/lib.rs:84
+- **File:** crates/hkask-test-harness/src/lib.rs:92
+
+#### HARN-016b (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns TestKeystore with temp dir, key file written, 32-byte master key
+- **File:** crates/hkask-test-harness/src/lib.rs:113
 
 #### HARN-016 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns TestKeystore with temp dir, key file written, 32-byte master key
-- **File:** crates/hkask-test-harness/src/lib.rs:107
+- **File:** crates/hkask-test-harness/src/lib.rs:123
 
 #### HARN-017 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns &Path to the temp directory
-- **File:** crates/hkask-test-harness/src/lib.rs:123
+- **File:** crates/hkask-test-harness/src/lib.rs:139
 
 #### HARN-018 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns &Path to the master.key file
-- **File:** crates/hkask-test-harness/src/lib.rs:131
+- **File:** crates/hkask-test-harness/src/lib.rs:147
 
 #### HARN-019 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns &[u8; 32] reference to the master key
-- **File:** crates/hkask-test-harness/src/lib.rs:139
+- **File:** crates/hkask-test-harness/src/lib.rs:155
 
 #### HARN-020 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns deterministic WebID from persona b"alice"
-- **File:** crates/hkask-test-harness/src/lib.rs:164
+- **File:** crates/hkask-test-harness/src/lib.rs:180
 
 #### HARN-021 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns deterministic WebID from persona b"bob"
-- **File:** crates/hkask-test-harness/src/lib.rs:172
+- **File:** crates/hkask-test-harness/src/lib.rs:188
 
 #### HARN-022 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns deterministic WebID from persona b"carol"
-- **File:** crates/hkask-test-harness/src/lib.rs:180
+- **File:** crates/hkask-test-harness/src/lib.rs:196
 
 #### HARN-023 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns new random WebID
-- **File:** crates/hkask-test-harness/src/lib.rs:188
+- **File:** crates/hkask-test-harness/src/lib.rs:204
 
 #### HARN-024 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  bytes is non-empty
 - **Post:** returns deterministic WebID from persona bytes
-- **File:** crates/hkask-test-harness/src/lib.rs:196
+- **File:** crates/hkask-test-harness/src/lib.rs:212
 
 #### HARN-025 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns MockCnsState with homeostatic=true, no throttled tools, empty signals
-- **File:** crates/hkask-test-harness/src/lib.rs:218
+- **File:** crates/hkask-test-harness/src/lib.rs:234
 
 #### HARN-026 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  throttled_tool is non-empty
 - **Post:** returns MockCnsState with homeostatic=false, tool throttled
-- **File:** crates/hkask-test-harness/src/lib.rs:231
+- **File:** crates/hkask-test-harness/src/lib.rs:247
 
 #### HARN-027 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns true iff valence == Negative
-- **File:** crates/hkask-test-harness/src/lib.rs:260
+- **File:** crates/hkask-test-harness/src/lib.rs:276
 
 #### HARN-028 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns true iff valence == Positive
-- **File:** crates/hkask-test-harness/src/lib.rs:268
+- **File:** crates/hkask-test-harness/src/lib.rs:284
 
 #### HARN-029 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns MockCnsRuntime with homeostatic state
-- **File:** crates/hkask-test-harness/src/lib.rs:288
+- **File:** crates/hkask-test-harness/src/lib.rs:304
 
 #### HARN-030 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  state is a valid MockCnsState
 - **Post:** returns MockCnsRuntime with the given state
-- **File:** crates/hkask-test-harness/src/lib.rs:298
+- **File:** crates/hkask-test-harness/src/lib.rs:314
 
 #### HARN-031 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  event is a valid NuEvent
 - **Post:** homeostatic set to false, negative signal appended
-- **File:** crates/hkask-test-harness/src/lib.rs:309
+- **File:** crates/hkask-test-harness/src/lib.rs:325
 
 #### HARN-032 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** if duration >= 5s, homeostatic restored, throttled tools cleared, positive signal appended
-- **File:** crates/hkask-test-harness/src/lib.rs:326
+- **File:** crates/hkask-test-harness/src/lib.rs:342
 
 #### HARN-033 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns clone of recent_signals vector
-- **File:** crates/hkask-test-harness/src/lib.rs:345
+- **File:** crates/hkask-test-harness/src/lib.rs:361
 
 #### HARN-034 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  tool_name is non-empty
 - **Post:** returns Throttled if tool in throttled_tools, Active otherwise
-- **File:** crates/hkask-test-harness/src/lib.rs:353
+- **File:** crates/hkask-test-harness/src/lib.rs:369
 
 #### HARN-035 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns true iff homeostatic flag is true
-- **File:** crates/hkask-test-harness/src/lib.rs:367
+- **File:** crates/hkask-test-harness/src/lib.rs:383
 
 #### HARN-036 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  domain is non-empty
 - **Post:** variety counter for domain incremented by 1
-- **File:** crates/hkask-test-harness/src/lib.rs:375
+- **File:** crates/hkask-test-harness/src/lib.rs:391
 
 #### HARN-037 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  domain is non-empty
 - **Post:** returns variety count for domain, 0 if never recorded
-- **File:** crates/hkask-test-harness/src/lib.rs:388
+- **File:** crates/hkask-test-harness/src/lib.rs:404
 
 #### HARN-038 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns TempDir that auto-cleans on drop
-- **File:** crates/hkask-test-harness/src/lib.rs:426
+- **File:** crates/hkask-test-harness/src/lib.rs:442
 
 #### HARN-039 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  span is a valid Span, phase is a valid Phase
 - **Post:** returns NuEvent with random observer, depth=0, test observation
-- **File:** crates/hkask-test-harness/src/lib.rs:446
+- **File:** crates/hkask-test-harness/src/lib.rs:462
 
 #### HARN-040 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  observer is a valid WebID, span is valid, phase is valid
 - **Post:** returns NuEvent with specified observer, depth=0, test observation
-- **File:** crates/hkask-test-harness/src/lib.rs:461
+- **File:** crates/hkask-test-harness/src/lib.rs:477
 
 #### HARN-041 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  entity and attribute are non-empty, value is valid JSON
 - **Post:** returns Triple with random owner, sensible defaults
-- **File:** crates/hkask-test-harness/src/lib.rs:480
+- **File:** crates/hkask-test-harness/src/lib.rs:496
 
 #### HARN-042 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  entity and attribute are non-empty, value is valid JSON, owner is valid
 - **Post:** returns Triple with specified owner
-- **File:** crates/hkask-test-harness/src/lib.rs:489
+- **File:** crates/hkask-test-harness/src/lib.rs:505
 
 #### HARN-001 (🟡 partial)
 
@@ -6107,7 +6173,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self is a valid TemplateType variant
-- **Post:** returns the file extension: "j2" for WordAct/KnowAct, "yaml" for FlowDef
+- **Post:** returns the file extension: "j2" for all runtime template types
 - **File:** crates/hkask-types/src/lexicon.rs:61
 
 #### TYP-215 (🟢 full)
@@ -6121,7 +6187,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  ext is a file extension string (e.g. "j2", "yaml", "yml")
-- **Post:** returns Some(KnowAct) for "j2", Some(FlowDef) for "yaml"/"yml"; None for unknown extensions
+- **Post:** returns None because a file extension alone cannot distinguish the three runtime template types; `.j2` may be WordAct, KnowAct, or FlowDef
 - **File:** crates/hkask-types/src/lexicon.rs:83
 
 #### TYP-217 (🟢 full)
@@ -6129,80 +6195,80 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Pre:**  self is a valid MdsCategory variant
 - **Post:** returns the lowercase category string ("domain", "composition", "trust", "lifecycle", "curation")
-- **File:** crates/hkask-types/src/lexicon.rs:117
+- **File:** crates/hkask-types/src/lexicon.rs:114
 
 #### TYP-218 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  term is non-empty, domain is a valid TemplateType, definition is non-empty
 - **Post:** returns LexiconTerm with academic_citation=None, mds_category=None
-- **File:** crates/hkask-types/src/lexicon.rs:146
+- **File:** crates/hkask-types/src/lexicon.rs:143
 
 #### TYP-219 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  citation is a non-empty string
 - **Post:** returns self with academic_citation set to Some(citation.to_string())
-- **File:** crates/hkask-types/src/lexicon.rs:159
+- **File:** crates/hkask-types/src/lexicon.rs:156
 
 #### TYP-220 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  cat is a valid MdsCategory variant
 - **Post:** returns self with mds_category set to Some(cat)
-- **File:** crates/hkask-types/src/lexicon.rs:167
+- **File:** crates/hkask-types/src/lexicon.rs:164
 
 #### TYP-221 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns an empty HLexicon
-- **File:** crates/hkask-types/src/lexicon.rs:183
+- **File:** crates/hkask-types/src/lexicon.rs:180
 
 #### TYP-222 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  term is a valid LexiconTerm with a non-empty term field
 - **Post:** inserts term into the lexicon keyed by term.term; replaces existing entry if term already present
-- **File:** crates/hkask-types/src/lexicon.rs:191
+- **File:** crates/hkask-types/src/lexicon.rs:188
 
 #### TYP-223 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  term is a non-empty string key
 - **Post:** returns Some(&LexiconTerm) if term exists in lexicon; None otherwise
-- **File:** crates/hkask-types/src/lexicon.rs:198
+- **File:** crates/hkask-types/src/lexicon.rs:195
 
 #### TYP-224 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  term is a non-empty string key
 - **Post:** returns true if term exists in lexicon; false otherwise
-- **File:** crates/hkask-types/src/lexicon.rs:205
+- **File:** crates/hkask-types/src/lexicon.rs:202
 
 #### TYP-225 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  terms is a slice of String keys to validate
 - **Post:** returns Vec<String> of terms not found in the lexicon (empty if all present)
-- **File:** crates/hkask-types/src/lexicon.rs:212
+- **File:** crates/hkask-types/src/lexicon.rs:209
 
 #### TYP-226 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns the number of terms in the lexicon
-- **File:** crates/hkask-types/src/lexicon.rs:223
+- **File:** crates/hkask-types/src/lexicon.rs:220
 
 #### TYP-227 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns true if the lexicon contains no terms; false otherwise
-- **File:** crates/hkask-types/src/lexicon.rs:229
+- **File:** crates/hkask-types/src/lexicon.rs:226
 
 #### TYP-228 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns a bootstrap HLexicon with 17 minimal startup terms covering KnowAct, FlowDef, and WordAct domains
-- **File:** crates/hkask-types/src/lexicon.rs:235
+- **File:** crates/hkask-types/src/lexicon.rs:232
 
 #### TYP-186 (🟢 full)
 

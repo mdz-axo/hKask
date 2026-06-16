@@ -25,13 +25,13 @@
 | 8 | Energy Estimation | `est` | hkask-cns | 2 | P9 (Homeostatic Self-Regulation) |
 | 9 | Cybernetics Loop | `loop` | hkask-cns | 1 | P9 (Homeostatic Self-Regulation) |
 | 10 | Wallet | `wallet` | hkask-wallet | 23 | P9 (Homeostatic Self-Regulation) |
-| 11 | Storage | `storage` | hkask-storage | 12 | P3 (Generative Space) |
-| 12 | Memory | `memory` | hkask-memory | 52 | P3 (Generative Space) |
-| 13 | Inference Engine | `inference` | hkask-inference | 63 | P9 + P4 (Homeostatic + Boundary) |
-| 14 | Template Engine | `templates` | hkask-templates | 10 | P3 (Generative Space) |
-| 15 | MCP Servers | `mcp` | mcp-servers/ | 18 | P5 (Essentialism) |
-| 16 | Service Layer | `services` | hkask-services | 14 | P5 + P7 (Essentialism + Evolution) |
-| 17 | Agent Runtime | `agents` | hkask-agents | 30 | P1 (User Sovereignty) |
+| 11 | Storage | `storage` | hkask-storage | 168 | P3 (Generative Space) |
+| 12 | Memory | `memory` | hkask-memory | 68 | P3 (Generative Space) |
+| 13 | Inference Engine | `inference` | hkask-inference | 94 | P9 + P4 (Homeostatic + Boundary) |
+| 14 | Template Engine | `templates` | hkask-templates | 53 | P3 (Generative Space) |
+| 15 | MCP Servers | `mcp` | mcp-servers/ | 41 | P5 (Essentialism) |
+| 16 | Service Layer | `services` | hkask-services | 305+ | P5 + P7 (Essentialism + Evolution) |
+| 17 | Agent Runtime | `agents` | hkask-agents | 159 | P1 (User Sovereignty) |
 | 18 | Communication | `comm` | hkask-comm | 6 | P1 (User Sovereignty) |
 | 19 | Keystore | `keystore` | hkask-keystore | 5 | P1 (User Sovereignty) |
 | 20 | Type System | `types` | hkask-types | 40 | P8 (Semantic Grounding) |
@@ -303,7 +303,7 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 ## 3. Non-CNS Domain Stubs
 
-These domains are documented here for completeness but are not part of the CNS contract realignment. Their contracts will be realigned in subsequent work packages.
+These domains are documented here for completeness. Most contracts are already realigned to `P{N}-*-` namespaces; the remaining cleanup is the legacy `SVC-*`, `svc-*`, `MUST-*`, and bare `P9`/`P3` IDs in `hkask-services` plus any straggler non-`P{N}` IDs in `hkask-agents` and `hkask-inference`.
 
 ### 3.1 Wallet (`hkask-wallet`)
 

@@ -1,14 +1,14 @@
 {# goal_judge_command.j2 — Verify goal via command execution #}
-{# functional_role: flowdef #}
+{# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# lexicon_terms: [assert, command] #}
 {# goal_judge_command.j2 — Verify goal via command execution #}
-{# functional_role: flowdef #}
+{# functional_role: knowact #}
 {# implementation_type: jinja2 #}
 {# lexicon_terms: [assert, command] #}
 [inference]
 template_type: KnowAct
-functional_role: FlowDef
+functional_role: KnowAct
 implementation_type: jinja2
 lexicon_terms: [assert, command]
 contract:
@@ -22,7 +22,7 @@ contract:
 
 ---
 # Goal Judge — Command-Based Verification
-# FlowDef: assertion via command execution
+# KnowAct: assertion via command execution
 
 {% set all_passed = true %}
 {% set failed = [] %}

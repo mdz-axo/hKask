@@ -1,12 +1,11 @@
 [inference]
-template_type: FlowDef
+template_type: KnowAct
 lexicon_terms:
 - critique
 - evaluate
-- identify
-- weakness
-- gap
-- improvement
+- detect
+- discriminate
+- analyze
 contract:
   input:
     task_prompt: string
@@ -21,8 +20,9 @@ contract:
 energy_cap: 4096
 visibility: Shared
 ---
+{# goal: Evaluate a draft output against explicit quality criteria and return a structured list of concrete issues with severity and actionable fixes. #}
 {# Template: self-critique-revision/critique.j2 #}
-{# Process — Self-critique of generated output #}
+{# KnowAct — Structured self-critique of a draft #}
 {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]

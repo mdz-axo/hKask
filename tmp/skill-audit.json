@@ -195,7 +195,7 @@
         "compute-brier.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "compute-brier.j2: unknown hlexicon terms [\"brier\", \"probability\", \"outcome\"]",
         "define-expected-outcomes.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
-        "define-expected-outcomes.j2: unknown hlexicon terms [\"outcome\", \"probability\", \"confidence\"]",
+        "define-expected-outcomes.j2: unknown hlexicon terms [\"outcome\", \"probability\", \"horizon\"]",
         "revisit-evaluate.j2: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
         "revisit-evaluate.j2: unknown hlexicon terms [\"actual\", \"outcome\", \"bias\"]"
       ],
@@ -759,7 +759,7 @@
       "skill_name": "reasoning",
       "zed_layer_present": false,
       "registry_layer_present": true,
-      "health_score": 0.27,
+      "health_score": 0.29999999999999993,
       "status": "Critical",
       "defects": [
         "missing Zed layer (SKILL.md)",
@@ -829,15 +829,11 @@
     },
     {
       "skill_name": "review",
-      "zed_layer_present": false,
+      "zed_layer_present": true,
       "registry_layer_present": true,
-      "health_score": 0.51,
-      "status": "StaleWarning",
-      "defects": [
-        "missing Zed layer (SKILL.md)",
-        "missing manifest.yaml",
-        "self_critique.j2: unknown hlexicon terms [\"contradiction\", \"confidence\", \"calibration\"]"
-      ],
+      "health_score": 1.0,
+      "status": "Active",
+      "defects": [],
       "template_summary": {
         "total": 1,
         "word_act": 1,

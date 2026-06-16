@@ -1,12 +1,11 @@
 [inference]
-template_type: FlowDef
+template_type: KnowAct
 lexicon_terms:
 - revise
-- improve
-- address
-- incorporate
-- refine
-- converge
+- evaluate
+- reflect
+- adapt
+- calibrate
 contract:
   input:
     task_prompt: string
@@ -24,8 +23,9 @@ contract:
 energy_cap: 8192
 visibility: Shared
 ---
+{# goal: Given a draft and a structured critique, produce a revised draft that addresses every valid concern, preserves strengths, and reports honest quality improvement. #}
 {# Template: self-critique-revision/revise.j2 #}
-{# Process — Revision based on critique #}
+{# KnowAct — Revision from structured critique #}
 {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]

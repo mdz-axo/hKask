@@ -221,8 +221,8 @@ fn skill_audit(fail_below: f64, json: bool) {
         println!("Skill audit report (fail_below={threshold:.2})");
         println!();
         println!(
-            "{:<30} {:>6} {:>14} {:>8} {}",
-            "skill", "score", "status", "active", "defects"
+            "{:<30} {:>6} {:>14} {:>8} defects",
+            "skill", "score", "status", "active"
         );
         for entry in &report.entries {
             let active = if entry.is_active() { "yes" } else { "no" };

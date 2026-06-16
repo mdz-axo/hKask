@@ -6,10 +6,10 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
+    Expr, ExprLit, FnArg, ItemFn, Lit, Meta, MetaNameValue, Stmt, Token,
     parse::{Parser, Result as ParseResult},
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
-    Expr, ExprLit, FnArg, ItemFn, Lit, Meta, MetaNameValue, Stmt, Token,
 };
 
 /// Parse a comma-separated list of `name = "value"` meta items.
@@ -88,7 +88,7 @@ pub fn ocap(args: TokenStream, input: TokenStream) -> TokenStream {
         .sig
         .inputs
         .first()
-        .map_or(false, |arg| matches!(arg, FnArg::Receiver(_)));
+        .is_some_and(|arg| matches!(arg, FnArg::Receiver(_)));
     if !has_self {
         return syn::Error::new_spanned(
             &item.sig,
@@ -151,7 +151,7 @@ pub fn contract(args: TokenStream, input: TokenStream) -> TokenStream {
     // P#-... format
     let id_ok = id.len() > 3
         && id.starts_with('P')
-        && id.chars().nth(1).map_or(false, |c| c.is_ascii_digit())
+        && id.chars().nth(1).is_some_and(|c| c.is_ascii_digit())
         && id.chars().nth(2) == Some('-');
     if !id_ok {
         return syn::Error::new_spanned(id_nv, format!("contract id `{}` must match `P#-...`", id))
