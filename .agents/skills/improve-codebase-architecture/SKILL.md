@@ -76,3 +76,26 @@ Side effects happen inline as decisions crystallize:
 - **Naming a deepened module after a concept not in the glossary?** Add the term.
 - **Sharpening a fuzzy term?** Update the glossary right there.
 - **User rejects the candidate with a load-bearing reason?** Offer to record it as an ADR. Only offer when the reason would actually be needed by a future explorer.
+
+### 4. Decide and route
+
+After the grilling loop, one of three outcomes:
+
+1. **Proceed to refactor** — if the design is clear and the user wants changes. Activate `refactor-service-layer` or `strangler-fig` depending on whether you're extracting shared logic or migrating an existing module.
+2. **Need more data** — if the candidate depends on runtime behavior you haven't measured. Activate `diagnose` to build a feedback loop first.
+3. **Defer or reject** — record the decision in `docs/architecture/ADRs/` if the reason is load-bearing, otherwise stop.
+
+## Constraints
+
+- Do not invent new domain terms without adding them to the project glossary.
+- Do not propose concrete interfaces until the candidate has been grilled and the seam is clear.
+- Do not refactor without the user's explicit pick of a candidate.
+- Prefer deepening existing modules over adding new ones.
+
+## Related Skills
+
+- `deep-module` — deletion-test discipline for individual modules
+- `essentialist` — eliminative review of the proposed design
+- `strangler-fig` — incremental migration once the target shape is known
+- `refactor-service-layer` — extracting shared business logic from CLI/API/MCP surfaces
+- `tdd` — anchoring the refactor with `// REQ:` contracts and regression tests

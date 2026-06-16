@@ -1,0 +1,59 @@
+[inference]
+template_type: WordAct
+lexicon_terms: [extract, parse, recognize]
+contract:
+  input:
+    target_path: string
+    target_content: string
+  output:
+    goal: string
+    goal_found: boolean
+    file_type: string
+energy_cap: 2048
+visibility: Shared
+
+---
+{# goal: Extract the annotated goal block from a .j2 or manifest.yaml file so it can be used as the auditable contract. #}
+{# Template: skill-logic-audit/load-goal.j2 #}
+{# WordAct — Parse the annotated goal: block from a target template or manifest #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.0
+reasoning_effort = "low"
+verbosity = "terse"
+max_tokens = 1024
+thinking_budget = "off"
+
+You are a goal extractor. Your job is to locate the annotated `goal:` block in the provided file content and return it verbatim, stripped of comment markers.
+
+## Input
+
+- `target_path`: {{ target_path }}
+- `target_content`:
+
+```
+{{ target_content }}
+```
+
+## Extraction Rules
+
+1. For `.j2` files, look for a Jinja2 comment of the form `{# goal: ... #}` near the top of the file.
+2. For `manifest.yaml` files, look for a YAML comment of the form `# goal: ...` near the top of the file.
+3. If multiple goal comments exist, use the first one.
+4. Strip leading/trailing whitespace and comment markers, but preserve the exact goal text.
+5. If no goal is found, set `goal_found` to false and return an empty `goal` string.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "goal": "The exact goal text, or empty if none",
+  "goal_found": true,
+  "file_type": "j2 | manifest"
+}
+```
+
+Produce ONLY the JSON object. No explanatory text.

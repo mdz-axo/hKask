@@ -74,9 +74,9 @@ Each experiment moves your knowledge threshold forward. The path won't be straig
 
 ## CNS Integration
 
-- CNS spans under `cns.prompt.kata.improvement`
-- Variety counters: `kata.improvement.cycles`, `kata.improvement.obstacles_cleared`
-- Algedonic alert if no progress after 3 experiments on same obstacle
+- Trace events are emitted under the `hkask.kata` target by the Kata runtime (`crates/hkask-services/src/kata.rs`).
+- The only canonical CNS span that crosses into kata territory is `cns.kata.improv.effectiveness`, emitted by `hkask-improv` when improv modes are active.
+- Do not reference `cns.prompt.kata.improvement` or counters like `kata.improvement.cycles`; they are not canonical CNS span names.
 
 ## Registry Templates
 

@@ -95,11 +95,11 @@ This skill's runtime templates live in `registry/templates/kata-starter/`:
 
 | Template | Type | Purpose |
 |----------|------|--------|
-| `starter-cycle.j2` | FlowDef | Starter Kata practice cycle (orchestrates all three routines) |
+| `starter-cycle.j2` | KnowAct | Starter Kata practice cycle (orchestrates all three routines) |
 | `starter-selector.j2` | KnowAct | Select appropriate starter routine based on learner state |
-| `starter-five-questions.j2` | FlowDef | Five Questions Drill — practice the 5 coaching questions |
-| `starter-pdca-cycle.j2` | FlowDef | PDCA Cycle — Plan-Do-Check-Act experimentation practice |
-| `starter-observation-drill.j2` | FlowDef | Observation Drill — distinguish facts from interpretations |
+| `starter-five-questions.j2` | KnowAct | Five Questions Drill — practice the 5 coaching questions |
+| `starter-pdca-cycle.j2` | KnowAct | PDCA Cycle — Plan-Do-Check-Act experimentation practice |
+| `starter-observation-drill.j2` | KnowAct | Observation Drill — distinguish facts from interpretations |
 
 ## Bundle Manifest
 

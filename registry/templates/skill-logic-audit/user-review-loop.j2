@@ -1,0 +1,80 @@
+{# goal: Orchestrate the skill-logic-audit loop, presenting the proposal to the user and branching on accept/reject/counter-proposal with a bounded depth counter. #}
+[inference]
+template_type: FlowDef
+lexicon_terms: [sequence, choice, iteration, escalate, route, abort, compose]
+contract:
+  input:
+    target_path: string
+    goal: string
+    max_depth: integer
+    current_depth: integer
+    proposal: object
+  output:
+    action: string
+    next_template_id: string|null
+    state: object
+energy_cap: 3072
+visibility: Shared
+
+---
+{# Template: skill-logic-audit/user-review-loop.j2 #}
+{# FlowDef — Bounded user-review loop for template audit #}
+{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.0
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 3072
+thinking_budget = "full"
+
+You are the orchestrator for the skill-logic-audit loop. Decide the next action based on the current depth, the user's response, and the proposal quality.
+
+## Input
+
+- `target_path`: {{ target_path }}
+- `goal`: {{ goal }}
+- `max_depth`: {{ max_depth }}
+- `current_depth`: {{ current_depth }}
+- `proposal`:
+
+```json
+{{ proposal | tojson }}
+```
+
+## Loop Logic
+
+1. If `current_depth` >= `max_depth`, **escalate** to the user; do not continue recursion.
+2. Present the proposal diff and rationale to the user.
+3. Branch on the user's decision:
+   - `accept` → action is `write_revised` and `next_template_id` is `null`. The caller must write `proposal.revised_content` to `target_path` and then re-run the audit from `skill-logic-audit/load-goal.j2`.
+   - `reject` → action is `abort` and `next_template_id` is `null`.
+   - `counter-proposal` → action is `revise`, increment `current_depth`, and `next_template_id` is `skill-logic-audit/compose-proposal.j2`. Pass the user's edits in `state.user_counter_proposal`.
+
+## Constituent Templates (called by id, not duplicated here)
+
+- `skill-logic-audit/load-goal.j2` — WordAct: extracts the goal.
+- `skill-logic-audit/critique-template.j2` — KnowAct: first critique.
+- `skill-logic-audit/critique-critique.j2` — KnowAct: soundness review.
+- `skill-logic-audit/compose-proposal.j2` — KnowAct: revision composer.
+- `skill-logic-audit/user-review-loop.j2` — FlowDef: this loop (recursive on counter-proposal).
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "action": "write_revised | revise | abort | escalate",
+  "next_template_id": "skill-logic-audit/compose-proposal.j2 | null",
+  "state": {
+    "target_path": "...",
+    "goal": "...",
+    "current_depth": 2,
+    "user_counter_proposal": "user text or null"
+  },
+  "message_to_user": "human-readable summary of what happens next"
+}
+```
+
+The loop converges by construction: each counter-proposal increments `current_depth`; once `current_depth` reaches `max_depth`, the orchestrator escalates rather than recursing.

@@ -5,14 +5,14 @@ Workspace version: 0.27.0
 | Metric | Count |
 |--------|-------|
 | workspace_version | 0.27.0 |
-| total_skills | 66 |
-| complete_both_layers | 29 |
+| total_skills | 67 |
+| complete_both_layers | 30 |
 | zed_only | 1 |
 | registry_only | 36 |
 | active | 23 |
 | stale_warning | 12 |
 | critical | 6 |
-| recommend_deprecation | 25 |
+| recommend_deprecation | 26 |
 
 ## Skill Details
 
@@ -324,6 +324,13 @@ Workspace version: 0.27.0
 ### skill-discovery — active (1.00)
 - Zed: ✓, Registry: ✓
 - Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
+
+### skill-logic-audit — recommend_deprecation (0.00)
+- Zed: ✓, Registry: ✓
+- Templates: 5 .j2 | WordAct=False KnowAct=False FlowDef=False
+- ⚠ compose-proposal.j2: missing [inference] frontmatter
+- ⚠ compose-proposal.j2: invalid visibility None
+- ⚠ compose-proposal.j2: missing/empty contract
 
 ### skill-maintenance — active (1.00)
 - Zed: ✓, Registry: ✓

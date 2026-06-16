@@ -1321,7 +1321,7 @@ fn build_registry_and_wallet(
     }
 
     // Spawn deposit monitor
-    let monitor_manager = Arc::clone(&wallet_manager);
+    let monitor_manager = Arc::clone(wallet_manager);
     let interval_secs: u64 = std::env::var("HKASK_DEPOSIT_MONITOR_INTERVAL_SECS")
         .ok()
         .and_then(|v| v.parse().ok())
@@ -1346,7 +1346,7 @@ fn build_registry_and_wallet(
     let wallet_gas_calibrator = {
         let calibrator = Arc::new(hkask_cns::WalletGasCalibrator::new(
             Arc::clone(&f.gas_event_store),
-            Arc::clone(&wallet_manager),
+            Arc::clone(wallet_manager),
         ));
         calibrator
             .clone()

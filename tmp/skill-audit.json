@@ -1,14 +1,14 @@
 {
   "summary": {
     "workspace_version": "0.27.0",
-    "total_skills": 66,
-    "complete_both_layers": 29,
+    "total_skills": 67,
+    "complete_both_layers": 30,
     "zed_only": 1,
     "registry_only": 36,
     "active": 23,
     "stale_warning": 12,
     "critical": 6,
-    "recommend_deprecation": 25
+    "recommend_deprecation": 26
   },
   "skills": [
     {
@@ -9618,6 +9618,230 @@
       "health_score": 1.0,
       "status": "active",
       "top_defects": []
+    },
+    {
+      "skill_name": "skill-logic-audit",
+      "zed_layer": {
+        "present": true,
+        "path": ".agents/skills/skill-logic-audit/SKILL.md",
+        "name": "skill-logic-audit",
+        "description": "Audit any .j2 template or manifest.yaml against its annotated goal. Uses a recursive critique loop with bounded depth.",
+        "description_length": 118,
+        "has_frontmatter": true,
+        "name_matches_dir": true
+      },
+      "registry_layer": {
+        "present": true,
+        "manifest_present": true,
+        "manifest_parse_error": false,
+        "crate_name": "skill-logic-audit",
+        "crate_version": "0.27.0",
+        "templates": [
+          {
+            "id": "skill-logic-audit/load-goal",
+            "path": "load-goal.j2",
+            "type": "WordAct",
+            "description": "Parse the annotated goal block from a target template or manifest."
+          },
+          {
+            "id": "skill-logic-audit/critique-template",
+            "path": "critique-template.j2",
+            "type": "KnowAct",
+            "description": "Adversarial critique of a template body against its goal."
+          },
+          {
+            "id": "skill-logic-audit/critique-critique",
+            "path": "critique-critique.j2",
+            "type": "KnowAct",
+            "description": "Soundness review of the first critique, separating valid and spurious concerns."
+          },
+          {
+            "id": "skill-logic-audit/compose-proposal",
+            "path": "compose-proposal.j2",
+            "type": "KnowAct",
+            "description": "Compose a revised template body and diff from calibrated concerns."
+          },
+          {
+            "id": "skill-logic-audit/user-review-loop",
+            "path": "user-review-loop.j2",
+            "type": "FlowDef",
+            "description": "Orchestrate accept/reject/counter-proposal with a bounded depth counter."
+          }
+        ],
+        "templates_list_non_empty": true,
+        "manifest_hlexicon_terms": [
+          "extract",
+          "parse",
+          "recognize",
+          "critique",
+          "evaluate",
+          "discriminate",
+          "assess",
+          "analyze",
+          "reflect",
+          "calibrate",
+          "synthesize",
+          "compose",
+          "design",
+          "simplify",
+          "specify",
+          "sequence",
+          "choice",
+          "iteration",
+          "escalate",
+          "route",
+          "abort"
+        ],
+        "unknown_manifest_hlexicon_terms": [],
+        "j2_files": [
+          {
+            "path": "registry/templates/skill-logic-audit/compose-proposal.j2",
+            "filename": "compose-proposal.j2",
+            "frontmatter_present": false,
+            "template_type": null,
+            "template_type_valid": false,
+            "ddmvss_alias": false,
+            "visibility": null,
+            "visibility_valid": false,
+            "visibility_misplaced": false,
+            "energy_cap": null,
+            "energy_cap_valid": false,
+            "energy_cap_misplaced": false,
+            "contract_input": null,
+            "contract_output": null,
+            "contract_present": false,
+            "lexicon_terms": [],
+            "unknown_lexicon_terms": [],
+            "body_present": false,
+            "version_mentions": [
+              "v0.27.0"
+            ],
+            "version_stale": false,
+            "defects": [
+              "missing [inference] frontmatter"
+            ]
+          },
+          {
+            "path": "registry/templates/skill-logic-audit/critique-critique.j2",
+            "filename": "critique-critique.j2",
+            "frontmatter_present": false,
+            "template_type": null,
+            "template_type_valid": false,
+            "ddmvss_alias": false,
+            "visibility": null,
+            "visibility_valid": false,
+            "visibility_misplaced": false,
+            "energy_cap": null,
+            "energy_cap_valid": false,
+            "energy_cap_misplaced": false,
+            "contract_input": null,
+            "contract_output": null,
+            "contract_present": false,
+            "lexicon_terms": [],
+            "unknown_lexicon_terms": [],
+            "body_present": false,
+            "version_mentions": [
+              "v0.27.0"
+            ],
+            "version_stale": false,
+            "defects": [
+              "missing [inference] frontmatter"
+            ]
+          },
+          {
+            "path": "registry/templates/skill-logic-audit/critique-template.j2",
+            "filename": "critique-template.j2",
+            "frontmatter_present": false,
+            "template_type": null,
+            "template_type_valid": false,
+            "ddmvss_alias": false,
+            "visibility": null,
+            "visibility_valid": false,
+            "visibility_misplaced": false,
+            "energy_cap": null,
+            "energy_cap_valid": false,
+            "energy_cap_misplaced": false,
+            "contract_input": null,
+            "contract_output": null,
+            "contract_present": false,
+            "lexicon_terms": [],
+            "unknown_lexicon_terms": [],
+            "body_present": false,
+            "version_mentions": [
+              "v0.27.0"
+            ],
+            "version_stale": false,
+            "defects": [
+              "missing [inference] frontmatter"
+            ]
+          },
+          {
+            "path": "registry/templates/skill-logic-audit/load-goal.j2",
+            "filename": "load-goal.j2",
+            "frontmatter_present": false,
+            "template_type": null,
+            "template_type_valid": false,
+            "ddmvss_alias": false,
+            "visibility": null,
+            "visibility_valid": false,
+            "visibility_misplaced": false,
+            "energy_cap": null,
+            "energy_cap_valid": false,
+            "energy_cap_misplaced": false,
+            "contract_input": null,
+            "contract_output": null,
+            "contract_present": false,
+            "lexicon_terms": [],
+            "unknown_lexicon_terms": [],
+            "body_present": false,
+            "version_mentions": [
+              "v0.27.0"
+            ],
+            "version_stale": false,
+            "defects": [
+              "missing [inference] frontmatter"
+            ]
+          },
+          {
+            "path": "registry/templates/skill-logic-audit/user-review-loop.j2",
+            "filename": "user-review-loop.j2",
+            "frontmatter_present": false,
+            "template_type": null,
+            "template_type_valid": false,
+            "ddmvss_alias": false,
+            "visibility": null,
+            "visibility_valid": false,
+            "visibility_misplaced": false,
+            "energy_cap": null,
+            "energy_cap_valid": false,
+            "energy_cap_misplaced": false,
+            "contract_input": null,
+            "contract_output": null,
+            "contract_present": false,
+            "lexicon_terms": [],
+            "unknown_lexicon_terms": [],
+            "body_present": false,
+            "version_mentions": [
+              "v0.27.0"
+            ],
+            "version_stale": false,
+            "defects": [
+              "missing [inference] frontmatter"
+            ]
+          }
+        ],
+        "j2_count": 5,
+        "has_flowdef": false,
+        "has_wordact": false,
+        "has_knowact": false
+      },
+      "health_score": 0.0,
+      "status": "recommend_deprecation",
+      "top_defects": [
+        "compose-proposal.j2: missing [inference] frontmatter",
+        "compose-proposal.j2: invalid visibility None",
+        "compose-proposal.j2: missing/empty contract"
+      ]
     },
     {
       "skill_name": "skill-maintenance",

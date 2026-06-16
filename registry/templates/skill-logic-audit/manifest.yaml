@@ -1,0 +1,52 @@
+crate:
+  name: skill-logic-audit
+  version: "0.27.0"
+  description: >
+    Audit any .j2 template or manifest.yaml against its annotated goal through a
+    bounded recursive critique loop: load-goal → critique-template →
+    critique-critique → compose-proposal → user-review-loop.
+
+templates:
+  - id: skill-logic-audit/load-goal
+    path: load-goal.j2
+    type: WordAct
+    description: Parse the annotated goal block from a target template or manifest.
+  - id: skill-logic-audit/critique-template
+    path: critique-template.j2
+    type: KnowAct
+    description: Adversarial critique of a template body against its goal.
+  - id: skill-logic-audit/critique-critique
+    path: critique-critique.j2
+    type: KnowAct
+    description: Soundness review of the first critique, separating valid and spurious concerns.
+  - id: skill-logic-audit/compose-proposal
+    path: compose-proposal.j2
+    type: KnowAct
+    description: Compose a revised template body and diff from calibrated concerns.
+  - id: skill-logic-audit/user-review-loop
+    path: user-review-loop.j2
+    type: FlowDef
+    description: Orchestrate accept/reject/counter-proposal with a bounded depth counter.
+
+hlexicon_terms:
+  - extract
+  - parse
+  - recognize
+  - critique
+  - evaluate
+  - discriminate
+  - assess
+  - analyze
+  - reflect
+  - calibrate
+  - synthesize
+  - compose
+  - design
+  - simplify
+  - specify
+  - sequence
+  - choice
+  - iteration
+  - escalate
+  - route
+  - abort
