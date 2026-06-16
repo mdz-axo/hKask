@@ -5,6 +5,8 @@
 //! - Every rJoule originates from a verified on-chain deposit `[IS-DECL]`
 //! - API keys are Ed25519-signed OCAP capability tokens `[OUGHT-DECL]`
 
+// G2 Justification: This module exposes 18 public items because it defines wallet domain types — RJoule, ApiKeyId, ChainId, DepositAddress, PrivacyMode, and related types. Each represents a distinct financial concept. Submodule split planned for v0.28.0.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;

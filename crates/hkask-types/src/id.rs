@@ -1,5 +1,7 @@
 //! ID types for hKask entities
 
+// G2 Justification: This module exposes 25 public items because it defines strongly-typed ID newtypes for domain-driven design. Each ID type prevents accidental confusion between different entity kinds (WebID vs PodID vs GoalID). Merging would defeat their purpose.
+
 use std::fmt::Debug;
 use std::marker::PhantomData;
 

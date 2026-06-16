@@ -431,16 +431,56 @@ impl InferencePort for InferenceRouter {
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
+        // LoRA adapter overrides the model entirely (includes base model).
+        // Format: "Qwen3.5-9B#constraint-forces-v3" — adapter IS the full model identifier.
+        if let Some(ref adapter) = parameters.adapter {
+            let (provider, model) = match self.resolve(adapter) {
+                Ok(r) => r,
+                Err(e) => return Box::pin(async move { Err(e) }),
+            };
+            let model = model.to_string();
+            let prompt = prompt.to_string();
+            let parameters = parameters.clone();
+            return Box::pin(async move {
+                validate_prompt(&prompt)?;
+                match provider {
+                    ProviderId::Ollama => {
+                        self.ollama
+                            .as_ref()
+                            .unwrap()
+                            .generate(&model, &prompt, &parameters)
+                            .await
+                    }
+                    ProviderId::DeepInfra => {
+                        self.deepinfra
+                            .as_ref()
+                            .unwrap()
+                            .generate(&model, &prompt, &parameters)
+                            .await
+                    }
+                    ProviderId::Fal => {
+                        self.fal
+                            .as_ref()
+                            .unwrap()
+                            .generate(&model, &prompt, &parameters)
+                            .await
+                    }
+                    ProviderId::Together => {
+                        self.together
+                            .as_ref()
+                            .unwrap()
+                            .generate(&model, &prompt, &parameters)
+                            .await
+                    }
+                }
+            });
+        }
+
         let (provider, model) = match self.resolve(&self.config.default_model) {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(e) }),
         };
-        // Apply LoRA adapter for multi-LoRA serving
-        let model = if let Some(ref adapter) = parameters.adapter {
-            format!("{}#{}", model, adapter)
-        } else {
-            model.to_string()
-        };
+        let model = model.to_string();
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
 
@@ -490,16 +530,14 @@ impl InferencePort for InferenceRouter {
         let model_name = model_override
             .map(|s| s.to_string())
             .unwrap_or_else(|| self.config.default_model.clone());
-        let (provider, model) = match self.resolve(&model_name) {
+        // LoRA adapter overrides the model entirely (includes base model).
+        // When adapter is set, it replaces model_override/default_model completely.
+        let effective_model = parameters.adapter.as_deref().unwrap_or(&model_name);
+        let (provider, model) = match self.resolve(effective_model) {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(e) }),
         };
-        // Apply LoRA adapter for multi-LoRA serving (Baseten format: model#adapter)
-        let model = if let Some(ref adapter) = parameters.adapter {
-            format!("{}#{}", model, adapter)
-        } else {
-            model.to_string()
-        };
+        let model = model.to_string();
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
 

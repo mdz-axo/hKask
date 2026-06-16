@@ -4374,6 +4374,7 @@ dependencies = [
  "rusqlite",
  "serde_json",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -4416,6 +4417,7 @@ dependencies = [
  "hkask-test-harness",
  "hkask-types",
  "hmac 0.12.1",
+ "proptest",
  "prost 0.13.5",
  "rand 0.9.4",
  "reqwest",

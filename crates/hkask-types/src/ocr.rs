@@ -13,6 +13,8 @@
 //! (VerificationReport, reportsTo, CnsSpan)
 //! ```
 
+// G2 Justification: This module exposes 14 public items because it defines OCR pipeline types — OcrResult, OcrPage, OcrBlock, OcrLine, OcrWord, and related types. Each represents a distinct document structure level.
+
 use serde::{Deserialize, Serialize};
 
 // ── Complexity Tiers ──────────────────────────────────────────────────────

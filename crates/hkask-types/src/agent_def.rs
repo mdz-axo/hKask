@@ -3,6 +3,8 @@
 //! The Curator manages agent registration, evaluation, rights, and responsibilities.
 //! These types define the full identity of an agent as specified in registry YAML.
 
+// G2 Justification: This module exposes 10 public items because it defines agent definition types — AgentDefinition, AgentPersona, AgentCharter, and related types. Each represents a distinct agent configuration concept.
+
 use serde::{Deserialize, Serialize};
 
 /// Loop: Curation

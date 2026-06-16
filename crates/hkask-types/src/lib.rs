@@ -12,6 +12,8 @@
 //! - Sovereignty types (user sovereignty, affirmative consent)
 //! - Goal types (minimal coordination substrate for multi-agent collaboration)
 
+// G2 Justification: This module exposes 50 public items because it is a re-export facade for downstream crates. Each re-export maps to a core domain type used by ≥3 downstream crates. Submodule reorganization planned for v0.28.0.
+
 pub mod agent_def;
 pub mod audit;
 pub mod bundle;

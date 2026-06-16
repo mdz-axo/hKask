@@ -3,6 +3,8 @@
 //! Contains `CapabilityChecker` for composition-oriented capability management
 //! and `verify_delegation_token` for unified verification with structured outcomes.
 
+// G2 Justification: This module exposes 11 public items because it defines token verification types — CapabilityChecker, VerificationOutcome, verify_delegation_token, and error constants. Each is a distinct verification concern.
+
 use super::{DelegationAction, DelegationResource, DelegationToken};
 use crate::WebID;
 use ed25519_dalek::SigningKey;

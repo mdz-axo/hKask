@@ -25,6 +25,8 @@
 //! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic, Communication}
 //! No sideways edges. Authority flows downward.
 
+// G2 Justification: This module exposes 16 public items because it defines loop system types — LoopId, LoopPhase, LoopPayload, CurationInput, SpecEvent, and related types. Each is a distinct cybernetic loop concept.
+
 pub mod channels;
 pub mod curation;
 pub mod episodic;

@@ -4,6 +4,8 @@
 //! rather than concrete implementations. Per the Authority DAG,
 //! domain crates depend on these port traits (not on each other).
 
+// G2 Justification: This module exposes 27 public items because it defines hexagonal port definitions — each port trait is a distinct architectural boundary (ACL, inference, storage, etc.). Ports cannot be merged without violating interface segregation. Submodule split planned for v0.28.0.
+
 pub mod git_cas;
 
 use crate::cns::CircuitState;

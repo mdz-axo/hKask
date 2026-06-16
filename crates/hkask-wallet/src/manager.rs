@@ -888,80 +888,101 @@ mod tests {
 
     // ── Property-based tests ───────────────────────────────────────────────
 
+    use proptest::prelude::*;
+
+    /// Strategy: generate a random RJoule amount in a reasonable range.
+    fn arbitrary_rjoule() -> BoxedStrategy<RJoule> {
+        (1u64..1000u64).prop_map(RJoule::new).boxed()
+    }
+
+    /// Helper: create a minimal API key so encumbrance FK constraint is satisfied.
+    fn ensure_key(store: &Arc<WalletStore>, wallet_id: WalletId, key_id: ApiKeyId) {
+        use hkask_types::wallet::{ApiKeyCapability, Ed25519PublicKey, PrivacyMode};
+        let capability = ApiKeyCapability {
+            wallet_id,
+            key_id,
+            public_key: Ed25519PublicKey([0u8; 32]),
+            spending_limit_rj: RJoule::new(1_000_000),
+            spent_rj: RJoule::ZERO,
+            scope: vec![],
+            purpose: "test".into(),
+            rate_limit: None,
+            expiry: None,
+            issued_at: chrono::Utc::now(),
+            privacy_mode: PrivacyMode::Transparent,
+            preferred_chain: None,
+        };
+        let _ = store.store_api_key(&capability);
+    }
+
     // REQ: WALLET-PBT-001 — Balance conservation under encumbrance lifecycle (P4, P9)
-    // After any sequence of credit, encumber, consume, and release operations,
-    // the wallet balance never goes negative and total encumbrances ≤ total credited.
-    //
-    // NOTE: Full proptest deferred — make_manager() hits OS keychain which is
-    // too slow for 256-case proptest. When a mock keychain is available in the
-    // test harness, convert this to proptest! with arbitrary strategies.
-    #[test]
-    fn balance_conservation_under_encumbrance_lifecycle() {
-        let mgr = make_manager();
-        let wallet = WalletId::new();
-        mgr.store.ensure_wallet(wallet).unwrap();
+    // After any sequence of credit, encumber, consume, and release operations:
+    // - Wallet balance = total_credited - total_consumed (conservation)
+    // - Total consumed ≤ total credited (can't spend more than deposited)
+    // - Per key: consumed ≤ encumbered (can't consume more than locked)
+    proptest! {
+        #![proptest_config(ProptestConfig { max_shrink_iters: 0, .. ProptestConfig::with_cases(64) })]
+        #[test]
+        fn balance_conservation_under_encumbrance_lifecycle(
+            credits in prop::collection::vec(arbitrary_rjoule(), 1..10),
+            operations in prop::collection::vec((arbitrary_rjoule(), arbitrary_rjoule()), 0..20),
+        ) {
+            let mgr = make_manager();
+            let wallet = WalletId::new();
+            mgr.store.ensure_wallet(wallet).unwrap();
 
-        // Credit 1000 rJoules
-        mgr.store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
-        let total_credited: u64 = 1000;
+            // Track total credited
+            let mut total_credited: u64 = 0;
+            for credit in &credits {
+                mgr.store.credit_rjoules(wallet, *credit).unwrap();
+                total_credited += credit.as_u64();
+            }
 
-        // Helper: create a minimal API key so encumbrance FK constraint is satisfied
-        fn ensure_key(store: &Arc<WalletStore>, wallet_id: WalletId, key_id: ApiKeyId) {
-            use hkask_types::wallet::{ApiKeyCapability, Ed25519PublicKey, PrivacyMode};
-            let capability = ApiKeyCapability {
-                wallet_id,
-                key_id,
-                public_key: Ed25519PublicKey([0u8; 32]),
-                spending_limit_rj: RJoule::new(1_000_000),
-                spent_rj: RJoule::ZERO,
-                scope: vec![],
-                purpose: "test".into(),
-                rate_limit: None,
-                expiry: None,
-                issued_at: chrono::Utc::now(),
-                privacy_mode: PrivacyMode::Transparent,
-                preferred_chain: None,
-            };
-            // Ignore error if key already exists
-            let _ = store.store_api_key(&capability);
+            // Track per-key encumbrance state (create keys on demand)
+            let mut key_encumbered: std::collections::HashMap<ApiKeyId, u64> = std::collections::HashMap::new();
+            let mut key_consumed: std::collections::HashMap<ApiKeyId, u64> = std::collections::HashMap::new();
+
+            for (encumber_amount, consume_amount) in &operations {
+                let key_id = ApiKeyId::new();
+                ensure_key(&mgr.store, wallet, key_id);
+
+                // Encumber: lock rJoules for this key (only if affordable)
+                if mgr.can_afford(wallet, *encumber_amount).unwrap_or(false) {
+                    let _ = mgr.encumber(wallet, key_id, *encumber_amount);
+                    *key_encumbered.entry(key_id).or_insert(0) += encumber_amount.as_u64();
+                }
+
+                // Consume: spend from encumbrance (up to encumbered amount)
+                let encumbered = *key_encumbered.get(&key_id).unwrap_or(&0);
+                let consumed = *key_consumed.get(&key_id).unwrap_or(&0);
+                let available = encumbered.saturating_sub(consumed);
+                let actual_consume = consume_amount.as_u64().min(available);
+                if actual_consume > 0 {
+                    let _ = mgr.consume(key_id, RJoule::new(actual_consume));
+                    *key_consumed.entry(key_id).or_insert(0) += actual_consume;
+                }
+
+                // Release: return unspent to wallet
+                let _ = mgr.release_encumbrance(key_id);
+            }
+
+            // Invariant 1: balance = credited - consumed (conservation)
+            let balance = mgr.get_balance(wallet).unwrap();
+            let total_consumed: u64 = key_consumed.values().sum();
+            prop_assert_eq!(balance.rjoules, total_credited.saturating_sub(total_consumed),
+                "balance {} != credited {} - consumed {}", balance.rjoules, total_credited, total_consumed);
+
+            // Invariant 2: can't consume more than credited
+            prop_assert!(total_consumed <= total_credited,
+                "consumed {} > credited {}", total_consumed, total_credited);
+
+            // Invariant 3: per-key, consumed ≤ encumbered
+            for (key_id, encumbered) in &key_encumbered {
+                let consumed = key_consumed.get(key_id).copied().unwrap_or(0);
+                prop_assert!(consumed <= *encumbered,
+                    "key {}: consumed {} > encumbered {}", key_id, consumed, encumbered);
+            }
         }
-
-        // Scenario 1: encumber → consume partial → release
-        let key1 = ApiKeyId::new();
-        ensure_key(&mgr.store, wallet, key1);
-        mgr.encumber(wallet, key1, RJoule::new(300)).unwrap();
-        mgr.consume(key1, RJoule::new(100)).unwrap();
-        mgr.release_encumbrance(key1).unwrap();
-
-        // Scenario 2: encumber → consume all → release (no-op)
-        let key2 = ApiKeyId::new();
-        ensure_key(&mgr.store, wallet, key2);
-        mgr.encumber(wallet, key2, RJoule::new(200)).unwrap();
-        mgr.consume(key2, RJoule::new(200)).unwrap();
-        mgr.release_encumbrance(key2).unwrap();
-
-        // Scenario 3: encumber → release without consuming
-        let key3 = ApiKeyId::new();
-        ensure_key(&mgr.store, wallet, key3);
-        mgr.encumber(wallet, key3, RJoule::new(150)).unwrap();
-        mgr.release_encumbrance(key3).unwrap();
-
-        // Verify balance is non-negative and ≤ total credited
-        let balance = mgr.get_balance(wallet).unwrap();
-        assert!(
-            balance.rjoules <= total_credited,
-            "balance {} > total_credited {}",
-            balance.rjoules,
-            total_credited
-        );
-
-        // Total consumed (100 + 200 = 300) should be ≤ total credited (1000)
-        // Balance should reflect: 1000 - 100 - 200 = 700 (released encumbrances return unspent)
-        assert_eq!(
-            balance.rjoules, 700,
-            "expected 700 rJoules after consume 100+200, got {}",
-            balance.rjoules
-        );
     }
 
     // ── Integration: deposit monitor ───────────────────────────────────────

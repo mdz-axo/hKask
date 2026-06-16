@@ -61,10 +61,16 @@ pub struct LLMParameters {
     pub disable_thinking: bool,
 
     /// LoRA adapter to apply at inference time (for multi-LoRA serving).
-    /// When set, the adapter is appended to the model name in provider-specific
-    /// format (e.g., Baseten: `model#adapter`). For Together AI fine-tuned models,
-    /// use the fine-tuned model name directly instead of this field.
-    /// Default: None (no adapter).
+    /// When set, this COMPLETELY OVERRIDES the model — it is the full model
+    /// identifier including the base model. The adapter was trained on a specific
+    /// base model and cannot be applied to a different one.
+    ///
+    /// Format: `"Qwen3.5-9B#constraint-forces-v3"` (Baseten multi-LoRA)
+    ///         `"accounts/fireworks/models/my-model"` (Together AI fine-tuned)
+    ///
+    /// The caller is responsible for resolving which base model the adapter
+    /// was trained on (via AdapterStore lookup by skill_name).
+    /// Default: None (use default model without adapter).
     #[serde(default)]
     pub adapter: Option<String>,
 }

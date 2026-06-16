@@ -102,7 +102,7 @@ Delete `hkask-mcp-training` and the skills training pipeline (data generation, L
 
 ## Multi-LoRA Inference Routing
 
-The `hkask-inference` crate supports multi-LoRA serving via `LLMParameters.adapter`. When set, the adapter name is appended to the model in provider-specific format (e.g., Baseten: `model#adapter`). This enables a single deployed base model to serve multiple skill adapters, selected per-request.
+The `hkask-inference` crate supports multi-LoRA serving via `LLMParameters.adapter`. When set, this field **completely overrides the model** — it is the full model identifier including the base model (e.g., `"Qwen3.5-9B#constraint-forces-v3"`). The adapter was trained on a specific base model and cannot be applied to a different one. The caller resolves which base model the adapter needs via `AdapterStore` lookup by `skill_name`. This enables different skills to use different optimal base models (Qwen for classification, DeepSeek for reasoning, etc.).
 
 ## Deferred Items
 

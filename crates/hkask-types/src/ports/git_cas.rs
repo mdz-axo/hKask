@@ -6,6 +6,8 @@
 //! Each method operates on a named repository (`RepoId`), providing isolation
 //! between the 7 snapshot repos.
 
+// G2 Justification: This module exposes 18 public items because it defines the Git CAS port — CommitHash, BlobRef, Treeish, RepoId, and verification types. Each is a distinct Git data model concept required by the BackupService and CAS adapter.
+
 use crate::blake3_hash;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

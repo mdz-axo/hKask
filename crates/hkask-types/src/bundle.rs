@@ -7,6 +7,8 @@
 //! The config sub-structs (ConvergenceConfig, GasConfig, etc.) mirror the
 //! fields found in existing process manifests under `registry/manifests/`.
 
+// G2 Justification: This module exposes 17 public items because it defines skill bundle composition types — BundleId, BundleManifest, ComposeRequest, EvolveRequest, and related types. Each represents a distinct composition concept.
+
 use serde::{Deserialize, Serialize};
 
 use crate::lexicon::TemplateType;

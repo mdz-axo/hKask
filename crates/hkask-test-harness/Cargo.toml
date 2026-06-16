@@ -17,3 +17,4 @@ parking_lot.workspace = true
 proptest = "1"
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

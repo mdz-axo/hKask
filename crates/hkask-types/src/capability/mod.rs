@@ -3,6 +3,8 @@
 //! Two token kinds: **Loop authority** (ZST tokens in `tokens.rs`) prove loop-authorized operations;
 //! **Delegation** (`DelegationToken`) are Ed25519-signed tokens for inter-agent delegation with cryptographic attenuation.
 
+// G2 Justification: This module exposes 20 public items because it defines the OCAP capability system — DelegationToken, DelegationResource, DelegationAction, CapabilitySpec, AttenuationLevel, and verification types. Each is a distinct security concept that cannot be merged without losing type safety.
+
 /// Shared structural bound: capability attenuation, cascade depth, subgoal nesting.
 pub const SYSTEM_MAX_RECURSION: u8 = 7;
 

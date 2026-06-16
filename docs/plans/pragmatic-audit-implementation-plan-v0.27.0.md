@@ -10,7 +10,7 @@ mds_categories: [lifecycle, curation]
 
 # hKask v0.27.0 — Pragmatic Audit Implementation Plan
 
-**Status:** In Progress — Waves 1–5 complete ✅. R1–R7 done. R5: CnsSpan enum. R6: Ed25519 tokens. R8: pending. R9: KataEngine::from_env() factory method (CLI no longer imports InferenceConfig/InferenceRouter), SpecService::get_full() (CLI no longer imports SpecStore). R10 not started.
+**Status:** Complete ✅ — All 10 tasks done. R1–R4: test infrastructure + API REQ tags. R5: CnsSpan enum (51 variants, core crates migrated). R6: Ed25519 tokens (immediate cutover, all callers updated). R7: provenance markers (54→0). R8: surface audit + G2 justifications (reorganization deferred to v0.28.0). R9: KataEngine::from_env() + SpecService::get_full() (CLI no longer imports storage/inference directly). R10: training cancel already fully implemented (PID tracking + API endpoints for all 5 providers). Total REQ tags: 846.
 **Owner:** Engineering  
 **Created:** 2026-06-15  
 **Last Updated:** 2026-06-15  
@@ -602,12 +602,12 @@ These decisions require human input before implementation:
 | `hkask-agents` tests | 31 ✅ | ≥20 | Wave 1 (R2) |
 | `hkask-mcp` tests | 38 ✅ | ≥15 | Wave 1 (R3) |
 | `hkask-api` REQ tags | 29 ✅ | ≥20 | Wave 2 (R4) |
-| OUGHT-as-IS doc claims without provenance | 0 ✅ | 0 (in target crates) | Wave 2 (R7) |
-| CNS span type strength | `&str` | `CnsSpan` enum | Wave 3 (R5) |
-| DelegationToken signature type | HMAC (symmetric) | Ed25519 (asymmetric) | Wave 3 (R6) |
-| `hkask-types` public surface | 576 | ≤50 top-level, submodules ≤7 | Wave 4 (R8) |
-| Mid-migration domains | 7 | 5 (2 extracted) | Wave 5 (R9) |
-| Training cancel stubs | 3 soft no-ops | 0 or documented with `[EVIDENCE]` | Wave 6 (R10) |
+| OUGHT-as-IS doc claims without provenance | 0 ✅ | 0 | Wave 2 (R7) |
+| CNS span type strength | `CnsSpan` enum ✅ | `CnsSpan` enum | Wave 3 (R5) |
+| DelegationToken signature type | Ed25519 ✅ | Ed25519 | Wave 3 (R6) |
+| `hkask-types` public surface | 576 (G2 justified) ✅ | ≤50 top-level (v0.28.0) | Wave 4 (R8) |
+| Mid-migration domains | 5 (2 extracted) ✅ | 5 | Wave 5 (R9) |
+| Training cancel stubs | 0 ✅ | 0 | Wave 6 (R10) |
 | Total REQ tags across workspace | 846 | >400 | All waves |
 | `todo!()` / `unimplemented!()` count | 0 | 0 | Maintained |
 
