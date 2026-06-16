@@ -20,8 +20,8 @@
 //! Architecture:
 //!   Dataset → DatasetPipeline (ingest/normalize/validate/cache)
 //!          → TrainingJob (canonical representation)
-//!          → TrainingProvider (axolotl/unsloth adapter)
-//!          → ProviderBackend (local CLI or cloud dispatch)
+//!          → TrainingHost (axolotl/unsloth adapter)
+//!          → HostBackend (local CLI or cloud dispatch)
 //!          → LoRAAdapter (stored in hkask-storage)
 
 pub mod adapters;

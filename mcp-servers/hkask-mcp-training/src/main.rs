@@ -2,7 +2,7 @@
 //!
 //! Exposes a full training surface:
 //! - `training_ingest_qa` — Ingest QA pairs for model fine-tuning
-//! - `training_submit` — Submit a training job via pluggable provider
+//! - `training_submit` — Submit a training job via pluggable host
 //! - `training_status` — Query training job status
 //! - `training_cancel` — Cancel a running job
 //! - `training_list_adapters` — List completed LoRA adapters
@@ -18,32 +18,33 @@
 //! - `training_ingest_dataset` — Ingest a raw dataset into the normalized cache
 //!
 //! Architecture:
-//!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingProvider → LoRAAdapter
+//!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingHost → LoRAAdapter
 //!
-//! Provider selection via config (training.provider in settings.json), routed through
-//! the shared `hkask-services` config init. Provider pluggability is via the
-//! `TrainingProvider` trait, isolating the MCP surface from framework-specific details.
+//! Host selection via config (training.host in settings.json), routed through
+//! the shared `hkask-services` config init. Host pluggability is via the
+//! `TrainingHost` trait, isolating the MCP surface from framework-specific details.
 //!
 //! # Environment Variables
 //!
 //! - `HKASK_MEMORY_DB` — Path to per-agent memory database for QA storage
 //! - `HKASK_DB_PASSPHRASE` — Passphrase for the database
-//! - `HKASK_TRAINING_PROVIDER` — Override training provider (axolotl|unsloth|together|runpod)
+//! - `HKASK_TRAINING_HOST` — Override host (together|runpod|baseten) — where compute runs
+//! - `HKASK_TRAINING_HARNESS` — Override harness (axolotl|unsloth) — what tooling runs
 //! - `HKASK_TRAINING_CACHE_DIR` — Dataset cache directory
-//! - `TOGETHER_API_KEY` — Together AI API key (for Together provider)
-//! - `RUNPOD_API_KEY` — Runpod API key (for Runpod provider)
+//! - `TOGETHER_API_KEY` — Together AI API key (for Together host)
+//! - `RUNPOD_API_KEY` — Runpod API key (for Runpod host)
 //! - `RUNPOD_TEMPLATE_ID` — Runpod GPU pod template ID with axolotl pre-installed
 //! - `RUNPOD_GPU_TYPE_ID` — GPU type ID for Runpod pods (default: "NVIDIA RTX 4090")
 //! - `RUNPOD_CONTAINER_DISK_GB` — Container disk GB for Runpod pods (default: 50)
 //! - `RUNPOD_MIN_MEMORY_GB` — Minimum memory GB for Runpod pods (default: 24)
 //! - `HKASK_DATASET_URL` — Public URL for dataset download by Runpod pods
-//! - `BASETEN_API_KEY` — Baseten API key (for Baseten provider)
+//! - `BASETEN_API_KEY` — Baseten API key (for Baseten host)
 //! - `BASETEN_PROJECT_ID` — Baseten training project ID
 //! - `BASETEN_GPU` — GPU accelerator for Baseten (default: "H100")
 //! - `BASETEN_GPU_COUNT` — Number of GPUs for Baseten (default: 1)
 //! - `HF_TOKEN` — HuggingFace access token (for gated model loading on Baseten)
-//! - `HKASK_AXOLOTL_PATH` — Path to axolotl CLI (for Axolotl provider)
-//! - `HKASK_PYTHON_PATH` — Path to python3 interpreter (for Unsloth provider)
+//! - `HKASK_AXOLOTL_PATH` — Path to axolotl CLI (for Axolotl host)
+//! - `HKASK_PYTHON_PATH` — Path to python3 interpreter (for Unsloth host)
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
@@ -53,8 +54,8 @@ use hkask_mcp_training::adapters::{
 };
 use hkask_mcp_training::dataset::DatasetPipeline;
 use hkask_mcp_training::providers::{
-    ProviderConfig, TrainingJob, TrainingJobStatus, TrainingParams, TrainingProvider,
-    TrainingProviderId, create_provider,
+    TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
+    TrainingJobStatus, TrainingParams, create_host,
 };
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
@@ -323,8 +324,8 @@ pub struct TrainingServer {
     replicant: String,
     daemon: Option<hkask_mcp::DaemonClient>,
     semantic: Option<SemanticMemory>,
-    provider: Box<dyn TrainingProvider>,
-    provider_id: TrainingProviderId,
+    host: Box<dyn TrainingHost>,
+    host_id: TrainingHostId,
     pipeline: Mutex<DatasetPipeline>,
     adapter_store: Arc<dyn AdapterStore>,
     job_store: Option<JobStore>,
@@ -338,8 +339,8 @@ impl TrainingServer {
         replicant: String,
         daemon: Option<hkask_mcp::DaemonClient>,
         semantic: Option<SemanticMemory>,
-        provider: Box<dyn TrainingProvider>,
-        provider_id: TrainingProviderId,
+        host: Box<dyn TrainingHost>,
+        host_id: TrainingHostId,
         pipeline: DatasetPipeline,
         adapter_store: Arc<dyn AdapterStore>,
         job_store: Option<JobStore>,
@@ -350,8 +351,8 @@ impl TrainingServer {
             replicant,
             daemon,
             semantic,
-            provider,
-            provider_id,
+            host,
+            host_id,
             pipeline: Mutex::new(pipeline),
             adapter_store,
             job_store,
@@ -480,7 +481,7 @@ impl TrainingServer {
     }
 
     #[tool(
-        description = "Submit a training job for execution. Ingests, normalizes, and submits a dataset for LoRA fine-tuning via the configured provider (axolotl or unsloth)."
+        description = "Submit a training job for execution. Ingests, normalizes, and submits a dataset for LoRA fine-tuning via the configured host (axolotl or unsloth)."
     )]
     async fn training_submit(
         &self,
@@ -549,7 +550,7 @@ impl TrainingServer {
             params: params.unwrap_or_default(),
             status: TrainingJobStatus::Queued,
             created_at: chrono::Utc::now(),
-            provider: self.provider_id(),
+            host: self.host_id,
         };
 
         // Persist job for survival across server restarts
@@ -563,7 +564,7 @@ impl TrainingServer {
                 &params_json,
                 &status_str,
                 job.created_at.timestamp(),
-                &format!("{:?}", job.provider).to_lowercase(),
+                &format!("{:?}", job.host).to_lowercase(),
             ) {
                 tracing::warn!(
                     target: "cns.training.job.persist",
@@ -574,13 +575,13 @@ impl TrainingServer {
             }
         }
 
-        match self.provider.submit(&job).await {
+        match self.host.submit(&job).await {
             Ok(job_id) => {
                 let mut result = json!({
                     "job_id": job_id,
                     "status": "queued",
                     "base_model": base_model,
-                    "provider": format!("{:?}", self.provider_id()),
+                    "host": format!("{:?}", self.host_id),
                 });
                 if !token_warnings.is_empty() {
                     result["token_warnings"] = json!(token_warnings);
@@ -611,7 +612,7 @@ impl TrainingServer {
         Parameters(TrainStatusRequest { job_id }): Parameters<TrainStatusRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("training_status", &self.webid);
-        match self.provider.status(&job_id).await {
+        match self.host.status(&job_id).await {
             Ok(status) => {
                 let mut result = json!({
                     "job_id": job_id,
@@ -639,8 +640,8 @@ impl TrainingServer {
                             result["adapter_note"] = json!("Already registered");
                         }
                         _ => {
-                            // Try to get completion metadata from provider
-                            match self.provider.completion_metadata(&job_id).await {
+                            // Try to get completion metadata from host
+                            match self.host.completion_metadata(&job_id).await {
                                 Ok(Some(meta)) => {
                                     let adapter = LoRAAdapter {
                                         id: job_id.clone(),
@@ -668,7 +669,7 @@ impl TrainingServer {
                                             result["base_model"] = json!(meta.base_model);
 
                                             // Store adapter weight blob if available locally
-                                            match self.provider.adapter_weight_path(&job_id).await {
+                                            match self.host.adapter_weight_path(&job_id).await {
                                                 Ok(Some(weight_path)) => {
                                                     match tokio::fs::read(&weight_path).await {
                                                         Ok(blob) => {
@@ -703,7 +704,7 @@ impl TrainingServer {
                                                 _ => {
                                                     result["blob_stored"] = json!(false);
                                                     result["blob_note"] =
-                                                        json!("No local weights (cloud provider)");
+                                                        json!("No local weights (cloud host)");
                                                 }
                                             }
 
@@ -722,7 +723,7 @@ impl TrainingServer {
                                 _ => {
                                     result["adapter_registered"] = json!(false);
                                     result["adapter_note"] = json!(
-                                        "Provider does not support auto-registration. Use training_register_adapter to register manually."
+                                        "Host does not support auto-registration. Use training_register_adapter to register manually."
                                     );
                                 }
                             }
@@ -745,7 +746,7 @@ impl TrainingServer {
         Parameters(TrainCancelRequest { job_id }): Parameters<TrainCancelRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("training_cancel", &self.webid);
-        match self.provider.cancel(&job_id).await {
+        match self.host.cancel(&job_id).await {
             Ok(()) => {
                 let result = json!({ "job_id": job_id, "status": "cancelled" });
                 span.ok_json(result)
@@ -760,7 +761,7 @@ impl TrainingServer {
     #[tool(description = "List all completed LoRA adapters available for model composition.")]
     async fn training_list_adapters(&self) -> String {
         let span = ToolSpanGuard::new("training_list_adapters", &self.webid);
-        match self.provider.list_adapters().await {
+        match self.host.list_adapters().await {
             Ok(adapter_ids) => {
                 let mut metadata_list: Vec<serde_json::Value> = Vec::new();
                 for id in &adapter_ids {
@@ -805,14 +806,14 @@ impl TrainingServer {
     ) -> String {
         let span = ToolSpanGuard::new("training_delete_adapter", &self.webid);
 
-        // Delete from provider storage (filesystem)
-        if let Err(e) = self.provider.delete_adapter(&adapter_id).await {
-            // Non-fatal — provider storage may already be gone, still clean up metadata
+        // Delete from host storage (filesystem)
+        if let Err(e) = self.host.delete_adapter(&adapter_id).await {
+            // Non-fatal — host storage may already be gone, still clean up metadata
             tracing::warn!(
                 target: "cns.training.adapter.deleted",
                 adapter_id = %adapter_id,
                 error = %e,
-                "Provider deletion failed, continuing with metadata cleanup"
+                "Host deletion failed, continuing with metadata cleanup"
             );
         }
 
@@ -1984,17 +1985,17 @@ impl TrainingServer {
                     continue;
                 }
                 // Extract question for dedup
-                if let Ok(record) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                    if let Some(messages) = record.get("messages").and_then(|m| m.as_array()) {
-                        let question = messages
-                            .iter()
-                            .find(|m| m.get("role").and_then(|r| r.as_str()) == Some("user"))
-                            .and_then(|m| m.get("content").and_then(|c| c.as_str()))
-                            .unwrap_or("");
-                        if !question.is_empty() && seen_questions.insert(question.to_string()) {
-                            merged.push_str(trimmed);
-                            merged.push('\n');
-                        }
+                if let Ok(record) = serde_json::from_str::<serde_json::Value>(trimmed)
+                    && let Some(messages) = record.get("messages").and_then(|m| m.as_array())
+                {
+                    let question = messages
+                        .iter()
+                        .find(|m| m.get("role").and_then(|r| r.as_str()) == Some("user"))
+                        .and_then(|m| m.get("content").and_then(|c| c.as_str()))
+                        .unwrap_or("");
+                    if !question.is_empty() && seen_questions.insert(question.to_string()) {
+                        merged.push_str(trimmed);
+                        merged.push('\n');
                     }
                 }
             }
@@ -2050,7 +2051,7 @@ impl TrainingServer {
             params: params.unwrap_or_default(),
             status: TrainingJobStatus::Queued,
             created_at: chrono::Utc::now(),
-            provider: self.provider_id(),
+            host: self.host_id,
         };
 
         // Persist job
@@ -2063,7 +2064,7 @@ impl TrainingServer {
                 &params_json,
                 "queued",
                 job.created_at.timestamp(),
-                &format!("{:?}", job.provider).to_lowercase(),
+                &format!("{:?}", job.host).to_lowercase(),
             );
         }
 
@@ -2090,7 +2091,7 @@ impl TrainingServer {
             );
         }
 
-        match self.provider.submit(&job).await {
+        match self.host.submit(&job).await {
             Ok(job_id) => {
                 let result = json!({
                     "job_id": job_id,
@@ -2103,7 +2104,7 @@ impl TrainingServer {
                     "original_examples": original_content.lines().filter(|l| !l.trim().is_empty()).count(),
                     "feedback_examples": feedback_content.lines().filter(|l| !l.trim().is_empty()).count(),
                     "merged_examples": merged.lines().filter(|l| !l.trim().is_empty()).count(),
-                    "provider": format!("{:?}", self.provider_id()),
+                    "host": format!("{:?}", self.host_id),
                 });
                 self.record_experience(
                     "training_retrain",
@@ -2181,10 +2182,6 @@ impl TrainingServer {
             ),
         }
     }
-
-    fn provider_id(&self) -> TrainingProviderId {
-        self.provider_id
-    }
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────
@@ -2260,16 +2257,21 @@ async fn main() -> anyhow::Result<()> {
         None
     };
 
-    // Resolve provider config from environment
-    let provider_id = std::env::var("HKASK_TRAINING_PROVIDER")
+    // Resolve host config from environment
+    let host_id = std::env::var("HKASK_TRAINING_HOST")
         .ok()
-        .and_then(|s| TrainingProviderId::from_str(&s))
-        .unwrap_or(TrainingProviderId::Axolotl);
+        .and_then(|s| TrainingHostId::from_str(&s))
+        .unwrap_or(TrainingHostId::Together);
+    let harness_id = std::env::var("HKASK_TRAINING_HARNESS")
+        .ok()
+        .and_then(|s| TrainingHarnessId::from_str(&s))
+        .unwrap_or(TrainingHarnessId::Axolotl);
     let cloud_dispatch = std::env::var("HKASK_TRAINING_CLOUD_DISPATCH")
         .map(|s| s == "1" || s == "true")
         .unwrap_or(false);
-    let provider_config = ProviderConfig {
-        provider: provider_id,
+    let host_config = TrainingHostConfig {
+        harness: harness_id,
+        host: host_id,
         axolotl_path: std::env::var("HKASK_AXOLOTL_PATH").ok().map(PathBuf::from),
         python_path: std::env::var("HKASK_PYTHON_PATH").ok().map(PathBuf::from),
         cloud_dispatch,
@@ -2324,8 +2326,8 @@ async fn main() -> anyhow::Result<()> {
                 ),
             };
 
-            let provider = create_provider(&provider_config)
-                .map_err(|e| anyhow::anyhow!("Failed to create training provider: {}", e))?;
+            let host = create_host(&host_config)
+                .map_err(|e| anyhow::anyhow!("Failed to create training host: {}", e))?;
 
             let inference_config = InferenceConfig::from_env();
 
@@ -2334,8 +2336,8 @@ async fn main() -> anyhow::Result<()> {
                 replicant.clone(),
                 daemon_client.clone(),
                 semantic,
-                provider,
-                provider_config.provider,
+                host,
+                host_config.host,
                 pipeline.clone(),
                 adapter_store,
                 job_store,

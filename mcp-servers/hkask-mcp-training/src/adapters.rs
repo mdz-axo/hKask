@@ -270,7 +270,7 @@ impl SqliteAdapterStore {
                 params_json TEXT NOT NULL DEFAULT '{}',
                 status TEXT NOT NULL DEFAULT 'queued',
                 created_at INTEGER NOT NULL,
-                provider TEXT NOT NULL
+                host TEXT NOT NULL
             );",
         )
         .map_err(|e| AdapterStoreError::Storage(format!("Migration failed: {}", e)))
@@ -485,7 +485,7 @@ pub struct StoredJob {
     pub params_json: String,
     pub status: String,
     pub created_at: i64,
-    pub provider: String,
+    pub host: String,
 }
 
 /// Persistent job registry backed by the same SQLite database.
@@ -515,13 +515,13 @@ impl JobStore {
         params_json: &str,
         status: &str,
         created_at: i64,
-        provider: &str,
+        host: &str,
     ) -> Result<(), AdapterStoreError> {
         let conn = self.lock()?;
         exec_discard(
             &conn,
             "INSERT OR REPLACE INTO training_jobs
-             (id, base_model, dataset_path, params_json, status, created_at, provider)
+             (id, base_model, dataset_path, params_json, status, created_at, host)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             &[
                 &id as &dyn rusqlite::types::ToSql,
@@ -530,7 +530,7 @@ impl JobStore {
                 &params_json as &dyn rusqlite::types::ToSql,
                 &status as &dyn rusqlite::types::ToSql,
                 &created_at as &dyn rusqlite::types::ToSql,
-                &provider as &dyn rusqlite::types::ToSql,
+                &host as &dyn rusqlite::types::ToSql,
             ],
         )?;
         Ok(())
@@ -554,8 +554,8 @@ impl JobStore {
         let conn = self.lock()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, base_model, dataset_path, params_json, status, created_at, provider
-                 FROM training_jobs WHERE id = ?1",
+                "SELECT id, base_model, dataset_path, params_json, status, created_at, host
+                     FROM training_jobs WHERE id = ?1",
             )
             .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
 
@@ -567,7 +567,7 @@ impl JobStore {
                 params_json: row.get(3)?,
                 status: row.get(4)?,
                 created_at: row.get(5)?,
-                provider: row.get(6)?,
+                host: row.get(6)?,
             })
         });
 
@@ -583,8 +583,8 @@ impl JobStore {
         let conn = self.lock()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, base_model, dataset_path, params_json, status, created_at, provider
-                 FROM training_jobs ORDER BY created_at DESC",
+                "SELECT id, base_model, dataset_path, params_json, status, created_at, host
+                     FROM training_jobs ORDER BY created_at DESC",
             )
             .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
 
@@ -597,7 +597,7 @@ impl JobStore {
                     params_json: row.get(3)?,
                     status: row.get(4)?,
                     created_at: row.get(5)?,
-                    provider: row.get(6)?,
+                    host: row.get(6)?,
                 })
             })
             .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
@@ -645,7 +645,7 @@ mod tests {
                 params_json TEXT NOT NULL DEFAULT '{}',
                 status TEXT NOT NULL DEFAULT 'queued',
                 created_at INTEGER NOT NULL,
-                provider TEXT NOT NULL
+                host TEXT NOT NULL
             );",
             )
             .expect("migration");
@@ -775,7 +775,7 @@ mod tests {
         let job = store.get("job-1").expect("get").expect("found");
         assert_eq!(job.base_model, "Qwen3.5-9B");
         assert_eq!(job.status, "queued");
-        assert_eq!(job.provider, "together");
+        assert_eq!(job.host, "together");
     }
 
     /// REQ: training-job-02 — JobStore update_status changes job status

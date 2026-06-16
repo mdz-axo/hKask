@@ -16,16 +16,47 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
-// ── Provider identifiers ───────────────────────────────────────────────────
+// ── Training harness identifiers ─────────────────────────────────────────────
 
-/// Supported training provider backends.
+/// Training harnesses — the tooling that runs on top of a host.
+///
+/// This is the *harness* layer (Axolotl/Unsloth tooling), distinct from the
+/// *host* layer (where compute runs: Together/Runpod/Baseten) and the
+/// *base model* layer (what model is fine-tuned: Qwen/Gemma/Mistral).
+///
+/// Each variant represents a training framework that produces LoRA adapters.
+/// A harness can run on any host (local GPU or cloud), depending on configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TrainingProviderId {
-    /// axolotl — configuration-driven fine-tuning framework
+pub enum TrainingHarnessId {
+    /// axolotl — YAML-based training framework, dispatch to Runpod when cloud_dispatch
     Axolotl,
-    /// unsloth — optimized memory-efficient training
+    /// unsloth — memory-efficient Python training framework, dispatch to Baseten when cloud_dispatch
     Unsloth,
+}
+
+impl TrainingHarnessId {
+    /// Parse from a config string (case-insensitive).
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "axolotl" => Some(Self::Axolotl),
+            "unsloth" => Some(Self::Unsloth),
+            _ => None,
+        }
+    }
+}
+
+// ── Host identifiers ─────────────────────────────────────────────────────────
+
+/// Training hosts — where the GPU compute runs.
+///
+/// This is the *host* layer (cloud or local), distinct from the *harness* layer
+/// (Axolotl/Unsloth tooling) and the *base model* layer (Qwen/Gemma/Mistral/etc.).
+/// Each variant represents a backend that can execute training jobs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TrainingHostId {
     /// together — Together AI cloud fine-tuning API
     Together,
     /// runpod — Runpod GPU cloud training (pod-based axolotl dispatch)
@@ -34,13 +65,11 @@ pub enum TrainingProviderId {
     Baseten,
 }
 
-impl TrainingProviderId {
+impl TrainingHostId {
     /// Parse from a config string (case-insensitive).
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "axolotl" => Some(Self::Axolotl),
-            "unsloth" => Some(Self::Unsloth),
             "together" => Some(Self::Together),
             "runpod" => Some(Self::Runpod),
             "baseten" => Some(Self::Baseten),
@@ -67,8 +96,8 @@ pub struct TrainingJob {
     /// Job creation timestamp.
     #[serde(with = "chrono::serde::ts_seconds")]
     pub created_at: chrono::DateTime<chrono::Utc>,
-    /// Provider executing this job.
-    pub provider: TrainingProviderId,
+    /// Host executing this job.
+    pub host: TrainingHostId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -131,16 +160,20 @@ pub enum ProviderError {
     Backend(String),
 }
 
-// ── TrainingProvider trait ─────────────────────────────────────────────────
+// ── TrainingHost trait ────────────────────────────────────────────────────
 
-/// Pluggable training backend interface.
+/// Pluggable training host — where a training job runs.
+///
+/// This is the *host* layer (cloud or local GPU), distinct from the *harness* layer
+/// (Axolotl/Unsloth tooling) and the *base model* layer (Qwen/Gemma/Mistral).
+/// Each implementation talks to a specific compute backend.
 ///
 /// Implementations translate canonical `TrainingJob` representations into
-/// provider-specific API calls (CLI execution, remote HTTP dispatch, etc.).
+/// host-specific API calls (CLI execution, remote HTTP dispatch, etc.).
 /// The trait is async to accommodate both local subprocess management and
 /// cloud provider HTTP calls via `hkask-inference` routing.
 #[async_trait::async_trait]
-pub trait TrainingProvider: Send + Sync {
+pub trait TrainingHost: Send + Sync {
     /// Submit a training job for execution.
     /// Returns a provider-specific job ID for status tracking.
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError>;
@@ -168,13 +201,41 @@ pub trait TrainingProvider: Send + Sync {
     }
 
     /// Return the filesystem path to adapter weights, if stored locally.
-    /// Returns `None` for cloud providers (Together AI) where weights are server-side.
+    /// Returns `None` for cloud hosts (Together AI) where weights are server-side.
     /// Default implementation returns `None`.
     async fn adapter_weight_path(
         &self,
         _adapter_id: &str,
     ) -> Result<Option<PathBuf>, ProviderError> {
         Ok(None)
+    }
+
+    /// Download adapter weights from cloud host to a local cache path.
+    ///
+    /// Returns the local path after download, or `None` if the host doesn't
+    /// support weight download (e.g., weights are on HuggingFace, not the host's storage).
+    ///
+    /// Default implementation returns `None` — local hosts already have weights
+    /// on disk, and cloud hosts return `Some(local_path)` after download.
+    /// The default is `None` because most cloud hosts store weights on
+    /// third-party services (HuggingFace, S3), not the host's own storage.
+    async fn download_adapter(
+        &self,
+        _adapter_id: &str,
+        _cache_dir: &std::path::Path,
+    ) -> Result<Option<PathBuf>, ProviderError> {
+        Ok(None)
+    }
+
+    /// Estimate the cost of a training job before execution.
+    ///
+    /// Used by `training_recommend_model` to surface cost before committing to a job.
+    /// Cloud hosts return GPU-hour pricing; local hosts return 0.0
+    /// (cost is the user's own hardware).
+    ///
+    /// Default implementation returns a zero estimate.
+    async fn estimate_cost(&self, _job: &TrainingJob) -> CostEstimate {
+        CostEstimate::default()
     }
 }
 
@@ -274,7 +335,7 @@ lora_target_modules:
 }
 
 #[async_trait::async_trait]
-impl TrainingProvider for AxolotlProvider {
+impl TrainingHost for AxolotlProvider {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
         if self.cloud_dispatch {
             // Dispatch to cloud (Fireworks/Baseten) via hkask-inference routing.
@@ -330,7 +391,7 @@ impl TrainingProvider for AxolotlProvider {
         tracing::info!(
             target: "cns.training.job.submit",
             job_id = %job.id,
-            provider = "axolotl",
+            host = "axolotl",
             "Training job submitted"
         );
 
@@ -550,7 +611,7 @@ model.save_pretrained("./unsloth-output/{}/adapter")
 }
 
 #[async_trait::async_trait]
-impl TrainingProvider for UnslothProvider {
+impl TrainingHost for UnslothProvider {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
         if self.cloud_dispatch {
             return Err(ProviderError::Unavailable(
@@ -602,7 +663,7 @@ impl TrainingProvider for UnslothProvider {
         tracing::info!(
             target: "cns.training.job.submit",
             job_id = %job.id,
-            provider = "unsloth",
+            host = "unsloth",
             "Training job submitted"
         );
         Ok(job.id.clone())
@@ -731,7 +792,7 @@ impl TogetherProvider {
 }
 
 #[async_trait::async_trait]
-impl TrainingProvider for TogetherProvider {
+impl TrainingHost for TogetherProvider {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
         // Step 1: Upload the dataset file
         let file_name = job
@@ -829,7 +890,7 @@ impl TrainingProvider for TogetherProvider {
         tracing::info!(
             target: "cns.training.job.submit",
             job_id = %job_id,
-            provider = "together",
+            host = "together",
             "Training job submitted to Together AI"
         );
 
@@ -893,7 +954,7 @@ impl TrainingProvider for TogetherProvider {
         tracing::info!(
             target: "cns.training.job.cancel",
             job_id = %job_id,
-            provider = "together",
+            host = "together",
             "Training job cancelled"
         );
         Ok(())
@@ -948,7 +1009,7 @@ impl TrainingProvider for TogetherProvider {
         tracing::info!(
             target: "cns.training.adapter.deleted",
             adapter_id = %adapter_id,
-            provider = "together",
+            host = "together",
             "LoRA adapter deleted from Together AI"
         );
         Ok(())
@@ -1098,7 +1159,7 @@ impl RunpodProvider {
 }
 
 #[async_trait::async_trait]
-impl TrainingProvider for RunpodProvider {
+impl TrainingHost for RunpodProvider {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
         // Create a GPU pod from the template
         let mutation = r#"
@@ -1165,7 +1226,7 @@ impl TrainingProvider for RunpodProvider {
             target: "cns.training.job.submit",
             job_id = %job.id,
             pod_id = %pod_id,
-            provider = "runpod",
+            host = "runpod",
             "Training pod created on Runpod"
         );
 
@@ -1259,7 +1320,7 @@ impl TrainingProvider for RunpodProvider {
             target: "cns.training.job.cancel",
             job_id = %job_id,
             pod_id = %pod_id,
-            provider = "runpod",
+            host = "runpod",
             "Training pod terminated"
         );
         Ok(())
@@ -1446,7 +1507,7 @@ print("Training complete. Checkpoints saved to BT_CHECKPOINT_DIR.")
 }
 
 #[async_trait::async_trait]
-impl TrainingProvider for BasetenProvider {
+impl TrainingHost for BasetenProvider {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
         // Resolve HuggingFace model ID from the provider-prefixed base_model.
         // Strip known provider prefixes (OM/, DI/, FA/, TG/) to get raw HF model ID.
@@ -1564,7 +1625,7 @@ impl TrainingProvider for BasetenProvider {
             target: "cns.training.job.submit",
             job_id = %job.id,
             baseten_job_id = %baseten_job_id,
-            provider = "baseten",
+            host = "baseten",
             "Training job submitted to Baseten"
         );
 
@@ -1671,7 +1732,7 @@ impl TrainingProvider for BasetenProvider {
         tracing::info!(
             target: "cns.training.job.cancel",
             job_id = %job_id,
-            provider = "baseten",
+            host = "baseten",
             "Training job cancelled on Baseten"
         );
         Ok(())
@@ -1707,25 +1768,17 @@ impl TrainingProvider for BasetenProvider {
     }
 }
 
-// ── Provider factory ───────────────────────────────────────────────────────
+// ── Host factory ───────────────────────────────────────────────────────────
 
-/// Create a provider from configuration.
+/// Create a training host from configuration.
 ///
-/// Reads `training.provider` from hKask settings (via hkask-services config),
-/// defaulting to `Axolotl` if unset.
-pub fn create_provider(
-    config: &ProviderConfig,
-) -> Result<Box<dyn TrainingProvider>, ProviderError> {
-    match config.provider {
-        TrainingProviderId::Axolotl => Ok(Box::new(AxolotlProvider::new(
-            config.axolotl_path.clone(),
-            config.cloud_dispatch,
-        ))),
-        TrainingProviderId::Unsloth => Ok(Box::new(UnslothProvider::new(
-            config.python_path.clone(),
-            config.cloud_dispatch,
-        ))),
-        TrainingProviderId::Together => {
+/// Reads `training.host` and `training.harness` from hKask settings
+/// (via hkask-services config). The harness selects the tooling (Axolotl/Unsloth),
+/// the host selects where the compute runs (Together/Runpod/Baseten or local).
+/// Default: Axolotl harness on Together host.
+pub fn create_host(config: &TrainingHostConfig) -> Result<Box<dyn TrainingHost>, ProviderError> {
+    match (&config.harness, &config.host) {
+        (TrainingHarnessId::Axolotl, TrainingHostId::Together) => {
             if config.together_api_key.is_empty() {
                 return Err(ProviderError::Unavailable(
                     "Together AI API key not configured (set TOGETHER_API_KEY)".to_string(),
@@ -1735,7 +1788,7 @@ pub fn create_provider(
                 config.together_api_key.clone(),
             )))
         }
-        TrainingProviderId::Runpod => {
+        (TrainingHarnessId::Axolotl, TrainingHostId::Runpod) => {
             if config.runpod_api_key.is_empty() {
                 return Err(ProviderError::Unavailable(
                     "Runpod API key not configured (set RUNPOD_API_KEY)".to_string(),
@@ -1751,7 +1804,49 @@ pub fn create_provider(
                 config.runpod_template_id.clone(),
             )))
         }
-        TrainingProviderId::Baseten => {
+        (TrainingHarnessId::Unsloth, TrainingHostId::Together) => {
+            if config.together_api_key.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Together AI API key not configured (set TOGETHER_API_KEY)".to_string(),
+                ));
+            }
+            Ok(Box::new(TogetherProvider::new(
+                config.together_api_key.clone(),
+            )))
+        }
+        (TrainingHarnessId::Unsloth, TrainingHostId::Runpod) => {
+            if config.runpod_api_key.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Runpod API key not configured (set RUNPOD_API_KEY)".to_string(),
+                ));
+            }
+            if config.runpod_template_id.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Runpod template ID not configured (set RUNPOD_TEMPLATE_ID)".to_string(),
+                ));
+            }
+            Ok(Box::new(RunpodProvider::new(
+                config.runpod_api_key.clone(),
+                config.runpod_template_id.clone(),
+            )))
+        }
+        (TrainingHarnessId::Axolotl, TrainingHostId::Baseten) => {
+            if config.baseten_api_key.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Baseten API key not configured (set BASETEN_API_KEY)".to_string(),
+                ));
+            }
+            if config.baseten_project_id.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Baseten project ID not configured (set BASETEN_PROJECT_ID)".to_string(),
+                ));
+            }
+            Ok(Box::new(BasetenProvider::new(
+                config.baseten_api_key.clone(),
+                config.baseten_project_id.clone(),
+            )))
+        }
+        (TrainingHarnessId::Unsloth, TrainingHostId::Baseten) => {
             if config.baseten_api_key.is_empty() {
                 return Err(ProviderError::Unavailable(
                     "Baseten API key not configured (set BASETEN_API_KEY)".to_string(),
@@ -1770,33 +1865,40 @@ pub fn create_provider(
     }
 }
 
-/// Provider configuration resolved from hKask settings.
+/// Training host configuration resolved from hKask settings.
+///
+/// Combines a harness (tooling choice: Axolotl or Unsloth) with a host
+/// (compute location: Together/Runpod/Baseten or local). The harness runs
+/// on the host — this is the *harness* layer distinct from the *host* layer.
 #[derive(Debug, Clone)]
-pub struct ProviderConfig {
-    /// Selected training provider.
-    pub provider: TrainingProviderId,
-    /// Path to axolotl CLI binary (for Axolotl).
+pub struct TrainingHostConfig {
+    /// Selected training harness (Axolotl or Unsloth).
+    pub harness: TrainingHarnessId,
+    /// Selected training host (Together, Runpod, Baseten, or local).
+    pub host: TrainingHostId,
+    /// Path to axolotl CLI binary (for Axolotl harness).
     pub axolotl_path: Option<PathBuf>,
-    /// Path to python3 interpreter (for Unsloth).
+    /// Path to python3 interpreter (for Unsloth harness).
     pub python_path: Option<PathBuf>,
     /// Whether to dispatch training to cloud (Fireworks/Baseten).
     pub cloud_dispatch: bool,
-    /// Together AI API key (for Together).
+    /// Together AI API key (for Together host).
     pub together_api_key: String,
-    /// Runpod API key (for Runpod).
+    /// Runpod API key (for Runpod host).
     pub runpod_api_key: String,
-    /// Runpod GPU pod template ID with axolotl pre-installed (for Runpod).
+    /// Runpod GPU pod template ID with axolotl pre-installed (for Runpod host).
     pub runpod_template_id: String,
-    /// Baseten API key (for Baseten).
+    /// Baseten API key (for Baseten host).
     pub baseten_api_key: String,
-    /// Baseten training project ID (for Baseten).
+    /// Baseten training project ID (for Baseten host).
     pub baseten_project_id: String,
 }
 
-impl Default for ProviderConfig {
+impl Default for TrainingHostConfig {
     fn default() -> Self {
         Self {
-            provider: TrainingProviderId::Axolotl,
+            harness: TrainingHarnessId::Axolotl,
+            host: TrainingHostId::Together,
             axolotl_path: None,
             python_path: None,
             cloud_dispatch: false,
@@ -1805,6 +1907,210 @@ impl Default for ProviderConfig {
             runpod_template_id: String::new(),
             baseten_api_key: String::new(),
             baseten_project_id: String::new(),
+        }
+    }
+}
+
+// ── Training host router ──────────────────────────────────────────────────
+
+/// Host multiplexer with fallback semantics.
+///
+/// Dispatches training jobs across cloud hosts (Runpod, Baseten, Together)
+/// and local hosts (Axolotl, Unsloth) in sequence.
+/// When the primary host is unavailable, the router cascades to the next host
+/// in the fallback chain. This is the *host* layer — distinct from the
+/// *harness* layer (Axolotl/Unsloth tooling) and the *base model* layer.
+pub struct TrainingHostRouter {
+    hosts: Vec<Box<dyn TrainingHost>>,
+}
+
+impl TrainingHostRouter {
+    /// Build a fallback chain from a host config.
+    ///
+    /// Constructs primary + fallback: local → cloud, or cloud → local,
+    /// depending on `cloud_dispatch`. The primary is always constructed
+    /// first; fallbacks are added silently if available.
+    pub fn from_config(config: &TrainingHostConfig) -> Result<Self, ProviderError> {
+        let mut hosts: Vec<Box<dyn TrainingHost>> = Vec::new();
+
+        let primary = create_host(config)?;
+        hosts.push(primary);
+
+        // Build fallback chain: local → cloud, cloud → local
+        if config.cloud_dispatch {
+            // Primary was cloud — try local as fallback
+            let mut local_config = config.clone();
+            local_config.cloud_dispatch = false;
+            if let Ok(local) = create_host(&local_config) {
+                hosts.push(local) // silent — no local fallback available
+            }
+        } else {
+            // Primary was local — try cloud as fallback
+            let mut cloud_config = config.clone();
+            cloud_config.cloud_dispatch = true;
+            if let Ok(cloud) = create_host(&cloud_config) {
+                hosts.push(cloud) // silent — no cloud fallback available
+            }
+        }
+
+        Ok(Self { hosts })
+    }
+}
+
+#[async_trait::async_trait]
+impl TrainingHost for TrainingHostRouter {
+    async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
+        for host in &self.hosts {
+            match host.submit(job).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!("host cascade failed: {}", e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    async fn status(&self, job_id: &str) -> Result<TrainingJobStatus, ProviderError> {
+        let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
+        for host in &self.hosts {
+            match host.status(job_id).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!("host cascade failed: {}", e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    async fn cancel(&self, job_id: &str) -> Result<(), ProviderError> {
+        let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
+        for host in &self.hosts {
+            match host.cancel(job_id).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!("host cascade failed: {}", e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    async fn list_adapters(&self) -> Result<Vec<String>, ProviderError> {
+        let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
+        for host in &self.hosts {
+            match host.list_adapters().await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!("host cascade failed: {}", e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError> {
+        let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
+        for host in &self.hosts {
+            match host.delete_adapter(adapter_id).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!("host cascade failed: {}", e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    async fn completion_metadata(
+        &self,
+        job_id: &str,
+    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+        let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
+        for host in &self.hosts {
+            match host.completion_metadata(job_id).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!("host cascade failed: {}", e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    async fn adapter_weight_path(
+        &self,
+        adapter_id: &str,
+    ) -> Result<Option<PathBuf>, ProviderError> {
+        let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
+        for host in &self.hosts {
+            match host.adapter_weight_path(adapter_id).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!("host cascade failed: {}", e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    async fn download_adapter(
+        &self,
+        adapter_id: &str,
+        cache_dir: &std::path::Path,
+    ) -> Result<Option<PathBuf>, ProviderError> {
+        let mut last_err = ProviderError::Unavailable("no hosts configured".to_string());
+        for host in &self.hosts {
+            match host.download_adapter(adapter_id, cache_dir).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    tracing::warn!("host cascade failed: {}", e);
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    async fn estimate_cost(&self, job: &TrainingJob) -> CostEstimate {
+        for host in &self.hosts {
+            let estimate = host.estimate_cost(job).await;
+            if estimate.estimated_dollars > 0.0 {
+                return estimate;
+            }
+        }
+        CostEstimate::default()
+    }
+}
+
+// ── Cost estimation ────────────────────────────────────────────────────────
+
+/// Estimated training cost broken down by resource.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CostEstimate {
+    /// GPU hours consumed (cloud = billed, local = 0.0).
+    pub gpu_hours: f32,
+    /// Tokens processed during training.
+    pub total_tokens: u64,
+    /// Estimated cost in USD (cloud hosts) or 0.0 (local).
+    pub estimated_dollars: f32,
+}
+
+impl Default for CostEstimate {
+    fn default() -> Self {
+        Self {
+            gpu_hours: 0.0,
+            total_tokens: 0,
+            estimated_dollars: 0.0,
         }
     }
 }
