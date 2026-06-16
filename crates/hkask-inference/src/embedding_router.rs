@@ -21,7 +21,11 @@ pub struct EmbeddingRouter {
 }
 
 impl EmbeddingRouter {
-    /// Build the embedding router from an `InferenceConfig`.
+    /// Create a new embedding router from an `InferenceConfig`.
+    ///
+    /// REQ: INFER-018
+    /// pre:  config is a valid InferenceConfig
+    /// post: returns EmbeddingRouter with configured backends
     pub fn new(config: InferenceConfig) -> Self {
         let build_client = || {
             config

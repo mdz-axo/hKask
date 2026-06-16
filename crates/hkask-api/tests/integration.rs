@@ -12,7 +12,7 @@ use hkask_api::routes::{
     CnsVarietyResponse, CreatePodRequest, CreatePodResponse, GrantCapabilityRequest,
     ListPodsResponse, ModelEntry, ModelListResponse, PodStatusResponse, SovereigntyStatusResponse,
     SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse, TemplateResponse,
-    VarietyCounterResponse,
+    VarietyCounterResponse, WithdrawalFeeEstimateResponse,
 };
 use serde_json;
 use std::collections::HashMap;
@@ -316,6 +316,37 @@ fn acp_register_response_serialization() {
     assert_eq!(parsed.token, "base64-encoded-token-data");
     assert_eq!(parsed.registered_at, 1700000000);
     assert_eq!(parsed.webid, "agent-webid-123");
+}
+
+// ── Wallet Types ──────────────────────────────────────────────────────────
+
+// REQ: api-wallet-001 — WithdrawalFeeEstimateResponse serializes with fee fields
+#[test]
+fn withdrawal_fee_estimate_response_serialization() {
+    let resp = WithdrawalFeeEstimateResponse {
+        chain: "hinkal".to_string(),
+        rjoules: 7,
+        native_units: 0.000010,
+        usdc_equivalent: 0.0015,
+    };
+    let json =
+        serde_json::to_string(&resp).expect("WithdrawalFeeEstimateResponse should serialize");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&json).expect("WithdrawalFeeEstimateResponse JSON should parse");
+    assert_eq!(parsed.get("chain").and_then(|v| v.as_str()), Some("hinkal"));
+    assert_eq!(parsed.get("rjoules").and_then(|v| v.as_u64()), Some(7));
+    assert!(
+        parsed
+            .get("native_units")
+            .and_then(|v| v.as_f64())
+            .is_some()
+    );
+    assert!(
+        parsed
+            .get("usdc_equivalent")
+            .and_then(|v| v.as_f64())
+            .is_some()
+    );
 }
 
 // ── Spec Types ────────────────────────────────────────────────────────────

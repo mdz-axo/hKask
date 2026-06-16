@@ -4358,6 +4358,7 @@ dependencies = [
  "pdf-extract",
  "rand 0.9.4",
  "reqwest",
+ "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml",

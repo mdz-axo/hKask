@@ -55,6 +55,11 @@ impl ProviderId {
     ///
     /// Returns `None` if the model name has no recognized prefix.
     /// Returns `Some((provider, stripped_model))` if a prefix is found.
+    ///
+    /// REQ: INFER-021
+    /// pre:  model is non-empty
+    /// post: returns Some((ProviderId, stripped_model)) for OM/, DI/, FA/, TG/ prefixes
+    /// post: returns None for unrecognized or missing prefix
     pub fn parse_from_model(model: &str) -> Option<(Self, &str)> {
         if model.len() < 4 {
             return None;
@@ -78,11 +83,18 @@ impl ProviderId {
     }
 
     /// Format a model name with this provider's prefix.
+    ///
+    /// REQ: INFER-022
+    /// pre:  model is non-empty
+    /// post: returns "{prefix}/{model}" string
     pub fn prefix_model(&self, model: &str) -> String {
         format!("{}/{}", self.as_str(), model)
     }
 
     /// Two-letter code for this provider.
+    ///
+    /// REQ: INFER-023
+    /// post: returns "OM", "DI", "FA", or "TG"
     pub fn as_str(&self) -> &'static str {
         match self {
             ProviderId::Ollama => "OM",
@@ -169,6 +181,10 @@ impl InferenceConfig {
     /// API keys resolve keychain-first, then fall back to environment variables.
     /// Also accepts `DEEPINFRA_API_KEY` and `FAL_API_KEY`
     /// as legacy environment variable names.
+    ///
+    /// REQ: INFER-024
+    /// post: returns InferenceConfig resolved from env vars and keychain
+    /// post: defaults to Ollama localhost if env vars unset
     pub fn from_env() -> Self {
         let ollama_base_url =
             std::env::var("OM_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
@@ -207,6 +223,9 @@ impl InferenceConfig {
     }
 
     /// Build a reqwest HTTP client with the configured timeout and pool settings.
+    ///
+    /// REQ: INFER-025
+    /// post: returns reqwest::Client with timeout and pool settings from config
     pub fn build_client(&self) -> Result<reqwest::Client, String> {
         reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(self.timeout_secs))

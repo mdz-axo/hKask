@@ -12,8 +12,8 @@ use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
 use crate::ollama_backend::OllamaBackend;
 use crate::together_backend::TogetherBackend;
-use hkask_types::template::LLMParameters;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
+use hkask_types::template::LLMParameters;
 use std::pin::Pin;
 use tracing::warn;
 
@@ -35,9 +35,15 @@ pub struct InferenceRouter {
 impl InferenceRouter {
     /// Build the router from an `InferenceConfig`.
     ///
+    /// Create a new inference router from config.
+    ///
     /// Constructs backends lazily — a backend is only created if its
     /// configuration is valid (e.g., API key is present for cloud providers).
     /// Ollama is always attempted since it requires no auth.
+    ///
+    /// REQ: INFER-019
+    /// pre:  config is a valid InferenceConfig
+    /// post: returns InferenceRouter with backends for configured providers
     pub fn new(config: InferenceConfig) -> Self {
         let ollama = OllamaBackend::new(&config).ok();
         let deepinfra = DeepInfraBackend::new(&config).ok();

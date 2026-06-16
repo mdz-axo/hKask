@@ -28,6 +28,9 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 
 /// Well-known path for the hKask daemon socket.
+///
+/// REQ: MCP-016
+/// post: returns PathBuf to the daemon socket (config dir or /tmp fallback)
 pub fn daemon_socket_path() -> PathBuf {
     let base = dirs_next().unwrap_or_else(|| PathBuf::from("/tmp"));
     base.join("daemon.sock")
@@ -100,6 +103,9 @@ pub struct DaemonClient {
 
 impl DaemonClient {
     /// Create a client that connects to the default daemon socket path.
+    ///
+    /// REQ: MCP-017
+    /// post: returns DaemonClient with default socket path
     pub fn new() -> Self {
         Self {
             socket_path: daemon_socket_path(),
@@ -107,6 +113,10 @@ impl DaemonClient {
     }
 
     /// Create a client with a custom socket path (for testing).
+    ///
+    /// REQ: MCP-018
+    /// pre:  path is a valid filesystem path
+    /// post: returns DaemonClient with custom socket path
     pub fn with_path(path: PathBuf) -> Self {
         Self { socket_path: path }
     }
@@ -235,6 +245,9 @@ impl Default for DaemonListener {
 
 impl DaemonListener {
     /// Create a listener bound to the default socket path.
+    ///
+    /// REQ: MCP-019
+    /// post: returns DaemonListener with default socket path, listener=None
     pub fn new() -> Self {
         Self {
             socket_path: daemon_socket_path(),
@@ -243,6 +256,10 @@ impl DaemonListener {
     }
 
     /// Create a listener with a custom socket path (for testing).
+    ///
+    /// REQ: MCP-020
+    /// pre:  path is a valid filesystem path
+    /// post: returns DaemonListener with custom socket path
     pub fn with_path(path: PathBuf) -> Self {
         Self {
             socket_path: path,

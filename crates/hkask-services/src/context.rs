@@ -61,6 +61,7 @@ use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
 use hkask_types::ports::git_cas::GitCASPort;
 use hkask_types::wallet::WalletId;
+use rusqlite;
 
 use crate::ServiceConfig;
 use crate::ServiceError;
@@ -468,676 +469,713 @@ impl AgentService {
     /// 7. Inference port (optional, based on config)
     /// 8. Memory adapters (episodic + semantic)
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError> {
-        // ── 1. System identity ──────────────────────────────────────────────
         let system_webid = WebID::from_persona(config.agent_name.as_bytes());
 
-        // ── 2. Database connections ──────────────────────────────────────────
-        // Open ONE database and share the connection across all stores.
-        // In production, all connections hit the same file on disk.
-        // In test (in_memory), a single shared in-memory DB enables cross-store
-        // operations — consent records visible to CNS, goals visible to memory, etc.
-        let db = if config.in_memory {
-            in_memory_db()
+        // ── Foundation: database, stores, CNS, seam watcher ──────────────
+        let mut foundation = build_foundation(&config).await?;
+
+        // ── Loops: cybernetics, inference, episodic, semantic, curation ──
+        let loops = build_loops(&config, &mut foundation, system_webid).await?;
+
+        // ── MCP + pods: governed tool, dispatcher, pod manager, daemon ───
+        let mcp_pods = build_mcp_and_pods(&config, &loops, &foundation, system_webid).await?;
+
+        // ── Matrix transport + 7R7 listener ──────────────────────────────
+        let matrix_transport = build_matrix().await;
+
+        // ── Registry + wallet: agent records, ACP restore, rJoule ───────
+        let reg_wallet = build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods)?;
+
+        Ok(Self {
+            registry: reg_wallet.registry,
+            mcp_runtime: mcp_pods.mcp_runtime,
+            mcp_dispatcher: mcp_pods.mcp_dispatcher,
+            cns_runtime: foundation.cns_runtime,
+            cybernetics_loop: loops.cybernetics_loop,
+            loop_system: loops.loop_system,
+            inference_port: loops.inference_port,
+            episodic_storage: loops.episodic_storage,
+            semantic_storage: loops.semantic_storage,
+            escalation_queue: foundation.escalation_queue,
+            consent_manager: foundation.consent_manager,
+            goal_repo: foundation.goal_repo,
+            curation_inbox_tx: Some(foundation.curation_inbox_tx.clone()),
+            pod_manager: mcp_pods.pod_manager,
+            capability_checker: mcp_pods.capability_checker,
+            system_webid,
+            event_sink: foundation.cns_event_sink,
+            sovereignty_boundary_store: foundation.sovereignty_boundary_store,
+            spec_store: foundation.spec_store,
+            acp_runtime: loops.acp_runtime,
+            agent_registry_store: reg_wallet.agent_registry_store,
+            user_store: foundation.user_store,
+            daemon_handler: mcp_pods.daemon_handler,
+            matrix_transport,
+            seam_watcher: foundation.seam_watcher,
+            config,
+            wallet_service: reg_wallet.wallet_service,
+            wallet_store: reg_wallet.wallet_store,
+        })
+    }
+}
+
+// ── Build helpers ──────────────────────────────────────────────────────────
+// Extracted from build() for readability. Each helper constructs one
+// subsystem and returns an intermediate struct consumed by the next step.
+
+/// Foundation: database connections, stores, CNS runtime, seam watcher.
+struct Foundation {
+    db: Database,
+    primary_conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
+    curation_inbox_tx: tokio::sync::mpsc::UnboundedSender<CurationInput>,
+    curation_inbox_rx: Option<tokio::sync::mpsc::UnboundedReceiver<CurationInput>>,
+    consent_manager: Arc<ConsentManager>,
+    escalation_queue: Arc<EscalationQueue>,
+    goal_repo: Arc<SqliteGoalRepository>,
+    sovereignty_boundary_store: SovereigntyBoundaryStore,
+    spec_store: SqliteSpecStore,
+    user_store: Arc<std::sync::Mutex<UserStore>>,
+    cns_runtime: Arc<RwLock<CnsRuntime>>,
+    seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
+    cns_event_sink: Arc<dyn NuEventSink>,
+}
+
+async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
+    // Open ONE database and share the connection across all stores.
+    let db = if config.in_memory {
+        in_memory_db()
+    } else {
+        Database::open(&config.db_path, &config.db_passphrase)?
+    };
+    let shared_conn = db.conn_arc();
+
+    let primary_conn = Arc::clone(&shared_conn);
+    let consent_conn = Arc::clone(&shared_conn);
+    let escalation_conn = Arc::clone(&shared_conn);
+    let goal_conn = Arc::clone(&shared_conn);
+    let sovereignty_conn = Arc::clone(&shared_conn);
+    let spec_conn = Arc::clone(&shared_conn);
+    let user_conn = Arc::clone(&shared_conn);
+
+    // Shared channel for CurationInput.
+    let (curation_inbox_tx, curation_inbox_rx) =
+        tokio::sync::mpsc::unbounded_channel::<CurationInput>();
+
+    let consent_store = ConsentStore::new(consent_conn);
+    consent_store
+        .initialize_schema()
+        .map_err(ServiceError::ConsentStore)?;
+    let consent_manager = Arc::new(ConsentManager::new(consent_store));
+
+    let escalation_queue = Arc::new(EscalationQueue::new(escalation_conn)?);
+
+    let goal_sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&goal_conn)));
+    let goal_repo = Arc::new(SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
+
+    let sovereignty_boundary_store = SovereigntyBoundaryStore::new(sovereignty_conn);
+    sovereignty_boundary_store
+        .initialize_schema()
+        .map_err(ServiceError::SovereigntyStore)?;
+
+    let spec_store = SqliteSpecStore::new(spec_conn);
+    spec_store.init_schema().map_err(ServiceError::Spec)?;
+
+    let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
+    {
+        let guard = user_store.lock().map_err(|_| {
+            ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
+                hkask_types::InfrastructureError::LockPoisoned,
+            ))
+        })?;
+        guard.initialize_schema().map_err(ServiceError::UserStore)?;
+    }
+
+    // CNS runtime
+    let cns_runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
+        config.cns_threshold,
+    )));
+
+    // Seam watcher (R7.3) — non-fatal if inventory unavailable.
+    let seam_watcher: Arc<RwLock<Option<SeamWatcher>>> = {
+        let cns = cns_runtime.read().await;
+        if let Some(watcher) = SeamWatcher::load() {
+            watcher.register_domains(&cns).await;
+            let summary = watcher.summary();
+            tracing::info!(
+                target: "bootstrap",
+                crates = %summary.crate_count,
+                coverage_pct = %summary.coverage_pct,
+                total_items = %summary.total_items,
+                "Seam watcher initialized — R7.3 watching the public seam"
+            );
+            Arc::new(RwLock::new(Some(watcher)))
         } else {
-            Database::open(&config.db_path, &config.db_passphrase)?
-        };
-        let shared_conn = db.conn_arc();
-
-        let primary_conn = Arc::clone(&shared_conn);
-        let consent_conn = Arc::clone(&shared_conn);
-        let escalation_conn = Arc::clone(&shared_conn);
-        let goal_conn = Arc::clone(&shared_conn);
-        let sovereignty_conn = Arc::clone(&shared_conn);
-        let spec_conn = Arc::clone(&shared_conn);
-        let user_conn = Arc::clone(&shared_conn);
-
-        // ── 3. Stores ───────────────────────────────────────────────────────
-        // Shared channel for CurationInput — Cybernetics sends Alert,
-        // SpecCurator sends SpecDrift, GoalStore sends GoalTransition.
-        let (curation_inbox_tx, curation_inbox_rx) =
-            tokio::sync::mpsc::unbounded_channel::<CurationInput>();
-
-        let consent_store = ConsentStore::new(consent_conn);
-        consent_store
-            .initialize_schema()
-            .map_err(ServiceError::ConsentStore)?;
-        let consent_manager = Arc::new(ConsentManager::new(consent_store));
-
-        let escalation_queue = Arc::new(EscalationQueue::new(escalation_conn)?);
-
-        let goal_sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&goal_conn)));
-        let goal_repo = Arc::new(SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
-
-        let sovereignty_boundary_store = SovereigntyBoundaryStore::new(sovereignty_conn);
-        sovereignty_boundary_store
-            .initialize_schema()
-            .map_err(ServiceError::SovereigntyStore)?;
-
-        let spec_store = SqliteSpecStore::new(spec_conn);
-        spec_store.init_schema().map_err(ServiceError::Spec)?;
-
-        let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
-        {
-            let guard = user_store.lock().map_err(|_| {
-                ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
-                    hkask_types::InfrastructureError::LockPoisoned,
-                ))
-            })?;
-            guard.initialize_schema().map_err(ServiceError::UserStore)?;
+            tracing::info!(
+                target: "bootstrap",
+                "Seam watcher skipped — no inventory available (non-fatal)"
+            );
+            Arc::new(RwLock::new(None))
         }
+    };
 
-        // ── 4. CNS runtime + event sink ──────────────────────────────────────
-        let cns_runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
-            config.cns_threshold,
-        )));
+    // CNS event sink — uses primary DB for persistence.
+    let cns_event_sink: Arc<dyn NuEventSink> =
+        Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
 
-        // ── 4a. Seam watcher (R7.3) — load public seam inventory, register domains ──
-        // Non-fatal: if no inventory is available, seam watching is silently disabled.
-        // Uses embedded JSON (compile-time) with file path override (HKASK_SEAM_INVENTORY_PATH).
-        let seam_watcher: Arc<RwLock<Option<SeamWatcher>>> = {
-            let cns = cns_runtime.read().await;
-            if let Some(watcher) = SeamWatcher::load() {
-                watcher.register_domains(&cns).await;
-                let summary = watcher.summary();
-                tracing::info!(
-                    target: "bootstrap",
-                    crates = %summary.crate_count,
-                    coverage_pct = %summary.coverage_pct,
-                    total_items = %summary.total_items,
-                    "Seam watcher initialized — R7.3 watching the public seam"
-                );
-                Arc::new(RwLock::new(Some(watcher)))
-            } else {
-                tracing::info!(
-                    target: "bootstrap",
-                    "Seam watcher skipped — no inventory available (non-fatal)"
-                );
-                Arc::new(RwLock::new(None))
-            }
-        };
+    // Spawn periodic seam drift check (R7.3 background watcher).
+    spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
 
-        // Use the primary DB for CNS events so they persist in production.
-        let cns_event_sink: Arc<dyn NuEventSink> =
-            Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
+    Ok(Foundation {
+        db,
+        primary_conn,
+        curation_inbox_tx,
+        curation_inbox_rx: Some(curation_inbox_rx),
+        consent_manager,
+        escalation_queue,
+        goal_repo,
+        sovereignty_boundary_store,
+        spec_store,
+        user_store,
+        cns_runtime,
+        seam_watcher,
+        cns_event_sink,
+    })
+}
 
-        // ── 4b. Spawn periodic seam drift check (R7.3 background watcher) ──
-        // Runs on a configurable interval (default: 30 minutes). Checks for
-        // drift from the previous snapshot, increments variety, and emits CNS spans.
+fn spawn_seam_drift_check(
+    seam_watcher: &Arc<RwLock<Option<SeamWatcher>>>,
+    cns_runtime: &Arc<RwLock<CnsRuntime>>,
+    event_sink: &Arc<dyn NuEventSink>,
+) {
+    let watcher_lock = Arc::clone(seam_watcher);
+    let cns = Arc::clone(cns_runtime);
+    let sink = Arc::clone(event_sink);
+
+    let interval_secs: u64 = std::env::var("HKASK_SEAM_CHECK_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1800);
+
+    tokio::spawn(async move {
+        tracing::info!(
+            target: "cns.architecture.seam",
+            interval_secs = %interval_secs,
+            "Seam periodic drift check started — R7.3 watching every {}s",
+            interval_secs
+        );
+        // Initial check
         {
-            let watcher_lock = Arc::clone(&seam_watcher);
-            let cns = Arc::clone(&cns_runtime);
-            let event_sink = Arc::clone(&cns_event_sink);
-
-            let interval_secs: u64 = std::env::var("HKASK_SEAM_CHECK_INTERVAL_SECS")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(1800); // default: 30 minutes
-
-            tokio::spawn(async move {
-                tracing::info!(
-                    target: "cns.architecture.seam",
-                    interval_secs = %interval_secs,
-                    "Seam periodic drift check started — R7.3 watching every {}s",
-                    interval_secs
-                );
-
-                // Initial check immediately after startup
-                {
-                    let cns_rt = cns.read().await;
-                    let mut guard = watcher_lock.write().await;
-                    if let Some(ref mut watcher) = *guard {
-                        let drifts = watcher.check_drift(&cns_rt, &*event_sink).await;
-                        if !drifts.is_empty() {
-                            tracing::info!(
-                                target: "cns.architecture.seam",
-                                drift_count = %drifts.len(),
-                                "Initial seam drift check complete"
-                            );
-                        }
-                    }
-                }
-
-                // Periodic loop
-                let mut interval =
-                    tokio::time::interval(std::time::Duration::from_secs(interval_secs));
-                loop {
-                    interval.tick().await;
-
-                    let cns_rt = cns.read().await;
-                    let mut guard = watcher_lock.write().await;
-                    if let Some(ref mut watcher) = *guard {
-                        // Try refresh first (only works if file path is set)
-                        let refreshed = watcher.refresh();
-                        if refreshed {
-                            tracing::debug!(
-                                target: "cns.architecture.seam",
-                                "Seam inventory refreshed before periodic check"
-                            );
-                        }
-
-                        let drifts = watcher.check_drift(&cns_rt, &*event_sink).await;
-                        if !drifts.is_empty() {
-                            let degradations: Vec<_> =
-                                drifts.iter().filter(|d| d.delta_pct < 0.0).collect();
-                            let improvements: Vec<_> =
-                                drifts.iter().filter(|d| d.delta_pct > 0.0).collect();
-                            tracing::info!(
-                                target: "cns.architecture.seam",
-                                total_drifts = %drifts.len(),
-                                degradations = %degradations.len(),
-                                improvements = %improvements.len(),
-                                "Periodic seam drift check complete"
-                            );
-                        }
-                    } else {
-                        tracing::debug!(
-                            target: "cns.architecture.seam",
-                            "Periodic seam check skipped — no watcher"
-                        );
-                    }
-                    drop(guard);
-                    drop(cns_rt);
-                }
-            });
-        }
-
-        // ── 5. Loop system ──────────────────────────────────────────────────
-        let loop_system = Arc::new(LoopSystem::new());
-
-        // Direct tool consumption channel: GovernedTool → Cybernetics.
-        let (tool_consumption_tx, tool_consumption_rx) =
-            tokio::sync::mpsc::unbounded_channel::<ToolConsumptionEvent>();
-
-        // Direct curator directive channel: Curation → Cybernetics.
-        let (curator_directive_tx, curator_directive_rx) =
-            tokio::sync::mpsc::unbounded_channel::<CuratorDirective>();
-
-        // Cybernetics loop
-        let set_points = load_set_points();
-        let cybernetics_loop =
-            CyberneticsLoop::with_set_points(Arc::clone(&cns_runtime), set_points)
-                .with_event_sink(Arc::clone(&cns_event_sink))
-                .with_alerts_channel(curation_inbox_tx.clone())
-                .with_tool_consumption_channel(tool_consumption_rx)
-                .with_curator_directive_channel(curator_directive_rx);
-        let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
-
-        loop_system
-            .register_loop(Arc::new(CyberneticsLoopHandle(Arc::clone(
-                &cybernetics_loop,
-            ))))
-            .await;
-
-        // Inference loop (optional — only if inference port is available)
-        let inference_port: Option<Arc<dyn InferencePort>> = if config.in_memory {
-            None
-        } else {
-            let router = hkask_inference::InferenceRouter::new(config.inference_config.clone());
-            let raw_port: Arc<dyn InferencePort> = Arc::new(router);
-            // Wrap with GovernedInference membrane for energy budget enforcement
-            let governed_port: Arc<dyn InferencePort> =
-                Arc::new(hkask_cns::GovernedInference::new(
-                    raw_port,
-                    Arc::clone(&cybernetics_loop),
-                    Arc::clone(&cns_event_sink),
-                    system_webid,
-                ));
-            let inference_loop = hkask_agents::InferenceLoop::new()
-                .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
-                .with_model(&config.default_model);
-            loop_system.register_loop(Arc::new(inference_loop)).await;
-            Some(governed_port)
-        };
-
-        // Episodic + Semantic loops
-        // F9: Respect config.in_memory — use file-backed DB when persistence is configured.
-        // User Sovereignty Guardrail: user configured persistent storage, must get persistence.
-        //
-        // In in_memory mode, share the main database connection so memory stores
-        // coexist with consent, goals, specs, and CNS events — enabling cross-store
-        // queries and CNS observation of memory operations (P6, P9).
-        let mem_conn = if config.in_memory {
-            Arc::clone(&shared_conn)
-        } else {
-            let path = config
-                .effective_memory_db_path()
-                .expect("effective_memory_db_path returns Some when !in_memory");
-            let passphrase = config
-                .memory_passphrase
-                .as_deref()
-                .unwrap_or(&config.db_passphrase);
-            Database::open(&path, passphrase)?.conn_arc()
-        };
-        let triple_store = TripleStore::new(Arc::clone(&mem_conn));
-        let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
-        let storage_budget = episodic_memory.storage_budget();
-        let episodic_loop =
-            EpisodicLoop::new(Arc::clone(&episodic_memory), system_webid, storage_budget);
-        loop_system.register_loop(Arc::new(episodic_loop)).await;
-
-        let triple_store2 = TripleStore::new(Arc::clone(&mem_conn));
-        let embedding_store = EmbeddingStore::new(Arc::clone(&mem_conn));
-        let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
-        let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
-        loop_system.register_loop(Arc::new(semantic_loop)).await;
-
-        // Memory adapter for API-facing storage ports — creates owned instances
-        // from the same shared connection as the loops above, ensuring writes
-        // through the storage port are visible to loops via the shared database.
-        let memory_adapter = Arc::new(
-            hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter::new(
-                EpisodicMemory::new(TripleStore::new(Arc::clone(&mem_conn))),
-                SemanticMemory::new(
-                    TripleStore::new(Arc::clone(&mem_conn)),
-                    EmbeddingStore::new(Arc::clone(&mem_conn)),
-                ),
-            ),
-        );
-        let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
-        let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
-
-        // ── 6. Curation loop ─────────────────────────────────────────────────
-        let cns_for_curator: Arc<CnsRuntime> = Arc::new(cns_runtime.read().await.clone());
-        let acp_runtime = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
-        let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
-        let curator_context = Arc::new(
-            CuratorContext::new(
-                CuratorHandle::system(),
-                cns_for_curator,
-                Some(curator_directive_tx),
-                Arc::clone(&escalation_queue),
-            )
-            .with_acp(acp_port),
-        );
-        let consolidation_bridge = Arc::new(ConsolidationBridge::new(
-            Arc::clone(&episodic_memory),
-            Arc::clone(&semantic_memory),
-        ));
-        let curator_agent = CuratorAgent::with_consolidation(
-            curator_context,
-            Default::default(),
-            Arc::clone(&consolidation_bridge),
-            Some(curation_inbox_rx),
-            Some(curation_inbox_tx.clone()),
-        );
-        let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
-        loop_system.register_loop(curation_loop).await;
-
-        // ── 6b. Snapshot loop (Cybernetics sub-function) ─────────────────────
-        let git_cas_port: Arc<dyn GitCASPort> = match hkask_mcp::GixCasAdapter::from_env() {
-            Ok(adapter) => Arc::new(adapter),
-            Err(e) => {
-                tracing::warn!(target: "hkask.services", error = %e, "Git CAS port from env failed — using fallback");
-                Arc::new(
-                    hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates")).map_err(
-                        |e| {
-                            ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string()))
-                        },
-                    )?,
-                )
-            }
-        };
-        let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
-        loop_system.register_loop(Arc::new(snapshot_loop)).await;
-
-        // ── 6c. Backup loop (daily snapshots via BackupService) ──────────────
-        let backup_service = Arc::new(crate::BackupService::new(Arc::clone(&git_cas_port)));
-        let backup_loop = crate::backup::r#loop::BackupLoop::new(backup_service);
-        loop_system.register_loop(Arc::new(backup_loop)).await;
-
-        // ── 7. GovernedTool membrane + MCP dispatcher ────────────────────────
-        let mcp_runtime = McpRuntime::new();
-        let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
-        let estimator: Arc<dyn EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
-        let governed_tool = Arc::new(
-            GovernedTool::new(
-                raw_tool_port,
-                Arc::clone(&cybernetics_loop),
-                Arc::clone(&cns_event_sink),
-                estimator,
-                system_webid,
-            )
-            .with_tool_consumption_channel(tool_consumption_tx),
-        );
-        let mcp_dispatcher = Arc::new(McpDispatcher::with_governed_tool(
-            mcp_runtime.clone(),
-            &config.mcp_secret,
-            governed_tool.clone(),
-        ));
-        let mcp_runtime = Arc::new(mcp_runtime);
-
-        // ── 8. Pod manager + capability checker ──────────────────────────────
-        let capability_checker = Arc::new(hkask_types::CapabilityChecker::new(&config.mcp_secret));
-        let mcp_runtime_adapter = hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
-            Arc::new(hkask_types::CapabilityChecker::new(&config.acp_secret)),
-            Arc::new((*mcp_runtime).clone()),
-            tokio::runtime::Handle::current(),
-        );
-        let pod_manager = Arc::new(PodManager::new(
-            Some(Arc::new(hkask_mcp::GitCasAdapter::from_path(
-                std::path::PathBuf::from(&config.template_cache_path),
-            ))),
-            Some(acp_runtime.clone()),
-            Some(Arc::new(mcp_runtime_adapter)),
-            Some(Arc::clone(&episodic_storage) as Arc<dyn EpisodicStoragePort>),
-            Some(Arc::clone(&semantic_storage) as Arc<dyn SemanticStoragePort>),
-            None,
-            Some(Arc::new(hkask_types::CapabilityChecker::new(
-                &config.acp_secret,
-            ))),
-            Some(governed_tool.clone()),
-            None,
-        ));
-
-        // Register Matrix auto-registration hook for pod activation.
-        // When a pod is activated, the replicant gets a Matrix account on Conduit.
-        // Uses MatrixTransport from the core communication crate.
-        {
-            let homeserver_url = std::env::var("HKASK_MATRIX_URL")
-                .unwrap_or_else(|_| "http://localhost:8008".to_string());
-            pod_manager
-                .register_activation_hook(Box::new(move |webid, pod_name| {
-                    let url = homeserver_url.clone();
-                    let name = pod_name.clone();
-                    tokio::spawn(async move {
-                        register_pod_on_matrix(&url, &webid, &name).await;
-                    });
-                }))
-                .await;
-        }
-
-        // ── 8b. Daemon handler + listener ──────────────────────────────────
-        // Skip daemon socket binding in test mode (in_memory) — the Unix socket
-        // address conflicts when multiple tests run in parallel.
-        let daemon_handler = Arc::new(crate::daemon_handler::ServiceDaemonHandler::new(
-            Arc::clone(&pod_manager),
-            Arc::clone(&user_store),
-            inference_port.clone(),
-        ));
-        if !config.in_memory {
-            let mut daemon_listener = hkask_mcp::daemon::DaemonListener::new();
-            daemon_listener.bind().await.map_err(|e| {
-                ServiceError::Infra(hkask_types::InfrastructureError::Io(format!(
-                    "Failed to bind daemon socket: {}",
-                    e
-                )))
-            })?;
-            // Spawn daemon serve loop in background (fire-and-forget)
-            let serve_handler = Arc::clone(&daemon_handler);
-            tokio::spawn(async move {
-                if let Err(e) = daemon_listener.serve(serve_handler).await {
-                    tracing::error!(
-                        target: "hkask.daemon",
-                        error = %e,
-                        "Daemon listener serve loop exited with error"
+            let cns_rt = cns.read().await;
+            let mut guard = watcher_lock.write().await;
+            if let Some(ref mut watcher) = *guard {
+                let drifts = watcher.check_drift(&cns_rt, &*sink).await;
+                if !drifts.is_empty() {
+                    tracing::info!(
+                        target: "cns.architecture.seam",
+                        drift_count = %drifts.len(),
+                        "Initial seam drift check complete"
                     );
                 }
-            });
+            }
         }
-
-        // ── 8c. Matrix transport + 7R7 listener ────────────────────────────
-        // Resolve Matrix credentials from keychain (stored during onboarding
-        // or bootstrap), create transport, login, and start the passive 7R7
-        // listener. Non-blocking: if Conduit isn't running, the daemon
-        // continues without Matrix and the transport remains None.
-        let matrix_transport: Option<
-            Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>,
-        > = {
-            let homeserver_url = std::env::var("HKASK_MATRIX_URL")
-                .unwrap_or_else(|_| "http://localhost:8008".to_string());
-
-            let keychain = hkask_keystore::Keychain::default();
-
-            // Resolve credentials: curator bot → replicant → env vars
-            let credentials = {
-                // 1. Try matrix-bot-curator (system bot account from bootstrap)
-                if let Ok(password) = keychain.retrieve_by_key("matrix-bot-curator") {
-                    Some(("@hkask-curator:localhost".to_string(), password))
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+        loop {
+            interval.tick().await;
+            let cns_rt = cns.read().await;
+            let mut guard = watcher_lock.write().await;
+            if let Some(ref mut watcher) = *guard {
+                let _ = watcher.refresh();
+                let drifts = watcher.check_drift(&cns_rt, &*sink).await;
+                if !drifts.is_empty() {
+                    let degradations: Vec<_> =
+                        drifts.iter().filter(|d| d.delta_pct < 0.0).collect();
+                    let improvements: Vec<_> =
+                        drifts.iter().filter(|d| d.delta_pct > 0.0).collect();
+                    tracing::info!(
+                        target: "cns.architecture.seam",
+                        total_drifts = %drifts.len(),
+                        degradations = %degradations.len(),
+                        improvements = %improvements.len(),
+                        "Periodic seam drift check complete"
+                    );
                 }
-                // 2. Fall back to replicant account (from onboarding)
-                else if let (Ok(username), Ok(password)) = (
-                    keychain.retrieve_by_key("matrix-replicant-username"),
-                    keychain.retrieve_by_key("matrix-replicant-password"),
-                ) {
-                    Some((username, password))
-                }
-                // 3. Fall back to environment variables (backward compat)
-                else if let (Ok(username), Ok(password)) = (
-                    std::env::var("HKASK_MATRIX_AGENT_USERNAME"),
-                    std::env::var("HKASK_MATRIX_AGENT_PASSWORD"),
-                ) {
-                    Some((username, password))
-                } else {
-                    None
-                }
-            };
+            }
+        }
+    });
+}
 
-            match credentials {
-                Some((username, password)) => {
-                    let mut transport =
-                        hkask_communication::matrix::MatrixTransport::new(&homeserver_url);
-                    match transport.login(&username, &password).await {
-                        Ok(()) => {
-                            let transport = Arc::new(tokio::sync::Mutex::new(transport));
+/// Loops: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
+struct Loops {
+    loop_system: Arc<LoopSystem>,
+    cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
+    inference_port: Option<Arc<dyn InferencePort>>,
+    episodic_storage: Arc<dyn EpisodicStoragePort>,
+    semantic_storage: Arc<dyn SemanticStoragePort>,
+    tool_consumption_tx: tokio::sync::mpsc::UnboundedSender<ToolConsumptionEvent>,
+    acp_runtime: Arc<hkask_agents::AcpRuntime>,
+}
 
-                            // Start 7R7 passive listener — polls rooms, emits CNS spans.
-                            // Does NOT classify, escalate, or moderate.
-                            let listener = hkask_communication::listener::SevenR7Listener::new(
-                                transport.clone(),
-                                30, // poll every 30 seconds
-                            );
-                            listener.start().await;
+async fn build_loops(
+    config: &ServiceConfig,
+    f: &mut Foundation,
+    system_webid: WebID,
+) -> Result<Loops, ServiceError> {
+    let loop_system = Arc::new(LoopSystem::new());
 
-                            tracing::info!(
-                                target: "cns.communication.matrix.daemon",
-                                username = %username,
-                                homeserver = %homeserver_url,
-                                "Matrix transport connected and 7R7 listener started"
-                            );
+    let (tool_consumption_tx, tool_consumption_rx) =
+        tokio::sync::mpsc::unbounded_channel::<ToolConsumptionEvent>();
+    let (curator_directive_tx, curator_directive_rx) =
+        tokio::sync::mpsc::unbounded_channel::<CuratorDirective>();
 
-                            Some(transport)
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                target: "cns.communication.matrix.daemon",
-                                username = %username,
-                                error = %e,
-                                "Matrix login failed — Conduit may not be running. Continuing without Matrix."
-                            );
-                            None
-                        }
-                    }
-                }
-                None => {
+    // Cybernetics loop
+    let set_points = load_set_points();
+    let cybernetics_loop = CyberneticsLoop::with_set_points(Arc::clone(&f.cns_runtime), set_points)
+        .with_event_sink(Arc::clone(&f.cns_event_sink))
+        .with_alerts_channel(f.curation_inbox_tx.clone())
+        .with_tool_consumption_channel(tool_consumption_rx)
+        .with_curator_directive_channel(curator_directive_rx);
+    let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
+    loop_system
+        .register_loop(Arc::new(CyberneticsLoopHandle(Arc::clone(
+            &cybernetics_loop,
+        ))))
+        .await;
+
+    // Inference loop (optional)
+    let inference_port: Option<Arc<dyn InferencePort>> = if config.in_memory {
+        None
+    } else {
+        let router = hkask_inference::InferenceRouter::new(config.inference_config.clone());
+        let raw_port: Arc<dyn InferencePort> = Arc::new(router);
+        let governed_port: Arc<dyn InferencePort> = Arc::new(hkask_cns::GovernedInference::new(
+            raw_port,
+            Arc::clone(&cybernetics_loop),
+            Arc::clone(&f.cns_event_sink),
+            system_webid,
+        ));
+        let inference_loop = hkask_agents::InferenceLoop::new()
+            .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
+            .with_model(&config.default_model);
+        loop_system.register_loop(Arc::new(inference_loop)).await;
+        Some(governed_port)
+    };
+
+    // Episodic + Semantic memory
+    let mem_conn = if config.in_memory {
+        Arc::clone(&f.db.conn_arc())
+    } else {
+        let path = config
+            .effective_memory_db_path()
+            .expect("effective_memory_db_path returns Some when !in_memory");
+        let passphrase = config
+            .memory_passphrase
+            .as_deref()
+            .unwrap_or(&config.db_passphrase);
+        Database::open(&path, passphrase)?.conn_arc()
+    };
+    let triple_store = TripleStore::new(Arc::clone(&mem_conn));
+    let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
+    let storage_budget = episodic_memory.storage_budget();
+    let episodic_loop =
+        EpisodicLoop::new(Arc::clone(&episodic_memory), system_webid, storage_budget);
+    loop_system.register_loop(Arc::new(episodic_loop)).await;
+
+    let triple_store2 = TripleStore::new(Arc::clone(&mem_conn));
+    let embedding_store = EmbeddingStore::new(Arc::clone(&mem_conn));
+    let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
+    let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
+    loop_system.register_loop(Arc::new(semantic_loop)).await;
+
+    // Memory adapter
+    let memory_adapter = Arc::new(
+        hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter::new(
+            EpisodicMemory::new(TripleStore::new(Arc::clone(&mem_conn))),
+            SemanticMemory::new(
+                TripleStore::new(Arc::clone(&mem_conn)),
+                EmbeddingStore::new(Arc::clone(&mem_conn)),
+            ),
+        ),
+    );
+    let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
+    let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
+
+    // Curation loop
+    let cns_for_curator: Arc<CnsRuntime> = Arc::new(f.cns_runtime.read().await.clone());
+    let acp_runtime = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
+    let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
+    let curator_context = Arc::new(
+        CuratorContext::new(
+            CuratorHandle::system(),
+            cns_for_curator,
+            Some(curator_directive_tx.clone()),
+            Arc::clone(&f.escalation_queue),
+        )
+        .with_acp(acp_port),
+    );
+    let consolidation_bridge = Arc::new(ConsolidationBridge::new(
+        Arc::clone(&episodic_memory),
+        Arc::clone(&semantic_memory),
+    ));
+    let curator_agent = CuratorAgent::with_consolidation(
+        curator_context,
+        Default::default(),
+        Arc::clone(&consolidation_bridge),
+        Some(
+            f.curation_inbox_rx
+                .take()
+                .expect("curation_inbox_rx consumed once"),
+        ),
+        Some(f.curation_inbox_tx.clone()),
+    );
+    let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
+    loop_system.register_loop(curation_loop).await;
+
+    // Snapshot + Backup loops
+    let git_cas_port: Arc<dyn GitCASPort> = match hkask_mcp::GixCasAdapter::from_env() {
+        Ok(adapter) => Arc::new(adapter),
+        Err(e) => {
+            tracing::warn!(target: "hkask.services", error = %e, "Git CAS port from env failed — using fallback");
+            Arc::new(
+                hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates")).map_err(
+                    |e| ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string())),
+                )?,
+            )
+        }
+    };
+    let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
+    loop_system.register_loop(Arc::new(snapshot_loop)).await;
+    let backup_service = Arc::new(crate::BackupService::new(Arc::clone(&git_cas_port)));
+    let backup_loop = crate::backup::r#loop::BackupLoop::new(backup_service);
+    loop_system.register_loop(Arc::new(backup_loop)).await;
+
+    Ok(Loops {
+        loop_system,
+        cybernetics_loop,
+        inference_port,
+        episodic_storage,
+        semantic_storage,
+        tool_consumption_tx,
+        acp_runtime,
+    })
+}
+
+/// MCP + pods: governed tool, dispatcher, pod manager, daemon handler.
+struct McpPods {
+    mcp_runtime: Arc<McpRuntime>,
+    mcp_dispatcher: Arc<McpDispatcher>,
+    pod_manager: Arc<PodManager>,
+    capability_checker: Arc<CapabilityChecker>,
+    daemon_handler: Arc<crate::daemon_handler::ServiceDaemonHandler>,
+}
+
+async fn build_mcp_and_pods(
+    config: &ServiceConfig,
+    l: &Loops,
+    f: &Foundation,
+    system_webid: WebID,
+) -> Result<McpPods, ServiceError> {
+    // GovernedTool membrane
+    let mcp_runtime = McpRuntime::new();
+    let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
+    let estimator: Arc<dyn EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
+    let governed_tool = Arc::new(
+        GovernedTool::new(
+            raw_tool_port,
+            Arc::clone(&l.cybernetics_loop),
+            Arc::clone(&f.cns_event_sink),
+            estimator,
+            system_webid,
+        )
+        .with_tool_consumption_channel(l.tool_consumption_tx.clone()),
+    );
+    let mcp_dispatcher = Arc::new(McpDispatcher::with_governed_tool(
+        mcp_runtime.clone(),
+        &config.mcp_secret,
+        governed_tool.clone(),
+    ));
+    let mcp_runtime = Arc::new(mcp_runtime);
+
+    // Pod manager
+    let capability_checker = Arc::new(CapabilityChecker::new(&config.mcp_secret));
+    let mcp_runtime_adapter = hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
+        Arc::new(CapabilityChecker::new(&config.acp_secret)),
+        Arc::new((*mcp_runtime).clone()),
+        tokio::runtime::Handle::current(),
+    );
+    let pod_manager = Arc::new(PodManager::new(
+        Some(Arc::new(hkask_mcp::GitCasAdapter::from_path(
+            std::path::PathBuf::from(&config.template_cache_path),
+        ))),
+        Some(l.acp_runtime.clone()),
+        Some(Arc::new(mcp_runtime_adapter)),
+        Some(Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>),
+        Some(Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>),
+        None,
+        Some(Arc::new(CapabilityChecker::new(&config.acp_secret))),
+        Some(governed_tool.clone()),
+        None,
+    ));
+
+    // Matrix auto-registration hook for pod activation.
+    {
+        let homeserver_url = std::env::var("HKASK_MATRIX_URL")
+            .unwrap_or_else(|_| "http://localhost:8008".to_string());
+        pod_manager
+            .register_activation_hook(Box::new(move |webid, pod_name| {
+                let url = homeserver_url.clone();
+                let name = pod_name.clone();
+                tokio::spawn(async move {
+                    register_pod_on_matrix(&url, &webid, &name).await;
+                });
+            }))
+            .await;
+    }
+
+    // Daemon handler + listener (skip socket in test mode)
+    let daemon_handler = Arc::new(crate::daemon_handler::ServiceDaemonHandler::new(
+        Arc::clone(&pod_manager),
+        Arc::clone(&f.user_store),
+        l.inference_port.clone(),
+    ));
+    if !config.in_memory {
+        let mut daemon_listener = hkask_mcp::daemon::DaemonListener::new();
+        daemon_listener.bind().await.map_err(|e| {
+            ServiceError::Infra(hkask_types::InfrastructureError::Io(format!(
+                "Failed to bind daemon socket: {}",
+                e
+            )))
+        })?;
+        let serve_handler = Arc::clone(&daemon_handler);
+        tokio::spawn(async move {
+            if let Err(e) = daemon_listener.serve(serve_handler).await {
+                tracing::error!(
+                    target: "hkask.daemon",
+                    error = %e,
+                    "Daemon listener serve loop exited with error"
+                );
+            }
+        });
+    }
+
+    Ok(McpPods {
+        mcp_runtime,
+        mcp_dispatcher,
+        pod_manager,
+        capability_checker,
+        daemon_handler,
+    })
+}
+
+/// Matrix transport + 7R7 listener. Non-blocking: returns None if Conduit unreachable.
+async fn build_matrix()
+-> Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
+    let homeserver_url =
+        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
+    let keychain = hkask_keystore::Keychain::default();
+
+    let credentials = {
+        if let Ok(password) = keychain.retrieve_by_key("matrix-bot-curator") {
+            Some(("@hkask-curator:localhost".to_string(), password))
+        } else if let (Ok(username), Ok(password)) = (
+            keychain.retrieve_by_key("matrix-replicant-username"),
+            keychain.retrieve_by_key("matrix-replicant-password"),
+        ) {
+            Some((username, password))
+        } else if let (Ok(username), Ok(password)) = (
+            std::env::var("HKASK_MATRIX_AGENT_USERNAME"),
+            std::env::var("HKASK_MATRIX_AGENT_PASSWORD"),
+        ) {
+            Some((username, password))
+        } else {
+            None
+        }
+    };
+
+    match credentials {
+        Some((username, password)) => {
+            let mut transport = hkask_communication::matrix::MatrixTransport::new(&homeserver_url);
+            match transport.login(&username, &password).await {
+                Ok(()) => {
+                    let transport = Arc::new(tokio::sync::Mutex::new(transport));
+                    let listener =
+                        hkask_communication::listener::SevenR7Listener::new(transport.clone(), 30);
+                    listener.start().await;
                     tracing::info!(
                         target: "cns.communication.matrix.daemon",
-                        "No Matrix credentials found in keychain or environment. Continuing without Matrix."
+                        username = %username,
+                        homeserver = %homeserver_url,
+                        "Matrix transport connected and 7R7 listener started"
+                    );
+                    Some(transport)
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "cns.communication.matrix.daemon",
+                        username = %username,
+                        error = %e,
+                        "Matrix login failed — Conduit may not be running. Continuing without Matrix."
                     );
                     None
                 }
             }
-        };
+        }
+        None => {
+            tracing::info!(
+                target: "cns.communication.matrix.daemon",
+                "No Matrix credentials found in keychain or environment. Continuing without Matrix."
+            );
+            None
+        }
+    }
+}
 
-        // ── 9. Registry ─────────────────────────────────────────────────────
-        let registry = Arc::new(tokio::sync::Mutex::new(
-            SqliteRegistry::new_with_conn(primary_conn.clone()).map_err(ServiceError::Template)?,
-        ));
+/// Registry + wallet: agent records, ACP restore, rJoule payments.
+struct RegWallet {
+    registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
+    agent_registry_store: hkask_storage::AgentRegistryStore,
+    wallet_service: Option<Arc<WalletService>>,
+    wallet_store: Option<Arc<WalletStore>>,
+}
 
-        // Agent registry store — uses the primary DB for persistent agent records.
-        let agent_registry_store = hkask_storage::AgentRegistryStore::new(primary_conn.clone());
-        agent_registry_store
-            .initialize_schema()
-            .map_err(ServiceError::AgentRegistryStore)?;
+fn build_registry_and_wallet(
+    config: &ServiceConfig,
+    f: &Foundation,
+    l: &Loops,
+    _mcp: &McpPods,
+) -> Result<RegWallet, ServiceError> {
+    // Registry
+    let registry = Arc::new(tokio::sync::Mutex::new(
+        SqliteRegistry::new_with_conn(f.primary_conn.clone()).map_err(ServiceError::Template)?,
+    ));
 
-        // Restore ACP state from persistent storage
-        let registered_agents = agent_registry_store
-            .list()
-            .map_err(ServiceError::AgentRegistryStore)?;
-        if !registered_agents.is_empty() {
-            use std::str::FromStr;
-            let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
-                .iter()
-                .map(|ra| hkask_agents::acp::AcpAgent {
-                    webid: hkask_types::WebID::from_str(&ra.definition.name).unwrap_or_else(|_| {
-                        hkask_types::WebID::from_persona(ra.definition.name.as_bytes())
-                    }),
-                    agent_type: ra.definition.agent_kind,
-                    capabilities: ra.definition.capabilities.clone(),
-                    registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
-                        .map(|dt| dt.timestamp())
-                        .unwrap_or(0),
-                    active: true,
-                })
-                .collect();
-            let tokens = std::collections::HashMap::new();
-            acp_runtime
-                .restore_from_storage(agents, tokens)
-                .await
-                .map_err(ServiceError::Acp)?;
-        };
+    // Agent registry store
+    let agent_registry_store = hkask_storage::AgentRegistryStore::new(f.primary_conn.clone());
+    agent_registry_store
+        .initialize_schema()
+        .map_err(ServiceError::AgentRegistryStore)?;
 
-        // ── 10. Wallet — rJoule payments, deposits, API keys ─────────────────
-        let (wallet_service, wallet_store): (Option<Arc<WalletService>>, Option<Arc<WalletStore>>) = {
-            let wallet_conn = Arc::clone(&shared_conn);
-            let wallet_store = Arc::new(WalletStore::new(wallet_conn));
+    // Restore ACP state from persistent storage
+    let registered_agents = agent_registry_store
+        .list()
+        .map_err(ServiceError::AgentRegistryStore)?;
+    if !registered_agents.is_empty() {
+        use std::str::FromStr;
+        let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
+            .iter()
+            .map(|ra| hkask_agents::acp::AcpAgent {
+                webid: hkask_types::WebID::from_str(&ra.definition.name).unwrap_or_else(|_| {
+                    hkask_types::WebID::from_persona(ra.definition.name.as_bytes())
+                }),
+                agent_type: ra.definition.agent_kind,
+                capabilities: ra.definition.capabilities.clone(),
+                registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
+                    .map(|dt| dt.timestamp())
+                    .unwrap_or(0),
+                active: true,
+            })
+            .collect();
+        let tokens = std::collections::HashMap::new();
+        // ACP restore is async but wallet build is sync — block_on in the sync context.
+        // This is acceptable because build() runs at startup, not in a hot loop.
+        let handle = tokio::runtime::Handle::current();
+        handle
+            .block_on(l.acp_runtime.restore_from_storage(agents, tokens))
+            .map_err(ServiceError::Acp)?;
+    }
 
-            let svc = WalletService::build(
-                &config.wallet_config,
-                Arc::clone(&wallet_store),
-                Arc::clone(&cns_event_sink),
-                Arc::clone(&cybernetics_loop),
-            )?;
+    // Wallet
+    let wallet_conn = Arc::clone(&f.db.conn_arc());
+    let wallet_store = Arc::new(WalletStore::new(wallet_conn));
+    let svc = WalletService::build(
+        &config.wallet_config,
+        Arc::clone(&wallet_store),
+        Arc::clone(&f.cns_event_sink),
+        Arc::clone(&l.cybernetics_loop),
+    )?;
+    let wallet_manager = svc.manager();
 
-            let wallet_manager = svc.manager();
+    // Ensure default wallet
+    let default_wallet = WalletId::default();
+    wallet_manager
+        .ensure_wallet(default_wallet)
+        .map_err(|e| ServiceError::Wallet {
+            source: Some(Box::new(e)),
+            message: "Failed to ensure default wallet".into(),
+        })?;
 
-            // Ensure default wallet exists (system-wide fallback)
-            let default_wallet = WalletId::default();
-            wallet_manager
-                .ensure_wallet(default_wallet)
-                .map_err(|e| ServiceError::Wallet {
-                    source: Some(Box::new(e)),
-                    message: "Failed to ensure default wallet".into(),
-                })?;
-
-            // Bind wallets to all registered replicants (multi-wallet foundation).
-            // Each replicant gets a unique WalletId derived from its name.
-            // Replicants without wallets get one created; existing bindings are preserved.
-            {
-                let user_guard = user_store.lock().map_err(|_| {
-                    ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
-                        hkask_types::InfrastructureError::LockPoisoned,
-                    ))
-                })?;
-                // Get the system replicant to discover the user_id
-                if let Ok(Some(system_identity)) = user_guard.get_replicant(&config.agent_name) {
-                    let user_id = system_identity.user_id;
-                    let replicants = user_guard
-                        .list_replicants(&user_id)
-                        .map_err(ServiceError::UserStore)?;
-                    for identity in &replicants {
-                        // Skip replicants that already have a wallet bound
-                        if identity.wallet_id.is_some() {
-                            tracing::debug!(
-                                target: "cns.wallet",
-                                replicant = %identity.replicant_name,
-                                wallet_id = %identity.wallet_id.as_ref().unwrap(),
-                                "Wallet already bound — skipping"
-                            );
-                            continue;
-                        }
-                        // Derive a deterministic WalletId from the replicant name
-                        let wallet_id = WalletId::from_name(&identity.replicant_name);
-                        if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
-                            tracing::warn!(
-                                target: "cns.wallet",
-                                replicant = %identity.replicant_name,
-                                error = %e,
-                                "Failed to create wallet for replicant"
-                            );
-                            continue;
-                        }
-                        if let Err(e) =
-                            user_guard.set_wallet_id(&identity.replicant_name, wallet_id)
-                        {
-                            tracing::warn!(
-                                target: "cns.wallet",
-                                replicant = %identity.replicant_name,
-                                error = %e,
-                                "Failed to bind wallet to replicant"
-                            );
-                        } else {
-                            tracing::info!(
-                                target: "cns.wallet",
-                                replicant = %identity.replicant_name,
-                                wallet_id = %wallet_id,
-                                "Wallet created and bound to replicant"
-                            );
-                        }
-                    }
+    // Bind wallets to replicants
+    {
+        let user_guard = f.user_store.lock().map_err(|_| {
+            ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
+                hkask_types::InfrastructureError::LockPoisoned,
+            ))
+        })?;
+        if let Ok(Some(system_identity)) = user_guard.get_replicant(&config.agent_name) {
+            let user_id = system_identity.user_id;
+            let replicants = user_guard
+                .list_replicants(&user_id)
+                .map_err(ServiceError::UserStore)?;
+            for identity in &replicants {
+                if identity.wallet_id.is_some() {
+                    continue;
+                }
+                let wallet_id = WalletId::from_name(&identity.replicant_name);
+                if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
+                    tracing::warn!(
+                        target: "cns.wallet",
+                        replicant = %identity.replicant_name,
+                        error = %e,
+                        "Failed to create wallet for replicant"
+                    );
+                    continue;
+                }
+                if let Err(e) = user_guard.set_wallet_id(&identity.replicant_name, wallet_id) {
+                    tracing::warn!(
+                        target: "cns.wallet",
+                        replicant = %identity.replicant_name,
+                        error = %e,
+                        "Failed to bind wallet to replicant"
+                    );
                 } else {
                     tracing::info!(
                         target: "cns.wallet",
-                        "No system replicant found — skipping wallet binding"
+                        replicant = %identity.replicant_name,
+                        wallet_id = %wallet_id,
+                        "Wallet created and bound to replicant"
                     );
                 }
             }
-
-            // Spawn deposit monitor as background task
-            let monitor_manager = Arc::clone(&wallet_manager);
-            let interval_secs: u64 = std::env::var("HKASK_DEPOSIT_MONITOR_INTERVAL_SECS")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(30); // default: poll every 30 seconds
-            tokio::spawn(async move {
-                tracing::info!(
-                    target: "cns.wallet.deposit",
-                    interval_secs = %interval_secs,
-                    "Deposit monitor started — polling every {}s",
-                    interval_secs
-                );
-                if let Err(e) = monitor_manager.start_deposit_monitor(interval_secs).await {
-                    tracing::error!(
-                        target: "cns.wallet.deposit",
-                        error = %e,
-                        "Deposit monitor loop exited with error"
-                    );
-                }
-            });
-
-            (Some(svc), Some(wallet_store))
-        };
-
-        Ok(Self {
-            registry,
-            mcp_runtime,
-            mcp_dispatcher,
-            cns_runtime,
-            cybernetics_loop,
-            loop_system,
-            inference_port,
-            episodic_storage,
-            semantic_storage,
-            escalation_queue,
-            consent_manager,
-            goal_repo,
-            curation_inbox_tx: Some(curation_inbox_tx.clone()),
-            pod_manager,
-            capability_checker,
-            system_webid,
-            event_sink: cns_event_sink,
-            sovereignty_boundary_store,
-            spec_store,
-            acp_runtime,
-            agent_registry_store,
-            user_store,
-            daemon_handler,
-            matrix_transport,
-            seam_watcher,
-            config,
-            wallet_service,
-            wallet_store,
-        })
+        }
     }
+
+    // Spawn deposit monitor
+    let monitor_manager = Arc::clone(&wallet_manager);
+    let interval_secs: u64 = std::env::var("HKASK_DEPOSIT_MONITOR_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(30);
+    tokio::spawn(async move {
+        tracing::info!(
+            target: "cns.wallet.deposit",
+            interval_secs = %interval_secs,
+            "Deposit monitor started — polling every {}s",
+            interval_secs
+        );
+        if let Err(e) = monitor_manager.start_deposit_monitor(interval_secs).await {
+            tracing::error!(
+                target: "cns.wallet.deposit",
+                error = %e,
+                "Deposit monitor loop exited with error"
+            );
+        }
+    });
+
+    Ok(RegWallet {
+        registry,
+        agent_registry_store,
+        wallet_service: Some(svc),
+        wallet_store: Some(wallet_store),
+    })
 }
 
 /// Register a pod's replicant as a Matrix user on Conduit.

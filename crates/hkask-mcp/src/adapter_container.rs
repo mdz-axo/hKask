@@ -17,7 +17,10 @@ pub struct AdapterContainer {
 }
 
 impl AdapterContainer {
-    /// Create new empty adapter container
+    /// Create a new empty adapter container.
+    ///
+    /// REQ: MCP-010
+    /// post: returns AdapterContainer with no configured ports
     pub fn new() -> Self {
         Self {
             git_cas_port: Arc::new(RwLock::new(None)),
@@ -25,9 +28,14 @@ impl AdapterContainer {
     }
 
     /// Configure the hexagonal GitCASPort for CAS operations.
+    /// Configure the Git CAS port for MCP servers to share.
     ///
     /// MCP servers should call `get_git_cas_port()` to obtain the shared
     /// port instance rather than constructing their own adapters.
+    ///
+    /// REQ: MCP-011
+    /// pre:  port is a valid GitCASPort
+    /// post: git_cas_port set
     pub fn configure_git_cas_port(&self, port: Arc<dyn GitCASPort>) -> Result<(), String> {
         let mut lock = self.git_cas_port.write().map_err(|e| e.to_string())?;
         *lock = Some(port);
@@ -36,9 +44,13 @@ impl AdapterContainer {
     }
 
     /// Get the hexagonal GitCASPort instance.
+    /// Get the configured Git CAS port.
     ///
     /// Returns `None` if not yet configured. MCP servers should prefer
     /// this over constructing their own `GixCasAdapter`.
+    ///
+    /// REQ: MCP-012
+    /// post: returns Some(port) if configured, None otherwise
     pub fn get_git_cas_port(&self) -> Result<Option<Arc<dyn GitCASPort>>, String> {
         let lock = self.git_cas_port.read().map_err(|e| e.to_string())?;
         Ok(lock.clone())

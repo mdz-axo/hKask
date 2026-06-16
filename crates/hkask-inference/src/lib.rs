@@ -74,9 +74,10 @@ impl RouterModelEntry {
     /// Does not perform runtime probing — fast but incomplete.
     /// `None` means unknown; `Some(true)` means likely vision-capable.
     ///
-    /// Families: llava, bakllava, minicpm-v, gemma3, llama3.2-vision,
-    /// cogvlm, moondream, pixtral, florence, paligemma, qwen2-vl,
-    /// internvl, phi-3-vision, lighton, paddleocr, nemotron-parse
+    /// REQ: INFER-020
+    /// pre:  model is non-empty
+    /// post: returns Some(true) if model/family matches known vision families
+    /// post: returns None if unknown
     pub fn infer_vision_support(model: &str, family: Option<&str>) -> Option<bool> {
         const VISION_FAMILIES: &[&str] = &[
             "llava",

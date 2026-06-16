@@ -23,7 +23,11 @@ pub struct GitCasAdapter {
 }
 
 impl GitCasAdapter {
-    /// Create from base path without validation
+    /// Create from base path without validation.
+    ///
+    /// REQ: MCP-021
+    /// pre:  base_path is a valid directory path
+    /// post: returns GitCasAdapter rooted at base_path
     pub fn from_path(base_path: std::path::PathBuf) -> Self {
         Self { base_path }
     }
@@ -55,7 +59,12 @@ impl GitCasAdapter {
         Ok(())
     }
 
-    /// Load a template crate from the content-addressable store
+    /// Load a template crate from the content-addressable store.
+    ///
+    /// REQ: MCP-022
+    /// pre:  crate_name is a valid, non-traversal path
+    /// post: returns TemplateCrate loaded from CAS
+    /// post: returns Err(NotFound) if crate doesn't exist
     pub fn load_template_crate(
         &self,
         crate_name: &str,

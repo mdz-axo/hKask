@@ -109,7 +109,10 @@ pub struct McpRuntime {
 }
 
 impl McpRuntime {
-    /// Create new MCP runtime
+    /// Create a new MCP runtime.
+    ///
+    /// REQ: MCP-025
+    /// post: returns McpRuntime with empty servers, tool_registry, connections
     pub fn new() -> Self {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),

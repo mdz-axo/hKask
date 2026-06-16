@@ -8,11 +8,11 @@
 //! an abstraction layer. Each backend owns its HTTP client, auth, and
 //! model listing endpoint independently.
 
-use hkask_types::template::LLMParameters;
 use hkask_types::ports::{
     InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage, StructuredToolCall,
     TokenProb, TokenProbability,
 };
+use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
@@ -66,6 +66,11 @@ pub struct ChatMessage {
 ///
 /// `stream: false` is explicit in non-streaming calls to prevent chunked
 /// transfer encoding from confusing JSON parsers.
+/// Build an OpenAI-compatible chat completion request body.
+///
+/// REQ: INFER-026
+/// pre:  model is non-empty, prompt is non-empty
+/// post: returns serde_json::Value with model, messages, and parameters
 pub fn build_chat_request(
     model: &str,
     prompt: &str,
@@ -191,6 +196,11 @@ pub struct StreamDelta {
 ///
 /// Tool call names use `server/tool` convention (e.g., `memory/recall`).
 /// If no `/` separator, server is empty and the full name is the tool.
+/// Map raw tool calls from API response to structured ToolCall format.
+///
+/// REQ: INFER-027
+/// pre:  calls is a valid slice of RawToolCall
+/// post: returns Vec<StructuredToolCall> with parsed arguments
 pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
     calls
         .iter()
@@ -212,6 +222,11 @@ pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
 }
 
 /// Convert raw token probabilities to `TokenProbability`.
+/// Map raw token probabilities to structured TokenProbability format.
+///
+/// REQ: INFER-028
+/// pre:  probs is a valid slice of RawTokenProb
+/// post: returns Vec<TokenProbability> with mapped fields
 pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
     probs
         .iter()
@@ -231,6 +246,12 @@ pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
 }
 
 /// Convert a `ChatResponse` into an `InferenceResult`.
+/// Convert a chat completion response to InferenceResult.
+///
+/// REQ: INFER-029
+/// pre:  response is a valid ChatResponse
+/// post: returns Ok(InferenceResult) with text, usage, finish_reason
+/// post: returns Err if no choices in response
 pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult, InferenceError> {
     let choice = response
         .choices
@@ -261,6 +282,11 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
 }
 
 /// Parse SSE stream lines into `InferenceStreamChunk` vec.
+/// Parse an SSE stream into InferenceStreamChunks.
+///
+/// REQ: INFER-030
+/// pre:  stream is a valid SSE byte stream
+/// post: returns stream of InferenceStreamChunk parsed from SSE data lines
 pub fn parse_sse_stream(
     body: &str,
     model_id: &str,
@@ -326,7 +352,6 @@ pub fn parse_sse_stream(
 /// pre:  prompt is a valid &str
 /// post: returns Err(Generation) if prompt is empty
 /// post: returns Err(Generation) if prompt.len() > 1_000_000
-/// post: returns Ok(()) for all other inputs
 pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
     if prompt.is_empty() {
         return Err(InferenceError::Generation("Prompt is empty".to_string()));

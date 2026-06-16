@@ -45,6 +45,7 @@ pub use routes::{
     CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
     ModelSearchQuery, PodStatusResponse, SpecCoherenceResponse, SpecListResponse,
     SpecWritingQualityResponse, TemplateResponse, VarietyCounterResponse,
+    WithdrawalFeeEstimateResponse,
 };
 
 use std::sync::Arc;

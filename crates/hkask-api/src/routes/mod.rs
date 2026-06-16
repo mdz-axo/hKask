@@ -64,5 +64,6 @@ pub use spec::{
 };
 pub use templates::{GrantCapabilityRequest, TemplateResponse};
 pub use wallet::{
-    ApiKeyCreatedResponse, ApiKeyEntry, ApiKeyListResponse, ApiKeyRevokedResponse, CreateKeyRequest,
+    ApiKeyCreatedResponse, ApiKeyEntry, ApiKeyListResponse, ApiKeyRevokedResponse,
+    CreateKeyRequest, WithdrawalFeeEstimateResponse,
 };
