@@ -23,6 +23,7 @@ proptest! {
             "YAML parser panicked on {} bytes of arbitrary input", bytes.len());
     }
 
+    // REQ: FUZ-001 — yaml parser never panics on arbitrary strings
     #[test]
     fn yaml_parser_never_panics_on_arbitrary_strings(
         input in proptest::arbitrary::any::<String>(),

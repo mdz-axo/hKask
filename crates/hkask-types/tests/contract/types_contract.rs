@@ -23,6 +23,7 @@ proptest! {
         prop_assert_eq!(e.recursion_depth, back.recursion_depth);
     }
 
+    // REQ: CTR-001 — goal json roundtrip
     #[test]
     fn goal_json_roundtrip(g in any_goal()) {
         let json = serde_json::to_string(&g).unwrap();
@@ -32,6 +33,7 @@ proptest! {
         prop_assert_eq!(g.state, back.state);
     }
 
+    // REQ: CTR-001 — capability spec json roundtrip
     #[test]
     fn capability_spec_json_roundtrip(spec in any_capability_spec()) {
         let json = serde_json::to_string(&spec).unwrap();

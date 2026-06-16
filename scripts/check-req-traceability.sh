@@ -15,9 +15,9 @@ for crate_dir in crates/*/; do
     src="${crate_dir}src"
     [ -d "$src" ] || continue
 
-    test_count=$(grep -rchE '#\[test\]|#\[tokio::test\]' "$src" --include='*.rs' 2>/dev/null || true | awk '{sum+=$1} END {print sum+0}')
+    test_count=$( (grep -rchE '#\[test\]|#\[tokio::test\]' "$src" --include='*.rs' 2>/dev/null || true) | awk '{sum+=$1} END {print sum+0}')
     test_count=${test_count:-0}
-    req_count=$(grep -rch '// REQ:' "$src" --include='*.rs' 2>/dev/null || true | awk '{sum+=$1} END {print sum+0}')
+    req_count=$( (grep -rch '// REQ:' "$src" --include='*.rs' 2>/dev/null || true) | awk '{sum+=$1} END {print sum+0}')
     req_count=${req_count:-0}
 
     total_tests=$((total_tests + test_count))

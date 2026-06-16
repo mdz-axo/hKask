@@ -30,6 +30,7 @@ fn cns_detects_perturbation() {
     );
 }
 
+// REQ: INT-004 — cns restores homeostasis after time
 #[test]
 fn cns_restores_homeostasis_after_time() {
     let cns = MockCnsRuntime::new();
@@ -54,6 +55,7 @@ fn cns_restores_homeostasis_after_time() {
     );
 }
 
+// REQ: INT-004 — cns throttles tool on budget exceeded
 #[test]
 fn cns_throttles_tool_on_budget_exceeded() {
     let cns = MockCnsRuntime::with_state(MockCnsState::perturbed("tool-x"));
@@ -63,6 +65,7 @@ fn cns_throttles_tool_on_budget_exceeded() {
     assert_eq!(cns.tool_state("tool-y"), MockToolState::Active);
 }
 
+// REQ: INT-004 — cns tracks variety by domain
 #[test]
 fn cns_tracks_variety_by_domain() {
     let cns = MockCnsRuntime::new();
@@ -76,6 +79,7 @@ fn cns_tracks_variety_by_domain() {
     assert_eq!(cns.variety_for_domain("cns.unknown"), 0);
 }
 
+// REQ: INT-004 — cns multiple perturbations accumulate signals
 #[test]
 fn cns_multiple_perturbations_accumulate_signals() {
     let cns = MockCnsRuntime::new();

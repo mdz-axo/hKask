@@ -234,6 +234,7 @@ mod tests {
         }
 
         proptest! {
+            // REQ: cap-prop-009 — action hierarchy permits read
             #[test]
             fn action_hierarchy_permits_read(
                 action in valid_action_str()
@@ -343,6 +344,7 @@ mod tests {
         }
 
         proptest! {
+        // REQ: cap-prop-015 — non prefixed server id returns none
         #[test]
         fn non_prefixed_server_id_returns_none(
             server_id in "[a-z][a-z0-9_-]*"

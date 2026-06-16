@@ -435,6 +435,7 @@ mod tests {
         (listener, path)
     }
 
+    // REQ: MCP-020 — daemon auth query authenticated
     #[tokio::test]
     async fn daemon_auth_query_authenticated() {
         let (listener, path) = setup_test_listener().await;
@@ -468,6 +469,7 @@ mod tests {
         }
     }
 
+    // REQ: MCP-020 — daemon auth query unauthenticated
     #[tokio::test]
     async fn daemon_auth_query_unauthenticated() {
         let (listener, path) = setup_test_listener().await;
@@ -497,6 +499,7 @@ mod tests {
         }
     }
 
+    // REQ: MCP-020 — daemon assignment query
     #[tokio::test]
     async fn daemon_assignment_query() {
         let (listener, path) = setup_test_listener().await;
@@ -532,6 +535,7 @@ mod tests {
         }
     }
 
+    // REQ: MCP-020 — daemon capability query
     #[tokio::test]
     async fn daemon_capability_query() {
         let (listener, path) = setup_test_listener().await;
@@ -567,6 +571,7 @@ mod tests {
         }
     }
 
+    // REQ: MCP-020 — daemon store experience dual encoding
     #[tokio::test]
     async fn daemon_store_experience_dual_encoding() {
         let (listener, path) = setup_test_listener().await;

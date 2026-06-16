@@ -23,6 +23,7 @@ proptest! {
             "JSON parser panicked on {} bytes of arbitrary input", bytes.len());
     }
 
+    // REQ: FUZ-002 — json parser never panics on arbitrary strings
     #[test]
     fn json_parser_never_panics_on_arbitrary_strings(
         input in proptest::arbitrary::any::<String>(),

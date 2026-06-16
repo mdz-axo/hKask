@@ -6,11 +6,11 @@ use crate::ocr::pipeline::OcrExecutor;
 use crate::ocr::tesseract::TesseractExecutor;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::DaemonClient;
+use hkask_types::WebID;
 use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use hkask_types::ports::CnsObserver;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
-use hkask_types::WebID;
 use std::sync::Mutex;
 
 /// Minimum word count from pdf-extract to consider text extraction successful

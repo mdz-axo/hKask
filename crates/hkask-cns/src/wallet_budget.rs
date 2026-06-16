@@ -132,8 +132,12 @@ impl WalletBackedBudget {
             let would_spend = health.spent_rj + cost_rj.as_u64();
             if would_spend > limit.as_u64() {
                 // REQ: MUST-6 — emit algedonic alert for spending limit exhaustion
-                self.wallet_manager
-                    .emit_key_alert(self.key_id.unwrap(), true, health.expired);
+                self.wallet_manager.emit_key_alert(
+                    self.key_id
+                        .expect("key_id must be present when spending_limit_rj is set"),
+                    true,
+                    health.expired,
+                );
                 return false;
             }
         }

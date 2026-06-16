@@ -23,8 +23,7 @@ use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_storage::{GalleryMode, GalleryStore, GalleryStoreError, Store};
 use hkask_types::time::now_rfc3339;
 use hkask_types::{
-    InferencePort, McpErrorKind, TimedWord, TranscriptBundle, TranscriptSegment, VoiceDesign,
-    WebID,
+    InferencePort, McpErrorKind, TimedWord, TranscriptBundle, TranscriptSegment, VoiceDesign, WebID,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;

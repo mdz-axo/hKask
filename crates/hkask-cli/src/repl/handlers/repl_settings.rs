@@ -471,6 +471,7 @@ mod tests {
         assert!((p.presence_penalty - 0.0).abs() < f32::EPSILON);
     }
 
+    // REQ: Correct — to llm params handles none seed
     #[test]
     fn to_llm_params_handles_none_seed() {
         let s = ReplSettings::default();

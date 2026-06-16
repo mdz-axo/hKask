@@ -40,6 +40,7 @@ proptest! {
             input.len(), profile, category);
     }
 
+    // REQ: FUZ-003 — condenser never panics on large input
     #[test]
     fn condenser_never_panics_on_large_input(
         size in 0usize..1_000_000usize,

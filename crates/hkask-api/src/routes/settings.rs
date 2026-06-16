@@ -201,6 +201,7 @@ mod tests {
         assert!((settings.top_p - 0.9).abs() < f32::EPSILON);
     }
 
+    // REQ: Merge-update — update settings out of range is ignored
     #[test]
     fn update_settings_out_of_range_is_ignored() {
         let mut settings = SettingsResponse::default();

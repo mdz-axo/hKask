@@ -217,6 +217,7 @@ mod tests {
     //   approx_tokens = approx_token_count(input_with_context) as u32
     //   if approx_tokens > threshold → trigger condensation
 
+    // REQ: Auto-condense — compaction triggers above 87 5 percent
     #[test]
     fn compaction_triggers_above_87_5_percent() {
         let context_length: u32 = 4096;
@@ -232,6 +233,7 @@ mod tests {
         );
     }
 
+    // REQ: Auto-condense — compaction skips below 87 5 percent
     #[test]
     fn compaction_skips_below_87_5_percent() {
         let context_length: u32 = 4096;
@@ -247,6 +249,7 @@ mod tests {
         );
     }
 
+    // REQ: Auto-condense — compaction threshold matches 87 5 percent formula
     #[test]
     fn compaction_threshold_matches_87_5_percent_formula() {
         // Verify the 87.5% threshold for common context window sizes

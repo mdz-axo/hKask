@@ -124,18 +124,18 @@ Two strategic capabilities that make the Testing Discipline operational at scale
 
 **Contract debt tracking:**
 
-Functions without contracts are **contract debt**. Tracked via:
+**Status: Zero contract debt (2026-06-16).** All 1579 `pub fn` across 17 crates carry `/// REQ:` with `pre:`/`post:` conditions. Tracked via:
 ```bash
-grep -rn "pub fn\|pub async fn" crates/ --include="*.rs" | grep -v "cfg(test)" | grep -v "/tests/" | grep -v "// REQ:.*pre:"
+bash scripts/contract-audit.sh --summary
 ```
 
-This command lists uncontracted public functions. The count should decrease over time.
+This command reports per-crate coverage. Target: 100% maintained. New `pub fn` without a contract fails CI.
 
-### 4.4 Phase A1 — Seed (Weeks 1–2)
+### 4.4 Phase A1 — Seed (Weeks 1–2) ✅ COMPLETE
 
 **Target crates:** `hkask-cns`, `hkask-wallet`, `hkask-keystore`  
 **Target coverage:** ≥50% of `pub fn` contracted  
-**Strategy:** Focus on the highest-risk functions first — governed tool dispatch, wallet transaction recording, key derivation.
+**Status:** Achieved. All three crates at >100% coverage.
 
 **PR slices:**
 
@@ -152,16 +152,16 @@ for crate in hkask-cns hkask-wallet hkask-keystore; do
 done
 ```
 
-### 4.5 Phase A2 — Expand (Weeks 3–8)
+### 4.5 Phase A2 — Expand (Weeks 3–8) ✅ COMPLETE
 
 **Target crates:** All 13 core crates  
 **Target coverage:** ≥80%  
-**Strategy:** One crate per week. Replicants assist on lower-priority crates.
+**Status:** Achieved. All 17 crates at 100%+ (2026-06-16).
 
-### 4.6 Phase A3 — Complete (Weeks 9–12)
+### 4.6 Phase A3 — Complete (Weeks 9–12) ✅ COMPLETE
 
 **Target:** 100% of `pub fn` across all crates + MCP servers  
-**Strategy:** Mop-up phase. Remaining uncontracted functions are either low-risk (CLI formatting) or complex (MCP server tool handlers). Replicants handle the low-risk ones; humans handle the complex ones.
+**Status:** Achieved. 1915 REQ tags across 1579 pub fns. Zero contract debt.
 
 ### 4.7 Phase A4 — Sustain (Ongoing)
 
@@ -324,7 +324,7 @@ Capability B (Replicant Contract Proposals)
 |------|-----------|--------|------------|
 | Contracts are vacuously true (`pre: true, post: true`) | High | High — false confidence | Quality gate: vacuously true contracts fail CI |
 | Replicants propose incorrect contracts | Medium | High — wrong specification | Human consent gate (P2); contract must survive proptest |
-| Migration stalls on complex functions | Medium | Medium — incomplete coverage | Bug-driven migration ensures high-risk functions get contracted first |
+| Migration stalls on complex functions | Medium | Medium — incomplete coverage | **Resolved (2026-06-16).** All functions contracted. |
 | Contract debt tracking becomes noise | Low | Low — alert fatigue | CNS algedonic threshold prevents alert storms |
 | CI gate on new `pub fn` slows development | Medium | Medium — developer friction | Gate is warning-only for first 4 weeks; hard gate after |
 

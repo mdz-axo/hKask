@@ -133,6 +133,7 @@ mod tests {
         }
     }
 
+    // REQ: pre: — emit contract violated persists event
     #[test]
     fn emit_contract_violated_persists_event() {
         let sink = CaptureSink::new();
@@ -155,6 +156,7 @@ mod tests {
         );
     }
 
+    // REQ: pre: — emit contract coverage persists event
     #[test]
     fn emit_contract_coverage_persists_event() {
         let sink = CaptureSink::new();

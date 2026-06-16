@@ -191,6 +191,7 @@ mod tests {
         LLMParameters::default()
     }
 
+    // REQ: HARN-006 — mock returns canned response
     #[tokio::test]
     async fn mock_returns_canned_response() {
         let mock = MockInferencePort::new()
@@ -202,6 +203,7 @@ mod tests {
         assert_eq!(result.model, "mock-model");
     }
 
+    // REQ: HARN-006 — mock returns default for unmatched
     #[tokio::test]
     async fn mock_returns_default_for_unmatched() {
         let mock = MockInferencePort::new()
@@ -212,6 +214,7 @@ mod tests {
         assert_eq!(result.text, "I don't know");
     }
 
+    // REQ: HARN-006 — mock longest prefix wins
     #[tokio::test]
     async fn mock_longest_prefix_wins() {
         let mock = MockInferencePort::new()
@@ -228,6 +231,7 @@ mod tests {
         assert_eq!(result.text, "generic");
     }
 
+    // REQ: HARN-006 — mock error injection
     #[tokio::test]
     async fn mock_error_injection() {
         let mock = MockInferencePort::new().with_response("test", "ok");
@@ -241,6 +245,7 @@ mod tests {
         assert_eq!(result.text, "ok");
     }
 
+    // REQ: HARN-006 — mock generate with model delegates
     #[tokio::test]
     async fn mock_generate_with_model_delegates() {
         let mock = MockInferencePort::new().with_response("hi", "response");

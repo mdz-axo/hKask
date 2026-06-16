@@ -75,6 +75,7 @@ impl EnergyEstimator for FixedCostEstimator {
 
 // ── Test ─────────────────────────────────────────────────────────────────
 
+// REQ: svc-cns-governed-005 — governed tool full membrane ocap domain path
 #[tokio::test]
 async fn governed_tool_full_membrane_ocap_domain_path() {
     // 1. Build real CNS runtime

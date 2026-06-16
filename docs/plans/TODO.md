@@ -244,6 +244,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **C-45** | R9: Strangler fig extraction (Kata + Spec) | 2026-06-15 | `KataEngine::from_env()`, `SpecService::get_full()`. CLI no longer imports InferenceConfig/InferenceRouter/SpecStore. |
 | **C-46** | R10: Training cancel stubs | 2026-06-15 | Already implemented — all 5 providers have PID+SIGTERM or API cancel. Zero stubs. |
 | | **Total REQ tags** | 2026-06-15 | **916** across workspace. Zero `todo!()`/`unimplemented!()`. |
+| **C-47** | Contract migration to 100% | 2026-06-16 | All 1579 `pub fn` across 17 crates carry `/// REQ:` with `pre:`/`post:`. 1915 REQ tags (121.2%). Zero contract debt. `cargo check --workspace` 0 errors, 0 warnings. |
 
 ---
 

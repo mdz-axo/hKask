@@ -608,7 +608,7 @@ These decisions require human input before implementation:
 | `hkask-types` public surface | 576 (G2 justified) ✅ | ≤50 top-level (v0.28.0) | Wave 4 (R8) |
 | Mid-migration domains | 5 (2 extracted) ✅ | 5 | Wave 5 (R9) |
 | Training cancel stubs | 0 ✅ | 0 | Wave 6 (R10) |
-| Total REQ tags across workspace | 916 | >400 | All waves |
+| Total REQ tags across workspace | 1915 | >400 | All waves + Contract Migration (2026-06-16) |
 | `todo!()` / `unimplemented!()` count | 0 | 0 | Maintained |
 
 ---

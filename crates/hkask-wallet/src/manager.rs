@@ -1301,6 +1301,7 @@ mod tests {
     // - Per key: consumed ≤ encumbered (can't consume more than locked)
     proptest! {
         #![proptest_config(ProptestConfig { max_shrink_iters: 0, .. ProptestConfig::with_cases(64) })]
+        // REQ: WALLET-PBT-001 — balance conservation under encumbrance lifecycle
         #[test]
         fn balance_conservation_under_encumbrance_lifecycle(
             credits in prop::collection::vec(arbitrary_rjoule(), 1..10),

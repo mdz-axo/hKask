@@ -719,6 +719,7 @@ mod tests {
         }
 
         proptest! {
+            // REQ: span-prop-004 — from short name unknown prefix
             #[test]
             fn from_short_name_unknown_prefix(
                 prefix in "[a-z][a-z0-9_]*"

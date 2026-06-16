@@ -30,6 +30,7 @@ fn triple_insert_and_query() {
     assert_eq!(results[0].attribute, "attr:name");
 }
 
+// REQ: CTR-002 — triple query by attribute
 #[test]
 fn triple_query_by_attribute() {
     let db = TestDb::new();
@@ -46,6 +47,7 @@ fn triple_query_by_attribute() {
     assert_eq!(results.len(), 2);
 }
 
+// REQ: CTR-002 — triple count is accurate
 #[test]
 fn triple_count_is_accurate() {
     let db = TestDb::new();
@@ -60,6 +62,7 @@ fn triple_count_is_accurate() {
     assert_eq!(store.count_semantic().unwrap(), 3);
 }
 
+// REQ: CTR-002 — triple delete removes correctly
 #[test]
 fn triple_delete_removes_correctly() {
     let db = TestDb::new();
@@ -75,6 +78,7 @@ fn triple_delete_removes_correctly() {
     assert_eq!(store.count_semantic().unwrap(), 0);
 }
 
+// REQ: CTR-002 — triple owner webid is preserved
 #[test]
 fn triple_owner_webid_is_preserved() {
     let db = TestDb::new();

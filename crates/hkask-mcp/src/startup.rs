@@ -257,6 +257,7 @@ mod tests {
 
     // ── Full success tests ──────────────────────────────────────────────
 
+    // REQ: mcp-startup-gates-001 — all gates pass no tools
     #[tokio::test]
     async fn all_gates_pass_no_tools() {
         let (client, _path) = setup_gate_test(true, true, vec![]).await;
@@ -269,6 +270,7 @@ mod tests {
         assert!(result.denied_tools.is_empty());
     }
 
+    // REQ: mcp-startup-gates-001 — all gates pass with tools
     #[tokio::test]
     async fn all_gates_pass_with_tools() {
         let (client, _path) = setup_gate_test(
@@ -293,6 +295,7 @@ mod tests {
 
     // ── Gate 1 failure: authentication ──────────────────────────────────
 
+    // REQ: mcp-startup-gates-001 — gate1 auth fails
     #[tokio::test]
     async fn gate1_auth_fails() {
         let (client, _path) = setup_gate_test(false, true, vec![]).await;
@@ -309,6 +312,7 @@ mod tests {
 
     // ── Gate 2 failure: assignment ──────────────────────────────────────
 
+    // REQ: mcp-startup-gates-001 — gate2 assignment fails
     #[tokio::test]
     async fn gate2_assignment_fails() {
         let (client, _path) = setup_gate_test(true, false, vec![]).await;
@@ -325,6 +329,7 @@ mod tests {
 
     // ── Gate 3: partial capability denial (non-fatal) ───────────────────
 
+    // REQ: mcp-startup-gates-001 — gate3 some capabilities denied
     #[tokio::test]
     async fn gate3_some_capabilities_denied() {
         // Only "compress" is granted; "classify" and "persist" are denied.
@@ -346,6 +351,7 @@ mod tests {
         assert!(!result.denied_tools.contains(&"compress".to_string()));
     }
 
+    // REQ: mcp-startup-gates-001 — gate3 all capabilities denied
     #[tokio::test]
     async fn gate3_all_capabilities_denied() {
         // No tools granted.
@@ -361,6 +367,7 @@ mod tests {
 
     // ── Edge cases ──────────────────────────────────────────────────────
 
+    // REQ: mcp-startup-gates-001 — empty required tools is noop
     #[tokio::test]
     async fn empty_required_tools_is_noop() {
         let (client, _path) = setup_gate_test(true, true, vec![]).await;

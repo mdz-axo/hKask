@@ -21,8 +21,8 @@
 //! reaches the inference crate.
 
 use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId};
-use hkask_types::template::LLMParameters;
 use hkask_types::ports::InferencePort;
+use hkask_types::template::LLMParameters;
 use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

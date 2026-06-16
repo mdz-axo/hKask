@@ -345,6 +345,7 @@ mod tests {
         );
     }
 
+    // REQ: MDS-spec-svc-001 — infer category maps composition context
     #[test]
     fn infer_category_maps_composition_context() {
         assert_eq!(
@@ -357,6 +358,7 @@ mod tests {
         );
     }
 
+    // REQ: MDS-spec-svc-001 — infer category maps lifecycle context
     #[test]
     fn infer_category_maps_lifecycle_context() {
         assert_eq!(
@@ -369,6 +371,7 @@ mod tests {
         );
     }
 
+    // REQ: MDS-spec-svc-001 — infer category maps curation context
     #[test]
     fn infer_category_maps_curation_context() {
         assert_eq!(
@@ -381,6 +384,7 @@ mod tests {
         );
     }
 
+    // REQ: MDS-spec-svc-001 — infer category defaults to domain
     #[test]
     fn infer_category_defaults_to_domain() {
         assert_eq!(infer_spec_category(None), SpecCategory::Domain);

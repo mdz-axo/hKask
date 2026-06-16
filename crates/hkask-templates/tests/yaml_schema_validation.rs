@@ -82,6 +82,7 @@ fn all_skill_manifests_are_well_formed() {
     eprintln!("Validated {} manifests — all well-formed", count);
 }
 
+// REQ: YML-001 — invalid yaml is rejected
 #[test]
 fn invalid_yaml_is_rejected() {
     let invalid = "id: 123\nname: []\n"; // name should be string, not array
