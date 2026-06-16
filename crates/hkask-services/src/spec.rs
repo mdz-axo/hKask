@@ -99,6 +99,10 @@ impl SpecService {
     /// uses it directly (CLI path). Otherwise, infers from `context` keywords
     /// (API path). Criteria are parsed from the comma-separated `criteria`
     /// field when present; otherwise auto-seeded from description sentences.
+    ///
+    /// REQ: SVC-081
+    /// pre:  ctx.spec_store() must be initialized; req.name_or_description must be non-empty
+    /// post: spec is persisted to the spec store; returns SpecCaptureResponse with spec_id, name, category, domain_anchor, and complete flag
     pub fn capture(
         ctx: &AgentService,
         req: SpecCaptureRequest,
@@ -148,6 +152,10 @@ impl SpecService {
     }
 
     /// List all specs, optionally filtered by category.
+    ///
+    /// REQ: SVC-082
+    /// pre:  ctx.spec_store() must be initialized; category_filter if Some must be a valid SpecCategory string
+    /// post: returns Vec<SpecListEntry> for all matching specs; Err(ValidationError) on invalid category
     pub fn list(
         ctx: &AgentService,
         category_filter: Option<&str>,
@@ -172,6 +180,10 @@ impl SpecService {
     }
 
     /// Get a single spec by ID (full struct with goals).
+    ///
+    /// REQ: SVC-083
+    /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
+    /// post: returns the full Spec with goals on success; Err(ValidationError) on invalid UUID; Err(Spec) on store error
     pub fn get_full(ctx: &AgentService, spec_id_str: &str) -> Result<Spec, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();
@@ -179,6 +191,10 @@ impl SpecService {
     }
 
     /// Get a single spec by ID (summary detail).
+    ///
+    /// REQ: SVC-084
+    /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
+    /// post: returns SpecDetail with spec_id, name, category, domain_anchor, and flattened requirements; Err on invalid ID or store error
     pub fn get_by_id(ctx: &AgentService, spec_id_str: &str) -> Result<SpecDetail, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();
@@ -201,6 +217,10 @@ impl SpecService {
     ///
     /// This is distinct from the MCP server's `spec_graph_coherence` which uses
     /// Jaccard similarity via `Spec::collection_coherence` for agent-driven assessment.
+    ///
+    /// REQ: SVC-085
+    /// pre:  ctx.spec_store() must be initialized
+    /// post: returns CoherenceResult with coherence_score (0.0–1.0), missing category violations, and suggestions; score=0.0 when store is empty
     pub fn category_coverage(ctx: &AgentService) -> Result<CoherenceResult, ServiceError> {
         let store = ctx.spec_store();
         let specs = store.list_all().map_err(ServiceError::Spec)?;
@@ -242,6 +262,10 @@ impl SpecService {
     /// Checks four dimensions: has_name, has_category, has_criteria, has_completeness.
     /// This is distinct from the MCP server's `assess_writing_quality` which performs
     /// embedding-based comparison against persona centroids for agent-driven assessment.
+    ///
+    /// REQ: SVC-086
+    /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
+    /// post: returns WritingQualityResult with dimensions_passing count and meets_publication_standard flag (true when all 4 dimensions pass)
     pub fn structural_quality_check(
         ctx: &AgentService,
         spec_id_str: &str,
@@ -272,6 +296,10 @@ impl SpecService {
     /// Loads the spec by ID, then delegates to `DefaultSpecCurator::evaluate()`.
     /// This is the single method for spec evaluation; former `cultivate` call sites
     /// should use `validate` directly (the methods were identical).
+    ///
+    /// REQ: SVC-087
+    /// pre:  spec_id_str must be a valid UUID; ctx.spec_store() must be initialized
+    /// post: returns SpecCurationRecord from DefaultSpecCurator evaluation; Err on invalid ID or store/curation error
     pub fn validate(
         ctx: &AgentService,
         spec_id_str: &str,

@@ -110,6 +110,14 @@ impl EscalationPolicy {
     }
 
     /// Check all escalation conditions, return active alerts.
+    ///
+    /// REQ: AGT-088
+    /// pre:  `variety_deficit`, `critical_alerts`, `bot_failures` are
+    ///       non-negative numeric values.
+    /// post: Returns a `Vec<EscalationAlert>` containing alerts for any
+    ///       threshold exceeded: VarietyDeficit (Critical if > threshold,
+    ///       Warning if > threshold/2), CriticalAlerts (Critical if ≥
+    ///       threshold), BotFailures (Critical if ≥ threshold).
     pub fn check_conditions(
         &self,
         variety_deficit: f64,
@@ -220,6 +228,13 @@ pub struct MetacognitionLoop {
 
 impl MetacognitionLoop {
     /// Create a new metacognition loop.
+    ///
+    /// REQ: AGT-089
+    /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
+    ///       valid `MetacognitionConfig`.
+    /// post: Returns a `MetacognitionLoop` with an `EscalationPolicy`
+    ///       derived from `config.thresholds`, empty bot reports, and a
+    ///       fresh watch channel for health snapshots.
     pub fn new(context: Arc<CuratorContext>, config: MetacognitionConfig) -> Self {
         let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
         let (last_snapshot_tx, _) = tokio::sync::watch::channel(None);
@@ -238,6 +253,12 @@ impl MetacognitionLoop {
     }
 
     /// Run a full cycle, returning the health snapshot.
+    ///
+    /// REQ: AGT-090
+    /// pre:  The loop has been registered and ticked at least once.
+    /// post: On success, returns `Ok(HealthSnapshot)` — the latest
+    ///       snapshot from the watch channel. If no snapshot has been
+    ///       produced yet, returns `Err(MetacognitionError::Core(...))`.
     pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
         info!(target: MC_TARGET, "Starting metacognition cycle");
         self.tick().await;
@@ -246,7 +267,13 @@ impl MetacognitionLoop {
             .clone()
             .ok_or(crate::error::CoreError::NoSnapshot.into())
     }
-    /// Generate a system state summary for posting to standing session
+    /// Generate a system state summary for posting to standing session.
+    ///
+    /// REQ: AGT-091
+    /// pre:  `snapshot` is a valid `&HealthSnapshot`.
+    /// post: Returns a `String` containing a markdown-formatted summary
+    ///       with timestamp, CNS health, critical/total alerts, variety
+    ///       counters, and bot status reports.
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
         use std::fmt::Write;
         let mut s = String::new();
@@ -281,7 +308,15 @@ impl MetacognitionLoop {
 
     // Curator metacognition: evaluate, coach, direct
 
-    /// Direct a bot to take action via ACP message
+    /// Direct a bot to take action via ACP message.
+    ///
+    /// REQ: AGT-092
+    /// pre:  `bot_name` is a non-empty string; `reason` is a non-empty
+    ///       string; `self.context.acp()` may be `Some` or `None`.
+    /// post: If ACP is configured, sends a `TemplateDispatch` directive
+    ///       to the bot and returns `Ok(())`. If ACP is not configured,
+    ///       logs a warning and returns `Ok(())` (graceful degradation).
+    ///       Returns `Err` on ACP send failure.
     pub async fn direct_bot(&self, bot_name: &str, reason: &str) -> Result<(), MetacognitionError> {
         let acp = match self.context.acp() {
             Some(acp) => acp,
@@ -321,6 +356,11 @@ impl MetacognitionLoop {
 
     /// Issue a CuratorDirective on the direct channel with DAMPEN filtering.
     /// Delegates to `CuratorContext::issue_directive()`.
+    ///
+    /// REQ: AGT-093
+    /// pre:  `directive` is a valid `CuratorDirective`.
+    /// post: Delegates to `self.context.issue_directive(directive)`;
+    ///       same post-conditions as `CuratorContext::issue_directive`.
     pub async fn issue_directive(&self, directive: CuratorDirective) {
         self.context.issue_directive(directive).await;
     }

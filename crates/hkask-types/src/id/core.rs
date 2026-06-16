@@ -69,6 +69,9 @@ impl<'de, T: IdKind> serde::Deserialize<'de> for Id<T> {
 }
 
 impl<T: IdKind> Id<T> {
+    /// REQ: TYP-257
+    /// pre:  (no inputs)
+    /// post: returns a unique [`Id<T>`] wrapping a random UUID v4
     pub fn new() -> Self {
         Self {
             uuid: Uuid::new_v4(),
@@ -76,6 +79,9 @@ impl<T: IdKind> Id<T> {
         }
     }
 
+    /// REQ: TYP-258
+    /// pre:  uuid is any valid [`Uuid`]
+    /// post: returns an [`Id<T>`] wrapping the given uuid unchanged
     pub fn from_uuid(uuid: Uuid) -> Self {
         Self {
             uuid,
@@ -88,12 +94,20 @@ impl<T: IdKind> Id<T> {
     /// Same name → same Id. Useful for creating stable identifiers
     /// for entities that need to be looked up by name (e.g., wallets
     /// bound to replicant names).
+    ///
+    /// REQ: TYP-259
+    /// pre:  name is any non-empty string (empty produces a deterministic but degenerate Id)
+    /// post: returns an [`Id<T>`] deterministically derived from name using UUID v5;
+    ///       same name → same Id
     pub fn from_name(name: &str) -> Self {
         let namespace = Uuid::parse_str("686b6173-6b2d-7065-7273-6f6e612d6e73")
             .expect("Invalid namespace UUID");
         Self::from_uuid(Uuid::new_v5(&namespace, name.as_bytes()))
     }
 
+    /// REQ: TYP-260
+    /// pre:  self is any valid [`Id<T>`]
+    /// post: returns the inner [`Uuid`] unchanged
     pub fn as_uuid(&self) -> Uuid {
         self.uuid
     }

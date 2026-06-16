@@ -65,12 +65,12 @@ mod nu_event;
 mod types;
 
 use hkask_types::capability::derive_signing_key;
-use hkask_types::secret::derivation_contexts;
 use hkask_types::secret::SecretRef;
+use hkask_types::secret::derivation_contexts;
 use hkask_types::sovereignty::DataCategory;
 use hkask_types::{
-    CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
-    SYSTEM_MAX_ATTENUATION, VoiceDesign, WebID,
+    CapabilitySpec, DelegationAction, DelegationResource, DelegationToken, SYSTEM_MAX_ATTENUATION,
+    VoiceDesign, WebID,
 };
 use std::sync::Arc;
 use thiserror::Error;
@@ -194,6 +194,14 @@ pub type AgentPodResult<T> = Result<T, AgentPodError>;
 
 impl AgentPod {
     /// Create a new AgentPod.
+    ///
+    /// REQ: AGT-122
+    /// pre:  `crate_name` is a non-empty string; `persona` is a valid
+    ///       `AgentPersona`; `git` is a valid `GitCasAdapter`; `consent`
+    ///       is a valid `Arc<dyn SovereigntyConsent>`.
+    /// post: Returns `Ok(AgentPod)` in `Populated` state with a derived
+    ///       OCAP secret, capability token, and sovereignty checker.
+    ///       Returns `Err` if template loading or key derivation fails.
     pub fn new(
         crate_name: &str,
         persona: &AgentPersona,
@@ -256,6 +264,13 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(())` — Registration successful
     /// * `Err(AgentPodError)` — ACP registration failed
+    ///
+    /// REQ: AGT-123
+    /// pre:  `self.state` must be `Populated` (or `Registered` for
+    ///       idempotent re-registration); `acp` is a valid `AcpPort`.
+    /// post: On success, `self.state` is `Registered` and
+    ///       `self.capability_token` is updated with the ACP-issued token.
+    ///       On failure, state is unchanged.
     pub async fn register(&mut self, acp: &dyn crate::ports::AcpPort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Registered) {
             return Err(AgentPodError::InvalidStateTransition(
@@ -298,6 +313,12 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(())` — Activation successful
     /// * `Err(AgentPodError)` — MCP access grant failed
+    ///
+    /// REQ: AGT-124
+    /// pre:  `self.state` must be `Registered` (or `Activated` for
+    ///       idempotent re-activation); `mcp` is a valid `MCPRuntimePort`.
+    /// post: On success, `self.state` is `Activated` and MCP tool access
+    ///       is granted. On failure, state is unchanged.
     pub fn activate(&mut self, mcp: &dyn crate::ports::MCPRuntimePort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Activated) {
             return Err(AgentPodError::InvalidStateTransition(
@@ -331,6 +352,11 @@ impl AgentPod {
     ///
     /// # Returns
     /// * `Ok(())` — Deactivation successful
+    ///
+    /// REQ: AGT-125
+    /// pre:  `self.state` must be `Activated` (or `Deactivated` for
+    ///       idempotent re-deactivation).
+    /// post: `self.state` is `Deactivated`.
     pub fn deactivate(&mut self) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Deactivated) {
             return Err(AgentPodError::InvalidStateTransition(
@@ -365,6 +391,13 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(DelegationToken)` — Attenuated child token
     /// * `Err(AgentPodError)` — Attenuation limit exceeded or keystore error
+    ///
+    /// REQ: AGT-126
+    /// pre:  `new_holder` is a valid `WebID`; `current_time` is a valid
+    ///       Unix timestamp; `self.capability_token.attenuation_level`
+    ///       must be < `self.max_attenuation`.
+    /// post: Returns `Ok(DelegationToken)` — an attenuated child token —
+    ///       or `Err(AttenuationLimitExceeded)`.
     pub fn delegate(
         &self,
         new_holder: WebID,
@@ -387,12 +420,20 @@ impl AgentPod {
             .ok_or(AgentPodError::AttenuationLimitExceeded)
     }
 
-    /// Check if the pod can perform A2A operations
+    /// Check if the pod can perform A2A operations.
+    ///
+    /// REQ: AGT-127
+    /// pre:  (none).
+    /// post: Returns `true` iff `self.state == PodLifecycleState::Activated`.
     pub fn is_active(&self) -> bool {
         self.state == PodLifecycleState::Activated
     }
 
-    /// Get the current lifecycle state
+    /// Get the current lifecycle state.
+    ///
+    /// REQ: AGT-128
+    /// pre:  (none — accessor).
+    /// post: Returns the current `PodLifecycleState`.
     pub fn state(&self) -> PodLifecycleState {
         self.state
     }
@@ -408,6 +449,12 @@ impl AgentPod {
     ///
     /// Capability verification (P4 Gate 1) is performed by the daemon
     /// at connection time, not here.
+    ///
+    /// REQ: AGT-129
+    /// pre:  `self.state == Activated`; `self.mode == None`; `role` is
+    ///       in `self.assigned_mcp_roles`.
+    /// post: `self.mode` is set to `Some(AgentMode::Server)`.
+    ///       Returns `Err` if any precondition fails.
     pub fn enter_server_mode(&mut self, role: &str) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Activated {
             return Err(AgentPodError::ModeRequiresActivation(self.state));
@@ -436,6 +483,11 @@ impl AgentPod {
     /// Enter chat mode.
     ///
     /// Requires: Activated state, not already in another mode.
+    ///
+    /// REQ: AGT-130
+    /// pre:  `self.state == Activated`; `self.mode == None`.
+    /// post: `self.mode` is set to `Some(AgentMode::Chat)`.
+    ///       Returns `Err` if any precondition fails.
     pub fn enter_chat_mode(&mut self) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Activated {
             return Err(AgentPodError::ModeRequiresActivation(self.state));
@@ -455,6 +507,11 @@ impl AgentPod {
     }
 
     /// Exit the current mode, returning the agent to no active mode.
+    ///
+    /// REQ: AGT-131
+    /// pre:  (none — always valid).
+    /// post: `self.mode` is set to `None`; the previous mode (if any)
+    ///       is logged. Always returns `Ok(())`.
     pub fn exit_mode(&mut self) -> AgentPodResult<()> {
         let previous = self.mode.take();
         if let Some(mode) = previous {
@@ -471,6 +528,10 @@ impl AgentPod {
     }
 
     /// Check if the agent is currently in server mode.
+    ///
+    /// REQ: AGT-132
+    /// pre:  (none).
+    /// post: Returns `true` iff `self.mode == Some(AgentMode::Server)`.
     pub fn is_in_server_mode(&self) -> bool {
         self.mode == Some(AgentMode::Server)
     }
@@ -478,6 +539,10 @@ impl AgentPod {
     // ── Voice ──
 
     /// Set the agent's voice design for TTS speech generation.
+    ///
+    /// REQ: AGT-133
+    /// pre:  `voice` is a valid `VoiceDesign`.
+    /// post: `self.voice_design` is set to `Some(voice)`; logs the change.
     pub fn set_voice(&mut self, voice: VoiceDesign) {
         tracing::info!(
             target: "cns.pod",
@@ -489,12 +554,22 @@ impl AgentPod {
     }
 
     /// Get the agent's voice design, if one has been set.
+    ///
+    /// REQ: AGT-134
+    /// pre:  (none — accessor).
+    /// post: Returns `Some(&VoiceDesign)` if set, `None` otherwise.
     pub fn get_voice(&self) -> Option<&VoiceDesign> {
         self.voice_design.as_ref()
     }
 
     /// Get the TTS description for this agent's voice.
     /// Returns the default neutral voice description if no voice is set.
+    ///
+    /// REQ: AGT-135
+    /// pre:  (none).
+    /// post: Returns the TTS description string for the configured voice,
+    ///       or the default `VoiceDesign::default()` description if none
+    ///       is set.
     pub fn voice_description(&self) -> String {
         self.voice_design
             .as_ref()
@@ -503,6 +578,10 @@ impl AgentPod {
     }
 
     /// Check if the agent is currently in chat mode.
+    ///
+    /// REQ: AGT-136
+    /// pre:  (none).
+    /// post: Returns `true` iff `self.mode == Some(AgentMode::Chat)`.
     pub fn is_in_chat_mode(&self) -> bool {
         self.mode == Some(AgentMode::Chat)
     }
@@ -521,6 +600,13 @@ impl AgentPod {
     /// * `Ok(true)` — Action is permitted
     /// * `Ok(false)` — Action denied by sovereignty check
     /// * `Err(AgentPodError)` — Sovereignty check error
+    ///
+    /// REQ: AGT-137
+    /// pre:  `action` is a non-empty string; `data_category` is a valid
+    ///       `DataCategory`; `requester` is a valid `WebID`.
+    /// post: Returns `Ok(true)` if both `check_operation` and `can_access`
+    ///       pass; `Ok(false)` if either fails; `Err` on sovereignty
+    ///       checker error.
     pub fn check_sovereignty(
         &self,
         action: &str,

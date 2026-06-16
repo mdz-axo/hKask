@@ -64,6 +64,12 @@ impl PodStatus {
 
 impl PodManager {
     #[allow(clippy::too_many_arguments)]
+    /// REQ: AGT-138
+    /// pre:  All `Option` arguments may be `Some` or `None`; defaults are
+    ///       provided for absent ports.
+    /// post: Returns a `PodManager` with all ports set (or defaulted),
+    ///       `DenyAllConsent` as the default consent policy, and empty
+    ///       pod registry and activation hooks.
     pub fn new(
         git_cas: Option<Arc<GitCasAdapter>>,
         acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
@@ -111,6 +117,9 @@ impl PodManager {
         }
     }
 
+    /// REQ: AGT-139
+    /// pre:  `consent` is a valid `Arc<dyn SovereigntyConsent>`.
+    /// post: Returns `self` with `consent` updated.
     pub fn with_consent_port(mut self, consent: Arc<dyn crate::SovereigntyConsent>) -> Self {
         self.consent = consent;
         self
@@ -121,22 +130,40 @@ impl PodManager {
     /// The hook receives the pod's WebID and display name. Use this for
     /// [NORMATIVE] cross-cutting concerns like Matrix registration that should happen (P6 — Space for Replicants).
     /// whenever a pod becomes active.
+    ///
+    /// REQ: AGT-140
+    /// pre:  `hook` is a valid boxed closure.
+    /// post: The hook is appended to the activation hooks list.
     pub async fn register_activation_hook(&self, hook: Box<dyn Fn(WebID, String) + Send + Sync>) {
         self.activation_hooks.write().await.push(hook);
     }
+    /// REQ: AGT-141
+    /// pre:  `checker` is a valid `CapabilityChecker`.
+    /// post: Returns `self` with `capability_checker` set to
+    ///       `Some(Arc::new(checker))`.
     pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
         self.capability_checker = Some(Arc::new(checker));
         self
     }
+    /// REQ: AGT-142
+    /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
+    /// post: Returns `self` with `nu_event_sink` set to `Some(sink)`.
     pub fn with_nu_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.nu_event_sink = Some(sink);
         self
     }
+    /// REQ: AGT-143
+    /// pre:  `tool` is a valid `Arc<GovernedTool<RawMcpToolPort>>`.
+    /// post: Returns `self` with `governed_tool` set to `Some(tool)`.
     pub fn with_governed_tool(mut self, tool: Arc<GovernedTool<RawMcpToolPort>>) -> Self {
         self.governed_tool = Some(tool);
         self
     }
 
+    /// REQ: AGT-144
+    /// pre:  All arguments are valid, non-null `Arc`s.
+    /// post: Returns a `PodManager` with all ports set (no optional
+    ///       defaults), `DenyAllConsent`, and empty pod registry.
     pub fn with_inference(
         git_cas: Arc<GitCasAdapter>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
@@ -158,10 +185,17 @@ impl PodManager {
         )
     }
 
+    /// REQ: AGT-145
+    /// pre:  (none — accessor).
+    /// post: Returns a clone of the inner `Option<Arc<dyn InferencePort>>`.
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
 
+    /// REQ: AGT-146
+    /// pre:  `pod_id` is a valid `PodID`.
+    /// post: Returns `Some(Arc<SovereigntyChecker>)` if the pod exists;
+    ///       `None` otherwise.
     pub async fn sovereignty_checker_for(
         &self,
         pod_id: &PodID,
@@ -177,6 +211,11 @@ impl PodManager {
     ///
     /// If `inference_port` is provided, agent pods can perform inference
     /// (e.g., improv interactions). Default: no inference (pods are orchestration-only).
+    ///
+    /// REQ: AGT-147
+    /// pre:  `inference_port` is `Some` or `None`.
+    /// post: Returns a `PodManager` with in-memory storage, a mock ACP
+    ///       runtime, and `DenyAllConsent`.
     pub fn new_mock(inference_port: Option<Arc<dyn InferencePort>>) -> Self {
         const MOCK_ACP_SECRET: &[u8] = b"xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
@@ -199,6 +238,13 @@ impl PodManager {
 }
 
 impl PodManager {
+    /// REQ: AGT-148
+    /// pre:  `template_name` is a non-empty string; `persona` is a valid
+    ///       `AgentPersona` with validated fields; `name` is `Some` or
+    ///       `None`.
+    /// post: Returns `Ok(PodID)` — the new pod's ID — after creating and
+    ///       inserting the pod into the registry. Returns `Err` if
+    ///       validation or pod creation fails.
     pub async fn create_pod(
         &self,
         template_name: &str,
@@ -225,6 +271,11 @@ impl PodManager {
         Ok(pod_id)
     }
 
+    /// REQ: AGT-149
+    /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
+    /// post: If the pod is `Populated`, registers it with ACP, then
+    ///       activates it via MCP. Runs activation hooks on success.
+    ///       Returns `Ok(())` or `Err` on failure.
     pub async fn activate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
         let registration_data = {
             let pods = self.pods.read().await;
@@ -284,6 +335,11 @@ impl PodManager {
         Ok(())
     }
 
+    /// REQ: AGT-150
+    /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
+    /// post: Deactivates the pod and attempts to revoke its capability
+    ///       token; logs a warning if revocation fails (pod is still
+    ///       deactivated). Returns `Ok(())` or `Err` on failure.
     pub async fn deactivate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
         let mut pods = self.pods.write().await;
         let pod = pods
@@ -314,6 +370,10 @@ impl PodManager {
         Ok(())
     }
 
+    /// REQ: AGT-151
+    /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
+    /// post: Returns `Ok(Vec<RecalledEpisode>)` with lifecycle events
+    ///       for the pod; `Err` if the pod is not found or recall fails.
     pub async fn recall_pod_events(&self, pod_id: &PodID) -> AgentPodResult<Vec<RecalledEpisode>> {
         let pods = self.pods.read().await;
         let pod = pods
@@ -328,6 +388,10 @@ impl PodManager {
             .map_err(AgentPodError::from)
     }
 
+    /// REQ: AGT-152
+    /// pre:  `pod_id` is a valid `PodID`.
+    /// post: Returns `Ok(PodStatus)` if the pod exists; `Err(PodNotFound)`
+    ///       otherwise.
     pub async fn get_pod_status(&self, pod_id: &PodID) -> AgentPodResult<PodStatus> {
         self.pods
             .read()
@@ -337,6 +401,10 @@ impl PodManager {
             .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))
     }
 
+    /// REQ: AGT-153
+    /// pre:  (none).
+    /// post: Returns `Ok(Vec<PodStatus>)` with status for all registered
+    ///       pods (may be empty).
     pub async fn list_pods(&self) -> AgentPodResult<Vec<PodStatus>> {
         Ok(self
             .pods
@@ -347,6 +415,9 @@ impl PodManager {
             .collect())
     }
 
+    /// REQ: AGT-154
+    /// pre:  (none — accessor).
+    /// post: Returns a clone of the inner `Arc<dyn AcpPort + Send + Sync>`.
     pub fn acp_runtime(&self) -> Arc<dyn crate::ports::AcpPort + Send + Sync> {
         Arc::clone(&self.acp_runtime)
     }
@@ -354,6 +425,11 @@ impl PodManager {
     // ── Daemon-oriented accessors ──
 
     /// Find a pod ID by replicant name (matches persona.agent.name).
+    ///
+    /// REQ: AGT-155
+    /// pre:  `name` is a non-empty string.
+    /// post: Returns `Some(PodID)` if a pod with matching name exists;
+    ///       `None` otherwise.
     pub async fn find_pod_by_name(&self, name: &str) -> Option<PodID> {
         let pods = self.pods.read().await;
         for (id, pod) in pods.iter() {
@@ -365,11 +441,20 @@ impl PodManager {
     }
 
     /// Get the WebID for a pod.
+    ///
+    /// REQ: AGT-156
+    /// pre:  `pod_id` is a valid `PodID`.
+    /// post: Returns `Some(WebID)` if the pod exists; `None` otherwise.
     pub async fn get_pod_webid(&self, pod_id: &PodID) -> Option<WebID> {
         self.pods.read().await.get(pod_id).map(|p| p.webid)
     }
 
     /// Check if a pod is assigned to a specific MCP role.
+    ///
+    /// REQ: AGT-157
+    /// pre:  `pod_id` is a valid `PodID`; `role` is a non-empty string.
+    /// post: Returns `true` if the pod exists and has the role assigned;
+    ///       `false` otherwise (including if pod not found).
     pub async fn is_assigned_to_role(&self, pod_id: &PodID, role: &str) -> bool {
         self.pods
             .read()
@@ -381,6 +466,12 @@ impl PodManager {
 
     /// Check if a pod holds a specific capability.
     /// Capabilities are stored as strings like "web_search:execute" or "web_search".
+    ///
+    /// REQ: AGT-158
+    /// pre:  `pod_id` is a valid `PodID`; `tool` is a non-empty string.
+    /// post: Returns `true` if the pod exists and has a capability
+    ///       matching `tool` (exact or prefix match with `:` separator);
+    ///       `false` otherwise.
     pub async fn has_capability(&self, pod_id: &PodID, tool: &str) -> bool {
         self.pods
             .read()
@@ -396,6 +487,13 @@ impl PodManager {
     }
 
     /// Assign an MCP role to a pod by name.
+    ///
+    /// REQ: AGT-159
+    /// pre:  `name` is a non-empty string matching an existing pod;
+    ///       `role` is a non-empty string.
+    /// post: If the pod exists and doesn't already have the role, it is
+    ///       added to `assigned_mcp_roles`. Returns `Ok(())` or `Err` if
+    ///       pod not found.
     pub async fn assign_role(&self, name: &str, role: &str) -> AgentPodResult<()> {
         let pod_id = self.find_pod_by_name(name).await.ok_or_else(|| {
             AgentPodError::PersonaParseError(format!("No pod found for replicant '{}'", name))
@@ -413,6 +511,13 @@ impl PodManager {
 
     /// Set the agent mode for a pod by name.
     /// Mode can be "server" (with role), "chat", or "exit".
+    ///
+    /// REQ: AGT-160
+    /// pre:  `name` is a non-empty string matching an existing pod;
+    ///       `mode` is "server", "chat", or "exit"; `role` is required
+    ///       for "server" mode.
+    /// post: Transitions the pod to the requested mode. Returns `Ok(())`
+    ///       or `Err` if pod not found or mode transition fails.
     pub async fn set_mode(&self, name: &str, mode: &str, role: Option<&str>) -> AgentPodResult<()> {
         let pod_id = self.find_pod_by_name(name).await.ok_or_else(|| {
             AgentPodError::PersonaParseError(format!("No pod found for replicant '{}'", name))

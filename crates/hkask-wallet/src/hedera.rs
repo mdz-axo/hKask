@@ -20,6 +20,7 @@
 //! - Account IDs derived deterministically from treasury public key
 
 use async_trait::async_trait;
+use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{ChainId, TxHash, WalletError};
@@ -177,19 +178,21 @@ impl HederaPort {
         self
     }
 
+    #[allow(dead_code)]
+    fn default_actor(&self) -> WebID {
+        WebID::from_persona_with_namespace(self.treasury_account.as_bytes(), "wallet-hedera")
+    }
+
     /// Emit a CNS chain_error span if an event sink is configured.
-    fn emit_chain_error(&self, operation: &str, error_msg: &str) {
+    fn emit_chain_error_for_actor(&self, actor: &WebID, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
-            let actor = hkask_types::WebID::from_persona_with_namespace(
-                self.treasury_account.as_bytes(),
-                "wallet-hedera",
-            );
             let event = NuEvent::new(
-                actor,
+                actor.clone(),
                 span_obj,
                 Phase::Sense,
                 serde_json::json!({
+                    "actor": actor.to_string(),
                     "chain": "hedera",
                     "operation": operation,
                     "error": error_msg,
@@ -200,6 +203,12 @@ impl HederaPort {
                 tracing::warn!(target: "hkask.wallet.hedera", error = %e, "Failed to persist CNS chain_error span");
             }
         }
+    }
+
+    #[allow(dead_code)]
+    fn emit_chain_error(&self, operation: &str, error_msg: &str) {
+        let actor = self.default_actor();
+        self.emit_chain_error_for_actor(&actor, operation, error_msg);
     }
 
     /// Create a HederaPort for testnet.
@@ -372,6 +381,7 @@ impl ChainPort for HederaPort {
 
     async fn monitor_deposits(
         &self,
+        actor: &WebID,
         addresses: &[String],
     ) -> Result<Vec<DepositEvent>, WalletError> {
         let mut events = Vec::new();
@@ -384,7 +394,7 @@ impl ChainPort for HederaPort {
 
             let resp = self.client.get(&url).send().await.map_err(|e| {
                 let msg = format!("Mirror node HTTP error (monitor_deposits): {e}");
-                self.emit_chain_error("monitor_deposits", &msg);
+                self.emit_chain_error_for_actor(actor, "monitor_deposits", &msg);
                 WalletError::ChainError {
                     chain: ChainId::Hedera,
                     message: msg,
@@ -398,7 +408,7 @@ impl ChainPort for HederaPort {
 
             let body: MirrorTransactionsResponse = resp.json().await.map_err(|e| {
                 let msg = format!("Mirror node JSON parse error (monitor_deposits): {e}");
-                self.emit_chain_error("monitor_deposits", &msg);
+                self.emit_chain_error_for_actor(actor, "monitor_deposits", &msg);
                 WalletError::ChainError {
                     chain: ChainId::Hedera,
                     message: msg,
@@ -470,11 +480,15 @@ impl ChainPort for HederaPort {
         Ok(body.encode_to_vec())
     }
 
-    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+    async fn submit_signed_tx(
+        &self,
+        actor: &WebID,
+        signed_tx_bytes: &[u8],
+    ) -> Result<TxHash, WalletError> {
         // The signing.rs module appends the Ed25519 signature (64 bytes) to the body bytes.
         if signed_tx_bytes.len() < 64 {
             let msg = "signed transaction too short".to_string();
-            self.emit_chain_error("submit_signed_tx", &msg);
+            self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             return Err(WalletError::Infra(
                 hkask_types::InfrastructureError::Database(msg),
             ));
@@ -485,7 +499,7 @@ impl ChainPort for HederaPort {
         // Deserialize the transaction body
         let body = TransactionBody::decode(body_bytes).map_err(|e| {
             let msg = format!("failed to decode transaction body: {e}");
-            self.emit_chain_error("submit_signed_tx", &msg);
+            self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })?;
 
@@ -517,7 +531,7 @@ impl ChainPort for HederaPort {
         let channel = Channel::from_shared(self.consensus_node_url.clone())
             .map_err(|e| {
                 let msg = format!("Invalid consensus node URL: {e}");
-                self.emit_chain_error("submit_signed_tx", &msg);
+                self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
                 WalletError::ChainError {
                     chain: ChainId::Hedera,
                     message: msg,
@@ -527,7 +541,7 @@ impl ChainPort for HederaPort {
             .await
             .map_err(|e| {
                 let msg = format!("Failed to connect to consensus node: {e}");
-                self.emit_chain_error("submit_signed_tx", &msg);
+                self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
                 WalletError::ChainError {
                     chain: ChainId::Hedera,
                     message: msg,
@@ -540,7 +554,7 @@ impl ChainPort for HederaPort {
         let request = tonic::Request::new(transaction);
         let response = client.crypto_transfer(request).await.map_err(|e| {
             let msg = format!("gRPC cryptoTransfer failed: {e}");
-            self.emit_chain_error("submit_signed_tx", &msg);
+            self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             WalletError::ChainError {
                 chain: ChainId::Hedera,
                 message: msg,
@@ -556,7 +570,7 @@ impl ChainPort for HederaPort {
                 "Transaction pre-check failed with code: {}",
                 receipt.node_transaction_precheck_code
             );
-            self.emit_chain_error("submit_signed_tx", &msg);
+            self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             return Err(WalletError::ChainError {
                 chain: ChainId::Hedera,
                 message: msg,
@@ -567,7 +581,7 @@ impl ChainPort for HederaPort {
         // Format: account_id@seconds.nanos
         let tx_id = body.transaction_id.ok_or_else(|| {
             let msg = "No transaction ID in body".to_string();
-            self.emit_chain_error("submit_signed_tx", &msg);
+            self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             WalletError::ChainError {
                 chain: ChainId::Hedera,
                 message: msg,
@@ -600,14 +614,14 @@ impl ChainPort for HederaPort {
         Ok(TxHash(tx_hash))
     }
 
-    async fn confirmations(&self, tx_hash: &TxHash) -> Result<u64, WalletError> {
+    async fn confirmations(&self, actor: &WebID, tx_hash: &TxHash) -> Result<u64, WalletError> {
         // Hedera has deterministic finality — once a transaction appears
         // in the mirror node, it's final. Check if the transaction exists.
         let url = format!("{}/api/v1/transactions/{}", self.mirror_node_url, tx_hash.0);
 
         let resp = self.client.get(&url).send().await.map_err(|e| {
             let msg = format!("Mirror node HTTP error (confirmations): {e}");
-            self.emit_chain_error("confirmations", &msg);
+            self.emit_chain_error_for_actor(actor, "confirmations", &msg);
             WalletError::ChainError {
                 chain: ChainId::Hedera,
                 message: msg,
@@ -628,6 +642,19 @@ impl ChainPort for HederaPort {
 mod integration_tests {
     use super::*;
     use crate::signing;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct CaptureSink {
+        last_event: Mutex<Option<NuEvent>>,
+    }
+
+    impl NuEventSink for CaptureSink {
+        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+            *self.last_event.lock().expect("lock") = Some(event.clone());
+            Ok(())
+        }
+    }
 
     /// Build a HederaPort for testnet testing.
     fn testnet_port() -> HederaPort {
@@ -640,6 +667,32 @@ mod integration_tests {
             "https://testnet.hedera.com:50211",
         )
         .expect("Failed to create testnet HederaPort")
+    }
+
+    // REQ: hedera-int-000 — chain_error emission uses caller-provided actor identity
+    #[test]
+    fn emit_chain_error_uses_provided_actor() {
+        let sink = Arc::new(CaptureSink::default());
+        let port = HederaPort::new(
+            MIRROR_NODE_TESTNET,
+            "0.0.12345",
+            Some(USDC_TOKEN_TESTNET),
+            TESTNET_NODE,
+        )
+        .expect("port")
+        .with_event_sink(sink.clone());
+        let actor = WebID::from_persona(b"actor-hedera-test");
+
+        port.emit_chain_error_for_actor(&actor, "unit_test", "boom");
+
+        let event = sink
+            .last_event
+            .lock()
+            .expect("lock")
+            .clone()
+            .expect("event persisted");
+        assert_eq!(event.observer_webid.to_string(), actor.to_string());
+        assert_eq!(event.observation["operation"], "unit_test");
     }
 
     // REQ: hedera-int-001 — port construction succeeds with valid parameters
@@ -721,8 +774,9 @@ mod integration_tests {
         signed_tx.extend_from_slice(&signature);
 
         let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+        let actor = WebID::from_persona(b"hedera-int-test");
         let tx_hash = rt
-            .block_on(port.submit_signed_tx(&signed_tx))
+            .block_on(port.submit_signed_tx(&actor, &signed_tx))
             .expect("submit_signed_tx should return tx hash");
 
         println!("Withdrawal submitted: {}", tx_hash.0);
@@ -789,8 +843,9 @@ mod integration_tests {
             .await;
 
         let port = mock_port(&server.uri());
+        let actor = WebID::from_persona(b"hedera-monitor-test");
         let events = port
-            .monitor_deposits(&[our_addr.to_string()])
+            .monitor_deposits(&actor, &[our_addr.to_string()])
             .await
             .expect("monitor_deposits");
 

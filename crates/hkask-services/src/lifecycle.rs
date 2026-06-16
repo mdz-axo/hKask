@@ -37,6 +37,10 @@ pub enum ServerHealth {
 
 impl ServerHealth {
     /// Returns true if the server is healthy (not degraded and not stopped).
+    ///
+    /// REQ: SVC-171
+    /// pre:  self must be a valid ServerHealth variant
+    /// post: returns true for Healthy; false for Degraded or Stopped
     pub fn is_healthy(&self) -> bool {
         matches!(self, Self::Healthy)
     }
@@ -109,6 +113,10 @@ pub struct ServerLifecycleConfig {
 
 impl ServerLifecycleConfig {
     /// Create from environment variables.
+    ///
+    /// REQ: SVC-172
+    /// pre:  name and version must be non-empty; env vars HKASK_DB_PATH, HKASK_DB_PASSPHRASE, HKASK_MEMORY_DB_PATH, HKASK_MEMORY_DB_PASSPHRASE are read if set
+    /// post: returns ServerLifecycleConfig with env-derived or default values
     pub fn from_env(name: &str, version: &str) -> Self {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "data/hkask.db".to_string());
@@ -135,6 +143,10 @@ impl ServerLifecycleConfig {
 /// 3. Calls `shutdown()` — emits `cns.server.{name}.stopped` on completion.
 ///
 /// Health checks are the caller's responsibility (e.g., from a CNS polling loop).
+///
+/// REQ: SVC-173
+/// pre:  config must be a valid ServerLifecycleConfig; server must implement ServerLifecycle
+/// post: server is initialized, started, and result returned; CNS spans emitted for start/stop/failure
 pub async fn run_lifecycle<S>(
     config: ServerLifecycleConfig,
     mut server: S,

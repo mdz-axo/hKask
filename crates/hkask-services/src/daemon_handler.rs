@@ -21,9 +21,9 @@ use std::sync::Mutex;
 use hkask_agents::pod::PodManager;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_storage::user_store::UserStore;
+use hkask_types::ports::InferencePort;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
-use hkask_types::ports::InferencePort;
 use tracing;
 
 /// Number of experiences before triggering internal narrative generation.
@@ -53,6 +53,9 @@ pub struct ServiceDaemonHandler {
 }
 
 impl ServiceDaemonHandler {
+    /// REQ: SVC-135
+    /// pre:  pod_manager must be a valid Arc<PodManager>; user_store must be a valid Arc<Mutex<UserStore>>
+    /// post: returns ServiceDaemonHandler with all fields initialized; inference_port may be None
     pub fn new(
         pod_manager: Arc<PodManager>,
         user_store: Arc<std::sync::Mutex<UserStore>>,

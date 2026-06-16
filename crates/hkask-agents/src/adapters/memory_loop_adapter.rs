@@ -144,11 +144,21 @@ pub type MemoryLoopAdapter = MemoryLoopForwarder;
 
 impl MemoryLoopForwarder {
     /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
+    ///
+    /// REQ: AGT-109
+    /// pre:  `episodic` is a valid `EpisodicMemory`; `semantic` is a valid
+    ///       `SemanticMemory`.
+    /// post: Returns a `MemoryLoopForwarder` holding both memory instances.
     pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
         Self { episodic, semantic }
     }
 
     /// Create with in-memory storage for testing.
+    ///
+    /// REQ: AGT-110
+    /// pre:  (none).
+    /// post: Returns `Ok(Self)` with an in-memory SQLite database;
+    ///       returns `Err(MemoryError)` if database creation fails.
     pub fn in_memory() -> Result<Self, MemoryError> {
         let db = Database::in_memory()?;
         Self::from_database(db)
@@ -159,11 +169,22 @@ impl MemoryLoopForwarder {
     /// Use this in builder patterns and test fixtures where an in-memory DB
     /// [DECLARATIVE] failure is always a bug, never a recoverable condition. For recoverable (P5 — Essentialism).
     /// contexts, use `in_memory()` and propagate the error with `?`.
+    ///
+    /// REQ: AGT-111
+    /// pre:  (none).
+    /// post: Returns `Self` with an in-memory database; panics if
+    ///       database creation fails (considered a bug).
     pub fn in_memory_unchecked() -> Self {
         Self::in_memory().expect("In-memory storage initialization should never fail")
     }
 
     /// Create from database path and passphrase (encrypted).
+    ///
+    /// REQ: AGT-112
+    /// pre:  `path` is a valid filesystem path; `passphrase` is a
+    ///       non-empty string.
+    /// post: Returns `Ok(Self)` with an encrypted SQLite database at
+    ///       `path`; returns `Err(MemoryError)` if opening fails.
     pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
         let db = Database::open(path, passphrase)?;
         Self::from_database(db)

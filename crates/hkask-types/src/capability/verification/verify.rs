@@ -13,6 +13,12 @@ use crate::capability::{DelegationAction, DelegationResource, DelegationToken};
 /// Equivalent to calling [`verify_delegation_token`] with `current_time` set to
 /// the current UNIX epoch timestamp (seconds). Uses `std::time::SystemTime` so
 /// no external time dependency is required.
+///
+/// REQ: TYP-308
+/// pre:  checker is `Option<&CapabilityChecker>`; token is any [`DelegationToken`];
+///       holder is any [`WebID`]; resource, resource_id, action describe the requested access
+/// post: returns a [`VerificationOutcome`] using the current system time as the expiry reference;
+///       delegates to [`verify_delegation_token`]
 pub fn verify_delegation_token_now(
     checker: Option<&CapabilityChecker>,
     token: &DelegationToken,
@@ -44,6 +50,16 @@ pub fn verify_delegation_token_now(
 /// a specific error response.
 ///
 /// When `checker` is `None`, returns `VerificationOutcome::NoChecker`.
+///
+/// REQ: TYP-309
+/// pre:  checker is `Option<&CapabilityChecker>`; token is any [`DelegationToken`];
+///       holder is any [`WebID`]; resource, resource_id, action describe the requested access;
+///       current_time is any i64 (Unix timestamp)
+/// post: returns [`VerificationOutcome::NoChecker`] if checker is None;
+///       [`VerificationOutcome::InvalidSignature`] if Ed25519 signature fails;
+///       [`VerificationOutcome::Expired`] if token is expired at current_time;
+///       [`VerificationOutcome::InsufficientAccess`] if holder/resource/action mismatch;
+///       [`VerificationOutcome::Valid`] if all checks pass
 pub fn verify_delegation_token(
     checker: Option<&CapabilityChecker>,
     token: &DelegationToken,
@@ -90,6 +106,11 @@ pub fn verify_delegation_token(
 /// # Returns
 /// * `Ok(())` — Token grants write access.
 /// * `Err(String)` — Token is read-only; the error message explains which store was denied.
+///
+/// REQ: TYP-310
+/// pre:  token is any [`DelegationToken`]; store_type is any non-empty &str
+/// post: returns `Ok(())` if `token.allows_write()` is true;
+///       returns `Err("read-only token cannot write to {store_type} storage")` otherwise
 pub fn require_write_access(token: &DelegationToken, store_type: &str) -> Result<(), String> {
     if token.allows_write() {
         Ok(())
@@ -108,6 +129,11 @@ pub fn require_write_access(token: &DelegationToken, store_type: &str) -> Result
 /// # Arguments
 /// * `token` — The delegation token to check.
 /// * `store_type` — Human-readable name of the store being accessed.
+///
+/// REQ: TYP-311
+/// pre:  token is any [`DelegationToken`]; store_type is any non-empty &str
+/// post: returns `Ok(())` if `token.allows_read()` is true;
+///       returns `Err("token does not grant read access for {store_type} recall")` otherwise
 pub fn require_read_access(token: &DelegationToken, store_type: &str) -> Result<(), String> {
     if token.allows_read() {
         Ok(())

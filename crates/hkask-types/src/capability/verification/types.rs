@@ -37,11 +37,19 @@ pub enum VerificationOutcome {
 // for each consumer, keeping message text in one place.
 
 /// Format an "insufficient access" error message.
+///
+/// REQ: TYP-325
+/// pre:  resource_id is any &str; action is any &str
+/// post: returns "Token does not authorize access to {resource_id} ({action})"
 pub fn token_err_insufficient_access(resource_id: &str, action: &str) -> String {
     format!("Token does not authorize access to {resource_id} ({action})")
 }
 
 /// Format an "insufficient access for tool" error message.
+///
+/// REQ: TYP-326
+/// pre:  tool_name is any &str
+/// post: returns "Token does not authorize tool: {tool_name}"
 pub fn token_err_tool_access_denied(tool_name: &str) -> String {
     format!("Token does not authorize tool: {tool_name}")
 }

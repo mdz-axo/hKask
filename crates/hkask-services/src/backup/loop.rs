@@ -43,6 +43,10 @@ pub struct BackupLoop {
 
 impl BackupLoop {
     /// Create a new BackupLoop wrapping a BackupService.
+    ///
+    /// REQ: SVC-165
+    /// pre:  service must be a valid Arc<BackupService>
+    /// post: returns BackupLoop with service and default state (no prior snapshots)
     pub fn new(service: Arc<BackupService>) -> Self {
         Self {
             service,

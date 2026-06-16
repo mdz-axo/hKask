@@ -34,6 +34,10 @@ pub enum ArtifactType {
 
 impl ArtifactType {
     /// Map this artifact type to its storage repository.
+    ///
+    /// REQ: SVC-162
+    /// pre:  self must be a valid ArtifactType variant
+    /// post: returns the corresponding RepoId for storage routing
     pub fn repo_id(&self) -> hkask_types::ports::git_cas::RepoId {
         use hkask_types::ports::git_cas::RepoId;
         match self {
@@ -51,6 +55,10 @@ impl ArtifactType {
     }
 
     /// Human-readable label for CLI/API display.
+    ///
+    /// REQ: SVC-163
+    /// pre:  self must be a valid ArtifactType variant
+    /// post: returns &'static str label (e.g., "template", "goal", "spec")
     pub fn label(&self) -> &'static str {
         match self {
             ArtifactType::Template => "template",
@@ -92,6 +100,10 @@ pub enum BackupScope {
 
 impl BackupScope {
     /// Human-readable description for commit messages.
+    ///
+    /// REQ: SVC-164
+    /// pre:  self must be a valid BackupScope variant
+    /// post: returns String description (e.g., "full backup", "backup: template", "backup: template (id1, id2)")
     pub fn description(&self) -> String {
         match self {
             BackupScope::Full => "full backup".to_string(),

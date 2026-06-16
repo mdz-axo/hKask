@@ -138,6 +138,10 @@ impl DiscoveryService {
     /// `mcp` is the MCP dispatch port — must be connected to a running
     /// `hkask-mcp-research` server with configured providers.
     /// `token` is a delegation token for OCAP-gated tool invocation.
+    ///
+    /// REQ: SVC-166
+    /// pre:  req.author_name must be non-empty; mcp must be connected; token must be valid
+    /// post: returns DiscoverResult with discovered works, sources, and academic works; output and cache directories created; Err on MCP or I/O failure
     pub async fn discover(
         req: &DiscoverRequest,
         mcp: &dyn McpPort,
@@ -446,6 +450,10 @@ impl DiscoveryService {
 /// When `entities` and `methods` are provided (from LLM extraction phases),
 /// they are included in the generated config. Sets `corpus_type: "academic"`
 /// since this is the academic discovery pipeline.
+///
+/// REQ: SVC-167
+/// pre:  author_slug must be non-empty; works must be non-empty; output_dir must exist
+/// post: corpus.yaml is written to output_dir; returns PathBuf to the written file; Err on serialization or I/O failure
 pub fn generate_corpus_yaml(
     author_slug: &str,
     works: &[DiscoveredWork],
@@ -512,6 +520,10 @@ pub fn generate_corpus_yaml(
 ///
 /// Shared between `generate_corpus_yaml` and the CLI curation section
 /// to prevent default drift. All corpus config defaults live here.
+///
+/// REQ: SVC-168
+/// pre:  author_slug must be non-empty
+/// post: returns CorpusConfig with default embedding, chunking, validation, and budget settings
 pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
     CorpusConfig {
         author: author_slug.to_string(),
@@ -1277,6 +1289,10 @@ async fn fetch_youtube_transcript(
 // ── Download + cache ────────────────────────────────────────────────────────
 
 /// Download content from a URL and cache it to disk.
+///
+/// REQ: SVC-169
+/// pre:  url must be a valid HTTP/HTTPS URL; cache_path's parent directory must exist
+/// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
     let resp = reqwest::Client::builder()
         .user_agent(USER_AGENT)
@@ -1407,6 +1423,9 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 
+/// REQ: SVC-170
+/// pre:  s may be any string (including empty)
+/// post: returns lowercase, alphanumeric-only slug with hyphens; empty string becomes empty slug
 pub fn slugify(s: &str) -> String {
     let slug = s
         .to_lowercase()

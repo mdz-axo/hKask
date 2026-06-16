@@ -10,6 +10,7 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use hkask_types::WebID;
 use hkask_types::wallet::{ChainId, TxHash, WalletError};
 
 /// A confirmed on-chain deposit detected by a ChainPort implementation.
@@ -73,6 +74,7 @@ pub trait ChainPort: Send + Sync {
     /// Returns confirmed deposits not yet recorded.
     async fn monitor_deposits(
         &self,
+        actor: &WebID,
         addresses: &[String],
     ) -> Result<Vec<DepositEvent>, WalletError>;
 
@@ -85,8 +87,12 @@ pub trait ChainPort: Send + Sync {
     ) -> Result<Vec<u8>, WalletError>;
 
     /// Submit a signed transaction to the blockchain.
-    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError>;
+    async fn submit_signed_tx(
+        &self,
+        actor: &WebID,
+        signed_tx_bytes: &[u8],
+    ) -> Result<TxHash, WalletError>;
 
     /// Get the number of confirmations for a transaction.
-    async fn confirmations(&self, tx_hash: &TxHash) -> Result<u64, WalletError>;
+    async fn confirmations(&self, actor: &WebID, tx_hash: &TxHash) -> Result<u64, WalletError>;
 }

@@ -45,6 +45,9 @@ pub struct SkillInfo {
     pub content_hash: Option<String>,
 }
 
+/// REQ: SVC-088
+/// pre:  zone_dir must be a readable directory; each subdirectory with SKILL.md is treated as a skill
+/// post: returns Vec<SkillInfo> sorted by name, each with path, name, visibility, namespace, and content_hash; Err on I/O failure
 pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> {
     let mut skills = Vec::new();
     let entries = fs::read_dir(zone_dir).map_err(|e| {
@@ -89,6 +92,10 @@ pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> 
 }
 
 /// Read the visibility field from a SKILL.md file.
+///
+/// REQ: SVC-089
+/// pre:  skill_md_path may or may not exist; if unreadable, defaults to Private
+/// post: returns Visibility parsed from front matter; defaults to Private on any parse failure
 pub fn read_skill_visibility(skill_md_path: &Path) -> Visibility {
     let content = match fs::read_to_string(skill_md_path) {
         Ok(c) => c,
@@ -114,6 +121,10 @@ fn compute_content_hash(skill_md_path: &Path) -> Option<String> {
 }
 
 /// Read the namespace field from a SKILL.md file.
+///
+/// REQ: SVC-090
+/// pre:  skill_md_path may or may not exist; returns None if unreadable or no namespace in front matter
+/// post: returns Some(namespace) if front matter has a namespace field; None otherwise
 pub fn read_skill_namespace(skill_md_path: &Path) -> Option<String> {
     let content = fs::read_to_string(skill_md_path).ok()?;
     let fm = SkillLoader::parse_front_matter(&content).ok()?;
@@ -121,6 +132,10 @@ pub fn read_skill_namespace(skill_md_path: &Path) -> Option<String> {
 }
 
 /// Compute BLAKE3 hash of an arbitrary file's contents.
+///
+/// REQ: SVC-091
+/// pre:  path must be a readable file; returns None if unreadable
+/// post: returns Some(hex-encoded BLAKE3 hash) on success; None on I/O failure
 pub fn compute_file_hash(path: &Path) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
     let hash = hkask_types::text::blake3_hash(content.as_bytes());
@@ -130,6 +145,10 @@ pub fn compute_file_hash(path: &Path) -> Option<String> {
 /// Find a skill in the public zone by its base name.
 ///
 /// Searches for any `<namespace>--<name>` directory that ends with `--<name>`.
+///
+/// REQ: SVC-092
+/// pre:  root must be a valid skill zone root; name must be non-empty
+/// post: returns Some(PathBuf) to the matching skill directory if found; None if no match or public zone missing
 pub fn find_public_skill(root: &Path, name: &str) -> Option<PathBuf> {
     let public_dir = root.join(SkillZone::Public.directory());
     if !public_dir.exists() {
@@ -157,6 +176,10 @@ pub fn find_public_skill(root: &Path, name: &str) -> Option<PathBuf> {
 ///
 /// Copies the skill directory, updates visibility and namespace in the
 /// exported copy's SKILL.md. The public copy is a snapshot, not a live link.
+///
+/// REQ: SVC-093
+/// pre:  root must be a valid skill zone root; name must exist in the private zone
+/// post: skill directory is copied to public zone with namespaced name; visibility set to public; namespace set to replicant name; Err if private skill not found
 pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, ServiceError> {
     let private_dir = root.join(SkillZone::Private.directory()).join(name);
 
@@ -230,6 +253,10 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
 /// 1. `HKASK_REPLICANT_NAME` env var (explicit override)
 /// 2. Git config `user.name` (if in a git repo)
 /// 3. Fallback: "local"
+///
+/// REQ: SVC-094
+/// pre:  none (always succeeds)
+/// post: returns a non-empty String — env var, git user.name, or "local" fallback
 pub fn resolve_replicant_name() -> String {
     if let Ok(name) = std::env::var("HKASK_REPLICANT_NAME")
         && !name.is_empty()

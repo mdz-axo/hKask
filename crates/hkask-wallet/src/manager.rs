@@ -278,7 +278,8 @@ impl WalletManager {
                         Err(_) => continue,
                     };
                     if !addresses.is_empty() {
-                        match port.monitor_deposits(&addresses).await {
+                        let actor = Self::default_actor();
+                        match port.monitor_deposits(&actor, &addresses).await {
                             Ok(events) => {
                                 for event in events {
                                     let _ = self.process_deposit(event).await;
@@ -294,7 +295,8 @@ impl WalletManager {
         }
         // Check privacy layer
         if let Some(ref privacy_port) = self.privacy {
-            match privacy_port.monitor_shielded_transfers().await {
+            let actor = Self::default_actor();
+            match privacy_port.monitor_shielded_transfers(&actor).await {
                 Ok(transfers) => {
                     for transfer in transfers {
                         let _ = self.process_shielded_deposit(transfer).await;
@@ -587,7 +589,7 @@ impl WalletManager {
                     // Combine tx_bytes + signature (chain-specific format)
                     let mut signed_tx = tx_bytes;
                     signed_tx.extend_from_slice(&signature);
-                    let tx_hash = port.submit_signed_tx(&signed_tx).await?;
+                    let tx_hash = port.submit_signed_tx(actor, &signed_tx).await?;
                     Ok(tx_hash)
                 }
                 PrivacyMode::Shielded => {
@@ -597,13 +599,13 @@ impl WalletManager {
                     if chain == ChainId::Hinkal {
                         // Hinkal submit path signs the protocol withdraw message internally.
                         // Avoid appending a redundant signature over the serialized request payload.
-                        let tx_hash = privacy_port.submit_signed_tx(&tx_bytes).await?;
+                        let tx_hash = privacy_port.submit_signed_tx(actor, &tx_bytes).await?;
                         Ok(tx_hash)
                     } else {
                         let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
                         let mut signed_tx = tx_bytes;
                         signed_tx.extend_from_slice(&signature);
-                        let tx_hash = privacy_port.submit_signed_tx(&signed_tx).await?;
+                        let tx_hash = privacy_port.submit_signed_tx(actor, &signed_tx).await?;
                         Ok(tx_hash)
                     }
                 }
@@ -710,14 +712,15 @@ impl WalletManager {
         );
 
         // 3. Sign and submit.
+        let actor = Self::default_actor();
         let tx_hash = if chain == ChainId::Hinkal {
             // Hinkal signs the protocol message internally via sign_message.
-            privacy_port.submit_signed_tx(&tx_bytes).await?
+            privacy_port.submit_signed_tx(&actor, &tx_bytes).await?
         } else {
             let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
             let mut signed_tx = tx_bytes;
             signed_tx.extend_from_slice(&signature);
-            privacy_port.submit_signed_tx(&signed_tx).await?
+            privacy_port.submit_signed_tx(&actor, &signed_tx).await?
         };
 
         // CNS span: shield submitted
@@ -1057,7 +1060,10 @@ mod tests {
             Ok("mock_shielded_addr".into())
         }
 
-        async fn monitor_shielded_transfers(&self) -> Result<Vec<ShieldedTransfer>, WalletError> {
+        async fn monitor_shielded_transfers(
+            &self,
+            _actor: &WebID,
+        ) -> Result<Vec<ShieldedTransfer>, WalletError> {
             Ok(vec![])
         }
 
@@ -1077,7 +1083,11 @@ mod tests {
             Ok(b"mock_unshield_tx".to_vec())
         }
 
-        async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+        async fn submit_signed_tx(
+            &self,
+            _actor: &WebID,
+            signed_tx_bytes: &[u8],
+        ) -> Result<TxHash, WalletError> {
             if signed_tx_bytes != b"mock_unshield_tx" && signed_tx_bytes != b"mock_shield_tx" {
                 return Err(WalletError::ChainError {
                     chain: ChainId::Hinkal,
@@ -1102,6 +1112,7 @@ mod tests {
         }
         async fn monitor_deposits(
             &self,
+            _actor: &WebID,
             _addresses: &[String],
         ) -> Result<Vec<DepositEvent>, WalletError> {
             Ok(vec![])
@@ -1109,10 +1120,18 @@ mod tests {
         fn build_withdrawal_tx(&self, _to: &str, _amount: u64) -> Result<Vec<u8>, WalletError> {
             Ok(b"mock_tx".to_vec())
         }
-        async fn submit_signed_tx(&self, _tx: &[u8]) -> Result<TxHash, WalletError> {
+        async fn submit_signed_tx(
+            &self,
+            _actor: &WebID,
+            _tx: &[u8],
+        ) -> Result<TxHash, WalletError> {
             Ok(TxHash("mock_hash".into()))
         }
-        async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
+        async fn confirmations(
+            &self,
+            _actor: &WebID,
+            _tx_hash: &TxHash,
+        ) -> Result<u64, WalletError> {
             Ok(32)
         }
     }
@@ -1363,6 +1382,7 @@ mod tests {
         }
         async fn monitor_deposits(
             &self,
+            _actor: &WebID,
             _addresses: &[String],
         ) -> Result<Vec<DepositEvent>, WalletError> {
             Ok(self.deposit.clone().into_iter().collect())
@@ -1370,10 +1390,18 @@ mod tests {
         fn build_withdrawal_tx(&self, _to: &str, _amount: u64) -> Result<Vec<u8>, WalletError> {
             Ok(b"mock_tx".to_vec())
         }
-        async fn submit_signed_tx(&self, _tx: &[u8]) -> Result<TxHash, WalletError> {
+        async fn submit_signed_tx(
+            &self,
+            _actor: &WebID,
+            _tx: &[u8],
+        ) -> Result<TxHash, WalletError> {
             Ok(TxHash("mock_hash".into()))
         }
-        async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
+        async fn confirmations(
+            &self,
+            _actor: &WebID,
+            _tx_hash: &TxHash,
+        ) -> Result<u64, WalletError> {
             Ok(32)
         }
     }

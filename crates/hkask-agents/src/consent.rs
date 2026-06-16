@@ -10,9 +10,9 @@
 //! so they survive restarts — enforcing user sovereignty (Principle 1.3).
 
 use hkask_storage::{ConsentStore, Store, StoredConsentRecord, read_rwlock, write_rwlock};
-use hkask_types::sovereignty::DataCategory;
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::sovereignty::DataCategory;
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
@@ -44,6 +44,11 @@ pub(crate) struct ConsentRecord {
 }
 
 impl ConsentRecord {
+    /// REQ: AGT-038
+    /// pre:  `webid` is a non-empty string.
+    /// post: Returns a new `ConsentRecord` with empty granted categories,
+    ///       `active = true`, `revoked_at = None`, and `granted_at` set to
+    ///       the current UTC timestamp.
     pub fn new(webid: &str) -> Self {
         Self {
             webid: webid.to_string(),
@@ -54,21 +59,36 @@ impl ConsentRecord {
         }
     }
 
+    /// REQ: AGT-039
+    /// pre:  `category` is a non-empty string.
+    /// post: `category` is added to `granted_categories`; `active` is set
+    ///       to `true`; `revoked_at` is cleared to `None`.
     pub fn grant(&mut self, category: &str) {
         self.granted_categories.insert(category.to_string());
         self.active = true;
         self.revoked_at = None;
     }
 
+    /// REQ: AGT-040
+    /// pre:  (none — revoke is always valid).
+    /// post: `revoked_at` is set to the current UTC timestamp;
+    ///       `active` is set to `false`.
     pub fn revoke(&mut self) {
         self.revoked_at = Some(chrono::Utc::now().timestamp());
         self.active = false;
     }
 
+    /// REQ: AGT-041
+    /// pre:  (none).
+    /// post: Returns `true` iff `active == true` AND `revoked_at` is `None`.
     pub fn is_active(&self) -> bool {
         self.active && self.revoked_at.is_none()
     }
 
+    /// REQ: AGT-042
+    /// pre:  `category` is a non-empty string.
+    /// post: Returns `true` iff the record is active AND `category` is
+    ///       present in `granted_categories`.
     pub fn has_category(&self, category: &str) -> bool {
         self.active && self.granted_categories.contains(category)
     }
@@ -118,7 +138,13 @@ pub struct ConsentManager {
 }
 
 impl ConsentManager {
-    /// Create a new consent manager backed by the given store
+    /// Create a new consent manager backed by the given store.
+    ///
+    /// REQ: AGT-043
+    /// pre:  `store` is a valid, initialized `ConsentStore`.
+    /// post: Returns a `ConsentManager` with an empty in-memory cache;
+    ///       eagerly loads active records from the store into the cache;
+    ///       logs a warning if the load fails (cache remains empty).
     pub fn new(store: ConsentStore) -> Self {
         let manager = Self {
             store,
@@ -138,6 +164,10 @@ impl ConsentManager {
     /// ν-event. This provides observability without opening a feedback path
     /// (the denial remains terminal — this is a Prohibition, not a Guardrail).
     /// # REQ: OPEN_QUESTIONS §2.2 — consent denial CNS instrumentation.
+    ///
+    /// REQ: AGT-044
+    /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
+    /// post: Returns `self` with `event_sink` set to `Some(sink)`.
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
@@ -193,7 +223,14 @@ impl ConsentManager {
         Ok(())
     }
 
-    /// Grant consent for a data category
+    /// Grant consent for a data category.
+    ///
+    /// REQ: AGT-045
+    /// pre:  `webid` is a non-empty string; `category` is a valid
+    ///       `DataCategory` variant.
+    /// post: If a record exists for `webid`, the category is granted and
+    ///       persisted; otherwise a new record is created, granted, and
+    ///       persisted. Returns `Ok(())` on success.
     pub fn grant_consent(&self, webid: &str, category: &DataCategory) -> Result<(), ConsentError> {
         let mut cache = write_rwlock(&self.cache)?;
 
@@ -218,7 +255,13 @@ impl ConsentManager {
         Ok(())
     }
 
-    /// Revoke all consent for a WebID
+    /// Revoke all consent for a WebID.
+    ///
+    /// REQ: AGT-046
+    /// pre:  `webid` is a non-empty string.
+    /// post: If a record exists for `webid`, it is revoked and persisted;
+    ///       returns `Ok(())`. If no record exists, returns
+    ///       `Err(ConsentError::ConsentNotFound)`.
     pub fn revoke_consent(&self, webid: &str) -> Result<(), ConsentError> {
         let mut cache = write_rwlock(&self.cache)?;
 
@@ -236,6 +279,13 @@ impl ConsentManager {
     ///
     /// Emits a `cns.consent.denied` ν-event when consent is denied,
     /// providing observability without opening a feedback path.
+    ///
+    /// REQ: AGT-047
+    /// pre:  `webid` is a non-empty string; `category` is a valid
+    ///       `DataCategory` variant.
+    /// post: Returns `Ok(true)` if an active record for `webid` has the
+    ///       category granted; `Ok(false)` otherwise (including when no
+    ///       record exists). Emits a denial ν-event on `false`.
     pub fn has_consent(&self, webid: &str, category: &DataCategory) -> Result<bool, ConsentError> {
         let cache = read_rwlock(&self.cache)?;
 
@@ -280,7 +330,13 @@ impl ConsentManager {
         }
     }
 
-    /// Get all granted categories for a WebID
+    /// Get all granted categories for a WebID.
+    ///
+    /// REQ: AGT-048
+    /// pre:  `webid` is a non-empty string.
+    /// post: Returns `Ok(Vec<String>)` containing all granted category
+    ///       names for an active record; returns `Ok(vec![])` if no active
+    ///       record exists for `webid`.
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ConsentError> {
         let cache = read_rwlock(&self.cache)?;
 

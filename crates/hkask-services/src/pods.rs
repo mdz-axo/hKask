@@ -53,6 +53,9 @@ pub struct PodService;
 impl PodService {
     /// Create a new agent pod from a template and persona YAML.
     ///
+    /// REQ: SVC-128
+    /// pre:  ctx.pod_manager() must be initialized; req.template must be non-empty; req.persona_yaml must be valid YAML
+    /// post: pod is created and returns PodResponse with pod_id; Err(ValidationError) on invalid persona YAML; Err(Pod) on upstream error
     /// # Returns
     /// `ServiceError::Pod` on upstream pod error.
     /// `ServiceError::ValidationError` on invalid persona YAML.
@@ -78,6 +81,10 @@ impl PodService {
     }
 
     /// List all registered pods.
+    ///
+    /// REQ: SVC-129
+    /// pre:  ctx.pod_manager() must be initialized
+    /// post: returns Vec<PodStatusResponse> for all pods; empty Vec if none; Err(Pod) on upstream error
     pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusResponse>, ServiceError> {
         let pm = ctx.pod_manager();
         let pods = pm.list_pods().await.map_err(ServiceError::Pod)?;
@@ -85,6 +92,10 @@ impl PodService {
     }
 
     /// Activate a pod by ID.
+    ///
+    /// REQ: SVC-130
+    /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
+    /// post: pod is activated; Ok(()) on success; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
     pub async fn activate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
         ctx.pod_manager()
@@ -95,6 +106,10 @@ impl PodService {
     }
 
     /// Deactivate a pod by ID.
+    ///
+    /// REQ: SVC-131
+    /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
+    /// post: pod is deactivated; Ok(()) on success; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
     pub async fn deactivate_pod(ctx: &AgentService, pod_id: &str) -> Result<(), ServiceError> {
         let pid = Self::parse_pod_id(pod_id)?;
         ctx.pod_manager()
@@ -105,6 +120,10 @@ impl PodService {
     }
 
     /// Get pod status by ID.
+    ///
+    /// REQ: SVC-132
+    /// pre:  ctx.pod_manager() must be initialized; pod_id must be a valid UUID
+    /// post: returns PodStatusResponse with pod state, webid, agent_type, template, etc.; Err(PodNotFound) on invalid UUID; Err(Pod) on upstream error
     pub async fn get_pod_status(
         ctx: &AgentService,
         pod_id: &str,
@@ -130,6 +149,10 @@ impl PodService {
     }
 
     /// Assign an MCP role to a replicant by name.
+    ///
+    /// REQ: SVC-133
+    /// pre:  ctx.pod_manager() must be initialized; name and role must be non-empty
+    /// post: role is assigned to the replicant; Ok(()) on success; Err(Pod) on upstream error
     pub async fn assign_role(
         ctx: &AgentService,
         name: &str,
@@ -143,6 +166,10 @@ impl PodService {
 
     /// Set the agent mode for a replicant by name.
     /// Mode: "server" (requires role), "chat", or "exit".
+    ///
+    /// REQ: SVC-134
+    /// pre:  ctx.pod_manager() must be initialized; name and mode must be non-empty; mode must be "server", "chat", or "exit"
+    /// post: agent mode is set; Ok(()) on success; Err(Pod) on upstream error
     pub async fn set_mode(
         ctx: &AgentService,
         name: &str,

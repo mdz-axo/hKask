@@ -14,7 +14,12 @@ pub(crate) struct AuditLog {
 }
 
 impl AuditLog {
-    /// Create new audit log with default max entries
+    /// Create new audit log with default max entries.
+    ///
+    /// REQ: AGT-073
+    /// pre:  (none).
+    /// post: Returns an `AuditLog` with an empty entry list and
+    ///       `max_entries = 10000`.
     pub fn new() -> Self {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
@@ -22,6 +27,11 @@ impl AuditLog {
         }
     }
 
+    /// REQ: AGT-074
+    /// pre:  `entry` is a valid `AuditEntry`.
+    /// post: The entry is appended to the log; if the log exceeds
+    ///       `max_entries`, the oldest entries are drained to stay
+    ///       within the limit.
     pub async fn log(&self, entry: AuditEntry) {
         let mut entries = self.entries.write().await;
         entries.push(entry);

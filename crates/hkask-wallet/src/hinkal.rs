@@ -17,6 +17,7 @@
 
 use async_trait::async_trait;
 use chrono::Utc;
+use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{ChainId, TxHash, WalletError, WalletId};
@@ -242,19 +243,21 @@ impl HinkalPort {
         self
     }
 
+    #[allow(dead_code)]
+    fn default_actor(&self) -> WebID {
+        WebID::from_persona_with_namespace(self.treasury_pubkey.as_bytes(), "wallet-hinkal")
+    }
+
     /// Emit a CNS chain_error span if an event sink is configured.
-    fn emit_cns_chain_error(&self, operation: &str, error_msg: &str) {
+    fn emit_cns_chain_error_for_actor(&self, actor: &WebID, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
-            let actor = hkask_types::WebID::from_persona_with_namespace(
-                self.treasury_pubkey.as_bytes(),
-                "wallet-hinkal",
-            );
             let event = NuEvent::new(
-                actor,
+                actor.clone(),
                 span_obj,
                 Phase::Sense,
                 serde_json::json!({
+                    "actor": actor.to_string(),
                     "chain": "hinkal",
                     "operation": operation,
                     "error": error_msg,
@@ -265,6 +268,12 @@ impl HinkalPort {
                 tracing::warn!(target: "hkask.wallet.hinkal", error = %e, "Failed to persist CNS chain_error span");
             }
         }
+    }
+
+    #[allow(dead_code)]
+    fn emit_cns_chain_error(&self, operation: &str, error_msg: &str) {
+        let actor = self.default_actor();
+        self.emit_cns_chain_error_for_actor(&actor, operation, error_msg);
     }
 
     fn chain_error(message: impl Into<String>) -> WalletError {
@@ -404,7 +413,11 @@ impl HinkalPort {
         Ok(())
     }
 
-    async fn create_session(&self, write_access: bool) -> Result<SessionMaterial, WalletError> {
+    async fn create_session(
+        &self,
+        actor: &WebID,
+        write_access: bool,
+    ) -> Result<SessionMaterial, WalletError> {
         if let Some(session) = self.cached_session(write_access)? {
             return Ok(session);
         }
@@ -431,7 +444,7 @@ impl HinkalPort {
             .await
             .map_err(|e| {
                 let msg = format!("create-session request failed: {e}");
-                self.emit_cns_chain_error("create_session", &msg);
+                self.emit_cns_chain_error_for_actor(actor, "create_session", &msg);
                 Self::chain_error(msg)
             })?;
 
@@ -440,13 +453,13 @@ impl HinkalPort {
             let msg = format!(
                 "create-session rejected (write_access={write_access}, nonce={nonce}): {body}"
             );
-            self.emit_cns_chain_error("create_session", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "create_session", &msg);
             return Err(Self::chain_error(msg));
         }
 
         let body: CreateSessionResponse = resp.json().await.map_err(|e| {
             let msg = format!("create-session returned invalid JSON response: {e}");
-            self.emit_cns_chain_error("create_session", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "create_session", &msg);
             Self::chain_error(msg)
         })?;
 
@@ -457,7 +470,7 @@ impl HinkalPort {
                     .or(body.message)
                     .unwrap_or_else(|| "unknown error".to_string())
             );
-            self.emit_cns_chain_error("create_session", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "create_session", &msg);
             return Err(Self::chain_error(msg));
         }
 
@@ -532,6 +545,7 @@ impl HinkalPort {
 
     async fn fetch_balance(
         &self,
+        actor: &WebID,
         session: &SessionMaterial,
     ) -> Result<Vec<BalanceTokenAmount>, WalletError> {
         let url = format!("{}/balance", self.api_base_url);
@@ -548,7 +562,7 @@ impl HinkalPort {
             .await
             .map_err(|e| {
                 let msg = format!("balance request failed: {e}");
-                self.emit_cns_chain_error("fetch_balance", &msg);
+                self.emit_cns_chain_error_for_actor(actor, "fetch_balance", &msg);
                 Self::chain_error(msg)
             })?;
 
@@ -558,22 +572,25 @@ impl HinkalPort {
                 "balance request rejected (nonce={}): {}",
                 session.nonce, body
             );
-            self.emit_cns_chain_error("fetch_balance", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "fetch_balance", &msg);
             return Err(Self::chain_error(msg));
         }
 
         let value: serde_json::Value = resp.json().await.map_err(|e| {
             let msg = format!("balance returned invalid JSON: {e}");
-            self.emit_cns_chain_error("fetch_balance", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "fetch_balance", &msg);
             Self::chain_error(msg)
         })?;
         self.parse_balance_entries(&value)
     }
 
     /// Poll Hinkal balance endpoint using session authentication.
-    async fn monitor_deposits(&self) -> Result<Vec<BalanceTokenAmount>, WalletError> {
-        let session = self.create_session(false).await?;
-        self.fetch_balance(&session).await
+    async fn monitor_deposits(
+        &self,
+        actor: &WebID,
+    ) -> Result<Vec<BalanceTokenAmount>, WalletError> {
+        let session = self.create_session(actor, false).await?;
+        self.fetch_balance(actor, &session).await
     }
 
     fn transfer_commitment(
@@ -654,6 +671,7 @@ impl HinkalPort {
     /// Submit a withdraw (unshield) transaction to POST /withdraw.
     async fn submit_withdraw(
         &self,
+        actor: &WebID,
         payload: &WithdrawUnsignedPayload,
     ) -> Result<TxHash, WalletError> {
         if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
@@ -669,7 +687,7 @@ impl HinkalPort {
             return Err(Self::chain_error("withdraw recipient must not be empty"));
         }
 
-        let session = self.create_session(true).await?;
+        let session = self.create_session(actor, true).await?;
         let message = Self::build_withdraw_message(
             &payload.nonce,
             payload.chain_id,
@@ -703,20 +721,20 @@ impl HinkalPort {
             .await
             .map_err(|e| {
                 let msg = format!("withdraw request failed: {e}");
-                self.emit_cns_chain_error("submit_withdraw", &msg);
+                self.emit_cns_chain_error_for_actor(actor, "submit_withdraw", &msg);
                 Self::chain_error(msg)
             })?;
 
         if !resp.status().is_success() {
             let body = Self::read_response_body(resp).await;
             let msg = format!("withdraw rejected: {body}");
-            self.emit_cns_chain_error("submit_withdraw", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "submit_withdraw", &msg);
             return Err(Self::chain_error(msg));
         }
 
         let v: serde_json::Value = resp.json().await.map_err(|e| {
             let msg = format!("withdraw returned invalid JSON: {e}");
-            self.emit_cns_chain_error("submit_withdraw", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "submit_withdraw", &msg);
             Self::chain_error(msg)
         })?;
 
@@ -732,7 +750,7 @@ impl HinkalPort {
             })
             .ok_or_else(|| {
                 let msg = "withdraw response missing tx hash".to_string();
-                self.emit_cns_chain_error("submit_withdraw", &msg);
+                self.emit_cns_chain_error_for_actor(actor, "submit_withdraw", &msg);
                 Self::chain_error(msg)
             })?;
 
@@ -740,7 +758,11 @@ impl HinkalPort {
     }
 
     /// Submit a shield (deposit) transaction to POST /deposit.
-    async fn submit_shield(&self, payload: &ShieldDepositPayload) -> Result<TxHash, WalletError> {
+    async fn submit_shield(
+        &self,
+        actor: &WebID,
+        payload: &ShieldDepositPayload,
+    ) -> Result<TxHash, WalletError> {
         if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
             return Err(Self::chain_error(format!(
                 "unsupported chain_id={} for Hinkal shield",
@@ -751,7 +773,7 @@ impl HinkalPort {
             return Err(Self::chain_error("shield amount must be > 0"));
         }
 
-        let session = self.create_session(true).await?;
+        let session = self.create_session(actor, true).await?;
         let message = Self::build_shield_message(
             &payload.nonce,
             payload.chain_id,
@@ -783,20 +805,20 @@ impl HinkalPort {
             .await
             .map_err(|e| {
                 let msg = format!("deposit request failed: {e}");
-                self.emit_cns_chain_error("submit_shield", &msg);
+                self.emit_cns_chain_error_for_actor(actor, "submit_shield", &msg);
                 Self::chain_error(msg)
             })?;
 
         if !resp.status().is_success() {
             let body = Self::read_response_body(resp).await;
             let msg = format!("deposit rejected: {body}");
-            self.emit_cns_chain_error("submit_shield", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "submit_shield", &msg);
             return Err(Self::chain_error(msg));
         }
 
         let v: serde_json::Value = resp.json().await.map_err(|e| {
             let msg = format!("deposit returned invalid JSON: {e}");
-            self.emit_cns_chain_error("submit_shield", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "submit_shield", &msg);
             Self::chain_error(msg)
         })?;
 
@@ -812,7 +834,7 @@ impl HinkalPort {
             })
             .ok_or_else(|| {
                 let msg = "deposit response missing tx hash".to_string();
-                self.emit_cns_chain_error("submit_shield", &msg);
+                self.emit_cns_chain_error_for_actor(actor, "submit_shield", &msg);
                 Self::chain_error(msg)
             })?;
 
@@ -832,6 +854,7 @@ impl ChainPort for HinkalPort {
 
     async fn monitor_deposits(
         &self,
+        _actor: &WebID,
         _addresses: &[String],
     ) -> Result<Vec<DepositEvent>, WalletError> {
         Err(Self::chain_error(
@@ -849,13 +872,17 @@ impl ChainPort for HinkalPort {
         ))
     }
 
-    async fn submit_signed_tx(&self, _signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+    async fn submit_signed_tx(
+        &self,
+        _actor: &WebID,
+        _signed_tx_bytes: &[u8],
+    ) -> Result<TxHash, WalletError> {
         Err(Self::chain_error(
             "Hinkal chain submit path is unavailable; use PrivacyPort::submit_signed_tx for shielded flow",
         ))
     }
 
-    async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
+    async fn confirmations(&self, _actor: &WebID, _tx_hash: &TxHash) -> Result<u64, WalletError> {
         Err(Self::chain_error(
             "confirmation checking requires underlying chain RPC integration",
         ))
@@ -872,8 +899,11 @@ impl PrivacyPort for HinkalPort {
         Ok(self.treasury_pubkey.clone())
     }
 
-    async fn monitor_shielded_transfers(&self) -> Result<Vec<ShieldedTransfer>, WalletError> {
-        let balances = self.monitor_deposits().await?;
+    async fn monitor_shielded_transfers(
+        &self,
+        actor: &WebID,
+    ) -> Result<Vec<ShieldedTransfer>, WalletError> {
+        let balances = self.monitor_deposits(actor).await?;
 
         let mut transfers = Vec::new();
         let mut last = self
@@ -959,31 +989,35 @@ impl PrivacyPort for HinkalPort {
             .map_err(|e| Self::chain_error(format!("failed to encode unshield payload: {e}")))
     }
 
-    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+    async fn submit_signed_tx(
+        &self,
+        actor: &WebID,
+        signed_tx_bytes: &[u8],
+    ) -> Result<TxHash, WalletError> {
         // Try raw payload first (from build_unshield_tx / build_shield_tx).
         if let Ok(payload) = serde_json::from_slice::<HinkalPayload>(signed_tx_bytes) {
             return match payload {
-                HinkalPayload::Withdraw(p) => self.submit_withdraw(&p).await,
-                HinkalPayload::Shield(p) => self.submit_shield(&p).await,
+                HinkalPayload::Withdraw(p) => self.submit_withdraw(actor, &p).await,
+                HinkalPayload::Shield(p) => self.submit_shield(actor, &p).await,
             };
         }
 
         // Fallback: legacy format with appended 64-byte Ed25519 signature.
         if signed_tx_bytes.len() <= 64 {
             let msg = "invalid payload: too short for legacy signature format".to_string();
-            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             return Err(Self::chain_error(msg));
         }
         let payload_bytes = &signed_tx_bytes[..signed_tx_bytes.len() - 64];
         let hinkal_payload: HinkalPayload = serde_json::from_slice(payload_bytes).map_err(|e| {
             let msg = format!("failed to decode Hinkal payload: {e}");
-            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            self.emit_cns_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             Self::chain_error(msg)
         })?;
 
         match hinkal_payload {
-            HinkalPayload::Withdraw(payload) => self.submit_withdraw(&payload).await,
-            HinkalPayload::Shield(payload) => self.submit_shield(&payload).await,
+            HinkalPayload::Withdraw(payload) => self.submit_withdraw(actor, &payload).await,
+            HinkalPayload::Shield(payload) => self.submit_shield(actor, &payload).await,
         }
     }
 
@@ -998,11 +1032,48 @@ impl PrivacyPort for HinkalPort {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
     use wiremock::matchers::{body_partial_json, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    #[derive(Default)]
+    struct CaptureSink {
+        last_event: Mutex<Option<NuEvent>>,
+    }
+
+    impl NuEventSink for CaptureSink {
+        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+            *self.last_event.lock().expect("lock") = Some(event.clone());
+            Ok(())
+        }
+    }
+
     fn test_port(base: &str) -> HinkalPort {
         HinkalPort::new(base, "treasury_pubkey_test").expect("port")
+    }
+
+    // REQ: HINKAL-002 — chain_error emission uses caller-provided actor identity
+    #[tokio::test]
+    async fn emit_chain_error_uses_provided_actor() {
+        let actor = WebID::from_persona(b"actor-hinkal-test");
+        let sink = Arc::new(CaptureSink::default());
+        let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey")
+            .expect("port")
+            .with_event_sink(sink.clone());
+
+        let err = PrivacyPort::submit_signed_tx(&port, &actor, b"short")
+            .await
+            .expect_err("short payload should fail");
+        assert!(matches!(err, WalletError::ChainError { .. }));
+
+        let event = sink
+            .last_event
+            .lock()
+            .expect("lock")
+            .clone()
+            .expect("event persisted");
+        assert_eq!(event.observer_webid.to_string(), actor.to_string());
+        assert_eq!(event.observation["operation"], "submit_signed_tx");
     }
 
     // REQ: HINKAL-003 — session message format matches Hinkal API spec
@@ -1083,7 +1154,8 @@ mod tests {
             .await;
 
         let port = test_port(&server.uri());
-        let session = port.create_session(false).await.expect("session");
+        let actor = WebID::from_persona(b"hinkal-test");
+        let session = port.create_session(&actor, false).await.expect("session");
         assert!(!session.nonce.is_empty());
         assert!(!session.signature.is_empty());
     }
@@ -1135,7 +1207,11 @@ mod tests {
             .await;
 
         let port = test_port(&server.uri());
-        let err = port.create_session(false).await.expect_err("must fail");
+        let actor = WebID::from_persona(b"hinkal-test");
+        let err = port
+            .create_session(&actor, false)
+            .await
+            .expect_err("must fail");
         match err {
             WalletError::ChainError { chain, message } => {
                 assert_eq!(chain, ChainId::Hinkal);
@@ -1177,8 +1253,9 @@ mod tests {
             .await;
 
         let port = test_port(&server.uri());
+        let actor = WebID::from_persona(b"hinkal-monitor-test");
         let err = port
-            .monitor_shielded_transfers()
+            .monitor_shielded_transfers(&actor)
             .await
             .expect_err("must fail closed");
 
@@ -1235,12 +1312,16 @@ mod tests {
         let port = test_port(&server.uri());
         port.store_cached_session("nonce-1".to_string(), "sig-1".to_string(), false)
             .expect("cache-1");
-        let first = port.monitor_shielded_transfers().await.expect("first poll");
+        let actor = WebID::from_persona(b"hinkal-monitor-test");
+        let first = port
+            .monitor_shielded_transfers(&actor)
+            .await
+            .expect("first poll");
 
         port.store_cached_session("nonce-2".to_string(), "sig-2".to_string(), false)
             .expect("cache-2");
         let second = port
-            .monitor_shielded_transfers()
+            .monitor_shielded_transfers(&actor)
             .await
             .expect("second poll");
 
@@ -1278,12 +1359,16 @@ mod tests {
         let port = test_port(&server.uri());
         port.store_cached_session("nonce-a".to_string(), "sig-a".to_string(), false)
             .expect("cache-a");
-        let first = port.monitor_shielded_transfers().await.expect("first poll");
+        let actor = WebID::from_persona(b"hinkal-monitor-test");
+        let first = port
+            .monitor_shielded_transfers(&actor)
+            .await
+            .expect("first poll");
 
         port.store_cached_session("nonce-b".to_string(), "sig-b".to_string(), false)
             .expect("cache-b");
         let second = port
-            .monitor_shielded_transfers()
+            .monitor_shielded_transfers(&actor)
             .await
             .expect("second poll");
 

@@ -9,6 +9,7 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use hkask_types::WebID;
 use hkask_types::wallet::{ChainId, TxHash, WalletError, WalletId};
 
 /// A shielded transfer detected in the privacy pool.
@@ -50,7 +51,10 @@ pub trait PrivacyPort: Send + Sync {
 
     /// Monitor the Shielded Pool for incoming transfers to our shielded address.
     /// Decrypts `encryptedOutputs` from pool events, extracts memos.
-    async fn monitor_shielded_transfers(&self) -> Result<Vec<ShieldedTransfer>, WalletError>;
+    async fn monitor_shielded_transfers(
+        &self,
+        actor: &WebID,
+    ) -> Result<Vec<ShieldedTransfer>, WalletError>;
 
     /// Build an unsigned shielding transaction (for private withdrawals).
     /// Signing happens in the isolated `signing.rs` module.
@@ -68,7 +72,11 @@ pub trait PrivacyPort: Send + Sync {
     ) -> Result<Vec<u8>, WalletError>;
 
     /// Submit a signed transaction through the privacy layer.
-    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError>;
+    async fn submit_signed_tx(
+        &self,
+        actor: &WebID,
+        signed_tx_bytes: &[u8],
+    ) -> Result<TxHash, WalletError>;
 
     /// Check if the privacy layer is available for a given chain.
     fn available_for_chain(&self, chain: ChainId) -> bool;

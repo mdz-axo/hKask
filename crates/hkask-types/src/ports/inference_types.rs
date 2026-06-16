@@ -41,6 +41,11 @@ pub struct TokenProb {
 }
 
 /// Confidence = avg(prob) × (1 - sqrt(variance)). Higher avg + lower variance = higher confidence.
+///
+/// REQ: TYP-261
+/// pre:  probs is a slice of [`TokenProbability`] values; may be empty
+/// post: returns 0.0 if probs is empty; otherwise returns avg(prob) × (1 - √variance),
+///       a value in [0.0, 1.0] where higher average probability and lower variance produce higher confidence
 pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
     if probs.is_empty() {
         return 0.0;

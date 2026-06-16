@@ -55,6 +55,11 @@ pub const CURATION_TICK_SECS: u64 = 10;
 /// Fallback tick interval for unregistered loops (1s).
 pub const DEFAULT_FALLBACK_TICK_SECS: u64 = 1;
 
+/// REQ: AGT-062
+/// pre:  `loop_id` is one of `Inference`, `Memory`, `Cybernetics`, or
+///       `Curation`.
+/// post: Returns the default tick `Duration` for the given loop:
+///       Inference → 500ms, Memory → 5s, Cybernetics → 2s, Curation → 10s.
 pub fn default_tick_interval(loop_id: LoopId) -> Duration {
     match loop_id {
         LoopId::Inference => Duration::from_millis(INFERENCE_TICK_MS),
@@ -92,6 +97,12 @@ pub struct LoopSystem {
 
 impl LoopSystem {
     /// Create a new LoopSystem.
+    ///
+    /// REQ: AGT-063
+    /// pre:  (none).
+    /// post: Returns a `LoopSystem` with an empty loop registry, a fresh
+    ///       cancellation token, and default tick intervals for all four
+    ///       loop IDs.
     pub fn new() -> Self {
         Self {
             loops: Arc::new(RwLock::new(HashMap::new())),
@@ -109,6 +120,12 @@ impl LoopSystem {
     }
 
     /// Customize the tick interval for a specific loop.
+    ///
+    /// REQ: AGT-064
+    /// pre:  `loop_id` is a valid `LoopId`; `interval` is a positive
+    ///       `Duration`.
+    /// post: Returns `self` with the tick interval for `loop_id` updated
+    ///       to `interval`.
     pub fn with_tick_interval(mut self, loop_id: LoopId, interval: Duration) -> Self {
         self.tick_intervals.insert(loop_id, interval);
         self
@@ -118,6 +135,11 @@ impl LoopSystem {
     ///
     /// Adds the loop to the registry so it can be ticked by `start()` or `tick()`.
     /// Multiple loops may share the same `LoopId`.
+    ///
+    /// REQ: AGT-065
+    /// pre:  `loop_instance` is a valid `Arc<dyn HkaskLoop>`.
+    /// post: The loop is added to the registry under its `LoopId`;
+    ///       logs the registration at info level.
     pub async fn register_loop(&self, loop_instance: Arc<dyn HkaskLoop>) {
         let id = loop_instance.id();
         let mut loops = self.loops.write().await;
@@ -131,6 +153,10 @@ impl LoopSystem {
     }
 
     /// Get the cancellation token for external cancellation.
+    ///
+    /// REQ: AGT-066
+    /// pre:  (none — accessor).
+    /// post: Returns a clone of the inner `CancellationToken`.
     pub fn cancel_token(&self) -> CancellationToken {
         self.cancel.clone()
     }
@@ -139,6 +165,11 @@ impl LoopSystem {
     ///
     /// Spawns per-loop tick tasks — each registered loop runs its
     /// `sense → compare → compute → act` cycle on a timer.
+    ///
+    /// REQ: AGT-067
+    /// pre:  Loops have been registered via `register_loop`.
+    /// post: Spawns a tokio task per loop instance; each task ticks
+    ///       at its configured interval until cancelled. Returns `Ok(())`.
     pub async fn start(&self) -> Result<(), hkask_types::InfrastructureError> {
         let cancel = self.cancel.clone();
 
@@ -191,6 +222,11 @@ impl LoopSystem {
     /// Run a single regulation cycle across all loops in authority order.
     ///
     /// Authority DAG: Curation → Cybernetics → {Inference, Memory}
+    ///
+    /// REQ: AGT-068
+    /// pre:  Loops have been registered.
+    /// post: Each registered loop is ticked once in authority order;
+    ///       unregistered loop IDs are silently skipped.
     pub async fn tick(&self) {
         for loop_id in AUTHORITY_ORDER {
             let loops = self.loops.read().await;
@@ -203,6 +239,11 @@ impl LoopSystem {
     }
 
     /// Run multiple regulation cycles.
+    ///
+    /// REQ: AGT-069
+    /// pre:  `max_ticks` > 0.
+    /// post: Calls `tick()` `max_ticks` times sequentially; logs each
+    ///       completed tick at debug level.
     pub async fn tick_n(&self, max_ticks: usize) {
         for i in 0..max_ticks {
             self.tick().await;
@@ -216,17 +257,32 @@ impl LoopSystem {
     }
 
     /// Signal all loop tasks to stop.
+    ///
+    /// REQ: AGT-070
+    /// pre:  (none — idempotent).
+    /// post: The cancellation token is triggered; all spawned tick tasks
+    ///       will terminate on their next `select!` iteration.
     pub fn shutdown(&self) {
         info!(target: "loop_system", "LoopSystem shutting down");
         self.cancel.cancel();
     }
 
     /// Total number of loop instances across all IDs.
+    ///
+    /// REQ: AGT-071
+    /// pre:  (none).
+    /// post: Returns the sum of `Vec::len()` across all entries in the
+    ///       loop registry.
     pub async fn registered_count(&self) -> usize {
         self.loops.read().await.values().map(|v| v.len()).sum()
     }
 
     /// Get the IDs of all registered loops.
+    ///
+    /// REQ: AGT-072
+    /// pre:  (none).
+    /// post: Returns a `Vec<LoopId>` containing all keys currently in
+    ///       the loop registry.
     pub async fn registered_loop_ids(&self) -> Vec<LoopId> {
         self.loops.read().await.keys().copied().collect()
     }

@@ -78,9 +78,10 @@ pub struct CapabilityOnlyAdapter {
 impl CapabilityOnlyAdapter {
     /// Create a capability-only adapter with the given checker.
     ///
-    /// Token verification (`grant_tool_access`, verification gate in
-    /// `invoke_tool`) will use this checker. Tool invocation always
-    /// fails with `McpError::NoRuntime`.
+    /// REQ: AGT-113
+    /// pre:  `checker` is a valid `Arc<CapabilityChecker>`.
+    /// post: Returns a `CapabilityOnlyAdapter` with the given checker;
+    ///       tool invocation will always fail with `McpError::NoRuntime`.
     pub fn new(checker: Arc<CapabilityChecker>) -> Self {
         Self {
             capability_checker: checker,
@@ -132,6 +133,12 @@ impl FullMcpAdapter {
     /// All three arguments are required: the checker for token
     /// verification, the runtime for MCP dispatch, and a tokio
     /// handle for bridging sync→async calls.
+    ///
+    /// REQ: AGT-114
+    /// pre:  `checker` is a valid `Arc<CapabilityChecker>`; `runtime` is
+    ///       a valid `Arc<McpRuntime>`; `handle` is a valid tokio runtime
+    ///       handle.
+    /// post: Returns a `FullMcpAdapter` with all three components set.
     pub fn new(
         checker: Arc<CapabilityChecker>,
         runtime: Arc<McpRuntime>,

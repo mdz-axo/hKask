@@ -24,6 +24,10 @@ pub(crate) struct AttenuationLevel(u8);
 
 #[allow(dead_code)]
 impl AttenuationLevel {
+    /// REQ: TYP-276
+    /// pre:  level is any u8
+    /// post: if level ≤ [`SYSTEM_MAX_RECURSION`], returns `Ok(AttenuationLevel(level))`;
+    ///       if level > SYSTEM_MAX_RECURSION, returns `Err(AttenuationError::ExceedsSystemMax)`
     pub fn new(level: u8) -> Result<Self, AttenuationError> {
         if level > SYSTEM_MAX_RECURSION {
             Err(AttenuationError::ExceedsSystemMax {
@@ -35,9 +39,16 @@ impl AttenuationLevel {
         }
     }
     /// Unchecked construction — for deserialisation paths that trust the wire format.
+    ///
+    /// REQ: TYP-277
+    /// pre:  level is any u8 (no validation)
+    /// post: returns `AttenuationLevel(level)` unconditionally; caller must ensure level ≤ SYSTEM_MAX_RECURSION
     pub fn unchecked(level: u8) -> Self {
         Self(level)
     }
+    /// REQ: TYP-278
+    /// pre:  self is any [`AttenuationLevel`]
+    /// post: returns the inner u8 value unchanged
     pub fn as_u8(&self) -> u8 {
         self.0
     }
@@ -138,6 +149,12 @@ pub struct DelegationTokenBuilder {
 }
 
 impl DelegationTokenBuilder {
+    /// REQ: TYP-279
+    /// pre:  resource is any [`DelegationResource`]; resource_id is any non-empty [`String`];
+    ///       action is any [`DelegationAction`]; delegated_from and delegated_to are any [`WebID`];
+    ///       signing_key is a valid Ed25519 [`SigningKey`]
+    /// post: returns a [`DelegationTokenBuilder`] with default expiry (None), attenuation_level 0,
+    ///       max_attenuation [`SYSTEM_MAX_ATTENUATION`], no context_nonce, and empty caveats
     pub fn new(
         resource: DelegationResource,
         resource_id: String,
@@ -160,15 +177,24 @@ impl DelegationTokenBuilder {
             signing_key: signing_key.clone(),
         }
     }
+    /// REQ: TYP-280
+    /// pre:  ts is any i64 (Unix timestamp in seconds)
+    /// post: returns self with `expires_at` set to `Some(ts)`
     pub fn expires_at(mut self, ts: i64) -> Self {
         self.expires_at = Some(ts);
         self
     }
+    /// REQ: TYP-281
+    /// pre:  level and max are any u8 values
+    /// post: returns self with `attenuation_level` set to level and `max_attenuation` set to max
     pub fn attenuation(mut self, level: u8, max: u8) -> Self {
         self.attenuation_level = level;
         self.max_attenuation = max;
         self
     }
+    /// REQ: TYP-282
+    /// pre:  nonce is any non-empty [`String`]
+    /// post: returns self with `context_nonce` set to `Some(nonce)`
     pub fn context_nonce(mut self, nonce: String) -> Self {
         self.context_nonce = Some(nonce);
         self
@@ -177,6 +203,11 @@ impl DelegationTokenBuilder {
         self.caveats.push(c);
         self
     }
+    /// REQ: TYP-283
+    /// pre:  self is a fully configured [`DelegationTokenBuilder`] with a valid signing key
+    /// post: returns a signed [`DelegationToken`] with a deterministic id (SHA-256 of resource+id+action+from+to),
+    ///       an Ed25519 signature over the canonical payload, and a context_nonce (provided or random UUID v4);
+    ///       consumes self
     pub fn sign(self) -> DelegationToken {
         let id = DelegationToken::generate_id(
             &self.resource,
@@ -219,6 +250,12 @@ impl DelegationTokenBuilder {
 }
 
 impl DelegationToken {
+    /// REQ: TYP-284
+    /// pre:  resource is any [`DelegationResource`]; resource_id is any non-empty [`String`];
+    ///       action is any [`DelegationAction`]; delegated_from and delegated_to are any [`WebID`];
+    ///       signing_key is a valid Ed25519 [`SigningKey`]
+    /// post: returns a signed [`DelegationToken`] with default settings (no expiry, attenuation 0,
+    ///       random context_nonce); equivalent to `DelegationTokenBuilder::new(...).sign()`
     pub fn new(
         resource: DelegationResource,
         resource_id: String,
@@ -273,6 +310,13 @@ impl DelegationToken {
     }
 
     /// Ed25519 signature verification using the token's public key.
+    ///
+    /// REQ: TYP-285
+    /// pre:  self is any [`DelegationToken`] (may have invalid signature or public key)
+    /// post: returns true if the Ed25519 signature is valid for the canonical payload
+    ///       (id + resource + resource_id + action + from + to + public_key + caveats)
+    ///       under the token's `public_key`; returns false if the public key is invalid
+    ///       or the signature does not verify
     pub fn verify(&self) -> bool {
         let verifying_key = match VerifyingKey::from_bytes(&self.public_key.0) {
             Ok(vk) => vk,
@@ -295,33 +339,65 @@ impl DelegationToken {
     }
 
     /// Raw Ed25519 signature bytes (64 bytes).
+    ///
+    /// REQ: TYP-286
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns a reference to the inner 64-byte Ed25519 signature array
     pub fn signature_bytes(&self) -> &[u8; 64] {
         &self.signature.0
     }
 
+    /// REQ: TYP-287
+    /// pre:  self is any [`DelegationToken`]; current_time is any i64 (Unix timestamp)
+    /// post: returns true if `expires_at` is `Some(exp)` and `current_time > exp`;
+    ///       returns false if `expires_at` is `None` (never expires) or `current_time ≤ exp`
     pub fn is_expired(&self, current_time: i64) -> bool {
         self.expires_at
             .map(|exp| current_time > exp)
             .unwrap_or(false)
     }
+    /// REQ: TYP-288
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns the [`WebID`] of the token holder (`delegated_to`)
     pub fn holder(&self) -> WebID {
         self.delegated_to
     }
+    /// REQ: TYP-289
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns the [`WebID`] of the token issuer (`delegated_from`)
     pub fn issuer(&self) -> WebID {
         self.delegated_from
     }
 
+    /// REQ: TYP-290
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns base64-encoded JSON serialization of the token;
+    ///       returns `Err` only if serialization fails (e.g., OOM)
     pub fn to_base64(&self) -> Result<String, serde_json::Error> {
         Ok(b64(serde_json::to_string(self)?.as_bytes()))
     }
+    /// REQ: TYP-291
+    /// pre:  encoded is a base64 string representing a JSON-serialized [`DelegationToken`]
+    /// post: returns the deserialized [`DelegationToken`] if decoding and parsing succeed;
+    ///       returns `Err(String)` if base64 decoding fails or JSON deserialization fails
     pub fn from_base64(encoded: &str) -> Result<Self, String> {
         serde_json::from_slice(&de64(encoded)?).map_err(|e| e.to_string())
     }
+    /// REQ: TYP-292
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns true if `attenuation_level < max_attenuation` (room for further delegation);
+    ///       returns false if attenuation has reached the maximum
     pub fn can_attenuate(&self) -> bool {
         self.attenuation_level < self.max_attenuation
     }
     /// Attenuate with 1-hour expiry from `current_time`.
     /// Requires the issuer's signing key to produce a valid signature.
+    ///
+    /// REQ: TYP-293
+    /// pre:  self is any [`DelegationToken`]; new_to is any [`WebID`];
+    ///       signing_key is a valid Ed25519 [`SigningKey`]; current_time is any i64
+    /// post: returns `Some(attenuated_token)` with level+1, 1-hour expiry, and chained nonce
+    ///       if `can_attenuate()` is true; returns `None` if attenuation limit reached
     pub fn attenuate(
         &self,
         new_to: WebID,
@@ -332,6 +408,13 @@ impl DelegationToken {
     }
 
     /// Create attenuated child token with custom expiry.
+    ///
+    /// REQ: TYP-294
+    /// pre:  self is any [`DelegationToken`]; new_to is any [`WebID`];
+    ///       signing_key is a valid Ed25519 [`SigningKey`]; expires_at is `Option<i64>`
+    /// post: returns `Some(attenuated_token)` with level+1, chained nonce, and given expiry
+    ///       if `can_attenuate()` is true; returns `None` if attenuation limit reached;
+    ///       child inherits all caveats from parent
     pub fn attenuate_with_expiry(
         &self,
         new_to: WebID,
@@ -368,6 +451,11 @@ impl DelegationToken {
         Some(builder.sign())
     }
 
+    /// REQ: TYP-295
+    /// pre:  self is any [`DelegationToken`]; resource is any [`DelegationResource`];
+    ///       resource_id is any &str; action is any [`DelegationAction`]
+    /// post: returns true if the token's resource, resource_id, and action all match exactly;
+    ///       returns false otherwise
     pub fn is_valid_for(
         &self,
         resource: DelegationResource,
@@ -376,13 +464,25 @@ impl DelegationToken {
     ) -> bool {
         self.resource == resource && self.resource_id == resource_id && self.action == action
     }
+    /// REQ: TYP-296
+    /// pre:  self is any [`DelegationToken`]; resource is any [`DelegationResource`]
+    /// post: returns true if the token's resource matches; false otherwise
     pub fn grants_resource(&self, resource: DelegationResource) -> bool {
         self.resource == resource
     }
+    /// REQ: TYP-297
+    /// pre:  self is any [`DelegationToken`]; expected_context is any &str
+    /// post: returns true if `context_nonce` starts with `expected_context` (prefix match);
+    ///       returns false otherwise
     pub fn validate_context_nonce(&self, expected_context: &str) -> bool {
         self.context_nonce.starts_with(expected_context)
     }
     /// Extract root nonce from attenuation chain (`"root-attenuated-uuid-..."`).
+    ///
+    /// REQ: TYP-298
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns the portion of `context_nonce` before the first "-attenuated-" separator;
+    ///       if no separator exists, returns the entire `context_nonce`
     pub fn root_context_nonce(&self) -> &str {
         self.context_nonce
             .split("-attenuated-")
@@ -391,6 +491,13 @@ impl DelegationToken {
     }
 
     /// Verify attenuation chain: root nonce matches, level ≤ expected, max ≤ SYSTEM_MAX_ATTENUATION.
+    ///
+    /// REQ: TYP-299
+    /// pre:  self is any [`DelegationToken`]; expected_root is any &str; expected_level is any u8
+    /// post: returns true if all hold: (1) max_attenuation ≤ SYSTEM_MAX_ATTENUATION,
+    ///       (2) root_context_nonce matches expected_root, (3) nonce-derived level matches
+    ///       attenuation_level, (4) attenuation_level ≤ expected_level;
+    ///       returns false if any check fails
     pub fn verify_attenuation_chain(&self, expected_root: &str, expected_level: u8) -> bool {
         if self.max_attenuation > SYSTEM_MAX_ATTENUATION {
             return false;
@@ -411,21 +518,39 @@ impl DelegationToken {
     }
 
     /// Cryptographic verification for distributed/Paxos use.
+    ///
+    /// REQ: TYP-300
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns the result of [`DelegationToken::verify`] — true if Ed25519 signature is valid
     pub fn verify_cryptographic(&self) -> bool {
         self.verify()
     }
+    /// REQ: TYP-301
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns a [`Vec`] of caveat id strings; empty if no caveats
     pub fn caveat_ids(&self) -> Vec<&str> {
         self.caveats.iter().map(|c| c.caveat_id.as_str()).collect()
     }
+    /// REQ: TYP-302
+    /// pre:  self is any [`DelegationToken`]; caveat_type is any &str
+    /// post: returns true if any caveat has `caveat_id == caveat_type`; false otherwise
     pub fn has_caveat_type(&self, caveat_type: &str) -> bool {
         self.caveats.iter().any(|c| c.caveat_id == caveat_type)
     }
+    /// REQ: TYP-303
+    /// pre:  self is any [`DelegationToken`]; caveat_type is any &str
+    /// post: returns `Some(&str)` with the data of the first caveat matching `caveat_type`;
+    ///       returns `None` if no matching caveat exists
     pub fn get_caveat_data(&self, caveat_type: &str) -> Option<&str> {
         self.caveats
             .iter()
             .find(|c| c.caveat_id == caveat_type)
             .map(|c| c.data.as_str())
     }
+    /// REQ: TYP-304
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns a colon-separated fingerprint string:
+    ///       "id:resource:resource_id:action:delegated_to:attenuation_level"
     pub fn fingerprint(&self) -> String {
         format!(
             "{}:{}:{}:{}:{}:{}",
@@ -437,12 +562,24 @@ impl DelegationToken {
             self.attenuation_level
         )
     }
+    /// REQ: TYP-305
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns true if the token's action permits write operations;
+    ///       delegates to [`DelegationAction::permits_write`]
     pub fn allows_write(&self) -> bool {
         self.action.permits_write()
     }
+    /// REQ: TYP-306
+    /// pre:  self is any [`DelegationToken`]
+    /// post: returns true if the token's action permits read operations;
+    ///       delegates to [`DelegationAction::permits_read`]
     pub fn allows_read(&self) -> bool {
         self.action.permits_read()
     }
+    /// REQ: TYP-307
+    /// pre:  self and other are any [`DelegationToken`] values
+    /// post: returns true if both tokens share the same resource, resource_id, action,
+    ///       and delegated_to; returns false otherwise
     pub fn is_compatible_with(&self, other: &DelegationToken) -> bool {
         self.resource == other.resource
             && self.resource_id == other.resource_id

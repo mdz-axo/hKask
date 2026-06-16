@@ -21,6 +21,14 @@ pub struct PersonaCheckResult {
 /// Returns a `PersonaCheckResult` indicating whether the output passes and
 /// listing any violations. The `forbidden` field of `PersonaConstraints`
 /// [NORMATIVE] contains patterns that must not appear in Curator output. (P3 — Generative Space).
+///
+/// REQ: AGT-049
+/// pre:  `output` is a valid UTF-8 string (may be empty); `constraints`
+///       is a valid `PersonaConstraints` with a non-empty `forbidden` list.
+/// post: Returns a `PersonaCheckResult` with `passed = true` if no
+///       forbidden patterns are found (case-insensitive substring match);
+///       `passed = false` with a list of `(pattern, matched_text)`
+///       violations otherwise. Does not panic on non-ASCII input.
 pub fn check_persona_constraints(
     output: &str,
     constraints: &PersonaConstraints,
@@ -49,6 +57,14 @@ pub fn check_persona_constraints(
 ///
 /// Replaces each forbidden pattern occurrence with an empty string.
 /// Returns the cleaned output and a list of violations that were stripped.
+///
+/// REQ: AGT-050
+/// pre:  `output` is a valid UTF-8 string; `constraints` is a valid
+///       `PersonaConstraints` with a non-empty `forbidden` list.
+/// post: Returns `(cleaned_output, violations)` where `cleaned_output`
+///       has all forbidden patterns removed (case-insensitive, first
+///       occurrence only per pattern) and `violations` lists what was
+///       stripped. Does not panic on non-ASCII input.
 pub fn strip_forbidden_patterns(
     output: &str,
     constraints: &PersonaConstraints,

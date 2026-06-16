@@ -44,6 +44,10 @@ pub struct GoalService;
 
 impl GoalService {
     /// Create a new goal for the given owner.
+    ///
+    /// REQ: SVC-125
+    /// pre:  ctx.goal_repo() must be initialized; req.text must be non-empty; req.visibility must be "private" or "public"
+    /// post: goal is persisted and returned as GoalResponse; Err(ValidationError) on invalid visibility; Err(GoalRepo) on store failure
     pub fn create_goal(
         ctx: &AgentService,
         req: CreateGoalRequest,
@@ -65,6 +69,10 @@ impl GoalService {
     }
 
     /// List goals for the given owner, optionally filtered by state.
+    ///
+    /// REQ: SVC-126
+    /// pre:  ctx.goal_repo() must be initialized; owner must be a valid WebID; state_filter if Some must be a valid GoalState string
+    /// post: returns Vec<GoalResponse> for matching goals; empty Vec if none; Err(ValidationError) on invalid state filter; Err(GoalRepo) on store failure
     pub fn list_goals(
         ctx: &AgentService,
         owner: &WebID,
@@ -89,6 +97,10 @@ impl GoalService {
     }
 
     /// Set the state of an existing goal.
+    ///
+    /// REQ: SVC-127
+    /// pre:  ctx.goal_repo() must be initialized; goal_id_str must be a valid GoalID; new_state_str must be a valid GoalState
+    /// post: goal state is updated and returned as GoalResponse; Err(ValidationError) on invalid ID or state; Err(GoalRepo) on store failure
     pub fn set_goal_state(
         ctx: &AgentService,
         goal_id_str: &str,

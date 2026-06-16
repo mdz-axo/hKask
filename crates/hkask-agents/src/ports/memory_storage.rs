@@ -41,6 +41,14 @@ pub struct StorageRequest {
 
 impl StorageRequest {
     /// Create a new `StorageRequest` with all fields specified.
+    ///
+    /// REQ: AGT-032
+    /// pre:  `entity` and `attribute` are non-empty strings after `.into()`;
+    ///       `confidence` is in range [0.0, 1.0]; `access` carries a valid
+    ///       `AccessControl` variant (episodic or semantic).
+    /// post: Returns a `StorageRequest` with all fields set to the provided
+    ///       values; no validation is performed — the caller is responsible
+    ///       for correctness.
     pub fn new(
         entity: impl Into<String>,
         attribute: impl Into<String>,
@@ -60,6 +68,12 @@ impl StorageRequest {
     /// Create an episodic (private, perspective-bound) store request.
     ///
     /// Convenience constructor that sets `access` to `AccessControl::episodic`.
+    ///
+    /// REQ: AGT-033
+    /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
+    ///       `entity` and `attribute` are non-empty after `.into()`.
+    /// post: Returns a `StorageRequest` with `access` set to episodic
+    ///       (perspective = owner = `producer_webid`).
     pub fn episodic(
         entity: impl Into<String>,
         attribute: impl Into<String>,
@@ -79,6 +93,12 @@ impl StorageRequest {
     /// Create a semantic (shared, perspective-free) store request.
     ///
     /// Convenience constructor that sets `access` to `AccessControl::semantic`.
+    ///
+    /// REQ: AGT-034
+    /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
+    ///       `entity` and `attribute` are non-empty after `.into()`.
+    /// post: Returns a `StorageRequest` with `access` set to semantic
+    ///       (no perspective, owner = `producer_webid`).
     pub fn semantic(
         entity: impl Into<String>,
         attribute: impl Into<String>,
@@ -100,6 +120,13 @@ impl StorageRequest {
     /// Resolves confidence from the classification if no override is provided:
     /// - `Success` → 0.9
     /// - `Failure` → 0.3
+    ///
+    /// REQ: AGT-035
+    /// pre:  `classification` is a valid `ExperienceClassification` variant;
+    ///       `confidence_override`, if `Some`, is in [0.0, 1.0];
+    ///       `producer_webid` is a valid WebID.
+    /// post: Returns a `StorageRequest` with episodic access and confidence
+    ///       resolved from `classification` (or overridden).
     pub fn classified_episodic(
         entity: impl Into<String>,
         attribute: impl Into<String>,
@@ -131,6 +158,11 @@ pub struct RecallRequest {
 
 impl RecallRequest {
     /// Create an episodic recall request (perspective-bound).
+    ///
+    /// REQ: AGT-036
+    /// pre:  `query` is non-empty after `.into()`; `owner` is a valid WebID;
+    ///       `token` is a valid `DelegationToken`.
+    /// post: Returns a `RecallRequest` with `perspective = Some(owner)`.
     pub fn episodic(query: impl Into<String>, owner: WebID, token: DelegationToken) -> Self {
         Self {
             query: query.into(),
@@ -140,6 +172,11 @@ impl RecallRequest {
     }
 
     /// Create a semantic recall request (perspective-free).
+    ///
+    /// REQ: AGT-037
+    /// pre:  `query` is non-empty after `.into()`; `token` is a valid
+    ///       `DelegationToken`.
+    /// post: Returns a `RecallRequest` with `perspective = None`.
     pub fn semantic(query: impl Into<String>, token: DelegationToken) -> Self {
         Self {
             query: query.into(),

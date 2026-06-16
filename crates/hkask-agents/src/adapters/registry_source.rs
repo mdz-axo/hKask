@@ -18,6 +18,9 @@ impl Default for FilesystemRegistrySource {
 }
 
 impl FilesystemRegistrySource {
+    /// REQ: AGT-108
+    /// pre:  (none).
+    /// post: Returns a new `FilesystemRegistrySource` (unit struct).
     pub fn new() -> Self {
         Self
     }

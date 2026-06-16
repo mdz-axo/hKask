@@ -35,7 +35,9 @@ pub enum TemplateType {
 }
 
 impl TemplateType {
-    /// Return the canonical domain-aligned string representation.
+    /// REQ: TYP-212
+    /// pre:  self is a valid TemplateType variant
+    /// post: returns the canonical PascalCase string ("WordAct", "KnowAct", "FlowDef")
     pub fn as_str(&self) -> &'static str {
         match self {
             TemplateType::WordAct => "WordAct",
@@ -44,8 +46,9 @@ impl TemplateType {
         }
     }
 
-    /// Parse a domain-aligned template type string.
-    /// Accepts PascalCase and lowercase forms of WordAct, KnowAct, FlowDef.
+    /// REQ: TYP-213
+    /// pre:  s is a string in PascalCase or lowercase ("WordAct"/"wordact", "KnowAct"/"knowact", "FlowDef"/"flowdef")
+    /// post: returns Some(TemplateType) if s matches a known variant; None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "WordAct" | "wordact" => Some(TemplateType::WordAct),
@@ -55,11 +58,9 @@ impl TemplateType {
         }
     }
 
-    /// Return the file extension for templates of this type.
-    ///
-    /// - WordAct → `.j2` (Jinja2 prompt)
-    /// - KnowAct → `.j2` (Jinja2 cognition)
-    /// - FlowDef → `.yaml` (YAML manifest)
+    /// REQ: TYP-214
+    /// pre:  self is a valid TemplateType variant
+    /// post: returns the file extension: "j2" for WordAct/KnowAct, "yaml" for FlowDef
     pub fn file_extension(&self) -> &'static str {
         match self {
             TemplateType::WordAct => "j2",
@@ -68,21 +69,9 @@ impl TemplateType {
         }
     }
 
-    /// Return the MDS specification vocabulary name for this template type.
-    ///
-    /// The code uses operational names (WordAct, KnowAct, FlowDef) while
-    /// the MDS specification uses (Prompt, Process, Cognition, Specification).
-    /// This mapping bridges the vocabulary fracture identified in the
-    /// MDS Semantic Alignment Audit (2026-06-06).
-    ///
-    /// | Code Name | Spec Name |
-    /// |-----------|-----------|
-    /// | WordAct   | Prompt    |
-    /// | KnowAct   | Cognition |
-    /// | FlowDef   | Process   |
-    ///
-    /// Note: The MDS `Specification` template type has no code counterpart
-    /// yet — specs are authored as YAML manifests within FlowDef templates.
+    /// REQ: TYP-215
+    /// pre:  self is a valid TemplateType variant
+    /// post: returns the MDS specification name: WordAct→"Prompt", KnowAct→"Cognition", FlowDef→"Process"
     pub fn as_spec_name(&self) -> &'static str {
         match self {
             TemplateType::WordAct => "Prompt",
@@ -91,11 +80,9 @@ impl TemplateType {
         }
     }
 
-    /// Infer template type from a file extension.
-    ///
-    /// - `.j2` → KnowAct (Jinja2 cognition is the more general Jinja2 type;
-    ///   WordAct is disambiguated by path convention or manifest metadata)
-    /// - `.yaml` / `.yml` → FlowDef
+    /// REQ: TYP-216
+    /// pre:  ext is a file extension string (e.g. "j2", "yaml", "yml")
+    /// post: returns Some(KnowAct) for "j2", Some(FlowDef) for "yaml"/"yml"; None for unknown extensions
     pub fn infer_from_extension(ext: &str) -> Option<Self> {
         match ext {
             "j2" => Some(TemplateType::KnowAct),
@@ -127,6 +114,9 @@ pub enum MdsCategory {
 }
 
 impl MdsCategory {
+    /// REQ: TYP-217
+    /// pre:  self is a valid MdsCategory variant
+    /// post: returns the lowercase category string ("domain", "composition", "trust", "lifecycle", "curation")
     pub fn as_str(&self) -> &'static str {
         match self {
             MdsCategory::Domain => "domain",
@@ -153,6 +143,9 @@ pub struct LexiconTerm {
 }
 
 impl LexiconTerm {
+    /// REQ: TYP-218
+    /// pre:  term is non-empty, domain is a valid TemplateType, definition is non-empty
+    /// post: returns LexiconTerm with academic_citation=None, mds_category=None
     pub fn new(term: &str, domain: TemplateType, definition: &str) -> Self {
         Self {
             term: term.to_string(),
@@ -163,11 +156,17 @@ impl LexiconTerm {
         }
     }
 
+    /// REQ: TYP-219
+    /// pre:  citation is a non-empty string
+    /// post: returns self with academic_citation set to Some(citation.to_string())
     pub fn with_citation(mut self, citation: &str) -> Self {
         self.academic_citation = Some(citation.to_string());
         self
     }
 
+    /// REQ: TYP-220
+    /// pre:  cat is a valid MdsCategory variant
+    /// post: returns self with mds_category set to Some(cat)
     pub fn with_mds_category(mut self, cat: MdsCategory) -> Self {
         self.mds_category = Some(cat);
         self
@@ -181,24 +180,38 @@ pub struct HLexicon {
 }
 
 impl HLexicon {
+    /// REQ: TYP-221
+    /// post: returns an empty HLexicon
     pub fn new() -> Self {
         Self {
             terms: HashMap::new(),
         }
     }
 
+    /// REQ: TYP-222
+    /// pre:  term is a valid LexiconTerm with a non-empty term field
+    /// post: inserts term into the lexicon keyed by term.term; replaces existing entry if term already present
     pub fn add(&mut self, term: LexiconTerm) {
         self.terms.insert(term.term.clone(), term);
     }
 
+    /// REQ: TYP-223
+    /// pre:  term is a non-empty string key
+    /// post: returns Some(&LexiconTerm) if term exists in lexicon; None otherwise
     pub fn get(&self, term: &str) -> Option<&LexiconTerm> {
         self.terms.get(term)
     }
 
+    /// REQ: TYP-224
+    /// pre:  term is a non-empty string key
+    /// post: returns true if term exists in lexicon; false otherwise
     pub fn contains(&self, term: &str) -> bool {
         self.terms.contains_key(term)
     }
 
+    /// REQ: TYP-225
+    /// pre:  terms is a slice of String keys to validate
+    /// post: returns Vec<String> of terms not found in the lexicon (empty if all present)
     pub fn validate(&self, terms: &[String]) -> Vec<String> {
         terms
             .iter()
@@ -207,22 +220,20 @@ impl HLexicon {
             .collect()
     }
 
+    /// REQ: TYP-226
+    /// post: returns the number of terms in the lexicon
     pub fn len(&self) -> usize {
         self.terms.len()
     }
 
+    /// REQ: TYP-227
+    /// post: returns true if the lexicon contains no terms; false otherwise
     pub fn is_empty(&self) -> bool {
         self.terms.is_empty()
     }
 
-    /// Create the default bootstrap hLexicon.
-    ///
-    /// This is a minimal startup subset (17 terms), NOT the full vocabulary.
-    /// The full canonical vocabulary is authored in
-    /// `docs/architecture/reference/hKask-hLexicon.md` and loaded from
-    /// `registry/hlexicon/hlexicon-workspace.yaml` by `hkask-templates`. This
-    /// fixture is retained for lightweight tests and seeds; domain assignments
-    /// here MUST match the catalog's domain classification.
+    /// REQ: TYP-228
+    /// post: returns a bootstrap HLexicon with 17 minimal startup terms covering KnowAct, FlowDef, and WordAct domains
     pub fn bootstrap() -> Self {
         let mut lexicon = Self::new();
 

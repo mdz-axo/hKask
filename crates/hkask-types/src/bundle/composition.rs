@@ -33,6 +33,11 @@ pub enum ConflictType {
     ResourceContention,
 }
 
+// REQ: TYP-240 (as_str), TYP-241 (parse_str)
+// as_str pre:  self is a valid ConflictType variant
+// as_str post: returns PascalCase string ("CancelOut", "ContradictoryDirective", "OrderingCollision", "ResourceContention")
+// parse_str pre:  s is PascalCase or snake_case
+// parse_str post: returns Some(ConflictType) if s matches; None otherwise
 enum_str_ops!(ConflictType, {
     CancelOut => ("CancelOut", "cancel_out"),
     ContradictoryDirective => ("ContradictoryDirective", "contradictory_directive"),
@@ -51,6 +56,11 @@ pub enum ConflictResolution {
     UserIntent,
 }
 
+// REQ: TYP-242 (as_str), TYP-243 (parse_str)
+// as_str pre:  self is a valid ConflictResolution variant
+// as_str post: returns PascalCase string ("DomainSeparation", "PhaseSeparation", "SpecificityOverride", "ManifestOverride", "UserIntent")
+// parse_str pre:  s is PascalCase or snake_case
+// parse_str post: returns Some(ConflictResolution) if s matches; None otherwise
 enum_str_ops!(ConflictResolution, {
     DomainSeparation => ("DomainSeparation", "domain_separation"),
     PhaseSeparation => ("PhaseSeparation", "phase_separation"),
@@ -68,6 +78,11 @@ pub enum ComplementarityType {
     CrossDomainEnhance,
 }
 
+// REQ: TYP-244 (as_str), TYP-245 (parse_str)
+// as_str pre:  self is a valid ComplementarityType variant
+// as_str post: returns PascalCase string ("SequentialFeed", "ParallelAmplify", "CrossDomainEnhance")
+// parse_str pre:  s is PascalCase or snake_case
+// parse_str post: returns Some(ComplementarityType) if s matches; None otherwise
 enum_str_ops!(ComplementarityType, {
     SequentialFeed => ("SequentialFeed", "sequential_feed"),
     ParallelAmplify => ("ParallelAmplify", "parallel_amplify"),
@@ -85,11 +100,15 @@ pub struct BundleConflict {
 }
 
 impl BundleConflict {
-    /// String representation of the conflict type (PascalCase).
+    /// REQ: TYP-246
+    /// pre:  self.conflict_type is a valid ConflictType variant
+    /// post: returns the PascalCase string representation of the conflict type
     pub fn conflict_type_str(&self) -> &'static str {
         self.conflict_type.as_str()
     }
-    /// String representation of the resolution strategy (PascalCase).
+    /// REQ: TYP-247
+    /// pre:  self.resolution is a valid ConflictResolution variant
+    /// post: returns the PascalCase string representation of the resolution strategy
     pub fn resolution_str(&self) -> &'static str {
         self.resolution.as_str()
     }
@@ -104,7 +123,9 @@ pub struct BundleComplementarity {
 }
 
 impl BundleComplementarity {
-    /// String representation of the complementarity type (PascalCase).
+    /// REQ: TYP-248
+    /// pre:  self.complementarity_type is a valid ComplementarityType variant
+    /// post: returns the PascalCase string representation of the complementarity type
     pub fn complementarity_type_str(&self) -> &'static str {
         self.complementarity_type.as_str()
     }

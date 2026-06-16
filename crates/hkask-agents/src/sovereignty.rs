@@ -78,6 +78,11 @@ impl Clone for SovereigntyChecker {
 }
 
 impl SovereigntyChecker {
+    /// REQ: AGT-119
+    /// pre:  `owner_webid` is a valid `WebID`; `consent` is a valid
+    ///       `Arc<dyn SovereigntyConsent>`.
+    /// post: Returns a `SovereigntyChecker` with a fresh
+    ///       `UserSovereigntyState` and the given owner and consent port.
     pub fn new(owner_webid: WebID, consent: Arc<dyn SovereigntyConsent>) -> Self {
         Self {
             state: UserSovereigntyState::new(),
@@ -91,6 +96,12 @@ impl SovereigntyChecker {
         self.consent.has_consent(&webid.to_string(), category)
     }
 
+    /// REQ: AGT-120
+    /// pre:  `data_category` is a valid `DataCategory`; `requester` is a
+    ///       valid `WebID`.
+    /// post: Returns `true` iff the requester is permitted to access the
+    ///       category: sovereign data requires consent AND requester==owner;
+    ///       shared data requires consent; public data is always accessible.
     pub fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
         if self.state.boundary.is_sovereign(data_category) {
             // Sovereign data: requires explicit consent AND requester == owner.
@@ -103,6 +114,12 @@ impl SovereigntyChecker {
         self.state.boundary.is_category_public(data_category)
     }
 
+    /// REQ: AGT-121
+    /// pre:  `operation` is a non-empty string; `data_category` is a
+    ///       valid `DataCategory`.
+    /// post: For "acquisition", returns `true` iff affirmative consent is
+    ///       NOT required. For all other operations, delegates to
+    ///       `can_access` with the owner WebID as requester.
     pub fn check_operation(&self, operation: &str, data_category: &DataCategory) -> bool {
         if operation == "acquisition" {
             return !self.state.boundary.requires_affirmative_consent();

@@ -37,6 +37,11 @@ pub struct DefaultSpecCurator {
 }
 
 impl DefaultSpecCurator {
+    /// REQ: AGT-101
+    /// pre:  `coherence_threshold` is in range [0.0, 1.0] (clamped).
+    /// post: Returns a `DefaultSpecCurator` with the given coherence
+    ///       threshold, drift_threshold=0.5, max_iterations=SYSTEM_MAX_RECURSION,
+    ///       and no event sink or spec channel.
     pub fn new(coherence_threshold: f64) -> Self {
         Self {
             coherence_threshold: coherence_threshold.clamp(0.0, 1.0),
@@ -59,6 +64,11 @@ impl DefaultSpecCurator {
     /// Returns `None` if there are fewer than 10 records (insufficient data).
     ///
     /// MDS §5: Coherence threshold calibration — FUT-013.
+    ///
+    /// REQ: AGT-102
+    /// pre:  `curation_store` is a valid `SqliteCurationRecordStore`.
+    /// post: Returns `Some(f64)` — the 25th-percentile coherence score —
+    ///       if ≥10 records exist; `None` otherwise.
     pub fn calibrate_from_history(
         curation_store: &hkask_storage::spec_store::SqliteCurationRecordStore,
     ) -> Option<f64> {
@@ -99,6 +109,13 @@ impl DefaultSpecCurator {
     /// Create from a `CurationThresholdConfig` loaded from YAML.
     ///
     /// Logs the actual threshold values at construction time for post-hoc analysis.
+    ///
+    /// REQ: AGT-103
+    /// pre:  `config` is a valid `CurationThresholdConfig` with thresholds
+    ///       in [0.0, 1.0] (clamped).
+    /// post: Returns a `DefaultSpecCurator` with thresholds from the config,
+    ///       max_iterations=SYSTEM_MAX_RECURSION, and no event sink or spec
+    ///       channel.
     pub fn from_config(config: &CurationThresholdConfig) -> Self {
         tracing::info!(
             target: "cns.spec",
@@ -116,18 +133,30 @@ impl DefaultSpecCurator {
     }
 
     /// Create with a custom drift threshold.
+    ///
+    /// REQ: AGT-104
+    /// pre:  `threshold` is in range [0.0, 1.0] (clamped).
+    /// post: Returns `self` with `drift_threshold` updated.
     pub fn with_drift_threshold(mut self, threshold: f64) -> Self {
         self.drift_threshold = threshold.clamp(0.0, 1.0);
         self
     }
 
     /// Provide a `NuEventSink` for emitting algedonic events on drift escalation.
+    ///
+    /// REQ: AGT-105
+    /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
+    /// post: Returns `self` with `event_sink` set to `Some(sink)`.
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
 
     /// Wire the direct spec event channel: SpecCurator → CurationLoop.
+    ///
+    /// REQ: AGT-106
+    /// pre:  `tx` is a valid `UnboundedSender<CurationInput>`.
+    /// post: Returns `self` with `spec_tx` set to `Some(tx)`.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_spec_channel(
         mut self,
@@ -147,6 +176,12 @@ impl DefaultSpecCurator {
     /// This call does not change the existing `evaluate` semantics: it is a
     /// side-channel that records the fact that sovereignty was considered
     /// during curation.
+    ///
+    /// REQ: AGT-107
+    /// pre:  `spec_id` is a non-empty string; `categories` is a slice of
+    ///       category name strings.
+    /// post: If `event_sink` is `Some`, emits a `cns.sovereignty.checked`
+    ///       NuEvent; if `None`, this is a silent no-op.
     pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) {
         // Emit a NuEvent whenever a sink is wired. The sink is optional
         // (set via `with_event_sink`), so absent one we silently no-op.

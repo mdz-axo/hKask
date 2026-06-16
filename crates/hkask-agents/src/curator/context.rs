@@ -27,6 +27,12 @@ pub struct CuratorContext {
 }
 
 impl CuratorContext {
+    /// REQ: AGT-057
+    /// pre:  `handle` is a valid `CuratorHandle`; `cns` is a valid
+    ///       `Arc<CnsRuntime>`; `curator_directive_tx` is `Some` or `None`;
+    ///       `escalation_queue` is a valid `Arc<EscalationQueue>`.
+    /// post: Returns a `CuratorContext` with no NuEvent store and no ACP
+    ///       port.
     pub fn new(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -44,6 +50,12 @@ impl CuratorContext {
     }
 
     /// Create CuratorContext with a NuEvent store for algedonic review.
+    ///
+    /// REQ: AGT-058
+    /// pre:  All arguments are valid (same as `new`); `nu_event_store` is
+    ///       a valid `Arc<NuEventStore>`.
+    /// post: Returns a `CuratorContext` with `nu_event_store` set and no
+    ///       ACP port.
     pub fn with_nu_event_store(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -62,12 +74,20 @@ impl CuratorContext {
     }
 
     /// Builder: attach an ACP port for A2A bot-directed messaging.
+    ///
+    /// REQ: AGT-059
+    /// pre:  `acp` is a valid `Arc<dyn AcpPort>`.
+    /// post: Returns `self` with `acp` set to `Some(acp)`.
     pub fn with_acp(mut self, acp: Arc<dyn AcpPort>) -> Self {
         self.acp = Some(acp);
         self
     }
 
     /// Access the CuratorHandle (capability handle).
+    ///
+    /// REQ: AGT-060
+    /// pre:  (none — accessor).
+    /// post: Returns a reference to the inner `CuratorHandle`.
     pub fn handle(&self) -> &CuratorHandle {
         &self.handle
     }
@@ -104,6 +124,11 @@ impl CuratorContext {
     /// Dampening is applied at the Cybernetics receipt boundary instead.
     ///
     /// When no channel is configured (e.g., standalone CLI), this is a no-op.
+    ///
+    /// REQ: AGT-061
+    /// pre:  `directive` is a valid `CuratorDirective`.
+    /// post: If `curator_directive_tx` is `Some`, the directive is sent;
+    ///       logs a warning if the send fails. If `None`, this is a no-op.
     pub async fn issue_directive(&self, directive: CuratorDirective) {
         if let Some(ref tx) = self.curator_directive_tx
             && let Err(e) = tx.send(directive)

@@ -247,7 +247,9 @@ impl std::fmt::Display for ToolSubsystem {
 }
 
 impl CnsSpan {
-    /// Produce the canonical namespace string (e.g., `"cns.tool.web_search"`).
+    /// REQ: TYP-208
+    /// pre:  self is a valid CnsSpan variant
+    /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
     /// [NORMATIVE] This output must match the existing `CANONICAL_NAMESPACES` strings
     /// byte-for-byte to preserve backward compatibility with ν-event serialization
@@ -330,7 +332,9 @@ impl std::fmt::Display for CnsSpan {
 impl std::str::FromStr for CnsSpan {
     type Err = ();
 
-    /// Parse a canonical namespace string into a `CnsSpan` variant.
+    /// REQ: TYP-209
+    /// pre:  s is a string matching a canonical CnsSpan namespace
+    /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
     ///
     /// [NORMATIVE] Only strings matching canonical `CnsSpan` namespaces parse
     /// successfully. Unknown strings return `Err(())`.
@@ -658,12 +662,17 @@ fn default_multiplier() -> f64 {
 }
 
 impl RetryConfig {
+    /// REQ: TYP-210
+    /// pre:  attempt >= 0; self.initial_delay_ms, self.multiplier, self.max_delay_ms are valid
+    /// post: returns the exponential backoff delay in ms, capped at self.max_delay_ms
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
         let delay = (self.initial_delay_ms as f64 * self.multiplier.powi(attempt as i32)) as u64;
         delay.min(self.max_delay_ms)
     }
 
-    /// Check if a status code is retryable
+    /// REQ: TYP-211
+    /// pre:  status is a valid HTTP status code (u16)
+    /// post: returns true if status is in the retryable_status list
     pub fn is_retryable_status(&self, status: u16) -> bool {
         self.retryable_status.contains(&status)
     }

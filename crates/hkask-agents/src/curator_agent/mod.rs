@@ -56,6 +56,11 @@ impl CuratorAgent {
     ///
     /// The agent internally creates both the `MetacognitionLoop` and
     /// `CurationLoop`, connecting them through the shared `CuratorContext`.
+    ///
+    /// REQ: AGT-094
+    /// pre:  `context` is a valid `Arc<CuratorContext>`.
+    /// post: Returns a `CuratorAgent` with default `MetacognitionConfig`,
+    ///       a new `CurationLoop`, and a default `DefaultSpecCurator`.
     pub fn new(context: Arc<CuratorContext>) -> Self {
         let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
             Arc::clone(&context),
@@ -73,6 +78,12 @@ impl CuratorAgent {
     }
 
     /// Create a Curator Agent with custom metacognition configuration.
+    ///
+    /// REQ: AGT-095
+    /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
+    ///       valid `MetacognitionConfig`.
+    /// post: Returns a `CuratorAgent` with the given config, a new
+    ///       `CurationLoop`, and a default `DefaultSpecCurator`.
     pub fn with_config(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
@@ -99,6 +110,15 @@ impl CuratorAgent {
     ///
     /// `inbox_rx` — unified CurationInput channel from Cybernetics + SpecCurator.
     /// `inbox_tx` — transmits CurationInput to the same channel (for SpecCurator).
+    ///
+    /// REQ: AGT-096
+    /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
+    ///       valid `MetacognitionConfig`; `consolidation` is a valid
+    ///       `Arc<ConsolidationBridge>`; `inbox_rx` and `inbox_tx` are
+    ///       `Some` or `None`.
+    /// post: Returns a `CuratorAgent` with consolidation wired; if
+    ///       `inbox_rx` is `Some`, the curation loop's inbox is set;
+    ///       if `inbox_tx` is `Some`, the spec curator's channel is set.
     pub fn with_consolidation(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
@@ -131,16 +151,28 @@ impl CuratorAgent {
     }
 
     /// Access the Curation Loop (pure regulatory).
+    ///
+    /// REQ: AGT-097
+    /// pre:  (none — accessor).
+    /// post: Returns a reference to the inner `Arc<CurationLoop>`.
     pub fn curation_loop(&self) -> &Arc<CurationLoop> {
         &self.curation_loop
     }
 
     /// Access the Metacognition Loop (persona/agent).
+    ///
+    /// REQ: AGT-098
+    /// pre:  (none — accessor).
+    /// post: Returns a reference to the inner `Arc<MetacognitionLoop>`.
     pub fn metacognition(&self) -> &Arc<metacognition::MetacognitionLoop> {
         &self.metacognition
     }
 
     /// Access the CuratorContext (capability-disciplined runtime references).
+    ///
+    /// REQ: AGT-099
+    /// pre:  (none — accessor).
+    /// post: Returns a reference to the inner `Arc<CuratorContext>`.
     pub fn context(&self) -> &Arc<CuratorContext> {
         &self.context
     }
@@ -149,6 +181,10 @@ impl CuratorAgent {
     ///
     /// When `CuratorContext` has a `loop_dispatch_tx`, the spec curator
     /// sends `SpecDriftAlert` payloads through the Communication Loop.
+    ///
+    /// REQ: AGT-100
+    /// pre:  (none — accessor).
+    /// post: Returns a reference to the inner `DefaultSpecCurator`.
     pub fn spec_curator(&self) -> &spec_curator::DefaultSpecCurator {
         &self.spec_curator
     }

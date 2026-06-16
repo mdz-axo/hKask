@@ -18,9 +18,9 @@ use crate::settings::HkaskSettings;
 use hkask_cns::CnsRuntime;
 use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
+use hkask_types::ports::InferencePort;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
-use hkask_types::ports::InferencePort;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -263,6 +263,10 @@ pub struct PracticeEntry {
 
 impl KataHistory {
     /// Load history from a JSON file, or return empty if not found.
+    ///
+    /// REQ: SVC-097
+    /// pre:  path may or may not exist; if missing, returns default empty history
+    /// post: returns KataHistory from JSON file; Err(LoadFailed) on I/O error; Err(ParseFailed) on invalid JSON
     pub fn load(path: &Path) -> Result<Self, KataError> {
         if !path.exists() {
             return Ok(Self::default());
@@ -279,6 +283,10 @@ impl KataHistory {
     }
 
     /// Save history to a JSON file.
+    ///
+    /// REQ: SVC-098
+    /// pre:  self must be a valid KataHistory; path's parent directory must exist
+    /// post: history is serialized as pretty JSON and written to path; Err(LoadFailed) on serialization or I/O error
     pub fn save(&self, path: &Path) -> Result<(), KataError> {
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| KataError::LoadFailed(format!("Failed to serialize history: {}", e)))?;
@@ -293,6 +301,10 @@ impl KataHistory {
     }
 
     /// Record a practice entry for an agent.
+    ///
+    /// REQ: SVC-099
+    /// pre:  agent must be non-empty; entry must have valid date and kata_type
+    /// post: entry is appended to the agent's practice history; creates agent entry if not present
     pub fn record(&mut self, agent: &str, entry: PracticeEntry) {
         self.agents
             .entry(agent.to_string())
@@ -301,6 +313,10 @@ impl KataHistory {
     }
 
     /// Compute the agent's practice streak (consecutive days, counting backward from today).
+    ///
+    /// REQ: SVC-100
+    /// pre:  agent may or may not have entries; today must be ISO 8601 date (YYYY-MM-DD)
+    /// post: returns u32 streak count; 0 if no entries or today not practiced; counts consecutive days backward from today
     pub fn current_streak(&self, agent: &str, today: &str) -> u32 {
         let entries = match self.agents.get(agent) {
             Some(e) => e,
@@ -334,6 +350,10 @@ impl KataHistory {
     ///
     /// Formula: auto = min(1.0, streak_days / 21.0)
     /// Decay: auto *= 0.8^(days_since_last / 3) when days_since_last > 3
+    ///
+    /// REQ: SVC-101
+    /// pre:  agent may or may not have entries; today must be ISO 8601 date
+    /// post: returns f64 in [0.0, 1.0]; 0.0 = no practice; 1.0 = 21+ day streak; decay applied after 3+ days gap
     pub fn compute_automaticity(&self, agent: &str, today: &str) -> f64 {
         let streak = self.current_streak(agent, today) as f64;
         let days_since = self.days_since_last(agent, today) as f64;
@@ -349,6 +369,10 @@ impl KataHistory {
     }
 
     /// Days since the agent's last practice.
+    ///
+    /// REQ: SVC-102
+    /// pre:  agent may or may not have entries; today must be ISO 8601 date
+    /// post: returns u32 days since last practice; u32::MAX if no entries or parse failure
     pub fn days_since_last(&self, agent: &str, today: &str) -> u32 {
         let entries = match self.agents.get(agent) {
             Some(e) => e,
@@ -362,11 +386,19 @@ impl KataHistory {
     }
 
     /// Check if agent meets graduation criteria for starter kata (automaticity > 0.5).
+    ///
+    /// REQ: SVC-103
+    /// pre:  agent may or may not have entries; today must be ISO 8601 date
+    /// post: returns true if compute_automaticity > 0.5; false otherwise
     pub fn can_graduate_from_starter(&self, agent: &str, today: &str) -> bool {
         self.compute_automaticity(agent, today) > 0.5
     }
 
     /// Check if agent needs habit intervention (3+ days since last practice).
+    ///
+    /// REQ: SVC-104
+    /// pre:  agent may or may not have entries; today must be ISO 8601 date
+    /// post: returns true if days_since_last is in range [3, u32::MAX); false otherwise
     pub fn needs_habit_intervention(&self, agent: &str, today: &str) -> bool {
         let days = self.days_since_last(agent, today);
         (3..u32::MAX).contains(&days)
@@ -496,6 +528,10 @@ pub struct KataState {
 
 impl KataState {
     /// Save state to a JSON file for later resumption.
+    ///
+    /// REQ: SVC-105
+    /// pre:  self must be a valid KataState; path's parent directory must exist
+    /// post: state is serialized as pretty JSON and written to path; Err(LoadFailed) on serialization or I/O error
     pub fn save(&self, path: &Path) -> Result<(), KataError> {
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| KataError::LoadFailed(format!("Failed to serialize state: {}", e)))?;
@@ -510,6 +546,10 @@ impl KataState {
     }
 
     /// Load state from a previously saved JSON file.
+    ///
+    /// REQ: SVC-106
+    /// pre:  path must exist and contain valid JSON
+    /// post: returns KataState deserialized from file; Err(LoadFailed) on I/O error; Err(ParseFailed) on invalid JSON
     pub fn load(path: &Path) -> Result<Self, KataError> {
         let json = std::fs::read_to_string(path).map_err(|e| {
             KataError::LoadFailed(format!(
@@ -578,6 +618,9 @@ pub struct KataEngine {
 }
 
 impl KataEngine {
+    /// REQ: SVC-107
+    /// pre:  inference must be a valid InferencePort; registry must be initialized
+    /// post: returns KataEngine with inference and registry wired; all optional components (consent, CNS, history, metrics) default to None
     pub fn new(inference: Arc<dyn InferencePort>, registry: SqliteRegistry) -> Self {
         Self {
             inference,
@@ -596,6 +639,10 @@ impl KataEngine {
     /// [NORMATIVE] Encapsulates `InferenceConfig::from_env()` and
     /// `InferenceRouter::new()` so CLI and API surfaces don't construct
     /// inference directly (P7 — Evolutionary Architecture).
+    ///
+    /// REQ: SVC-108
+    /// pre:  registry must be initialized; inference env vars must be set or defaults used
+    /// post: returns KataEngine with InferenceRouter built from env config
     pub fn from_env(registry: SqliteRegistry) -> Self {
         let inf_cfg = hkask_inference::InferenceConfig::from_env();
         let inference = hkask_inference::InferenceRouter::new(inf_cfg);
@@ -603,6 +650,10 @@ impl KataEngine {
     }
 
     /// Set a consent checker that gates kata execution.
+    ///
+    /// REQ: SVC-109
+    /// pre:  check must be a valid Fn(&str, &str) -> Result<(), KataError>
+    /// post: returns self with consent_check set; kata execution will call check before running
     pub fn with_consent<F>(mut self, check: F) -> Self
     where
         F: Fn(&str, &str) -> Result<(), KataError> + Send + Sync + 'static,
@@ -612,6 +663,10 @@ impl KataEngine {
     }
 
     /// Set a CNS observer called after each step completes.
+    ///
+    /// REQ: SVC-110
+    /// pre:  observer must be a valid Fn(&str, u32, &str)
+    /// post: returns self with cns_observer set; observer is called after each kata step
     pub fn with_cns<F>(mut self, observer: F) -> Self
     where
         F: Fn(&str, u32, &str) + Send + Sync + 'static,
@@ -621,6 +676,10 @@ impl KataEngine {
     }
 
     /// Set a kata practice history for habit tracking and automaticity scoring.
+    ///
+    /// REQ: SVC-111
+    /// pre:  history must be a valid KataHistory
+    /// post: returns self with history set; starter kata uses it for automaticity computation
     pub fn with_history(mut self, history: KataHistory) -> Self {
         self.history = Some(history);
         self
@@ -631,12 +690,20 @@ impl KataEngine {
     /// When present, practice entries are persisted to SQLite in addition to
     /// (or instead of) the JSON file. This enables CNS queries against practice
     /// data and cross-session persistence through the daemon's memory pipeline.
+    ///
+    /// REQ: SVC-112
+    /// pre:  store must be a valid Arc<KataHistoryStore>
+    /// post: returns self with history_store set; record_history_entry will persist to SQLite
     pub fn with_history_store(mut self, store: Arc<KataHistoryStore>) -> Self {
         self.history_store = Some(store);
         self
     }
 
     /// Set a metric collector for before/after measurement.
+    ///
+    /// REQ: SVC-113
+    /// pre:  collector must be a valid Fn(&str, &str) -> Result<Value, KataError>
+    /// post: returns self with metric_collector set; improvement kata captures before/after metrics
     pub fn with_metrics<F>(mut self, collector: F) -> Self
     where
         F: Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync + 'static,
@@ -649,6 +716,10 @@ impl KataEngine {
     ///
     /// When present, kata execution increments CNS variety counters for each
     /// practice and checks algedonic thresholds after cycle completion.
+    ///
+    /// REQ: SVC-114
+    /// pre:  cns must be a valid Arc<RwLock<CnsRuntime>>
+    /// post: returns self with cns_runtime set; kata cycles will increment variety and check alerts
     pub fn with_cns_runtime(mut self, cns: Arc<RwLock<CnsRuntime>>) -> Self {
         self.cns_runtime = Some(cns);
         self
@@ -659,6 +730,10 @@ impl KataEngine {
     /// This enables concurrent, queryable persistence through the daemon's
     /// memory pipeline. When the store is not set, this is a no-op — the
     /// caller should fall back to JSON-based persistence.
+    ///
+    /// REQ: SVC-115
+    /// pre:  agent_name, date, kata_type, practice_name must be non-empty
+    /// post: returns Some(row_id) if history_store is set and record succeeds; None if store not configured; Err on store failure
     pub fn record_history_entry(
         &self,
         agent_name: &str,
@@ -686,6 +761,10 @@ impl KataEngine {
     }
 
     /// Load a kata manifest from a YAML file.
+    ///
+    /// REQ: SVC-116
+    /// pre:  path must exist and contain valid YAML
+    /// post: returns KataManifest deserialized from file; Err(LoadFailed) on I/O error; Err(ParseFailed) on invalid YAML
     pub fn load_manifest(path: &Path) -> Result<KataManifest, KataError> {
         let content = std::fs::read_to_string(path).map_err(|e| {
             KataError::LoadFailed(format!("Failed to read {}: {}", path.display(), e))
@@ -700,6 +779,10 @@ impl KataEngine {
     /// Bundle manifests (like kata-pattern.yaml) don't have a fixed kata_type.
     /// Instead, they use a selector template to route to the appropriate kata
     /// based on the agent's history, automaticity, and context.
+    ///
+    /// REQ: SVC-117
+    /// pre:  manifest must have at least one step for selector; learner_bot must be non-empty
+    /// post: returns KataResult from the selected kata execution; Err on selector failure or kata execution error
     pub async fn run_bundle(
         &self,
         manifest: &KataManifest,
@@ -765,6 +848,10 @@ impl KataEngine {
     /// - "improvement" → run improvement steps with before/after metrics
     /// - "coaching" → run coaching questions (requires optional IK state reference)
     /// - "starter" → run practice routines with habit tracking
+    ///
+    /// REQ: SVC-118
+    /// pre:  manifest.manifest.kata_type must be "improvement", "coaching", or "starter"; learner_bot must be non-empty
+    /// post: returns KataResult with steps_completed, gas_consumed, and kata-type-specific outputs; Err(UnknownType) on invalid kata_type
     pub async fn execute(
         &self,
         manifest: &KataManifest,
@@ -1049,6 +1136,10 @@ impl KataEngine {
     }
 
     /// Resume an Improvement Kata from saved state, skipping completed steps.
+    ///
+    /// REQ: SVC-119
+    /// pre:  manifest must have at least one step; state.learner_bot must be non-empty
+    /// post: returns KataResult with steps_completed, gas_consumed, and step_experiences; Err(NoSteps) if manifest has no steps; Err(GasExceeded) if gas cap exceeded
     pub async fn run_improvement_from(
         &self,
         manifest: &KataManifest,
@@ -1214,6 +1305,10 @@ impl KataEngine {
     ///
     /// If the state contains an `ik_state_ref`, coaching questions are grounded
     /// in the learner's actual Improvement Kata storyboard data.
+    ///
+    /// REQ: SVC-120
+    /// pre:  manifest must have at least one question; state.learner_bot must be non-empty
+    /// post: returns KataResult with steps_completed (question count), gas_consumed, and step_experiences; Err(NoSteps) if no questions; Err(GasExceeded) if gas cap exceeded
     pub async fn run_coaching_from(
         &self,
         manifest: &KataManifest,
@@ -1351,6 +1446,10 @@ impl KataEngine {
     /// Each practice is recorded as a structured experience. The engine
     /// tracks practice frequency, computes automaticity, and emits CNS
     /// automaticity signals. No LLM calls — starter kata is pure habit formation.
+    ///
+    /// REQ: SVC-121
+    /// pre:  manifest must have at least one practice; state.learner_bot must be non-empty
+    /// post: returns KataResult with steps_completed (practice count), automaticity_delta, and step_experiences; Err(NoSteps) if no practices
     pub async fn run_starter(
         &self,
         manifest: &KataManifest,

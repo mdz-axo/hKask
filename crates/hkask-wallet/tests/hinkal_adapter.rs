@@ -1,4 +1,5 @@
 #![cfg(feature = "hinkal")]
+use hkask_types::WebID;
 use hkask_types::wallet::{ChainId, WalletError};
 use hkask_wallet::hinkal::HinkalPort;
 use hkask_wallet::{PrivacyPort, sign_withdrawal};
@@ -55,8 +56,9 @@ async fn submit_signed_tx_posts_withdraw_and_returns_tx_hash() {
         .build_unshield_tx("recipient_pubkey", 1_500_000)
         .expect("unsigned payload");
 
+    let actor = WebID::from_persona(b"hinkal-test");
     let tx_hash = port
-        .submit_signed_tx(&unsigned)
+        .submit_signed_tx(&actor, &unsigned)
         .await
         .expect("withdraw should succeed");
 
@@ -97,8 +99,9 @@ async fn submit_signed_tx_accepts_legacy_payload_plus_signature() {
     let sig = sign_withdrawal(ChainId::Hinkal, &unsigned).expect("signature");
     signed.extend_from_slice(&sig);
 
+    let actor = WebID::from_persona(b"hinkal-test");
     let tx_hash = port
-        .submit_signed_tx(&signed)
+        .submit_signed_tx(&actor, &signed)
         .await
         .expect("legacy payload+signature should still be accepted");
 
@@ -138,8 +141,9 @@ async fn submit_signed_tx_fails_closed_when_tx_hash_missing() {
     let mut signed = unsigned.clone();
     signed.extend_from_slice(&[7u8; 64]);
 
+    let actor = WebID::from_persona(b"hinkal-test");
     let err = port
-        .submit_signed_tx(&signed)
+        .submit_signed_tx(&actor, &signed)
         .await
         .expect_err("missing tx hash must fail closed");
 
@@ -186,8 +190,9 @@ async fn monitor_shielded_transfers_reports_deltas_only() {
 
     let port = HinkalPort::new(&server.uri(), "treasury_pubkey_test").expect("port");
 
+    let actor = WebID::from_persona(b"hinkal-monitor-test");
     let first = port
-        .monitor_shielded_transfers()
+        .monitor_shielded_transfers(&actor)
         .await
         .expect("first poll should succeed");
     assert_eq!(first.len(), 1);
@@ -196,7 +201,7 @@ async fn monitor_shielded_transfers_reports_deltas_only() {
     assert_eq!(first[0].commitment, "commitment_1");
 
     let second = port
-        .monitor_shielded_transfers()
+        .monitor_shielded_transfers(&actor)
         .await
         .expect("second poll should succeed");
     assert!(second.is_empty(), "second poll should only see delta=0");

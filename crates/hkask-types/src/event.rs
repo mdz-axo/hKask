@@ -55,24 +55,36 @@ impl NuEvent {
         }
     }
 
+    /// REQ: TYP-200
+    /// pre:  outcome is a valid serde_json::Value
+    /// post: returns self with outcome set to Some(outcome)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_outcome(mut self, outcome: Value) -> Self {
         self.outcome = Some(outcome);
         self
     }
 
+    /// REQ: TYP-201
+    /// pre:  regulation is a valid serde_json::Value
+    /// post: returns self with regulation set to Some(regulation)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_regulation(mut self, regulation: Value) -> Self {
         self.regulation = Some(regulation);
         self
     }
 
+    /// REQ: TYP-202
+    /// pre:  parent is a valid EventID
+    /// post: returns self with parent_event set to Some(parent)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_parent(mut self, parent: EventID) -> Self {
         self.parent_event = Some(parent);
         self
     }
 
+    /// REQ: TYP-203
+    /// pre:  visibility is a non-empty string (e.g. "private", "public")
+    /// post: returns self with visibility set to visibility.to_string()
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_visibility(mut self, visibility: &str) -> Self {
         self.visibility = visibility.to_string();
@@ -186,16 +198,24 @@ impl SpanNamespace {
         }
     }
 
-    /// The namespace prefix (e.g., "cns.tool")
+    /// REQ: TYP-204
+    /// pre:  self is a valid SpanNamespace (canonical)
+    /// post: returns the full namespace string (e.g. "cns.tool")
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
-    /// The short name after "cns." (e.g., "tool")
+    /// REQ: TYP-205
+    /// pre:  self is a valid SpanNamespace (canonical, starts with "cns.")
+    /// post: returns the short name after the "cns." prefix (e.g. "tool")
     pub fn short_name(&self) -> &str {
         &self.0[4..] // Skip "cns."
     }
 
+    /// REQ: TYP-206
+    /// pre:  self is a valid SpanNamespace (canonical)
+    /// post: returns the SpanCategory for this namespace; unknown prefixes return SpanCategory::Unknown
+    ///
     /// F-SYN-009: classify this namespace into a `SpanCategory` for
     /// typed dispatch (e.g. by `DecayConfig::lambda_for`).
     ///
@@ -243,9 +263,9 @@ pub enum SpanCategory {
 }
 
 impl SpanCategory {
-    /// Parse a `SpanCategory` from a `short_name()` string (e.g. `variety`,
-    /// `variety.sensor`, `agent_pod.registered`). Returns `Unknown`
-    /// for unrecognised prefixes.
+    /// REQ: TYP-207
+    /// pre:  s is a short_name() string (e.g. "variety", "variety.sensor")
+    /// post: returns the matching SpanCategory; unrecognised prefixes return SpanCategory::Unknown
     pub fn from_short_name(s: &str) -> Self {
         let prefix = s.split('.').next().unwrap_or(s);
         match prefix {

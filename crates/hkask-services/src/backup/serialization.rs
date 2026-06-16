@@ -14,6 +14,10 @@ use super::scope::ArtifactType;
 ///
 /// The serialization must be deterministic: same artifact → same bytes → same
 /// BLAKE3 hash → git deduplication works. JSON with sorted keys satisfies this.
+///
+/// REQ: SVC-159
+/// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty; data must be Serialize
+/// post: returns Vec<u8> of JSON-encoded ArtifactEnvelope; Err on serialization failure
 pub fn serialize_artifact(
     artifact_type: &ArtifactType,
     artifact_id: &str,
@@ -31,6 +35,10 @@ pub fn serialize_artifact(
 /// Deserialize an artifact blob back to its JSON value.
 ///
 /// Returns the raw JSON value — callers interpret based on artifact type.
+///
+/// REQ: SVC-160
+/// pre:  blob must be valid JSON matching ArtifactEnvelopeValue schema
+/// post: returns ArtifactEnvelopeValue with artifact_type, artifact_id, and payload; Err on invalid JSON
 pub fn deserialize_artifact(blob: &[u8]) -> Result<ArtifactEnvelopeValue, serde_json::Error> {
     serde_json::from_slice(blob)
 }
@@ -66,6 +74,10 @@ pub struct ArtifactEnvelopeValue {
 /// Path format: `<artifact_type_label>/<artifact_id>.json`
 /// This organizes blobs hierarchically in the git tree, enabling
 /// scoped list_tree operations (e.g., `prefix = "template/"`).
+///
+/// REQ: SVC-161
+/// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty
+/// post: returns String path in format "{label}/{id}.json"
 pub fn artifact_git_path(artifact_type: &ArtifactType, artifact_id: &str) -> String {
     format!("{}/{}.json", artifact_type.label(), artifact_id)
 }

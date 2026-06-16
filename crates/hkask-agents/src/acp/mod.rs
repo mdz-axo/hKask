@@ -206,6 +206,12 @@ impl A2AMessageVisitor for RouteFields<'_> {
 
 impl A2AMessage {
     /// Dispatch a visitor over the variant. Single match site in the codebase.
+    ///
+    /// REQ: AGT-075
+    /// pre:  `visitor` is a valid `&mut dyn A2AMessageVisitor`.
+    /// post: Calls the appropriate visitor method based on the message
+    ///       variant (`on_template_dispatch`, `on_template_response`,
+    ///       or `on_memory_artifact`).
     pub fn visit(&self, visitor: &mut dyn A2AMessageVisitor) {
         match self {
             A2AMessage::TemplateDispatch {
@@ -248,6 +254,11 @@ impl A2AMessage {
     ///
     /// Returns `Some` for `TemplateDispatch` (from) and `MemoryArtifact` (producer),
     /// `None` for `TemplateResponse` (no sender).
+    ///
+    /// REQ: AGT-076
+    /// pre:  (none).
+    /// post: Returns `Some(&WebID)` for variants with a sender field;
+    ///       `None` for `TemplateResponse`.
     pub fn from_webid(&self) -> Option<&WebID> {
         match self {
             A2AMessage::TemplateDispatch { from, .. } => Some(from),
@@ -261,6 +272,11 @@ impl A2AMessage {
     /// All variants carry an identifier that serves as a correlation key:
     /// `TemplateDispatch` and `TemplateResponse` use `correlation_id`,
     /// `MemoryArtifact` uses `artifact_id`.
+    ///
+    /// REQ: AGT-077
+    /// pre:  (none).
+    /// post: Returns the correlation/artifact ID string for the message
+    ///       variant.
     pub fn correlation_id(&self) -> &str {
         match self {
             A2AMessage::TemplateDispatch { correlation_id, .. } => correlation_id,
@@ -270,6 +286,11 @@ impl A2AMessage {
     }
 
     /// Get a human-readable message type name.
+    ///
+    /// REQ: AGT-078
+    /// pre:  (none).
+    /// post: Returns a `&'static str`: `"template_dispatch"`,
+    ///       `"template_response"`, or `"memory_artifact"`.
     pub fn message_type(&self) -> &'static str {
         match self {
             A2AMessage::TemplateDispatch { .. } => "template_dispatch",
@@ -308,6 +329,11 @@ pub struct AcpRuntime {
 impl AcpRuntime {
     /// `secret` is the master key for HKDF agent-secret derivation.
     /// The Ed25519 signing key for token issuance is derived from it.
+    ///
+    /// REQ: AGT-079
+    /// pre:  `secret` is a non-empty byte slice (master key material).
+    /// post: Returns an `AcpRuntime` with a derived root WebID, signing
+    ///       key, empty agent state, and a fresh audit log.
     pub fn new(secret: &[u8]) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
         let root_persona = b"hkask-root-authority";
@@ -325,6 +351,12 @@ impl AcpRuntime {
     }
 
     /// Keys are cryptographically independent — compromising one doesn't compromise others.
+    ///
+    /// REQ: AGT-080
+    /// pre:  `agent_webid` is a valid `WebID`.
+    /// post: Returns an `AgentSecret` derived via HKDF-SHA256 with the
+    ///       agent WebID as domain separator; caches the result for
+    ///       subsequent calls.
     pub async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
         // Check cache first
         {
@@ -351,6 +383,15 @@ impl AcpRuntime {
     }
 
     /// Returns primary DelegationToken for the agent.
+    ///
+    /// REQ: AGT-081
+    /// pre:  `webid` is a valid `WebID`; `agent_type` is a valid
+    ///       `AgentKind`; `capabilities` is a list of capability strings
+    ///       (no wildcards allowed).
+    /// post: On success, returns `Ok(DelegationToken)` — the primary token
+    ///       for the agent. On failure, returns `Err(AcpError)`:
+    ///       `WildcardCapabilityNotAllowed` if any capability is `"*"`;
+    ///       `AgentAlreadyRegistered` if the WebID is already registered.
     pub async fn register_agent(
         &self,
         webid: WebID,
@@ -417,6 +458,11 @@ impl AcpRuntime {
         Ok(primary_token)
     }
 
+    /// REQ: AGT-082
+    /// pre:  `webid` is a valid `WebID`.
+    /// post: If the agent exists, removes it and its capability tokens
+    ///       and derived key, returns `Ok(())`. If not found, returns
+    ///       `Err(AcpError::AgentNotFound)`.
     pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
         let mut state = self.state.write().await;
 
@@ -438,6 +484,12 @@ impl AcpRuntime {
     }
 
     /// R2: Persist Agent State. Returns count of agents restored.
+    ///
+    /// REQ: AGT-083
+    /// pre:  `agents` is a list of `AcpAgent` records; `tokens` is a map
+    ///       of WebID → `Vec<DelegationToken>`.
+    /// post: All agents and tokens are inserted into the runtime state;
+    ///       returns `Ok(usize)` with the count of agents restored.
     pub async fn restore_from_storage(
         &self,
         agents: Vec<AcpAgent>,
@@ -529,7 +581,12 @@ impl AcpRuntime {
             .unwrap_or_default()
     }
 
-    /// List all registered agents
+    /// List all registered agents.
+    ///
+    /// REQ: AGT-084
+    /// pre:  (none).
+    /// post: Returns a `Vec<AcpAgent>` containing clones of all currently
+    ///       registered agents.
     pub async fn list_agents(&self) -> Vec<AcpAgent> {
         let state = self.state.read().await;
         state.agents.values().cloned().collect()

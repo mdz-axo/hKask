@@ -17,6 +17,7 @@
 //! - Deposit addresses derived deterministically from treasury public key
 
 use async_trait::async_trait;
+use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{ChainId, TxHash, WalletError};
@@ -124,19 +125,24 @@ impl SolanaPort {
         self
     }
 
+    #[allow(dead_code)]
+    fn default_actor(&self) -> WebID {
+        WebID::from_persona_with_namespace(
+            self.treasury_pubkey.to_string().as_bytes(),
+            "wallet-solana",
+        )
+    }
+
     /// Emit a CNS chain_error span if an event sink is configured.
-    fn emit_chain_error(&self, operation: &str, error_msg: &str) {
+    fn emit_chain_error_for_actor(&self, actor: &WebID, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error");
-            let actor = hkask_types::WebID::from_persona_with_namespace(
-                self.treasury_pubkey.to_string().as_bytes(),
-                "wallet-solana",
-            );
             let event = NuEvent::new(
-                actor,
+                actor.clone(),
                 span_obj,
                 Phase::Sense,
                 serde_json::json!({
+                    "actor": actor.to_string(),
                     "chain": "solana",
                     "operation": operation,
                     "error": error_msg,
@@ -147,6 +153,12 @@ impl SolanaPort {
                 tracing::warn!(target: "hkask.wallet.solana", error = %e, "Failed to persist CNS chain_error span");
             }
         }
+    }
+
+    #[allow(dead_code)]
+    fn emit_chain_error(&self, operation: &str, error_msg: &str) {
+        let actor = self.default_actor();
+        self.emit_chain_error_for_actor(&actor, operation, error_msg);
     }
 
     /// Create a SolanaPort for devnet testing.
@@ -170,7 +182,12 @@ impl SolanaPort {
     // ── JSON-RPC helpers ──────────────────────────────────────────────────────
 
     /// Make a JSON-RPC call to the Solana endpoint.
-    async fn rpc_call(&self, method: &str, params: Value) -> Result<Value, WalletError> {
+    async fn rpc_call(
+        &self,
+        actor: &WebID,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, WalletError> {
         let body = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -186,7 +203,7 @@ impl SolanaPort {
             .await
             .map_err(|e| {
                 let msg = format!("RPC HTTP error ({method}): {e}");
-                self.emit_chain_error(method, &msg);
+                self.emit_chain_error_for_actor(actor, method, &msg);
                 WalletError::ChainError {
                     chain: ChainId::Solana,
                     message: msg,
@@ -195,7 +212,7 @@ impl SolanaPort {
 
         let json: Value = resp.json().await.map_err(|e| {
             let msg = format!("RPC JSON parse error ({method}): {e}");
-            self.emit_chain_error(method, &msg);
+            self.emit_chain_error_for_actor(actor, method, &msg);
             WalletError::ChainError {
                 chain: ChainId::Solana,
                 message: msg,
@@ -204,7 +221,7 @@ impl SolanaPort {
 
         if let Some(err) = json.get("error") {
             let msg = format!("RPC error ({method}): {err}");
-            self.emit_chain_error(method, &msg);
+            self.emit_chain_error_for_actor(actor, method, &msg);
             return Err(WalletError::ChainError {
                 chain: ChainId::Solana,
                 message: msg,
@@ -215,9 +232,13 @@ impl SolanaPort {
     }
 
     /// Get the latest blockhash.
-    async fn get_latest_blockhash(&self) -> Result<solana_sdk::hash::Hash, WalletError> {
+    async fn get_latest_blockhash(
+        &self,
+        actor: &WebID,
+    ) -> Result<solana_sdk::hash::Hash, WalletError> {
         let result = self
             .rpc_call(
+                actor,
                 "getLatestBlockhash",
                 serde_json::json!([{"commitment": "finalized"}]),
             )
@@ -225,7 +246,7 @@ impl SolanaPort {
 
         let blockhash_str = result["value"]["blockhash"].as_str().ok_or_else(|| {
             let msg = "missing blockhash in RPC response".to_string();
-            self.emit_chain_error("getLatestBlockhash", &msg);
+            self.emit_chain_error_for_actor(actor, "getLatestBlockhash", &msg);
             WalletError::ChainError {
                 chain: ChainId::Solana,
                 message: msg,
@@ -234,7 +255,7 @@ impl SolanaPort {
 
         solana_sdk::hash::Hash::from_str(blockhash_str).map_err(|e| {
             let msg = format!("invalid blockhash: {e}");
-            self.emit_chain_error("getLatestBlockhash", &msg);
+            self.emit_chain_error_for_actor(actor, "getLatestBlockhash", &msg);
             WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })
     }
@@ -242,10 +263,12 @@ impl SolanaPort {
     /// Get signatures for an address.
     async fn get_signatures_for_address(
         &self,
+        actor: &WebID,
         address: &Pubkey,
     ) -> Result<Vec<serde_json::Value>, WalletError> {
         let result = self
             .rpc_call(
+                actor,
                 "getSignaturesForAddress",
                 serde_json::json!([address.to_string(), {"limit": 25, "commitment": "finalized"}]),
             )
@@ -255,8 +278,13 @@ impl SolanaPort {
     }
 
     /// Get a parsed transaction by signature.
-    async fn get_transaction(&self, signature: &Signature) -> Result<Value, WalletError> {
+    async fn get_transaction(
+        &self,
+        actor: &WebID,
+        signature: &Signature,
+    ) -> Result<Value, WalletError> {
         self.rpc_call(
+            actor,
             "getTransaction",
             serde_json::json!([
                 signature.to_string(),
@@ -271,12 +299,17 @@ impl SolanaPort {
     }
 
     /// Send a signed transaction.
-    async fn send_transaction(&self, signed_tx_bytes: &[u8]) -> Result<Signature, WalletError> {
+    async fn send_transaction(
+        &self,
+        actor: &WebID,
+        signed_tx_bytes: &[u8],
+    ) -> Result<Signature, WalletError> {
         // Encode transaction as base58 (Solana wire format)
         let tx_base58 = solana_sdk::bs58::encode(signed_tx_bytes).into_string();
 
         let result = self
             .rpc_call(
+                actor,
                 "sendTransaction",
                 serde_json::json!([tx_base58, {"encoding": "base58", "skipPreflight": false}]),
             )
@@ -284,7 +317,7 @@ impl SolanaPort {
 
         let sig_str = result.as_str().ok_or_else(|| {
             let msg = "missing signature in sendTransaction response".to_string();
-            self.emit_chain_error("sendTransaction", &msg);
+            self.emit_chain_error_for_actor(actor, "sendTransaction", &msg);
             WalletError::ChainError {
                 chain: ChainId::Solana,
                 message: msg,
@@ -293,15 +326,20 @@ impl SolanaPort {
 
         Signature::from_str(sig_str).map_err(|e| {
             let msg = format!("invalid signature from RPC: {e}");
-            self.emit_chain_error("sendTransaction", &msg);
+            self.emit_chain_error_for_actor(actor, "sendTransaction", &msg);
             WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })
     }
 
     /// Get signature statuses.
-    async fn get_signature_statuses(&self, signatures: &[Signature]) -> Result<Value, WalletError> {
+    async fn get_signature_statuses(
+        &self,
+        actor: &WebID,
+        signatures: &[Signature],
+    ) -> Result<Value, WalletError> {
         let sig_strings: Vec<String> = signatures.iter().map(|s| s.to_string()).collect();
         self.rpc_call(
+            actor,
             "getSignatureStatuses",
             serde_json::json!([sig_strings, {"searchTransactionHistory": true}]),
         )
@@ -334,6 +372,7 @@ impl ChainPort for SolanaPort {
 
     async fn monitor_deposits(
         &self,
+        actor: &WebID,
         addresses: &[String],
     ) -> Result<Vec<DepositEvent>, WalletError> {
         let mut events = Vec::new();
@@ -346,7 +385,7 @@ impl ChainPort for SolanaPort {
             })?;
 
             // Get recent signatures for this address
-            let sigs = self.get_signatures_for_address(&addr).await?;
+            let sigs = self.get_signatures_for_address(actor, &addr).await?;
 
             for sig_info in sigs {
                 let confirmations: u64 = sig_info
@@ -369,7 +408,7 @@ impl ChainPort for SolanaPort {
                 };
 
                 // Get the full transaction to parse token transfers
-                let tx = match self.get_transaction(&sig).await {
+                let tx = match self.get_transaction(actor, &sig).await {
                     Ok(t) => t,
                     Err(_) => continue,
                 };
@@ -517,11 +556,15 @@ impl ChainPort for SolanaPort {
         })?)
     }
 
-    async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
+    async fn submit_signed_tx(
+        &self,
+        actor: &WebID,
+        signed_tx_bytes: &[u8],
+    ) -> Result<TxHash, WalletError> {
         // The signing.rs module appends the Ed25519 signature (64 bytes) to the payload.
         if signed_tx_bytes.len() < 64 {
             let msg = "signed transaction too short".to_string();
-            self.emit_chain_error("submit_signed_tx", &msg);
+            self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             return Err(WalletError::Infra(
                 hkask_types::InfrastructureError::Database(msg),
             ));
@@ -530,7 +573,7 @@ impl ChainPort for SolanaPort {
         let (payload_bytes, sig_bytes) = signed_tx_bytes.split_at(signed_tx_bytes.len() - 64);
         let payload: WithdrawalPayload = bincode::deserialize(payload_bytes).map_err(|e| {
             let msg = format!("failed to deserialize withdrawal payload: {e}");
-            self.emit_chain_error("submit_signed_tx", &msg);
+            self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })?;
 
@@ -539,7 +582,7 @@ impl ChainPort for SolanaPort {
         let signature = Signature::from(sig_arr);
 
         // Get fresh blockhash
-        let blockhash = self.get_latest_blockhash().await?;
+        let blockhash = self.get_latest_blockhash(actor).await?;
 
         // Build message and unsigned transaction
         let message = solana_sdk::message::Message::new_with_blockhash(
@@ -553,23 +596,23 @@ impl ChainPort for SolanaPort {
         // Serialize the full transaction for submission
         let full_tx_bytes = bincode::serialize(&tx).map_err(|e| {
             let msg = format!("failed to serialize transaction: {e}");
-            self.emit_chain_error("submit_signed_tx", &msg);
+            self.emit_chain_error_for_actor(actor, "submit_signed_tx", &msg);
             WalletError::Infra(hkask_types::InfrastructureError::Database(msg))
         })?;
 
         // Submit via RPC
-        let rpc_sig = self.send_transaction(&full_tx_bytes).await?;
+        let rpc_sig = self.send_transaction(actor, &full_tx_bytes).await?;
         Ok(TxHash(rpc_sig.to_string()))
     }
 
-    async fn confirmations(&self, tx_hash: &TxHash) -> Result<u64, WalletError> {
+    async fn confirmations(&self, actor: &WebID, tx_hash: &TxHash) -> Result<u64, WalletError> {
         let sig = Signature::from_str(&tx_hash.0).map_err(|e| {
             WalletError::Infra(hkask_types::InfrastructureError::Database(format!(
                 "invalid signature: {e}"
             )))
         })?;
 
-        let result = self.get_signature_statuses(&[sig]).await?;
+        let result = self.get_signature_statuses(actor, &[sig]).await?;
         let statuses = result["value"].as_array();
 
         Ok(statuses
@@ -599,12 +642,47 @@ impl ChainPort for SolanaPort {
 mod integration_tests {
     use super::*;
     use crate::signing;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct CaptureSink {
+        last_event: Mutex<Option<NuEvent>>,
+    }
+
+    impl NuEventSink for CaptureSink {
+        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+            *self.last_event.lock().expect("lock") = Some(event.clone());
+            Ok(())
+        }
+    }
 
     /// Build a SolanaPort for devnet testing.
     fn devnet_port() -> SolanaPort {
         let pubkey = std::env::var("SOLANA_TREASURY_PUBKEY")
             .unwrap_or_else(|_| "11111111111111111111111111111111".to_string());
         SolanaPort::new_devnet(&pubkey).expect("Failed to create devnet SolanaPort")
+    }
+
+    // REQ: solana-int-000 — chain_error emission uses caller-provided actor identity
+    #[test]
+    fn emit_chain_error_uses_provided_actor() {
+        let pubkey = "11111111111111111111111111111111";
+        let sink = Arc::new(CaptureSink::default());
+        let port = SolanaPort::new_devnet(pubkey)
+            .expect("port")
+            .with_event_sink(sink.clone());
+        let actor = WebID::from_persona(b"actor-solana-test");
+
+        port.emit_chain_error_for_actor(&actor, "unit_test", "boom");
+
+        let event = sink
+            .last_event
+            .lock()
+            .expect("lock")
+            .clone()
+            .expect("event persisted");
+        assert_eq!(event.observer_webid.to_string(), actor.to_string());
+        assert_eq!(event.observation["operation"], "unit_test");
     }
 
     // REQ: solana-int-001 — build_withdrawal_tx produces valid serialized payload
@@ -688,8 +766,9 @@ mod integration_tests {
         signed_tx.extend_from_slice(&signature);
 
         let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+        let actor = WebID::from_persona(b"solana-int-test");
         let tx_hash = rt
-            .block_on(port.submit_signed_tx(&signed_tx))
+            .block_on(port.submit_signed_tx(&actor, &signed_tx))
             .expect("submit_signed_tx should return tx hash");
 
         println!("Withdrawal submitted: {}", tx_hash.0);
@@ -701,7 +780,7 @@ mod integration_tests {
         // Wait a few seconds and check confirmations
         std::thread::sleep(std::time::Duration::from_secs(5));
         let confs = rt
-            .block_on(port.confirmations(&tx_hash))
+            .block_on(port.confirmations(&actor, &tx_hash))
             .expect("confirmations");
         println!("Confirmations: {confs}");
     }
@@ -795,8 +874,9 @@ mod integration_tests {
             .await;
 
         let port = mock_port(&server.uri());
+        let actor = WebID::from_persona(b"solana-monitor-test");
         let events = port
-            .monitor_deposits(&[our_addr.to_string()])
+            .monitor_deposits(&actor, &[our_addr.to_string()])
             .await
             .expect("monitor_deposits");
 

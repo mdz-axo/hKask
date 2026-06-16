@@ -101,6 +101,10 @@ impl BackupService {
     ///
     /// If an encryption passphrase is available via the `HKASK_BACKUP_PASSPHRASE`
     /// env var or OS keychain, encryption is enabled automatically.
+    ///
+    /// REQ: SVC-142
+    /// pre:  cas must be a valid GitCASPort
+    /// post: returns BackupService with config loaded from disk and encryption key derived if passphrase available
     pub fn new(cas: Arc<dyn GitCASPort>) -> Self {
         let config = config::load_backup_config();
         let encryption_key = Self::derive_key(&config);
@@ -112,6 +116,10 @@ impl BackupService {
     }
 
     /// Create a new backup service with an explicit config (for testing).
+    ///
+    /// REQ: SVC-143
+    /// pre:  cas must be a valid GitCASPort; config must be a valid BackupConfig
+    /// post: returns BackupService with explicit config and derived encryption key
     pub fn with_config(cas: Arc<dyn GitCASPort>, config: BackupConfig) -> Self {
         let encryption_key = Self::derive_key(&config);
         Self {
@@ -181,6 +189,10 @@ impl BackupService {
     /// The commit DAG IS the changelog — each commit records what changed.
     ///
     /// CNS span: `backup.snapshot` — records artifact_count, repos, duration_ms.
+    ///
+    /// REQ: SVC-144
+    /// pre:  scope must be a valid BackupScope; artifacts must be non-empty after filtering tracked types
+    /// post: returns SnapshotMetadata with commits, artifact_count, trigger=Manual, and timestamp; Err(NoSnapshots) if no artifacts after filtering; Err(Config) if scope types not tracked
     #[instrument(skip(self, artifacts), fields(artifact_count, repo_count))]
     pub async fn snapshot(
         &self,
@@ -260,6 +272,10 @@ impl BackupService {
     /// by scope, reads each blob, and returns the deserialized artifact data.
     /// Callers are responsible for writing restored data back to the
     /// appropriate store (registry, memory, etc.).
+    ///
+    /// REQ: SVC-145
+    /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
+    /// post: returns Vec<(ArtifactType, String, Vec<u8>)> of restored artifacts; empty Vec if none match; Err on CAS or deserialization failure
     pub async fn restore(
         &self,
         target: &CommitHash,
@@ -319,6 +335,10 @@ impl BackupService {
     ///
     /// Returns snapshots across all tracked repos, filtered by artifact type
     /// and limited by count. Newest first.
+    ///
+    /// REQ: SVC-146
+    /// pre:  filter.limit defaults to 20 if None
+    /// post: returns Vec<SnapshotMetadata> sorted by timestamp descending, truncated to limit; Err(NoSnapshots) if no snapshots found
     pub async fn list(&self, filter: ListFilter) -> Result<Vec<SnapshotMetadata>, BackupError> {
         let repos: Vec<RepoId> = if let Some(ref at) = filter.artifact_type {
             vec![at.repo_id()]
@@ -358,6 +378,10 @@ impl BackupService {
     /// Retention: daily snapshots kept for 3 weeks, then weekly for 3 months,
     /// then monthly beyond. In dry-run mode, reports what WOULD be removed.
     /// In execute mode, rewrites git history to remove pruned commits.
+    ///
+    /// REQ: SVC-147
+    /// pre:  retention policy must be configured; dry_run=true only reports, dry_run=false executes pruning
+    /// post: returns PruneReport with evaluated count, removed commits, and retained count; empty report if no retention policy configured
     pub async fn prune(&self, dry_run: bool) -> Result<PruneReport, BackupError> {
         let policy = match &self.config.retention {
             Some(p) => p.clone(),
@@ -461,6 +485,10 @@ impl BackupService {
     ///
     /// CNS span: `backup.verify` — records total_blobs, corrupt_count per repo.
     /// CNS alert: `backup.integrity_failure` if any repo has corrupt blobs.
+    ///
+    /// REQ: SVC-148
+    /// pre:  tracked repos must be accessible via CAS
+    /// post: returns Vec<VerificationReport> per repo with total_blobs and corrupt_hashes; empty Vec if no tracked repos
     #[instrument(skip(self), fields(repo_count, total_blobs, corrupt_count))]
     pub async fn verify(
         &self,
@@ -511,11 +539,19 @@ impl BackupService {
     }
 
     /// 6. Get current backup configuration.
+    ///
+    /// REQ: SVC-149
+    /// pre:  none (always succeeds)
+    /// post: returns reference to current BackupConfig
     pub fn config(&self) -> &BackupConfig {
         &self.config
     }
 
     /// 7. Update backup configuration and persist to disk.
+    ///
+    /// REQ: SVC-150
+    /// pre:  config must be a valid BackupConfig
+    /// post: config is persisted to disk and self.config is updated; encryption key is re-derived; Err(Config) on save failure
     pub fn update_config(&mut self, config: BackupConfig) -> Result<(), BackupError> {
         self.encryption_key = Self::derive_key(&config);
         config::save_backup_config(&config)
@@ -526,6 +562,10 @@ impl BackupService {
 
     /// Enable encryption with a passphrase.
     /// Generates a random salt, derives the key, and saves the config.
+    ///
+    /// REQ: SVC-151
+    /// pre:  passphrase must be non-empty
+    /// post: encryption is enabled with random salt; config is persisted; encryption_key is derived; Err(Config) on save failure; Err(Encryption) on Argon2 failure
     pub fn enable_encryption(&mut self, passphrase: &str) -> Result<(), BackupError> {
         let mut salt = [0u8; 32];
         rng().fill_bytes(&mut salt);
@@ -550,6 +590,10 @@ impl BackupService {
 
     /// Run a daily backup snapshot of all tracked artifact types.
     /// Called by the backup scheduler (daemon loop).
+    ///
+    /// REQ: SVC-152
+    /// pre:  auto_snapshot must be enabled in config
+    /// post: returns SnapshotMetadata from full snapshot; Err on snapshot failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
         info!(target: "hkask.backup", "Running daily backup snapshot");
         // Snapshot all tracked types. Artifact data is collected by
@@ -564,6 +608,10 @@ impl BackupService {
     /// - `RestoreScope::Full`: restore ALL tracked artifact types (system-level)
     /// - `RestoreScope::ByType`: restore all artifacts of one type (registry-level)
     /// - `RestoreScope::ByIds`: restore specific artifacts by ID (file-level)
+    ///
+    /// REQ: SVC-153
+    /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
+    /// post: returns Vec of restored artifacts matching the scope; delegates to restore()
     pub async fn scoped_restore(
         &self,
         target: &CommitHash,

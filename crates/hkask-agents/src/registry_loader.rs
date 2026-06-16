@@ -228,6 +228,12 @@ pub struct AgentRegistryLoader {
 }
 
 impl AgentRegistryLoader {
+    /// REQ: AGT-115
+    /// pre:  `registry_path` is a valid `PathBuf`; `acp_runtime` is a
+    ///       valid `Arc<AcpRuntime>`; `store` is a valid
+    ///       `AgentRegistryStore`; `source` is a valid
+    ///       `Arc<dyn RegistrySourcePort>`.
+    /// post: Returns an `AgentRegistryLoader` with all fields set.
     pub fn new(
         registry_path: PathBuf,
         acp_runtime: Arc<AcpRuntime>,
@@ -242,6 +248,11 @@ impl AgentRegistryLoader {
         }
     }
 
+    /// REQ: AGT-116
+    /// pre:  The store schema has been initialized.
+    /// post: If existing agents are found in the store, returns them
+    ///       immediately (restore path). Otherwise, loads all agents from
+    ///       YAML files via `load_all()`.
     pub async fn boot(&self) -> Result<Vec<RegisteredAgent>, RegistryLoaderError> {
         self.store.initialize_schema()?;
 
@@ -258,6 +269,11 @@ impl AgentRegistryLoader {
         self.load_all().await
     }
 
+    /// REQ: AGT-117
+    /// pre:  The registry path contains valid YAML agent definitions.
+    /// post: Returns `Ok(Vec<RegisteredAgent>)` with all successfully
+    ///       loaded and ACP-registered agents; individual load failures
+    ///       are logged and skipped.
     pub async fn load_all(&self) -> Result<Vec<RegisteredAgent>, RegistryLoaderError> {
         let yaml_files = self.discover_yaml_files()?;
         let mut registered = Vec::new();
@@ -363,6 +379,9 @@ impl AgentRegistryLoader {
         Ok(files)
     }
 
+    /// REQ: AGT-118
+    /// pre:  (none — accessor).
+    /// post: Returns a reference to the inner `AgentRegistryStore`.
     pub fn store(&self) -> &AgentRegistryStore {
         &self.store
     }
