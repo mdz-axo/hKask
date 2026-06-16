@@ -746,7 +746,6 @@ Template files use Jinja2[^jinja2] and YAML[^yaml12] formats.
 | `dispatch.yaml` | General dispatch workflow | `registry/manifests/` |
 | `memory-ops.yaml` | Memory operations workflow | `registry/manifests/` |
 | `metacognition.yaml` | Metacognition workflow | `registry/manifests/` |
-| `ensemble-orchestration.yaml` | Ensemble coordination (deferred 2026-06-14) | `registry/manifests/` |
 | `tool_dispatch.yaml` | Tool dispatch workflow | `registry/manifests/` |
 
 ---

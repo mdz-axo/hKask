@@ -12,6 +12,7 @@
 use hkask_types::lexicon::TemplateType;
 use hkask_types::ports::{Skill, SkillRegistryIndex, SkillZone};
 use hkask_types::visibility::Visibility;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -27,6 +28,20 @@ pub struct SkillFrontMatter {
     pub namespace: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
+}
+
+/// Minimal manifest shape used to infer a skill's domain from its registry layer.
+#[derive(Debug, Default, Deserialize)]
+struct SkillManifest {
+    #[serde(default)]
+    templates: Vec<ManifestTemplateEntry>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ManifestTemplateEntry {
+    #[serde(default)]
+    #[serde(rename = "type")]
+    template_type: String,
 }
 
 /// Result of loading skills from both zones.
@@ -170,7 +185,9 @@ impl SkillLoader {
             .and_then(Visibility::parse_str)
             .unwrap_or(Visibility::Private);
 
-        let mut skill = Skill::new(&id, TemplateType::FlowDef)
+        let domain = self.infer_domain_from_registry(&id);
+
+        let mut skill = Skill::new(&id, domain)
             .with_visibility(visibility)
             .with_zone(zone);
 
@@ -181,6 +198,58 @@ impl SkillLoader {
         skill.compute_content_hash();
 
         Ok(skill)
+    }
+
+    /// Infer the skill's domain from its registry layer manifest.
+    ///
+    /// If `registry/templates/<id>/manifest.yaml` exists under the project root,
+    /// use the most representative template type: FlowDef if any flow is declared,
+    /// otherwise KnowAct if any cognition template is present, otherwise WordAct.
+    /// If no registry layer exists, default to KnowAct because a Zed-only SKILL.md
+    /// is a reasoning companion guide.
+    ///
+    /// REQ: TPL-011
+    /// pre:  id is non-empty
+    /// post: returns a TemplateType representing the skill's runtime domain
+    fn infer_domain_from_registry(&self, id: &str) -> TemplateType {
+        let registry_manifest = self
+            .project_root
+            .join("registry")
+            .join("templates")
+            .join(id)
+            .join("manifest.yaml");
+
+        let content = match fs::read_to_string(&registry_manifest) {
+            Ok(c) => c,
+            Err(_) => return TemplateType::KnowAct,
+        };
+
+        let manifest: SkillManifest = match serde_yaml::from_str(&content) {
+            Ok(m) => m,
+            Err(_) => return TemplateType::KnowAct,
+        };
+
+        let mut has_flowdef = false;
+        let mut has_knowact = false;
+        let mut has_wordact = false;
+        for entry in &manifest.templates {
+            match entry.template_type.as_str() {
+                "FlowDef" | "flowdef" => has_flowdef = true,
+                "KnowAct" | "knowact" => has_knowact = true,
+                "WordAct" | "wordact" => has_wordact = true,
+                _ => {}
+            }
+        }
+
+        if has_flowdef {
+            TemplateType::FlowDef
+        } else if has_knowact {
+            TemplateType::KnowAct
+        } else if has_wordact {
+            TemplateType::WordAct
+        } else {
+            TemplateType::KnowAct
+        }
     }
 
     /// Parse YAML front matter from a SKILL.md file.

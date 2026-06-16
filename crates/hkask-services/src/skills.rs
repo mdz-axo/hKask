@@ -643,15 +643,84 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
 
 #[cfg(test)]
 mod tests {
-    // Property-based test skeleton to write once the harness has an in-memory
-    // registry fixture:
-    //
-    // For any skill name, if both layers are present and every .j2 has a valid
-    // template_type, visibility, and contract, then SkillAuditor::audit_skill
-    // returns a health_score >= 0.8 and is_active() is true.
-    //
-    // This test is intentionally left as a stub because the full in-memory
-    // fixture (Registry + SkillRegistryIndex) does not yet exist in the test
-    // harness. The first proptest should construct a temporary project tree
-    // with one complete skill and assert the score.
+    use super::*;
+
+    /// REQ: SVC-101 — A complete skill with both layers and a valid .j2 template
+    /// scores >= 0.8 and is_active() returns true.
+    #[test]
+    fn complete_skill_is_active() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+
+        // Minimal hLexicon
+        let hlex_dir = root.join("registry").join("hlexicon");
+        fs::create_dir_all(&hlex_dir).unwrap();
+        fs::write(
+            hlex_dir.join("hlexicon-workspace.yaml"),
+            "hlexicon:\n  knowact:\n    - term: classify\n      definition: Categorize\n",
+        )
+        .unwrap();
+
+        // Zed layer
+        let zed_dir = root.join(".agents").join("skills").join("test-skill");
+        fs::create_dir_all(&zed_dir).unwrap();
+        fs::write(
+            zed_dir.join("SKILL.md"),
+            "---\nname: test-skill\nvisibility: public\ndescription: \"A minimal test skill for the audit harness.\"\n---\n\n# Test Skill\n\nInstructions.\n",
+        )
+        .unwrap();
+
+        // Registry layer
+        let reg_dir = root.join("registry").join("templates").join("test-skill");
+        fs::create_dir_all(&reg_dir).unwrap();
+        fs::write(
+            reg_dir.join("manifest.yaml"),
+            "crate:\n  name: test-skill\n  version: 0.27.0\n  description: Minimal test skill.\n\ntemplates:\n  - id: test-skill/test\n    path: test.j2\n    type: KnowAct\n    lexicon_terms: [classify]\n    description: Minimal cognition template.\n\nhlexicon_terms:\n  - classify\n",
+        )
+        .unwrap();
+        fs::write(
+            reg_dir.join("test.j2"),
+            "[inference]\ntemplate_type: KnowAct\nlexicon_terms:\n- classify\ncontract:\n  input:\n    x: string\n  output:\n    y: string\n  energy_cap: 4096\n  visibility: Shared\n---\n{# goal: Minimal test template. #}\n{{ x }}\n",
+        )
+        .unwrap();
+
+        let mut registry = hkask_templates::Registry::new();
+        let loader = SkillLoader::new(root);
+        let mut skill_index: hkask_templates::Registry = hkask_templates::Registry::new();
+        loader.load_into(&mut skill_index);
+        // Seed registry with the template entry so list(None) returns it.
+        registry.register(hkask_types::ports::RegistryEntry {
+            id: "test-skill/test".to_string(),
+            template_type: TemplateType::KnowAct,
+            name: "test".to_string(),
+            lexicon_terms: vec!["classify".to_string()],
+            description: "Minimal cognition template".to_string(),
+            source_path: "registry/templates/test-skill/test.j2".to_string(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: 7,
+        });
+
+        let auditor = SkillAuditor::new(
+            &registry, &registry, // Registry implements both traits
+            root,
+        )
+        .expect("auditor");
+
+        let score = auditor.audit_skill("test-skill").expect("audit");
+        assert!(
+            score.is_active(),
+            "complete skill should be active, got score {} with defects {:?}",
+            score.health_score,
+            score.defects
+        );
+    }
+
+    /// Property-based skeleton: once proptest is wired, assert that any skill
+    /// with both layers present and all .j2 files valid scores >= 0.8.
+    #[test]
+    #[ignore = "requires proptest fixture for arbitrary complete skills"]
+    fn complete_skill_scores_above_threshold() {
+        // TODO: implement with proptest once arbitrary skill fixtures exist.
+    }
 }

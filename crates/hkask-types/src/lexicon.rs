@@ -19,10 +19,10 @@ use std::collections::HashMap;
 /// Each variant corresponds to a domain in the architecture and a file format:
 /// - **WordAct**: Jinja2 prompt templates — "what to say" — `.j2`
 /// - **KnowAct**: Jinja2 cognition templates — "how to think" — `.j2`
-/// - **FlowDef**: YAML process manifests — "what to do" — `.yaml`
+/// - **FlowDef**: Jinja2 process templates — "what to do" — `.j2`
 ///
-/// Specifications are FlowDef manifests that define constraints; they are not
-/// a separate type.
+/// Specifications (DDMVSS Prompt/Cognition/Process) are aliases used only in
+/// architecture documents; they never appear in `.j2` frontmatter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum TemplateType {
@@ -30,7 +30,7 @@ pub enum TemplateType {
     WordAct,
     /// Jinja2 cognition templates — "how to think"
     KnowAct,
-    /// YAML process manifests — "what to do"
+    /// Jinja2 process templates — "what to do"
     FlowDef,
 }
 
@@ -60,12 +60,12 @@ impl TemplateType {
 
     /// REQ: TYP-214
     /// pre:  self is a valid TemplateType variant
-    /// post: returns the file extension: "j2" for WordAct/KnowAct, "yaml" for FlowDef
+    /// post: returns the file extension: "j2" for all runtime template types
     pub fn file_extension(&self) -> &'static str {
         match self {
             TemplateType::WordAct => "j2",
             TemplateType::KnowAct => "j2",
-            TemplateType::FlowDef => "yaml",
+            TemplateType::FlowDef => "j2",
         }
     }
 
@@ -82,13 +82,10 @@ impl TemplateType {
 
     /// REQ: TYP-216
     /// pre:  ext is a file extension string (e.g. "j2", "yaml", "yml")
-    /// post: returns Some(KnowAct) for "j2", Some(FlowDef) for "yaml"/"yml"; None for unknown extensions
+    /// post: returns None because a file extension alone cannot distinguish the three runtime template types; `.j2` may be WordAct, KnowAct, or FlowDef
     pub fn infer_from_extension(ext: &str) -> Option<Self> {
-        match ext {
-            "j2" => Some(TemplateType::KnowAct),
-            "yaml" | "yml" => Some(TemplateType::FlowDef),
-            _ => None,
-        }
+        let _ = ext;
+        None
     }
 }
 

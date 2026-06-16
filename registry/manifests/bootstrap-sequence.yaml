@@ -127,23 +127,6 @@ sequence:
       - git-curator-bot
       - registry-dispatch-bot
 
-  - ordinal: 13
-    component: system-coordination-standing-session # Deferred (2026-06-14)
-    type: standing_session
-    manifest: registry/manifests/standing-ensemble-session.yaml
-    readiness_probe: session_ping
-    timeout_seconds: 120
-    critical: false # was true; ensemble deferred
-    depends_on:
-      - Curator
-      - cns-curator-bot
-      - memory-curator-bot
-      - inference-curator-bot
-      - mcp-dispatch-bot
-      # - ensemble-curator-bot  # Deferred (2026-06-14)
-      - git-curator-bot
-      - registry-dispatch-bot
-
 # Readiness Probe Definitions
 readiness_probes:
   storage_ping:
