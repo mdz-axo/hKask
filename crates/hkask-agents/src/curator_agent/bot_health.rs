@@ -17,7 +17,7 @@ const HEALTHY_THRESHOLD: f64 = 0.5;
 const CRITICAL_THRESHOLD: f64 = 0.9;
 
 #[derive(Debug, Clone)]
-pub(crate) struct HealthThresholds {
+pub struct HealthThresholds {
     pub healthy_threshold: f64,
     pub critical_threshold: f64,
 }
@@ -62,7 +62,7 @@ impl BotHealthEvaluator {
         self.classify_health(&summary, budget.as_ref())
     }
 
-    pub async fn evaluate_all(
+    pub(crate) async fn evaluate_all(
         &self,
         now: DateTime<Utc>,
     ) -> Result<Vec<super::metacognition::BotStatusReport>, hkask_types::InfrastructureError> {

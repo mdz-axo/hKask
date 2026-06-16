@@ -90,11 +90,15 @@ pub struct GovernedTool<P: ToolPort> {
 
 impl<P: ToolPort> GovernedTool<P> {
     /// Create a new GovernedTool membrane wrapping an inner ToolPort.
-    /// Create a new governed tool membrane.
     ///
-    /// REQ: CNS-094
+    /// REQ: P9-cns-gov-tool-new
+    /// [P9] Motivating: Homeostatic Self-Regulation — tool governance enables feedback loops
+    /// [P4] Constraining: Clear Boundaries — cybernetics binding enforces OCAP boundary
     /// pre:  inner is valid, cns is valid
     /// post: returns GovernedTool
+    ///
+    /// Per P4: the Cybernetics binding here is the OCAP enforcement point —
+    /// every tool invocation flows through this membrane.
     pub fn new(
         inner: Arc<P>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
@@ -116,7 +120,10 @@ impl<P: ToolPort> GovernedTool<P> {
     #[must_use = "builder methods must be chained or assigned"]
     /// Set the tool consumption channel.
     ///
-    /// REQ: CNS-095
+    /// REQ: P9-cns-gov-tool-consumption-channel
+    /// [P9] Motivating: Homeostatic Self-Regulation — consumption channel closes the cybernetic feedback loop
+    /// [P4] Constraining: Clear Boundaries — channel ownership tracks consumer identity
+    /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with channel set (builder pattern)
     pub fn with_tool_consumption_channel(
         mut self,
@@ -129,7 +136,10 @@ impl<P: ToolPort> GovernedTool<P> {
     /// Builder: change the agent for this membrane.
     /// Set the agent WebID for attribution.
     ///
-    /// REQ: CNS-096
+    /// REQ: P12-cns-gov-tool-with-agent
+    /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
+    /// [P4] Constraining: Clear Boundaries — OCAP gate enforces boundary per invocation
+    /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with agent set (builder pattern)
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
@@ -473,7 +483,7 @@ mod tests {
         .sign()
     }
 
-    // REQ: svc-cns-governed-001 — legacy_exact_match_grants_correct_tool
+    // REQ: P9-cns-gov-tool-legacy-exact-match-test
     //
     // OCAP Path 1: a DelegationToken minted for a specific tool name
     // must grant access when the tool name matches exactly.
@@ -487,7 +497,7 @@ mod tests {
         ));
     }
 
-    // REQ: svc-cns-governed-002 — legacy_exact_match_denies_wrong_tool
+    // REQ: P9-cns-gov-tool-legacy-denies-test
     //
     // OCAP Path 1: a token for one tool must not grant access to another.
     #[test]
@@ -500,7 +510,7 @@ mod tests {
         ));
     }
 
-    // REQ: svc-cns-governed-003 — domain_capability_matches_mcp_tool_domain
+    // REQ: P9-cns-gov-tool-domain-capability-test
     //
     // OCAP Path 2: an agent capability token with domain "cns" and action
     // "execute" must grant access to a tool with required_capability
@@ -515,7 +525,7 @@ mod tests {
         ));
     }
 
-    // REQ: svc-cns-governed-004 — domain_capability_denies_different_domain
+    // REQ: P9-cns-gov-tool-domain-denies-test
     //
     // A token for domain "cns" must not grant access to a tool
     // requiring "tool:memory:write".

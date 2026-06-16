@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 /// Bot health status derived from evaluation metrics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum BotHealthStatus {
+pub enum BotHealthStatus {
     Healthy,
     Degraded,
     Critical,

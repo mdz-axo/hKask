@@ -72,7 +72,9 @@ impl CircuitBreaker {
     /// 60s open timeout, 2 successes to close from half-open.
     /// Create a default circuit breaker for inference.
     ///
-    /// REQ: CNS-097
+    /// REQ: P9-cns-circuit-default-for-inference
+    /// [P9] Motivating: Homeostatic Self-Regulation — CNS regulation loop enforces boundary
+    /// [P4] Constraining: Clear Boundaries — default thresholds establish failure boundary
     /// pre:  name is non-empty
     /// post: returns CircuitBreaker with default thresholds
     pub fn default_for_inference(name: &str) -> Self {
@@ -81,7 +83,9 @@ impl CircuitBreaker {
 
     /// Check if a request is allowed through the circuit breaker.
     ///
-    /// REQ: CNS-098
+    /// REQ: P9-cns-circuit-allow-request
+    /// [P9] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
+    /// [P4] Constraining: Clear Boundaries — state-driven gating enforces the boundary
     /// post: returns true if circuit is closed or half-open, false if open
     pub fn allow_request(&self) -> bool {
         let state = self.state();
@@ -118,7 +122,9 @@ impl CircuitBreaker {
 
     /// Record a successful request.
     ///
-    /// REQ: CNS-099
+    /// REQ: P9-cns-circuit-record-success
+    /// [P9] Motivating: Homeostatic Self-Regulation — success count drives loop closure
+    /// [P4] Constraining: Clear Boundaries — threshold-based state transition enforces boundary
     /// post: success counted, may transition circuit to closed
     pub fn record_success(&self) {
         let state = self.state();

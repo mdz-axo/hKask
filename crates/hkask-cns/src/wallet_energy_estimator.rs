@@ -55,7 +55,10 @@ impl WalletEnergyEstimator {
     /// Calibrate the gas→rJoule conversion rate based on an observed
     /// actual_gas / estimated_gas ratio from a tool settlement.
     ///
-    /// REQ: P9 — Good Regulator feedback loop closure
+    /// REQ: P9-cns-wallet-est-calibrate
+    /// [P9] Motivating: Homeostatic Self-Regulation — Good Regulator feedback loop closure
+    /// [P4] Constraining: Clear Boundaries — threshold tolerance enforces boundary
+    /// [P7] Constraining: Evolutionary Architecture — EMA parameters emerged from real usage
     /// pre:  observed_ratio > 0.0 (actual_gas / estimated_gas)
     /// post: ema_ratio updated via exponential moving average
     /// post: if ema_ratio deviates significantly from 1.0, gas_per_rjoule adjusted
@@ -111,7 +114,7 @@ impl EnergyEstimator for WalletEnergyEstimator {
 mod tests {
     use super::*;
 
-    // REQ: cns-calibrate-001 — first observation initializes EMA
+    // REQ: P9-cns-est-wallet-001 — calibrate_first_observation_initializes_EMA
     #[test]
     fn calibrate_first_observation_initializes_ema() {
         let mut estimator = WalletEnergyEstimator::new(1000);
@@ -125,7 +128,7 @@ mod tests {
         assert_eq!(estimator.gas_per_rjoule, 1500);
     }
 
-    // REQ: cns-calibrate-002 — ratio within tolerance does not adjust
+    // REQ: P9-cns-est-wallet-002 — calibrate_within_tolerance_no_adjustment
     #[test]
     fn calibrate_within_tolerance_no_adjustment() {
         let mut estimator = WalletEnergyEstimator::new(1000);
@@ -135,7 +138,7 @@ mod tests {
         assert_eq!(estimator.gas_per_rjoule, 1000, "rate unchanged");
     }
 
-    // REQ: cns-calibrate-003 — EMA smooths multiple observations
+    // REQ: P9-cns-est-wallet-003 — calibrate_EMA_smooths_observations
     #[test]
     fn calibrate_ema_smooths_observations() {
         let mut estimator = WalletEnergyEstimator::new(1000);
@@ -150,7 +153,7 @@ mod tests {
         assert!((estimator.current_ratio() - expected_ema).abs() < 0.001);
     }
 
-    // REQ: cns-calibrate-004 — ratio clamped to reasonable bounds
+    // REQ: P9-cns-est-wallet-004 — calibrate_clamps_extreme_ratios
     #[test]
     fn calibrate_clamps_extreme_ratios() {
         let mut estimator = WalletEnergyEstimator::new(1000);
@@ -164,7 +167,7 @@ mod tests {
         assert_eq!(estimator2.current_ratio(), 10.0);
     }
 
-    // REQ: cns-calibrate-005 — gas_per_rjoule floors at 1
+    // REQ: P9-cns-est-wallet-005 — calibrate_floors_gas_per_rjoule_at_one
     #[test]
     fn calibrate_floors_gas_per_rjoule_at_one() {
         let mut estimator = WalletEnergyEstimator::new(10);

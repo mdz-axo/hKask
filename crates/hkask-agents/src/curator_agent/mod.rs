@@ -192,7 +192,6 @@ impl CuratorAgent {
 }
 
 // Re-export persona types for convenience
-pub(crate) use bot_health::BotHealthEvaluator;
 pub use metacognition::{
     EscalationAlert, EscalationPolicy, EscalationSeverity, EscalationTrigger, HealthSnapshot,
     MetacognitionConfig, MetacognitionError, MetacognitionLoop,

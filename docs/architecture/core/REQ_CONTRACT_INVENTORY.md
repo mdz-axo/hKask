@@ -18,7 +18,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 |-------|-------|--------|
 | hkask-agents | 30 | Agent runtime |
 | hkask-api | 8 | API surface |
-| hkask-cli | 1 | CLI surface |
+| hkask-cli | 2 | CLI surface |
 | hkask-cns | 66 | CNS observability |
 | hkask-communication | 25 | Communication |
 | hkask-inference | 86 | Inference |
@@ -306,7 +306,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-api/src/lib.rs:259
 
 
-### hkask-cli (1 contracts)
+### hkask-cli (2 contracts)
 
 #### CLI-006 (🟢 full)
 
@@ -315,110 +315,118 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns voice preset name from JSON fields (elevenlabs_voice, preset, name);if no voice field found → returns "custom";if JSON parse fails → returns "Rachel"
 - **File:** crates/hkask-cli/src/lib.rs:13
 
+#### CLI-ONBOARDING-002 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  user must not cancel at any interactive prompt
+- **Post:** returns OnboardingOutcome with signed_in_agent, resolved_secrets, selected_model, is_first_run=true; all secrets derived and stored in keychain; replicant registered in ACP; user profile stored; matrix registration attempted (non-blocking)
+- **Inv:**  does not modify any external state before derive_secrets; cancellation at any prompt returns OnboardingError::Cancelled with zero side effects
+- **File:** crates/hkask-cli/src/onboarding.rs:225
+
 
 ### hkask-cns (66 contracts)
 
-#### CNS-050 (🟢 full)
+#### P9-cns-algedonic-alert-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  domain is non-empty, threshold > 0
 - **Post:** returns RuntimeAlert with severity based on deficit vs threshold
 - **File:** crates/hkask-cns/src/algedonic.rs:57
 
-#### CNS-051 (🟡 partial)
+#### P9-cns-algedonic-alert-should-escalate (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns true iff severity is Critical
-- **File:** crates/hkask-cns/src/algedonic.rs:85
+- **File:** crates/hkask-cns/src/algedonic.rs:88
 
-#### CNS-052 (🟡 partial)
+#### P9-cns-algedonic-alert-is-critical (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns true iff severity == Critical
-- **File:** crates/hkask-cns/src/algedonic.rs:93
+- **File:** crates/hkask-cns/src/algedonic.rs:98
 
-#### CNS-053 (🟡 partial)
+#### P9-cns-algedonic-alert-is-warning (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns true iff severity == Warning
-- **File:** crates/hkask-cns/src/algedonic.rs:101
+- **File:** crates/hkask-cns/src/algedonic.rs:108
 
-#### CNS-078 (🟢 full)
+#### P9-cns-api-meter-endpoint-weight (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  path is non-empty
 - **Post:** returns EndpointWeight based on path pattern
 - **File:** crates/hkask-cns/src/api_metering.rs:33
 
-#### CNS-079 (🟡 partial)
+#### P9-cns-api-meter-rate-limit-status (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns lowercase alert type string
-- **File:** crates/hkask-cns/src/api_metering.rs:114
+- **File:** crates/hkask-cns/src/api_metering.rs:116
 
-#### CNS-080 (🟡 partial)
+#### P9-cns-api-meter-new (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns ApiMeter with empty buckets
-- **File:** crates/hkask-cns/src/api_metering.rs:140
+- **File:** crates/hkask-cns/src/api_metering.rs:144
 
-#### CNS-081 (🟢 full)
+#### P9-cns-api-meter-check-and-record (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is valid
 - **Post:** returns Ok if within limit, Err if rate limited
-- **File:** crates/hkask-cns/src/api_metering.rs:160
+- **File:** crates/hkask-cns/src/api_metering.rs:166
 
-#### CNS-082 (🟢 full)
+#### P9-cns-api-meter-current-rpm (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is valid
 - **Post:** returns current requests per minute
-- **File:** crates/hkask-cns/src/api_metering.rs:193
+- **File:** crates/hkask-cns/src/api_metering.rs:201
 
-#### CNS-083 (🟢 full)
+#### P9-cns-api-meter-span-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  path and method are non-empty
 - **Post:** returns ApiRequestSpan
-- **File:** crates/hkask-cns/src/api_metering.rs:234
+- **File:** crates/hkask-cns/src/api_metering.rs:244
 
-#### CNS-084 (🟡 partial)
+#### P9-cns-api-meter-alert-type (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns alert type label
-- **File:** crates/hkask-cns/src/api_metering.rs:285
+- **File:** crates/hkask-cns/src/api_metering.rs:297
 
-#### CNS-085 (🟡 partial)
+#### P9-cns-api-meter-alert-severity (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns severity label
-- **File:** crates/hkask-cns/src/api_metering.rs:300
+- **File:** crates/hkask-cns/src/api_metering.rs:314
 
-#### CNS-097 (🟢 full)
+#### P9-cns-circuit-default-for-inference (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  name is non-empty
 - **Post:** returns CircuitBreaker with default thresholds
 - **File:** crates/hkask-cns/src/circuit_breaker.rs:75
 
-#### CNS-098 (🟡 partial)
+#### P9-cns-circuit-allow-request (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns true if circuit is closed or half-open, false if open
-- **File:** crates/hkask-cns/src/circuit_breaker.rs:84
+- **File:** crates/hkask-cns/src/circuit_breaker.rs:86
 
-#### CNS-099 (🟡 partial)
+#### P9-cns-circuit-record-success (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** success counted, may transition circuit to closed
-- **File:** crates/hkask-cns/src/circuit_breaker.rs:121
+- **File:** crates/hkask-cns/src/circuit_breaker.rs:125
 
-#### CNS-086 (🟡 partial)
+#### P9-cns-est-composite-new (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns CompositeEnergyEstimator with empty estimators
-- **File:** crates/hkask-cns/src/composite_energy_estimator.rs:24
+- **File:** crates/hkask-cns/src/composite_energy_estimator.rs:23
 
 #### P8-cns-energy-cost-from-raw (🟡 partial)
 
@@ -550,37 +558,37 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** remaining ≤ cap (never exceeds cap);returns the actual amount replenished (≥ 1 if amount * priority > 0)
 - **File:** crates/hkask-cns/src/energy.rs:439
 
-#### CNS-092 (🟢 full)
+#### P9-cns-gov-inf-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  inference is valid, cns is valid
 - **Post:** returns GovernedInference
 - **File:** crates/hkask-cns/src/governed_inference.rs:59
 
-#### CNS-093 (🟡 partial)
+#### P12-cns-gov-inf-with-agent (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Self with agent set (builder pattern)
-- **File:** crates/hkask-cns/src/governed_inference.rs:80
+- **File:** crates/hkask-cns/src/governed_inference.rs:83
 
-#### CNS-094 (🟢 full)
+#### P9-cns-gov-tool-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  inner is valid, cns is valid
 - **Post:** returns GovernedTool
-- **File:** crates/hkask-cns/src/governed_tool.rs:95
+- **File:** crates/hkask-cns/src/governed_tool.rs:94
 
-#### CNS-095 (🟡 partial)
+#### P9-cns-gov-tool-consumption-channel (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Self with channel set (builder pattern)
-- **File:** crates/hkask-cns/src/governed_tool.rs:119
+- **File:** crates/hkask-cns/src/governed_tool.rs:123
 
-#### CNS-096 (🟡 partial)
+#### P12-cns-gov-tool-with-agent (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Post:** returns Self with agent set (builder pattern)
-- **File:** crates/hkask-cns/src/governed_tool.rs:132
+- **File:** crates/hkask-cns/src/governed_tool.rs:139
 
 #### P9-cns-runtime-variety-monitor-new (🟡 partial)
 
@@ -743,9 +751,9 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns Some(status) if budget exists, None otherwise
 - **File:** crates/hkask-cns/src/runtime.rs:713
 
-#### P9—GoodRegulatorfeedbackloopclosure (🟢 full)
+#### P9-cns-wallet-est-calibrate (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  observed_ratio > 0.0 (actual_gas / estimated_gas)
 - **Post:** ema_ratio updated via exponential moving average;if ema_ratio deviates significantly from 1.0, gas_per_rjoule adjusted
 - **File:** crates/hkask-cns/src/wallet_energy_estimator.rs:58
