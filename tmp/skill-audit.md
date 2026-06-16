@@ -51,11 +51,9 @@ Workspace version: 0.27.0
 - Zed: ✓, Registry: ✓
 - Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
 
-### condenser-continuation — active (0.91)
+### condenser-continuation — active (1.00)
 - Zed: ✓, Registry: ✓
 - Templates: 4 .j2 | WordAct=True KnowAct=True FlowDef=True
-- ⚠ condenser-continuation-restore.j2: unknown hlexicon terms ['restore']
-- ⚠ condenser-continuation-verify.j2: unknown hlexicon terms ['check', 'test']
 
 ### constraint-forces — active (1.00)
 - Zed: ✓, Registry: ✓
@@ -82,11 +80,9 @@ Workspace version: 0.27.0
 - ⚠ missing manifest.yaml
 - ⚠ compute-brier.j2: unknown hlexicon terms ['brier', 'probability', 'outcome', 'accuracy']
 
-### deep-module — active (0.91)
+### deep-module — active (1.00)
 - Zed: ✓, Registry: ✓
 - Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-- ⚠ deep-module-assess.j2: unknown hlexicon terms ['count', 'estimate']
-- ⚠ deep-module-delete.j2: unknown hlexicon terms ['delete']
 
 ### diagnose — active (1.00)
 - Zed: ✓, Registry: ✓
@@ -99,10 +95,9 @@ Workspace version: 0.27.0
 - ⚠ doc-align-metadata.j2: invalid visibility None
 - ⚠ doc-align-metadata.j2: missing/empty contract
 
-### essentialist — active (0.94)
+### essentialist — active (1.00)
 - Zed: ✓, Registry: ✓
 - Templates: 1 .j2 | WordAct=False KnowAct=False FlowDef=True
-- ⚠ essentialist-flow.j2: unknown hlexicon terms ['iterate', 'reduce']
 
 ### flowdef — critical (0.33)
 - Zed: ✗, Registry: ✓
@@ -240,11 +235,9 @@ Workspace version: 0.27.0
 - Zed: ✓, Registry: ✓
 - Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
 
-### pragmatic-laziness — active (0.85)
+### pragmatic-laziness — active (1.00)
 - Zed: ✓, Registry: ✓
 - Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
-- ⚠ pragmatic-laziness-converge.j2: unknown hlexicon terms ['compare']
-- ⚠ pragmatic-laziness-flow.j2: unknown hlexicon terms ['identify', 'eliminate', 'iterate', 'delegate']
 
 ### pragmatic-semantics — active (1.00)
 - Zed: ✓, Registry: ✓
@@ -282,10 +275,9 @@ Workspace version: 0.27.0
 - ⚠ missing manifest.yaml
 - ⚠ reason_constrained.j2: unknown hlexicon terms ['reason', 'diverge', 'evidence', 'constraint', 'tool']
 
-### refactor-service-layer — active (0.97)
+### refactor-service-layer — active (1.00)
 - Zed: ✓, Registry: ✓
 - Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=True
-- ⚠ rsl-strangle.j2: unknown hlexicon terms ['migrate']
 
 ### registry — stale_warning (0.60)
 - Zed: ✗, Registry: ✓
@@ -352,10 +344,9 @@ Workspace version: 0.27.0
 - ⚠ missing manifest.yaml
 - ⚠ constraint-bind.j2: missing [inference] frontmatter
 
-### strangler-fig — active (0.91)
+### strangler-fig — active (1.00)
 - Zed: ✓, Registry: ✓
 - Templates: 3 .j2 | WordAct=False KnowAct=True FlowDef=False
-- ⚠ strangler-fig-execute.j2: unknown hlexicon terms ['execute', 'wire', 'migrate']
 
 ### structured-extraction — recommend_deprecation (0.09)
 - Zed: ✗, Registry: ✓

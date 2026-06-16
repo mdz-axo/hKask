@@ -26,17 +26,12 @@ echo "=== hKask Documentation Link Checker ==="
 echo "Scanning: $DOCS_DIR"
 echo ""
 
-# Find all markdown files (excluding archive/)
+# Find all markdown files, including archive/ (archive is part of the docs corpus)
 while IFS= read -r -d '' file; do
-    # Skip archive files
-    if [[ "$file" == *"/docs/archive/"* ]]; then
-        continue
-    fi
-
     # Extract relative path for reporting
     rel_file="${file#$PROJECT_ROOT/}"
 
-    # Extract markdown links: [text](path)
+    # Extract markdown inline links: [text](path)
     while IFS= read -r link_line; do
         # Extract the path portion of [text](path) or [text](path#anchor)
         target=$(echo "$link_line" | grep -oP '\]\([^)]+\)' | sed 's/^\](//;s/)$//' | cut -d'#' -f1)
@@ -60,31 +55,18 @@ while IFS= read -r -d '' file; do
 
         CHECKED=$((CHECKED + 1))
 
-        # Resolve the target path relative to the file's directory
+        # Resolve the target path strictly relative to the file's directory.
+        # Markdown links are always relative to the source document.
         file_dir="$(dirname "$file")"
-        if [[ -f "$file_dir/$target" ]] || [[ -d "$file_dir/$target" ]]; then
-            continue  # OK
-        fi
-
-        # Also try relative to DOCS_DIR
-        rel_target="$target"
-        if [[ "$rel_target" == /* ]]; then
-            # Absolute within project — strip leading / and check
-            rel_target="${rel_target#/}"
-        fi
-
-        # Combine: if target starts with ../, resolve from file_dir first
-        # Otherwise try from DOCS_DIR
-        resolved_from_docs="$DOCS_DIR/$rel_target"
-
-        if [[ -f "$resolved_from_docs" ]] || [[ -d "$resolved_from_docs" ]]; then
+        resolved="$(cd "$file_dir" && realpath -m "$target")"
+        if [[ -f "$resolved" ]] || [[ -d "$resolved" ]]; then
             continue  # OK
         fi
 
         # Check if this is an intentional placeholder
         is_placeholder=false
         for placeholder in "${INTENTIONAL_PLACEHOLDERS[@]}"; do
-            if [[ "$target" == "$placeholder" ]] || [[ "$rel_target" == "$placeholder" ]]; then
+            if [[ "$target" == "$placeholder" ]]; then
                 is_placeholder=true
                 break
             fi
@@ -99,7 +81,7 @@ while IFS= read -r -d '' file; do
         fi
     done < <(grep -noP '\[[^\]]+\]\([^)]+\)' "$file" 2>/dev/null || true)
 
-done < <(find "$DOCS_DIR" -name "*.md" -not -path "*/archive/*" -print0)
+done < <(find "$DOCS_DIR" -name "*.md" -print0)
 
 echo ""
 echo "=== Results ==="

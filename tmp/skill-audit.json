@@ -967,11 +967,9 @@
               "distill",
               "extract",
               "classify",
-              "restore"
+              "contextualise"
             ],
-            "unknown_lexicon_terms": [
-              "restore"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -1006,14 +1004,11 @@
             "lexicon_terms": [
               "verify",
               "validate",
-              "check",
-              "test",
+              "verify",
+              "validate",
               "regulate"
             ],
-            "unknown_lexicon_terms": [
-              "check",
-              "test"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -1027,12 +1022,9 @@
         "has_wordact": true,
         "has_knowact": true
       },
-      "health_score": 0.9099999999999999,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "condenser-continuation-restore.j2: unknown hlexicon terms ['restore']",
-        "condenser-continuation-verify.j2: unknown hlexicon terms ['check', 'test']"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "constraint-forces",
@@ -1835,15 +1827,12 @@
             "contract_present": true,
             "lexicon_terms": [
               "assess",
-              "count",
-              "estimate",
+              "catalog",
+              "predict",
               "classify",
               "evaluate"
             ],
-            "unknown_lexicon_terms": [
-              "count",
-              "estimate"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -1879,15 +1868,13 @@
             },
             "contract_present": true,
             "lexicon_terms": [
-              "delete",
+              "prune",
               "evaluate",
               "discriminate",
               "audit",
               "verify"
             ],
-            "unknown_lexicon_terms": [
-              "delete"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -1944,12 +1931,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.9099999999999999,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "deep-module-assess.j2: unknown hlexicon terms ['count', 'estimate']",
-        "deep-module-delete.j2: unknown hlexicon terms ['delete']"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "diagnose",
@@ -2711,20 +2695,17 @@
             "contract_present": true,
             "lexicon_terms": [
               "sequence",
-              "iterate",
+              "iteration",
               "evaluate",
               "classify",
               "discriminate",
               "verify",
               "audit",
               "simplify",
-              "reduce",
+              "simplify",
               "calibrate"
             ],
-            "unknown_lexicon_terms": [
-              "iterate",
-              "reduce"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -2738,11 +2719,9 @@
         "has_wordact": false,
         "has_knowact": false
       },
-      "health_score": 0.94,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "essentialist-flow.j2: unknown hlexicon terms ['iterate', 'reduce']"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "flowdef",
@@ -6794,14 +6773,12 @@
             "contract_present": true,
             "lexicon_terms": [
               "converge",
-              "compare",
+              "discriminate",
               "evaluate",
               "verify",
               "discriminate"
             ],
-            "unknown_lexicon_terms": [
-              "compare"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -6877,22 +6854,17 @@
             "contract_present": true,
             "lexicon_terms": [
               "decompose",
-              "identify",
-              "eliminate",
+              "recognize",
+              "prune",
               "verify",
               "converge",
-              "iterate",
-              "delegate",
+              "iteration",
+              "route",
               "compose",
               "discriminate",
               "evaluate"
             ],
-            "unknown_lexicon_terms": [
-              "identify",
-              "eliminate",
-              "iterate",
-              "delegate"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -6906,12 +6878,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.85,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "pragmatic-laziness-converge.j2: unknown hlexicon terms ['compare']",
-        "pragmatic-laziness-flow.j2: unknown hlexicon terms ['identify', 'eliminate', 'iterate', 'delegate']"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "pragmatic-semantics",
@@ -8060,12 +8029,10 @@
               "constrain",
               "verify",
               "crystallize",
-              "migrate",
+              "transform",
               "extract"
             ],
-            "unknown_lexicon_terms": [
-              "migrate"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -8123,11 +8090,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.97,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "rsl-strangle.j2: unknown hlexicon terms ['migrate']"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "registry",
@@ -10398,17 +10363,13 @@
             },
             "contract_present": true,
             "lexicon_terms": [
-              "execute",
-              "wire",
+              "install",
+              "route",
               "verify",
               "constrain",
-              "migrate"
+              "transform"
             ],
-            "unknown_lexicon_terms": [
-              "execute",
-              "wire",
-              "migrate"
-            ],
+            "unknown_lexicon_terms": [],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -10509,11 +10470,9 @@
         "has_wordact": false,
         "has_knowact": true
       },
-      "health_score": 0.91,
+      "health_score": 1.0,
       "status": "active",
-      "top_defects": [
-        "strangler-fig-execute.j2: unknown hlexicon terms ['execute', 'wire', 'migrate']"
-      ]
+      "top_defects": []
     },
     {
       "skill_name": "structured-extraction",
