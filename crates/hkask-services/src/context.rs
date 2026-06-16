@@ -1,16 +1,26 @@
-//! Shared dependency graph assembled once at startup.
+//! Agent operational context — the full environment an agent needs to function.
 //!
-//! `AgentService` owns the canonical instances of all shared infrastructure:
-//! registry, MCP runtime, CNS, loop system, escalation queue, memory adapters,
-//! etc. Both `ReplState` and `ApiState` compose an `AgentService` and add
-//! only their surface-specific presentation fields.
+//! `AgentService` is the canonical composition root for hKask. It assembles
+//! every piece of shared infrastructure an agent requires: CNS for variety
+//! sensing, cybernetics for energy budgeting, MCP for tool discovery, wallet
+//! for rJoule payments, memory for episodic/semantic recall, and all stores
+//! (consent, goals, specs, registry, sovereignty).
 //!
-//! Construction happens via `AgentService::build(config)`, which replaces
-//! the four independent assembly paths currently in the codebase:
+//! Both `ReplState` and `ApiState` compose an `AgentService` and add only
+//! their surface-specific presentation fields. This replaces four independent
+//! assembly paths that previously existed:
 //! - `ReplState` init in `cli/repl/init.rs` (~325 lines)
 //! - `ApiState::new()` in `api/lib.rs` (~400 lines)
 //! - `build_loop_system()` in `api/loop_system.rs` (~130 lines)
 //! - `commands/loops.rs` (~113 lines)
+//!
+//! # Adding new fields
+//!
+//! `AgentService` is the agent's operational world — not a dumping ground.
+//! Before adding a field, apply the deletion test:
+//! 1. Does the agent need this to function? If not, it belongs elsewhere.
+//! 2. Does it already have a home crate/module? If yes, access it there.
+//! 3. Is it surface-specific (CLI-only or API-only)? If yes, put it in the surface.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -57,16 +67,24 @@ use crate::ServiceError;
 use crate::SovereigntyService;
 use crate::WalletService;
 
-/// Shared dependency graph assembled once at startup.
+/// Agent operational context — canonical composition root for hKask.
 ///
-/// `AgentService` replaces the independent assembly in `ReplState`,
-/// `ApiState`, `build_loop_system()`, and `commands/loops.rs`. Surfaces
-/// compose this struct and add only presentation-specific fields.
+/// Holds every piece of shared infrastructure an agent needs: CNS,
+/// cybernetics, MCP, wallet, memory, stores, pod manager, Matrix transport.
+/// Surfaces (`ReplState`, `ApiState`) compose this struct and add only
+/// presentation-specific fields.
 ///
 /// Construct via `AgentService::build(config)`. The config provides all
 /// deployment-varying parameters (DB paths, secrets, thresholds, model names).
 /// The builder resolves the dependency graph canonically: stores → CNS →
-/// loop system → governed tool → session manager.
+/// loop system → governed tool → pod manager.
+///
+/// # Field discipline
+///
+/// This is the agent's operational world — not a dumping ground. Before
+/// adding a field, apply the deletion test (see module docs). Every field
+/// here must be something an agent needs to function, not something that
+/// was convenient to stash.
 ///
 /// `#[non_exhaustive]` prevents external crates from constructing this struct
 /// with struct literal syntax — use `AgentService::build()` instead.

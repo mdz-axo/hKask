@@ -9,8 +9,8 @@ use crate::chat_protocol::{
 };
 use crate::config::InferenceConfig;
 use futures_util::StreamExt;
-use hkask_types::template::LLMParameters;
 use hkask_types::ports::{InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
@@ -22,7 +22,11 @@ pub struct OllamaBackend {
 }
 
 impl OllamaBackend {
-    /// Create a new Ollama backend from the inference config.
+    /// Create a new Ollama backend from inference config.
+    ///
+    /// REQ: INFER-014
+    /// pre:  config.ollama_base_url is set
+    /// post: returns OllamaBackend with configured HTTP client
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
         let client = config
             .build_client()
@@ -133,6 +137,11 @@ impl OllamaBackend {
     }
 
     /// Stream a chat completion from Ollama via SSE.
+    /// Generate a streaming completion from Ollama.
+    ///
+    /// REQ: INFER-015
+    /// pre:  model is a valid Ollama model name
+    /// post: returns stream of inference chunks
     pub fn generate_stream(
         &self,
         model: &str,

@@ -38,6 +38,10 @@ pub struct Registry {
 }
 
 impl Registry {
+    /// Create an empty registry.
+    ///
+    /// REQ: TPL-033
+    /// post: returns Registry with empty templates, skills, bundles, no lexicon
     pub fn new() -> Self {
         Self {
             templates: HashMap::new(),
@@ -48,6 +52,10 @@ impl Registry {
     }
 
     /// Set the hLexicon for validating terms during registration.
+    ///
+    /// REQ: TPL-034
+    /// pre:  lexicon is a valid HLexicon
+    /// post: hlexicon set — subsequent register() calls validate terms
     pub fn set_lexicon(&mut self, lexicon: HLexicon) {
         self.hlexicon = Some(lexicon);
     }
@@ -57,16 +65,24 @@ impl Registry {
         self.templates.clear();
     }
 
-    /// Reload registry from bootstrap (simulates reload from disk)
+    /// Reload registry from bootstrap (simulates reload from disk).
+    ///
+    /// REQ: TPL-035
+    /// post: templates cache cleared and reloaded from bootstrap
     pub fn reload(&mut self) {
         self.invalidate_cache();
         let fresh = Self::bootstrap();
         self.templates = fresh.templates;
     }
 
-    /// Validate that a template path is safe (no path traversal)
+    /// Validate that a template path is safe (no path traversal).
     ///
     /// Extended checks: component length ≤64 chars, Unicode NFC normalization.
+    ///
+    /// REQ: TPL-036
+    /// pre:  template_id is non-empty
+    /// post: returns Ok(()) if path is safe (no traversal, null bytes, non-ASCII)
+    /// post: returns Err(PathTraversal) for unsafe paths
     pub fn validate_template_path(template_id: &str) -> Result<()> {
         // Reject absolute paths
         if template_id.starts_with('/') || template_id.starts_with('\\') {
@@ -127,6 +143,11 @@ impl Registry {
     /// When an hLexicon is set, unknown terms are logged as warnings (Warn mode).
     /// The contract validator performs lexicon-term enforcement at registration time;
     /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-cns`.
+    ///
+    /// REQ: TPL-037
+    /// pre:  entry.id is non-empty, entry.template_type is valid
+    /// post: entry inserted into templates map
+    /// post: validates terms against hlexicon if set (warnings logged)
     pub fn register(&mut self, entry: RegistryEntry) {
         // Validate entry consistency
         let warnings = entry.validate();
@@ -150,6 +171,11 @@ impl Registry {
         self.templates.insert(entry.id.clone(), entry);
     }
 
+    /// Get a template entry by ID.
+    ///
+    /// REQ: TPL-038
+    /// pre:  id is non-empty
+    /// post: returns Some(&RegistryEntry) if found, None otherwise
     pub fn get(&self, id: &str) -> Option<&RegistryEntry> {
         self.templates.get(id)
     }
@@ -161,15 +187,27 @@ impl Registry {
             .collect()
     }
 
+    /// Count registered templates.
+    ///
+    /// REQ: TPL-039
+    /// post: returns count of templates in registry
     pub fn count(&self) -> usize {
         self.templates.len()
     }
 
+    /// List all skills.
+    ///
+    /// REQ: TPL-040
+    /// post: returns Vec<Skill> with all registered skills
     pub fn list_skills(&self) -> Vec<Skill> {
         self.skills.values().cloned().collect()
     }
 
     /// List skills filtered by visibility.
+    ///
+    /// REQ: TPL-041
+    /// pre:  visibility is a valid Visibility variant
+    /// post: returns Vec<Skill> filtered by visibility
     pub fn list_skills_by_visibility(&self, visibility: Visibility) -> Vec<Skill> {
         self.skills
             .values()
@@ -178,18 +216,38 @@ impl Registry {
             .collect()
     }
 
+    /// Remove a skill by ID.
+    ///
+    /// REQ: TPL-042
+    /// pre:  id is non-empty
+    /// post: returns Some(Skill) if removed, None if not found
     pub fn remove_skill(&mut self, id: &str) -> Option<Skill> {
         self.skills.remove(id)
     }
 
+    /// Register a skill.
+    ///
+    /// REQ: TPL-043
+    /// pre:  skill.id is non-empty
+    /// post: skill inserted into skills map
     pub fn register_skill(&mut self, skill: Skill) {
         self.skills.insert(skill.id.clone(), skill);
     }
 
+    /// Get a skill by ID.
+    ///
+    /// REQ: TPL-044
+    /// pre:  id is non-empty
+    /// post: returns Some(Skill) if found, None otherwise
     pub fn get_skill(&self, id: &str) -> Option<Skill> {
         self.skills.get(id).cloned()
     }
 
+    /// List skills by domain.
+    ///
+    /// REQ: TPL-045
+    /// pre:  domain is a valid TemplateType
+    /// post: returns Vec<Skill> filtered by domain
     pub fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {
         self.skills
             .values()
@@ -199,6 +257,10 @@ impl Registry {
     }
 
     /// Find skills that reference a given template ID.
+    ///
+    /// REQ: TPL-046
+    /// pre:  template_id is non-empty
+    /// post: returns Vec<Skill> referencing the given template
     pub fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill> {
         self.skills
             .values()
@@ -212,27 +274,47 @@ impl Registry {
     }
 
     /// Register a bundle manifest.
+    ///
+    /// REQ: TPL-047
+    /// pre:  bundle.id is non-empty
+    /// post: bundle inserted into bundles map
     pub fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
         self.bundles.insert(bundle.id.clone(), bundle);
     }
 
     /// Retrieve a bundle manifest by ID.
+    ///
+    /// REQ: TPL-048
+    /// pre:  id is non-empty
+    /// post: returns Some(&BundleManifest) if found, None otherwise
     pub fn get_bundle(&self, id: &str) -> Option<&hkask_types::BundleManifest> {
         self.bundles.get(id)
     }
 
     /// List all bundle manifests.
+    ///
+    /// REQ: TPL-049
+    /// post: returns Vec<&BundleManifest> with all registered bundles
     pub fn list_bundles(&self) -> Vec<&hkask_types::BundleManifest> {
         self.bundles.values().collect()
     }
 
     /// Remove a bundle manifest by ID.
+    ///
+    /// REQ: TPL-050
+    /// pre:  id is non-empty
+    /// post: returns Some(BundleManifest) if removed, None if not found
     pub fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
         self.bundles.remove(id)
     }
 
     /// Find an existing bundle that contains exactly the given set of skills.
     /// Returns the first exact match, if any.
+    ///
+    /// REQ: TPL-051
+    /// pre:  skill_ids is non-empty
+    /// post: returns Some(&BundleManifest) if exact skill set match found
+    /// post: returns None if no exact match
     pub fn find_bundle_by_skills(
         &self,
         skill_ids: &[String],
@@ -248,6 +330,10 @@ impl Registry {
 
     /// Bootstrap registry from embedded YAML definitions.
     /// Template definitions live in `registry/templates/bootstrap-registry.yaml`.
+    ///
+    /// REQ: TPL-052
+    /// post: returns Registry populated from bootstrap-registry.yaml
+    /// post: all entries have matroshka_limit set to SYSTEM_MAX_RECURSION
     pub fn bootstrap() -> Self {
         let mut registry = Self::new();
         let yaml = include_str!("../../../registry/templates/bootstrap-registry.yaml");

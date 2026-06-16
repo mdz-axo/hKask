@@ -29,7 +29,7 @@ use hkask_types::wallet::{
 };
 #[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
-use hkask_wallet::{ApiKeyIssuer, WalletManager, resolve_price_feed};
+use hkask_wallet::{ApiKeyIssuer, WalletManager, WithdrawalFee, resolve_price_feed};
 use tokio::sync::RwLock;
 
 use crate::ServiceError;
@@ -430,6 +430,23 @@ impl WalletService {
             })
     }
 
+    /// Estimate network withdrawal fee for a chain using configured price feed.
+    pub async fn estimate_withdrawal_fee(
+        &self,
+        chain: ChainId,
+    ) -> Result<WithdrawalFee, ServiceError> {
+        self.manager
+            .estimate_withdrawal_fee(chain)
+            .await
+            .map_err(|e| {
+                let msg = e.to_string();
+                ServiceError::Wallet {
+                    source: Some(Box::new(e)),
+                    message: msg,
+                }
+            })
+    }
+
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// Create a new API key with the specified limits, scope, and purpose.
@@ -694,6 +711,19 @@ mod tests {
         let svc = make_service();
         assert_eq!(svc.rjoules_to_gas(RJoule::new(0)), 0);
         assert_eq!(svc.rjoules_to_gas(RJoule::new(5)), 5000);
+    }
+
+    // REQ: svc-wallet-007 — estimate_withdrawal_fee returns positive fee
+    #[tokio::test]
+    async fn estimate_withdrawal_fee_returns_positive_fee() {
+        let svc = make_service();
+        let fee = svc
+            .estimate_withdrawal_fee(ChainId::Solana)
+            .await
+            .expect("fee estimate");
+        assert!(fee.rjoules > 0);
+        assert!(fee.usdc_micro > 0);
+        assert!(fee.native_units > 0.0);
     }
 
     // REQ: svc-wallet-004 — create_key produces valid material

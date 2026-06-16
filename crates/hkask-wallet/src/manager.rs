@@ -22,7 +22,7 @@ use std::sync::Arc;
 use zeroize::Zeroizing;
 
 use crate::chain::{ChainPort, DepositEvent};
-use crate::price_feed::PriceFeed;
+use crate::price_feed::{PriceFeed, WithdrawalFee, estimate_withdrawal_fee};
 use crate::privacy::{PrivacyPort, ShieldedTransfer};
 use crate::signing;
 
@@ -645,6 +645,27 @@ impl WalletManager {
         rj.as_u64() * self.config.gas_per_rjoule
     }
 
+    /// Estimate network withdrawal fee in rJoules/native units/USDC using configured PriceFeed.
+    ///
+    /// REQ: WALLET-010
+    /// pre:  chain is a valid ChainId
+    /// post: returns fee estimate derived from live/native USD rate when available
+    /// post: returns Err if configured price feed cannot provide a rate
+    pub async fn estimate_withdrawal_fee(
+        &self,
+        chain: ChainId,
+    ) -> Result<WithdrawalFee, WalletError> {
+        let rate = self.price_feed.get_rate(chain).await.map_err(|e| {
+            self.emit_chain_error(chain, "estimate_withdrawal_fee", &e.to_string());
+            e
+        })?;
+        Ok(estimate_withdrawal_fee(
+            chain,
+            &rate,
+            self.config.rj_per_usdc,
+        ))
+    }
+
     /// Convert micro-USDC to rJoules.
     fn usdc_to_rjoules(&self, usdc_micro: u64) -> RJoule {
         let rj = (usdc_micro as u128 * self.config.rj_per_usdc as u128 / 1_000_000) as u64;
@@ -996,6 +1017,19 @@ mod tests {
         let mgr = make_manager();
         assert_eq!(mgr.rjoules_to_gas(RJoule::new(1)), 1000);
         assert_eq!(mgr.rjoules_to_gas(RJoule::new(5)), 5000);
+    }
+
+    // REQ: WALLET-010 — estimate_withdrawal_fee uses configured price feed
+    #[tokio::test]
+    async fn estimate_withdrawal_fee_uses_price_feed() {
+        let mgr = make_manager();
+        let fee = mgr
+            .estimate_withdrawal_fee(ChainId::Solana)
+            .await
+            .expect("fee estimate");
+        assert!(fee.rjoules > 0);
+        assert!(fee.usdc_micro > 0);
+        assert!(fee.native_units > 0.0);
     }
 
     // REQ: P4-manager — can_afford checks balance

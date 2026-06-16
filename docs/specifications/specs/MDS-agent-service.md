@@ -1,7 +1,7 @@
 ---
 title: "MDS — AgentService Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-10
+last_updated: 2026-06-15
 version: "0.27.0"
 status: "Active"
 domain: "Composition"
@@ -26,83 +26,171 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 **Boundary:** In-process only. MCP servers do NOT depend on `AgentService` (P1 Prohibition — out-of-process isolation).
 
-### 1.2 Domain Grouping (8 Group Methods)
+### 1.2 Individual Named Accessor Methods
 
-All 26 fields are grouped into 8 group methods returning tuples of references — no adapter structs, no new types:
+All 28 fields are **private** and exposed through **individual named accessor methods** — one method per field or small domain-coherent pair. This replaces the earlier 8-group-method tuple pattern (v0.27.0 strangler-fig migration, now complete).
 
-| Method | Fields Returned | Accessor Pattern |
-|--------|---------|-----------------|
-| **memory()** | `episodic_storage`, `semantic_storage` | `let (ep, sem) = svc.memory()` |
-| **cns()** | `cns_runtime`, `cybernetics_loop`, `loop_system`, `event_sink` | `let (rt, cy, ls, ev) = svc.cns()` |
-| **governance()** | `capability_checker`, `mcp_dispatcher`, `escalation_queue` | `let (cc, dp, eq) = svc.governance()` |
-| **storage()** | `registry`, `goal_repo`, `spec_store`, `standing_session_store`, `user_store`, `agent_registry_store`, `git_cas_port` | `let (reg, gl, sp, ss, us, ar, gc) = svc.storage()` |
-| **coordination()** | `inference_port`, `mcp_runtime`, `pod_manager`, `session_manager` | `let (inf, mcp, pm, sm) = svc.coordination()` |
-| **identity()** | `system_webid`, `acp_runtime` | `let (wid, acp) = svc.identity()` |
-| **sovereignty()** | `consent_manager` | `let sovereignty = svc.sovereignty()` |
-| **config()** | `config` | `let cfg = svc.config()` |
+| Method | Returns | Category |
+|--------|---------|----------|
+| `config()` | `&ServiceConfig` | Configuration |
+| `wallet()` | `Option<&Arc<WalletService>>` | Payments |
+| `wallet_store()` | `Option<&Arc<WalletStore>>` | Payments |
+| `memory()` | `(&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>)` | Memory |
+| `registry()` | `&Arc<tokio::sync::Mutex<SqliteRegistry>>` | Storage |
+| `goal_repo()` | `&Arc<SqliteGoalRepository>` | Storage |
+| `cns_runtime()` | `&Arc<RwLock<CnsRuntime>>` | CNS |
+| `cybernetics_loop()` | `&Arc<RwLock<CyberneticsLoop>>` | CNS |
+| `loop_system()` | `&Arc<LoopSystem>` | CNS |
+| `event_sink()` | `&Arc<dyn NuEventSink>` | CNS |
+| `seam_watcher()` | `&Arc<RwLock<Option<SeamWatcher>>>` | CNS (R7.3) |
+| `capability_checker()` | `&Arc<CapabilityChecker>` | Governance |
+| `mcp_dispatcher()` | `&Arc<McpDispatcher>` | Governance |
+| `escalation_queue()` | `&Arc<EscalationQueue>` | Governance |
+| `inference_port()` | `Option<Arc<dyn InferencePort>>` | Coordination |
+| `mcp_runtime()` | `&Arc<McpRuntime>` | Coordination |
+| `pod_manager()` | `&Arc<PodManager>` | Coordination |
+| `identity()` | `(&WebID, &Arc<hkask_agents::AcpRuntime>)` | Identity |
+| `sovereignty()` | `SovereigntyService` (wraps `consent_manager`) | Sovereignty |
+| `curation_inbox_tx()` | `&Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
+| `sovereignty_boundary_store()` | `&SovereigntyBoundaryStore` | Sovereignty |
+| `spec_store()` | `&SqliteSpecStore` | Surface-specific |
+| `agent_registry_store()` | `&hkask_storage::AgentRegistryStore` | Surface-specific |
+| `user_store()` | `&Arc<std::sync::Mutex<UserStore>>` | Surface-specific |
+| `daemon_handler()` | `&Arc<ServiceDaemonHandler>` | Daemon |
+| `matrix_transport()` | `Option<&Arc<tokio::sync::Mutex<MatrixTransport>>>` | Communication |
+
+**Design rationale:** Individual accessors replaced the 8-group-method tuple pattern because:
+- Callers typically need one field, not an entire domain group — tuple destructuring forced unnecessary binding of unused fields
+- Individual methods are self-documenting: `svc.pod_manager()` is clearer than `let (_, _, pm, _) = svc.coordination()`
+- Two small tuples remain where the pair is always used together: `memory()` (episodic + semantic always co-accessed) and `identity()` (WebID + ACP runtime always co-accessed)
 
 ### 1.3 hLexicon Allocation
 
 | Term | Domain | Definition |
 |------|--------|-----------|
 | `AgentService` | WordAct | Canonical service layer owning all shared infrastructure |
-| `GroupMethod` | FlowDef | Tuple of references to related fields, accessed via destructuring |
+| `NamedAccessor` | FlowDef | Single-field accessor method returning a reference to one private field |
 
 ### 1.4 Focusing Assumptions
 
 | ID | Statement | Rationale |
 |----|-----------|-----------|
 | FA-AS1 | All fields are used (verified by call-site audit) | No fields can be deleted without breaking functionality |
-| FA-AS2 | Group methods return tuples — no adapter structs needed | Essentialist G3: zero-field structs add no behavior |
-| FA-AS3 | Old individual accessors coexist during strangler-fig migration | Surfaces transition one domain at a time |
+| FA-AS2 | Individual named accessors — one per field or small coherent pair | Callers typically need one field; tuple destructuring forced unnecessary binding |
+| FA-AS3 | Strangler-fig migration from group methods to individual accessors is complete | All surfaces use individual accessors; old group methods deleted |
 
 ---
 
 ## 2. Composition Spec — AgentService Interface
 
-### 2.1 Public API (8 Group Methods)
+### 2.1 Public API (Individual Named Accessors)
 
 ```rust
 impl AgentService {
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError>;
+    pub fn build_per_agent_memory(db: Database) -> PerAgentMemory;
 
-    pub fn memory(&self) -> (&Arc<EpisodicStoragePort>, &Arc<SemanticStoragePort>);
-    pub fn cns(&self) -> (&Arc<RwLock<CnsRuntime>>, &Arc<RwLock<CyberneticsLoop>>, &Arc<LoopSystem>, &Arc<dyn NuEventSink>);
-    pub fn governance(&self) -> (&Arc<CapabilityChecker>, &Arc<McpDispatcher>, &Arc<EscalationQueue>);
-    pub fn storage(&self) -> (/* 7 store references */);
-    pub fn coordination(&self) -> (&Option<Arc<InferencePort>>, &Arc<McpRuntime>, &Arc<PodManager>, &Arc<RwLock<SessionManager>>);
-    pub fn identity(&self) -> (&WebID, &Arc<AcpRuntime>);
-    pub fn sovereignty(&self) -> SovereigntyService<'_>;
+    // Configuration
     pub fn config(&self) -> &ServiceConfig;
+
+    // Payments
+    pub fn wallet(&self) -> Option<&Arc<WalletService>>;
+    pub fn wallet_store(&self) -> Option<&Arc<WalletStore>>;
+
+    // Memory
+    pub fn memory(&self) -> (&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>);
+
+    // Storage
+    pub fn registry(&self) -> &Arc<tokio::sync::Mutex<SqliteRegistry>>;
+    pub fn goal_repo(&self) -> &Arc<SqliteGoalRepository>;
+
+    // CNS
+    pub fn cns_runtime(&self) -> &Arc<RwLock<CnsRuntime>>;
+    pub fn cybernetics_loop(&self) -> &Arc<RwLock<CyberneticsLoop>>;
+    pub fn loop_system(&self) -> &Arc<LoopSystem>;
+    pub fn event_sink(&self) -> &Arc<dyn NuEventSink>;
+    pub fn seam_watcher(&self) -> &Arc<RwLock<Option<SeamWatcher>>>;
+
+    // Governance
+    pub fn capability_checker(&self) -> &Arc<CapabilityChecker>;
+    pub fn mcp_dispatcher(&self) -> &Arc<McpDispatcher>;
+    pub fn escalation_queue(&self) -> &Arc<EscalationQueue>;
+
+    // Coordination
+    pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>>;
+    pub fn mcp_runtime(&self) -> &Arc<McpRuntime>;
+    pub fn pod_manager(&self) -> &Arc<PodManager>;
+
+    // Identity
+    pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::AcpRuntime>);
+
+    // Sovereignty
+    pub fn sovereignty(&self) -> SovereigntyService;
+
+    // Internal / surface-specific
+    pub(crate) fn acp_runtime(&self) -> &Arc<hkask_agents::AcpRuntime>;
+    pub fn curation_inbox_tx(&self) -> &Option<mpsc::UnboundedSender<CurationInput>>;
+    pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore;
+    pub fn spec_store(&self) -> &SqliteSpecStore;
+    pub fn agent_registry_store(&self) -> &hkask_storage::AgentRegistryStore;
+    pub fn user_store(&self) -> &Arc<std::sync::Mutex<UserStore>>;
+    pub fn daemon_handler(&self) -> &Arc<ServiceDaemonHandler>;
+    pub fn matrix_transport(&self) -> Option<&Arc<tokio::sync::Mutex<MatrixTransport>>>;
 }
 ```
 
-### 2.2 Group Method Field Mapping
+### 2.2 Field Inventory (28 Private Fields)
 
-| Method | Fields (in tuple order) | Private Fields (not exposed) |
-|--------|------------------------|------------------------------|
-| `memory()` | episodic_storage, semantic_storage | — |
-| `cns()` | cns_runtime, cybernetics_loop, loop_system, event_sink | — |
-| `governance()` | capability_checker, mcp_dispatcher, escalation_queue | consent_manager (P1 — exposed via `sovereignty()`), sovereignty_boundary_store (P1 — has public accessor, strangler-fig artifact) |
-| `storage()` | registry, goal_repo, spec_store, standing_session_store, user_store, agent_registry_store, git_cas_port | — |
-| `coordination()` | inference_port, mcp_runtime, pod_manager, session_manager | curation_inbox_tx (internal channel) |
-| `identity()` | system_webid, acp_runtime | — |
-| `sovereignty()` | consent_manager | sovereignty_boundary_store (P1 — strangler-fig artifact) |
-| `config()` | config | — |
+| Field | Type | Category |
+|-------|------|----------|
+| `registry` | `Arc<tokio::sync::Mutex<SqliteRegistry>>` | Storage |
+| `mcp_runtime` | `Arc<McpRuntime>` | Coordination |
+| `mcp_dispatcher` | `Arc<McpDispatcher>` | Governance |
+| `cns_runtime` | `Arc<RwLock<CnsRuntime>>` | CNS |
+| `cybernetics_loop` | `Arc<RwLock<CyberneticsLoop>>` | CNS |
+| `loop_system` | `Arc<LoopSystem>` | CNS |
+| `inference_port` | `Option<Arc<dyn InferencePort>>` | Coordination |
+| `episodic_storage` | `Arc<dyn EpisodicStoragePort>` | Memory |
+| `semantic_storage` | `Arc<dyn SemanticStoragePort>` | Memory |
+| `escalation_queue` | `Arc<EscalationQueue>` | Governance |
+| `consent_manager` | `Arc<ConsentManager>` | Sovereignty |
+| `goal_repo` | `Arc<SqliteGoalRepository>` | Storage |
+| `curation_inbox_tx` | `Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
+| `pod_manager` | `Arc<PodManager>` | Coordination |
+| `capability_checker` | `Arc<CapabilityChecker>` | Governance |
+| `system_webid` | `WebID` | Identity |
+| `event_sink` | `Arc<dyn NuEventSink>` | CNS |
+| `sovereignty_boundary_store` | `SovereigntyBoundaryStore` | Sovereignty |
+| `spec_store` | `SqliteSpecStore` | Surface-specific |
+| `acp_runtime` | `Arc<hkask_agents::AcpRuntime>` | Identity |
+| `agent_registry_store` | `hkask_storage::AgentRegistryStore` | Surface-specific |
+| `user_store` | `Arc<std::sync::Mutex<UserStore>>` | Surface-specific |
+| `daemon_handler` | `Arc<ServiceDaemonHandler>` | Daemon |
+| `matrix_transport` | `Option<Arc<tokio::sync::Mutex<MatrixTransport>>>` | Communication |
+| `seam_watcher` | `Arc<RwLock<Option<SeamWatcher>>>` | CNS (R7.3) |
+| `config` | `ServiceConfig` | Configuration |
+| `wallet_service` | `Option<Arc<WalletService>>` | Payments |
+| `wallet_store` | `Option<Arc<WalletStore>>` | Payments |
 
-**Sovereignty fix (P1):** `consent_manager` is excluded from `governance()` — callers access consent through the `sovereignty()` group method, never as a raw store. `sovereignty_boundary_store` is also excluded from `governance()` but has a public accessor (strangler-fig artifact — to be removed once all callers migrate to the mediated path).
+
 
 ### 2.3 Interface Equivalence
 
-| Interface | CLI Uses | API Uses | Equivalent? |
-|-----------|----------|---------|-------------|
-| `memory()` | ✅ (chat, REPL) | ✅ (episodic, semantic routes) | ✅ Yes |
-| `cns()` | ✅ (CNS commands, REPL) | ✅ (CNS routes) | ✅ Yes |
-| `governance()` | ✅ (MCP commands) | ✅ (MCP routes) | ✅ Yes |
-| `storage()` | ✅ (goals, specs, agents) | ✅ (templates, bundles, goals) | ✅ Yes |
-| `coordination()` | ✅ (pods) | ✅ (pods, curator) | ✅ Yes |
-| `identity()` | ❌ | ❌ | ✅ N/A (internal use) |
+| Accessor | CLI Uses | API Uses | Equivalent? |
+|----------|----------|---------|-------------|
 | `config()` | ✅ (all commands) | ✅ (all routes) | ✅ Yes |
+| `wallet()` | ✅ (wallet commands) | ✅ (wallet routes) | ✅ Yes |
+| `memory()` | ✅ (chat, REPL) | ✅ (episodic, semantic routes) | ✅ Yes |
+| `registry()` | ✅ (templates, bundles) | ✅ (templates, bundles) | ✅ Yes |
+| `goal_repo()` | ✅ (goals) | ✅ (goals) | ✅ Yes |
+| `cns_runtime()` | ✅ (CNS commands) | ✅ (CNS routes) | ✅ Yes |
+| `loop_system()` | ✅ (loops, serve) | ✅ (start_loops) | ✅ Yes |
+| `inference_port()` | ✅ (chat, compose) | ✅ (compose) | ✅ Yes |
+| `mcp_runtime()` | ✅ (MCP commands) | ✅ (MCP routes) | ✅ Yes |
+| `pod_manager()` | ✅ (pods) | ✅ (pods, ACP) | ✅ Yes |
+| `sovereignty()` | ✅ (sovereignty) | ✅ (sovereignty) | ✅ Yes |
+| `daemon_handler()` | ✅ (daemon) | ❌ | N/A (daemon only) |
+| `matrix_transport()` | ✅ (REPL) | ❌ | N/A (REPL only) |
 
 ---
 
@@ -127,46 +215,88 @@ impl AgentService {
 
 | Operation | Required Capability | Attenuation |
 |-----------|-------------------|-------------|
-| `let (ep, _) = svc.memory()` | `episodic_memory:read/write` | Scoped to agent WebID |
-| `let (_, sem) = svc.memory()` | `semantic_memory:read/write` | Public data only |
-| `let (_, dp, _) = svc.governance()` | `tools:execute` | Per-tool capability |
-| `let (_, _, pm, _) = svc.coordination()` | `pods:create/manage` | Agent-scoped |
+| `svc.memory()` | `episodic_memory:read/write` + `semantic_memory:read/write` | Scoped to agent WebID |
+| `svc.mcp_dispatcher()` | `tools:execute` | Per-tool capability |
+| `svc.pod_manager()` | `pods:create/manage` | Agent-scoped |
+| `svc.sovereignty()` | `consent:manage` | User-scoped (P1) |
 
 ---
 
-## 4. Lifecycle Spec — Migration Path
+## 4. Lifecycle Spec — Bootstrap & Database Pattern
 
 ### 4.1 Bootstrap Sequence
 
 ```
-1. ServiceConfig::from_env() / from_secrets()
+1. ServiceConfig::from_env() / from_secrets() / in_memory()
 2. AgentService::build(config)
-   ├── Open databases (primary, consent, escalation, goals, etc.)
-   ├── Initialize stores (consent, escalation, goals, standing, sovereignty, specs, users)
-   ├── Build CNS runtime + event sink
-   ├── Build loop system (Cybernetics, Inference, Episodic, Semantic, Curation, Snapshot)
-   ├── Build Governance (MCP runtime, dispatcher, governed tool, capability checker)
-   ├── Build Coordination (pod manager, ACP runtime, session manager)
-   ├── Build Storage (registry, goal repo, etc.)
-   └── Build Identity (system WebID, event sink)
+   ├── System identity (WebID from agent name)
+   ├── Database connection (single shared Arc<Mutex<Connection>>)
+   │   ├── in_memory: true  → single in-memory DB shared across all stores
+   │   └── in_memory: false → file-backed SQLCipher DB at db_path
+   ├── Stores (consent, escalation, goals, sovereignty, specs, users)
+   ├── CNS runtime + event sink + seam watcher (R7.3)
+   ├── Loop system (Cybernetics, Inference, Episodic, Semantic, Curation, Snapshot, Backup)
+   ├── GovernedTool membrane + MCP dispatcher
+   ├── Pod manager + capability checker + ACP runtime
+   ├── Daemon handler + Unix socket listener (skipped in in_memory mode)
+   ├── Matrix transport + 7R7 listener (non-blocking, skipped if Conduit unavailable)
+   ├── Registry + agent registry store (ACP state restored from persistent storage)
+   ├── Wallet (rJoule payments, deposit monitor, replicant wallet binding)
+   └── Memory adapters (episodic + semantic storage ports via MemoryLoopAdapter)
 3. Surface wraps AgentService:
    ├── CLI: ReplState { agent_service, prompt_state, ... }
-   └── API: ApiState { agent_service, standing_sessions, router, ... }
+   └── API: ApiState { agent_service: Arc<AgentService>, spec_store, git_cas, wallet_service, ... }
 ```
 
-### 4.2 Evolution (Strangler-Fig Migration)
+### 4.2 In-Memory Database Pattern
 
-| Phase | Action | Verification |
-|-------|--------|-------------|
-| **Phase 1** | Add 8 group methods to `AgentService` (tuples of refs, zero new types) | `cargo check` passes |
-| **Phase 2** | Route CNS callers through `cns()` group method | `cargo test -p hkask-cli -p hkask-api` passes |
-| **Phase 3** | Delete `CnsService` pass-through module | `cargo check --workspace` passes |
-| **Phase 4** | Route remaining callers through group methods per domain | Surface tests pass |
-| **Phase 5** | Delete old individual accessors (strangler-fig DELETE) | `cargo clippy -- -D warnings` passes |
+When `ServiceConfig::in_memory == true`, `AgentService::build()` creates a **single shared in-memory `Database`** and distributes clones of its `Arc<Mutex<Connection>>` to every store:
 
-### 4.3 Deprecation Policy
+```
+Database::in_memory()
+    → shared_conn: Arc<Mutex<Connection>>
+        → primary_conn    → SqliteRegistry, AgentRegistryStore, NuEventStore (CNS events)
+        → consent_conn    → ConsentStore → ConsentManager
+        → escalation_conn → EscalationQueue
+        → goal_conn       → SqliteGoalRepository, NuEventStore (goal telemetry)
+        → sovereignty_conn → SovereigntyBoundaryStore
+        → spec_conn       → SqliteSpecStore
+        → user_conn       → UserStore
+        → mem_conn        → TripleStore (×3) + EmbeddingStore → EpisodicMemory, SemanticMemory, MemoryLoopAdapter
+        → wallet_conn     → WalletStore
+```
 
-**Strangler fig — no deprecation.** Old accessors coexist during migration and are deleted when all consumers are on the new path. No `#[deprecated]` attributes (P6/P7 violation).
+**Design intent:** A single shared connection enables cross-store operations — consent records visible to CNS, goals visible to memory, wallet transactions observable by CNS event sink. In production (`in_memory: false`), the same `Arc<Mutex<Connection>>` sharing pattern applies to the file-backed database.
+
+**Test constructor:** `ServiceConfig::in_memory()` creates a config with `in_memory: true`, synthetic secrets (zero-filled ACP/MCP keys), and test agent name. Used by all integration tests.
+
+### 4.3 Per-Agent Memory
+
+`AgentService::build_per_agent_memory(db: Database)` constructs agent-scoped memory infrastructure from a dedicated `Database` connection:
+
+```rust
+pub struct PerAgentMemory {
+    pub episodic_storage: Arc<dyn EpisodicStoragePort>,
+    pub semantic_storage: Arc<dyn SemanticStoragePort>,
+    pub consolidation_service: hkask_memory::ConsolidationService,
+}
+```
+
+All three components share the same underlying DB connection, so consolidation operates on the agent's actual episodic and semantic triples. This is used by the REPL to build agent-scoped memory separate from the shared `AgentService` memory adapted for loops.
+
+### 4.4 Evolution (Complete)
+
+The strangler-fig migration from 8 group methods to individual named accessors is **complete** as of v0.27.0:
+
+| Phase | Action | Status |
+|-------|--------|--------|
+| **Phase 1** | Add 8 group methods to `AgentService` | ✅ Complete |
+| **Phase 2** | Route CNS callers through `cns()` group method | ✅ Complete |
+| **Phase 3** | Delete `CnsService` pass-through module | ✅ Complete |
+| **Phase 4** | Route remaining callers through group methods per domain | ✅ Complete |
+| **Phase 5** | Delete old group methods, replace with individual named accessors | ✅ Complete |
+
+All surfaces now use individual named accessor methods. No group methods remain.
 
 ---
 
@@ -174,7 +304,7 @@ impl AgentService {
 
 ### 5.1 Coherence Metric
 
-**Method:** Jaccard similarity of declared vs. registered domain adapters
+**Method:** Jaccard similarity of declared vs. registered accessor methods
 
 ```
 coherence = |declared ∩ registered| / |declared ∪ registered|
@@ -182,19 +312,19 @@ coherence = |declared ∩ registered| / |declared ∪ registered|
 
 **Threshold:** 0.7 (70% overlap)
 
-**Declared Methods:** memory, cns, governance, storage, coordination, identity, sovereignty, config (8 total)
+**Declared Methods:** 26 individual named accessors (see §2.1)
 
-**Registered Methods:** (After implementation) All 8 must be present
+**Registered Methods:** All 26 must be present and return correct types
 
 ### 5.2 Curation Decision
 
 **Decision:** ✅ **Accept**
 
-**Rationale:** 
-- All fields are accounted for in 8 group methods
-- Each method returns related fields by domain (memory, cns, governance, storage, coordination, identity, sovereignty, config)
-- Tuple destructuring enforces encapsulation (private fields, public methods)
-- Migration path is strangler-fig (5 phases, functional at every step)
+**Rationale:**
+- All 28 fields are accounted for via individual named accessor methods
+- Each method returns a single field or small coherent pair (memory, identity)
+- Private fields + public methods enforce encapsulation (P4 Clear Boundaries)
+- Strangler-fig migration complete — no deprecated paths remain
 
 ---
 
@@ -204,17 +334,19 @@ coherence = |declared ∩ registered| / |declared ∪ registered|
 
 | MDS Category | Test Strategy | REQ Tags |
 |-------------|--------------|----------|
-| **Domain** | AgentService construction + field grouping | `// REQ-MDS-D1` |
-| **Composition** | Group methods return correct tuple types | `// REQ-MDS-C1` |
+| **Domain** | AgentService construction + field inventory | `// REQ-MDS-D1` |
+| **Composition** | Individual accessors return correct types | `// REQ-MDS-C1` |
 | **Trust** | Direct field access fails to compile | `// REQ-MDS-T1` |
 | **Lifecycle** | Bootstrap sequence completes without error | `// REQ-MDS-L1` |
+| **Database** | In-memory DB shared across all stores | `// REQ-MDS-DB1` |
 
 ### 6.2 Tracer Bullets (Priority Order)
 
 1. **P0 (Security):** `// REQ-MDS-T1` — Direct field access fails to compile
-2. **P1 (Correctness):** `// REQ-MDS-C1` — All 8 group methods exist and return correct tuple types
+2. **P1 (Correctness):** `// REQ-MDS-C1` — All 26 accessor methods exist and return correct types
 3. **P1 (Correctness):** `// REQ-MDS-D1` — AgentService::build() assembles all fields
-4. **P2 (Lifecycle):** `// REQ-MDS-L1` — Bootstrap completes in <5 seconds
+4. **P1 (Correctness):** `// REQ-MDS-DB1` — In-memory mode shares a single DB connection across all stores
+5. **P2 (Lifecycle):** `// REQ-MDS-L1` — Bootstrap completes in <5 seconds
 
 ---
 
@@ -222,11 +354,12 @@ coherence = |declared ∩ registered| / |declared ∪ registered|
 
 | ID | Question | Decision Criteria |
 |----|----------|------------------|
-| F1 | Should group methods be public? | **Yes** — surfaces need to access them |
-| F2 | Should group methods be async? | **No** — fields are Arc'd, no I/O in method body |
+| F1 | Should accessor methods be public? | **Yes** — surfaces need to access them |
+| F2 | Should accessor methods be async? | **No** — fields are Arc'd, no I/O in method body |
 | F3 | Should we add builder pattern for AgentService? | **No** — `build()` is sufficient |
 | F4 | Should we add `#[non_exhaustive]` to AgentService? | **Yes** — prevents struct literal construction |
-| F5 | Should we delete old individual accessors? | **Yes** — strangler-fig DELETE phase (post-migration) |
+| F5 | Should `spec_store`, `agent_registry_store`, `user_store` move to `ApiState`? | **Open** — currently on AgentService with TODO markers; they are surface-specific fields |
+| F6 | Should `sovereignty_boundary_store` be removed from public access? | **Open** — currently has a public accessor (strangler-fig artifact); all callers should migrate to `sovereignty()` |
 
 ---
 

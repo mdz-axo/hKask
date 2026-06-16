@@ -700,6 +700,12 @@ pub enum WalletAction {
         #[command(subcommand)]
         action: KeyAction,
     },
+    /// Estimate current network withdrawal fee for a chain
+    Fee {
+        /// Blockchain network (hinkal, solana, or hedera). Defaults to hinkal.
+        #[arg(short, long)]
+        chain: Option<String>,
+    },
     /// Withdraw rJoules as USDC to an external address
     Withdraw {
         /// Amount in rJoules to withdraw

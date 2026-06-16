@@ -47,6 +47,10 @@ struct LexiconTermYaml {
 /// `docs/architecture/reference/hKask-hLexicon.md` and derived into
 /// `registry/hlexicon/hlexicon-workspace.yaml`. This function parses
 /// that YAML into an `HLexicon` suitable for validation during registration.
+///
+/// REQ: TPL-015
+/// pre:  content is valid YAML in hlexicon-workspace format
+/// post: returns HLexicon populated with WordAct, FlowDef, KnowAct terms
 pub fn load_hlexicon_from_yaml(content: &str) -> Result<HLexicon, String> {
     let workspace: HlexiconWorkspaceYaml = serde_yaml::from_str(content)
         .map_err(|e| format!("Failed to parse hLexicon YAML: {}", e))?;
@@ -69,6 +73,11 @@ pub fn load_hlexicon_from_yaml(content: &str) -> Result<HLexicon, String> {
     Ok(lexicon)
 }
 
+/// Load the hLexicon from a file path.
+///
+/// REQ: TPL-016
+/// pre:  path points to a valid hlexicon-workspace YAML file
+/// post: returns HLexicon parsed from file contents
 pub fn load_hlexicon_from_file(path: &Path) -> Result<HLexicon, String> {
     load_hlexicon_from_yaml(
         &std::fs::read_to_string(path)
@@ -76,6 +85,11 @@ pub fn load_hlexicon_from_file(path: &Path) -> Result<HLexicon, String> {
     )
 }
 
+/// Load the hLexicon from the default workspace path.
+///
+/// REQ: TPL-017
+/// post: returns HLexicon from registry/hlexicon/hlexicon-workspace.yaml
+/// post: respects HKASK_TEMPLATES_PATH env var for path resolution
 pub fn load_hlexicon_default() -> Result<HLexicon, String> {
     let path = std::env::var("HKASK_TEMPLATES_PATH")
         .map(|p| {
@@ -96,6 +110,10 @@ pub fn load_hlexicon_default() -> Result<HLexicon, String> {
 /// tuples from the three domain sections (WordAct, FlowDef, KnowAct). Each term is
 /// extracted from backtick-quoted first column entries in tables with `Term | Definition`
 /// headers.
+///
+/// REQ: TPL-018
+/// pre:  markdown is valid hLexicon markdown content
+/// post: returns Vec of (term, definition, TemplateType) tuples
 pub fn parse_markdown_catalog(
     markdown: &str,
 ) -> Result<Vec<(String, String, TemplateType)>, String> {
@@ -157,22 +175,13 @@ fn extract_backtick_quoted(s: &str) -> Option<String> {
 
 /// Render a workspace YAML string from a catalog of lexicon terms.
 ///
-/// Produces the `hlexicon-workspace.yaml` format that `load_hlexicon_from_yaml` parses:
-///
-/// ```yaml
-/// hlexicon:
-///   wordact:
-///     - term: query
-///       definition: "Ask for information"
-///   flowdef:
-///     - term: sequence
-///       definition: "Linear ordering"
-///   knowact:
-///     - term: recognize
-///       definition: "Identify pattern"
-/// ```
-///
+/// Produces the `hlexicon-workspace.yaml` format that `load_hlexicon_from_yaml` parses.
 /// Terms are sorted alphabetically within each domain for stable output.
+///
+/// REQ: TPL-019
+/// pre:  terms is a valid catalog from parse_markdown_catalog
+/// post: returns YAML string in hlexicon-workspace format
+/// post: terms sorted alphabetically within each domain
 pub fn render_workspace_yaml(terms: &[(String, String, TemplateType)]) -> Result<String, String> {
     let mut wordact: Vec<&(String, String, TemplateType)> = terms
         .iter()
@@ -228,6 +237,10 @@ fn render_domain(
 ///
 /// This is the top-level pipeline: `parse_markdown_catalog` → `render_workspace_yaml`.
 /// Returns the YAML content that should be written to disk.
+///
+/// REQ: TPL-020
+/// pre:  markdown is valid hLexicon markdown content
+/// post: returns YAML string ready to write to hlexicon-workspace.yaml
 pub fn regenerate_workspace_yaml(markdown: &str) -> Result<String, String> {
     let catalog = parse_markdown_catalog(markdown)?;
     render_workspace_yaml(&catalog)

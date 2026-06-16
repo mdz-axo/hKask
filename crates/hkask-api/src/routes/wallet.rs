@@ -26,6 +26,7 @@ use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletId};
 pub fn wallet_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(get_balance))
+        .routes(routes!(get_fee_estimate))
         .routes(routes!(get_deposit_address))
         .routes(routes!(create_deposit_reference))
         .routes(routes!(get_transactions))
@@ -41,6 +42,14 @@ pub struct WalletBalanceResponse {
     pub rjoules: u64,
     pub usdc_equivalent: f64,
     pub gas_equivalent: u64,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct WithdrawalFeeEstimateResponse {
+    pub chain: String,
+    pub rjoules: u64,
+    pub native_units: f64,
+    pub usdc_equivalent: f64,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -172,6 +181,50 @@ fn resolve_privacy_mode(private: Option<bool>) -> PrivacyMode {
         PrivacyMode::Shielded
     } else {
         PrivacyMode::Transparent
+    }
+}
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+pub struct FeeEstimateQuery {
+    pub chain: Option<String>,
+}
+
+/// Estimate current network withdrawal fee using configured price feed.
+#[utoipa::path(
+    get,
+    path = "/api/wallet/fee",
+    params(FeeEstimateQuery),
+    responses(
+        (status = 200, body = WithdrawalFeeEstimateResponse),
+        (status = 503, description = "Wallet service not configured")
+    )
+)]
+async fn get_fee_estimate(
+    State(state): State<ApiState>,
+    Query(q): Query<FeeEstimateQuery>,
+) -> impl IntoResponse {
+    let svc = match get_wallet(&state) {
+        Ok(s) => s,
+        Err(status) => return wallet_err(status, "Wallet service not configured"),
+    };
+
+    let chain = match parse_chain(q.chain.as_deref()) {
+        Ok(c) => c,
+        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+    };
+
+    match svc.estimate_withdrawal_fee(chain).await {
+        Ok(fee) => (
+            StatusCode::OK,
+            Json(WithdrawalFeeEstimateResponse {
+                chain: chain.to_string(),
+                rjoules: fee.rjoules,
+                native_units: fee.native_units,
+                usdc_equivalent: fee.usdc_micro as f64 / 1_000_000.0,
+            }),
+        )
+            .into_response(),
+        Err(e) => wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()).into_response(),
     }
 }
 

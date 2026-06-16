@@ -45,6 +45,10 @@ pub struct SkillLoader {
 
 impl SkillLoader {
     /// Create a new skill loader rooted at `project_root`.
+    ///
+    /// REQ: TPL-008
+    /// pre:  project_root is a valid directory path
+    /// post: returns SkillLoader configured for the given root
     pub fn new(project_root: impl Into<PathBuf>) -> Self {
         Self {
             project_root: project_root.into(),
@@ -52,6 +56,11 @@ impl SkillLoader {
     }
 
     /// Discover and load skills from both zones, registering them into the registry.
+    ///
+    /// REQ: TPL-009
+    /// pre:  registry is initialized
+    /// post: skills from private and public zones loaded and registered
+    /// post: returns SkillLoadResult with loaded skills and any warnings
     pub fn load_into(&self, registry: &mut dyn SkillRegistryIndex) -> SkillLoadResult {
         let mut result = SkillLoadResult {
             loaded: Vec::new(),
@@ -176,6 +185,11 @@ impl SkillLoader {
 
     /// Parse YAML front matter from a SKILL.md file.
     /// Expects `---\n` delimiters at the start and end of the front matter block.
+    ///
+    /// REQ: TPL-010
+    /// pre:  content is a valid SKILL.md file content
+    /// post: returns SkillFrontMatter parsed from YAML front matter
+    /// post: returns default SkillFrontMatter if no front matter present
     pub fn parse_front_matter(content: &str) -> Result<SkillFrontMatter, String> {
         let content = content.trim_start();
 

@@ -12,8 +12,8 @@ use crate::chat_protocol::{
 };
 use crate::config::InferenceConfig;
 use futures_util::StreamExt;
-use hkask_types::template::LLMParameters;
 use hkask_types::ports::{InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
@@ -26,9 +26,13 @@ pub struct DeepInfraBackend {
 }
 
 impl DeepInfraBackend {
-    /// Create a new DeepInfra backend from the inference config.
+    /// Create a new DeepInfra backend from inference config.
     ///
     /// Returns an error if `deepinfra_api_key` is empty.
+    ///
+    /// REQ: INFER-010
+    /// pre:  config.deepinfra_api_key is set
+    /// post: returns DeepInfraBackend with configured HTTP client
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
         if config.deepinfra_api_key.is_empty() {
             return Err(InferenceError::Connection(
@@ -147,6 +151,11 @@ impl DeepInfraBackend {
     }
 
     /// Stream a chat completion from DeepInfra via SSE.
+    /// Generate a streaming completion from DeepInfra.
+    ///
+    /// REQ: INFER-011
+    /// pre:  model is a valid DeepInfra model name
+    /// post: returns stream of inference chunks
     pub fn generate_stream(
         &self,
         model: &str,

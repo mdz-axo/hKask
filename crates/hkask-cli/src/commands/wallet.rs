@@ -28,6 +28,7 @@ pub fn run(action: WalletAction) {
         }
         WalletAction::History { limit, wallet } => handle_history(&svc, limit, wallet),
         WalletAction::Key { action } => handle_key(&svc, action),
+        WalletAction::Fee { chain } => handle_fee(&svc, chain),
         WalletAction::Withdraw {
             amount_rj,
             to,
@@ -174,6 +175,30 @@ fn handle_history(svc: &WalletService, limit: Option<u32>, wallet: Option<String
         Err(e) => {
             eprintln!("Error: {e}");
         }
+    }
+}
+
+// ── Fee quote ───────────────────────────────────────────────────────────────
+
+fn handle_fee(svc: &WalletService, chain: Option<String>) {
+    let chain = parse_chain(chain.as_deref());
+    match tokio::runtime::Runtime::new() {
+        Ok(rt) => match rt.block_on(svc.estimate_withdrawal_fee(chain)) {
+            Ok(fee) => {
+                println!("Withdrawal Fee Estimate");
+                println!("=======================");
+                println!();
+                println!("  Chain:        {chain}");
+                println!("  rJoules:      {}", fee.rjoules);
+                println!("  Native units: {:.8}", fee.native_units);
+                println!(
+                    "  USDC:         ~{:.6}",
+                    fee.usdc_micro as f64 / 1_000_000.0
+                );
+            }
+            Err(e) => eprintln!("Error estimating fee: {e}"),
+        },
+        Err(e) => eprintln!("Error initializing runtime: {e}"),
     }
 }
 

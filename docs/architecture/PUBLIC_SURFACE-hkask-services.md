@@ -24,6 +24,8 @@ mds_categories: [composition]
 
 3. **Single error vocabulary** — `ServiceError` is the unified error enum composing all domain errors. Its 30+ variants replace what would otherwise be per-crate error enums with duplicated variants.
 
+4. **AgentService — canonical service context** — `AgentService` holds 28 private fields exposed through individual named accessor methods (one per field or small coherent pair). `AgentService::build(config)` assembles all shared infrastructure from a `ServiceConfig`. The in-memory database pattern uses a single shared `Arc<Mutex<Connection>>` distributed to all stores (see `MDS-agent-service.md` §4.2).
+
 ## Mitigations
 
 - **Submodule depth:** Each domain module (e.g., `wallet.rs`, `goal.rs`) has ≤7 public functions — they pass the deep-module test individually.

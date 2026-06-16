@@ -28,6 +28,9 @@ pub struct ContractValidator<'a> {
 
 impl<'a> ContractValidator<'a> {
     /// Create a new ContractValidator with no hLexicon (always passes).
+    ///
+    /// REQ: TPL-011
+    /// post: returns ContractValidator with no lexicon, Warn mode
     pub fn new() -> Self {
         Self {
             hlexicon: None,
@@ -36,6 +39,10 @@ impl<'a> ContractValidator<'a> {
     }
 
     /// Create a ContractValidator with a loaded hLexicon for term validation.
+    ///
+    /// REQ: TPL-012
+    /// pre:  hlexicon is a valid HLexicon
+    /// post: returns ContractValidator with lexicon, Warn mode
     pub fn with_lexicon(hlexicon: &'a HLexicon) -> Self {
         Self {
             hlexicon: Some(hlexicon),
@@ -44,12 +51,21 @@ impl<'a> ContractValidator<'a> {
     }
 
     /// Set the validation mode.
+    ///
+    /// REQ: TPL-013
+    /// post: returns Self with mode updated (builder pattern)
     pub fn with_mode(mut self, mode: ValidationMode) -> Self {
         self.mode = mode;
         self
     }
 
     /// Validate that the given template's declared terms exist in the hLexicon.
+    ///
+    /// REQ: TPL-014
+    /// pre:  template_id is non-empty
+    /// post: returns (Ok(()), unknown_terms) in Warn mode
+    /// post: returns (Err, unknown_terms) in Reject mode if unknown terms found
+    /// post: returns (Ok(()), vec![]) if no lexicon configured
     pub fn validate_terms(
         &self,
         template_id: &str,
