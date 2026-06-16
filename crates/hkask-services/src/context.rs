@@ -506,12 +506,20 @@ impl AgentService {
 }
 
 /// Open an escalation queue from config.
+///
+/// REQ: SVC-272
+/// pre:  config must have valid db_path and db_passphrase
+/// post: returns Arc<EscalationQueue> initialized from DB; Err on DB open or schema init failure
 pub fn open_escalation_queue(config: &ServiceConfig) -> Result<Arc<EscalationQueue>, ServiceError> {
     let db = Database::open(&config.db_path, &config.db_passphrase)?;
     Ok(Arc::new(EscalationQueue::new(db.conn_arc())?))
 }
 
 /// Open a spec store from config.
+///
+/// REQ: SVC-273
+/// pre:  config must have valid db_path and db_passphrase
+/// post: returns SqliteSpecStore with schema initialized; Err on DB open or schema init failure
 pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, ServiceError> {
     let db = Database::open(&config.db_path, &config.db_passphrase)?;
     let store = SqliteSpecStore::new(db.conn_arc());
@@ -520,6 +528,10 @@ pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, Servic
 }
 
 /// Open a consent manager from config.
+///
+/// REQ: SVC-274
+/// pre:  config must have valid db_path and db_passphrase
+/// post: returns (Arc<ConsentManager>, SovereigntyBoundaryStore) with schemas initialized; Err on DB open or schema init failure
 pub fn open_consent_manager(
     config: &ServiceConfig,
 ) -> Result<(Arc<ConsentManager>, SovereigntyBoundaryStore), ServiceError> {
@@ -538,6 +550,10 @@ pub fn open_consent_manager(
 }
 
 /// Build an ACP runtime + agent registry store from config.
+///
+/// REQ: SVC-275
+/// pre:  config must have valid db_path, db_passphrase, and acp_secret
+/// post: returns (Arc<AcpRuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
 pub fn open_agent_registry(
     config: &ServiceConfig,
 ) -> Result<
@@ -565,6 +581,9 @@ impl AgentService {
     /// secrets, opens databases, constructs CNS/loop system, governed
     /// tool membrane, and session manager in the correct dependency order.
     ///
+    /// REQ: SVC-276
+    /// pre:  config must be a valid ServiceConfig with resolved secrets
+    /// post: returns fully assembled AgentService with all infrastructure wired; Err on any construction step failure
     /// # Dependency order
     ///
     /// 1. Database connections (primary + per-purpose)

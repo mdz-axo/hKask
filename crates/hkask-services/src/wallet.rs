@@ -53,6 +53,10 @@ pub struct WalletService {
 
 impl WalletService {
     /// Create a new WalletService from its components.
+    ///
+    /// REQ: SVC-279
+    /// pre:  manager must be a valid Arc<WalletManager>; issuer must be a valid Arc<ApiKeyIssuer>
+    /// post: returns WalletService with manager and issuer wired; cybernetics and consent_manager default to None
     pub fn new(manager: Arc<WalletManager>, issuer: Arc<ApiKeyIssuer>) -> Self {
         Self {
             manager,
@@ -63,6 +67,10 @@ impl WalletService {
     }
 
     /// Attach a CyberneticsLoop for CNS wallet budget registration.
+    ///
+    /// REQ: SVC-280
+    /// pre:  loop_ must be a valid Arc<RwLock<CyberneticsLoop>>
+    /// post: returns self with cybernetics set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_cybernetics(mut self, loop_: Arc<RwLock<CyberneticsLoop>>) -> Self {
         self.cybernetics = Some(loop_);
@@ -74,6 +82,10 @@ impl WalletService {
     /// When configured, withdrawal operations require explicit user consent
     /// via `DataCategory::Custom("wallet_withdrawal")`. Without a consent manager,
     /// withdrawals proceed unchecked (backward compatible for standalone mode).
+    ///
+    /// REQ: SVC-281
+    /// pre:  cm must be a valid Arc<ConsentManager>
+    /// post: returns self with consent_manager set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_consent_manager(mut self, cm: Arc<ConsentManager>) -> Self {
         self.consent_manager = Some(cm);
@@ -81,6 +93,10 @@ impl WalletService {
     }
 
     /// Access the underlying WalletManager (for orchestration: ensure_wallet, deposit monitor).
+    ///
+    /// REQ: SVC-282
+    /// pre:  self must be constructed
+    /// post: returns &Arc<WalletManager>
     pub fn manager(&self) -> &Arc<WalletManager> {
         &self.manager
     }
@@ -93,6 +109,9 @@ impl WalletService {
     /// `context.rs` calls this and handles only orchestration (replicant binding,
     /// deposit monitor spawning).
     ///
+    /// REQ: SVC-283
+    /// pre:  config must be valid; store must be initialized; event_sink must be valid; cybernetics must be valid
+    /// post: returns Arc<WalletService> with chain ports, price feed, WalletManager, and ApiKeyIssuer all wired; Err on construction failure
     /// # Parameters
     /// - `config`: Wallet subsystem configuration (chains, privacy, price feed)
     /// - `store`: Shared wallet store for balances, keys, transactions
@@ -268,6 +287,10 @@ impl WalletService {
     // ── Balance ──────────────────────────────────────────────────────────────
 
     /// Get the current rJoule balance for a wallet.
+    ///
+    /// REQ: SVC-284
+    /// pre:  wallet_id must be valid
+    /// post: returns WalletBalance; Err(Wallet) on manager error
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, ServiceError> {
         self.manager.get_balance(wallet_id).map_err(|e| {
             let msg = e.to_string();
@@ -279,6 +302,10 @@ impl WalletService {
     }
 
     /// Check if a wallet can afford a given rJoule cost.
+    ///
+    /// REQ: SVC-285
+    /// pre:  wallet_id must be valid; cost_rj must be >= 0
+    /// post: returns true if balance >= cost_rj; false otherwise; Err(Wallet) on manager error
     pub fn can_afford(&self, wallet_id: WalletId, cost_rj: RJoule) -> Result<bool, ServiceError> {
         self.manager.can_afford(wallet_id, cost_rj).map_err(|e| {
             let msg = e.to_string();
@@ -290,6 +317,10 @@ impl WalletService {
     }
 
     /// Ensure a wallet row exists (idempotent — creates if missing).
+    ///
+    /// REQ: SVC-286
+    /// pre:  wallet_id must be valid
+    /// post: wallet row exists in store; Ok(()) on success; Err(Wallet) on manager error
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), ServiceError> {
         self.manager.ensure_wallet(wallet_id).map_err(|e| {
             let msg = e.to_string();
@@ -303,6 +334,10 @@ impl WalletService {
     // ── Deposit ──────────────────────────────────────────────────────────────
 
     /// Get or derive a deposit address for a wallet on a specific chain.
+    ///
+    /// REQ: SVC-287
+    /// pre:  wallet_id must be valid; chain must be a configured ChainId; privacy must be a valid PrivacyMode
+    /// post: returns DepositAddress; Err(Wallet) on manager error
     pub fn get_deposit_address(
         &self,
         wallet_id: WalletId,
@@ -321,6 +356,10 @@ impl WalletService {
     }
 
     /// Generate a one-time deposit reference for shielded deposits.
+    ///
+    /// REQ: SVC-288
+    /// pre:  wallet_id must be valid; chain must be configured; validity_hours must be > 0
+    /// post: returns DepositReference with expiry; Err(Wallet) on manager error
     pub fn generate_deposit_reference(
         &self,
         wallet_id: WalletId,
@@ -340,6 +379,10 @@ impl WalletService {
     }
 
     /// Get paginated transaction history for a wallet.
+    ///
+    /// REQ: SVC-289
+    /// pre:  wallet_id must be valid; limit must be > 0
+    /// post: returns Vec<WalletTransaction>; empty Vec if no transactions; Err(Wallet) on manager error
     pub fn get_transactions(
         &self,
         wallet_id: WalletId,
@@ -419,6 +462,10 @@ impl WalletService {
     }
 
     /// Estimate network withdrawal fee for a chain using configured price feed.
+    ///
+    /// REQ: SVC-290
+    /// pre:  webid must be valid; chain must be configured
+    /// post: returns WithdrawalFee estimate; Err(Wallet) on manager error
     pub async fn estimate_withdrawal_fee(
         &self,
         webid: &WebID,
@@ -439,6 +486,10 @@ impl WalletService {
     // ── Shield ───────────────────────────────────────────────────────────────
 
     /// Shield transparently-held USDC into the Hinkal privacy pool.
+    ///
+    /// REQ: SVC-291
+    /// pre:  wallet_id must be valid; amount_usdc_micro must be > 0; chain must support shielding
+    /// post: returns TxHash of shield transaction; Err(Wallet) on failure
     pub async fn shield_assets(
         &self,
         wallet_id: WalletId,
@@ -461,6 +512,10 @@ impl WalletService {
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// Create a new API key with the specified limits, scope, and purpose.
+    ///
+    /// REQ: SVC-292
+    /// pre:  wallet_id must be valid; spending_limit_rj must be >= 0; purpose must be non-empty
+    /// post: returns ApiKeyMaterial with key secret; Err(Wallet) on issuer error
     #[allow(clippy::too_many_arguments)]
     pub fn create_key(
         &self,
@@ -494,6 +549,10 @@ impl WalletService {
     }
 
     /// Revoke an API key. Returns unspent rJoules to the wallet.
+    ///
+    /// REQ: SVC-293
+    /// pre:  key_id must be a valid, non-revoked key
+    /// post: key is revoked; unspent rJoules returned to wallet; Err(Wallet) on issuer error
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
         self.issuer.revoke_key(key_id).map_err(|e| {
             let msg = e.to_string();
@@ -505,6 +564,10 @@ impl WalletService {
     }
 
     /// List active (non-revoked) API keys for a wallet.
+    ///
+    /// REQ: SVC-294
+    /// pre:  wallet_id must be valid
+    /// post: returns Vec<ApiKeyCapability> of active keys; empty Vec if none; Err(Wallet) on issuer error
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, ServiceError> {
         self.issuer.list_keys(wallet_id).map_err(|e| {
             let msg = e.to_string();
@@ -516,6 +579,10 @@ impl WalletService {
     }
 
     /// Get a single API key capability by key ID.
+    ///
+    /// REQ: SVC-295
+    /// pre:  key_id must be valid
+    /// post: returns Some(ApiKeyCapability) if found; None if not found; Err(Wallet) on manager error
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, ServiceError> {
         self.manager.get_api_key(key_id).map_err(|e| {
             let msg = e.to_string();
@@ -529,11 +596,19 @@ impl WalletService {
     // ── Gas conversion ──────────────────────────────────────────────────────
 
     /// Convert gas units to rJoules.
+    ///
+    /// REQ: SVC-296
+    /// pre:  gas must be >= 0
+    /// post: returns RJoule equivalent using manager's conversion rate
     pub fn gas_to_rjoules(&self, gas: u64) -> RJoule {
         self.manager.gas_to_rjoules(gas)
     }
 
     /// Convert rJoules to gas units.
+    ///
+    /// REQ: SVC-297
+    /// pre:  rj must be >= 0
+    /// post: returns u64 gas equivalent using manager's conversion rate
     pub fn rjoules_to_gas(&self, rj: RJoule) -> u64 {
         self.manager.rjoules_to_gas(rj)
     }
@@ -545,6 +620,10 @@ impl WalletService {
     /// The agent's tool invocations will debit rJoules from the wallet
     /// instead of consuming from the dimensionless gas pool.
     /// The gas→rJoule conversion rate is taken from the WalletManager's config.
+    ///
+    /// REQ: SVC-298
+    /// pre:  cybernetics must be attached via with_cybernetics(); agent must be a valid WebID; wallet_id must be valid
+    /// post: wallet-backed budget is registered in CNS for the agent; Err(Wallet) if cybernetics not attached
     pub async fn register_wallet_budget(
         &self,
         agent: hkask_types::WebID,
@@ -571,6 +650,10 @@ impl WalletService {
     /// Unlike `register_wallet_budget`, this attaches the API key so that
     /// gas consumption is debited from the key's encumbrance (not raw wallet
     /// balance). The spending limit is also tracked per-key.
+    ///
+    /// REQ: SVC-299
+    /// pre:  cybernetics must be attached; agent must be valid; wallet_id and key_id must be valid; spending_limit_rj must be >= 0
+    /// post: wallet-backed budget with API key tracking is registered in CNS; Err(Wallet) if cybernetics not attached
     pub async fn register_wallet_budget_for_key(
         &self,
         agent: hkask_types::WebID,
@@ -598,6 +681,10 @@ impl WalletService {
     // ── Encumbrance ──────────────────────────────────────────────────────────
 
     /// Encumber rJoules from a wallet for an API key's allocation.
+    ///
+    /// REQ: SVC-300
+    /// pre:  wallet_id must be valid with sufficient balance; key_id must be valid; amount must be > 0
+    /// post: rJoules are encumbered from wallet to key; Err(Wallet) on manager error
     pub fn encumber_key(
         &self,
         wallet_id: WalletId,
@@ -616,6 +703,10 @@ impl WalletService {
     }
 
     /// Release an encumbrance, returning unspent rJoules to the wallet.
+    ///
+    /// REQ: SVC-301
+    /// pre:  key_id must have an active encumbrance
+    /// post: encumbrance is released; unspent rJoules returned to wallet; Err(Wallet) on manager error
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
         self.manager.release_encumbrance(key_id).map_err(|e| {
             let msg = e.to_string();
@@ -627,6 +718,10 @@ impl WalletService {
     }
 
     /// Atomically consume rJoules from an API key's encumbrance.
+    ///
+    /// REQ: SVC-302
+    /// pre:  key_id must have sufficient encumbered balance; gas_rj must be > 0
+    /// post: rJoules are atomically debited from key's encumbrance; Err(Wallet) on manager error or insufficient balance
     pub fn consume_gas(&self, key_id: ApiKeyId, gas_rj: RJoule) -> Result<(), ServiceError> {
         self.manager.consume(key_id, gas_rj).map_err(|e| {
             let msg = e.to_string();
@@ -638,6 +733,10 @@ impl WalletService {
     }
 
     /// Get the encumbrance for an API key.
+    ///
+    /// REQ: SVC-303
+    /// pre:  key_id must be valid
+    /// post: returns Some(Encumbrance) if key has active encumbrance; None if none; Err(Wallet) on manager error
     pub fn get_encumbrance(
         &self,
         key_id: ApiKeyId,
@@ -655,6 +754,10 @@ impl WalletService {
     ///
     /// Delegates to `WalletManager::emit_key_alert`. When the manager has
     /// no event sink configured, this is a no-op (graceful degradation).
+    ///
+    /// REQ: SVC-304
+    /// pre:  key_id must be valid; exhausted and expired are boolean flags
+    /// post: CNS alert emitted if event sink configured; no-op otherwise
     pub fn emit_key_alert(&self, key_id: ApiKeyId, exhausted: bool, expired: bool) {
         self.manager.emit_key_alert(key_id, exhausted, expired);
     }
@@ -665,112 +768,231 @@ impl WalletService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_storage::WalletStore;
-    use hkask_storage::database::in_memory_db;
-    use hkask_types::cns::CnsSpan;
-    use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
-    use hkask_types::wallet::{TxHash, WalletConfig};
-    use hkask_wallet::{ChainPort, DepositEvent};
-    use std::sync::Mutex;
+    use hkask_wallet::ChainPort;
 
-    #[derive(Default)]
-    struct CaptureSink {
-        events: Mutex<Vec<NuEvent>>,
-    }
+    mod test_support {
+        use super::*;
+        use hkask_storage::WalletStore;
+        use hkask_storage::database::in_memory_db;
+        use hkask_types::cns::CnsSpan;
+        use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+        use hkask_types::wallet::{TxHash, WalletConfig};
+        use hkask_wallet::{
+            ChainPort, DepositEvent, ExchangeRate, PriceFeed, PrivacyPort, ShieldedTransfer,
+        };
+        use std::sync::Mutex;
 
-    impl NuEventSink for CaptureSink {
-        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
-            self.events.lock().expect("lock").push(event.clone());
-            Ok(())
-        }
-    }
+        const TEST_MASTER_KEY: &str =
+            "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
 
-    struct FailingActorChain {
-        sink: Arc<dyn NuEventSink>,
-    }
-
-    #[async_trait::async_trait]
-    impl ChainPort for FailingActorChain {
-        fn chain_id(&self) -> ChainId {
-            ChainId::Solana
+        /// Harness sink used by actor-continuity tests.
+        ///
+        /// Stores all emitted ν-events so tests can assert that adapter/manager
+        /// error spans preserve the request-level `WebID` observer identity.
+        #[derive(Default)]
+        pub(super) struct CaptureSink {
+            pub(super) events: Mutex<Vec<NuEvent>>,
         }
 
-        fn derive_deposit_address(&self, _index: u64) -> Result<String, WalletError> {
-            Ok("mock_addr".into())
+        impl NuEventSink for CaptureSink {
+            fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+                self.events.lock().expect("lock").push(event.clone());
+                Ok(())
+            }
         }
 
-        async fn monitor_deposits(
-            &self,
-            _actor: &WebID,
-            _addresses: &[String],
-        ) -> Result<Vec<DepositEvent>, WalletError> {
-            Ok(vec![])
+        pub(super) fn set_test_master_key() {
+            // SAFETY: test-only env var set in isolated test process.
+            unsafe {
+                std::env::set_var("HKASK_MASTER_KEY", TEST_MASTER_KEY);
+            }
         }
 
-        fn build_withdrawal_tx(
-            &self,
-            _to_address: &str,
-            _amount_usdc_micro: u64,
-        ) -> Result<Vec<u8>, WalletError> {
-            Ok(b"mock-withdraw-payload".to_vec())
-        }
+        pub(super) fn build_service_with_harness(
+            sink: Arc<CaptureSink>,
+            chains: HashMap<ChainId, Arc<dyn ChainPort>>,
+            privacy: Option<Arc<dyn PrivacyPort>>,
+            price_feed: Arc<dyn PriceFeed>,
+        ) -> WalletService {
+            let db = in_memory_db();
+            let store = Arc::new(WalletStore::new(db.conn_arc()));
 
-        async fn submit_signed_tx(
-            &self,
-            actor: &WebID,
-            _signed_tx_bytes: &[u8],
-        ) -> Result<TxHash, WalletError> {
-            let event = NuEvent::new(
-                actor.clone(),
-                Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
-                Phase::Sense,
-                serde_json::json!({
-                    "chain": "solana",
-                    "operation": "submit_signed_tx",
-                    "error": "forced adapter failure"
-                }),
-                0,
+            let manager = Arc::new(
+                WalletManager::build(
+                    WalletConfig::default(),
+                    Arc::clone(&store),
+                    chains,
+                    privacy,
+                    price_feed,
+                )
+                .expect("build manager")
+                .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
             );
-            let _ = self.sink.persist(&event);
-            Err(WalletError::ChainError {
-                chain: ChainId::Solana,
-                message: "forced adapter failure".into(),
-            })
+            let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).expect("issuer"));
+            WalletService::new(manager, issuer)
         }
 
-        async fn confirmations(
-            &self,
-            _actor: &WebID,
-            _tx_hash: &TxHash,
-        ) -> Result<u64, WalletError> {
-            Ok(0)
+        pub(super) fn assert_event_actor(sink: &CaptureSink, operation: &str, actor: &WebID) {
+            let events = sink.events.lock().expect("lock");
+            let event = events
+                .iter()
+                .find(|e| e.observation.get("operation") == Some(&serde_json::json!(operation)))
+                .unwrap_or_else(|| panic!("event for operation '{operation}' must be emitted"));
+            assert_eq!(event.observer_webid.to_string(), actor.to_string());
+        }
+
+        pub(super) struct FailingActorChain {
+            pub(super) sink: Arc<dyn NuEventSink>,
+        }
+
+        pub(super) struct FailingActorPrivacy {
+            pub(super) sink: Arc<dyn NuEventSink>,
+        }
+
+        pub(super) struct FailingPriceFeed;
+
+        #[async_trait::async_trait]
+        impl ChainPort for FailingActorChain {
+            fn chain_id(&self) -> ChainId {
+                ChainId::Solana
+            }
+
+            fn derive_deposit_address(&self, _index: u64) -> Result<String, WalletError> {
+                Ok("mock_addr".into())
+            }
+
+            async fn monitor_deposits(
+                &self,
+                _actor: &WebID,
+                _addresses: &[String],
+            ) -> Result<Vec<DepositEvent>, WalletError> {
+                Ok(vec![])
+            }
+
+            fn build_withdrawal_tx(
+                &self,
+                _to_address: &str,
+                _amount_usdc_micro: u64,
+            ) -> Result<Vec<u8>, WalletError> {
+                Ok(b"mock-withdraw-payload".to_vec())
+            }
+
+            async fn submit_signed_tx(
+                &self,
+                actor: &WebID,
+                _signed_tx_bytes: &[u8],
+            ) -> Result<TxHash, WalletError> {
+                let event = NuEvent::new(
+                    actor.clone(),
+                    Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
+                    Phase::Sense,
+                    serde_json::json!({
+                        "chain": "solana",
+                        "operation": "submit_signed_tx",
+                        "error": "forced adapter failure"
+                    }),
+                    0,
+                );
+                let _ = self.sink.persist(&event);
+                Err(WalletError::ChainError {
+                    chain: ChainId::Solana,
+                    message: "forced adapter failure".into(),
+                })
+            }
+
+            async fn confirmations(
+                &self,
+                _actor: &WebID,
+                _tx_hash: &TxHash,
+            ) -> Result<u64, WalletError> {
+                Ok(0)
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl PrivacyPort for FailingActorPrivacy {
+            fn our_shielded_address(&self) -> Result<String, WalletError> {
+                Ok("shielded_mock".into())
+            }
+
+            fn shielded_deposit_address(
+                &self,
+                _wallet_id: WalletId,
+            ) -> Result<String, WalletError> {
+                Ok("shielded_mock".into())
+            }
+
+            async fn monitor_shielded_transfers(
+                &self,
+                _actor: &WebID,
+            ) -> Result<Vec<ShieldedTransfer>, WalletError> {
+                Ok(vec![])
+            }
+
+            fn build_shield_tx(
+                &self,
+                _amount_usdc_micro: u64,
+                _chain: ChainId,
+            ) -> Result<Vec<u8>, WalletError> {
+                Ok(b"mock-shield".to_vec())
+            }
+
+            fn build_unshield_tx(
+                &self,
+                _to_public: &str,
+                _amount_usdc_micro: u64,
+            ) -> Result<Vec<u8>, WalletError> {
+                Ok(b"mock-unshield".to_vec())
+            }
+
+            async fn submit_signed_tx(
+                &self,
+                actor: &WebID,
+                _signed_tx_bytes: &[u8],
+            ) -> Result<TxHash, WalletError> {
+                let event = NuEvent::new(
+                    actor.clone(),
+                    Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
+                    Phase::Sense,
+                    serde_json::json!({
+                        "chain": "hinkal",
+                        "operation": "privacy_submit_signed_tx",
+                        "error": "forced privacy adapter failure"
+                    }),
+                    0,
+                );
+                let _ = self.sink.persist(&event);
+                Err(WalletError::ChainError {
+                    chain: ChainId::Hinkal,
+                    message: "forced privacy adapter failure".into(),
+                })
+            }
+
+            fn available_for_chain(&self, chain: ChainId) -> bool {
+                chain == ChainId::Hinkal
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl PriceFeed for FailingPriceFeed {
+            async fn get_rate(&self, _chain: ChainId) -> Result<ExchangeRate, WalletError> {
+                Err(WalletError::Infra(
+                    hkask_types::InfrastructureError::Database("forced price feed failure".into()),
+                ))
+            }
         }
     }
+
+    use test_support::*;
 
     fn make_service() -> WalletService {
-        // Set master key for keystore resolution
-        // SAFETY: test-only — sets master key env var in isolated test process.
-        unsafe {
-            std::env::set_var(
-                "HKASK_MASTER_KEY",
-                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
-            );
-        }
-        let db = in_memory_db();
-        let store = Arc::new(WalletStore::new(db.conn_arc()));
-        let config = WalletConfig::default();
-        let manager = Arc::new(
-            WalletManager::build(
-                config,
-                Arc::clone(&store),
-                Default::default(),
-                None,
-                Arc::new(StaticPriceFeed),
-            )
-            .unwrap(),
-        );
-        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).unwrap());
-        WalletService::new(manager, issuer)
+        set_test_master_key();
+        build_service_with_harness(
+            Arc::new(CaptureSink::default()),
+            Default::default(),
+            None,
+            Arc::new(StaticPriceFeed),
+        )
     }
 
     // REQ: svc-wallet-001 — get_balance returns zero for new wallet
@@ -819,40 +1041,19 @@ mod tests {
     // REQ: svc-wallet-008 — actor continuity from service request to adapter-originated chain_error span
     #[tokio::test]
     async fn withdraw_propagates_actor_into_adapter_chain_error_span() {
-        // SAFETY: test-only env var set in isolated test process.
-        unsafe {
-            std::env::set_var(
-                "HKASK_MASTER_KEY",
-                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
-            );
-        }
-
-        let db = in_memory_db();
-        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        set_test_master_key();
         let sink = Arc::new(CaptureSink::default());
 
-        let mut chains: std::collections::HashMap<ChainId, Arc<dyn ChainPort>> =
-            std::collections::HashMap::new();
+        let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
             ChainId::Solana,
             Arc::new(FailingActorChain {
                 sink: Arc::clone(&sink) as Arc<dyn NuEventSink>,
-            }) as Arc<dyn ChainPort>,
+            }),
         );
 
-        let manager = Arc::new(
-            WalletManager::build(
-                WalletConfig::default(),
-                Arc::clone(&store),
-                chains,
-                None,
-                Arc::new(StaticPriceFeed),
-            )
-            .expect("build manager")
-            .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
-        );
-        let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).expect("issuer"));
-        let svc = WalletService::new(manager, issuer);
+        let svc =
+            build_service_with_harness(Arc::clone(&sink), chains, None, Arc::new(StaticPriceFeed));
 
         let wallet = WalletId::new();
         svc.ensure_wallet(wallet).expect("ensure wallet");
@@ -871,19 +1072,63 @@ mod tests {
             .expect_err("forced adapter failure should bubble up");
         assert!(matches!(err, ServiceError::Wallet { .. }));
 
-        let events = sink.events.lock().expect("lock");
-        let adapter_event = events
-            .iter()
-            .find(|e| {
-                e.observation.get("operation") == Some(&serde_json::json!("submit_signed_tx"))
-            })
-            .expect("adapter chain_error event must be emitted");
+        assert_event_actor(&sink, "submit_signed_tx", &actor);
+    }
 
-        assert_eq!(
-            adapter_event.observer_webid.to_string(),
-            actor.to_string(),
-            "adapter-originated chain_error span should preserve request actor"
+    // REQ: svc-wallet-009 — actor continuity for fee-estimation error span
+    #[tokio::test]
+    async fn estimate_fee_error_span_preserves_request_actor() {
+        set_test_master_key();
+        let sink = Arc::new(CaptureSink::default());
+        let svc = build_service_with_harness(
+            Arc::clone(&sink),
+            Default::default(),
+            None,
+            Arc::new(FailingPriceFeed),
         );
+
+        let actor = WebID::from_persona(b"svc-fee-actor");
+        let err = svc
+            .estimate_withdrawal_fee(&actor, ChainId::Solana)
+            .await
+            .expect_err("forced price feed failure should bubble up");
+        assert!(matches!(err, ServiceError::Wallet { .. }));
+
+        assert_event_actor(&sink, "estimate_withdrawal_fee", &actor);
+    }
+
+    // REQ: svc-wallet-010 — actor continuity for shielded withdraw adapter error span
+    #[tokio::test]
+    async fn shielded_withdraw_error_span_preserves_request_actor() {
+        set_test_master_key();
+        let sink = Arc::new(CaptureSink::default());
+        let svc = build_service_with_harness(
+            Arc::clone(&sink),
+            Default::default(),
+            Some(Arc::new(FailingActorPrivacy {
+                sink: Arc::clone(&sink) as Arc<dyn NuEventSink>,
+            }) as Arc<dyn hkask_wallet::PrivacyPort>),
+            Arc::new(StaticPriceFeed),
+        );
+
+        let wallet = WalletId::new();
+        svc.ensure_wallet(wallet).expect("ensure wallet");
+
+        let actor = WebID::from_persona(b"svc-shielded-actor");
+        let err = svc
+            .withdraw(
+                &actor,
+                wallet,
+                RJoule::ZERO,
+                "some_destination",
+                ChainId::Hinkal,
+                PrivacyMode::Shielded,
+            )
+            .await
+            .expect_err("forced privacy adapter failure should bubble up");
+        assert!(matches!(err, ServiceError::Wallet { .. }));
+
+        assert_event_actor(&sink, "privacy_submit_signed_tx", &actor);
     }
 
     // REQ: svc-wallet-004 — create_key produces valid material

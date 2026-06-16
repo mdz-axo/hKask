@@ -265,6 +265,10 @@ async fn classify_one(
 ///
 /// Returns results in the same order as the input texts.
 /// Failed classifications default to "Statement".
+///
+/// REQ: SVC-277
+/// pre:  texts must be non-empty; config must have valid timeout and concurrency
+/// post: returns Vec<ClassifyResult> in input order; failed classifications fall back to config.fallback_category; all fallback if no API key
 pub async fn classify_batch(
     texts: &[String],
     config: ClassifierConfig,
@@ -343,6 +347,10 @@ pub async fn classify_batch(
 /// Returns results in the same order as the input texts.
 /// Failed extractions default to empty TripleExtraction.
 /// Graceful degradation: no API key → all empty extractions.
+///
+/// REQ: SVC-278
+/// pre:  texts must be non-empty; config must have valid timeout and concurrency
+/// post: returns Vec<TripleExtraction> in input order; failed extractions fall back to empty; all empty if no API key
 pub async fn extract_triples_batch(
     texts: &[String],
     config: &ClassifierConfig,
