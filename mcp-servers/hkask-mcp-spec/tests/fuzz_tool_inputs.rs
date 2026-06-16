@@ -42,7 +42,7 @@ proptest! {
     /// input happens to be a valid `GoalCaptureRequest`) or
     /// `Err(_)` (if the input is malformed). A `panic!` is a
     /// finding.
-    // REQ: autogen-fuzz_tool_inputs-001 — goal capture request arbitrary input does not panic
+    // REQ: MDS-FUZ-001 — goal_capture deserialisation boundary never panics (P4)
     #[test]
     fn goal_capture_request_arbitrary_input_does_not_panic(input in any_json_string()) {
         let result = std::panic::catch_unwind(|| {

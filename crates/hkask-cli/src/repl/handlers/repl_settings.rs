@@ -405,7 +405,7 @@ mod tests {
     use super::*;
 
     // ── ReplSettings::default() ──────────────────────────────────────
-    // REQ: All 13 defaults match the spec in AGENTS.md § /repl
+    // REQ: CLI-REPL-SETTINGS-001 — All 13 defaults match the spec in AGENTS.md § /repl
 
     #[test]
     fn repl_settings_defaults_match_spec() {
@@ -432,7 +432,7 @@ mod tests {
     }
 
     // ── to_llm_params() ──────────────────────────────────────────────
-    // REQ: Correct mapping of all fields from ReplSettings to LLMParameters
+    // REQ: CLI-REPL-SETTINGS-002 — Correct mapping of all fields from ReplSettings to LLMParameters
 
     #[test]
     fn to_llm_params_maps_all_fields_correctly() {
@@ -471,7 +471,7 @@ mod tests {
         assert!((p.presence_penalty - 0.0).abs() < f32::EPSILON);
     }
 
-    // REQ: Correct — to llm params handles none seed
+    // REQ: CLI-REPL-SETTINGS-003 — Correct — to llm params handles none seed
     #[test]
     fn to_llm_params_handles_none_seed() {
         let s = ReplSettings::default();
@@ -480,7 +480,7 @@ mod tests {
     }
 
     // ── ReplSettings round-trip via settings.json ────────────────────
-    // REQ: Serialize → write → read → deserialize preserves all fields
+    // REQ: CLI-REPL-SETTINGS-004 — Serialize → write → read → deserialize preserves all fields
 
     #[test]
     fn repl_settings_json_round_trip_preserves_all_fields() {

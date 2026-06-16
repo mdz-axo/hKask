@@ -319,7 +319,7 @@ mod tests {
         ReplSettings::default()
     }
 
-    // REQ: Invalid values are rejected (function returns false, value unchanged)
+    // REQ: CLI-SETTINGS-001 — Invalid values are rejected (function returns false, value unchanged)
 
     #[test]
     fn apply_setting_rejects_zero_loop_limit() {
@@ -328,7 +328,7 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 21);
     }
 
-    // REQ: Invalid — apply setting rejects negative loop limit
+    // REQ: CLI-SETTINGS-002 — Invalid — apply setting rejects negative loop limit
     #[test]
     fn apply_setting_rejects_negative_loop_limit() {
         let mut s = default_settings();
@@ -336,7 +336,7 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 21);
     }
 
-    // REQ: Invalid — apply setting rejects temperature oor
+    // REQ: CLI-SETTINGS-003 — Invalid — apply setting rejects temperature oor
     #[test]
     fn apply_setting_rejects_temperature_oor() {
         let mut s = default_settings();
@@ -344,7 +344,7 @@ mod tests {
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // REQ: Invalid — apply setting rejects top p oor
+    // REQ: CLI-SETTINGS-004 — Invalid — apply setting rejects top p oor
     #[test]
     fn apply_setting_rejects_top_p_oor() {
         let mut s = default_settings();
@@ -352,7 +352,7 @@ mod tests {
         assert!((s.top_p - 0.9).abs() < f32::EPSILON);
     }
 
-    // REQ: Invalid — apply setting rejects top k zero
+    // REQ: CLI-SETTINGS-005 — Invalid — apply setting rejects top k zero
     #[test]
     fn apply_setting_rejects_top_k_zero() {
         let mut s = default_settings();
@@ -360,7 +360,7 @@ mod tests {
         assert_eq!(s.top_k, 40);
     }
 
-    // REQ: Invalid — apply setting rejects garbage value
+    // REQ: CLI-SETTINGS-006 — Invalid — apply setting rejects garbage value
     #[test]
     fn apply_setting_rejects_garbage_value() {
         let mut s = default_settings();
@@ -368,7 +368,7 @@ mod tests {
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // REQ: Valid values are accepted (function returns true, value updated)
+    // REQ: CLI-SETTINGS-007 — Valid values are accepted (function returns true, value updated)
 
     #[test]
     fn apply_setting_accepts_valid_temperature() {
@@ -377,7 +377,7 @@ mod tests {
         assert!((s.temperature - 0.3).abs() < f32::EPSILON);
     }
 
-    // REQ: Valid — apply setting accepts valid loop limit
+    // REQ: CLI-SETTINGS-008 — Valid — apply setting accepts valid loop limit
     #[test]
     fn apply_setting_accepts_valid_loop_limit() {
         let mut s = default_settings();
@@ -385,7 +385,7 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 100);
     }
 
-    // REQ: Valid — apply setting accepts auto condense off
+    // REQ: CLI-SETTINGS-009 — Valid — apply setting accepts auto condense off
     #[test]
     fn apply_setting_accepts_auto_condense_off() {
         let mut s = default_settings();
@@ -393,7 +393,7 @@ mod tests {
         assert!(!s.auto_condense);
     }
 
-    // REQ: Valid — apply setting accepts auto condense on
+    // REQ: CLI-SETTINGS-010 — Valid — apply setting accepts auto condense on
     #[test]
     fn apply_setting_accepts_auto_condense_on() {
         let mut s = default_settings();
@@ -402,7 +402,7 @@ mod tests {
         assert!(s.auto_condense);
     }
 
-    // REQ: Valid — apply setting accepts seed value
+    // REQ: CLI-SETTINGS-011 — Valid — apply setting accepts seed value
     #[test]
     fn apply_setting_accepts_seed_value() {
         let mut s = default_settings();
@@ -410,7 +410,7 @@ mod tests {
         assert_eq!(s.seed, Some(42));
     }
 
-    // REQ: Valid — apply setting accepts seed off
+    // REQ: CLI-SETTINGS-012 — Valid — apply setting accepts seed off
     #[test]
     fn apply_setting_accepts_seed_off() {
         let mut s = default_settings();

@@ -86,7 +86,7 @@ impl KataImprovResult {
 mod tests {
     use super::*;
 
-    // REQ: Each kata phase maps to the correct improv mode
+    // REQ: IMPROV-KATA-001 — Each kata phase maps to the correct improv mode
     #[test]
     fn kata_phases_map_to_correct_modes() {
         assert!(matches!(
@@ -111,7 +111,7 @@ mod tests {
         ));
     }
 
-    // REQ: KataImprovResult alerts on negative delta, not on zero or positive
+    // REQ: IMPROV-KATA-002 — KataImprovResult alerts on negative delta, not on zero or positive
     #[test]
     fn kata_improv_result_delta_detection() {
         // Positive delta — no alert.

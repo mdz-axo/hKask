@@ -107,7 +107,7 @@ mod tests {
         }
     }
 
-    // REQ: Riffing diverges from a seed into a solo tangent
+    // REQ: IMPROV-RIFFING-001 — Riffing diverges from a seed into a solo tangent
     #[test]
     fn diverges_from_seed() {
         let seed = make_contribution("We should use a microservice architecture");
@@ -116,7 +116,7 @@ mod tests {
         assert!(tangent.contains("microservice"));
     }
 
-    // REQ: Riffing resolves with ReturnToGroup policy
+    // REQ: IMPROV-RIFFING-002 — Riffing resolves with ReturnToGroup policy
     #[test]
     fn resolves_return_to_group() {
         let tangent = make_contribution("Monoliths might actually be simpler for our scale");
@@ -130,7 +130,7 @@ mod tests {
         }
     }
 
-    // REQ: Riffing spawns a new thread with SpawnThread policy
+    // REQ: IMPROV-RIFFING-003 — Riffing spawns a new thread with SpawnThread policy
     #[test]
     fn spawns_new_thread() {
         let tangent = make_contribution("What about event sourcing?");
@@ -143,7 +143,7 @@ mod tests {
         }
     }
 
-    // REQ: Riffing respects ReturnAfterSteps boundary
+    // REQ: IMPROV-RIFFING-004 — Riffing respects ReturnAfterSteps boundary
     #[test]
     fn respects_return_after_steps() {
         let tangent = make_contribution("Exploring CQRS patterns");
@@ -168,7 +168,7 @@ mod tests {
         }
     }
 
-    // REQ: RiffReturn default is ReturnToGroup
+    // REQ: IMPROV-RIFFING-005 — RiffReturn default is ReturnToGroup
     #[test]
     fn default_return_is_return_to_group() {
         assert_eq!(RiffReturn::default(), RiffReturn::ReturnToGroup);

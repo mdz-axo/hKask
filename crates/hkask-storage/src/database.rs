@@ -29,6 +29,7 @@ fn load_sqlite_vec() -> Result<(), DatabaseError> {
     // equivalent to extern "C" fn(...) -> c_int. sqlite3_vec_init has signature
     // fn() -> (), so we transmute the function pointer to the expected entry
     // point type. This is the standard pattern used by sqlite-vec and rusqlite.
+    // SAFETY: per above — FFI transmute for sqlite3 extension registration.
     INIT.call_once(|| unsafe {
         type Sqlite3ExtInitFn = unsafe extern "C" fn(
             *mut rusqlite::ffi::sqlite3,

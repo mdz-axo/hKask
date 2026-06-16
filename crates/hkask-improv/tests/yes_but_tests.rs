@@ -20,7 +20,7 @@ fn make_context() -> ConversationContext {
     ConversationContext::new(WebID::new())
 }
 
-// REQ: Yes But accepts the whole contribution
+// REQ: IMPROV-YES-BUT-TESTS-001 — Yes But accepts the whole contribution
 #[test]
 fn accepts_whole_contribution() {
     let mode = ImprovMode::YesBut;
@@ -41,7 +41,7 @@ fn accepts_whole_contribution() {
     }
 }
 
-// REQ: Yes But constraint narrows, does not contradict
+// REQ: IMPROV-YES-BUT-TESTS-002 — Yes But constraint narrows, does not contradict
 #[test]
 fn constraint_narrows_does_not_contradict() {
     let mode = ImprovMode::YesBut;
@@ -76,7 +76,7 @@ fn constraint_narrows_does_not_contradict() {
     }
 }
 
-// REQ: Yes But works with varied content
+// REQ: IMPROV-YES-BUT-TESTS-003 — Yes But works with varied content
 #[test]
 fn works_with_varied_content() {
     let mode = ImprovMode::YesBut;

@@ -20,7 +20,7 @@ fn make_context() -> ConversationContext {
     ConversationContext::new(WebID::new())
 }
 
-// REQ: Yes And accepts the whole contribution
+// REQ: IMPROV-YES-AND-TESTS-001 — Yes And accepts the whole contribution
 #[test]
 fn accepts_whole_contribution() {
     let mode = ImprovMode::YesAnd;
@@ -41,7 +41,7 @@ fn accepts_whole_contribution() {
     }
 }
 
-// REQ: Yes And extension is additive, not substitutive
+// REQ: IMPROV-YES-AND-TESTS-002 — Yes And extension is additive, not substitutive
 #[test]
 fn extension_is_additive_not_substitutive() {
     let mode = ImprovMode::YesAnd;
@@ -67,7 +67,7 @@ fn extension_is_additive_not_substitutive() {
     }
 }
 
-// REQ: Yes And works with any contribution content
+// REQ: IMPROV-YES-AND-TESTS-003 — Yes And works with any contribution content
 #[test]
 fn works_with_varied_content() {
     let mode = ImprovMode::YesAnd;

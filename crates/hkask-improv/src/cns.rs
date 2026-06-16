@@ -107,7 +107,7 @@ mod tests {
         assert!(IMPROV_SPAN_NAMESPACES.contains(&"cns.improv.cascade.depth"));
     }
 
-    // REQ: Span builders return Some when namespace is registered
+    // REQ: IMPROV-CNS-001 — Span builders return Some when namespace is registered
     #[test]
     fn span_builders_return_some_after_registration() {
         let span = mode_active_span("plussing");

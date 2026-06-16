@@ -88,7 +88,7 @@ impl ImprovResponse {
 mod tests {
     use super::*;
 
-    // REQ: Contribution carries source, content, and turn_index
+    // REQ: IMPROV-PROTOCOL-001 — Contribution carries source, content, and turn_index
     #[test]
     fn contribution_has_required_fields() {
         let source = WebID::new();
@@ -102,7 +102,7 @@ mod tests {
         assert_eq!(c.turn_index, 3);
     }
 
-    // REQ: ImprovResponse variants are constructable
+    // REQ: IMPROV-PROTOCOL-002 — ImprovResponse variants are constructable
     #[test]
     fn improv_response_variants_constructable() {
         let pr = PlussedResponse {

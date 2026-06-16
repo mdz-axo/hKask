@@ -144,7 +144,7 @@ mod tests {
         ConversationContext::new(WebID::new())
     }
 
-    // REQ: Cascade composes modes sequentially — output of step N feeds step N+1
+    // REQ: IMPROV-CASCADE-001 — Cascade composes modes sequentially — output of step N feeds step N+1
     #[test]
     fn cascade_composes_modes_sequentially() {
         let cascade =
@@ -171,7 +171,7 @@ mod tests {
         }
     }
 
-    // REQ: Cascade enforces matryoshka limit (max 7 total applications)
+    // REQ: IMPROV-CASCADE-002 — Cascade enforces matryoshka limit (max 7 total applications)
     #[test]
     fn enforces_matryoshka_limit() {
         // 8 simple modes — exceeds limit.
@@ -185,7 +185,7 @@ mod tests {
         assert!(ImprovCascade::new(vec![ImprovMode::Plussing; 7]).is_ok());
     }
 
-    // REQ: Cascade rejects empty mode list
+    // REQ: IMPROV-CASCADE-003 — Cascade rejects empty mode list
     #[test]
     fn rejects_empty_cascade() {
         assert!(matches!(
@@ -194,7 +194,7 @@ mod tests {
         ));
     }
 
-    // REQ: Cascade with nested Cascade tracks total applications correctly
+    // REQ: IMPROV-CASCADE-004 — Cascade with nested Cascade tracks total applications correctly
     #[test]
     fn tracks_nested_applications() {
         let inner =
@@ -213,7 +213,7 @@ mod tests {
         assert_eq!(outer.total_applications(), 4);
     }
 
-    // REQ: Cascade execution with nested cascade descends context
+    // REQ: IMPROV-CASCADE-005 — Cascade execution with nested cascade descends context
     #[test]
     fn nested_cascade_descends_context() {
         let inner =
@@ -229,7 +229,7 @@ mod tests {
         assert!(matches!(result, ImprovResponse::Extended { .. }));
     }
 
-    // REQ: Deeply nested cascade exceeding matryoshka limit is rejected
+    // REQ: IMPROV-CASCADE-006 — Deeply nested cascade exceeding matryoshka limit is rejected
     #[test]
     fn rejects_deep_nesting() {
         // Build a cascade of 7 total applications (at the limit).
@@ -248,7 +248,7 @@ mod tests {
         ));
     }
 
-    // REQ: Cascade execution with exceeded recursion depth at runtime is caught
+    // REQ: IMPROV-CASCADE-007 — Cascade execution with exceeded recursion depth at runtime is caught
     #[test]
     fn catches_runtime_recursion_exceeded() {
         let cascade = ImprovCascade::new(vec![ImprovMode::Plussing]).expect("valid");

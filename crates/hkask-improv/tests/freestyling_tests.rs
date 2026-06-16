@@ -8,7 +8,7 @@ use hkask_improv::protocol::ImprovResponse;
 use hkask_types::id::WebID;
 use std::time::Duration;
 
-// REQ: Freestyling enforces time bounds
+// REQ: IMPROV-FREESTYLING-TESTS-001 — Freestyling enforces time bounds
 #[test]
 fn enforces_time_bound() {
     let agent = WebID::new();
@@ -28,7 +28,7 @@ fn enforces_time_bound() {
     assert!(result.is_none(), "Expired session must return None");
 }
 
-// REQ: Freestyling supports multiple participants with round-robin
+// REQ: IMPROV-FREESTYLING-TESTS-002 — Freestyling supports multiple participants with round-robin
 #[test]
 fn multi_participant_round_robin() {
     let a1 = WebID::new();
@@ -55,7 +55,7 @@ fn multi_participant_round_robin() {
     assert_eq!(session.turn_count(), 3);
 }
 
-// REQ: Freestyling produces FreestyleTurn responses with time_remaining
+// REQ: IMPROV-FREESTYLING-TESTS-003 — Freestyling produces FreestyleTurn responses with time_remaining
 #[test]
 fn produces_freestyle_turn_responses() {
     let agent = WebID::new();
@@ -78,7 +78,7 @@ fn produces_freestyle_turn_responses() {
     }
 }
 
-// REQ: Freestyling session tracks turns correctly
+// REQ: IMPROV-FREESTYLING-TESTS-004 — Freestyling session tracks turns correctly
 #[test]
 fn tracks_turns_correctly() {
     let a1 = WebID::new();
@@ -100,7 +100,7 @@ fn tracks_turns_correctly() {
     assert_eq!(session.turns[2].content, "turn 3");
 }
 
-// REQ: Freestyling time_remaining decreases monotonically
+// REQ: IMPROV-FREESTYLING-TESTS-005 — Freestyling time_remaining decreases monotonically
 #[test]
 fn time_remaining_decreases_monotonically() {
     let agent = WebID::new();

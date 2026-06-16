@@ -109,7 +109,7 @@ mod tests {
         p
     }
 
-    // REQ: First call to append_feedback creates the file and writes the
+    // REQ: CLI-FEEDBACK-001 — First call to append_feedback creates the file and writes the
     // standard header ("# hKask Feedback Ledger") before the first entry.
     #[test]
     fn append_feedback_creates_file_with_header_on_first_write() {
@@ -126,7 +126,7 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    // REQ: Subsequent calls to append_feedback do NOT re-emit the header;
+    // REQ: CLI-FEEDBACK-002 — Subsequent calls to append_feedback do NOT re-emit the header;
     // the header appears exactly once even after multiple writes.
     #[test]
     fn append_feedback_omits_header_on_subsequent_writes() {
@@ -143,7 +143,7 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    // REQ: Each entry written by append_feedback contains the replicant name
+    // REQ: CLI-FEEDBACK-003 — Each entry written by append_feedback contains the replicant name
     // and the verbatim comment text in Markdown blockquote form.
     #[test]
     fn append_feedback_entry_contains_replicant_and_comment() {

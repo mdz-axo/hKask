@@ -162,7 +162,7 @@ mod tests {
         ConversationContext::new(WebID::new())
     }
 
-    // REQ: Plussing produces a PlussedResponse variant
+    // REQ: IMPROV-MODES-001 — Plussing produces a PlussedResponse variant
     #[test]
     fn plussing_mode_produces_plussed_response() {
         let mode = ImprovMode::Plussing;
@@ -172,7 +172,7 @@ mod tests {
         assert!(matches!(response, ImprovResponse::Plussed(_)));
     }
 
-    // REQ: YesAnd produces Extended variant with accepted base preserved
+    // REQ: IMPROV-MODES-002 — YesAnd produces Extended variant with accepted base preserved
     #[test]
     fn yes_and_preserves_accepted_base() {
         let mode = ImprovMode::YesAnd;
@@ -190,7 +190,7 @@ mod tests {
         }
     }
 
-    // REQ: YesBut produces Constrained variant with accepted base preserved
+    // REQ: IMPROV-MODES-003 — YesBut produces Constrained variant with accepted base preserved
     #[test]
     fn yes_but_preserves_accepted_base() {
         let mode = ImprovMode::YesBut;
@@ -208,7 +208,7 @@ mod tests {
         }
     }
 
-    // REQ: Freestyling produces FreestyleTurn with time_remaining
+    // REQ: IMPROV-MODES-004 — Freestyling produces FreestyleTurn with time_remaining
     #[test]
     fn freestyling_includes_time_bound() {
         let bound = Duration::from_secs(300);
@@ -227,7 +227,7 @@ mod tests {
         }
     }
 
-    // REQ: Riffing produces Riff variant with return_policy
+    // REQ: IMPROV-MODES-005 — Riffing produces Riff variant with return_policy
     #[test]
     fn riffing_includes_return_policy() {
         let policy = RiffReturn::ReturnToGroup;
@@ -248,7 +248,7 @@ mod tests {
         }
     }
 
-    // REQ: Mode labels are stable and human-readable
+    // REQ: IMPROV-MODES-006 — Mode labels are stable and human-readable
     #[test]
     fn mode_labels_are_stable() {
         assert_eq!(ImprovMode::Plussing.label(), "plussing");

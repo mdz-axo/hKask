@@ -226,7 +226,7 @@ mod tests {
         }
     }
 
-    // REQ: Plussing extracts agreeable components from constructive input
+    // REQ: IMPROV-PLUSSING-001 — Plussing extracts agreeable components from constructive input
     #[test]
     fn extracts_agreeable_from_constructive_input() {
         let c = make_contribution(
@@ -241,7 +241,7 @@ mod tests {
         }
     }
 
-    // REQ: Plussing silently discards negative content (never explicitly negates)
+    // REQ: IMPROV-PLUSSING-002 — Plussing silently discards negative content (never explicitly negates)
     #[test]
     fn silently_discards_negative_content() {
         let c = make_contribution(
@@ -259,7 +259,7 @@ mod tests {
         assert!(has_constructive, "Constructive content must be extracted");
     }
 
-    // REQ: Plussing build never references discarded components
+    // REQ: IMPROV-PLUSSING-003 — Plussing build never references discarded components
     #[test]
     fn build_never_references_discarded() {
         let c = make_contribution("This is wrong. But we could try a different approach.");
@@ -272,7 +272,7 @@ mod tests {
         );
     }
 
-    // REQ: Plussing handles empty/fully disagreeable contributions gracefully
+    // REQ: IMPROV-PLUSSING-004 — Plussing handles empty/fully disagreeable contributions gracefully
     #[test]
     fn handles_fully_disagreeable_contribution() {
         let c = make_contribution("This is terrible. Absolutely wrong. Completely broken.");
@@ -288,7 +288,7 @@ mod tests {
         );
     }
 
-    // REQ: Plussing handles empty contribution
+    // REQ: IMPROV-PLUSSING-005 — Plussing handles empty contribution
     #[test]
     fn handles_empty_contribution() {
         let c = make_contribution("");
@@ -298,7 +298,7 @@ mod tests {
         assert!(!build.is_empty(), "Build must not be empty for empty input");
     }
 
-    // REQ: AgreeableComponent confidence is in [0.0, 1.0]
+    // REQ: IMPROV-PLUSSING-006 — AgreeableComponent confidence is in [0.0, 1.0]
     #[test]
     fn confidence_in_valid_range() {
         let c = make_contribution("Great idea! Let's explore that. I agree completely.");

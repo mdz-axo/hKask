@@ -132,7 +132,7 @@ mod tests {
     use super::*;
     use std::thread;
 
-    // REQ: FreestyleSession is time-bounded — expires after time_bound
+    // REQ: IMPROV-FREESTYLING-001 — FreestyleSession is time-bounded — expires after time_bound
     #[test]
     fn session_expires_after_time_bound() {
         let agent = WebID::new();
@@ -142,7 +142,7 @@ mod tests {
         assert!(session.is_expired());
     }
 
-    // REQ: FreestyleSession supports multiple participants
+    // REQ: IMPROV-FREESTYLING-002 — FreestyleSession supports multiple participants
     #[test]
     fn supports_multiple_participants() {
         let a1 = WebID::new();
@@ -152,7 +152,7 @@ mod tests {
         assert_eq!(session.participants.len(), 3);
     }
 
-    // REQ: FreestyleSession cycles through participants round-robin
+    // REQ: IMPROV-FREESTYLING-003 — FreestyleSession cycles through participants round-robin
     #[test]
     fn cycles_participants_round_robin() {
         let a1 = WebID::new();
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(session.next_speaker(), a1); // Wraps around
     }
 
-    // REQ: FreestyleSession records turns and increments count
+    // REQ: IMPROV-FREESTYLING-004 — FreestyleSession records turns and increments count
     #[test]
     fn records_turns_and_increments_count() {
         let a1 = WebID::new();
@@ -186,7 +186,7 @@ mod tests {
         assert_eq!(session.turn_count(), 2);
     }
 
-    // REQ: FreestyleSession cycle returns None when expired
+    // REQ: IMPROV-FREESTYLING-005 — FreestyleSession cycle returns None when expired
     #[test]
     fn cycle_returns_none_when_expired() {
         let a1 = WebID::new();
@@ -196,14 +196,14 @@ mod tests {
         assert!(result.is_none(), "Expired session should return None");
     }
 
-    // REQ: FreestyleSession panics on empty participants
+    // REQ: IMPROV-FREESTYLING-006 — FreestyleSession panics on empty participants
     #[test]
     #[should_panic(expected = "requires at least one participant")]
     fn panics_on_empty_participants() {
         FreestyleSession::new(vec![], Duration::from_secs(60));
     }
 
-    // REQ: FreestyleSession time_remaining decreases over time
+    // REQ: IMPROV-FREESTYLING-007 — FreestyleSession time_remaining decreases over time
     #[test]
     fn time_remaining_decreases() {
         let a1 = WebID::new();

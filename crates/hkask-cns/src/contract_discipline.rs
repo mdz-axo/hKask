@@ -133,7 +133,7 @@ mod tests {
         }
     }
 
-    // REQ: pre: — emit contract violated persists event
+    // REQ: cns-contract-violation-event-001 — emit contract violation signal event (P9)
     #[test]
     fn emit_contract_violated_persists_event() {
         let sink = CaptureSink::new();
@@ -156,7 +156,7 @@ mod tests {
         );
     }
 
-    // REQ: pre: — emit contract coverage persists event
+    // REQ: cns-contract-coverage-event-001 — emit contract coverage telemetry event (P9)
     #[test]
     fn emit_contract_coverage_persists_event() {
         let sink = CaptureSink::new();

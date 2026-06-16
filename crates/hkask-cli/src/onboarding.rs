@@ -927,7 +927,7 @@ fn prompt_choice(
 mod tests {
     use super::passphrase_strength;
 
-    // REQ: Passphrases shorter than 8 characters are classified "weak"
+    // REQ: CLI-ONBOARDING-001 — Passphrases shorter than 8 characters are classified "weak"
     // regardless of character variety.
     #[test]
     fn passphrase_strength_weak_below_8() {
@@ -936,7 +936,7 @@ mod tests {
         assert_eq!(passphrase_strength("").0, "weak");
     }
 
-    // REQ: An 8-character passphrase with only one character class (lowercase
+    // REQ: CLI-ONBOARDING-002 — An 8-character passphrase with only one character class (lowercase
     // letters) is classified "fair" — meets the minimum length but lacks variety.
     #[test]
     fn passphrase_strength_fair_at_8_single_variety() {
@@ -946,7 +946,7 @@ mod tests {
         assert_eq!(passphrase_strength("abcdefghijk").0, "fair");
     }
 
-    // REQ: A 16-character passphrase with at least 3 character classes is
+    // REQ: CLI-ONBOARDING-003 — A 16-character passphrase with at least 3 character classes is
     // classified "strong".
     #[test]
     fn passphrase_strength_strong_at_16_high_variety() {

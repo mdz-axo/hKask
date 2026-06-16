@@ -15,7 +15,7 @@ fn make_contribution(content: &str) -> Contribution {
     }
 }
 
-// REQ: Riffing diverges from seed into independent tangent
+// REQ: IMPROV-RIFFING-TESTS-001 — Riffing diverges from seed into independent tangent
 #[test]
 fn diverges_into_independent_tangent() {
     let seed = make_contribution("We should consider using a message queue for async tasks");
@@ -31,7 +31,7 @@ fn diverges_into_independent_tangent() {
     );
 }
 
-// REQ: Riffing resolves with ReturnToGroup policy
+// REQ: IMPROV-RIFFING-TESTS-002 — Riffing resolves with ReturnToGroup policy
 #[test]
 fn resolves_return_to_group_with_synthesis() {
     let tangent = make_contribution("Exploring event sourcing as an alternative to message queues");
@@ -55,7 +55,7 @@ fn resolves_return_to_group_with_synthesis() {
     }
 }
 
-// REQ: Riffing spawns new thread with SpawnThread policy
+// REQ: IMPROV-RIFFING-TESTS-003 — Riffing spawns new thread with SpawnThread policy
 #[test]
 fn spawns_new_thread_with_unique_id() {
     let tangent = make_contribution("What if we used a graph database instead?");
@@ -71,7 +71,7 @@ fn spawns_new_thread_with_unique_id() {
     }
 }
 
-// REQ: Riffing respects ReturnAfterSteps boundary
+// REQ: IMPROV-RIFFING-TESTS-004 — Riffing respects ReturnAfterSteps boundary
 #[test]
 fn respects_step_boundary() {
     let tangent = make_contribution("Deep dive into CQRS and event sourcing patterns");
@@ -125,7 +125,7 @@ fn respects_step_boundary() {
     }
 }
 
-// REQ: Riffing handles empty seed gracefully
+// REQ: IMPROV-RIFFING-TESTS-005 — Riffing handles empty seed gracefully
 #[test]
 fn handles_empty_seed() {
     let seed = make_contribution("");
