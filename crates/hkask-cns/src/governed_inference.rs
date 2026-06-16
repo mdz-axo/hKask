@@ -20,6 +20,7 @@ use crate::energy::EnergyCost;
 use hkask_types::LLMParameters;
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
+use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult};
 
@@ -165,7 +166,7 @@ impl InferencePort for GovernedInference {
             let _ = event_sink.persist(&reserved_event);
 
             // Emit cns.inference.invoked span
-            let invoked_span = Span::new(SpanNamespace::new("cns.inference"), "invoked");
+            let invoked_span = Span::new(SpanNamespace::from(CnsSpan::Inference), "invoked");
             let invoked_event = NuEvent::new(
                 agent,
                 invoked_span,
@@ -266,7 +267,7 @@ impl InferencePort for GovernedInference {
                     }),
                 ),
             };
-            let completed_span = Span::new(SpanNamespace::new("cns.inference"), "completed");
+            let completed_span = Span::new(SpanNamespace::from(CnsSpan::Inference), "completed");
             let completed_event =
                 NuEvent::new(agent, completed_span, outcome_phase, outcome_obs, 0)
                     .with_parent(invoked_event.id);

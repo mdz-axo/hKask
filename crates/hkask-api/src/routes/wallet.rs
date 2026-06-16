@@ -50,6 +50,8 @@ pub struct DepositAddressResponse {
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct DepositReferenceRequest {
     pub chain: String,
+    /// Wallet ID (UUID). Defaults to system wallet if omitted.
+    pub wallet_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -63,6 +65,8 @@ pub struct DepositReferenceResponse {
 pub struct TransactionQuery {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
+    /// Wallet ID (UUID). Defaults to system wallet if omitted.
+    pub wallet_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -83,6 +87,8 @@ pub struct CreateKeyRequest {
     pub expiry_days: Option<u32>,
     pub private: Option<bool>,
     pub chain: Option<String>,
+    /// Wallet ID (UUID). Defaults to system wallet if omitted.
+    pub wallet_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -123,6 +129,8 @@ pub struct WithdrawRequest {
     pub to_address: String,
     pub chain: Option<String>,
     pub private: Option<bool>,
+    /// Wallet ID (UUID). Defaults to system wallet if omitted.
+    pub wallet_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
@@ -154,7 +162,23 @@ fn parse_chain(s: Option<&str>) -> ChainId {
     }
 }
 
+fn resolve_wallet_id(wallet_arg: Option<&str>) -> WalletId {
+    match wallet_arg {
+        Some(s) => s.parse().unwrap_or_else(|_| {
+            tracing::warn!(target: "hkask.api.wallet", wallet_id_arg = %s, "Invalid wallet ID — using default");
+            WalletId::default()
+        }),
+        None => WalletId::default(),
+    }
+}
+
 // ── GET /api/wallet/balance ─────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+pub struct WalletIdQuery {
+    /// Wallet ID (UUID). Defaults to system wallet if omitted.
+    pub wallet_id: Option<String>,
+}
 
 /// Get current wallet balance.
 #[utoipa::path(
@@ -165,12 +189,15 @@ fn parse_chain(s: Option<&str>) -> ChainId {
         (status = 503, description = "Wallet service not configured")
     )
 )]
-async fn get_balance(State(state): State<ApiState>) -> impl IntoResponse {
+async fn get_balance(
+    State(state): State<ApiState>,
+    Query(q): Query<WalletIdQuery>,
+) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref());
     match svc.get_balance(wallet_id) {
         Ok(balance) => (
             StatusCode::OK,
@@ -192,6 +219,8 @@ async fn get_balance(State(state): State<ApiState>) -> impl IntoResponse {
 pub struct DepositAddressQuery {
     pub chain: Option<String>,
     pub private: Option<bool>,
+    /// Wallet ID (UUID). Defaults to system wallet if omitted.
+    pub wallet_id: Option<String>,
 }
 
 /// Get a deposit address for receiving USDC.
@@ -212,7 +241,7 @@ async fn get_deposit_address(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref());
     let chain = parse_chain(q.chain.as_deref());
     let privacy = if q.private.unwrap_or(false) {
         PrivacyMode::Shielded
@@ -254,7 +283,7 @@ async fn create_deposit_reference(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref());
     let chain = parse_chain(Some(&req.chain));
 
     match svc.generate_deposit_reference(wallet_id, chain, 24) {
@@ -291,7 +320,7 @@ async fn get_transactions(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref());
     let limit = q.limit.unwrap_or(50);
     let offset = q.offset.unwrap_or(0);
 
@@ -334,7 +363,7 @@ async fn create_key(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref());
     let privacy = if req.private.unwrap_or(false) {
         PrivacyMode::Shielded
     } else {
@@ -384,12 +413,15 @@ async fn create_key(
         (status = 503, description = "Wallet service not configured")
     )
 )]
-async fn list_keys(State(state): State<ApiState>) -> impl IntoResponse {
+async fn list_keys(
+    State(state): State<ApiState>,
+    Query(q): Query<WalletIdQuery>,
+) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref());
 
     match svc.list_keys(wallet_id) {
         Ok(keys) => (
@@ -483,7 +515,7 @@ async fn withdraw(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref());
     let chain = parse_chain(req.chain.as_deref());
     let privacy = if req.private.unwrap_or(false) {
         PrivacyMode::Shielded

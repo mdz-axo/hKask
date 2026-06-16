@@ -18,7 +18,7 @@
 //! an immediate variety check after incrementing.
 
 use crate::runtime::CnsRuntime;
-use hkask_types::cns::SeamInventory;
+use hkask_types::cns::{CnsSpan, SeamInventory};
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::id::WebID;
 use std::path::PathBuf;
@@ -259,7 +259,7 @@ impl SeamWatcher {
         // ── Step 2: Emit coverage spans for each crate ──
         for (crate_name, coverage) in &self.inventory.crates {
             let span = Span::new(
-                SpanNamespace::new("cns.architecture.seam.coverage"),
+                SpanNamespace::from(CnsSpan::ArchitectureSeamCoverage),
                 crate_name.as_str(),
             );
             let event = NuEvent::new(
@@ -347,7 +347,7 @@ impl SeamWatcher {
         // ── Step 4: Emit drift spans ──
         for drift in &drifts {
             let span = Span::new(
-                SpanNamespace::new("cns.architecture.seam.drift"),
+                SpanNamespace::from(CnsSpan::ArchitectureSeamDrift),
                 drift.crate_name.as_str(),
             );
             let severity = if drift.delta_pct < -5.0 {

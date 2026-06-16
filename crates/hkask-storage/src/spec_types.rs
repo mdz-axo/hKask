@@ -106,6 +106,32 @@ impl SpecCategory {
     }
 }
 
+/// Infer MDS spec category from natural-language context keywords.
+///
+/// Single source of truth for context-keyword → MDS category mapping.
+/// Used by both `hkask-mcp-spec` (agent tool surface) and
+/// `hkask-services::SpecService` (CLI/API surface).
+///
+/// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
+// REQ: MDS-spec-svc-001 — infer_spec_category maps context keywords to MDS categories
+pub fn infer_spec_category(context: Option<&str>) -> SpecCategory {
+    let ctx = match context {
+        Some(c) => c.to_lowercase(),
+        None => return SpecCategory::Domain,
+    };
+    if ctx.contains("trust") || ctx.contains("security") || ctx.contains("threat") {
+        SpecCategory::Trust
+    } else if ctx.contains("compose") || ctx.contains("interface") || ctx.contains("api") {
+        SpecCategory::Composition
+    } else if ctx.contains("lifecycle") || ctx.contains("bootstrap") || ctx.contains("evolve") {
+        SpecCategory::Lifecycle
+    } else if ctx.contains("curat") || ctx.contains("review") || ctx.contains("coherence") {
+        SpecCategory::Curation
+    } else {
+        SpecCategory::Domain
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DomainAnchor {
     Inference,

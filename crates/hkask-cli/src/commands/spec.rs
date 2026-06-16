@@ -78,8 +78,8 @@ pub fn run(action: SpecAction) {
         }
         SpecAction::Cultivate { id } => {
             let ctx = super::helpers::build_service_context();
-            let record = SpecService::cultivate(&ctx, &id).unwrap_or_else(|e| {
-                eprintln!("Failed to cultivate specification: {e}");
+            let record = SpecService::validate(&ctx, &id).unwrap_or_else(|e| {
+                eprintln!("Failed to validate specification: {e}");
                 std::process::exit(1);
             });
 

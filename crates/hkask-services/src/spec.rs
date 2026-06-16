@@ -5,14 +5,14 @@
 //! category via keyword matching). Both paths produce a `Spec` stored via
 //! `AgentService::spec_store()`.
 //!
-//! The `infer_category()` helper (moved from `hkask-api/src/routes/spec.rs`)
-//! is the single source of truth for context-keyword → MDS category mapping.
+//! Category inference delegates to `hkask_storage::spec_types::infer_spec_category` —
+//! the single source of truth for context-keyword → MDS category mapping.
 
 use hkask_agents::DefaultSpecCurator;
 use hkask_storage::SpecStore;
 use hkask_storage::spec_types::SpecCurator;
 use hkask_storage::spec_types::{
-    DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurationRecord, SpecId,
+    DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurationRecord, SpecId, infer_spec_category,
 };
 
 use crate::AgentService;
@@ -105,7 +105,7 @@ impl SpecService {
     ) -> Result<SpecCaptureResponse, ServiceError> {
         let cat = match req.category.as_deref() {
             Some(c) => SpecCategory::parse_str(c).unwrap_or(SpecCategory::Domain),
-            None => infer_category(req.context.as_deref()),
+            None => infer_spec_category(req.context.as_deref()),
         };
         let anchor = match req.domain.as_deref() {
             Some(d) => DomainAnchor::parse_str(d).unwrap_or(DomainAnchor::Hkask),
@@ -190,8 +190,11 @@ impl SpecService {
         })
     }
 
-    /// Compute collection coherence — category coverage ratio across all specs.
-    pub fn coherence(ctx: &AgentService) -> Result<CoherenceResult, ServiceError> {
+    /// Compute category coverage ratio across all specs — fast check for CLI/API.
+    ///
+    /// This is distinct from the MCP server's `spec_graph_coherence` which uses
+    /// Jaccard similarity via `Spec::collection_coherence` for agent-driven assessment.
+    pub fn category_coverage(ctx: &AgentService) -> Result<CoherenceResult, ServiceError> {
         let store = ctx.spec_store();
         let specs = store.list_all().map_err(ServiceError::Spec)?;
 
@@ -206,11 +209,11 @@ impl SpecService {
             });
         }
 
-        let category_coverage: std::collections::HashSet<SpecCategory> =
+        let covered_categories: std::collections::HashSet<SpecCategory> =
             specs.iter().map(|s| s.category).collect();
         let missing_categories: Vec<String> = SpecCategory::all()
             .iter()
-            .filter(|c| !category_coverage.contains(c))
+            .filter(|c| !covered_categories.contains(c))
             .map(|c| format!("Missing category: {}", c.as_str()))
             .collect();
         let covered = SpecCategory::all().len() - missing_categories.len();
@@ -227,8 +230,12 @@ impl SpecService {
         })
     }
 
-    /// Writing quality assessment for a spec.
-    pub fn writing_quality(
+    /// Structural quality check for a spec — fast boolean assessment for CLI/API.
+    ///
+    /// Checks four dimensions: has_name, has_category, has_criteria, has_completeness.
+    /// This is distinct from the MCP server's `assess_writing_quality` which performs
+    /// embedding-based comparison against persona centroids for agent-driven assessment.
+    pub fn structural_quality_check(
         ctx: &AgentService,
         spec_id_str: &str,
     ) -> Result<WritingQualityResult, ServiceError> {
@@ -253,9 +260,11 @@ impl SpecService {
         })
     }
 
-    /// Evaluate (validate) a specification against the default curator's criteria.
+    /// Validate a specification against the default curator's criteria.
     ///
     /// Loads the spec by ID, then delegates to `DefaultSpecCurator::evaluate()`.
+    /// This is the single method for spec evaluation; former `cultivate` call sites
+    /// should use `validate` directly (the methods were identical).
     pub fn validate(
         ctx: &AgentService,
         spec_id_str: &str,
@@ -266,42 +275,9 @@ impl SpecService {
         let curator = DefaultSpecCurator::default();
         curator.evaluate(&spec, &[]).map_err(ServiceError::Spec)
     }
-
-    /// Cultivate a specification — same evaluation path as validate.
-    ///
-    /// Cultivation and validation share the same curator pipeline;
-    /// separate methods exist for semantic clarity in call sites.
-    pub fn cultivate(
-        ctx: &AgentService,
-        spec_id_str: &str,
-    ) -> Result<SpecCurationRecord, ServiceError> {
-        Self::validate(ctx, spec_id_str)
-    }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-/// Infer spec category from context string keywords.
-///
-/// Moved from `hkask-api/src/routes/spec.rs` — this is the single source
-/// of truth for context-keyword → MDS category mapping.
-fn infer_category(context: Option<&str>) -> SpecCategory {
-    let ctx = match context {
-        Some(c) => c.to_lowercase(),
-        None => return SpecCategory::Domain,
-    };
-    if ctx.contains("trust") || ctx.contains("security") || ctx.contains("threat") {
-        SpecCategory::Trust
-    } else if ctx.contains("compose") || ctx.contains("interface") || ctx.contains("api") {
-        SpecCategory::Composition
-    } else if ctx.contains("lifecycle") || ctx.contains("bootstrap") || ctx.contains("evolve") {
-        SpecCategory::Lifecycle
-    } else if ctx.contains("curat") || ctx.contains("review") || ctx.contains("coherence") {
-        SpecCategory::Curation
-    } else {
-        SpecCategory::Domain
-    }
-}
 
 /// Parse a spec ID string into an `hkask_storage::spec_types::SpecId`.
 fn parse_spec_id(s: &str) -> Result<SpecId, ServiceError> {
@@ -320,22 +296,28 @@ fn parse_spec_id(s: &str) -> Result<SpecId, ServiceError> {
 mod tests {
     use super::*;
 
-    // REQ: MDS-spec-svc-001 — infer_category maps context keywords to MDS categories
+    // REQ: MDS-spec-svc-001 — infer_spec_category maps context keywords to MDS categories
     #[test]
     fn infer_category_maps_trust_context() {
-        assert_eq!(infer_category(Some("trust")), SpecCategory::Trust);
-        assert_eq!(infer_category(Some("Security review")), SpecCategory::Trust);
-        assert_eq!(infer_category(Some("threat model")), SpecCategory::Trust);
+        assert_eq!(infer_spec_category(Some("trust")), SpecCategory::Trust);
+        assert_eq!(
+            infer_spec_category(Some("Security review")),
+            SpecCategory::Trust
+        );
+        assert_eq!(
+            infer_spec_category(Some("threat model")),
+            SpecCategory::Trust
+        );
     }
 
     #[test]
     fn infer_category_maps_composition_context() {
         assert_eq!(
-            infer_category(Some("compose interface")),
+            infer_spec_category(Some("compose interface")),
             SpecCategory::Composition
         );
         assert_eq!(
-            infer_category(Some("API design")),
+            infer_spec_category(Some("API design")),
             SpecCategory::Composition
         );
     }
@@ -343,28 +325,34 @@ mod tests {
     #[test]
     fn infer_category_maps_lifecycle_context() {
         assert_eq!(
-            infer_category(Some("lifecycle bootstrap")),
+            infer_spec_category(Some("lifecycle bootstrap")),
             SpecCategory::Lifecycle
         );
-        assert_eq!(infer_category(Some("evolve spec")), SpecCategory::Lifecycle);
+        assert_eq!(
+            infer_spec_category(Some("evolve spec")),
+            SpecCategory::Lifecycle
+        );
     }
 
     #[test]
     fn infer_category_maps_curation_context() {
         assert_eq!(
-            infer_category(Some("curation review")),
+            infer_spec_category(Some("curation review")),
             SpecCategory::Curation
         );
         assert_eq!(
-            infer_category(Some("coherence check")),
+            infer_spec_category(Some("coherence check")),
             SpecCategory::Curation
         );
     }
 
     #[test]
     fn infer_category_defaults_to_domain() {
-        assert_eq!(infer_category(None), SpecCategory::Domain);
-        assert_eq!(infer_category(Some("unknown stuff")), SpecCategory::Domain);
+        assert_eq!(infer_spec_category(None), SpecCategory::Domain);
+        assert_eq!(
+            infer_spec_category(Some("unknown stuff")),
+            SpecCategory::Domain
+        );
     }
 
     // REQ: MDS-spec-svc-002 — parse_spec_id validates UUID format

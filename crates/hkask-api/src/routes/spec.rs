@@ -194,7 +194,7 @@ pub(crate) async fn capture_spec(
     ),
 )]
 pub(crate) async fn get_coherence(State(state): State<ApiState>) -> impl IntoResponse {
-    match SpecService::coherence(&state.agent_service) {
+    match SpecService::category_coverage(&state.agent_service) {
         Ok(r) => Json(SpecCoherenceResponse {
             coherence_score: r.coherence_score,
             violations: r.violations,
@@ -225,7 +225,7 @@ pub(crate) async fn get_writing_quality(
     State(state): State<ApiState>,
     Path(spec_id): Path<String>,
 ) -> impl IntoResponse {
-    match SpecService::writing_quality(&state.agent_service, &spec_id) {
+    match SpecService::structural_quality_check(&state.agent_service, &spec_id) {
         Ok(q) => Json(SpecWritingQualityResponse {
             dimensions_passing: q.dimensions_passing,
             meets_publication_standard: q.meets_publication_standard,

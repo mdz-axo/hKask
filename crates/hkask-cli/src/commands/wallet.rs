@@ -9,27 +9,38 @@ use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
 use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletConfig, WalletId};
 use hkask_wallet::{ApiKeyIssuer, WalletManager};
+use std::str::FromStr;
 use std::sync::Arc;
 
 /// Run a wallet subcommand. Builds a standalone WalletService for CLI use.
 pub fn run(action: WalletAction) {
     let svc = build_wallet_service();
     match action {
-        WalletAction::Balance => handle_balance(&svc),
-        WalletAction::DepositAddress { chain, private } => {
-            handle_deposit_address(&svc, chain, private)
+        WalletAction::Balance { wallet } => handle_balance(&svc, wallet),
+        WalletAction::DepositAddress {
+            chain,
+            private,
+            wallet,
+        } => handle_deposit_address(&svc, chain, private, wallet),
+        WalletAction::DepositReference { chain, wallet } => {
+            handle_deposit_reference(&svc, chain, wallet)
         }
-        WalletAction::DepositReference { chain } => handle_deposit_reference(&svc, chain),
-        WalletAction::History { limit } => handle_history(&svc, limit),
+        WalletAction::History { limit, wallet } => handle_history(&svc, limit, wallet),
         WalletAction::Key { action } => handle_key(&svc, action),
         WalletAction::Withdraw {
             amount_rj,
             to,
             chain,
             private,
-        } => handle_withdraw(&svc, amount_rj, to, chain, private),
-        WalletAction::Encumber { key_id, amount } => handle_encumber(&svc, key_id, amount),
+            wallet,
+        } => handle_withdraw(&svc, amount_rj, to, chain, private, wallet),
+        WalletAction::Encumber {
+            key_id,
+            amount,
+            wallet,
+        } => handle_encumber(&svc, key_id, amount, wallet),
         WalletAction::ReleaseEncumbrance { key_id } => handle_release_encumbrance(&svc, key_id),
+        WalletAction::Report { key_id, wallet } => handle_report(&svc, key_id, wallet),
     }
 }
 
@@ -48,8 +59,8 @@ fn build_wallet_service() -> WalletService {
 
 // ── Balance ──────────────────────────────────────────────────────────────────
 
-fn handle_balance(svc: &WalletService) {
-    let wallet_id = WalletId::default();
+fn handle_balance(svc: &WalletService, wallet: Option<String>) {
+    let wallet_id = resolve_wallet(wallet);
     match svc.get_balance(wallet_id) {
         Ok(balance) => {
             println!("Wallet Balance");
@@ -70,8 +81,13 @@ fn handle_balance(svc: &WalletService) {
 
 // ── Deposit address ─────────────────────────────────────────────────────────
 
-fn handle_deposit_address(svc: &WalletService, chain: Option<String>, private: bool) {
-    let wallet_id = WalletId::default();
+fn handle_deposit_address(
+    svc: &WalletService,
+    chain: Option<String>,
+    private: bool,
+    wallet: Option<String>,
+) {
+    let wallet_id = resolve_wallet(wallet);
     let chain = parse_chain(chain.as_deref());
     let privacy = if private {
         PrivacyMode::Shielded
@@ -101,8 +117,8 @@ fn handle_deposit_address(svc: &WalletService, chain: Option<String>, private: b
 
 // ── Deposit reference ────────────────────────────────────────────────────────
 
-fn handle_deposit_reference(svc: &WalletService, chain: String) {
-    let wallet_id = WalletId::default();
+fn handle_deposit_reference(svc: &WalletService, chain: String, wallet: Option<String>) {
+    let wallet_id = resolve_wallet(wallet);
     let chain = parse_chain(Some(&chain));
 
     match svc.generate_deposit_reference(wallet_id, chain, 24) {
@@ -127,8 +143,8 @@ fn handle_deposit_reference(svc: &WalletService, chain: String) {
 
 // ── History ──────────────────────────────────────────────────────────────────
 
-fn handle_history(svc: &WalletService, limit: Option<u32>) {
-    let wallet_id = WalletId::default();
+fn handle_history(svc: &WalletService, limit: Option<u32>, wallet: Option<String>) {
+    let wallet_id = resolve_wallet(wallet);
     let limit = limit.unwrap_or(20);
 
     match svc.get_transactions(wallet_id, limit, 0) {
@@ -165,8 +181,9 @@ fn handle_key(svc: &WalletService, action: KeyAction) {
             expiry,
             private,
             chain,
-        } => handle_key_create(svc, limit, expiry, private, chain),
-        KeyAction::List => handle_key_list(svc),
+            wallet,
+        } => handle_key_create(svc, limit, expiry, private, chain, wallet),
+        KeyAction::List { wallet } => handle_key_list(svc, wallet),
         KeyAction::Revoke { key_id } => handle_key_revoke(svc, key_id),
     }
 }
@@ -177,8 +194,9 @@ fn handle_key_create(
     expiry: Option<u32>,
     private: bool,
     chain: Option<String>,
+    wallet: Option<String>,
 ) {
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet(wallet);
     let privacy = if private {
         PrivacyMode::Shielded
     } else {
@@ -229,8 +247,8 @@ fn handle_key_create(
     }
 }
 
-fn handle_key_list(svc: &WalletService) {
-    let wallet_id = WalletId::default();
+fn handle_key_list(svc: &WalletService, wallet: Option<String>) {
+    let wallet_id = resolve_wallet(wallet);
     match svc.list_keys(wallet_id) {
         Ok(keys) => {
             println!("API Keys");
@@ -297,6 +315,7 @@ fn handle_withdraw(
     to: String,
     chain: Option<String>,
     private: bool,
+    _wallet: Option<String>,
 ) {
     let chain = parse_chain(chain.as_deref());
     let privacy = if private {
@@ -321,7 +340,7 @@ fn handle_withdraw(
 
 // ── Encumber ─────────────────────────────────────────────────────────────────
 
-fn handle_encumber(svc: &WalletService, key_id_str: String, amount: u64) {
+fn handle_encumber(svc: &WalletService, key_id_str: String, amount: u64, wallet: Option<String>) {
     use std::str::FromStr;
     let key_id = match hkask_types::wallet::ApiKeyId::from_str(&key_id_str) {
         Ok(id) => id,
@@ -330,7 +349,7 @@ fn handle_encumber(svc: &WalletService, key_id_str: String, amount: u64) {
             return;
         }
     };
-    let wallet_id = WalletId::default();
+    let wallet_id = resolve_wallet(wallet);
 
     match svc.encumber_key(wallet_id, key_id, RJoule::new(amount)) {
         Ok(()) => {
@@ -364,7 +383,125 @@ fn handle_release_encumbrance(svc: &WalletService, key_id_str: String) {
     }
 }
 
+// ── Report ────────────────────────────────────────────────────────────────────
+
+fn handle_report(svc: &WalletService, key_id_str: String, wallet: Option<String>) {
+    use std::str::FromStr;
+    let key_id = match hkask_types::wallet::ApiKeyId::from_str(&key_id_str) {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("Invalid key ID: {e}");
+            return;
+        }
+    };
+    let wallet_id = resolve_wallet(wallet);
+
+    // Get the API key capability for context
+    let key_info = match svc.get_api_key(key_id) {
+        Ok(Some(cap)) => cap,
+        Ok(None) => {
+            eprintln!("Key not found: {}", key_id_str);
+            return;
+        }
+        Err(e) => {
+            eprintln!("Error fetching key: {e}");
+            return;
+        }
+    };
+
+    // Get all transactions for this wallet and filter by key_id
+    match svc.get_transactions(wallet_id, 1000, 0) {
+        Ok(txs) => {
+            let spends: Vec<_> = txs
+                .iter()
+                .filter(|tx| {
+                    matches!(
+                        tx.tx_type,
+                        hkask_types::wallet::TransactionType::Spend { .. }
+                    )
+                })
+                .collect();
+
+            println!("Spending Report");
+            println!("===============");
+            println!();
+            println!("  Key ID:      {}", key_id_str);
+            println!(
+                "  Spent:       {}/{} rJ",
+                key_info.spent_rj, key_info.spending_limit_rj
+            );
+            if let Some(exp) = key_info.expiry {
+                println!("  Expires:     {}", exp.format("%Y-%m-%d"));
+            }
+            println!();
+
+            if spends.is_empty() {
+                println!("  (no spending transactions)");
+            } else {
+                // Aggregate by tool
+                let mut by_tool: std::collections::HashMap<String, (u64, u32)> =
+                    std::collections::HashMap::new();
+                let mut total_spent: i64 = 0;
+                for tx in &spends {
+                    if let hkask_types::wallet::TransactionType::Spend { ref tool, gas, .. } =
+                        tx.tx_type
+                    {
+                        let entry = by_tool.entry(tool.clone()).or_insert((0, 0));
+                        entry.0 += gas;
+                        entry.1 += 1;
+                    }
+                    total_spent += tx.rjoules_delta.abs();
+                }
+
+                println!("  Total rJ spent:  {}", total_spent);
+                println!("  Total gas units:  (see breakdown below)");
+                println!();
+                println!("  By Tool:");
+                println!("  ────────");
+                let mut tools: Vec<_> = by_tool.iter().collect();
+                tools.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+                for (tool, (gas, count)) in &tools {
+                    println!("    {tool}:  {gas} gas units ({count} calls)");
+                }
+                println!();
+
+                // Show recent transactions
+                println!("  Recent Spend Transactions:");
+                println!("  ─────────────────────────");
+                for tx in spends.iter().rev().take(10) {
+                    let tool_name = match &tx.tx_type {
+                        hkask_types::wallet::TransactionType::Spend { tool, .. } => tool.as_str(),
+                        _ => "unknown",
+                    };
+                    println!(
+                        "    {} | {} rJ | {}",
+                        tx.timestamp.format("%Y-%m-%d %H:%M"),
+                        tx.rjoules_delta.abs(),
+                        tool_name
+                    );
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Error fetching transactions: {e}");
+        }
+    }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+fn resolve_wallet(wallet_arg: Option<String>) -> WalletId {
+    match wallet_arg {
+        Some(ref s) => match WalletId::from_str(s) {
+            Ok(id) => id,
+            Err(e) => {
+                eprintln!("Invalid wallet ID '{}': {} — using default wallet", s, e);
+                WalletId::default()
+            }
+        },
+        None => WalletId::default(),
+    }
+}
 
 fn parse_chain(s: Option<&str>) -> ChainId {
     match s {

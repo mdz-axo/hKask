@@ -29,6 +29,7 @@ use hkask_types::WebID;
 use hkask_types::capability::{
     DelegationAction, DelegationResource, DelegationToken, capabilities_match,
 };
+use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
 use hkask_types::loops::ToolConsumptionEvent;
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
@@ -258,7 +259,12 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         let _ = self.event_sink.persist(&reserved_event);
 
         // Step 3: Emit invoked span
-        let invoked_span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
+        let invoked_span = Span::new(
+            SpanNamespace::from(CnsSpan::Tool {
+                subsystem: hkask_types::cns::ToolSubsystem::Other,
+            }),
+            "invoked",
+        );
         let invoked_event = NuEvent::new(
             self.agent,
             invoked_span,
@@ -383,7 +389,12 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 }),
             ),
         };
-        let completed_span = Span::new(SpanNamespace::new("cns.tool"), "completed");
+        let completed_span = Span::new(
+            SpanNamespace::from(CnsSpan::Tool {
+                subsystem: hkask_types::cns::ToolSubsystem::Other,
+            }),
+            "completed",
+        );
         let completed_event =
             NuEvent::new(self.agent, completed_span, outcome_phase, outcome_obs, 0)
                 .with_parent(invoked_event.id);

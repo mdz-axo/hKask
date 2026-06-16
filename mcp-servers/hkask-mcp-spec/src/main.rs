@@ -14,7 +14,9 @@ use hkask_services::{
     CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings,
     InferenceContext, RetrievalSection, ValidationSection, cosine_distance,
 };
-use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId};
+use hkask_storage::spec_types::{
+    DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, infer_spec_category,
+};
 use hkask_storage::{Database, EmbeddingStore, SpecStore};
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind,
@@ -29,6 +31,15 @@ use types::*;
 
 // ── Server ───────────────────────────────────────────────────
 
+/// Spec MCP server — provides spec *mechanism*, not *governance*.
+///
+/// Six tools (MDS §3): capture, decompose, writing-quality, graph-query,
+/// graph-coherence, and replica-rewrite. All tools are OCAP-gated.
+///
+/// **Governance boundary**: Curation decisions (Accept/Revise/Reject) are
+/// external to this server — made by the Curator agent or human, never by
+/// a tool call. This server handles mechanism (capture, decompose, query,
+/// assess); the Curator handles governance (decide, accept, reject).
 pub struct SpecServer {
     store: Arc<dyn SpecStore + Send + Sync>,
     capability_checker: Arc<CapabilityChecker>,
@@ -144,25 +155,6 @@ impl SpecServer {
 
     fn save_spec(&self, spec: &Spec) -> Result<(), SpecError> {
         self.store.save(spec)
-    }
-
-    /// Infer spec category from context string keywords.
-    fn infer_category(context: Option<&str>) -> SpecCategory {
-        let ctx = match context {
-            Some(c) => c.to_lowercase(),
-            None => return SpecCategory::Domain,
-        };
-        if ctx.contains("trust") || ctx.contains("security") || ctx.contains("threat") {
-            SpecCategory::Trust
-        } else if ctx.contains("compose") || ctx.contains("interface") || ctx.contains("api") {
-            SpecCategory::Composition
-        } else if ctx.contains("lifecycle") || ctx.contains("bootstrap") || ctx.contains("evolve") {
-            SpecCategory::Lifecycle
-        } else if ctx.contains("curat") || ctx.contains("review") || ctx.contains("coherence") {
-            SpecCategory::Curation
-        } else {
-            SpecCategory::Domain
-        }
     }
 
     /// Extract OCAP boundary hints from context keywords.
@@ -422,7 +414,7 @@ impl SpecServer {
             DelegationAction::Write
         );
 
-        let category = Self::infer_category(context.as_deref());
+        let category = infer_spec_category(context.as_deref());
         let anchor = DomainAnchor::Hkask;
         let ocap_boundaries = Self::extract_ocap_boundaries(context.as_deref());
 

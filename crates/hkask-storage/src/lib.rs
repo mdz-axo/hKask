@@ -47,7 +47,7 @@ pub use spec_store::SqliteCurationRecordStore;
 pub use spec_store::SqliteSpecStore;
 pub use spec_types::{
     Criterion, DomainAnchor, DriftReport, GoalSpec, Spec, SpecCategory, SpecCurationRecord,
-    SpecCurator, SpecError, SpecId,
+    SpecCurator, SpecError, SpecId, infer_spec_category,
 };
 
 pub use triples::{Triple, TripleError, TripleStore};

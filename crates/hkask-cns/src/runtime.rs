@@ -20,7 +20,7 @@ use crate::algedonic::{
 use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
 
 use hkask_types::WebID;
-use hkask_types::cns::CnsHealth;
+use hkask_types::cns::{CnsHealth, CnsSpan};
 use hkask_types::event::{NuEvent, NuEventSink, SpanNamespace};
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use parking_lot::RwLock as ParkingRwLock;
@@ -311,7 +311,8 @@ impl CnsRuntime {
         for domain in &domains {
             // Only include canonical CNS namespaces — non-canonical
             // domains are internal tracking artifacts, not observability signals.
-            if let Some(ns) = SpanNamespace::parse(domain) {
+            if let Ok(cns_span) = domain.parse::<CnsSpan>() {
+                let ns = SpanNamespace::from(cns_span);
                 let state = self.state.read().await;
                 let count = state.tracker.variety_for_domain(domain);
                 drop(state);
@@ -403,7 +404,8 @@ impl CnsRuntime {
         let alert = self.check_variety(domain).await;
 
         // Notify subscribers interested in this domain's span namespace
-        if let Some(span_ns) = SpanNamespace::parse(domain) {
+        if let Ok(cns_span) = domain.parse::<CnsSpan>() {
+            let span_ns = SpanNamespace::from(cns_span);
             let event = hkask_types::event::NuEvent::new(
                 WebID::default(),
                 hkask_types::event::Span::new(span_ns.clone(), "variety_incremented"),

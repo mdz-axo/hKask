@@ -268,6 +268,17 @@ impl std::fmt::Display for SpanNamespace {
     }
 }
 
+// ── CnsSpan ↔ SpanNamespace bridge (R5 migration) ──────────────────────
+
+impl From<crate::cns::CnsSpan> for SpanNamespace {
+    /// [NORMATIVE] Convert a typed `CnsSpan` to a `SpanNamespace`.
+    /// The Display output of `CnsSpan` is the canonical namespace string,
+    /// which is always valid for `SpanNamespace` construction (P8 — Semantic Grounding).
+    fn from(span: crate::cns::CnsSpan) -> Self {
+        SpanNamespace(span.to_string())
+    }
+}
+
 /// Unified CNS span — namespace + fully-qualified path
 ///
 /// Constructed via `Span::new()` with a validated namespace.
@@ -346,6 +357,10 @@ pub enum SpanKind {
     // ── Variety spans (cns.variety.*) ──
     /// Algedonic alert emitted: `cns.variety.algedonic_alert`
     VarietyAlgedonicAlert,
+
+    // ── Wallet spans (cns.wallet.*) ──
+    /// Deposit credited to wallet: `cns.wallet.deposit_credited`
+    DepositCredited,
 }
 
 impl SpanKind {
@@ -364,6 +379,7 @@ impl SpanKind {
             SpanKind::AgentPodActivated => ("cns.agent_pod", "activated"),
             SpanKind::AgentPodDeactivated => ("cns.agent_pod", "deactivated"),
             SpanKind::VarietyAlgedonicAlert => ("cns.variety", "algedonic_alert"),
+            SpanKind::DepositCredited => ("cns.wallet", "deposit_credited"),
         }
     }
 }

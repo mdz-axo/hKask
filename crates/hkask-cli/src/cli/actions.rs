@@ -657,7 +657,11 @@ pub enum SettingsAction {
 #[derive(Subcommand)]
 pub enum WalletAction {
     /// Show rJoule balance with USDC and gas equivalents
-    Balance,
+    Balance {
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
+    },
     /// Show or derive a deposit address for receiving USDC
     DepositAddress {
         /// Blockchain network (solana or hedera)
@@ -666,18 +670,27 @@ pub enum WalletAction {
         /// Use shielded/privacy mode
         #[arg(short, long)]
         private: bool,
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
     },
     /// Generate a one-time deposit reference for shielded deposits
     DepositReference {
         /// Blockchain network (solana or hedera)
         #[arg(short, long)]
         chain: String,
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
     },
     /// Show paginated transaction history
     History {
         /// Maximum transactions to show
         #[arg(short, long)]
         limit: Option<u32>,
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
     },
     /// API key management
     Key {
@@ -697,6 +710,9 @@ pub enum WalletAction {
         /// Use shielded/privacy mode
         #[arg(short, long)]
         private: bool,
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
     },
     /// Allocate rJoules to an API key for spending
     Encumber {
@@ -706,12 +722,24 @@ pub enum WalletAction {
         /// Amount in rJoules to allocate
         #[arg(short, long)]
         amount: u64,
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
     },
     /// Release an API key's encumbrance (returns unspent rJoules to wallet)
     ReleaseEncumbrance {
         /// API key ID to release
         #[arg(short, long)]
         key_id: String,
+    },
+    /// Show spending report for an API key
+    Report {
+        /// API key ID to report on
+        #[arg(short, long)]
+        key_id: String,
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
     },
 }
 
@@ -731,9 +759,16 @@ pub enum KeyAction {
         /// Restrict to a specific chain
         #[arg(short, long)]
         chain: Option<String>,
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
     },
     /// List active API keys
-    List,
+    List {
+        /// Wallet ID (UUID). Defaults to system wallet if omitted.
+        #[arg(short, long)]
+        wallet: Option<String>,
+    },
     /// Revoke an API key (returns unspent rJoules to wallet)
     Revoke {
         /// Key ID to revoke

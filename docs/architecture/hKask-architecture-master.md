@@ -298,11 +298,11 @@ graph TD
     SVC --> STORAGE[hkask-storage]
 ```
 
-Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` (P1 Prohibition — out-of-process isolation).
+Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface MCP servers (those that are direct surfaces for a service) may import `hkask-services` for delegation only — see constraint 1 below.
 
 ### Key Constraints
 
-1. **MCP servers should not depend on `hkask-services` for orchestration** — P1 Prohibition (out-of-process isolation). Exceptions: servers that are direct surfaces for a service (CLI/API/MCP tri-surface pattern). `hkask-mcp-replica` is a tri-surface for `ComposeService` + `EmbedService`, not an orchestrator.
+1. **MCP servers should not depend on `hkask-services` for orchestration** — P1 Prohibition (out-of-process isolation). Exceptions: servers that are direct surfaces for a service (CLI/API/MCP tri-surface pattern). `hkask-mcp-replica` is a tri-surface for `ComposeService` + `EmbedService`. `hkask-mcp-spec` is a tri-surface for `ComposeService` (via `spec_replica_rewrite` tool only); its remaining 5 tools use domain crates (`hkask-storage`, `hkask-types`) directly. Neither server orchestrates — they delegate.
 2. **Domain crates do NOT depend on `hkask-services`** — dependency direction is strictly surface → service → domain.
 
 ---

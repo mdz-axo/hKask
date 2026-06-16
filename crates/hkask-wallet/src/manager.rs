@@ -258,10 +258,24 @@ impl WalletManager {
             }),
         );
 
+        // CNS span: deposit credited (user-noteworthy notification)
+        self.emit_span(
+            "cns.wallet",
+            "deposit_credited",
+            Phase::Act,
+            serde_json::json!({
+                "wallet_id": wallet_id.to_string(),
+                "amount_rj": rj_amount.as_u64(),
+                "amount_usdc_micro": event.amount_usdc_micro,
+                "tx_hash": event.tx_hash.0,
+                "chain": "solana",
+                "balance_after_rj": balance.rjoules,
+            }),
+        );
+
         Ok(())
     }
 
-    /// Process a shielded (Hinkal) deposit.
     async fn process_shielded_deposit(
         &self,
         transfer: ShieldedTransfer,
@@ -313,6 +327,7 @@ impl WalletManager {
         let rj_amount = self.usdc_to_rjoules(transfer.amount_usdc_micro);
         self.store.credit_rjoules(wallet_id, rj_amount)?;
         let balance = self.store.get_balance(wallet_id)?.unwrap();
+        let commitment = transfer.commitment.clone();
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
@@ -336,6 +351,21 @@ impl WalletManager {
                 "wallet_id": wallet_id.to_string(),
                 "rjoules_credited": rj_amount.as_u64(),
                 "balance_after": balance.rjoules,
+            }),
+        );
+
+        // CNS span: deposit credited (user-noteworthy notification)
+        self.emit_span(
+            "cns.wallet",
+            "deposit_credited",
+            Phase::Act,
+            serde_json::json!({
+                "wallet_id": wallet_id.to_string(),
+                "amount_rj": rj_amount.as_u64(),
+                "amount_usdc_micro": transfer.amount_usdc_micro,
+                "commitment": commitment,
+                "privacy": "shielded",
+                "balance_after_rj": balance.rjoules,
             }),
         );
 

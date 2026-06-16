@@ -141,6 +141,20 @@ impl ApiKeyAuthService {
             }
         }
 
+        // Verify scope: the request path must match the key's declared scope.
+        // An empty scope means unrestricted access. Otherwise, at least one
+        // scope entry must be a prefix of the request URI path.
+        if !capability.scope.is_empty() {
+            let path = request.uri().path();
+            let scope_matched = capability.scope.iter().any(|s| path.starts_with(s));
+            if !scope_matched {
+                return Err(ApiKeyAuthError::ScopeViolation {
+                    path: path.to_string(),
+                    allowed_scopes: capability.scope.clone(),
+                });
+            }
+        }
+
         Ok(WalletContext {
             wallet_id: capability.wallet_id,
             key_id: capability.key_id,
@@ -167,6 +181,11 @@ pub enum ApiKeyAuthError {
     SpendingLimitExceeded,
     #[error("Payment required: {0}")]
     PaymentRequired(String),
+    #[error("Scope violation: {path} not in allowed scopes {allowed_scopes:?}")]
+    ScopeViolation {
+        path: String,
+        allowed_scopes: Vec<String>,
+    },
     #[error("Wallet store error")]
     StoreError,
 }
@@ -192,6 +211,16 @@ impl IntoResponse for ApiKeyAuthError {
                 "API key spending limit exceeded".into(),
             ),
             ApiKeyAuthError::PaymentRequired(msg) => (StatusCode::PAYMENT_REQUIRED, msg),
+            ApiKeyAuthError::ScopeViolation {
+                path,
+                allowed_scopes,
+            } => (
+                StatusCode::FORBIDDEN,
+                format!(
+                    "Scope violation: '{}' not in allowed scopes {:?}",
+                    path, allowed_scopes
+                ),
+            ),
             ApiKeyAuthError::StoreError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal authentication error".into(),

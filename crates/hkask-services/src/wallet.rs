@@ -222,6 +222,17 @@ impl WalletService {
         })
     }
 
+    /// Get a single API key capability by key ID.
+    pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, ServiceError> {
+        self.manager.get_api_key(key_id).map_err(|e| {
+            let msg = e.to_string();
+            ServiceError::Wallet {
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })
+    }
+
     // ── Gas conversion ──────────────────────────────────────────────────────
 
     /// Convert gas units to rJoules.
