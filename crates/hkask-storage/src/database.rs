@@ -141,6 +141,7 @@ impl Database {
     /// * `path` — Path to the SQLite database file
     /// * `passphrase` — Passphrase for SQLCipher encryption
     /// * `extensions` — Additional DDL to execute after core schema init
+    ///
     /// Open database with additional DDL extensions.
     ///
     /// REQ: STO-025
@@ -185,6 +186,7 @@ impl Database {
     ///
     /// # Arguments
     /// * `extensions` — Additional DDL to execute after core schema init
+    ///
     /// Open in-memory database with extensions.
     ///
     /// REQ: STO-027

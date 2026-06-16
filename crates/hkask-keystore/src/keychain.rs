@@ -298,12 +298,6 @@ pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// 1. Deterministic derivation from master key (preferred — survives restarts)
 /// 2. OS keychain (backward compat)
 /// 3. Random generation (last resort — tokens will not survive restart)
-/// Get or create OCAP secret.
-///
-/// Resolution chain:
-/// 1. Deterministic derivation from master key (preferred — survives restarts)
-/// 2. OS keychain (backward compat)
-/// 3. Random generation (last resort — tokens will not survive restart)
 ///
 /// REQ: KEY-015
 /// post: returns Zeroizing<Vec<u8>> from derivation, keychain, or random generation

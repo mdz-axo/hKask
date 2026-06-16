@@ -28,7 +28,11 @@ use crate::signing;
 
 /// Issues Ed25519-signed API key capability tokens.
 ///
-/// REQ: WALLET-006
+/// REQ: P9-wlt-issuer-key-lifecycle
+/// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+/// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+/// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+/// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
 /// inv: private keys are never stored (only public keys persisted)
 /// inv: wallet_seed is zeroized on drop
 /// # Security `[OUGHT-DECL]`
@@ -48,7 +52,11 @@ pub struct ApiKeyIssuer {
 impl ApiKeyIssuer {
     /// Create a new ApiKeyIssuer.
     ///
-    /// REQ: WALLET-006
+    /// REQ: P9-wlt-issuer-key-lifecycle
+    /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+    /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+    /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+    /// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  store is initialized
     /// post: returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing
     /// post: returns Err if wallet_seed resolution fails
@@ -87,7 +95,11 @@ impl ApiKeyIssuer {
 
     /// "Print" a new API key.
     ///
-    /// REQ: WALLET-006
+    /// REQ: P9-wlt-issuer-key-lifecycle
+    /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+    /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+    /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+    /// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  wallet_id is valid, spending_limit_rj > 0, purpose is non-empty
     /// post: returns Ok(ApiKeyMaterial) with fresh Ed25519 keypair
     /// post: private_key_hex returned once, never stored by hKask
@@ -113,7 +125,7 @@ impl ApiKeyIssuer {
         let mut rng = rand::rng();
         let mut seed = Zeroizing::new([0u8; 32]);
         rng.fill(&mut *seed);
-        let signing_key = SigningKey::from_bytes(&*seed);
+        let signing_key = SigningKey::from_bytes(&seed);
         let private_key_bytes = signing_key.to_bytes();
         // seed (Zeroizing) drops here → key material zeroized
         let public_key = Ed25519PublicKey(signing_key.verifying_key().to_bytes());
@@ -167,7 +179,11 @@ impl ApiKeyIssuer {
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     /// Idempotent — revoking an already-revoked key is a no-op.
     ///
-    /// REQ: WALLET-006
+    /// REQ: P9-wlt-issuer-key-lifecycle
+    /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+    /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+    /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+    /// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  key_id is a valid ApiKeyId
     /// post: key marked as revoked in store
     /// post: unspent rJoules returned to wallet
@@ -191,7 +207,11 @@ impl ApiKeyIssuer {
 
     /// List active (non-revoked) API keys for a wallet.
     ///
-    /// REQ: WALLET-006
+    /// REQ: P9-wlt-issuer-key-lifecycle
+    /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+    /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+    /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+    /// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  wallet_id is a valid WalletId
     /// post: returns Ok(Vec<ApiKeyCapability>) containing only non-revoked keys
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
@@ -219,7 +239,7 @@ mod tests {
         ApiKeyIssuer::new(store).unwrap()
     }
 
-    // REQ: P4-issuer — create_key produces valid Ed25519 keypair
+    // REQ: P9-wlt-issuer-test — create_key produces valid Ed25519 keypair
     #[test]
     fn create_key_produces_valid_keypair() {
         let issuer = make_issuer();
@@ -246,7 +266,7 @@ mod tests {
         assert!(retrieved.is_some());
     }
 
-    // REQ: P4-issuer — create_key with expiry sets expiry field
+    // REQ: P9-wlt-issuer-test — create_key with expiry sets expiry field
     #[test]
     fn create_key_with_expiry() {
         let issuer = make_issuer();
@@ -269,7 +289,7 @@ mod tests {
         assert!(material.capability.expiry.is_some());
     }
 
-    // REQ: P4-issuer — revoke_key returns unspent rJoules
+    // REQ: P9-wlt-issuer-test — revoke_key returns unspent rJoules
     #[test]
     fn revoke_key_returns_unspent_rjoules() {
         let issuer = make_issuer();
@@ -308,7 +328,7 @@ mod tests {
         assert_eq!(balance.rjoules, 8800); // 10000 - 5000 + 3800 unspent
     }
 
-    // REQ: P4-issuer — list_keys returns active keys
+    // REQ: P9-wlt-issuer-test — list_keys returns active keys
     #[test]
     fn list_keys_returns_active_keys() {
         let issuer = make_issuer();

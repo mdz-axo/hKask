@@ -59,6 +59,7 @@ impl KataHistoryStore {
     /// * `practice_name` — Manifest ID or practice name
     /// * `steps_completed` — Number of steps completed
     /// * `gas_consumed` — Gas consumed
+    ///
     /// Record a kata history entry.
     ///
     /// REQ: STO-031

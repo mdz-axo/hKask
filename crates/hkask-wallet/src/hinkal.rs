@@ -181,7 +181,9 @@ pub struct HinkalPort {
 impl HinkalPort {
     /// Create a new HinkalPort connected to the Hinkal API.
     ///
-    /// REQ: HINKAL-001
+    /// REQ: P9-wlt-hinkal-port-new
+    /// [P9] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop
+    /// [P4] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey
     /// pre:  api_base_url is a valid absolute URL
     /// pre:  treasury_pubkey is a non-empty account/public key string
     /// post: HTTP client initialized with rustls TLS
@@ -1052,7 +1054,7 @@ mod tests {
         HinkalPort::new(base, "treasury_pubkey_test").expect("port")
     }
 
-    // REQ: HINKAL-002 — chain_error emission uses caller-provided actor identity
+    // REQ: P9-wlt-hinkal-chain-error-actor-test — chain_error emission uses caller-provided actor identity
     #[tokio::test]
     async fn emit_chain_error_uses_provided_actor() {
         let actor = WebID::from_persona(b"actor-hinkal-test");
@@ -1076,7 +1078,7 @@ mod tests {
         assert_eq!(event.observation["operation"], "submit_signed_tx");
     }
 
-    // REQ: HINKAL-003 — session message format matches Hinkal API spec
+    // REQ: P9-wlt-hinkal-session-read-format-test — session message format matches Hinkal API spec
     #[test]
     fn session_message_read_format() {
         let msg = HinkalPort::build_session_message("test-nonce-123", false);
@@ -1085,7 +1087,7 @@ mod tests {
         assert!(!msg.contains("submit transactions"));
     }
 
-    // REQ: HINKAL-003 — write session message includes transaction authorization
+    // REQ: P9-wlt-hinkal-session-read-format-test — write session message includes transaction authorization
     #[test]
     fn session_message_write_format() {
         let msg = HinkalPort::build_session_message("test-nonce-456", true);
@@ -1094,7 +1096,7 @@ mod tests {
         assert!(msg.contains("This signature can also be used to submit transactions."));
     }
 
-    // REQ: HINKAL-004 — Solana withdraw message format matches Hinkal API spec
+    // REQ: P9-wlt-hinkal-withdraw-message-format-test — Solana withdraw message format matches Hinkal API spec
     #[test]
     fn withdraw_message_format() {
         let msg = HinkalPort::build_withdraw_message(
@@ -1113,7 +1115,7 @@ mod tests {
         assert!(msg.contains("Recipient: recipient_solana_address"));
     }
 
-    // REQ: HINKAL-005 — circuit breaker initial state is healthy
+    // REQ: P9-wlt-hinkal-circuit-breaker-test — circuit breaker initial state is healthy
     #[test]
     fn circuit_breaker_initial_state() {
         let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey").unwrap();
@@ -1121,7 +1123,7 @@ mod tests {
         assert!(port.available_for_chain(ChainId::Hinkal));
     }
 
-    // REQ: HINKAL-005 — circuit breaker denies non-Hinkal chains
+    // REQ: P9-wlt-hinkal-circuit-breaker-test — circuit breaker denies non-Hinkal chains
     #[test]
     fn available_for_chain_rejects_non_hinkal() {
         let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey").unwrap();
@@ -1129,7 +1131,7 @@ mod tests {
         assert!(!port.available_for_chain(ChainId::Hedera));
     }
 
-    // REQ: HINKAL-006 — session bootstrap success path maps request/response correctly
+    // REQ: P9-wlt-hinkal-session-bootstrap-test — session bootstrap success path maps request/response correctly
     #[tokio::test]
     async fn create_session_success() {
         unsafe {
@@ -1160,7 +1162,7 @@ mod tests {
         assert!(!session.signature.is_empty());
     }
 
-    // REQ: HINKAL-006 — cached session is reused while unexpired
+    // REQ: P9-wlt-hinkal-session-bootstrap-test — cached session is reused while unexpired
     #[test]
     fn cached_session_reused_within_ttl() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1172,7 +1174,7 @@ mod tests {
         assert_eq!(session.signature, "sig-1");
     }
 
-    // REQ: HINKAL-006 — write-access lookup does not reuse read-only cached session
+    // REQ: P9-wlt-hinkal-session-bootstrap-test — write-access lookup does not reuse read-only cached session
     #[test]
     fn cached_read_session_not_reused_for_write() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1186,7 +1188,7 @@ mod tests {
         assert!(write.is_none());
     }
 
-    // REQ: HINKAL-007 — nonce reuse/server rejection is propagated fail-closed
+    // REQ: P9-wlt-hinkal-nonce-reuse-test — nonce reuse/server rejection is propagated fail-closed
     #[tokio::test]
     async fn create_session_nonce_reuse_propagates_error() {
         unsafe {
@@ -1222,7 +1224,7 @@ mod tests {
         }
     }
 
-    // REQ: HINKAL-008 — invalid/partial balance payload fails closed
+    // REQ: P9-wlt-hinkal-invalid-balance-test — invalid/partial balance payload fails closed
     #[tokio::test]
     async fn monitor_shielded_transfers_rejects_invalid_balance_payload() {
         unsafe {
@@ -1268,7 +1270,7 @@ mod tests {
         }
     }
 
-    // REQ: HINKAL-009 — build_unshield_tx encodes deterministic request payload fields
+    // REQ: P9-wlt-hinkal-unshield-payload-test — build_unshield_tx encodes deterministic request payload fields
     #[test]
     fn build_unshield_tx_encodes_payload() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1284,7 +1286,7 @@ mod tests {
         assert_eq!(payload.nonce.len(), 32);
     }
 
-    // REQ: HINKAL-010 — monitor_shielded_transfers emits only positive balance deltas
+    // REQ: P9-wlt-hinkal-shielded-withdraw-delta-test — monitor_shielded_transfers emits only positive balance deltas
     #[tokio::test]
     async fn monitor_shielded_transfers_emits_balance_deltas() {
         let server = MockServer::start().await;
@@ -1331,7 +1333,7 @@ mod tests {
         assert_eq!(second[0].amount_usdc_micro, 500_000);
     }
 
-    // REQ: HINKAL-011 — monitor_shielded_transfers suppresses non-increasing balances
+    // REQ: P9-wlt-hinkal-suppress-nonincreasing-test — monitor_shielded_transfers suppresses non-increasing balances
     #[tokio::test]
     async fn monitor_shielded_transfers_suppresses_non_increasing_balances() {
         let server = MockServer::start().await;
@@ -1376,7 +1378,7 @@ mod tests {
         assert!(second.is_empty());
     }
 
-    // REQ: HINKAL-012 — shield message format matches Hinkal API spec
+    // REQ: P9-wlt-hinkal-shield-message-format-test — shield message format matches Hinkal API spec
     #[test]
     fn shield_message_format() {
         let msg = HinkalPort::build_shield_message(
@@ -1395,7 +1397,7 @@ mod tests {
         assert!(!msg.contains("Recipient"));
     }
 
-    // REQ: HINKAL-013 — build_shield_tx encodes deterministic payload fields
+    // REQ: P9-wlt-hinkal-shield-payload-test — build_shield_tx encodes deterministic payload fields
     #[test]
     fn build_shield_tx_encodes_payload() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1410,7 +1412,7 @@ mod tests {
         assert_eq!(payload.nonce.len(), 32);
     }
 
-    // REQ: HINKAL-014 — build_shield_tx rejects zero amount
+    // REQ: P9-wlt-hinkal-shield-zero-amount-test — build_shield_tx rejects zero amount
     #[test]
     fn build_shield_tx_rejects_zero_amount() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1419,7 +1421,7 @@ mod tests {
         assert!(msg.contains("must be > 0"));
     }
 
-    // REQ: HINKAL-015 — build_shield_tx rejects unsupported chain
+    // REQ: P9-wlt-hinkal-shield-unsupported-chain-test — build_shield_tx rejects unsupported chain
     #[test]
     fn build_shield_tx_rejects_unsupported_chain() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1428,7 +1430,7 @@ mod tests {
         assert!(msg.contains("only supports Solana"));
     }
 
-    // REQ: HINKAL-016 — HinkalPayload untagged deserialization dispatches correctly
+    // REQ: P9-wlt-hinkal-payload-deser-test — HinkalPayload untagged deserialization dispatches correctly
     #[test]
     fn hinkal_payload_deserialization_dispatches() {
         // Withdraw payload (has to_public field)

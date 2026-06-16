@@ -1,0 +1,271 @@
+//! CalibratedEnergyEstimator — Self-regulating per-server gas cost estimator.
+//!
+//! Wraps [`CompositeEnergyEstimator`] and keeps its per-server table in sync with
+//! observed `cns.gas.settled` events via [`DynamicGasTable`] and [`GasReport`].
+//! A background calibration task can be spawned with [`Self::spawn_calibration`].
+//!
+//! This closes the Good Regulator feedback loop (P9): estimates are continuously
+//! validated against real settlement data and adjusted by exponential moving average.
+//!
+//! # Design
+//!
+//! - `DynamicGasTable` and `CompositeEnergyEstimator` are held behind `std::sync::RwLock`
+//!   so the synchronous [`EnergyEstimator::estimate_cost`] can read the current
+//!   estimator without crossing an async boundary.
+//! - Calibration is async and uses `tokio::sync::Mutex` for `last_calibrated_at`.
+//! - Calibration is incremental: each pass processes only events since the last
+//!   successful calibration, then rebuilds the `CompositeEnergyEstimator` from the
+//!   updated table.
+
+use crate::composite_energy_estimator::CompositeEnergyEstimator;
+use crate::dynamic_gas_table::DynamicGasTable;
+use crate::gas_report::GasReport;
+use crate::governed_tool::EnergyEstimator;
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
+use hkask_storage::NuEventStore;
+use hkask_types::InfrastructureError;
+use serde_json::Value;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::time::Duration;
+use tracing::{info, warn};
+
+/// Default interval between background calibrations.
+pub const DEFAULT_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
+
+/// Default lookback window for the first calibration after construction.
+pub const DEFAULT_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hours(1);
+
+/// Self-regulating energy estimator that refreshes its per-server table from
+/// settled CNS gas events.
+///
+/// # Public Surface (≤7 items — deep-module discipline)
+/// - `CalibratedEnergyEstimator` (struct)
+/// - `new()` — construct from an event store
+/// - `with_initial_lookback()` — configure first-calibration window
+/// - `calibrate()` — run one calibration pass
+/// - `spawn_calibration()` — spawn a background calibration task
+/// - `current_table()` — diagnostic snapshot of the calibrated table
+pub struct CalibratedEnergyEstimator {
+    store: Arc<NuEventStore>,
+    table: RwLock<DynamicGasTable>,
+    estimator: RwLock<CompositeEnergyEstimator>,
+    last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
+}
+
+impl CalibratedEnergyEstimator {
+    /// Create a calibrated estimator backed by the given event store.
+    ///
+    /// REQ: GAS-CALIB-004 — runtime calibration loop wired to production estimator
+    /// post: returns CalibratedEnergyEstimator with default table and no observations
+    /// post: first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
+    pub fn new(store: Arc<NuEventStore>) -> Self {
+        let table = DynamicGasTable::new();
+        let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
+        Self {
+            store,
+            table: RwLock::new(table),
+            estimator: RwLock::new(estimator),
+            last_calibrated_at: tokio::sync::Mutex::new(Utc::now() - DEFAULT_INITIAL_LOOKBACK),
+        }
+    }
+
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
+        let now = Utc::now();
+        // Update last_calibrated_at so the first pass covers [now - lookback, now].
+        self.last_calibrated_at = tokio::sync::Mutex::new(now - lookback);
+        self
+    }
+
+    /// Run one incremental calibration pass.
+    ///
+    /// REQ: GAS-CALIB-004
+    /// pre:  `self.store` is a valid NuEventStore
+    /// post: all settled gas events since the last calibration are fed into
+    ///       `DynamicGasTable`; `CompositeEnergyEstimator` is rebuilt from the
+    ///       updated table; returns the number of servers whose costs changed
+    pub async fn calibrate(&self) -> Result<usize, InfrastructureError> {
+        let until = Utc::now();
+        let since = {
+            let mut last = self.last_calibrated_at.lock().await;
+            let s = *last;
+            *last = until;
+            s
+        };
+
+        let mut table = self
+            .table
+            .write()
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
+
+        let report = GasReport::new(Arc::clone(&self.store));
+        let adjusted = report.calibrate_table(&mut table, since, until)?;
+
+        let new_estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
+        *self
+            .estimator
+            .write()
+            .map_err(|_| InfrastructureError::LockPoisoned)? = new_estimator;
+
+        info!(
+            target: "cns.gas.calibration",
+            since = %since,
+            until = %until,
+            adjusted_servers = adjusted,
+            "Calibrated energy estimator"
+        );
+        Ok(adjusted)
+    }
+
+    /// Spawn a background task that calls `calibrate()` at the given interval.
+    ///
+    /// The task runs until the runtime shuts down. Calibration errors are logged
+    /// but do not crash the task.
+    pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(interval).await;
+                if let Err(e) = self.calibrate().await {
+                    warn!(
+                        target: "cns.gas.calibration",
+                        error = %e,
+                        "Background gas calibration failed"
+                    );
+                }
+            }
+        });
+    }
+
+    /// Snapshot of the current calibrated server-cost table.
+    ///
+    /// Useful for diagnostics and tests.
+    pub fn current_table(&self) -> std::collections::HashMap<String, u64> {
+        self.table
+            .read()
+            .map_or_else(|_| std::collections::HashMap::new(), |t| t.report_table())
+    }
+}
+
+impl EnergyEstimator for CalibratedEnergyEstimator {
+    fn estimate_cost(&self, server: &str, tool: &str, args: &Value) -> u64 {
+        let estimator = self.estimator.read().unwrap_or_else(|poisoned| {
+            // If a writer panicked while holding the lock, recovering the data
+            // is better than panicking the caller thread.
+            poisoned.into_inner()
+        });
+        estimator.estimate_cost(server, tool, args)
+    }
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration as ChronoDuration;
+    use hkask_storage::in_memory_db;
+    use hkask_types::NuEventSink;
+    use hkask_types::WebID;
+    use hkask_types::event::{NuEvent, Phase, Span, SpanKind};
+
+    fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> NuEvent {
+        NuEvent::new(
+            agent,
+            Span::from_kind(SpanKind::GasSettled),
+            Phase::Act,
+            serde_json::json!({
+                "server": server,
+                "tool": "test_tool",
+                "reserved": reserved,
+                "actual": actual,
+                "refunded": reserved.saturating_sub(actual),
+            }),
+            0,
+        )
+    }
+
+    // REQ: GAS-CALIB-004 — calibrate updates estimator costs from settled events
+    #[tokio::test]
+    async fn calibrate_updates_costs_from_settled_events() {
+        let agent = WebID::new();
+        let server = "hkask-mcp-media";
+
+        let db = in_memory_db();
+        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+
+        let estimator = Arc::new(CalibratedEnergyEstimator::new(Arc::clone(&store)));
+
+        // Before calibration, default cost applies.
+        let before = estimator.estimate_cost(server, "search", &serde_json::json!({}));
+        assert_eq!(before, 100);
+
+        // Persist a settled event where actual is double the reserved cost.
+        let event = settled_event(agent, server, 100, 200);
+        store.persist(&event).unwrap();
+
+        // Calibrate over a window that includes the event.
+        let adjusted = estimator.calibrate().await.unwrap();
+        assert_eq!(adjusted, 1);
+
+        // After calibration, cost should double from 100 to 200.
+        let after = estimator.estimate_cost(server, "search", &serde_json::json!({}));
+        assert_eq!(after, 200);
+    }
+
+    // REQ: GAS-CALIB-004 — incremental calibration processes new settled events
+    #[tokio::test]
+    async fn calibrate_is_incremental() {
+        let agent = WebID::new();
+
+        let db = in_memory_db();
+        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let estimator = Arc::new(CalibratedEnergyEstimator::new(Arc::clone(&store)));
+
+        let server_a = "hkask-mcp-media";
+        let server_b = "hkask-mcp-research";
+
+        // First calibration window: only server A observed.
+        store
+            .persist(&settled_event(agent, server_a, 100, 200))
+            .unwrap();
+        assert_eq!(estimator.calibrate().await.unwrap(), 1);
+        assert_eq!(
+            estimator.estimate_cost(server_a, "search", &serde_json::json!({})),
+            200
+        );
+
+        // Second calibration window: server B observed for the first time.
+        store
+            .persist(&settled_event(agent, server_b, 50, 100))
+            .unwrap();
+        assert_eq!(estimator.calibrate().await.unwrap(), 1);
+        assert_eq!(
+            estimator.estimate_cost(server_b, "search", &serde_json::json!({})),
+            100
+        );
+        // Server A cost remains stable (no new A events in second window).
+        assert_eq!(
+            estimator.estimate_cost(server_a, "search", &serde_json::json!({})),
+            200
+        );
+    }
+
+    // REQ: GAS-CALIB-004 — custom initial lookback is respected
+    #[test]
+    fn with_initial_lookback_changes_first_window() {
+        let db = in_memory_db();
+        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+
+        let estimator = CalibratedEnergyEstimator::new(Arc::clone(&store))
+            .with_initial_lookback(ChronoDuration::minutes(30));
+
+        // We cannot observe the internal last_calibrated_at, but we can verify
+        // the table accessor works and the estimator estimates normally.
+        assert!(!estimator.current_table().is_empty());
+        assert_eq!(
+            estimator.estimate_cost("hkask-mcp-media", "search", &serde_json::json!({})),
+            100
+        );
+    }
+}

@@ -161,6 +161,7 @@ impl ApiMeter {
     /// * `max_rpm` — Maximum requests per minute for this key.
     /// * `max_tokens_per_day` — Maximum tokens per day for this key.
     /// * `tokens_this_request` — Estimated tokens for this request.
+    ///
     /// Check rate limit and record request.
     ///
     /// REQ: P9-cns-api-meter-check-and-record

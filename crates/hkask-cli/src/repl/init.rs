@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use hkask_agents::InferenceLoop;
-use hkask_cns::{CompositeEnergyEstimator, EnergyBudget, EnergyCost, GovernedTool};
+use hkask_cns::{EnergyBudget, EnergyCost, GovernedTool};
 use hkask_mcp::RawMcpToolPort;
 use hkask_services::{AgentService, InferenceContext, InferenceService};
 use hkask_storage::Database;
@@ -165,7 +165,7 @@ pub(super) fn init_repl_state(
     // This wraps AgentService's MCP runtime with gas governance and CNS observability,
     // sharing the same cybernetics loop as the loop system.
     let raw_tool_port = Arc::new(RawMcpToolPort::new((*mcp_runtime).clone()));
-    let estimator: Arc<dyn hkask_cns::EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
+    let estimator: Arc<dyn hkask_cns::EnergyEstimator> = ctx.energy_estimator().clone();
     let governed_tool = Arc::new(GovernedTool::new(
         raw_tool_port,
         ctx.cybernetics_loop().clone(),

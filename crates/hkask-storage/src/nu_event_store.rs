@@ -73,6 +73,7 @@ impl NuEventStore {
     /// - "inference" → inference_lambda
     /// - "agent_pod", "connector" → episodic_lambda
     /// - everything else → cybernetics_lambda (safe default)
+    ///
     /// Replay events with temporal decay weighting.
     ///
     /// REQ: STO-013

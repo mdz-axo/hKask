@@ -113,6 +113,7 @@ impl DataCategory {
     /// - Private: episodic memory, personal context, capability tokens, OCAP boundaries
     /// - Shared: semantic memory, template invocations
     /// - Public: hLexicon terms, template registry
+    ///
     /// Get default visibility for this category.
     ///
     /// REQ: TYP-146

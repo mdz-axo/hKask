@@ -26,7 +26,7 @@
 //! REQ: GAS-CALIB-002 — Tracer bullet: single observation initializes EMA per server.
 //! REQ: GAS-CALIB-003 — Integration: calibrated table replaces hardcoded `TableEnergyEstimator` costs.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Default EMA alpha for calibration smoothing.
 /// Each observation contributes 10% to the moving average.
@@ -62,6 +62,10 @@ pub struct DynamicGasTable {
     ema_ratios: HashMap<String, f64>,
     /// Number of observations per server (for debugging/confidence).
     observation_counts: HashMap<String, u64>,
+    /// Servers that have received at least one observation since the last `calibrate()`.
+    /// Only these servers are considered on the next calibration pass, preventing
+    /// already-applied EMA ratios from being re-applied to current costs.
+    observed_since_last_calibrate: HashSet<String>,
     /// EMA smoothing factor.
     ema_alpha: f64,
     /// Tolerance band for triggering recalibration.
@@ -82,6 +86,7 @@ impl DynamicGasTable {
             server_costs,
             ema_ratios: HashMap::new(),
             observation_counts: HashMap::new(),
+            observed_since_last_calibrate: HashSet::new(),
             ema_alpha: DEFAULT_EMA_ALPHA,
             tolerance: DEFAULT_TOLERANCE,
         }
@@ -109,6 +114,8 @@ impl DynamicGasTable {
             None => ratio, // first observation initializes the EMA
         };
         self.ema_ratios.insert(server_key.clone(), new_ema);
+        self.observed_since_last_calibrate
+            .insert(server_key.clone());
 
         // Increment observation count
         let count = self.observation_counts.entry(server_key).or_insert(0);
@@ -117,9 +124,13 @@ impl DynamicGasTable {
 
     /// Calibrate per-server costs based on observed actual/estimated ratios.
     ///
-    /// For each server with observations, checks if the EMA ratio exceeds tolerance.
-    /// If the ratio is outside [1.0 - tolerance, 1.0 + tolerance], the server cost
-    /// is adjusted: `new_cost = old_cost * ratio`, floored at 1.
+    /// For each server with **new** observations since the last `calibrate()`,
+    /// checks if the EMA ratio exceeds tolerance. If the ratio is outside
+    /// [1.0 - tolerance, 1.0 + tolerance], the server cost is adjusted:
+    /// `new_cost = old_cost * ratio`, floored at 1.
+    ///
+    /// Servers with no new observations since the last calibration are skipped,
+    /// preventing already-applied EMA ratios from being repeatedly re-applied.
     ///
     /// REQ: GAS-CALIB-001
     /// post: server_costs[server] is updated if its EMA ratio exceeds tolerance
@@ -128,16 +139,21 @@ impl DynamicGasTable {
     /// # Returns
     /// Number of servers whose costs were adjusted.
     pub fn calibrate(&mut self) -> usize {
+        let servers: Vec<String> = self.observed_since_last_calibrate.iter().cloned().collect();
+        self.observed_since_last_calibrate.clear();
+
         let mut adjusted = 0;
-        for (server, ema) in &self.ema_ratios {
-            // Check if ratio exceeds tolerance band
-            if (*ema - 1.0).abs() > self.tolerance {
-                let old_cost = self.server_costs.get(server).copied().unwrap_or(10);
-                let new_cost = (old_cost as f64 * *ema) as u64;
-                let floored = new_cost.max(1); // floor at 1
-                if floored != old_cost {
-                    self.server_costs.insert(server.clone(), floored);
-                    adjusted += 1;
+        for server in servers {
+            if let Some(ema) = self.ema_ratios.get(&server) {
+                // Check if ratio exceeds tolerance band
+                if (*ema - 1.0).abs() > self.tolerance {
+                    let old_cost = self.server_costs.get(&server).copied().unwrap_or(10);
+                    let new_cost = (old_cost as f64 * *ema) as u64;
+                    let floored = new_cost.max(1); // floor at 1
+                    if floored != old_cost {
+                        self.server_costs.insert(server.clone(), floored);
+                        adjusted += 1;
+                    }
                 }
             }
         }
@@ -258,6 +274,33 @@ mod tests {
         let reports = table.report_table();
         // hkask-mcp-spec should still have its default cost of 5
         assert_eq!(reports["hkask-mcp-spec"], 5);
+    }
+
+    // REQ: GAS-CALIB-001 — calibrate only applies servers with new observations
+    #[test]
+    fn calibrate_does_not_reapply_without_new_observations() {
+        let mut table = DynamicGasTable::new();
+        table.record_observation("hkask-mcp-media", 100, 200);
+        assert_eq!(table.calibrate(), 1);
+        assert_eq!(table.report_table()["hkask-mcp-media"], 200);
+
+        // No new observations — calibrate should not re-adjust.
+        assert_eq!(table.calibrate(), 0);
+        assert_eq!(table.report_table()["hkask-mcp-media"], 200);
+    }
+
+    // REQ: GAS-CALIB-001 — new observation on same server can readjust
+    #[test]
+    fn calibrate_readjusts_after_new_observation() {
+        let mut table = DynamicGasTable::new();
+        table.record_observation("hkask-mcp-media", 100, 200);
+        assert_eq!(table.calibrate(), 1);
+        assert_eq!(table.report_table()["hkask-mcp-media"], 200);
+
+        // New observation at the updated estimate with actual still high.
+        table.record_observation("hkask-mcp-media", 200, 400);
+        assert_eq!(table.calibrate(), 1);
+        assert_eq!(table.report_table()["hkask-mcp-media"], 400);
     }
 
     // REQ: GAS-CALIB-007 — proptest: mock costs converge

@@ -19,7 +19,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 | hkask-agents | 30 | Agent runtime |
 | hkask-api | 8 | API surface |
 | hkask-cli | 2 | CLI surface |
-| hkask-cns | 73 | CNS observability |
+| hkask-cns | 77 | CNS observability |
 | hkask-communication | 25 | Communication |
 | hkask-inference | 86 | Inference |
 | hkask-keystore | 28 | Keystore |
@@ -324,7 +324,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **File:** crates/hkask-cli/src/onboarding.rs:225
 
 
-### hkask-cns (73 contracts)
+### hkask-cns (77 contracts)
 
 #### P9-cns-algedonic-alert-new (🟢 full)
 
@@ -403,6 +403,19 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Post:** returns severity label
 - **File:** crates/hkask-cns/src/api_metering.rs:314
 
+#### GAS-CALIB-004—runtimecalibrationloopwiredtoproductionestimator (🟡 partial)
+
+- **Principle:** ⚠ unanchored
+- **Post:** returns CalibratedEnergyEstimator with default table and no observations;first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:59
+
+#### GAS-CALIB-004 (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  `self.store` is a valid NuEventStore
+- **Post:** all settled gas events since the last calibration are fed into
+- **File:** crates/hkask-cns/src/calibrated_energy_estimator.rs:83
+
 #### P9-cns-circuit-default-for-inference (🟢 full)
 
 - **Principle:** ✅ anchored
@@ -446,32 +459,32 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns DynamicGasTable with default server costs and no observations
-- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:74
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:78
 
 #### GAS-CALIB-002—singleobservationinitializesEMAperserver (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  estimated_gas > 0 (no division by zero)
 - **Post:** ema_ratios[server] updated with EMA of actual/estimated ratio;observation_counts[server] incremented
-- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:96
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:101
 
 #### GAS-CALIB-001 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** server_costs[server] is updated if its EMA ratio exceeds tolerance;returns the number of servers whose costs were adjusted
-- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:124
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:135
 
 #### GAS-CALIB-001 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns a HashMap<String, u64> of server → cost mappings
-- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:152
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:168
 
 #### GAS-CALIB-002 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns a HashMap<String, f64> of server → EMA ratio mappings
-- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:163
+- **File:** crates/hkask-cns/src/dynamic_gas_table.rs:179
 
 #### P8-cns-energy-cost-from-raw (🟡 partial)
 
@@ -602,6 +615,13 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Pre:**  amount is a valid EnergyCost, priority in [0.0, 1.0]
 - **Post:** remaining ≤ cap (never exceeds cap);returns the actual amount replenished (≥ 1 if amount * priority > 0)
 - **File:** crates/hkask-cns/src/energy.rs:439
+
+#### GAS-CALIB-003—GasReportsettledeventsfeedDynamicGasTable (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  `table` is a valid DynamicGasTable
+- **Post:** every `cns.gas.settled` event in [since, until) with a server field
+- **File:** crates/hkask-cns/src/gas_report.rs:262
 
 #### P9-cns-gov-inf-new (🟢 full)
 
@@ -795,6 +815,13 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Pre:**  agent is valid
 - **Post:** returns Some(status) if budget exists, None otherwise
 - **File:** crates/hkask-cns/src/runtime.rs:713
+
+#### GAS-CALIB-003—calibratedtablereplaceshardcodedTableEnergyEstimatorcosts (🟢 full)
+
+- **Principle:** ⚠ unanchored
+- **Pre:**  `server_costs` contains the desired server → cost mappings
+- **Post:** per-tool overrides (e.g. condenser_thread_summary) are still applied
+- **File:** crates/hkask-cns/src/table_energy_estimator.rs:114
 
 #### P9-cns-wallet-est-calibrate (🟢 full)
 
@@ -1630,34 +1657,34 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns Zeroizing<Vec<u8>> from derivation, keychain, or random generation
-- **File:** crates/hkask-keystore/src/keychain.rs:308
+- **File:** crates/hkask-keystore/src/keychain.rs:302
 
 #### KEYSTORE-003 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  secret_ref is a valid SecretRef variant
 - **Post:** Env → reads from environment variable, Err(NotFound) if unset;Keychain → reads from OS keychain, Err(NotFound) if absent;Derived → resolves master key (env→keychain), HKDF-SHA256 derives sub-key;Generated → random bytes (debug only, not reproducible);all returned secrets wrapped in Zeroizing
-- **File:** crates/hkask-keystore/src/keychain.rs:346
+- **File:** crates/hkask-keystore/src/keychain.rs:340
 
 #### KEYSTORE-004 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  chain is a valid ChainId (Solana, Hedera, or Hinkal)
 - **Post:** returns Ok(Zeroizing<Vec<u8>>) — 32-byte HKDF-derived seed;same master key → same treasury key for given chain (deterministic)
-- **File:** crates/hkask-keystore/src/keychain.rs:400
+- **File:** crates/hkask-keystore/src/keychain.rs:394
 
 #### KEYSTORE-005 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns Ok(Zeroizing<Vec<u8>>) — 32-byte HKDF-derived seed;same master key → same wallet seed (deterministic)
-- **File:** crates/hkask-keystore/src/keychain.rs:430
+- **File:** crates/hkask-keystore/src/keychain.rs:424
 
 #### KEYSTORE-006 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  capability is a valid, fully-populated ApiKeyCapability
 - **Post:** returns Ok(hex_signature) — 128-char hex-encoded Ed25519 signature;wallet seed loaded, used for signing, zeroized within this call
-- **File:** crates/hkask-keystore/src/keychain.rs:452
+- **File:** crates/hkask-keystore/src/keychain.rs:446
 
 #### KEY-020 (🟢 full)
 
@@ -3895,39 +3922,39 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Pre:**  path is valid, passphrase is non-empty, extensions is valid SQL
 - **Post:** returns Database with extensions applied
-- **File:** crates/hkask-storage/src/database.rs:146
+- **File:** crates/hkask-storage/src/database.rs:147
 
 #### STO-026 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns in-memory Database
-- **File:** crates/hkask-storage/src/database.rs:173
+- **File:** crates/hkask-storage/src/database.rs:174
 
 #### STO-027 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  extensions is valid SQL DDL
 - **Post:** returns in-memory Database with extensions
-- **File:** crates/hkask-storage/src/database.rs:190
+- **File:** crates/hkask-storage/src/database.rs:192
 
 #### STO-028 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns Arc<Mutex<Connection>> for Store constructors
-- **File:** crates/hkask-storage/src/database.rs:219
+- **File:** crates/hkask-storage/src/database.rs:221
 
 #### STO-029 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  path is valid, passphrase is non-empty
 - **Post:** returns Database (in-memory if path is ":memory:")
-- **File:** crates/hkask-storage/src/database.rs:235
+- **File:** crates/hkask-storage/src/database.rs:237
 
 #### STO-030 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns in-memory Database (panics on failure)
-- **File:** crates/hkask-storage/src/database.rs:256
+- **File:** crates/hkask-storage/src/database.rs:258
 
 #### STO-038 (🟢 full)
 
@@ -4422,49 +4449,49 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Pre:**  entry.agent_name is non-empty
 - **Post:** entry inserted into kata_history
-- **File:** crates/hkask-storage/src/kata_history.rs:64
+- **File:** crates/hkask-storage/src/kata_history.rs:65
 
 #### STO-032 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  agent_name is non-empty
 - **Post:** returns Vec of entries for this agent
-- **File:** crates/hkask-storage/src/kata_history.rs:87
+- **File:** crates/hkask-storage/src/kata_history.rs:88
 
 #### STO-033 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  agent_name is non-empty
 - **Post:** returns count of entries
-- **File:** crates/hkask-storage/src/kata_history.rs:133
+- **File:** crates/hkask-storage/src/kata_history.rs:134
 
 #### STO-034 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  agent_name is non-empty, date is valid ISO date
 - **Post:** returns count of entries on that date
-- **File:** crates/hkask-storage/src/kata_history.rs:149
+- **File:** crates/hkask-storage/src/kata_history.rs:150
 
 #### STO-035 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  agent_name is non-empty
 - **Post:** returns Some(entry) if exists, None otherwise
-- **File:** crates/hkask-storage/src/kata_history.rs:169
+- **File:** crates/hkask-storage/src/kata_history.rs:170
 
 #### STO-036 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  agent_name is non-empty, from/to are valid ISO dates
 - **Post:** returns Vec of entries in range
-- **File:** crates/hkask-storage/src/kata_history.rs:215
+- **File:** crates/hkask-storage/src/kata_history.rs:216
 
 #### STO-037 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  before_date is a valid ISO date
 - **Post:** entries before date deleted;returns count of deleted entries
-- **File:** crates/hkask-storage/src/kata_history.rs:263
+- **File:** crates/hkask-storage/src/kata_history.rs:264
 
 #### STO-001 (🟡 partial)
 
@@ -4489,34 +4516,34 @@ mds_categories: [domain, composition, trust, lifecycle]
 - **Principle:** ⚠ unanchored
 - **Pre:**  observer is valid, category is valid, lookback_secs > 0
 - **Post:** returns Vec<NuEvent> within lookback window, weighted by recency
-- **File:** crates/hkask-storage/src/nu_event_store.rs:78
+- **File:** crates/hkask-storage/src/nu_event_store.rs:79
 
 #### STO-014 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  category is a valid SpanCategory
 - **Post:** returns decay lambda from config or default
-- **File:** crates/hkask-storage/src/nu_event_store.rs:114
+- **File:** crates/hkask-storage/src/nu_event_store.rs:115
 
 #### STO-015 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  key is non-empty
 - **Post:** cursor value stored
-- **File:** crates/hkask-storage/src/nu_event_store.rs:169
+- **File:** crates/hkask-storage/src/nu_event_store.rs:170
 
 #### STO-016 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  key is non-empty
 - **Post:** returns Some(value) if cursor exists, None otherwise
-- **File:** crates/hkask-storage/src/nu_event_store.rs:187
+- **File:** crates/hkask-storage/src/nu_event_store.rs:188
 
 #### STO-017 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns Vec of algedonic signal events
-- **File:** crates/hkask-storage/src/nu_event_store.rs:202
+- **File:** crates/hkask-storage/src/nu_event_store.rs:203
 
 #### STO-004 (🟢 full)
 
@@ -4779,91 +4806,91 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ⚠ unanchored
 - **Post:** users, replicants, sessions tables created if not exists
-- **File:** crates/hkask-storage/src/user_store.rs:82
+- **File:** crates/hkask-storage/src/user_store.rs:79
 
 #### STO-057 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  replicant_name is non-empty, passphrase meets requirements
 - **Post:** replicant and user records created
-- **File:** crates/hkask-storage/src/user_store.rs:98
+- **File:** crates/hkask-storage/src/user_store.rs:95
 
 #### STO-058 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  replicant_name is registered, passphrase is correct
 - **Post:** returns UserSession on success;returns Err if credentials invalid
-- **File:** crates/hkask-storage/src/user_store.rs:170
+- **File:** crates/hkask-storage/src/user_store.rs:167
 
 #### STO-059 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  session_id is valid
 - **Post:** session invalidated
-- **File:** crates/hkask-storage/src/user_store.rs:207
+- **File:** crates/hkask-storage/src/user_store.rs:204
 
 #### STO-060 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  replicant_name is registered, old_passphrase is correct
 - **Post:** passphrase updated
-- **File:** crates/hkask-storage/src/user_store.rs:222
+- **File:** crates/hkask-storage/src/user_store.rs:219
 
 #### STO-061 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  replicant_name is registered
 - **Post:** returns true if passphrase needs rotation
-- **File:** crates/hkask-storage/src/user_store.rs:264
+- **File:** crates/hkask-storage/src/user_store.rs:261
 
 #### STO-062 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  session_id is non-empty
 - **Post:** returns Some(session) if valid, None otherwise
-- **File:** crates/hkask-storage/src/user_store.rs:295
+- **File:** crates/hkask-storage/src/user_store.rs:292
 
 #### STO-063 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  replicant_name is non-empty
 - **Post:** returns Vec of active sessions
-- **File:** crates/hkask-storage/src/user_store.rs:312
+- **File:** crates/hkask-storage/src/user_store.rs:309
 
 #### STO-064 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  replicant_name is non-empty
 - **Post:** returns Some(identity) if found, None otherwise
-- **File:** crates/hkask-storage/src/user_store.rs:329
+- **File:** crates/hkask-storage/src/user_store.rs:326
 
 #### STO-065 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  user_id is valid
 - **Post:** returns HumanUser
-- **File:** crates/hkask-storage/src/user_store.rs:346
+- **File:** crates/hkask-storage/src/user_store.rs:343
 
 #### STO-066 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  user_id is valid
 - **Post:** returns Vec of replicants owned by user
-- **File:** crates/hkask-storage/src/user_store.rs:379
+- **File:** crates/hkask-storage/src/user_store.rs:376
 
 #### STO-067 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  replicant_name is non-empty
 - **Post:** returns Some(WalletId) if set, None otherwise
-- **File:** crates/hkask-storage/src/user_store.rs:393
+- **File:** crates/hkask-storage/src/user_store.rs:390
 
 #### STO-068 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  replicant_name is registered, wallet_id is valid
 - **Post:** wallet_id stored for replicant
-- **File:** crates/hkask-storage/src/user_store.rs:406
+- **File:** crates/hkask-storage/src/user_store.rs:403
 
 #### SHOULD-8—WALmodeforwalletstoreconcurrency (🟡 partial)
 
@@ -6079,77 +6106,77 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns Private for sovereign, Public for shared categories
-- **File:** crates/hkask-types/src/sovereignty.rs:118
+- **File:** crates/hkask-types/src/sovereignty.rs:119
 
 #### TYP-147 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns label string
-- **File:** crates/hkask-types/src/sovereignty.rs:163
+- **File:** crates/hkask-types/src/sovereignty.rs:164
 
 #### TYP-148 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns "sovereign", "shared", or "public"
-- **File:** crates/hkask-types/src/sovereignty.rs:177
+- **File:** crates/hkask-types/src/sovereignty.rs:178
 
 #### TYP-149 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns UserSovereigntyState with all categories sovereign
-- **File:** crates/hkask-types/src/sovereignty.rs:208
+- **File:** crates/hkask-types/src/sovereignty.rs:209
 
 #### TYP-150 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  category is valid
 - **Post:** returns true iff category is in sovereign set
-- **File:** crates/hkask-types/src/sovereignty.rs:237
+- **File:** crates/hkask-types/src/sovereignty.rs:238
 
 #### TYP-151 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  category is valid
 - **Post:** returns true iff category is in shared set
-- **File:** crates/hkask-types/src/sovereignty.rs:252
+- **File:** crates/hkask-types/src/sovereignty.rs:253
 
 #### TYP-152 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  category is valid
 - **Post:** returns true iff category is in public set
-- **File:** crates/hkask-types/src/sovereignty.rs:264
+- **File:** crates/hkask-types/src/sovereignty.rs:265
 
 #### TYP-153 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns true (always required under Magna Carta)
-- **File:** crates/hkask-types/src/sovereignty.rs:274
+- **File:** crates/hkask-types/src/sovereignty.rs:275
 
 #### TYP-154 (🟢 full)
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  category is valid
 - **Post:** returns BoundaryClassification (Sovereign, Shared, or Public)
-- **File:** crates/hkask-types/src/sovereignty.rs:286
+- **File:** crates/hkask-types/src/sovereignty.rs:287
 
 #### TYP-155 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** returns ConsentState with consent=false
-- **File:** crates/hkask-types/src/sovereignty.rs:320
+- **File:** crates/hkask-types/src/sovereignty.rs:321
 
 #### TYP-156 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** consent set to true
-- **File:** crates/hkask-types/src/sovereignty.rs:333
+- **File:** crates/hkask-types/src/sovereignty.rs:334
 
 #### TYP-157 (🟡 partial)
 
 - **Principle:** ⚠ unanchored
 - **Post:** consent set to false
-- **File:** crates/hkask-types/src/sovereignty.rs:342
+- **File:** crates/hkask-types/src/sovereignty.rs:343
 
 #### TYP-183 (🟢 full)
 
@@ -6329,164 +6356,164 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 ### hkask-wallet (23 contracts)
 
-#### HINKAL-001 (🟢 full)
+#### P9-wlt-hinkal-port-new (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  api_base_url is a valid absolute URL; treasury_pubkey is a non-empty account/public key string
 - **Post:** HTTP client initialized with rustls TLS;circuit breaker initialized with zero failures
 - **File:** crates/hkask-wallet/src/hinkal.rs:184
 
-#### WALLET-006 (🟡 partial)
+#### P9-wlt-issuer-key-lifecycle (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Inv:** private keys are never stored (only public keys persisted);wallet_seed is zeroized on drop
 - **File:** crates/hkask-wallet/src/issuer.rs:31
 
-#### WALLET-006 (🟢 full)
+#### P9-wlt-issuer-key-lifecycle (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  store is initialized
-- **Post:** returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing;returns Err if wallet_seed resolution fails
-- **File:** crates/hkask-wallet/src/issuer.rs:51
+- **Post:** returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing
+- **File:** crates/hkask-wallet/src/issuer.rs:55
 
-#### WALLET-006 (🟢 full)
+#### P9-wlt-issuer-key-lifecycle (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is valid, spending_limit_rj > 0, purpose is non-empty
-- **Post:** returns Ok(ApiKeyMaterial) with fresh Ed25519 keypair;private_key_hex returned once, never stored by hKask;public key + capability metadata persisted in store;emits cns.wallet.key_issued span
-- **File:** crates/hkask-wallet/src/issuer.rs:90
+- **Post:** returns Ok(ApiKeyMaterial) with fresh Ed25519 keypair
+- **File:** crates/hkask-wallet/src/issuer.rs:98
 
-#### WALLET-006 (🟢 full)
+#### P9-wlt-issuer-key-lifecycle (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
-- **Post:** key marked as revoked in store;unspent rJoules returned to wallet;idempotent — revoking already-revoked key is no-op;emits cns.wallet.key_revoked span
-- **File:** crates/hkask-wallet/src/issuer.rs:170
+- **Post:** key marked as revoked in store
+- **File:** crates/hkask-wallet/src/issuer.rs:182
 
-#### WALLET-006 (🟢 full)
+#### P9-wlt-issuer-key-lifecycle (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId
 - **Post:** returns Ok(Vec<ApiKeyCapability>) containing only non-revoked keys
-- **File:** crates/hkask-wallet/src/issuer.rs:194
+- **File:** crates/hkask-wallet/src/issuer.rs:210
 
-#### WALLET-001 (🟡 partial)
+#### P9-wlt-mgr-build (🟡 partial)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Inv:** wallet_seed is zeroized on drop (Zeroizing wrapper);chains map is non-empty after successful build
 - **File:** crates/hkask-wallet/src/manager.rs:38
 
-#### WALLET-001 (🟢 full)
+#### P9-wlt-mgr-build (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  config is valid, store is initialized, chains is non-empty; price_feed is a resolved PriceFeed implementation
 - **Post:** returns Ok(WalletManager) with resolved wallet_seed;returns Err if wallet_seed resolution fails
-- **File:** crates/hkask-wallet/src/manager.rs:58
+- **File:** crates/hkask-wallet/src/manager.rs:60
 
-#### WALLET-006,MUST-6(algedonicfeedbackclosure) (🟢 full)
+#### P9-wlt-issuer-key-lifecycle,MUST-6(algedonicfeedbackclosure) (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** if key is expired → emits cns.wallet.key_expired span (Sense phase);if key is exhausted → emits cns.wallet.key_exhausted span (Sense phase);if event_sink is None → no-op (graceful degradation)
-- **File:** crates/hkask-wallet/src/manager.rs:134
+- **File:** crates/hkask-wallet/src/manager.rs:138
 
-#### P9—feedbackloopclosureforcns.wallet.chain_error (🟢 full)
+#### P9-wlt-mgr-chain-error-span (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  chain is a valid ChainId
 - **Post:** emits cns.wallet.chain_error span with error details (Sense phase);if event_sink is None → no-op (graceful degradation)
-- **File:** crates/hkask-wallet/src/manager.rs:167
+- **File:** crates/hkask-wallet/src/manager.rs:171
 
-#### WALLET-002 (🟢 full)
+#### P9-wlt-mgr-balance (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId
 - **Post:** returns Ok(balance) with rjoules, gas_equivalent, usdc_equivalent_micro;gas_equivalent == rjoules * config.gas_per_rjoule;balance.rjoules >= 0 (balances are never negative)
-- **File:** crates/hkask-wallet/src/manager.rs:201
+- **File:** crates/hkask-wallet/src/manager.rs:207
 
-#### WALLET-003 (🟢 full)
+#### P9-wlt-mgr-api-key-get (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** returns Ok(Some(capability)) if key exists and is active;returns Ok(None) if key doesn't exist or is revoked
-- **File:** crates/hkask-wallet/src/manager.rs:222
+- **File:** crates/hkask-wallet/src/manager.rs:230
 
-#### WALLET-010 (🟢 full)
+#### P9-wlt-mgr-fee-estimate (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  chain is a valid ChainId
 - **Post:** returns fee estimate derived from live/native USD rate when available;returns Err if configured price feed cannot provide a rate
-- **File:** crates/hkask-wallet/src/manager.rs:813
+- **File:** crates/hkask-wallet/src/manager.rs:823
 
-#### WALLET-004 (🟢 full)
+#### P9-wlt-mgr-reserve-settle (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, cost_rj is a valid RJoule
 - **Post:** returns Ok(true) iff balance.rjoules >= cost_rj;returns Ok(false) iff balance.rjoules < cost_rj
-- **File:** crates/hkask-wallet/src/manager.rs:851
+- **File:** crates/hkask-wallet/src/manager.rs:862
 
-#### WALLET-004 (🟢 full)
+#### P9-wlt-mgr-reserve-settle (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, amount is a valid RJoule
 - **Post:** if can_afford → Ok(()), reservation is optimistic (no debit);if !can_afford → Err(InsufficientBalance)
-- **File:** crates/hkask-wallet/src/manager.rs:863
+- **File:** crates/hkask-wallet/src/manager.rs:876
 
-#### WALLET-004 (🟢 full)
+#### P9-wlt-mgr-reserve-settle (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, reserved and actual are valid RJoule
 - **Post:** wallet balance debited by actual (not reserved);if actual < reserved, difference is implicitly refunded
-- **File:** crates/hkask-wallet/src/manager.rs:883
+- **File:** crates/hkask-wallet/src/manager.rs:898
 
-#### WALLET-005 (🟢 full)
+#### P9-wlt-mgr-encumbrance (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  wallet_id is a valid WalletId, key_id is a valid ApiKeyId, amount > 0
 - **Post:** amount rJoules locked against wallet for key_id;emits cns.wallet.encumbered span if event_sink configured
-- **File:** crates/hkask-wallet/src/manager.rs:946
+- **File:** crates/hkask-wallet/src/manager.rs:963
 
-#### WALLET-005 (🟢 full)
+#### P9-wlt-mgr-encumbrance (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** unspent rJoules returned to wallet;idempotent — releasing already-released/consumed encumbrance is no-op
-- **File:** crates/hkask-wallet/src/manager.rs:975
+- **File:** crates/hkask-wallet/src/manager.rs:995
 
-#### WALLET-005 (🟢 full)
+#### P9-wlt-mgr-encumbrance (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId, gas_rj > 0
 - **Post:** gas_rj deducted from key's active encumbrance (atomic);if encumbrance fully consumed → status transitions to 'consumed'
-- **File:** crates/hkask-wallet/src/manager.rs:996
+- **File:** crates/hkask-wallet/src/manager.rs:1019
 
-#### WALLET-005 (🟢 full)
+#### P9-wlt-mgr-encumbrance (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  key_id is a valid ApiKeyId
 - **Post:** returns Ok(Some(encumbrance)) if key has active encumbrance;returns Ok(None) if key has no encumbrance
-- **File:** crates/hkask-wallet/src/manager.rs:1010
+- **File:** crates/hkask-wallet/src/manager.rs:1036
 
-#### WALLET-007 (🟢 full)
+#### P9-wlt-sign-withdrawal (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  chain is a valid ChainId, tx_bytes is non-empty
-- **Post:** returns Ok(signature) — 64-byte Ed25519 signature;treasury key loaded, used, and zeroized within this call;no key material returned to caller — only the signature
+- **Post:** returns Ok(signature) — 64-byte Ed25519 signature;treasury key loaded, used, and zeroized within this call
 - **File:** crates/hkask-wallet/src/signing.rs:63
 
-#### HINKAL-006 (🟢 full)
+#### P9-wlt-sign-hinkal-message (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  message is any byte slice (including empty)
 - **Post:** returns Ok(signature) — 64-byte Ed25519 signature;treasury key loaded, used, and zeroized within this call
-- **File:** crates/hkask-wallet/src/signing.rs:83
+- **File:** crates/hkask-wallet/src/signing.rs:86
 
-#### WALLET-007 (🟢 full)
+#### P9-wlt-sign-capability (🟢 full)
 
-- **Principle:** ⚠ unanchored
+- **Principle:** ✅ anchored
 - **Pre:**  capability is a valid, fully-populated ApiKeyCapability
 - **Post:** returns Ok(hex_signature) — 128-char hex-encoded Ed25519 signature;delegates to hkask_keystore::sign_api_key_capability (isolated boundary)
-- **File:** crates/hkask-wallet/src/signing.rs:106
+- **File:** crates/hkask-wallet/src/signing.rs:111
 
 
 

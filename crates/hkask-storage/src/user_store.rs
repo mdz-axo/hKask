@@ -48,13 +48,10 @@ fn replicant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ReplicantIden
         replicant_name: row.get(0)?,
         user_id: row.get(1)?,
         replicant_webid: row.get(2)?,
-        wallet_id: row
-            .get::<_, Option<String>>(3)?
-            .map(|s| {
-                use std::str::FromStr;
-                WalletId::from_str(&s).ok()
-            })
-            .flatten(),
+        wallet_id: row.get::<_, Option<String>>(3)?.and_then(|s| {
+            use std::str::FromStr;
+            WalletId::from_str(&s).ok()
+        }),
         first_name_enc: row.get(4)?,
         last_name_enc: row.get(5)?,
         persona_yaml: row.get(6)?,

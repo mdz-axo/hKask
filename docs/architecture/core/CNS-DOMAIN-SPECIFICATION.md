@@ -14,7 +14,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **MDS Reference:** [`MDS.md`](MDS.md)
 
-**Codebase Reference:** `crates/hkask-cns/src/` — 128 `pub fn` across 7 modules, 126 REQ-tagged contracts (98.4% coverage), all 200+ tests pass.
+**Codebase Reference:** `crates/hkask-cns/src/` — 140 `pub fn`, 157 REQ-tagged contracts (112.1% coverage, including implementation-level contracts outside this spec), all tests pass.
 
 ---
 

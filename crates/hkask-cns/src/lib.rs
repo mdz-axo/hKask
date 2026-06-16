@@ -5,6 +5,7 @@
 
 pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
 pub mod api_metering; // API key metering — rate limits, CNS spans, alerts
+pub mod calibrated_energy_estimator; // Loop 6 — self-regulating per-server gas estimator
 pub mod circuit_breaker; // Loop 6 — regulation
 pub mod composite_energy_estimator; // Composite routing: inference → token-based, others → table
 pub mod contract_discipline; // Contract CNS span emission (Testing Discipline §9.3)
@@ -28,6 +29,9 @@ pub(crate) mod wallet_energy_estimator; // Loop 6 — wallet-aware energy estima
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
 pub use api_metering::{
     ApiMeter, ApiMeteringAlert, ApiRequestSpan, EndpointWeight, RateLimitStatus, endpoint_weight,
+};
+pub use calibrated_energy_estimator::{
+    CalibratedEnergyEstimator, DEFAULT_CALIBRATION_INTERVAL, DEFAULT_INITIAL_LOOKBACK,
 };
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_energy_estimator::CompositeEnergyEstimator;

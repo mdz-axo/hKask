@@ -522,6 +522,7 @@ mod tests {
         }
     }
 
+    // REQ: GAS-REPORT-001 — GasTotals defaults to zero aggregates
     #[test]
     fn gas_report_002_empty_store_returns_zero() {
         let totals = GasTotals {
@@ -536,6 +537,7 @@ mod tests {
         assert_eq!(totals.total_depleted, 0);
     }
 
+    // REQ: GAS-REPORT-002 — classify_event_kind recognizes reserved spans
     #[test]
     fn test_classify_event_kind_reserved() {
         let agent = test_agent();
@@ -544,6 +546,7 @@ mod tests {
         assert_eq!(kind, GasEventKind::Reserved);
     }
 
+    // REQ: GAS-REPORT-003 — classify_event_kind recognizes settled spans
     #[test]
     fn test_classify_event_kind_settled() {
         let agent = test_agent();
@@ -552,6 +555,7 @@ mod tests {
         assert_eq!(kind, GasEventKind::Settled);
     }
 
+    // REQ: GAS-REPORT-004 — classify_event_kind recognizes depleted spans
     #[test]
     fn test_classify_event_kind_depleted() {
         let agent = test_agent();

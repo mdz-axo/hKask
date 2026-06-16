@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Healthy));
     }
 
-    /// Test that classify_health at boundary between Healthy and Degraded.
+    /// REQ: BOT-HEALTH-001 — verify threshold behavior at Degraded boundary
     #[test]
     fn test_classify_degraded_at_threshold() {
         let thresholds = HealthThresholds::default();
@@ -184,7 +184,7 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Degraded));
     }
 
-    /// Test that classify_health at critical threshold.
+    /// REQ: BOT-HEALTH-001 — verify threshold behavior at Critical boundary
     #[test]
     fn test_classify_critical_at_threshold() {
         let thresholds = HealthThresholds::default();
@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Critical));
     }
 
-    /// Test that no budget means Healthy.
+    /// REQ: BOT-HEALTH-001 — missing budget defaults to Healthy
     #[test]
     fn test_classify_no_budget_is_healthy() {
         let thresholds = HealthThresholds::default();
@@ -229,7 +229,7 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Healthy));
     }
 
-    /// Test that zero budget cap is Healthy.
+    /// REQ: BOT-HEALTH-001 — zero cap budget defaults to Healthy
     #[test]
     fn test_classify_zero_cap_is_healthy() {
         let thresholds = HealthThresholds::default();

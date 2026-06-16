@@ -31,11 +31,11 @@
 | 14 | Template Engine | `templates` | hkask-templates | 10 | P3 (Generative Space) |
 | 15 | MCP Servers | `mcp` | mcp-servers/ | 18 | P5 (Essentialism) |
 | 16 | Service Layer | `services` | hkask-services | 14 | P5 + P7 (Essentialism + Evolution) |
-| 17 | Agent Runtime | `agents` | hkask-agents | 30 | P2 (User Sovereignty) |
-| 18 | Communication | `comm` | hkask-comm | 6 | P2 (User Sovereignty) |
-| 19 | Keystore | `keystore` | hkask-keystore | 5 | P2 (User Sovereignty) |
+| 17 | Agent Runtime | `agents` | hkask-agents | 30 | P1 (User Sovereignty) |
+| 18 | Communication | `comm` | hkask-comm | 6 | P1 (User Sovereignty) |
+| 19 | Keystore | `keystore` | hkask-keystore | 5 | P1 (User Sovereignty) |
 | 20 | Type System | `types` | hkask-types | 40 | P8 (Semantic Grounding) |
-| 21 | API Surface | `api` | hkask-api | 25 | P2 + P4 (Sovereignty + Boundaries) |
+| 21 | API Surface | `api` | hkask-api | 25 | P1 + P4 (Sovereignty + Boundaries) |
 | 22 | CLI Surface | `cli` | kask | 12 | P3 (Generative Space) |
 
 ### Domain Ownership Rules
@@ -45,7 +45,7 @@ Each contract carries a **motivating principle** in its ID prefix and **constrai
 1. **P9 (Homeostatic Self-Regulation)** owns all CNS regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation
 2. **P4 (Clear Boundaries)** owns all membrane/boundary contracts: governed_tool, governed_inference
 3. **P8 (Semantic Grounding)** owns all type-level identity contracts: `EnergyCost`, `EnergyDelta` newtypes
-4. **P12 (Affirmative Consent)** owns all subscriber/consent contracts: `subscribe`, `subscribe_async`
+4. **P12 (Subscriber Consent)** owns all subscriber/consent contracts: `subscribe`, `subscribe_async`
 5. **P3 (Generative Space)** owns all sync/blocking variants and content-domain contracts: blocking accessors, storage, memory, CLI
 6. **P7 (Evolutionary Architecture)** owns all configurable-from-real-usage contracts: threshold calibration, replenish rate tuning
 
@@ -307,11 +307,65 @@ These domains are documented here for completeness but are not part of the CNS c
 
 ### 3.1 Wallet (`hkask-wallet`)
 
-**23 contracts** — P9 (Homeostatic Self-Regulation)
-- `WalletBackedBudget` — budget that draws from wallet balance (P9)
-- `Encumbrance` — proof-of-stake encoded as constraints on rJoule resource pool (P9)
-- `ApiKeyId` — API key identifier for metering and rate-limiting (P9)
-- Transaction logging, balance queries, fund replenishment
+**Motivating Principle:** P9 (Homeostatic Self-Regulation) — rJoule balance, encumbrance, and fee estimation form the wallet's energy regulation loop
+**Constraining Principles:** P1 (User Sovereignty), P2 (Affirmative Consent), P4 (Clear Boundaries), P8 (Semantic Grounding)
+**Crate:** `hkask-wallet`
+**Sources:** `src/manager.rs`, `src/issuer.rs`, `src/signing.rs`, `src/hinkal.rs`, `src/price_feed.rs`, `src/hedera.rs`, `src/solana.rs`, `tests/hinkal_adapter.rs`
+
+#### Production Contracts (23 occurrences, 11 unique IDs)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-W1 | `P9-wlt-mgr-build` | `WalletManager` struct + `WalletManager::build(...)` | [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor; [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized |
+| FR-W2 | `P9-wlt-mgr-balance` | `WalletManager::get_balance(wallet_id)` | [P9] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state; [P8] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically |
+| FR-W3 | `P9-wlt-mgr-api-key-get` | `WalletManager::get_api_key(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops; [P4] Constraining: Clear Boundaries — revoked keys are excluded |
+| FR-W4 | `P9-wlt-mgr-reserve-settle` | `WalletManager::can_afford`, `reserve_rjoules`, `settle_rjoules` | [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
+| FR-W5 | `P9-wlt-mgr-encumbrance` | `WalletManager::encumber`, `release_encumbrance`, `consume`, `get_encumbrance` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W6 | `P9-wlt-issuer-key-lifecycle` | `ApiKeyIssuer` struct + `new`, `create_key`, `revoke_key`, `list_keys` | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued; [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries; [P1] Constraining: User Sovereignty — private keys are returned once and never stored |
+| FR-W7 | `P9-wlt-sign-withdrawal` | `sign_withdrawal`, `sign_capability` | [P9] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow; [P1] Constraining: User Sovereignty — treasury key derived from user master key; [P4] Constraining: Clear Boundaries — key material never leaves this module |
+| FR-W8 | `P9-wlt-sign-hinkal-message` | `sign_message(message)` | [P9] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow; [P4] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin |
+| FR-W9 | `P9-wlt-mgr-chain-error-span` | `WalletManager::emit_chain_error_for_actor` | [P9] Motivating: Homeostatic Self-Regulation — chain errors feed the CNS sense loop; [P12] Constraining: Replicant Host Mandate — actor identity is recorded |
+| FR-W10 | `P9-wlt-mgr-fee-estimate` | `WalletManager::estimate_withdrawal_fee` | [P9] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal; [P8] Constraining: Semantic Grounding — derived from live/native USD rate |
+| FR-W11 | `P9-wlt-hinkal-port-new` | `HinkalPort::new` | [P9] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop; [P4] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey |
+
+#### Test Contracts (32)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-W-T1 | `P9-wlt-mgr-gas-to-rjoules-test` | gas_to_rjoules_conversion |
+| FR-W-T2 | `P9-wlt-mgr-rjoules-to-gas-test` | rjoules_to_gas_conversion |
+| FR-W-T3 | `P9-wlt-mgr-fee-estimate-test` | estimate_withdrawal_fee_uses_price_feed |
+| FR-W-T4 | `P9-wlt-mgr-can-afford-test` | can_afford_checks_balance |
+| FR-W-T5 | `P9-wlt-mgr-reserve-insufficient-test` | reserve_rejects_insufficient_balance |
+| FR-W-T6 | `P9-wlt-mgr-settle-debits-test` | settle_debits_actual_cost |
+| FR-W-T7 | `P9-wlt-mgr-deposit-reference-test` | deposit_reference_generation |
+| FR-W-T8 | `P9-wlt-mgr-balance-conservation-pbt` | balance_conservation_under_encumbrance_lifecycle |
+| FR-W-T9 | `P9-wlt-mgr-deposit-monitor-idempotent-test` | deposit_monitor_credits_and_is_idempotent |
+| FR-W-T10 | `P9-wlt-mgr-payment-lifecycle-test` | end_to_end_payment_lifecycle |
+| FR-W-T11 | `P9-wlt-mgr-withdraw-pipeline-test` | withdraw_full_pipeline_success |
+| FR-W-T12 | `P9-wlt-mgr-withdraw-insufficient-test` | withdraw_rejects_insufficient_balance |
+| FR-W-T13 | `P9-wlt-mgr-withdraw-unsupported-chain-test` | withdraw_rejects_unsupported_chain |
+| FR-W-T14 | `P9-wlt-mgr-multi-chain-deposit-test` | poll_deposits_once_multi_chain |
+| FR-W-T15 | `P9-wlt-mgr-shielded-deposit-test` | shield_assets_uses_privacy_path |
+| FR-W-T16 | `P9-wlt-issuer-create-key-test` | create_key_produces_valid_keypair |
+| FR-W-T17 | `P9-wlt-issuer-expiry-test` | create_key_with_expiry |
+| FR-W-T18 | `P9-wlt-issuer-revoke-test` | revoke_key_returns_unspent_rjoules |
+| FR-W-T19 | `P9-wlt-issuer-list-keys-test` | list_keys_returns_active_keys |
+| FR-W-T20 | `P9-wlt-sign-withdrawal-signature-test` | sign_withdrawal_produces_signature |
+| FR-W-T21 | `P9-wlt-sign-withdrawal-chain-test` | sign_withdrawal_differs_per_chain |
+| FR-W-T22 | `P9-wlt-sign-capability-hex-test` | sign_capability_produces_hex_signature |
+| FR-W-T23 | `P9-wlt-sign-all-chains-test` | sign_withdrawal_all_chains |
+| FR-W-T24 | `P9-wlt-sign-empty-tx-test` | sign_withdrawal_empty_tx_bytes |
+| FR-W-T25 | `P9-wlt-sign-message-test` | sign_message_produces_signature |
+| FR-W-T26 | `P9-wlt-sign-tamper-test` | sign_capability_tampered_produces_different_signature |
+| FR-W-T27 | `P9-wlt-price-static-rate-test` | static_price_feed_returns_expected_rates |
+| FR-W-T28 | `P9-wlt-price-fee-nonzero-test` | fee_estimation_produces_non_zero_fee |
+| FR-W-T29 | `P9-wlt-price-fee-floor-test` | fee_estimation_floors_at_one_rj |
+| FR-W-T30 | `P9-wlt-price-chain-diff-test` | different_chains_produce_different_fees |
+| FR-W-T31 | `P9-wlt-price-eodhd-parse-test` | eodhd_feed_parses_close_field |
+| FR-W-T32 | `P9-wlt-price-coingecko-parse-test` | coingecko_feed_parses_usd_field |
+
+> **Note:** Chain-adapter integration tests for Hedera, Solana, and Hinkal are realigned to `P9-wlt-hedera-*`, `P9-wlt-solana-*`, and `P9-wlt-hinkal-*` test IDs and are enumerated in the contract inventory. They are omitted above for brevity; see `docs/architecture/core/REQ_CONTRACT_INVENTORY.md` for the complete list.
 
 ### 3.2 Storage (`hkask-storage`)
 
@@ -359,24 +413,24 @@ These domains are documented here for completeness but are not part of the CNS c
 
 ### 3.8 Agents (`hkask-agents`)
 
-**30 contracts** — P2 (User Sovereignty)
-- `AgentPod` — containerized agent runtime (P2)
-- `ReplicantHost` — agent identity and hosting layer (P2)
-- `AgentConfig` — configuration parameters (P2)
+**30 contracts** — P1 (User Sovereignty)
+- `AgentPod` — containerized agent runtime (P1)
+- `ReplicantHost` — agent identity and hosting layer (P1)
+- `AgentConfig` — configuration parameters (P1)
 - Lifecycle management, supervision, health checks
 
 ### 3.9 Communication (`hkask-comm`)
 
-**6 contracts** — P2 (User Sovereignty)
-- `Channel` — message passing between agents (P2)
-- `Broadcast` — pub/sub event distribution (P2)
+**6 contracts** — P1 (User Sovereignty)
+- `Channel` — message passing between agents (P1)
+- `Broadcast` — pub/sub event distribution (P1)
 - Message serialization, delivery guarantees
 
 ### 3.10 Keystore (`hkask-keystore`)
 
-**5 contracts** — P2 (User Sovereignty)
-- `KeyManagement` — key generation, storage, rotation (P2)
-- `SigningKey` — delegation token signing (P2)
+**5 contracts** — P1 (User Sovereignty)
+- `KeyManagement` — key generation, storage, rotation (P1)
+- `SigningKey` — delegation token signing (P1)
 - Key derivation, expiry, revocation
 
 ### 3.11 Types (`hkask-types`)
@@ -389,9 +443,9 @@ These domains are documented here for completeness but are not part of the CNS c
 
 ### 3.12 API Surface (`hkask-api`)
 
-**25 contracts** — P2 + P4 (Sovereignty + Boundaries)
-- REST endpoints for all service operations (P2)
-- MCP protocol handler (P2)
+**25 contracts** — P1 + P4 (Sovereignty + Boundaries)
+- REST endpoints for all service operations (P1)
+- MCP protocol handler (P1)
 - Authentication, authorization, rate limiting
 
 ### 3.13 CLI (`kask`)
@@ -424,10 +478,17 @@ These domains are documented here for completeness but are not part of the CNS c
 | API Metering | `api_metering.rs` | (various) | `P{N}-cns-api-meter-*` | 16 |
 | Energy Estimation | `composite_energy_estimator.rs` | (already aligned) | `P9-cns-est-composite-new` | 1 |
 | Wallet Estimation | `wallet_energy_estimator.rs` | `cns-calibrate-*` | `P9-cns-est-wallet-*` | 6 |
+| Wallet — Manager | `manager.rs` | `WALLET-*`, `wallet-int-*` | `P9-wlt-mgr-*` | 11 |
+| Wallet — Issuer | `issuer.rs` | `WALLET-006`, `P4-issuer` | `P9-wlt-issuer-*` | 1 |
+| Wallet — Signing | `signing.rs` | `WALLET-007`, `HINKAL-006`, `P4-signing` | `P9-wlt-sign-*` | 2 |
+| Wallet — Hinkal Adapter | `hinkal.rs` | `HINKAL-*` | `P9-wlt-hinkal-*` | 1 |
+| Wallet — Price Feed | `price_feed.rs` | `wallet-price-*` | `P9-wlt-price-*` | 0 (tests only) |
+| Wallet — Hedera Tests | `hedera.rs` | `hedera-int-*` | `P9-wlt-hedera-*` | 0 (tests only) |
+| Wallet — Solana Tests | `solana.rs` | `solana-int-*` | `P9-wlt-solana-*` | 0 (tests only) |
 
 **Total CNS contracts:** 99 (across all 9 source files).
-**Build status:** `cargo check -p hkask-cns` passes clean.
-**Test coverage:** All test contracts use the new ID format.
+**Total wallet contracts:** 23 production occurrences (11 unique IDs) + test/annotation occurrences (across 8 source/test files).
+**Build status:** `cargo check -p hkask-cns` and `cargo check -p hkask-wallet` pass clean.
 
 ### 4.2 Idempotent Migration
 
@@ -484,8 +545,8 @@ Constraining principles appear in the contract body as `[P{N}] Constraining: ...
 
 ### 5.4 Notational Conventions
 
-- **Production contracts** are labeled `P{N}-cns-{domain}-{operation}` in the contract body.
-- **Test contracts** are labeled `P{N}-cns-{domain}-{operation}-test` or have a `-T{N}` suffix.
+- **Production contracts** are labeled `P{N}-{domain}-{operation}` in the contract body (e.g., `P9-cns-energy-budget-new`, `P9-wlt-mgr-build`).
+- **Test contracts** are labeled `P{N}-{domain}-{operation}-test` or have a `-T{N}` suffix.
 - **Blocking variants** use the P3 prefix: `P3-cns-{domain}-blocking-{operation}`.
 - **Calibrate contracts** use the P7 prefix: `P7-cns-{domain}-calibrate-{operation}`.
 - **Subscriber contracts** use the P12 prefix: `P12-cns-{domain}-subscribe-{operation}`.
@@ -493,10 +554,19 @@ Constraining principles appear in the contract body as `[P{N}] Constraining: ...
 ### 5.5 Future Domains
 
 The following domains are **not yet realigned** and will use their own principle prefixes:
-- `hkask-wallet` (P9): `P9-wallet-*`
 - `hkask-storage` (P3): `P3-storage-*`
-- `hkask-agents` (P2): `P2-agents-*`
+- `hkask-memory` (P3): `P3-memory-*`
+- `hkask-agents` (P1): `P1-agents-*`
 - `hkask-inference` (P9+P4): `P9/P4-inference-*`
+- `hkask-templates` (P3): `P3-templates-*`
+- `hkask-services` (P5+P7): `P5/P7-services-*`
+- `hkask-api` (P1+P4): `P1/P4-api-*`
+- `hkask-comm` (P1): `P1-comm-*`
+- `hkask-keystore` (P1): `P1-keystore-*`
+- `kask` CLI (P3): `P3-cli-*`
+- `mcp-servers/` (P5): `P5-mcp-*`
+
+`hkask-wallet` is **complete** as of this revision: `P9-wlt-*`.
 
 ---
 

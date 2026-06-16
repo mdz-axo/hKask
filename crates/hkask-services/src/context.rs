@@ -34,7 +34,7 @@ use hkask_agents::loop_system::CyberneticsLoopHandle;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
-    CnsRuntime, CompositeEnergyEstimator, CyberneticsLoop, EnergyEstimator, GovernedTool,
+    CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
     SeamWatcher, SnapshotLoop, load_set_points,
 };
 use hkask_mcp::McpDispatcher;
@@ -145,6 +145,9 @@ pub struct AgentService {
 
     /// Event sink for CNS audit trail.
     event_sink: Arc<dyn NuEventSink>,
+
+    /// Calibrated energy estimator with a background gas-table refresh loop.
+    energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
 
     /// Sovereignty boundary store for Magna Carta compliance queries.
     sovereignty_boundary_store: SovereigntyBoundaryStore,
@@ -290,6 +293,17 @@ impl AgentService {
     pub fn event_sink(&self) -> &Arc<dyn NuEventSink> {
         &self.event_sink
     }
+
+    /// Calibrated energy estimator with a background gas-table refresh loop.
+    ///
+    /// REQ: GAS-CALIB-004 — runtime calibration loop wired to production estimator
+    /// pre:  self must be fully built
+    /// post: returns &Arc<CalibratedEnergyEstimator> sharing the same background
+    ///       calibration loop as the service's governed tool
+    pub fn energy_estimator(&self) -> &Arc<hkask_cns::CalibratedEnergyEstimator> {
+        &self.energy_estimator
+    }
+
     /// R7.3 public seam watcher — None if inventory unavailable at startup.
     /// Returns a read lock on the watcher. For summary data, call
     /// `.read().await` and then `.as_ref().map(|w| w.summary())`.
@@ -630,6 +644,7 @@ impl AgentService {
             capability_checker: mcp_pods.capability_checker,
             system_webid,
             event_sink: foundation.cns_event_sink,
+            energy_estimator: mcp_pods.energy_estimator,
             sovereignty_boundary_store: foundation.sovereignty_boundary_store,
             spec_store: foundation.spec_store,
             acp_runtime: loops.acp_runtime,
@@ -664,6 +679,8 @@ struct Foundation {
     cns_runtime: Arc<RwLock<CnsRuntime>>,
     seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
     cns_event_sink: Arc<dyn NuEventSink>,
+    /// Concrete event store used for gas report queries and calibration.
+    gas_event_store: Arc<NuEventStore>,
 }
 
 async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
@@ -747,6 +764,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     // CNS event sink — uses primary DB for persistence.
     let cns_event_sink: Arc<dyn NuEventSink> =
         Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
+    let gas_event_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
 
     // Spawn periodic seam drift check (R7.3 background watcher).
     spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
@@ -765,6 +783,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         cns_runtime,
         seam_watcher,
         cns_event_sink,
+        gas_event_store,
     })
 }
 
@@ -992,6 +1011,7 @@ struct McpPods {
     pod_manager: Arc<PodManager>,
     capability_checker: Arc<CapabilityChecker>,
     daemon_handler: Arc<crate::daemon_handler::ServiceDaemonHandler>,
+    energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
 }
 
 async fn build_mcp_and_pods(
@@ -1003,7 +1023,14 @@ async fn build_mcp_and_pods(
     // GovernedTool membrane
     let mcp_runtime = McpRuntime::new();
     let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
-    let estimator: Arc<dyn EnergyEstimator> = Arc::new(CompositeEnergyEstimator::new());
+    let energy_estimator: Arc<CalibratedEnergyEstimator> = Arc::new(
+        CalibratedEnergyEstimator::new(Arc::clone(&f.gas_event_store)),
+    );
+    energy_estimator
+        .clone()
+        .spawn_calibration(hkask_cns::DEFAULT_CALIBRATION_INTERVAL);
+    let estimator: Arc<dyn EnergyEstimator> =
+        Arc::clone(&energy_estimator) as Arc<dyn EnergyEstimator>;
     let governed_tool = Arc::new(
         GovernedTool::new(
             raw_tool_port,
@@ -1089,6 +1116,7 @@ async fn build_mcp_and_pods(
         pod_manager,
         capability_checker,
         daemon_handler,
+        energy_estimator,
     })
 }
 
