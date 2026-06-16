@@ -3,6 +3,7 @@
 
 use crate::acp::A2AMessage;
 use crate::curator::context::CuratorContext;
+use crate::curator_agent::bot_health::BotHealthEvaluator;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
 use hkask_storage::{EscalationBatch, EscalationEntry};
 use hkask_types::BotID;
@@ -224,10 +225,11 @@ pub struct MetacognitionLoop {
     escalation_policy: EscalationPolicy,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
     last_snapshot_tx: tokio::sync::watch::Sender<Option<HealthSnapshot>>,
+    bot_health_evaluator: Option<Arc<BotHealthEvaluator>>,
 }
 
 impl MetacognitionLoop {
-    /// Create a new metacognition loop.
+    /// Create a new metacognition loop without a BotHealthEvaluator.
     ///
     /// REQ: AGT-089
     /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
@@ -244,11 +246,50 @@ impl MetacognitionLoop {
             config,
             bot_reports: Arc::new(RwLock::new(Vec::new())),
             last_snapshot_tx,
+            bot_health_evaluator: None,
         }
     }
 
-    /// Get current bot status reports
+    /// Create a new metacognition loop with a BotHealthEvaluator.
+    ///
+    /// The evaluator reads gas data from the CNS runtime and populates
+    /// bot health reports at each cycle.
+    ///
+    /// REQ: BOT-HEALTH-001
+    /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
+    ///       valid `MetacognitionConfig`; `evaluator` is a valid
+    ///       `Arc<BotHealthEvaluator>`.
+    /// post: Returns a `MetacognitionLoop` with the evaluator wired in.
+    pub fn with_evaluator(
+        context: Arc<CuratorContext>,
+        config: MetacognitionConfig,
+        evaluator: Arc<BotHealthEvaluator>,
+    ) -> Self {
+        let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
+        let (last_snapshot_tx, _) = tokio::sync::watch::channel(None);
+        Self {
+            context,
+            escalation_policy,
+            config,
+            bot_reports: Arc::new(RwLock::new(Vec::new())),
+            last_snapshot_tx,
+            bot_health_evaluator: Some(evaluator),
+        }
+    }
+
+    /// Get current bot status reports.
+    ///
+    /// If a BotHealthEvaluator is wired in, runs evaluation for all agents.
+    /// Otherwise, returns the cached reports (which may be empty).
     pub(crate) async fn get_bot_reports(&self) -> Vec<BotStatusReport> {
+        if let Some(ref evaluator) = self.bot_health_evaluator {
+            match evaluator.evaluate_all(chrono::Utc::now()).await {
+                Ok(reports) => return reports,
+                Err(e) => {
+                    warn!(target: MC_TARGET, error = %e, "BotHealthEvaluator failed, falling back to cached reports");
+                }
+            }
+        }
         self.bot_reports.read().await.clone()
     }
 

@@ -18,6 +18,7 @@
 //! └── context: Arc<CuratorContext>       // capability-disciplined access
 //! ```
 
+pub mod bot_health;
 pub mod bot_metrics;
 pub mod metacognition;
 pub mod spec_curator;
@@ -191,6 +192,7 @@ impl CuratorAgent {
 }
 
 // Re-export persona types for convenience
+pub(crate) use bot_health::BotHealthEvaluator;
 pub use metacognition::{
     EscalationAlert, EscalationPolicy, EscalationSeverity, EscalationTrigger, HealthSnapshot,
     MetacognitionConfig, MetacognitionError, MetacognitionLoop,
