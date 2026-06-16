@@ -5,8 +5,8 @@
     "complete_both_layers": 30,
     "zed_only": 0,
     "registry_only": 35,
-    "active": 23,
-    "stale_warning": 12,
+    "active": 24,
+    "stale_warning": 11,
     "critical": 5,
     "recommend_deprecation": 25
   },
@@ -9479,12 +9479,100 @@
       "registry_layer": {
         "present": true,
         "manifest_present": true,
-        "manifest_parse_error": true,
-        "crate_name": null,
-        "crate_version": null,
-        "templates": [],
-        "templates_list_non_empty": false,
-        "manifest_hlexicon_terms": [],
+        "manifest_parse_error": false,
+        "crate_name": "skill-logic-audit",
+        "crate_version": "0.27.0",
+        "templates": [
+          {
+            "id": "skill-logic-audit/load-goal",
+            "path": "load-goal.j2",
+            "type": "WordAct",
+            "lexicon_terms": [
+              "extract",
+              "parse",
+              "recognize"
+            ],
+            "description": "Parse the annotated goal block from a target template or manifest.\n"
+          },
+          {
+            "id": "skill-logic-audit/critique-template",
+            "path": "critique-template.j2",
+            "type": "KnowAct",
+            "lexicon_terms": [
+              "critique",
+              "evaluate",
+              "discriminate",
+              "assess",
+              "analyze"
+            ],
+            "description": "Adversarial critique of a template body against its goal.\n"
+          },
+          {
+            "id": "skill-logic-audit/critique-critique",
+            "path": "critique-critique.j2",
+            "type": "KnowAct",
+            "lexicon_terms": [
+              "reflect",
+              "calibrate",
+              "discriminate",
+              "evaluate",
+              "critique"
+            ],
+            "description": "Soundness review of the first critique, separating valid and spurious concerns.\n"
+          },
+          {
+            "id": "skill-logic-audit/compose-proposal",
+            "path": "compose-proposal.j2",
+            "type": "KnowAct",
+            "lexicon_terms": [
+              "synthesize",
+              "compose",
+              "design",
+              "simplify",
+              "specify"
+            ],
+            "description": "Compose a revised template body and diff from calibrated concerns.\n"
+          },
+          {
+            "id": "skill-logic-audit/user-review-loop",
+            "path": "user-review-loop.j2",
+            "type": "FlowDef",
+            "lexicon_terms": [
+              "sequence",
+              "choice",
+              "iteration",
+              "escalate",
+              "route",
+              "abort",
+              "compose"
+            ],
+            "description": "Orchestrate accept/reject/counter-proposal with a bounded depth counter.\n"
+          }
+        ],
+        "templates_list_non_empty": true,
+        "manifest_hlexicon_terms": [
+          "extract",
+          "parse",
+          "recognize",
+          "critique",
+          "evaluate",
+          "discriminate",
+          "assess",
+          "analyze",
+          "reflect",
+          "calibrate",
+          "synthesize",
+          "compose",
+          "design",
+          "simplify",
+          "specify",
+          "sequence",
+          "choice",
+          "iteration",
+          "escalate",
+          "route",
+          "abort"
+        ],
         "unknown_manifest_hlexicon_terms": [],
         "j2_files": [
           {
@@ -9496,10 +9584,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "goal": "string",
               "target_path": "string",
@@ -9516,12 +9604,14 @@
             "contract_present": true,
             "lexicon_terms": [
               "synthesize",
-              "compose",
-              "design",
+              "revise",
               "simplify",
-              "specify"
+              "specify",
+              "verify"
             ],
-            "unknown_lexicon_terms": [],
+            "unknown_lexicon_terms": [
+              "revise"
+            ],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -9538,10 +9628,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 3072,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "goal": "string",
               "prior_critique": "object"
@@ -9554,11 +9644,11 @@
             },
             "contract_present": true,
             "lexicon_terms": [
-              "reflect",
-              "calibrate",
-              "discriminate",
               "evaluate",
-              "critique"
+              "verify",
+              "discriminate",
+              "classify",
+              "rank"
             ],
             "unknown_lexicon_terms": [],
             "body_present": true,
@@ -9577,10 +9667,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 4096,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "goal": "string",
               "target_path": "string",
@@ -9598,8 +9688,8 @@
               "critique",
               "evaluate",
               "discriminate",
-              "assess",
-              "analyze"
+              "detect",
+              "classify"
             ],
             "unknown_lexicon_terms": [],
             "body_present": true,
@@ -9618,10 +9708,10 @@
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
+            "visibility_misplaced": true,
             "energy_cap": 2048,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "target_path": "string",
               "target_content": "string"
@@ -9635,7 +9725,8 @@
             "lexicon_terms": [
               "extract",
               "parse",
-              "recognize"
+              "specify",
+              "verify"
             ],
             "unknown_lexicon_terms": [],
             "body_present": true,
@@ -9646,41 +9737,44 @@
             "defects": []
           },
           {
-            "path": "registry/templates/skill-logic-audit/user-review-loop.j2",
-            "filename": "user-review-loop.j2",
+            "path": "registry/templates/skill-logic-audit/user-choice.j2",
+            "filename": "user-choice.j2",
             "frontmatter_present": true,
-            "template_type": "FlowDef",
+            "template_type": "WordAct",
             "template_type_valid": true,
             "ddmvss_alias": false,
             "visibility": "Shared",
             "visibility_valid": true,
-            "visibility_misplaced": false,
-            "energy_cap": 3072,
+            "visibility_misplaced": true,
+            "energy_cap": 1024,
             "energy_cap_valid": true,
-            "energy_cap_misplaced": false,
+            "energy_cap_misplaced": true,
             "contract_input": {
               "target_path": "string",
               "goal": "string",
-              "max_depth": "integer",
-              "current_depth": "integer",
-              "proposal": "object"
+              "revised_content": "string",
+              "diff": "string",
+              "rationale": "string",
+              "confidence": "float",
+              "loop_depth": "integer",
+              "max_depth": "integer"
             },
             "contract_output": {
-              "action": "string",
-              "next_template_id": "string|null",
-              "state": "object"
+              "user_choice": "string",
+              "reason": "string",
+              "next_action": "string"
             },
             "contract_present": true,
             "lexicon_terms": [
-              "sequence",
-              "choice",
-              "iteration",
-              "escalate",
-              "route",
-              "abort",
-              "compose"
+              "prompt",
+              "specify",
+              "discriminate",
+              "select",
+              "verify"
             ],
-            "unknown_lexicon_terms": [],
+            "unknown_lexicon_terms": [
+              "select"
+            ],
             "body_present": true,
             "version_mentions": [
               "v0.27.0"
@@ -9690,14 +9784,15 @@
           }
         ],
         "j2_count": 5,
-        "has_flowdef": true,
+        "has_flowdef": false,
         "has_wordact": true,
         "has_knowact": true
       },
-      "health_score": 0.7000000000000001,
-      "status": "stale_warning",
+      "health_score": 0.94,
+      "status": "active",
       "top_defects": [
-        "manifest.yaml parse error"
+        "compose-proposal.j2: unknown hlexicon terms ['revise']",
+        "user-choice.j2: unknown hlexicon terms ['select']"
       ]
     },
     {

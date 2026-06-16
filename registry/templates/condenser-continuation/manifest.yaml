@@ -33,11 +33,12 @@ templates:
 
   - id: condenser-continuation/condenser-continuation-verify
     path: condenser-continuation-verify.j2
-    type: FlowDef
+    type: KnowAct
     lexicon_terms: [verify, validate, check, test, regulate]
     description: >
-      Dispatch verification commands (cargo check, build, clippy, MCP
-      handshake test) and collect results. Reports build health status.
+      Produce a structured verification plan (cargo check, build, clippy, MCP
+      handshake test) with expected outcomes and success criteria for an agent
+      or runtime to execute. Reports expected build health status.
 
   - id: condenser-continuation/condenser-continuation-compose
     path: condenser-continuation-compose.j2

@@ -88,6 +88,30 @@ impl SkillAuditReport {
         serde_json::to_string_pretty(self)
             .map_err(|e| SkillAuditError::Serialize(format!("JSON serialize: {e}")))
     }
+
+    /// Count of active skills in the report.
+    ///
+    /// REQ: SVC-099b
+    /// post: returns number of entries with health_score >= 0.8
+    pub fn active_count(&self) -> usize {
+        self.entries.iter().filter(|e| e.is_active()).count()
+    }
+
+    /// Count of .j2 files that incorrectly declare template_type FlowDef.
+    ///
+    /// REQ: SVC-099c
+    /// post: returns number of defects matching "FlowDef declared on .j2"
+    pub fn flowdef_on_j2_count(&self) -> usize {
+        self.entries
+            .iter()
+            .map(|e| {
+                e.defects
+                    .iter()
+                    .filter(|d| d.contains("FlowDef declared on .j2"))
+                    .count()
+            })
+            .sum()
+    }
 }
 
 /// Health score and defect list for one skill.
@@ -227,12 +251,18 @@ impl<'a> SkillAuditor<'a> {
                 if j2.ddmvss_alias {
                     score -= 0.15;
                     defects.push(format!(
-                        "{}: invalid DDMVSS alias template_type {:?}",
-                        j2.filename, j2.template_type
+                        "{}: DDMVSS alias template_type {:?} (must be WordAct/KnowAct/FlowDef)",
+                        j2.filename, j2.template_type_raw
+                    ));
+                } else if j2.template_type == Some(TemplateType::FlowDef) {
+                    score -= 0.15;
+                    defects.push(format!(
+                        "{}: FlowDef declared on .j2 file (runtime says FlowDef = YAML .yaml)",
+                        j2.filename
                     ));
                 } else if j2.template_type.is_none() {
                     score -= 0.10;
-                    defects.push(format!("{}: missing template_type", j2.filename));
+                    defects.push(format!("{}: missing or invalid template_type", j2.filename));
                 }
                 if !j2.visibility_valid {
                     score -= 0.10;
@@ -385,14 +415,21 @@ impl<'a> SkillAuditor<'a> {
         };
 
         info.template_type = front.template_type;
+        info.template_type_raw = front.template_type_raw.clone();
         info.visibility = front.visibility.clone();
         info.energy_cap = front.energy_cap;
         info.contract_valid = front.contract_input.is_some() && front.contract_output.is_some();
 
-        if let Some(tt) = front.template_type {
-            info.ddmvss_alias = false; // aliases rejected at parse time
-            info.template_type_valid = true;
-            let _ = tt; // all parsed variants are valid
+        const DDMVSS_ALIASES: [&str; 3] = ["Cognition", "Prompt", "Process"];
+        if let Some(ref raw) = front.template_type_raw {
+            if DDMVSS_ALIASES.contains(&raw.as_str()) {
+                info.ddmvss_alias = true;
+            }
+            if raw == "FlowDef" {
+                info.template_type_valid = false;
+            } else if TemplateType::parse_str(raw).is_some() {
+                info.template_type_valid = true;
+            }
         }
 
         if let Some(ref vis) = front.visibility {
@@ -446,6 +483,7 @@ struct J2FileInfo {
     frontmatter_missing: bool,
     template_type: Option<TemplateType>,
     template_type_valid: bool,
+    template_type_raw: Option<String>,
     ddmvss_alias: bool,
     visibility: Option<String>,
     visibility_valid: bool,
@@ -459,6 +497,7 @@ struct J2FileInfo {
 #[derive(Debug, Default)]
 struct J2FrontMatter {
     template_type: Option<TemplateType>,
+    template_type_raw: Option<String>,
     lexicon_terms: Vec<String>,
     contract_input: Option<serde_yaml::Value>,
     contract_output: Option<serde_yaml::Value>,
@@ -534,9 +573,13 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
     let yaml: serde_yaml::Value = serde_yaml::from_str(yaml_text).ok()?;
     let map = yaml.as_mapping()?;
 
-    let template_type = map
+    let template_type_raw = map
         .get(serde_yaml::Value::String("template_type".to_string()))
         .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let template_type = template_type_raw
+        .as_deref()
         .and_then(TemplateType::parse_str);
 
     let lexicon_terms = map
@@ -582,6 +625,7 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
 
     Some(J2FrontMatter {
         template_type,
+        template_type_raw,
         lexicon_terms,
         contract_input,
         contract_output,

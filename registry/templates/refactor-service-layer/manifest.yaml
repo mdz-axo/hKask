@@ -24,13 +24,14 @@ templates:
 
   - id: refactor-service-layer/rsl-strangle
     path: rsl-strangle.j2
-    type: FlowDef
+    type: KnowAct
     lexicon_terms:
       [deepen, design, constrain, verify, crystallize, migrate, extract]
     description: >
-      Execute the strangler fig migration for a selected domain: create service
-      operation, wire CLI, wire API, delete duplication, verify. Enforces one-domain-
-      per-commit discipline, dependency direction checks, and surgical change scope.
+      Plan the strangler fig migration for a selected domain: define the new
+      service operation, design CLI/API adapters, identify duplication to delete,
+      and list verification steps. Enforces one-domain-per-commit discipline,
+      dependency direction checks, and surgical change scope.
 
   - id: refactor-service-layer/rsl-verify
     path: rsl-verify.j2

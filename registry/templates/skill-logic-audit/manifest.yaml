@@ -1,63 +1,74 @@
+# Template crate manifest for skill-logic-audit
+# ℏKask v0.27.0
+
+# goal: Declare the runtime templates that implement the skill-logic-audit cascade and bind them to the Zed companion guide.
+
 crate:
   name: skill-logic-audit
   version: "0.27.0"
   description: >
-    Audit any .j2 template or manifest.yaml against its annotated goal through a
-    bounded recursive critique loop: load-goal → critique-template →
-    critique-critique → compose-proposal → user-review-loop.
+    Runtime templates for skill-logic-audit: load a goal annotation, critique
+    the artifact against that goal, filter the critique for soundness, compose
+    a concrete revised artifact and diff, and drive a bounded user-review loop.
 
 templates:
   - id: skill-logic-audit/load-goal
     path: load-goal.j2
     type: WordAct
-    lexicon_terms: [extract, parse, recognize]
+    lexicon_terms: [extract, parse, specify, verify]
     description: >
-      Parse the annotated goal block from a target template or manifest.
+      Parse the annotated `goal:` block from a .j2 or manifest.yaml file and
+      return it as a normalized string. Verify that a goal exists and is
+      non-empty.
+
   - id: skill-logic-audit/critique-template
     path: critique-template.j2
     type: KnowAct
-    lexicon_terms: [critique, evaluate, discriminate, assess, analyze]
+    lexicon_terms: [critique, evaluate, discriminate, detect, classify]
     description: >
-      Adversarial critique of a template body against its goal.
+      Adversarial critique of a template or manifest body against its stated
+      goal. List concrete flaws, redundancies, ambiguities, and missing cases,
+      each anchored to the goal.
+
   - id: skill-logic-audit/critique-critique
     path: critique-critique.j2
     type: KnowAct
-    lexicon_terms: [reflect, calibrate, discriminate, evaluate, critique]
+    lexicon_terms: [evaluate, verify, discriminate, classify, rank]
     description: >
-      Soundness review of the first critique, separating valid and spurious concerns.
+      Soundness review of a critique list. Separate valid, goal-anchored
+      concerns from spurious or stylistic ones. Produce a filtered list with
+      rationale.
+
   - id: skill-logic-audit/compose-proposal
     path: compose-proposal.j2
     type: KnowAct
-    lexicon_terms: [synthesize, compose, design, simplify, specify]
+    lexicon_terms: [synthesize, adapt, simplify, specify, verify]
     description: >
-      Compose a revised template body and diff from calibrated concerns.
-  - id: skill-logic-audit/user-review-loop
-    path: user-review-loop.j2
-    type: FlowDef
-    lexicon_terms:
-      [sequence, choice, iteration, escalate, route, abort, compose]
+      Compose a concrete revised artifact body and a unified diff against the
+      original, given the goal and the valid concerns. Do not weaken the
+      contract or add stubs.
+
+  - id: skill-logic-audit/user-choice
+    path: user-choice.j2
+    type: WordAct
+    lexicon_terms: [prompt, specify, discriminate, classify, verify]
     description: >
-      Orchestrate accept/reject/counter-proposal with a bounded depth counter.
+      Present the composed proposal to the user and capture a discrete choice:
+      accept, reject, or counter-proposal. Enforce the configured loop depth
+      limit and emit the next action.
 
 hlexicon_terms:
   - extract
   - parse
-  - recognize
+  - specify
+  - verify
   - critique
   - evaluate
   - discriminate
-  - assess
-  - analyze
-  - reflect
-  - calibrate
+  - detect
+  - classify
+  - rank
   - synthesize
-  - compose
-  - design
+  - adapt
   - simplify
-  - specify
-  - sequence
-  - choice
-  - iteration
-  - escalate
-  - route
-  - abort
+  - prompt

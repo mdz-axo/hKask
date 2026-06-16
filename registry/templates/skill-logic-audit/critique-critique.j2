@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [reflect, calibrate, discriminate, evaluate, critique]
+lexicon_terms:
+- evaluate
+- verify
+- discriminate
+- classify
+- rank
 contract:
   input:
     goal: string
@@ -10,8 +15,8 @@ contract:
     spurious_concerns: array
     downgraded_concerns: array
     calibrated_verdict: string
-energy_cap: 3072
-visibility: Shared
+  energy_cap: 3072
+  visibility: Shared
 
 ---
 {# goal: Review a critique of a template for soundness, separating valid concerns from spurious ones and preserving only goal-anchored actionable feedback. #}

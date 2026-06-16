@@ -14,7 +14,6 @@ use hkask_api::routes::{
     SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse, TemplateResponse,
     VarietyCounterResponse, WithdrawalFeeEstimateResponse,
 };
-use serde_json;
 use std::collections::HashMap;
 
 // ── Chat Types ────────────────────────────────────────────────────────────

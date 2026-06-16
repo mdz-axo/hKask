@@ -1,6 +1,11 @@
 [inference]
 template_type: KnowAct
-lexicon_terms: [synthesize, compose, design, simplify, specify]
+lexicon_terms:
+- synthesize
+- adapt
+- simplify
+- specify
+- verify
 contract:
   input:
     goal: string
@@ -13,8 +18,8 @@ contract:
     diff: string
     rationale: string
     confidence: float
-energy_cap: 4096
-visibility: Shared
+  energy_cap: 4096
+  visibility: Shared
 
 ---
 {# goal: Produce a concrete revised template body and a diff against the original, based only on the calibrated valid concerns and the annotated goal. #}

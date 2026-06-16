@@ -14,26 +14,33 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **MDS Reference:** [`MDS.md`](MDS.md)
 
-**Codebase Reference:** `crates/hkask-cns/src/` — 140 `pub fn`, 157 REQ-tagged contracts (112.1% coverage, including implementation-level contracts outside this spec), all tests pass.
+**Codebase Reference:** `crates/hkask-cns/src/` — 145 `pub fn`, 173 REQ-tagged contracts (119.3% coverage, including implementation-level contracts outside this spec), all tests pass.
 
 ---
 
 ## 1. Sub-Domain Architecture
 
-The CNS is structured into 6 sub-domains, each implementing a specific cybernetic function:
+The CNS is structured into 8 sub-domains, each implementing a specific cybernetic function:
 
 ```
 hkask-cns/src/
-├── algedonic.rs           ← 4 contracts  — P9: Alert creation, escalation, severity classification
-├── runtime.rs             ← 24 contracts — P9: Variety monitoring, outcome tracking, energy budgets
-├── governed_tool.rs       ← 3 contracts  — P4: Tool membrane, OCAP gate, consumption channels
-├── governed_inference.rs  ← 2 contracts  — P4: Inference membrane, agent attribution
-├── circuit_breaker.rs     ← 3 contracts  — P4: Failure gating, state transitions
-├── api_metering.rs       ← 8 contracts  — P9: Rate limiting, span creation, alert classification
-└── energy.rs             ← 16 contracts — P9/P8: Gas budget types, delta, reserve, settle, repl
+├── algedonic.rs                  ← 4 contracts  — P9: Alert creation, escalation, severity classification
+├── runtime.rs                    ← 24 contracts — P9: Variety monitoring, outcome tracking, energy budgets
+├── governed_tool.rs              ← 3 contracts  — P4: Tool membrane, OCAP gate, consumption channels
+├── governed_inference.rs         ← 2 contracts  — P4: Inference membrane, agent attribution
+├── circuit_breaker.rs          ← 3 contracts  — P4: Failure gating, state transitions
+├── api_metering.rs            ← 8 contracts  — P9: Rate limiting, span creation, alert classification
+├── energy.rs                  ← 16 contracts — P9/P8: Gas budget types, delta, reserve, settle, repl
+├── dynamic_gas_table.rs       ← P9: Per-server gas cost calibration from CNS settled events
+├── gas_report.rs             ← P9: Aggregate gas queries across agents and time windows
+├── calibrated_energy_estimator.rs ← P9: Self-regulating per-server gas cost estimator
+├── composite_energy_estimator.rs  ← P9: Routes inference to token estimator, others to table
+├── wallet_budget.rs          ← P9/P4: Wallet-backed energy budget (rJoule debits)
+├── wallet_energy_estimator.rs ← P9: Wallet-aware composite estimator with gas→rJoule rate
+└── wallet_gas_calibrator.rs  ← P9: Runtime calibration of wallet gas→rJoule conversion
 ```
 
-Each sub-domain is implemented in a single Rust file, following deep-module discipline (Ousterhout). The public surface is ≤ 7 items per module; internal plumbing is `pub(crate)`.
+Each sub-domain is implemented in a single Rust file (or a tight cluster of files), following deep-module discipline (Ousterhout). The public surface is ≤ 7 items per module; internal plumbing is `pub(crate)`.
 
 ---
 
@@ -138,6 +145,41 @@ Each sub-domain is implemented in a single Rust file, following deep-module disc
 | `FR-API-METER-006` | Span creation — build API request span from metering data | `P9-cns-api-meter-span-new` |
 | `FR-API-METER-007` | Alert type — get alert type label from ApiMeteringAlert | `P9-cns-api-meter-alert-type` |
 | `FR-API-METER-008` | Alert severity — get severity string from ApiMeteringAlert | `P9-cns-api-meter-alert-severity` |
+
+### 2.7 Gas Cost Calibration Domain (`dynamic_gas_table.rs`, `gas_report.rs`, `calibrated_energy_estimator.rs`)
+
+**Motivating principle:** P9 (Homeostatic Self-Regulation) — closes the Good Regulator feedback loop for per-server gas costs. Observes `cns.gas.settled` events, compares actual vs estimated gas per server, and adjusts hardcoded costs via exponential moving average (EMA).
+
+**Source:**
+- `crates/hkask-cns/src/dynamic_gas_table.rs` (198 lines, 8 tests)
+- `crates/hkask-cns/src/gas_report.rs` (566 lines, 6 tests)
+- `crates/hkask-cns/src/calibrated_energy_estimator.rs` (230 lines, 5 tests)
+
+| FR | Requirement | Contract |
+|----|-----------|----------|
+| `FR-GAS-CALIB-001` | Dynamic table — per-server gas cost calibration from observations | `GAS-CALIB-001` |
+| `FR-GAS-CALIB-002` | Single observation — initializes EMA per server | `GAS-CALIB-002` |
+| `FR-GAS-CALIB-003` | Calibrated table — replaces hardcoded `TableEnergyEstimator` costs | `GAS-CALIB-003` |
+| `FR-GAS-CALIB-004` | Calibrated estimator — runtime calibration loop wired to production estimator | `GAS-CALIB-004` |
+
+**New CNS spans:** `cns.gas.calibrated` — emitted when `CalibratedEnergyEstimator` adjusts per-server costs.
+
+### 2.8 Wallet-Backed Energy Domain (`wallet_budget.rs`, `wallet_energy_estimator.rs`, `wallet_gas_calibrator.rs`)
+
+**Motivating principle:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries) — wallet-backed energy budgets convert gas costs to rJoules and debit a real wallet. The `gas_per_rjoule` conversion rate is calibrated at runtime from aggregate settled gas events.
+
+**Source:**
+- `crates/hkask-cns/src/wallet_budget.rs` (213 lines, 8 tests)
+- `crates/hkask-cns/src/wallet_energy_estimator.rs` (114 lines, 5 tests)
+- `crates/hkask-cns/src/wallet_gas_calibrator.rs` (185 lines, 5 tests)
+
+| FR | Requirement | Contract |
+|----|-----------|----------|
+| `FR-WALLET-CALIB-001` | Wallet budget — gas-to-rJoule conversion and encumbrance debit | `cns-wallet-budget-001` … `cns-wallet-budget-008` |
+| `FR-WALLET-CALIB-002` | Wallet estimator — EMA calibration of gas→rJoule rate | `P9-cns-wallet-est-calibrate` |
+| `FR-WALLET-CALIB-003` | Wallet calibrator — runtime calibration loop pushing rate to `WalletManager` | `GAS-CALIB-005` |
+
+**New CNS spans:** `cns.wallet.conversion.calibrated` — emitted when `WalletGasCalibrator` adjusts the wallet gas→rJoule rate.
 
 ---
 

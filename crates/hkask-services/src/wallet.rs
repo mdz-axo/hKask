@@ -883,7 +883,7 @@ mod tests {
                 _signed_tx_bytes: &[u8],
             ) -> Result<TxHash, WalletError> {
                 let event = NuEvent::new(
-                    actor.clone(),
+                    *actor,
                     Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
                     Phase::Sense,
                     serde_json::json!({
@@ -951,7 +951,7 @@ mod tests {
                 _signed_tx_bytes: &[u8],
             ) -> Result<TxHash, WalletError> {
                 let event = NuEvent::new(
-                    actor.clone(),
+                    *actor,
                     Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
                     Phase::Sense,
                     serde_json::json!({

@@ -1,0 +1,120 @@
+# skill-logic-audit FlowDef
+# ℏKask v0.27.0
+#
+# goal: Orchestrate the skill-logic-audit cascade: load goal → critique template →
+#       critique the critique → compose proposal → present bounded user-review choice.
+#       The actual accept/reject/counter-proposal loop is driven by the caller
+#       (REPL turn loop or CI harness), which re-invokes this manifest with an
+#       incremented `loop_depth` and, for counter-proposal, a
+#       `user_counter_proposal` input.
+
+manifest:
+  id: skill-logic-audit/audit-flow
+  name: Skill Logic Audit Cascade
+  description: >
+    Bounded cascade that audits a .j2 template or manifest.yaml against its
+    annotated goal and produces a user-reviewable revision proposal.
+  version: "0.27.0"
+  editor: user-replicant
+  visibility: Shared
+
+gas:
+  cap: 28672
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: target_path
+    type: string
+    description: Path to the artifact being audited
+    required: true
+  - name: target_content
+    type: string
+    description: Full text of the artifact
+    required: true
+  - name: template_type
+    type: string
+    description: j2 or manifest
+    required: true
+  - name: loop_depth
+    type: integer
+    description: Current recursion depth of the user-review loop
+    default: 0
+    required: false
+  - name: user_counter_proposal
+    type: string
+    description: User-provided alternative revision (null if first pass)
+    required: false
+
+steps:
+  - ordinal: 1
+    action: select
+    description: Parse the annotated goal block from the target artifact.
+    renderer: minijinja
+    template_ref: skill-logic-audit/load-goal.j2
+    gas_cap: 2048
+    timeout_seconds: 15
+    output_schema:
+      goal: string
+      goal_found: boolean
+      file_type: string
+
+  - ordinal: 2
+    action: select
+    description: Adversarial critique of the artifact body against the goal.
+    renderer: minijinja
+    template_ref: skill-logic-audit/critique-template.j2
+    gas_cap: 4096
+    timeout_seconds: 60
+    output_schema:
+      flaws: array
+      valid_concerns: array
+      spurious_concerns: array
+      verdict: string
+
+  - ordinal: 3
+    action: select
+    description: Soundness review of the critique.
+    renderer: minijinja
+    template_ref: skill-logic-audit/critique-critique.j2
+    gas_cap: 3072
+    timeout_seconds: 30
+    output_schema:
+      valid_concerns: array
+      spurious_concerns: array
+      downgraded_concerns: array
+      calibrated_verdict: string
+
+  - ordinal: 4
+    action: select
+    description: Compose a revised artifact and diff from the valid concerns.
+    renderer: minijinja
+    template_ref: skill-logic-audit/compose-proposal.j2
+    gas_cap: 4096
+    timeout_seconds: 60
+    output_schema:
+      revised_content: string
+      diff: string
+      rationale: string
+      confidence: float
+
+  - ordinal: 5
+    action: select
+    description: Present the proposal and capture user choice.
+    renderer: minijinja
+    template_ref: skill-logic-audit/user-choice.j2
+    gas_cap: 1024
+    timeout_seconds: 15
+    output_schema:
+      user_choice: string
+      reason: string
+
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 1
+  retry_backoff_seconds: 1
+
+convergence:
+  criterion: goal_found == true and len(valid_concerns) == 0

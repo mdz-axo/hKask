@@ -60,7 +60,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
 - **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `CnsRuntime::calibrate_threshold()`.
-- **30 canonical CNS span namespaces.** Every dimension observable: tools, prompts, inference, agent pods, connectors, pipelines, gas, reviews, templates, curation, variety, sovereignty, goals, specs, tests, set points, backpressure, cadence, memory, condenser, evolution, architecture, improv, kata.
+- **40+ canonical CNS span namespaces.** Every dimension observable: tools, prompts, inference, agent pods, connectors, pipelines, gas, reviews, templates, curation, variety, sovereignty, goals, specs, tests, set points, backpressure, cadence, memory, condenser, evolution, architecture, improv, kata, wallet, outcome, contract.
 - **Good Regulator contract enforced.** CNS variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 
 **Crates:** `hkask-cns`, `hkask-types` (CNS types, SpanNamespace)
@@ -126,7 +126,7 @@ graph TD
     end
 
     subgraph CNS["Pattern B: CNS Feedback Loop"]
-        CN["Variety → Algedonic → Backpressure<br/>32 canonical span namespaces"]
+        CN["Variety → Algedonic → Backpressure\n40+ canonical span namespaces"]
     end
 
     subgraph Curator["Pattern C: Agentic AI Mediation"]
@@ -170,6 +170,7 @@ graph TD
 | **Public seam observability (P8 runtime enforcement)** | Medium | **Closed (v0.28.0)** | P8 required every `#[test]` to verify a public seam, but coverage was only checked at CI time. R7.3 `SeamWatcher` now loads the machine-readable public seam inventory at startup (embedded JSON), registers 25 per-crate variety domains, runs periodic drift checks (30-min interval), and fires algedonic alerts on coverage degradation. Coverage improvements emit positive `Notify` signals. Curator `/status` displays seam coverage. New CNS spans: `cns.architecture.seam.coverage`, `cns.architecture.seam.drift`. New `SignalMetric::SeamCoverage` with `BelowSetPoint`→`Escalate` and `AboveSetPoint`→`Notify`. 9 REQ-tagged tests verify behavioral properties. |
 | **Code quality & smell reduction (6-wave execution)** | High | **Closed (v0.27.0)** | Top-10 ranked improvements executed across 6 waves: (1) Uniform MCP Gate-3 capability verification across all 10 servers, (2) 37 runtime `.unwrap()` calls replaced with typed errors, (3) 45 new REQ-tagged tests across types/agents/API + real `CapabilityAwareValidator` replacing passthrough stub, (4) Settings strangler extraction to `hkask-services`, `LoopQuality` CNS telemetry, `SpanKind` typed span constructors, (5) 13 public surface justification docs + unsafe documentation policy CI enforcement, (6) 5 CI quality gate scripts wired into `.github/workflows/ci.yml`. 472 tests, 453 REQ tags (96% coverage), 0 clippy warnings. |
 | **Contract debt (behavioral contracts)** | High | **Closed (v0.27.0)** | All 1579 `pub fn` across 17 crates now carry `/// REQ:` with `pre:`/`post:` conditions. 1915 REQ tags (121.2% due to multi-contract builders). Zero contract debt. CNS `cns.contract.coverage` spans at 100%. Phase B2 (agent contract generation) unblocked. |
+| **Dynamic gas table + wallet calibration** | High | **Closed (v0.27.0)** | `DynamicGasTable` was an orphan file (undeclared in `lib.rs`). Declared it, fixed 6 test typos, wired `CalibratedEnergyEstimator` into `AgentService` as the production energy estimator with a background 5-minute calibration loop. Added `WalletGasCalibrator` observing aggregate `cns.gas.settled` events to calibrate `WalletManager::gas_per_rjoule` at runtime. `WalletBackedBudget` now reads the live atomic rate. Added CNS observability spans: `cns.gas.calibrated` and `cns.wallet.conversion.calibrated`. 80 CNS lib tests pass; contract coverage for `hkask-cns` at 119.3%. |
 
 ---
 

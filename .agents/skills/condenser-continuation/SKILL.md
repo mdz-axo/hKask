@@ -16,7 +16,7 @@ This skill's runtime templates live in `registry/templates/condenser-continuatio
 |----------|------|--------|
 | `condenser-continuation-restore.j2` | KnowAct | Distill session context into essential facts for continuation |
 | `condenser-continuation-prioritize.j2` | KnowAct | Rank remaining tasks by priority and identify immediate next action |
-| `condenser-continuation-verify.j2` | FlowDef | Run build/check/test commands and collect verification results |
+| `condenser-continuation-verify.j2` | KnowAct | Produce a structured verification plan (commands, expected outcomes, success criteria) for the agent or runtime to execute |
 | `condenser-continuation-compose.j2` | WordAct | Assemble the final structured continuation document |
 
 The SKILL.md (this file) teaches the Zed coding agent the condenser domain and methodology. The .j2 templates are executable process steps the hKask runtime invokes during `kask chat` sessions.

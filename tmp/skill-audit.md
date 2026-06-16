@@ -9,8 +9,8 @@ Workspace version: 0.27.0
 | complete_both_layers | 30 |
 | zed_only | 0 |
 | registry_only | 35 |
-| active | 23 |
-| stale_warning | 12 |
+| active | 24 |
+| stale_warning | 11 |
 | critical | 5 |
 | recommend_deprecation | 25 |
 
@@ -314,10 +314,11 @@ Workspace version: 0.27.0
 - Zed: ✓, Registry: ✓
 - Templates: 2 .j2 | WordAct=False KnowAct=True FlowDef=False
 
-### skill-logic-audit — stale_warning (0.70)
+### skill-logic-audit — active (0.94)
 - Zed: ✓, Registry: ✓
-- Templates: 5 .j2 | WordAct=True KnowAct=True FlowDef=True
-- ⚠ manifest.yaml parse error
+- Templates: 5 .j2 | WordAct=True KnowAct=True FlowDef=False
+- ⚠ compose-proposal.j2: unknown hlexicon terms ['revise']
+- ⚠ user-choice.j2: unknown hlexicon terms ['select']
 
 ### skill-maintenance — active (1.00)
 - Zed: ✓, Registry: ✓

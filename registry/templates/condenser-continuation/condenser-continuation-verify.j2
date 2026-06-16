@@ -1,10 +1,10 @@
 [inference]
-template_type: FlowDef
+template_type: KnowAct
 lexicon_terms:
 - verify
 - validate
-- verify
-- validate
+- check
+- test
 - regulate
 contract:
   input:
@@ -12,24 +12,25 @@ contract:
     check_commands: array
     handshake_command: string
   output:
-    verification_results: array
+    verification_plan: object
+    expected_outcomes: array
+    success_criteria: array
     overall_status: string
-    failed_checks: array
-energy_cap: 3000
+energy_cap: 4096
 visibility: Shared
 ---
 {# Template: condenser-continuation/condenser-continuation-verify.j2 #}
-{# FlowDef — Verify condenser build and runtime health #}
+{# KnowAct — Produce a structured verification plan for condenser build/runtime health #}
 {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.1
 reasoning_effort = "low"
 verbosity = "terse"
-max_tokens = 2048
+max_tokens = 4096
 thinking_budget = "minimal"
 
-You are a verification dispatcher for the hKask condenser. Execute the provided verification commands and report results. This is a mechanical process — no judgment required, just report what happened.
+You are a verification planner for the hKask condenser. Given the target crates and check commands, produce a structured verification plan that an agent or runtime can execute. Do not run the commands yourself — only enumerate what should be run, in what order, what outcomes to expect, and what success criteria apply.
 
 ## Target Crates
 
@@ -59,12 +60,14 @@ This sends an MCP `initialize` request to the condenser binary and confirms the 
 
 ## Verification Procedure
 
-1. Run each check command in order.
-2. For each command, record: the command, exit code, and first/last lines of output.
-3. After all checks, determine overall status:
-   - `healthy` — all checks passed (exit code 0)
-   - `degraded` — some non-critical checks failed but core functionality works
-   - `broken` — critical checks failed (cargo check, cargo build)
+1. List each check command in the order it should be executed.
+2. For each command, state the expected outcome (exit code 0, specific output patterns, etc.).
+3. Define the success criterion that decides pass/warn/fail.
+4. If a `handshake_command` is provided, include it as the final step with its own expected response and criterion.
+5. Summarize overall status:
+   - `healthy` — all checks expected to pass
+   - `degraded` — some non-critical checks may fail but core functionality works
+   - `broken` — critical checks (cargo check, cargo build) are expected to fail
 
 ## Output Requirements
 
@@ -72,27 +75,38 @@ Respond with a JSON object:
 
 ```json
 {
-  "verification_results": [
-    {
-      "command": "The command that was run",
-      "exit_code": 0,
-      "output_summary": "Brief summary of the output",
-      "status": "pass|fail|warn"
+  "verification_plan": {
+    "target_crates": ["hkask-mcp-condenser"],
+    "steps": [
+      {
+        "command": "cargo check -p hkask-mcp-condenser",
+        "purpose": "Type-check the condenser crate",
+        "expected_outcome": "exit code 0 with no errors",
+        "success_criterion": "cargo check completes without errors"
+      }
+    ],
+    "handshake_step": {
+      "command": "echo '{...}' | hkask-mcp-condenser",
+      "expected_outcome": "MCP initialize response with server info and capabilities",
+      "success_criterion": "MCP server responds to initialize"
     }
+  },
+  "expected_outcomes": [
+    "Brief statement of expected result for each step"
   ],
-  "overall_status": "healthy|degraded|broken",
-  "failed_checks": [
-    "Description of any failed checks"
-  ]
+  "success_criteria": [
+    "Criterion that determines overall pass/fail"
+  ],
+  "overall_status": "healthy|degraded|broken"
 }
 ```
 
 ## Constraints
 
-- Run commands in order — do not parallelize.
-- Record actual results — do not fabricate or assume outcomes.
-- If a command times out, mark it as `warn` with a timeout note.
-- `overall_status` must reflect the actual state of the codebase.
+- Plan only — do not claim to execute commands or fabricate results.
+- Record expected results based on the provided commands, not assumed outcomes.
+- If a command is expected to time out, note it as `warn` with a timeout caveat.
+- `overall_status` must reflect the expected state if all steps behave as planned.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

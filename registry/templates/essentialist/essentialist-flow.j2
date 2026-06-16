@@ -1,5 +1,5 @@
 [inference]
-template_type: FlowDef
+template_type: KnowAct
 lexicon_terms:
 - sequence
 - iteration
@@ -9,8 +9,9 @@ lexicon_terms:
 - verify
 - audit
 - simplify
-- simplify
+- reduce
 - calibrate
+- constrain
 contract:
   input:
     artifact:
@@ -60,7 +61,7 @@ energy_cap: 12288
 visibility: Shared
 ---
 {# Template: essentialist/essentialist-flow.j2 #}
-{# FlowDef — 3-gate eliminative interrogation loop #}
+{# KnowAct — 3-gate eliminative interrogation loop #}
 {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
 
 [inference]
