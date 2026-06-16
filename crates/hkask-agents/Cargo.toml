@@ -25,3 +25,12 @@ uuid.workspace = true
 zeroize.workspace = true
 rusqlite.workspace = true
 tokio-util.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+hkask-test-harness = { path = "../hkask-test-harness" }
+hkask-improv = { path = "../hkask-improv" }
+
+[[test]]
+name = "agent_pod_integration"
+path = "tests/agent_pod_integration.rs"

@@ -15,6 +15,7 @@ use hkask_agents::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };
+use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::ports::{InferencePort, StructuredToolCall};
 use hkask_types::{
@@ -482,7 +483,7 @@ impl ChatService {
         });
 
         // REQ: P9 (Homeostatic) — CNS span before inference (NuEvent, not just tracing)
-        let request_span = Span::new(SpanNamespace::new("cns.chat"), "request");
+        let request_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "request");
         let request_event = NuEvent::new(
             prepared.agent_webid,
             request_span,
@@ -503,7 +504,7 @@ impl ChatService {
             .map_err(ServiceError::InferencePort)?;
 
         // REQ: P9 (Homeostatic) — CNS span after inference
-        let response_span = Span::new(SpanNamespace::new("cns.chat"), "response");
+        let response_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "response");
         let response_event = NuEvent::new(
             prepared.agent_webid,
             response_span,
@@ -520,7 +521,10 @@ impl ChatService {
         let _ = ctx.event_sink().persist(&response_event);
 
         // Store the exchange as episodic triple (with CNS observability)
-        let memory_span = Span::new(SpanNamespace::new("cns.memory.encode"), "episodic_stored");
+        let memory_span = Span::new(
+            SpanNamespace::from(CnsSpan::MemoryEncode),
+            "episodic_stored",
+        );
         let memory_event = NuEvent::new(
             prepared.agent_webid,
             memory_span,

@@ -9,6 +9,7 @@
 //! from the NuEvent store.
 
 use hkask_types::NuEventSink;
+use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::id::WebID;
 
@@ -22,7 +23,7 @@ pub fn emit_pod_event(
     lifecycle_verb: &str,
     observation: serde_json::Value,
 ) {
-    let span = Span::new(SpanNamespace::new("cns.agent_pod"), lifecycle_verb);
+    let span = Span::new(SpanNamespace::from(CnsSpan::AgentPod), lifecycle_verb);
     let event = NuEvent::new(agent, span, Phase::Act, observation, 0);
 
     if let Err(e) = sink.persist(&event) {

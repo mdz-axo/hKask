@@ -31,7 +31,13 @@ gix = { workspace = true }
 [dev-dependencies]
 tempfile.workspace = true
 proptest = "1"
+tokio = { workspace = true, features = ["macros", "rt"] }
+hkask-test-harness = { path = "../hkask-test-harness" }
 
 [[test]]
 name = "tool_input_fuzz"
 path = "tests/tool_input_fuzz.rs"
+
+[[test]]
+name = "mcp_lifecycle_integration"
+path = "tests/mcp_lifecycle_integration.rs"

@@ -32,7 +32,15 @@
 //! - `TOGETHER_API_KEY` — Together AI API key (for Together provider)
 //! - `RUNPOD_API_KEY` — Runpod API key (for Runpod provider)
 //! - `RUNPOD_TEMPLATE_ID` — Runpod GPU pod template ID with axolotl pre-installed
-//! - `RUNPOD_GPU_TYPE` — GPU type for Runpod pods (default: "RTX 4090")
+//! - `RUNPOD_GPU_TYPE_ID` — GPU type ID for Runpod pods (default: "NVIDIA RTX 4090")
+//! - `RUNPOD_CONTAINER_DISK_GB` — Container disk GB for Runpod pods (default: 50)
+//! - `RUNPOD_MIN_MEMORY_GB` — Minimum memory GB for Runpod pods (default: 24)
+//! - `HKASK_DATASET_URL` — Public URL for dataset download by Runpod pods
+//! - `BASETEN_API_KEY` — Baseten API key (for Baseten provider)
+//! - `BASETEN_PROJECT_ID` — Baseten training project ID
+//! - `BASETEN_GPU` — GPU accelerator for Baseten (default: "H100")
+//! - `BASETEN_GPU_COUNT` — Number of GPUs for Baseten (default: 1)
+//! - `HF_TOKEN` — HuggingFace access token (for gated model loading on Baseten)
 //! - `HKASK_AXOLOTL_PATH` — Path to axolotl CLI (for Axolotl provider)
 //! - `HKASK_PYTHON_PATH` — Path to python3 interpreter (for Unsloth provider)
 
@@ -294,6 +302,15 @@ pub struct TrainRetrainRequest {
     /// Path to write the merged dataset (default: auto-generated in cache dir).
     #[serde(default)]
     pub merged_output_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainIngestDatasetRequest {
+    /// Path to the raw dataset file (JSONL, JSON, or TXT).
+    pub dataset_path: String,
+    /// Optional cache directory override (default: server's configured cache dir).
+    #[serde(default)]
+    pub cache_dir: Option<String>,
 }
 
 // ── Server ───────────────────────────────────────────────────────────────
@@ -2108,6 +2125,60 @@ impl TrainingServer {
         }
     }
 
+    #[tool(
+        description = "Ingest a raw dataset file into the normalized cache without submitting a training job. Detects format (ChatML, ShareGPT, Alpaca, raw text), normalizes to canonical ChatML, validates, and caches. Returns the cached path for use with training_submit or training_assemble_dataset."
+    )]
+    async fn training_ingest_dataset(
+        &self,
+        Parameters(TrainIngestDatasetRequest {
+            dataset_path,
+            cache_dir,
+        }): Parameters<TrainIngestDatasetRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_ingest_dataset", &self.webid);
+
+        let file_path = PathBuf::from(&dataset_path);
+        if !file_path.exists() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!("Dataset file not found: {}", dataset_path))
+                    .to_json_string(),
+            );
+        }
+
+        // Use provided cache dir or create a pipeline with the default
+        let mut pipeline = if let Some(ref dir) = cache_dir {
+            DatasetPipeline::new(PathBuf::from(dir))
+        } else {
+            self.pipeline.lock().unwrap().clone()
+        };
+
+        let format = hkask_mcp_training::dataset::DatasetFormat::detect(&file_path);
+
+        match pipeline.ingest(&file_path) {
+            Ok(normalized_path) => {
+                let result = json!({
+                    "dataset_path": dataset_path,
+                    "normalized_path": normalized_path.to_string_lossy(),
+                    "detected_format": format.map(|f| format!("{:?}", f)).unwrap_or_else(|| "unknown".to_string()),
+                    "cached": true,
+                });
+                self.record_experience(
+                    "training_ingest_dataset",
+                    &dataset_path,
+                    "success",
+                    result.clone(),
+                );
+                span.ok_json(result)
+            }
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!("Dataset ingest error: {}", e))
+                    .to_json_string(),
+            ),
+        }
+    }
+
     fn provider_id(&self) -> TrainingProviderId {
         self.provider_id
     }
@@ -2202,6 +2273,8 @@ async fn main() -> anyhow::Result<()> {
         together_api_key: std::env::var("TOGETHER_API_KEY").unwrap_or_default(),
         runpod_api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
         runpod_template_id: std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
+        baseten_api_key: std::env::var("BASETEN_API_KEY").unwrap_or_default(),
+        baseten_project_id: std::env::var("BASETEN_PROJECT_ID").unwrap_or_default(),
     };
 
     let cache_dir = PathBuf::from(
@@ -2289,4 +2362,56 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
         else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// REQ: training-chunk-01 — split_into_chunks handles text under threshold
+    #[test]
+    fn chunk_under_threshold_returns_single() {
+        let text = "Short skill document.\n\nWith two paragraphs.";
+        let chunks = split_into_chunks(text, 6000);
+        assert_eq!(chunks.len(), 1, "text under threshold should be one chunk");
+        assert!(chunks[0].contains("Short skill document"));
+        assert!(chunks[0].contains("With two paragraphs"));
+    }
+
+    /// REQ: training-chunk-02 — split_into_chunks splits at paragraph boundaries
+    #[test]
+    fn chunk_splits_at_paragraphs() {
+        let para = "A".repeat(100);
+        let text = format!("{}\n\n{}\n\n{}", para, para, para);
+        let chunks = split_into_chunks(&text, 150);
+        assert!(chunks.len() >= 2, "should split across paragraphs");
+        for chunk in &chunks {
+            assert!(!chunk.is_empty(), "no empty chunks");
+        }
+    }
+
+    /// REQ: training-chunk-03 — split_into_chunks handles empty input
+    #[test]
+    fn chunk_empty_returns_single() {
+        let chunks = split_into_chunks("", 100);
+        assert_eq!(chunks.len(), 1);
+    }
+
+    /// REQ: training-chunk-04 — split_into_chunks preserves content across chunks
+    #[test]
+    fn chunk_preserves_content() {
+        let p1 = "First paragraph about constraints.";
+        let p2 = "Second paragraph about guardrails.";
+        let p3 = "Third paragraph about guidelines.";
+        let text = format!("{p1}\n\n{p2}\n\n{p3}");
+        let chunks = split_into_chunks(&text, 50);
+        let combined: String = chunks
+            .iter()
+            .map(|c| c.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(combined.contains("constraints"));
+        assert!(combined.contains("guardrails"));
+        assert!(combined.contains("guidelines"));
+    }
 }

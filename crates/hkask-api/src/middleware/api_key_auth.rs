@@ -39,6 +39,10 @@ pub struct WalletContext {
     pub spent_rj: RJoule,
 }
 
+// SAFETY: all fields are Copy + Send + Sync (UUIDs and u64s)
+unsafe impl Send for WalletContext {}
+unsafe impl Sync for WalletContext {}
+
 /// Middleware state for API key authentication.
 #[derive(Clone)]
 pub struct ApiKeyAuthService {
@@ -232,14 +236,31 @@ impl IntoResponse for ApiKeyAuthError {
 
 /// Axum middleware function for API key authentication.
 ///
-/// After authenticating the API key, registers a wallet-backed energy budget
-/// in the CNS so that subsequent tool/inference calls in this request consume
-/// rJoules from the key's encumbrance.
+/// Pass-through: if no `Authorization: Bearer` header is present, the request
+/// proceeds without API key auth (capability token auth still applies from the
+/// global `auth_middleware`). This allows wallet and non-wallet routes to coexist.
+///
+/// When a valid Bearer token is present, registers a wallet-backed energy budget
+/// in the CNS so that subsequent tool/inference calls consume rJoules from the
+/// key's encumbrance.
 pub async fn api_key_auth_middleware(
     State(auth): State<Arc<ApiKeyAuthService>>,
     request: Request<Body>,
     next: Next,
 ) -> Result<Response, ApiKeyAuthError> {
+    // Pass-through: if no Bearer token, skip API key auth.
+    // Capability token auth is handled by the global auth_middleware.
+    let has_bearer = request
+        .headers()
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.starts_with("Bearer "))
+        .unwrap_or(false);
+
+    if !has_bearer {
+        return Ok(next.run(request).await);
+    }
+
     let ctx = auth.authenticate(&request)?;
 
     // Register wallet-backed budget so GovernedTool/GovernedInference

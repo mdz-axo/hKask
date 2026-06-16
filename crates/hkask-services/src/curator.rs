@@ -12,6 +12,7 @@ use hkask_agents::curator_agent::CuratorAgent;
 use hkask_storage::EscalationEntry;
 use hkask_types::CuratorHandle;
 use hkask_types::WebID;
+use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 
 use crate::AgentService;
@@ -71,7 +72,10 @@ impl CuratorService {
     /// `ServiceError::Escalation` on queue error.
     pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
         // CNS observability: record Curator resolution decision
-        let span = Span::new(SpanNamespace::new("cns.curation"), "escalation_resolved");
+        let span = Span::new(
+            SpanNamespace::from(CnsSpan::Curation),
+            "escalation_resolved",
+        );
         let event = NuEvent::new(
             WebID::new(),
             span,
@@ -102,7 +106,10 @@ impl CuratorService {
     /// `ServiceError::Escalation` on queue error.
     pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
         // CNS observability: record Curator dismissal decision
-        let span = Span::new(SpanNamespace::new("cns.curation"), "escalation_dismissed");
+        let span = Span::new(
+            SpanNamespace::from(CnsSpan::Curation),
+            "escalation_dismissed",
+        );
         let event = NuEvent::new(
             WebID::new(),
             span,

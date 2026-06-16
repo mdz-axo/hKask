@@ -41,7 +41,7 @@ Environment variables (all optional):
 |----------|-------------|---------|
 | `HKASK_DB_PATH` | SQLite database path for episodic persistence | In-memory (no persistence) |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase | Required if `HKASK_DB_PATH` is set |
-| `INFERENCE_MODEL` | Model for thread summarization | `qwen3:8b` (supports OM/, FW/, DI/ prefixes) |
+| `INFERENCE_MODEL` | Model for thread summarization | `google/gemma-4-26B-A4B-it` (hKask classifier model; supports OM/, FW/, DI/ prefixes) |
 
 Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. All other tools work without configuration (graceful degradation). Thread summarization uses the centralized hKask inference router (configured via standard `OM_BASE_URL`, `FW_API_KEY`, `DI_API_KEY` environment variables).
 
@@ -72,7 +72,7 @@ For models with reasoning/thinking mode (e.g., qwen3, gemma4, deepseek-r1), `con
 
 The `enable_thinking` field is only serialized when `false` — backends that don't support it are unaffected.
 
-**Known limitation (2026-06-15):** Ollama 0.30.8 does not honor `enable_thinking: false` for qwen3.5, gemma4, or deepseek-r1 models — they always use thinking mode regardless of the parameter. The condenser gracefully degrades: when a thinking model returns an empty summary, the tool responds with `"Inference engine returned an empty summary"`. **Workaround:** use a non-thinking model (e.g., `llama3.1:8b`) for summarization. A future Ollama version may add support for this parameter.
+**Known limitation (2026-06-15):** Ollama 0.30.8 does not honor `enable_thinking: false` for qwen3.5, gemma4, or deepseek-r1 models — they always use thinking mode regardless of the parameter. The condenser gracefully degrades: when a thinking model returns an empty summary, the tool responds with `"Inference engine returned an empty summary"`. **Workaround:** use a non-thinking model for summarization. The default condenser model is `google/gemma-4-26B-A4B-it` (hKask's classifier model), which produces clean structured summaries without thinking interference. A future Ollama version may add support for this parameter.
 
 ## Running
 

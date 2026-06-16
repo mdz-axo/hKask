@@ -45,7 +45,7 @@ The `condenser_thread_summary` tool uses the centralized hKask inference router 
 
 ### MCP Server Configuration
 
-The condenser MCP server is registered in the MCP runtime config (not in any editor-specific settings file). The only condenser-specific credential is `INFERENCE_MODEL` (default: `qwen3:8b`), which can be overridden per-request via the tool's `model` parameter.
+The condenser MCP server is registered in the MCP runtime config (not in any editor-specific settings file). The only condenser-specific credential is `INFERENCE_MODEL` (default: `google/gemma-4-26B-A4B-it`, the hKask classifier model), which can be overridden per-request via the tool's `model` parameter.
 
 ## Procedure
 

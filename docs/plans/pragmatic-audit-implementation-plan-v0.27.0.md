@@ -10,7 +10,7 @@ mds_categories: [lifecycle, curation]
 
 # hKask v0.27.0 — Pragmatic Audit Implementation Plan
 
-**Status:** In Progress — Waves 1–2 complete ✅. R1: 25 tests, R2: 31 tests, R3: 38 tests, R4: 29 REQ tags (8→29, +21 API route type tests), R7: 0 unmarked claims (54→0, all doc claims now carry [NORMATIVE]/[DECLARATIVE] markers). DelegationToken: +10 tests. Total REQ tags: 846 (708→846). Waves 3–6 not started.
+**Status:** In Progress — Waves 1–3 partial. R1–R4, R7 complete ✅. R5: CnsSpan enum defined (51 variants + ToolSubsystem + Display/FromStr + 6 tests), hkask-cns/services/agents/wallet migrated to typed spans, `From<CnsSpan> for SpanNamespace` bridge. R6–R10 not started.
 **Owner:** Engineering  
 **Created:** 2026-06-15  
 **Last Updated:** 2026-06-15  

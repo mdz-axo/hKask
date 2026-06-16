@@ -468,7 +468,7 @@ async fn main() -> anyhow::Result<()> {
                 .get("INFERENCE_MODEL")
                 .cloned()
                 .or_else(|| std::env::var("INFERENCE_MODEL").ok())
-                .unwrap_or_else(|| "qwen3:8b".to_string());
+                .unwrap_or_else(|| "google/gemma-4-26B-A4B-it".to_string());
 
             Ok(CondenserServer::new(
                 ctx.webid,

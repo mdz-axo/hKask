@@ -30,6 +30,8 @@ pub enum TrainingProviderId {
     Together,
     /// runpod — Runpod GPU cloud training (pod-based axolotl dispatch)
     Runpod,
+    /// baseten — Baseten managed training infrastructure (bring your own train.py)
+    Baseten,
 }
 
 impl TrainingProviderId {
@@ -41,6 +43,7 @@ impl TrainingProviderId {
             "unsloth" => Some(Self::Unsloth),
             "together" => Some(Self::Together),
             "runpod" => Some(Self::Runpod),
+            "baseten" => Some(Self::Baseten),
             _ => None,
         }
     }
@@ -1024,9 +1027,20 @@ impl TrainingProvider for TogetherProvider {
 /// This is the "cloud dispatch" path for Axolotl — instead of running locally,
 /// training runs on Runpod's GPU infrastructure.
 ///
+/// **Template requirements:** The pod template must include a startup script
+/// that reads `HKASK_*` environment variables, downloads the dataset from
+/// `HKASK_DATASET_URL`, runs axolotl training, and uploads the resulting
+/// adapter weights to a storage location.
+///
 /// Environment variables:
 /// - `RUNPOD_API_KEY` — Runpod API key
 /// - `RUNPOD_TEMPLATE_ID` — GPU pod template ID with axolotl pre-installed
+/// - `RUNPOD_GPU_TYPE_ID` — GPU type ID (default: "NVIDIA RTX 4090")
+/// - `RUNPOD_CONTAINER_DISK_GB` — Container disk in GB (default: 50)
+/// - `RUNPOD_MIN_MEMORY_GB` — Minimum memory in GB (default: 24)
+/// - `RUNPOD_MIN_VCPU_COUNT` — Minimum vCPU count (default: 8)
+/// - `HKASK_DATASET_URL` — Public URL where the pod can download the dataset
+///   (set this before calling training_submit with runpod provider)
 pub struct RunpodProvider {
     api_key: String,
     template_id: String,
@@ -1098,21 +1112,39 @@ impl TrainingProvider for RunpodProvider {
             }
         "#;
 
-        let gpu_type = std::env::var("RUNPOD_GPU_TYPE").unwrap_or_else(|_| "RTX 4090".to_string());
+        let gpu_type_id =
+            std::env::var("RUNPOD_GPU_TYPE_ID").unwrap_or_else(|_| "NVIDIA RTX 4090".to_string());
+        let container_disk_gb: u32 = std::env::var("RUNPOD_CONTAINER_DISK_GB")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(50);
+        let min_memory_gb: u32 = std::env::var("RUNPOD_MIN_MEMORY_GB")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(24);
+        let min_vcpu: u32 = std::env::var("RUNPOD_MIN_VCPU_COUNT")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(8);
+        let dataset_url = std::env::var("HKASK_DATASET_URL").unwrap_or_default();
+
         let variables = json!({
             "input": {
                 "name": format!("hkask-training-{}", &job.id[..8]),
-                "imageName": self.template_id,
-                "gpuType": gpu_type,
-                "containerDiskInGb": 50,
-                "minMemoryInGb": 24,
-                "minVcpuCount": 8,
+                "templateId": self.template_id,
+                "gpuTypeId": gpu_type_id,
+                "containerDiskInGb": container_disk_gb,
+                "minMemoryInGb": min_memory_gb,
+                "minVcpuCount": min_vcpu,
                 "env": [
                     { "key": "HKASK_JOB_ID", "value": job.id },
                     { "key": "HKASK_BASE_MODEL", "value": job.base_model },
-                    { "key": "HKASK_DATASET_PATH", "value": job.dataset_path.to_string_lossy().to_string() },
+                    { "key": "HKASK_DATASET_URL", "value": dataset_url },
                     { "key": "HKASK_NUM_EPOCHS", "value": job.params.num_epochs.to_string() },
                     { "key": "HKASK_LORA_R", "value": job.params.lora_r.to_string() },
+                    { "key": "HKASK_LORA_ALPHA", "value": job.params.lora_alpha.to_string() },
+                    { "key": "HKASK_LEARNING_RATE", "value": job.params.learning_rate.to_string() },
+                    { "key": "HKASK_BATCH_SIZE", "value": job.params.batch_size.to_string() },
                 ],
             }
         });
@@ -1266,6 +1298,403 @@ impl TrainingProvider for RunpodProvider {
     }
 }
 
+// ── Baseten provider ────────────────────────────────────────────────────
+
+/// Baseten managed training provider — runs your training code on their GPU infra.
+///
+/// Uses the Baseten REST API to submit training jobs with a generated `train.py`
+/// script that loads models from HuggingFace, applies LoRA via TRL/SFTTrainer,
+/// and saves checkpoints for automatic deployment.
+///
+/// **Model loading:** Base models are loaded from HuggingFace via Baseten's
+/// weights mount system (`hf://` source). Requires `HF_TOKEN` in Baseten Secrets
+/// or passed as an environment variable.
+///
+/// Environment variables:
+/// - `BASETEN_API_KEY` — Baseten API key
+/// - `BASETEN_PROJECT_ID` — Baseten training project ID
+/// - `HF_TOKEN` — HuggingFace access token (for gated model loading)
+/// - `BASETEN_GPU` — GPU accelerator type (default: "H100")
+/// - `BASETEN_GPU_COUNT` — Number of GPUs (default: 1)
+pub struct BasetenProvider {
+    api_key: String,
+    project_id: String,
+    base_url: String,
+    client: reqwest::Client,
+    /// job_id tracking for status/cancel
+    jobs: Arc<Mutex<HashMap<String, String>>>,
+}
+
+impl BasetenProvider {
+    pub fn new(api_key: String, project_id: String) -> Self {
+        Self {
+            api_key,
+            project_id,
+            base_url: "https://api.baseten.co".to_string(),
+            client: reqwest::Client::new(),
+            jobs: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Generate a train.py script for TRL LoRA fine-tuning on Baseten.
+    /// The script loads the base model from a HuggingFace-mounted path,
+    /// applies LoRA, trains with SFTTrainer, and saves checkpoints.
+    fn build_train_script(&self, job: &TrainingJob, hf_model_id: &str) -> String {
+        let target_modules_str = job
+            .params
+            .target_modules
+            .iter()
+            .map(|m| format!("\"{}\"", m))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        format!(
+            r#"# Auto-generated by hKask Skills Training Server for Baseten
+import os
+import torch
+from datasets import load_dataset
+from peft import LoraConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from trl import SFTConfig, SFTTrainer
+
+# Base model loaded from HuggingFace (mounted by Baseten weights system)
+model_id = "{hf_model_id}"
+print(f"Loading base model: {{model_id}}")
+
+tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    torch_dtype=torch.bfloat16,
+    device_map="auto",
+    trust_remote_code=True,
+)
+
+# LoRA configuration
+peft_config = LoraConfig(
+    r={lora_r},
+    lora_alpha={lora_alpha},
+    target_modules=[{target_modules}],
+    lora_dropout=0.05,
+    task_type="CAUSAL_LM",
+)
+
+# Load dataset
+dataset_path = os.getenv("HKASK_DATASET_PATH", "dataset.jsonl")
+print(f"Loading dataset: {{dataset_path}}")
+dataset = load_dataset("json", data_files=dataset_path, split="train")
+
+def format_chatml(examples):
+    texts = []
+    for messages in examples["messages"]:
+        text = ""
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            text += f"<|{{role}}|>\n{{content}}\n"
+        texts.append(text)
+    return {{"text": texts}}
+
+dataset = dataset.map(format_chatml, batched=True, remove_columns=dataset.column_names)
+
+# Training arguments
+training_args = SFTConfig(
+    learning_rate={learning_rate},
+    num_train_epochs={num_epochs},
+    per_device_train_batch_size={batch_size},
+    gradient_accumulation_steps=4,
+    gradient_checkpointing=True,
+    max_seq_length=2048,
+    warmup_ratio=0.1,
+    lr_scheduler_type="cosine",
+    save_steps=50,
+    bf16=True,
+    output_dir=os.getenv("BT_CHECKPOINT_DIR", "./checkpoints"),
+    logging_steps=10,
+)
+
+trainer = SFTTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset,
+    processing_class=tokenizer,
+    peft_config=peft_config,
+)
+
+print("Starting training...")
+trainer.train()
+print("Training complete. Checkpoints saved to BT_CHECKPOINT_DIR.")
+"#,
+            hf_model_id = hf_model_id,
+            lora_r = job.params.lora_r,
+            lora_alpha = job.params.lora_alpha,
+            target_modules = target_modules_str,
+            learning_rate = job.params.learning_rate,
+            num_epochs = job.params.num_epochs,
+            batch_size = job.params.batch_size,
+        )
+    }
+}
+
+#[async_trait::async_trait]
+impl TrainingProvider for BasetenProvider {
+    async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        // Resolve HuggingFace model ID from the provider-prefixed base_model.
+        // Strip provider prefix (e.g., "TOGETHER/" → "") to get raw HF model ID.
+        let hf_model_id = if let Some(idx) = job.base_model.find('/') {
+            let prefix = &job.base_model[..idx];
+            if prefix.len() <= 10 {
+                &job.base_model[idx + 1..]
+            } else {
+                &job.base_model
+            }
+        } else {
+            &job.base_model
+        };
+
+        // Generate train.py
+        let train_script = self.build_train_script(job, hf_model_id);
+
+        let gpu = std::env::var("BASETEN_GPU").unwrap_or_else(|_| "H100".to_string());
+        let gpu_count: u32 = std::env::var("BASETEN_GPU_COUNT")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1);
+        let hf_token = std::env::var("HF_TOKEN").unwrap_or_default();
+
+        let body = json!({
+            "training_job": {
+                "name": format!("hkask-training-{}", &job.id[..8]),
+                "image": {
+                    "base_image": "baseten/trt-llm-train:latest",
+                },
+                "compute": {
+                    "node_count": 1,
+                    "cpu_count": 8,
+                    "memory": "32Gi",
+                    "accelerator": {
+                        "accelerator": gpu,
+                        "count": gpu_count,
+                    },
+                },
+                "runtime": {
+                    "start_commands": [
+                        "pip install peft trl datasets accelerate",
+                        format!("echo '{}' > train.py", train_script.replace('\'', "'\\''")),
+                        "python train.py",
+                    ],
+                    "environment_variables": {
+                        "HKASK_JOB_ID": job.id,
+                        "HKASK_BASE_MODEL": job.base_model,
+                        "HKASK_DATASET_PATH": job.dataset_path.to_string_lossy().to_string(),
+                        "HKASK_NUM_EPOCHS": job.params.num_epochs.to_string(),
+                        "HKASK_LORA_R": job.params.lora_r.to_string(),
+                        "HF_TOKEN": hf_token,
+                    },
+                    "checkpointing_config": {
+                        "enabled": true,
+                        "checkpoint_path": "/mnt/ckpts",
+                        "volume_size_gib": 20,
+                    },
+                },
+                "weights": [
+                    {
+                        "source": format!("hf://{}", hf_model_id),
+                        "mount_location": format!("/app/models/{}", hf_model_id),
+                    }
+                ],
+            }
+        });
+
+        let url = format!(
+            "{}/v1/training_projects/{}/jobs",
+            self.base_url, self.project_id
+        );
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Baseten API request failed: {}", e)))?;
+
+        let status_code = response.status();
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Baseten API parse error: {}", e)))?;
+
+        if !status_code.is_success() {
+            return Err(ProviderError::Backend(format!(
+                "Baseten error {}: {}",
+                status_code,
+                serde_json::to_string_pretty(&json).unwrap_or_default()
+            )));
+        }
+
+        let baseten_job_id = json["training_job"]["id"]
+            .as_str()
+            .or_else(|| json["id"].as_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        // Store mapping for status/cancel
+        if let Ok(mut map) = self.jobs.lock() {
+            map.insert(job.id.clone(), baseten_job_id.clone());
+        }
+
+        tracing::info!(
+            target: "cns.training.job.submit",
+            job_id = %job.id,
+            baseten_job_id = %baseten_job_id,
+            provider = "baseten",
+            "Training job submitted to Baseten"
+        );
+
+        Ok(job.id.clone())
+    }
+
+    async fn status(&self, job_id: &str) -> Result<TrainingJobStatus, ProviderError> {
+        let baseten_job_id = {
+            let map = self
+                .jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+            map.get(job_id).cloned()
+        };
+
+        let baseten_job_id = match baseten_job_id {
+            Some(id) => id,
+            None => {
+                return Err(ProviderError::JobFailed(format!(
+                    "No Baseten job found for {}",
+                    job_id
+                )));
+            }
+        };
+
+        let url = format!(
+            "{}/v1/training_projects/{}/jobs/{}",
+            self.base_url, self.project_id, baseten_job_id
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .send()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Baseten status request failed: {}", e)))?;
+
+        let json: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Baseten status parse error: {}", e)))?;
+
+        let status_str = json["training_job"]["status"]
+            .as_str()
+            .or_else(|| json["status"].as_str())
+            .unwrap_or("unknown");
+
+        match status_str {
+            "PENDING" | "QUEUED" | "CREATING" => Ok(TrainingJobStatus::Queued),
+            "RUNNING" | "TRAINING" => Ok(TrainingJobStatus::Running),
+            "COMPLETED" | "SUCCEEDED" | "DONE" => Ok(TrainingJobStatus::Completed),
+            "FAILED" | "ERROR" | "CANCELLED" => Ok(TrainingJobStatus::Failed),
+            _ => Ok(TrainingJobStatus::Queued),
+        }
+    }
+
+    async fn cancel(&self, job_id: &str) -> Result<(), ProviderError> {
+        let baseten_job_id = {
+            let map = self
+                .jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+            map.get(job_id).cloned()
+        };
+
+        let baseten_job_id = match baseten_job_id {
+            Some(id) => id,
+            None => {
+                tracing::warn!(
+                    target: "cns.training.job.cancel",
+                    job_id = %job_id,
+                    "No Baseten job found"
+                );
+                return Ok(());
+            }
+        };
+
+        let url = format!(
+            "{}/v1/training_projects/{}/jobs/{}",
+            self.base_url, self.project_id, baseten_job_id
+        );
+
+        let response = self
+            .client
+            .delete(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .send()
+            .await
+            .map_err(|e| ProviderError::Backend(format!("Baseten cancel request failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(ProviderError::Backend(format!(
+                "Baseten cancel error: {}",
+                body
+            )));
+        }
+
+        if let Ok(mut map) = self.jobs.lock() {
+            map.remove(job_id);
+        }
+
+        tracing::info!(
+            target: "cns.training.job.cancel",
+            job_id = %job_id,
+            provider = "baseten",
+            "Training job cancelled on Baseten"
+        );
+        Ok(())
+    }
+
+    async fn list_adapters(&self) -> Result<Vec<String>, ProviderError> {
+        let map = self
+            .jobs
+            .lock()
+            .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+        Ok(map.keys().cloned().collect())
+    }
+
+    async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError> {
+        let _ = self.cancel(adapter_id).await;
+        Ok(())
+    }
+
+    async fn completion_metadata(
+        &self,
+        _job_id: &str,
+    ) -> Result<Option<CompletionMetadata>, ProviderError> {
+        // Baseten checkpoints contain metrics; extraction requires checkpoint API.
+        Ok(None)
+    }
+
+    async fn adapter_weight_path(
+        &self,
+        _adapter_id: &str,
+    ) -> Result<Option<PathBuf>, ProviderError> {
+        // Weights are on Baseten — download via checkpoint archive URL.
+        Ok(None)
+    }
+}
+
 // ── Provider factory ───────────────────────────────────────────────────────
 
 /// Create a provider from configuration.
@@ -1310,6 +1739,22 @@ pub fn create_provider(
                 config.runpod_template_id.clone(),
             )))
         }
+        TrainingProviderId::Baseten => {
+            if config.baseten_api_key.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Baseten API key not configured (set BASETEN_API_KEY)".to_string(),
+                ));
+            }
+            if config.baseten_project_id.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Baseten project ID not configured (set BASETEN_PROJECT_ID)".to_string(),
+                ));
+            }
+            Ok(Box::new(BasetenProvider::new(
+                config.baseten_api_key.clone(),
+                config.baseten_project_id.clone(),
+            )))
+        }
     }
 }
 
@@ -1330,6 +1775,10 @@ pub struct ProviderConfig {
     pub runpod_api_key: String,
     /// Runpod GPU pod template ID with axolotl pre-installed (for Runpod).
     pub runpod_template_id: String,
+    /// Baseten API key (for Baseten).
+    pub baseten_api_key: String,
+    /// Baseten training project ID (for Baseten).
+    pub baseten_project_id: String,
 }
 
 impl Default for ProviderConfig {
@@ -1342,6 +1791,8 @@ impl Default for ProviderConfig {
             together_api_key: String::new(),
             runpod_api_key: String::new(),
             runpod_template_id: String::new(),
+            baseten_api_key: String::new(),
+            baseten_project_id: String::new(),
         }
     }
 }

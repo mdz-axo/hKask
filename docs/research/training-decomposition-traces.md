@@ -305,6 +305,7 @@ hKask will need composition when agents must apply multiple skills simultaneousl
 | Provider | Type | Status | Notes |
 |----------|------|--------|-------|
 | **Together AI** | Managed fine-tuning API | ✅ Production | Upload → train → deploy → infer. ~$0.005/LoRA run. Primary provider. |
+| **Baseten** | Managed infra + your training code | ✅ Implemented | Generated TRL/LoRA train.py, HF model loading via weights mount, auto-checkpointing. Clean REST API. |
 | **Runpod** | GPU pod dispatch | ✅ Implemented | Creates GPU pods from template, dispatches axolotl training. Requires `RUNPOD_API_KEY` + `RUNPOD_TEMPLATE_ID`. |
 | **Axolotl** | Local CLI | ✅ Production | YAML-config-driven. PID-tracked cancellation. |
 | **Unsloth** | Local Python | ✅ Production | Memory-efficient. PID-tracked cancellation. |
@@ -339,7 +340,16 @@ QA pairs train **what** to answer. Decomposition traces train **how** to think. 
 - **Complement to Together AI**: Use Runpod when you need specific GPU types, custom training configurations, or want to run axolotl/unsloth in the cloud instead of locally
 - **Pod lifecycle**: Pods are created on `submit`, terminated on `cancel`/completion — no idle costs
 
-### 5.6 Why Qwen3.5-9B?
+### 5.6 Why Baseten for Managed Training Infrastructure?
+
+- **Bring your own training code**: Baseten runs your `train.py` as-is — use any framework (TRL, axolotl, unsloth). Full control over the training loop.
+- **HuggingFace-native**: Load models directly from HuggingFace via Baseten's weights mount system (`hf://` source). No manual model upload.
+- **Auto-checkpointing**: Save to `$BT_CHECKPOINT_DIR` and Baseten syncs checkpoints for one-click deployment.
+- **Multi-LoRA serving**: Deploy multiple adapters on one base model, switch at inference time via `model` parameter.
+- **Clean REST API**: Simple job submission, no account-ID gymnastics, no GraphQL.
+- **Complement to Together AI**: Use Baseten when you need custom training code (custom loss functions, data preprocessing) that Together's managed API doesn't support.
+
+### 5.7 Why Qwen3.5-9B?
 
 - **Apache 2.0 license**: No usage restrictions
 - **Broad provider support**: Unsloth, Axolotl, Together AI all support it

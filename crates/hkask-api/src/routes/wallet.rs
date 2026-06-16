@@ -7,6 +7,7 @@
 //! and API key Bearer tokens (user auth). The `api_key_auth_middleware` runs
 //! after the global `auth_middleware`, so either auth method works.
 
+use axum::Extension;
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
@@ -17,6 +18,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::ApiState;
+use crate::middleware::api_key_auth::WalletContext;
 use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletId};
 
 /// Create wallet router.
@@ -162,14 +164,20 @@ fn parse_chain(s: Option<&str>) -> ChainId {
     }
 }
 
-fn resolve_wallet_id(wallet_arg: Option<&str>) -> WalletId {
-    match wallet_arg {
-        Some(s) => s.parse().unwrap_or_else(|_| {
+fn resolve_wallet_id(wallet_arg: Option<&str>, ctx: Option<&WalletContext>) -> WalletId {
+    // Prefer explicit query param
+    if let Some(s) = wallet_arg {
+        return s.parse().unwrap_or_else(|_| {
             tracing::warn!(target: "hkask.api.wallet", wallet_id_arg = %s, "Invalid wallet ID — using default");
             WalletId::default()
-        }),
-        None => WalletId::default(),
+        });
     }
+    // Fall back to authenticated API key's wallet
+    if let Some(wc) = ctx {
+        return wc.wallet_id;
+    }
+    // System default
+    WalletId::default()
 }
 
 // ── GET /api/wallet/balance ─────────────────────────────────────────────────
@@ -192,12 +200,13 @@ pub struct WalletIdQuery {
 async fn get_balance(
     State(state): State<ApiState>,
     Query(q): Query<WalletIdQuery>,
+    wallet_ctx: Option<Extension<WalletContext>>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref());
+    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0));
     match svc.get_balance(wallet_id) {
         Ok(balance) => (
             StatusCode::OK,
@@ -236,12 +245,13 @@ pub struct DepositAddressQuery {
 async fn get_deposit_address(
     State(state): State<ApiState>,
     Query(q): Query<DepositAddressQuery>,
+    wallet_ctx: Option<Extension<WalletContext>>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref());
+    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0));
     let chain = parse_chain(q.chain.as_deref());
     let privacy = if q.private.unwrap_or(false) {
         PrivacyMode::Shielded
@@ -283,7 +293,7 @@ async fn create_deposit_reference(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref());
+    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref(), None);
     let chain = parse_chain(Some(&req.chain));
 
     match svc.generate_deposit_reference(wallet_id, chain, 24) {
@@ -315,12 +325,13 @@ async fn create_deposit_reference(
 async fn get_transactions(
     State(state): State<ApiState>,
     Query(q): Query<TransactionQuery>,
+    wallet_ctx: Option<Extension<WalletContext>>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref());
+    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0));
     let limit = q.limit.unwrap_or(50);
     let offset = q.offset.unwrap_or(0);
 
@@ -363,7 +374,7 @@ async fn create_key(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref());
+    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref(), None);
     let privacy = if req.private.unwrap_or(false) {
         PrivacyMode::Shielded
     } else {
@@ -416,12 +427,13 @@ async fn create_key(
 async fn list_keys(
     State(state): State<ApiState>,
     Query(q): Query<WalletIdQuery>,
+    wallet_ctx: Option<Extension<WalletContext>>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref());
+    let wallet_id = resolve_wallet_id(q.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0));
 
     match svc.list_keys(wallet_id) {
         Ok(keys) => (
@@ -515,7 +527,7 @@ async fn withdraw(
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref());
+    let wallet_id = resolve_wallet_id(req.wallet_id.as_deref(), None);
     let chain = parse_chain(req.chain.as_deref());
     let privacy = if req.private.unwrap_or(false) {
         PrivacyMode::Shielded

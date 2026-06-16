@@ -45,3 +45,5 @@ hinkal = ["dep:reqwest"]
 
 [dev-dependencies]
 hkask-storage = { path = "../hkask-storage" }
+hkask-test-harness = { path = "../hkask-test-harness" }
+tokio = { workspace = true, features = ["macros", "rt"] }

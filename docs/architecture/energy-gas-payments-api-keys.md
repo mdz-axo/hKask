@@ -1,7 +1,7 @@
 ---
 title: "Energy, Gas, Payments & API Key System"
 audience: [architects, developers, agents]
-last_updated: 2026-06-13
+last_updated: 2026-06-15
 version: "0.27.0"
 status: "Active"
 domain: "Trust"
@@ -94,43 +94,53 @@ When `gas_cap` is exhausted, the session ends. The replicant can increase `gas_c
 
 ### 3.3 API Key Budgets
 
-Each API key receives an allocation from the funding replicant's wallet at issuance. The allocation is **encumbered** (locked, not transferred). As the key consumes gas, rJoules are deducted from the encumbrance.
+Each API key receives an allocation from the funding replicant's wallet at issuance. The allocation is **encumbered** (locked, not transferred). As the key consumes gas, rJoules are deducted from the encumbrance via `WalletBackedBudget::settle()` → `WalletManager::consume()` → `WalletStore::consume_encumbrance()` (atomic SQL operation).
 
 ```
 key_allocation_remaining = initial_allocation - gas_consumed_by_key
 ```
 
-When `key_allocation_remaining ≤ 0`, requests return `402 Payment Required`. The funding replicant can replenish via `POST /api/keys/{key_id}/fund`.
+When `key_allocation_remaining ≤ 0`, requests return `402 Payment Required`. The funding replicant can replenish via `kask wallet encumber --key-id <id> --amount <rj>`.
+
+**Implementation status (v0.27.0):** Fully implemented. The `ApiKeyAuthService` middleware registers a `WalletBackedBudget` with the key's encumbrance after Bearer token authentication. `GovernedTool` and `GovernedInference` membranes check wallet budgets before gas budgets, and debit from encumbrance on settle. CNS spans `cns.gas.reserved`, `cns.gas.settled`, `cns.gas.depleted` provide observability.
 
 ---
 
 ## 4. Wallet System
 
-### 4.1 Wallet Derivation
+### 4.1 Wallet Creation
 
-```
-WebID → HKDF-SHA256 → HD wallet seed → BIP-32 derivation → replicant wallet
-```
+Wallets are created automatically during `AgentService::build()` startup. Each registered replicant without a wallet gets one created with a deterministic `WalletId` derived from the replicant name via UUID v5 (`WalletId::from_name()`). Existing wallet bindings are preserved (idempotent).
 
-Each replicant's wallet is deterministically derived from their WebID via `hkask-keystore` and `hkask-wallet`. No separate wallet creation step — the wallet exists the moment the replicant is registered.
+### 4.2 Multi-Wallet Model
 
-### 4.2 Balance Operations
+Each replicant has its own wallet for deposit/withdrawal isolation. The `ReplicantIdentity.wallet_id` field stores the binding. All CLI commands accept `--wallet <uuid>` and all API routes accept `?wallet_id=<uuid>`. When omitted, the system falls back to the authenticated API key's wallet (from `WalletContext` extension) or the system default.
 
-| Operation | Endpoint / Command | Auth |
-|-----------|-------------------|------|
-| Check balance | `kask wallet balance` | Replicant session |
-| Transfer rJ | `POST /api/wallet/transfer` | Capability token |
-| Fund API key | `POST /api/keys/{key_id}/fund` | Replicant session |
-| Release encumbrance | Automatic on key expiry/revocation | 7R7 bot |
+### 4.3 Deposit Monitoring
 
-### 4.3 rJoule Acquisition
+A background deposit monitor (`poll_deposits_once`) iterates all wallets and all enabled chains every 30 seconds (configurable via `HKASK_DEPOSIT_MONITOR_INTERVAL_SECS`). Detected deposits are credited to the correct wallet via `WalletStore::resolve_wallet_for_address()` reverse lookup. Idempotency is enforced via `transaction_exists_by_hash()`. Each credited deposit emits a `cns.wallet.deposit_credited` CNS span.
+
+### 4.4 Balance Operations
+
+| Operation | CLI Command | API Endpoint | Auth |
+|-----------|------------|-------------|------|
+| Check balance | `kask wallet balance [--wallet]` | `GET /api/wallet/balance?wallet_id=` | Bearer or capability |
+| Get deposit address | `kask wallet deposit-address [--wallet]` | `GET /api/wallet/deposit-address` | Bearer or capability |
+| Transaction history | `kask wallet history [--wallet]` | `GET /api/wallet/transactions` | Bearer or capability |
+| Create API key | `kask wallet key create [--wallet]` | `POST /api/wallet/keys` | Bearer or capability |
+| Encumber rJoules | `kask wallet encumber --key-id --amount [--wallet]` | (CLI only) | Replicant session |
+| Release encumbrance | `kask wallet release-encumbrance --key-id` | (CLI only) | Replicant session |
+| Spending report | `kask wallet report --key-id [--wallet]` | (CLI only) | Replicant session |
+| Withdraw | `kask wallet withdraw [--wallet]` | `POST /api/wallet/withdraw` | Bearer or capability |
+
+### 4.5 rJoule Acquisition
 
 rJoules enter the system through:
 
-- **Initial allocation:** Each new replicant receives a genesis allocation (e.g., 1,000,000 rJ) at registration
-- **Earning:** Bots earn rJoules by performing system services (consolidation, CNS monitoring, key management)
-- **Transfer:** Replicants can transfer rJoules between wallets
-- **Purchase (anticipated):** On-chain token purchase via integrated DEX
+- **On-chain deposit:** USDC transferred to a derived deposit address → detected by monitor → converted to rJoules at `rj_per_usdc` rate
+- **Shielded deposit:** Privacy-preserving transfer with one-time deposit reference → `consume_deposit_reference()` → credited
+- **Initial allocation (future):** Each new replicant receives a genesis allocation at registration
+- **Earning (future):** Bots earn rJoules by performing system services
 
 ---
 
@@ -173,11 +183,18 @@ POST /api/keys/request
 GET /api/specs/{id}
 Authorization: Bearer hk_...
 
-→ CNS opens cns.api.request span
-→ Validates key_id, checks scope, checks rate limit
-→ Deducts gas from key allocation
-→ Returns response
+→ ApiKeyAuthService middleware:
+  1. Extracts Bearer token, derives public key
+  2. Looks up ApiKeyCapability in WalletStore
+  3. Verifies: not revoked, not expired, spending limit not exceeded
+  4. Verifies encumbrance exists with remaining rJoules
+  5. Verifies scope: request path must match declared scope (empty scope = unrestricted)
+  6. Registers WalletBackedBudget in CNS for encumbrance-gated consumption
+→ GovernedTool/GovernedInference membranes debit from encumbrance on each operation
+→ Returns response (or 402/403 on failure)
 ```
+
+**Scope enforcement (v0.27.0):** If the key's `scope` field is non-empty, the request URI path must start with one of the declared scope prefixes. Keys scoped to `["read-specs"]` cannot access `/api/chat`. Returns `403 Forbidden` with `ScopeViolation` error.
 
 ### 5.3 Replenishment
 

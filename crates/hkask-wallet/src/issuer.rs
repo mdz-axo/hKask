@@ -13,6 +13,7 @@ use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use hkask_keystore::resolve_wallet_seed;
 use hkask_storage::WalletStore;
+use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 pub use hkask_types::wallet::ApiKeyMaterial;
 use hkask_types::wallet::{
@@ -72,12 +73,12 @@ impl ApiKeyIssuer {
     }
 
     /// Emit a CNS span if an event sink is configured.
-    fn emit_span(&self, namespace: &str, verb: &str, phase: Phase, obs: serde_json::Value) {
+    fn emit_span(&self, span: CnsSpan, verb: &str, phase: Phase, obs: serde_json::Value) {
         if let Some(ref sink) = self.event_sink {
-            let span = Span::new(SpanNamespace::new(namespace), verb);
-            let event = NuEvent::new(hkask_types::WebID::new(), span, phase, obs, 0);
+            let event_span = Span::new(SpanNamespace::from(span), verb);
+            let event = NuEvent::new(hkask_types::WebID::new(), event_span, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
-                tracing::warn!(target: "hkask.wallet", namespace = namespace, verb = verb, error = %e, "Failed to persist CNS span");
+                tracing::warn!(target: "hkask.wallet", span = ?span, verb = verb, error = %e, "Failed to persist CNS span");
             }
         }
     }
@@ -140,7 +141,7 @@ impl ApiKeyIssuer {
 
         // CNS span: key issued
         self.emit_span(
-            "cns.wallet.key_issued",
+            CnsSpan::WalletKeyIssued,
             "issued",
             Phase::Act,
             serde_json::json!({
@@ -173,7 +174,7 @@ impl ApiKeyIssuer {
 
         // CNS span: key revoked
         self.emit_span(
-            "cns.wallet.key_revoked",
+            CnsSpan::WalletKeyRevoked,
             "revoked",
             Phase::Act,
             serde_json::json!({

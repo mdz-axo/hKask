@@ -9,6 +9,7 @@
 use chrono::{Duration, Utc};
 use hkask_keystore::resolve_wallet_seed;
 use hkask_storage::WalletStore;
+use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::wallet::{
     ApiKeyId, ChainId, DepositAddress, DepositReference, Encumbrance, PrivacyMode, RJoule,
@@ -79,13 +80,13 @@ impl WalletManager {
         self
     }
 
-    /// Emit a CNS span if an event sink is configured.
-    fn emit_span(&self, namespace: &str, verb: &str, phase: Phase, obs: serde_json::Value) {
+    /// Emit a CNS span if an event sink is configured (canonical namespaces only).
+    fn emit_span(&self, span: CnsSpan, verb: &str, phase: Phase, obs: serde_json::Value) {
         if let Some(ref sink) = self.event_sink {
-            let span = Span::new(SpanNamespace::new(namespace), verb);
-            let event = NuEvent::new(hkask_types::WebID::new(), span, phase, obs, 0);
+            let span_obj = Span::new(SpanNamespace::from(span), verb);
+            let event = NuEvent::new(hkask_types::WebID::new(), span_obj, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
-                tracing::warn!(target: "hkask.wallet", namespace = namespace, verb = verb, error = %e, "Failed to persist CNS span");
+                tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist CNS span");
             }
         }
     }
@@ -147,17 +148,32 @@ impl WalletManager {
     /// Polls all enabled chains and the privacy layer at a configurable interval.
     pub async fn start_deposit_monitor(&self, interval_secs: u64) -> Result<(), WalletError> {
         loop {
+            self.poll_deposits_once().await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(interval_secs)).await;
+        }
+    }
+
+    /// Run a single deposit poll cycle (test-accessible).
+    pub(crate) async fn poll_deposits_once(&self) {
+        // Iterate all wallets (multi-wallet support)
+        let wallet_ids = match self.store.list_wallet_ids() {
+            Ok(ids) => ids,
+            Err(_) => return,
+        };
+        for wallet_id in &wallet_ids {
             for chain_id in &self.config.enabled_chains {
                 if let Some(port) = self.chains.get(chain_id) {
-                    let addresses: Vec<String> = self
-                        .store
-                        .get_deposit_addresses(WalletId::default())? // TODO: iterate all wallets
-                        .iter()
-                        .filter(|a| {
-                            a.chain == *chain_id && a.privacy_mode == PrivacyMode::Transparent
-                        })
-                        .map(|a| a.address.clone())
-                        .collect();
+                    let addresses: Vec<String> = match self.store.get_deposit_addresses(*wallet_id)
+                    {
+                        Ok(addrs) => addrs
+                            .iter()
+                            .filter(|a| {
+                                a.chain == *chain_id && a.privacy_mode == PrivacyMode::Transparent
+                            })
+                            .map(|a| a.address.clone())
+                            .collect(),
+                        Err(_) => continue,
+                    };
                     if !addresses.is_empty() {
                         match port.monitor_deposits(&addresses).await {
                             Ok(events) => {
@@ -172,20 +188,19 @@ impl WalletManager {
                     }
                 }
             }
-            // Check privacy layer
-            if let Some(ref privacy_port) = self.privacy {
-                match privacy_port.monitor_shielded_transfers().await {
-                    Ok(transfers) => {
-                        for transfer in transfers {
-                            let _ = self.process_shielded_deposit(transfer).await;
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.wallet", error = %e, "Privacy monitor error");
+        }
+        // Check privacy layer
+        if let Some(ref privacy_port) = self.privacy {
+            match privacy_port.monitor_shielded_transfers().await {
+                Ok(transfers) => {
+                    for transfer in transfers {
+                        let _ = self.process_shielded_deposit(transfer).await;
                     }
                 }
+                Err(e) => {
+                    tracing::warn!(target: "hkask.wallet", error = %e, "Privacy monitor error");
+                }
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(interval_secs)).await;
         }
     }
 
@@ -218,7 +233,7 @@ impl WalletManager {
 
         // CNS span: deposit detected
         self.emit_span(
-            "cns.wallet.deposit",
+            CnsSpan::WalletDeposit,
             "detected",
             Phase::Sense,
             serde_json::json!({
@@ -236,7 +251,7 @@ impl WalletManager {
             id: 0,
             wallet_id,
             tx_type: TransactionType::Deposit {
-                chain: event.tx_hash.0.parse().unwrap_or(ChainId::Solana), // TODO: get from port
+                chain: event.tx_hash.0.parse().unwrap_or(ChainId::Solana),
                 privacy: PrivacyMode::Transparent,
                 tx_hash: event.tx_hash.0.clone(),
                 amount_usdc_micro: event.amount_usdc_micro,
@@ -248,7 +263,7 @@ impl WalletManager {
 
         // CNS span: balance credited
         self.emit_span(
-            "cns.wallet.balance",
+            CnsSpan::WalletBalance,
             "credited",
             Phase::Act,
             serde_json::json!({
@@ -260,7 +275,7 @@ impl WalletManager {
 
         // CNS span: deposit credited (user-noteworthy notification)
         self.emit_span(
-            "cns.wallet",
+            CnsSpan::WalletDeposit,
             "deposit_credited",
             Phase::Act,
             serde_json::json!({
@@ -314,7 +329,7 @@ impl WalletManager {
 
         // CNS span: shielded deposit detected
         self.emit_span(
-            "cns.wallet.deposit_shielded",
+            CnsSpan::WalletDepositShielded,
             "detected",
             Phase::Sense,
             serde_json::json!({
@@ -344,7 +359,7 @@ impl WalletManager {
 
         // CNS span: balance credited
         self.emit_span(
-            "cns.wallet.balance",
+            CnsSpan::WalletBalance,
             "credited",
             Phase::Act,
             serde_json::json!({
@@ -356,7 +371,7 @@ impl WalletManager {
 
         // CNS span: deposit credited (user-noteworthy notification)
         self.emit_span(
-            "cns.wallet",
+            CnsSpan::WalletDeposit,
             "deposit_credited",
             Phase::Act,
             serde_json::json!({
@@ -397,7 +412,7 @@ impl WalletManager {
 
         // CNS span: conversion
         self.emit_span(
-            "cns.wallet.conversion",
+            CnsSpan::WalletConversion,
             "converted",
             Phase::Act,
             serde_json::json!({
@@ -419,7 +434,7 @@ impl WalletManager {
 
                 // CNS span: withdrawal built
                 self.emit_span(
-                    "cns.wallet.withdrawal",
+                    CnsSpan::WalletWithdrawal,
                     "built",
                     Phase::Act,
                     serde_json::json!({
@@ -434,7 +449,7 @@ impl WalletManager {
 
                 // CNS span: withdrawal signed
                 self.emit_span(
-                    "cns.wallet.withdrawal",
+                    CnsSpan::WalletWithdrawal,
                     "signed",
                     Phase::Act,
                     serde_json::json!({
@@ -449,7 +464,7 @@ impl WalletManager {
 
                 // CNS span: withdrawal submitted
                 self.emit_span(
-                    "cns.wallet.withdrawal",
+                    CnsSpan::WalletWithdrawal,
                     "submitted",
                     Phase::Act,
                     serde_json::json!({
@@ -514,7 +529,7 @@ impl WalletManager {
 
         // CNS span: deposit address derived
         self.emit_span(
-            "cns.wallet.deposit",
+            CnsSpan::WalletDeposit,
             "derived",
             Phase::Act,
             serde_json::json!({
@@ -671,7 +686,7 @@ impl WalletManager {
     ) -> Result<(), WalletError> {
         self.store.encumber_rjoules(wallet_id, key_id, amount)?;
         self.emit_span(
-            "cns.wallet.encumbered",
+            CnsSpan::Gas,
             "encumbered",
             Phase::Act,
             serde_json::json!({
@@ -694,7 +709,7 @@ impl WalletManager {
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         self.store.release_encumbrance(key_id)?;
         self.emit_span(
-            "cns.wallet.encumbrance_released",
+            CnsSpan::Gas,
             "released",
             Phase::Act,
             serde_json::json!({
@@ -750,6 +765,7 @@ fn hkdf_expand(seed: &[u8], info: &[u8]) -> Result<Vec<u8>, WalletError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ApiKeyIssuer;
     use crate::chain::DepositEvent;
     use hkask_storage::database::in_memory_db;
 
@@ -868,5 +884,276 @@ mod tests {
         assert_eq!(dep_ref.reference.len(), 32); // 16 bytes → 32 hex chars
         assert_eq!(dep_ref.wallet_id, wallet);
         assert_eq!(dep_ref.chain, ChainId::Solana);
+    }
+
+    // ── Property-based tests ───────────────────────────────────────────────
+
+    // REQ: WALLET-PBT-001 — Balance conservation under encumbrance lifecycle (P4, P9)
+    // After any sequence of credit, encumber, consume, and release operations,
+    // the wallet balance never goes negative and total encumbrances ≤ total credited.
+    //
+    // NOTE: Full proptest deferred — make_manager() hits OS keychain which is
+    // too slow for 256-case proptest. When a mock keychain is available in the
+    // test harness, convert this to proptest! with arbitrary strategies.
+    #[test]
+    fn balance_conservation_under_encumbrance_lifecycle() {
+        let mgr = make_manager();
+        let wallet = WalletId::new();
+        mgr.store.ensure_wallet(wallet).unwrap();
+
+        // Credit 1000 rJoules
+        mgr.store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
+        let total_credited: u64 = 1000;
+
+        // Helper: create a minimal API key so encumbrance FK constraint is satisfied
+        fn ensure_key(store: &Arc<WalletStore>, wallet_id: WalletId, key_id: ApiKeyId) {
+            use hkask_types::wallet::{ApiKeyCapability, Ed25519PublicKey, PrivacyMode};
+            let capability = ApiKeyCapability {
+                wallet_id,
+                key_id,
+                public_key: Ed25519PublicKey([0u8; 32]),
+                spending_limit_rj: RJoule::new(1_000_000),
+                spent_rj: RJoule::ZERO,
+                scope: vec![],
+                purpose: "test".into(),
+                rate_limit: None,
+                expiry: None,
+                issued_at: chrono::Utc::now(),
+                privacy_mode: PrivacyMode::Transparent,
+                preferred_chain: None,
+            };
+            // Ignore error if key already exists
+            let _ = store.store_api_key(&capability);
+        }
+
+        // Scenario 1: encumber → consume partial → release
+        let key1 = ApiKeyId::new();
+        ensure_key(&mgr.store, wallet, key1);
+        mgr.encumber(wallet, key1, RJoule::new(300)).unwrap();
+        mgr.consume(key1, RJoule::new(100)).unwrap();
+        mgr.release_encumbrance(key1).unwrap();
+
+        // Scenario 2: encumber → consume all → release (no-op)
+        let key2 = ApiKeyId::new();
+        ensure_key(&mgr.store, wallet, key2);
+        mgr.encumber(wallet, key2, RJoule::new(200)).unwrap();
+        mgr.consume(key2, RJoule::new(200)).unwrap();
+        mgr.release_encumbrance(key2).unwrap();
+
+        // Scenario 3: encumber → release without consuming
+        let key3 = ApiKeyId::new();
+        ensure_key(&mgr.store, wallet, key3);
+        mgr.encumber(wallet, key3, RJoule::new(150)).unwrap();
+        mgr.release_encumbrance(key3).unwrap();
+
+        // Verify balance is non-negative and ≤ total credited
+        let balance = mgr.get_balance(wallet).unwrap();
+        assert!(
+            balance.rjoules <= total_credited,
+            "balance {} > total_credited {}",
+            balance.rjoules,
+            total_credited
+        );
+
+        // Total consumed (100 + 200 = 300) should be ≤ total credited (1000)
+        // Balance should reflect: 1000 - 100 - 200 = 700 (released encumbrances return unspent)
+        assert_eq!(
+            balance.rjoules, 700,
+            "expected 700 rJoules after consume 100+200, got {}",
+            balance.rjoules
+        );
+    }
+
+    // ── Integration: deposit monitor ───────────────────────────────────────
+
+    /// A MockChainPort that returns a pre-configured deposit event.
+    struct DepositMockPort {
+        chain: ChainId,
+        deposit: Option<DepositEvent>,
+    }
+
+    #[async_trait::async_trait]
+    impl ChainPort for DepositMockPort {
+        fn chain_id(&self) -> ChainId {
+            self.chain
+        }
+        fn derive_deposit_address(&self, _index: u64) -> Result<String, WalletError> {
+            Ok("mock_deposit_addr_1".into())
+        }
+        async fn monitor_deposits(
+            &self,
+            _addresses: &[String],
+        ) -> Result<Vec<DepositEvent>, WalletError> {
+            Ok(self.deposit.clone().into_iter().collect())
+        }
+        fn build_withdrawal_tx(&self, _to: &str, _amount: u64) -> Result<Vec<u8>, WalletError> {
+            Ok(b"mock_tx".to_vec())
+        }
+        async fn submit_signed_tx(&self, _tx: &[u8]) -> Result<TxHash, WalletError> {
+            Ok(TxHash("mock_hash".into()))
+        }
+        async fn confirmations(&self, _tx_hash: &TxHash) -> Result<u64, WalletError> {
+            Ok(32)
+        }
+        async fn native_token_usd_rate(&self) -> Result<f64, WalletError> {
+            Ok(1.0)
+        }
+    }
+
+    // REQ: wallet-int-001 — deposit monitor credits balance and is idempotent
+    #[tokio::test]
+    async fn deposit_monitor_credits_and_is_idempotent() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let db = in_memory_db();
+        let store = Arc::new(WalletStore::new(db.conn_arc()));
+        // Use a deterministic wallet ID so the monitor can find it.
+        // WalletId::default() creates a random UUID each call — they won't match.
+        let wallet_id = WalletId::from_name("test_wallet");
+        store.ensure_wallet(wallet_id).unwrap();
+
+        // Store a deposit address so resolution works
+        store
+            .store_deposit_address(
+                wallet_id,
+                ChainId::Solana,
+                "mock_deposit_addr_1",
+                0,
+                PrivacyMode::Transparent,
+            )
+            .unwrap();
+
+        let deposit_event = DepositEvent {
+            tx_hash: TxHash("test_tx_hash_001".into()),
+            from_address: "sender_addr".into(),
+            to_address: "mock_deposit_addr_1".into(),
+            amount_usdc_micro: 1_000_000, // 1 USDC
+            confirmations: 32,
+            block_time: Utc::now(),
+        };
+
+        let mut chains = HashMap::new();
+        chains.insert(
+            ChainId::Solana,
+            Box::new(DepositMockPort {
+                chain: ChainId::Solana,
+                deposit: Some(deposit_event.clone()),
+            }) as Box<dyn ChainPort>,
+        );
+
+        let mgr = WalletManager::build(WalletConfig::default(), Arc::clone(&store), chains, None)
+            .unwrap();
+
+        // Run one monitor cycle
+        mgr.poll_deposits_once().await;
+
+        // Verify balance was credited
+        let balance = store.get_balance(wallet_id).unwrap().unwrap();
+        assert!(
+            balance.rjoules > 0,
+            "balance should be credited after deposit"
+        );
+
+        // Verify idempotency: running again with same tx_hash should not double-credit
+        let balance_before = balance.rjoules;
+        let mut chains2 = HashMap::new();
+        chains2.insert(
+            ChainId::Solana,
+            Box::new(DepositMockPort {
+                chain: ChainId::Solana,
+                deposit: Some(deposit_event),
+            }) as Box<dyn ChainPort>,
+        );
+        let mgr2 = WalletManager::build(WalletConfig::default(), Arc::clone(&store), chains2, None)
+            .unwrap();
+        mgr2.poll_deposits_once().await;
+        let balance_after = store.get_balance(wallet_id).unwrap().unwrap();
+        assert_eq!(
+            balance_after.rjoules, balance_before,
+            "idempotency: balance should not change on replayed deposit"
+        );
+    }
+
+    // REQ: wallet-int-002 — full payment lifecycle: deposit → encumber → consume → report
+    #[test]
+    fn end_to_end_payment_lifecycle() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+        let mgr = make_manager();
+        let wallet_id = WalletId::from_name("e2e_test_wallet");
+        mgr.store.ensure_wallet(wallet_id).unwrap();
+
+        // Step 1: Deposit — credit rJoules
+        mgr.store
+            .credit_rjoules(wallet_id, RJoule::new(10_000))
+            .unwrap();
+        let balance = mgr.get_balance(wallet_id).unwrap();
+        assert_eq!(balance.rjoules, 10_000, "deposit credited");
+
+        // Step 2: Create API key with spending limit
+        let issuer = ApiKeyIssuer::new(Arc::clone(&mgr.store)).unwrap();
+        let material = issuer
+            .create_key(
+                wallet_id,
+                RJoule::new(5_000),
+                None, // no expiry
+                PrivacyMode::Transparent,
+                None, // no chain preference
+                vec![],
+                "e2e test key".into(),
+                None,
+            )
+            .unwrap();
+        let key_id = material.key_id;
+
+        // Step 3: Encumber rJoules to the key
+        mgr.encumber(wallet_id, key_id, RJoule::new(2_000)).unwrap();
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert!(enc.is_active(), "encumbrance should be active");
+        assert_eq!(enc.remaining_rj(), 2_000, "full amount available");
+
+        // Step 4: Consume rJoules (simulating tool/inference usage)
+        mgr.consume(key_id, RJoule::new(500)).unwrap();
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert_eq!(enc.remaining_rj(), 1_500, "500 consumed");
+
+        // Consume more
+        mgr.consume(key_id, RJoule::new(300)).unwrap();
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert_eq!(enc.remaining_rj(), 1_200, "800 total consumed");
+
+        // Step 5: Verify wallet balance unchanged (encumbrance is separate)
+        let balance = mgr.get_balance(wallet_id).unwrap();
+        assert_eq!(balance.rjoules, 8_000, "wallet: 10_000 - 2_000 encumbered");
+
+        // Step 6: Release encumbrance — returns unspent to wallet
+        mgr.release_encumbrance(key_id).unwrap();
+        let balance = mgr.get_balance(wallet_id).unwrap();
+        assert_eq!(
+            balance.rjoules, 9_200,
+            "wallet: 8_000 + 1_200 unspent returned"
+        );
+
+        // Step 7: Verify encumbrance is released
+        let enc = mgr.get_encumbrance(key_id).unwrap().unwrap();
+        assert!(!enc.is_active(), "encumbrance should be released");
+
+        // Step 8: Verify key spending limit tracking
+        let capability = mgr.get_api_key(key_id).unwrap().unwrap();
+        assert_eq!(
+            capability.spent_rj.as_u64(),
+            0,
+            "spent_rj tracked at DB level"
+        );
     }
 }

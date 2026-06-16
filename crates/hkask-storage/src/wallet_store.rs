@@ -116,6 +116,19 @@ impl WalletStore {
         self.ensure_wallet_with_conn(&conn, wallet_id)
     }
 
+    /// List all wallet IDs in the system.
+    pub fn list_wallet_ids(&self) -> Result<Vec<WalletId>, WalletError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare("SELECT wallet_id FROM wallet_balances")?;
+        let rows: Vec<String> = stmt
+            .query_map([], |row| row.get(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter()
+            .map(|s| WalletId::from_str(&s))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))
+    }
+
     /// Credit rJoules to a wallet. Returns the new balance.
     /// Creates the wallet row if it doesn't exist.
     pub fn credit_rjoules(

@@ -310,13 +310,14 @@ fn handle_key_revoke(svc: &WalletService, key_id_str: String) {
 // ── Withdrawal ───────────────────────────────────────────────────────────────
 
 fn handle_withdraw(
-    _svc: &WalletService,
+    svc: &WalletService,
     amount_rj: u64,
     to: String,
     chain: Option<String>,
     private: bool,
-    _wallet: Option<String>,
+    wallet: Option<String>,
 ) {
+    let wallet_id = resolve_wallet(wallet);
     let chain = parse_chain(chain.as_deref());
     let privacy = if private {
         PrivacyMode::Shielded
@@ -324,18 +325,28 @@ fn handle_withdraw(
         PrivacyMode::Transparent
     };
 
-    // Withdrawal is async (requires chain port)
-    // For now, show a message since chain ports are not yet implemented.
-    println!("Withdrawal Request");
-    println!("=================");
-    println!();
-    println!("  Amount:   {amount_rj} rJ");
-    println!("  To:       {to}");
-    println!("  Chain:    {chain}");
-    println!("  Privacy:  {privacy}");
-    println!();
-    println!("  (Withdrawal execution requires chain port implementations —");
-    println!("   set CIRCLE_API_KEY to enable Circle-backed withdrawals.)");
+    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+    match rt.block_on(svc.withdraw(wallet_id, RJoule::new(amount_rj), &to, chain, privacy)) {
+        Ok(tx_hash) => {
+            println!("Withdrawal Submitted");
+            println!("====================");
+            println!();
+            println!("  Amount:   {amount_rj} rJ");
+            println!("  To:       {to}");
+            println!("  Chain:    {chain}");
+            println!("  Privacy:  {privacy}");
+            println!("  Tx Hash:  {}", tx_hash.0);
+            println!();
+            println!("  (Set SOLANA_RPC_URL + SOLANA_TREASURY_PUBKEY or");
+            println!("   HEDERA_TREASURY_ACCOUNT to enable chain execution.)");
+        }
+        Err(e) => {
+            eprintln!("Withdrawal failed: {e}");
+            eprintln!();
+            eprintln!("  (Ensure SOLANA_RPC_URL + SOLANA_TREASURY_PUBKEY or");
+            eprintln!("   HEDERA_TREASURY_ACCOUNT are set for chain execution.)");
+        }
+    }
 }
 
 // ── Encumber ─────────────────────────────────────────────────────────────────

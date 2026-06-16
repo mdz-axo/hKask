@@ -567,3 +567,119 @@ impl ChainPort for HederaPort {
         Ok(0.08) // ~$0.08 HBAR
     }
 }
+
+// ── Integration tests ──────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use crate::signing;
+
+    /// Build a HederaPort for testnet testing.
+    fn testnet_port() -> HederaPort {
+        let treasury =
+            std::env::var("HEDERA_TREASURY_ACCOUNT").unwrap_or_else(|_| "0.0.12345".to_string());
+        HederaPort::new(
+            MIRROR_NODE_TESTNET,
+            &treasury,
+            Some(USDC_TOKEN_TESTNET),
+            "https://testnet.hedera.com:50211",
+        )
+        .expect("Failed to create testnet HederaPort")
+    }
+
+    // REQ: hedera-int-001 — port construction succeeds with valid parameters
+    #[test]
+    fn port_construction_succeeds() {
+        let port = testnet_port();
+        assert_eq!(port.chain_id(), ChainId::Hedera);
+    }
+
+    // REQ: hedera-int-002 — build_withdrawal_tx produces valid protobuf
+    #[test]
+    fn build_withdrawal_tx_produces_valid_protobuf() {
+        let port = testnet_port();
+        let dest = "0.0.54321";
+        let payload_bytes = port
+            .build_withdrawal_tx(dest, 1_000_000) // 1 USDC
+            .expect("build_withdrawal_tx should succeed");
+
+        // Payload should be deserializable as a SignedTransaction protobuf
+        let signed_tx = SignedTransaction::decode(payload_bytes.as_slice())
+            .expect("payload should decode as SignedTransaction");
+
+        // Verify the body contains a cryptoTransfer
+        let body_bytes = signed_tx.body_bytes.expect("should have body_bytes");
+        let body = TransactionBody::decode(body_bytes.as_slice())
+            .expect("body should decode as TransactionBody");
+        assert!(
+            body.data.is_some(),
+            "transaction body should have data field"
+        );
+    }
+
+    // REQ: hedera-int-003 — withdrawal payload signing roundtrip
+    #[test]
+    fn withdrawal_payload_signing_roundtrip() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let port = testnet_port();
+        let dest = "0.0.54321";
+        let payload_bytes = port
+            .build_withdrawal_tx(dest, 1_000_000)
+            .expect("build_withdrawal_tx");
+
+        // Sign the payload
+        let signature =
+            signing::sign_withdrawal(ChainId::Hedera, &payload_bytes).expect("sign_withdrawal");
+        assert_eq!(signature.len(), 64, "Ed25519 signature is 64 bytes");
+
+        // Combine payload + signature
+        let mut signed_tx = payload_bytes;
+        signed_tx.extend_from_slice(&signature);
+        assert!(signed_tx.len() > 64);
+    }
+
+    // REQ: hedera-int-004 — submit_signed_tx against testnet (ignored — needs funded treasury)
+    #[test]
+    #[ignore = "requires funded treasury on Hedera testnet with HTS USDC"]
+    fn submit_withdrawal_to_testnet() {
+        // SAFETY: test-only
+        unsafe {
+            std::env::set_var(
+                "HKASK_MASTER_KEY",
+                "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
+            );
+        }
+
+        let port = testnet_port();
+        let dest =
+            std::env::var("HEDERA_TEST_DESTINATION").unwrap_or_else(|_| "0.0.54321".to_string());
+        let amount = 100; // 0.0001 USDC
+
+        let payload_bytes = port
+            .build_withdrawal_tx(&dest, amount)
+            .expect("build_withdrawal_tx");
+        let signature = signing::sign_withdrawal(ChainId::Hedera, &payload_bytes).expect("sign");
+
+        let mut signed_tx = payload_bytes;
+        signed_tx.extend_from_slice(&signature);
+
+        let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+        let tx_hash = rt
+            .block_on(port.submit_signed_tx(&signed_tx))
+            .expect("submit_signed_tx should return tx hash");
+
+        println!("Withdrawal submitted: {}", tx_hash.0);
+        println!(
+            "Check on HashScan: https://hashscan.io/testnet/transaction/{}",
+            tx_hash.0
+        );
+    }
+}

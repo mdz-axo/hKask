@@ -11,6 +11,7 @@
 
 use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
 use hkask_types::capability::SYSTEM_MAX_RECURSION;
+use hkask_types::cns::CnsSpan;
 use hkask_types::curation::{
     CurationDecision, CurationThresholdConfig, OCAPBoundary, OcapTokenKind,
 };
@@ -154,7 +155,7 @@ impl DefaultSpecCurator {
         };
         let event = NuEvent::new(
             WebID::new(),
-            Span::new(SpanNamespace::new("cns.sovereignty"), "checked"),
+            Span::new(SpanNamespace::from(CnsSpan::Sovereignty), "checked"),
             Phase::Compare,
             serde_json::json!({
                 "spec_id": spec_id,
@@ -247,7 +248,7 @@ impl SpecCurator for DefaultSpecCurator {
             if let Some(ref sink) = self.event_sink {
                 let event = NuEvent::new(
                     WebID::new(),
-                    Span::new(SpanNamespace::new("cns.spec"), "drift_exceeded"),
+                    Span::new(SpanNamespace::from(CnsSpan::Spec), "drift_exceeded"),
                     Phase::Compare,
                     serde_json::json!({
                         "spec_id": spec.id.to_string(),
