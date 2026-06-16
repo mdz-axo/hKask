@@ -14,7 +14,7 @@
 
 // G2 Justification: This module exposes 50 public items because it is a re-export facade for downstream crates. Each re-export maps to a core domain type used by ≥3 downstream crates. Submodule reorganization planned for v0.28.0.
 
-pub mod agent_def;
+pub mod agent;
 pub mod audit;
 pub mod bundle;
 pub mod capability;
@@ -48,7 +48,7 @@ pub use voice::VoiceDesign;
 #[cfg(feature = "sql")]
 pub mod sql_impls;
 
-pub use agent_def::{
+pub use agent::{
     AgentDefinition, AgentKind, Charter, Contact, PersonaConstraints, RegisteredAgent,
     Responsibility, Right, ScheduledTask, UserProfile,
 };

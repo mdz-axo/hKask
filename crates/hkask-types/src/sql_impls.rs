@@ -18,7 +18,7 @@
 //! (newtype wrappers) because Rust's orphan rules forbid implementing
 //! foreign traits for foreign types.
 
-use crate::agent_def::AgentKind;
+use crate::agent::AgentKind;
 use crate::goal::GoalState;
 use crate::id::{BotID, EventID, GoalID, PodID, TemplateID, TripleID, UserID, WebID};
 use crate::visibility::Confidence;

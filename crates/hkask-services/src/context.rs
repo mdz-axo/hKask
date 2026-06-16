@@ -457,18 +457,24 @@ impl AgentService {
         let system_webid = WebID::from_persona(config.agent_name.as_bytes());
 
         // ── 2. Database connections ──────────────────────────────────────────
-        let open_db = || -> Result<Database, DatabaseError> {
-            if config.in_memory {
-                Ok(in_memory_db())
-            } else {
-                Database::open(&config.db_path, &config.db_passphrase)
-            }
+        // Open ONE database and share the connection across all stores.
+        // In production, all connections hit the same file on disk.
+        // In test (in_memory), a single shared in-memory DB enables cross-store
+        // operations — consent records visible to CNS, goals visible to memory, etc.
+        let db = if config.in_memory {
+            in_memory_db()
+        } else {
+            Database::open(&config.db_path, &config.db_passphrase)?
         };
+        let shared_conn = db.conn_arc();
 
-        let primary_conn = open_db()?.conn_arc();
-        let consent_conn = open_db()?.conn_arc();
-        let escalation_conn = open_db()?.conn_arc();
-        let goal_conn = open_db()?.conn_arc();
+        let primary_conn = Arc::clone(&shared_conn);
+        let consent_conn = Arc::clone(&shared_conn);
+        let escalation_conn = Arc::clone(&shared_conn);
+        let goal_conn = Arc::clone(&shared_conn);
+        let sovereignty_conn = Arc::clone(&shared_conn);
+        let spec_conn = Arc::clone(&shared_conn);
+        let user_conn = Arc::clone(&shared_conn);
 
         // ── 3. Stores ───────────────────────────────────────────────────────
         // Shared channel for CurationInput — Cybernetics sends Alert,
@@ -487,17 +493,14 @@ impl AgentService {
         let goal_sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&goal_conn)));
         let goal_repo = Arc::new(SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
 
-        let sovereignty_conn = open_db()?.conn_arc();
         let sovereignty_boundary_store = SovereigntyBoundaryStore::new(sovereignty_conn);
         sovereignty_boundary_store
             .initialize_schema()
             .map_err(ServiceError::SovereigntyStore)?;
 
-        let spec_conn = open_db()?.conn_arc();
         let spec_store = SqliteSpecStore::new(spec_conn);
         spec_store.init_schema().map_err(ServiceError::Spec)?;
 
-        let user_conn = open_db()?.conn_arc();
         let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
         {
             let guard = user_store.lock().map_err(|_| {
@@ -674,8 +677,12 @@ impl AgentService {
         // Episodic + Semantic loops
         // F9: Respect config.in_memory — use file-backed DB when persistence is configured.
         // User Sovereignty Guardrail: user configured persistent storage, must get persistence.
-        let mem_db = if config.in_memory {
-            in_memory_db()
+        //
+        // In in_memory mode, share the main database connection so memory stores
+        // coexist with consent, goals, specs, and CNS events — enabling cross-store
+        // queries and CNS observation of memory operations (P6, P9).
+        let mem_conn = if config.in_memory {
+            Arc::clone(&shared_conn)
         } else {
             let path = config
                 .effective_memory_db_path()
@@ -684,9 +691,8 @@ impl AgentService {
                 .memory_passphrase
                 .as_deref()
                 .unwrap_or(&config.db_passphrase);
-            Database::open(&path, passphrase)?
+            Database::open(&path, passphrase)?.conn_arc()
         };
-        let mem_conn = mem_db.conn_arc();
         let triple_store = TripleStore::new(Arc::clone(&mem_conn));
         let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
         let storage_budget = episodic_memory.storage_budget();
@@ -973,7 +979,7 @@ impl AgentService {
 
         // ── 10. Wallet — rJoule payments, deposits, API keys ─────────────────
         let (wallet_service, wallet_store): (Option<Arc<WalletService>>, Option<Arc<WalletStore>>) = {
-            let wallet_conn = open_db()?.conn_arc();
+            let wallet_conn = Arc::clone(&shared_conn);
             let wallet_store = Arc::new(WalletStore::new(wallet_conn));
 
             // Build chain ports from environment
