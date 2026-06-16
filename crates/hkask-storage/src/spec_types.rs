@@ -14,9 +14,17 @@ use uuid::Uuid;
 macro_rules! str_enum {
     ($enum:ident { $($variant:ident => $s:literal),+ $(,)? }) => {
         impl $enum {
+            /// Get string representation.
+            ///
+            /// REQ: STO-163
+            /// post: returns lowercase string
             pub fn as_str(&self) -> &'static str {
                 match self { $($enum::$variant => $s),+ }
             }
+            /// Parse from string.
+            ///
+            /// REQ: STO-164
+            /// post: returns Some if valid, None otherwise
             pub fn parse_str(s: &str) -> Option<Self> {
                 match s.to_lowercase().as_str() {
                     $($s => Some($enum::$variant),)+
@@ -31,9 +39,18 @@ macro_rules! str_enum {
 pub struct SpecId(pub Uuid);
 
 impl SpecId {
+    /// Create a new SpecId.
+    ///
+    /// REQ: STO-165
+    /// post: returns new random SpecId
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
+    /// Create a SpecId from a string.
+    ///
+    /// REQ: STO-166
+    /// pre:  s is a valid UUID string
+    /// post: returns SpecId
     pub fn from_string(s: &str) -> Result<Self, SpecError> {
         Uuid::parse_str(s)
             .map(SpecId)
@@ -72,6 +89,10 @@ pub enum SpecCategory {
 }
 
 impl SpecCategory {
+    /// Get string representation of category.
+    ///
+    /// REQ: STO-167
+    /// post: returns snake_case string
     pub fn as_str(&self) -> &'static str {
         match self {
             SpecCategory::Domain => "domain",
@@ -84,6 +105,9 @@ impl SpecCategory {
 
     /// Parse a string into a `SpecCategory`, mapping legacy DDMVSS names to
     /// their MDS equivalents.
+    ///
+    /// REQ: STO-168
+    /// post: returns Some(SpecCategory) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "domain" => Some(SpecCategory::Domain),

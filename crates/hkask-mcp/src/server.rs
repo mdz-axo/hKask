@@ -424,6 +424,11 @@ impl std::error::Error for McpToolError {}
 ///
 /// Combines `context` ("what failed") and `e` into a standard `{"error": "Failed to ...: ..."}` JSON
 /// body, eliminating the repeated `span.internal_error(json!({...}))` pattern across servers.
+/// Produce a JSON-RPC error response for internal tool errors.
+///
+/// REQ: MCP-048
+/// pre:  message is non-empty
+/// post: returns JSON string with error object
 pub fn tool_internal_error(
     span: ToolSpanGuard,
     context: &str,
@@ -435,6 +440,12 @@ pub fn tool_internal_error(
 // Input validation — Shared sanitization for MCP tool parameters
 
 /// Validate a string identifier.
+/// Validate an identifier (tool name, server name, etc.).
+///
+/// REQ: MCP-049
+/// pre:  name and value are non-empty, max_len > 0
+/// post: returns Ok(()) if valid (non-empty, ≤max_len, alphanumeric+hyphen+underscore)
+/// post: returns Err if invalid
 pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<(), McpToolError> {
     if value.is_empty() {
         return Err(McpToolError::invalid_argument(format!(
@@ -462,6 +473,12 @@ pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<()
 ///
 /// Delegates to `hkask_mcp::validate_url()` with the default (strict) config.
 /// Use this for any tool that accepts a user-provided URL.
+/// Validate a tool URL (http/https only, no path traversal).
+///
+/// REQ: MCP-050
+/// pre:  url is non-empty
+/// post: returns Ok(()) if valid http/https URL
+/// post: returns Err if invalid scheme or format
 pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
     crate::security::validate_url(url, &crate::security::UrlValidationConfig::default())
         .map_err(|e| McpToolError::invalid_argument(format!("URL validation failed: {e}")))
@@ -469,6 +486,11 @@ pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
 
 // classify_http_error — Shared HTTP Status → McpToolError mapping
 /// Classify an HTTP error response into a structured `McpToolError`.
+/// Classify an HTTP error response into an McpToolError.
+///
+/// REQ: MCP-051
+/// pre:  service is non-empty, status is valid
+/// post: returns McpToolError with appropriate kind based on status code
 pub fn classify_http_error(service: &str, status: reqwest::StatusCode, body: &str) -> McpToolError {
     let msg = format!("{service} API returned {status}: {}", body.trim());
     match status.as_u16() {
@@ -536,6 +558,11 @@ pub async fn api_put(
 // resolve_credential — Keystore-first credential resolution
 
 /// Parse .env files and return key-value pairs without mutating the process environment.
+/// Load .env file from the project root.
+///
+/// REQ: MCP-052
+/// post: returns HashMap of env vars from .env file
+/// post: returns empty map if .env not found
 pub fn load_dotenv() -> HashMap<String, String> {
     let cwd = std::env::current_dir().unwrap_or_default();
     for path in [cwd.join(".env")].iter().chain(
@@ -564,6 +591,11 @@ pub fn load_dotenv() -> HashMap<String, String> {
     HashMap::new()
 }
 
+/// Resolve a credential from env var or OS keychain.
+///
+/// REQ: MCP-053
+/// pre:  env_var is non-empty
+/// post: returns credential value from env or keychain
 pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::KeystoreError> {
     match hkask_keystore::Keychain::default().retrieve_by_key(env_var) {
         Ok(val) => {

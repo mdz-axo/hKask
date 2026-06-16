@@ -63,6 +63,10 @@ impl FromStr for GalleryMode {
 }
 
 impl GalleryMode {
+    /// Get the string representation of the face status.
+    ///
+    /// REQ: STO-069
+    /// post: returns "active" or "inactive"
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::ReadOnly => "read-only",
@@ -133,6 +137,11 @@ define_store!(GalleryStore);
 
 impl GalleryStore {
     /// Initialize gallery tables in the database.
+    /// Initialize gallery tables.
+    ///
+    /// REQ: STO-070
+    /// pre:  conn is a valid SQLite connection
+    /// post: gallery tables created if not exists
     pub fn init_tables(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS galleries (
@@ -201,6 +210,11 @@ impl GalleryStore {
     /// Create a new gallery. Returns the gallery record.
     ///
     /// REQ: media-gallery-create-01
+    /// Create a new gallery.
+    ///
+    /// REQ: STO-071
+    /// pre:  name is non-empty
+    /// post: gallery created and returned
     pub fn create(
         &self,
         root_path: &str,
@@ -244,6 +258,11 @@ impl GalleryStore {
     ///
     /// REQ: media-gallery-scan-01
     #[allow(clippy::too_many_arguments)]
+    /// Add an image to a gallery.
+    ///
+    /// REQ: STO-072
+    /// pre:  gallery_id is valid, image data is non-empty
+    /// post: image stored in gallery
     pub fn add_image(
         &self,
         gallery_id: &str,
@@ -292,6 +311,11 @@ impl GalleryStore {
     /// Get an image by index (0-based position in gallery) or by hash.
     ///
     /// REQ: media-gallery-get-image-01
+    /// Get an image from a gallery.
+    ///
+    /// REQ: STO-073
+    /// pre:  gallery_id is valid
+    /// post: returns GalleryImage if found
     pub fn get_image(
         &self,
         gallery_id: &str,
@@ -339,6 +363,11 @@ impl GalleryStore {
     /// Tag an image with AI-generated metadata.
     ///
     /// REQ: media-gallery-tag-image-01
+    /// Tag an image in a gallery.
+    ///
+    /// REQ: STO-074
+    /// pre:  gallery_id and image_hash are valid, tag is non-empty
+    /// post: tag added to image
     pub fn tag_image(
         &self,
         image_id: &str,
@@ -378,6 +407,11 @@ impl GalleryStore {
     /// Get all tags for an image.
     ///
     /// REQ: media-gallery-get-tags-01
+    /// Get tags for an image.
+    ///
+    /// REQ: STO-075
+    /// pre:  gallery_id and image_hash are valid
+    /// post: returns Vec of tags
     pub fn get_tags(
         &self,
         image_id: &str,
@@ -398,6 +432,11 @@ impl GalleryStore {
     }
 
     /// Get gallery record by ID.
+    /// Get a gallery by ID.
+    ///
+    /// REQ: STO-076
+    /// pre:  gallery_id is valid
+    /// post: returns Gallery if found
     pub fn get_gallery(
         &self,
         gallery_id: &str,
@@ -432,6 +471,10 @@ impl GalleryStore {
     ///
     /// Returns tags joined with their image's relative path for search ranking.
     /// REQ: media-gallery-search-tags-01
+    /// Get all tags across all galleries.
+    ///
+    /// REQ: STO-077
+    /// post: returns Vec of all unique tags
     pub fn get_all_tags(
         &self,
         gallery_id: &str,
@@ -468,6 +511,11 @@ impl GalleryStore {
     /// Register a face in the registry.
     ///
     /// REQ: media-face-register-01
+    /// Register a face in the gallery.
+    ///
+    /// REQ: STO-078
+    /// pre:  face data is valid
+    /// post: face registered and returned
     pub fn register_face(
         &self,
         first_name: &str,
@@ -503,6 +551,10 @@ impl GalleryStore {
     /// List all faces in the registry, optionally filtered by status.
     ///
     /// REQ: media-face-list-01
+    /// List faces with optional status filter.
+    ///
+    /// REQ: STO-079
+    /// post: returns Vec of faces, optionally filtered by status
     pub fn list_faces(
         &self,
         status_filter: Option<&str>,
@@ -533,6 +585,11 @@ impl GalleryStore {
     /// Get a face registry entry by ID.
     ///
     /// REQ: media-face-get-01
+    /// Get a face by ID.
+    ///
+    /// REQ: STO-080
+    /// pre:  face_id is non-empty
+    /// post: returns Face if found
     pub fn get_face(
         &self,
         face_id: &str,
@@ -556,6 +613,11 @@ impl GalleryStore {
     /// Remove a face from the registry by ID.
     ///
     /// REQ: media-face-remove-01
+    /// Remove a face from the gallery.
+    ///
+    /// REQ: STO-081
+    /// pre:  face_id is non-empty
+    /// post: face deleted
     pub fn remove_face(&self, face_id: &str) -> std::result::Result<(), GalleryStoreError> {
         let conn = self.lock_conn()?;
 
@@ -571,6 +633,11 @@ impl GalleryStore {
     /// Update a face registry entry's status and notes.
     ///
     /// REQ: media-face-update-01
+    /// Update a face's status.
+    ///
+    /// REQ: STO-082
+    /// pre:  face_id is valid, status is valid
+    /// post: face status updated
     pub fn update_face(
         &self,
         face_id: &str,

@@ -595,15 +595,14 @@ impl ChainPort for HederaPort {
         // in the mirror node, it's final. Check if the transaction exists.
         let url = format!("{}/api/v1/transactions/{}", self.mirror_node_url, tx_hash.0);
 
-        let resp = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| WalletError::ChainError {
+        let resp = self.client.get(&url).send().await.map_err(|e| {
+            let msg = format!("Mirror node HTTP error (confirmations): {e}");
+            self.emit_chain_error("confirmations", &msg);
+            WalletError::ChainError {
                 chain: ChainId::Hedera,
-                message: format!("Mirror node HTTP error: {e}"),
-            })?;
+                message: msg,
+            }
+        })?;
 
         if resp.status().is_success() {
             Ok(1) // Transaction exists → confirmed
@@ -721,5 +720,76 @@ mod integration_tests {
             "Check on HashScan: https://hashscan.io/testnet/transaction/{}",
             tx_hash.0
         );
+    }
+
+    // ── Mock-based deposit monitoring tests ──────────────────────────────
+
+    /// Build a HederaPort that sends REST calls to a mock server.
+    fn mock_port(base_url: &str) -> HederaPort {
+        HederaPort {
+            client: reqwest::Client::new(),
+            mirror_node_url: base_url.to_string(),
+            treasury_account: "0.0.12345".to_string(),
+            usdc_token: USDC_TOKEN_TESTNET.to_string(),
+            consensus_node_url: "https://testnet.hedera.com:50211".to_string(),
+            event_sink: None,
+        }
+    }
+
+    // REQ: hedera-int-005 — monitor_deposits detects HTS USDC transfer via mirror node
+    #[tokio::test]
+    async fn monitor_deposits_detects_usdc_transfer() {
+        let server = wiremock::MockServer::start().await;
+        let our_addr = "0.0.12345";
+        let sender_addr = "0.0.67890";
+        let tx_id = "0.0.67890@1718400000.000000000";
+
+        // Mock mirror node transactions endpoint
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path(format!(
+                "/api/v1/accounts/{}/transactions",
+                our_addr
+            )))
+            .and(wiremock::matchers::query_param(
+                "transactiontype",
+                "CRYPTOTRANSFER",
+            ))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "transactions": [{
+                        "transaction_id": tx_id,
+                        "name": "CRYPTOTRANSFER",
+                        "consensus_timestamp": "1718400000.000000000",
+                        "transfers": [
+                            {
+                                "account": sender_addr,
+                                "amount": -1_000_000,
+                                "token_id": USDC_TOKEN_TESTNET
+                            },
+                            {
+                                "account": our_addr,
+                                "amount": 1_000_000,
+                                "token_id": USDC_TOKEN_TESTNET
+                            }
+                        ]
+                    }]
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let port = mock_port(&server.uri());
+        let events = port
+            .monitor_deposits(&[our_addr.to_string()])
+            .await
+            .expect("monitor_deposits");
+
+        assert_eq!(events.len(), 1, "should detect one deposit");
+        let deposit = &events[0];
+        assert_eq!(deposit.tx_hash.0, tx_id);
+        assert_eq!(deposit.to_address, our_addr);
+        assert_eq!(deposit.from_address, sender_addr);
+        assert_eq!(deposit.amount_usdc_micro, 1_000_000);
+        assert_eq!(deposit.confirmations, 1, "Hedera finality is deterministic");
     }
 }

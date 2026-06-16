@@ -120,6 +120,11 @@ impl Database {
     }
 
     /// Open database with passphrase for encryption
+    /// Open an encrypted database at the given path.
+    ///
+    /// REQ: STO-024
+    /// pre:  path is valid, passphrase is non-empty
+    /// post: returns Database with SQLCipher encryption
     pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
         Self::open_impl(path, passphrase, None)
     }
@@ -135,6 +140,11 @@ impl Database {
     /// * `path` — Path to the SQLite database file
     /// * `passphrase` — Passphrase for SQLCipher encryption
     /// * `extensions` — Additional DDL to execute after core schema init
+    /// Open database with additional DDL extensions.
+    ///
+    /// REQ: STO-025
+    /// pre:  path is valid, passphrase is non-empty, extensions is valid SQL
+    /// post: returns Database with extensions applied
     pub fn open_with_extensions(
         path: &str,
         passphrase: &str,
@@ -157,6 +167,10 @@ impl Database {
     }
 
     /// Open in-memory database (unencrypted, for testing)
+    /// Open an in-memory database (unencrypted, for testing).
+    ///
+    /// REQ: STO-026
+    /// post: returns in-memory Database
     pub fn in_memory() -> Result<Self, DatabaseError> {
         Self::in_memory_impl(None)
     }
@@ -170,6 +184,11 @@ impl Database {
     ///
     /// # Arguments
     /// * `extensions` — Additional DDL to execute after core schema init
+    /// Open in-memory database with extensions.
+    ///
+    /// REQ: STO-027
+    /// pre:  extensions is valid SQL DDL
+    /// post: returns in-memory Database with extensions
     pub fn in_memory_with_extensions(extensions: &str) -> Result<Self, DatabaseError> {
         Self::in_memory_impl(Some(extensions))
     }
@@ -194,6 +213,10 @@ impl Database {
     }
 
     /// Get database connection for shared access
+    /// Get a clone of the shared connection Arc.
+    ///
+    /// REQ: STO-028
+    /// post: returns Arc<Mutex<Connection>> for Store constructors
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }
@@ -206,6 +229,11 @@ impl Database {
 ///
 /// This is the canonical way to open a database from CLI/API code that
 /// resolves the path and passphrase from environment variables or keychain.
+/// Open a database from path or :memory:.
+///
+/// REQ: STO-029
+/// pre:  path is valid, passphrase is non-empty
+/// post: returns Database (in-memory if path is ":memory:")
 pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseError> {
     if path == ":memory:" {
         Database::in_memory()
@@ -222,6 +250,10 @@ pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseE
 ///
 /// For recoverable contexts (API, services), use `Database::in_memory()`
 /// and propagate the error with `?`.
+/// Create an in-memory database for testing.
+///
+/// REQ: STO-030
+/// post: returns in-memory Database (panics on failure)
 pub fn in_memory_db() -> Database {
     Database::in_memory().expect("in-memory database initialization should never fail")
 }

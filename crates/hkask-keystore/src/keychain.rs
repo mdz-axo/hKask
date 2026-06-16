@@ -186,6 +186,14 @@ pub fn resolve_secret_chain(
 /// Chain: master key derivation → env var → OS keychain.
 /// Tries both `HKASK_ACP_SECRET` (canonical) and `HKASK_ACP_SECRET_KEY` (legacy)
 /// environment variables for backward compatibility.
+/// Resolve the ACP secret for agent capability protocol signing.
+///
+/// Chain: master key derivation → env var → OS keychain.
+/// Tries both `HKASK_ACP_SECRET` (canonical) and `HKASK_ACP_SECRET_KEY` (legacy)
+/// environment variables for backward compatibility.
+///
+/// REQ: KEY-010
+/// post: returns Zeroizing<Vec<u8>> from first successful resolution step
 pub fn resolve_acp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
@@ -203,6 +211,15 @@ pub fn resolve_acp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Chain: master key derivation → env var → OS keychain → ACP fallback.
 /// Falls back to the ACP secret if MCP-specific key is unavailable,
 /// since they share the same authority chain.
+/// Resolve the MCP dispatch and tool invocation signing key.
+///
+/// Chain: master key derivation → env var → OS keychain → ACP fallback.
+/// Falls back to the ACP secret if MCP-specific key is unavailable,
+/// since they share the same authority chain.
+///
+/// REQ: KEY-011
+/// post: returns Zeroizing<Vec<u8>> from first successful resolution step
+/// post: falls back to ACP secret if MCP key unavailable
 pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
@@ -218,6 +235,12 @@ pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Resolve the MCP security gateway HMAC key (used for API auth).
 ///
 /// Chain: master key derivation → env var → OS keychain.
+/// Resolve the MCP security gateway HMAC key (used for API auth).
+///
+/// Chain: master key derivation → env var → OS keychain.
+///
+/// REQ: KEY-012
+/// post: returns Zeroizing<Vec<u8>> from first successful resolution step
 pub fn resolve_mcp_security_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
@@ -232,6 +255,12 @@ pub fn resolve_mcp_security_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Resolve the capability token signing key (used for SOAP/capability tokens).
 ///
 /// Chain: master key derivation → env var → OS keychain.
+/// Resolve the capability token signing key (used for SOAP/capability tokens).
+///
+/// Chain: master key derivation → env var → OS keychain.
+///
+/// REQ: KEY-013
+/// post: returns Zeroizing<Vec<u8>> from first successful resolution step
 pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
@@ -249,6 +278,15 @@ pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Note: no master-key derivation for the DB passphrase — it must be
 /// explicitly set via env var or keychain to avoid accidentally encrypting
 /// the database with a derived key that the user didn't consent to.
+/// Resolve the database encryption passphrase.
+///
+/// Chain: env var → OS keychain.
+/// Note: no master-key derivation for the DB passphrase — it must be
+/// explicitly set via env var or keychain to avoid accidentally encrypting
+/// the database with a derived key that the user didn't consent to.
+///
+/// REQ: KEY-014
+/// post: returns Zeroizing<Vec<u8>> from env var or keychain
 pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve(&SecretRef::env("HKASK_DB_PASSPHRASE"))
         .or_else(|_| resolve(&SecretRef::keychain("hkask-db-passphrase")))
@@ -260,6 +298,15 @@ pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// 1. Deterministic derivation from master key (preferred — survives restarts)
 /// 2. OS keychain (backward compat)
 /// 3. Random generation (last resort — tokens will not survive restart)
+/// Get or create OCAP secret.
+///
+/// Resolution chain:
+/// 1. Deterministic derivation from master key (preferred — survives restarts)
+/// 2. OS keychain (backward compat)
+/// 3. Random generation (last resort — tokens will not survive restart)
+///
+/// REQ: KEY-015
+/// post: returns Zeroizing<Vec<u8>> from derivation, keychain, or random generation
 pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     // Prefer deterministic derivation from master key
     let derived = resolve(&SecretRef::derived(

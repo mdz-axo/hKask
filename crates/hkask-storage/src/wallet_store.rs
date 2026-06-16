@@ -77,6 +77,10 @@ impl WalletStore {
     /// post: synchronous set to NORMAL (balance durability vs performance)
     ///
     /// Call once after store creation, before any wallet operations.
+    /// Enable WAL mode for better concurrency.
+    ///
+    /// REQ: STO-138
+    /// post: journal_mode set to WAL, synchronous set to NORMAL
     pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
@@ -92,6 +96,11 @@ impl WalletStore {
     // ── Balance ──────────────────────────────────────────────────────────────
 
     /// Get the current balance for a wallet, or None if the wallet doesn't exist.
+    /// Get wallet balance.
+    ///
+    /// REQ: STO-139
+    /// pre:  wallet_id is valid
+    /// post: returns Some(WalletBalance) if wallet exists, None otherwise
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<Option<WalletBalance>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -135,12 +144,21 @@ impl WalletStore {
 
     /// Ensure a wallet row exists (idempotent — creates if missing).
     /// Public version that acquires its own lock.
+    /// Ensure a wallet exists (idempotent).
+    ///
+    /// REQ: STO-140
+    /// pre:  wallet_id is valid
+    /// post: wallet row exists (created if missing)
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         self.ensure_wallet_with_conn(&conn, wallet_id)
     }
 
     /// List all wallet IDs in the system.
+    /// List all wallet IDs.
+    ///
+    /// REQ: STO-141
+    /// post: returns Vec of all WalletId
     pub fn list_wallet_ids(&self) -> Result<Vec<WalletId>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT wallet_id FROM wallet_balances")?;
@@ -155,6 +173,11 @@ impl WalletStore {
 
     /// Credit rJoules to a wallet. Returns the new balance.
     /// Creates the wallet row if it doesn't exist.
+    /// Credit rJoules to a wallet.
+    ///
+    /// REQ: STO-142
+    /// pre:  wallet_id exists, amount > 0
+    /// post: balance increased by amount, transaction recorded
     pub fn credit_rjoules(
         &self,
         wallet_id: WalletId,
@@ -176,6 +199,12 @@ impl WalletStore {
 
     /// Debit rJoules from a wallet. Returns error if balance insufficient.
     /// The caller must verify `balance >= amount` before calling.
+    /// Debit rJoules from a wallet.
+    ///
+    /// REQ: STO-143
+    /// pre:  wallet_id exists, amount > 0, balance >= amount
+    /// post: balance decreased by amount, transaction recorded
+    /// post: returns Err if insufficient balance
     pub fn debit_rjoules(
         &self,
         wallet_id: WalletId,
@@ -209,6 +238,11 @@ impl WalletStore {
     // ── Transactions ─────────────────────────────────────────────────────────
 
     /// Record a transaction in the append-only ledger.
+    /// Record a wallet transaction.
+    ///
+    /// REQ: STO-144
+    /// pre:  tx has valid wallet_id and rjoules_delta
+    /// post: transaction inserted into ledger
     pub fn record_transaction(&self, tx: &WalletTransaction) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let (tx_type_str, tx_subtype, chain, tx_hash, key_id, tool_name, gas_units) =
@@ -232,6 +266,11 @@ impl WalletStore {
     }
 
     /// Get paginated transaction history for a wallet.
+    /// Get transactions for a wallet.
+    ///
+    /// REQ: STO-145
+    /// pre:  wallet_id is valid
+    /// post: returns Vec of transactions, optionally limited
     pub fn get_transactions(
         &self,
         wallet_id: WalletId,
@@ -270,6 +309,11 @@ impl WalletStore {
 
     /// Check if a transaction with the given on-chain tx_hash already exists.
     /// Used for deposit idempotency — prevents double-crediting on restart.
+    /// Check if a transaction hash exists.
+    ///
+    /// REQ: STO-146
+    /// pre:  tx_hash is non-empty
+    /// post: returns true if hash exists (anti-replay)
     pub fn transaction_exists_by_hash(&self, tx_hash: &str) -> Result<bool, WalletError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -283,6 +327,11 @@ impl WalletStore {
     // ── API Keys ─────────────────────────────────────────────────────────────
 
     /// Store a newly issued API key capability.
+    /// Store an API key capability.
+    ///
+    /// REQ: STO-147
+    /// pre:  capability has valid key_id and wallet_id
+    /// post: API key stored
     pub fn store_api_key(&self, capability: &ApiKeyCapability) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let scope_json =
@@ -312,6 +361,11 @@ impl WalletStore {
     }
 
     /// Look up an API key by its ID.
+    /// Get an API key by key ID.
+    ///
+    /// REQ: STO-148
+    /// pre:  key_id is valid
+    /// post: returns Some(capability) if found, None otherwise
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -344,6 +398,11 @@ impl WalletStore {
     }
 
     /// Look up an API key by its Ed25519 public key (for Bearer token auth).
+    /// Get an API key by public key.
+    ///
+    /// REQ: STO-149
+    /// pre:  public_key is valid
+    /// post: returns Some(capability) if found, None otherwise
     pub fn get_api_key_by_public_key(
         &self,
         public_key: &[u8],
@@ -379,6 +438,11 @@ impl WalletStore {
     }
 
     /// List all active (non-revoked) API keys for a wallet.
+    /// List API keys for a wallet.
+    ///
+    /// REQ: STO-150
+    /// pre:  wallet_id is valid
+    /// post: returns Vec of API key capabilities
     pub fn list_api_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -412,6 +476,11 @@ impl WalletStore {
 
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     /// Idempotent — revoking an already-revoked key is a no-op.
+    /// Revoke an API key.
+    ///
+    /// REQ: STO-151
+    /// pre:  key_id is valid
+    /// post: API key revoked, unspent rJ returned to wallet
     pub fn revoke_api_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -439,6 +508,11 @@ impl WalletStore {
     }
 
     /// Update the spent_rj counter on an API key (called after each tool invocation).
+    /// Update spent rJoules for an API key.
+    ///
+    /// REQ: STO-152
+    /// pre:  key_id is valid
+    /// post: spent_rj updated
     pub fn update_spent_rj(&self, key_id: ApiKeyId, spent: RJoule) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -451,6 +525,11 @@ impl WalletStore {
     // ── Deposit Addresses ────────────────────────────────────────────────────
 
     /// Store a derived deposit address for a wallet.
+    /// Store a deposit address.
+    ///
+    /// REQ: STO-153
+    /// pre:  address has valid wallet_id and chain
+    /// post: deposit address stored
     pub fn store_deposit_address(
         &self,
         wallet_id: WalletId,
@@ -474,6 +553,11 @@ impl WalletStore {
     }
 
     /// Get all deposit addresses for a wallet.
+    /// Get deposit addresses for a wallet.
+    ///
+    /// REQ: STO-154
+    /// pre:  wallet_id is valid
+    /// post: returns Vec of deposit addresses
     pub fn get_deposit_addresses(
         &self,
         wallet_id: WalletId,
@@ -509,6 +593,11 @@ impl WalletStore {
     ///
     /// Used by the deposit monitor to credit incoming transfers to the
     /// correct wallet in a multi-wallet setup.
+    /// Resolve wallet for a deposit address.
+    ///
+    /// REQ: STO-155
+    /// pre:  chain is valid, address is non-empty
+    /// post: returns Some(WalletId) if found, None otherwise
     pub fn resolve_wallet_for_address(
         &self,
         address: &str,
@@ -529,6 +618,11 @@ impl WalletStore {
     // ── Deposit References ───────────────────────────────────────────────────
 
     /// Store a one-time shielded deposit reference.
+    /// Store a deposit reference for anti-replay.
+    ///
+    /// REQ: STO-156
+    /// pre:  reference has valid fields
+    /// post: deposit reference stored
     pub fn store_deposit_reference(&self, reference: &DepositReference) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -545,6 +639,12 @@ impl WalletStore {
 
     /// Consume a deposit reference — atomically marks it spent and returns the wallet_id.
     /// Returns None if the reference doesn't exist, is already spent, or has expired.
+    /// Consume a deposit reference (anti-replay).
+    ///
+    /// REQ: STO-157
+    /// pre:  reference is valid and not expired
+    /// post: reference consumed, wallet credited
+    /// post: returns Err if already consumed or expired
     pub fn consume_deposit_reference(
         &self,
         reference: &str,
@@ -568,6 +668,11 @@ impl WalletStore {
     }
 
     /// Purge expired deposit references. Returns count of purged rows.
+    /// Purge expired deposit references.
+    ///
+    /// REQ: STO-158
+    /// post: expired references deleted
+    /// post: returns count of deleted references
     pub fn purge_expired_references(&self) -> Result<u64, WalletError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -585,6 +690,11 @@ impl WalletStore {
     /// Debits the wallet balance by `amount_rj` and creates an active
     /// encumbrance row. Returns an error if the key already has an active
     /// encumbrance or the wallet has insufficient balance.
+    /// Encumber rJoules for an API key (lock funds for spending).
+    ///
+    /// REQ: STO-159
+    /// pre:  wallet_id exists, key_id is valid, amount > 0, balance >= amount
+    /// post: rJoules encumbered, balance decreased
     pub fn encumber_rjoules(
         &self,
         wallet_id: WalletId,
@@ -636,6 +746,11 @@ impl WalletStore {
     ///
     /// Idempotent — releasing an already-released or consumed encumbrance
     /// is a no-op.
+    /// Release an encumbrance (return unspent rJoules to wallet).
+    ///
+    /// REQ: STO-160
+    /// pre:  key_id has active encumbrance
+    /// post: encumbrance released, unspent rJ returned to wallet
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -677,6 +792,12 @@ impl WalletStore {
     /// This is a single SQL UPDATE that checks `amount_rj - consumed_rj >= cost`
     /// and deducts. No separate check+deduct pair — the operation is atomic.
     /// If the encumbrance is fully consumed, status transitions to 'consumed'.
+    /// Consume from an encumbrance (spend locked rJoules).
+    ///
+    /// REQ: STO-161
+    /// pre:  key_id has active encumbrance with sufficient remaining
+    /// post: consumed_rj increased, api_keys.spent_rj synced
+    /// post: returns Err if insufficient or not active
     pub fn consume_encumbrance(
         &self,
         key_id: ApiKeyId,
@@ -745,6 +866,11 @@ impl WalletStore {
     }
 
     /// Get an encumbrance by key ID.
+    /// Get an encumbrance by key ID.
+    ///
+    /// REQ: STO-162
+    /// pre:  key_id is valid
+    /// post: returns Some(Encumbrance) if found, None otherwise
     pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
         let conn = self.lock_conn()?;
         let row: Option<(String, i64, i64, String, String, Option<String>)> = conn

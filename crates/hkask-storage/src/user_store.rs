@@ -77,6 +77,10 @@ fn session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UserSession> {
 }
 
 impl UserStore {
+    /// Initialize the user store schema.
+    ///
+    /// REQ: STO-056
+    /// post: users, replicants, sessions tables created if not exists
     pub fn initialize_schema(&self) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute_batch(include_str!("sql/users.sql"))?;
@@ -89,6 +93,11 @@ impl UserStore {
         Ok(())
     }
 
+    /// Register a new replicant.
+    ///
+    /// REQ: STO-057
+    /// pre:  replicant_name is non-empty, passphrase meets requirements
+    /// post: replicant and user records created
     pub fn register_replicant(
         &self,
         replicant_name: String,
@@ -156,6 +165,12 @@ impl UserStore {
         Ok(identity)
     }
 
+    /// Login a replicant with passphrase.
+    ///
+    /// REQ: STO-058
+    /// pre:  replicant_name is registered, passphrase is correct
+    /// post: returns UserSession on success
+    /// post: returns Err if credentials invalid
     pub fn login(&self, replicant_name: &str, passphrase: &str) -> UserResult<UserSession> {
         let identity = self
             .get_replicant(replicant_name)?
@@ -187,6 +202,11 @@ impl UserStore {
         Ok(session)
     }
 
+    /// Logout a session.
+    ///
+    /// REQ: STO-059
+    /// pre:  session_id is valid
+    /// post: session invalidated
     pub fn logout(&self, session_id: &str) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -197,6 +217,11 @@ impl UserStore {
     }
 
     /// Change a replicant's passphrase. Requires the old passphrase for verification.
+    /// Change a replicant's passphrase.
+    ///
+    /// REQ: STO-060
+    /// pre:  replicant_name is registered, old_passphrase is correct
+    /// post: passphrase updated
     pub fn change_passphrase(
         &self,
         replicant_name: &str,
@@ -234,6 +259,11 @@ impl UserStore {
 
     /// Check if a replicant's passphrase is older than `max_age_days`.
     /// Returns `Some(days_old)` if expired, `None` if still valid or no timestamp.
+    /// Check if a passphrase has expired.
+    ///
+    /// REQ: STO-061
+    /// pre:  replicant_name is registered
+    /// post: returns true if passphrase needs rotation
     pub fn check_passphrase_expiry(
         &self,
         replicant_name: &str,
@@ -260,6 +290,11 @@ impl UserStore {
         }
     }
 
+    /// Get a session by ID.
+    ///
+    /// REQ: STO-062
+    /// pre:  session_id is non-empty
+    /// post: returns Some(session) if valid, None otherwise
     pub fn get_session(&self, session_id: &str) -> UserResult<Option<UserSession>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -272,6 +307,11 @@ impl UserStore {
         }
     }
 
+    /// List sessions for a replicant.
+    ///
+    /// REQ: STO-063
+    /// pre:  replicant_name is non-empty
+    /// post: returns Vec of active sessions
     pub fn list_sessions(&self, replicant_name: &str) -> UserResult<Vec<UserSession>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -284,6 +324,11 @@ impl UserStore {
         ))
     }
 
+    /// Get a replicant by name.
+    ///
+    /// REQ: STO-064
+    /// pre:  replicant_name is non-empty
+    /// post: returns Some(identity) if found, None otherwise
     pub fn get_replicant(&self, replicant_name: &str) -> UserResult<Option<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -296,6 +341,11 @@ impl UserStore {
         }
     }
 
+    /// Get a human user by ID.
+    ///
+    /// REQ: STO-065
+    /// pre:  user_id is valid
+    /// post: returns HumanUser
     pub fn get_user(&self, user_id: &UserID) -> UserResult<HumanUser> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -324,6 +374,11 @@ impl UserStore {
         })
     }
 
+    /// List replicants for a user.
+    ///
+    /// REQ: STO-066
+    /// pre:  user_id is valid
+    /// post: returns Vec of replicants owned by user
     pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -333,6 +388,11 @@ impl UserStore {
     }
 
     /// Get the wallet ID for a replicant.
+    /// Get wallet ID for a replicant.
+    ///
+    /// REQ: STO-067
+    /// pre:  replicant_name is non-empty
+    /// post: returns Some(WalletId) if set, None otherwise
     pub fn get_wallet_id(&self, replicant_name: &str) -> UserResult<Option<WalletId>> {
         let identity = self
             .get_replicant(replicant_name)?
@@ -341,6 +401,11 @@ impl UserStore {
     }
 
     /// Set the wallet ID for a replicant (called during onboarding after wallet creation).
+    /// Set wallet ID for a replicant.
+    ///
+    /// REQ: STO-068
+    /// pre:  replicant_name is registered, wallet_id is valid
+    /// post: wallet_id stored for replicant
     pub fn set_wallet_id(&self, replicant_name: &str, wallet_id: WalletId) -> UserResult<()> {
         let conn = self.lock_conn()?;
         let rows = conn.execute(

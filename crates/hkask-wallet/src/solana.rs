@@ -371,6 +371,35 @@ impl ChainPort for SolanaPort {
                     let post_balances = meta["postTokenBalances"].as_array();
 
                     if let (Some(pre), Some(post)) = (pre_balances, post_balances) {
+                        // First pass: find the sender by locating a USDC balance decrease.
+                        let mut sender: Option<String> = None;
+                        for (i, pre_balance) in pre.iter().enumerate() {
+                            let mint = pre_balance["mint"].as_str().unwrap_or("");
+                            if mint != self.usdc_mint.to_string() {
+                                continue;
+                            }
+                            let pre_amount = pre_balance["uiTokenAmount"]["amount"]
+                                .as_str()
+                                .and_then(|s| s.parse::<f64>().ok())
+                                .unwrap_or(0.0);
+                            let post_amount = post
+                                .get(i)
+                                .and_then(|b| {
+                                    b["uiTokenAmount"]["amount"]
+                                        .as_str()
+                                        .and_then(|s| s.parse::<f64>().ok())
+                                })
+                                .unwrap_or(0.0);
+                            let delta = post_amount - pre_amount;
+                            if delta < 0.0 {
+                                // This account's USDC balance decreased — it's the sender.
+                                sender = pre_balance["owner"].as_str().map(|s| s.to_string());
+                                break;
+                            }
+                        }
+                        let from_address = sender.unwrap_or_else(|| "unknown".to_string());
+
+                        // Second pass: detect deposits TO our addresses (balance increases).
                         for (i, pre_balance) in pre.iter().enumerate() {
                             let mint = pre_balance["mint"].as_str().unwrap_or("");
                             if mint != self.usdc_mint.to_string() {
@@ -402,7 +431,7 @@ impl ChainPort for SolanaPort {
 
                                     events.push(DepositEvent {
                                         tx_hash: TxHash(sig_str.to_string()),
-                                        from_address: "unknown".into(),
+                                        from_address: from_address.clone(),
                                         to_address: addr_str.clone(),
                                         amount_usdc_micro,
                                         confirmations,
@@ -664,5 +693,114 @@ mod integration_tests {
             .block_on(port.confirmations(&tx_hash))
             .expect("confirmations");
         println!("Confirmations: {confs}");
+    }
+
+    // ── Mock-based deposit monitoring tests ──────────────────────────────
+
+    /// Build a SolanaPort that sends RPC calls to a mock server.
+    fn mock_port(base_url: &str) -> SolanaPort {
+        SolanaPort {
+            client: reqwest::Client::new(),
+            rpc_url: base_url.to_string(),
+            treasury_pubkey: Pubkey::from_str("2xNpeZTxL7oZTD3B8mGV6KqjyrV8qN1XJqY7B8Z9nK1W")
+                .unwrap(),
+            usdc_mint: Pubkey::from_str(USDC_MINT_DEVNET).unwrap(),
+            min_confirmations: 1, // low threshold for test
+            event_sink: None,
+        }
+    }
+
+    // REQ: solana-int-004 — monitor_deposits detects USDC transfer and extracts sender
+    #[tokio::test]
+    async fn monitor_deposits_detects_usdc_transfer() {
+        let server = wiremock::MockServer::start().await;
+        let sender_addr = "Sender111111111111111111111111111111111111";
+        let our_addr = "2xNpeZTxL7oZTD3B8mGV6KqjyrV8qN1XJqY7B8Z9nK1W";
+        let tx_sig = "5KzVHh1TcqBUiDJi7iV4HCHqAqE8XBPLqB5QJqBm3yUL3YqXqZqAqB5QJqBm3yUL3YqXqZqAqB5QJqBm3yUL3YqX";
+
+        // Mock getSignaturesForAddress
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .and(wiremock::matchers::body_partial_json(serde_json::json!({
+                "method": "getSignaturesForAddress"
+            })))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "result": [{
+                        "signature": tx_sig,
+                        "confirmations": 100
+                    }],
+                    "id": 1
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        // Mock getTransaction — shows USDC transfer from sender to us
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .and(wiremock::matchers::body_partial_json(serde_json::json!({
+                "method": "getTransaction"
+            })))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "blockTime": 1718400000,
+                        "meta": {
+                            "preTokenBalances": [
+                                {
+                                    "accountIndex": 0,
+                                    "mint": USDC_MINT_DEVNET,
+                                    "owner": sender_addr,
+                                    "uiTokenAmount": { "amount": "500000000", "decimals": 6 }
+                                },
+                                {
+                                    "accountIndex": 1,
+                                    "mint": USDC_MINT_DEVNET,
+                                    "owner": our_addr,
+                                    "uiTokenAmount": { "amount": "1000000", "decimals": 6 }
+                                }
+                            ],
+                            "postTokenBalances": [
+                                {
+                                    "accountIndex": 0,
+                                    "mint": USDC_MINT_DEVNET,
+                                    "owner": sender_addr,
+                                    "uiTokenAmount": { "amount": "499000000", "decimals": 6 }
+                                },
+                                {
+                                    "accountIndex": 1,
+                                    "mint": USDC_MINT_DEVNET,
+                                    "owner": our_addr,
+                                    "uiTokenAmount": { "amount": "2000000", "decimals": 6 }
+                                }
+                            ]
+                        }
+                    },
+                    "id": 1
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let port = mock_port(&server.uri());
+        let events = port
+            .monitor_deposits(&[our_addr.to_string()])
+            .await
+            .expect("monitor_deposits");
+
+        assert_eq!(events.len(), 1, "should detect one deposit");
+        let deposit = &events[0];
+        assert_eq!(deposit.tx_hash.0, tx_sig);
+        assert_eq!(deposit.to_address, our_addr);
+        assert_eq!(
+            deposit.from_address, sender_addr,
+            "sender should be extracted from owner field"
+        );
+        assert_eq!(
+            deposit.amount_usdc_micro, 1_000_000,
+            "1 USDC deposited (delta: 2M - 1M = 1M micro)"
+        );
+        assert!(deposit.confirmations >= 1);
     }
 }

@@ -47,6 +47,10 @@ impl SovereigntyBoundaryStore {
     /// Creates the `sovereignty_boundaries` table if it doesn't exist and
     /// applies any pending migrations (column renames, column drops from
     /// Magna Carta refactoring).
+    /// Initialize the sovereignty boundary store schema.
+    ///
+    /// REQ: STO-009
+    /// post: sovereignty_boundaries table created if not exists
     pub fn initialize_schema(&self) -> Result<(), SovereigntyStoreError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
@@ -172,6 +176,11 @@ impl SovereigntyBoundaryStore {
     }
 
     /// Store sovereignty boundary for a WebID
+    /// Store a sovereignty boundary entry.
+    ///
+    /// REQ: STO-010
+    /// pre:  entry.webid is non-empty
+    /// post: entry inserted or replaced
     pub fn store(&self, entry: &SovereigntyBoundaryEntry) -> Result<(), SovereigntyStoreError> {
         let conn = self.lock_conn()?;
         let sovereign_json = serde_json::to_string(&entry.sovereign_categories)?;
@@ -206,6 +215,11 @@ impl SovereigntyBoundaryStore {
     }
 
     /// Get sovereignty boundary for a WebID
+    /// Get sovereignty boundary entries for a WebID.
+    ///
+    /// REQ: STO-011
+    /// pre:  webid is non-empty
+    /// post: returns Vec of entries for this WebID
     pub fn get(
         &self,
         webid: &str,
@@ -252,6 +266,11 @@ impl SovereigntyBoundaryStore {
     }
 
     /// Delete sovereignty boundary for a WebID
+    /// Delete sovereignty boundary entries for a WebID.
+    ///
+    /// REQ: STO-012
+    /// pre:  webid is non-empty
+    /// post: entries deleted for this WebID
     pub fn delete(&self, webid: &str) -> Result<(), SovereigntyStoreError> {
         let conn = self.lock_conn()?;
         conn.execute(

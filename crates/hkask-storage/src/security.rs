@@ -8,6 +8,12 @@ use std::path::{Component, Path, PathBuf};
 /// Sanitize a user-provided path to prevent path traversal attacks.
 ///
 /// Returns an error if the path contains `..` components or escapes the base directory.
+/// Sanitize a user-supplied path against directory traversal.
+///
+/// REQ: STO-004
+/// pre:  base is a valid directory, input is a relative path
+/// post: returns Ok(PathBuf) if path is safe (no traversal, no null bytes)
+/// post: returns Err if path contains traversal or null bytes
 pub fn sanitize_path(base: &Path, input: &str) -> Result<PathBuf, InfrastructureError> {
     let input_path = Path::new(input);
     if input_path

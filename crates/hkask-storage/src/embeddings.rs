@@ -65,6 +65,11 @@ impl Store for EmbeddingStore {
 }
 
 impl EmbeddingStore {
+    /// Create a new embedding store.
+    ///
+    /// REQ: STO-038
+    /// pre:  conn is a valid SQLite connection
+    /// post: returns EmbeddingStore with default dimension
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self {
             conn,
@@ -73,6 +78,11 @@ impl EmbeddingStore {
     }
 
     /// Create with a custom embedding dimension.
+    /// Create an embedding store with a specific vector dimension.
+    ///
+    /// REQ: STO-039
+    /// pre:  conn is valid, dim > 0
+    /// post: returns EmbeddingStore with specified dimension
     pub fn with_dim(conn: Arc<Mutex<Connection>>, dim: usize) -> Self {
         Self { conn, dim }
     }
@@ -118,6 +128,12 @@ impl EmbeddingStore {
 
 impl EmbeddingStore {
     /// Store embedding in both tables (single transaction). Returns the embedding ID.
+    /// Store an embedding vector.
+    ///
+    /// REQ: STO-040
+    /// pre:  entity_ref is non-empty, vector matches store dimension, model is non-empty
+    /// post: embedding stored and indexed by entity_ref
+    /// post: returns embedding ID
     pub fn store(
         &self,
         entity_ref: &str,
@@ -172,6 +188,12 @@ impl EmbeddingStore {
     }
 
     /// Retrieve an embedding by entity reference.
+    /// Retrieve an embedding by entity_ref.
+    ///
+    /// REQ: STO-041
+    /// pre:  entity_ref is non-empty
+    /// post: returns StoredEmbedding if found
+    /// post: returns Err(NotFound) if not found
     pub fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
 
@@ -205,6 +227,11 @@ impl EmbeddingStore {
     }
 
     /// KNN search using sqlite-vec MATCH operator.
+    /// Search for similar embeddings by vector distance.
+    ///
+    /// REQ: STO-042
+    /// pre:  query_vector matches store dimension, limit > 0
+    /// post: returns Vec<SimilarityResult> ordered by ascending distance
     pub fn search(
         &self,
         query_vector: &[f32],
@@ -251,6 +278,11 @@ impl EmbeddingStore {
     }
 
     /// Delete embedding from both tables (single transaction).
+    /// Delete an embedding by entity_ref.
+    ///
+    /// REQ: STO-043
+    /// pre:  entity_ref is non-empty
+    /// post: embedding deleted if existed
     pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
 
@@ -300,6 +332,10 @@ impl EmbeddingStore {
     }
 
     /// Count total embeddings stored.
+    /// Count stored embeddings.
+    ///
+    /// REQ: STO-044
+    /// post: returns total count of embeddings
     pub fn count(&self) -> Result<usize, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
 
@@ -309,6 +345,11 @@ impl EmbeddingStore {
     }
 
     /// Query entity_refs matching a prefix.
+    /// Query entity_refs by prefix.
+    ///
+    /// REQ: STO-045
+    /// pre:  prefix is non-empty
+    /// post: returns Vec of entity_refs matching prefix
     pub fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
 

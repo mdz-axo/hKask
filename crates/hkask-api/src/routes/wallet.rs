@@ -256,6 +256,10 @@ fn resolve_wallet_id(
     Ok(WalletId::default())
 }
 
+fn key_belongs_to_authenticated_wallet(ctx: &WalletContext, key_wallet_id: WalletId) -> bool {
+    key_wallet_id == ctx.wallet_id
+}
+
 // ── GET /api/wallet/balance ─────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
@@ -370,16 +374,18 @@ async fn get_deposit_address(
 )]
 async fn create_deposit_reference(
     State(state): State<ApiState>,
+    wallet_ctx: Option<Extension<WalletContext>>,
     Json(req): Json<DepositReferenceRequest>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = match resolve_wallet_id(req.wallet_id.as_deref(), None) {
-        Ok(id) => id,
-        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
-    };
+    let wallet_id =
+        match resolve_wallet_id(req.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0)) {
+            Ok(id) => id,
+            Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+        };
     let chain = match parse_chain(Some(&req.chain)) {
         Ok(c) => c,
         Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
@@ -461,16 +467,18 @@ async fn get_transactions(
 )]
 async fn create_key(
     State(state): State<ApiState>,
+    wallet_ctx: Option<Extension<WalletContext>>,
     Json(req): Json<CreateKeyRequest>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
         Ok(s) => s,
         Err(status) => return wallet_err(status, "Wallet service not configured"),
     };
-    let wallet_id = match resolve_wallet_id(req.wallet_id.as_deref(), None) {
-        Ok(id) => id,
-        Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
-    };
+    let wallet_id =
+        match resolve_wallet_id(req.wallet_id.as_deref(), wallet_ctx.as_ref().map(|e| &e.0)) {
+            Ok(id) => id,
+            Err(msg) => return wallet_err(StatusCode::BAD_REQUEST, msg),
+        };
     let privacy = resolve_privacy_mode(req.private);
     let preferred_chain = match req.chain.as_deref() {
         Some(c) => match parse_chain(Some(c)) {
@@ -582,6 +590,7 @@ async fn list_keys(
 )]
 async fn revoke_key(
     State(state): State<ApiState>,
+    wallet_ctx: Option<Extension<WalletContext>>,
     Path(key_id_str): Path<String>,
 ) -> impl IntoResponse {
     let svc = match get_wallet(&state) {
@@ -595,6 +604,27 @@ async fn revoke_key(
             return wallet_err(StatusCode::BAD_REQUEST, "Invalid key ID format").into_response();
         }
     };
+
+    if let Some(ctx) = wallet_ctx.as_ref().map(|e| &e.0) {
+        match svc.get_api_key(key_id) {
+            Ok(Some(cap)) => {
+                if !key_belongs_to_authenticated_wallet(ctx, cap.wallet_id) {
+                    return wallet_err(
+                        StatusCode::FORBIDDEN,
+                        "key_id does not belong to authenticated API key wallet",
+                    )
+                    .into_response();
+                }
+            }
+            Ok(None) => {
+                return wallet_err(StatusCode::NOT_FOUND, "API key not found").into_response();
+            }
+            Err(e) => {
+                return wallet_err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
+                    .into_response();
+            }
+        }
+    }
 
     match svc.revoke_key(key_id) {
         Ok(()) => (
@@ -709,6 +739,25 @@ mod tests {
 
         let result = resolve_wallet_id(Some(&authed_wallet.to_string()), Some(&ctx));
         assert_eq!(result.unwrap(), authed_wallet);
+    }
+
+    // REQ: wallet-api-auth-003 — authenticated key operations require same-wallet key ownership
+    #[test]
+    fn key_belongs_to_authenticated_wallet_rejects_mismatched_wallet() {
+        let authed_wallet = WalletId::new();
+        let key_wallet = WalletId::new();
+        let ctx = wallet_ctx(authed_wallet);
+
+        assert!(!key_belongs_to_authenticated_wallet(&ctx, key_wallet));
+    }
+
+    // REQ: wallet-api-auth-004 — authenticated key operations accept same-wallet key ownership
+    #[test]
+    fn key_belongs_to_authenticated_wallet_accepts_matching_wallet() {
+        let authed_wallet = WalletId::new();
+        let ctx = wallet_ctx(authed_wallet);
+
+        assert!(key_belongs_to_authenticated_wallet(&ctx, authed_wallet));
     }
 
     // REQ: wallet-api-parse-001 — invalid chain values are rejected (fail-closed)

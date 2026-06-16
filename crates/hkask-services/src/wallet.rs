@@ -140,11 +140,13 @@ impl WalletService {
         if let Ok(treasury_account) = std::env::var("HEDERA_TREASURY_ACCOUNT") {
             let mirror_url = std::env::var("HEDERA_MIRROR_NODE_URL")
                 .unwrap_or_else(|_| "https://mainnet-public.mirrornode.hedera.com".to_string());
+            let consensus_url = std::env::var("HEDERA_CONSENSUS_NODE_URL")
+                .unwrap_or_else(|_| "https://35.232.244.145:50211".to_string());
             match hkask_wallet::hedera::HederaPort::new(
                 &mirror_url,
                 &treasury_account,
                 None,
-                "https://35.232.244.145:50211",
+                &consensus_url,
             ) {
                 Ok(port) => {
                     let port = port.with_event_sink(Arc::clone(&event_sink));
@@ -152,6 +154,7 @@ impl WalletService {
                         target: "cns.wallet.chain",
                         chain = "hedera",
                         mirror_url = %mirror_url,
+                        consensus_url = %consensus_url,
                         "HederaPort initialized"
                     );
                     chains.insert(ChainId::Hedera, Box::new(port));

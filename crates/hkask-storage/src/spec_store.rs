@@ -128,6 +128,10 @@ fn row_to_curation_record(
 // ── SqliteSpecStore ──────────────────────────────────────────────────────
 
 impl SqliteSpecStore {
+    /// Initialize the spec store schema.
+    ///
+    /// REQ: STO-018
+    /// post: specs table created if not exists
     pub fn init_schema(&self) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -145,6 +149,10 @@ impl SqliteSpecStore {
 // ── SqliteCurationRecordStore ────────────────────────────────────────────
 
 impl SqliteCurationRecordStore {
+    /// Initialize the curation record store schema.
+    ///
+    /// REQ: STO-019
+    /// post: spec_curation_records table created if not exists
     pub fn init_schema(&self) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -158,6 +166,11 @@ impl SqliteCurationRecordStore {
         Ok(())
     }
 
+    /// Save a curation record.
+    ///
+    /// REQ: STO-020
+    /// pre:  record.spec_id is non-empty
+    /// post: record inserted into spec_curation_records
     pub fn save_curation_record(&self, record: &SpecCurationRecord) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         let boundary_json = serde_json::to_string(&record.ocap_boundary)
@@ -175,6 +188,11 @@ impl SqliteCurationRecordStore {
         Ok(())
     }
 
+    /// Load curation records for a spec.
+    ///
+    /// REQ: STO-021
+    /// pre:  spec_id is non-empty
+    /// post: returns Vec of curation records for this spec
     pub fn load_curation_records(
         &self,
         spec_id: SpecId,
@@ -191,6 +209,10 @@ impl SqliteCurationRecordStore {
         ))
     }
 
+    /// List curation records since a timestamp.
+    ///
+    /// REQ: STO-022
+    /// post: returns Vec of records created after since_ts
     pub fn list_curation_records_since(
         &self,
         since: DateTime<Utc>,
@@ -214,6 +236,10 @@ impl SqliteCurationRecordStore {
         Ok(records)
     }
 
+    /// Load all curation records.
+    ///
+    /// REQ: STO-023
+    /// post: returns Vec of all curation records
     pub fn load_all_curation_records(&self) -> Result<Vec<SpecCurationRecord>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(

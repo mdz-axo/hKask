@@ -25,6 +25,11 @@ use std::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 /// use hkask_storage::lock_helpers::lock_mutex;
 /// let guard = lock_mutex(&self.conn)?;
 /// ```
+/// Lock a std::sync::Mutex, mapping poison errors to InfrastructureError.
+///
+/// REQ: STO-001
+/// post: returns Ok(MutexGuard) if lock acquired
+/// post: returns Err(LockPoisoned) if mutex is poisoned
 pub fn lock_mutex<T>(lock: &Mutex<T>) -> Result<MutexGuard<'_, T>, InfrastructureError> {
     lock.lock().map_err(|_| InfrastructureError::LockPoisoned)
 }
@@ -37,6 +42,11 @@ pub fn lock_mutex<T>(lock: &Mutex<T>) -> Result<MutexGuard<'_, T>, Infrastructur
 /// use hkask_storage::lock_helpers::read_rwlock;
 /// let guard = read_rwlock(&self.cache)?;
 /// ```
+/// Acquire a read lock on a std::sync::RwLock.
+///
+/// REQ: STO-002
+/// post: returns Ok(RwLockReadGuard) if lock acquired
+/// post: returns Err(LockPoisoned) if lock is poisoned
 pub fn read_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockReadGuard<'_, T>, InfrastructureError> {
     lock.read().map_err(|_| InfrastructureError::LockPoisoned)
 }
@@ -49,6 +59,11 @@ pub fn read_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockReadGuard<'_, T>, Infras
 /// use hkask_storage::lock_helpers::write_rwlock;
 /// let mut guard = write_rwlock(&self.cache)?;
 /// ```
+/// Acquire a write lock on a std::sync::RwLock.
+///
+/// REQ: STO-003
+/// post: returns Ok(RwLockWriteGuard) if lock acquired
+/// post: returns Err(LockPoisoned) if lock is poisoned
 pub fn write_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockWriteGuard<'_, T>, InfrastructureError> {
     lock.write().map_err(|_| InfrastructureError::LockPoisoned)
 }

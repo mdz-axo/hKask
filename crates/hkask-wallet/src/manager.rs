@@ -465,12 +465,13 @@ impl WalletManager {
     /// Withdraw rJoules as USDC to a user's primary wallet address.
     ///
     /// # Flow
-    /// 1. Debit rJoules from wallet
-    /// 2. Convert rJoules to micro-USDC
-    /// 3. Chain port builds unsigned withdrawal transaction
-    /// 4. signing.rs signs the transaction (per-operation key loading)
-    /// 5. Chain port submits signed transaction
-    /// 6. Record transaction in ledger
+    /// 1. Verify chain/privacy availability (fail-fast, no debit)
+    /// 2. Debit rJoules from wallet
+    /// 3. Convert rJoules to micro-USDC
+    /// 4. Chain port builds unsigned withdrawal transaction
+    /// 5. signing.rs signs the transaction (per-operation key loading)
+    /// 6. Chain port submits signed transaction
+    /// 7. Record transaction in ledger
     pub async fn withdraw(
         &self,
         wallet_id: WalletId,
@@ -479,7 +480,25 @@ impl WalletManager {
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<TxHash, WalletError> {
-        // 1. Debit rJoules
+        // 1. Verify chain/privacy availability before debiting.
+        match privacy {
+            PrivacyMode::Transparent => {
+                self.chains
+                    .get(&chain)
+                    .ok_or(WalletError::ChainNotEnabled { chain })?;
+            }
+            PrivacyMode::Shielded => {
+                let privacy_port = self
+                    .privacy
+                    .as_ref()
+                    .ok_or(WalletError::PrivacyUnavailable { chain })?;
+                if !privacy_port.available_for_chain(chain) {
+                    return Err(WalletError::PrivacyUnavailable { chain });
+                }
+            }
+        }
+
+        // 2. Debit rJoules (only after confirming the path is available).
         let balance = self.store.debit_rjoules(wallet_id, amount_rj)?;
         let amount_usdc_micro = self.rjoules_to_usdc(amount_rj);
 
@@ -496,45 +515,67 @@ impl WalletManager {
             }),
         );
 
-        // 2. Build and sign transaction
-        let tx_hash = match privacy {
-            PrivacyMode::Transparent => {
-                let port = self
-                    .chains
-                    .get(&chain)
-                    .ok_or(WalletError::ChainNotEnabled { chain })?;
-                let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
+        // 3. Build/sign/submit transaction (chain already verified).
+        let tx_hash_result: Result<TxHash, WalletError> = async {
+            match privacy {
+                PrivacyMode::Transparent => {
+                    let port = self.chains.get(&chain).unwrap(); // safety: verified above
+                    let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
 
-                // CNS span: withdrawal built
-                self.emit_span(
-                    CnsSpan::WalletWithdrawal,
-                    "built",
-                    Phase::Act,
-                    serde_json::json!({
-                        "chain": chain.to_string(),
-                        "to_address": to_address,
-                        "amount_usdc_micro": amount_usdc_micro,
-                        "privacy": "transparent",
-                    }),
-                );
+                    // CNS span: withdrawal built
+                    self.emit_span(
+                        CnsSpan::WalletWithdrawal,
+                        "built",
+                        Phase::Act,
+                        serde_json::json!({
+                            "chain": chain.to_string(),
+                            "to_address": to_address,
+                            "amount_usdc_micro": amount_usdc_micro,
+                            "privacy": "transparent",
+                        }),
+                    );
 
-                let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
+                    let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
 
-                // CNS span: withdrawal signed
-                self.emit_span(
-                    CnsSpan::WalletWithdrawal,
-                    "signed",
-                    Phase::Act,
-                    serde_json::json!({
-                        "chain": chain.to_string(),
-                    }),
-                );
+                    // CNS span: withdrawal signed
+                    self.emit_span(
+                        CnsSpan::WalletWithdrawal,
+                        "signed",
+                        Phase::Act,
+                        serde_json::json!({
+                            "chain": chain.to_string(),
+                        }),
+                    );
 
-                // Combine tx_bytes + signature (chain-specific format)
-                let mut signed_tx = tx_bytes;
-                signed_tx.extend_from_slice(&signature);
-                let tx_hash = port.submit_signed_tx(&signed_tx).await?;
+                    // Combine tx_bytes + signature (chain-specific format)
+                    let mut signed_tx = tx_bytes;
+                    signed_tx.extend_from_slice(&signature);
+                    let tx_hash = port.submit_signed_tx(&signed_tx).await?;
+                    Ok(tx_hash)
+                }
+                PrivacyMode::Shielded => {
+                    let privacy_port = self.privacy.as_ref().unwrap(); // safety: verified above
+                    let tx_bytes = privacy_port.build_unshield_tx(to_address, amount_usdc_micro)?;
 
+                    if chain == ChainId::Hinkal {
+                        // Hinkal submit path signs the protocol withdraw message internally.
+                        // Avoid appending a redundant signature over the serialized request payload.
+                        let tx_hash = privacy_port.submit_signed_tx(&tx_bytes).await?;
+                        Ok(tx_hash)
+                    } else {
+                        let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
+                        let mut signed_tx = tx_bytes;
+                        signed_tx.extend_from_slice(&signature);
+                        let tx_hash = privacy_port.submit_signed_tx(&signed_tx).await?;
+                        Ok(tx_hash)
+                    }
+                }
+            }
+        }
+        .await;
+
+        let tx_hash = match tx_hash_result {
+            Ok(tx_hash) => {
                 // CNS span: withdrawal submitted
                 self.emit_span(
                     CnsSpan::WalletWithdrawal,
@@ -545,33 +586,27 @@ impl WalletManager {
                         "tx_hash": tx_hash.0,
                     }),
                 );
-
                 tx_hash
             }
-            PrivacyMode::Shielded => {
-                let privacy_port = self
-                    .privacy
-                    .as_ref()
-                    .ok_or(WalletError::PrivacyUnavailable { chain })?;
-                if !privacy_port.available_for_chain(chain) {
-                    return Err(WalletError::PrivacyUnavailable { chain });
+            Err(err) => {
+                // Compensating action: refund debited rJoules when submit path fails.
+                if let Err(refund_err) = self.store.credit_rjoules(wallet_id, amount_rj) {
+                    self.emit_chain_error(
+                        chain,
+                        "withdraw_refund_failed",
+                        &format!("original_error={err}; refund_error={refund_err}"),
+                    );
+                    return Err(WalletError::Infra(
+                        hkask_types::InfrastructureError::Database(format!(
+                            "withdraw failed and refund failed (wallet state may be inconsistent): original={err}; refund={refund_err}"
+                        )),
+                    ));
                 }
-                let tx_bytes = privacy_port.build_unshield_tx(to_address, amount_usdc_micro)?;
-
-                if chain == ChainId::Hinkal {
-                    // Hinkal submit path signs the protocol withdraw message internally.
-                    // Avoid appending a redundant signature over the serialized request payload.
-                    privacy_port.submit_signed_tx(&tx_bytes).await?
-                } else {
-                    let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
-                    let mut signed_tx = tx_bytes;
-                    signed_tx.extend_from_slice(&signature);
-                    privacy_port.submit_signed_tx(&signed_tx).await?
-                }
+                return Err(err);
             }
         };
 
-        // 3. Record transaction
+        // 4. Record transaction
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
@@ -1676,6 +1711,8 @@ mod tests {
             .credit_rjoules(wallet_id, RJoule::new(10_000))
             .unwrap();
 
+        let before = mgr.get_balance(wallet_id).unwrap();
+
         // make_manager only registers Solana — Hedera should fail
         let result = mgr
             .withdraw(
@@ -1695,6 +1732,12 @@ mod tests {
             Err(WalletError::ChainNotEnabled { .. }) => {} // expected
             other => panic!("expected ChainNotEnabled, got {:?}", other),
         }
+
+        let after = mgr.get_balance(wallet_id).unwrap();
+        assert_eq!(
+            after.rjoules, before.rjoules,
+            "failed withdrawal must not change wallet balance"
+        );
     }
 
     // REQ: wallet-int-006 — shielded Hinkal withdrawal uses privacy adapter path

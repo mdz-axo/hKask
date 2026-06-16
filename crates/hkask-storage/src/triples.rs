@@ -34,6 +34,11 @@ pub struct Triple {
 }
 
 impl Triple {
+    /// Create a new Triple with required fields.
+    ///
+    /// REQ: STO-116
+    /// pre:  entity and attribute are non-empty, owner_webid is valid
+    /// post: returns Triple with defaults for temporal, confidence, access
     pub fn new(entity: &str, attribute: &str, value: Value, owner_webid: WebID) -> Self {
         Self {
             id: TripleID::new(),
@@ -46,22 +51,42 @@ impl Triple {
         }
     }
 
+    /// Set confidence on a Triple.
+    ///
+    /// REQ: STO-117
+    /// post: returns Self with confidence set (builder pattern)
     pub fn with_confidence(mut self, c: impl Into<Confidence>) -> Self {
         self.confidence = c.into();
         self
     }
+    /// Set perspective on a Triple.
+    ///
+    /// REQ: STO-118
+    /// post: returns Self with perspective set (builder pattern)
     pub fn with_perspective(mut self, p: WebID) -> Self {
         self.access = self.access.with_perspective(p);
         self
     }
+    /// Set visibility on a Triple.
+    ///
+    /// REQ: STO-119
+    /// post: returns Self with visibility set (builder pattern)
     pub fn with_visibility(mut self, v: Visibility) -> Self {
         self.access = self.access.with_visibility(v);
         self
     }
 
+    /// Check if this is an episodic triple (has perspective).
+    ///
+    /// REQ: STO-120
+    /// post: returns true iff perspective is Some
     pub fn is_episodic(&self) -> bool {
         self.access.is_episodic()
     }
+    /// Check if this is a semantic triple (public, no perspective).
+    ///
+    /// REQ: STO-121
+    /// post: returns true iff visibility is Public and perspective is None
     pub fn is_semantic(&self) -> bool {
         self.access.is_semantic()
     }
@@ -72,6 +97,11 @@ define_store!(TripleStore);
 const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid";
 
 impl TripleStore {
+    /// Insert a triple into the store.
+    ///
+    /// REQ: STO-122
+    /// pre:  triple has valid entity, attribute, value
+    /// post: triple inserted
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -92,6 +122,11 @@ impl TripleStore {
         Ok(())
     }
 
+    /// Query triples by entity.
+    ///
+    /// REQ: STO-123
+    /// pre:  entity is non-empty
+    /// post: returns Vec of triples matching entity
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -105,6 +140,11 @@ impl TripleStore {
         ))
     }
 
+    /// Query triples by entity and attribute.
+    ///
+    /// REQ: STO-124
+    /// pre:  entity and attribute are non-empty
+    /// post: returns Vec of matching triples
     pub fn query_by_entity_attribute(
         &self,
         entity: &str,
@@ -122,6 +162,11 @@ impl TripleStore {
         ))
     }
 
+    /// Query triples by perspective.
+    ///
+    /// REQ: STO-125
+    /// pre:  perspective is valid
+    /// post: returns Vec of triples for this perspective
     pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -136,6 +181,11 @@ impl TripleStore {
     }
 
     /// Query all triples with a given attribute, regardless of entity.
+    /// Query triples by attribute.
+    ///
+    /// REQ: STO-126
+    /// pre:  attribute is non-empty
+    /// post: returns Vec of triples matching attribute
     pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -151,6 +201,11 @@ impl TripleStore {
 
     /// Update a triple's value (close current version, insert new).
     /// Wrapped in a transaction for atomicity.
+    /// Update a triple's value and confidence.
+    ///
+    /// REQ: STO-127
+    /// pre:  id is valid
+    /// post: triple value and confidence updated
     pub fn update(
         &self,
         id: &TripleID,
@@ -220,6 +275,11 @@ impl TripleStore {
         }
     }
 
+    /// Get a triple by ID.
+    ///
+    /// REQ: STO-128
+    /// pre:  id is valid
+    /// post: returns Some(Triple) if found, None otherwise
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -237,6 +297,11 @@ impl TripleStore {
     }
 
     /// Semantic triples with lowest confidence, ordered ASC. Used by consolidation.
+    /// Query lowest-confidence semantic triples.
+    ///
+    /// REQ: STO-129
+    /// pre:  limit > 0
+    /// post: returns up to limit triples ordered by confidence ascending
     pub fn query_semantic_lowest_confidence(
         &self,
         limit: usize,
@@ -257,6 +322,11 @@ impl TripleStore {
     }
 
     /// Count semantic triples below confidence threshold. Used by consolidation.
+    /// Count semantic triples below a confidence threshold.
+    ///
+    /// REQ: STO-130
+    /// pre:  threshold in [0.0, 1.0]
+    /// post: returns count of triples with confidence ≤ threshold
     pub fn count_semantic_below_confidence(&self, threshold: f64) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -268,6 +338,11 @@ impl TripleStore {
     }
 
     /// Semantic triples below confidence threshold, ordered ASC. Used by consolidation.
+    /// Query semantic triples below a confidence threshold.
+    ///
+    /// REQ: STO-131
+    /// pre:  threshold in [0.0, 1.0], limit > 0
+    /// post: returns up to limit triples with confidence ≤ threshold
     pub fn query_semantic_below_confidence(
         &self,
         threshold: f64,
@@ -289,6 +364,10 @@ impl TripleStore {
     }
 
     /// Count semantic triples (perspective IS NULL, valid_to IS NULL).
+    /// Count all semantic triples.
+    ///
+    /// REQ: STO-132
+    /// post: returns total count of semantic triples
     pub fn count_semantic(&self) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -300,6 +379,11 @@ impl TripleStore {
     }
 
     /// Count semantic triples for a given entity.
+    /// Count semantic triples for an entity.
+    ///
+    /// REQ: STO-133
+    /// pre:  entity is non-empty
+    /// post: returns count for entity
     pub fn count_semantic_by_entity(&self, entity: &str) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -311,6 +395,11 @@ impl TripleStore {
     }
 
     /// Count triples for a given perspective (episodic).
+    /// Count triples by perspective.
+    ///
+    /// REQ: STO-134
+    /// pre:  perspective is valid
+    /// post: returns count for perspective
     pub fn count_by_perspective(&self, perspective: &WebID) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -322,6 +411,11 @@ impl TripleStore {
     }
 
     /// Soft-delete: set valid_to to close a triple.
+    /// Soft-delete a triple by setting valid_to.
+    ///
+    /// REQ: STO-135
+    /// pre:  id is valid
+    /// post: triple's valid_to set to now (soft-delete)
     pub fn close_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -333,6 +427,11 @@ impl TripleStore {
     }
 
     /// Hard-delete a triple row entirely.
+    /// Hard-delete a triple by ID.
+    ///
+    /// REQ: STO-136
+    /// pre:  id is valid
+    /// post: triple permanently deleted
     pub fn delete_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         conn.execute("DELETE FROM triples WHERE id = ?1", rusqlite::params![id])?;
@@ -341,6 +440,12 @@ impl TripleStore {
 
     /// Hard-delete all triples whose entity starts with the given prefix.
     /// Returns the number of rows deleted.
+    /// Delete triples by entity prefix.
+    ///
+    /// REQ: STO-137
+    /// pre:  prefix is non-empty
+    /// post: matching triples deleted
+    /// post: returns count of deleted triples
     pub fn delete_by_entity_prefix(&self, prefix: &str) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let pattern = format!("{}%", prefix);

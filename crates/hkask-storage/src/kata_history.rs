@@ -59,6 +59,11 @@ impl KataHistoryStore {
     /// * `practice_name` — Manifest ID or practice name
     /// * `steps_completed` — Number of steps completed
     /// * `gas_consumed` — Gas consumed
+    /// Record a kata history entry.
+    ///
+    /// REQ: STO-031
+    /// pre:  entry.agent_name is non-empty
+    /// post: entry inserted into kata_history
     pub fn record(
         &self,
         agent_name: &str,
@@ -77,6 +82,11 @@ impl KataHistoryStore {
     }
 
     /// Retrieve all entries for an agent, ordered by date descending.
+    /// Get entries for a specific agent.
+    ///
+    /// REQ: STO-032
+    /// pre:  agent_name is non-empty
+    /// post: returns Vec of entries for this agent
     pub fn entries_for_agent(
         &self,
         agent_name: &str,
@@ -118,6 +128,11 @@ impl KataHistoryStore {
     }
 
     /// Count total entries for an agent. Useful for CNS variety counter aggregation.
+    /// Count entries for an agent.
+    ///
+    /// REQ: STO-033
+    /// pre:  agent_name is non-empty
+    /// post: returns count of entries
     pub fn count_entries_for_agent(&self, agent_name: &str) -> Result<usize, KataHistoryError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -129,6 +144,11 @@ impl KataHistoryStore {
     }
 
     /// Count entries for an agent on a specific date. Returns count > 0 if practiced today.
+    /// Count entries on a specific date.
+    ///
+    /// REQ: STO-034
+    /// pre:  agent_name is non-empty, date is valid ISO date
+    /// post: returns count of entries on that date
     pub fn count_entries_on(
         &self,
         agent_name: &str,
@@ -144,6 +164,11 @@ impl KataHistoryStore {
     }
 
     /// Get the most recent entry for an agent.
+    /// Get the last entry for an agent.
+    ///
+    /// REQ: STO-035
+    /// pre:  agent_name is non-empty
+    /// post: returns Some(entry) if exists, None otherwise
     pub fn last_entry_for_agent(
         &self,
         agent_name: &str,
@@ -185,6 +210,11 @@ impl KataHistoryStore {
     }
 
     /// Get all entries for an agent within a date range (inclusive).
+    /// Get entries in a date range.
+    ///
+    /// REQ: STO-036
+    /// pre:  agent_name is non-empty, from/to are valid ISO dates
+    /// post: returns Vec of entries in range
     pub fn entries_in_range(
         &self,
         agent_name: &str,
@@ -228,6 +258,12 @@ impl KataHistoryStore {
     }
 
     /// Delete entries older than a given date. Useful for CNS routine cleanup.
+    /// Delete entries before a date.
+    ///
+    /// REQ: STO-037
+    /// pre:  before_date is a valid ISO date
+    /// post: entries before date deleted
+    /// post: returns count of deleted entries
     pub fn delete_entries_before(&self, before_date: &str) -> Result<usize, KataHistoryError> {
         let conn = self.lock_conn()?;
         let count = conn.execute(

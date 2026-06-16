@@ -90,6 +90,24 @@ struct WithdrawUnsignedPayload {
     token: String,
 }
 
+/// Payload for shielding (depositing) assets into the Hinkal pool.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ShieldDepositPayload {
+    nonce: String,
+    amount_usdc_micro: u64,
+    chain_id: u64,
+    token: String,
+}
+
+/// Unified payload enum for dispatching in submit_signed_tx.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum HinkalPayload {
+    Withdraw(WithdrawUnsignedPayload),
+    Shield(ShieldDepositPayload),
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WithdrawRequest {
@@ -109,6 +127,20 @@ struct WithdrawRequest {
 struct TokenAmountRequest {
     token: String,
     amount: String,
+}
+
+/// Request body for POST /deposit (shield assets into Hinkal pool).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DepositRequest {
+    address: String,
+    chain_id: u64,
+    nonce: String,
+    token_amounts: Vec<TokenAmountRequest>,
+    message: String,
+    signature: String,
+    session_nonce: String,
+    session_signature: String,
 }
 
 #[derive(Debug, Clone)]
@@ -273,6 +305,18 @@ impl HinkalPort {
             "Hinkal Enclave\n\nPrimary Type: Withdraw\nNonce: {nonce}\nChain ID: {chain_id}\n\
              Token Amounts:\n  0:\n    Token: {token_address}\n    Amount: {amount}\n\
              Recipient: {recipient}"
+        )
+    }
+
+    fn build_shield_message(
+        nonce: &str,
+        chain_id: u64,
+        token_address: &str,
+        amount: u64,
+    ) -> String {
+        format!(
+            "Hinkal Enclave\n\nPrimary Type: Shield\nNonce: {nonce}\nChain ID: {chain_id}\n\
+             Token Amounts:\n  0:\n    Token: {token_address}\n    Amount: {amount}"
         )
     }
 
@@ -528,46 +572,6 @@ impl HinkalPort {
         self.fetch_balance(&session).await
     }
 
-    fn decode_withdraw_payload(
-        &self,
-        tx_bytes: &[u8],
-    ) -> Result<WithdrawUnsignedPayload, WalletError> {
-        // Preferred format: raw JSON payload from build_unshield_tx.
-        if let Ok(payload) = serde_json::from_slice::<WithdrawUnsignedPayload>(tx_bytes) {
-            return Self::validate_withdraw_payload(payload);
-        }
-
-        // Backward-compatible format: payload bytes with appended 64-byte signature.
-        if tx_bytes.len() <= 64 {
-            return Err(Self::chain_error(
-                "invalid unshield payload bytes: expected JSON payload or payload+64-byte signature",
-            ));
-        }
-        let unsigned_len = tx_bytes.len() - 64;
-        let (unsigned, _sig) = tx_bytes.split_at(unsigned_len);
-        let payload: WithdrawUnsignedPayload = serde_json::from_slice(unsigned)
-            .map_err(|e| Self::chain_error(format!("invalid unshield payload bytes: {e}")))?;
-        Self::validate_withdraw_payload(payload)
-    }
-
-    fn validate_withdraw_payload(
-        payload: WithdrawUnsignedPayload,
-    ) -> Result<WithdrawUnsignedPayload, WalletError> {
-        if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
-            return Err(Self::chain_error(format!(
-                "unsupported withdraw chain_id={} for Hinkal adapter",
-                payload.chain_id
-            )));
-        }
-        if payload.amount_usdc_micro == 0 {
-            return Err(Self::chain_error("unshield amount must be > 0"));
-        }
-        if payload.to_public.trim().is_empty() {
-            return Err(Self::chain_error("withdraw recipient must not be empty"));
-        }
-        Ok(payload)
-    }
-
     fn transfer_commitment(
         &self,
         token: &str,
@@ -731,15 +735,31 @@ impl PrivacyPort for HinkalPort {
 
     fn build_shield_tx(
         &self,
-        _amount_usdc_micro: u64,
+        amount_usdc_micro: u64,
         chain: ChainId,
     ) -> Result<Vec<u8>, WalletError> {
-        Err(WalletError::ChainError {
-            chain,
-            message:
-                "Shielding (deposit) transaction build requires Hinkal POST /deposit integration"
-                    .into(),
-        })
+        if amount_usdc_micro == 0 {
+            return Err(Self::chain_error("shield amount must be > 0"));
+        }
+        // Only Solana settlement is currently supported
+        if chain != ChainId::Hinkal && chain != ChainId::Solana {
+            return Err(WalletError::ChainError {
+                chain,
+                message: format!(
+                    "Hinkal shielding only supports Solana settlement layer (got {chain:?})"
+                ),
+            });
+        }
+
+        let payload = ShieldDepositPayload {
+            nonce: Self::generate_nonce(),
+            amount_usdc_micro,
+            chain_id: HINKAL_SOLANA_CHAIN_ID,
+            token: SOLANA_USDC_MINT.to_string(),
+        };
+
+        serde_json::to_vec(&payload)
+            .map_err(|e| Self::chain_error(format!("failed to encode shield payload: {e}")))
     }
 
     fn build_unshield_tx(
@@ -767,29 +787,66 @@ impl PrivacyPort for HinkalPort {
     }
 
     async fn submit_signed_tx(&self, signed_tx_bytes: &[u8]) -> Result<TxHash, WalletError> {
-        let payload = self.decode_withdraw_payload(signed_tx_bytes)?;
+        // Decode the payload — strip trailing 64-byte signature if present
+        let payload_bytes = if signed_tx_bytes.len() > 64 {
+            &signed_tx_bytes[..signed_tx_bytes.len() - 64]
+        } else {
+            signed_tx_bytes
+        };
+
+        // Try to deserialize as HinkalPayload (untagged enum: tries Withdraw then Shield)
+        let hinkal_payload: HinkalPayload = serde_json::from_slice(payload_bytes).map_err(|e| {
+            let msg = format!("failed to decode Hinkal payload: {e}");
+            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            Self::chain_error(msg)
+        })?;
+
+        match hinkal_payload {
+            HinkalPayload::Withdraw(payload) => self.submit_withdraw(&payload).await,
+            HinkalPayload::Shield(payload) => self.submit_shield(&payload).await,
+        }
+    }
+
+    /// Submit a withdraw (unshield) transaction to POST /withdraw.
+    async fn submit_withdraw(
+        &self,
+        payload: &WithdrawUnsignedPayload,
+    ) -> Result<TxHash, WalletError> {
+        // Validate
+        if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
+            return Err(Self::chain_error(format!(
+                "unsupported chain_id={} for Hinkal withdraw",
+                payload.chain_id
+            )));
+        }
+        if payload.amount_usdc_micro == 0 {
+            return Err(Self::chain_error("withdraw amount must be > 0"));
+        }
+        if payload.to_public.trim().is_empty() {
+            return Err(Self::chain_error("withdraw recipient must not be empty"));
+        }
 
         let session = self.create_session(true).await?;
-        let withdraw_message = Self::build_withdraw_message(
+        let message = Self::build_withdraw_message(
             &payload.nonce,
             payload.chain_id,
             &payload.token,
             payload.amount_usdc_micro,
             &payload.to_public,
         );
-        let withdraw_signature = signing::sign_message(withdraw_message.as_bytes())?;
+        let signature = signing::sign_message(message.as_bytes())?;
 
         let req = WithdrawRequest {
             address: self.treasury_pubkey.clone(),
             chain_id: payload.chain_id,
-            recipient: payload.to_public,
-            nonce: payload.nonce,
+            recipient: payload.to_public.clone(),
+            nonce: payload.nonce.clone(),
             token_amounts: vec![TokenAmountRequest {
-                token: payload.token,
+                token: payload.token.clone(),
                 amount: payload.amount_usdc_micro.to_string(),
             }],
-            message: withdraw_message,
-            signature: hex::encode(withdraw_signature),
+            message,
+            signature: hex::encode(signature),
             session_nonce: session.nonce,
             session_signature: session.signature,
         };
@@ -803,20 +860,20 @@ impl PrivacyPort for HinkalPort {
             .await
             .map_err(|e| {
                 let msg = format!("withdraw request failed: {e}");
-                self.emit_cns_chain_error("submit_signed_tx", &msg);
+                self.emit_cns_chain_error("submit_withdraw", &msg);
                 Self::chain_error(msg)
             })?;
 
         if !resp.status().is_success() {
             let body = Self::read_response_body(resp).await;
             let msg = format!("withdraw rejected: {body}");
-            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            self.emit_cns_chain_error("submit_withdraw", &msg);
             return Err(Self::chain_error(msg));
         }
 
         let v: serde_json::Value = resp.json().await.map_err(|e| {
             let msg = format!("withdraw returned invalid JSON: {e}");
-            self.emit_cns_chain_error("submit_signed_tx", &msg);
+            self.emit_cns_chain_error("submit_withdraw", &msg);
             Self::chain_error(msg)
         })?;
 
@@ -832,7 +889,88 @@ impl PrivacyPort for HinkalPort {
             })
             .ok_or_else(|| {
                 let msg = "withdraw response missing tx hash".to_string();
-                self.emit_cns_chain_error("submit_signed_tx", &msg);
+                self.emit_cns_chain_error("submit_withdraw", &msg);
+                Self::chain_error(msg)
+            })?;
+
+        Ok(TxHash(tx_hash.to_string()))
+    }
+
+    /// Submit a shield (deposit) transaction to POST /deposit.
+    async fn submit_shield(&self, payload: &ShieldDepositPayload) -> Result<TxHash, WalletError> {
+        // Validate
+        if payload.chain_id != HINKAL_SOLANA_CHAIN_ID {
+            return Err(Self::chain_error(format!(
+                "unsupported chain_id={} for Hinkal shield",
+                payload.chain_id
+            )));
+        }
+        if payload.amount_usdc_micro == 0 {
+            return Err(Self::chain_error("shield amount must be > 0"));
+        }
+
+        let session = self.create_session(true).await?;
+        let message = Self::build_shield_message(
+            &payload.nonce,
+            payload.chain_id,
+            &payload.token,
+            payload.amount_usdc_micro,
+        );
+        let signature = signing::sign_message(message.as_bytes())?;
+
+        let req = DepositRequest {
+            address: self.treasury_pubkey.clone(),
+            chain_id: payload.chain_id,
+            nonce: payload.nonce.clone(),
+            token_amounts: vec![TokenAmountRequest {
+                token: payload.token.clone(),
+                amount: payload.amount_usdc_micro.to_string(),
+            }],
+            message,
+            signature: hex::encode(signature),
+            session_nonce: session.nonce,
+            session_signature: session.signature,
+        };
+
+        let url = format!("{}/deposit", self.api_base_url);
+        let resp = self
+            .client
+            .post(&url)
+            .json(&req)
+            .send()
+            .await
+            .map_err(|e| {
+                let msg = format!("deposit request failed: {e}");
+                self.emit_cns_chain_error("submit_shield", &msg);
+                Self::chain_error(msg)
+            })?;
+
+        if !resp.status().is_success() {
+            let body = Self::read_response_body(resp).await;
+            let msg = format!("deposit rejected: {body}");
+            self.emit_cns_chain_error("submit_shield", &msg);
+            return Err(Self::chain_error(msg));
+        }
+
+        let v: serde_json::Value = resp.json().await.map_err(|e| {
+            let msg = format!("deposit returned invalid JSON: {e}");
+            self.emit_cns_chain_error("submit_shield", &msg);
+            Self::chain_error(msg)
+        })?;
+
+        let tx_hash = v
+            .get("txHash")
+            .and_then(|x| x.as_str())
+            .or_else(|| v.get("tx_hash").and_then(|x| x.as_str()))
+            .or_else(|| v.get("hash").and_then(|x| x.as_str()))
+            .or_else(|| {
+                v.get("data")
+                    .and_then(|d| d.get("txHash"))
+                    .and_then(|x| x.as_str())
+            })
+            .ok_or_else(|| {
+                let msg = "deposit response missing tx hash".to_string();
+                self.emit_cns_chain_error("submit_shield", &msg);
                 Self::chain_error(msg)
             })?;
 
@@ -1141,5 +1279,84 @@ mod tests {
 
         assert_eq!(first.len(), 1);
         assert!(second.is_empty());
+    }
+
+    // REQ: HINKAL-012 — shield message format matches Hinkal API spec
+    #[test]
+    fn shield_message_format() {
+        let msg = HinkalPort::build_shield_message(
+            "nonce-shield-001",
+            501,
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            2_000_000,
+        );
+        assert!(msg.contains("Hinkal Enclave"));
+        assert!(msg.contains("Primary Type: Shield"));
+        assert!(msg.contains("Nonce: nonce-shield-001"));
+        assert!(msg.contains("Chain ID: 501"));
+        assert!(msg.contains("Token: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"));
+        assert!(msg.contains("Amount: 2000000"));
+        // Shield message should NOT contain a Recipient field (unlike Withdraw)
+        assert!(!msg.contains("Recipient"));
+    }
+
+    // REQ: HINKAL-013 — build_shield_tx encodes deterministic payload fields
+    #[test]
+    fn build_shield_tx_encodes_payload() {
+        let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
+        let bytes = port
+            .build_shield_tx(2_500_000, ChainId::Hinkal)
+            .expect("payload");
+        let payload: ShieldDepositPayload = serde_json::from_slice(&bytes).expect("json");
+
+        assert_eq!(payload.amount_usdc_micro, 2_500_000);
+        assert_eq!(payload.chain_id, 501);
+        assert_eq!(payload.token, SOLANA_USDC_MINT);
+        assert_eq!(payload.nonce.len(), 32);
+    }
+
+    // REQ: HINKAL-014 — build_shield_tx rejects zero amount
+    #[test]
+    fn build_shield_tx_rejects_zero_amount() {
+        let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
+        let err = port.build_shield_tx(0, ChainId::Hinkal).unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("must be > 0"));
+    }
+
+    // REQ: HINKAL-015 — build_shield_tx rejects unsupported chain
+    #[test]
+    fn build_shield_tx_rejects_unsupported_chain() {
+        let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
+        let err = port.build_shield_tx(1_000, ChainId::Hedera).unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("only supports Solana"));
+    }
+
+    // REQ: HINKAL-016 — HinkalPayload untagged deserialization dispatches correctly
+    #[test]
+    fn hinkal_payload_deserialization_dispatches() {
+        // Withdraw payload (has to_public field)
+        let withdraw_json = serde_json::json!({
+            "nonce": "abc123",
+            "toPublic": "recipient_addr",
+            "amountUsdcMicro": 1_000_000,
+            "chainId": 501,
+            "token": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        });
+        let payload: HinkalPayload =
+            serde_json::from_value(withdraw_json).expect("withdraw deserialize");
+        assert!(matches!(payload, HinkalPayload::Withdraw(_)));
+
+        // Shield payload (no to_public field)
+        let shield_json = serde_json::json!({
+            "nonce": "def456",
+            "amountUsdcMicro": 2_000_000,
+            "chainId": 501,
+            "token": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        });
+        let payload: HinkalPayload =
+            serde_json::from_value(shield_json).expect("shield deserialize");
+        assert!(matches!(payload, HinkalPayload::Shield(_)));
     }
 }

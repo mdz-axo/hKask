@@ -73,6 +73,11 @@ impl NuEventStore {
     /// - "inference" → inference_lambda
     /// - "agent_pod", "connector" → episodic_lambda
     /// - everything else → cybernetics_lambda (safe default)
+    /// Replay events with temporal decay weighting.
+    ///
+    /// REQ: STO-013
+    /// pre:  observer is valid, category is valid, lookback_secs > 0
+    /// post: returns Vec<NuEvent> within lookback window, weighted by recency
     pub fn replay_weighted(
         &self,
         since: chrono::DateTime<chrono::Utc>,
@@ -104,6 +109,11 @@ impl NuEventStore {
     ///
     /// Unknown categories fall back to `cybernetics_lambda`.
     /// The fallback is explicit at the type level via `SpanCategory::Unknown`.
+    /// Get the decay lambda for a span category.
+    ///
+    /// REQ: STO-014
+    /// pre:  category is a valid SpanCategory
+    /// post: returns decay lambda from config or default
     pub fn lambda_for(category: SpanCategory, config: &DecayConfig) -> f64 {
         match category {
             SpanCategory::Cybernetics => config.cybernetics_lambda,
@@ -154,6 +164,11 @@ impl NuEventStore {
     /// Loop cursors (e.g., `curation_last_review_ms`) track the last-processed
     /// event timestamp. Persisting them ensures the system doesn't re-process
     /// all historical events after a restart.
+    /// Persist a cursor value for event replay.
+    ///
+    /// REQ: STO-015
+    /// pre:  key is non-empty
+    /// post: cursor value stored
     pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), InfrastructureError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -167,6 +182,11 @@ impl NuEventStore {
     ///
     /// Returns `Ok(None)` if no cursor has been persisted for the given key
     /// (e.g., first run after schema creation).
+    /// Load a persisted cursor value.
+    ///
+    /// REQ: STO-016
+    /// pre:  key is non-empty
+    /// post: returns Some(value) if cursor exists, None otherwise
     pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT value FROM loop_cursors WHERE key = ?1")?;
@@ -177,6 +197,10 @@ impl NuEventStore {
         }
     }
 
+    /// Query algedonic signals from the event store.
+    ///
+    /// REQ: STO-017
+    /// post: returns Vec of algedonic signal events
     pub fn query_algedonic(
         &self,
         since: chrono::DateTime<chrono::Utc>,

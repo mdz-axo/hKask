@@ -90,6 +90,11 @@ impl Store for SqliteGoalRepository {
 
 impl SqliteGoalRepository {
     /// Create a new goal repository over the given SQLite connection.
+    /// Create a new goal repository.
+    ///
+    /// REQ: STO-098
+    /// pre:  conn is a valid SQLite connection
+    /// post: returns SqliteGoalRepository with schema initialized
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self {
             conn,
@@ -98,6 +103,10 @@ impl SqliteGoalRepository {
     }
 
     /// Attach a CNS telemetry sink for observability.
+    /// Enable CNS telemetry for goal operations.
+    ///
+    /// REQ: STO-099
+    /// post: returns Self with telemetry sink configured
     pub fn with_telemetry(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.telemetry = Some(sink);
         self
@@ -114,6 +123,10 @@ impl SqliteGoalRepository {
     }
 
     /// Parse a goal row, mapping extraction failures to Corrupt errors.
+    /// Try to construct a Goal from a query row.
+    ///
+    /// REQ: STO-100
+    /// post: returns Goal if row is valid
     pub fn try_goal_from_row(
         row: &rusqlite::Row,
     ) -> std::result::Result<Goal, GoalRepositoryError> {
@@ -125,6 +138,10 @@ impl SqliteGoalRepository {
         })
     }
 
+    /// Construct a Goal from a rusqlite Row.
+    ///
+    /// REQ: STO-101
+    /// post: returns Goal from row columns
     pub fn goal_from_row(row: &rusqlite::Row) -> rusqlite::Result<Goal> {
         fn corrupt(index: usize, value: &str) -> rusqlite::Error {
             rusqlite::Error::FromSqlConversionFailure(
@@ -176,6 +193,11 @@ impl SqliteGoalRepository {
 
 impl SqliteGoalRepository {
     /// Create a new goal.
+    /// Create a new goal.
+    ///
+    /// REQ: STO-102
+    /// pre:  webid is valid, text is non-empty
+    /// post: goal created and returned
     pub fn create_goal(&self, webid: &WebID, text: &str, visibility: Visibility) -> Result<Goal> {
         let goal = Goal::new(*webid, text, visibility);
 
@@ -190,6 +212,11 @@ impl SqliteGoalRepository {
         Ok(goal)
     }
 
+    /// Get a goal by ID.
+    ///
+    /// REQ: STO-103
+    /// pre:  goal_id is valid
+    /// post: returns Some(Goal) if found, None otherwise
     pub fn get_goal(&self, goal_id: GoalID) -> Result<Option<Goal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("SELECT {GOAL_COLUMNS} FROM goals WHERE id = ?1"))?;
@@ -200,6 +227,11 @@ impl SqliteGoalRepository {
             .map_err(Into::into)
     }
 
+    /// Update a goal's state.
+    ///
+    /// REQ: STO-104
+    /// pre:  goal_id is valid, state is valid
+    /// post: goal state updated
     pub fn update_goal_state(&self, goal_id: GoalID, state: GoalState) -> Result<()> {
         let goal = self.load_goal(goal_id)?;
         if !goal.state.can_transition_to(state) {
@@ -226,6 +258,11 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
+    /// List goals for a WebID with optional state filter.
+    ///
+    /// REQ: STO-105
+    /// pre:  webid is valid
+    /// post: returns Vec of goals, optionally filtered by state
     pub fn list_goals(&self, webid: &WebID, state_filter: Option<GoalState>) -> Result<Vec<Goal>> {
         let conn = self.lock_conn()?;
         let goals = match state_filter {
@@ -244,6 +281,11 @@ impl SqliteGoalRepository {
     }
 
     /// Add a criterion to a goal.
+    /// Add a criterion to a goal.
+    ///
+    /// REQ: STO-106
+    /// pre:  goal_id is valid, criterion has description
+    /// post: criterion added to goal
     pub fn add_criterion(&self, goal_id: GoalID, criterion: GoalCriterion) -> Result<()> {
         // The criterion must target the goal named by the caller.
         if criterion.goal_id != goal_id {
@@ -262,6 +304,11 @@ impl SqliteGoalRepository {
     }
 
     /// Add an artifact to a goal.
+    /// Add an artifact to a goal.
+    ///
+    /// REQ: STO-107
+    /// pre:  goal_id is valid, artifact has content
+    /// post: artifact added to goal
     pub fn add_artifact(&self, goal_id: GoalID, artifact: GoalArtifact) -> Result<()> {
         if artifact.goal_id != goal_id {
             return Err(GoalRepositoryError::InvalidTransition(format!(
@@ -279,6 +326,11 @@ impl SqliteGoalRepository {
     }
 
     /// Get criteria for a goal.
+    /// Get criteria for a goal.
+    ///
+    /// REQ: STO-108
+    /// pre:  goal_id is valid
+    /// post: returns Vec of GoalCriterion
     pub fn get_criteria(&self, goal_id: GoalID) -> Result<Vec<GoalCriterion>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
@@ -301,6 +353,11 @@ impl SqliteGoalRepository {
     }
 
     /// Get artifacts for a goal.
+    /// Get artifacts for a goal.
+    ///
+    /// REQ: STO-109
+    /// pre:  goal_id is valid
+    /// post: returns Vec of GoalArtifact
     pub fn get_artifacts(&self, goal_id: GoalID) -> Result<Vec<GoalArtifact>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
@@ -337,6 +394,11 @@ impl SqliteGoalRepository {
     }
 
     /// Create a subgoal under a parent goal.
+    /// Create a subgoal under a parent goal.
+    ///
+    /// REQ: STO-110
+    /// pre:  parent_id is valid, text is non-empty
+    /// post: subgoal created with depth = parent.depth + 1
     pub fn create_subgoal(
         &self,
         parent_id: GoalID,
@@ -365,6 +427,11 @@ impl SqliteGoalRepository {
         Ok(subgoal)
     }
 
+    /// Get subgoals for a parent goal.
+    ///
+    /// REQ: STO-111
+    /// pre:  parent_id is valid
+    /// post: returns Vec of child goals
     pub fn get_subgoals(&self, parent_id: GoalID) -> Result<Vec<Goal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -373,6 +440,11 @@ impl SqliteGoalRepository {
         Ok(collect_rows!(stmt, [parent_id], Self::goal_from_row))
     }
 
+    /// Delete a goal and its subgoals.
+    ///
+    /// REQ: STO-112
+    /// pre:  goal_id is valid
+    /// post: goal and subgoals deleted
     pub fn delete_goal(&self, goal_id: GoalID) -> Result<()> {
         let _goal = self.load_goal(goal_id)?;
         self.lock_conn()?
@@ -386,6 +458,11 @@ impl SqliteGoalRepository {
     /// record into `quarantined_goals` for later repair or human review.
     /// The goal's current state is serialized into `original_data` so it can be
     /// restored during repair.
+    /// Quarantine a goal.
+    ///
+    /// REQ: STO-113
+    /// pre:  goal_id is valid, reason is non-empty
+    /// post: goal moved to quarantine
     pub fn quarantine_goal(&self, goal_id: GoalID, reason: &str) -> Result<()> {
         // Load the goal before removing it so we can snapshot its state.
         let goal = self.load_goal(goal_id)?;
@@ -406,6 +483,11 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
+    /// Repair a quarantined goal.
+    ///
+    /// REQ: STO-114
+    /// pre:  goal_id is valid
+    /// post: goal restored from quarantine
     pub fn repair_quarantined_goal(
         &self,
         goal_id: GoalID,
@@ -456,6 +538,10 @@ impl SqliteGoalRepository {
         Ok(true)
     }
 
+    /// List all quarantined goals.
+    ///
+    /// REQ: STO-115
+    /// post: returns Vec of QuarantinedGoal
     pub fn list_quarantined_goals(&self) -> Result<Vec<QuarantinedGoal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(

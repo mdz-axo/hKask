@@ -1092,6 +1092,11 @@ fn build_registry_and_wallet(
         Arc::clone(&f.cns_event_sink),
         Arc::clone(&l.cybernetics_loop),
     )?;
+    let svc = Arc::new(
+        svc.as_ref()
+            .clone()
+            .with_consent_manager(Arc::clone(&f.consent_manager)),
+    );
     let wallet_manager = svc.manager();
 
     // Ensure default wallet

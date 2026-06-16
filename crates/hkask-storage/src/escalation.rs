@@ -29,6 +29,10 @@ pub struct EscalationEntry {
 
 impl EscalationEntry {
     /// Create a pending escalation entry with auto-generated id, timestamps, and defaults.
+    /// Create a pending escalation signal.
+    ///
+    /// REQ: STO-046
+    /// post: returns EscalationSignal with Pending status
     pub fn pending(output: String, confidence: f64, error_context: String) -> Self {
         Self {
             id: EscalationID::new(),
@@ -82,6 +86,11 @@ impl Store for EscalationQueue {
 }
 
 impl EscalationQueue {
+    /// Create a new escalation queue.
+    ///
+    /// REQ: STO-047
+    /// pre:  conn is a valid SQLite connection
+    /// post: returns EscalationQueue with schema initialized
     pub fn new(conn: Arc<std::sync::Mutex<rusqlite::Connection>>) -> Result<Self, EscalationError> {
         let queue = Self { conn };
         queue.init()?;
@@ -108,6 +117,11 @@ impl EscalationQueue {
         Ok(())
     }
 
+    /// Add an escalation entry.
+    ///
+    /// REQ: STO-048
+    /// pre:  entry has valid domain and output
+    /// post: entry inserted into escalations
     pub fn add(
         &self,
         template_id: TemplateID,
@@ -138,6 +152,10 @@ impl EscalationQueue {
         Ok(id)
     }
 
+    /// List pending escalations.
+    ///
+    /// REQ: STO-049
+    /// post: returns Vec of pending EscalationEntry
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -177,6 +195,11 @@ impl EscalationQueue {
         Ok(escalations)
     }
 
+    /// Get an escalation by ID.
+    ///
+    /// REQ: STO-050
+    /// pre:  id is non-empty
+    /// post: returns Some(entry) if found, None otherwise
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -231,6 +254,11 @@ impl EscalationQueue {
         }
     }
 
+    /// Resolve an escalation.
+    ///
+    /// REQ: STO-051
+    /// pre:  id is non-empty, resolved_by is non-empty
+    /// post: escalation status set to Resolved
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = now_rfc3339();
         let affected = self.lock_conn()?.execute(
@@ -243,6 +271,11 @@ impl EscalationQueue {
         Ok(())
     }
 
+    /// Dismiss an escalation.
+    ///
+    /// REQ: STO-052
+    /// pre:  id is non-empty, resolved_by is non-empty
+    /// post: escalation status set to Dismissed
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = now_rfc3339();
         let affected = self.lock_conn()?.execute(
@@ -255,6 +288,10 @@ impl EscalationQueue {
         Ok(())
     }
 
+    /// Get escalation statistics.
+    ///
+    /// REQ: STO-053
+    /// post: returns EscalationStats with counts by status
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -293,6 +330,11 @@ pub struct EscalationBatch {
 }
 
 impl EscalationBatch {
+    /// Create a new escalation summary.
+    ///
+    /// REQ: STO-054
+    /// pre:  domain is non-empty, threshold > 0
+    /// post: returns EscalationSummary
     pub fn new(entries: Vec<EscalationEntry>, domain: &str, threshold: usize) -> Self {
         Self {
             id: EscalationID::new(),
@@ -303,6 +345,10 @@ impl EscalationBatch {
         }
     }
 
+    /// Generate a human-readable summary.
+    ///
+    /// REQ: STO-055
+    /// post: returns summary string with counts and threshold info
     pub fn summary(&self) -> String {
         let count = self.entries.len();
         let domains: std::collections::HashSet<&str> = self
