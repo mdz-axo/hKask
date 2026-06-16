@@ -55,8 +55,8 @@ impl EpisodicMemory {
     /// Create a new EpisodicMemory with default decay rate and storage budget.
     ///
     /// REQ: P3-mem-episodic-memory-new
-    /// [P3] Motivating: Generative Space — creates a sovereign first-person experience store
-    /// [P9] Constraining: Homeostatic Self-Regulation — default decay and budget are regulation defaults
+    /// \[P3\] Motivating: Generative Space — creates a sovereign first-person experience store
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — default decay and budget are regulation defaults
     /// pre:  triple_store is initialized
     /// post: returns EpisodicMemory with DEFAULT_DECAY_RATE and DEFAULT_EPISODIC_BUDGET
     pub fn new(triple_store: TripleStore) -> Self {
@@ -72,9 +72,9 @@ impl EpisodicMemory {
     /// Store an episodic triple (private by default, with perspective).
     ///
     /// REQ: P3-mem-episodic-store
-    /// [P3] Motivating: Generative Space — stores a first-person experience triple
-    /// [P1] Constraining: User Sovereignty — rejects Public visibility (episodic is sovereign)
-    /// [P4] Constraining: Clear Boundaries — requires perspective owner
+    /// \[P3\] Motivating: Generative Space — stores a first-person experience triple
+    /// \[P1\] Constraining: User Sovereignty — rejects Public visibility (episodic is sovereign)
+    /// \[P4\] Constraining: Clear Boundaries — requires perspective owner
     /// pre:  triple.access.visibility != Public (episodic is sovereign)
     /// pre:  triple.access.perspective is Some (must have owner)
     /// post: triple inserted into triple_store
@@ -105,8 +105,8 @@ impl EpisodicMemory {
     /// Emits `cns.memory.decay` span for each triple that undergoes decay.
     ///
     /// REQ: P3-mem-episodic-query-deduped
-    /// [P3] Motivating: Generative Space — recalls deduplicated episodic triples for an entity
-    /// [P9] Constraining: Homeostatic Self-Regulation — applies confidence decay and temporal attention at recall
+    /// \[P3\] Motivating: Generative Space — recalls deduplicated episodic triples for an entity
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — applies confidence decay and temporal attention at recall
     /// pre:  entity is non-empty, perspective is valid
     /// post: returns Vec<Triple> filtered by perspective, decayed, deduped, sorted by recency
     /// post: confidence decayed via e^(-λt) for each triple
@@ -154,8 +154,8 @@ impl EpisodicMemory {
     /// Uses a COUNT query instead of loading all triples into memory.
     ///
     /// REQ: P3-mem-episodic-storage-usage
-    /// [P3] Motivating: Generative Space — reports episodic storage usage per perspective
-    /// [P9] Constraining: Homeostatic Self-Regulation — COUNT query avoids loading full store
+    /// \[P3\] Motivating: Generative Space — reports episodic storage usage per perspective
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — COUNT query avoids loading full store
     /// pre:  perspective is a valid WebID
     /// post: returns count of triples for this perspective
     pub fn storage_usage(&self, perspective: &WebID) -> Result<usize, EpisodicMemoryError> {
@@ -228,8 +228,8 @@ impl EpisodicMemory {
     /// Get the configured storage budget.
     ///
     /// REQ: P3-mem-episodic-storage-budget
-    /// [P3] Motivating: Generative Space — exposes the episodic storage set-point
-    /// [P9] Constraining: Homeostatic Self-Regulation — budget bounds per-agent experience growth
+    /// \[P3\] Motivating: Generative Space — exposes the episodic storage set-point
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — budget bounds per-agent experience growth
     /// post: returns the storage_budget value set at construction
     pub fn storage_budget(&self) -> usize {
         self.storage_budget
@@ -243,8 +243,8 @@ impl EpisodicMemory {
     /// publicly because it doesn't return triple data.
     ///
     /// REQ: P3-mem-episodic-candidate-count
-    /// [P3] Motivating: Generative Space — reports how many episodic triples are eligible for consolidation
-    /// [P9] Constraining: Homeostatic Self-Regulation — uses decayed confidence for prioritization
+    /// \[P3\] Motivating: Generative Space — reports how many episodic triples are eligible for consolidation
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — uses decayed confidence for prioritization
     /// pre:  perspective is a valid WebID
     /// post: returns count of triples eligible for consolidation
     /// post: returns 0 on error (graceful degradation)

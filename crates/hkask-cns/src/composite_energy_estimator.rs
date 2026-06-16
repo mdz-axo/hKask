@@ -10,7 +10,7 @@ use serde_json::Value;
 /// Composite gas estimator that routes inference tools to InferenceEnergyEstimator
 /// and all other tools to TableEnergyEstimator.
 ///
-/// [NORMATIVE] This is the production estimator — it should be the default for all (P9 — Homeostatic Self-Regulation).
+/// \[NORMATIVE\] This is the production estimator — it should be the default for all (P9 — Homeostatic Self-Regulation).
 /// GovernedTool instances. Inference calls use token-based estimation;
 /// everything else uses the per-server table.
 pub struct CompositeEnergyEstimator {
@@ -22,8 +22,8 @@ impl CompositeEnergyEstimator {
     /// Create a new CompositeEnergyEstimator with default table costs.
     ///
     /// REQ: P9-cns-est-composite-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops
-    /// [P5] Constraining: Essentialism — minimal constructor, empty estimators
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops
+    /// \[P5\] Constraining: Essentialism — minimal constructor, empty estimators
     /// post: returns CompositeEnergyEstimator with empty estimators
     pub fn new() -> Self {
         Self {

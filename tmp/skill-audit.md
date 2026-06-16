@@ -4,9 +4,9 @@ Workspace version: 0.27.0
 
 | Skill | Zed | Registry | Score | Status | Defects |
 |-------|-----|----------|-------|--------|---------|
-| adversarial-red-team | ✗ | ✓ | 0.00 | RecommendDeprecation | 10 |
+| adversarial-red-team | ✗ | ✓ | 0.00 | RecommendDeprecation | 6 |
 | caveman | ✓ | ✓ | 1.00 | Active | 0 |
-| chain-of-density | ✗ | ✓ | 0.06 | RecommendDeprecation | 6 |
+| chain-of-density | ✗ | ✓ | 0.36 | Critical | 4 |
 | chat-template | ✗ | ✓ | 0.60 | StaleWarning | 2 |
 | cns | ✗ | ✓ | 0.60 | StaleWarning | 2 |
 | coding-guidelines | ✓ | ✓ | 1.00 | Active | 0 |
@@ -14,7 +14,7 @@ Workspace version: 0.27.0
 | constraint-forces | ✓ | ✓ | 1.00 | Active | 0 |
 | curator | ✗ | ✓ | 0.00 | RecommendDeprecation | 8 |
 | dct-pipeline | ✗ | ✓ | 0.36 | Critical | 4 |
-| decision-journal | ✗ | ✓ | 0.00 | RecommendDeprecation | 10 |
+| decision-journal | ✗ | ✓ | 0.00 | RecommendDeprecation | 6 |
 | deep-module | ✓ | ✓ | 1.00 | Active | 0 |
 | diagnose | ✓ | ✓ | 1.00 | Active | 0 |
 | document-update | ✓ | ✓ | 0.55 | StaleWarning | 6 |
@@ -34,25 +34,25 @@ Workspace version: 0.27.0
 | kata-starter | ✓ | ✓ | 0.85 | Active | 3 |
 | knowact | ✗ | ✓ | 0.30 | Critical | 7 |
 | magna-carta-verifier | ✓ | ✓ | 1.00 | Active | 0 |
-| mcda | ✗ | ✓ | 0.00 | RecommendDeprecation | 10 |
+| mcda | ✗ | ✓ | 0.00 | RecommendDeprecation | 6 |
 | mcp | ✗ | ✓ | 0.15 | RecommendDeprecation | 7 |
 | media | ✗ | ✓ | 0.20 | Critical | 6 |
 | memory | ✗ | ✓ | 0.60 | StaleWarning | 2 |
-| metacognition | ✗ | ✓ | 0.33 | Critical | 4 |
+| metacognition | ✗ | ✓ | 0.48 | Critical | 3 |
 | pragmatic-cybernetics | ✓ | ✓ | 1.00 | Active | 0 |
 | pragmatic-laziness | ✓ | ✓ | 1.00 | Active | 0 |
 | pragmatic-semantics | ✓ | ✓ | 1.00 | Active | 0 |
-| prompt-defense | ✗ | ✓ | 0.00 | RecommendDeprecation | 8 |
-| rag | ✗ | ✓ | 0.00 | RecommendDeprecation | 8 |
-| rca | ✗ | ✓ | 0.00 | RecommendDeprecation | 10 |
+| prompt-defense | ✗ | ✓ | 0.00 | RecommendDeprecation | 5 |
+| rag | ✗ | ✓ | 0.15 | RecommendDeprecation | 5 |
+| rca | ✗ | ✓ | 0.00 | RecommendDeprecation | 6 |
 | reasoning | ✗ | ✓ | 0.30 | Critical | 4 |
 | refactor-service-layer | ✓ | ✓ | 0.97 | Active | 1 |
 | registry | ✗ | ✓ | 0.60 | StaleWarning | 2 |
 | replica | ✗ | ✓ | 0.30 | Critical | 5 |
 | review | ✓ | ✓ | 1.00 | Active | 0 |
 | rust-expertise | ✓ | ✓ | 1.00 | Active | 0 |
-| scenario | ✗ | ✓ | 0.00 | RecommendDeprecation | 12 |
-| self-critique-revision | ✗ | ✓ | 0.00 | RecommendDeprecation | 8 |
+| scenario | ✗ | ✓ | 0.00 | RecommendDeprecation | 7 |
+| self-critique-revision | ✓ | ✓ | 1.00 | Active | 0 |
 | skill-bundler | ✓ | ✓ | 1.00 | Active | 0 |
 | skill-discovery | ✓ | ✓ | 1.00 | Active | 0 |
 | skill-logic-audit | ✓ | ✓ | 1.00 | Active | 0 |
@@ -61,11 +61,11 @@ Workspace version: 0.27.0
 | skill-translator | ✓ | ✓ | 1.00 | Active | 0 |
 | spec | ✗ | ✓ | 0.00 | RecommendDeprecation | 8 |
 | strangler-fig | ✓ | ✓ | 1.00 | Active | 0 |
-| structured-extraction | ✗ | ✓ | 0.00 | RecommendDeprecation | 8 |
+| structured-extraction | ✗ | ✓ | 0.09 | RecommendDeprecation | 5 |
 | superforecasting | ✗ | ✓ | 0.00 | RecommendDeprecation | 10 |
 | tdd | ✓ | ✓ | 1.00 | Active | 0 |
 | web | ✗ | ✓ | 0.10 | RecommendDeprecation | 7 |
 | wordact | ✗ | ✓ | 0.10 | RecommendDeprecation | 8 |
 | zoom-out | ✓ | ✓ | 1.00 | Active | 0 |
 
-Totals: 63 skills, 32 complete, 31 registry-only, 30 active, 9 stale, 7 critical, 17 deprecated.
+Totals: 63 skills, 33 complete, 30 registry-only, 31 active, 9 stale, 8 critical, 15 deprecated.

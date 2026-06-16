@@ -57,9 +57,9 @@ impl GovernedInference {
     /// Create a new governed inference wrapper.
     ///
     /// REQ: P9-cns-gov-inf-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control
-    /// [P4] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary
-    /// [P12] Constraining: Affirmative Consent — agent identity is required for attribution
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control
+    /// \[P4\] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary
+    /// \[P12\] Constraining: Affirmative Consent — agent identity is required for attribution
     /// pre:  inference is valid, cns is valid
     /// post: returns GovernedInference
     pub fn new(
@@ -81,8 +81,8 @@ impl GovernedInference {
     /// Set the agent WebID for attribution.
     ///
     /// REQ: P12-cns-gov-inf-with-agent
-    /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
-    /// [P4] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call
+    /// \[P12\] Motivating: Affirmative Consent — agent identity is the consent anchor
+    /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call
     /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with agent set (builder pattern)
     pub fn with_agent(mut self, agent: WebID) -> Self {

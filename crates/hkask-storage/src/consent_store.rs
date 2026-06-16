@@ -42,7 +42,7 @@ impl ConsentStore {
     /// Initialize the consent store schema.
     ///
     /// REQ: P2-sto-consent-schema
-    /// [P2] Motivating: Affirmative Consent — schema for consent records
+    /// \[P2\] Motivating: Affirmative Consent — schema for consent records
     /// post: consent_records table created if not exists
     pub fn initialize_schema(&self) -> Result<(), ConsentStoreError> {
         let conn = self.lock_conn()?;
@@ -65,7 +65,7 @@ impl ConsentStore {
     /// Store a consent record.
     ///
     /// REQ: P2-sto-consent-store
-    /// [P2] Motivating: Affirmative Consent — persist a scoped consent record
+    /// \[P2\] Motivating: Affirmative Consent — persist a scoped consent record
     /// pre:  record.webid is non-empty
     /// post: record inserted or replaced in consent_records
     pub fn store(&self, record: &StoredConsentRecord) -> Result<(), ConsentStoreError> {
@@ -98,7 +98,7 @@ impl ConsentStore {
     /// Get a consent record by WebID.
     ///
     /// REQ: P2-sto-consent-get
-    /// [P2] Motivating: Affirmative Consent — retrieve consent by WebID
+    /// \[P2\] Motivating: Affirmative Consent — retrieve consent by WebID
     /// pre:  webid is non-empty
     /// post: returns Some(record) if found, None otherwise
     pub fn get(&self, webid: &str) -> Result<Option<StoredConsentRecord>, ConsentStoreError> {
@@ -139,7 +139,7 @@ impl ConsentStore {
     /// Delete a consent record by WebID.
     ///
     /// REQ: P2-sto-consent-delete
-    /// [P2] Motivating: Affirmative Consent — delete a consent record
+    /// \[P2\] Motivating: Affirmative Consent — delete a consent record
     /// pre:  webid is non-empty
     /// post: record deleted if existed
     pub fn delete(&self, webid: &str) -> Result<(), ConsentStoreError> {

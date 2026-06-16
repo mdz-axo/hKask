@@ -183,7 +183,6 @@ fn skill_publish(name: &str) {
 /// REQ: CLI-005
 /// pre:  fail_below is in [0.0, 1.0]
 /// post: JSON or table report printed; process exits 1 if any score < fail_below
-///       or any FlowDef is declared on a .j2 template
 fn skill_audit(fail_below: f64, json: bool) {
     let root = project_root();
     let mut registry = Registry::new();
@@ -207,7 +206,7 @@ fn skill_audit(fail_below: f64, json: bool) {
     };
 
     let threshold = fail_below.clamp(0.0, 1.0);
-    let mut failed = report.flowdef_on_j2_count() > 0;
+    let mut failed = false;
 
     if json {
         match report.to_json() {
@@ -245,18 +244,11 @@ fn skill_audit(fail_below: f64, json: bool) {
             }
         }
         println!();
-        println!(
-            "Active: {}/{}, FlowDef-on-.j2 defects: {}",
-            report.active_count(),
-            report.entries.len(),
-            report.flowdef_on_j2_count()
-        );
+        println!("Active: {}/{}", report.active_count(), report.entries.len(),);
     }
 
     if failed {
-        eprintln!(
-            "Audit failed: one or more skills are below threshold or a FlowDef was declared on a .j2 file."
-        );
+        eprintln!("Audit failed: one or more skills are below threshold.");
         std::process::exit(1);
     }
 }

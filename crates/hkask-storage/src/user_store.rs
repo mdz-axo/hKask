@@ -77,7 +77,7 @@ impl UserStore {
     /// Initialize the user store schema.
     ///
     /// REQ: P1-sto-user-schema
-    /// [P1] Motivating: User Sovereignty — schema for users, replicants, sessions
+    /// \[P1\] Motivating: User Sovereignty — schema for users, replicants, sessions
     /// post: users, replicants, sessions tables created if not exists
     pub fn initialize_schema(&self) -> UserResult<()> {
         let conn = self.lock_conn()?;
@@ -94,8 +94,8 @@ impl UserStore {
     /// Register a new replicant.
     ///
     /// REQ: P1-sto-user-register
-    /// [P1] Motivating: User Sovereignty — register a replicant
-    /// [P2] Constraining: Affirmative Consent — passphrase requirements enforced
+    /// \[P1\] Motivating: User Sovereignty — register a replicant
+    /// \[P2\] Constraining: Affirmative Consent — passphrase requirements enforced
     /// pre:  replicant_name is non-empty, passphrase meets requirements
     /// post: replicant and user records created
     pub fn register_replicant(
@@ -168,7 +168,7 @@ impl UserStore {
     /// Login a replicant with passphrase.
     ///
     /// REQ: P1-sto-user-login
-    /// [P1] Motivating: User Sovereignty — authenticate replicant session
+    /// \[P1\] Motivating: User Sovereignty — authenticate replicant session
     /// pre:  replicant_name is registered, passphrase is correct
     /// post: returns UserSession on success
     /// post: returns Err if credentials invalid
@@ -206,7 +206,7 @@ impl UserStore {
     /// Logout a session.
     ///
     /// REQ: P1-sto-user-logout
-    /// [P1] Motivating: User Sovereignty — invalidate session
+    /// \[P1\] Motivating: User Sovereignty — invalidate session
     /// pre:  session_id is valid
     /// post: session invalidated
     pub fn logout(&self, session_id: &str) -> UserResult<()> {
@@ -222,7 +222,7 @@ impl UserStore {
     /// Change a replicant's passphrase.
     ///
     /// REQ: P1-sto-user-passphrase-change
-    /// [P1] Motivating: User Sovereignty — change replicant passphrase
+    /// \[P1\] Motivating: User Sovereignty — change replicant passphrase
     /// pre:  replicant_name is registered, old_passphrase is correct
     /// post: passphrase updated
     pub fn change_passphrase(
@@ -265,7 +265,7 @@ impl UserStore {
     /// Check if a passphrase has expired.
     ///
     /// REQ: P1-sto-user-passphrase-expired
-    /// [P9] Motivating: Homeostatic Self-Regulation — detect passphrase rotation need
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — detect passphrase rotation need
     /// pre:  replicant_name is registered
     /// post: returns true if passphrase needs rotation
     pub fn check_passphrase_expiry(
@@ -297,7 +297,7 @@ impl UserStore {
     /// Get a session by ID.
     ///
     /// REQ: P1-sto-user-session-get
-    /// [P1] Motivating: User Sovereignty — get session by ID
+    /// \[P1\] Motivating: User Sovereignty — get session by ID
     /// pre:  session_id is non-empty
     /// post: returns Some(session) if valid, None otherwise
     pub fn get_session(&self, session_id: &str) -> UserResult<Option<UserSession>> {
@@ -315,7 +315,7 @@ impl UserStore {
     /// List sessions for a replicant.
     ///
     /// REQ: P1-sto-user-session-list
-    /// [P1] Motivating: User Sovereignty — list active sessions
+    /// \[P1\] Motivating: User Sovereignty — list active sessions
     /// pre:  replicant_name is non-empty
     /// post: returns Vec of active sessions
     pub fn list_sessions(&self, replicant_name: &str) -> UserResult<Vec<UserSession>> {
@@ -333,7 +333,7 @@ impl UserStore {
     /// Get a replicant by name.
     ///
     /// REQ: P1-sto-user-replicant-get
-    /// [P1] Motivating: User Sovereignty — get replicant by name
+    /// \[P1\] Motivating: User Sovereignty — get replicant by name
     /// pre:  replicant_name is non-empty
     /// post: returns Some(identity) if found, None otherwise
     pub fn get_replicant(&self, replicant_name: &str) -> UserResult<Option<ReplicantIdentity>> {
@@ -351,7 +351,7 @@ impl UserStore {
     /// Get a human user by ID.
     ///
     /// REQ: P1-sto-user-human-get
-    /// [P1] Motivating: User Sovereignty — get human user by ID
+    /// \[P1\] Motivating: User Sovereignty — get human user by ID
     /// pre:  user_id is valid
     /// post: returns HumanUser
     pub fn get_user(&self, user_id: &UserID) -> UserResult<HumanUser> {
@@ -385,7 +385,7 @@ impl UserStore {
     /// List replicants for a user.
     ///
     /// REQ: P1-sto-user-replicant-list
-    /// [P1] Motivating: User Sovereignty — list replicants owned by user
+    /// \[P1\] Motivating: User Sovereignty — list replicants owned by user
     /// pre:  user_id is valid
     /// post: returns Vec of replicants owned by user
     pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<ReplicantIdentity>> {
@@ -400,7 +400,7 @@ impl UserStore {
     /// Get wallet ID for a replicant.
     ///
     /// REQ: P1-sto-user-wallet-get
-    /// [P1] Motivating: User Sovereignty — get wallet ID for replicant
+    /// \[P1\] Motivating: User Sovereignty — get wallet ID for replicant
     /// pre:  replicant_name is non-empty
     /// post: returns Some(WalletId) if set, None otherwise
     pub fn get_wallet_id(&self, replicant_name: &str) -> UserResult<Option<WalletId>> {
@@ -414,7 +414,7 @@ impl UserStore {
     /// Set wallet ID for a replicant.
     ///
     /// REQ: P1-sto-user-wallet-set
-    /// [P1] Motivating: User Sovereignty — set wallet ID for replicant
+    /// \[P1\] Motivating: User Sovereignty — set wallet ID for replicant
     /// pre:  replicant_name is registered, wallet_id is valid
     /// post: wallet_id stored for replicant
     pub fn set_wallet_id(&self, replicant_name: &str, wallet_id: WalletId) -> UserResult<()> {

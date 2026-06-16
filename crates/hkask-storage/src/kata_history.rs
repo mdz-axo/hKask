@@ -63,7 +63,7 @@ impl KataHistoryStore {
     /// Record a kata history entry.
     ///
     /// REQ: P3-sto-kata-record
-    /// [P3] Motivating: Generative Space — record a kata practice entry
+    /// \[P3\] Motivating: Generative Space — record a kata practice entry
     /// pre:  entry.agent_name is non-empty
     /// post: entry inserted into kata_history
     pub fn record(
@@ -87,7 +87,7 @@ impl KataHistoryStore {
     /// Get entries for a specific agent.
     ///
     /// REQ: P3-sto-kata-list-agent
-    /// [P3] Motivating: Generative Space — list entries per agent
+    /// \[P3\] Motivating: Generative Space — list entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of entries for this agent
     pub fn entries_for_agent(
@@ -134,7 +134,7 @@ impl KataHistoryStore {
     /// Count entries for an agent.
     ///
     /// REQ: P3-sto-kata-count-agent
-    /// [P8] Motivating: Semantic Grounding — count entries per agent
+    /// \[P8\] Motivating: Semantic Grounding — count entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns count of entries
     pub fn count_entries_for_agent(&self, agent_name: &str) -> Result<usize, KataHistoryError> {
@@ -151,7 +151,7 @@ impl KataHistoryStore {
     /// Count entries on a specific date.
     ///
     /// REQ: P3-sto-kata-count-date
-    /// [P8] Motivating: Semantic Grounding — count entries per date
+    /// \[P8\] Motivating: Semantic Grounding — count entries per date
     /// pre:  agent_name is non-empty, date is valid ISO date
     /// post: returns count of entries on that date
     pub fn count_entries_on(
@@ -172,7 +172,7 @@ impl KataHistoryStore {
     /// Get the last entry for an agent.
     ///
     /// REQ: P3-sto-kata-last
-    /// [P3] Motivating: Generative Space — most recent entry for agent
+    /// \[P3\] Motivating: Generative Space — most recent entry for agent
     /// pre:  agent_name is non-empty
     /// post: returns Some(entry) if exists, None otherwise
     pub fn last_entry_for_agent(
@@ -219,7 +219,7 @@ impl KataHistoryStore {
     /// Get entries in a date range.
     ///
     /// REQ: P3-sto-kata-range
-    /// [P3] Motivating: Generative Space — entries in date range
+    /// \[P3\] Motivating: Generative Space — entries in date range
     /// pre:  agent_name is non-empty, from/to are valid ISO dates
     /// post: returns Vec of entries in range
     pub fn entries_in_range(
@@ -268,7 +268,7 @@ impl KataHistoryStore {
     /// Delete entries before a date.
     ///
     /// REQ: P3-sto-kata-delete-before
-    /// [P3] Motivating: Generative Space — delete old entries
+    /// \[P3\] Motivating: Generative Space — delete old entries
     /// pre:  before_date is a valid ISO date
     /// post: entries before date deleted
     /// post: returns count of deleted entries

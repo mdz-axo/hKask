@@ -310,7 +310,7 @@ impl std::fmt::Display for SpanNamespace {
 // ── CnsSpan ↔ SpanNamespace bridge (R5 migration) ──────────────────────
 
 impl From<crate::cns::CnsSpan> for SpanNamespace {
-    /// [NORMATIVE] Convert a typed `CnsSpan` to a `SpanNamespace`.
+    /// \[NORMATIVE\] Convert a typed `CnsSpan` to a `SpanNamespace`.
     /// The Display output of `CnsSpan` is the canonical namespace string,
     /// which is always valid for `SpanNamespace` construction (P8 — Semantic Grounding).
     fn from(span: crate::cns::CnsSpan) -> Self {

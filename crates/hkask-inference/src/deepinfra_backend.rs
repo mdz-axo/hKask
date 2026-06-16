@@ -31,7 +31,7 @@ impl DeepInfraBackend {
     /// Returns an error if `deepinfra_api_key` is empty.
     ///
     /// REQ: P4-inf-deepinfra-backend-new
-    /// [P4] Motivating: Clear Boundaries — DeepInfra provider membrane requires valid API key
+    /// \[P4\] Motivating: Clear Boundaries — DeepInfra provider membrane requires valid API key
     /// pre:  config.deepinfra_api_key is set
     /// post: returns DeepInfraBackend with configured HTTP client
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
@@ -54,7 +54,7 @@ impl DeepInfraBackend {
     /// Send a chat completion request to DeepInfra.
     ///
     /// REQ: P9-inf-deepinfra-generate
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated text generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated text generation
     /// pre:  model is a valid DeepInfra model name
     /// pre:  prompt is non-empty (validated by validate_prompt)
     /// pre:  params is a valid LLMParameters
@@ -108,7 +108,7 @@ impl DeepInfraBackend {
     /// Vision/multimodal inference with base64-encoded images.
     ///
     /// REQ: P9-inf-deepinfra-generate-vision
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
     /// pre:  model is a valid DeepInfra vision-capable model name
     /// pre:  prompt is non-empty
     /// pre:  images is non-empty (at least one base64-encoded image)
@@ -174,7 +174,7 @@ impl DeepInfraBackend {
     /// Generate a streaming completion from DeepInfra.
     ///
     /// REQ: P9-inf-deepinfra-generate-stream
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
     /// pre:  model is a valid DeepInfra model name
     /// post: returns stream of inference chunks
     pub fn generate_stream(
@@ -240,7 +240,7 @@ impl DeepInfraBackend {
     /// List models from DeepInfra via `/v1/models`, filtered to last 6 months.
     ///
     /// REQ: P9-inf-deepinfra-list-models
-    /// [P9] Motivating: Homeostatic Self-Regulation — model variety discovery with freshness filter
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — model variety discovery with freshness filter
     /// pre:  self.client and self.base_url are initialized
     /// post: returns Ok(Vec<DeepInfraModelEntry>) with models updated in last 180 days
     /// post: if API returns non-success → Ok(Vec::new()) (graceful degradation)
@@ -319,7 +319,7 @@ impl DeepInfraBackend {
     /// Model: Bria/remove_background — $0.018/image, commercial-ready.
     ///
     /// REQ: P9-inf-deepinfra-remove-background
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated image transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image transformation
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with background-removed image data
     /// post: if API call fails → Err(InferenceError::Connection)
@@ -335,7 +335,7 @@ impl DeepInfraBackend {
     /// Model: black-forest-labs/FLUX-2-klein-4b — fast 4B param FLUX.
     ///
     /// REQ: P9-inf-deepinfra-generate-image
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated image generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image generation
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated image data (1024x1024)
     /// post: if API call fails → Err(InferenceError::Connection)
@@ -357,7 +357,7 @@ impl DeepInfraBackend {
     /// Model: Qwen/Qwen-Image-Edit — style transfer, precise edits.
     ///
     /// REQ: P9-inf-deepinfra-image-to-image
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated image editing
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image editing
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  prompt is a non-empty edit instruction
     /// post: returns Ok(serde_json::Value) with edited image data
@@ -380,7 +380,7 @@ impl DeepInfraBackend {
     /// API: POST /v1/text-to-speech/{voice_id}
     ///
     /// REQ: P9-inf-deepinfra-generate-speech
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated speech synthesis
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech synthesis
     /// pre:  text is non-empty
     /// pre:  voice_id is a valid voice identifier
     /// post: returns Ok(serde_json::Value) with base64-encoded MP3 audio
@@ -440,7 +440,7 @@ impl DeepInfraBackend {
     /// Requests word-level timestamps for interactive transcript bundles.
     ///
     /// REQ: P9-inf-deepinfra-transcribe
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated speech transcription
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech transcription
     /// pre:  audio_url is a valid, accessible audio file URL
     /// post: returns Ok(serde_json::Value) with verbose_json transcription (word+segment timestamps)
     /// post: if API call fails → Err(InferenceError::Connection)

@@ -34,8 +34,8 @@ impl EnergyCost {
     /// Create a energy cost from a raw `u64`.
     ///
     /// REQ: P8-cns-energy-cost-from-raw
-    /// [P8] Motivating: Semantic Grounding — type-level identity preservation
-    /// [P5] Constraining: Essentialism — minimal newtype, no validation or transformation
+    /// \[P8\] Motivating: Semantic Grounding — type-level identity preservation
+    /// \[P5\] Constraining: Essentialism — minimal newtype, no validation or transformation
     /// post: result.0 == value
     pub fn from_raw(value: u64) -> Self {
         EnergyCost(value)
@@ -44,8 +44,8 @@ impl EnergyCost {
     /// Return the raw `u64` value.
     ///
     /// REQ: P8-cns-energy-cost-as-raw
-    /// [P8] Motivating: Semantic Grounding — symmetric type-level identity
-    /// [P5] Constraining: Essentialism — minimal accessor, no transformation
+    /// \[P8\] Motivating: Semantic Grounding — symmetric type-level identity
+    /// \[P5\] Constraining: Essentialism — minimal accessor, no transformation
     /// post: result == self.0
     pub fn as_raw(self) -> u64 {
         self.0
@@ -110,8 +110,8 @@ impl EnergyDelta {
     /// Create an energy delta from a raw `f64`.
     ///
     /// REQ: P8-cns-energy-delta-from-raw
-    /// [P8] Motivating: Semantic Grounding — type-level identity for f64 newtype
-    /// [P5] Constraining: Essentialism — minimal constructor, no validation
+    /// \[P8\] Motivating: Semantic Grounding — type-level identity for f64 newtype
+    /// \[P5\] Constraining: Essentialism — minimal constructor, no validation
     /// post: result.0 == value
     pub fn from_raw(value: f64) -> Self {
         EnergyDelta(value)
@@ -120,8 +120,8 @@ impl EnergyDelta {
     /// Return the raw `f64` value.
     ///
     /// REQ: P8-cns-energy-delta-as-raw
-    /// [P8] Motivating: Semantic Grounding — symmetric type-level identity
-    /// [P5] Constraining: Essentialism — minimal accessor
+    /// \[P8\] Motivating: Semantic Grounding — symmetric type-level identity
+    /// \[P5\] Constraining: Essentialism — minimal accessor
     /// post: result == self.0
     pub fn as_raw(self) -> f64 {
         self.0
@@ -132,8 +132,8 @@ impl EnergyDelta {
     /// has found its minimal-action configuration.
     ///
     /// REQ: P9-cns-energy-delta-descending
-    /// [P9] Motivating: Homeostatic Self-Regulation — lazy universe compliance detection
-    /// [P8] Constraining: Semantic Grounding — this is a pure measurement, not a moral judgment
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — lazy universe compliance detection
+    /// \[P8\] Constraining: Semantic Grounding — this is a pure measurement, not a moral judgment
     /// post: result == (self.0 <= 0.0)
     pub fn is_descending(&self) -> bool {
         self.0 <= 0.0
@@ -142,8 +142,8 @@ impl EnergyDelta {
     /// Returns true if the system moved toward higher energy (anti-lazy — alert candidate).
     ///
     /// REQ: P9-cns-energy-delta-ascending
-    /// [P9] Motivating: Homeostatic Self-Regulation — anti-lazy detection triggers algedonic alert
-    /// [P8] Constraining: Semantic Grounding — this is a measurement, not an alarm
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — anti-lazy detection triggers algedonic alert
+    /// \[P8\] Constraining: Semantic Grounding — this is a measurement, not an alarm
     /// post: result == (self.0 > 0.0)
     /// post: is_ascending() == !is_descending() || self.0 == 0.0
     pub fn is_ascending(&self) -> bool {
@@ -193,8 +193,8 @@ const fn default_priority() -> f64 {
 /// Cybernetics Loop on its regulation cycle.
 ///
 /// REQ: P9-cns-energy-budget-invariant
-/// [P9] Motivating: Homeostatic Self-Regulation — the budget invariant enables feedback loops
-/// [P4] Constraining: Clear Boundaries — cap enforces OCAP boundaries, non-negative enforces safety
+/// \[P9\] Motivating: Homeostatic Self-Regulation — the budget invariant enables feedback loops
+/// \[P4\] Constraining: Clear Boundaries — cap enforces OCAP boundaries, non-negative enforces safety
 /// inv: remaining + reserved ≤ cap (budget cap invariant)
 /// inv: remaining ≥ 0, reserved ≥ 0
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -227,9 +227,9 @@ impl EnergyBudget {
     /// Create a new energy budget with the given cap.
     ///
     /// REQ: P9-cns-energy-budget-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — budget creation enables self-regulation
-    /// [P4] Constraining: Clear Boundaries — cap enforces OCAP boundary, defaults are safe
-    /// [P5] Constraining: Essentialism — minimal defaults (replenish_rate = cap/10)
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — budget creation enables self-regulation
+    /// \[P4\] Constraining: Clear Boundaries — cap enforces OCAP boundary, defaults are safe
+    /// \[P5\] Constraining: Essentialism — minimal defaults (replenish_rate = cap/10)
     /// pre:  cap > 0
     /// post: remaining == cap, reserved == 0, hard_limit == true
     /// post: replenish_rate == cap / 10, alert_threshold == DEFAULT_ENERGY_ALERT_THRESHOLD
@@ -251,12 +251,12 @@ impl EnergyBudget {
     /// Create a energy budget with unlimited capacity (u64::MAX).
     ///
     /// REQ: P9-cns-energy-budget-unlimited
-    /// [P9] Motivating: Homeostatic Self-Regulation — observability without throttling
-    /// [P4] Constraining: Clear Boundaries — soft boundary tracks but never blocks
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — observability without throttling
+    /// \[P4\] Constraining: Clear Boundaries — soft boundary tracks but never blocks
     /// post: cap == u64::MAX, hard_limit == false
     ///
-    /// [NORMATIVE] Useful for agents that should never be throttled (P9 — Homeostatic Self-Regulation). The budget still
-    /// [DECLARATIVE] tracks usage for observability but never hard-rejects. (P9 — Homeostatic Self-Regulation).
+    /// \[NORMATIVE\] Useful for agents that should never be throttled (P9 — Homeostatic Self-Regulation). The budget still
+    /// \[DECLARATIVE\] tracks usage for observability but never hard-rejects. (P9 — Homeostatic Self-Regulation).
     pub fn unlimited() -> Self {
         Self::new(EnergyCost(u64::MAX)).with_hard_limit(false)
     }
@@ -265,8 +265,8 @@ impl EnergyBudget {
     /// Set the replenishment rate (gas units per cycle).
     ///
     /// REQ: P9-cns-energy-budget-with-replenish-rate
-    /// [P9] Motivating: Homeostatic Self-Regulation — configurable replenishment knob
-    /// [P7] Constraining: Evolutionary Architecture — emerged from real usage
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — configurable replenishment knob
+    /// \[P7\] Constraining: Evolutionary Architecture — emerged from real usage
     /// post: self.replenish_rate == rate
     pub fn with_replenish_rate(mut self, rate: EnergyCost) -> Self {
         self.replenish_rate = rate;
@@ -277,8 +277,8 @@ impl EnergyBudget {
     /// Set the alert threshold (0.0–1.0).
     ///
     /// REQ: P9-cns-energy-budget-with-alert-threshold
-    /// [P9] Motivating: Homeostatic Self-Regulation — configurable alert threshold
-    /// [P7] Constraining: Evolutionary Architecture — emerged from real usage
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — configurable alert threshold
+    /// \[P7\] Constraining: Evolutionary Architecture — emerged from real usage
     /// pre:  threshold is a valid ratio
     /// post: self.alert_threshold == threshold.clamp(0.0, 1.0)
     pub fn with_alert_threshold(mut self, threshold: f64) -> Self {
@@ -290,8 +290,8 @@ impl EnergyBudget {
     /// Set whether to hard-reject on exhaustion.
     ///
     /// REQ: P9-cns-energy-budget-with-hard-limit
-    /// [P9] Motivating: Homeostatic Self-Regulation — boundary enforcement toggle
-    /// [P4] Constraining: Clear Boundaries — hard_limit is the OCAP enforcement gate
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — boundary enforcement toggle
+    /// \[P4\] Constraining: Clear Boundaries — hard_limit is the OCAP enforcement gate
     /// post: self.hard_limit == hard
     pub fn with_hard_limit(mut self, hard: bool) -> Self {
         self.hard_limit = hard;
@@ -302,8 +302,8 @@ impl EnergyBudget {
     /// Check whether an operation costing `gas` can proceed.
     ///
     /// REQ: P9-cns-energy-budget-can-proceed
-    /// [P9] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
-    /// [P4] Constraining: Clear Boundaries — hard_limit enforces the boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
+    /// \[P4\] Constraining: Clear Boundaries — hard_limit enforces the boundary
     /// pre:  gas is a valid EnergyCost
     /// post: returns true iff gas <= available OR hard_limit is false
     /// Returns `true` if the gas fits within available (remaining - reserved) budget.
@@ -316,9 +316,9 @@ impl EnergyBudget {
     /// Available gas = remaining - reserved.
     ///
     /// REQ: P9-cns-energy-budget-available
-    /// [P9] Motivating: Homeostatic Self-Regulation — visible state for feedback loops
-    /// [P4] Constraining: Clear Boundaries — non-negative guarantee
-    /// [NORMATIVE] post: result >= 0 (available never negative) (P9 — Homeostatic Self-Regulation)
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — visible state for feedback loops
+    /// \[P4\] Constraining: Clear Boundaries — non-negative guarantee
+    /// \[NORMATIVE\] post: result >= 0 (available never negative) (P9 — Homeostatic Self-Regulation)
     /// post: result == remaining.saturating_sub(reserved)
     pub fn available(&self) -> EnergyCost {
         EnergyCost(self.remaining.0.saturating_sub(self.reserved.0))
@@ -328,8 +328,8 @@ impl EnergyBudget {
     /// Reserve gas for an in-flight operation (hold-settle pattern).
     ///
     /// REQ: P9-cns-energy-budget-reserve
-    /// [P9] Motivating: Homeostatic Self-Regulation — the hold-settle pattern
-    /// [P4] Constraining: Clear Boundaries — hard_limit enforces the boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — the hold-settle pattern
+    /// \[P4\] Constraining: Clear Boundaries — hard_limit enforces the boundary
     /// pre:  gas is a valid EnergyCost
     /// post: if hard_limit && gas > available → Err(BudgetExceeded)
     /// post: if Ok → reserved increased by gas, remaining unchanged
@@ -357,9 +357,9 @@ impl EnergyBudget {
     /// Settle a reserved operation: deduct actual cost from remaining.
     ///
     /// REQ: P9-cns-energy-budget-settle
-    /// [P9] Motivating: Homeostatic Self-Regulation — completes the hold-settle cycle
-    /// [P4] Constraining: Clear Boundaries — reserved tracking enforces accountability
-    /// [NORMATIVE] pre:  reserved_gas ≤ self.reserved (caller must track reservations) (P9 — Homeostatic Self-Regulation)
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — completes the hold-settle cycle
+    /// \[P4\] Constraining: Clear Boundaries — reserved tracking enforces accountability
+    /// \[NORMATIVE\] pre:  reserved_gas ≤ self.reserved (caller must track reservations) (P9 — Homeostatic Self-Regulation)
     /// post: reserved decreased by reserved_gas
     /// post: if hard_limit && actual > remaining → Err(BudgetExceeded)
     /// post: if Ok → remaining decreased by actual
@@ -367,7 +367,7 @@ impl EnergyBudget {
     ///
     /// Since `reserve()` only tracks reserved gas without deducting from remaining,
     /// settlement simply removes the reservation and deducts the actual cost.
-    /// [DECLARATIVE] If actual < reserved, the remaining budget was never reduced for the
+    /// \[DECLARATIVE\] If actual < reserved, the remaining budget was never reduced for the
     /// reservation, so the difference is implicitly refunded.
     ///
     /// If actual > reserved (under-estimation), the extra is deducted from
@@ -398,8 +398,8 @@ impl EnergyBudget {
     /// Consume gas immediately (non-reserved path).
     ///
     /// REQ: P9-cns-energy-budget-consume
-    /// [P9] Motivating: Homeostatic Self-Regulation — immediate deduction path
-    /// [P4] Constraining: Clear Boundaries — hard_limit enforces the boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — immediate deduction path
+    /// \[P4\] Constraining: Clear Boundaries — hard_limit enforces the boundary
     /// pre:  gas is a valid EnergyCost
     /// post: if hard_limit && gas > remaining → Err(BudgetExceeded)
     /// post: if Ok → remaining decreased by gas
@@ -425,8 +425,8 @@ impl EnergyBudget {
     /// Replenish energy budget by the configured replenish_rate.
     ///
     /// REQ: P9-cns-energy-budget-replenish
-    /// [P9] Motivating: Homeostatic Self-Regulation — the regulation cycle
-    /// [P4] Constraining: Clear Boundaries — cap enforces boundary, never exceeds
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — the regulation cycle
+    /// \[P4\] Constraining: Clear Boundaries — cap enforces boundary, never exceeds
     /// post: remaining ≤ cap (never exceeds cap)
     /// post: if replenish_rate > 0 → remaining increased by up to replenish_rate
     ///
@@ -447,8 +447,8 @@ impl EnergyBudget {
     /// Replenish energy budget by a specific amount (used by CuratorDirective::ReplenishBudget).
     ///
     /// REQ: P9-cns-energy-budget-replenish-by
-    /// [P9] Motivating: Homeostatic Self-Regulation — targeted curation replenishment
-    /// [P4] Constraining: Clear Boundaries — cap enforces boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — targeted curation replenishment
+    /// \[P4\] Constraining: Clear Boundaries — cap enforces boundary
     /// pre:  amount is a valid EnergyCost
     /// post: remaining ≤ cap (never exceeds cap)
     /// post: remaining increased by up to amount
@@ -460,14 +460,14 @@ impl EnergyBudget {
     /// Replenish energy budget by `amount * priority`, weighted by the given priority.
     ///
     /// REQ: P9-cns-energy-budget-replenish-by-weighted
-    /// [P9] Motivating: Homeostatic Self-Regulation — priority-weighted replenishment
-    /// [P4] Constraining: Clear Boundaries — cap enforces boundary
-    /// [P7] Constraining: Evolutionary Architecture — priority config emerged from real usage
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — priority-weighted replenishment
+    /// \[P4\] Constraining: Clear Boundaries — cap enforces boundary
+    /// \[P7\] Constraining: Evolutionary Architecture — priority config emerged from real usage
     /// pre:  amount is a valid EnergyCost, priority in [0.0, 1.0]
     /// post: remaining ≤ cap (never exceeds cap)
     /// post: returns the actual amount replenished (≥ 1 if amount * priority > 0)
     ///
-    /// [NORMATIVE] The effective replenishment is `(amount * priority).round()`, never exceeding cap (P9 — Homeostatic Self-Regulation).
+    /// \[NORMATIVE\] The effective replenishment is `(amount * priority).round()`, never exceeding cap (P9 — Homeostatic Self-Regulation).
     /// If `amount * priority` rounds to 0, at least 1 unit is replenished (so
     /// low-priority directives still have effect).
     pub fn replenish_by_weighted(&mut self, amount: EnergyCost, priority: f64) -> EnergyCost {

@@ -190,8 +190,8 @@ impl VarietyMonitor {
     /// Create a new variety monitor.
     ///
     /// REQ: P9-cns-runtime-variety-monitor-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — the monitor enables feedback loops
-    /// [P5] Constraining: Essentialism — minimal defaults, empty counters
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — the monitor enables feedback loops
+    /// \[P5\] Constraining: Essentialism — minimal defaults, empty counters
     /// post: returns VarietyMonitor with empty counters
     pub fn new() -> Self {
         Self {
@@ -206,8 +206,8 @@ impl VarietyMonitor {
     /// Get variety count for a domain.
     ///
     /// REQ: P9-cns-runtime-variety-for-domain
-    /// [P9] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
-    /// [P8] Constraining: Semantic Grounding — pure measurement, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
+    /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// pre:  domain is non-empty
     /// post: returns variety count, 0 if domain not tracked
     pub fn variety_for_domain(&self, domain: &str) -> u64 {
@@ -217,8 +217,8 @@ impl VarietyMonitor {
     /// List all tracked domains.
     ///
     /// REQ: P9-cns-runtime-variety-monitor-domains
-    /// [P9] Motivating: Homeostatic Self-Regulation — domain enumeration enables loop feedback
-    /// [P8] Constraining: Semantic Grounding — pure enumeration, no side effects
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — domain enumeration enables loop feedback
+    /// \[P8\] Constraining: Semantic Grounding — pure enumeration, no side effects
     /// post: returns Vec of domain name strings
     pub fn domains(&self) -> Vec<&str> {
         self.counters.keys().map(|s| s.as_str()).collect()
@@ -276,8 +276,8 @@ impl CnsRuntime {
     /// Create a CNS runtime with a custom threshold.
     ///
     /// REQ: P9-cns-runtime-with-threshold
-    /// [P9] Motivating: Homeostatic Self-Regulation — runtime creation enables regulation
-    /// [P7] Constraining: Evolutionary Architecture — threshold config emerged from real usage
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — runtime creation enables regulation
+    /// \[P7\] Constraining: Evolutionary Architecture — threshold config emerged from real usage
     /// pre:  threshold > 0
     /// post: returns CnsRuntime with configured threshold
     pub fn with_threshold(threshold: u64) -> Self {
@@ -292,8 +292,8 @@ impl CnsRuntime {
     /// Get CNS health status.
     ///
     /// REQ: P9-cns-runtime-health
-    /// [P9] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
-    /// [P8] Constraining: Semantic Grounding — pure measurement, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
+    /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns CnsHealth with current state
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
@@ -306,8 +306,8 @@ impl CnsRuntime {
     /// Get all alerts.
     ///
     /// REQ: P9-cns-runtime-alerts
-    /// [P9] Motivating: Homeostatic Self-Regulation — alert retrieval enables loop response
-    /// [P8] Constraining: Semantic Grounding — pure observation, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — alert retrieval enables loop response
+    /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// post: returns Vec of RuntimeAlert
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
@@ -318,8 +318,8 @@ impl CnsRuntime {
     /// Get the configured default threshold.
     ///
     /// REQ: P9-cns-runtime-default-threshold
-    /// [P9] Motivating: Homeostatic Self-Regulation — threshold config enables loop tuning
-    /// [P7] Constraining: Evolutionary Architecture — threshold emerged from real usage
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — threshold config enables loop tuning
+    /// \[P7\] Constraining: Evolutionary Architecture — threshold emerged from real usage
     /// post: returns threshold value from algedonic manager
     pub async fn default_threshold(&self) -> u64 {
         let state = self.state.read().await;
@@ -329,8 +329,8 @@ impl CnsRuntime {
     /// Get critical alerts only.
     ///
     /// REQ: P9-cns-runtime-critical-alerts
-    /// [P9] Motivating: Homeostatic Self-Regulation — critical alert filtering enables prioritised response
-    /// [P8] Constraining: Semantic Grounding — pure observation, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — critical alert filtering enables prioritised response
+    /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// post: returns Vec of critical RuntimeAlert
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
@@ -350,8 +350,8 @@ impl CnsRuntime {
     /// Get variety counts across all domains.
     ///
     /// REQ: P9-cns-runtime-variety
-    /// [P9] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
-    /// [P8] Constraining: Semantic Grounding — pure measurement, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
+    /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns HashMap of namespace → variety count
     pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
         let state = self.state.read().await;
@@ -381,8 +381,8 @@ impl CnsRuntime {
     /// Get variety for a specific domain.
     ///
     /// REQ: P9-cns-runtime-variety-for-domain
-    /// [P9] Motivating: Homeostatic Self-Regulation — domain-specific variety measurement
-    /// [P8] Constraining: Semantic Grounding — pure observation, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — domain-specific variety measurement
+    /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// pre:  domain is non-empty
     /// post: returns variety count for domain
     pub async fn variety_for_domain(&self, domain: &str) -> u64 {
@@ -396,9 +396,9 @@ impl CnsRuntime {
     /// Get variety for a domain (blocking).
     ///
     /// REQ: P3-cns-runtime-blocking-variety-for-domain
-    /// [P3] Motivating: Generative Space — sync access preserves generative capability
-    /// [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
-    /// [P4] Constraining: Clear Boundaries — must not be called from async context
+    /// \[P3\] Motivating: Generative Space — sync access preserves generative capability
+    /// \[P7\] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
+    /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
     /// pre:  domain is non-empty
     /// post: returns variety count
     pub fn blocking_variety_for_domain(&self, domain: &str) -> u64 {
@@ -416,8 +416,8 @@ impl CnsRuntime {
     /// Record an outcome (success/failure) for a domain.
     ///
     /// REQ: P9-cns-runtime-record-outcome
-    /// [P9] Motivating: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation
-    /// [P4] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation
+    /// \[P4\] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
     /// pre:  domain is non-empty
     /// post: outcome tracked for domain
     pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
@@ -441,8 +441,8 @@ impl CnsRuntime {
     /// Check outcome health for a domain.
     ///
     /// REQ: P9-cns-runtime-check-outcome
-    /// [P9] Motivating: Homeostatic Self-Regulation — outcome check drives loop decisions
-    /// [P4] Constraining: Clear Boundaries — threshold gating enforces boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — outcome check drives loop decisions
+    /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty
     /// post: returns Some(alert) if success rate below threshold, None if healthy
     pub async fn check_outcome(&self, domain: &str) -> Option<RuntimeAlert> {
@@ -476,8 +476,8 @@ impl CnsRuntime {
     /// Get outcome success rate for a domain.
     ///
     /// REQ: P9-cns-runtime-outcome-success-rate
-    /// [P9] Motivating: Homeostatic Self-Regulation — success rate is a feedback metric
-    /// [P8] Constraining: Semantic Grounding — pure measurement, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — success rate is a feedback metric
+    /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// pre:  domain is non-empty
     /// post: returns Some(rate) if domain tracked, None otherwise
     pub async fn outcome_success_rate(&self, domain: &str) -> Option<f64> {
@@ -491,8 +491,8 @@ impl CnsRuntime {
     /// Increment variety counter for a domain.
     ///
     /// REQ: P9-cns-runtime-increment-variety
-    /// [P9] Motivating: Homeostatic Self-Regulation — variety counter drives loop closure
-    /// [P4] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — variety counter drives loop closure
+    /// \[P4\] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
     /// pre:  domain and state_name are non-empty
     /// post: variety counter incremented
     pub async fn increment_variety(&self, domain: &str, state_name: &str) {
@@ -531,8 +531,8 @@ impl CnsRuntime {
     /// Check variety health for a domain.
     ///
     /// REQ: P9-cns-runtime-check-variety
-    /// [P9] Motivating: Homeostatic Self-Regulation — variety check drives loop closure
-    /// [P4] Constraining: Clear Boundaries — threshold gating enforces boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — variety check drives loop closure
+    /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty
     /// post: returns Some(alert) if variety below threshold, None if healthy
     pub async fn check_variety(&self, domain: &str) -> Option<RuntimeAlert> {
@@ -567,8 +567,8 @@ impl CnsRuntime {
     /// Calibrate the variety threshold for a domain.
     ///
     /// REQ: P7-cns-runtime-calibrate-threshold
-    /// [P7] Motivating: Evolutionary Architecture — threshold parameter emerged from real usage
-    /// [P4] Constraining: Clear Boundaries — threshold gating enforces boundary
+    /// \[P7\] Motivating: Evolutionary Architecture — threshold parameter emerged from real usage
+    /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty, new_threshold > 0
     /// post: threshold updated for domain
     pub async fn calibrate_threshold(&self, domain: &str, new_threshold: u64) {
@@ -589,9 +589,9 @@ impl CnsRuntime {
     /// Calibrate threshold (blocking).
     ///
     /// REQ: P3-cns-runtime-calibrate-threshold-blocking
-    /// [P3] Motivating: Generative Space — sync access preserves generative capability
-    /// [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
-    /// [P4] Constraining: Clear Boundaries — must not be called from async context
+    /// \[P3\] Motivating: Generative Space — sync access preserves generative capability
+    /// \[P7\] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
+    /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
     /// pre:  domain is non-empty, new_threshold > 0
     /// post: threshold updated
     pub fn calibrate_threshold_blocking(&self, domain: &str, new_threshold: u64) {
@@ -615,8 +615,8 @@ impl CnsRuntime {
     /// Subscribe an observer to CNS events.
     ///
     /// REQ: P12-cns-runtime-subscribe
-    /// [P12] Motivating: Affirmative Consent — observer registration requires explicit subscription
-    /// [P2] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
+    /// \[P12\] Motivating: Affirmative Consent — observer registration requires explicit subscription
+    /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
     /// post: observer added to subscribers
     pub fn subscribe(&self, observer: Arc<dyn CnsObserver>) {
@@ -631,8 +631,8 @@ impl CnsRuntime {
     /// Subscribe an observer (async).
     ///
     /// REQ: P12-cns-runtime-subscribe-async
-    /// [P12] Motivating: Affirmative Consent — observer registration requires explicit subscription
-    /// [P2] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
+    /// \[P12\] Motivating: Affirmative Consent — observer registration requires explicit subscription
+    /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
     /// post: observer added to subscribers
     pub async fn subscribe_async(&self, observer: Arc<dyn CnsObserver>) {
@@ -647,8 +647,8 @@ impl CnsRuntime {
     /// Emit a backpressure signal.
     ///
     /// REQ: P9-cns-runtime-emit-backpressure
-    /// [P9] Motivating: Homeostatic Self-Regulation — backpressure signal closes the regulation loop
-    /// [P4] Constraining: Clear Boundaries — signal emission gates downstream throttling
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — backpressure signal closes the regulation loop
+    /// \[P4\] Constraining: Clear Boundaries — signal emission gates downstream throttling
     /// pre:  signal is valid
     /// post: backpressure signal emitted to subscribers
     pub async fn emit_backpressure(&self, signal: BackpressureSignal) {
@@ -664,8 +664,8 @@ impl CnsRuntime {
     /// Register an energy budget for an agent.
     ///
     /// REQ: P9-cns-runtime-register-energy-budget
-    /// [P9] Motivating: Homeostatic Self-Regulation — budget registration enables energy tracking
-    /// [P4] Constraining: Clear Boundaries — budget cap enforces resource boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — budget registration enables energy tracking
+    /// \[P4\] Constraining: Clear Boundaries — budget cap enforces resource boundary
     /// pre:  agent is valid, budget is valid
     /// post: budget registered for agent
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
@@ -681,8 +681,8 @@ impl CnsRuntime {
     /// Replenish an agent's energy budget.
     ///
     /// REQ: P9-cns-runtime-replenish-agent-budget
-    /// [P9] Motivating: Homeostatic Self-Regulation — budget replenishment drives energy loop
-    /// [P4] Constraining: Clear Boundaries — cap enforcement prevents over-replenishment
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — budget replenishment drives energy loop
+    /// \[P4\] Constraining: Clear Boundaries — cap enforcement prevents over-replenishment
     /// pre:  agent is registered, amount > 0
     /// post: budget replenished, returns actual amount added
     pub async fn replenish_agent_budget(&self, agent: &WebID, amount: EnergyCost) -> EnergyCost {
@@ -711,8 +711,8 @@ impl CnsRuntime {
     /// Get agent energy status.
     ///
     /// REQ: P9-cns-runtime-agent-gas-status
-    /// [P9] Motivating: Homeostatic Self-Regulation — gas status query drives energy loop decisions
-    /// [P8] Constraining: Semantic Grounding — pure observation, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — gas status query drives energy loop decisions
+    /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// pre:  agent is valid
     /// post: returns Some(status) if budget exists, None otherwise
     pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {

@@ -17,7 +17,7 @@ macro_rules! str_enum {
             /// Get string representation.
             ///
             /// REQ: P8-sto-spec-str-enum-as-str
-            /// [P8] Motivating: Semantic Grounding — stable string representation
+            /// \[P8\] Motivating: Semantic Grounding — stable string representation
             /// post: returns lowercase string
             pub fn as_str(&self) -> &'static str {
                 match self { $($enum::$variant => $s),+ }
@@ -25,7 +25,7 @@ macro_rules! str_enum {
             /// Parse from string.
             ///
             /// REQ: P8-sto-spec-str-enum-parse
-            /// [P8] Motivating: Semantic Grounding — parse from string
+            /// \[P8\] Motivating: Semantic Grounding — parse from string
             /// post: returns Some if valid, None otherwise
             pub fn parse_str(s: &str) -> Option<Self> {
                 match s.to_lowercase().as_str() {
@@ -44,7 +44,7 @@ impl SpecId {
     /// Create a new SpecId.
     ///
     /// REQ: P8-sto-spec-id-new
-    /// [P8] Motivating: Semantic Grounding — new SpecId
+    /// \[P8\] Motivating: Semantic Grounding — new SpecId
     /// post: returns new random SpecId
     pub fn new() -> Self {
         Self(Uuid::new_v4())
@@ -52,7 +52,7 @@ impl SpecId {
     /// Create a SpecId from a string.
     ///
     /// REQ: P8-sto-spec-id-from-str
-    /// [P8] Motivating: Semantic Grounding — SpecId from string
+    /// \[P8\] Motivating: Semantic Grounding — SpecId from string
     /// pre:  s is a valid UUID string
     /// post: returns SpecId
     pub fn from_string(s: &str) -> Result<Self, SpecError> {
@@ -96,7 +96,7 @@ impl SpecCategory {
     /// Get string representation of category.
     ///
     /// REQ: P8-sto-spec-category-as-str
-    /// [P8] Motivating: Semantic Grounding — category string label
+    /// \[P8\] Motivating: Semantic Grounding — category string label
     /// post: returns snake_case string
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -112,7 +112,7 @@ impl SpecCategory {
     /// their MDS equivalents.
     ///
     /// REQ: P8-sto-spec-category-parse
-    /// [P8] Motivating: Semantic Grounding — parse category
+    /// \[P8\] Motivating: Semantic Grounding — parse category
     /// post: returns Some(SpecCategory) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
@@ -144,7 +144,7 @@ impl SpecCategory {
 ///
 /// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
 // REQ: P8-sto-spec-infer-category — infer_spec_category maps context keywords to MDS categories
-/// [P8] Motivating: Semantic Grounding — infer MDS category from context
+/// \[P8\] Motivating: Semantic Grounding — infer MDS category from context
 pub fn infer_spec_category(context: Option<&str>) -> SpecCategory {
     let ctx = match context {
         Some(c) => c.to_lowercase(),

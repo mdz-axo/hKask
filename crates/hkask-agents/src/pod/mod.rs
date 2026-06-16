@@ -196,8 +196,8 @@ impl AgentPod {
     /// Create a new AgentPod.
     ///
     /// REQ: P1-agt-pod-new
-    /// [P1] Motivating: User Sovereignty — AgentPod is the user's agent container
-    /// [P4] Constraining: Clear Boundaries — OCAP secret + capability token on creation
+    /// \[P1\] Motivating: User Sovereignty — AgentPod is the user's agent container
+    /// \[P4\] Constraining: Clear Boundaries — OCAP secret + capability token on creation
     /// pre:  `crate_name` is a non-empty string; `persona` is a valid
     ///       `AgentPersona`; `git` is a valid `GitCasAdapter`; `consent`
     ///       is a valid `Arc<dyn SovereigntyConsent>`.
@@ -268,7 +268,7 @@ impl AgentPod {
     /// * `Err(AgentPodError)` — ACP registration failed
     ///
     /// REQ: P1-agt-pod-register
-    /// [P1] Motivating: User Sovereignty — register pod with ACP under its WebID
+    /// \[P1\] Motivating: User Sovereignty — register pod with ACP under its WebID
     /// pre:  `self.state` must be `Populated` (or `Registered` for
     ///       idempotent re-registration); `acp` is a valid `AcpPort`.
     /// post: On success, `self.state` is `Registered` and
@@ -318,8 +318,8 @@ impl AgentPod {
     /// * `Err(AgentPodError)` — MCP access grant failed
     ///
     /// REQ: P1-agt-pod-activate
-    /// [P1] Motivating: User Sovereignty — activate grants MCP access
-    /// [P4] Constraining: Clear Boundaries — requires Registered state
+    /// \[P1\] Motivating: User Sovereignty — activate grants MCP access
+    /// \[P4\] Constraining: Clear Boundaries — requires Registered state
     /// pre:  `self.state` must be `Registered` (or `Activated` for
     ///       idempotent re-activation); `mcp` is a valid `MCPRuntimePort`.
     /// post: On success, `self.state` is `Activated` and MCP tool access
@@ -359,7 +359,7 @@ impl AgentPod {
     /// * `Ok(())` — Deactivation successful
     ///
     /// REQ: P1-agt-pod-deactivate
-    /// [P1] Motivating: User Sovereignty — deactivate terminates MCP access
+    /// \[P1\] Motivating: User Sovereignty — deactivate terminates MCP access
     /// pre:  `self.state` must be `Activated` (or `Deactivated` for
     ///       idempotent re-deactivation).
     /// post: `self.state` is `Deactivated`.
@@ -399,8 +399,8 @@ impl AgentPod {
     /// * `Err(AgentPodError)` — Attenuation limit exceeded or keystore error
     ///
     /// REQ: P1-agt-pod-delegate
-    /// [P4] Motivating: Clear Boundaries — delegate capability to another holder with attenuation
-    /// [P7] Constraining: Evolutionary Architecture — attenuation limit emerged from usage
+    /// \[P4\] Motivating: Clear Boundaries — delegate capability to another holder with attenuation
+    /// \[P7\] Constraining: Evolutionary Architecture — attenuation limit emerged from usage
     /// pre:  `new_holder` is a valid `WebID`; `current_time` is a valid
     ///       Unix timestamp; `self.capability_token.attenuation_level`
     ///       must be < `self.max_attenuation`.
@@ -431,7 +431,7 @@ impl AgentPod {
     /// Check if the pod can perform A2A operations.
     ///
     /// REQ: P1-agt-pod-is-active
-    /// [P8] Motivating: Semantic Grounding — state accessor for Activated
+    /// \[P8\] Motivating: Semantic Grounding — state accessor for Activated
     /// pre:  (none).
     /// post: Returns `true` iff `self.state == PodLifecycleState::Activated`.
     pub fn is_active(&self) -> bool {
@@ -441,7 +441,7 @@ impl AgentPod {
     /// Get the current lifecycle state.
     ///
     /// REQ: P1-agt-pod-state
-    /// [P8] Motivating: Semantic Grounding — lifecycle state accessor
+    /// \[P8\] Motivating: Semantic Grounding — lifecycle state accessor
     /// pre:  (none — accessor).
     /// post: Returns the current `PodLifecycleState`.
     pub fn state(&self) -> PodLifecycleState {
@@ -453,16 +453,16 @@ impl AgentPod {
     /// Enter server mode for a specific MCP role.
     ///
     /// P4 Dual Gate:
-    /// 1. [NORMATIVE] Agent must be Activated (lifecycle gate) (P4 — Clear Boundaries)
-    /// 2. [NORMATIVE] Agent must be assigned to the role (sovereignty/consent gate) (P2 — Affirmative Consent)
-    /// 3. [NORMATIVE] Agent must not already be in another mode (mutual exclusion) (P4 — Clear Boundaries)
+    /// 1. \[NORMATIVE\] Agent must be Activated (lifecycle gate) (P4 — Clear Boundaries)
+    /// 2. \[NORMATIVE\] Agent must be assigned to the role (sovereignty/consent gate) (P2 — Affirmative Consent)
+    /// 3. \[NORMATIVE\] Agent must not already be in another mode (mutual exclusion) (P4 — Clear Boundaries)
     ///
     /// Capability verification (P4 Gate 1) is performed by the daemon
     /// at connection time, not here.
     ///
     /// REQ: P1-agt-pod-enter-server-mode
-    /// [P1] Motivating: User Sovereignty — enter server mode to serve MCP role
-    /// [P4] Constraining: Clear Boundaries — requires Activated + assigned role
+    /// \[P1\] Motivating: User Sovereignty — enter server mode to serve MCP role
+    /// \[P4\] Constraining: Clear Boundaries — requires Activated + assigned role
     /// pre:  `self.state == Activated`; `self.mode == None`; `role` is
     ///       in `self.assigned_mcp_roles`.
     /// post: `self.mode` is set to `Some(AgentMode::Server)`.
@@ -497,8 +497,8 @@ impl AgentPod {
     /// Requires: Activated state, not already in another mode.
     ///
     /// REQ: P1-agt-pod-enter-chat-mode
-    /// [P1] Motivating: User Sovereignty — enter chat mode for interactive use
-    /// [P4] Constraining: Clear Boundaries — requires Activated + no other mode
+    /// \[P1\] Motivating: User Sovereignty — enter chat mode for interactive use
+    /// \[P4\] Constraining: Clear Boundaries — requires Activated + no other mode
     /// pre:  `self.state == Activated`; `self.mode == None`.
     /// post: `self.mode` is set to `Some(AgentMode::Chat)`.
     ///       Returns `Err` if any precondition fails.
@@ -523,7 +523,7 @@ impl AgentPod {
     /// Exit the current mode, returning the agent to no active mode.
     ///
     /// REQ: P1-agt-pod-exit-mode
-    /// [P1] Motivating: User Sovereignty — exit current mode
+    /// \[P1\] Motivating: User Sovereignty — exit current mode
     /// pre:  (none — always valid).
     /// post: `self.mode` is set to `None`; the previous mode (if any)
     ///       is logged. Always returns `Ok(())`.
@@ -545,7 +545,7 @@ impl AgentPod {
     /// Check if the agent is currently in server mode.
     ///
     /// REQ: P1-agt-pod-is-server-mode
-    /// [P8] Motivating: Semantic Grounding — mode accessor
+    /// \[P8\] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Server)`.
     pub fn is_in_server_mode(&self) -> bool {
@@ -557,7 +557,7 @@ impl AgentPod {
     /// Set the agent's voice design for TTS speech generation.
     ///
     /// REQ: P1-agt-pod-set-voice
-    /// [P3] Motivating: Generative Space — configure voice design
+    /// \[P3\] Motivating: Generative Space — configure voice design
     /// pre:  `voice` is a valid `VoiceDesign`.
     /// post: `self.voice_design` is set to `Some(voice)`; logs the change.
     pub fn set_voice(&mut self, voice: VoiceDesign) {
@@ -573,7 +573,7 @@ impl AgentPod {
     /// Get the agent's voice design, if one has been set.
     ///
     /// REQ: P1-agt-pod-get-voice
-    /// [P8] Motivating: Semantic Grounding — voice design accessor
+    /// \[P8\] Motivating: Semantic Grounding — voice design accessor
     /// pre:  (none — accessor).
     /// post: Returns `Some(&VoiceDesign)` if set, `None` otherwise.
     pub fn get_voice(&self) -> Option<&VoiceDesign> {
@@ -584,7 +584,7 @@ impl AgentPod {
     /// Returns the default neutral voice description if no voice is set.
     ///
     /// REQ: P1-agt-pod-voice-description
-    /// [P8] Motivating: Semantic Grounding — return TTS description
+    /// \[P8\] Motivating: Semantic Grounding — return TTS description
     /// pre:  (none).
     /// post: Returns the TTS description string for the configured voice,
     ///       or the default `VoiceDesign::default()` description if none
@@ -599,7 +599,7 @@ impl AgentPod {
     /// Check if the agent is currently in chat mode.
     ///
     /// REQ: P1-agt-pod-is-chat-mode
-    /// [P8] Motivating: Semantic Grounding — mode accessor
+    /// \[P8\] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Chat)`.
     pub fn is_in_chat_mode(&self) -> bool {
@@ -622,8 +622,8 @@ impl AgentPod {
     /// * `Err(AgentPodError)` — Sovereignty check error
     ///
     /// REQ: P1-agt-pod-check-sovereignty
-    /// [P1] Motivating: User Sovereignty — verify action against sovereignty/consent
-    /// [P2] Constraining: Affirmative Consent — delegates to consent boundary
+    /// \[P1\] Motivating: User Sovereignty — verify action against sovereignty/consent
+    /// \[P2\] Constraining: Affirmative Consent — delegates to consent boundary
     /// pre:  `action` is a non-empty string; `data_category` is a valid
     ///       `DataCategory`; `requester` is a valid `WebID`.
     /// post: Returns `Ok(true)` if both `check_operation` and `can_access`
@@ -670,7 +670,7 @@ fn current_timestamp() -> Result<i64, AgentPodError> {
 ///
 /// - Derives from the master passphrase via Argon2id → HKDF-SHA256
 /// - Different WebIDs produce independent sub-keys (HKDF domain separation)
-/// - [DECLARATIVE] Same WebID always produces the same key (UUID v5 from persona)
+/// - \[DECLARATIVE\] Same WebID always produces the same key (UUID v5 from persona)
 /// - No random generation — ADR-027 compliant
 /// - No keystore dependency per pod — only the master key needs storage
 fn derive_ocap_secret(webid: &WebID) -> AgentPodResult<Zeroizing<String>> {

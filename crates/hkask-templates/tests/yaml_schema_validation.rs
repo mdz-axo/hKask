@@ -25,7 +25,9 @@ struct ManifestHeader {
     version: String,
 }
 
-// REQ: YML-001 — Manifest schema validation (P8)
+// REQ: P3-tpl-test-manifest-schema-validation — Manifest schema validation (P8)
+// [P3] Motivating: Generative Space — validates registry manifests are well-formed
+// [P8] Constraining: Semantic Grounding — required fields present and correctly typed
 // All registry manifests are well-formed YAML with required fields.
 
 #[test]
@@ -82,7 +84,9 @@ fn all_skill_manifests_are_well_formed() {
     eprintln!("Validated {} manifests — all well-formed", count);
 }
 
-// REQ: YML-001 — invalid yaml is rejected
+// REQ: P3-tpl-test-manifest-schema-validation — invalid yaml is rejected
+// [P3] Motivating: Generative Space — validates registry manifests are well-formed
+// [P8] Constraining: Semantic Grounding — required fields present and correctly typed
 #[test]
 fn invalid_yaml_is_rejected() {
     let invalid = "id: 123\nname: []\n"; // name should be string, not array

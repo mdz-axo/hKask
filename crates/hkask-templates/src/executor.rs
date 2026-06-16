@@ -69,7 +69,9 @@ pub struct ManifestExecutor {
 impl ManifestExecutor {
     /// Create a new executor with the given infrastructure ports.
     ///
-    /// REQ: TPL-003
+    /// REQ: P3-tpl-manifest-executor-new
+    /// \[P3\] Motivating: Generative Space — executor for template manifest cascades
+    /// \[P4\] Constraining: Clear Boundaries — requires ACP secret for delegation
     /// pre:  inference and mcp are initialized, acp_secret is non-empty
     /// post: returns ManifestExecutor with default template_base_path
     pub fn new(

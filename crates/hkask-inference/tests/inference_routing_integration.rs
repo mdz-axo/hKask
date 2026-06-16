@@ -71,7 +71,7 @@ fn default_params() -> LLMParameters {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 /// REQ: P9-inf-test-routing-by-provider-prefix — Provider-prefix routing
-/// [P9] Motivating: Homeostatic Self-Regulation — end-to-end provider routing
+/// \[P9\] Motivating: Homeostatic Self-Regulation — end-to-end provider routing
 ///
 /// The router dispatches OM/-prefixed models to the Ollama backend
 /// and DI/-prefixed models to the DeepInfra backend.
@@ -133,7 +133,7 @@ async fn routing_by_provider_prefix() {
 }
 
 /// REQ: P9-inf-test-unavailable-backend-error — Unavailable backend error
-/// [P9] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
+/// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
 ///
 /// When a provider's backend is not configured (e.g., no API key),
 /// requests with that provider's prefix return an error.
@@ -185,7 +185,7 @@ async fn unavailable_backend_returns_error() {
 }
 
 /// REQ: P9-inf-test-default-provider-routing — Default provider routing
-/// [P9] Motivating: Homeostatic Self-Regulation — validates default provider fallback
+/// \[P9\] Motivating: Homeostatic Self-Regulation — validates default provider fallback
 ///
 /// Unprefixed model names use the configured default provider.
 #[tokio::test]
@@ -220,7 +220,7 @@ async fn default_provider_routing() {
 }
 
 /// REQ: P9-inf-test-model-override-routing — Model override routing
-/// [P9] Motivating: Homeostatic Self-Regulation — validates explicit model override
+/// \[P9\] Motivating: Homeostatic Self-Regulation — validates explicit model override
 ///
 /// `generate_with_model` with an explicit model override routes to
 /// the correct backend regardless of the default model.
@@ -277,7 +277,7 @@ async fn model_override_routing() {
 }
 
 /// REQ: P9-inf-test-list-models-degradation — Graceful degradation in list_models
-/// [P9] Motivating: Homeostatic Self-Regulation — validates graceful catalog degradation
+/// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful catalog degradation
 ///
 /// When one provider's model-listing endpoint is unavailable,
 /// `list_models()` still returns results from reachable providers.
@@ -338,7 +338,7 @@ async fn list_models_graceful_degradation() {
 }
 
 /// REQ: P9-inf-test-thinking-disable-flow — Thinking mode disable flows through router to wire format
-/// [P9] Motivating: Homeostatic Self-Regulation — validates reasoning flag propagation
+/// \[P9\] Motivating: Homeostatic Self-Regulation — validates reasoning flag propagation
 ///
 /// When `LLMParameters.disable_thinking` is `true`, the router passes it
 /// through to the backend, and `build_chat_request` maps it to

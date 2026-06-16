@@ -29,7 +29,9 @@ pub struct ContractValidator<'a> {
 impl<'a> ContractValidator<'a> {
     /// Create a new ContractValidator with no hLexicon (always passes).
     ///
-    /// REQ: TPL-011
+    /// REQ: P3-tpl-contract-validator-new
+    /// \[P3\] Motivating: Generative Space — passthrough validator for unconstrained registration
+    /// \[P4\] Constraining: Clear Boundaries — default Warn mode allows registration
     /// post: returns ContractValidator with no lexicon, Warn mode
     pub fn new() -> Self {
         Self {
@@ -40,7 +42,9 @@ impl<'a> ContractValidator<'a> {
 
     /// Create a ContractValidator with a loaded hLexicon for term validation.
     ///
-    /// REQ: TPL-012
+    /// REQ: P3-tpl-contract-validator-with-lexicon
+    /// \[P3\] Motivating: Generative Space — binds vocabulary to registration gate
+    /// \[P8\] Constraining: Semantic Grounding — hLexicon provides canonical term set
     /// pre:  hlexicon is a valid HLexicon
     /// post: returns ContractValidator with lexicon, Warn mode
     pub fn with_lexicon(hlexicon: &'a HLexicon) -> Self {
@@ -52,7 +56,8 @@ impl<'a> ContractValidator<'a> {
 
     /// Set the validation mode.
     ///
-    /// REQ: TPL-013
+    /// REQ: P3-tpl-contract-validator-with-mode
+    /// \[P3\] Motivating: Generative Space — configures validation strictness
     /// post: returns Self with mode updated (builder pattern)
     pub fn with_mode(mut self, mode: ValidationMode) -> Self {
         self.mode = mode;
@@ -61,7 +66,9 @@ impl<'a> ContractValidator<'a> {
 
     /// Validate that the given template's declared terms exist in the hLexicon.
     ///
-    /// REQ: TPL-014
+    /// REQ: P3-tpl-contract-validator-validate-terms
+    /// \[P3\] Motivating: Generative Space — vocabulary consistency gate
+    /// \[P8\] Constraining: Semantic Grounding — unknown terms flagged against hLexicon
     /// pre:  template_id is non-empty
     /// post: returns (Ok(()), unknown_terms) in Warn mode
     /// post: returns (Err, unknown_terms) in Reject mode if unknown terms found
@@ -121,7 +128,8 @@ mod tests {
         lexicon
     }
 
-    // REQ: templates-contract-001 — ContractValidator without lexicon always passes
+    // REQ: P3-tpl-test-contract-validator-passthrough — ContractValidator without lexicon always passes
+    // [P3] Motivating: Generative Space — validates no-lexicon mode is passthrough
     #[test]
     fn validator_without_lexicon_always_passes() {
         let validator = ContractValidator::new();
@@ -130,7 +138,9 @@ mod tests {
         assert!(unknown.is_empty());
     }
 
-    // REQ: templates-contract-002 — ContractValidator in Warn mode reports unknown terms
+    // REQ: P3-tpl-test-contract-validator-warn-reports — ContractValidator in Warn mode reports unknown terms
+    // [P3] Motivating: Generative Space — validates Warn mode reports unknown terms
+    // [P8] Constraining: Semantic Grounding — unknown terms flagged, not blocked
     #[test]
     fn validator_warn_mode_reports_unknown_terms() {
         let lexicon = bootstrap_lexicon();
@@ -140,7 +150,9 @@ mod tests {
         assert_eq!(unknown.len(), 1);
     }
 
-    // REQ: templates-contract-003 — ContractValidator in Reject mode blocks unknown terms
+    // REQ: P3-tpl-test-contract-validator-reject-blocks — ContractValidator in Reject mode blocks unknown terms
+    // [P3] Motivating: Generative Space — validates Reject mode blocks unknown terms
+    // [P8] Constraining: Semantic Grounding — unregistered terms prevent registration
     #[test]
     fn validator_reject_mode_blocks_unknown_terms() {
         let lexicon = bootstrap_lexicon();
@@ -149,7 +161,9 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: templates-contract-004 — ContractValidator accepts known hLexicon terms
+    // REQ: P3-tpl-test-contract-validator-accepts-known — ContractValidator accepts known hLexicon terms
+    // [P3] Motivating: Generative Space — validates known hLexicon terms are accepted
+    // [P8] Constraining: Semantic Grounding — registered terms pass validation
     #[test]
     fn validator_accepts_known_terms() {
         let lexicon = bootstrap_lexicon();
@@ -160,7 +174,8 @@ mod tests {
         assert!(unknown.is_empty());
     }
 
-    // REQ: templates-contract-005 — ContractValidator default is passthrough
+    // REQ: P3-tpl-test-contract-validator-default-passthrough — ContractValidator default is passthrough
+    // [P3] Motivating: Generative Space — validates Default impl is passthrough
     #[test]
     fn validator_default_is_passthrough() {
         let validator = ContractValidator::default();
@@ -173,7 +188,10 @@ mod tests {
 
     use proptest::prelude::*;
 
-    // REQ: TPL-001 — Manifest validation never panics (P4, P8)
+    // REQ: P3-tpl-test-contract-validate-terms-never-panics — Manifest validation never panics (P4, P8)
+    // [P3] Motivating: Generative Space — property: validate_terms never panics
+    // [P4] Constraining: Clear Boundaries — panics are absence of boundary handling
+    // [P8] Constraining: Semantic Grounding — arbitrary terms must be handled safely
     // For any lexicon and any term set, validate_terms never panics.
     proptest! {
         #[test]
@@ -196,7 +214,9 @@ mod tests {
         }
     }
 
-    // REQ: TPL-002 — Known terms always accepted (P4, P8)
+    // REQ: P3-tpl-test-contract-known-terms-accepted — Known terms always accepted (P4, P8)
+    // [P3] Motivating: Generative Space — property: known hLexicon terms are accepted
+    // [P8] Constraining: Semantic Grounding — registered terms are semantically valid
     // Terms registered in the lexicon are never reported as unknown.
     proptest! {
         #[test]

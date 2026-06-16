@@ -28,7 +28,7 @@ pub trait SovereigntyConsent: Send + Sync {
 
 /// Default `SovereigntyConsent` implementation: deny everything.
 ///
-/// [NORMATIVE] Sovereignty must fail closed. New `PodManager`s use this until (P1 — User Sovereignty).
+/// \[NORMATIVE\] Sovereignty must fail closed. New `PodManager`s use this until (P1 — User Sovereignty).
 /// `with_consent_port` is called with a real backend. This guarantees
 /// that a misconfigured or partially-initialized agent cannot access
 /// sovereign data without an explicit grant.
@@ -43,7 +43,7 @@ impl SovereigntyConsent for DenyAllConsent {
 /// Test/scaffolding `SovereigntyConsent` implementation: grant everything.
 ///
 /// Used in unit tests that don't care about the consent semantics, only
-/// [NORMATIVE] about the access path. Production must never use this — it bypasses (P1 — User Sovereignty).
+/// \[NORMATIVE\] about the access path. Production must never use this — it bypasses (P1 — User Sovereignty).
 /// the Magna Carta's explicit-consent requirement.
 pub struct AllowAllConsent;
 
@@ -79,8 +79,8 @@ impl Clone for SovereigntyChecker {
 
 impl SovereigntyChecker {
     /// REQ: P1-agt-sovereignty-checker-new
-    /// [P1] Motivating: User Sovereignty — checker enforces the user-data boundary
-    /// [P2] Constraining: Affirmative Consent — delegates to consent port
+    /// \[P1\] Motivating: User Sovereignty — checker enforces the user-data boundary
+    /// \[P2\] Constraining: Affirmative Consent — delegates to consent port
     /// pre:  `owner_webid` is a valid `WebID`; `consent` is a valid
     ///       `Arc<dyn SovereigntyConsent>`.
     /// post: Returns a `SovereigntyChecker` with a fresh
@@ -99,7 +99,7 @@ impl SovereigntyChecker {
     }
 
     /// REQ: P1-agt-sovereignty-checker-can-access
-    /// [P1] Motivating: User Sovereignty — access decision combines consent + ownership
+    /// \[P1\] Motivating: User Sovereignty — access decision combines consent + ownership
     /// pre:  `data_category` is a valid `DataCategory`; `requester` is a
     ///       valid `WebID`.
     /// post: Returns `true` iff the requester is permitted to access the
@@ -118,7 +118,7 @@ impl SovereigntyChecker {
     }
 
     /// REQ: P1-agt-sovereignty-checker-can-perform
-    /// [P1] Motivating: User Sovereignty — action decision combines consent + operation
+    /// \[P1\] Motivating: User Sovereignty — action decision combines consent + operation
     /// pre:  `operation` is a non-empty string; `data_category` is a
     ///       valid `DataCategory`.
     /// post: For "acquisition", returns `true` iff affirmative consent is

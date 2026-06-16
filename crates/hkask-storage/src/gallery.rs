@@ -66,7 +66,7 @@ impl GalleryMode {
     /// Get the string representation of the face status.
     ///
     /// REQ: P3-sto-gallery-mode-str
-    /// [P8] Motivating: Semantic Grounding — stable gallery mode labels
+    /// \[P8\] Motivating: Semantic Grounding — stable gallery mode labels
     /// post: returns "active" or "inactive"
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -141,7 +141,7 @@ impl GalleryStore {
     /// Initialize gallery tables.
     ///
     /// REQ: P3-sto-gallery-schema
-    /// [P3] Motivating: Generative Space — schema for galleries, images, tags, faces
+    /// \[P3\] Motivating: Generative Space — schema for galleries, images, tags, faces
     /// pre:  conn is a valid SQLite connection
     /// post: gallery tables created if not exists
     pub fn init_tables(conn: &Connection) -> rusqlite::Result<()> {
@@ -215,7 +215,7 @@ impl GalleryStore {
     /// Create a new gallery.
     ///
     /// REQ: P3-sto-gallery-create
-    /// [P3] Motivating: Generative Space — create a gallery
+    /// \[P3\] Motivating: Generative Space — create a gallery
     /// pre:  name is non-empty
     /// post: gallery created and returned
     pub fn create(
@@ -264,7 +264,7 @@ impl GalleryStore {
     /// Add an image to a gallery.
     ///
     /// REQ: P3-sto-gallery-add-image
-    /// [P3] Motivating: Generative Space — add image to gallery
+    /// \[P3\] Motivating: Generative Space — add image to gallery
     /// pre:  gallery_id is valid, image data is non-empty
     /// post: image stored in gallery
     pub fn add_image(
@@ -318,7 +318,7 @@ impl GalleryStore {
     /// Get an image from a gallery.
     ///
     /// REQ: P3-sto-gallery-get-image
-    /// [P3] Motivating: Generative Space — get image by index or hash
+    /// \[P3\] Motivating: Generative Space — get image by index or hash
     /// pre:  gallery_id is valid
     /// post: returns GalleryImage if found
     pub fn get_image(
@@ -371,7 +371,7 @@ impl GalleryStore {
     /// Tag an image in a gallery.
     ///
     /// REQ: P3-sto-gallery-tag-image
-    /// [P3] Motivating: Generative Space — tag an image
+    /// \[P3\] Motivating: Generative Space — tag an image
     /// pre:  gallery_id and image_hash are valid, tag is non-empty
     /// post: tag added to image
     pub fn tag_image(
@@ -416,7 +416,7 @@ impl GalleryStore {
     /// Get tags for an image.
     ///
     /// REQ: P3-sto-gallery-get-tags
-    /// [P3] Motivating: Generative Space — get tags for an image
+    /// \[P3\] Motivating: Generative Space — get tags for an image
     /// pre:  gallery_id and image_hash are valid
     /// post: returns Vec of tags
     pub fn get_tags(
@@ -442,7 +442,7 @@ impl GalleryStore {
     /// Get a gallery by ID.
     ///
     /// REQ: P3-sto-gallery-get
-    /// [P3] Motivating: Generative Space — get gallery by ID
+    /// \[P3\] Motivating: Generative Space — get gallery by ID
     /// pre:  gallery_id is valid
     /// post: returns Gallery if found
     pub fn get_gallery(
@@ -482,7 +482,7 @@ impl GalleryStore {
     /// Get all tags across all galleries.
     ///
     /// REQ: P3-sto-gallery-all-tags
-    /// [P3] Motivating: Generative Space — list all tags across galleries
+    /// \[P3\] Motivating: Generative Space — list all tags across galleries
     /// post: returns Vec of all unique tags
     pub fn get_all_tags(
         &self,
@@ -523,7 +523,7 @@ impl GalleryStore {
     /// Register a face in the gallery.
     ///
     /// REQ: P3-sto-gallery-face-register
-    /// [P3] Motivating: Generative Space — register a face
+    /// \[P3\] Motivating: Generative Space — register a face
     /// pre:  face data is valid
     /// post: face registered and returned
     pub fn register_face(
@@ -564,7 +564,7 @@ impl GalleryStore {
     /// List faces with optional status filter.
     ///
     /// REQ: P3-sto-gallery-face-list
-    /// [P3] Motivating: Generative Space — list faces
+    /// \[P3\] Motivating: Generative Space — list faces
     /// post: returns Vec of faces, optionally filtered by status
     pub fn list_faces(
         &self,
@@ -599,7 +599,7 @@ impl GalleryStore {
     /// Get a face by ID.
     ///
     /// REQ: P3-sto-gallery-face-get
-    /// [P3] Motivating: Generative Space — get face by ID
+    /// \[P3\] Motivating: Generative Space — get face by ID
     /// pre:  face_id is non-empty
     /// post: returns Face if found
     pub fn get_face(
@@ -628,7 +628,7 @@ impl GalleryStore {
     /// Remove a face from the gallery.
     ///
     /// REQ: P3-sto-gallery-face-remove
-    /// [P3] Motivating: Generative Space — remove face
+    /// \[P3\] Motivating: Generative Space — remove face
     /// pre:  face_id is non-empty
     /// post: face deleted
     pub fn remove_face(&self, face_id: &str) -> std::result::Result<(), GalleryStoreError> {
@@ -649,7 +649,7 @@ impl GalleryStore {
     /// Update a face's status.
     ///
     /// REQ: P3-sto-gallery-face-update
-    /// [P3] Motivating: Generative Space — update face status
+    /// \[P3\] Motivating: Generative Space — update face status
     /// pre:  face_id is valid, status is valid
     /// post: face status updated
     pub fn update_face(

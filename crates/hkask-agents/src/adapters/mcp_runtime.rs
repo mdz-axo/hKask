@@ -67,7 +67,7 @@ fn verify_grant_access(
 /// Capability-only adapter for ACP token verification.
 ///
 /// Can verify and grant capabilities but cannot invoke tools —
-/// [DECLARATIVE] `invoke_tool` and `resolve_tool_server` always return errors. (P4 — Clear Boundaries).
+/// \[DECLARATIVE\] `invoke_tool` and `resolve_tool_server` always return errors. (P4 — Clear Boundaries).
 ///
 /// Use this when you need token verification gate logic but no live
 /// MCP server connections (e.g., in tests or lightweight embeds).
@@ -79,7 +79,7 @@ impl CapabilityOnlyAdapter {
     /// Create a capability-only adapter with the given checker.
     ///
     /// REQ: P4-agt-mcp-capability-adapter-new
-    /// [P4] Motivating: Clear Boundaries — capability-only adapter gates tools without runtime
+    /// \[P4\] Motivating: Clear Boundaries — capability-only adapter gates tools without runtime
     /// pre:  `checker` is a valid `Arc<CapabilityChecker>`.
     /// post: Returns a `CapabilityOnlyAdapter` with the given checker;
     ///       tool invocation will always fail with `McpError::NoRuntime`.
@@ -136,7 +136,7 @@ impl FullMcpAdapter {
     /// handle for bridging sync→async calls.
     ///
     /// REQ: P4-agt-mcp-full-adapter-new
-    /// [P4] Motivating: Clear Boundaries — full adapter combines capability checker + MCP runtime
+    /// \[P4\] Motivating: Clear Boundaries — full adapter combines capability checker + MCP runtime
     /// pre:  `checker` is a valid `Arc<CapabilityChecker>`; `runtime` is
     ///       a valid `Arc<McpRuntime>`; `handle` is a valid tokio runtime
     ///       handle.

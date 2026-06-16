@@ -31,8 +31,8 @@ impl Default for EndpointWeight {
 /// Get endpoint weight for rate limiting.
 ///
 /// REQ: P9-cns-api-meter-endpoint-weight
-/// [P9] Motivating: Homeostatic Self-Regulation — per-request rate limiting for API stability
-/// [P7] Constraining: Evolutionary Architecture — hardcoded table to be configurable later
+/// \[P9\] Motivating: Homeostatic Self-Regulation — per-request rate limiting for API stability
+/// \[P7\] Constraining: Evolutionary Architecture — hardcoded table to be configurable later
 /// pre:  path is non-empty
 /// post: returns EndpointWeight based on path pattern
 pub fn endpoint_weight(path: &str) -> EndpointWeight {
@@ -114,8 +114,8 @@ impl RateLimitStatus {
     /// Get string representation of alert type.
     ///
     /// REQ: P9-cns-api-meter-rate-limit-status
-    /// [P9] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS
-    /// [P8] Constraining: Semantic Grounding — string representation must be stable across versions
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS
+    /// \[P8\] Constraining: Semantic Grounding — string representation must be stable across versions
     /// post: returns lowercase alert type string
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -142,8 +142,8 @@ impl ApiMeter {
     /// Create a new API meter.
     ///
     /// REQ: P9-cns-api-meter-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking
-    /// [P5] Constraining: Essentialism — minimal constructor with empty buckets map
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking
+    /// \[P5\] Constraining: Essentialism — minimal constructor with empty buckets map
     /// post: returns ApiMeter with empty buckets
     pub fn new() -> Self {
         Self {
@@ -165,8 +165,8 @@ impl ApiMeter {
     /// Check rate limit and record request.
     ///
     /// REQ: P9-cns-api-meter-check-and-record
-    /// [P9] Motivating: Homeostatic Self-Regulation — rate limit enforcement is the CNS check
-    /// [P4] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — rate limit enforcement is the CNS check
+    /// \[P4\] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions
     /// pre:  key_id is valid
     /// post: returns Ok if within limit, Err if rate limited
     pub fn check_and_record(
@@ -200,8 +200,8 @@ impl ApiMeter {
     /// Get current RPM for a key.
     ///
     /// REQ: P9-cns-api-meter-current-rpm
-    /// [P9] Motivating: Homeostatic Self-Regulation — current rate is the cybernetic state
-    /// [P8] Constraining: Semantic Grounding — RPM count must be stable and accurate
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — current rate is the cybernetic state
+    /// \[P8\] Constraining: Semantic Grounding — RPM count must be stable and accurate
     /// pre:  key_id is valid
     /// post: returns current requests per minute
     pub fn current_rpm(&self, key_id: ApiKeyId) -> u32 {
@@ -243,8 +243,8 @@ impl ApiRequestSpan {
     /// Create a new API request span.
     ///
     /// REQ: P9-cns-api-meter-span-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — span creation is the CNS observation layer
-    /// [P8] Constraining: Semantic Grounding — span fields must be traceable to source
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — span creation is the CNS observation layer
+    /// \[P8\] Constraining: Semantic Grounding — span fields must be traceable to source
     /// pre:  path and method are non-empty
     /// post: returns ApiRequestSpan
     pub fn new(
@@ -296,8 +296,8 @@ impl ApiMeteringAlert {
     /// Get alert type string.
     ///
     /// REQ: P9-cns-api-meter-alert-type
-    /// [P9] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification
-    /// [P8] Constraining: Semantic Grounding — alert type labels must be stable across versions
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification
+    /// \[P8\] Constraining: Semantic Grounding — alert type labels must be stable across versions
     /// post: returns alert type label
     pub fn alert_type(&self) -> &'static str {
         match self {
@@ -313,8 +313,8 @@ impl ApiMeteringAlert {
     /// Get severity string.
     ///
     /// REQ: P9-cns-api-meter-alert-severity
-    /// [P9] Motivating: Homeostatic Self-Regulation — severity is the algedonic signal
-    /// [P8] Constraining: Semantic Grounding — severity labels must be stable across versions
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — severity is the algedonic signal
+    /// \[P8\] Constraining: Semantic Grounding — severity labels must be stable across versions
     /// post: returns severity label
     pub fn severity(&self) -> &'static str {
         match self {

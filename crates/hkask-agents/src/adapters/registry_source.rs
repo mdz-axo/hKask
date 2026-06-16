@@ -19,7 +19,7 @@ impl Default for FilesystemRegistrySource {
 
 impl FilesystemRegistrySource {
     /// REQ: P3-agt-registry-source-new
-    /// [P5] Motivating: Essentialism — filesystem registry source is a unit struct
+    /// \[P5\] Motivating: Essentialism — filesystem registry source is a unit struct
     /// pre:  (none).
     /// post: Returns a new `FilesystemRegistrySource` (unit struct).
     pub fn new() -> Self {

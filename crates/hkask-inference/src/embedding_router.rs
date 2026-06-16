@@ -24,7 +24,7 @@ impl EmbeddingRouter {
     /// Create a new embedding router from an `InferenceConfig`.
     ///
     /// REQ: P4-inf-embedding-router-new
-    /// [P4] Motivating: Clear Boundaries — embedding provider membrane gated by API key
+    /// \[P4\] Motivating: Clear Boundaries — embedding provider membrane gated by API key
     /// pre:  config is a valid InferenceConfig
     /// post: returns EmbeddingRouter with configured backends
     pub fn new(config: InferenceConfig) -> Self {
@@ -80,7 +80,7 @@ impl EmbeddingRouter {
     /// One vector per input sentence, same order. Dimension set by model.
     ///
     /// REQ: P9-inf-embed-sentences
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated batch embedding generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated batch embedding generation
     /// pre:  model is a valid provider-prefixed model name
     /// pre:  sentences is non-empty
     /// post: returns Vec<Vec<f32>> with one vector per sentence, same order
@@ -147,7 +147,7 @@ impl EmbeddingRouter {
     /// Convenience wrapper around `embed_sentences`.
     ///
     /// REQ: P9-inf-embed-sentence
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated single embedding generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated single embedding generation
     /// pre:  model is a valid provider-prefixed model name
     /// pre:  sentence is a non-empty string
     /// post: returns Vec<f32> — the first (only) embedding vector

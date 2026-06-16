@@ -182,8 +182,8 @@ impl HinkalPort {
     /// Create a new HinkalPort connected to the Hinkal API.
     ///
     /// REQ: P9-wallet-hinkal-port-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop
-    /// [P4] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop
+    /// \[P4\] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey
     /// pre:  api_base_url is a valid absolute URL
     /// pre:  treasury_pubkey is a non-empty account/public key string
     /// post: HTTP client initialized with rustls TLS

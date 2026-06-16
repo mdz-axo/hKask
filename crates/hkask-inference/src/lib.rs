@@ -75,7 +75,7 @@ impl RouterModelEntry {
     /// `None` means unknown; `Some(true)` means likely vision-capable.
     ///
     /// REQ: P9-inf-infer-vision-support
-    /// [P9] Motivating: Homeostatic Self-Regulation — heuristic routing for multimodal models
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — heuristic routing for multimodal models
     /// pre:  model is non-empty
     /// post: returns Some(true) if model/family matches known vision families
     /// post: returns None if unknown

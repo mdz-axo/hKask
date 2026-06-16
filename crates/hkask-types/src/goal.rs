@@ -99,7 +99,7 @@ impl GoalState {
     /// caught at the repository boundary rather than silently applied. A
     /// terminal state (Completed/Abandoned) admits no further transitions;
     /// `Blocked` may resume to `Active`. Re-stating the current state is a
-    /// [DECLARATIVE] no-op and always permitted. (P7 — Evolutionary Architecture).
+    /// \[DECLARATIVE\] no-op and always permitted. (P7 — Evolutionary Architecture).
     /// Check if transition to next state is valid.
     ///
     /// REQ: TYP-161

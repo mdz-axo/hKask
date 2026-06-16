@@ -16,7 +16,7 @@ pub const SYSTEM_MAX_RECURSION: u8 = 7;
 /// Capability-domain alias for SYSTEM_MAX_RECURSION.
 pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
-/// [NORMATIVE] Typed attenuation level (0..SYSTEM_MAX_RECURSION). New code should use this over raw `u8`. (P5 — Essentialism).
+/// \[NORMATIVE\] Typed attenuation level (0..SYSTEM_MAX_RECURSION). New code should use this over raw `u8`. (P5 — Essentialism).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 #[allow(dead_code)]
@@ -91,14 +91,14 @@ pub(crate) struct Caveat {
 
 /// Ed25519 signature for delegation token authentication.
 ///
-/// [NORMATIVE] Wraps a 64-byte Ed25519 signature. Verification uses the
+/// \[NORMATIVE\] Wraps a 64-byte Ed25519 signature. Verification uses the
 /// token's `public_key` field — no shared secret required (P4 — Clear Boundaries).
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct TokenSignature(#[serde(with = "hex::serde")] pub [u8; 64]);
 
 /// Ed25519-signed OCAP token for inter-agent capability delegation.
 ///
-/// [NORMATIVE] Signatures are asymmetric (Ed25519) — the issuer signs with
+/// \[NORMATIVE\] Signatures are asymmetric (Ed25519) — the issuer signs with
 /// a private key, verifiers use the public key. Token forgery requires the
 /// private key (P4 — Clear Boundaries).
 #[derive(Debug, Clone, Serialize, Deserialize)]

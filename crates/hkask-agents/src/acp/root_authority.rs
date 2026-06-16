@@ -25,7 +25,7 @@ use super::AcpError;
 ///
 /// # OCAP Discipline
 ///
-/// [NORMATIVE] - No ambient authority: capabilities must be explicitly granted (P4 — Clear Boundaries).
+/// \[NORMATIVE\] - No ambient authority: capabilities must be explicitly granted (P4 — Clear Boundaries).
 /// - Attenuation chain: each delegation reduces authority
 pub(crate) struct RootAuthority {
     /// Root authority WebID (system identity)
@@ -40,7 +40,7 @@ impl RootAuthority {
     /// Create new root authority.
     ///
     /// REQ: P4-agt-acp-root-new
-    /// [P4] Motivating: Clear Boundaries — root authority is the capability issuer
+    /// \[P4\] Motivating: Clear Boundaries — root authority is the capability issuer
     /// pre:  `root_webid` is a valid `WebID`; `signing_key` is a valid
     ///       Ed25519 `SigningKey`.
     /// post: Returns a `RootAuthority` with token counter initialized to 0.
@@ -58,8 +58,8 @@ impl RootAuthority {
     /// Root tokens have attenuation_level=0 and max_attenuation=7.
     ///
     /// REQ: P4-agt-acp-root-token-issue
-    /// [P4] Motivating: Clear Boundaries — root tokens start the delegation chain
-    /// [P7] Constraining: Evolutionary Architecture — attenuation limits emerged from usage
+    /// \[P4\] Motivating: Clear Boundaries — root tokens start the delegation chain
+    /// \[P7\] Constraining: Evolutionary Architecture — attenuation limits emerged from usage
     /// pre:  `resource` is a valid `DelegationResource`; `resource_id` is
     ///       a non-empty string; `action` is a valid `DelegationAction`;
     ///       `delegated_to` is a valid `WebID`.

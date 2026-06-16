@@ -61,9 +61,9 @@ impl WalletEnergyEstimator {
     /// actual_gas / estimated_gas ratio from a tool settlement.
     ///
     /// REQ: P9-cns-wallet-est-calibrate
-    /// [P9] Motivating: Homeostatic Self-Regulation — Good Regulator feedback loop closure
-    /// [P4] Constraining: Clear Boundaries — threshold tolerance enforces boundary
-    /// [P7] Constraining: Evolutionary Architecture — EMA parameters emerged from real usage
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — Good Regulator feedback loop closure
+    /// \[P4\] Constraining: Clear Boundaries — threshold tolerance enforces boundary
+    /// \[P7\] Constraining: Evolutionary Architecture — EMA parameters emerged from real usage
     /// pre:  observed_ratio > 0.0 (actual_gas / estimated_gas)
     /// post: ema_ratio updated via exponential moving average
     /// post: if ema_ratio deviates significantly from 1.0, gas_per_rjoule adjusted

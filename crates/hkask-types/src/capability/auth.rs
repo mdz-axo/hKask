@@ -16,7 +16,7 @@ pub struct AuthContext {
 
 /// Derive an Ed25519 signing key from arbitrary secret bytes.
 ///
-/// [NORMATIVE] Hashes the input with SHA-256 to produce a 32-byte seed,
+/// \[NORMATIVE\] Hashes the input with SHA-256 to produce a 32-byte seed,
 /// then constructs a `SigningKey`. This allows existing HMAC-secret-based
 /// callers to migrate to Ed25519 without changing their secret management (P4 — Clear Boundaries).
 pub fn derive_signing_key(secret: &[u8]) -> SigningKey {

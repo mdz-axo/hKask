@@ -74,10 +74,10 @@ pub struct CnsHealth {
 
 /// Typed CNS span identifiers — the authoritative CNS span registry.
 ///
-/// [NORMATIVE] Replaces stringly-typed `&str` constants. Invalid span values
+/// \[NORMATIVE\] Replaces stringly-typed `&str` constants. Invalid span values
 /// are unrepresentable — the type system enforces validity at compile time (P8 — Semantic Grounding).
 ///
-/// [DECLARATIVE] `Display` produces the canonical namespace string (e.g., `"cns.tool"`),
+/// \[DECLARATIVE\] `Display` produces the canonical namespace string (e.g., `"cns.tool"`),
 /// preserving backward compatibility with existing tracing targets and ν-event serialization.
 /// `FromStr` is fallible — only canonical namespaces parse successfully.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -203,7 +203,7 @@ pub enum CnsSpan {
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
 ///
-/// [DECLARATIVE] Derived from the `hkask-mcp-*` server naming convention.
+/// \[DECLARATIVE\] Derived from the `hkask-mcp-*` server naming convention.
 /// Unknown or future servers use `Other`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ToolSubsystem {
@@ -251,7 +251,7 @@ impl CnsSpan {
     /// pre:  self is a valid CnsSpan variant
     /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
-    /// [NORMATIVE] This output must match the existing `CANONICAL_NAMESPACES` strings
+    /// \[NORMATIVE\] This output must match the existing `CANONICAL_NAMESPACES` strings
     /// byte-for-byte to preserve backward compatibility with ν-event serialization
     /// and tracing targets (P8 — Semantic Grounding).
     pub fn as_str(&self) -> &'static str {
@@ -336,7 +336,7 @@ impl std::str::FromStr for CnsSpan {
     /// pre:  s is a string matching a canonical CnsSpan namespace
     /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
     ///
-    /// [NORMATIVE] Only strings matching canonical `CnsSpan` namespaces parse
+    /// \[NORMATIVE\] Only strings matching canonical `CnsSpan` namespaces parse
     /// successfully. Unknown strings return `Err(())`.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {

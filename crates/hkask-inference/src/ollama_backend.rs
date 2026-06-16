@@ -25,7 +25,7 @@ impl OllamaBackend {
     /// Create a new Ollama backend from inference config.
     ///
     /// REQ: P4-inf-ollama-backend-new
-    /// [P4] Motivating: Clear Boundaries — local Ollama provider membrane established from config
+    /// \[P4\] Motivating: Clear Boundaries — local Ollama provider membrane established from config
     /// pre:  config.ollama_base_url is set
     /// post: returns OllamaBackend with configured HTTP client
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
@@ -42,7 +42,7 @@ impl OllamaBackend {
     /// Send a chat completion request to Ollama.
     ///
     /// REQ: P9-inf-ollama-generate
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated text generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated text generation
     /// pre:  model is a valid Ollama model name
     /// pre:  prompt is non-empty (validated by validate_prompt)
     /// pre:  params is a valid LLMParameters
@@ -95,7 +95,7 @@ impl OllamaBackend {
     /// Vision/multimodal inference with base64-encoded images.
     ///
     /// REQ: P9-inf-ollama-generate-vision
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
     /// pre:  model is a valid Ollama vision-capable model name
     /// pre:  prompt is non-empty
     /// pre:  images is non-empty (at least one base64-encoded image)
@@ -160,7 +160,7 @@ impl OllamaBackend {
     /// Generate a streaming completion from Ollama.
     ///
     /// REQ: P9-inf-ollama-generate-stream
-    /// [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
     /// pre:  model is a valid Ollama model name
     /// post: returns stream of inference chunks
     pub fn generate_stream(
@@ -224,7 +224,7 @@ impl OllamaBackend {
     /// List models available in the local Ollama instance via `/api/tags`.
     ///
     /// REQ: P9-inf-ollama-list-models
-    /// [P9] Motivating: Homeostatic Self-Regulation — model variety discovery
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — model variety discovery
     /// pre:  self.client and self.base_url are initialized
     /// post: returns Ok(Vec<OllamaModelEntry>) with locally available models
     /// post: if API returns non-success → Ok(Vec::new()) (graceful degradation)

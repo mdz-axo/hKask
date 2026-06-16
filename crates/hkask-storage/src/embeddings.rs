@@ -68,7 +68,7 @@ impl EmbeddingStore {
     /// Create a new embedding store.
     ///
     /// REQ: P3-sto-embedding-new
-    /// [P3] Motivating: Generative Space — create embedding store
+    /// \[P3\] Motivating: Generative Space — create embedding store
     /// pre:  conn is a valid SQLite connection
     /// post: returns EmbeddingStore with default dimension
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
@@ -82,7 +82,7 @@ impl EmbeddingStore {
     /// Create an embedding store with a specific vector dimension.
     ///
     /// REQ: P3-sto-embedding-new-with-dim
-    /// [P3] Motivating: Generative Space — create embedding store with dimension
+    /// \[P3\] Motivating: Generative Space — create embedding store with dimension
     /// pre:  conn is valid, dim > 0
     /// post: returns EmbeddingStore with specified dimension
     pub fn with_dim(conn: Arc<Mutex<Connection>>, dim: usize) -> Self {
@@ -133,7 +133,7 @@ impl EmbeddingStore {
     /// Store an embedding vector.
     ///
     /// REQ: P3-sto-embedding-store
-    /// [P3] Motivating: Generative Space — store an embedding vector
+    /// \[P3\] Motivating: Generative Space — store an embedding vector
     /// pre:  entity_ref is non-empty, vector matches store dimension, model is non-empty
     /// post: embedding stored and indexed by entity_ref
     /// post: returns embedding ID
@@ -194,7 +194,7 @@ impl EmbeddingStore {
     /// Retrieve an embedding by entity_ref.
     ///
     /// REQ: P3-sto-embedding-get
-    /// [P3] Motivating: Generative Space — retrieve embedding by entity
+    /// \[P3\] Motivating: Generative Space — retrieve embedding by entity
     /// pre:  entity_ref is non-empty
     /// post: returns StoredEmbedding if found
     /// post: returns Err(NotFound) if not found
@@ -234,7 +234,7 @@ impl EmbeddingStore {
     /// Search for similar embeddings by vector distance.
     ///
     /// REQ: P3-sto-embedding-search
-    /// [P3] Motivating: Generative Space — vector similarity search
+    /// \[P3\] Motivating: Generative Space — vector similarity search
     /// pre:  query_vector matches store dimension, limit > 0
     /// post: returns Vec<SimilarityResult> ordered by ascending distance
     pub fn search(
@@ -286,7 +286,7 @@ impl EmbeddingStore {
     /// Delete an embedding by entity_ref.
     ///
     /// REQ: P3-sto-embedding-delete
-    /// [P3] Motivating: Generative Space — delete embedding
+    /// \[P3\] Motivating: Generative Space — delete embedding
     /// pre:  entity_ref is non-empty
     /// post: embedding deleted if existed
     pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
@@ -341,7 +341,7 @@ impl EmbeddingStore {
     /// Count stored embeddings.
     ///
     /// REQ: P3-sto-embedding-count
-    /// [P8] Motivating: Semantic Grounding — count embeddings
+    /// \[P8\] Motivating: Semantic Grounding — count embeddings
     /// post: returns total count of embeddings
     pub fn count(&self) -> Result<usize, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
@@ -355,7 +355,7 @@ impl EmbeddingStore {
     /// Query entity_refs by prefix.
     ///
     /// REQ: P3-sto-embedding-prefix
-    /// [P3] Motivating: Generative Space — query entity refs by prefix
+    /// \[P3\] Motivating: Generative Space — query entity refs by prefix
     /// pre:  prefix is non-empty
     /// post: returns Vec of entity_refs matching prefix
     pub fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {

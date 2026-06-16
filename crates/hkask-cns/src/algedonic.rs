@@ -55,9 +55,9 @@ impl RuntimeAlert {
     /// Create an alert using binary thresholds.
     ///
     /// REQ: P9-cns-algedonic-alert-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — algedonic feedback loop
-    /// [P4] Constraining: Clear Boundaries — cap enforcement through binary classification
-    /// [P5] Constraining: Essentialism — simplest possible threshold model
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — algedonic feedback loop
+    /// \[P4\] Constraining: Clear Boundaries — cap enforcement through binary classification
+    /// \[P5\] Constraining: Essentialism — simplest possible threshold model
     /// pre:  domain is non-empty, threshold > 0
     /// post: returns RuntimeAlert with severity based on deficit vs threshold
     pub fn new(domain: &str, deficit: u64, threshold: u64) -> Self {
@@ -86,8 +86,8 @@ impl RuntimeAlert {
     /// Check if alert should be escalated.
     ///
     /// REQ: P9-cns-algedonic-alert-should-escalate
-    /// [P9] Motivating: Homeostatic Self-Regulation — escalation feedback loop
-    /// [P4] Constraining: Clear Boundaries — binary threshold boundary check
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — escalation feedback loop
+    /// \[P4\] Constraining: Clear Boundaries — binary threshold boundary check
     /// post: returns true iff severity is Critical
     pub fn should_escalate(&self) -> bool {
         self.escalated
@@ -96,8 +96,8 @@ impl RuntimeAlert {
     /// Check if alert is critical severity.
     ///
     /// REQ: P9-cns-algedonic-alert-is-critical
-    /// [P9] Motivating: Homeostatic Self-Regulation — critical threshold detection
-    /// [P4] Constraining: Clear Boundaries — severity boundary check
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — critical threshold detection
+    /// \[P4\] Constraining: Clear Boundaries — severity boundary check
     /// post: returns true iff severity == Critical
     pub fn is_critical(&self) -> bool {
         self.severity == AlertSeverity::Critical
@@ -106,8 +106,8 @@ impl RuntimeAlert {
     /// Check if alert is warning severity.
     ///
     /// REQ: P9-cns-algedonic-alert-is-warning
-    /// [P9] Motivating: Homeostatic Self-Regulation — warning threshold detection
-    /// [P4] Constraining: Clear Boundaries — mid-range boundary check
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — warning threshold detection
+    /// \[P4\] Constraining: Clear Boundaries — mid-range boundary check
     /// post: returns true iff severity == Warning
     pub fn is_warning(&self) -> bool {
         self.severity == AlertSeverity::Warning

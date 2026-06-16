@@ -62,8 +62,8 @@ impl CurationLoop {
     /// and escalation — the Curation Loop's only runtime dependencies.
     ///
     /// REQ: P9-agt-curator-loop-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — Curation Loop is the regulatory sense-act loop
-    /// [P4] Constraining: Clear Boundaries — single CuratorHandle capability
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — Curation Loop is the regulatory sense-act loop
+    /// \[P4\] Constraining: Clear Boundaries — single CuratorHandle capability
     /// pre:  `curator_handle` is a valid `CuratorHandle` (singleton);
     ///       `context` is a valid `Arc<CuratorContext>`.
     /// post: Returns a `CurationLoop` with no consolidation, no inbox,
@@ -79,8 +79,8 @@ impl CurationLoop {
     }
 
     /// REQ: P9-agt-curator-loop-new-with-consolidation
-    /// [P9] Motivating: Homeostatic Self-Regulation — consolidation tunes the loop
-    /// [P7] Constraining: Evolutionary Architecture — consolidation config emerged from usage
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — consolidation tunes the loop
+    /// \[P7\] Constraining: Evolutionary Architecture — consolidation config emerged from usage
     /// pre:  `curator_handle` is a valid `CuratorHandle`; `context` is a
     ///       valid `Arc<CuratorContext>`; `consolidation` is a valid
     ///       `Arc<ConsolidationBridge>`.
@@ -103,7 +103,7 @@ impl CurationLoop {
     /// Wire the unified inbox for CurationInput messages.
     ///
     /// REQ: P9-agt-curator-loop-inbox
-    /// [P9] Motivating: Homeostatic Self-Regulation — unified inbox receives CurationInput
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — unified inbox receives CurationInput
     /// pre:  `rx` is a valid `UnboundedReceiver<CurationInput>`.
     /// post: Returns `self` with `inbox` set to `Some(Arc<RwLock<rx>>)`.
     #[must_use = "builder methods must be chained or assigned"]
@@ -115,7 +115,7 @@ impl CurationLoop {
     /// Access the CuratorContext (capability-disciplined runtime references).
     ///
     /// REQ: P9-agt-curator-loop-context
-    /// [P9] Motivating: Homeostatic Self-Regulation — context exposes CNS and escalation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — context exposes CNS and escalation
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CuratorContext>`.
     pub fn context(&self) -> &Arc<CuratorContext> {
@@ -128,7 +128,7 @@ impl CurationLoop {
     /// for the entire system.
     ///
     /// REQ: P9-agt-curator-loop-handle
-    /// [P9] Motivating: Homeostatic Self-Regulation — handle is the capability to curate
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — handle is the capability to curate
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `CuratorHandle`.
     pub fn curator_handle(&self) -> &CuratorHandle {
@@ -141,7 +141,7 @@ impl CurationLoop {
     /// re-processing all historical algedonic events on restart.
     ///
     /// REQ: P9-agt-curator-loop-restore-cursor
-    /// [P9] Motivating: Homeostatic Self-Regulation — cursor restore avoids re-processing history
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — cursor restore avoids re-processing history
     /// pre:  `self.context.nu_event_store()` may be `Some` or `None`.
     /// post: If a persisted cursor exists, `last_review_ms` is updated;
     ///       otherwise it remains at 0. Logs the outcome at info/warn level.

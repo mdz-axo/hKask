@@ -40,7 +40,8 @@ pub struct Registry {
 impl Registry {
     /// Create an empty registry.
     ///
-    /// REQ: TPL-033
+    /// REQ: P3-tpl-registry-new
+    /// \[P3\] Motivating: Generative Space — in-memory template registry
     /// post: returns Registry with empty templates, skills, bundles, no lexicon
     pub fn new() -> Self {
         Self {
@@ -53,7 +54,9 @@ impl Registry {
 
     /// Set the hLexicon for validating terms during registration.
     ///
-    /// REQ: TPL-034
+    /// REQ: P3-tpl-registry-set-lexicon
+    /// \[P3\] Motivating: Generative Space — binds vocabulary to registry
+    /// \[P8\] Constraining: Semantic Grounding — hLexicon constrains registered terms
     /// pre:  lexicon is a valid HLexicon
     /// post: hlexicon set — subsequent register() calls validate terms
     pub fn set_lexicon(&mut self, lexicon: HLexicon) {
@@ -67,7 +70,8 @@ impl Registry {
 
     /// Reload registry from bootstrap (simulates reload from disk).
     ///
-    /// REQ: TPL-035
+    /// REQ: P3-tpl-registry-reload
+    /// \[P3\] Motivating: Generative Space — refreshes registry from filesystem
     /// post: templates cache cleared and reloaded from bootstrap
     pub fn reload(&mut self) {
         self.invalidate_cache();
@@ -79,7 +83,9 @@ impl Registry {
     ///
     /// Extended checks: component length ≤64 chars, Unicode NFC normalization.
     ///
-    /// REQ: TPL-036
+    /// REQ: P3-tpl-registry-validate-template-path
+    /// \[P3\] Motivating: Generative Space — path safety for template discovery
+    /// \[P4\] Constraining: Clear Boundaries — rejects paths outside template root
     /// pre:  template_id is non-empty
     /// post: returns Ok(()) if path is safe (no traversal, null bytes, non-ASCII)
     /// post: returns Err(PathTraversal) for unsafe paths
@@ -144,7 +150,8 @@ impl Registry {
     /// The contract validator performs lexicon-term enforcement at registration time;
     /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-cns`.
     ///
-    /// REQ: TPL-037
+    /// REQ: P3-tpl-registry-register
+    /// \[P3\] Motivating: Generative Space — registers a template in the registry
     /// pre:  entry.id is non-empty, entry.template_type is valid
     /// post: entry inserted into templates map
     /// post: validates terms against hlexicon if set (warnings logged)
@@ -173,7 +180,8 @@ impl Registry {
 
     /// Get a template entry by ID.
     ///
-    /// REQ: TPL-038
+    /// REQ: P3-tpl-registry-get
+    /// \[P3\] Motivating: Generative Space — retrieves a registered template
     /// pre:  id is non-empty
     /// post: returns Some(&RegistryEntry) if found, None otherwise
     pub fn get(&self, id: &str) -> Option<&RegistryEntry> {
@@ -189,7 +197,8 @@ impl Registry {
 
     /// Count registered templates.
     ///
-    /// REQ: TPL-039
+    /// REQ: P3-tpl-registry-count
+    /// \[P3\] Motivating: Generative Space — reports registry size
     /// post: returns count of templates in registry
     pub fn count(&self) -> usize {
         self.templates.len()
@@ -197,7 +206,8 @@ impl Registry {
 
     /// List all skills.
     ///
-    /// REQ: TPL-040
+    /// REQ: P3-tpl-registry-list-skills
+    /// \[P3\] Motivating: Generative Space — lists registered skills
     /// post: returns Vec<Skill> with all registered skills
     pub fn list_skills(&self) -> Vec<Skill> {
         self.skills.values().cloned().collect()
@@ -205,7 +215,8 @@ impl Registry {
 
     /// List skills filtered by visibility.
     ///
-    /// REQ: TPL-041
+    /// REQ: P3-tpl-registry-list-skills-by-visibility
+    /// \[P3\] Motivating: Generative Space — visibility-filtered skill listing
     /// pre:  visibility is a valid Visibility variant
     /// post: returns Vec<Skill> filtered by visibility
     pub fn list_skills_by_visibility(&self, visibility: Visibility) -> Vec<Skill> {
@@ -218,7 +229,8 @@ impl Registry {
 
     /// Remove a skill by ID.
     ///
-    /// REQ: TPL-042
+    /// REQ: P3-tpl-registry-remove-skill
+    /// \[P3\] Motivating: Generative Space — removes a skill from registry
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if removed, None if not found
     pub fn remove_skill(&mut self, id: &str) -> Option<Skill> {
@@ -227,7 +239,8 @@ impl Registry {
 
     /// Register a skill.
     ///
-    /// REQ: TPL-043
+    /// REQ: P3-tpl-registry-register-skill
+    /// \[P3\] Motivating: Generative Space — registers a skill with metadata
     /// pre:  skill.id is non-empty
     /// post: skill inserted into skills map
     pub fn register_skill(&mut self, skill: Skill) {
@@ -236,7 +249,8 @@ impl Registry {
 
     /// Get a skill by ID.
     ///
-    /// REQ: TPL-044
+    /// REQ: P3-tpl-registry-get-skill
+    /// \[P3\] Motivating: Generative Space — retrieves skill metadata
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if found, None otherwise
     pub fn get_skill(&self, id: &str) -> Option<Skill> {
@@ -245,7 +259,8 @@ impl Registry {
 
     /// List skills by domain.
     ///
-    /// REQ: TPL-045
+    /// REQ: P3-tpl-registry-skills-by-domain
+    /// \[P3\] Motivating: Generative Space — domain-filtered skill listing
     /// pre:  domain is a valid TemplateType
     /// post: returns Vec<Skill> filtered by domain
     pub fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {
@@ -258,7 +273,8 @@ impl Registry {
 
     /// Find skills that reference a given template ID.
     ///
-    /// REQ: TPL-046
+    /// REQ: P3-tpl-registry-skills-referencing-template
+    /// \[P3\] Motivating: Generative Space — reverse skill lookup by template
     /// pre:  template_id is non-empty
     /// post: returns Vec<Skill> referencing the given template
     pub fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill> {
@@ -275,7 +291,8 @@ impl Registry {
 
     /// Register a bundle manifest.
     ///
-    /// REQ: TPL-047
+    /// REQ: P3-tpl-registry-register-bundle
+    /// \[P3\] Motivating: Generative Space — registers a skill bundle
     /// pre:  bundle.id is non-empty
     /// post: bundle inserted into bundles map
     pub fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
@@ -284,7 +301,8 @@ impl Registry {
 
     /// Retrieve a bundle manifest by ID.
     ///
-    /// REQ: TPL-048
+    /// REQ: P3-tpl-registry-get-bundle
+    /// \[P3\] Motivating: Generative Space — retrieves a skill bundle
     /// pre:  id is non-empty
     /// post: returns Some(&BundleManifest) if found, None otherwise
     pub fn get_bundle(&self, id: &str) -> Option<&hkask_types::BundleManifest> {
@@ -293,7 +311,8 @@ impl Registry {
 
     /// List all bundle manifests.
     ///
-    /// REQ: TPL-049
+    /// REQ: P3-tpl-registry-list-bundles
+    /// \[P3\] Motivating: Generative Space — lists registered bundles
     /// post: returns Vec<&BundleManifest> with all registered bundles
     pub fn list_bundles(&self) -> Vec<&hkask_types::BundleManifest> {
         self.bundles.values().collect()
@@ -301,7 +320,8 @@ impl Registry {
 
     /// Remove a bundle manifest by ID.
     ///
-    /// REQ: TPL-050
+    /// REQ: P3-tpl-registry-remove-bundle
+    /// \[P3\] Motivating: Generative Space — removes a bundle
     /// pre:  id is non-empty
     /// post: returns Some(BundleManifest) if removed, None if not found
     pub fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
@@ -311,7 +331,8 @@ impl Registry {
     /// Find an existing bundle that contains exactly the given set of skills.
     /// Returns the first exact match, if any.
     ///
-    /// REQ: TPL-051
+    /// REQ: P3-tpl-registry-find-bundle-by-skills
+    /// \[P3\] Motivating: Generative Space — finds bundle matching skill set
     /// pre:  skill_ids is non-empty
     /// post: returns Some(&BundleManifest) if exact skill set match found
     /// post: returns None if no exact match
@@ -331,7 +352,8 @@ impl Registry {
     /// Bootstrap registry from embedded YAML definitions.
     /// Template definitions live in `registry/templates/bootstrap-registry.yaml`.
     ///
-    /// REQ: TPL-052
+    /// REQ: P3-tpl-registry-bootstrap
+    /// \[P3\] Motivating: Generative Space — seeds registry from workspace templates
     /// post: returns Registry populated from bootstrap-registry.yaml
     /// post: all entries have matroshka_limit set to SYSTEM_MAX_RECURSION
     pub fn bootstrap() -> Self {

@@ -164,7 +164,9 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
 ///
 /// Returns `None` if the manifest cannot be found or loaded (logs a warning).
 ///
-/// REQ: TPL-004
+/// REQ: P3-tpl-resolve-manifest
+/// \[P3\] Motivating: Generative Space — resolves template manifest references
+/// \[P8\] Constraining: Semantic Grounding — manifest terms validated against hLexicon
 /// pre:  reference is non-empty, registry is initialized
 /// post: returns Some(BundleManifest) if found via registry or file path
 /// post: returns None if not found (graceful degradation)

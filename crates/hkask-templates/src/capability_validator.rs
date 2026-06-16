@@ -23,7 +23,9 @@ pub struct CapabilityAwareValidator;
 impl CapabilityAwareValidator {
     /// Create a new validator.
     ///
-    /// REQ: TPL-001
+    /// REQ: P3-tpl-capability-validator-new
+    /// \[P3\] Motivating: Generative Space — registration-time OCAP gate for template capabilities
+    /// \[P4\] Constraining: Clear Boundaries — validator establishes capability boundary
     /// post: returns CapabilityAwareValidator
     pub fn new() -> Self {
         Self
@@ -35,7 +37,9 @@ impl CapabilityAwareValidator {
     /// held token. Returns `Err(TemplateError::CapabilityDenied)` with details about
     /// the first unsatisfied requirement.
     ///
-    /// REQ: TPL-002
+    /// REQ: P3-tpl-validate-capabilities
+    /// \[P3\] Motivating: Generative Space — checks template capability requirements against held tokens
+    /// \[P4\] Constraining: Clear Boundaries — action hierarchy enforcement (Execute ≥ Write ≥ Read)
     /// pre:  template_id is non-empty
     /// post: returns Ok(()) if all required capabilities are satisfied
     /// post: returns Ok(()) if required_capabilities is empty
@@ -114,7 +118,8 @@ mod tests {
         )
     }
 
-    // REQ: cap-validator-001 — empty requirements always pass
+    // REQ: P3-tpl-test-empty-requirements-pass — empty requirements always pass
+    // [P3] Motivating: Generative Space — validates empty capability requirement set
     #[test]
     fn empty_requirements_always_pass() {
         let validator = CapabilityAwareValidator::new();
@@ -122,7 +127,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: cap-validator-002 — satisfied requirement passes
+    // REQ: P3-tpl-test-satisfied-requirement-passes — satisfied requirement passes
+    // [P3] Motivating: Generative Space — validates held token satisfies requirement
     #[test]
     fn satisfied_requirement_passes() {
         let validator = CapabilityAwareValidator::new();
@@ -136,7 +142,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: cap-validator-003 — unsatisfied requirement fails with details
+    // REQ: P3-tpl-test-unsatisfied-requirement-fails — unsatisfied requirement fails with details
+    // [P3] Motivating: Generative Space — validates insufficient capability is rejected
     #[test]
     fn unsatisfied_requirement_fails() {
         let validator = CapabilityAwareValidator::new();
@@ -149,7 +156,9 @@ mod tests {
         assert!(err.to_string().contains("tool:search:execute"));
     }
 
-    // REQ: cap-validator-004 — action hierarchy: Execute token satisfies Read requirement
+    // REQ: P3-tpl-test-execute-satisfies-read — action hierarchy: Execute token satisfies Read requirement
+    // [P3] Motivating: Generative Space — validates action hierarchy
+    // [P4] Constraining: Clear Boundaries — Execute token satisfies Read requirement
     #[test]
     fn execute_token_satisfies_read_requirement() {
         let validator = CapabilityAwareValidator::new();
@@ -162,7 +171,9 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: cap-validator-005 — Write token satisfies Read requirement
+    // REQ: P3-tpl-test-write-satisfies-read — Write token satisfies Read requirement
+    // [P3] Motivating: Generative Space — validates action hierarchy
+    // [P4] Constraining: Clear Boundaries — Write token satisfies Read requirement
     #[test]
     fn write_token_satisfies_read_requirement() {
         let validator = CapabilityAwareValidator::new();
@@ -171,7 +182,9 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: cap-validator-006 — Read token does NOT satisfy Write requirement
+    // REQ: P3-tpl-test-read-not-satisfies-write — Read token does NOT satisfy Write requirement
+    // [P3] Motivating: Generative Space — validates action hierarchy
+    // [P4] Constraining: Clear Boundaries — Read token does not satisfy Write requirement
     #[test]
     fn read_token_does_not_satisfy_write_requirement() {
         let validator = CapabilityAwareValidator::new();
@@ -180,7 +193,8 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: cap-validator-007 — malformed requirement returns error
+    // REQ: P3-tpl-test-malformed-requirement-error — malformed requirement returns error
+    // [P3] Motivating: Generative Space — validates malformed capability syntax is rejected
     #[test]
     fn malformed_requirement_returns_error() {
         let validator = CapabilityAwareValidator::new();
@@ -188,7 +202,8 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: cap-validator-008 — multiple requirements all must be satisfied
+    // REQ: P3-tpl-test-multiple-requirements — multiple requirements all must be satisfied
+    // [P3] Motivating: Generative Space — validates all required capabilities must be held
     #[test]
     fn multiple_requirements_all_must_be_satisfied() {
         let validator = CapabilityAwareValidator::new();
@@ -213,7 +228,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: cap-validator-009 — no held tokens with requirements fails
+    // REQ: P3-tpl-test-no-held-tokens-fail — no held tokens with requirements fails
+    // [P3] Motivating: Generative Space — validates missing tokens cause rejection
     #[test]
     fn no_held_tokens_with_requirements_fails() {
         let validator = CapabilityAwareValidator::new();

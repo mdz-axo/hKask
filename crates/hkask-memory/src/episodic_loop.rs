@@ -40,8 +40,8 @@ impl EpisodicLoop {
     /// The `storage_budget` is the set-point for the regulation signal.
     ///
     /// REQ: P3-mem-episodic-loop-new
-    /// [P3] Motivating: Generative Space — wraps episodic memory in a regulated generative loop
-    /// [P9] Constraining: Homeostatic Self-Regulation — storage_budget is the cybernetic set-point
+    /// \[P3\] Motivating: Generative Space — wraps episodic memory in a regulated generative loop
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — storage_budget is the cybernetic set-point
     /// pre:  memory is initialized, perspective is valid, storage_budget > 0
     /// post: returns EpisodicLoop without consolidation bridge
     pub fn new(memory: Arc<EpisodicMemory>, perspective: WebID, storage_budget: usize) -> Self {
@@ -61,8 +61,8 @@ impl EpisodicLoop {
     /// Curator/Cybernetics authority for the one-way bridge.
     ///
     /// REQ: P3-mem-episodic-loop-with-consolidation
-    /// [P3] Motivating: Generative Space — enables promotion path when episodic budget is exceeded
-    /// [P9] Constraining: Homeostatic Self-Regulation — consolidation bridge fires only under token authority
+    /// \[P3\] Motivating: Generative Space — enables promotion path when episodic budget is exceeded
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — consolidation bridge fires only under token authority
     /// pre:  memory is initialized, perspective is valid, storage_budget > 0
     /// pre:  consolidation_token.issuer() == expected curator
     /// post: returns EpisodicLoop with consolidation bridge and token
@@ -85,8 +85,8 @@ impl EpisodicLoop {
     /// Get the configured storage budget (set-point).
     ///
     /// REQ: P3-mem-episodic-loop-storage-budget
-    /// [P3] Motivating: Generative Space — exposes the generative budget set-point for context assembly
-    /// [P9] Constraining: Homeostatic Self-Regulation — budget value is immutable after construction
+    /// \[P3\] Motivating: Generative Space — exposes the generative budget set-point for context assembly
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — budget value is immutable after construction
     /// post: returns the storage_budget value set at construction
     pub fn storage_budget(&self) -> usize {
         self.storage_budget

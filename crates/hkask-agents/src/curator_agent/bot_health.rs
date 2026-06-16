@@ -2,8 +2,8 @@
 //! against budget allocations from the CNS runtime.
 //!
 //! REQ: P9-agt-bot-health-classify — Mock CNS state with known budget values, feed gas events,
-//! [P9] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
-//! [P4] Constraining: Clear Boundaries — thresholds map consumption ratio to status
+//! \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
+//! \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
 //! verify threshold behavior.
 
 use chrono::{DateTime, Duration, Utc};
@@ -131,8 +131,8 @@ mod tests {
 
     /// Test that classify_health correctly thresholds consumption ratios.
     /// REQ: P9-agt-bot-health-classify — verify threshold behavior.
-    /// [P9] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
-    /// [P4] Constraining: Clear Boundaries — thresholds map consumption ratio to status
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
+    /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
     fn test_classify_healthy_below_threshold() {
         let thresholds = HealthThresholds::default();
@@ -161,8 +161,8 @@ mod tests {
     }
 
     /// REQ: P9-agt-bot-health-classify — verify threshold behavior at Degraded boundary
-    /// [P9] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
-    /// [P4] Constraining: Clear Boundaries — thresholds map consumption ratio to status
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
+    /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
     fn test_classify_degraded_at_threshold() {
         let thresholds = HealthThresholds::default();
@@ -191,8 +191,8 @@ mod tests {
     }
 
     /// REQ: P9-agt-bot-health-classify — verify threshold behavior at Critical boundary
-    /// [P9] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
-    /// [P4] Constraining: Clear Boundaries — thresholds map consumption ratio to status
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
+    /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
     fn test_classify_critical_at_threshold() {
         let thresholds = HealthThresholds::default();
@@ -221,8 +221,8 @@ mod tests {
     }
 
     /// REQ: P9-agt-bot-health-classify — missing budget defaults to Healthy
-    /// [P9] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
-    /// [P4] Constraining: Clear Boundaries — thresholds map consumption ratio to status
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
+    /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
     fn test_classify_no_budget_is_healthy() {
         let thresholds = HealthThresholds::default();
@@ -240,8 +240,8 @@ mod tests {
     }
 
     /// REQ: P9-agt-bot-health-classify — zero cap budget defaults to Healthy
-    /// [P9] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
-    /// [P4] Constraining: Clear Boundaries — thresholds map consumption ratio to status
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
+    /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
     fn test_classify_zero_cap_is_healthy() {
         let thresholds = HealthThresholds::default();

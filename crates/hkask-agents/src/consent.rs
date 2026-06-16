@@ -45,8 +45,8 @@ pub(crate) struct ConsentRecord {
 
 impl ConsentRecord {
     /// REQ: P2-agt-consent-record-new
-    /// [P2] Motivating: Affirmative Consent — consent record starts empty and active
-    /// [P1] Constraining: User Sovereignty — record is bound to user WebID
+    /// \[P2\] Motivating: Affirmative Consent — consent record starts empty and active
+    /// \[P1\] Constraining: User Sovereignty — record is bound to user WebID
     /// pre:  `webid` is a non-empty string.
     /// post: Returns a new `ConsentRecord` with empty granted categories,
     ///       `active = true`, `revoked_at = None`, and `granted_at` set to
@@ -62,7 +62,7 @@ impl ConsentRecord {
     }
 
     /// REQ: P2-agt-consent-record-grant
-    /// [P2] Motivating: Affirmative Consent — explicit grant adds a data category
+    /// \[P2\] Motivating: Affirmative Consent — explicit grant adds a data category
     /// pre:  `category` is a non-empty string.
     /// post: `category` is added to `granted_categories`; `active` is set
     ///       to `true`; `revoked_at` is cleared to `None`.
@@ -73,7 +73,7 @@ impl ConsentRecord {
     }
 
     /// REQ: P2-agt-consent-record-revoke
-    /// [P2] Motivating: Affirmative Consent — revocation terminates consent
+    /// \[P2\] Motivating: Affirmative Consent — revocation terminates consent
     /// pre:  (none — revoke is always valid).
     /// post: `revoked_at` is set to the current UTC timestamp;
     ///       `active` is set to `false`.
@@ -83,7 +83,7 @@ impl ConsentRecord {
     }
 
     /// REQ: P2-agt-consent-record-is-active
-    /// [P2] Motivating: Affirmative Consent — active iff not revoked
+    /// \[P2\] Motivating: Affirmative Consent — active iff not revoked
     /// pre:  (none).
     /// post: Returns `true` iff `active == true` AND `revoked_at` is `None`.
     pub fn is_active(&self) -> bool {
@@ -91,7 +91,7 @@ impl ConsentRecord {
     }
 
     /// REQ: P2-agt-consent-record-has-category
-    /// [P2] Motivating: Affirmative Consent — category check enforces scoped grant
+    /// \[P2\] Motivating: Affirmative Consent — category check enforces scoped grant
     /// pre:  `category` is a non-empty string.
     /// post: Returns `true` iff the record is active AND `category` is
     ///       present in `granted_categories`.
@@ -147,7 +147,7 @@ impl ConsentManager {
     /// Create a new consent manager backed by the given store.
     ///
     /// REQ: P2-agt-consent-manager-new
-    /// [P2] Motivating: Affirmative Consent — manager caches active consent records
+    /// \[P2\] Motivating: Affirmative Consent — manager caches active consent records
     /// pre:  `store` is a valid, initialized `ConsentStore`.
     /// post: Returns a `ConsentManager` with an empty in-memory cache;
     ///       eagerly loads active records from the store into the cache;
@@ -173,7 +173,7 @@ impl ConsentManager {
     /// # REQ: OPEN_QUESTIONS §2.2 — consent denial CNS instrumentation.
     ///
     /// REQ: P2-agt-consent-manager-with-sink
-    /// [P9] Motivating: Homeostatic Self-Regulation — CNS instrumentation for denials (observability only, no feedback)
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — CNS instrumentation for denials (observability only, no feedback)
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `event_sink` set to `Some(sink)`.
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
@@ -234,7 +234,7 @@ impl ConsentManager {
     /// Grant consent for a data category.
     ///
     /// REQ: P2-agt-consent-manager-grant
-    /// [P2] Motivating: Affirmative Consent — persist a scoped grant
+    /// \[P2\] Motivating: Affirmative Consent — persist a scoped grant
     /// pre:  `webid` is a non-empty string; `category` is a valid
     ///       `DataCategory` variant.
     /// post: If a record exists for `webid`, the category is granted and
@@ -267,7 +267,7 @@ impl ConsentManager {
     /// Revoke all consent for a WebID.
     ///
     /// REQ: P2-agt-consent-manager-revoke
-    /// [P2] Motivating: Affirmative Consent — revoke all consent for a WebID
+    /// \[P2\] Motivating: Affirmative Consent — revoke all consent for a WebID
     /// pre:  `webid` is a non-empty string.
     /// post: If a record exists for `webid`, it is revoked and persisted;
     ///       returns `Ok(())`. If no record exists, returns
@@ -291,8 +291,8 @@ impl ConsentManager {
     /// providing observability without opening a feedback path.
     ///
     /// REQ: P2-agt-consent-manager-check
-    /// [P2] Motivating: Affirmative Consent — terminal deny unless active grant exists
-    /// [P1] Constraining: User Sovereignty — check is per-user/data-category
+    /// \[P2\] Motivating: Affirmative Consent — terminal deny unless active grant exists
+    /// \[P1\] Constraining: User Sovereignty — check is per-user/data-category
     /// pre:  `webid` is a non-empty string; `category` is a valid
     ///       `DataCategory` variant.
     /// post: Returns `Ok(true)` if an active record for `webid` has the
@@ -345,7 +345,7 @@ impl ConsentManager {
     /// Get all granted categories for a WebID.
     ///
     /// REQ: P2-agt-consent-manager-granted-categories
-    /// [P2] Motivating: Affirmative Consent — list granted categories for disclosure
+    /// \[P2\] Motivating: Affirmative Consent — list granted categories for disclosure
     /// pre:  `webid` is a non-empty string.
     /// post: Returns `Ok(Vec<String>)` containing all granted category
     ///       names for an active record; returns `Ok(vec![])` if no active

@@ -636,7 +636,7 @@ impl KataEngine {
 
     /// Create a KataEngine with inference configured from environment.
     ///
-    /// [NORMATIVE] Encapsulates `InferenceConfig::from_env()` and
+    /// \[NORMATIVE\] Encapsulates `InferenceConfig::from_env()` and
     /// `InferenceRouter::new()` so CLI and API surfaces don't construct
     /// inference directly (P7 — Evolutionary Architecture).
     ///

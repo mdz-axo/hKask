@@ -20,11 +20,11 @@ pub struct PersonaCheckResult {
 ///
 /// Returns a `PersonaCheckResult` indicating whether the output passes and
 /// listing any violations. The `forbidden` field of `PersonaConstraints`
-/// [NORMATIVE] contains patterns that must not appear in Curator output. (P3 — Generative Space).
+/// \[NORMATIVE\] contains patterns that must not appear in Curator output. (P3 — Generative Space).
 ///
 /// REQ: P9-agt-curator-persona-check
-/// [P9] Motivating: Homeostatic Self-Regulation — persona filter prevents harmful output
-/// [P4] Constraining: Clear Boundaries — forbidden patterns are explicit
+/// \[P9\] Motivating: Homeostatic Self-Regulation — persona filter prevents harmful output
+/// \[P4\] Constraining: Clear Boundaries — forbidden patterns are explicit
 /// pre:  `output` is a valid UTF-8 string (may be empty); `constraints`
 ///       is a valid `PersonaConstraints` with a non-empty `forbidden` list.
 /// post: Returns a `PersonaCheckResult` with `passed = true` if no
@@ -61,7 +61,7 @@ pub fn check_persona_constraints(
 /// Returns the cleaned output and a list of violations that were stripped.
 ///
 /// REQ: P9-agt-curator-persona-strip
-/// [P9] Motivating: Homeostatic Self-Regulation — stripping reduces harm while preserving utility
+/// \[P9\] Motivating: Homeostatic Self-Regulation — stripping reduces harm while preserving utility
 /// pre:  `output` is a valid UTF-8 string; `constraints` is a valid
 ///       `PersonaConstraints` with a non-empty `forbidden` list.
 /// post: Returns `(cleaned_output, violations)` where `cleaned_output`

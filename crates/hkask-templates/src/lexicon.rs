@@ -48,7 +48,9 @@ struct LexiconTermYaml {
 /// `registry/hlexicon/hlexicon-workspace.yaml`. This function parses
 /// that YAML into an `HLexicon` suitable for validation during registration.
 ///
-/// REQ: TPL-015
+/// REQ: P3-tpl-load-hlexicon-yaml
+/// \[P3\] Motivating: Generative Space — loads canonical workspace vocabulary
+/// \[P8\] Constraining: Semantic Grounding — YAML vocabulary round-trips to HLexicon
 /// pre:  content is valid YAML in hlexicon-workspace format
 /// post: returns HLexicon populated with WordAct, FlowDef, KnowAct terms
 pub fn load_hlexicon_from_yaml(content: &str) -> Result<HLexicon, String> {
@@ -75,7 +77,9 @@ pub fn load_hlexicon_from_yaml(content: &str) -> Result<HLexicon, String> {
 
 /// Load the hLexicon from a file path.
 ///
-/// REQ: TPL-016
+/// REQ: P3-tpl-load-hlexicon-file
+/// \[P3\] Motivating: Generative Space — loads vocabulary from filesystem path
+/// \[P8\] Constraining: Semantic Grounding — file contents parsed into HLexicon
 /// pre:  path points to a valid hlexicon-workspace YAML file
 /// post: returns HLexicon parsed from file contents
 pub fn load_hlexicon_from_file(path: &Path) -> Result<HLexicon, String> {
@@ -87,7 +91,9 @@ pub fn load_hlexicon_from_file(path: &Path) -> Result<HLexicon, String> {
 
 /// Load the hLexicon from the default workspace path.
 ///
-/// REQ: TPL-017
+/// REQ: P3-tpl-load-hlexicon-default
+/// \[P3\] Motivating: Generative Space — loads built-in default vocabulary
+/// \[P8\] Constraining: Semantic Grounding — default terms seed the workspace lexicon
 /// post: returns HLexicon from registry/hlexicon/hlexicon-workspace.yaml
 /// post: respects HKASK_TEMPLATES_PATH env var for path resolution
 pub fn load_hlexicon_default() -> Result<HLexicon, String> {
@@ -111,7 +117,9 @@ pub fn load_hlexicon_default() -> Result<HLexicon, String> {
 /// extracted from backtick-quoted first column entries in tables with `Term | Definition`
 /// headers.
 ///
-/// REQ: TPL-018
+/// REQ: P3-tpl-parse-markdown-catalog
+/// \[P3\] Motivating: Generative Space — extracts terms from markdown catalog
+/// \[P8\] Constraining: Semantic Grounding — markdown tables become structured terms
 /// pre:  markdown is valid hLexicon markdown content
 /// post: returns Vec of (term, definition, TemplateType) tuples
 pub fn parse_markdown_catalog(
@@ -178,7 +186,9 @@ fn extract_backtick_quoted(s: &str) -> Option<String> {
 /// Produces the `hlexicon-workspace.yaml` format that `load_hlexicon_from_yaml` parses.
 /// Terms are sorted alphabetically within each domain for stable output.
 ///
-/// REQ: TPL-019
+/// REQ: P3-tpl-render-workspace-yaml
+/// \[P3\] Motivating: Generative Space — serializes vocabulary to workspace YAML
+/// \[P8\] Constraining: Semantic Grounding — YAML output preserves term semantics
 /// pre:  terms is a valid catalog from parse_markdown_catalog
 /// post: returns YAML string in hlexicon-workspace format
 /// post: terms sorted alphabetically within each domain
@@ -238,7 +248,9 @@ fn render_domain(
 /// This is the top-level pipeline: `parse_markdown_catalog` → `render_workspace_yaml`.
 /// Returns the YAML content that should be written to disk.
 ///
-/// REQ: TPL-020
+/// REQ: P3-tpl-regenerate-workspace-yaml
+/// \[P3\] Motivating: Generative Space — full markdown-to-YAML vocabulary pipeline
+/// \[P8\] Constraining: Semantic Grounding — regenerated YAML matches canonical source
 /// pre:  markdown is valid hLexicon markdown content
 /// post: returns YAML string ready to write to hlexicon-workspace.yaml
 pub fn regenerate_workspace_yaml(markdown: &str) -> Result<String, String> {
@@ -251,7 +263,9 @@ mod tests {
     use super::*;
 
     /// P8: parse_markdown_catalog extracts terms from markdown tables across all three domains
-    // REQ: templates-lexicon-001 — parse_markdown_catalog extracts terms from markdown tables across all three domains
+    // REQ: P3-tpl-test-parse-catalog-extracts-terms — parse_markdown_catalog extracts terms from markdown tables across all three domains
+    // [P3] Motivating: Generative Space — validates markdown catalog parsing
+    // [P8] Constraining: Semantic Grounding — extracts terms from canonical markdown
     #[test]
     fn parse_catalog_extracts_terms() {
         let markdown = "\
@@ -322,7 +336,9 @@ mod tests {
     }
 
     /// P8: parse_markdown_catalog skips non-term rows (separator, header, prose)
-    // REQ: templates-lexicon-002 — parse_markdown_catalog skips non-term rows (separator, header, prose)
+    // REQ: P3-tpl-test-parse-catalog-skips-non-terms — parse_markdown_catalog skips non-term rows (separator, header, prose)
+    // [P3] Motivating: Generative Space — validates parser skips non-term rows
+    // [P8] Constraining: Semantic Grounding — separators and prose are not terms
     #[test]
     fn parse_catalog_skips_non_term_rows() {
         let markdown = "\
@@ -340,7 +356,8 @@ mod tests {
     }
 
     /// P8: parse_markdown_catalog returns error on empty input
-    // REQ: templates-lexicon-003 — parse_markdown_catalog returns error on empty input
+    // REQ: P3-tpl-test-parse-catalog-empty-error — parse_markdown_catalog returns error on empty input
+    // [P3] Motivating: Generative Space — validates empty catalog is rejected
     #[test]
     fn parse_catalog_empty_input_returns_error() {
         let result = parse_markdown_catalog("No tables here");
@@ -348,7 +365,9 @@ mod tests {
     }
 
     /// P8: render_workspace_yaml produces valid YAML that round-trips through load_hlexicon_from_yaml
-    // REQ: templates-lexicon-004 — render_workspace_yaml produces valid YAML that round-trips through load_hlexicon_from_yaml
+    // REQ: P3-tpl-test-render-yaml-round-trips — render_workspace_yaml produces valid YAML that round-trips through load_hlexicon_from_yaml
+    // [P3] Motivating: Generative Space — validates YAML serialization round-trips
+    // [P8] Constraining: Semantic Grounding — YAML preserves vocabulary semantics
     #[test]
     fn render_yaml_round_trips() {
         let terms = vec![
@@ -391,7 +410,9 @@ mod tests {
     }
 
     /// P8: regenerate_workspace_yaml is the full markdown→YAML pipeline
-    // REQ: templates-lexicon-005 — regenerate_workspace_yaml is the full markdown→YAML pipeline
+    // REQ: P3-tpl-test-regenerate-yaml-pipeline — regenerate_workspace_yaml is the full markdown→YAML pipeline
+    // [P3] Motivating: Generative Space — validates full markdown→YAML pipeline
+    // [P8] Constraining: Semantic Grounding — regenerated YAML matches source
     #[test]
     fn regenerate_workspace_yaml_produces_valid_yaml() {
         let markdown = "\
@@ -417,7 +438,9 @@ mod tests {
     }
 
     /// P8: generate YAML from actual markdown source and verify round-trip consistency
-    // REQ: templates-lexicon-006 — hLexicon YAML matches canonical markdown source
+    // REQ: P3-tpl-test-hlexicon-yaml-matches-markdown — hLexicon YAML matches canonical markdown source
+    // [P3] Motivating: Generative Space — validates workspace YAML matches markdown
+    // [P8] Constraining: Semantic Grounding — generated vocabulary is canonical
     #[test]
     fn hlexicon_yaml_matches_markdown() {
         // Read the canonical markdown source

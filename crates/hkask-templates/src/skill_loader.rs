@@ -61,7 +61,8 @@ pub struct SkillLoader {
 impl SkillLoader {
     /// Create a new skill loader rooted at `project_root`.
     ///
-    /// REQ: TPL-008
+    /// REQ: P3-tpl-skill-loader-new
+    /// \[P3\] Motivating: Generative Space — loader for skill registry entries
     /// pre:  project_root is a valid directory path
     /// post: returns SkillLoader configured for the given root
     pub fn new(project_root: impl Into<PathBuf>) -> Self {
@@ -72,7 +73,8 @@ impl SkillLoader {
 
     /// Discover and load skills from both zones, registering them into the registry.
     ///
-    /// REQ: TPL-009
+    /// REQ: P3-tpl-skill-loader-load-into
+    /// \[P3\] Motivating: Generative Space — loads skill into registry
     /// pre:  registry is initialized
     /// post: skills from private and public zones loaded and registered
     /// post: returns SkillLoadResult with loaded skills and any warnings
@@ -208,7 +210,8 @@ impl SkillLoader {
     /// If no registry layer exists, default to KnowAct because a Zed-only SKILL.md
     /// is a reasoning companion guide.
     ///
-    /// REQ: TPL-011
+    /// REQ: P3-tpl-skill-loader-infer-domain
+    /// \[P3\] Motivating: Generative Space — infers skill domain from registry contents
     /// pre:  id is non-empty
     /// post: returns a TemplateType representing the skill's runtime domain
     fn infer_domain_from_registry(&self, id: &str) -> TemplateType {
@@ -255,7 +258,8 @@ impl SkillLoader {
     /// Parse YAML front matter from a SKILL.md file.
     /// Expects `---\n` delimiters at the start and end of the front matter block.
     ///
-    /// REQ: TPL-010
+    /// REQ: P3-tpl-skill-loader-parse-front-matter
+    /// \[P3\] Motivating: Generative Space — parses skill front matter metadata
     /// pre:  content is a valid SKILL.md file content
     /// post: returns SkillFrontMatter parsed from YAML front matter
     /// post: returns default SkillFrontMatter if no front matter present

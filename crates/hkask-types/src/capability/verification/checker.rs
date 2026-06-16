@@ -1,6 +1,6 @@
 //! Capability checker for composition-oriented capability management.
 //!
-//! [NORMATIVE] With Ed25519 tokens, verification uses the token's own public key —
+//! \[NORMATIVE\] With Ed25519 tokens, verification uses the token's own public key —
 //! no shared secret is required. The checker validates structural properties
 //! (expiry, resource match, holder match) against the token (P4 — Clear Boundaries).
 
@@ -10,7 +10,7 @@ use ed25519_dalek::SigningKey;
 
 /// Capability checker for composition operations.
 ///
-/// [NORMATIVE] With Ed25519 tokens, verification uses the token's own public key —
+/// \[NORMATIVE\] With Ed25519 tokens, verification uses the token's own public key —
 /// no shared secret is required. The checker validates structural properties
 /// (expiry, resource match, holder match) against the token (P4 — Clear Boundaries).
 pub struct CapabilityChecker {

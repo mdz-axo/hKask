@@ -27,7 +27,7 @@ impl AgentRegistryStore {
     /// Initialize the agent registry schema.
     ///
     /// REQ: P3-sto-agent-registry-schema
-    /// [P3] Motivating: Generative Space — agent registry schema
+    /// \[P3\] Motivating: Generative Space — agent registry schema
     /// post: agents, user_profiles, contacts, scheduled_tasks tables created
     pub fn initialize_schema(&self) -> Result<(), AgentRegistryError> {
         let conn = self.lock_conn()?;
@@ -70,7 +70,7 @@ impl AgentRegistryStore {
     /// Insert a registered agent.
     ///
     /// REQ: P3-sto-agent-registry-insert
-    /// [P3] Motivating: Generative Space — insert registered agent
+    /// \[P3\] Motivating: Generative Space — insert registered agent
     /// pre:  agent.name is non-empty
     /// post: agent inserted into agents table
     pub fn insert(&self, agent: &RegisteredAgent) -> Result<(), AgentRegistryError> {
@@ -95,7 +95,7 @@ impl AgentRegistryStore {
     /// Get an agent by name.
     ///
     /// REQ: P3-sto-agent-registry-get
-    /// [P3] Motivating: Generative Space — get agent by name
+    /// \[P3\] Motivating: Generative Space — get agent by name
     /// pre:  name is non-empty
     /// post: returns RegisteredAgent if found
     pub fn get(&self, name: &str) -> Result<RegisteredAgent, AgentRegistryError> {
@@ -132,7 +132,7 @@ impl AgentRegistryStore {
     /// List all registered agents.
     ///
     /// REQ: P3-sto-agent-registry-list
-    /// [P3] Motivating: Generative Space — list all agents
+    /// \[P3\] Motivating: Generative Space — list all agents
     /// post: returns Vec of all RegisteredAgent
     pub fn list(&self) -> Result<Vec<RegisteredAgent>, AgentRegistryError> {
         let conn = self.lock_conn()?;
@@ -175,7 +175,7 @@ impl AgentRegistryStore {
     /// List agents by kind.
     ///
     /// REQ: P3-sto-agent-registry-list-by-kind
-    /// [P3] Motivating: Generative Space — list agents by kind
+    /// \[P3\] Motivating: Generative Space — list agents by kind
     /// pre:  kind is a valid AgentKind
     /// post: returns Vec of agents matching kind
     pub fn list_by_kind(
@@ -222,7 +222,7 @@ impl AgentRegistryStore {
     /// Remove an agent by name.
     ///
     /// REQ: P3-sto-agent-registry-remove
-    /// [P3] Motivating: Generative Space — remove agent
+    /// \[P3\] Motivating: Generative Space — remove agent
     /// pre:  name is non-empty
     /// post: agent deleted if existed
     pub fn remove(&self, name: &str) -> Result<(), AgentRegistryError> {
@@ -241,7 +241,7 @@ impl AgentRegistryStore {
     /// Store a user profile.
     ///
     /// REQ: P3-sto-agent-registry-profile-store
-    /// [P3] Motivating: Generative Space — store user profile
+    /// \[P3\] Motivating: Generative Space — store user profile
     /// pre:  profile has valid fields
     /// post: profile upserted
     pub fn store_user_profile(&self, profile: &UserProfile) -> Result<(), AgentRegistryError> {
@@ -258,7 +258,7 @@ impl AgentRegistryStore {
     /// Get the user profile.
     ///
     /// REQ: P3-sto-agent-registry-profile-get
-    /// [P3] Motivating: Generative Space — get user profile
+    /// \[P3\] Motivating: Generative Space — get user profile
     /// post: returns Some(profile) if exists, None otherwise
     pub fn get_user_profile(&self) -> Result<Option<UserProfile>, AgentRegistryError> {
         let conn = self.lock_conn()?;
@@ -275,7 +275,7 @@ impl AgentRegistryStore {
     /// Add a contact.
     ///
     /// REQ: P3-sto-agent-registry-contact-add
-    /// [P3] Motivating: Generative Space — add contact
+    /// \[P3\] Motivating: Generative Space — add contact
     /// pre:  contact has valid fields
     /// post: contact inserted
     pub fn add_contact(&self, contact: &Contact) -> Result<(), AgentRegistryError> {
@@ -298,7 +298,7 @@ impl AgentRegistryStore {
     /// Find contacts matching criteria.
     ///
     /// REQ: P3-sto-agent-registry-contact-find
-    /// [P3] Motivating: Generative Space — find contacts
+    /// \[P3\] Motivating: Generative Space — find contacts
     /// post: returns Vec of matching contacts
     pub fn find_contacts(
         &self,
@@ -327,7 +327,7 @@ impl AgentRegistryStore {
     /// List contacts for an agent.
     ///
     /// REQ: P3-sto-agent-registry-contact-list
-    /// [P3] Motivating: Generative Space — list contacts for agent
+    /// \[P3\] Motivating: Generative Space — list contacts for agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of contacts
     pub fn list_contacts(&self, agent_name: &str) -> Result<Vec<Contact>, AgentRegistryError> {
@@ -352,7 +352,7 @@ impl AgentRegistryStore {
     /// Add a scheduled task.
     ///
     /// REQ: P3-sto-agent-registry-task-add
-    /// [P3] Motivating: Generative Space — add scheduled task
+    /// \[P3\] Motivating: Generative Space — add scheduled task
     /// pre:  task has valid fields
     /// post: task inserted
     pub fn add_scheduled_task(&self, task: &ScheduledTask) -> Result<(), AgentRegistryError> {
@@ -376,7 +376,7 @@ impl AgentRegistryStore {
     /// List tasks due for execution.
     ///
     /// REQ: P3-sto-agent-registry-task-list-due
-    /// [P3] Motivating: Generative Space — list due tasks
+    /// \[P3\] Motivating: Generative Space — list due tasks
     /// pre:  now is a valid timestamp
     /// post: returns Vec of due tasks
     pub fn list_due_tasks(&self, now: &str) -> Result<Vec<ScheduledTask>, AgentRegistryError> {
@@ -403,7 +403,7 @@ impl AgentRegistryStore {
     /// List scheduled tasks for an agent.
     ///
     /// REQ: P3-sto-agent-registry-task-list-agent
-    /// [P3] Motivating: Generative Space — list tasks for agent
+    /// \[P3\] Motivating: Generative Space — list tasks for agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of tasks
     pub fn list_scheduled_tasks(
@@ -433,7 +433,7 @@ impl AgentRegistryStore {
     /// Update the next run time for a task.
     ///
     /// REQ: P3-sto-agent-registry-task-update
-    /// [P3] Motivating: Generative Space — update task next_run
+    /// \[P3\] Motivating: Generative Space — update task next_run
     /// pre:  task_id is valid, next_run is valid
     /// post: next_run updated
     pub fn update_next_run(

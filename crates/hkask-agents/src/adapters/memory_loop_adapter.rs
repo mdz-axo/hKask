@@ -146,7 +146,7 @@ impl MemoryLoopForwarder {
     /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
     ///
     /// REQ: P3-agt-memory-adapter-new
-    /// [P3] Motivating: Generative Space — MemoryLoopForwarder wires episodic + semantic
+    /// \[P3\] Motivating: Generative Space — MemoryLoopForwarder wires episodic + semantic
     /// pre:  `episodic` is a valid `EpisodicMemory`; `semantic` is a valid
     ///       `SemanticMemory`.
     /// post: Returns a `MemoryLoopForwarder` holding both memory instances.
@@ -157,7 +157,7 @@ impl MemoryLoopForwarder {
     /// Create with in-memory storage for testing.
     ///
     /// REQ: P3-agt-memory-adapter-in-memory
-    /// [P3] Motivating: Generative Space — in-memory SQLite adapter for tests
+    /// \[P3\] Motivating: Generative Space — in-memory SQLite adapter for tests
     /// pre:  (none).
     /// post: Returns `Ok(Self)` with an in-memory SQLite database;
     ///       returns `Err(MemoryError)` if database creation fails.
@@ -169,11 +169,11 @@ impl MemoryLoopForwarder {
     /// Create with in-memory storage, panicking on failure.
     ///
     /// Use this in builder patterns and test fixtures where an in-memory DB
-    /// [DECLARATIVE] failure is always a bug, never a recoverable condition. For recoverable (P5 — Essentialism).
+    /// \[DECLARATIVE\] failure is always a bug, never a recoverable condition. For recoverable (P5 — Essentialism).
     /// contexts, use `in_memory()` and propagate the error with `?`.
     ///
     /// REQ: P3-agt-memory-adapter-in-memory-unwrap
-    /// [P3] Motivating: Generative Space — infallible in-memory constructor for tests
+    /// \[P3\] Motivating: Generative Space — infallible in-memory constructor for tests
     /// pre:  (none).
     /// post: Returns `Self` with an in-memory database; panics if
     ///       database creation fails (considered a bug).
@@ -184,8 +184,8 @@ impl MemoryLoopForwarder {
     /// Create from database path and passphrase (encrypted).
     ///
     /// REQ: P3-agt-memory-adapter-encrypted
-    /// [P1] Motivating: User Sovereignty — encrypted on-disk memory adapter
-    /// [P4] Constraining: Clear Boundaries — passphrase protects the store
+    /// \[P1\] Motivating: User Sovereignty — encrypted on-disk memory adapter
+    /// \[P4\] Constraining: Clear Boundaries — passphrase protects the store
     /// pre:  `path` is a valid filesystem path; `passphrase` is a
     ///       non-empty string.
     /// post: Returns `Ok(Self)` with an encrypted SQLite database at

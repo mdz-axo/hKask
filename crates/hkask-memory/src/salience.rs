@@ -83,8 +83,8 @@ pub struct MethodSignals {
 /// beyond what's needed for word splitting.
 ///
 /// REQ: P3-mem-salience-method-signals
-/// [P3] Motivating: Generative Space — extracts cheap stylometric signals for method-aware retrieval
-/// [P8] Constraining: Semantic Grounding — signals are deterministic heuristics over raw text
+/// \[P3\] Motivating: Generative Space — extracts cheap stylometric signals for method-aware retrieval
+/// \[P8\] Constraining: Semantic Grounding — signals are deterministic heuristics over raw text
 /// pre:  text is a valid &str
 /// post: returns MethodSignals with computed linguistic features
 /// post: returns MethodSignals::default() for empty text
@@ -558,8 +558,8 @@ impl DeclaredMethod {
     /// Check whether a passage's signals match this method's thresholds.
     ///
     /// REQ: P3-mem-salience-declared-method-matches
-    /// [P3] Motivating: Generative Space — matches passage signals against declared method thresholds
-    /// [P8] Constraining: Semantic Grounding — unconfigured thresholds are always satisfied
+    /// \[P3\] Motivating: Generative Space — matches passage signals against declared method thresholds
+    /// \[P8\] Constraining: Semantic Grounding — unconfigured thresholds are always satisfied
     /// pre:  signals is a valid MethodSignals
     /// post: returns true iff all configured min/max thresholds are satisfied
     /// post: unconfigured thresholds (None) are always satisfied
@@ -616,8 +616,8 @@ pub struct EntityTags {
 /// tags only (no duplicates within a category).
 ///
 /// REQ: P3-mem-salience-tag-entities
-/// [P3] Motivating: Generative Space — tags passages with declared entities for the salience graph
-/// [P8] Constraining: Semantic Grounding — case-insensitive substring matching
+/// \[P3\] Motivating: Generative Space — tags passages with declared entities for the salience graph
+/// \[P8\] Constraining: Semantic Grounding — case-insensitive substring matching
 /// pre:  text is non-empty, entity lists are valid
 /// post: returns EntityTags with matched entities per category
 /// post: methods field is empty (filled separately)
@@ -650,8 +650,8 @@ impl EntityTags {
     /// All entity and method names as a single iterator for graph construction.
     ///
     /// REQ: P3-mem-salience-all-tags
-    /// [P3] Motivating: Generative Space — flattens entity categories for graph construction
-    /// [P5] Constraining: Essentialism — minimal iterator over existing vectors
+    /// \[P3\] Motivating: Generative Space — flattens entity categories for graph construction
+    /// \[P5\] Constraining: Essentialism — minimal iterator over existing vectors
     /// post: returns iterator over all tag strings across all categories
     pub fn all_tags(&self) -> impl Iterator<Item = &str> {
         self.characters
@@ -666,8 +666,8 @@ impl EntityTags {
     /// Number of distinct tags across all categories.
     ///
     /// REQ: P3-mem-salience-tag-count
-    /// [P3] Motivating: Generative Space — counts distinct tags across all categories
-    /// [P5] Constraining: Essentialism — simple sum of category lengths
+    /// \[P3\] Motivating: Generative Space — counts distinct tags across all categories
+    /// \[P5\] Constraining: Essentialism — simple sum of category lengths
     /// post: returns sum of lengths of all tag category vectors
     pub fn tag_count(&self) -> usize {
         self.characters.len()
@@ -710,8 +710,8 @@ impl EntityTags {
 /// Foundational rules (passages with zero tags) get salience 0.0.
 ///
 /// REQ: P3-mem-salience-compute-batch
-/// [P3] Motivating: Generative Space — scores passage salience to gate triple storage budget
-/// [P9] Constraining: Homeostatic Self-Regulation — graph centrality bounded by neighbor sampling
+/// \[P3\] Motivating: Generative Space — scores passage salience to gate triple storage budget
+/// \[P9\] Constraining: Homeostatic Self-Regulation — graph centrality bounded by neighbor sampling
 /// pre:  all_tags is a slice of EntityTags
 /// post: returns Vec<f32> with one salience score per passage
 /// post: passages with zero tags get salience 0.0
@@ -858,8 +858,8 @@ impl BudgetConfig {
     /// The constant 250 assumes ~250 passages ≈ 100 pages.
     ///
     /// REQ: P3-mem-salience-budget-resolve
-    /// [P3] Motivating: Generative Space — resolves passage count into absolute triple budget
-    /// [P9] Constraining: Homeostatic Self-Regulation — budget caps generative storage growth
+    /// \[P3\] Motivating: Generative Space — resolves passage count into absolute triple budget
+    /// \[P9\] Constraining: Homeostatic Self-Regulation — budget caps generative storage growth
     /// pre:  passage_count ≥ 0
     /// post: returns computed absolute triple budget
     /// post: Flat variant caps at total_passages if set and smaller

@@ -37,8 +37,8 @@ use crate::signing;
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
 ///
 /// REQ: P9-wallet-mgr-struct
-/// [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
-/// [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
+/// \[P9\] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
+/// \[P1\] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
 /// inv: wallet_seed is zeroized on drop (Zeroizing wrapper)
 /// inv: chains map is non-empty after successful build
 pub struct WalletManager {
@@ -62,8 +62,8 @@ impl WalletManager {
     /// Build a WalletManager from configuration, store, chain/privacy ports, and price feed.
     ///
     /// REQ: P9-wallet-mgr-build
-    /// [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
-    /// [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
+    /// \[P1\] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
     /// pre:  config is valid, store is initialized, chains is non-empty
     /// pre:  price_feed is a resolved PriceFeed implementation
     /// post: returns Ok(WalletManager) with resolved wallet_seed
@@ -175,8 +175,8 @@ impl WalletManager {
     /// Emit a CNS span for chain-level errors (RPC failure, tx rejection, etc.).
     ///
     /// REQ: P9-wallet-mgr-chain-error-span
-    /// [P9] Motivating: Homeostatic Self-Regulation — chain errors feed the CNS sense loop
-    /// [P12] Constraining: Replicant Host Mandate — actor identity is recorded
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — chain errors feed the CNS sense loop
+    /// \[P12\] Constraining: Replicant Host Mandate — actor identity is recorded
     /// pre:  chain is a valid ChainId
     /// post: emits cns.wallet.chain_error span with error details (Sense phase)
     /// post: if event_sink is None → no-op (graceful degradation)
@@ -211,8 +211,8 @@ impl WalletManager {
     /// Get the current rJoule balance for a wallet.
     ///
     /// REQ: P9-wallet-mgr-balance
-    /// [P9] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state
-    /// [P8] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state
+    /// \[P8\] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically
     /// pre:  wallet_id is a valid WalletId
     /// post: returns Ok(balance) with rjoules, gas_equivalent, usdc_equivalent_micro
     /// post: gas_equivalent == rjoules * config.gas_per_rjoule
@@ -234,8 +234,8 @@ impl WalletManager {
     /// Returns `None` if the key doesn't exist or has been revoked.
     ///
     /// REQ: P9-wallet-mgr-api-key-get
-    /// [P9] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops
-    /// [P4] Constraining: Clear Boundaries — revoked keys are excluded
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops
+    /// \[P4\] Constraining: Clear Boundaries — revoked keys are excluded
     /// pre:  key_id is a valid ApiKeyId
     /// post: returns Ok(Some(capability)) if key exists and is active
     /// post: returns Ok(None) if key doesn't exist or is revoked
@@ -854,8 +854,8 @@ impl WalletManager {
     /// Estimate network withdrawal fee in rJoules/native units/USDC using configured PriceFeed.
     ///
     /// REQ: P9-wallet-mgr-fee-estimate
-    /// [P9] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
-    /// [P8] Constraining: Semantic Grounding — derived from live/native USD rate
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
+    /// \[P8\] Constraining: Semantic Grounding — derived from live/native USD rate
     /// pre:  chain is a valid ChainId
     /// post: returns fee estimate derived from live/native USD rate when available
     /// post: returns Err if configured price feed cannot provide a rate
@@ -893,8 +893,8 @@ impl WalletManager {
     /// Check if a wallet can afford a given rJoule cost.
     ///
     /// REQ: P9-wallet-mgr-can-afford
-    /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
-    /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
+    /// \[P4\] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, cost_rj is a valid RJoule
     /// post: returns Ok(true) iff balance.rjoules >= cost_rj
     /// post: returns Ok(false) iff balance.rjoules < cost_rj
@@ -907,8 +907,8 @@ impl WalletManager {
     /// The actual debit happens at settle time.
     ///
     /// REQ: P9-wallet-mgr-reserve
-    /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
-    /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
+    /// \[P4\] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, amount is a valid RJoule
     /// post: if can_afford → Ok(()), reservation is optimistic (no debit)
     /// post: if !can_afford → Err(InsufficientBalance)
@@ -929,8 +929,8 @@ impl WalletManager {
     /// Debits the actual cost (may be less than reserved on failure).
     ///
     /// REQ: P9-wallet-mgr-settle
-    /// [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
-    /// [P4] Constraining: Clear Boundaries — cannot reserve beyond balance
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
+    /// \[P4\] Constraining: Clear Boundaries — cannot reserve beyond balance
     /// pre:  wallet_id is a valid WalletId, reserved and actual are valid RJoule
     /// post: wallet balance debited by actual (not reserved)
     /// post: if actual < reserved, difference is implicitly refunded
@@ -994,9 +994,9 @@ impl WalletManager {
     /// Encumber rJoules from a wallet for an API key's allocation.
     ///
     /// REQ: P9-wallet-mgr-encumber
-    /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
-    /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
-    /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
+    /// \[P4\] Constraining: Clear Boundaries — only the entitled key can consume
+    /// \[P8\] Constraining: Semantic Grounding — atomic consume/release preserves balance
     /// pre:  wallet_id is a valid WalletId, key_id is a valid ApiKeyId, amount > 0
     /// post: amount rJoules locked against wallet for key_id
     /// post: emits cns.wallet.encumbered span if event_sink configured
@@ -1026,9 +1026,9 @@ impl WalletManager {
     /// Release an encumbrance, returning unspent rJoules to the wallet.
     ///
     /// REQ: P9-wallet-mgr-release-encumbrance
-    /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
-    /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
-    /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
+    /// \[P4\] Constraining: Clear Boundaries — only the entitled key can consume
+    /// \[P8\] Constraining: Semantic Grounding — atomic consume/release preserves balance
     /// pre:  key_id is a valid ApiKeyId
     /// post: unspent rJoules returned to wallet
     /// post: idempotent — releasing already-released/consumed encumbrance is no-op
@@ -1050,9 +1050,9 @@ impl WalletManager {
     /// Atomically consume rJoules from an API key's encumbrance.
     ///
     /// REQ: P9-wallet-mgr-consume
-    /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
-    /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
-    /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
+    /// \[P4\] Constraining: Clear Boundaries — only the entitled key can consume
+    /// \[P8\] Constraining: Semantic Grounding — atomic consume/release preserves balance
     /// pre:  key_id is a valid ApiKeyId, gas_rj > 0
     /// post: gas_rj deducted from key's active encumbrance (atomic)
     /// post: if encumbrance fully consumed → status transitions to 'consumed'
@@ -1067,9 +1067,9 @@ impl WalletManager {
     /// Get the encumbrance for an API key.
     ///
     /// REQ: P9-wallet-mgr-get-encumbrance
-    /// [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
-    /// [P4] Constraining: Clear Boundaries — only the entitled key can consume
-    /// [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
+    /// \[P4\] Constraining: Clear Boundaries — only the entitled key can consume
+    /// \[P8\] Constraining: Semantic Grounding — atomic consume/release preserves balance
     /// pre:  key_id is a valid ApiKeyId
     /// post: returns Ok(Some(encumbrance)) if key has active encumbrance
     /// post: returns Ok(None) if key has no encumbrance
@@ -1267,8 +1267,8 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-fee-estimate — estimate_withdrawal_fee uses configured price feed
-    /// [P9] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
-    /// [P8] Constraining: Semantic Grounding — derived from live/native USD rate
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
+    /// \[P8\] Constraining: Semantic Grounding — derived from live/native USD rate
     #[tokio::test]
     async fn estimate_withdrawal_fee_uses_price_feed() {
         let mgr = make_manager();

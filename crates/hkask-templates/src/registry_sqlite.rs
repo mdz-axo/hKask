@@ -70,7 +70,8 @@ pub struct SqliteRegistry {
 impl SqliteRegistry {
     /// Create a new SQLite-backed registry.
     ///
-    /// REQ: TPL-021
+    /// REQ: P3-tpl-registry-sqlite-new
+    /// \[P3\] Motivating: Generative Space — SQLite-backed template registry
     /// pre:  path is None (in-memory) or a valid filesystem path
     /// post: returns SqliteRegistry with schema initialized
     pub fn new(path: Option<&str>) -> Result<Self> {
@@ -94,7 +95,8 @@ impl SqliteRegistry {
 
     /// Create a registry from an existing SQLite connection.
     ///
-    /// REQ: TPL-022
+    /// REQ: P3-tpl-registry-sqlite-new-with-conn
+    /// \[P3\] Motivating: Generative Space — SQLite registry from existing connection
     /// pre:  conn is a valid SQLite connection
     /// post: returns SqliteRegistry with schema initialized on the given connection
     pub fn new_with_conn(conn: Arc<Mutex<Connection>>) -> Result<Self> {
@@ -133,7 +135,9 @@ impl SqliteRegistry {
 
     /// Set the hLexicon for term validation during registration.
     ///
-    /// REQ: TPL-023
+    /// REQ: P3-tpl-registry-sqlite-set-lexicon
+    /// \[P3\] Motivating: Generative Space — binds vocabulary to SQLite registry
+    /// \[P8\] Constraining: Semantic Grounding — hLexicon constrains persisted terms
     /// pre:  lexicon is a valid HLexicon
     /// post: hlexicon set — subsequent register() calls validate terms
     pub fn set_lexicon(&mut self, lexicon: HLexicon) {
@@ -142,7 +146,8 @@ impl SqliteRegistry {
 
     /// Register a template entry in the registry.
     ///
-    /// REQ: TPL-024
+    /// REQ: P3-tpl-registry-sqlite-register
+    /// \[P3\] Motivating: Generative Space — persists template registration
     /// pre:  entry.id is non-empty, entry.template_type is valid
     /// post: entry inserted or replaced in templates table
     /// post: lexicon_terms and capabilities synced
@@ -237,7 +242,8 @@ impl SqliteRegistry {
 
     /// Get a template entry by ID.
     ///
-    /// REQ: TPL-025
+    /// REQ: P3-tpl-registry-sqlite-get-entry
+    /// \[P3\] Motivating: Generative Space — retrieves persisted template entry
     /// pre:  id is non-empty
     /// post: returns RegistryEntry if found
     /// post: returns Err(NotFound) if not found
@@ -259,7 +265,8 @@ impl SqliteRegistry {
     /// Delete a template and all associated data (lexicon terms, capabilities, provenance).
     /// Returns the entry if it existed, None otherwise.
     ///
-    /// REQ: TPL-026
+    /// REQ: P3-tpl-registry-sqlite-delete-entry
+    /// \[P3\] Motivating: Generative Space — removes persisted template entry
     /// pre:  id is non-empty
     /// post: template and associated data deleted
     /// post: returns Some(entry) if existed, None otherwise
@@ -285,7 +292,9 @@ impl SqliteRegistry {
 
     /// Search templates by lexicon term.
     ///
-    /// REQ: TPL-027
+    /// REQ: P3-tpl-registry-sqlite-search-by-lexicon
+    /// \[P3\] Motivating: Generative Space — vocabulary-aware template search
+    /// \[P8\] Constraining: Semantic Grounding — search uses hLexicon terms
     /// pre:  term is non-empty
     /// post: returns Vec<RegistryEntry> for templates declaring this term
     pub fn search_by_lexicon(&self, term: &str) -> Result<Vec<RegistryEntry>> {
@@ -308,7 +317,8 @@ impl SqliteRegistry {
 
     /// Count registered templates.
     ///
-    /// REQ: TPL-028
+    /// REQ: P3-tpl-registry-sqlite-count
+    /// \[P3\] Motivating: Generative Space — reports persisted registry size
     /// post: returns count of templates in registry
     /// post: returns 0 on lock error (graceful degradation)
     pub fn count(&self) -> usize {
@@ -556,7 +566,8 @@ impl SqliteRegistry {
 
     /// Get a skill by ID (owned query, no OCAP check).
     ///
-    /// REQ: TPL-029
+    /// REQ: P3-tpl-registry-sqlite-get-skill-owned
+    /// \[P3\] Motivating: Generative Space — retrieves owned skill record
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if found, None otherwise
     pub fn get_skill_owned(&self, id: &str) -> Option<Skill> {
@@ -611,7 +622,8 @@ impl SqliteRegistry {
 
     /// List all skills (owned query, no OCAP check).
     ///
-    /// REQ: TPL-030
+    /// REQ: P3-tpl-registry-sqlite-list-skills-owned
+    /// \[P3\] Motivating: Generative Space — lists owned skill records
     /// post: returns Vec<Skill> with all registered skills
     pub fn list_skills_owned(&self) -> Vec<Skill> {
         self.query_skills(Self::_SKILLS_SELECT, &[])
@@ -619,7 +631,8 @@ impl SqliteRegistry {
 
     /// List skills by domain (owned query, no OCAP check).
     ///
-    /// REQ: TPL-031
+    /// REQ: P3-tpl-registry-sqlite-skills-by-domain-owned
+    /// \[P3\] Motivating: Generative Space — domain-filtered owned skill listing
     /// pre:  domain is a valid TemplateType
     /// post: returns Vec<Skill> filtered by domain
     pub fn skills_by_domain_owned(&self, domain: TemplateType) -> Vec<Skill> {
@@ -631,7 +644,8 @@ impl SqliteRegistry {
 
     /// List skills referencing a template (owned query, no OCAP check).
     ///
-    /// REQ: TPL-032
+    /// REQ: P3-tpl-registry-sqlite-skills-referencing-template-owned
+    /// \[P3\] Motivating: Generative Space — reverse owned skill lookup
     /// pre:  tid is non-empty
     /// post: returns Vec<Skill> referencing the given template ID
     pub fn skills_referencing_template_owned(&self, tid: &str) -> Vec<Skill> {

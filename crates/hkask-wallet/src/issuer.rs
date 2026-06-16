@@ -29,10 +29,10 @@ use crate::signing;
 /// Issues Ed25519-signed API key capability tokens.
 ///
 /// REQ: P9-wallet-issuer-struct
-/// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
-/// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
-/// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
-/// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
+/// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+/// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+/// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+/// \[P1\] Constraining: User Sovereignty — private keys are returned once and never stored
 /// inv: private keys are never stored (only public keys persisted)
 /// inv: wallet_seed is zeroized on drop
 /// # Security `[OUGHT-DECL]`
@@ -53,10 +53,10 @@ impl ApiKeyIssuer {
     /// Create a new ApiKeyIssuer.
     ///
     /// REQ: P9-wallet-issuer-new
-    /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
-    /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
-    /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
-    /// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+    /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+    /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+    /// \[P1\] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  store is initialized
     /// post: returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing
     /// post: returns Err if wallet_seed resolution fails
@@ -96,10 +96,10 @@ impl ApiKeyIssuer {
     /// "Print" a new API key.
     ///
     /// REQ: P9-wallet-issuer-create-key
-    /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
-    /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
-    /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
-    /// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+    /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+    /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+    /// \[P1\] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  wallet_id is valid, spending_limit_rj > 0, purpose is non-empty
     /// post: returns Ok(ApiKeyMaterial) with fresh Ed25519 keypair
     /// post: private_key_hex returned once, never stored by hKask
@@ -180,10 +180,10 @@ impl ApiKeyIssuer {
     /// Idempotent — revoking an already-revoked key is a no-op.
     ///
     /// REQ: P9-wallet-issuer-revoke-key
-    /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
-    /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
-    /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
-    /// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+    /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+    /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+    /// \[P1\] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  key_id is a valid ApiKeyId
     /// post: key marked as revoked in store
     /// post: unspent rJoules returned to wallet
@@ -208,10 +208,10 @@ impl ApiKeyIssuer {
     /// List active (non-revoked) API keys for a wallet.
     ///
     /// REQ: P9-wallet-issuer-list-keys
-    /// [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
-    /// [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
-    /// [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
-    /// [P1] Constraining: User Sovereignty — private keys are returned once and never stored
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
+    /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
+    /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
+    /// \[P1\] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  wallet_id is a valid WalletId
     /// post: returns Ok(Vec<ApiKeyCapability>) containing only non-revoked keys
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {

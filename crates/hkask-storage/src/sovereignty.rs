@@ -50,7 +50,7 @@ impl SovereigntyBoundaryStore {
     /// Initialize the sovereignty boundary store schema.
     ///
     /// REQ: P1-sto-sovereignty-schema
-    /// [P1] Motivating: User Sovereignty — schema for sovereignty boundaries
+    /// \[P1\] Motivating: User Sovereignty — schema for sovereignty boundaries
     /// post: sovereignty_boundaries table created if not exists
     pub fn initialize_schema(&self) -> Result<(), SovereigntyStoreError> {
         let conn = self.lock_conn()?;
@@ -180,7 +180,7 @@ impl SovereigntyBoundaryStore {
     /// Store a sovereignty boundary entry.
     ///
     /// REQ: P1-sto-sovereignty-store
-    /// [P1] Motivating: User Sovereignty — store a sovereignty boundary entry
+    /// \[P1\] Motivating: User Sovereignty — store a sovereignty boundary entry
     /// pre:  entry.webid is non-empty
     /// post: entry inserted or replaced
     pub fn store(&self, entry: &SovereigntyBoundaryEntry) -> Result<(), SovereigntyStoreError> {
@@ -220,7 +220,7 @@ impl SovereigntyBoundaryStore {
     /// Get sovereignty boundary entries for a WebID.
     ///
     /// REQ: P1-sto-sovereignty-get
-    /// [P1] Motivating: User Sovereignty — get boundaries for a WebID
+    /// \[P1\] Motivating: User Sovereignty — get boundaries for a WebID
     /// pre:  webid is non-empty
     /// post: returns Vec of entries for this WebID
     pub fn get(
@@ -272,7 +272,7 @@ impl SovereigntyBoundaryStore {
     /// Delete sovereignty boundary entries for a WebID.
     ///
     /// REQ: P1-sto-sovereignty-delete
-    /// [P1] Motivating: User Sovereignty — delete boundaries for a WebID
+    /// \[P1\] Motivating: User Sovereignty — delete boundaries for a WebID
     /// pre:  webid is non-empty
     /// post: entries deleted for this WebID
     pub fn delete(&self, webid: &str) -> Result<(), SovereigntyStoreError> {

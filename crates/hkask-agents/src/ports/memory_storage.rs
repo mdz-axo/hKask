@@ -43,8 +43,8 @@ impl StorageRequest {
     /// Create a new `StorageRequest` with all fields specified.
     ///
     /// REQ: P3-agt-memory-request-new
-    /// [P3] Motivating: Generative Space — StorageRequest creates a memory triple
-    /// [P1] Constraining: User Sovereignty — access.owner_webid carries ownership
+    /// \[P3\] Motivating: Generative Space — StorageRequest creates a memory triple
+    /// \[P1\] Constraining: User Sovereignty — access.owner_webid carries ownership
     /// pre:  `entity` and `attribute` are non-empty strings after `.into()`;
     ///       `confidence` is in range [0.0, 1.0]; `access` carries a valid
     ///       `AccessControl` variant (episodic or semantic).
@@ -72,7 +72,7 @@ impl StorageRequest {
     /// Convenience constructor that sets `access` to `AccessControl::episodic`.
     ///
     /// REQ: P3-agt-memory-request-episodic
-    /// [P3] Motivating: Generative Space — episodic request binds perspective to owner
+    /// \[P3\] Motivating: Generative Space — episodic request binds perspective to owner
     /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
     ///       `entity` and `attribute` are non-empty after `.into()`.
     /// post: Returns a `StorageRequest` with `access` set to episodic
@@ -98,7 +98,7 @@ impl StorageRequest {
     /// Convenience constructor that sets `access` to `AccessControl::semantic`.
     ///
     /// REQ: P3-agt-memory-request-semantic
-    /// [P3] Motivating: Generative Space — semantic request is perspective-free
+    /// \[P3\] Motivating: Generative Space — semantic request is perspective-free
     /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
     ///       `entity` and `attribute` are non-empty after `.into()`.
     /// post: Returns a `StorageRequest` with `access` set to semantic
@@ -126,7 +126,7 @@ impl StorageRequest {
     /// - `Failure` → 0.3
     ///
     /// REQ: P3-agt-memory-confidence-map
-    /// [P8] Motivating: Semantic Grounding — classification maps to confidence scalar
+    /// \[P8\] Motivating: Semantic Grounding — classification maps to confidence scalar
     /// pre:  `classification` is a valid `ExperienceClassification` variant;
     ///       `confidence_override`, if `Some`, is in [0.0, 1.0];
     ///       `producer_webid` is a valid WebID.
@@ -165,8 +165,8 @@ impl RecallRequest {
     /// Create an episodic recall request (perspective-bound).
     ///
     /// REQ: P3-agt-memory-recall-episodic
-    /// [P3] Motivating: Generative Space — episodic recall requires delegation token
-    /// [P4] Constraining: Clear Boundaries — token proves capability
+    /// \[P3\] Motivating: Generative Space — episodic recall requires delegation token
+    /// \[P4\] Constraining: Clear Boundaries — token proves capability
     /// pre:  `query` is non-empty after `.into()`; `owner` is a valid WebID;
     ///       `token` is a valid `DelegationToken`.
     /// post: Returns a `RecallRequest` with `perspective = Some(owner)`.
@@ -181,8 +181,8 @@ impl RecallRequest {
     /// Create a semantic recall request (perspective-free).
     ///
     /// REQ: P3-agt-memory-recall-semantic
-    /// [P3] Motivating: Generative Space — semantic recall requires delegation token
-    /// [P4] Constraining: Clear Boundaries — token proves capability
+    /// \[P3\] Motivating: Generative Space — semantic recall requires delegation token
+    /// \[P4\] Constraining: Clear Boundaries — token proves capability
     /// pre:  `query` is non-empty after `.into()`; `token` is a valid
     ///       `DelegationToken`.
     /// post: Returns a `RecallRequest` with `perspective = None`.
@@ -263,9 +263,9 @@ pub trait EpisodicStoragePort: Send + Sync {
     /// Store an episodic triple (private, agent-scoped).
     ///
     /// # Requires
-    /// - [NORMATIVE] `request.access` must carry an episodic access control (perspective-bound) (P4 — Clear Boundaries)
-    /// - [NORMATIVE] `request.access.owner_webid` must match the agent storing the triple (P1 — User Sovereignty)
-    /// - [NORMATIVE] `token` must grant Write action on the Manifest resource (P4 — OCAP)
+    /// - \[NORMATIVE\] `request.access` must carry an episodic access control (perspective-bound) (P4 — Clear Boundaries)
+    /// - \[NORMATIVE\] `request.access.owner_webid` must match the agent storing the triple (P1 — User Sovereignty)
+    /// - \[NORMATIVE\] `token` must grant Write action on the Manifest resource (P4 — OCAP)
     /// - The triple is stored with the agent's perspective (WebID)
     fn store_episodic(
         &self,
@@ -276,7 +276,7 @@ pub trait EpisodicStoragePort: Send + Sync {
     /// Recall episodic triples for the agent's own perspective.
     ///
     /// # Requires
-    /// - [NORMATIVE] `request.token` must grant Read action on the Manifest resource (P4 — OCAP)
+    /// - \[NORMATIVE\] `request.token` must grant Read action on the Manifest resource (P4 — OCAP)
     /// - Returns only triples matching the agent's perspective
     fn recall_episodic(
         &self,
@@ -307,9 +307,9 @@ pub trait EpisodicStoragePort: Send + Sync {
     /// - `Failure` → 0.3
     ///
     /// # Requires
-    /// - [NORMATIVE] `request.access` must carry an episodic access control (perspective-bound) (P4 — Clear Boundaries)
-    /// - [NORMATIVE] `request.access.owner_webid` must match the agent storing the triple (P1 — User Sovereignty)
-    /// - [NORMATIVE] `token` must grant Write action on the Manifest resource (P4 — OCAP)
+    /// - \[NORMATIVE\] `request.access` must carry an episodic access control (perspective-bound) (P4 — Clear Boundaries)
+    /// - \[NORMATIVE\] `request.access.owner_webid` must match the agent storing the triple (P1 — User Sovereignty)
+    /// - \[NORMATIVE\] `token` must grant Write action on the Manifest resource (P4 — OCAP)
     fn store_episodic_classified(
         &self,
         request: StorageRequest,
@@ -331,8 +331,8 @@ pub trait SemanticStoragePort: Send + Sync {
     /// Store a semantic triple (shared, public knowledge).
     ///
     /// # Requires
-    /// - [NORMATIVE] `request.access` must carry semantic access control (shared, no perspective) (P4 — Clear Boundaries)
-    /// - [NORMATIVE] `token` must grant Write action on the Manifest resource (P4 — OCAP)
+    /// - \[NORMATIVE\] `request.access` must carry semantic access control (shared, no perspective) (P4 — Clear Boundaries)
+    /// - \[NORMATIVE\] `token` must grant Write action on the Manifest resource (P4 — OCAP)
     /// - The triple is stored without perspective (consolidated from episodic)
     fn store_semantic(
         &self,
@@ -343,7 +343,7 @@ pub trait SemanticStoragePort: Send + Sync {
     /// Recall semantic triples (shared, deduplicated knowledge).
     ///
     /// # Requires
-    /// - [NORMATIVE] `request.token` must grant Read action on the Manifest resource (P4 — OCAP)
+    /// - \[NORMATIVE\] `request.token` must grant Read action on the Manifest resource (P4 — OCAP)
     /// - Returns all triples matching the query (no perspective filter)
     fn recall_semantic(
         &self,

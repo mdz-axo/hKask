@@ -77,7 +77,7 @@ impl NuEventStore {
     /// Replay events with temporal decay weighting.
     ///
     /// REQ: P3-sto-nu-event-replay
-    /// [P3] Motivating: Generative Space — replay events with temporal decay
+    /// \[P3\] Motivating: Generative Space — replay events with temporal decay
     /// pre:  observer is valid, category is valid, lookback_secs > 0
     /// post: returns Vec<NuEvent> within lookback window, weighted by recency
     pub fn replay_weighted(
@@ -114,7 +114,7 @@ impl NuEventStore {
     /// Get the decay lambda for a span category.
     ///
     /// REQ: P3-sto-nu-event-decay
-    /// [P3] Motivating: Generative Space — get decay lambda for category
+    /// \[P3\] Motivating: Generative Space — get decay lambda for category
     /// pre:  category is a valid SpanCategory
     /// post: returns decay lambda from config or default
     pub fn lambda_for(category: SpanCategory, config: &DecayConfig) -> f64 {
@@ -170,7 +170,7 @@ impl NuEventStore {
     /// Persist a cursor value for event replay.
     ///
     /// REQ: P3-sto-nu-event-cursor-store
-    /// [P3] Motivating: Generative Space — persist replay cursor
+    /// \[P3\] Motivating: Generative Space — persist replay cursor
     /// pre:  key is non-empty
     /// post: cursor value stored
     pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), InfrastructureError> {
@@ -189,7 +189,7 @@ impl NuEventStore {
     /// Load a persisted cursor value.
     ///
     /// REQ: P3-sto-nu-event-cursor-load
-    /// [P3] Motivating: Generative Space — load replay cursor
+    /// \[P3\] Motivating: Generative Space — load replay cursor
     /// pre:  key is non-empty
     /// post: returns Some(value) if cursor exists, None otherwise
     pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError> {
@@ -205,7 +205,7 @@ impl NuEventStore {
     /// Query algedonic signals from the event store.
     ///
     /// REQ: P3-sto-nu-event-algedonic-query
-    /// [P9] Motivating: Homeostatic Self-Regulation — query algedonic signals
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — query algedonic signals
     /// post: returns Vec of algedonic signal events
     pub fn query_algedonic(
         &self,

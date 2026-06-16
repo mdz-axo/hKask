@@ -61,9 +61,9 @@ impl std::fmt::Debug for LoadedKey {
 /// Sign a withdrawal transaction for a specific chain.
 ///
 /// REQ: P9-wallet-sign-withdrawal
-/// [P9] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow
-/// [P1] Constraining: User Sovereignty — treasury key derived from user master key
-/// [P4] Constraining: Clear Boundaries — key material never leaves this module
+/// \[P9\] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow
+/// \[P1\] Constraining: User Sovereignty — treasury key derived from user master key
+/// \[P4\] Constraining: Clear Boundaries — key material never leaves this module
 /// pre:  chain is a valid ChainId, tx_bytes is non-empty
 /// post: returns Ok(signature) — 64-byte Ed25519 signature
 /// post: treasury key loaded, used, and zeroized within this call
@@ -84,8 +84,8 @@ pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, Walle
 /// Sign an arbitrary message with the Hinkal treasury key.
 ///
 /// REQ: P9-wallet-sign-hinkal-message
-/// [P9] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow
-/// [P4] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin
+/// \[P9\] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow
+/// \[P4\] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin
 /// pre:  message is any byte slice (including empty)
 /// post: returns Ok(signature) — 64-byte Ed25519 signature
 /// post: treasury key loaded, used, and zeroized within this call
@@ -109,9 +109,9 @@ fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
 /// Sign an API key capability token with the wallet's Ed25519 key.
 ///
 /// REQ: P9-wallet-sign-capability
-/// [P9] Motivating: Homeostatic Self-Regulation — signing authorizes API key capability
-/// [P1] Constraining: User Sovereignty — treasury key derived from user master key
-/// [P4] Constraining: Clear Boundaries — key material never leaves this module
+/// \[P9\] Motivating: Homeostatic Self-Regulation — signing authorizes API key capability
+/// \[P1\] Constraining: User Sovereignty — treasury key derived from user master key
+/// \[P4\] Constraining: Clear Boundaries — key material never leaves this module
 /// pre:  capability is a valid, fully-populated ApiKeyCapability
 /// post: returns Ok(hex_signature) — 128-char hex-encoded Ed25519 signature
 /// post: delegates to hkask_keystore::sign_api_key_capability (isolated boundary)

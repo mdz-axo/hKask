@@ -93,7 +93,7 @@ impl SqliteGoalRepository {
     /// Create a new goal repository.
     ///
     /// REQ: P3-sto-goal-repo-new
-    /// [P3] Motivating: Generative Space — create goal repository
+    /// \[P3\] Motivating: Generative Space — create goal repository
     /// pre:  conn is a valid SQLite connection
     /// post: returns SqliteGoalRepository with schema initialized
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
@@ -107,7 +107,7 @@ impl SqliteGoalRepository {
     /// Enable CNS telemetry for goal operations.
     ///
     /// REQ: P3-sto-goal-repo-telemetry
-    /// [P9] Motivating: Homeostatic Self-Regulation — attach CNS telemetry
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — attach CNS telemetry
     /// post: returns Self with telemetry sink configured
     pub fn with_telemetry(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.telemetry = Some(sink);
@@ -128,7 +128,7 @@ impl SqliteGoalRepository {
     /// Try to construct a Goal from a query row.
     ///
     /// REQ: P3-sto-goal-try-row
-    /// [P3] Motivating: Generative Space — construct Goal from query row
+    /// \[P3\] Motivating: Generative Space — construct Goal from query row
     /// post: returns Goal if row is valid
     pub fn try_goal_from_row(
         row: &rusqlite::Row,
@@ -144,7 +144,7 @@ impl SqliteGoalRepository {
     /// Construct a Goal from a rusqlite Row.
     ///
     /// REQ: P3-sto-goal-row-parse
-    /// [P3] Motivating: Generative Space — parse Goal from rusqlite Row
+    /// \[P3\] Motivating: Generative Space — parse Goal from rusqlite Row
     /// post: returns Goal from row columns
     pub fn goal_from_row(row: &rusqlite::Row) -> rusqlite::Result<Goal> {
         fn corrupt(index: usize, value: &str) -> rusqlite::Error {
@@ -200,7 +200,7 @@ impl SqliteGoalRepository {
     /// Create a new goal.
     ///
     /// REQ: P3-sto-goal-create
-    /// [P3] Motivating: Generative Space — create a goal
+    /// \[P3\] Motivating: Generative Space — create a goal
     /// pre:  webid is valid, text is non-empty
     /// post: goal created and returned
     pub fn create_goal(&self, webid: &WebID, text: &str, visibility: Visibility) -> Result<Goal> {
@@ -220,7 +220,7 @@ impl SqliteGoalRepository {
     /// Get a goal by ID.
     ///
     /// REQ: P3-sto-goal-get
-    /// [P3] Motivating: Generative Space — get goal by ID
+    /// \[P3\] Motivating: Generative Space — get goal by ID
     /// pre:  goal_id is valid
     /// post: returns Some(Goal) if found, None otherwise
     pub fn get_goal(&self, goal_id: GoalID) -> Result<Option<Goal>> {
@@ -236,7 +236,7 @@ impl SqliteGoalRepository {
     /// Update a goal's state.
     ///
     /// REQ: P3-sto-goal-update-state
-    /// [P3] Motivating: Generative Space — update goal state
+    /// \[P3\] Motivating: Generative Space — update goal state
     /// pre:  goal_id is valid, state is valid
     /// post: goal state updated
     pub fn update_goal_state(&self, goal_id: GoalID, state: GoalState) -> Result<()> {
@@ -268,7 +268,7 @@ impl SqliteGoalRepository {
     /// List goals for a WebID with optional state filter.
     ///
     /// REQ: P3-sto-goal-list
-    /// [P3] Motivating: Generative Space — list goals for WebID
+    /// \[P3\] Motivating: Generative Space — list goals for WebID
     /// pre:  webid is valid
     /// post: returns Vec of goals, optionally filtered by state
     pub fn list_goals(&self, webid: &WebID, state_filter: Option<GoalState>) -> Result<Vec<Goal>> {
@@ -292,7 +292,7 @@ impl SqliteGoalRepository {
     /// Add a criterion to a goal.
     ///
     /// REQ: P3-sto-goal-criterion-add
-    /// [P3] Motivating: Generative Space — add criterion to goal
+    /// \[P3\] Motivating: Generative Space — add criterion to goal
     /// pre:  goal_id is valid, criterion has description
     /// post: criterion added to goal
     pub fn add_criterion(&self, goal_id: GoalID, criterion: GoalCriterion) -> Result<()> {
@@ -316,7 +316,7 @@ impl SqliteGoalRepository {
     /// Add an artifact to a goal.
     ///
     /// REQ: P3-sto-goal-artifact-add
-    /// [P3] Motivating: Generative Space — add artifact to goal
+    /// \[P3\] Motivating: Generative Space — add artifact to goal
     /// pre:  goal_id is valid, artifact has content
     /// post: artifact added to goal
     pub fn add_artifact(&self, goal_id: GoalID, artifact: GoalArtifact) -> Result<()> {
@@ -339,7 +339,7 @@ impl SqliteGoalRepository {
     /// Get criteria for a goal.
     ///
     /// REQ: P3-sto-goal-criteria-get
-    /// [P3] Motivating: Generative Space — get criteria for goal
+    /// \[P3\] Motivating: Generative Space — get criteria for goal
     /// pre:  goal_id is valid
     /// post: returns Vec of GoalCriterion
     pub fn get_criteria(&self, goal_id: GoalID) -> Result<Vec<GoalCriterion>> {
@@ -367,7 +367,7 @@ impl SqliteGoalRepository {
     /// Get artifacts for a goal.
     ///
     /// REQ: P3-sto-goal-artifacts-get
-    /// [P3] Motivating: Generative Space — get artifacts for goal
+    /// \[P3\] Motivating: Generative Space — get artifacts for goal
     /// pre:  goal_id is valid
     /// post: returns Vec of GoalArtifact
     pub fn get_artifacts(&self, goal_id: GoalID) -> Result<Vec<GoalArtifact>> {
@@ -409,7 +409,7 @@ impl SqliteGoalRepository {
     /// Create a subgoal under a parent goal.
     ///
     /// REQ: P3-sto-goal-subgoal-create
-    /// [P3] Motivating: Generative Space — create subgoal
+    /// \[P3\] Motivating: Generative Space — create subgoal
     /// pre:  parent_id is valid, text is non-empty
     /// post: subgoal created with depth = parent.depth + 1
     pub fn create_subgoal(
@@ -443,7 +443,7 @@ impl SqliteGoalRepository {
     /// Get subgoals for a parent goal.
     ///
     /// REQ: P3-sto-goal-subgoal-list
-    /// [P3] Motivating: Generative Space — list subgoals
+    /// \[P3\] Motivating: Generative Space — list subgoals
     /// pre:  parent_id is valid
     /// post: returns Vec of child goals
     pub fn get_subgoals(&self, parent_id: GoalID) -> Result<Vec<Goal>> {
@@ -457,7 +457,7 @@ impl SqliteGoalRepository {
     /// Delete a goal and its subgoals.
     ///
     /// REQ: P3-sto-goal-delete
-    /// [P3] Motivating: Generative Space — delete goal and subgoals
+    /// \[P3\] Motivating: Generative Space — delete goal and subgoals
     /// pre:  goal_id is valid
     /// post: goal and subgoals deleted
     pub fn delete_goal(&self, goal_id: GoalID) -> Result<()> {
@@ -476,7 +476,7 @@ impl SqliteGoalRepository {
     /// Quarantine a goal.
     ///
     /// REQ: P3-sto-goal-quarantine
-    /// [P9] Motivating: Homeostatic Self-Regulation — quarantine a goal
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — quarantine a goal
     /// pre:  goal_id is valid, reason is non-empty
     /// post: goal moved to quarantine
     pub fn quarantine_goal(&self, goal_id: GoalID, reason: &str) -> Result<()> {
@@ -502,7 +502,7 @@ impl SqliteGoalRepository {
     /// Repair a quarantined goal.
     ///
     /// REQ: P3-sto-goal-repair
-    /// [P3] Motivating: Generative Space — restore quarantined goal
+    /// \[P3\] Motivating: Generative Space — restore quarantined goal
     /// pre:  goal_id is valid
     /// post: goal restored from quarantine
     pub fn repair_quarantined_goal(
@@ -558,7 +558,7 @@ impl SqliteGoalRepository {
     /// List all quarantined goals.
     ///
     /// REQ: P3-sto-goal-quarantine-list
-    /// [P3] Motivating: Generative Space — list quarantined goals
+    /// \[P3\] Motivating: Generative Space — list quarantined goals
     /// post: returns Vec of QuarantinedGoal
     pub fn list_quarantined_goals(&self) -> Result<Vec<QuarantinedGoal>> {
         let conn = self.lock_conn()?;
