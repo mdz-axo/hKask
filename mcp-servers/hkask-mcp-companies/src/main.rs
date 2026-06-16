@@ -784,7 +784,9 @@ impl CompaniesServer {
             }));
         }
 
-        let metrics = metrics_list.unwrap();
+        let metrics = metrics_list
+            .as_ref()
+            .expect("guarded by is_none_or check above");
 
         // ── Set A: Net Margins, Sales Growth, P/Sales ──
         let (net_margins, sales_growths) = extract_net_margin_and_sales_growth(metrics);
@@ -1708,7 +1710,7 @@ impl CompaniesServer {
                         let key = field.to_string();
                         let entry = characteristics.entry(key).or_insert(serde_json::json!(0.0));
                         if val.is_string() {
-                            let str_val = val.as_str().unwrap();
+                            let str_val = val.as_str().expect("guarded by is_string check above");
                             let sub = characteristics
                                 .entry(format!("{field}_breakdown"))
                                 .or_insert(serde_json::json!({}));

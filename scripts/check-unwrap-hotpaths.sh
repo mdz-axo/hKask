@@ -2,7 +2,10 @@
 # No unwrap on hot paths — CI security invariant check.
 #
 # Scans CNS, agents, inference, services, and MCP server crates for
-# .unwrap() calls that could panic at runtime. Test code excluded.
+# .unwrap() calls that could panic at runtime.
+#
+# Uses awk to strip #[cfg(test)] modules before scanning, avoiding
+# false positives from test-only code. Skips files in /tests/ dirs.
 #
 # Exit 0 = clean. Exit 1 = violations found.
 
@@ -10,18 +13,68 @@ set -euo pipefail
 
 echo "=== No unwrap on hot paths ==="
 
-violations=$(grep -rn '\.unwrap()' crates/hkask-cns/src crates/hkask-agents/src crates/hkask-inference/src crates/hkask-services/src crates/hkask-mcp/src crates/hkask-communication/src crates/hkask-condenser/src --include="*.rs" 2>/dev/null | grep -v "cfg(test)" | grep -v "/tests/" | grep -v "test_" | grep -v "#\[test\]" | grep -v "#\[tokio::test" | grep -v 'assert!(' | grep -v 'assert_eq!(' | grep -v 'panic!(' | grep -v '\.expect("must' | grep -v '\.expect("should' | grep -v '\.expect("test' || true)
+FAILED=0
 
-for server_dir in mcp-servers/*/; do
-    sv=$(grep -rn '\.unwrap()' "$server_dir/src" --include="*.rs" 2>/dev/null | grep -v "cfg(test)" | grep -v "/tests/" | grep -v "test_" | grep -v "#\[test\]" | grep -v "#\[tokio::test" | grep -v 'assert!(' | grep -v 'assert_eq!(' | grep -v 'panic!(' || true)
-    violations="${violations}${violations:+$'\n'}${sv}"
+# Use awk to track test-module state and only print non-test lines,
+# then grep for .unwrap() on the filtered output.
+check_dir() {
+    local dir="$1"
+    local label="$2"
+
+    while IFS= read -r -d '' file; do
+        # Skip files in /tests/ directories
+        [[ "$file" == */tests/* ]] && continue
+
+        # Use awk to strip #[cfg(test)] modules, then grep for .unwrap()
+        local violations
+        violations=$(awk '
+            /^[[:space:]]*#\[cfg\(test\)\]/ {
+                in_test = 1
+                started = 0
+                depth = 0
+                next
+            }
+            in_test {
+                n = split($0, chars, "")
+                for (i = 1; i <= n; i++) {
+                    if (chars[i] == "{") { depth++; started = 1 }
+                    if (chars[i] == "}") depth--
+                }
+                # Only exit test mode after we have entered the module body
+                if (started && depth <= 0) in_test = 0
+                next
+            }
+            !in_test { print }
+        ' "$file" 2>/dev/null | grep -n '\.unwrap()' || true)
+
+        if [ -n "$violations" ]; then
+            while IFS= read -r vline; do
+                echo "  ❌ $label: $file:$vline"
+                FAILED=1
+            done <<< "$violations"
+        fi
+    done < <(find "$dir" -name '*.rs' -print0 2>/dev/null)
+}
+
+# Hot-path crates
+for crate in hkask-cns hkask-agents hkask-inference hkask-services hkask-mcp hkask-communication hkask-condenser; do
+    crate_dir="crates/${crate}"
+    [ -d "$crate_dir" ] || continue
+    check_dir "$crate_dir/src" "$crate"
 done
 
-if [ -n "$violations" ]; then
-    echo "VIOLATIONS: .unwrap() on hot paths:"
-    echo "$violations"
+# MCP servers
+for server_dir in mcp-servers/*/; do
+    server=$(basename "$server_dir")
+    check_dir "$server_dir/src" "mcp-servers/$server"
+done
+
+if [ "$FAILED" -eq 1 ]; then
+    echo ""
+    echo "FAIL: .unwrap() calls found on hot paths (excluding test modules)."
     exit 1
 fi
 
-echo "PASS: No .unwrap() on hot paths."
+echo ""
+echo "PASS: No .unwrap() on hot paths (excluding test modules)."
 exit 0

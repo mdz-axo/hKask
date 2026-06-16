@@ -503,7 +503,12 @@ impl TrainingServer {
         }
 
         // Ingest and normalize the dataset
-        let normalized_path = match self.pipeline.lock().unwrap().ingest(&file_path) {
+        let normalized_path = match self
+            .pipeline
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .ingest(&file_path)
+        {
             Ok(path) => path,
             Err(e) => {
                 return span.error(
@@ -947,7 +952,9 @@ impl TrainingServer {
             |path: &str, items: &[serde_json::Value]| -> Result<usize, std::io::Error> {
                 let mut output = String::new();
                 for item in items {
-                    output.push_str(&serde_json::to_string(item).unwrap());
+                    output.push_str(
+                        &serde_json::to_string(item).expect("Value serialization cannot fail"),
+                    );
                     output.push('\n');
                 }
                 std::fs::write(path, output)?;
@@ -1872,7 +1879,8 @@ impl TrainingServer {
         // Write feedback file
         let mut output = String::new();
         for trace in &corrected_traces {
-            output.push_str(&serde_json::to_string(trace).unwrap());
+            output
+                .push_str(&serde_json::to_string(trace).expect("Trace serialization cannot fail"));
             output.push('\n');
         }
 
@@ -2031,7 +2039,7 @@ impl TrainingServer {
         let normalized_path = match self
             .pipeline
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .ingest(&PathBuf::from(&merged_path))
         {
             Ok(path) => path,

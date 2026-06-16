@@ -189,25 +189,27 @@ impl DaemonHandler for ServiceDaemonHandler {
         };
 
         // Check if we should trigger narrative generation
-        if result.0 && self.inference_port.is_some() {
-            let count = {
-                let mut counts = self
-                    .experience_counts
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner());
-                let c = counts.entry(replicant.to_string()).or_insert(0);
-                *c += 1;
-                *c
-            };
+        if result.0 {
+            if let Some(inference_port) = self.inference_port.as_ref() {
+                let count = {
+                    let mut counts = self
+                        .experience_counts
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    let c = counts.entry(replicant.to_string()).or_insert(0);
+                    *c += 1;
+                    *c
+                };
 
-            if count % NARRATIVE_THRESHOLD == 0 {
-                tracing::info!(target: "hkask.daemon.narrative", replicant = %replicant, count = count, "Triggering narrative generation");
-                let pod_manager = Arc::clone(&self.pod_manager);
-                let inference = Arc::clone(self.inference_port.as_ref().unwrap());
-                let replicant_name = replicant.to_string();
-                tokio::spawn(async move {
-                    generate_narrative(&pod_manager, &*inference, &replicant_name).await;
-                });
+                if count % NARRATIVE_THRESHOLD == 0 {
+                    tracing::info!(target: "hkask.daemon.narrative", replicant = %replicant, count = count, "Triggering narrative generation");
+                    let pod_manager = Arc::clone(&self.pod_manager);
+                    let inference = Arc::clone(inference_port);
+                    let replicant_name = replicant.to_string();
+                    tokio::spawn(async move {
+                        generate_narrative(&pod_manager, &*inference, &replicant_name).await;
+                    });
+                }
             }
         }
 

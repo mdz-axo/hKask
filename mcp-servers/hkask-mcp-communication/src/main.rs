@@ -186,7 +186,7 @@ impl CommunicationServer {
         let filtered: Vec<&serde_json::Value> = if let Some(ref lang) = language {
             voices
                 .as_array()
-                .unwrap()
+                .expect("voices json! literal is always an array")
                 .iter()
                 .filter(|v| {
                     v["language"]
@@ -196,7 +196,11 @@ impl CommunicationServer {
                 })
                 .collect()
         } else {
-            voices.as_array().unwrap().iter().collect()
+            voices
+                .as_array()
+                .expect("voices json! literal is always an array")
+                .iter()
+                .collect()
         };
         span.ok_json(
             serde_json::json!({"voices": filtered, "total": filtered.len(), "engine": "espeak"}),

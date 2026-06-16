@@ -541,28 +541,40 @@ impl InferencePort for InferenceRouter {
                     ProviderId::Ollama => {
                         self.ollama
                             .as_ref()
-                            .unwrap()
+                            .ok_or_else(|| {
+                                InferenceError::Connection("Ollama backend unavailable".to_string())
+                            })?
                             .generate(&model, &prompt, &parameters)
                             .await
                     }
                     ProviderId::DeepInfra => {
                         self.deepinfra
                             .as_ref()
-                            .unwrap()
+                            .ok_or_else(|| {
+                                InferenceError::Connection(
+                                    "DeepInfra backend unavailable".to_string(),
+                                )
+                            })?
                             .generate(&model, &prompt, &parameters)
                             .await
                     }
                     ProviderId::Fal => {
                         self.fal
                             .as_ref()
-                            .unwrap()
+                            .ok_or_else(|| {
+                                InferenceError::Connection("fal.ai backend unavailable".to_string())
+                            })?
                             .generate(&model, &prompt, &parameters)
                             .await
                     }
                     ProviderId::Together => {
                         self.together
                             .as_ref()
-                            .unwrap()
+                            .ok_or_else(|| {
+                                InferenceError::Connection(
+                                    "Together backend unavailable".to_string(),
+                                )
+                            })?
                             .generate(&model, &prompt, &parameters)
                             .await
                     }
@@ -584,28 +596,36 @@ impl InferencePort for InferenceRouter {
                 ProviderId::Ollama => {
                     self.ollama
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("Ollama backend unavailable".to_string())
+                        })?
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::DeepInfra => {
                     self.deepinfra
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("DeepInfra backend unavailable".to_string())
+                        })?
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::Fal => {
                     self.fal
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("fal.ai backend unavailable".to_string())
+                        })?
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::Together => {
                     self.together
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("Together backend unavailable".to_string())
+                        })?
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
@@ -641,28 +661,36 @@ impl InferencePort for InferenceRouter {
                 ProviderId::Ollama => {
                     self.ollama
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("Ollama backend unavailable".to_string())
+                        })?
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::DeepInfra => {
                     self.deepinfra
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("DeepInfra backend unavailable".to_string())
+                        })?
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::Fal => {
                     self.fal
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("fal.ai backend unavailable".to_string())
+                        })?
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
                 ProviderId::Together => {
                     self.together
                         .as_ref()
-                        .unwrap()
+                        .ok_or_else(|| {
+                            InferenceError::Connection("Together backend unavailable".to_string())
+                        })?
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
@@ -711,28 +739,36 @@ impl InferencePort for InferenceRouter {
 
         match provider {
             ProviderId::Ollama => {
-                self.ollama
-                    .as_ref()
-                    .unwrap()
-                    .generate_stream(&model, &prompt, &parameters)
+                match self.ollama.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("Ollama backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
             }
             ProviderId::DeepInfra => {
-                self.deepinfra
-                    .as_ref()
-                    .unwrap()
-                    .generate_stream(&model, &prompt, &parameters)
+                match self.deepinfra.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("DeepInfra backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
             }
             ProviderId::Fal => {
-                self.fal
-                    .as_ref()
-                    .unwrap()
-                    .generate_stream(&model, &prompt, &parameters)
+                match self.fal.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("fal.ai backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
             }
             ProviderId::Together => {
-                self.together
-                    .as_ref()
-                    .unwrap()
-                    .generate_stream(&model, &prompt, &parameters)
+                match self.together.as_ref().ok_or_else(|| {
+                    InferenceError::Connection("Together backend unavailable".to_string())
+                }) {
+                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
+                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
+                }
             }
         }
     }

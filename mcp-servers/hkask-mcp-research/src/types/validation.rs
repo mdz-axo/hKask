@@ -18,7 +18,8 @@ pub fn sanitize_health_error(error: &str) -> String {
     /// Lazily compiled API key regex pattern for sanitization.
     /// Avoids re-compiling the regex on every call to `sanitize_health_error`.
     static API_KEY_REGEX: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"(?:sk-|pk-|fc-|ts-|br-|xai-|ghp_)[a-zA-Z0-9]{8,}").unwrap()
+        regex::Regex::new(r"(?:sk-|pk-|fc-|ts-|br-|xai-|ghp_)[a-zA-Z0-9]{8,}")
+            .expect("static API key regex pattern")
     });
 
     let sanitized = API_KEY_REGEX.replace_all(error, "[REDACTED]").to_string();

@@ -485,7 +485,7 @@ impl EmbedService {
                 loop {
                     tokio::time::sleep(Duration::from_secs(3)).await;
                     let p = {
-                        let mut p = shared_hb.lock().unwrap();
+                        let mut p = shared_hb.lock().unwrap_or_else(|e| e.into_inner());
                         p.elapsed = started.elapsed();
                         p.clone()
                     };
@@ -531,7 +531,7 @@ impl EmbedService {
 
         // ── Phase 2: Download, cache, chunk, and tag ───────────────────
         {
-            let mut p = shared.lock().unwrap();
+            let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
             p.phase = EmbedPhase::Tagging;
         }
 
@@ -543,7 +543,7 @@ impl EmbedService {
             }
 
             {
-                let mut p = shared.lock().unwrap();
+                let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
                 p.current_work = work.title.clone();
                 p.completed_passages = work_idx + 1;
                 p.total_passages = config.works.len();
@@ -697,7 +697,7 @@ impl EmbedService {
 
         // ── Classify section types ──────────────────────────────
         {
-            let mut p = shared.lock().unwrap();
+            let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
             p.phase = EmbedPhase::Tagging;
             p.current_work = "classifying section types".into();
         }
@@ -786,7 +786,7 @@ impl EmbedService {
 
         // ── Compute batch salience (graph centrality) ────────────────
         {
-            let mut p = shared.lock().unwrap();
+            let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
             p.phase = EmbedPhase::Tagging; // still in metadata phase
             p.current_work = "computing salience".into();
         }
@@ -806,7 +806,7 @@ impl EmbedService {
 
         // ── Phase 3: Budget gate ───────────────────────────────────────
         {
-            let mut p = shared.lock().unwrap();
+            let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
             p.current_work = "applying budget gate".into();
         }
         let total_passages = all_passages.len();
@@ -858,7 +858,7 @@ impl EmbedService {
             "Starting embedding phase"
         );
         {
-            let mut p = shared.lock().unwrap();
+            let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
             p.phase = EmbedPhase::Embedding;
             p.current_work.clear();
             p.total_passages = total_passages;
@@ -893,7 +893,7 @@ impl EmbedService {
             }
             embedded_count += chunk.len();
             {
-                let mut p = shared.lock().unwrap();
+                let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
                 p.completed_passages = embedded_count;
             }
             tracing::info!(
@@ -905,7 +905,7 @@ impl EmbedService {
 
         // ── Phase 5: Store triples for budget-selected passages ────────
         {
-            let mut p = shared.lock().unwrap();
+            let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
             p.phase = EmbedPhase::Triples;
             p.completed_passages = 0;
             p.total_passages = tagged_count;
@@ -924,7 +924,7 @@ impl EmbedService {
             triple_progress += 1;
 
             {
-                let mut p = shared.lock().unwrap();
+                let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
                 p.completed_passages = triple_progress;
             }
         }
@@ -937,7 +937,7 @@ impl EmbedService {
 
         // ── Phase 6: Compute centroid(s) ────────────────────────────
         {
-            let mut p = shared.lock().unwrap();
+            let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
             p.phase = EmbedPhase::Centroid;
         }
 
@@ -955,7 +955,7 @@ impl EmbedService {
             )?;
 
             {
-                let mut p = shared.lock().unwrap();
+                let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
                 p.phase = EmbedPhase::Done;
                 p.completed_passages = total_passages;
             }
@@ -1013,10 +1013,14 @@ impl EmbedService {
                 continue;
             }
 
+            let Some(refs) = refs else {
+                continue;
+            };
+
             let mut centroid = vec![0.0f32; config.embedding.dim];
             let mut fetched = 0usize;
 
-            for entity_ref in refs.unwrap() {
+            for entity_ref in refs {
                 if let Ok(emb) = centroid_store.get(entity_ref) {
                     for (i, v) in emb.vector.iter().enumerate() {
                         if i < config.embedding.dim {
@@ -1123,7 +1127,7 @@ impl EmbedService {
             .collect();
 
         {
-            let mut p = shared.lock().unwrap();
+            let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
             p.phase = EmbedPhase::Done;
             p.completed_passages = total_passages;
         }

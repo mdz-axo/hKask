@@ -1025,10 +1025,12 @@ impl KataEngine {
 
     /// Capture metrics declared in the manifest before the kata cycle begins.
     fn capture_before_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
-        if manifest.metrics.is_empty() || self.metric_collector.is_none() {
+        if manifest.metrics.is_empty() {
             return;
         }
-        let collector = self.metric_collector.as_ref().unwrap();
+        let Some(collector) = self.metric_collector.as_ref() else {
+            return;
+        };
         let mut metrics = serde_json::Map::new();
         for m in &manifest.metrics {
             if let Some(ref span) = m.span {
@@ -1054,10 +1056,12 @@ impl KataEngine {
 
     /// Capture metrics after the kata cycle completes.
     fn capture_after_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
-        if manifest.metrics.is_empty() || self.metric_collector.is_none() {
+        if manifest.metrics.is_empty() {
             return;
         }
-        let collector = self.metric_collector.as_ref().unwrap();
+        let Some(collector) = self.metric_collector.as_ref() else {
+            return;
+        };
         let mut metrics = serde_json::Map::new();
         for m in &manifest.metrics {
             if let Some(ref span) = m.span {

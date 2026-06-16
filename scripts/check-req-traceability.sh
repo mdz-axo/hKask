@@ -11,6 +11,8 @@
 # Quality mode:
 #   Flags REQ lines that look like prose summaries rather than stable IDs/principle anchors.
 #   Set STRICT_REQ_QUALITY=1 to make quality violations fail the gate.
+#
+# Pure bash — no Python dependency.
 
 set -euo pipefail
 
@@ -19,113 +21,196 @@ echo ""
 
 STRICT_REQ_QUALITY="${STRICT_REQ_QUALITY:-1}"
 
-python3 - <<'PY'
-import os
-import re
-import sys
-import collections
+# ── Temporary files ──────────────────────────────────────────────────────────
 
-ROOTS = ["crates", "mcp-servers"]
-TEST_ATTR = re.compile(r"^\s*#\[(?:tokio::)?test(?:\s*\(.*\))?\]")
-REQ_LINE = re.compile(r"REQ:")
-PLACEHOLDER_REQ = re.compile(r"REQ:\s*(pre:|autogen-)")
-PRINCIPLE_REF = re.compile(r"\bP(?:1[0-2]|[1-9])\b")
-STRICT_QUALITY = os.environ.get("STRICT_REQ_QUALITY", "0") == "1"
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
 
-per_crate = collections.defaultdict(lambda: {"tests": 0, "with_req": 0, "missing": 0, "quality": 0})
-missing = []
-placeholder = []
-quality = []
+MISSING_FILE="$TMPDIR/missing"
+PLACEHOLDER_FILE="$TMPDIR/placeholder"
+QUALITY_FILE="$TMPDIR/quality"
+CRATE_STATS="$TMPDIR/crate_stats"
+:> "$MISSING_FILE"
+:> "$PLACEHOLDER_FILE"
+:> "$QUALITY_FILE"
+:> "$CRATE_STATS"
 
-def req_quality_ok(req_line: str) -> bool:
-    if PRINCIPLE_REF.search(req_line):
-        return True
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    # Extract token immediately after REQ: up to em dash/space/end-comment.
-    m = re.search(r"REQ:\s*([^—\s]+)", req_line)
-    if not m:
-        return False
-    token = m.group(1).strip()
+# Check if a REQ tag has a stable ID (principle ref P1-P12, or token with
+# separators/digits). Returns 0 if quality is OK, 1 if flagged.
+req_quality_ok() {
+    local req_line="$1"
 
-    # Stable ID heuristics: either has separators typical of IDs, or digits.
-    has_sep = any(ch in token for ch in "-_.:")
-    has_digit = any(ch.isdigit() for ch in token)
-    return has_sep or has_digit
+    # Principle reference: P1 through P12
+    if echo "$req_line" | grep -qE '\bP(1[0-2]|[1-9])\b'; then
+        return 0
+    fi
 
-for root in ROOTS:
-    if not os.path.isdir(root):
-        continue
-    for dp, _, fns in os.walk(root):
-        for fn in fns:
-            if not fn.endswith(".rs"):
-                continue
-            path = os.path.join(dp, fn).replace("\\", "/")
-            parts = path.split("/")
-            crate = parts[1] if parts[0] == "crates" else f"mcp-servers/{parts[1]}"
+    # Extract token immediately after "REQ:" up to em dash, space, or end-of-comment
+    local token
+    token=$(echo "$req_line" | sed -n 's/.*REQ:\s*\([^—[:space:]/]\+\).*/\1/p')
+    if [ -z "$token" ]; then
+        return 1
+    fi
 
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.read().splitlines()
+    # Stable ID heuristics: has separators (- _ . :) or digits
+    if echo "$token" | grep -qE '[-_.:]|[0-9]'; then
+        return 0
+    fi
 
-            for i, line in enumerate(lines):
-                if not TEST_ATTR.search(line):
-                    continue
+    return 1
+}
 
-                per_crate[crate]["tests"] += 1
-                prior = lines[max(0, i - 6): i + 1]
-                req_lines = [l for l in prior if REQ_LINE.search(l)]
+# Determine crate name from file path.
+# "crates/hkask-foo/src/bar.rs" → "hkask-foo"
+# "mcp-servers/hkask-mcp-foo/src/main.rs" → "mcp-servers/hkask-mcp-foo"
+crate_from_path() {
+    local path="$1"
+    if [[ "$path" == crates/* ]]; then
+        echo "$path" | cut -d/ -f2
+    elif [[ "$path" == mcp-servers/* ]]; then
+        echo "$path" | cut -d/ -f1-2
+    else
+        echo "unknown"
+    fi
+}
 
-                if req_lines:
-                    per_crate[crate]["with_req"] += 1
-                    nearest_req = req_lines[-1]
+# ── Scan ──────────────────────────────────────────────────────────────────────
 
-                    if PLACEHOLDER_REQ.search(nearest_req):
-                        placeholder.append((path, i + 1, nearest_req.strip()))
+total_tests=0
+total_with_req=0
+total_missing=0
+total_placeholder=0
+total_quality=0
 
-                    if not req_quality_ok(nearest_req):
-                        per_crate[crate]["quality"] += 1
-                        quality.append((path, i + 1, nearest_req.strip()))
-                else:
-                    per_crate[crate]["missing"] += 1
-                    missing.append((path, i + 1))
+# Per-crate counters using associative array
+declare -A crate_tests
+declare -A crate_with_req
+declare -A crate_missing
+declare -A crate_quality
 
-print("crate,tests,with_req,missing,quality_flags,coverage")
-for crate in sorted(per_crate):
-    t = per_crate[crate]["tests"]
-    w = per_crate[crate]["with_req"]
-    m = per_crate[crate]["missing"]
-    q = per_crate[crate]["quality"]
-    pct = (w * 100.0 / t) if t else 0.0
-    print(f"{crate},{t},{w},{m},{q},{pct:.1f}%")
+for root in crates mcp-servers; do
+    [ -d "$root" ] || continue
 
-print()
-print(f"Total tests: {sum(v['tests'] for v in per_crate.values())}")
-print(f"Missing REQ tags: {len(missing)}")
-print(f"Placeholder REQ tags: {len(placeholder)}")
-print(f"REQ quality flags: {len(quality)}")
+    while IFS= read -r -d '' file; do
+        # Find all #[test] and #[tokio::test] line numbers
+        test_lines=$(grep -nE '^\s*#\[(tokio::)?test(\s*\(.*\))?\]' "$file" 2>/dev/null || true)
+        [ -z "$test_lines" ] && continue
 
-if missing:
-    print("\nERROR: tests missing nearby REQ tag:")
-    for p, l in missing[:100]:
-        print(f"  - {p}:{l}")
+        crate=$(crate_from_path "$file")
 
-if placeholder:
-    print("\nERROR: placeholder REQ tags found (replace with real requirement IDs):")
-    for p, l, txt in placeholder[:100]:
-        print(f"  - {p}:{l} :: {txt}")
+        while IFS= read -r tline; do
+            line_num=$(echo "$tline" | cut -d: -f1)
+            total_tests=$((total_tests + 1))
+            crate_tests["$crate"]=$((${crate_tests["$crate"]:-0} + 1))
 
-if quality:
-    level = "ERROR" if STRICT_QUALITY else "WARN"
-    print(f"\n{level}: REQ tags lacking stable ID/principle anchor:")
-    for p, l, txt in quality[:120]:
-        print(f"  - {p}:{l} :: {txt}")
+            # Check the 6 lines before the test attribute for a REQ: tag
+            start=$((line_num > 6 ? line_num - 6 : 1))
+            end=$((line_num - 1))
+            prior_lines=$(sed -n "${start},${end}p" "$file" 2>/dev/null)
 
-if missing or placeholder:
-    sys.exit(1)
+            req_match=$(echo "$prior_lines" | grep 'REQ:' | tail -1 || true)
 
-if STRICT_QUALITY and quality:
-    sys.exit(1)
+            if [ -n "$req_match" ]; then
+                total_with_req=$((total_with_req + 1))
+                crate_with_req["$crate"]=$((${crate_with_req["$crate"]:-0} + 1))
 
-print("\nPASS: every test has a nearby non-placeholder REQ anchor.")
-if quality and not STRICT_QUALITY:
-    print("PASS (with warnings): enable STRICT_REQ_QUALITY=1 to enforce quality flags as hard failures.")
-PY
+                # Check for placeholder REQ tags
+                if echo "$req_match" | grep -qE 'REQ:\s*(pre:|autogen-)'; then
+                    total_placeholder=$((total_placeholder + 1))
+                    echo "$file:$line_num :: $req_match" >> "$PLACEHOLDER_FILE"
+                fi
+
+                # Quality check
+                if ! req_quality_ok "$req_match"; then
+                    total_quality=$((total_quality + 1))
+                    crate_quality["$crate"]=$((${crate_quality["$crate"]:-0} + 1))
+                    echo "$file:$line_num :: $req_match" >> "$QUALITY_FILE"
+                fi
+            else
+                total_missing=$((total_missing + 1))
+                crate_missing["$crate"]=$((${crate_missing["$crate"]:-0} + 1))
+                echo "$file:$line_num" >> "$MISSING_FILE"
+            fi
+        done <<< "$test_lines"
+    done < <(find "$root" -name '*.rs' -print0 2>/dev/null)
+done
+
+# ── Report ────────────────────────────────────────────────────────────────────
+
+echo "crate,tests,with_req,missing,quality_flags,coverage"
+
+# Collect all crate names
+declare -A all_crates
+for crate in "${!crate_tests[@]}"; do all_crates["$crate"]=1; done
+for crate in "${!crate_with_req[@]}"; do all_crates["$crate"]=1; done
+for crate in "${!crate_missing[@]}"; do all_crates["$crate"]=1; done
+for crate in "${!crate_quality[@]}"; do all_crates["$crate"]=1; done
+
+for crate in $(printf '%s\n' "${!all_crates[@]}" | sort); do
+    t=${crate_tests["$crate"]:-0}
+    w=${crate_with_req["$crate"]:-0}
+    m=${crate_missing["$crate"]:-0}
+    q=${crate_quality["$crate"]:-0}
+    if [ "$t" -gt 0 ]; then
+        pct=$(awk "BEGIN {printf \"%.1f\", ($w * 100.0 / $t)}")
+    else
+        pct="0.0"
+    fi
+    echo "$crate,$t,$w,$m,$q,${pct}%"
+done
+
+echo ""
+echo "Total tests: $total_tests"
+echo "Missing REQ tags: $total_missing"
+echo "Placeholder REQ tags: $total_placeholder"
+echo "REQ quality flags: $total_quality"
+
+# ── Errors ────────────────────────────────────────────────────────────────────
+
+FAILED=0
+
+if [ "$total_missing" -gt 0 ]; then
+    echo ""
+    echo "ERROR: tests missing nearby REQ tag:"
+    head -100 "$MISSING_FILE" | while IFS= read -r line; do
+        echo "  - $line"
+    done
+    FAILED=1
+fi
+
+if [ "$total_placeholder" -gt 0 ]; then
+    echo ""
+    echo "ERROR: placeholder REQ tags found (replace with real requirement IDs):"
+    head -100 "$PLACEHOLDER_FILE" | while IFS= read -r line; do
+        echo "  - $line"
+    done
+    FAILED=1
+fi
+
+if [ "$total_quality" -gt 0 ]; then
+    level="WARN"
+    if [ "$STRICT_REQ_QUALITY" = "1" ]; then
+        level="ERROR"
+        FAILED=1
+    fi
+    echo ""
+    echo "$level: REQ tags lacking stable ID/principle anchor:"
+    head -120 "$QUALITY_FILE" | while IFS= read -r line; do
+        echo "  - $line"
+    done
+fi
+
+# ── Result ────────────────────────────────────────────────────────────────────
+
+echo ""
+if [ "$FAILED" -eq 0 ]; then
+    echo "PASS: every test has a nearby non-placeholder REQ anchor."
+    if [ "$total_quality" -gt 0 ] && [ "$STRICT_REQ_QUALITY" != "1" ]; then
+        echo "PASS (with warnings): enable STRICT_REQ_QUALITY=1 to enforce quality flags as hard failures."
+    fi
+    exit 0
+else
+    exit 1
+fi

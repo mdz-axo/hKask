@@ -73,7 +73,7 @@ impl ArchivalService {
         if let Some(sha) = current_sha {
             payload
                 .as_object_mut()
-                .unwrap()
+                .expect("json! macro always produces an object")
                 .insert("sha".to_string(), json!(sha));
         }
 
@@ -235,7 +235,7 @@ impl ArchivalService {
         if let Some(sha) = current_sha {
             payload
                 .as_object_mut()
-                .unwrap()
+                .expect("json! macro always produces an object")
                 .insert("sha".to_string(), json!(sha));
         }
 
@@ -278,15 +278,21 @@ fn build_github_client() -> Result<reqwest::Client, ServiceError> {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::ACCEPT,
-        "application/vnd.github+json".parse().unwrap(),
+        "application/vnd.github+json"
+            .parse()
+            .expect("static Accept header"),
     );
     headers.insert(
         reqwest::header::USER_AGENT,
-        "hKask-archival/0.22.0".parse().unwrap(),
+        "hKask-archival/0.22.0"
+            .parse()
+            .expect("static User-Agent header"),
     );
     headers.insert(
         reqwest::header::AUTHORIZATION,
-        format!("Bearer {token}").parse().unwrap(),
+        format!("Bearer {token}")
+            .parse()
+            .expect("valid Authorization header"),
     );
 
     reqwest::Client::builder()
