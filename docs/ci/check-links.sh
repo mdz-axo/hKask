@@ -26,8 +26,12 @@ echo "=== hKask Documentation Link Checker ==="
 echo "Scanning: $DOCS_DIR"
 echo ""
 
-# Find all markdown files, including archive/ (archive is part of the docs corpus)
+# Find all markdown files, excluding archive/ (archived files have broken relative links by design)
 while IFS= read -r -d '' file; do
+    # Skip archive directory
+    if [[ "$file" == */archive/* ]]; then
+        continue
+    fi
     # Extract relative path for reporting
     rel_file="${file#$PROJECT_ROOT/}"
 

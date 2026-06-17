@@ -23,19 +23,91 @@ documents:
     last_updated: 2026-06-17
     version: "0.27.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: partial
-    drift_verdict: partial
+    staleness_signal: none
+    drift_verdict: aligned
     code_artifacts:
       - crates/hkask-services/
       - mcp-servers/hkask-mcp-kanban/
       - crates/hkask-adapter/
       - crates/hkask-cns/
-    gaps:
-      - "Kata section exists only as a one-line mention under Pattern B; no dedicated architectural section for kata as a first-class subsystem despite 4 skills, 23 templates, 5 manifests"
-      - "LoRA adapter store mentioned only in identified gaps section; no dedicated architectural section describing adapter lifecycle, storage, routing, or endpoint management"
-      - "No Mermaid diagram showing kata→kanban→CNS feedback path"
+    gaps: []
     governing_principles: [P3, P5, P7, P9]
+    notes: "Updated 2026-06-17 with Kata and LoRA adapter architecture sections, Mermaid diagrams, coaching question mapping."
     disposition: keep
+
+  - path: docs/guides/lora-training-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [composition, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [mcp-servers/hkask-mcp-training/, crates/hkask-adapter/]
+    notes: "Consolidated from adapter-deployment.md (archived 2026-06-17). Now covers dataset prep, training, HuggingFace, deployment, production hardening, troubleshooting."
+    governing_principles: [P3, P5, P12]
+    disposition: keep
+
+  - path: docs/architecture/core/TESTING_NARRATIVE.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-test-harness/, scripts/contract-audit.sh]
+    governing_principles: [P4, P8, P9]
+    notes: "Narrative companion to TESTING_DISCIPLINE.md. Covers contract-anchored architecture, red-green-refactor, CNS/kata/kanban integration, getting-started walkthrough."
+    disposition: keep
+
+  - path: docs/user-guides/lora-adapter-store-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [composition, lifecycle, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-adapter/]
+    governing_principles: [P3, P5, P12]
+    disposition: keep
+
+  - path: docs/status/user-guide-gap-report.md
+    category: status
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [docs/user-guides/, docs/guides/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: "[ARCHIVED] docs/guides/adapter-deployment.md"
+    category: user-guide
+    status: Superseded
+    last_updated: 2026-06-17
+    version: N/A
+    mds_categories: []
+    staleness_signal: archived
+    drift_verdict: na
+    notes: "Archived 2026-06-17. Superseded by lora-training-guide.md which absorbed all unique content (production hardening, troubleshooting, systemd/Docker)."
+    code_artifacts: []
+    disposition: archive
+
+  - path: "[ARCHIVED] docs/plans/contract-first-migration-plan-v0.27.0.md"
+    category: plan
+    status: Superseded
+    last_updated: 2026-06-17
+    version: N/A
+    mds_categories: []
+    staleness_signal: archived
+    drift_verdict: na
+    notes: "Archived 2026-06-17. Plan completed — all 1775 pub fns now carry REQ: contracts (128.1% coverage). Historical snapshot, frozen at completion."
+    code_artifacts: []
+    disposition: archive
 
   - path: docs/architecture/loop-architecture.md
     category: architecture

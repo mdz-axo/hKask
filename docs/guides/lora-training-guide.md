@@ -637,3 +637,101 @@ println!("Classification: {}", result.content);
 - [`crates/hkask-adapter/src/provider_cost.rs`](../../crates/hkask-adapter/src/provider_cost.rs) — `CostModel`, `ProviderCapability`
 - [`docs/research/training-decomposition-traces.md`](../research/training-decomposition-traces.md) — Training data methodology
 - [`docs/user-guides/lora-adapter-store-guide.md`](../user-guides/lora-adapter-store-guide.md) — Adapter store + lifecycle reference
+
+---
+
+## 6. Production Hardening
+
+### 6.1 Database Encryption
+
+```bash
+# Generate a strong passphrase
+openssl rand -base64 32
+
+# Set in environment
+HKASK_DB_PASSPHRASE=<generated-passphrase>
+HKASK_MEMORY_DB=/var/lib/hkask/training.db
+```
+
+The database uses SQLCipher with AES-256-CBC encryption. Passphrases are derived using Argon2id to produce 256-bit encryption keys.
+
+### 6.2 Orphaned Endpoint Detection
+
+On startup, the `AdapterRouter` queries the `active_endpoints` table for endpoints that were active when the system last shut down. Each orphaned endpoint is logged with:
+
+```
+WARN  Orphaned endpoint — may need manual teardown via provider console
+      endpoint_id=<uuid> provider=Together model=adapter-<id>
+      expertise=solidity-audit phase=active cost=3.45
+```
+
+**Action required:** Check the corresponding provider console and manually delete any endpoints that should no longer be running.
+
+### 6.3 Security Considerations
+
+| Concern | Mitigation |
+|---------|-----------|
+| API keys in environment | Load from OS keychain where available; `.env` for development |
+| Adapter access control | `AdapterPort` trait methods are OCAP-gated via `DelegationToken` |
+| Endpoint resource leaks | `EndpointGuard` (RAII) + orphan detection on startup |
+| Cross-user adapter access | Sovereign-scoped by WebID owner; sharing requires explicit consent |
+| Provider API key exposure | Keys used only in-memory via `reqwest::Client`; never logged |
+
+### 6.4 Systemd Service
+
+```ini
+# /etc/systemd/system/hkask-training.service
+[Unit]
+Description=hKask Training MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=hkask
+WorkingDirectory=/opt/hkask
+EnvironmentFile=/etc/hkask/training.env
+ExecStart=/opt/hkask/target/release/hkask-mcp-training
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 6.5 Docker
+
+```dockerfile
+FROM rust:1.85-slim-bookworm AS builder
+WORKDIR /app
+COPY . .
+RUN cargo build --release -p hkask-mcp-training
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app/target/release/hkask-mcp-training /usr/local/bin/
+ENV HKASK_MEMORY_DB=/data/training.db
+VOLUME /data
+ENTRYPOINT ["hkask-mcp-training"]
+```
+
+---
+
+## 7. Troubleshooting
+
+| Symptom | Likely Cause | Resolution |
+|---------|-------------|------------|
+| "TOGETHER_API_KEY not set" | Missing environment variable | `export TOGETHER_API_KEY=<key>` or add to `.env` |
+| "Adapter not found by ID or skill name" | Adapter not registered | Run `training_list_adapters` to see available adapters |
+| "Provider unavailable for adapter composition" | Provider not in backend registry | Verify provider is configured (Together/Runpod/Baseten) |
+| "Base model incompatibility" | Adapter trained on unsupported model | Check `ProviderCapability::supported_base_model_families` |
+| "No huggingface_repo — skipping upload" | Adapter source not set | Set `AdapterSource::HuggingFace { repo }` on the adapter |
+| "Together AI upload returned 401" | Invalid or expired API key | Regenerate at [together.ai](https://together.ai) |
+| "Runpod teardown failed (may require console deletion)" | Runpod teardown is console-only | Delete manually at [console.runpod.io/serverless](https://console.runpod.io/serverless) |
+| Orphaned endpoint warning on startup | Previous session ended without teardown | Check provider console, manually delete if needed |
+| Upload job stuck polling for 5+ minutes | Provider is slow or unreachable | Check provider status page; increase poll timeout |
+
+---
+
+*"The Analytical Engine weaves algebraical patterns just as the Jacquard loom weaves flowers and leaves." — Ada Lovelace, 1843*
+
+*The adapter system weaves trained expertise into inference endpoints. Each adapter is a pattern. Each endpoint is a loom. The composition is the weaving.*

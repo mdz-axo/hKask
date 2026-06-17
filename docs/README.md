@@ -135,6 +135,7 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | lifecycle | Build, test, and CI health |
 | [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | lifecycle, curation | Document corpus lifecycle classification — living inventory |
 | [`public-seam-inventory.md`](status/public-seam-inventory.md) | composition, curation | Public seam inventory — 77 seams across 18 crates |
+| [`public-seam-priority.md`](status/public-seam-priority.md) | composition, curation | Public seam priority ranking — test depth targets |
 | [`user-guide-gap-report.md`](status/user-guide-gap-report.md) | curation | User guide gap audit — grill-me posture, prioritized fix list |
 
 **Archived (2026-06-15):** test-inventory.md, mcp-tools-inventory.md, skill-inventory.md, adversarial-simplification-inventory.md, document-futures.md, spec-code-drift.yaml, curation-decisions.yaml, writing_quality_report.yaml, coherence_report.yaml. All served their purpose. Recoverable via git history.
@@ -148,12 +149,10 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | Document | MDS | Description |
 |----------|--------|-------------|
 | [`TODO.md`](plans/TODO.md) | domain, composition, trust, lifecycle, curation | Open work items |
-| [`mcp-server-roadmap.md`](plans/mcp-server-roadmap.md) | domain, composition, trust, lifecycle, curation | MCP server consolidation roadmap |
-| [`DOCUMENT_ROADMAP.md`](plans/DOCUMENT_ROADMAP.md) | lifecycle, curation | Document corpus roadmap — P0→P3 prioritized |
-| [`pragmatic-audit-implementation-plan-v0.27.0.md`](plans/pragmatic-audit-implementation-plan-v0.27.0.md) | lifecycle, curation | Pragmatic audit — 7-task implementation plan |
-| [`test-harness-maturation-plan-v0.27.0.md`](plans/test-harness-maturation-plan-v0.27.0.md) | lifecycle, curation | Test harness maturation — 3-wave plan |
 
-**Archived plans (2026-06-15):** replicant-server-mode, wallet-payment-mechanism, wallet-rjoule-payments, mcp-media-server-design, bundler-completion. Recoverable via `git log -- docs/plans/`.
+**Archived (2026-06-17):** mcp-server-roadmap.md, DOCUMENT_ROADMAP.md, pragmatic-audit-implementation-plan-v0.27.0.md, test-harness-maturation-plan-v0.27.0.md, contract-first-migration-plan-v0.27.0.md. Plans completed or superseded. Also archived all 8 audit documents from `docs/audit/` — skill system audits, rust audit harness, zed-vs-hkask boundary. Recoverable via git history.
+
+**Archived (2026-06-15):** replicant-server-mode, wallet-payment-mechanism, wallet-rjoule-payments, mcp-media-server-design, bundler-completion.
 
 ---
 
@@ -174,8 +173,7 @@ Transient session handoffs recording implementation state. Handoffs are committe
 | [`CI-CD-GUIDE.md`](guides/CI-CD-GUIDE.md) | lifecycle | CI/CD and installation guide |
 | [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | lifecycle | Deployment guide — systemd, Docker, K8s |
 | [`MATRIX-CLOUD-DEPLOYMENT.md`](guides/MATRIX-CLOUD-DEPLOYMENT.md) | lifecycle | Matrix cloud deployment — Conduit sidecar, 7R7 listener |
-| [`lora-training-guide.md`](guides/lora-training-guide.md) | composition, lifecycle, curation | LoRA training — dataset prep to CNS-verified deployment |
-| [`adapter-deployment.md`](guides/adapter-deployment.md) | lifecycle, composition | Adapter deployment — training MCP server, Together/Runpod/Baseten, lifecycle management |
+| [`lora-training-guide.md`](guides/lora-training-guide.md) | composition, lifecycle, curation | LoRA training — dataset prep to CNS-verified deployment, production hardening, troubleshooting |
 
 ---
 
