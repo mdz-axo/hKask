@@ -202,31 +202,31 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: No unwrap on hot paths (CNS, agents)
-        run: bash scripts/check-unwrap.sh
+        run: bash scripts/ci/check-unwrap.sh
 
       - name: No wildcard capabilities
-        run: bash scripts/check-wildcard-capabilities.sh
+        run: bash scripts/ci/check-wildcard-capabilities.sh
 
       - name: No hardcoded secrets
-        run: bash scripts/check-hardcoded-secrets.sh
+        run: bash scripts/ci/check-hardcoded-secrets.sh
 
       - name: No todo!/unimplemented! stubs (P6)
-        run: bash scripts/check-stubs.sh
+        run: bash scripts/ci/check-stubs.sh
 
       - name: No deprecated (P7)
-        run: bash scripts/check-deprecated.sh
+        run: bash scripts/ci/check-deprecated.sh
 
       - name: No undocumented unsafe blocks
-        run: bash scripts/check-unsafe.sh
+        run: bash scripts/ci/check-unsafe-safety.sh
 
       - name: Public seam inventory check (P8 traceability)
-        run: bash scripts/public-seam-inventory.sh
+        run: bash scripts/tooling/public-seam-inventory.sh
 
       - name: No visual UI infrastructure
-        run: bash scripts/check-visual-ui.sh
+        run: bash scripts/ci/check-visual-ui.sh
 
       - name: Schema drift check (harness vs storage)
-        run: bash scripts/check-schema-drift.sh
+        run: bash scripts/ci/check-schema-drift.sh
 
       - name: Contract coverage trend (Testing Discipline §9.2)
         run: |
@@ -253,7 +253,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run all quality gates
-        run: bash scripts/ci-quality-gates.sh
+        run: bash scripts/ci/ci-quality-gates.sh
 
   # ============================================================================
   # Dependency Policy Check
