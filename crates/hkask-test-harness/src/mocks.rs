@@ -303,18 +303,28 @@ impl MockDaemonClient {
     }
 
     /// Set capabilities to denied.
+    ///
+    /// REQ: HARN-055
+    /// post: returns self with capabilities_granted=false
     pub fn capabilities_denied(mut self) -> Self {
         self.capabilities_granted = false;
         self
     }
 
     /// Set a canned tool dispatch response.
+    ///
+    /// REQ: HARN-056
+    /// pre:  response is a valid JSON Value
+    /// post: returns self with tool_response set
     pub fn with_tool_response(mut self, response: Value) -> Self {
         self.tool_response = Some(response);
         self
     }
 
     /// Get stored experiences (for assertion in tests).
+    ///
+    /// REQ: HARN-057
+    /// post: returns clone of all stored experience triples
     pub fn stored_experiences(&self) -> Vec<(String, String, Value)> {
         self.stored.lock().unwrap().clone()
     }

@@ -82,9 +82,9 @@ fn require_env(var: &str) -> String {
 }
 
 // REQ: P4-adt-adapter-router-compose — live end-to-end: deploy → infer → teardown
-#[test]
+#[tokio::test]
 #[ignore = "requires TOGETHER_API_KEY, HF_TOKEN, HKASK_LIVE_ADAPTER_REPO, HKASK_LIVE_BASE_MODEL"]
-fn live_together_adapter_e2e() {
+async fn live_together_adapter_e2e() {
     load_env();
     let api_key = require_env("TOGETHER_API_KEY");
     let hf_repo = require_env("HKASK_LIVE_ADAPTER_REPO");
@@ -146,6 +146,7 @@ fn live_together_adapter_e2e() {
     // 2. Estimate composition
     let estimate = router
         .estimate_composition(adapter.id, ProviderId::Together, &token)
+        .await
         .expect("estimate");
     assert!(estimate.is_compatible, "adapter not compatible");
     println!(
@@ -156,6 +157,7 @@ fn live_together_adapter_e2e() {
     // 3. Deploy
     let handle = router
         .create_endpoint(adapter.id, ProviderId::Together, &token)
+        .await
         .expect("create endpoint");
     println!(
         "Deployed: id={}, url={}, model={}",
@@ -179,7 +181,10 @@ fn live_together_adapter_e2e() {
     if !handle.model_name.starts_with("adapter-") {
         // 6. Run inference
         let params = inference_params();
-        match router.infer(handle.endpoint_id, "Say hello in one word.", params, &token) {
+        match router
+            .infer(handle.endpoint_id, "Say hello in one word.", params, &token)
+            .await
+        {
             Ok(result) => {
                 println!("Inference result: '{}'", result.text.trim());
                 assert!(!result.text.is_empty(), "inference returned empty text");
@@ -197,6 +202,7 @@ fn live_together_adapter_e2e() {
     // 7. Teardown
     router
         .teardown_endpoint(handle.endpoint_id, &token)
+        .await
         .expect("teardown");
     assert!(
         router.endpoint_status(handle.endpoint_id, &token).is_err(),
