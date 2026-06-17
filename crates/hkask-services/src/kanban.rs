@@ -450,17 +450,10 @@ impl KanbanService {
 
         Ok((task, verification))
     }
-}
 
     /// Decompose a project description into kanban tasks.
     ///
     /// REQ: KAN-SVC-020
-    /// pre:  board_id is valid; project_description is non-empty
-    /// post: returns a decomposition prompt suitable for LLM processing
-    ///
-    /// This is the decomposition *template*. Actual LLM-mediated decomposition
-    /// requires an inference engine (Task 6). The returned prompt can be fed
-    /// to any LLM to produce a structured task list.
     pub fn decompose_prompt(
         &self,
         board_id: BoardId,
@@ -468,76 +461,33 @@ impl KanbanService {
         target_task_points: Option<u32>,
         target_hours: Option<f64>,
     ) -> Result<String, KanbanError> {
-        // Verify board exists
         self.board_get(board_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
-
         let sizing_guidance = match (target_task_points, target_hours) {
-            (Some(p), Some(h)) => format!(
-                "Each task should be approximately {p} story points or {h} hours of work."
-            ),
+            (Some(p), Some(h)) => format!("Each task should be approximately {p} story points or {h} hours."),
             (Some(p), None) => format!("Each task should be approximately {p} story points."),
-            (None, Some(h)) => format!("Each task should be approximately {h} hours of work."),
-            (None, None) => "Aim for tasks that take 2-8 hours each.".to_string(),
+            (None, Some(h)) => format!("Each task should be approximately {h} hours."),
+            (None, None) => "Aim for tasks of 2-8 hours each.".to_string(),
         };
-
-        Ok(format!(
-            "You are a task decomposition expert. Given the following project description,              break it down into discrete, independently verifiable kanban tasks.
-
-             Project: {project_description}
-
-             Sizing: {sizing_guidance}
-
-             For each task, provide:
-             1. Title (concise, action-oriented)
-             2. Description (1-2 sentences of context)
-             3. Story points (integer)
-             4. Estimated hours (float)
-             5. Labels (comma-separated tags)
-             6. Acceptance criteria (bullet points — what "done" means)
-             7. Dependencies (task titles this depends on, if any)
-
-             Return as a JSON array of objects with fields:              title, description, story_points, estimated_hours, labels, criteria, dependencies."
-        ))
+        Ok(format!("Decompose project into kanban tasks. Project: {project_description}. Sizing: {sizing_guidance}. For each task provide: title, description, story_points (int), estimated_hours (float), labels (comma-separated), criteria (list of acceptance criteria strings). Return JSON array of objects."))
     }
 
     /// Spawn a sub-replicant to execute a task.
     ///
     /// REQ: KAN-SVC-021
-    /// pre:  task_id is valid; spawn spec defines delegation
-    /// post: returns spawn instructions (future: creates pod + assigns)
-    ///
-    /// Currently returns the spawn configuration for manual execution.
-    /// Future: integrates with pod infrastructure for automated spawning.
     pub fn spawn_task(
         &self,
         task_id: TaskId,
         spawn_spec: hkask_types::SpawnSpec,
     ) -> Result<String, KanbanError> {
-        let task = self
-            .task_get(task_id)?
+        let task = self.task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
-
-        Ok(format!(
-            "Spawn configuration for task '{}' ({}):
-             Delegation level: {}
-             Skills: {:?}
-             Memory scope: {}
-             Tool servers: {:?}
-             Gas budget: {:?}
-             Timeout: {:?}s
-
-             [Future: pod activation will execute this spawn automatically]",
-            task.title,
-            task.id,
-            spawn_spec.delegation_level,
-            spawn_spec.delegated_skills,
-            spawn_spec.memory_scope,
-            spawn_spec.tool_servers,
-            spawn_spec.gas_budget,
-            spawn_spec.timeout_seconds,
-        ))
+        Ok(format!("Spawn for task '{}': level={}, skills={:?}, memory={}, tools={:?}, gas={:?}, timeout={:?}s. [Future: pod activation]",
+            task.title, spawn_spec.delegation_level, spawn_spec.delegated_skills,
+            spawn_spec.memory_scope, spawn_spec.tool_servers, spawn_spec.gas_budget, spawn_spec.timeout_seconds))
     }
+}
+
 
 // ── Error types ────────────────────────────────────────────────────────────
 
