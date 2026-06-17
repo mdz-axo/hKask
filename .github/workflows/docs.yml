@@ -81,3 +81,20 @@ jobs:
 
       - name: Check internal documentation links
         run: bash scripts/check-docs.sh
+
+  # ============================================================================
+  # Shell Script Lint
+  # ============================================================================
+  shellcheck:
+    name: Lint Shell Scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        run: bash docs/ci/check-shell-scripts.sh

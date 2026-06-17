@@ -66,16 +66,16 @@ fn all_templates_render() {
                     "topic": "test topic",
                     "mode": "plussing",
                 });
-                if let Ok(tmpl) = env.get_template(&name) {
-                    if let Err(e) = tmpl.render(&ctx) {
-                        match e.kind() {
-                            minijinja::ErrorKind::UndefinedError
-                            | minijinja::ErrorKind::InvalidOperation => {
-                                // Missing context variable — not a template defect.
-                            }
-                            _ => {
-                                errors.push(format!("{}: render error: {}", path.display(), e));
-                            }
+                if let Ok(tmpl) = env.get_template(&name)
+                    && let Err(e) = tmpl.render(&ctx)
+                {
+                    match e.kind() {
+                        minijinja::ErrorKind::UndefinedError
+                        | minijinja::ErrorKind::InvalidOperation => {
+                            // Missing context variable — not a template defect.
+                        }
+                        _ => {
+                            errors.push(format!("{}: render error: {}", path.display(), e));
                         }
                     }
                 }

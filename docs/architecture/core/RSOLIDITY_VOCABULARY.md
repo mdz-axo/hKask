@@ -1,3 +1,13 @@
+---
+title: "rSolidity Contract Vocabulary"
+audience: "hKask developers"
+last_updated: "2026-06-17"
+version: "0.27.0"
+status: "Active"
+domain: "architecture"
+mds_categories: ["domain", "trust"]
+---
+
 # rSolidity Contract Vocabulary
 
 **Status:** Macro crate implemented — first migration target (`hkask-cns` energy budget contracts) complete  

@@ -324,12 +324,9 @@ build_inventory() {
     done < "$reqs_file"
 
     # Now process public items and determine coverage
-    local crate_summary
-    crate_summary=$(mktemp)
 
     # Group by crate
     local current_crate=""
-    local crate_items=0
     local crate_covered=0
 
     # Output: markdown
@@ -525,7 +522,6 @@ build_json_inventory() {
     # Also collect high-risk uncovered for priority section
     local priority_items=""
     local priority_count=0
-    local priority_per_crate=""
 
     while IFS='|' read -r kind cr mp name loc sig; do
         [ -z "$kind" ] && continue

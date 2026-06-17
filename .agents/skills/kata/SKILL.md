@@ -93,9 +93,9 @@ This bundle's orchestration templates live in `registry/templates/kata/`:
 |----------|--------|
 | `registry/manifests/kata-pattern.yaml` | Unified orchestration — routes to starter/improvement/coaching |
 | `registry/manifests/kata-iteration.yaml` | Variance assessment sub-manifest (invoked from improvement Step 4) |
-| `registry/manifests/starter-kata.yaml` | kata-starter skill manifest (standalone or invoked by bundle) |
-| `registry/manifests/improvement-kata.yaml` | kata-improvement skill manifest (standalone or invoked by bundle) |
-| `registry/manifests/coaching-kata.yaml` | kata-coaching skill manifest (standalone or invoked by bundle) |
+| `registry/manifests/kata-starter.yaml` | kata-starter skill manifest (standalone or invoked by bundle) |
+| `registry/manifests/kata-improvement.yaml` | kata-improvement skill manifest (standalone or invoked by bundle) |
+| `registry/manifests/kata-coaching.yaml` | kata-coaching skill manifest (standalone or invoked by bundle) |
 
 ## Individual Skills
 

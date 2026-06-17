@@ -1,3 +1,13 @@
+---
+title: "Dual-Layer Skill System — Diagnosis Report"
+audience: "hKask developers and architects"
+last_updated: "2026-06-17"
+version: "0.27.0"
+status: "Active"
+domain: "architecture"
+mds_categories: ["domain", "curation"]
+---
+
 # Dual-Layer Skill System — Diagnosis Report
 
 **Date:** 2026-06-16  

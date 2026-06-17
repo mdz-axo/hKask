@@ -1,3 +1,13 @@
+---
+title: "Handoff — CNS Functional Specification Complete"
+audience: "hKask developers"
+last_updated: "2026-06-17"
+version: "0.27.0"
+status: "Draft"
+domain: "architecture"
+mds_categories: ["domain"]
+---
+
 # Handoff — CNS Functional Specification Complete
 
 ## Status: DONE

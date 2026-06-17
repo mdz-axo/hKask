@@ -21,7 +21,6 @@ set -euo pipefail
 HKASK_VERSION="${HKASK_VERSION:-0.27.0}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local}"
 BIN_DIR="${INSTALL_DIR}/bin"
-CARGO_BIN="${CARGO_HOME:-$HOME/.cargo}/bin"
 SYSTEM_BIN="/usr/local/bin"
 
 # Colors for output

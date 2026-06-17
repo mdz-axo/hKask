@@ -367,7 +367,10 @@ impl WalletManager {
 
         let rj_amount = self.usdc_to_rjoules(event.amount_usdc_micro);
         self.store.credit_rjoules(wallet_id, rj_amount)?;
-        let balance = self.store.get_balance(wallet_id)?.expect("balance exists for active wallet");
+        let balance = self
+            .store
+            .get_balance(wallet_id)?
+            .expect("balance exists for active wallet");
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
@@ -462,7 +465,10 @@ impl WalletManager {
 
         let rj_amount = self.usdc_to_rjoules(transfer.amount_usdc_micro);
         self.store.credit_rjoules(wallet_id, rj_amount)?;
-        let balance = self.store.get_balance(wallet_id)?.expect("balance exists for active wallet");
+        let balance = self
+            .store
+            .get_balance(wallet_id)?
+            .expect("balance exists for active wallet");
         let commitment = transfer.commitment.clone();
         self.store.record_transaction(&WalletTransaction {
             id: 0,

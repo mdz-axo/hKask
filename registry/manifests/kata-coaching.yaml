@@ -2,7 +2,7 @@
 # ℏKask v0.21.0 — 5-question coaching dialogue for capability development
 
 manifest:
-  id: coaching-kata
+  id: kata-coaching
   name: Coaching Kata
   version: "0.1.0"
   description: >

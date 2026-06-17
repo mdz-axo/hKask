@@ -49,11 +49,9 @@ if [ ! -e "$INPUT" ]; then
 fi
 
 SHOW_ALL=false
-BROKEN_ONLY=false
 
 case "${MODE:-}" in
     -v|--verbose) SHOW_ALL=true ;;
-    -b|--broken-only) BROKEN_ONLY=true ;;
     "") ;;
     *) usage ;;
 esac
@@ -67,6 +65,16 @@ if [ -f "$INPUT" ]; then
     FILES+=("$INPUT")
 elif [ -d "$INPUT" ]; then
     while IFS= read -r -d '' f; do
+        # Skip auto-generated status files
+        [[ "$f" == *"docs/status/"* ]] && continue
+        # Skip audit files (investigative/analytical, reference planned paths)
+        [[ "$f" == *"docs/audit/"* ]] && continue
+        # Skip CI scripts themselves
+        [[ "$f" == *"docs/ci/"* ]] && continue
+        # Skip handoff files (transient)
+        [[ "$f" == *"docs/handoffs/"* ]] && continue
+        # Skip archive files
+        [[ "$f" == *"docs/archive/"* ]] && continue
         FILES+=("$f")
     done < <(find "$INPUT" -name "*.md" -print0)
 else

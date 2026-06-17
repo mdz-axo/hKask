@@ -1,4 +1,12 @@
 ---
+title: "hKask Functional Specification — Appendix"
+audience: "hKask developers and architects"
+last_updated: "2026-06-17"
+version: "0.27.0"
+status: "Draft"
+domain: "architecture"
+mds_categories: ["domain", "composition", "trust", "lifecycle"]
+---
 
 ## 3. Non-CNS Domains — Functional Requirements (Stub)
 

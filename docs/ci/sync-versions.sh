@@ -9,7 +9,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_ROOT="$(cd "$DOCS_DIR/.." && pwd)"
 
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
@@ -56,7 +55,6 @@ echo ""
 
 UPDATED=0
 SKIPPED=0
-ERRORS=0
 
 # Build exclusion path list
 EXCLUDE_PATHS=()

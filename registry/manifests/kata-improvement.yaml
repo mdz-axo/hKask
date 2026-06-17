@@ -2,7 +2,7 @@
 # ℏKask v0.21.0 — Scientific capability development for 7R7
 
 manifest:
-  id: improvement-kata
+  id: kata-improvement
   name: Improvement Kata
   version: "0.1.0"
   description: >

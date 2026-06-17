@@ -2,7 +2,7 @@
 # ℏKask v0.21.0 — Deliberate practice routines for scientific thinking
 
 manifest:
-  id: starter-kata
+  id: kata-starter
   name: Starter Kata
   version: "0.1.0"
   description: >

@@ -1,3 +1,13 @@
+---
+title: "hKask Dual-Layer Skill Model"
+audience: "hKask developers and architects"
+last_updated: "2026-06-17"
+version: "0.27.0"
+status: "Active"
+domain: "architecture"
+mds_categories: ["domain", "composition"]
+---
+
 # hKask Dual-Layer Skill Model
 
 **Version:** 0.27.0  

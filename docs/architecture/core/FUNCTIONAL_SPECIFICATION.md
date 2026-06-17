@@ -1,3 +1,13 @@
+---
+title: "hKask Functional Specification"
+audience: "hKask developers and architects"
+last_updated: "2026-06-17"
+version: "0.27.0"
+status: "Active"
+domain: "architecture"
+mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
+---
+
 # hKask Functional Specification
 
 **Version:** v0.27.0
