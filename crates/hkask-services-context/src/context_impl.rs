@@ -1471,7 +1471,6 @@ fn build_wallet(
     wallet_manager
         .ensure_wallet(default_wallet)
         .map_err(|e| ServiceError::Wallet {
-            source: Some(Box::new(e)),
             message: "Failed to ensure default wallet".into(),
         })?;
 

@@ -68,13 +68,11 @@ impl OnboardingService {
             keychain
                 .store_by_key("a2a-secret", &secrets.a2a_secret)
                 .map_err(|e| ServiceError::Keystore {
-                    source: Some(Box::new(e)),
                     message: "Failed to store a2a-secret".into(),
                 })?;
             keychain
                 .store_by_key("hkask-db-passphrase", &secrets.capability_key)
                 .map_err(|e| ServiceError::Keystore {
-                    source: Some(Box::new(e)),
                     message: "Failed to store hkask-db-passphrase".into(),
                 })?;
         }
@@ -252,7 +250,6 @@ impl OnboardingService {
             .store
             .get(agent_name)
             .map_err(|_| ServiceError::AgentNotFound {
-                source: None,
                 message: agent_name.to_string(),
             })?;
 
@@ -261,13 +258,11 @@ impl OnboardingService {
         keychain
             .store_by_key("a2a-secret", &resolved_secrets.a2a_secret)
             .map_err(|e| ServiceError::Keystore {
-                source: Some(Box::new(e)),
                 message: "Failed to store a2a-secret".into(),
             })?;
         keychain
             .store_by_key("hkask-db-passphrase", &resolved_secrets.db_passphrase)
             .map_err(|e| ServiceError::Keystore {
-                source: Some(Box::new(e)),
                 message: "Failed to store hkask-db-passphrase".into(),
             })?;
 
@@ -421,7 +416,6 @@ impl OnboardingService {
             .map_err(|e| {
                 let msg = format!("Human account registration failed: {}", e);
                 ServiceError::Matrix {
-                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })?;
@@ -434,7 +428,6 @@ impl OnboardingService {
                 // Don't roll back — the human can still use their account.
                 let msg = format!("Replicant account registration failed: {}", e);
                 ServiceError::Matrix {
-                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })?;
@@ -444,25 +437,21 @@ impl OnboardingService {
         keychain
             .store_by_key("matrix-human-username", &human_id)
             .map_err(|e| ServiceError::Keystore {
-                source: Some(Box::new(e)),
                 message: "Failed to store matrix-human-username".into(),
             })?;
         keychain
             .store_by_key("matrix-human-password", passphrase)
             .map_err(|e| ServiceError::Keystore {
-                source: Some(Box::new(e)),
                 message: "Failed to store matrix-human-password".into(),
             })?;
         keychain
             .store_by_key("matrix-replicant-username", &replicant_id)
             .map_err(|e| ServiceError::Keystore {
-                source: Some(Box::new(e)),
                 message: "Failed to store matrix-replicant-username".into(),
             })?;
         keychain
             .store_by_key("matrix-replicant-password", passphrase)
             .map_err(|e| ServiceError::Keystore {
-                source: Some(Box::new(e)),
                 message: "Failed to store matrix-replicant-password".into(),
             })?;
 
@@ -517,7 +506,6 @@ impl OnboardingService {
                     keychain
                         .store_by_key(&format!("matrix-bot-{}", bot_name), &password)
                         .map_err(|e| ServiceError::Keystore {
-                            source: Some(Box::new(e)),
                             message: format!("Failed to store matrix-bot-{}", bot_name),
                         })?;
                     tracing::info!(
@@ -610,7 +598,6 @@ async fn register_on_conduit(
         .map_err(|e| {
             let msg = format!("HTTP request failed: {}", e);
             ServiceError::Matrix {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -619,7 +606,6 @@ async fn register_on_conduit(
     let response_body: serde_json::Value = response.json().await.map_err(|e| {
         let msg = format!("Failed to parse response: {}", e);
         ServiceError::Matrix {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -630,7 +616,6 @@ async fn register_on_conduit(
             .and_then(|e| e.as_str())
             .unwrap_or("unknown error");
         return Err(ServiceError::Matrix {
-            source: None,
             message: format!(
                 "Registration failed (HTTP {}): {}",
                 status.as_u16(),
@@ -643,7 +628,6 @@ async fn register_on_conduit(
         .get("user_id")
         .and_then(|u| u.as_str())
         .ok_or_else(|| ServiceError::Matrix {
-            source: None,
             message: "Response missing user_id field".to_string(),
         })?;
 

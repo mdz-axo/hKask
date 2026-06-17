@@ -39,7 +39,6 @@ pub fn check_rate_limit() -> Result<(), ServiceError> {
     if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
         let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
         return Err(ServiceError::RateLimited {
-            source: None,
             message: format!("Rate limited: try again in {}s", remaining),
         });
     }
@@ -60,14 +59,12 @@ pub fn db_path_for_agent(webid: &WebID) -> String {
 /// post: returns the expected passphrase string on match; Err(Keystore) if not configured; Err(InvalidPassphrase) if mismatch
 pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
     let expected = hkask_keystore::resolve_db_passphrase().map_err(|_| ServiceError::Keystore {
-        source: None,
         message: "Server passphrase not configured".into(),
     })?;
     let expected_str = String::from_utf8_lossy(&expected).to_string();
     let secrets = hkask_keystore::master_key::derive_all_internal_secrets(passphrase);
     if secrets.capability_key != expected_str {
         return Err(ServiceError::InvalidPassphrase {
-            source: None,
             message: "Passphrase verification failed".into(),
         });
     }
@@ -104,7 +101,6 @@ pub fn consolidate(
         domain_service
             .consolidate(webid, request)
             .map_err(|e| ServiceError::Consolidation {
-                source: None,
                 message: format!("Consolidation failed: {e}"),
             })?;
 

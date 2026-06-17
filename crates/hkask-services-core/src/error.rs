@@ -132,7 +132,7 @@ pub enum ServiceError {
 
     // ── Embedding pipeline domain ─────────────────────────────────────────
     #[error("Embed failed: {message}")]
-    Embed { message: String },
+    Embed { message: String, source: Option<Box<dyn std::error::Error + Send + Sync>> },
 
     // ── Style composition domain ────────────────────────────────────────
     #[error("Compose failed: {message}")]
@@ -140,7 +140,7 @@ pub enum ServiceError {
 
     // ── Skill domain ────────────────────────────────────────────────────────
     #[error("Skill failed: {message}")]
-    Skill { message: String },
+    Skill { message: String, source: Option<Box<dyn std::error::Error + Send + Sync>> },
 
     // ── Verification domain ─────────────────────────────────────────────────
     #[error("Verification failed: {message}")]
@@ -154,7 +154,7 @@ pub enum ServiceError {
 
     // ── Backup domain ──────────────────────────────────────────────────
     #[error("Backup failed: {message}")]
-    Backup { message: String },
+    Backup { message: String, source: Option<Box<dyn std::error::Error + Send + Sync>> },
 
     // ── Rate limiting ──────────────────────────────────────────────────────
     #[error("{message}")]

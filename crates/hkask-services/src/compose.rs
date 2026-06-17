@@ -377,14 +377,12 @@ fn render_jinja2_prompt(
     env.add_template("system_prompt", template).map_err(|e| {
         let msg = format!("Jinja2 template parse error: {e}");
         ServiceError::Compose {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
     let tmpl = env.get_template("system_prompt").map_err(|e| {
         let msg = format!("Jinja2 template lookup error: {e}");
         ServiceError::Compose {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -401,7 +399,6 @@ fn render_jinja2_prompt(
     tmpl.render(&ctx).map_err(|e| {
         let msg = format!("Jinja2 render error: {e}");
         ServiceError::Compose {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })

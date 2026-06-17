@@ -56,7 +56,6 @@ pub async fn agent_register(
     let ctx = crate::commands::helpers::build_service_context();
     let webid = WebID::from_str(webid_str)?;
     let kind = AgentKind::parse(agent_type).ok_or_else(|| ServiceError::InvalidAgentType {
-        source: None,
         message: agent_type.to_string(),
     })?;
     let (_, a2a) = ctx.identity();

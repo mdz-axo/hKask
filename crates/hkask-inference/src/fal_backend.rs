@@ -15,6 +15,7 @@ use hkask_types::ports::{InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 use tracing::info;
 
 /// fal.ai backend for chat completions and vision inference.
@@ -70,6 +71,11 @@ impl FalBackend {
         validate_prompt(prompt)?;
         let request = build_chat_request(model, prompt, None, params, Some(false), Some(5));
 
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "FA", action = "invoked", "CNS");
+
         let response = self
             .client
             .post(format!("{}/v1/chat/completions", self.base_url))
@@ -94,6 +100,9 @@ impl FalBackend {
             .map_err(|e| InferenceError::Json(format!("fal.ai JSON parse: {}", e)))?;
 
         let result = chat_response_to_result(chat_response)?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %result.model, provider = "FA", action = "completed", latency_ms = %latency_ms, "CNS");
         info!(
             target: "hkask.inference",
             provider = "FA",
@@ -136,6 +145,11 @@ impl FalBackend {
             Some(5),
         );
 
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "FA", action = "invoked", "CNS");
+
         let response = self
             .client
             .post(format!("{}/v1/chat/completions", self.base_url))
@@ -160,6 +174,9 @@ impl FalBackend {
             .map_err(|e| InferenceError::Json(format!("fal.ai JSON parse: {}", e)))?;
 
         let result = chat_response_to_result(chat_response)?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %result.model, provider = "FA", action = "completed", latency_ms = %latency_ms, "CNS");
         info!(
             target: "hkask.inference",
             provider = "FA",
@@ -200,6 +217,11 @@ impl FalBackend {
             futures_util::stream::once(async move {
                 let request = build_chat_request(&model, &prompt, None, &params, Some(true), None);
 
+                // P9: CNS span
+                // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+                let started = Instant::now();
+                info!(target: "cns.inference", model = %model, provider = "FA", action = "stream_started", "CNS");
+
                 let response = match client
                     .post(format!("{}/v1/chat/completions", base_url))
                     .header("Authorization", format!("Key {}", api_key))
@@ -229,6 +251,10 @@ impl FalBackend {
                     Ok(b) => b,
                     Err(e) => return vec![Err(e)],
                 };
+
+                // P9: CNS span
+                let latency_ms = started.elapsed().as_millis();
+                info!(target: "cns.inference", model = %model, provider = "FA", action = "stream_completed", latency_ms = %latency_ms, "CNS");
 
                 parse_sse_stream(&body, &model)
             })
@@ -276,6 +302,11 @@ impl FalBackend {
         endpoint: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, InferenceError> {
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", endpoint = %endpoint, provider = "FA", action = "invoked", "CNS");
+
         let url = format!("https://fal.run/{}", endpoint);
         let resp = self
             .client
@@ -294,8 +325,12 @@ impl FalBackend {
                 endpoint, status, text
             )));
         }
-        serde_json::from_str(&text)
-            .map_err(|e| InferenceError::Json(format!("fal.ai JSON parse: {}", e)))
+        let result: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| InferenceError::Json(format!("fal.ai JSON parse: {}", e)))?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", endpoint = %endpoint, provider = "FA", action = "completed", latency_ms = %latency_ms, "CNS");
+        Ok(result)
     }
 
     /// Call a fal.ai queue endpoint (https://queue.fal.run/{endpoint}) with polling.
@@ -304,6 +339,11 @@ impl FalBackend {
         endpoint: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, InferenceError> {
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let queue_started = Instant::now();
+        info!(target: "cns.inference", endpoint = %endpoint, provider = "FA", action = "queue_submitted", "CNS");
+
         let submit_url = format!("https://queue.fal.run/{}", endpoint);
         let resp = self
             .client
@@ -340,6 +380,9 @@ impl FalBackend {
             endpoint, request_id
         );
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(120);
+
+        let polling_started = Instant::now();
+        info!(target: "cns.inference", endpoint = %endpoint, provider = "FA", request_id = %request_id, action = "queue_polling", "CNS");
 
         loop {
             if tokio::time::Instant::now() > deadline {
@@ -381,6 +424,10 @@ impl FalBackend {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         }
 
+        // P9: CNS span
+        let poll_latency_ms = polling_started.elapsed().as_millis();
+        info!(target: "cns.inference", endpoint = %endpoint, provider = "FA", request_id = %request_id, action = "queue_poll_completed", poll_latency_ms = %poll_latency_ms, "CNS");
+
         let result_url = format!("https://queue.fal.run/{}/requests/{}", endpoint, request_id);
         let resp = self
             .client
@@ -400,8 +447,12 @@ impl FalBackend {
                 endpoint, status, text
             )));
         }
-        serde_json::from_str(&text)
-            .map_err(|e| InferenceError::Json(format!("fal.ai result parse: {}", e)))
+        let result: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| InferenceError::Json(format!("fal.ai result parse: {}", e)))?;
+        // P9: CNS span
+        let total_latency_ms = queue_started.elapsed().as_millis();
+        info!(target: "cns.inference", endpoint = %endpoint, provider = "FA", request_id = %request_id, action = "queue_result", total_latency_ms = %total_latency_ms, "CNS");
+        Ok(result)
     }
 
     /// Generate an image from a text prompt.

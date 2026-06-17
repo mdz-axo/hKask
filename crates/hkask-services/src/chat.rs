@@ -389,7 +389,6 @@ impl ChatService {
             Some(registered) => registered.definition.agent_kind,
             None => {
                 return Err(ServiceError::AgentNotFound {
-                    source: None,
                     message: "Agent not registered — run `kask agent register` first.".to_string(),
                 });
             }

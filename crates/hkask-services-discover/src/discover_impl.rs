@@ -163,7 +163,6 @@ impl DiscoveryService {
                 output_path.display()
             );
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -173,7 +172,6 @@ impl DiscoveryService {
                 cache_dir.display()
             );
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -322,7 +320,6 @@ impl DiscoveryService {
         // Check after ALL sources have been tried
         if works.is_empty() && web_candidates.is_empty() && youtube_candidates.is_empty() {
             return Err(ServiceError::Embed {
-                source: None,
                 message: format!("No works found for '{}' across any source", req.author_name),
             });
         }
@@ -498,7 +495,6 @@ pub fn generate_corpus_yaml(
     let config_yaml = serde_yaml_neo::to_string(&config).map_err(|e| {
         let msg = format!("Failed to serialize corpus config: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -510,7 +506,6 @@ pub fn generate_corpus_yaml(
             config_path.display()
         );
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -581,14 +576,12 @@ fn augment_corpus_yaml(
     let existing_yaml = std::fs::read_to_string(&config_path).map_err(|e| {
         let msg = format!("Failed to read existing corpus.yaml for augmentation: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
     let mut config: CorpusConfig = serde_yaml_neo::from_str(&existing_yaml).map_err(|e| {
         let msg = format!("Failed to parse existing corpus.yaml for augmentation: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -689,7 +682,6 @@ fn augment_corpus_yaml(
     let config_yaml = serde_yaml_neo::to_string(&config).map_err(|e| {
         let msg = format!("Failed to serialize augmented config: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -699,7 +691,6 @@ fn augment_corpus_yaml(
             config_path.display()
         );
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -765,7 +756,6 @@ async fn extract_concepts(
     let template_src = std::fs::read_to_string(&template_path).map_err(|e| {
         let msg = format!("Failed to read extract-concepts template: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -779,7 +769,6 @@ async fn extract_concepts(
         .map_err(|e| {
             let msg = format!("Failed to parse template: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -787,7 +776,6 @@ async fn extract_concepts(
     let tmpl = env.get_template("extract-concepts").map_err(|e| {
         let msg = format!("Failed to load template: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -801,7 +789,6 @@ async fn extract_concepts(
         .map_err(|e| {
             let msg = format!("Failed to render template: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -821,7 +808,6 @@ async fn extract_concepts(
         .map_err(|e| {
             let msg = format!("Concept extraction inference failed: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -830,7 +816,6 @@ async fn extract_concepts(
     let parsed: serde_json::Value = serde_json::from_str(&result.text).map_err(|e| {
         let msg = format!("Failed to parse concept extraction response as JSON: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -882,7 +867,6 @@ async fn infer_methods(
     let template_src = std::fs::read_to_string(&template_path).map_err(|e| {
         let msg = format!("Failed to read infer-methods template: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -896,7 +880,6 @@ async fn infer_methods(
         .map_err(|e| {
             let msg = format!("Failed to parse template: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -904,7 +887,6 @@ async fn infer_methods(
     let tmpl = env.get_template("infer-methods").map_err(|e| {
         let msg = format!("Failed to load template: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -918,7 +900,6 @@ async fn infer_methods(
         .map_err(|e| {
             let msg = format!("Failed to render template: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -938,7 +919,6 @@ async fn infer_methods(
         .map_err(|e| {
             let msg = format!("Method inference failed: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -947,7 +927,6 @@ async fn infer_methods(
     let parsed: serde_json::Value = serde_json::from_str(&result.text).map_err(|e| {
         let msg = format!("Failed to parse method inference response as JSON: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -1017,7 +996,6 @@ async fn mcp_search(
     let result = mcp.invoke("web_search", input, token).await.map_err(|e| {
         let msg = format!("MCP web_search failed: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -1111,7 +1089,6 @@ async fn search_youtube_transcripts(
         .map_err(|e| {
             let msg = format!("HTTP client build failed: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -1132,7 +1109,6 @@ async fn search_youtube_transcripts(
         .map_err(|e| {
             let msg = format!("SerpAPI YouTube search failed: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -1244,7 +1220,6 @@ async fn fetch_youtube_transcript(
         .map_err(|e| {
             let msg = format!("SerpAPI transcript request failed: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -1253,7 +1228,6 @@ async fn fetch_youtube_transcript(
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(ServiceError::Embed {
-            source: None,
             message: format!("SerpAPI transcript error {status} for video '{video_id}'"),
         });
     }
@@ -1305,7 +1279,6 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
         .map_err(|e| {
             let msg = format!("HTTP client build failed: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?
@@ -1315,14 +1288,12 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
         .map_err(|e| {
             let msg = format!("HTTP request failed for '{url}': {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
 
     if !resp.status().is_success() {
         return Err(ServiceError::Embed {
-            source: None,
             message: format!("HTTP {} for '{url}'", resp.status()),
         });
     }
@@ -1337,7 +1308,6 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
     let bytes = resp.bytes().await.map_err(|e| {
         let msg = format!("Failed to read response body: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -1352,7 +1322,6 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
         std::fs::write(&tmp_path, &bytes).map_err(|e| {
             let msg = format!("Failed to write temp PDF: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -1399,7 +1368,6 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
 
     if text.split_whitespace().count() < 10 {
         return Err(ServiceError::Embed {
-            source: None,
             message: format!(
                 "Downloaded content from '{url}' is too short (likely paywalled or scanned PDF without OCR)"
             ),
@@ -1409,7 +1377,6 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
     std::fs::write(cache_path, &text).map_err(|e| {
         let msg = format!("Failed to write cache: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;

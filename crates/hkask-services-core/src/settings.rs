@@ -4,8 +4,8 @@
 //!
 //! Also provides `HkaskSettings` for model defaults shared across all servers.
 
-use serde::{Deserialize, Serialize};
 use hkask_types::InfrastructureError;
+use serde::{Deserialize, Serialize};
 
 /// Returns the canonical path to `~/.config/hkask/settings.json`,
 /// creating the parent directory if needed.
@@ -231,9 +231,8 @@ pub fn save_settings<T: serde::Serialize>(settings: &T) -> Result<(), crate::Ser
     let json = serde_json::to_string_pretty(settings).map_err(|e| {
         crate::ServiceError::Infra(InfrastructureError::Serialization(e.to_string()))
     })?;
-    std::fs::write(&path, json).map_err(|e| {
-        crate::ServiceError::Infra(InfrastructureError::Io(e.to_string()))
-    })
+    std::fs::write(&path, json)
+        .map_err(|e| crate::ServiceError::Infra(InfrastructureError::Io(e.to_string())))
 }
 
 #[cfg(test)]

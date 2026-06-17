@@ -29,7 +29,6 @@ fn io_or_die<T>(result: std::io::Result<T>, context: &str) -> T {
 fn validate_passphrase(passphrase: &str) -> Result<(), ServiceError> {
     if passphrase.len() < 8 || !passphrase.chars().all(|c| c.is_alphanumeric()) {
         return Err(ServiceError::InvalidPassphrase {
-            source: None,
             message: "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case"
                 .into(),
         });
@@ -38,7 +37,6 @@ fn validate_passphrase(passphrase: &str) -> Result<(), ServiceError> {
     let has_lower = passphrase.chars().any(|c| c.is_ascii_lowercase());
     if !has_upper || !has_lower {
         return Err(ServiceError::InvalidPassphrase {
-            source: None,
             message: "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case"
                 .into(),
         });
@@ -55,19 +53,16 @@ fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceErr
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
     {
         return Err(ServiceError::ValidationError {
-            source: None,
             message: "Invalid replicant name".into(),
         });
     }
     if request.first_name.is_empty() || request.last_name.is_empty() {
         return Err(ServiceError::ValidationError {
-            source: None,
             message: "Required name field is empty".into(),
         });
     }
     if request.email.is_empty() || !request.email.contains('@') {
         return Err(ServiceError::ValidationError {
-            source: None,
             message: "Invalid contact information format".into(),
         });
     }
@@ -75,7 +70,6 @@ fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceErr
         && !phone.starts_with('+')
     {
         return Err(ServiceError::ValidationError {
-            source: None,
             message: "Invalid contact information format".into(),
         });
     }
@@ -132,7 +126,6 @@ pub fn login_with_passphrase(
         .expect("CLI operation")
         .login(replicant_name, &passphrase)
         .map_err(|_| ServiceError::LoginFailed {
-            source: None,
             message: "Invalid credentials".into(),
         })
 }
@@ -149,7 +142,6 @@ pub fn get_replicant(
         .expect("CLI operation")
         .get_replicant(replicant_name)?
         .ok_or_else(|| ServiceError::UserNotFound {
-            source: None,
             message: format!("Replicant '{}'", replicant_name),
         })
 }
@@ -188,7 +180,6 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
         .expect("CLI operation")
         .get_session(session_id)?
         .ok_or_else(|| ServiceError::UserNotFound {
-            source: None,
             message: format!("Session '{}'", session_id),
         })?;
     store
@@ -306,7 +297,6 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), Service
         .expect("CLI operation")
         .get_replicant(replicant_name)?
         .ok_or_else(|| ServiceError::UserNotFound {
-            source: None,
             message: format!("Replicant '{}'", replicant_name),
         })?;
     println!("Replicant: {}", identity.replicant_name);
@@ -354,7 +344,6 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
         .expect("CLI operation")
         .get_session(session_id)?
         .ok_or_else(|| ServiceError::UserNotFound {
-            source: None,
             message: format!("Session '{}'", session_id),
         })?;
     store

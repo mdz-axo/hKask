@@ -1188,12 +1188,15 @@ impl AdapterPort for AdapterRouter {
                     attempted: EndpointPhase::Draining,
                 }
             })?;
-        }
+	    }
 
-        // Call provider teardown
-        record.backend.teardown(&record.handle.endpoint_url).await?;
+	    // P9: CNS span — endpoint draining
+	    tracing::info!(target: "cns.endpoint", operation = "draining", endpoint_id = %endpoint_id, "CNS");
 
-        // Transition to Terminated
+	    // Call provider teardown
+	    record.backend.teardown(&record.handle.endpoint_url).await?;
+
+	    // Transition to Terminated
         {
             let mut lc = record
                 .handle
@@ -1206,9 +1209,12 @@ impl AdapterPort for AdapterRouter {
                     attempted: EndpointPhase::Terminated,
                 }
             })?;
-        }
+	    }
 
-        // Remove from active endpoints
+	    // P9: CNS span — endpoint terminated
+	    tracing::info!(target: "cns.endpoint", operation = "terminated", endpoint_id = %endpoint_id, "CNS");
+
+	    // Remove from active endpoints
         {
             let mut endpoints = self
                 .endpoints

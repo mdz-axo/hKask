@@ -67,7 +67,6 @@ impl PodService {
         let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| {
             let msg = format!("Invalid persona YAML: {e}");
             ServiceError::ValidationError {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -148,7 +147,6 @@ impl PodService {
         Uuid::parse_str(id)
             .map(PodID::from_uuid)
             .map_err(|_| ServiceError::PodNotFound {
-                source: None,
                 message: format!("Invalid pod ID '{}'", id),
             })
     }

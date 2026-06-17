@@ -85,7 +85,6 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ServiceError> {
     Uuid::parse_str(id).map(PodID::from_uuid).map_err(|e| {
         let msg = format!("Invalid pod ID: {e}");
         ServiceError::ValidationError {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })

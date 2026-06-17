@@ -167,7 +167,6 @@ impl SpecService {
             Some(cat_str) => {
                 let cat = SpecCategory::parse_str(cat_str).ok_or_else(|| {
                     ServiceError::ValidationError {
-                        source: None,
                         message: format!(
                             "Unknown category '{}': valid: domain, composition, trust, lifecycle, curation",
                             cat_str
@@ -327,7 +326,6 @@ fn parse_spec_id(s: &str) -> Result<SpecId, ServiceError> {
     Uuid::parse_str(s)
         .map(SpecId)
         .map_err(|_| ServiceError::ValidationError {
-            source: None,
             message: format!("Invalid spec ID '{}'", s),
         })
 }

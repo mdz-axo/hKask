@@ -100,7 +100,6 @@ impl CuratorService {
             .resolve(id, resolved_by)
             .map_err(|e| match e {
                 hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
-                    source: None,
                     message: id,
                 },
                 other => ServiceError::Escalation(other),
@@ -138,7 +137,6 @@ impl CuratorService {
             .dismiss(id, dismissed_by)
             .map_err(|e| match e {
                 hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
-                    source: None,
                     message: id,
                 },
                 other => ServiceError::Escalation(other),

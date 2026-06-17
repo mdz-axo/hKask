@@ -82,7 +82,6 @@ impl ArchivalService {
             .map_err(|e| {
                 let msg = format!("Failed to archive registry: {}", e);
                 ServiceError::Archival {
-                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })?;
@@ -130,7 +129,6 @@ impl ArchivalService {
         let json_val = api_get(&client, "github", &url).await.map_err(|e| {
             let msg = format!("Failed to fetch file: {}", e);
             ServiceError::Archival {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -139,14 +137,12 @@ impl ArchivalService {
             .get("content")
             .and_then(|c| c.as_str())
             .ok_or_else(|| ServiceError::Archival {
-                source: None,
                 message: "No content field in GitHub response".into(),
             })?;
 
         let decoded = BASE64_STANDARD.decode(encoded.trim()).map_err(|e| {
             let msg = format!("Failed to decode base64 content: {}", e);
             ServiceError::Archival {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -154,7 +150,6 @@ impl ArchivalService {
         String::from_utf8(decoded).map_err(|e| {
             let msg = format!("Content is not valid UTF-8: {}", e);
             ServiceError::Archival {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -182,13 +177,11 @@ impl ArchivalService {
         let json_val = api_get(&client, "github", &url).await.map_err(|e| {
             let msg = format!("Failed to list archives: {}", e);
             ServiceError::Archival {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
 
         let commits = json_val.as_array().ok_or_else(|| ServiceError::Archival {
-            source: None,
             message: "Expected array of commits".into(),
         })?;
 
@@ -244,7 +237,6 @@ impl ArchivalService {
             .map_err(|e| {
                 let msg = format!("Failed to create snapshot: {}", e);
                 ServiceError::Archival {
-                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })?;
@@ -270,7 +262,6 @@ fn build_github_client() -> Result<reqwest::Client, ServiceError> {
     let token = resolve_credential("HKASK_GITHUB_TOKEN").map_err(|e| {
         let msg = format!("GitHub token not available: {}", e);
         ServiceError::Archival {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -301,7 +292,6 @@ fn build_github_client() -> Result<reqwest::Client, ServiceError> {
         .map_err(|e| {
             let msg = format!("Failed to build HTTP client: {}", e);
             ServiceError::Archival {
-                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -325,7 +315,6 @@ fn read_local_registry(store: &AgentRegistryStore) -> Result<String, ServiceErro
     let agents = store.list().map_err(|e| {
         let msg = format!("Failed to list agents: {}", e);
         ServiceError::Archival {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -333,7 +322,6 @@ fn read_local_registry(store: &AgentRegistryStore) -> Result<String, ServiceErro
     serde_json::to_string_pretty(&agents).map_err(|e| {
         let msg = format!("Failed to serialize registry: {}", e);
         ServiceError::Archival {
-            source: Some(Box::new(e)),
             message: msg,
         }
     })

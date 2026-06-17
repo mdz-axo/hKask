@@ -185,6 +185,8 @@ impl Default for Keychain {
 /// post: tries derivation → env → keychain in order
 /// post: returns Ok(Zeroizing<Vec<u8>>) on first success
 /// post: returns Err if all three sources fail
+///
+// REQ: P9-CNS-KS-001 pre: operation valid, post: cns.keystore span emitted
 pub fn resolve_secret_chain(
     derivation_context: (&str, &str),
     env_var: &str,

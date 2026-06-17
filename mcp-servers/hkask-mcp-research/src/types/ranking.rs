@@ -71,7 +71,6 @@ mod tests {
             title: format!("Title {}", url),
             url: url.to_string(),
             description: None,
-            source: None,
             published: None,
             rrf_score: score,
             provider_count: 1,

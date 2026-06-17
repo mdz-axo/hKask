@@ -127,7 +127,6 @@ impl From<uuid::Error> for ServiceErrorResponse {
     fn from(e: uuid::Error) -> Self {
         let msg = e.to_string();
         ServiceErrorResponse(hkask_services::ServiceError::InvalidWebID {
-            source: Some(e),
             message: msg,
         })
     }
@@ -155,7 +154,6 @@ impl From<hkask_services_backup::BackupError> for ServiceErrorResponse {
     fn from(e: hkask_services_backup::BackupError) -> Self {
         let msg = e.to_string();
         ServiceErrorResponse(hkask_services::ServiceError::Backup {
-            source: Some(Box::new(e)),
             message: msg,
         })
     }

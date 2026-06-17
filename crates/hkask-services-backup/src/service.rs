@@ -67,10 +67,8 @@ pub enum BackupError {
 
 impl From<BackupError> for hkask_services_core::ServiceError {
     fn from(e: BackupError) -> Self {
-        let msg = e.to_string();
         hkask_services_core::ServiceError::Backup {
-            source: Some(Box::new(e)),
-            message: msg,
+            message: e.to_string(),
         }
     }
 }
