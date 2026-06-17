@@ -152,7 +152,6 @@ impl SeamWatcher {
 
         // 2. Fall back to compile-time embedded JSON
         if EMBEDDED_INVENTORY.trim().is_empty() {
-            eprintln!("DEBUG load: embedded is empty");
             tracing::info!(
                 target: "cns.architecture.seam",
                 "No embedded seam inventory available — seam watching disabled (non-fatal)"
@@ -162,7 +161,6 @@ impl SeamWatcher {
 
         match serde_json::from_str::<SeamInventory>(EMBEDDED_INVENTORY) {
             Ok(inv) => {
-                eprintln!("DEBUG load: parse succeeded, crates={}", inv.crates.len());
                 tracing::info!(
                     target: "cns.architecture.seam",
                     crates = %inv.crates.len(),
@@ -177,7 +175,6 @@ impl SeamWatcher {
                 })
             }
             Err(e) => {
-                eprintln!("DEBUG load: embedded parse failed: {}", e);
                 tracing::warn!(
                     target: "cns.architecture.seam",
                     error = %e,

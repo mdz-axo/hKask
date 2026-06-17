@@ -111,7 +111,7 @@ async fn read_responses<R: AsyncRead + Unpin>(
     results
 }
 
-// REQ: acp-integration-001 — initialize handshake returns agent info
+// REQ: acp-integration-001
 #[tokio::test]
 async fn test_initialize() {
     let inference: Arc<dyn InferencePort> = Arc::new(MockInferencePort::new("test", vec![]));
@@ -147,7 +147,7 @@ async fn test_initialize() {
     handle.abort();
 }
 
-// REQ: acp-integration-002 — session new + prompt streaming returns chunks
+// REQ: acp-integration-002
 #[tokio::test]
 async fn test_session_new_and_prompt_streaming() {
     let chunks = vec![
@@ -215,7 +215,7 @@ async fn test_session_new_and_prompt_streaming() {
     handle.abort();
 }
 
-// REQ: acp-integration-003 — empty prompt returns end_turn immediately
+// REQ: acp-integration-003
 #[tokio::test]
 async fn test_empty_prompt_returns_end_turn() {
     let inference: Arc<dyn InferencePort> = Arc::new(MockInferencePort::new("test", vec![]));
@@ -254,7 +254,7 @@ async fn test_empty_prompt_returns_end_turn() {
     handle.abort();
 }
 
-// REQ: acp-integration-004 — unknown method returns JSON-RPC error
+// REQ: acp-integration-004
 #[tokio::test]
 async fn test_unknown_method_returns_error() {
     let inference: Arc<dyn InferencePort> = Arc::new(MockInferencePort::new("test", vec![]));

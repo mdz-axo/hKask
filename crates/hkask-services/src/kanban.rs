@@ -49,6 +49,8 @@ impl KanbanService {
     /// Attach a PodManager for live spawn capability.
     ///
     /// REQ: KAN-SVC-001b
+    /// pre:  pm is a valid Arc<PodManager>
+    /// post: returns Self with pod_manager set to Some(pm)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::PodManager>) -> Self {
         self.pod_manager = Some(pm);
@@ -146,6 +148,7 @@ impl KanbanService {
     /// List all board templates.
     ///
     /// REQ: KAN-SVC-002c
+    /// post: returns Vec of known template names
     pub fn list_templates() -> Vec<String> {
         vec![
             "software-project".into(),
@@ -620,6 +623,8 @@ impl KanbanService {
     /// Decompose a project description into kanban tasks.
     ///
     /// REQ: KAN-SVC-020
+    /// pre:  board_id is valid, project_description is non-empty
+    /// post:      /// post: returns Ok(decomposition_result) or Err(KanbanError)
     pub fn decompose_prompt(
         &self,
         board_id: BoardId,
@@ -799,6 +804,8 @@ impl KanbanService {
     /// Spawn a sub-replicant to execute a task.
     ///
     /// REQ: KAN-SVC-021
+    /// pre:  board_id is valid, task has required fields
+    /// post:      /// post: returns Ok(Task) or Err(KanbanError)
     pub fn spawn_task(
         &self,
         task_id: TaskId,
@@ -925,6 +932,8 @@ impl KanbanService {
     /// List all comments on a task.
     ///
     /// REQ: KAN-SVC-031
+    /// pre:  task_id is a valid TaskId
+    /// post:      /// post: returns Ok(Vec<Comment>) or Err(KanbanError)
     pub fn task_comments(&self, task_id: TaskId) -> Result<Vec<Comment>, KanbanError> {
         let task = self
             .task_get(task_id)?
@@ -954,6 +963,8 @@ impl KanbanService {
     /// Add a phase to a board.
     ///
     /// REQ: KAN-SVC-033
+    /// pre:  board_id is valid, name is non-empty
+    /// post:      /// post: returns Ok(Phase) or Err(KanbanError)
     pub fn board_add_phase(
         &self,
         board_id: BoardId,
@@ -972,6 +983,8 @@ impl KanbanService {
     /// Set a task's phase.
     ///
     /// REQ: KAN-SVC-034
+    /// pre:  task_id and phase_id are valid
+    /// post:      /// post: returns Ok(updated Task) or Err(KanbanError)
     pub fn task_set_phase(&self, task_id: TaskId, phase_id: PhaseId) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -985,6 +998,8 @@ impl KanbanService {
     /// List tasks in a specific phase.
     ///
     /// REQ: KAN-SVC-035
+    /// pre:  board_id and phase_id are valid
+    /// post:      /// post: returns Ok(Vec<Task>) or Err(KanbanError)
     pub fn tasks_by_phase(
         &self,
         board_id: BoardId,

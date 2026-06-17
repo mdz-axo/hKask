@@ -44,6 +44,8 @@ fn get_named_value<'a>(pairs: &'a [MetaNameValue], name: &str) -> Option<&'a Met
 }
 
 /// REQ: P9-rsolidity-macros-ocap
+    /// pre:  arguments are valid
+    /// post: returns expected result
 /// Injects a capability check at the start of the annotated method. The
 /// receiver type must implement `::hkask_rsolidity::Ocap`.
 #[proc_macro_attribute]
@@ -106,6 +108,8 @@ pub fn ocap(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// REQ: P9-rsolidity-macros-contract
+    /// pre:  arguments are valid
+    /// post: returns expected result
 /// Compile-time contract metadata. Validates the contract ID and principle
 /// format, then re-emits the annotated item unchanged so the existing source
 /// REQ comments remain the authoritative audit signal.

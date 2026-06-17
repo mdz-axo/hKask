@@ -471,7 +471,7 @@ fn extract_function_name(line: &str) -> String {
 mod tests {
     use super::*;
 
-    // REQ: harness-trace-008 — extract_req_tag parses // REQ: and /// REQ: anchors
+    // REQ: harness-trace-008
     #[test]
     fn extract_req_tag_from_line_comment() {
         let tag = extract_req_tag("    // REQ: P9-cns-energy-budget-test");
@@ -490,7 +490,7 @@ mod tests {
         assert_eq!(extract_req_tag(""), None);
     }
 
-    // REQ: harness-trace-009 — extract_count parses test count from cargo output
+    // REQ: harness-trace-009
     #[test]
     fn extract_count_parses_cargo_output() {
         let output = "running 47 tests\ntest result: ok. 47 passed; 0 failed";
@@ -498,7 +498,7 @@ mod tests {
         assert_eq!(extract_count("no match", "running ", " test"), 0);
     }
 
-    // REQ: harness-trace-010 — ContractTestResult Debug format includes all fields
+    // REQ: harness-trace-010
     #[test]
     fn contract_test_result_debug_format() {
         let result = ContractTestResult {

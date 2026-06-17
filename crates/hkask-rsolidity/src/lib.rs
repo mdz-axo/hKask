@@ -20,6 +20,8 @@ pub trait Ocap {
 }
 
 /// REQ: P9-rsolidity-emit-helper
+    /// pre:  arguments are valid
+    /// post: returns expected result
 /// Private helper used by the `emit!` macro.
 #[doc(hidden)]
 pub fn __private_emit<S, V, P, T>(span: S, verb: V, phase: P, payload: T)

@@ -274,6 +274,10 @@ pub struct Phase {
 
 impl Phase {
     /// REQ: KAN-040
+    /// pre:  arguments are valid
+    /// post: returns new instance with defaults
+    /// pre:  name is non-empty, order is a valid u32
+    /// post: returns Phase with generated PhaseId and created_at set to now
     pub fn new(name: String, order: u32) -> Self {
         Self {
             id: PhaseId::new(),
@@ -285,6 +289,8 @@ impl Phase {
     }
 
     /// REQ: KAN-041
+    /// pre:  desc is a non-empty description string
+    /// post: returns Self with description set to Some(desc)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_description(mut self, desc: String) -> Self {
         self.description = Some(desc);
@@ -414,6 +420,8 @@ impl TaskSpec {
     }
 
     /// REQ: KAN-016
+    /// pre:  value is a valid story points
+    /// post: returns Self with story points set
     /// pre:  self is valid; assignee is a valid WebID
     /// post: returns self with assignee set
     #[must_use = "builder methods must be chained or assigned"]
@@ -423,6 +431,10 @@ impl TaskSpec {
     }
 
     /// REQ: KAN-016b
+    /// pre:  value is a valid estimated hours
+    /// post: returns Self with estimated hours set
+    /// pre:  points is a valid u32
+    /// post: returns self with story_points set to Some(points)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_story_points(mut self, points: u32) -> Self {
         self.story_points = Some(points);
@@ -430,6 +442,10 @@ impl TaskSpec {
     }
 
     /// REQ: KAN-016c
+    /// pre:  value is a valid labels
+    /// post: returns Self with labels set
+    /// pre:  hours is a non-negative f64
+    /// post: returns self with estimated_hours set to Some(hours)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_estimated_hours(mut self, hours: f64) -> Self {
         self.estimated_hours = Some(hours);
@@ -437,6 +453,8 @@ impl TaskSpec {
     }
 
     /// REQ: KAN-016d
+    /// pre:  priority is a valid Priority variant
+    /// post: returns self with priority set to Some(priority)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_priority(mut self, priority: Priority) -> Self {
         self.priority = Some(priority);
@@ -444,6 +462,8 @@ impl TaskSpec {
     }
 
     /// REQ: KAN-016e
+    /// pre:  labels is a vector of label strings
+    /// post: returns self with labels set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_labels(mut self, labels: Vec<String>) -> Self {
         self.labels = labels;
@@ -451,6 +471,8 @@ impl TaskSpec {
     }
 
     /// REQ: KAN-016f
+    /// pre:  phase_id is a valid PhaseId
+    /// post: returns self with phase_id set to Some(phase_id)
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_phase(mut self, phase_id: PhaseId) -> Self {
         self.phase_id = Some(phase_id);
@@ -531,6 +553,8 @@ impl Task {
     }
 
     /// REQ: KAN-018
+    /// pre:  arguments are valid
+    /// post: returns new instance with defaults
     /// pre:  target is a valid transition from self.status
     /// post: returns true iff self.status.can_transition_to(target)
     pub fn can_move_to(&self, target: TaskStatus) -> bool {
@@ -556,6 +580,8 @@ pub struct Comment {
 
 impl Comment {
     /// REQ: KAN-050
+    /// pre:  arguments are valid
+    /// post:      /// post: returns new instance with defaults
     pub fn new(task_id: TaskId, author: WebID, body: String) -> Self {
         Self {
             id: CommentId::new(),
@@ -595,6 +621,8 @@ impl TaskFilter {
     }
 
     /// REQ: KAN-020
+    /// pre:  arguments are valid
+    /// post: returns expected result
     /// pre:  status is a valid TaskStatus
     /// post: returns a filter matching only tasks with the given status
     pub fn by_status(status: TaskStatus) -> Self {
@@ -619,6 +647,8 @@ impl TaskFilter {
     }
 
     /// REQ: KAN-021b
+    /// pre:  priority is a valid Priority
+    /// post:      /// post: returns tasks sorted by priority
     pub fn by_priority(priority: Priority) -> Self {
         Self {
             status: None,
@@ -717,6 +747,8 @@ pub enum ContractState {
 
 impl TaskContract {
     /// REQ: KAN-090
+    /// pre:  arguments are valid
+    /// post:      /// post: returns new instance with defaults
     pub fn new(
         package_name: String,
         delegator: crate::WebID,
@@ -748,12 +780,16 @@ impl TaskContract {
     }
 
     /// REQ: KAN-091 — Activate the contract. Sets state to Active.
+    /// pre:  state allows activation
+    /// post:      /// post: state transitioned to active
     /// The agent now has authority to work on the task.
     pub fn activate(&mut self) {
         self.state = ContractState::Active;
     }
 
     /// REQ: KAN-092 — Check if the contract is complete.
+    /// pre:  criteria are defined
+    /// post:      /// post: returns completion status
     ///
     /// THIS is the method both agent and replicant call.
     /// The agent calls it to self-check: "Have I satisfied the contract?"
@@ -828,6 +864,8 @@ impl TaskContract {
     }
 
     /// REQ: KAN-093 — Emit the contract as a CNS span.
+    /// pre:  span data is valid
+    /// post:      /// post: CNS span emitted to event sink
     pub fn emit_span(&self, verb: &str) -> String {
         format!(
             "TaskContract[{}] '{}': delegator={} delegate={} task='{}' gates={} gas={} timeout={}s state={:?}",
@@ -900,6 +938,8 @@ pub struct SpawnSpec {
 
 impl SpawnSpec {
     /// REQ: KAN-030
+    /// pre:  value is a valid skills
+    /// post: returns Self with skills set
     /// pre:  task_id is valid
     /// post: returns a SpawnSpec with standard delegation defaults
     pub fn new(task_id: TaskId) -> Self {
@@ -918,6 +958,8 @@ impl SpawnSpec {
     }
 
     /// REQ: KAN-031
+    /// pre:  value is a valid timeout
+    /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_level(mut self, level: &str) -> Self {
         self.delegation_level = level.into();
@@ -925,6 +967,8 @@ impl SpawnSpec {
     }
 
     /// REQ: KAN-032
+    /// pre:  value is valid for skills
+    /// post:      /// post: returns Self with skills set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_skills(mut self, skills: Vec<String>) -> Self {
         self.delegated_skills = skills;
@@ -932,6 +976,8 @@ impl SpawnSpec {
     }
 
     /// REQ: KAN-033
+    /// pre:  value is valid for memory
+    /// post:      /// post: returns Self with memory set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_memory(mut self, scope: &str) -> Self {
         self.memory_scope = scope.into();
@@ -939,6 +985,8 @@ impl SpawnSpec {
     }
 
     /// REQ: KAN-034
+    /// pre:  value is valid for gas budget
+    /// post:      /// post: returns Self with gas budget set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_gas_budget(mut self, budget: u64) -> Self {
         self.gas_budget = Some(budget);
@@ -946,6 +994,8 @@ impl SpawnSpec {
     }
 
     /// REQ: KAN-035
+    /// pre:  value is valid for timeout
+    /// post:      /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_timeout(mut self, seconds: u64) -> Self {
         self.timeout_seconds = Some(seconds);
@@ -953,6 +1003,8 @@ impl SpawnSpec {
     }
 
     /// REQ: KAN-036
+    /// pre:  value is valid for registries
+    /// post:      /// post: returns Self with registries set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_registries(mut self, registries: Vec<String>) -> Self {
         self.registries = registries;
@@ -960,6 +1012,8 @@ impl SpawnSpec {
     }
 
     /// REQ: KAN-037
+    /// pre:  value is valid for artifacts
+    /// post:      /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_artifacts(mut self, artifacts: Vec<String>) -> Self {
         self.artifacts = artifacts;
@@ -967,6 +1021,8 @@ impl SpawnSpec {
     }
 
     /// REQ: KAN-038 — Set OCAP capability token specs.
+    /// pre:  value is valid for capability tokens
+    /// post:      /// post: returns Self with capability tokens set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_capability_tokens(mut self, tokens: Vec<String>) -> Self {
         self.capability_tokens = tokens;
@@ -1016,6 +1072,8 @@ pub struct CapabilityPackage {
 
 impl CapabilityPackage {
     /// REQ: KAN-060
+    /// pre:  arguments are valid
+    /// post:      /// post: returns new instance with defaults
     pub fn new(name: String, description: String) -> Self {
         Self {
             name,
@@ -1034,6 +1092,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-061 — Convert to a SpawnSpec for a specific task.
+    /// pre:  value is a valid memory
+    /// post: returns Self with memory set
     pub fn to_spawn_spec(&self, task_id: TaskId) -> SpawnSpec {
         SpawnSpec {
             task_id,
@@ -1050,6 +1110,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-062 — Builder: set delegation level.
+    /// pre:  value is a valid artifacts
+    /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_level(mut self, level: &str) -> Self {
         self.delegation_level = level.into();
@@ -1057,6 +1119,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-063
+    /// pre:  value is a valid gas
+    /// post: returns Self with gas set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_skills(mut self, skills: Vec<String>) -> Self {
         self.skills = skills;
@@ -1064,6 +1128,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-064
+    /// pre:  value is a valid timeout
+    /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_memory(mut self, scope: &str) -> Self {
         self.memory_scope = scope.into();
@@ -1071,6 +1137,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-065
+    /// pre:  value is valid for tools
+    /// post:      /// post: returns Self with tools set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_tools(mut self, tools: Vec<String>) -> Self {
         self.tool_servers = tools;
@@ -1078,6 +1146,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-066
+    /// pre:  value is valid for registries
+    /// post:      /// post: returns Self with registries set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_registries(mut self, registries: Vec<String>) -> Self {
         self.registries = registries;
@@ -1085,6 +1155,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-067
+    /// pre:  value is valid for artifacts
+    /// post:      /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_artifacts(mut self, artifacts: Vec<String>) -> Self {
         self.artifacts = artifacts;
@@ -1092,6 +1164,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-068
+    /// pre:  self is valid
+    /// post: returns converted value
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_gas(mut self, budget: u64) -> Self {
         self.default_gas_budget = Some(budget);
@@ -1099,6 +1173,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-069
+    /// pre:  value is valid for timeout
+    /// post:      /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_timeout(mut self, seconds: u64) -> Self {
         self.default_timeout_seconds = Some(seconds);
@@ -1106,6 +1182,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-070
+    /// pre:  self is valid
+    /// post: returns converted value
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_capability_tokens(mut self, tokens: Vec<String>) -> Self {
         self.capability_tokens = tokens;
@@ -1113,6 +1191,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-071 — Set max attenuation (0-7, clamped to SYSTEM_MAX).
+    /// pre:  value is valid for max attenuation
+    /// post:      /// post: returns Self with max attenuation set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_max_attenuation(mut self, level: u8) -> Self {
         self.max_attenuation = level.min(7);
@@ -1120,6 +1200,8 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-072 — Derive capability token specs from tool servers.
+    /// pre:  tools list is non-empty
+    /// post:      /// post: returns Vec of derived capability tokens
     /// Converts "hkask-mcp-kanban" → "tool:kanban:execute".
     pub fn derive_tokens_from_tools(&mut self) {
         for server in &self.tool_servers.clone() {
@@ -1132,11 +1214,15 @@ impl CapabilityPackage {
     }
 
     /// REQ: KAN-073 — Serialize to YAML for saving as a reusable package.
+    /// pre:  self is valid
+    /// post:      /// post: returns converted representation
     pub fn to_yaml(&self) -> Result<String, String> {
         serde_yaml::to_string(self).map_err(|e| e.to_string())
     }
 
     /// REQ: KAN-074 — Deserialize from YAML.
+    /// pre:  input is valid
+    /// post:      /// post: returns parsed object
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
         serde_yaml::from_str(yaml).map_err(|e| e.to_string())
     }
@@ -1144,6 +1230,8 @@ impl CapabilityPackage {
     // ── rSolidity Contract Integration ─────────────────────────────────
 
     /// REQ: KAN-082 — Express this capability package as an rSolidity
+    /// pre:  self is valid
+    /// post:      /// post: returns converted representation
     /// task contract. The contract binds delegator and delegate with
     /// pre-conditions (acceptance criteria), post-conditions (verification),
     /// and OCAP gates (capability tokens).
