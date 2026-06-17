@@ -19,7 +19,7 @@ fn triple_insert_and_query() {
     let db = TestDb::new();
     let store = TripleStore::new(db.conn_arc());
 
-    let triple = test_triple("entity:test", "attr:name", json!("value"));
+    let triple = test_triple("entity:test", "attr:name", json!("value"), None);
     store.insert(&triple).expect("insert should succeed");
 
     let results = store
@@ -36,8 +36,8 @@ fn triple_query_by_attribute() {
     let db = TestDb::new();
     let store = TripleStore::new(db.conn_arc());
 
-    let t1 = test_triple("entity:a", "attr:shared", json!("v1"));
-    let t2 = test_triple("entity:b", "attr:shared", json!("v2"));
+    let t1 = test_triple("entity:a", "attr:shared", json!("v1"), None);
+    let t2 = test_triple("entity:b", "attr:shared", json!("v2"), None);
     store.insert(&t1).expect("insert t1");
     store.insert(&t2).expect("insert t2");
 
@@ -55,9 +55,15 @@ fn triple_count_is_accurate() {
 
     assert_eq!(store.count_semantic().unwrap(), 0);
 
-    store.insert(&test_triple("e1", "a1", json!("v1"))).unwrap();
-    store.insert(&test_triple("e2", "a2", json!("v2"))).unwrap();
-    store.insert(&test_triple("e3", "a3", json!("v3"))).unwrap();
+    store
+        .insert(&test_triple("e1", "a1", json!("v1"), None))
+        .unwrap();
+    store
+        .insert(&test_triple("e2", "a2", json!("v2"), None))
+        .unwrap();
+    store
+        .insert(&test_triple("e3", "a3", json!("v3"), None))
+        .unwrap();
 
     assert_eq!(store.count_semantic().unwrap(), 3);
 }
@@ -68,7 +74,7 @@ fn triple_delete_removes_correctly() {
     let db = TestDb::new();
     let store = TripleStore::new(db.conn_arc());
 
-    let triple = test_triple("entity:del", "attr:test", json!("value"));
+    let triple = test_triple("entity:del", "attr:test", json!("value"), None);
     store.insert(&triple).unwrap();
     assert_eq!(store.count_semantic().unwrap(), 1);
 
@@ -85,12 +91,8 @@ fn triple_owner_webid_is_preserved() {
     let store = TripleStore::new(db.conn_arc());
 
     let owner = TestWebId::alice();
-    let triple = hkask_test_harness::test_triple_with_owner(
-        "entity:owned",
-        "attr:owner",
-        json!("data"),
-        owner,
-    );
+    let triple =
+        hkask_test_harness::test_triple("entity:owned", "attr:owner", json!("data"), Some(owner));
     store.insert(&triple).unwrap();
 
     let results = store.query_by_entity("entity:owned").unwrap();

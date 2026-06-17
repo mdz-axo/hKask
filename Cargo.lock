@@ -4503,7 +4503,6 @@ dependencies = [
  "chrono",
  "hkask-storage",
  "hkask-types",
- "parking_lot",
  "proptest",
  "rand 0.9.4",
  "rusqlite",

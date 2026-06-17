@@ -225,6 +225,9 @@ jobs:
       - name: No visual UI infrastructure
         run: bash scripts/check-visual-ui.sh
 
+      - name: Schema drift check (harness vs storage)
+        run: bash scripts/check-schema-drift.sh
+
       - name: Contract coverage trend (Testing Discipline §9.2)
         run: |
           pub_fns=$(grep -rn "pub fn\|pub async fn" crates/ mcp-servers/ --include="*.rs" | grep -v "cfg(test)" | grep -v "/tests/" | wc -l)

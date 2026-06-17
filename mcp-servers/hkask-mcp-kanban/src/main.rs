@@ -1,8 +1,7 @@
 //! hkask-mcp-kanban — Kanban board coordination MCP server.
 //!
 //! Provides 7 MCP tools for kanban board and task management.
-//! All tools carry the caller's WebID for P12 compliance.
-//! Assignment requires consent proof (P1).
+//! All tools carry the caller\'s WebID for P12 compliance.
 
 pub mod types;
 
@@ -17,42 +16,44 @@ use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use types::*;
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
 fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
     match serde_json::to_value(resp) {
         Ok(val) => span.ok_json(val),
-        Err(e) => {
-            span.internal_error(serde_json::json!({"error": format!("serialization failed: {e}")}))
-        }
+        Err(e) => span.internal_error(serde_json::json!({"error": format!("serialization failed: {e}")})),
     }
 }
 
-pub struct KanbanServer {
-    service: KanbanService,
-    webid: WebID,
+fn err(span: ToolSpanGuard, msg: &str) -> String {
+    span.internal_error(serde_json::json!({"error": msg}))
 }
+
+fn parse_id<T: std::str::FromStr>(span: &ToolSpanGuard, s: &str, label: &str) -> Result<T, String>
+where T::Err: std::fmt::Display {
+    s.parse::<T>().map_err(|e| {
+        let _ = span; // span consumed by caller on error
+        format!("invalid {}: {}", label, e)
+    })
+}
+
+// ── Server ──────────────────────────────────────────────────────────────────
+
+pub struct KanbanServer { service: KanbanService, webid: WebID }
 
 impl KanbanServer {
     pub fn new(webid: WebID) -> Self {
-        let conn = Arc::new(Mutex::new(
-            Connection::open_in_memory().expect("in-memory DB"),
-        ));
+        let conn = Arc::new(Mutex::new(Connection::open_in_memory().expect("in-memory DB")));
         let store = TripleStore::new(conn);
-        store
-            .lock_conn()
-            .unwrap()
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS triples (
-                    id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
-                    value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
-                    confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
-                    owner_webid TEXT NOT NULL
-                )",
-            )
-            .unwrap();
-        Self {
-            service: KanbanService::new(store),
-            webid,
-        }
+        store.lock_conn().unwrap().execute_batch(
+            "CREATE TABLE IF NOT EXISTS triples (
+                id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+                value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+                confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
+                owner_webid TEXT NOT NULL
+            )",
+        ).unwrap();
+        Self { service: KanbanService::new(store), webid }
     }
 }
 
@@ -61,288 +62,164 @@ impl KanbanServer {
     #[tool(description = "Create a new kanban board with optional custom columns")]
     async fn kanban_board_create(
         &self,
-        Parameters(BoardCreateRequest {
-            name,
-            columns,
-            capability_token: _cap,
-        }): Parameters<BoardCreateRequest>,
+        Parameters(BoardCreateRequest { name, columns, capability_token: _cap }): Parameters<BoardCreateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("kanban_board_create", &self.webid);
-
         let column_defs = match columns {
-            Some(inputs) => {
-                let mut cols = Vec::new();
-                for (i, input) in inputs.into_iter().enumerate() {
-                    let status = match hkask_types::TaskStatus::parse_str(&input.status) {
-                        Some(s) => s,
-                        None => return span.internal_error(serde_json::json!({"error": format!("invalid status: {}", input.status)})),
-                    };
-                    cols.push(hkask_types::ColumnDef::new(input.name, status, i as u32));
+            Some(inputs) => inputs.into_iter().enumerate().map(|(i, input)| {
+                match hkask_types::TaskStatus::parse_str(&input.status) {
+                    Some(s) => Ok(hkask_types::ColumnDef::new(input.name, s, i as u32)),
+                    None => Err(format!("invalid status: {}", input.status)),
                 }
-                cols
-            }
-            None => default_columns(),
+            }).collect::<Result<Vec<_>, _>>(),
+            None => Ok(default_columns()),
         };
-
-        match self.service.board_create(self.webid, &name, &column_defs) {
-            Ok(board) => {
-                let response = BoardCreateResponse {
-                    board_id: board.id.to_string(),
-                    name: board.name,
-                    columns: board
-                        .columns
-                        .iter()
-                        .map(|c| ColumnInfo {
-                            id: c.id.to_string(),
-                            name: c.name.clone(),
-                            status: c.status.to_string(),
-                        })
-                        .collect(),
-                };
-                respond(span, &response)
-            }
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+        let cols = match column_defs {
+            Ok(c) => c,
+            Err(e) => return err(span, &e),
+        };
+        match self.service.board_create(self.webid, &name, &cols) {
+            Ok(board) => respond(span, &BoardCreateResponse {
+                board_id: board.id.to_string(), name: board.name,
+                columns: board.columns.iter().map(|c| ColumnInfo {
+                    id: c.id.to_string(), name: c.name.clone(), status: c.status.to_string(),
+                }).collect(),
+            }),
+            Err(e) => err(span, &e.to_string()),
         }
     }
 
     #[tool(description = "List all kanban boards owned by the caller")]
     async fn kanban_board_list(
         &self,
-        Parameters(BoardListRequest {
-            capability_token: _cap,
-        }): Parameters<BoardListRequest>,
+        Parameters(BoardListRequest { capability_token: _cap }): Parameters<BoardListRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("kanban_board_list", &self.webid);
         match self.service.board_list(&self.webid) {
-            Ok(boards) => {
-                let response = BoardListResponse {
-                    boards: boards
-                        .into_iter()
-                        .map(|b| BoardInfo {
-                            board_id: b.id.to_string(),
-                            name: b.name,
-                            column_count: b.columns.len(),
-                        })
-                        .collect(),
-                };
-                respond(span, &response)
-            }
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+            Ok(boards) => respond(span, &BoardListResponse {
+                boards: boards.into_iter().map(|b| BoardInfo {
+                    board_id: b.id.to_string(), name: b.name, column_count: b.columns.len(),
+                }).collect(),
+            }),
+            Err(e) => err(span, &e.to_string()),
         }
     }
 
     #[tool(description = "Create a new task on a kanban board")]
     async fn kanban_task_create(
         &self,
-        Parameters(TaskCreateRequest {
-            board_id,
-            title,
-            description,
-            criteria,
-            assignee_webid,
-            capability_token: _cap,
-        }): Parameters<TaskCreateRequest>,
+        Parameters(TaskCreateRequest { board_id, title, description, criteria, assignee_webid, capability_token: _cap }): Parameters<TaskCreateRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("kanban_task_create", &self.webid);
         let bid = match board_id.parse::<hkask_types::BoardId>() {
-            Ok(id) => id,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("invalid board_id: {e}")}),
-                );
-            }
+            Ok(id) => id, Err(e) => return err(span, &format!("invalid board_id: {e}")),
         };
         let mut spec = TaskSpec::new(title);
-        if let Some(d) = description {
-            spec = spec.with_description(d);
-        }
-        if let Some(cs) = criteria {
-            spec = spec.with_criteria(cs.into_iter().map(VerificationCriterion::new).collect());
-        }
+        if let Some(d) = description { spec = spec.with_description(d); }
+        if let Some(cs) = criteria { spec = spec.with_criteria(cs.into_iter().map(VerificationCriterion::new).collect()); }
         if let Some(a) = assignee_webid {
             match a.parse::<hkask_types::WebID>() {
                 Ok(w) => spec = spec.with_assignee(w),
-                Err(e) => {
-                    return span.internal_error(
-                        serde_json::json!({"error": format!("invalid assignee_webid: {e}")}),
-                    );
-                }
+                Err(e) => return err(span, &format!("invalid assignee: {e}")),
             }
         }
         match self.service.task_create(bid, spec, self.webid) {
-            Ok(task) => respond(
-                span,
-                &TaskCreateResponse {
-                    task_id: task.id.to_string(),
-                    board_id: task.board_id.to_string(),
-                    title: task.title,
-                    status: task.status.to_string(),
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+            Ok(task) => respond(span, &TaskCreateResponse {
+                task_id: task.id.to_string(), board_id: task.board_id.to_string(),
+                title: task.title, status: task.status.to_string(),
+            }),
+            Err(e) => err(span, &e.to_string()),
         }
     }
 
     #[tool(description = "List tasks on a kanban board, optionally filtered by status")]
     async fn kanban_task_list(
         &self,
-        Parameters(TaskListRequest {
-            board_id,
-            status,
-            capability_token: _cap,
-        }): Parameters<TaskListRequest>,
+        Parameters(TaskListRequest { board_id, status, capability_token: _cap }): Parameters<TaskListRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("kanban_task_list", &self.webid);
         let bid = match board_id.parse::<hkask_types::BoardId>() {
-            Ok(id) => id,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("invalid board_id: {e}")}),
-                );
-            }
+            Ok(id) => id, Err(e) => return err(span, &format!("invalid board_id: {e}")),
         };
         let filter = match status {
             Some(s) => match hkask_types::TaskStatus::parse_str(&s) {
                 Some(st) => TaskFilter::by_status(st),
-                None => {
-                    return span.internal_error(
-                        serde_json::json!({"error": format!("invalid status: {s}")}),
-                    );
-                }
+                None => return err(span, &format!("invalid status: {s}")),
             },
             None => TaskFilter::all(),
         };
         match self.service.task_list(bid, filter) {
-            Ok(tasks) => respond(
-                span,
-                &TaskListResponse {
-                    tasks: tasks
-                        .into_iter()
-                        .map(|t| TaskInfo {
-                            task_id: t.id.to_string(),
-                            title: t.title,
-                            status: t.status.to_string(),
-                            assignee: t.assignee.map(|a| a.to_string()),
-                            criteria_count: t.criteria.len(),
-                        })
-                        .collect(),
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+            Ok(tasks) => respond(span, &TaskListResponse {
+                tasks: tasks.into_iter().map(|t| TaskInfo {
+                    task_id: t.id.to_string(), title: t.title, status: t.status.to_string(),
+                    assignee: t.assignee.map(|a| a.to_string()), criteria_count: t.criteria.len(),
+                }).collect(),
+            }),
+            Err(e) => err(span, &e.to_string()),
         }
     }
 
     #[tool(description = "Move a task to a new column (status transition)")]
     async fn kanban_task_move(
         &self,
-        Parameters(TaskMoveRequest {
-            task_id,
-            target_status,
-            capability_token: _cap,
-        }): Parameters<TaskMoveRequest>,
+        Parameters(TaskMoveRequest { task_id, target_status, capability_token: _cap }): Parameters<TaskMoveRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("kanban_task_move", &self.webid);
         let tid = match task_id.parse::<hkask_types::TaskId>() {
-            Ok(id) => id,
-            Err(e) => {
-                return span
-                    .internal_error(serde_json::json!({"error": format!("invalid task_id: {e}")}));
-            }
+            Ok(id) => id, Err(e) => return err(span, &format!("invalid task_id: {e}")),
         };
-        let target =
-            match hkask_types::TaskStatus::parse_str(&target_status) {
-                Some(s) => s,
-                None => return span.internal_error(
-                    serde_json::json!({"error": format!("invalid target_status: {target_status}")}),
-                ),
-            };
+        let target = match hkask_types::TaskStatus::parse_str(&target_status) {
+            Some(s) => s,
+            None => return err(span, &format!("invalid target_status: {target_status}")),
+        };
         match self.service.task_move(tid, target, self.webid) {
-            Ok(task) => respond(
-                span,
-                &TaskMoveResponse {
-                    task_id: task.id.to_string(),
-                    previous_status: target_status,
-                    new_status: task.status.to_string(),
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+            Ok(task) => respond(span, &TaskMoveResponse {
+                task_id: task.id.to_string(), previous_status: target_status,
+                new_status: task.status.to_string(),
+            }),
+            Err(e) => err(span, &e.to_string()),
         }
     }
 
     #[tool(description = "Assign a task to an agent with consent proof (P1 compliance)")]
     async fn kanban_task_assign(
         &self,
-        Parameters(TaskAssignRequest {
-            task_id,
-            agent_webid,
-            consent_proof_agent_webid,
-            capability_token: _cap,
-        }): Parameters<TaskAssignRequest>,
+        Parameters(TaskAssignRequest { task_id, agent_webid, consent_proof_agent_webid, capability_token: _cap }): Parameters<TaskAssignRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("kanban_task_assign", &self.webid);
         let tid = match task_id.parse::<hkask_types::TaskId>() {
-            Ok(id) => id,
-            Err(e) => {
-                return span
-                    .internal_error(serde_json::json!({"error": format!("invalid task_id: {e}")}));
-            }
+            Ok(id) => id, Err(e) => return err(span, &format!("invalid task_id: {e}")),
         };
         let agent = match agent_webid.parse::<hkask_types::WebID>() {
-            Ok(a) => a,
-            Err(e) => {
-                return span.internal_error(
-                    serde_json::json!({"error": format!("invalid agent_webid: {e}")}),
-                );
-            }
+            Ok(a) => a, Err(e) => return err(span, &format!("invalid agent: {e}")),
         };
-        let consent_agent =
-            match consent_proof_agent_webid.parse::<hkask_types::WebID>() {
-                Ok(a) => a,
-                Err(e) => return span.internal_error(
-                    serde_json::json!({"error": format!("invalid consent_proof_agent_webid: {e}")}),
-                ),
-            };
-        let consent = ConsentProof::new(consent_agent, tid);
-        match self.service.task_assign(tid, agent, consent) {
-            Ok(task) => respond(
-                span,
-                &TaskAssignResponse {
-                    task_id: task.id.to_string(),
-                    assignee: task.assignee.map(|a| a.to_string()).unwrap_or_default(),
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+        let consent_agent = match consent_proof_agent_webid.parse::<hkask_types::WebID>() {
+            Ok(a) => a, Err(e) => return err(span, &format!("invalid consent agent: {e}")),
+        };
+        match self.service.task_assign(tid, agent, ConsentProof::new(consent_agent, tid)) {
+            Ok(task) => respond(span, &TaskAssignResponse {
+                task_id: task.id.to_string(),
+                assignee: task.assignee.map(|a| a.to_string()).unwrap_or_default(),
+            }),
+            Err(e) => err(span, &e.to_string()),
         }
     }
 
     #[tool(description = "Verify a task against its acceptance criteria")]
     async fn kanban_task_verify(
         &self,
-        Parameters(TaskVerifyRequest {
-            task_id,
-            evidence,
-            capability_token: _cap,
-        }): Parameters<TaskVerifyRequest>,
+        Parameters(TaskVerifyRequest { task_id, evidence, capability_token: _cap }): Parameters<TaskVerifyRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("kanban_task_verify", &self.webid);
         let tid = match task_id.parse::<hkask_types::TaskId>() {
-            Ok(id) => id,
-            Err(e) => {
-                return span
-                    .internal_error(serde_json::json!({"error": format!("invalid task_id: {e}")}));
-            }
+            Ok(id) => id, Err(e) => return err(span, &format!("invalid task_id: {e}")),
         };
         match self.service.task_verify(tid, &evidence, self.webid) {
-            Ok((task, verification)) => respond(
-                span,
-                &TaskVerifyResponse {
-                    task_id: task.id.to_string(),
-                    passed: verification.passed,
-                    reasoning: verification.reasoning,
-                    new_status: task.status.to_string(),
-                },
-            ),
-            Err(e) => span.internal_error(serde_json::json!({"error": e.to_string()})),
+            Ok((task, verification)) => respond(span, &TaskVerifyResponse {
+                task_id: task.id.to_string(), passed: verification.passed,
+                reasoning: verification.reasoning, new_status: task.status.to_string(),
+            }),
+            Err(e) => err(span, &e.to_string()),
         }
     }
 }
@@ -360,16 +237,10 @@ fn default_columns() -> Vec<hkask_types::ColumnDef> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
-    let _replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
-
     hkask_mcp::run_server(
         "hkask-mcp-kanban",
         env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| {
-            let server = KanbanServer::new(ctx.webid);
-            Ok(server)
-        },
+        |ctx: ServerContext| Ok(KanbanServer::new(ctx.webid)),
         vec![],
-    )
-    .await
+    ).await
 }

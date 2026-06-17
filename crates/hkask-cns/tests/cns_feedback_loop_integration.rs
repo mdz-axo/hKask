@@ -19,7 +19,7 @@ fn cns_detects_perturbation() {
     assert!(cns.is_homeostatic(), "CNS should start homeostatic");
 
     let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-    let event = test_event(span, Phase::Sense);
+    let event = test_event(span, Phase::Sense, None);
     cns.inject(event);
 
     assert!(!cns.is_homeostatic(), "CNS should detect perturbation");
@@ -37,7 +37,7 @@ fn cns_restores_homeostasis_after_time() {
 
     // Perturb the system
     let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-    cns.inject(test_event(span, Phase::Sense));
+    cns.inject(test_event(span, Phase::Sense, None));
     assert!(!cns.is_homeostatic());
 
     // Advance time to allow feedback processing
@@ -85,10 +85,11 @@ fn cns_multiple_perturbations_accumulate_signals() {
     let cns = MockCnsRuntime::new();
 
     let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-    cns.inject(test_event(span, Phase::Sense));
+    cns.inject(test_event(span, Phase::Sense, None));
     cns.inject(test_event(
         Span::new(SpanNamespace::new("cns.inference"), "error"),
         Phase::Compute,
+        None,
     ));
 
     let signals = cns.recent_signals();

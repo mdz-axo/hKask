@@ -27,13 +27,12 @@ use chrono::Utc;
 use hkask_storage::Triple;
 use hkask_types::event::{NuEvent, Phase, Span};
 use hkask_types::id::WebID;
-use parking_lot::RwLock as ParkingRwLock;
 use rand::Rng;
 use rusqlite::Connection;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use tempfile::TempDir;
 
 // ── TestDb ────────────────────────────────────────────────────────────────────
@@ -298,7 +297,7 @@ impl MockAlgedonicSignal {
 /// without a full running CNS daemon.
 #[derive(Clone)]
 pub struct MockCnsRuntime {
-    state: Arc<ParkingRwLock<MockCnsState>>,
+    state: Arc<RwLock<MockCnsState>>,
 }
 
 impl MockCnsRuntime {
@@ -308,7 +307,7 @@ impl MockCnsRuntime {
     /// post: returns MockCnsRuntime with homeostatic state
     pub fn new() -> Self {
         Self {
-            state: Arc::new(ParkingRwLock::new(MockCnsState::homeostatic())),
+            state: Arc::new(RwLock::new(MockCnsState::homeostatic())),
         }
     }
 
@@ -319,7 +318,7 @@ impl MockCnsRuntime {
     /// post: returns MockCnsRuntime with the given state
     pub fn with_state(state: MockCnsState) -> Self {
         Self {
-            state: Arc::new(ParkingRwLock::new(state)),
+            state: Arc::new(RwLock::new(state)),
         }
     }
 
@@ -329,7 +328,7 @@ impl MockCnsRuntime {
     /// pre:  event is a valid NuEvent
     /// post: homeostatic set to false, negative signal appended
     pub fn inject(&self, event: NuEvent) {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
         state.homeostatic = false;
         let signal = MockAlgedonicSignal {
             valence: SignalValence::Negative,
@@ -345,7 +344,7 @@ impl MockCnsRuntime {
     /// REQ: HARN-032
     /// post: if duration >= 5s, homeostatic restored, throttled tools cleared, positive signal appended
     pub fn advance_time(&self, duration: std::time::Duration) {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
         // After 5+ seconds, system trends toward homeostasis
         if duration >= std::time::Duration::from_secs(5) {
             state.homeostatic = true;
@@ -364,7 +363,7 @@ impl MockCnsRuntime {
     /// REQ: HARN-033
     /// post: returns clone of recent_signals vector
     pub fn recent_signals(&self) -> Vec<MockAlgedonicSignal> {
-        self.state.read().recent_signals.clone()
+        self.state.read().unwrap().recent_signals.clone()
     }
 
     /// Check if a specific tool is throttled.
@@ -373,7 +372,7 @@ impl MockCnsRuntime {
     /// pre:  tool_name is non-empty
     /// post: returns Throttled if tool in throttled_tools, Active otherwise
     pub fn tool_state(&self, tool_name: &str) -> MockToolState {
-        let state = self.state.read();
+        let state = self.state.read().unwrap();
         if state.throttled_tools.iter().any(|t| t == tool_name) {
             MockToolState::Throttled
         } else {
@@ -386,7 +385,7 @@ impl MockCnsRuntime {
     /// REQ: HARN-035
     /// post: returns true iff homeostatic flag is true
     pub fn is_homeostatic(&self) -> bool {
-        self.state.read().homeostatic
+        self.state.read().unwrap().homeostatic
     }
 
     /// Record variety for a domain (simulates tool dispatch).
@@ -395,7 +394,7 @@ impl MockCnsRuntime {
     /// pre:  domain is non-empty
     /// post: variety counter for domain incremented by 1
     pub fn record_variety(&self, domain: &str) {
-        let mut state = self.state.write();
+        let mut state = self.state.write().unwrap();
         *state
             .variety_counters
             .entry(domain.to_string())
@@ -410,6 +409,7 @@ impl MockCnsRuntime {
     pub fn variety_for_domain(&self, domain: &str) -> u64 {
         self.state
             .read()
+            .unwrap()
             .variety_counters
             .get(domain)
             .copied()
@@ -452,22 +452,21 @@ pub fn temp_dir() -> TempDir {
 
 /// Create a well-formed test NuEvent with required fields.
 ///
-/// Uses a random observer WebID and a valid CNS span.
-/// All required fields are populated with sensible defaults.
+/// Uses a random observer WebID unless `observer` is provided.
 ///
 /// # Example
 /// ```ignore
 /// let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-/// let event = test_event(span, Phase::Observation);
+/// let event = test_event(span, Phase::Observation, None);
 /// assert!(event.observer_webid.as_uuid().is_set());
 /// ```
 ///
 /// REQ: HARN-039
 /// pre:  span is a valid Span, phase is a valid Phase
-/// post: returns NuEvent with random observer, depth=0, test observation
-pub fn test_event(span: Span, phase: Phase) -> NuEvent {
+/// post: returns NuEvent with random observer if observer is None, depth=0, test observation
+pub fn test_event(span: Span, phase: Phase, observer: Option<WebID>) -> NuEvent {
     NuEvent::new(
-        TestWebId::random(),
+        observer.unwrap_or_else(TestWebId::random),
         span,
         phase,
         serde_json::json!({"test": true}),
@@ -475,41 +474,28 @@ pub fn test_event(span: Span, phase: Phase) -> NuEvent {
     )
 }
 
-/// Create a test event with a specific observer WebID.
-///
-/// REQ: HARN-040
-/// pre:  observer is a valid WebID, span is valid, phase is valid
-/// post: returns NuEvent with specified observer, depth=0, test observation
-pub fn test_event_with_observer(observer: WebID, span: Span, phase: Phase) -> NuEvent {
-    NuEvent::new(observer, span, phase, serde_json::json!({"test": true}), 0)
-}
-
 // ── test_triple ───────────────────────────────────────────────────────────────
 
 /// Create a well-formed test Triple with required fields.
 ///
-/// Uses a random owner WebID and sensible defaults for all fields.
+/// Uses a random owner WebID unless `owner` is provided.
 ///
 /// # Example
 /// ```ignore
-/// let triple = test_triple("entity:test", "attribute:name", json!("value"));
+/// let triple = test_triple("entity:test", "attribute:name", json!("value"), None);
 /// assert_eq!(triple.entity, "entity:test");
 /// ```
 ///
 /// REQ: HARN-041
 /// pre:  entity and attribute are non-empty, value is valid JSON
-/// post: returns Triple with random owner, sensible defaults
-pub fn test_triple(entity: &str, attribute: &str, value: Value) -> Triple {
-    Triple::new(entity, attribute, value, TestWebId::random())
-}
-
-/// Create a test triple with a specific owner WebID.
-///
-/// REQ: HARN-042
-/// pre:  entity and attribute are non-empty, value is valid JSON, owner is valid
-/// post: returns Triple with specified owner
-pub fn test_triple_with_owner(entity: &str, attribute: &str, value: Value, owner: WebID) -> Triple {
-    Triple::new(entity, attribute, value, owner)
+/// post: returns Triple with random owner if owner is None, specified owner otherwise
+pub fn test_triple(entity: &str, attribute: &str, value: Value, owner: Option<WebID>) -> Triple {
+    Triple::new(
+        entity,
+        attribute,
+        value,
+        owner.unwrap_or_else(TestWebId::random),
+    )
 }
 
 // ── Internal helpers (not public) ─────────────────────────────────────────────
@@ -560,7 +546,7 @@ mod tests {
         assert!(cns.is_homeostatic());
 
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-        let event = test_event(span, Phase::Sense);
+        let event = test_event(span, Phase::Sense, None);
         cns.inject(event);
 
         assert!(!cns.is_homeostatic());
@@ -573,7 +559,7 @@ mod tests {
     fn mock_cns_restores_homeostasis() {
         let cns = MockCnsRuntime::new();
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-        cns.inject(test_event(span, Phase::Sense));
+        cns.inject(test_event(span, Phase::Sense, None));
         assert!(!cns.is_homeostatic());
 
         cns.advance_time(std::time::Duration::from_secs(10));
@@ -596,7 +582,7 @@ mod tests {
     #[test]
     fn test_event_is_valid() {
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-        let event = test_event(span, Phase::Sense);
+        let event = test_event(span, Phase::Sense, None);
         assert!(!event.id.as_uuid().is_nil());
         assert!(!event.observer_webid.as_uuid().is_nil());
         assert_eq!(event.recursion_depth, 0);
@@ -605,7 +591,7 @@ mod tests {
     // REQ: HAR-008 — test_triple produces valid Triple (P8)
     #[test]
     fn test_triple_is_valid() {
-        let triple = test_triple("entity:test", "attr:name", serde_json::json!("value"));
+        let triple = test_triple("entity:test", "attr:name", serde_json::json!("value"), None);
         assert_eq!(triple.entity, "entity:test");
         assert_eq!(triple.attribute, "attr:name");
         assert_eq!(triple.value, serde_json::json!("value"));
