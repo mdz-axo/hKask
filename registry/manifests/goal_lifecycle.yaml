@@ -8,6 +8,7 @@ manifest:
   version: "0.1.0"
   description: Goal creation → activation → verification → completion
   functional_role: flowdef
+  visibility: Public
   lexicon_terms:
     [
       pledge,
