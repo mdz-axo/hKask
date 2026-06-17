@@ -21,7 +21,7 @@ TOTAL_TEMPLATES=0
 
 # Check Jinja2 templates
 echo "📄 Checking Jinja2 templates..."
-for template in $(find "$REGISTRY_DIR/templates" -name "*.j2" 2>/dev/null); do
+while IFS= read -r template; do
     TOTAL_TEMPLATES=$((TOTAL_TEMPLATES + 1))
 
     # Check for functional_role in header comment (format: {# functional_role: xxx #})
@@ -37,11 +37,11 @@ for template in $(find "$REGISTRY_DIR/templates" -name "*.j2" 2>/dev/null); do
         MISSING_ROLE=$((MISSING_ROLE + 1))
         echo "  ⚠️  Missing functional_role: $template"
     fi
-done
+done < <(find "$REGISTRY_DIR/templates" -name "*.j2" 2>/dev/null)
 
 # Check YAML manifests
 echo "📋 Checking YAML manifests..."
-for manifest in $(find "$REGISTRY_DIR/manifests" -name "*.yaml" 2>/dev/null); do
+while IFS= read -r manifest; do
     TOTAL_TEMPLATES=$((TOTAL_TEMPLATES + 1))
 
     # Check for functional_role in manifest metadata
@@ -57,14 +57,14 @@ for manifest in $(find "$REGISTRY_DIR/manifests" -name "*.yaml" 2>/dev/null); do
         # Manifests without functional_role are assumed FlowDef (orchestration)
         FLOWDEF_COUNT=$((FLOWDEF_COUNT + 1))
     fi
-done
+done < <(find "$REGISTRY_DIR/manifests" -name "*.yaml" 2>/dev/null)
 
 # Check YAML ports
 echo "🔌 Checking YAML ports..."
-for port_file in $(find "$REGISTRY_DIR/ports" -name "*.yaml" 2>/dev/null); do
+while IFS= read -r port_file; do
     # Ports are counted separately
     echo "  Found port file: $port_file"
-done
+done < <(find "$REGISTRY_DIR/ports" -name "*.yaml" 2>/dev/null)
 
 # Calculate totals
 TOTAL_COUNTED=$((WORDACT_COUNT + FLOWDEF_COUNT + KNOWACT_COUNT))
@@ -129,11 +129,11 @@ $([ $SKEWED = false ] && echo "✅ Distribution balanced (no category >60%)" || 
 EOF
 
 # List templates missing functional_role
-for template in $(find "$REGISTRY_DIR/templates" -name "*.j2" 2>/dev/null); do
+while IFS= read -r template; do
     if ! grep -q "functional_role:" "$template" 2>/dev/null; then
         echo "- \`$template\`" >> "$REPORT_FILE"
     fi
-done
+done < <(find "$REGISTRY_DIR/templates" -name "*.j2" 2>/dev/null)
 
 echo "" >> "$REPORT_FILE"
 echo "## Orthogonal Mapping" >> "$REPORT_FILE"

@@ -98,22 +98,246 @@ pub struct TrainingJob {
     pub created_at: chrono::DateTime<chrono::Utc>,
     /// Host executing this job.
     pub host: TrainingHostId,
+    /// Harness (training framework) to use.
+    pub harness: TrainingHarnessId,
+    /// User/owner WebID for provenance.
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
+impl TrainingJob {
+    pub fn new(
+        dataset_path: PathBuf,
+        base_model: String,
+        params: TrainingParams,
+        host: TrainingHostId,
+        harness: TrainingHarnessId,
+    ) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            dataset_path,
+            base_model,
+            params,
+            status: TrainingJobStatus::Queued,
+            created_at: chrono::Utc::now(),
+            host,
+            harness,
+            owner: None,
+        }
+    }
+}
+
+/// LoRA-specific training parameters.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LoraParams {
+    /// LoRA rank (r value). Typical range: 4–64.
+    pub r: u32,
+    /// LoRA alpha scaling factor.
+    pub alpha: u32,
+    /// LoRA dropout rate. 0.0 is optimized by Unsloth.
+    #[serde(default)]
+    pub dropout: f32,
+    /// Target modules for LoRA adaptation.
+    pub target_modules: Vec<String>,
+    /// Additional modules to save fully (e.g., ["embed_tokens", "lm_head"]).
+    #[serde(default)]
+    pub modules_to_save: Vec<String>,
+    /// Use Rank-Stabilized LoRA (scales by alpha/sqrt(r)).
+    #[serde(default)]
+    pub use_rslora: bool,
+}
+
+impl Default for LoraParams {
+    fn default() -> Self {
+        Self {
+            r: 16,
+            alpha: 32,
+            dropout: 0.0,
+            target_modules: vec![
+                "q_proj".to_string(),
+                "v_proj".to_string(),
+                "k_proj".to_string(),
+                "o_proj".to_string(),
+            ],
+            modules_to_save: vec![],
+            use_rslora: false,
+        }
+    }
+}
+
+/// Quantization parameters for QLoRA training.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct QuantizationParams {
+    /// Load base model in 4-bit (QLoRA).
+    #[serde(default)]
+    pub load_in_4bit: bool,
+    /// Load base model in 8-bit.
+    #[serde(default)]
+    pub load_in_8bit: bool,
+    /// 4-bit compute dtype ("bf16", "fp16", "fp32").
+    #[serde(default)]
+    pub bnb_4bit_compute_dtype: Option<String>,
+    /// 4-bit quantization type ("nf4", "fp4").
+    #[serde(default)]
+    pub bnb_4bit_quant_type: Option<String>,
+    /// Use double quantization for additional memory savings.
+    #[serde(default)]
+    pub bnb_4bit_use_double_quant: bool,
+}
+
+impl Default for QuantizationParams {
+    fn default() -> Self {
+        Self {
+            load_in_4bit: false,
+            load_in_8bit: false,
+            bnb_4bit_compute_dtype: None,
+            bnb_4bit_quant_type: None,
+            bnb_4bit_use_double_quant: false,
+        }
+    }
+}
+
+/// Optimization and scheduler parameters.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct OptimizationParams {
+    /// Optimizer name ("adamw_torch", "adamw_8bit", "adamw_bnb_8bit", "paged_adamw_32bit").
+    #[serde(default)]
+    pub optimizer: Option<String>,
+    /// Weight decay (excludes bias and LayerNorm).
+    #[serde(default)]
+    pub weight_decay: f32,
+    /// Warmup steps (mutually exclusive with warmup_ratio).
+    #[serde(default)]
+    pub warmup_steps: Option<u32>,
+    /// Warmup ratio (fraction of total steps).
+    #[serde(default)]
+    pub warmup_ratio: Option<f32>,
+    /// LR scheduler type ("cosine", "linear", "constant", "constant_with_warmup").
+    #[serde(default)]
+    pub lr_scheduler: Option<String>,
+    /// Gradient accumulation steps (effective batch = batch_size × grad_accum × n_gpu).
+    #[serde(default)]
+    pub gradient_accumulation_steps: u32,
+    /// Cosine minimum LR ratio (e.g., 0.1 for 10% of peak LR).
+    #[serde(default)]
+    pub cosine_min_lr_ratio: Option<f32>,
+    /// Adam beta1.
+    #[serde(default)]
+    pub adam_beta1: Option<f32>,
+    /// Adam beta2.
+    #[serde(default)]
+    pub adam_beta2: Option<f32>,
+    /// Adam epsilon.
+    #[serde(default)]
+    pub adam_epsilon: Option<f32>,
+    /// Max gradient norm for clipping.
+    #[serde(default)]
+    pub max_grad_norm: Option<f32>,
+}
+
+impl Default for OptimizationParams {
+    fn default() -> Self {
+        Self {
+            optimizer: None,
+            weight_decay: 0.0,
+            warmup_steps: None,
+            warmup_ratio: None,
+            lr_scheduler: None,
+            gradient_accumulation_steps: 1,
+            cosine_min_lr_ratio: None,
+            adam_beta1: None,
+            adam_beta2: None,
+            adam_epsilon: None,
+            max_grad_norm: None,
+        }
+    }
+}
+
+/// Sequence and packing parameters.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SequenceParams {
+    /// Maximum sequence length for training.
+    #[serde(default)]
+    pub sequence_len: Option<u32>,
+    /// Enable sample packing (block-diagonal attention for short sequences).
+    #[serde(default)]
+    pub sample_packing: bool,
+    /// Pad to sequence length (reduces memory fragmentation).
+    #[serde(default)]
+    pub pad_to_sequence_len: bool,
+    /// Enable NEFTune noise (paper default: 5.0).
+    #[serde(default)]
+    pub neftune_noise_alpha: Option<f32>,
+}
+
+impl Default for SequenceParams {
+    fn default() -> Self {
+        Self {
+            sequence_len: None,
+            sample_packing: false,
+            pad_to_sequence_len: false,
+            neftune_noise_alpha: None,
+        }
+    }
+}
+
+/// Advanced attention and memory parameters.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AdvancedParams {
+    /// Attention implementation ("flash_attention_2", "sdpa", "eager").
+    #[serde(default)]
+    pub attn_implementation: Option<String>,
+    /// Gradient checkpointing ("unsloth" for Unsloth-optimized, "true" for standard).
+    #[serde(default)]
+    pub gradient_checkpointing: Option<String>,
+    /// Use bf16 mixed precision.
+    #[serde(default)]
+    pub bf16: bool,
+    /// Use fp16 mixed precision.
+    #[serde(default)]
+    pub fp16: bool,
+    /// Evaluation split ratio (fraction of dataset held out for eval).
+    #[serde(default)]
+    pub eval_split_ratio: Option<f32>,
+}
+
+impl Default for AdvancedParams {
+    fn default() -> Self {
+        Self {
+            attn_implementation: None,
+            gradient_checkpointing: None,
+            bf16: false,
+            fp16: false,
+            eval_split_ratio: None,
+        }
+    }
+}
+
+/// Canonical training hyperparameters — the union of capabilities supported by
+/// at least two harnesses or required by a specific training mode.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TrainingParams {
     /// Number of training epochs.
     pub num_epochs: u32,
-    /// Batch size.
+    /// Per-device batch size.
     pub batch_size: u32,
     /// Learning rate.
     pub learning_rate: f32,
-    /// LoRA rank (r value). Typical range: 4–64.
-    pub lora_r: u32,
-    /// LoRA alpha scaling factor.
-    pub lora_alpha: u32,
-    /// Target modules for LoRA adaptation (e.g., ["q_proj", "v_proj"]).
-    pub target_modules: Vec<String>,
+    /// LoRA-specific parameters.
+    #[serde(default)]
+    pub lora: LoraParams,
+    /// Quantization parameters (QLoRA).
+    #[serde(default)]
+    pub quantization: QuantizationParams,
+    /// Optimizer, scheduler, and gradient parameters.
+    #[serde(default)]
+    pub optimization: OptimizationParams,
+    /// Sequence length and packing parameters.
+    #[serde(default)]
+    pub sequence: SequenceParams,
+    /// Attention, mixed precision, and eval parameters.
+    #[serde(default)]
+    pub advanced: AdvancedParams,
 }
 
 impl Default for TrainingParams {
@@ -122,14 +346,11 @@ impl Default for TrainingParams {
             num_epochs: 3,
             batch_size: 4,
             learning_rate: 2e-4,
-            lora_r: 16,
-            lora_alpha: 32,
-            target_modules: vec![
-                "q_proj".to_string(),
-                "v_proj".to_string(),
-                "k_proj".to_string(),
-                "o_proj".to_string(),
-            ],
+            lora: LoraParams::default(),
+            quantization: QuantizationParams::default(),
+            optimization: OptimizationParams::default(),
+            sequence: SequenceParams::default(),
+            advanced: AdvancedParams::default(),
         }
     }
 }
@@ -260,27 +481,26 @@ pub struct CompletionMetadata {
 ///
 /// Axolotl uses YAML configuration files with explicit model/dataset/lora
 /// sections. This provider translates canonical `TrainingJob` into an axolotl
-/// config, writes it to a temp file, and dispatches execution via subprocess
-/// or `hkask-inference` cloud routing.
+/// config via the bound harness, writes it to a temp file, and dispatches
+/// execution via local subprocess.
 pub struct AxolotlProvider {
     /// Path to axolotl CLI binary or `accelerate launch` wrapper.
     cli_path: Option<PathBuf>,
-    /// Whether to use `hkask-inference` cloud dispatch (Fireworks/Baseten)
-    /// instead of local subprocess.
-    cloud_dispatch: bool,
+    /// Harness for rendering axolotl YAML config.
+    harness: Box<dyn HarnessAdapter>,
     /// Running job PIDs for cancellation support.
     jobs: Arc<Mutex<HashMap<String, u32>>>,
 }
 
 impl AxolotlProvider {
-    /// Create a new axolotl provider.
+    /// Create a new axolotl provider with the given harness.
     ///
     /// If `cli_path` is `None`, the provider will attempt to find `axolotl`
-    /// on PATH. If not found, falls through to cloud dispatch if configured.
-    pub fn new(cli_path: Option<PathBuf>, cloud_dispatch: bool) -> Self {
+    /// on PATH.
+    pub fn new(cli_path: Option<PathBuf>, harness: Box<dyn HarnessAdapter>) -> Self {
         Self {
             cli_path,
-            cloud_dispatch,
+            harness,
             jobs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -300,59 +520,353 @@ impl AxolotlProvider {
     }
 
     /// Build axolotl YAML config from a canonical TrainingJob.
+    ///
+    /// Generates a full axolotl config YAML including all supported
+    /// parameters from the canonical `TrainingParams`. Fields unsupported
+    /// by axolotl are silently omitted; supported fields are included
+    /// with their configured values.
+    ///
+    /// CNS span emitted: `cns.training.harness.params_used`
     fn build_config_yaml(&self, job: &TrainingJob) -> String {
-        format!(
-            r#"# Auto-generated by hKask Training Server
-base_model: {}
-datasets:
-  - path: {}
-    type: chatml
-output_dir: ./axolotl-output/{}
-num_epochs: {}
-batch_size: {}
-learning_rate: {}
-lora_r: {}
-lora_alpha: {}
-lora_target_modules:
-{}
-"#,
-            job.base_model,
-            job.dataset_path.display(),
-            job.id,
-            job.params.num_epochs,
-            job.params.batch_size,
-            job.params.learning_rate,
-            job.params.lora_r,
-            job.params.lora_alpha,
-            job.params
-                .target_modules
-                .iter()
-                .map(|m| format!("  - {}", m))
-                .collect::<Vec<_>>()
-                .join("\n"),
-        )
+        let p = &job.params;
+        let lo = &p.lora;
+        let q = &p.quantization;
+        let opt = &p.optimization;
+        let seq = &p.sequence;
+        let adv = &p.advanced;
+
+        let mut yaml = String::new();
+        yaml.push_str("# Auto-generated by hKask Training Server (harness: axolotl)\n");
+        yaml.push_str(&format!("base_model: {}\n", job.base_model));
+        yaml.push_str("datasets:\n");
+        yaml.push_str(&format!("  - path: {}\n", job.dataset_path.display()));
+        yaml.push_str("    type: chatml\n");
+        yaml.push_str(&format!("output_dir: ./axolotl-output/{}\n", job.id));
+        yaml.push_str(&format!("num_epochs: {}\n", p.num_epochs));
+        yaml.push_str(&format!("micro_batch_size: {}\n", p.batch_size));
+        yaml.push_str(&format!("learning_rate: {:.6}\n", p.learning_rate));
+        yaml.push_str("adapter: lora\n");
+        yaml.push_str(&format!("lora_r: {}\n", lo.r));
+        yaml.push_str(&format!("lora_alpha: {}\n", lo.alpha));
+        yaml.push_str(&format!("lora_dropout: {}\n", lo.dropout));
+        yaml.push_str("lora_target_modules:\n");
+        for m in &lo.target_modules {
+            yaml.push_str(&format!("  - {}\n", m));
+        }
+
+        // Quantization (QLoRA)
+        if q.load_in_4bit {
+            yaml.push_str("load_in_4bit: true\n");
+            if let Some(ref dt) = q.bnb_4bit_compute_dtype {
+                yaml.push_str(&format!("bnb_4bit_compute_dtype: {}\n", dt));
+            }
+            if let Some(ref qt) = q.bnb_4bit_quant_type {
+                yaml.push_str(&format!("bnb_4bit_quant_type: {}\n", qt));
+            }
+            if q.bnb_4bit_use_double_quant {
+                yaml.push_str("bnb_4bit_use_double_quant: true\n");
+            }
+        } else if q.load_in_8bit {
+            yaml.push_str("load_in_8bit: true\n");
+        }
+
+        // Optimizer & scheduler
+        if let Some(ref optimizer) = opt.optimizer {
+            yaml.push_str(&format!("optimizer: {}\n", optimizer));
+        }
+        if opt.weight_decay > 0.0 {
+            yaml.push_str(&format!("weight_decay: {}\n", opt.weight_decay));
+        }
+        if opt.gradient_accumulation_steps > 1 {
+            yaml.push_str(&format!(
+                "gradient_accumulation_steps: {}\n",
+                opt.gradient_accumulation_steps
+            ));
+        }
+        if let Some(ref sched) = opt.lr_scheduler {
+            yaml.push_str(&format!("lr_scheduler: {}\n", sched));
+        }
+        if let Some(ws) = opt.warmup_steps {
+            yaml.push_str(&format!("warmup_steps: {}\n", ws));
+        } else if let Some(wr) = opt.warmup_ratio {
+            yaml.push_str(&format!("warmup_ratio: {}\n", wr));
+        }
+        if let Some(cmlr) = opt.cosine_min_lr_ratio {
+            yaml.push_str(&format!("cosine_min_lr_ratio: {}\n", cmlr));
+        }
+        if let Some(mgn) = opt.max_grad_norm {
+            yaml.push_str(&format!("max_grad_norm: {}\n", mgn));
+        }
+
+        // Sequence
+        if let Some(sl) = seq.sequence_len {
+            yaml.push_str(&format!("sequence_len: {}\n", sl));
+        }
+        if seq.sample_packing {
+            yaml.push_str("sample_packing: true\n");
+        }
+        if seq.pad_to_sequence_len {
+            yaml.push_str("pad_to_sequence_len: true\n");
+        }
+        if let Some(na) = seq.neftune_noise_alpha {
+            yaml.push_str(&format!("neftune_noise_alpha: {}\n", na));
+        }
+
+        // Advanced
+        if let Some(ref attn) = adv.attn_implementation {
+            yaml.push_str(&format!("attn_implementation: {}\n", attn));
+        }
+        if let Some(ref gc) = adv.gradient_checkpointing {
+            yaml.push_str(&format!("gradient_checkpointing: {}\n", gc));
+        }
+        if adv.bf16 {
+            yaml.push_str("bf16: true\n");
+        } else if adv.fp16 {
+            yaml.push_str("fp16: true\n");
+        }
+        if let Some(esr) = adv.eval_split_ratio {
+            yaml.push_str(&format!("val_set_size: {}\n", esr));
+        }
+
+        // LoRA extras
+        if lo.use_rslora {
+            yaml.push_str("peft_use_rslora: true\n");
+        }
+        if !lo.modules_to_save.is_empty() {
+            yaml.push_str("lora_modules_to_save:\n");
+            for m in &lo.modules_to_save {
+                yaml.push_str(&format!("  - {}\n", m));
+            }
+        }
+
+        tracing::debug!(
+            target: "cns.training.harness.params_used",
+            job_id = %job.id,
+            harness = "axolotl",
+            param_count = yaml.lines().filter(|l| !l.starts_with('#') && !l.is_empty()).count(),
+            "Axolotl config YAML generated"
+        );
+
+        yaml
+    }
+}
+
+// ── Harness capability enumeration ───────────────────────────────────
+
+/// Harness capabilities — features that a training harness supports.
+/// Used for capability filtering when generating provider-specific config
+/// from canonical `TrainingParams`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HarnessCapability {
+    Qlora4bit,
+    Qlora8bit,
+    DoubleQuant,
+    RsLora,
+    SequencePacking,
+    Neftune,
+    FlashAttention2,
+    FlashAttention3,
+    Sdpa,
+    GradientCheckpointing,
+    Fp8Mixed,
+    DeepSpeed,
+    Fsdp,
+    SampleGeneration,
+    LoraPlus,
+}
+
+impl HarnessCapability {
+    pub fn cns_span(&self) -> &'static str {
+        match self {
+            HarnessCapability::Qlora4bit => "cns.training.harness.qlora_4bit",
+            HarnessCapability::Qlora8bit => "cns.training.harness.qlora_8bit",
+            HarnessCapability::DoubleQuant => "cns.training.harness.double_quant",
+            HarnessCapability::RsLora => "cns.training.harness.rslora",
+            HarnessCapability::SequencePacking => "cns.training.harness.sequence_packing",
+            HarnessCapability::Neftune => "cns.training.harness.neftune",
+            HarnessCapability::FlashAttention2 => "cns.training.harness.flash_attn2",
+            HarnessCapability::FlashAttention3 => "cns.training.harness.flash_attn3",
+            HarnessCapability::Sdpa => "cns.training.harness.sdpa",
+            HarnessCapability::GradientCheckpointing => "cns.training.harness.grad_ckpt",
+            HarnessCapability::Fp8Mixed => "cns.training.harness.fp8_mixed",
+            HarnessCapability::DeepSpeed => "cns.training.harness.deepspeed",
+            HarnessCapability::Fsdp => "cns.training.harness.fsdp",
+            HarnessCapability::SampleGeneration => "cns.training.harness.sample_gen",
+            HarnessCapability::LoraPlus => "cns.training.harness.loraplus",
+        }
+    }
+}
+
+// ── HarnessAdapter trait ───────────────────────────────────────────────────
+
+/// Renders training configuration in a harness-specific format.
+///
+/// The *harness* is the tooling that orchestrates training (axolotl CLI,
+/// unsloth Python, TRL SFTTrainer). The *host* is where compute runs.
+/// Each host binds exactly one harness; the harness generates the config
+/// or script that the host dispatches.
+///
+/// REQ: P7-trn-harness-trait
+/// pre:  job.params carries full expanded TrainingParams
+/// post: returns harness-native config string (YAML, Python script, etc.)
+///
+/// MDS: Composition — CAN render_config ON TrainingJob VIA HarnessAdapter
+pub trait HarnessAdapter: Send + Sync {
+    /// Render the training configuration in the harness's native format.
+    fn render_config(&self, job: &TrainingJob) -> Result<String, ProviderError>;
+
+    /// Directory where the harness outputs adapter weights.
+    fn output_dir(&self, job_id: &str) -> PathBuf;
+
+    /// File whose existence signals training completion.
+    fn completion_marker(&self, job_id: &str) -> PathBuf;
+
+    /// The harness identifier for CNS spans.
+    fn harness_id(&self) -> TrainingHarnessId;
+}
+
+// ── Axolotl harness ────────────────────────────────────────────────────────
+
+/// Renders axolotl YAML configuration from canonical TrainingParams.
+pub struct AxolotlHarness;
+
+impl HarnessAdapter for AxolotlHarness {
+    fn render_config(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        let p = &job.params;
+        let lo = &p.lora;
+        let q = &p.quantization;
+        let opt = &p.optimization;
+        let seq = &p.sequence;
+        let adv = &p.advanced;
+
+        let mut yaml = String::new();
+        yaml.push_str("# Auto-generated by hKask Training Server (harness: axolotl)\n");
+        yaml.push_str(&format!("base_model: {}\n", job.base_model));
+        yaml.push_str("datasets:\n");
+        yaml.push_str(&format!("  - path: {}\n", job.dataset_path.display()));
+        yaml.push_str("    type: chatml\n");
+        yaml.push_str(&format!(
+            "output_dir: {}\n",
+            self.output_dir(&job.id).display()
+        ));
+        yaml.push_str(&format!("num_epochs: {}\n", p.num_epochs));
+        yaml.push_str(&format!("micro_batch_size: {}\n", p.batch_size));
+        yaml.push_str(&format!("learning_rate: {:.6}\n", p.learning_rate));
+        yaml.push_str("adapter: lora\n");
+        yaml.push_str(&format!("lora_r: {}\n", lo.r));
+        yaml.push_str(&format!("lora_alpha: {}\n", lo.alpha));
+        yaml.push_str(&format!("lora_dropout: {}\n", lo.dropout));
+        yaml.push_str("lora_target_modules:\n");
+        for m in &lo.target_modules {
+            yaml.push_str(&format!("  - {}\n", m));
+        }
+        if !lo.modules_to_save.is_empty() {
+            yaml.push_str("lora_modules_to_save:\n");
+            for m in &lo.modules_to_save {
+                yaml.push_str(&format!("  - {}\n", m));
+            }
+        }
+        if lo.use_rslora {
+            yaml.push_str("use_rslora: true\n");
+        }
+
+        // Quantization
+        if q.load_in_4bit {
+            yaml.push_str("load_in_4bit: true\n");
+            if let Some(ref dt) = q.bnb_4bit_compute_dtype {
+                yaml.push_str(&format!("bnb_4bit_compute_dtype: {}\n", dt));
+            }
+            if let Some(ref qt) = q.bnb_4bit_quant_type {
+                yaml.push_str(&format!("bnb_4bit_quant_type: {}\n", qt));
+            }
+            if q.bnb_4bit_use_double_quant {
+                yaml.push_str("bnb_4bit_use_double_quant: true\n");
+            }
+        } else if q.load_in_8bit {
+            yaml.push_str("load_in_8bit: true\n");
+        }
+
+        // Optimizer & scheduler
+        if let Some(ref optimizer) = opt.optimizer {
+            yaml.push_str(&format!("optimizer: {}\n", optimizer));
+        }
+        if opt.weight_decay > 0.0 {
+            yaml.push_str(&format!("weight_decay: {}\n", opt.weight_decay));
+        }
+        if opt.gradient_accumulation_steps > 1 {
+            yaml.push_str(&format!(
+                "gradient_accumulation_steps: {}\n",
+                opt.gradient_accumulation_steps
+            ));
+        }
+        if let Some(ref sched) = opt.lr_scheduler {
+            yaml.push_str(&format!("lr_scheduler: {}\n", sched));
+        }
+        if let Some(ws) = opt.warmup_steps {
+            yaml.push_str(&format!("warmup_steps: {}\n", ws));
+        } else if let Some(wr) = opt.warmup_ratio {
+            yaml.push_str(&format!("warmup_ratio: {}\n", wr));
+        }
+        if let Some(mgn) = opt.max_grad_norm {
+            yaml.push_str(&format!("max_grad_norm: {}\n", mgn));
+        }
+
+        // Sequence
+        if let Some(sl) = seq.sequence_len {
+            yaml.push_str(&format!("sequence_len: {}\n", sl));
+        }
+        if seq.sample_packing {
+            yaml.push_str("sample_packing: true\n");
+        }
+        if seq.pad_to_sequence_len {
+            yaml.push_str("pad_to_sequence_len: true\n");
+        }
+        if let Some(na) = seq.neftune_noise_alpha {
+            yaml.push_str(&format!("neftune_noise_alpha: {}\n", na));
+        }
+
+        // Advanced
+        if let Some(ref attn) = adv.attn_implementation {
+            yaml.push_str(&format!("attn_implementation: {}\n", attn));
+        }
+        if let Some(ref gc) = adv.gradient_checkpointing {
+            yaml.push_str(&format!("gradient_checkpointing: {}\n", gc));
+        }
+        if adv.bf16 {
+            yaml.push_str("bf16: true\n");
+        } else if adv.fp16 {
+            yaml.push_str("fp16: true\n");
+        }
+        if let Some(esr) = adv.eval_split_ratio {
+            yaml.push_str(&format!("eval_split_ratio: {}\n", esr));
+        }
+
+        Ok(yaml)
+    }
+
+    fn output_dir(&self, job_id: &str) -> PathBuf {
+        PathBuf::from(format!("./axolotl-output/{}", job_id))
+    }
+
+    fn completion_marker(&self, job_id: &str) -> PathBuf {
+        self.output_dir(job_id).join("adapter_model.safetensors")
+    }
+
+    fn harness_id(&self) -> TrainingHarnessId {
+        TrainingHarnessId::Axolotl
     }
 }
 
 #[async_trait::async_trait]
 impl TrainingHost for AxolotlProvider {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
-        if self.cloud_dispatch {
-            // Dispatch to cloud (Fireworks/Baseten) via hkask-inference routing.
-            // Cloud dispatch sends the canonical job as JSON and receives a
-            // provider-specific job ID for status polling.
-            return Err(ProviderError::Unavailable(
-                "Cloud dispatch not yet implemented for axolotl".to_string(),
-            ));
-        }
-
         if !self.available() {
             return Err(ProviderError::Unavailable(
                 "axolotl CLI not found. Install with: pip install axolotl".to_string(),
             ));
         }
 
-        let config_yaml = self.build_config_yaml(job);
+        let config_yaml = self.harness.render_config(job)?;
         let config_path = std::env::temp_dir().join(format!("hkask-training-{}.yaml", job.id));
         std::fs::write(&config_path, &config_yaml).map_err(|e| {
             ProviderError::Backend(format!("Failed to write axolotl config: {}", e))
@@ -395,17 +909,15 @@ impl TrainingHost for AxolotlProvider {
             "Training job submitted"
         );
 
-        // Job ID is the hKask job ID — axolotl runs synchronously;
-        // async status tracking will poll process exit.
         Ok(job.id.clone())
     }
 
     async fn status(&self, job_id: &str) -> Result<TrainingJobStatus, ProviderError> {
-        // Check if output directory exists and contains a completed checkpoint.
-        let output_dir = PathBuf::from(format!("./axolotl-output/{}", job_id));
-        if output_dir.join("adapter_model.safetensors").exists() {
+        let completion = self.harness.completion_marker(job_id);
+        if completion.exists() {
             return Ok(TrainingJobStatus::Completed);
         }
+        let output_dir = self.harness.output_dir(job_id);
         if output_dir.join("checkpoint").exists() {
             return Ok(TrainingJobStatus::Running);
         }
@@ -504,6 +1016,141 @@ impl TrainingHost for AxolotlProvider {
     }
 }
 
+// ── Unsloth harness ────────────────────────────────────────────────────────
+
+/// Renders unsloth Python training script from canonical TrainingParams.
+pub struct UnslothHarness;
+
+impl HarnessAdapter for UnslothHarness {
+    fn render_config(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        let p = &job.params;
+        let lo = &p.lora;
+        let q = &p.quantization;
+        let opt = &p.optimization;
+        let seq = &p.sequence;
+        let adv = &p.advanced;
+
+        let target_modules_str = lo
+            .target_modules
+            .iter()
+            .map(|m| format!("\"{}\"", m))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let mut script = String::new();
+        script.push_str("# Auto-generated by hKask Training Server (harness: unsloth)\n");
+        script.push_str("import torch\n");
+        script.push_str("from unsloth import FastLanguageModel\n");
+        script.push_str("from datasets import load_dataset\n\n");
+
+        // Model loading with quantization
+        let load_kwargs = if q.load_in_4bit {
+            ", load_in_4bit=True"
+        } else {
+            ""
+        };
+        let max_seq = seq.sequence_len.unwrap_or(2048);
+        script.push_str(&format!(
+            "model, tokenizer = FastLanguageModel.from_pretrained(\n    model_name=\"{}\",\n    max_seq_length={}{},\n)\n\n",
+            job.base_model, max_seq, load_kwargs
+        ));
+
+        // PEFT config
+        let grad_ckpt = adv.gradient_checkpointing.as_deref().unwrap_or("unsloth");
+        script.push_str("model = FastLanguageModel.get_peft_model(\n    model,\n");
+        script.push_str(&format!("    r={},\n", lo.r));
+        script.push_str(&format!("    lora_alpha={},\n", lo.alpha));
+        script.push_str(&format!("    target_modules=[{}],\n", target_modules_str));
+        script.push_str(&format!("    lora_dropout={},\n", lo.dropout));
+        script.push_str("    bias=\"none\",\n");
+        script.push_str(&format!(
+            "    use_gradient_checkpointing=\"{}\",\n",
+            grad_ckpt
+        ));
+        if lo.use_rslora {
+            script.push_str("    use_rslora=True,\n");
+        }
+        script.push_str(")\n\n");
+
+        // Dataset
+        script.push_str(&format!(
+            "dataset = load_dataset(\"json\", data_files=\"{}\", split=\"train\")\n\n",
+            job.dataset_path.display()
+        ));
+
+        // TrainingArguments
+        script.push_str("from transformers import TrainingArguments\n");
+        script.push_str("from trl import SFTTrainer\n\n");
+        script.push_str("trainer = SFTTrainer(\n    model=model,\n    tokenizer=tokenizer,\n    train_dataset=dataset,\n    dataset_text_field=\"text\",\n");
+        script.push_str(&format!("    max_seq_length={},\n", max_seq));
+        script.push_str("    args=TrainingArguments(\n");
+        script.push_str(&format!(
+            "        per_device_train_batch_size={},\n",
+            p.batch_size
+        ));
+        script.push_str(&format!("        num_train_epochs={},\n", p.num_epochs));
+        script.push_str(&format!("        learning_rate={},\n", p.learning_rate));
+        if let Some(ref sched) = opt.lr_scheduler {
+            script.push_str(&format!("        lr_scheduler_type=\"{}\",\n", sched));
+        }
+        if let Some(wr) = opt.warmup_ratio {
+            script.push_str(&format!("        warmup_ratio={},\n", wr));
+        }
+        if opt.weight_decay > 0.0 {
+            script.push_str(&format!("        weight_decay={},\n", opt.weight_decay));
+        }
+        if opt.gradient_accumulation_steps > 1 {
+            script.push_str(&format!(
+                "        gradient_accumulation_steps={},\n",
+                opt.gradient_accumulation_steps
+            ));
+        }
+        if adv.bf16 {
+            script.push_str("        bf16=True,\n");
+        } else if adv.fp16 {
+            script.push_str("        fp16=True,\n");
+        }
+        if let Some(esr) = adv.eval_split_ratio {
+            script.push_str("        eval_strategy=\"steps\",\n");
+            script.push_str(&format!("        eval_steps={},\n", (100.0 / esr) as u32));
+        }
+        script.push_str(&format!(
+            "        output_dir=\"{}\",\n",
+            self.output_dir(&job.id).display()
+        ));
+        script.push_str("    ),\n");
+        if seq.sample_packing {
+            script.push_str("    packing=True,\n");
+        }
+        if let Some(na) = seq.neftune_noise_alpha {
+            script.push_str(&format!("    neftune_noise_alpha={},\n", na));
+        }
+        script.push_str(")\n\n");
+
+        script.push_str("trainer.train()\n");
+        script.push_str(&format!(
+            "model.save_pretrained(\"{}\")\n",
+            self.completion_marker(&job.id).parent().unwrap().display()
+        ));
+
+        Ok(script)
+    }
+
+    fn output_dir(&self, job_id: &str) -> PathBuf {
+        PathBuf::from(format!("./unsloth-output/{}", job_id))
+    }
+
+    fn completion_marker(&self, job_id: &str) -> PathBuf {
+        self.output_dir(job_id)
+            .join("adapter")
+            .join("adapter_model.safetensors")
+    }
+
+    fn harness_id(&self) -> TrainingHarnessId {
+        TrainingHarnessId::Unsloth
+    }
+}
+
 // ── Unsloth provider ───────────────────────────────────────────────────────
 
 /// Unsloth training provider — wraps unsloth for memory-efficient fine-tuning.
@@ -545,68 +1192,176 @@ impl UnslothProvider {
     }
 
     /// Generate unsloth training script from canonical TrainingJob.
+    ///
+    /// Generates a complete Python training script using Unsloth's FastLanguageModel
+    /// and TRL's SFTTrainer. All supported parameters from the canonical
+    /// `TrainingParams` are included; unsupported fields are silently omitted.
+    ///
+    /// CNS span emitted: `cns.training.harness.params_used`
     fn build_training_script(&self, job: &TrainingJob) -> String {
-        let target_modules_str = job
-            .params
+        let p = &job.params;
+        let lo = &p.lora;
+        let q = &p.quantization;
+        let opt = &p.optimization;
+        let seq = &p.sequence;
+        let adv = &p.advanced;
+
+        let target_modules_str = lo
             .target_modules
             .iter()
             .map(|m| format!("\"{}\"", m))
             .collect::<Vec<_>>()
             .join(", ");
-        format!(
-            r#"# Auto-generated by hKask Training Server
-import torch
-from unsloth import FastLanguageModel
-from datasets import load_dataset
 
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name="{}",
-    max_seq_length=2048,
-    load_in_4bit=True,
-)
+        let seq_len = seq.sequence_len.unwrap_or(2048);
 
-model = FastLanguageModel.get_peft_model(
-    model,
-    r={},
-    lora_alpha={},
-    target_modules=[{}],
-    lora_dropout=0,
-    bias="none",
-    use_gradient_checkpointing="unsloth",
-)
+        // Determine load mode
+        let load_config: String = if q.load_in_4bit {
+            "load_in_4bit=True".to_string()
+        } else if q.load_in_8bit {
+            "load_in_8bit=True".to_string()
+        } else {
+            "load_in_4bit=False".to_string()
+        };
 
-dataset = load_dataset("json", data_files="{}", split="train")
+        let mut script = String::new();
+        script.push_str("# Auto-generated by hKask Training Server (harness: unsloth)\n");
+        script.push_str("import torch\n");
+        script.push_str("from unsloth import FastLanguageModel\n");
+        script.push_str("from datasets import load_dataset\n");
+        script.push_str("from transformers import TrainingArguments\n");
+        script.push_str("from trl import SFTTrainer\n\n");
 
-from transformers import TrainingArguments
-from trl import SFTTrainer
+        // Load model
+        script.push_str(&format!(
+            "model, tokenizer = FastLanguageModel.from_pretrained(\n"
+        ));
+        script.push_str(&format!("    model_name=\"{}\",\n", job.base_model));
+        script.push_str(&format!("    max_seq_length={},\n", seq_len));
+        if let Some(ref gc) = adv.gradient_checkpointing
+            && gc == "unsloth"
+        {
+            script.push_str("    use_gradient_checkpointing=\"unsloth\",\n");
+        }
+        script.push_str(&format!("    {},\n", load_config));
+        script.push_str(")\n\n");
 
-trainer = SFTTrainer(
-    model=model,
-    tokenizer=tokenizer,
-    train_dataset=dataset,
-    dataset_text_field="text",
-    max_seq_length=2048,
-    args=TrainingArguments(
-        per_device_train_batch_size={},
-        num_train_epochs={},
-        learning_rate={},
-        output_dir="./unsloth-output/{}",
-    ),
-)
-trainer.train()
-model.save_pretrained("./unsloth-output/{}/adapter")
-"#,
-            job.base_model,
-            job.params.lora_r,
-            job.params.lora_alpha,
-            target_modules_str,
-            job.dataset_path.display(),
-            job.params.batch_size,
-            job.params.num_epochs,
-            job.params.learning_rate,
-            job.id,
-            job.id,
-        )
+        // PEFT model
+        let gckpt: &str = if adv
+            .gradient_checkpointing
+            .as_ref()
+            .map(|s| s == "unsloth")
+            .unwrap_or(false)
+        {
+            "\"unsloth\""
+        } else {
+            "True"
+        };
+
+        script.push_str("model = FastLanguageModel.get_peft_model(\n");
+        script.push_str("    model,\n");
+        script.push_str(&format!("    r={},\n", lo.r));
+        script.push_str(&format!("    lora_alpha={},\n", lo.alpha));
+        script.push_str(&format!("    target_modules=[{}],\n", target_modules_str));
+        script.push_str(&format!("    lora_dropout={},\n", lo.dropout));
+        script.push_str("    bias=\"none\",\n");
+        script.push_str(&format!("    use_gradient_checkpointing={},\n", gckpt));
+        if lo.use_rslora {
+            script.push_str("    use_rslora=True,\n");
+        }
+        if !lo.modules_to_save.is_empty() {
+            let mts: Vec<String> = lo
+                .modules_to_save
+                .iter()
+                .map(|m| format!("\"{}\"", m))
+                .collect();
+            script.push_str(&format!("    modules_to_save=[{}],\n", mts.join(", ")));
+        }
+        script.push_str(")\n\n");
+
+        // Dataset
+        script.push_str(&format!(
+            "dataset = load_dataset(\"json\", data_files=\"{}\", split=\"train\")\n\n",
+            job.dataset_path.display()
+        ));
+
+        // TrainingArguments with expanded params
+        script.push_str("args = TrainingArguments(\n");
+        script.push_str(&format!(
+            "    per_device_train_batch_size={},\n",
+            p.batch_size
+        ));
+        script.push_str(&format!("    num_train_epochs={},\n", p.num_epochs));
+        script.push_str(&format!("    learning_rate={:.6},\n", p.learning_rate));
+        if opt.gradient_accumulation_steps > 1 {
+            script.push_str(&format!(
+                "    gradient_accumulation_steps={},\n",
+                opt.gradient_accumulation_steps
+            ));
+        }
+        if opt.weight_decay > 0.0 {
+            script.push_str(&format!("    weight_decay={},\n", opt.weight_decay));
+        }
+        if let Some(ws) = opt.warmup_steps {
+            script.push_str(&format!("    warmup_steps={},\n", ws));
+        } else if let Some(wr) = opt.warmup_ratio {
+            script.push_str(&format!("    warmup_ratio={},\n", wr));
+        }
+        if let Some(ref sched) = opt.lr_scheduler {
+            script.push_str(&format!("    lr_scheduler_type=\"{}\",\n", sched));
+        }
+        if let Some(ref optimizer) = opt.optimizer {
+            script.push_str(&format!("    optim=\"{}\",\n", optimizer));
+        }
+        if let Some(mgn) = opt.max_grad_norm {
+            script.push_str(&format!("    max_grad_norm={},\n", mgn));
+        }
+        if adv.bf16 {
+            script.push_str("    bf16=True,\n");
+        } else if adv.fp16 {
+            script.push_str("    fp16=True,\n");
+        }
+        if let Some(esr) = adv.eval_split_ratio {
+            script.push_str(&format!("    eval_strategy=\"steps\",\n"));
+            script.push_str(&format!("    eval_steps={},\n", (100.0 / esr) as u32));
+        }
+        script.push_str(&format!(
+            "    output_dir=\"./unsloth-output/{}\",\n",
+            job.id
+        ));
+        script.push_str(")\n\n");
+
+        // SFTTrainer with sequence params
+        script.push_str("trainer = SFTTrainer(\n");
+        script.push_str("    model=model,\n");
+        script.push_str("    tokenizer=tokenizer,\n");
+        script.push_str("    train_dataset=dataset,\n");
+        script.push_str(&format!("    max_seq_length={},\n", seq_len));
+        if seq.sample_packing {
+            script.push_str("    packing=True,\n");
+        }
+        if let Some(na) = seq.neftune_noise_alpha {
+            script.push_str(&format!("    neftune_noise_alpha={},\n", na));
+        }
+        script.push_str("    args=args,\n");
+        script.push_str(")\n");
+        script.push_str("trainer.train()\n");
+
+        // Save adapter
+        script.push_str(&format!(
+            "model.save_pretrained(\"./unsloth-output/{}/adapter\")\n",
+            job.id
+        ));
+
+        tracing::debug!(
+            target: "cns.training.harness.params_used",
+            job_id = %job.id,
+            harness = "unsloth",
+            script_lines = script.lines().count(),
+            "Unsloth training script generated"
+        );
+
+        script
     }
 }
 
@@ -856,8 +1611,8 @@ impl TrainingHost for TogetherProvider {
             "n_checkpoints": 1,
             "learning_rate": job.params.learning_rate,
             "lora": true,
-            "lora_r": job.params.lora_r,
-            "lora_alpha": job.params.lora_alpha,
+            "lora_r": job.params.lora.r,
+            "lora_alpha": job.params.lora.alpha,
             "batch_size": job.params.batch_size.max(8),
             "suffix": format!("hkask-{}", &job.id[..8]),
         });
@@ -891,6 +1646,7 @@ impl TrainingHost for TogetherProvider {
             target: "cns.training.job.submit",
             job_id = %job_id,
             host = "together",
+            harness = ?job.harness,
             "Training job submitted to Together AI"
         );
 
@@ -1201,9 +1957,10 @@ impl TrainingHost for RunpodProvider {
                     { "key": "HKASK_JOB_ID", "value": job.id },
                     { "key": "HKASK_BASE_MODEL", "value": job.base_model },
                     { "key": "HKASK_DATASET_URL", "value": dataset_url },
+                    { "key": "HKASK_HARNESS", "value": format!("{:?}", job.harness).to_lowercase() },
                     { "key": "HKASK_NUM_EPOCHS", "value": job.params.num_epochs.to_string() },
-                    { "key": "HKASK_LORA_R", "value": job.params.lora_r.to_string() },
-                    { "key": "HKASK_LORA_ALPHA", "value": job.params.lora_alpha.to_string() },
+                    { "key": "HKASK_LORA_R", "value": job.params.lora.r.to_string() },
+                    { "key": "HKASK_LORA_ALPHA", "value": job.params.lora.alpha.to_string() },
                     { "key": "HKASK_LEARNING_RATE", "value": job.params.learning_rate.to_string() },
                     { "key": "HKASK_BATCH_SIZE", "value": job.params.batch_size.to_string() },
                 ],
@@ -1227,6 +1984,7 @@ impl TrainingHost for RunpodProvider {
             job_id = %job.id,
             pod_id = %pod_id,
             host = "runpod",
+            harness = ?job.harness,
             "Training pod created on Runpod"
         );
 
@@ -1359,6 +2117,170 @@ impl TrainingHost for RunpodProvider {
     }
 }
 
+// ── Trainer harness (TRL) ──────────────────────────────────────────────────
+
+/// Renders TRL SFTTrainer Python script for Baseten and generic TRL hosts.
+pub struct TrainerHarness;
+
+impl HarnessAdapter for TrainerHarness {
+    fn render_config(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        // TrainerHarness is used by cloud hosts that run TRL Python scripts.
+        // The host provides the HF model ID resolution; we render the training code.
+        // For Baseten, the host resolves the model ID and passes it separately.
+        // For generic use, we use the base_model as-is.
+        Err(ProviderError::InvalidConfig(
+            "TrainerHarness requires model_id from host — use host-specific render method"
+                .to_string(),
+        ))
+    }
+
+    /// Render with an explicit HuggingFace model ID (used by Baseten).
+    pub fn render_with_model(&self, job: &TrainingJob, hf_model_id: &str) -> String {
+        let p = &job.params;
+        let lo = &p.lora;
+        let opt = &p.optimization;
+
+        let target_modules_str = lo
+            .target_modules
+            .iter()
+            .map(|m| format!("\"{}\"", m))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let max_seq = p.sequence.sequence_len.unwrap_or(2048);
+        let grad_accum = opt.gradient_accumulation_steps.max(1);
+        let warmup = opt.warmup_ratio.unwrap_or(0.1);
+        let lr_scheduler = opt.lr_scheduler.as_deref().unwrap_or("cosine");
+        let grad_ckpt = p
+            .advanced
+            .gradient_checkpointing
+            .as_deref()
+            .unwrap_or("true");
+        let dtype = if p.advanced.bf16 {
+            ", torch_dtype=torch.bfloat16"
+        } else if p.advanced.fp16 {
+            ", torch_dtype=torch.float16"
+        } else {
+            ""
+        };
+
+        format!(
+            r#"# Auto-generated by hKask Training Server (harness: trl)
+import os
+import torch
+from datasets import load_dataset
+from peft import LoraConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from trl import SFTConfig, SFTTrainer
+
+# Base model loaded from HuggingFace (mounted by host)
+model_id = "{hf_model_id}"
+print(f"Loading base model: {{model_id}}")
+
+tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    device_map="auto"{dtype},
+    trust_remote_code=True,
+)
+
+# LoRA configuration
+peft_config = LoraConfig(
+    r={lora_r},
+    lora_alpha={lora_alpha},
+    target_modules=[{target_modules}],
+    lora_dropout={lora_dropout},
+    task_type="CAUSAL_LM",
+)
+
+# Load dataset (from URL or local path)
+import urllib.request
+dataset_url = os.getenv("HKASK_DATASET_URL", "")
+if dataset_url:
+    print(f"Downloading dataset: {{dataset_url}}")
+    urllib.request.urlretrieve(dataset_url, "dataset.jsonl")
+    dataset_path = "dataset.jsonl"
+else:
+    dataset_path = os.getenv("HKASK_DATASET_PATH", "dataset.jsonl")
+print(f"Loading dataset: {{dataset_path}}")
+dataset = load_dataset("json", data_files=dataset_path, split="train")
+
+def format_chatml(examples):
+    texts = []
+    for messages in examples["messages"]:
+        text = ""
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            text += f"<|{{role}}|>\n{{content}}\n"
+        texts.append(text)
+    return {{"text": texts}}
+
+dataset = dataset.map(format_chatml, batched=True, remove_columns=dataset.column_names)
+
+# Training arguments
+training_args = SFTConfig(
+    learning_rate={learning_rate},
+    num_train_epochs={num_epochs},
+    per_device_train_batch_size={batch_size},
+    gradient_accumulation_steps={grad_accum},
+    gradient_checkpointing={grad_ckpt},
+    max_seq_length={max_seq},
+    warmup_ratio={warmup},
+    lr_scheduler_type="{lr_scheduler}",
+    save_steps=50,
+    bf16=True,
+    output_dir=os.getenv("BT_CHECKPOINT_DIR", "./checkpoints"),
+    logging_steps=10,
+)
+
+trainer = SFTTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset,
+    processing_class=tokenizer,
+    peft_config=peft_config,
+)
+
+print("Starting training...")
+trainer.train()
+print("Training complete. Checkpoints saved to BT_CHECKPOINT_DIR.")
+"#,
+            hf_model_id = hf_model_id,
+            lora_r = lo.r,
+            lora_alpha = lo.alpha,
+            lora_dropout = lo.dropout,
+            target_modules = target_modules_str,
+            learning_rate = p.learning_rate,
+            num_epochs = p.num_epochs,
+            batch_size = p.batch_size,
+            max_seq = max_seq,
+            grad_accum = grad_accum,
+            warmup = warmup,
+            lr_scheduler = lr_scheduler,
+            grad_ckpt = grad_ckpt,
+            dtype = dtype,
+        )
+    }
+
+    fn output_dir(&self, job_id: &str) -> PathBuf {
+        PathBuf::from(format!("./trl-output/{}", job_id))
+    }
+
+    fn completion_marker(&self, job_id: &str) -> PathBuf {
+        self.output_dir(job_id).join("adapter_model.safetensors")
+    }
+
+    fn harness_id(&self) -> TrainingHarnessId {
+        // TRL is used by Baseten; maps to Unsloth in harness taxonomy
+        // because Baseten was originally Unsloth→Baseten mapped.
+        TrainingHarnessId::Unsloth
+    }
+}
+
 // ── Baseten provider ────────────────────────────────────────────────────
 
 /// Baseten managed training provider — runs your training code on their GPU infra.
@@ -1403,6 +2325,7 @@ impl BasetenProvider {
     fn build_train_script(&self, job: &TrainingJob, hf_model_id: &str) -> String {
         let target_modules_str = job
             .params
+            .lora
             .target_modules
             .iter()
             .map(|m| format!("\"{}\"", m))
@@ -1496,8 +2419,8 @@ trainer.train()
 print("Training complete. Checkpoints saved to BT_CHECKPOINT_DIR.")
 "#,
             hf_model_id = hf_model_id,
-            lora_r = job.params.lora_r,
-            lora_alpha = job.params.lora_alpha,
+            lora_r = job.params.lora.r,
+            lora_alpha = job.params.lora.alpha,
             target_modules = target_modules_str,
             learning_rate = job.params.learning_rate,
             num_epochs = job.params.num_epochs,
@@ -1563,7 +2486,7 @@ impl TrainingHost for BasetenProvider {
                         "HKASK_BASE_MODEL": job.base_model,
                         "HKASK_DATASET_URL": dataset_url,
                         "HKASK_NUM_EPOCHS": job.params.num_epochs.to_string(),
-                        "HKASK_LORA_R": job.params.lora_r.to_string(),
+                        "HKASK_LORA_R": job.params.lora.r.to_string(),
                         "HF_TOKEN": hf_token,
                     },
                     "checkpointing_config": {

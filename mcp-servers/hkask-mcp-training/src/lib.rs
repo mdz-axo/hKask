@@ -26,6 +26,7 @@
 
 pub mod adapters;
 pub mod dataset;
+pub mod huggingface;
 pub mod providers;
 
 pub use adapters::{

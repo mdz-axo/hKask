@@ -199,6 +199,18 @@ pub enum CnsSpan {
     ContractViolated,
     /// Contract coverage measurement.
     ContractCoverage,
+
+    // ── Training observability spans (Training System §TASK 9) ────────────
+    /// Trace generation completed (perplexity, diversity metrics).
+    TrainingTraceGenerated,
+    /// Adapter evaluation completed (accuracy, exact_match rate).
+    TrainingEvalCompleted,
+    /// Training cost estimated vs. actual.
+    TrainingCostEstimated,
+    /// Harness feature utilization variety counter.
+    TrainingHarnessUtilized,
+    /// Adapter selected for inference routing.
+    TrainingAdapterSelected,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -319,6 +331,11 @@ impl CnsSpan {
             CnsSpan::OutcomeMemory => "cns.outcome.memory",
             CnsSpan::ContractViolated => "cns.contract.violated",
             CnsSpan::ContractCoverage => "cns.contract.coverage",
+            CnsSpan::TrainingTraceGenerated => "cns.training.trace.generated",
+            CnsSpan::TrainingEvalCompleted => "cns.training.eval.completed",
+            CnsSpan::TrainingCostEstimated => "cns.training.cost.estimated",
+            CnsSpan::TrainingHarnessUtilized => "cns.training.harness.utilized",
+            CnsSpan::TrainingAdapterSelected => "cns.training.adapter.selected",
         }
     }
 }
@@ -423,6 +440,11 @@ impl std::str::FromStr for CnsSpan {
             "cns.outcome.memory" => Ok(CnsSpan::OutcomeMemory),
             "cns.contract.violated" => Ok(CnsSpan::ContractViolated),
             "cns.contract.coverage" => Ok(CnsSpan::ContractCoverage),
+            "cns.training.trace.generated" => Ok(CnsSpan::TrainingTraceGenerated),
+            "cns.training.eval.completed" => Ok(CnsSpan::TrainingEvalCompleted),
+            "cns.training.cost.estimated" => Ok(CnsSpan::TrainingCostEstimated),
+            "cns.training.harness.utilized" => Ok(CnsSpan::TrainingHarnessUtilized),
+            "cns.training.adapter.selected" => Ok(CnsSpan::TrainingAdapterSelected),
             _ => Err(()),
         }
     }
@@ -570,6 +592,11 @@ mod cns_span_tests {
             CnsSpan::OutcomeMemory,
             CnsSpan::ContractViolated,
             CnsSpan::ContractCoverage,
+            CnsSpan::TrainingTraceGenerated,
+            CnsSpan::TrainingEvalCompleted,
+            CnsSpan::TrainingCostEstimated,
+            CnsSpan::TrainingHarnessUtilized,
+            CnsSpan::TrainingAdapterSelected,
         ];
         for variant in &all_variants {
             let s = variant.to_string();
@@ -585,8 +612,8 @@ mod cns_span_tests {
             );
         }
         // Verify count matches CANONICAL_NAMESPACES (excluding tool subsystem variants)
-        // 51 variants total
-        assert_eq!(all_variants.len(), 51);
+        // 56 variants total
+        assert_eq!(all_variants.len(), 56);
     }
 
     // REQ: cns-span-006 — ToolSubsystem Display produces valid subsystem suffix

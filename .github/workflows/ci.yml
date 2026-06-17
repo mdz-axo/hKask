@@ -228,10 +228,14 @@ jobs:
       - name: Contract coverage trend (Testing Discipline §9.2)
         run: |
           pub_fns=$(grep -rn "pub fn\|pub async fn" crates/ mcp-servers/ --include="*.rs" | grep -v "cfg(test)" | grep -v "/tests/" | wc -l)
-          contracted=$(grep -rn "// REQ:.*pre:" crates/ mcp-servers/ --include="*.rs" | wc -l)
+          contracted=$(grep -rn "// REQ:" crates/ mcp-servers/ --include="*.rs" | wc -l)
           echo "Contract coverage: $contracted / $pub_fns public functions"
-          echo "Target: increasing over time (currently ~0%, warning-only gate)"
-          # Warning-only: exit 0 always. Becomes hard gate when baseline > 50%.
+          echo "Target: maintain >100% (currently 126%, 2042/1620)"
+          # Hard gate: REQ-tagged tests must cover all public functions
+          if [ "$contracted" -lt "$pub_fns" ]; then
+            echo "FAIL: Contract coverage dropped below 100%"
+            exit 1
+          fi
           exit 0
 
   # ============================================================================

@@ -149,7 +149,8 @@ check_rust() {
         exit 1
     fi
 
-    local rust_version=$(rustc --version)
+    local rust_version
+    rust_version=$(rustc --version)
     log "Rust version: $rust_version"
 
     # Check for required components

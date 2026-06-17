@@ -65,11 +65,206 @@ use hkask_types::time::now_rfc3339;
 use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
+
+// ── Data generation config ───────────────────────────────────────────────
+
+/// Sampling configuration for training data generation (traces, CoT, contrastive).
+///
+/// Controls how the LLM produces training examples — temperature, diversity,
+/// and output length. This is a data-generation concern, not a training concern.
+/// The `TrainingParams → HarnessAdapter → TrainingHost` path is unchanged.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TraceGenerationConfig {
+    /// Temperature for sampling (default: 0.7).
+    #[serde(default = "default_gen_temperature")]
+    pub temperature: f32,
+    /// Nucleus sampling threshold (default: 0.95).
+    #[serde(default = "default_gen_top_p")]
+    pub top_p: f32,
+    /// Top-k sampling (default: 50).
+    #[serde(default = "default_gen_top_k")]
+    pub top_k: u32,
+    /// Frequency penalty — higher reduces repetition (default: 0.3).
+    #[serde(default = "default_gen_frequency_penalty")]
+    pub frequency_penalty: f32,
+    /// Maximum new tokens to generate (default: 4096).
+    #[serde(default = "default_gen_max_tokens")]
+    pub max_new_tokens: u32,
+    /// Per-Bloom-level overrides. Keys: "remembering", "understanding",
+    /// "applying", "analyzing", "evaluating", "creating".
+    /// When set, traces targeting that level use these overrides.
+    #[serde(default)]
+    pub bloom_level_configs: Option<HashMap<String, TraceGenerationConfig>>,
+}
+
+fn default_gen_temperature() -> f32 {
+    0.7
+}
+fn default_gen_top_p() -> f32 {
+    0.95
+}
+fn default_gen_top_k() -> u32 {
+    50
+}
+fn default_gen_frequency_penalty() -> f32 {
+    0.3
+}
+fn default_gen_max_tokens() -> u32 {
+    4096
+}
+
+impl Default for TraceGenerationConfig {
+    fn default() -> Self {
+        Self {
+            temperature: default_gen_temperature(),
+            top_p: default_gen_top_p(),
+            top_k: default_gen_top_k(),
+            frequency_penalty: default_gen_frequency_penalty(),
+            max_new_tokens: default_gen_max_tokens(),
+            bloom_level_configs: None,
+        }
+    }
+}
+
+impl TraceGenerationConfig {
+    /// Convert to LLMParameters for the inference engine.
+    pub fn to_llm_params(&self) -> LLMParameters {
+        LLMParameters {
+            temperature: self.temperature,
+            top_p: self.top_p,
+            top_k: self.top_k,
+            frequency_penalty: self.frequency_penalty,
+            max_tokens: self.max_new_tokens,
+            ..Default::default()
+        }
+    }
+}
+
+// ── Training mode — QA fact vs decomposition trace ───────────────────────
+
+/// What kind of training data is being produced.
+///
+/// **QA Semantic Fact** — "What to answer" — factual knowledge about the domain.
+/// Training data is QA pairs (ingest_qa → assemble_dataset).
+/// Evaluation uses exact/contains/semantic match.
+///
+/// **Decomposition Trace** — "How to think" — procedural decomposition of problems.
+/// Training data is generated traces from SKILL.md (generate_traces).
+/// Evaluation uses decomposition accuracy.
+///
+/// **Hybrid** — Both QA and traces, with configurable weighting (default 30% QA / 70% traces).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TrainingMode {
+    /// QA factual knowledge fine-tuning.
+    QAFact,
+    /// Procedural decomposition trace fine-tuning.
+    DecompositionTrace,
+    /// Weighted combination of QA and decomposition traces.
+    Hybrid,
+}
+
+// ── Trace type — word-act, flow-def, know-act ────────────────────────────
+
+/// Skill decomposition trace type.
+///
+/// Each skill document produces traces of one (or more) of these types.
+/// The auto-detector counts hLexicon terms per category — highest density wins.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TraceType {
+    /// Persona calibration — "how to sound".
+    /// Structure: {context, persona_constraints, target_utterance, calibration_notes}
+    WordAct,
+    /// Procedural decomposition — "how to think".
+    /// Structure: {situation, decomposition_sequence, synthesis, verification}
+    FlowDef,
+    /// Pattern recognition — "how to classify".
+    /// Structure: {pattern_exemplar, positive_cases[], negative_cases[], decision_boundary}
+    KnowAct,
+    /// Alternating WordAct/FlowDef segments for skills that require both.
+    Composite,
+}
+
+impl TraceType {
+    /// Auto-detect trace type from skill document text by counting hLexicon terms.
+    pub fn detect(skill_text: &str) -> Self {
+        let text_lower = skill_text.to_lowercase();
+
+        let wordact_hits = [
+            "persona",
+            "tone",
+            "voice",
+            "utter",
+            "speak",
+            "sound like",
+            "posture",
+            "calibrat",
+            "dialogue",
+            "conversation",
+            "replicant",
+            "socratic",
+        ]
+        .iter()
+        .filter(|t| text_lower.contains(*t))
+        .count();
+
+        let flowdef_hits = [
+            "procedure",
+            "decomposition",
+            "step",
+            "sequence",
+            "transform",
+            "pipeline",
+            "verify",
+            "validate",
+            "check",
+            "process",
+            "situation",
+            "synthesis",
+            "decompose",
+        ]
+        .iter()
+        .filter(|t| text_lower.contains(*t))
+        .count();
+
+        let knowact_hits = [
+            "pattern",
+            "classify",
+            "recognize",
+            "identify",
+            "exemplar",
+            "misclassification",
+            "decision boundary",
+            "category",
+            "taxonomy",
+            "positive case",
+            "negative case",
+            "rule",
+        ]
+        .iter()
+        .filter(|t| text_lower.contains(*t))
+        .count();
+
+        if wordact_hits > flowdef_hits && wordact_hits > knowact_hits {
+            TraceType::WordAct
+        } else if knowact_hits > flowdef_hits {
+            TraceType::KnowAct
+        } else if flowdef_hits > 0 {
+            TraceType::FlowDef
+        } else if wordact_hits > 0 && flowdef_hits > 0 {
+            TraceType::Composite
+        } else {
+            TraceType::FlowDef // default for most skills
+        }
+    }
+}
 
 // ── Request structs ──────────────────────────────────────────────────────
 
@@ -156,6 +351,10 @@ pub struct GenerateTracesRequest {
     /// Number of decomposition traces to generate (default 50).
     #[serde(default)]
     pub num_traces: Option<usize>,
+    /// Trace type — WordAct (persona), FlowDef (procedure), KnowAct (classification),
+    /// or Composite (mixed). Default: auto-detected from skill document content.
+    #[serde(default)]
+    pub trace_type: Option<TraceType>,
     /// Bloom taxonomy levels to target (e.g., ["applying", "analyzing"]).
     /// Default: all levels.
     #[serde(default)]
@@ -169,6 +368,11 @@ pub struct GenerateTracesRequest {
     /// Defaults to the server's configured default model.
     #[serde(default)]
     pub model: Option<String>,
+    /// Sampling configuration for trace generation (temperature, top_p, top_k, etc.).
+    /// Per-Bloom-level overrides supported via `bloom_level_configs`.
+    /// Default: temperature=0.7, top_p=0.95, top_k=50, frequency_penalty=0.3, max_new_tokens=4096.
+    #[serde(default)]
+    pub generation_config: Option<TraceGenerationConfig>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -326,6 +530,7 @@ pub struct TrainingServer {
     semantic: Option<SemanticMemory>,
     host: Box<dyn TrainingHost>,
     host_id: TrainingHostId,
+    harness_id: TrainingHarnessId,
     pipeline: Mutex<DatasetPipeline>,
     adapter_store: Arc<dyn AdapterStore>,
     job_store: Option<JobStore>,
@@ -341,6 +546,7 @@ impl TrainingServer {
         semantic: Option<SemanticMemory>,
         host: Box<dyn TrainingHost>,
         host_id: TrainingHostId,
+        harness_id: TrainingHarnessId,
         pipeline: DatasetPipeline,
         adapter_store: Arc<dyn AdapterStore>,
         job_store: Option<JobStore>,
@@ -353,6 +559,7 @@ impl TrainingServer {
             semantic,
             host,
             host_id,
+            harness_id,
             pipeline: Mutex::new(pipeline),
             adapter_store,
             job_store,
@@ -556,6 +763,8 @@ impl TrainingServer {
             status: TrainingJobStatus::Queued,
             created_at: chrono::Utc::now(),
             host: self.host_id,
+            harness: self.harness_id,
+            owner: None,
         };
 
         // Persist job for survival across server restarts
@@ -1010,10 +1219,12 @@ impl TrainingServer {
             skill_document,
             skill_name,
             num_traces,
+            trace_type,
             bloom_levels,
             output_path,
             system_prompt,
             model,
+            generation_config,
         }): Parameters<GenerateTracesRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("training_generate_traces", &self.webid);
@@ -1043,6 +1254,17 @@ impl TrainingServer {
         let sys = system_prompt
             .unwrap_or_else(|| format!("You are an hKask agent trained in the {skill_name} skill. Apply it precisely and thoroughly."));
 
+        // Detect trace type from skill document or use explicit type
+        let detected_type = trace_type.unwrap_or_else(|| TraceType::detect(&skill_text));
+        let trace_type_guidance = trace_type_prompt(detected_type);
+
+        tracing::info!(
+            target: "cns.training.trace.type",
+            skill = %skill_name,
+            trace_type = ?detected_type,
+            "Trace type selected"
+        );
+
         // Chunking: split large skill documents to avoid context overflow.
         // Threshold of ~6000 chars leaves room for the prompt template (~2000 chars)
         // within typical 8K context windows.
@@ -1060,11 +1282,8 @@ impl TrainingServer {
         };
 
         let router = InferenceRouter::new(self.inference_config.clone());
-        let params = LLMParameters {
-            temperature: 0.7,
-            max_tokens: 4096,
-            ..Default::default()
-        };
+        let gen_config = generation_config.unwrap_or_default();
+        let params = gen_config.to_llm_params();
 
         let traces_per_chunk = (count as f64 / chunks.len() as f64).ceil() as usize;
         let mut all_cleaned = String::new();
@@ -1081,29 +1300,30 @@ impl TrainingServer {
 
             let prompt = format!(
                 "You are generating training data for fine-tuning an AI agent on the '{skill_name}' skill{chunk_label}.\n\n\
-                 SKILL DOCUMENT{chunk_label}:\n{chunk_text}\n\n\
-                 Generate {traces_per_chunk} training examples in ChatML JSONL format. \
-                 Each example must be a DECOMPOSITION TRACE: an ill-formed situation that requires \
-                 the skill's process to transform it into answerable sub-questions, then synthesize a resolution.\n\n\
-                 STRUCTURE OF EACH TRACE:\n\
-                 1. SITUATION: Present an ill-formed problem/scenario that triggers the skill.\n\
-                 2. DECOMPOSITION: Walk through the skill's process step by step, showing how each \
-                    step narrows the situation into specific, answerable sub-questions.\n\
-                 3. SYNTHESIS: Answer the sub-questions and resolve the original situation.\n\n\
-                 TARGET BLOOM LEVELS: {levels_str}\n\n\
-                 VARY ACROSS:\n\
-                 - Difficulty: novice (obvious application) to expert (subtle tradeoffs, conflicting principles)\n\
-                 - Scenario types: direct application, violation detection, decision justification, \
-                   error recovery, multi-turn dialogue\n\
-                 - Context richness: minimal (snippet only) to rich (full context with distractors)\n\n\
-                 OUTPUT FORMAT: Valid JSONL with one JSON object per line. Each object must have \
-                 a 'messages' array with system, user, and assistant roles:\n\
-                 {{\"messages\": [\
-                   {{\"role\": \"system\", \"content\": \"{sys}\"}},\n\
-                   {{\"role\": \"user\", \"content\": \"<the situation>\"}},\n\
-                   {{\"role\": \"assistant\", \"content\": \"<the decomposition trace + synthesis>\"}}\n\
-                 ]}}\n\n\
-                 Output ONLY the JSONL, no preamble or explanation."
+                     SKILL DOCUMENT{chunk_label}:\n{chunk_text}\n\n\
+                     {trace_type_guidance}\n\n\
+                     Generate {traces_per_chunk} training examples in ChatML JSONL format. \
+                     Each example must be a DECOMPOSITION TRACE: an ill-formed situation that requires \
+                     the skill's process to transform it into answerable sub-questions, then synthesize a resolution.\n\n\
+                     STRUCTURE OF EACH TRACE:\n\
+                     1. SITUATION: Present an ill-formed problem/scenario that triggers the skill.\n\
+                     2. DECOMPOSITION: Walk through the skill's process step by step, showing how each \
+                        step narrows the situation into specific, answerable sub-questions.\n\
+                     3. SYNTHESIS: Answer the sub-questions and resolve the original situation.\n\n\
+                     TARGET BLOOM LEVELS: {levels_str}\n\n\
+                     VARY ACROSS:\n\
+                     - Difficulty: novice (obvious application) to expert (subtle tradeoffs, conflicting principles)\n\
+                     - Scenario types: direct application, violation detection, decision justification, \
+                       error recovery, multi-turn dialogue\n\
+                     - Context richness: minimal (snippet only) to rich (full context with distractors)\n\n\
+                     OUTPUT FORMAT: Valid JSONL with one JSON object per line. Each object must have \
+                     a 'messages' array with system, user, and assistant roles:\n\
+                     {{\"messages\": [\
+                       {{\"role\": \"system\", \"content\": \"{sys}\"}},\n\
+                       {{\"role\": \"user\", \"content\": \"<the situation>\"}},\n\
+                       {{\"role\": \"assistant\", \"content\": \"<the decomposition trace + synthesis>\"}}\n\
+                     ]}}\n\n\
+                     Output ONLY the JSONL, no preamble or explanation."
             );
 
             match router
@@ -1831,7 +2051,9 @@ impl TrainingServer {
                                 {"role": "user", "content": question},
                                 {"role": "assistant", "content": original_answer}
                             ],
-                            "review": "passed"
+                            "review": "passed",
+                            "failure_category": null,
+                            "confidence": 1.0,
                         }));
                     } else {
                         // Extract corrected answer
@@ -1842,14 +2064,17 @@ impl TrainingServer {
                             .unwrap_or(original_answer.as_str());
 
                         corrections += 1;
+                        let failure_category = classify_failure(&judge_text);
                         corrected_traces.push(json!({
                             "messages": [
                                 {"role": "user", "content": question},
                                 {"role": "assistant", "content": corrected}
                             ],
                             "review": "corrected",
+                            "failure_category": failure_category,
                             "original_answer": original_answer,
-                            "judge_notes": judge_text
+                            "judge_notes": judge_text,
+                            "confidence": 0.8,
                         }));
 
                         tracing::info!(
@@ -1895,6 +2120,13 @@ impl TrainingServer {
                     } else {
                         1.0
                     },
+                    "failures_by_category": failure_counts(&corrected_traces),
+                    "inter_rater_agreement": if reviewed > 0 {
+                        (reviewed - corrections) as f64 / reviewed as f64
+                    } else {
+                        0.0
+                    },
+                    "quality_threshold_met": (reviewed - corrections) as f64 / reviewed.max(1) as f64 >= 0.7,
                     "tokens_used": total_tokens,
                 });
                 self.record_experience(
@@ -2060,6 +2292,8 @@ impl TrainingServer {
             status: TrainingJobStatus::Queued,
             created_at: chrono::Utc::now(),
             host: self.host_id,
+            harness: self.harness_id,
+            owner: None,
         };
 
         // Persist job
@@ -2200,6 +2434,77 @@ impl TrainingServer {
 /// Split text into chunks at paragraph boundaries, each under `max_chars`.
 /// Splits at double-newline boundaries first, then falls back to single-newline
 /// if a paragraph exceeds the limit.
+/// Build trace-type-specific prompt guidance.
+fn trace_type_prompt(tt: TraceType) -> String {
+    match tt {
+        TraceType::WordAct => "TRACE TYPE: WordAct — Persona Calibration.\n\n\
+             These traces train HOW TO SOUND. Each trace calibrates agent persona:\n\
+             - ContEXT: A conversational situation where the persona matters.\n\
+             - PERSONA CONSTRAINTS: What tone, posture, and phrasing the agent should use.\n\
+             - TARGET UTTERANCE: The calibrated response in persona.\n\
+             - CALIBRATION NOTES: Why this utterance fits and alternatives that would not.\n\
+             Focus on tone, voice, dialogue patterns, and conversational posture."
+            .to_string(),
+        TraceType::FlowDef => "TRACE TYPE: FlowDef — Procedural Decomposition.\n\n\
+             These traces train HOW TO THINK. Each trace decomposes a problem:\n\
+             - SITUATION: An ill-formed scenario requiring the skill's process.\n\
+             - DECOMPOSITION SEQUENCE: Step-by-step application of the skill's procedure.\n\
+             - SYNTHESIS: Resolution derived from the decomposed sub-questions.\n\
+             - VERIFICATION: Check that the resolution satisfies the original situation.\n\
+             Focus on procedural correctness, step ordering, and verification."
+            .to_string(),
+        TraceType::KnowAct => "TRACE TYPE: KnowAct — Pattern Recognition & Classification.\n\n\
+             These traces train HOW TO CLASSIFY. Each trace distinguishes patterns:\n\
+             - PATTERN EXEMPLAR: A clear example of the pattern being taught.\n\
+             - POSITIVE CASES: Examples that match the pattern (vary difficulty).\n\
+             - NEGATIVE CASES: Near-miss examples that look like the pattern but aren't.\n\
+             - DECISION BOUNDARY: The rule or heuristic that separates matches from non-matches.\n\
+             Focus on classification precision, boundary cases, and misclassification avoidance."
+            .to_string(),
+        TraceType::Composite => "TRACE TYPE: Composite — Mixed WordAct + FlowDef.\n\n\
+             This skill requires both persona calibration AND procedural decomposition.\n\
+             Generate traces that alternate between:\n\
+             - WordAct segments: persona-appropriate utterances within the procedure.\n\
+             - FlowDef segments: procedural decomposition of the task at hand.\n\
+             Ensure persona consistency across procedural steps."
+            .to_string(),
+    }
+}
+
+/// Classify failure category from judge text.
+fn classify_failure(judge_text: &str) -> &'static str {
+    let lower = judge_text.to_lowercase();
+    if lower.contains("hallucinat") || lower.contains("fabricat") || lower.contains("made up") {
+        "hallucination"
+    } else if lower.contains("omit") || lower.contains("missing") || lower.contains("incomplete") {
+        "omission"
+    } else if lower.contains("step")
+        || lower.contains("order")
+        || lower.contains("procedure")
+        || lower.contains("sequence")
+    {
+        "procedural_error"
+    } else if lower.contains("irrelevant")
+        || lower.contains("off topic")
+        || lower.contains("misunderst")
+    {
+        "off_target"
+    } else {
+        "other"
+    }
+}
+
+/// Count failures by category.
+fn failure_counts(traces: &[serde_json::Value]) -> HashMap<String, usize> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for trace in traces {
+        if let Some(cat) = trace.get("failure_category").and_then(|v| v.as_str()) {
+            *counts.entry(cat.to_string()).or_insert(0) += 1;
+        }
+    }
+    counts
+}
+
 fn split_into_chunks(text: &str, max_chars: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let paragraphs: Vec<&str> = text.split("\n\n").collect();
@@ -2349,6 +2654,7 @@ async fn main() -> anyhow::Result<()> {
                 semantic,
                 host,
                 host_config.host,
+                host_config.harness,
                 pipeline.clone(),
                 adapter_store,
                 job_store,

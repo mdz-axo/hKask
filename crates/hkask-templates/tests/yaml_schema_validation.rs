@@ -68,6 +68,18 @@ fn all_skill_manifests_are_well_formed() {
                         "{}: manifest.name is empty",
                         path.display()
                     );
+                    // P3: description must be present (Generative Space requires discoverability)
+                    assert!(
+                        !mf.manifest.description.is_empty(),
+                        "{}: manifest.description is empty",
+                        path.display()
+                    );
+                    // P7: version must be present (Evolutionary Architecture requires versioning)
+                    assert!(
+                        !mf.manifest.version.is_empty(),
+                        "{}: manifest.version is empty",
+                        path.display()
+                    );
                     // P11: visibility must be present and canonical (Public or Private only)
                     let vis = mf.manifest.visibility.as_deref().unwrap_or("");
                     assert!(

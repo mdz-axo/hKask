@@ -86,8 +86,9 @@ detect_os() {
 # ============================================================================
 
 install_system_dependencies() {
-    local pkg_mgr=$(detect_package_manager)
-    local os=$(detect_os)
+    local pkg_mgr os
+    pkg_mgr=$(detect_package_manager)
+    os=$(detect_os)
 
     log "Detected package manager: $pkg_mgr"
     log "Detected OS: $os"
@@ -178,13 +179,15 @@ install_system_dependencies() {
 
 install_rust() {
     if command -v rustc &> /dev/null; then
-        local rust_version=$(rustc --version)
+        local rust_version
+        rust_version=$(rustc --version)
         log "Rust already installed: $rust_version"
 
         # Parse version: e.g. "rustc 1.91.0 (...)", extract major.minor
-        local rust_major_minor=$(rustc --version | awk '{print $2}' | cut -d. -f1,2)
-        local rust_major=$(echo "$rust_major_minor" | cut -d. -f1)
-        local rust_minor=$(echo "$rust_major_minor" | cut -d. -f2)
+        local rust_major_minor rust_major rust_minor
+        rust_major_minor=$(rustc --version | awk '{print $2}' | cut -d. -f1,2)
+        rust_major=$(echo "$rust_major_minor" | cut -d. -f1)
+        rust_minor=$(echo "$rust_major_minor" | cut -d. -f2)
         if [ -n "$rust_major" ] && [ -n "$rust_minor" ] && { [ "$rust_major" -lt 1 ] || { [ "$rust_major" -eq 1 ] && [ "$rust_minor" -lt 91 ]; }; }; then
             log_warning "Rust version too old (project requires 1.91+). Update with 'rustup update' or install from https://rustup.rs"
         fi
@@ -387,7 +390,8 @@ setup_environment() {
 # Print OS-specific instructions for installing Docker or Podman.
 # Called when setup_conduit() detects no container runtime.
 print_container_runtime_guide() {
-    local pkg_mgr=$(detect_package_manager)
+    local pkg_mgr
+    pkg_mgr=$(detect_package_manager)
 
     echo ""
     log_warning "Conduit (Matrix homeserver) requires Docker or Podman."
@@ -506,7 +510,8 @@ verify_installation() {
         return 1
     fi
 
-    local version=$("$BIN_DIR/kask" --version 2>&1 || echo "unknown")
+    local version
+    version=$("$BIN_DIR/kask" --version 2>&1 || echo "unknown")
     log "Binary: $BIN_DIR/kask ($version)"
 
     # Check symlink in /usr/local/bin
@@ -516,7 +521,8 @@ verify_installation() {
 
     # Check if kask is reachable via PATH
     if command -v kask &> /dev/null; then
-        local resolved=$(command -v kask)
+        local resolved
+        resolved=$(command -v kask)
         log_success "kask is in PATH: $resolved ($version)"
     else
         log_warning "kask command not yet in PATH for this shell session"

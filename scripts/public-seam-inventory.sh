@@ -81,7 +81,7 @@ collect_public_items() {
         search_dirs+=("$repo_root/mcp-servers")
     fi
 
-    > "$outfile"
+    true > "$outfile"
 
     for dir in "${search_dirs[@]}"; do
         [ -d "$dir" ] || continue
@@ -205,7 +205,7 @@ collect_req_tests() {
         search_dirs+=("$repo_root/mcp-servers")
     fi
 
-    > "$outfile"
+    true > "$outfile"
 
     for dir in "${search_dirs[@]}"; do
         [ -d "$dir" ] || continue
@@ -273,7 +273,7 @@ classify_risk() {
             case "$fn_name" in
                 new|new_*|from_*|with_*|as_*|to_*|into_*|\
                 is_*|has_*|get_*|set_*|try_*|default|\
-                builder|build|len|is_empty|iter|iter_mut|\
+                builder|build|len|iter|iter_mut|\
                 run|start|stop|shutdown|close|open)
                     echo "low:Accessor/Constructor"
                     ;;
