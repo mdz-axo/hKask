@@ -1,9 +1,9 @@
 ---
 title: "Contract-First Migration & Replicant Contract Proposal — Strategic Plan"
 audience: [engineers, architects, agents]
-last_updated: 2026-06-15
+last_updated: 2026-06-17
 version: "0.27.0"
-status: "Draft"
+status: "Active — Phases A1–A4 complete, B1–B4 partially delivered"
 domain: "Cross-cutting"
 mds_categories: [lifecycle, curation]
 ---
@@ -259,26 +259,40 @@ scripts/contract-audit.sh --summary   # table format
 2. Rejection emits `cns.contract.rejected` CNS span
 3. Rejected contract is archived as a curation decision
 
-### 5.4 CNS Integration (Phase B4) 🟡 PARTIAL (2026-06-15)
+### 5.4 CNS Integration (Phase B4) ✅ COMPLETE (2026-06-17)
 
 **New CNS spans (registered in canonical CNS span registry (`crates/hkask-types/src/cns.rs`, `CnsSpan`) and CANONICAL_NAMESPACES):**
 
 | Span | Emitted When | Observer | Status |
 |------|-------------|----------|--------|
-| `cns.contract.proposed` | Replicant opens a contract proposal PR | Curator | ⬜ Not yet implemented |
-| `cns.contract.accepted` | Human approves and merges a contract proposal | Curator | ⬜ Not yet implemented |
-| `cns.contract.rejected` | Human rejects a contract proposal | Curator | ⬜ Not yet implemented |
-| `cns.contract.violated` | A contracted function's proptest fails | CNS algedonic | ✅ Emission function implemented (`emit_contract_violated`) |
-| `cns.contract.coverage` | Periodic coverage measurement | CNS variety | ✅ Emission function implemented (`emit_contract_coverage`) |
+| `cns.contract.proposed` | Replicant opens a contract proposal (`kask contract propose`) | Curator | ✅ Implemented |
+| `cns.contract.accepted` | Human approves and merges a contract proposal (`kask contract accept`) | Curator | ✅ Implemented |
+| `cns.contract.rejected` | Human rejects a contract proposal (`kask contract reject`) | Curator | ✅ Implemented |
+| `cns.contract.violated` | A contracted function's proptest fails (CI or background monitor) | CNS algedonic | ✅ Implemented + wired |
+| `cns.contract.coverage` | Periodic coverage measurement (seam watcher) | CNS variety | ✅ Implemented + wired |
 
 **Delivered:** `crates/hkask-cns/src/contract_discipline.rs` — public module with:
 - `emit_contract_violated(sink, function_name, contract_id, failure_reason)` — emits `cns.contract.violated`
 - `emit_contract_coverage(sink, total_pub_fns, contracted_fns, coverage_pct)` — emits `cns.contract.coverage`
-- 2 self-tests with `CaptureSink` verifying event persistence
+- `emit_contract_proposed(sink, replicant, crate, function, contract_id)` — emits `cns.contract.proposed`
+- `emit_contract_accepted(sink, reviewer, replicant, crate, function, contract_id)` — emits `cns.contract.accepted`
+- `emit_contract_rejected(sink, reviewer, replicant, crate, function, contract_id, rationale)` — emits `cns.contract.rejected`
+- `emit_contract_violated_with_task(sink, store, function_name, contract_id, reason, counterexample)` — emits span + creates kanban task
+- `create_contract_violation_task(store, function_name, contract_id, reason, counterexample, owner)` — creates kanban "Contract Violations" task
+- 3 self-tests with `CaptureSink` verifying event persistence
 
 **Wiring points:**
-- `emit_contract_violated` → called by CI when proptest with `// REQ:` tag fails
-- `emit_contract_coverage` → called by Cybernetics Loop regulation cycle or `scripts/contract-audit.sh` CI job
+- `emit_contract_violated_with_task` → called by background contract monitor (`spawn_contract_test_loop` in `context.rs`) every 60min (configurable via `HKASK_CONTRACT_TEST_INTERVAL_SECS`)
+- `emit_contract_coverage` → called by seam watcher drift check every 30min
+- `emit_contract_proposed/accepted/rejected` → called by `kask contract` CLI subcommands
+
+**CLI surface:**
+```bash
+kask contract propose -c <crate> -f <function> --contract-id <id> --pre "..." --post "..." -r <replicant>
+kask contract accept <contract-id> -r <reviewer>
+kask contract reject <contract-id> --reason "..." -r <reviewer>
+kask contract list
+```
 
 ### 5.5 Phase B1–B4 Timeline
 

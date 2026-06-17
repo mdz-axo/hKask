@@ -1,19 +1,19 @@
 ---
 title: "Test Harness Maturation Plan"
 audience: [engineers, architects]
-last_updated: 2026-06-15
+last_updated: 2026-06-17
 version: "0.27.0"
-status: "In Progress — Wave 1 PR 1.1.1 ✅, PR 1.1.2–1.1.3 pending"
+status: "Active — Waves 1–6 complete; sustainment operational"
 domain: "Cross-cutting"
 mds_categories: [lifecycle, curation]
 ---
 
 # hKask v0.27.0 — Test Harness Maturation Plan
 
-**Status:** In Progress — Waves 1, 5, 6 ✅ complete; Waves 2–4 partially complete  
+**Status:** Complete — Waves 1–6 delivered. Test runner consolidated, CNS monitoring active, kanban bridge wired, schema drift CI gate added.
 **Owner:** Engineering  
 **Created:** 2026-06-15  
-**Last Updated:** 2026-06-15 (Waves 5–6 complete)  
+**Last Updated:** 2026-06-17 (Wave completion audit + deduplication)
 **Scope:** `crates/*` + `mcp-servers/*` (headless-only, no UI additions)  
 **Source Analysis:** Pragmatics 4-phase cascade + Grill-Me interrogation (2026-06-15)  
 **Principles:** P3 (Generative Space), P5 (Essentialism), P6 (Space for Replicants), P7 (Evolutionary Architecture), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation), P12 (Replicant Host Mandate)

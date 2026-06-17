@@ -311,6 +311,60 @@ Domain crates **never** depend on `hkask-services`. MCP servers **never** depend
 1. **MCP servers should not depend on `hkask-services` for orchestration** — P1 Prohibition (out-of-process isolation). Exceptions: servers that are direct surfaces for a service (CLI/API/MCP tri-surface pattern). `hkask-mcp-replica` is a tri-surface for `ComposeService` + `EmbedService`. `hkask-mcp-spec` is a tri-surface for `ComposeService` (via `spec_replica_rewrite` tool only); its remaining 5 tools use domain crates (`hkask-storage`, `hkask-types`) directly. Neither server orchestrates — they delegate.
 2. **Domain crates do NOT depend on `hkask-services`** — dependency direction is strictly surface → service → domain.
 
+
+---
+
+## Kanban Agent Coordination
+
+**Crates:** `hkask-types` (types), `hkask-services` (KanbanService), `mcp-servers/hkask-mcp-kanban` (MCP surface)
+
+**Tri-surface pattern:** CLI (`kask kanban`), REPL (`/kanban`), MCP (7 tools via `hkask-mcp-kanban`)
+
+### Summary
+
+Kanban provides headless task coordination for agents and replicants. Boards contain columns with WIP limits (Anderson, 2010), tasks flow through state transitions, and assignment requires agent consent (P1). Three skills compose the full workflow:
+
+| Skill | Purpose | Steps | Manifest |
+|-------|---------|-------|----------|
+| **Kanban Task Decomposition** | Break projects into INVEST-compliant tasks with recomposition strategy | 4 | `registry/manifests/kanban-task-decomposition.yaml` |
+| **Kanban Task Delegation** | Spawn sub-replicants with OCAP capability packages | 2 | `registry/manifests/kanban-task-delegation.yaml` |
+| **Kanban Task Management** | Monitor, coordinate, verify, de-jam | 6 | `registry/manifests/kanban-task-management.yaml` |
+
+### Key Features
+
+- **WIP limits** per column (Anderson §4: "limit WIP to expose problems")
+- **rSolidity contracts**: task assignment IS a contract with pre/post conditions
+- **Kata integration**: coaching, improvement, and starter katas available as task primitives
+- **Capability packages**: reusable OCAP delegation bundles stored as YAML
+- **Board templates**: `software-project`, `writing-project`, `scientific-research`, `investment-research`
+- **De-jamming**: auto-detects and fixes stuck tasks, stale assignments, unverified completions
+- **LLM-mediated verification**: two-step prompt → JSON → structured pass/fail
+- **Persistence**: boards and tasks stored as RDF triples via `TripleStore` (MDS §2)
+
+### Dependency Direction
+
+```mermaid
+graph TD
+    CLI["hkask-cli"] --> SVC["hkask-services"]
+    MCP["hkask-mcp-kanban"] --> SVC
+    SVC --> TYPES["hkask-types (kanban)"]
+    SVC --> STORAGE["hkask-storage (TripleStore)"]
+    SVC -.-> AGENTS["hkask-agents (PodManager)"]
+```
+
+`hkask-mcp-kanban` depends on `hkask-services` — permitted as a tri-surface for KanbanService.
+
+### CNS Spans
+
+| Span | Namespace |
+|------|-----------|
+| `TaskCreated` | `cns.kanban.task_created` |
+| `TaskMoved` | `cns.kanban.task_moved` |
+| `TaskAssigned` | `cns.kanban.task_assigned` |
+| `TaskVerified` | `cns.kanban.task_verified` |
+| `BoardCreated` | `cns.kanban.board_created` |
+
+See also: `docs/user-guides/kanban-user-guide.md`
 ---
 
 ## Daemon & Replicant Server Mode

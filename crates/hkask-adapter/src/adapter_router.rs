@@ -232,11 +232,64 @@ impl RunpodAdapterBackend {
 }
 
 impl AdapterProviderBackend for RunpodAdapterBackend {
-    fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
-        // Runpod provisions GPU pods via GraphQL API. The endpoint URL
-        // is returned from the pod creation response. Skeleton until
-        // Runpod GraphQL integration is implemented.
-        Ok("https://api.runpod.io/v2".to_string())
+    fn provision_endpoint(&self, adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
+        if self.api_key.is_empty() {
+            return Err(AdapterError::ProviderUnavailable(
+                "RUNPOD_API_KEY not set".into(),
+            ));
+        }
+
+        // Runpod GraphQL API: create a serverless vLLM endpoint
+        let query = serde_json::json!({
+            "query": "mutation($input: EndpointInput!) { saveEndpoint(input: $input) { id } }",
+            "variables": {
+                "input": {
+                    "name": adapter.expertise.name,
+                    "templateId": std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
+                    "gpuTypeIds": ["NVIDIA A100 80GB PCIe"],
+                    "workersMax": 1,
+                    "idleTimeout": 300,
+                }
+            }
+        });
+
+        tracing::info!(
+            target: "hkask.adapter",
+            adapter_id = %adapter.id,
+            "Provisioning Runpod endpoint"
+        );
+
+        let response = self
+            .client
+            .post("https://api.runpod.io/graphql")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&query)
+            .send()
+            .map_err(|e| AdapterError::Internal(format!("Runpod GraphQL request failed: {e}")))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response.text().unwrap_or_default();
+            return Err(AdapterError::Internal(format!(
+                "Runpod GraphQL returned {status}: {error_body}"
+            )));
+        }
+
+        let response_json: serde_json::Value = response
+            .json()
+            .map_err(|e| AdapterError::Internal(format!("Failed to parse Runpod response: {e}")))?;
+
+        let endpoint_id = response_json["data"]["saveEndpoint"]["id"]
+            .as_str()
+            .ok_or_else(|| AdapterError::Internal("Runpod response missing endpoint ID".into()))?;
+
+        let endpoint_url = format!("https://api.runpod.ai/v2/{}/openai/v1", endpoint_id);
+        tracing::info!(
+            target: "hkask.adapter",
+            endpoint_id = %endpoint_id,
+            "Runpod endpoint provisioned"
+        );
+        Ok(endpoint_url)
     }
 
     fn infer(
@@ -296,11 +349,58 @@ impl BasetenAdapterBackend {
 }
 
 impl AdapterProviderBackend for BasetenAdapterBackend {
-    fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
-        // Baseten provisions model endpoints via their API. The endpoint
-        // URL is returned from the deployment response. Skeleton until
-        // Baseten API integration is implemented.
-        Ok("https://api.baseten.co/v1".to_string())
+    fn provision_endpoint(&self, adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
+        if self.api_key.is_empty() {
+            return Err(AdapterError::ProviderUnavailable(
+                "BASETEN_API_KEY not set".into(),
+            ));
+        }
+
+        // Baseten REST API: deploy a model endpoint
+        // Baseten supports vLLM with multi-LoRA via --lora-modules flag
+        let body = serde_json::json!({
+            "name": adapter.expertise.name,
+            "model_source": adapter.source.repository_id(),
+            "base_model": adapter.base_model_family,
+        });
+
+        tracing::info!(
+            target: "hkask.adapter",
+            adapter_id = %adapter.id,
+            "Provisioning Baseten endpoint"
+        );
+
+        let response = self
+            .client
+            .post("https://api.baseten.co/v1/models")
+            .header("Authorization", format!("Api-Key {}", self.api_key))
+            .json(&body)
+            .send()
+            .map_err(|e| AdapterError::Internal(format!("Baseten API request failed: {e}")))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response.text().unwrap_or_default();
+            return Err(AdapterError::Internal(format!(
+                "Baseten API returned {status}: {error_body}"
+            )));
+        }
+
+        let response_json: serde_json::Value = response.json().map_err(|e| {
+            AdapterError::Internal(format!("Failed to parse Baseten response: {e}"))
+        })?;
+
+        let model_id = response_json["id"]
+            .as_str()
+            .ok_or_else(|| AdapterError::Internal("Baseten response missing model ID".into()))?;
+
+        let endpoint_url = format!("https://model-{}.api.baseten.co/v1", model_id);
+        tracing::info!(
+            target: "hkask.adapter",
+            model_id = %model_id,
+            "Baseten endpoint provisioned"
+        );
+        Ok(endpoint_url)
     }
 
     fn infer(

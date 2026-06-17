@@ -1,7 +1,7 @@
 ---
 title: "hKask Testing Discipline"
 audience: [engineers, agents, replicants]
-last_updated: 2026-06-16
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -376,8 +376,9 @@ The `// REQ:` tag traces the contract to a specification requirement. The specif
 
 **The test suite is a feedback loop.** Under the Good Regulator Theorem (Conant & Ashby, 1970), every good regulator must be a model of the system it regulates. The test suite IS that model. If the tests don't model the system's actual failure modes, they're not a good regulator.
 
-- **Contract violations are CNS events [OUGHT — requires `cns.contract.violated` span implementation].** A failed contract test SHOULD emit a `cns.contract.violated` algedonic signal. The span is registered in canonical CNS span registry (`crates/hkask-types/src/cns.rs`, `CnsSpan`) and `hkask-types::event::CANONICAL_NAMESPACES`. Implementation is pending (see `docs/plans/contract-first-migration-plan-v0.27.0.md` §5.4). Until implemented, contract violations are detected through CI test failures and the contract coverage trend gate.
-- **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert via `cns.contract.coverage`.
+- **Contract violations are CNS events ✅.** Contract test failures emit `cns.contract.violated` algedonic signals (implemented in `crates/hkask-cns/src/contract_discipline.rs`). The background contract monitor (`spawn_contract_test_loop` in `hkask-services/src/context.rs`) runs `cargo test` on priority crates every 60min and calls `emit_contract_violated_with_task`, which persists a CNS span and creates a kanban "Contract Violations" task.
+- **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert via `cns.contract.coverage`, emitted by the seam watcher (`SeamWatcher::check_drift`) every 30min.
+- **Contract lifecycle is observable.** Proposals, acceptances, and rejections emit `cns.contract.proposed`, `cns.contract.accepted`, and `cns.contract.rejected` spans via the `kask contract` CLI surface.
 - **Mutation testing measures regulator quality.** `cargo-mutants` injects bugs; the percentage caught measures how well the test suite models the system.
 
 ### 7.4 P6 — Space for Replicants
@@ -505,8 +506,10 @@ pub async fn plussing_respond(&self, input: &str) -> String {
 | Format | `cargo fmt --check` | No diffs |
 | Prohibitions | `grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"` | Zero |
 | Headless | `grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"` | Zero |
-| Contract coverage | `grep -rn "// REQ:.*pre:" crates/ mcp-servers/ --include="*.rs" \| wc -l` | Increasing over time |
-| Test debt | `grep -r "TEST-DEBT" crates/ --include="*.rs" \| wc -l` | Decreasing over time |
+| Contract coverage | `bash scripts/contract-audit.sh --summary` | All crates ≥100% |
+| Schema drift | `bash scripts/check-schema-drift.sh` | Pass |
+| CNS daemon | `kask daemon start` (smoke test) | Binds socket, loops active |
+| Contract tests | `kask test --format json` | Zero violations |
 
 ### 9.2 Contract Completeness Audit
 
@@ -518,7 +521,7 @@ bash scripts/contract-audit.sh --summary
 bash scripts/contract-audit.sh hkask-types
 ```
 
-Target: 100% of public functions have contracts. **Achieved 2026-06-16** — 1915 REQ tags across 1579 pub fns (121.2% due to multi-contract builder methods). New code must not reduce coverage below 100%.
+Target: 100% of public functions have contracts. **Achieved 2026-06-17** — 2334 REQ tags across 1771 pub fns (131.7% due to multi-contract builder methods and struct fields). Every crate at ≥100%. New code must not reduce coverage below 100%.
 
 ---
 

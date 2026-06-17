@@ -1,7 +1,7 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-06-15
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -43,6 +43,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-09** | Face recognition system for media server | Media bot | High | ✅ Complete | `docs/plans/mcp-media-server-design.md` §10. Face registry table with ArcFace embedding, validation gate, dual-path auto-matching (ONNX primary, vision LLM fallback). 5 tools: face_validate, face_register (with --force), face_list, face_remove, gallery_name_face (with face_id lookup). ONNX integration via `face_id` crate (SCRFD + ArcFace). |
 | **P1-10** | Condenser live integration testing — thinking mode + auto-condense | Dev | Medium | ✅ Complete | **All items verified.** (1) Thinking mode wire format: 2 unit tests pass. (2) Router pass-through: `disable_thinking_flows_to_wire_format` integration test (wiremock) passes. (3) Auto-condense threshold: 87.5% formula verified for all window sizes (2048–131072). (4) Live Ollama: `llama3.1:8b` produces structured summaries with `original_tokens_approx` + `summary_tokens_approx`. (5) Live DeepInfra: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output, no thinking interference. (6) Live Together: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output. (7) Graceful degradation: thinking models (qwen3.5/gemma4/deepseek-r1) return clear error on all backends. (8) Rust live-backend tests written: `crates/hkask-inference/tests/live_backends.rs` — `deepinfra_summarization` + `together_summarization` (gated on API keys, `#[ignore]`). **Finding:** Ollama 0.30.8 ignores `enable_thinking: false` for qwen3/gemma/deepseek — documented with workaround (use non-thinking models like llama3.1). DeepInfra/Together Qwen3 models also exhibit thinking mode. |
 | **P1-11** | Critical audit: energy-use tracking simplification + security hardening | Dev + CNS | High | ⬜ Planned | Perform adversarial review of gas/rJoule accounting paths (`GovernedTool` ↔ `EnergyBudgetManager` ↔ `WalletBackedBudget` ↔ `WalletStore`), remove duplicate accounting surfaces, and prove deterministic/tamper-evident transitions with focused tests. |
+| **P1-12** | Real `provision_endpoint` API integration for Runpod + Baseten | Adapter | High | ✅ Complete | Runpod: GraphQL `saveEndpoint` mutation → returns endpoint ID → constructs OpenAI-compatible URL. Baseten: REST `POST /v1/models` → returns model ID → constructs model-specific URL. Both use real HTTP calls with API keys from env (`RUNPOD_API_KEY`, `BASETEN_API_KEY`). API contracts may need adjustment based on actual provider responses. |
 
 ---
 

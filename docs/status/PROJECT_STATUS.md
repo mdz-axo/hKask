@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** ACP Replicant — `hkask-acp` crate implements the Agent Client Protocol (agentclientprotocol.com) enabling hKask agents to present themselves in ACP-compatible IDEs (Zed, VS Code). Bidirectional JSON-RPC 2.0 over stdio with streaming inference output, tool call notifications, and session lifecycle management. A2A protocol renamed from `acp` to `a2a` across ~70 files (the internal agent-to-agent messaging fabric). (2026-06-17)
+**Current session:** ACP Replicant — `hkask-acp` crate implements the Agent Client Protocol (agentclientprotocol.com) enabling hKask agents to present themselves in ACP-compatible IDEs (Zed, VS Code). Bidirectional JSON-RPC 2.0 over stdio with streaming inference output, tool call notifications, and session lifecycle management. A2A protocol renamed from `acp` to `a2a` across ~70 files (the internal agent-to-agent messaging fabric). Additionally: `hkask-adapter` crate built — canonical trained adapter lifecycle (TrainedLoRAAdapter, AdapterPort, AdapterRouter, EndpointGuard). Training MCP integrated with hkask-adapter; duplicates (endpoint.rs, expertise.rs) eliminated. 10 new CNS spans registered. (2026-06-17)
 
 ---
 
@@ -54,6 +54,7 @@ All 25 workspace members.
 | hkask-cli | 43 | 118 |
 | hkask-api | ~12 | 66 |
 | hkask-acp | 4 | — |
+| hkask-adapter | 51 | 58 |
 | **Crate subtotal** | **~575** | **1860** |
 | MCP servers (10) | — | ~55 |
 | **Workspace total** | **~571** | **~1915** |
@@ -91,11 +92,11 @@ All 25 workspace members.
 | Source files (crates) | 324 |
 | Source files (MCP servers) | 70 |
 | Source files (total) | 394 |
-| Workspace members | 25 |
+| Workspace members | 26 |
 | Skills | 28 |
 | MCP servers | 11 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
-| CNS spans | 74 (3 ACP bridge spans added) |
+| CNS spans | 84 (10 adapter/endpoint lifecycle spans added) |
 
 ---
 
@@ -301,6 +302,14 @@ PS-07 ("Sourced Ideas") requires every `##` section to have at least one `[^...]
 | 23 | `REPL-specification.md` |
 
 Fixing these requires domain knowledge to assign appropriate external citations per section — not mechanically resolvable.
+
+---
+
+## Known Gaps
+
+| Gap | Severity | Status | Description |
+|-----|----------|--------|-------------|
+| **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. API contracts may need adjustment based on actual provider responses. |
 
 ---
 
