@@ -27,7 +27,7 @@ pub enum McpError {
 /// Shared core error variants used across multiple agent domains.
 ///
 /// Consolidates `Infra(#[from] InfrastructureError)`, `NoSnapshot`,
-/// and `Acp` delegation that were previously duplicated across
+/// and `A2A` delegation that were previously duplicated across
 /// `MemoryError`, `EscalationError`, `MetacognitionError`, and `A2AError`.
 #[derive(Debug, Error)]
 pub enum CoreError {
@@ -39,7 +39,7 @@ pub enum CoreError {
     #[error("No snapshot available for metacognition cycle")]
     NoSnapshot,
 
-    /// ACP protocol failure
+    /// A2A protocol failure
     #[error(transparent)]
     Acp(#[from] crate::a2a::A2AError),
 }

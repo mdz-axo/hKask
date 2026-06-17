@@ -118,12 +118,12 @@ cargo clippy -p hkask-communication -- -D warnings
 
 ### Task R2 — `hkask-agents` Tests (20 → 31) ✅
 
-**Result:** 31 tests pass covering ACP runtime (wildcard rejection, registration, unregistration, revocation, restore, list agents), consent flows, curation loop state, and pod lifecycle.  
+**Result:** 31 tests pass covering A2A runtime (wildcard rejection, registration, unregistration, revocation, restore, list agents), consent flows, curation loop state, and pod lifecycle.  
 **Expected outcome:** `cargo test -p hkask-agents` passes ≥20 tests covering ACP, consent, and curation invariants.
 
 **PR slices**
 
-- **PR R2.1:** Add ACP runtime tests.
+- **PR R2.1:** Add A2A runtime tests.
   - Requires `HKASK_MASTER_KEY` env var (see `set_test_master_key()` pattern).
   - Tests:
     - `// REQ: ACP rejects wildcard capability "*"`
@@ -359,7 +359,7 @@ cargo clippy --workspace -- -D warnings
 
 ### Task R6 — Upgrade DelegationToken from HMAC to Ed25519 ✅
 
-**Result:** Immediate cutover (no backward compat window, per user directive). `TokenSignature([u8; 64])` newtype + `public_key: Ed25519PublicKey` field in `DelegationToken`. `derive_signing_key()` helper. `CapabilityChecker`, `RootAuthority`, and `AcpRuntime` migrated. All 20+ callers updated. 15 token tests + 11 ACP tests pass. HMAC path removed.
+**Result:** Immediate cutover (no backward compat window, per user directive). `TokenSignature([u8; 64])` newtype + `public_key: Ed25519PublicKey` field in `DelegationToken`. `derive_signing_key()` helper. `CapabilityChecker`, `RootAuthority`, and `A2ARuntime` migrated. All 20+ callers updated. 15 token tests + 11 ACP tests pass. HMAC path removed.
 **Expected outcome:** `DelegationToken` carries an Ed25519 signature. Verification uses the public key. Token forgery requires the private key.
 
 **PR slices**
@@ -373,7 +373,7 @@ cargo clippy --workspace -- -D warnings
 
 - **PR R6.2:** Implement token signing and verification in `hkask-agents`.
   - Update `RootAuthority::create_root_token()` to sign with Ed25519.
-  - Update `AcpRuntime::register_agent()` to issue Ed25519-signed tokens.
+  - Update `A2ARuntime::register_agent()` to issue Ed25519-signed tokens.
   - Update `verify_delegation_token()` to verify Ed25519 signature.
   - Update `verify_delegation_token_now()` accordingly.
   - Ensure HMAC path remains available for backward compatibility during migration.

@@ -21,7 +21,7 @@ pub struct CuratorContext {
     /// NuEvent store for algedonic review queries.
     /// Curation reads from the persistent log, not live CNS state.
     nu_event_store: Option<Arc<NuEventStore>>,
-    /// ACP port for A2A messaging (e.g. directing bots).
+    /// A2A port for A2A messaging (e.g. directing bots).
     /// Optional so existing construction sites don't break.
     acp: Option<Arc<dyn A2APort>>,
 }
@@ -32,7 +32,7 @@ impl CuratorContext {
     /// pre:  `handle` is a valid `CuratorHandle`; `cns` is a valid
     ///       `Arc<CnsRuntime>`; `curator_directive_tx` is `Some` or `None`;
     ///       `escalation_queue` is a valid `Arc<EscalationQueue>`.
-    /// post: Returns a `CuratorContext` with no NuEvent store and no ACP
+    /// post: Returns a `CuratorContext` with no NuEvent store and no A2A
     ///       port.
     pub fn new(
         handle: CuratorHandle,
@@ -46,7 +46,7 @@ impl CuratorContext {
             curator_directive_tx,
             escalation_queue,
             nu_event_store: None,
-            acp: None,
+            a2a: None,
         }
     }
 
@@ -57,7 +57,7 @@ impl CuratorContext {
     /// pre:  All arguments are valid (same as `new`); `nu_event_store` is
     ///       a valid `Arc<NuEventStore>`.
     /// post: Returns a `CuratorContext` with `nu_event_store` set and no
-    ///       ACP port.
+    ///       A2A port.
     pub fn with_nu_event_store(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -71,18 +71,18 @@ impl CuratorContext {
             curator_directive_tx,
             escalation_queue,
             nu_event_store: Some(nu_event_store),
-            acp: None,
+            a2a: None,
         }
     }
 
-    /// Builder: attach an ACP port for A2A bot-directed messaging.
+    /// Builder: attach an A2A port for A2A bot-directed messaging.
     ///
-    /// REQ: P9-agt-curator-context-with-acp
-    /// \[P4\] Motivating: Clear Boundaries — ACP port lets Curator direct bots
+    /// REQ: P9-agt-curator-context-with-a2a
+    /// \[P4\] Motivating: Clear Boundaries — A2A port lets Curator direct bots
     /// pre:  `acp` is a valid `Arc<dyn A2APort>`.
-    /// post: Returns `self` with `acp` set to `Some(acp)`.
-    pub fn with_acp(mut self, acp: Arc<dyn A2APort>) -> Self {
-        self.acp = Some(acp);
+    /// post: Returns `self` with `a2a` set to `Some(acp)`.
+    pub fn with_a2a(mut self, a2a: Arc<dyn A2APort>) -> Self {
+        self.a2a = Some(acp);
         self
     }
 
@@ -114,11 +114,11 @@ impl CuratorContext {
         &self.escalation_queue
     }
 
-    /// Access the ACP port for A2A messaging.
+    /// Access the A2A port for A2A messaging.
     ///
-    /// Returns None if no ACP port is configured (graceful degradation).
-    pub(crate) fn acp(&self) -> Option<&Arc<dyn A2APort>> {
-        self.acp.as_ref()
+    /// Returns None if no A2A port is configured (graceful degradation).
+    pub(crate) fn a2a(&self) -> Option<&Arc<dyn A2APort>> {
+        self.a2a.as_ref()
     }
 
     /// Issue a CuratorDirective unconditionally on the direct channel.

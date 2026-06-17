@@ -624,12 +624,12 @@ pub fn open_agent_registry(
 > {
     let db = Database::open(&config.db_path, &config.db_passphrase)?;
     let conn = db.conn_arc();
-    let acp = Arc::new(hkask_agents::A2ARuntime::new(&config.a2a_secret));
+    let a2a = Arc::new(hkask_agents::A2ARuntime::new(&config.a2a_secret));
     let store = hkask_storage::AgentRegistryStore::new(conn);
     store
         .initialize_schema()
         .map_err(ServiceError::AgentRegistryStore)?;
-    Ok((acp, store))
+    Ok((a2a, store))
 }
 
 impl AgentService {
@@ -669,7 +669,7 @@ impl AgentService {
         // ── Matrix transport + 7R7 listener ──────────────────────────────
         let matrix_transport = build_matrix().await;
 
-        // ── Registry + wallet: agent records, ACP restore, rJoule ───────
+        // ── Registry + wallet: agent records, A2A restore, rJoule ───────
         let reg_wallet = build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods)?;
 
         Ok(Self {
@@ -1001,7 +1001,7 @@ async fn build_loops(
             Some(curator_directive_tx.clone()),
             Arc::clone(&f.escalation_queue),
         )
-        .with_acp(acp_port),
+        .with_a2a(acp_port),
     );
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),
@@ -1230,7 +1230,7 @@ async fn build_matrix()
     }
 }
 
-/// Registry + wallet: agent records, ACP restore, rJoule payments.
+/// Registry + wallet: agent records, A2A restore, rJoule payments.
 struct RegWallet {
     registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
     agent_registry_store: hkask_storage::AgentRegistryStore,
@@ -1256,7 +1256,7 @@ fn build_registry_and_wallet(
         .initialize_schema()
         .map_err(ServiceError::AgentRegistryStore)?;
 
-    // Restore ACP state from persistent storage
+    // Restore A2A state from persistent storage
     let registered_agents = agent_registry_store
         .list()
         .map_err(ServiceError::AgentRegistryStore)?;
@@ -1277,12 +1277,12 @@ fn build_registry_and_wallet(
             })
             .collect();
         let tokens = std::collections::HashMap::new();
-        // ACP restore is async but wallet build is sync — block_on in the sync context.
+        // A2A restore is async but wallet build is sync — block_on in the sync context.
         // This is acceptable because build() runs at startup, not in a hot loop.
         let handle = tokio::runtime::Handle::current();
         handle
             .block_on(l.a2a_runtime.restore_from_storage(agents, tokens))
-            .map_err(ServiceError::Acp)?;
+            .map_err(ServiceError::A2A)?;
     }
 
     // Wallet

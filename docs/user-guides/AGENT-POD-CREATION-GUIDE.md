@@ -40,7 +40,7 @@ The creation process follows a requirements-driven methodology[^wiegers2013]:
 5. [Step 3: Create Dispatch Manifest](#step-3-create-dispatch-manifest)
 6. [Step 4: Create Templates](#step-4-create-templates)
 7. [Step 5: Build Agent Crate](#step-5-build-agent-crate)
-8. [Step 6: Register with ACP Runtime](#step-6-register-with-acp-runtime)
+8. [Step 6: Register with A2A Runtime](#step-6-register-with-a2a-runtime)
 9. [Step 7: Activate Pod](#step-7-activate-pod)
 10. [Step 8: Configure Visibility](#step-8-configure-visibility)
 11. [Common Agent Patterns](#common-agent-patterns)
@@ -54,7 +54,7 @@ Before creating an agent pod, ensure you have[^bass2021]:
 
 - **hKask CLI installed**: `cargo install --path crates/hkask-cli`
 - **Git CAS configured**: Template path set via `HKASK_TEMPLATES_PATH` or default `./registry/templates/`
-- **ACP runtime available**: Either local or remote ACP server
+- **A2A runtime available**: Either local or remote ACP server
 - **MCP servers registered**: Tools your agent will need access to
 - **Root authority access**: For issuing capability tokens (administrator only)
 
@@ -75,7 +75,7 @@ Populated → Registered → Activated → Deactivated
 | State | Description | Capabilities |
 |-------|-------------|--------------|
 | **Populated** | Pod instantiated from template crate | None |
-| **Registered** | Registered with ACP runtime | Capability token minted |
+| **Registered** | Registered with A2A runtime | Capability token minted |
 | **Activated** | Activated for A2A communication | MCP access granted |
 | **Deactivated** | Deactivated, capabilities revoked | None (revoked) |
 
@@ -779,7 +779,7 @@ members = [
 
 ---
 
-## Step 6: Register with ACP Runtime
+## Step 6: Register with A2A Runtime
 
 Registration issues capability tokens following OCAP principles[^miller2006].
 
@@ -789,7 +789,7 @@ Registration issues capability tokens following OCAP principles[^miller2006].
 # Navigate to crate directory
 cd my-agent-crate
 
-# Register agent with ACP runtime
+# Register agent with A2A runtime
 kask pod create \
   --template my-agent-crate \
   --persona agent_persona.yaml \
@@ -814,7 +814,7 @@ curl -X POST http://localhost:8080/api/pods \
 ```rust
 use hkask_agents::pod::{PodManager, AgentPersona, PodID};
 use hkask_agents::adapters::git_cas::GitCasAdapter;
-use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
+use hkask_agents::adapters::a2a_runtime::A2ARuntimeAdapter;
 use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 use hkask_types::WebID;
@@ -824,12 +824,12 @@ use std::path::PathBuf;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create adapters
     let git_cas = GitCasAdapter::from_path(PathBuf::from("./registry/templates"));
-    let acp_runtime = AcpRuntimeAdapter::new();
+    let a2a_runtime = A2ARuntimeAdapter::new();
     let cns_emitter = CnsEmitterAdapter::new(WebID::new());
     let mcp_runtime = McpRuntimeAdapter::new();
     
     // Create pod manager
-    let pod_manager = PodManager::new(git_cas, acp_runtime, cns_emitter, mcp_runtime);
+    let pod_manager = PodManager::new(git_cas, a2a_runtime, cns_emitter, mcp_runtime);
     
     // Load persona from YAML
     let persona_yaml = std::fs::read_to_string("agent_persona.yaml")?;
@@ -895,7 +895,7 @@ println!("Pod activated: {}", pod_id);
 
 ### 7.4 What Activation Does
 
-1. **Registers with ACP runtime** (if not already registered)
+1. **Registers with A2A runtime** (if not already registered)
 2. **Grants MCP tool access** per capabilities
 3. **Enables A2A communication** with other bots
 4. **Emits CNS span**: `cns.agent_pod.activated`
@@ -1151,7 +1151,7 @@ Diagnostic approaches follow security testing methodology[^owasp_testing].
 **Error:** `ACP registration failed`
 
 **Solution:**
-1. Verify ACP runtime is running
+1. Verify A2A runtime is running
 2. Check root authority has issued capability tokens
 3. Ensure capabilities match registered tools
 

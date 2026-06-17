@@ -1,6 +1,6 @@
 //! Agent registration and bot listing — delegates to AgentService.
 //!
-//! All domain operations (ACP, store) come from AgentService.
+//! All domain operations (A2A, store) come from AgentService.
 //! No direct Database::open(), A2ARuntime::new(), or AgentRegistryStore::new().
 
 use std::str::FromStr;
@@ -47,7 +47,7 @@ pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
 
 /// REQ: CLI-040
 /// pre:  webid_str is a valid WebID; agent_type is a valid AgentKind; capabilities is a list of capability strings
-/// post: registers the agent via ACP, stores in registry, returns AgentReceipt with webid, token_hash, and timestamp
+/// post: registers the agent via A2A, stores in registry, returns AgentReceipt with webid, token_hash, and timestamp
 pub async fn agent_register(
     webid_str: &str,
     agent_type: &str,
@@ -59,8 +59,8 @@ pub async fn agent_register(
         source: None,
         message: agent_type.to_string(),
     })?;
-    let (_, acp) = ctx.identity();
-    let token = acp.register_agent(webid, kind, capabilities).await?;
+    let (_, a2a) = ctx.identity();
+    let token = a2a.register_agent(webid, kind, capabilities).await?;
     let def = AgentDefinition {
         name: webid_str.to_string(),
         agent_kind: kind,

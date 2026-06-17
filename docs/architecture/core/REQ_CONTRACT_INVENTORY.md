@@ -202,7 +202,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 #### P3-agt-registry-loader-new (🟢 full)
 
 - **Principle:** ✅ anchored
-- **Pre:**  `registry_path` is a valid `PathBuf`; `acp_runtime` is a
+- **Pre:**  `registry_path` is a valid `PathBuf`; `a2a_runtime` is a
 - **Post:** Returns an `AgentRegistryLoader` with all fields set.
 - **File:** crates/hkask-agents/src/registry_loader.rs:231
 
@@ -2718,14 +2718,14 @@ mds_categories: [domain, composition, trust, lifecycle]
 #### SVC-221 (🟢 full)
 
 - **Principle:** ⚠ unanchored
-- **Pre:**  keystore must have acp_secret, db_passphrase, and mcp_secret configured
+- **Pre:**  keystore must have a2a_secret, db_passphrase, and mcp_secret configured
 - **Post:** returns ServiceConfig with env-derived values and keystore secrets; Err(Keystore) on secret resolution failure
 - **File:** crates/hkask-services/src/config.rs:119
 
 #### SVC-222 (🟢 full)
 
 - **Principle:** ⚠ unanchored
-- **Pre:**  acp_secret, db_passphrase, mcp_secret, agent_name must be non-empty
+- **Pre:**  a2a_secret, db_passphrase, mcp_secret, agent_name must be non-empty
 - **Post:** returns ServiceConfig with provided secrets and env-derived or default values
 - **File:** crates/hkask-services/src/config.rs:182
 
@@ -2929,7 +2929,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  self must be fully built
-- **Post:** returns (&WebID, &Arc<AcpRuntime>) tuple
+- **Post:** returns (&WebID, &Arc<A2ARuntime>) tuple
 - **File:** crates/hkask-services/src/context.rs:386
 
 #### SVC-263 (🟢 full)
@@ -3019,8 +3019,8 @@ mds_categories: [domain, composition, trust, lifecycle]
 #### SVC-275 (🟢 full)
 
 - **Principle:** ⚠ unanchored
-- **Pre:**  config must have valid db_path, db_passphrase, and acp_secret
-- **Post:** returns (Arc<AcpRuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
+- **Pre:**  config must have valid db_path, db_passphrase, and a2a_secret
+- **Post:** returns (Arc<A2ARuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
 - **File:** crates/hkask-services/src/context.rs:580
 
 #### SVC-276 (🟢 full)
@@ -3384,14 +3384,14 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 - **Principle:** ⚠ unanchored
 - **Pre:**  passphrase must be non-empty; store=true requires writable keychain
-- **Post:** returns ResolvedSecrets with acp_secret and db_passphrase; if store=true, secrets are persisted to keychain; Err(Keystore) on keychain failure
+- **Post:** returns ResolvedSecrets with a2a_secret and db_passphrase; if store=true, secrets are persisted to keychain; Err(Keystore) on keychain failure
 - **File:** crates/hkask-services/src/onboarding.rs:61
 
 #### SVC-189 (🟢 full)
 
 - **Principle:** ⚠ unanchored
-- **Pre:**  config must have valid db_path, db_passphrase, and acp_secret
-- **Post:** returns RegistryHandle with ACP runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
+- **Pre:**  config must have valid db_path, db_passphrase, and a2a_secret
+- **Post:** returns RegistryHandle with A2A runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
 - **File:** crates/hkask-services/src/onboarding.rs:93
 
 #### SVC-190 (🟢 full)
@@ -5296,7 +5296,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 #### TPL-003 (🟢 full)
 
 - **Principle:** ⚠ unanchored
-- **Pre:**  inference and mcp are initialized, acp_secret is non-empty
+- **Pre:**  inference and mcp are initialized, a2a_secret is non-empty
 - **Post:** returns ManifestExecutor with default template_base_path
 - **File:** crates/hkask-templates/src/executor.rs:72
 

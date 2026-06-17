@@ -181,12 +181,12 @@ pub fn resolve_secret_chain(
     .or_else(|_| resolve(&SecretRef::keychain(keychain_key)))
 }
 
-/// Resolve the ACP (Agent Capability Protocol) HMAC signing secret.
+/// Resolve the A2A (Agent-to-Agent Protocol) HMAC signing secret.
 ///
 /// Chain: master key derivation → env var → OS keychain.
 /// Tries both `HKASK_A2A_SECRET` (canonical) and `HKASK_A2A_SECRET_KEY` (legacy)
 /// environment variables for backward compatibility.
-/// Resolve the ACP secret for agent capability protocol signing.
+/// Resolve the A2A secret for agent capability protocol signing.
 ///
 /// Chain: master key derivation → env var → OS keychain.
 /// Tries both `HKASK_A2A_SECRET` (canonical) and `HKASK_A2A_SECRET_KEY` (legacy)
@@ -198,28 +198,28 @@ pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
             derivation_contexts::MASTER_KEY_ENV,
-            derivation_contexts::ACP_SECRET,
+            derivation_contexts::A2A_SECRET,
         ),
         "HKASK_A2A_SECRET",
-        "acp-secret",
+        "a2a-secret",
     )
     .or_else(|_| resolve(&SecretRef::env("HKASK_A2A_SECRET_KEY")))
 }
 
 /// Resolve the MCP dispatch and tool invocation signing key.
 ///
-/// Chain: master key derivation → env var → OS keychain → ACP fallback.
-/// Falls back to the ACP secret if MCP-specific key is unavailable,
+/// Chain: master key derivation → env var → OS keychain → A2A fallback.
+/// Falls back to the A2A secret if MCP-specific key is unavailable,
 /// since they share the same authority chain.
 /// Resolve the MCP dispatch and tool invocation signing key.
 ///
-/// Chain: master key derivation → env var → OS keychain → ACP fallback.
-/// Falls back to the ACP secret if MCP-specific key is unavailable,
+/// Chain: master key derivation → env var → OS keychain → A2A fallback.
+/// Falls back to the A2A secret if MCP-specific key is unavailable,
 /// since they share the same authority chain.
 ///
 /// REQ: KEY-011
 /// post: returns Zeroizing<Vec<u8>> from first successful resolution step
-/// post: falls back to ACP secret if MCP key unavailable
+/// post: falls back to A2A secret if MCP key unavailable
 pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (

@@ -22,14 +22,14 @@ Each public item is classified:
 |------|------|--------|----------|-----------|-----|
 | fn | `new` | hkask-agents::acp::audit | crates/hkask-agents/src/acp/audit.rs:25 | 🟢 Accessor/Constructor | 🟢 |
 | enum | `A2AMessage` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:104 | 🟡 Type Declaration | 🟢 |
-| enum | `AcpError` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:63 | 🟡 Type Declaration | 🟢 |
+| enum | `A2AError` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:63 | 🟡 Type Declaration | 🟢 |
 | fn | `correlation_id` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:284 | 🔴 Core Logic | 🟢 |
 | fn | `from_webid` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:265 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `message_type` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:299 | 🔴 Core Logic | 🟢 |
 | fn | `new` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:344 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `visit` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:216 | 🔴 Core Logic | 🟢 |
-| struct | `AcpAgent` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:93 | 🟡 Type Declaration | 🟢 |
-| struct | `AcpRuntime` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:327 | 🟡 Type Declaration | 🟢 |
+| struct | `A2AAgent` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:93 | 🟡 Type Declaration | 🟢 |
+| struct | `A2ARuntime` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:327 | 🟡 Type Declaration | 🟢 |
 | struct | `MemoryArtifact` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:148 | 🟡 Type Declaration | 🟢 |
 | struct | `TemplateDispatch` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:134 | 🟡 Type Declaration | 🟢 |
 | struct | `TemplateResponse` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:142 | 🟡 Type Declaration | 🟢 |
@@ -139,7 +139,7 @@ Each public item is classified:
 | fn | `store_episodic` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:169 | 🔴 Core Logic | 🔴 |
 | fn | `store_semantic` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:275 | 🔴 Core Logic | 🔴 |
 | struct | `PodContext` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:37 | 🟡 Type Declaration | 🔴 |
-| fn | `acp_runtime` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:439 | 🔴 Core Logic | 🟢 |
+| fn | `a2a_runtime` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:439 | 🔴 Core Logic | 🟢 |
 | fn | `inference_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:200 | 🔴 Core Logic | 🟢 |
 | fn | `new_mock` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:230 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `new` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:75 | 🟢 Accessor/Constructor | 🟢 |
@@ -181,7 +181,7 @@ Each public item is classified:
 | fn | `validate_fields` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:178 | 🔴 Core Logic | 🟢 |
 | fn | `webid` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:161 | 🔴 Core Logic | 🟢 |
 | struct | `AgentPersona` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:88 | 🟡 Type Declaration | 🟢 |
-| trait | `AcpPort` | hkask-agents::ports::acp | crates/hkask-agents/src/ports/acp.rs:18 | 🟡 Type Declaration | 🔴 |
+| trait | `A2APort` | hkask-agents::ports::acp | crates/hkask-agents/src/ports/acp.rs:18 | 🟡 Type Declaration | 🔴 |
 | trait | `MCPRuntimePort` | hkask-agents::ports::mcp_runtime | crates/hkask-agents/src/ports/mcp_runtime.rs:11 | 🟡 Type Declaration | 🔴 |
 | fn | `classified_episodic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:135 | 🔴 Core Logic | 🟢 |
 | fn | `episodic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:173 | 🔴 Core Logic | 🟢 |
@@ -238,7 +238,7 @@ Each public item is classified:
 | type | `AuthContext` | hkask-api::middleware::auth | crates/hkask-api/src/middleware/auth.rs:124 | 🟡 Type Declaration | 🟢 |
 | struct | `ApiDoc` | hkask-api::openapi | crates/hkask-api/src/openapi.rs:86 | 🟡 Type Declaration | 🔴 |
 | fn | `acp_router` | hkask-api::routes::acp | crates/hkask-api/src/routes/acp.rs:82 | 🔴 API Route Handler | 🟢 |
-| struct | `AcpAgentResponse` | hkask-api::routes::acp | crates/hkask-api/src/routes/acp.rs:63 | 🟡 Type Declaration | 🟢 |
+| struct | `A2AAgentResponse` | hkask-api::routes::acp | crates/hkask-api/src/routes/acp.rs:63 | 🟡 Type Declaration | 🟢 |
 | struct | `AcpRegisterRequest` | hkask-api::routes::acp | crates/hkask-api/src/routes/acp.rs:41 | 🟡 Type Declaration | 🟢 |
 | struct | `AcpRegisterResponse` | hkask-api::routes::acp | crates/hkask-api/src/routes/acp.rs:52 | 🟡 Type Declaration | 🟢 |
 | struct | `AgentListResponse` | hkask-api::routes::acp | crates/hkask-api/src/routes/acp.rs:73 | 🟡 Type Declaration | 🟢 |
@@ -821,7 +821,7 @@ Each public item is classified:
 | fn | `delete` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:85 | 🔴 Core Logic | 🟢 |
 | fn | `get_or_create_ocap_secret` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:304 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `new` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:44 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `resolve_acp_secret` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:197 | 🔴 Core Logic | 🟢 |
+| fn | `resolve_a2a_secret` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:197 | 🔴 Core Logic | 🟢 |
 | fn | `resolve_capability_key` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:264 | 🔴 Core Logic | 🟢 |
 | fn | `resolve_db_passphrase` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:290 | 🔴 Core Logic | 🟢 |
 | fn | `resolve_mcp_secret` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:223 | 🔴 Core Logic | 🟢 |

@@ -18,7 +18,7 @@ risk and typically covered by struct-level or integration tests.
 
 | # | Crate | Kind | Item | Module | Location | Category |
 |---|-------|------|------|--------|----------|----------|
-| 1 | hkask-agents | fn | `acp_runtime` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:439 | Core Logic |
+| 1 | hkask-agents | fn | `a2a_runtime` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:439 | Core Logic |
 | 2 | hkask-agents | fn | `activate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:327 | Core Logic |
 | 3 | hkask-agents | fn | `calibrate_from_history` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:76 | Core Logic |
 | 4 | hkask-agents | fn | `can_access` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:108 | Core Logic |

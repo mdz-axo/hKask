@@ -112,7 +112,7 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "models", description = "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI) — discover and search available LLMs"),
         (name = "curator", description = "Curator escalation and metacognition — bot health reports and pending escalation queue (Pattern C, P12)"),
         (name = "git", description = "Git archival and resolution — template crate loading and SHA resolution via GitCASPort hexagonal boundary"),
-        (name = "a2a", description = "ACP agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"),
+        (name = "a2a", description = "A2A agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"),
         (name = "goals", description = "Goal coordination substrate — creation, listing, and state transitions with OCAP authority gating (P4)"),
         (name = "bundles", description = "Bundle composition and evolution — inference-driven skill bundling with apply/deactivate lifecycle (Pattern A)"),
         (name = "episodic", description = "Episodic memory — store and query bitemporal triples with OCAP-gated access (P1, P4, P11)"),
@@ -147,7 +147,7 @@ impl utoipa::Modify for SecurityAddon {
                     utoipa::openapi::security::HttpBuilder::new()
                         .scheme(utoipa::openapi::security::HttpAuthScheme::Bearer)
                         .description(Some(
-                            "DelegationToken — an OCAP capability token carrying the authenticated WebID and scoped permissions (P4).\n\nObtain via the REPL onboarding flow (`kask secret`) or agent registration (ACP)."
+                            "DelegationToken — an OCAP capability token carrying the authenticated WebID and scoped permissions (P4).\n\nObtain via the REPL onboarding flow (`kask secret`) or agent registration (A2A)."
                         ))
                         .bearer_format("DelegationToken")
                         .build(),

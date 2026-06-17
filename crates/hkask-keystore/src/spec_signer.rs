@@ -12,7 +12,7 @@ use hkask_types::InfrastructureError;
 /// The signing key is derived from a master secret via HKDF-SHA256 with
 /// the domain separation context `"hkask:spec-signing-key"`. This ensures
 /// the spec-signing key is cryptographically independent from all other
-/// internal secrets (ACP, OCAP, MCP, etc.).
+/// internal secrets (A2A, OCAP, MCP, etc.).
 pub struct Ed25519SpecSigner {
     signing_key: SigningKey,
 }

@@ -1,6 +1,6 @@
 //! Audit log for A2A message tracking
 //
-//! Provides in-memory audit logging for ACP messages.
+//! Provides in-memory audit logging for A2A messages.
 //! Uses canonical `AuditEntry` from `hkask-types`.
 
 pub use hkask_types::AuditEntry;

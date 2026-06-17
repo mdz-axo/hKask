@@ -41,7 +41,7 @@ pub struct ServiceConfig {
     /// Passphrase for encrypted database access.
     pub db_passphrase: String,
 
-    /// HMAC secret for ACP token signing (in-process agent capability policy).
+    /// HMAC secret for A2A token signing (in-process agent capability policy).
     ///
     /// Used by A2ARuntime, PodManager, FullMcpAdapter, ManifestExecutor, and
     /// CLI tool invocation. Tokens signed with this secret are verified within
@@ -113,7 +113,7 @@ impl ServiceConfig {
     /// Resolve configuration from environment variables and keychain.
     ///
     /// Reads `HKASK_DB_PATH`, `HKASK_TEMPLATE_CACHE_PATH`,
-    /// and `HKASK_MEMORY_DB_PATH` from environment. ACP and MCP secrets are
+    /// and `HKASK_MEMORY_DB_PATH` from environment. A2A and MCP secrets are
     /// resolved via `hkask_keystore`. Falls back to defaults for missing values.
     ///
     /// REQ: P7-svc-config-221
@@ -137,7 +137,7 @@ impl ServiceConfig {
         let a2a_secret = hkask_keystore::resolve_a2a_secret()
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
-                message: "Failed to resolve ACP secret".into(),
+                message: "Failed to resolve A2A secret".into(),
             })?
             .to_vec();
 

@@ -1,6 +1,6 @@
 //! `/invoke <tool> [args]` — direct tool invocation from the REPL.
 //!
-//! Mints a capability token from the session's ACP secret, then routes
+//! Mints a capability token from the session's A2A secret, then routes
 //! the invocation through GovernedTool (OCAP + energy budget + CNS observability).
 
 use hkask_types::capability::derive_signing_key;
@@ -61,14 +61,14 @@ pub(crate) fn handle_invoke(
         }
     };
 
-    // Mint a capability token for this tool invocation using the ACP secret
+    // Mint a capability token for this tool invocation using the A2A secret
     // from onboarding. Capability tokens are signed with the same secret that
     // governs OCAP authority throughout the system.
     let a2a_secret = match state.resolved_secrets {
         Some(ref secrets) => secrets.a2a_secret.as_bytes(),
         None => {
             eprintln!(
-                "Error: No ACP secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
+                "Error: No A2A secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
             );
             return;
         }

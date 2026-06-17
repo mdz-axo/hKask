@@ -71,7 +71,7 @@ impl ManifestExecutor {
     ///
     /// REQ: P3-tpl-manifest-executor-new
     /// \[P3\] Motivating: Generative Space — executor for template manifest cascades
-    /// \[P4\] Constraining: Clear Boundaries — requires ACP secret for delegation
+    /// \[P4\] Constraining: Clear Boundaries — requires A2A secret for delegation
     /// pre:  inference and mcp are initialized, a2a_secret is non-empty
     /// post: returns ManifestExecutor with default template_base_path
     pub fn new(

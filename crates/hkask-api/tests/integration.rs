@@ -8,7 +8,7 @@
 //! to the end-to-end test suite. See OPEN_QUESTIONS.md.
 
 use hkask_api::routes::{
-    AcpRegisterRequest, AcpRegisterResponse, ChatRequest, ChatResponse, CnsHealthResponse,
+    A2ARegisterRequest, A2ARegisterResponse, ChatRequest, ChatResponse, CnsHealthResponse,
     CnsVarietyResponse, CreatePodRequest, CreatePodResponse, GrantCapabilityRequest,
     ListPodsResponse, ModelEntry, ModelListResponse, PodStatusResponse, SovereigntyStatusResponse,
     SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse, TemplateResponse,
@@ -283,35 +283,35 @@ fn sovereignty_status_response_serialization() {
     assert_eq!(parsed.granted_categories.len(), 1);
 }
 
-// ── ACP Types ─────────────────────────────────────────────────────────────
+// ── A2A Types ─────────────────────────────────────────────────────────────
 
-// REQ: api-acp-001 — AcpRegisterRequest serializes agent registration data
+// REQ: api-a2a-001 — A2ARegisterRequest serializes agent registration data
 #[test]
-fn acp_register_request_serialization() {
-    let req = AcpRegisterRequest {
+fn a2a_register_request_serialization() {
+    let req = A2ARegisterRequest {
         webid: "agent-webid-123".to_string(),
         agent_type: "Bot".to_string(),
         capabilities: vec!["tool:execute".to_string(), "memory:read".to_string()],
     };
-    let json = serde_json::to_string(&req).expect("AcpRegisterRequest should serialize");
-    let parsed: AcpRegisterRequest =
-        serde_json::from_str(&json).expect("AcpRegisterRequest should deserialize");
+    let json = serde_json::to_string(&req).expect("A2ARegisterRequest should serialize");
+    let parsed: A2ARegisterRequest =
+        serde_json::from_str(&json).expect("A2ARegisterRequest should deserialize");
     assert_eq!(parsed.webid, "agent-webid-123");
     assert_eq!(parsed.agent_type, "Bot");
     assert_eq!(parsed.capabilities.len(), 2);
 }
 
-// REQ: api-acp-002 — AcpRegisterResponse carries delegation token and metadata
+// REQ: api-a2a-002 — A2ARegisterResponse carries delegation token and metadata
 #[test]
-fn acp_register_response_serialization() {
-    let resp = AcpRegisterResponse {
+fn a2a_register_response_serialization() {
+    let resp = A2ARegisterResponse {
         token: "base64-encoded-token-data".to_string(),
         registered_at: 1700000000,
         webid: "agent-webid-123".to_string(),
     };
-    let json = serde_json::to_string(&resp).expect("AcpRegisterResponse should serialize");
-    let parsed: AcpRegisterResponse =
-        serde_json::from_str(&json).expect("AcpRegisterResponse should deserialize");
+    let json = serde_json::to_string(&resp).expect("A2ARegisterResponse should serialize");
+    let parsed: A2ARegisterResponse =
+        serde_json::from_str(&json).expect("A2ARegisterResponse should deserialize");
     assert_eq!(parsed.token, "base64-encoded-token-data");
     assert_eq!(parsed.registered_at, 1700000000);
     assert_eq!(parsed.webid, "agent-webid-123");

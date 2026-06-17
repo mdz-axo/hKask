@@ -216,7 +216,7 @@ All sub-questions are **moot**:
 **Status:** Deferred (no current need)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
-Current ACP is JSON-RPC 2.0 over stdio (child process). For networked agents or in-process, a transport abstraction would be needed. However, no current consumer requires this — `AcpRuntime` works in-process. When networked ACP becomes necessary, define a transport trait in `hkask-types` and implement for stdio, HTTP, and in-process. (ADR-028, which documented the ACP protocol design, is archived — the transport layer was removed.)
+Current ACP is JSON-RPC 2.0 over stdio (child process). For networked agents or in-process, a transport abstraction would be needed. However, no current consumer requires this — `A2ARuntime` works in-process. When networked ACP becomes necessary, define a transport trait in `hkask-types` and implement for stdio, HTTP, and in-process. (ADR-028, which documented the ACP protocol design, is archived — the transport layer was removed.)
 
 ### P3-b: CyberneticsToken/CurationToken Runtime Enforcement ⚠️ DEFERRED
 

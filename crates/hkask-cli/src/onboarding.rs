@@ -150,7 +150,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     let selected_model = select_model().await?;
 
     OnboardingService::register_replicant(
-        &handle.acp,
+        &handle.a2a,
         &handle.store,
         &name,
         &description,
@@ -224,7 +224,7 @@ fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, Onboarding
 
 /// REQ: CLI-ONBOARDING-002
 /// pre:  user must not cancel at any interactive prompt
-/// post: returns OnboardingOutcome with signed_in_agent, resolved_secrets, selected_model, is_first_run=true; all secrets derived and stored in keychain; replicant registered in ACP; user profile stored; matrix registration attempted (non-blocking)
+/// post: returns OnboardingOutcome with signed_in_agent, resolved_secrets, selected_model, is_first_run=true; all secrets derived and stored in keychain; replicant registered in A2A; user profile stored; matrix registration attempted (non-blocking)
 /// inv:  does not modify any external state before derive_secrets; cancellation at any prompt returns OnboardingError::Cancelled with zero side effects
 /// Flow: Create the user's first replicant
 async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingError> {
@@ -311,7 +311,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     let config = ServiceConfig::from_secrets(
         resolved.a2a_secret.clone(),
         resolved.db_passphrase.clone(),
-        resolved.a2a_secret.clone(), // MCP secret fallback to ACP
+        resolved.a2a_secret.clone(), // MCP secret fallback to A2A
         display_name.clone(),
     );
     let handle = OnboardingService::init_registry(&config)
@@ -330,7 +330,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
 
     // Register the new replicant with naming protocol applied
     OnboardingService::register_replicant(
-        &handle.acp,
+        &handle.a2a,
         &handle.store,
         &name,
         &description,

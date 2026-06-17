@@ -74,7 +74,7 @@ pub enum ServiceError {
     #[error(transparent)]
     Metacognition(#[from] MetacognitionError),
 
-    // ── Agent / ACP domain ───────────────────────────────────────────────
+    // ── Agent / A2A domain ───────────────────────────────────────────────
     /// Agent not found by name.
     #[error("Agent not found: {message}")]
     AgentNotFound {
@@ -99,7 +99,7 @@ pub enum ServiceError {
         message: String,
     },
 
-    /// Upstream ACP error.
+    /// Upstream A2A error.
     #[error(transparent)]
     Acp(#[from] A2AError),
 
@@ -479,7 +479,7 @@ impl ServiceError {
             ServiceError::Storage(_) => false,
 
             // Permission/security: retrying won't grant capabilities
-            ServiceError::Acp(_) | ServiceError::Consent(_) => false,
+            ServiceError::A2A(_) | ServiceError::Consent(_) => false,
 
             // P2 consent denied: retrying won't grant consent
             ServiceError::ConsentDenied { .. } => false,
@@ -547,11 +547,11 @@ impl ServiceError {
             ServiceError::Escalation(_) => "error.curator.escalation",
             ServiceError::Metacognition(_) => "error.curator.metacognition",
 
-            // ── Agent / ACP domain ───────────────────────────────────
+            // ── Agent / A2A domain ───────────────────────────────────
             ServiceError::AgentNotFound { .. } => "error.agent.not_found",
             ServiceError::InvalidAgentType { .. } => "error.agent.invalid_type",
             ServiceError::AgentRegistrationFailed { .. } => "error.agent.registration_failed",
-            ServiceError::Acp(_) => "error.agent.acp",
+            ServiceError::A2A(_) => "error.agent.a2a",
             ServiceError::AgentRegistry(_) => "error.agent.registry_load",
             ServiceError::AgentRegistryStore(_) => "error.agent.registry_store",
             ServiceError::Consent(_) => "error.agent.consent",
@@ -699,9 +699,9 @@ impl ServiceError {
             ),
 
             // ── Security / OCAP domain ────────────────────────────────
-            ServiceError::Acp(e) => (
+            ServiceError::A2A(e) => (
                 "cns.sovereignty",
-                "error.acp",
+                "error.a2a",
                 serde_json::json!({ "error": e.to_string() }),
             ),
             ServiceError::Consent(e) => (

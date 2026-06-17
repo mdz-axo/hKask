@@ -34,7 +34,7 @@ impl std::fmt::Display for AgentMode {
 pub enum PodLifecycleState {
     /// Pod instantiated from template crate, not yet registered
     Populated,
-    /// Registered with ACP runtime, capability token minted
+    /// Registered with A2A runtime, capability token minted
     Registered,
     /// Activated for A2A communication, MCP access granted
     Activated,

@@ -43,7 +43,7 @@ pub struct SignInOutcome {
 /// Result of registry initialization: the A2A runtime and agent store
 /// are both ready for use.
 pub struct RegistryHandle {
-    pub acp: Arc<A2ARuntime>,
+    pub a2a: Arc<A2ARuntime>,
     pub store: AgentRegistryStore,
 }
 
@@ -56,7 +56,7 @@ impl OnboardingService {
     /// Derive all internal secrets from a master passphrase.
     ///
     /// If `store` is true, stores secrets in the OS keychain for future sessions.
-    /// Returns `ResolvedSecrets` carrying the ACP secret and DB passphrase.
+    /// Returns `ResolvedSecrets` carrying the A2A secret and DB passphrase.
     ///
     /// REQ: P1-svc-onboarding-188
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -67,10 +67,10 @@ impl OnboardingService {
         if store {
             let keychain = Keychain::default();
             keychain
-                .store_by_key("acp-secret", &secrets.a2a_secret)
+                .store_by_key("a2a-secret", &secrets.a2a_secret)
                 .map_err(|e| ServiceError::Keystore {
                     source: Some(Box::new(e)),
-                    message: "Failed to store acp-secret".into(),
+                    message: "Failed to store a2a-secret".into(),
                 })?;
             keychain
                 .store_by_key("hkask-db-passphrase", &secrets.capability_key)
@@ -87,7 +87,7 @@ impl OnboardingService {
 
     /// Initialize the A2A runtime and agent registry store from a ServiceConfig.
     ///
-    /// Opens the database, initializes the schema, restores ACP state from
+    /// Opens the database, initializes the schema, restores A2A state from
     /// persisted agent registrations, and returns both the A2A runtime and
     /// the registry store ready for use.
     ///
@@ -96,13 +96,13 @@ impl OnboardingService {
     /// pre:  config must have valid db_path, db_passphrase, and a2a_secret
     /// post: returns RegistryHandle with A2A runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
     pub async fn init_registry(config: &ServiceConfig) -> Result<RegistryHandle, ServiceError> {
-        let acp = Arc::new(A2ARuntime::new(&config.a2a_secret));
+        let a2a = Arc::new(A2ARuntime::new(&config.a2a_secret));
 
         let db = Database::open(&config.db_path, &config.db_passphrase)?;
         let store = AgentRegistryStore::new(db.conn_arc());
         store.initialize_schema()?;
 
-        // ACP state restoration: reload registered agents from the store
+        // A2A state restoration: reload registered agents from the store
         let registered_agents = store.list().map_err(ServiceError::AgentRegistryStore)?;
         if !registered_agents.is_empty() {
             let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
@@ -121,17 +121,17 @@ impl OnboardingService {
                 })
                 .collect();
             let tokens = std::collections::HashMap::new();
-            acp.restore_from_storage(agents, tokens)
+            a2a.restore_from_storage(agents, tokens)
                 .await
-                .map_err(ServiceError::Acp)?;
+                .map_err(ServiceError::A2A)?;
         }
 
-        Ok(RegistryHandle { acp, store })
+        Ok(RegistryHandle { a2a, store })
     }
 
-    /// Register a new replicant in ACP and the agent registry store.
+    /// Register a new replicant in A2A and the agent registry store.
     ///
-    /// Creates a WebID, registers with ACP (granting default replicant
+    /// Creates a WebID, registers with A2A (granting default replicant
     /// capabilities), builds an `AgentDefinition` and `RegisteredAgent`,
     /// and persists them.
     ///
@@ -140,10 +140,10 @@ impl OnboardingService {
     ///
     /// REQ: P1-svc-onboarding-190
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  acp must be initialized; store must be initialized; name and description must be non-empty
-    /// post: replicant is registered in ACP with default capabilities and persisted to store; Err(Acp) on registration failure; Err(AgentRegistryStore) on persistence failure
+    /// pre:  a2a must be initialized; store must be initialized; name and description must be non-empty
+    /// post: replicant is registered in A2A with default capabilities and persisted to store; Err(A2A) on registration failure; Err(AgentRegistryStore) on persistence failure
     pub async fn register_replicant(
-        acp: &Arc<A2ARuntime>,
+        a2a: &Arc<A2ARuntime>,
         store: &AgentRegistryStore,
         name: &str,
         description: &str,
@@ -165,10 +165,10 @@ impl OnboardingService {
             "registry:episodic_memory:write".to_string(),
         ];
 
-        let token = acp
+        let token = a2a
             .register_agent(webid, AgentKind::Replicant, default_capabilities.clone())
             .await
-            .map_err(ServiceError::Acp)?;
+            .map_err(ServiceError::A2A)?;
 
         let definition = AgentDefinition {
             name: display_name,
@@ -260,10 +260,10 @@ impl OnboardingService {
         // Success — store secrets in keychain for future sessions
         let keychain = Keychain::default();
         keychain
-            .store_by_key("acp-secret", &resolved_secrets.a2a_secret)
+            .store_by_key("a2a-secret", &resolved_secrets.a2a_secret)
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
-                message: "Failed to store acp-secret".into(),
+                message: "Failed to store a2a-secret".into(),
             })?;
         keychain
             .store_by_key("hkask-db-passphrase", &resolved_secrets.db_passphrase)
@@ -369,10 +369,10 @@ impl OnboardingService {
     /// REQ: P1-svc-onboarding-196
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be valid; best-effort cleanup (errors are silently ignored)
-    /// post: keychain entries (acp-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
+    /// post: keychain entries (a2a-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
         let keychain = Keychain::default();
-        let _ = keychain.delete_by_key("acp-secret");
+        let _ = keychain.delete_by_key("a2a-secret");
         let _ = keychain.delete_by_key("hkask-db-passphrase");
 
         let db_path = &config.db_path;

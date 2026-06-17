@@ -49,7 +49,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 | `inference_port()` | `Option<Arc<dyn InferencePort>>` | Coordination |
 | `mcp_runtime()` | `&Arc<McpRuntime>` | Coordination |
 | `pod_manager()` | `&Arc<PodManager>` | Coordination |
-| `identity()` | `(&WebID, &Arc<hkask_agents::AcpRuntime>)` | Identity |
+| `identity()` | `(&WebID, &Arc<hkask_agents::A2ARuntime>)` | Identity |
 | `sovereignty()` | `SovereigntyService` (wraps `consent_manager`) | Sovereignty |
 | `curation_inbox_tx()` | `&Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
 | `sovereignty_boundary_store()` | `&SovereigntyBoundaryStore` | Sovereignty |
@@ -62,7 +62,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 **Design rationale:** Individual accessors replaced the 8-group-method tuple pattern because:
 - Callers typically need one field, not an entire domain group — tuple destructuring forced unnecessary binding of unused fields
 - Individual methods are self-documenting: `svc.pod_manager()` is clearer than `let (_, _, pm, _) = svc.coordination()`
-- Two small tuples remain where the pair is always used together: `memory()` (episodic + semantic always co-accessed) and `identity()` (WebID + ACP runtime always co-accessed)
+- Two small tuples remain where the pair is always used together: `memory()` (episodic + semantic always co-accessed) and `identity()` (WebID + A2A runtime always co-accessed)
 
 ### 1.3 hLexicon Allocation
 
@@ -122,13 +122,13 @@ impl AgentService {
     pub fn pod_manager(&self) -> &Arc<PodManager>;
 
     // Identity
-    pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::AcpRuntime>);
+    pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::A2ARuntime>);
 
     // Sovereignty
     pub fn sovereignty(&self) -> SovereigntyService;
 
     // Internal / surface-specific
-    pub(crate) fn acp_runtime(&self) -> &Arc<hkask_agents::AcpRuntime>;
+    pub(crate) fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime>;
     pub fn curation_inbox_tx(&self) -> &Option<mpsc::UnboundedSender<CurationInput>>;
     pub fn sovereignty_boundary_store(&self) -> &SovereigntyBoundaryStore;
     pub fn spec_store(&self) -> &SqliteSpecStore;
@@ -162,7 +162,7 @@ impl AgentService {
 | `event_sink` | `Arc<dyn NuEventSink>` | CNS |
 | `sovereignty_boundary_store` | `SovereigntyBoundaryStore` | Sovereignty |
 | `spec_store` | `SqliteSpecStore` | Surface-specific |
-| `acp_runtime` | `Arc<hkask_agents::AcpRuntime>` | Identity |
+| `a2a_runtime` | `Arc<hkask_agents::A2ARuntime>` | Identity |
 | `agent_registry_store` | `hkask_storage::AgentRegistryStore` | Surface-specific |
 | `user_store` | `Arc<std::sync::Mutex<UserStore>>` | Surface-specific |
 | `daemon_handler` | `Arc<ServiceDaemonHandler>` | Daemon |
@@ -237,7 +237,7 @@ impl AgentService {
    ├── CNS runtime + event sink + seam watcher (R7.3)
    ├── Loop system (Cybernetics, Inference, Episodic, Semantic, Curation, Snapshot, Backup)
    ├── GovernedTool membrane + MCP dispatcher
-   ├── Pod manager + capability checker + ACP runtime
+   ├── Pod manager + capability checker + A2A runtime
    ├── Daemon handler + Unix socket listener (skipped in in_memory mode)
    ├── Matrix transport + 7R7 listener (non-blocking, skipped if Conduit unavailable)
    ├── Registry + agent registry store (ACP state restored from persistent storage)

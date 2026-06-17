@@ -64,7 +64,7 @@ fn verify_grant_access(
 // Capability-only adapter
 // ---------------------------------------------------------------------------
 
-/// Capability-only adapter for ACP token verification.
+/// Capability-only adapter for A2A token verification.
 ///
 /// Can verify and grant capabilities but cannot invoke tools —
 /// \[DECLARATIVE\] `invoke_tool` and `resolve_tool_server` always return errors. (P4 — Clear Boundaries).

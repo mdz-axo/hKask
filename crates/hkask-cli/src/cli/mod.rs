@@ -116,7 +116,7 @@ pub enum Commands {
         action: DocsAction,
     },
 
-    /// ACP agent registration and management
+    /// A2A agent registration and management
     Agent {
         #[command(subcommand)]
         action: AgentAction,

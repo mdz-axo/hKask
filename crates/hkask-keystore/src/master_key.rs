@@ -54,7 +54,7 @@ pub const DEFAULT_KEY_VERSION: u32 = 1;
 /// from the master passphrase via HKDF-SHA256.
 #[derive()]
 pub struct InternalSecrets {
-    /// ACP HMAC signing secret (hex-encoded 256-bit key)
+    /// A2A HMAC signing secret (hex-encoded 256-bit key)
     pub a2a_secret: String,
     /// API capability token signing key (hex-encoded 256-bit key)
     pub capability_key: String,
@@ -117,7 +117,7 @@ pub fn derive_all_internal_secrets_with_version(
     let master_key_bytes: &[u8] = &*master_key;
     let a2a_secret = derive_sub_key_hex_versioned(
         master_key_bytes,
-        derivation_contexts::ACP_SECRET,
+        derivation_contexts::A2A_SECRET,
         key_version,
     );
     let capability_key = derive_sub_key_hex_versioned(
@@ -158,7 +158,7 @@ pub fn derive_all_internal_secrets_with_version(
 /// # Arguments
 ///
 /// * `master_key` — 32-byte master key (typically from Argon2id)
-/// * `context` — Domain separation string (e.g., `"hkask:acp-secret"`)
+/// * `context` — Domain separation string (e.g., `"hkask:a2a-secret"`)
 ///
 /// # Returns
 ///

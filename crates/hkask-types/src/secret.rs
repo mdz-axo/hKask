@@ -87,8 +87,8 @@ impl SecretRef {
 /// from the same master key. This ensures that a compromise of one
 /// derived secret does not compromise the others or the master key.
 pub mod derivation_contexts {
-    /// ACP (Agent Capability Protocol) HMAC signing secret.
-    pub const ACP_SECRET: &str = "hkask:acp-secret";
+    /// A2A (Agent-to-Agent Protocol) HMAC signing secret.
+    pub const A2A_SECRET: &str = "hkask:a2a-secret";
 
     /// API capability token signing key.
     pub const CAPABILITY_KEY: &str = "hkask:capability-key";
@@ -98,7 +98,7 @@ pub mod derivation_contexts {
 
     /// MCP dispatch and tool invocation signing key.
     /// Used for DelegationToken minting in tool dispatch paths
-    /// (/invoke, tool-augmented chat). Derived from the ACP master key
+    /// (/invoke, tool-augmented chat). Derived from the A2A master key
     /// via HKDF-SHA256, same chain as resolve_a2a_secret().
     pub const MCP_SECRET: &str = "hkask:mcp-secret";
 
@@ -123,7 +123,7 @@ pub mod derivation_contexts {
 
 /// A `Vec<u8>` wrapper that zeroizes its contents on drop.
 ///
-/// \[DECLARATIVE\] Used for secrets (ACP keys, capability tokens) that must not
+/// \[DECLARATIVE\] Used for secrets (A2A keys, capability tokens) that must not
 /// linger in memory after use. Derefs to `&[u8]` for pass-through
 /// to functions that accept byte slices.
 #[derive(Clone)]

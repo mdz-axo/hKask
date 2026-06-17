@@ -183,7 +183,7 @@ pub fn run(
 
                 let rt = rt_handle.clone();
 
-                // ACP secret for signing capability tokens in tool invocations.
+                // A2A secret for signing capability tokens in tool invocations.
                 // Derived from onboarding — same secret that governs OCAP authority.
                 // Wrapped in ZeroizingSecret for defense-in-depth: the secret bytes
                 // are scrubbed from memory on drop.
@@ -191,7 +191,7 @@ pub fn run(
                     Some(secrets) => ZeroizingSecret::new(secrets.a2a_secret.as_bytes().to_vec()),
                     None => {
                         eprintln!(
-                            "Error: No ACP secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
+                            "Error: No A2A secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
                         );
                         continue;
                     }

@@ -113,7 +113,7 @@ impl IntoResponse for ServiceErrorResponse {
 
 impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
     fn from(e: hkask_agents::a2a::A2AError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::Acp(e))
+        ServiceErrorResponse(hkask_services::ServiceError::A2A(e))
     }
 }
 
@@ -186,21 +186,21 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::LoginFailed { .. } => ApiError::Unauthorized {
                 reason: "Invalid credentials".into(),
             },
-            SE::Acp(hkask_agents::a2a::A2AError::CapabilityDenied(webid, perm)) => {
+            SE::A2A(hkask_agents::a2a::A2AError::CapabilityDenied(webid, perm)) => {
                 ApiError::Forbidden {
                     reason: format!("Agent {} lacks permission: {}", webid, perm),
                 }
             }
-            SE::Acp(hkask_agents::a2a::A2AError::AgentNotFound(webid)) => ApiError::NotFound {
+            SE::A2A(hkask_agents::a2a::A2AError::AgentNotFound(webid)) => ApiError::NotFound {
                 resource: "agent".into(),
                 id: webid.to_string(),
             },
-            SE::Acp(hkask_agents::a2a::A2AError::AgentAlreadyRegistered(webid)) => {
+            SE::A2A(hkask_agents::a2a::A2AError::AgentAlreadyRegistered(webid)) => {
                 ApiError::Conflict {
                     message: format!("Agent already registered: {}", webid),
                 }
             }
-            SE::Acp(_) => ApiError::Forbidden {
+            SE::A2A(_) => ApiError::Forbidden {
                 reason: "Capability denied".into(),
             },
             SE::SovereigntyStore(hkask_storage::SovereigntyStoreError::UuidParse(msg)) => {

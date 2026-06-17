@@ -225,16 +225,16 @@ impl PodManager {
     /// REQ: P1-agt-pod-manager-default
     /// \[P5\] Motivating: Essentialism — default manager with in-memory mocks
     /// pre:  `inference_port` is `Some` or `None`.
-    /// post: Returns a `PodManager` with in-memory storage, a mock ACP
+    /// post: Returns a `PodManager` with in-memory storage, a mock A2A
     ///       runtime, and `DenyAllConsent`.
     pub fn new_mock(inference_port: Option<Arc<dyn InferencePort>>) -> Self {
-        const MOCK_ACP_SECRET: &[u8] = b"xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
+        const MOCK_A2A_SECRET: &[u8] = b"xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
-        let capability_checker = Arc::new(CapabilityChecker::new(MOCK_ACP_SECRET));
+        let capability_checker = Arc::new(CapabilityChecker::new(MOCK_A2A_SECRET));
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
-            a2a_runtime: Arc::new(crate::a2a::A2ARuntime::new(MOCK_ACP_SECRET)),
+            a2a_runtime: Arc::new(crate::a2a::A2ARuntime::new(MOCK_A2A_SECRET)),
             mcp_runtime: Arc::new(CapabilityOnlyAdapter::new(Arc::clone(&capability_checker))),
             episodic_storage: adapter.clone(),
             semantic_storage: adapter,
@@ -286,7 +286,7 @@ impl PodManager {
     /// REQ: P1-agt-pod-manager-activate-pod
     /// \[P1\] Motivating: User Sovereignty — activate pod (register + grant MCP)
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
-    /// post: If the pod is `Populated`, registers it with ACP, then
+    /// post: If the pod is `Populated`, registers it with A2A, then
     ///       activates it via MCP. Runs activation hooks on success.
     ///       Returns `Ok(())` or `Err` on failure.
     pub async fn activate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
@@ -306,7 +306,7 @@ impl PodManager {
                 self.a2a_runtime
                     .register_agent(webid, agent_type, capabilities)
                     .await
-                    .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?,
+                    .map_err(|e| AgentPodError::A2ARegistrationError(e.to_string()))?,
             )
         } else {
             None
@@ -321,7 +321,7 @@ impl PodManager {
             pod.state = PodLifecycleState::Registered;
             tracing::debug!(target: "cns.pod", span = "cns.agent_pod.registered", verb = "registered",
                 pod_id = %pod.id, webid = %pod.webid, agent_type = %pod.agent_type, confidence = 1.0, "CNS event");
-            info!("Agent pod {} registered with ACP", pod.id);
+            info!("Agent pod {} registered with A2A", pod.id);
             if let Some(ref sink) = self.nu_event_sink {
                 crate::pod::nu_event::emit_pod_registered(
                     sink.as_ref(),
@@ -432,8 +432,8 @@ impl PodManager {
             .collect())
     }
 
-    /// REQ: P1-agt-pod-manager-acp-port
-    /// \[P4\] Constraining: Clear Boundaries — accessor for ACP port
+    /// REQ: P1-agt-pod-manager-a2a-port
+    /// \[P4\] Constraining: Clear Boundaries — accessor for A2A port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Arc<dyn A2APort + Send + Sync>`.
     pub fn a2a_runtime(&self) -> Arc<dyn crate::ports::A2APort + Send + Sync> {

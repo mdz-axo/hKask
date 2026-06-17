@@ -39,7 +39,7 @@ pub mod routes;
 pub use error::ApiError;
 
 // Re-export route types for OpenAPI schema generation
-pub use routes::{AcpRegisterRequest, AcpRegisterResponse};
+pub use routes::{A2ARegisterRequest, A2ARegisterResponse};
 pub use routes::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry, ModelListResponse,
@@ -223,7 +223,7 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         .merge(routes::sovereignty_router())
         .merge(routes::chat_router())
         .merge(routes::models_router())
-        .merge(routes::acp_router())
+        .merge(routes::a2a_router())
         .merge(routes::bundles_router())
         .merge(routes::spec_router())
         .merge(routes::curator_router())
@@ -271,7 +271,7 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
         .merge(routes::sovereignty_router())
         .merge(routes::chat_router())
         .merge(routes::models_router())
-        .merge(routes::acp_router())
+        .merge(routes::a2a_router())
         .merge(routes::bundles_router())
         .merge(routes::spec_router())
         .merge(routes::curator_router())

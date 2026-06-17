@@ -100,7 +100,7 @@ pub(crate) fn handle_talk(
                 Some(ref secrets) => secrets.a2a_secret.as_bytes(),
                 None => {
                     println!(
-                        "  \x1b[31mError:\x1b[0m No ACP secret resolved. Run onboarding first."
+                        "  \x1b[31mError:\x1b[0m No A2A secret resolved. Run onboarding first."
                     );
                     println!();
                     return;

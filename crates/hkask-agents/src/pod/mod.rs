@@ -1,10 +1,10 @@
 //! Agent Pod Lifecycle Management
 //!
-//! Agent pods are minimal runtime containers that host ACP agents (bots or replicants)
+//! Agent pods are minimal runtime containers that host A2A agents (bots or replicants)
 //! within the hKask ecosystem. Each pod provides:
 //!
 //! - **Isolation**: Independent capability tokens, no shared state
-//! - **Identity**: WebID-based ACP registration
+//! - **Identity**: WebID-based A2A registration
 //! - **Access**: Capability-gated MCP tool invocation
 //! - **Observability**: CNS span emission for all lifecycle events
 //! - **Persistence**: Memory artifact generation (episodic/semantic triples)
@@ -87,7 +87,7 @@ pub use manager::{PodManager, PodStatus};
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
 pub use types::{AgentKind, AgentMode, AgentPersona, PodID, PodLifecycleState};
 
-/// Agent Pod — Runtime container for ACP agents
+/// Agent Pod — Runtime container for A2A agents
 pub struct AgentPod {
     /// Unique pod identifier
     pub id: PodID,
@@ -126,8 +126,8 @@ pub enum AgentPodError {
     #[error("Failed to load template crate: {0}")]
     CrateLoadError(#[from] hkask_types::InfrastructureError),
 
-    #[error("ACP registration failed: {0}")]
-    ACPRegistrationError(String),
+    #[error("A2A registration failed: {0}")]
+    A2ARegistrationError(String),
 
     #[error("MCP access grant failed: {0}")]
     MCPAccessError(#[from] crate::error::McpError),
@@ -265,16 +265,16 @@ impl AgentPod {
     ///
     /// # Returns
     /// * `Ok(())` — Registration successful
-    /// * `Err(AgentPodError)` — ACP registration failed
+    /// * `Err(AgentPodError)` — A2A registration failed
     ///
     /// REQ: P1-agt-pod-register
-    /// \[P1\] Motivating: User Sovereignty — register pod with ACP under its WebID
+    /// \[P1\] Motivating: User Sovereignty — register pod with A2A under its WebID
     /// pre:  `self.state` must be `Populated` (or `Registered` for
     ///       idempotent re-registration); `acp` is a valid `A2APort`.
     /// post: On success, `self.state` is `Registered` and
-    ///       `self.capability_token` is updated with the ACP-issued token.
+    ///       `self.capability_token` is updated with the A2A-issued token.
     ///       On failure, state is unchanged.
-    pub async fn register(&mut self, acp: &dyn crate::ports::A2APort) -> AgentPodResult<()> {
+    pub async fn register(&mut self, a2a: &dyn crate::ports::A2APort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Registered) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
@@ -283,10 +283,10 @@ impl AgentPod {
         }
 
         let capabilities: Vec<String> = self.persona.capabilities.clone();
-        let token = acp
+        let token = a2a
             .register_agent(self.webid, self.agent_type, capabilities)
             .await
-            .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?;
+            .map_err(|e| AgentPodError::A2ARegistrationError(e.to_string()))?;
 
         self.capability_token = token;
         self.state = PodLifecycleState::Registered;
@@ -302,7 +302,7 @@ impl AgentPod {
             "CNS event"
         );
 
-        info!("Agent pod {} registered with ACP", self.id);
+        info!("Agent pod {} registered with A2A", self.id);
         Ok(())
     }
 

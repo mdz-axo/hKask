@@ -1,4 +1,4 @@
-//! AgentRegistryLoader — Load agent YAML definitions, register with ACP, persist to storage
+//! AgentRegistryLoader — Load agent YAML definitions, register with A2A, persist to storage
 
 use crate::a2a::{A2AError, A2ARuntime};
 use crate::ports::RegistrySourcePort;
@@ -19,7 +19,7 @@ pub enum RegistryLoaderError {
         path: String,
         source: serde_yaml::Error,
     },
-    #[error("ACP error: {0}")]
+    #[error("A2A error: {0}")]
     Acp(#[from] A2AError),
     #[error("Storage error: {0}")]
     Storage(#[from] AgentRegistryError),
@@ -275,7 +275,7 @@ impl AgentRegistryLoader {
     /// \[P3\] Motivating: Generative Space — load agent definitions from filesystem
     /// pre:  The registry path contains valid YAML agent definitions.
     /// post: Returns `Ok(Vec<RegisteredAgent>)` with all successfully
-    ///       loaded and ACP-registered agents; individual load failures
+    ///       loaded and A2A-registered agents; individual load failures
     ///       are logged and skipped.
     pub async fn load_all(&self) -> Result<Vec<RegisteredAgent>, RegistryLoaderError> {
         let yaml_files = self.discover_yaml_files()?;
@@ -348,7 +348,7 @@ impl AgentRegistryLoader {
                     ))
                 })?
             }
-            Err(e) => return Err(RegistryLoaderError::Acp(e)),
+            Err(e) => return Err(RegistryLoaderError::A2A(e)),
         };
 
         let registered = RegisteredAgent {

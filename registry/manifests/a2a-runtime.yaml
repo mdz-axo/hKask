@@ -2,7 +2,7 @@
 # ℏKask v0.21.2
 
 manifest:
-  id: acp-runtime
+  id: a2a-runtime
   name: ACP Runtime
   description: Agent Capability Protocol runtime configuration
   version: 0.21.2

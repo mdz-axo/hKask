@@ -50,7 +50,7 @@ pub enum MetacognitionError {
 
 impl From<crate::a2a::A2AError> for MetacognitionError {
     fn from(e: crate::a2a::A2AError) -> Self {
-        MetacognitionError::Core(crate::error::CoreError::Acp(e))
+        MetacognitionError::Core(crate::error::CoreError::A2A(e))
     }
 }
 
@@ -356,24 +356,24 @@ impl MetacognitionLoop {
 
     // Curator metacognition: evaluate, coach, direct
 
-    /// Direct a bot to take action via ACP message.
+    /// Direct a bot to take action via A2A message.
     ///
     /// REQ: P9-agt-curator-agent-direct
     /// \[P9\] Motivating: Homeostatic Self-Regulation — direct a bot to take corrective action
     /// pre:  `bot_name` is a non-empty string; `reason` is a non-empty
-    ///       string; `self.context.acp()` may be `Some` or `None`.
-    /// post: If ACP is configured, sends a `TemplateDispatch` directive
-    ///       to the bot and returns `Ok(())`. If ACP is not configured,
+    ///       string; `self.context.a2a()` may be `Some` or `None`.
+    /// post: If A2A is configured, sends a `TemplateDispatch` directive
+    ///       to the bot and returns `Ok(())`. If A2A is not configured,
     ///       logs a warning and returns `Ok(())` (graceful degradation).
-    ///       Returns `Err` on ACP send failure.
+    ///       Returns `Err` on A2A send failure.
     pub async fn direct_bot(&self, bot_name: &str, reason: &str) -> Result<(), MetacognitionError> {
-        let acp = match self.context.acp() {
-            Some(acp) => acp,
+        let a2a = match self.context.a2a() {
+            Some(a2a) => a2a,
             None => {
                 warn!(
                     target: MC_TARGET,
                     bot = %bot_name,
-                    "ACP port not configured — cannot direct bot"
+                    "A2A port not configured — cannot direct bot"
                 );
                 return Ok(());
             }
@@ -391,13 +391,13 @@ impl MetacognitionLoop {
             correlation_id,
         };
 
-        acp.send_message(msg).await?;
+        a2a.send_message(msg).await?;
 
         info!(
             target: MC_TARGET,
             bot = %bot_name,
             reason = %reason,
-            "Directive sent to bot via ACP"
+            "Directive sent to bot via A2A"
         );
 
         Ok(())

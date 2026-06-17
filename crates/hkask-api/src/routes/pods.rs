@@ -122,7 +122,7 @@ async fn create_pod(
     );
     if !has {
         return Err(
-            ServiceError::Acp(hkask_agents::a2a::A2AError::CapabilityDenied(
+            ServiceError::A2A(hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 "Insufficient capability to create pods".into(),
             ))

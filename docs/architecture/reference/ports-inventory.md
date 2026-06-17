@@ -20,7 +20,7 @@ All traits have at least one real implementation and active `dyn` dispatch calle
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
-| ACP | `AcpPort` | `ports/acp.rs` | `AcpRuntime` |
+| ACP | `A2APort` | `ports/acp.rs` | `A2ARuntime` |
 | Git CAS | `GitCASPort` | `ports/git_cas.rs` | `GitCasAdapter`, `MockGitCas` |
 | MCP Runtime | `MCPRuntimePort` | `ports/mcp_runtime.rs` | `McpRuntimeAdapter` |
 | Standing Session | `StandingSessionPort` | `ports/standing_session.rs` | `StandingSessionStoreAdapter` |
@@ -92,7 +92,7 @@ Ensemble crate removed. Ports preserved as reference for future multi-agent mode
 | `MetacognitionPort` | Inlined to `MetacognitionStoreAdapter` |
 | `AuditLogStoragePort` | Dead — only an orphan error enum |
 | `CnsQueryPort` | Dead — only domain types remain in `cns_query.rs` |
-| `AcpTransport` | Removed — transport layer deferred; `AcpPort` remains |
+| `AcpTransport` | Removed — transport layer deferred; `A2APort` remains |
 | `AcpWireMessage` | Removed — transport message types deleted with `AcpTransport` |
 | `AcpWireResponse` | Removed — transport message types deleted with `AcpTransport` |
 | `LoopbackHttpTransport` | Removed — `AcpTransport` impl deleted |

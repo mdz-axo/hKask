@@ -96,7 +96,7 @@ pub(super) fn init_repl_state(
     // Build a ServiceConfig from onboarding outcome for AgentService::build().
     let service_config = match &onboarding_outcome.resolved_secrets {
         Some(secrets) => {
-            // Onboarding provides ACP + DB secrets. MCP secret is resolved
+            // Onboarding provides A2A + DB secrets. MCP secret is resolved
             // separately since ResolvedSecrets doesn't carry it.
             let mcp_secret = hkask_keystore::resolve_mcp_secret()
                 .map(|s| String::from_utf8_lossy(&s).to_string())

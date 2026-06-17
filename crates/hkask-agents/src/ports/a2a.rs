@@ -13,7 +13,7 @@ use crate::a2a::{A2AMessage, A2AError};
 /// # Hexagonal Architecture
 ///
 /// This port is implemented by `A2ARuntime` (in-process) and can be
-/// adapted for remote ACP servers via transport adapters.
+/// adapted for remote A2A servers via transport adapters.
 #[async_trait]
 pub trait A2APort: Send + Sync {
     async fn register_agent(

@@ -62,7 +62,7 @@ fn handle_start(duration_arg: &str, state: &mut ReplState, rt: &tokio::runtime::
     let a2a_secret = match state.resolved_secrets {
         Some(ref secrets) => secrets.a2a_secret.as_bytes(),
         None => {
-            println!("  \x1b[31mError:\x1b[0m No ACP secret resolved. Run onboarding first.");
+            println!("  \x1b[31mError:\x1b[0m No A2A secret resolved. Run onboarding first.");
             println!();
             return;
         }
