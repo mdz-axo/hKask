@@ -518,6 +518,10 @@ impl InferenceRouter {
 }
 
 impl InferencePort for InferenceRouter {
+    // REQ: P9-inf-generate-unavailable
+    // pre:  prompt is non-empty; parameters are valid
+    // post: Ok(InferenceResult) when resolved provider backend is configured;
+    //       Err(Connection) when resolved provider backend is None
     fn generate(
         &self,
         prompt: &str,
@@ -633,6 +637,10 @@ impl InferencePort for InferenceRouter {
         })
     }
 
+    // REQ: P9-inf-generate-with-model-unavailable
+    // pre:  prompt is non-empty; parameters are valid; model_override may be None
+    // post: Ok(InferenceResult) when resolved provider backend is configured;
+    //       Err(Connection) when resolved provider backend is None
     fn generate_with_model(
         &self,
         prompt: &str,
@@ -698,6 +706,10 @@ impl InferencePort for InferenceRouter {
         })
     }
 
+    // REQ: P9-inf-generate-stream-unavailable
+    // pre:  prompt is non-empty; parameters are valid
+    // post: Stream of Ok(InferenceStreamChunk) when resolved provider backend is configured;
+    //       Stream of Err(Connection) when resolved provider backend is None
     fn generate_stream(
         &self,
         prompt: &str,
@@ -712,6 +724,10 @@ impl InferencePort for InferenceRouter {
         self.generate_stream_with_model(prompt, parameters, None)
     }
 
+    // REQ: P9-inf-generate-stream-with-model-unavailable
+    // pre:  prompt is non-empty; parameters are valid; model_override may be None
+    // post: Stream of Ok(InferenceStreamChunk) when resolved provider backend is configured;
+    //       Stream of Err(Connection) when resolved provider backend is None
     fn generate_stream_with_model(
         &self,
         prompt: &str,

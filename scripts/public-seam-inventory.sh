@@ -11,9 +11,9 @@
 # Exit 0 if inventory matches existing file, exit 1 on drift (CI gate).
 #
 # Usage:
-#   scripts/audit/public-seam-inventory.sh            # Generate + compare
-#   scripts/audit/public-seam-inventory.sh --write     # Generate + overwrite
-#   scripts/audit/public-seam-inventory.sh --check     # CI mode: fail on drift
+#   scripts/public-seam-inventory.sh            # Generate + compare
+#   scripts/public-seam-inventory.sh --write     # Generate + overwrite
+#   scripts/public-seam-inventory.sh --check     # CI mode: fail on drift
 
 set -euo pipefail
 
@@ -337,7 +337,7 @@ build_inventory() {
 # Public Seam Inventory
 
 **Generated:** GENERATED_DATE
-**Source:** `scripts/audit/public-seam-inventory.sh`
+**Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** P8 traceability — maps public API items to REQ-tagged test coverage.
 
 Each public item is classified:
@@ -725,7 +725,7 @@ build_json_inventory() {
     cat <<JSONEOF
 {
   "generated": "$escaped_gen_date",
-  "source": "scripts/audit/public-seam-inventory.sh",
+  "source": "scripts/public-seam-inventory.sh",
   "purpose": "P8 traceability — machine-readable public seam inventory for CNS observability (R7.3 watcher)",
   "totals": {
     "total_items": $total_items,
@@ -803,7 +803,7 @@ generate_priority_list() {
 # Public Seam Priority List
 
 **Generated:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-**Source:** \`scripts/audit/public-seam-inventory.sh\`
+**Source:** \`scripts/public-seam-inventory.sh\`
 **Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
 
 Items are classified as **high risk** when they are:
@@ -955,7 +955,7 @@ main() {
         exit 0
     else
         echo "" >&2
-        echo "Run 'scripts/audit/public-seam-inventory.sh --write' to regenerate." >&2
+        echo "Run 'scripts/public-seam-inventory.sh --write' to regenerate." >&2
         exit 1
     fi
 }

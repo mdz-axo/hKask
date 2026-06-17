@@ -1,7 +1,7 @@
 # Public Seam Inventory
 
-**Generated:** 2026-06-16T09:37:46Z
-**Source:** `scripts/audit/public-seam-inventory.sh`
+**Generated:** 2026-06-17T00:01:33Z
+**Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** P8 traceability — maps public API items to REQ-tagged test coverage.
 
 Each public item is classified:
@@ -14,94 +14,99 @@ Each public item is classified:
 
 | Crate | Public Items | Covered | Uncovered | Coverage % | REQ Tests |
 |-------|-------------|---------|-----------|------------|-----------|
-| hkask-agents | 185 | 156 | 29 | 84% | 168 |
+| hkask-agents | 190 | 160 | 30 | 84% | 174 |
 
 ### hkask-agents
 
 | Kind | Item | Module | Location | Risk Tier | REQ |
 |------|------|--------|----------|-----------|-----|
-| fn | `new` | hkask-agents::acp::audit | crates/hkask-agents/src/acp/audit.rs:23 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::acp::audit | crates/hkask-agents/src/acp/audit.rs:25 | 🟢 Accessor/Constructor | 🟢 |
 | enum | `A2AMessage` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:104 | 🟡 Type Declaration | 🟢 |
 | enum | `AcpError` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:63 | 🟡 Type Declaration | 🟢 |
-| fn | `correlation_id` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:280 | 🔴 Core Logic | 🟢 |
-| fn | `from_webid` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:262 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `message_type` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:294 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:337 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `visit` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:215 | 🔴 Core Logic | 🟢 |
+| fn | `correlation_id` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:284 | 🔴 Core Logic | 🟢 |
+| fn | `from_webid` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:265 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `message_type` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:299 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:344 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `visit` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:216 | 🔴 Core Logic | 🟢 |
 | struct | `AcpAgent` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:93 | 🟡 Type Declaration | 🟢 |
-| struct | `AcpRuntime` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:322 | 🟡 Type Declaration | 🟢 |
+| struct | `AcpRuntime` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:327 | 🟡 Type Declaration | 🟢 |
 | struct | `MemoryArtifact` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:148 | 🟡 Type Declaration | 🟢 |
 | struct | `TemplateDispatch` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:134 | 🟡 Type Declaration | 🟢 |
 | struct | `TemplateResponse` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:142 | 🟡 Type Declaration | 🟢 |
 | trait | `A2AMessageVisitor` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:163 | 🟡 Type Declaration | 🟢 |
 | type | `AgentSecret` | hkask-agents::acp::mod | crates/hkask-agents/src/acp/mod.rs:48 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-agents::acp::root_authority | crates/hkask-agents/src/acp/root_authority.rs:46 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-agents::adapters::mcp_runtime | crates/hkask-agents/src/adapters/mcp_runtime.rs:142 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-agents::adapters::mcp_runtime | crates/hkask-agents/src/adapters/mcp_runtime.rs:85 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::acp::root_authority | crates/hkask-agents/src/acp/root_authority.rs:47 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::adapters::mcp_runtime | crates/hkask-agents/src/adapters/mcp_runtime.rs:144 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::adapters::mcp_runtime | crates/hkask-agents/src/adapters/mcp_runtime.rs:86 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `CapabilityOnlyAdapter` | hkask-agents::adapters::mcp_runtime | crates/hkask-agents/src/adapters/mcp_runtime.rs:74 | 🟡 Type Declaration | 🟢 |
-| struct | `FullMcpAdapter` | hkask-agents::adapters::mcp_runtime | crates/hkask-agents/src/adapters/mcp_runtime.rs:124 | 🟡 Type Declaration | 🟢 |
-| fn | `from_path` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:188 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `in_memory_unchecked` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:177 | 🔴 Core Logic | 🟢 |
-| fn | `in_memory` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:162 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:152 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `FullMcpAdapter` | hkask-agents::adapters::mcp_runtime | crates/hkask-agents/src/adapters/mcp_runtime.rs:125 | 🟡 Type Declaration | 🟢 |
+| fn | `from_path` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:193 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `in_memory_unchecked` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:180 | 🔴 Core Logic | 🟢 |
+| fn | `in_memory` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:164 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:153 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `MemoryLoopForwarder` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:136 | 🟡 Type Declaration | 🟢 |
 | type | `MemoryLoopAdapter` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:143 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-agents::adapters::registry_source | crates/hkask-agents/src/adapters/registry_source.rs:24 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::adapters::registry_source | crates/hkask-agents/src/adapters/registry_source.rs:25 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `FilesystemRegistrySource` | hkask-agents::adapters::registry_source | crates/hkask-agents/src/adapters/registry_source.rs:12 | 🟡 Type Declaration | 🟢 |
 | enum | `ConsentError` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:25 | 🟡 Type Declaration | 🟢 |
-| fn | `get_granted_categories` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:340 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `grant_consent` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:234 | 🔴 Core Logic | 🟢 |
-| fn | `grant` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:66 | 🔴 Core Logic | 🟢 |
-| fn | `has_category` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:92 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `has_consent` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:289 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_active` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:84 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:148 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:52 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `revoke_consent` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:265 | 🔴 Core Logic | 🟢 |
-| fn | `revoke` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:76 | 🔴 Core Logic | 🟢 |
-| fn | `with_event_sink` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:171 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `ConsentManager` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:130 | 🟡 Type Declaration | 🟢 |
-| enum | `EscalationSeverity` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:87 | 🟡 Type Declaration | 🟢 |
-| enum | `EscalationTrigger` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:76 | 🟡 Type Declaration | 🟢 |
-| enum | `MetacognitionError` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:45 | 🟡 Type Declaration | 🟢 |
-| fn | `check_conditions` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:121 | 🔴 Core Logic | 🟢 |
-| fn | `generate_summary` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:277 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:238 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `EscalationAlert` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:94 | 🟡 Type Declaration | 🟢 |
-| struct | `EscalationPolicy` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:103 | 🟡 Type Declaration | 🟢 |
-| struct | `HealthSnapshot` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:178 | 🟡 Type Declaration | 🟢 |
-| struct | `MetacognitionConfig` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:198 | 🟡 Type Declaration | 🟢 |
-| struct | `MetacognitionLoop` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:221 | 🟡 Type Declaration | 🟢 |
-| fn | `context` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:176 | 🔴 Core Logic | 🟢 |
-| fn | `curation_loop` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:158 | 🔴 Core Logic | 🟢 |
-| fn | `metacognition` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:167 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:64 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `spec_curator` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:188 | 🔴 Core Logic | 🟢 |
-| fn | `with_config` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:87 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_consolidation` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:122 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `CuratorAgent` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:44 | 🟡 Type Declaration | 🟢 |
-| fn | `calibrate_from_history` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:72 | 🔴 Core Logic | 🟢 |
-| fn | `check_sovereignty` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:185 | 🔴 Core Logic | 🟢 |
-| fn | `from_config` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:119 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:45 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_drift_threshold` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:140 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_event_sink` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:150 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_spec_channel` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:161 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_granted_categories` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:353 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `grant_consent` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:243 | 🔴 Core Logic | 🟢 |
+| fn | `grant` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:69 | 🔴 Core Logic | 🟢 |
+| fn | `has_category` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:98 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `has_consent` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:301 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_active` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:89 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:155 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:54 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `revoke_consent` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:275 | 🔴 Core Logic | 🟢 |
+| fn | `revoke` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:80 | 🔴 Core Logic | 🟢 |
+| fn | `with_event_sink` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:179 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `ConsentManager` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:136 | 🟡 Type Declaration | 🟢 |
+| fn | `new` | hkask-agents::curator_agent::bot_health | crates/hkask-agents/src/curator_agent/bot_health.rs:43 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `BotHealthEvaluator` | hkask-agents::curator_agent::bot_health | crates/hkask-agents/src/curator_agent/bot_health.rs:36 | 🟡 Type Declaration | 🟢 |
+| struct | `HealthThresholds` | hkask-agents::curator_agent::bot_health | crates/hkask-agents/src/curator_agent/bot_health.rs:22 | 🟡 Type Declaration | 🟢 |
+| enum | `BotHealthStatus` | hkask-agents::curator_agent::bot_metrics | crates/hkask-agents/src/curator_agent/bot_metrics.rs:14 | 🟡 Type Declaration | 🔴 |
+| enum | `EscalationSeverity` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:88 | 🟡 Type Declaration | 🟢 |
+| enum | `EscalationTrigger` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:77 | 🟡 Type Declaration | 🟢 |
+| enum | `MetacognitionError` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:46 | 🟡 Type Declaration | 🟢 |
+| fn | `check_conditions` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:124 | 🔴 Core Logic | 🟢 |
+| fn | `generate_summary` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:325 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:243 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_evaluator` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:268 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `EscalationAlert` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:95 | 🟡 Type Declaration | 🟢 |
+| struct | `EscalationPolicy` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:104 | 🟡 Type Declaration | 🟢 |
+| struct | `HealthSnapshot` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:181 | 🟡 Type Declaration | 🟢 |
+| struct | `MetacognitionConfig` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:201 | 🟡 Type Declaration | 🟢 |
+| struct | `MetacognitionLoop` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:224 | 🟡 Type Declaration | 🟢 |
+| fn | `context` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:184 | 🔴 Core Logic | 🟢 |
+| fn | `curation_loop` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:164 | 🔴 Core Logic | 🟢 |
+| fn | `metacognition` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:174 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:66 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `spec_curator` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:197 | 🔴 Core Logic | 🟢 |
+| fn | `with_config` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:91 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_consolidation` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:127 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `CuratorAgent` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:45 | 🟡 Type Declaration | 🟢 |
+| fn | `calibrate_from_history` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:76 | 🔴 Core Logic | 🟢 |
+| fn | `check_sovereignty` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:194 | 🔴 Core Logic | 🟢 |
+| fn | `from_config` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:124 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:47 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_drift_threshold` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:146 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_event_sink` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:157 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_spec_channel` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:169 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `DefaultSpecCurator` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:30 | 🟡 Type Declaration | 🟢 |
-| fn | `handle` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:91 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:36 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_acp` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:81 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_nu_event_store` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:59 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `handle` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:95 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:37 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_acp` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:84 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_nu_event_store` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:61 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `CuratorContext` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:13 | 🟡 Type Declaration | 🟢 |
-| fn | `context` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:115 | 🔴 Core Logic | 🟢 |
-| fn | `curator_handle` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:127 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:69 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `restore_cursor` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:141 | 🔴 Core Logic | 🟢 |
-| fn | `with_consolidation` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:85 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_inbox` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:105 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `context` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:121 | 🔴 Core Logic | 🟢 |
+| fn | `curator_handle` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:134 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:71 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `restore_cursor` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:149 | 🔴 Core Logic | 🟢 |
+| fn | `with_consolidation` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:89 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_inbox` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:110 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `CurationLoop` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:45 | 🟡 Type Declaration | 🟢 |
-| fn | `check_persona_constraints` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:32 | 🔴 Core Logic | 🟢 |
-| fn | `strip_forbidden_patterns` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:68 | 🔴 Core Logic | 🟢 |
+| fn | `check_persona_constraints` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:34 | 🔴 Core Logic | 🟢 |
+| fn | `strip_forbidden_patterns` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:71 | 🔴 Core Logic | 🟢 |
 | struct | `PersonaCheckResult` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:12 | 🟡 Type Declaration | 🟢 |
 | enum | `CoreError` | hkask-agents::error | crates/hkask-agents/src/error.rs:33 | 🟡 Type Declaration | 🔴 |
 | enum | `McpError` | hkask-agents::error | crates/hkask-agents/src/error.rs:10 | 🟡 Type Declaration | 🔴 |
@@ -115,13 +120,13 @@ Each public item is classified:
 | fn | `with_energy_budget` | hkask-agents::inference_loop | crates/hkask-agents/src/inference_loop.rs:65 | 🟢 Accessor/Constructor | 🔴 |
 | fn | `with_model` | hkask-agents::inference_loop | crates/hkask-agents/src/inference_loop.rs:72 | 🟢 Accessor/Constructor | 🔴 |
 | struct | `InferenceLoop` | hkask-agents::inference_loop | crates/hkask-agents/src/inference_loop.rs:31 | 🟡 Type Declaration | 🔴 |
-| fn | `cancel_token` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:160 | 🔴 Core Logic | 🟢 |
-| fn | `default_tick_interval` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:63 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:106 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `shutdown` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:265 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_tick_interval` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:129 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `cancel_token` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:167 | 🔴 Core Logic | 🟢 |
+| fn | `default_tick_interval` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:64 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:109 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `shutdown` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:276 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_tick_interval` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:134 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `CyberneticsLoopHandle` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:19 | 🟡 Type Declaration | 🟢 |
-| struct | `LoopSystem` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:89 | 🟡 Type Declaration | 🟢 |
+| struct | `LoopSystem` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:90 | 🟡 Type Declaration | 🟢 |
 | fn | `episodic_storage_budget` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:222 | 🔴 Core Logic | 🔴 |
 | fn | `episodic_storage_usage` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:210 | 🔴 Core Logic | 🔴 |
 | fn | `inference_port` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:152 | 🔴 Core Logic | 🟢 |
@@ -134,34 +139,34 @@ Each public item is classified:
 | fn | `store_episodic` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:169 | 🔴 Core Logic | 🔴 |
 | fn | `store_semantic` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:275 | 🔴 Core Logic | 🔴 |
 | struct | `PodContext` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:37 | 🟡 Type Declaration | 🔴 |
-| fn | `acp_runtime` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:421 | 🔴 Core Logic | 🟢 |
-| fn | `inference_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:191 | 🔴 Core Logic | 🟢 |
-| fn | `new_mock` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:219 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:73 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_capability_checker` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:144 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_consent_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:123 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_governed_tool` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:158 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_inference` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:167 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_nu_event_sink` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:151 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `acp_runtime` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:439 | 🔴 Core Logic | 🟢 |
+| fn | `inference_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:200 | 🔴 Core Logic | 🟢 |
+| fn | `new_mock` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:230 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:75 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_capability_checker` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:149 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_consent_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:126 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_governed_tool` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:165 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_inference` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:175 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_nu_event_sink` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:157 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `PodManager` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:23 | 🟡 Type Declaration | 🟢 |
 | struct | `PodStatus` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:41 | 🟡 Type Declaration | 🟢 |
 | type | `ActivationHook` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:21 | 🟡 Type Declaration | 🟢 |
 | enum | `AgentPodError` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:122 | 🟡 Type Declaration | 🟢 |
-| fn | `activate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:322 | 🔴 Core Logic | 🟢 |
-| fn | `check_sovereignty` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:610 | 🔴 Core Logic | 🟢 |
-| fn | `deactivate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:360 | 🔴 Core Logic | 🟢 |
-| fn | `delegate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:401 | 🔴 Core Logic | 🟢 |
-| fn | `enter_chat_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:491 | 🔴 Core Logic | 🟢 |
-| fn | `enter_server_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:458 | 🔴 Core Logic | 🟢 |
-| fn | `exit_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:515 | 🔴 Core Logic | 🟢 |
-| fn | `get_voice` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:561 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_active` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:428 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_in_chat_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:585 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_in_server_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:535 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:205 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `set_voice` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:546 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `state` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:437 | 🔴 Core Logic | 🟢 |
-| fn | `voice_description` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:573 | 🔴 Core Logic | 🟢 |
+| fn | `activate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:327 | 🔴 Core Logic | 🟢 |
+| fn | `check_sovereignty` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:632 | 🔴 Core Logic | 🟢 |
+| fn | `deactivate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:366 | 🔴 Core Logic | 🟢 |
+| fn | `delegate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:409 | 🔴 Core Logic | 🟢 |
+| fn | `enter_chat_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:505 | 🔴 Core Logic | 🟢 |
+| fn | `enter_server_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:470 | 🔴 Core Logic | 🟢 |
+| fn | `exit_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:530 | 🔴 Core Logic | 🟢 |
+| fn | `get_voice` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:579 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_active` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:437 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_in_chat_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:605 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_in_server_mode` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:551 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:207 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `set_voice` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:563 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `state` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:447 | 🔴 Core Logic | 🟢 |
+| fn | `voice_description` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:592 | 🔴 Core Logic | 🟢 |
 | struct | `AgentPod` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:91 | 🟡 Type Declaration | 🟢 |
 | type | `AgentPodResult` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:193 | 🟡 Type Declaration | 🟢 |
 | fn | `emit_pod_activated` | hkask-agents::pod::nu_event | crates/hkask-agents/src/pod/nu_event.rs:53 | 🔴 Core Logic | 🔴 |
@@ -170,37 +175,37 @@ Each public item is classified:
 | fn | `emit_pod_registered` | hkask-agents::pod::nu_event | crates/hkask-agents/src/pod/nu_event.rs:40 | 🔴 Core Logic | 🔴 |
 | enum | `AgentMode` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:16 | 🟡 Type Declaration | 🟢 |
 | enum | `PodLifecycleState` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:34 | 🟡 Type Declaration | 🟢 |
-| fn | `can_transition_to` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:59 | 🔴 Core Logic | 🟢 |
-| fn | `capability_resources` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:168 | 🔴 Core Logic | 🟢 |
-| fn | `from_yaml` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:147 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `validate_fields` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:176 | 🔴 Core Logic | 🟢 |
-| fn | `webid` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:159 | 🔴 Core Logic | 🟢 |
-| struct | `AgentPersona` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:86 | 🟡 Type Declaration | 🟢 |
+| fn | `can_transition_to` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:61 | 🔴 Core Logic | 🟢 |
+| fn | `capability_resources` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:170 | 🔴 Core Logic | 🟢 |
+| fn | `from_yaml` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:149 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `validate_fields` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:178 | 🔴 Core Logic | 🟢 |
+| fn | `webid` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:161 | 🔴 Core Logic | 🟢 |
+| struct | `AgentPersona` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:88 | 🟡 Type Declaration | 🟢 |
 | trait | `AcpPort` | hkask-agents::ports::acp | crates/hkask-agents/src/ports/acp.rs:18 | 🟡 Type Declaration | 🔴 |
 | trait | `MCPRuntimePort` | hkask-agents::ports::mcp_runtime | crates/hkask-agents/src/ports/mcp_runtime.rs:11 | 🟡 Type Declaration | 🔴 |
-| fn | `classified_episodic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:130 | 🔴 Core Logic | 🟢 |
-| fn | `episodic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:166 | 🔴 Core Logic | 🟢 |
-| fn | `episodic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:77 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:52 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `semantic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:102 | 🔴 Core Logic | 🟢 |
-| fn | `semantic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:180 | 🔴 Core Logic | 🟢 |
-| struct | `RecallRequest` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:149 | 🟡 Type Declaration | 🟢 |
-| struct | `RecalledEpisode` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:197 | 🟡 Type Declaration | 🟢 |
-| struct | `RecalledSemantic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:228 | 🟡 Type Declaration | 🟢 |
+| fn | `classified_episodic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:135 | 🔴 Core Logic | 🟢 |
+| fn | `episodic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:173 | 🔴 Core Logic | 🟢 |
+| fn | `episodic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:80 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:54 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `semantic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:106 | 🔴 Core Logic | 🟢 |
+| fn | `semantic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:189 | 🔴 Core Logic | 🟢 |
+| struct | `RecallRequest` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:154 | 🟡 Type Declaration | 🟢 |
+| struct | `RecalledEpisode` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:206 | 🟡 Type Declaration | 🟢 |
+| struct | `RecalledSemantic` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:237 | 🟡 Type Declaration | 🟢 |
 | struct | `StorageRequest` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:29 | 🟡 Type Declaration | 🟢 |
-| trait | `EpisodicStoragePort` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:253 | 🟡 Type Declaration | 🟢 |
-| trait | `SemanticStoragePort` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:321 | 🟡 Type Declaration | 🟢 |
+| trait | `EpisodicStoragePort` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:262 | 🟡 Type Declaration | 🟢 |
+| trait | `SemanticStoragePort` | hkask-agents::ports::memory_storage | crates/hkask-agents/src/ports/memory_storage.rs:330 | 🟡 Type Declaration | 🟢 |
 | trait | `RegistrySourcePort` | hkask-agents::ports::registry_source | crates/hkask-agents/src/ports/registry_source.rs:9 | 🟡 Type Declaration | 🔴 |
-| fn | `decompose_prompt` | hkask-agents::prompt_analysis | crates/hkask-agents/src/prompt_analysis.rs:584 | 🔴 Core Logic | 🟢 |
+| fn | `decompose_prompt` | hkask-agents::prompt_analysis | crates/hkask-agents/src/prompt_analysis.rs:585 | 🔴 Core Logic | 🟢 |
 | struct | `PromptAnalysis` | hkask-agents::prompt_analysis | crates/hkask-agents/src/prompt_analysis.rs:36 | 🟡 Type Declaration | 🟢 |
 | struct | `SentenceDecomposition` | hkask-agents::prompt_analysis | crates/hkask-agents/src/prompt_analysis.rs:19 | 🟡 Type Declaration | 🟢 |
 | enum | `RegistryLoaderError` | hkask-agents::registry_loader | crates/hkask-agents/src/registry_loader.rs:14 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-agents::registry_loader | crates/hkask-agents/src/registry_loader.rs:237 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `store` | hkask-agents::registry_loader | crates/hkask-agents/src/registry_loader.rs:385 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::registry_loader | crates/hkask-agents/src/registry_loader.rs:238 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `store` | hkask-agents::registry_loader | crates/hkask-agents/src/registry_loader.rs:389 | 🔴 Core Logic | 🟢 |
 | struct | `AgentRegistryLoader` | hkask-agents::registry_loader | crates/hkask-agents/src/registry_loader.rs:223 | 🟡 Type Declaration | 🟢 |
-| fn | `can_access` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:105 | 🔴 Core Logic | 🟢 |
-| fn | `check_operation` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:123 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:86 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `can_access` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:108 | 🔴 Core Logic | 🟢 |
+| fn | `check_operation` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:127 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:88 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `AllowAllConsent` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:48 | 🟡 Type Declaration | 🟢 |
 | struct | `DenyAllConsent` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:35 | 🟡 Type Declaration | 🟢 |
 | struct | `SovereigntyChecker` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:61 | 🟡 Type Declaration | 🟢 |
@@ -351,7 +356,7 @@ Each public item is classified:
 | struct | `WithdrawalFeeEstimateResponse` | hkask-api::routes::wallet | crates/hkask-api/src/routes/wallet.rs:52 | 🟡 Type Declaration | 🟢 |
 | struct | `WithdrawalResponse` | hkask-api::routes::wallet | crates/hkask-api/src/routes/wallet.rs:153 | 🟡 Type Declaration | 🟢 |
 
-| hkask-cli | 115 | 73 | 42 | 63% | 133 |
+| hkask-cli | 115 | 73 | 42 | 63% | 135 |
 
 ### hkask-cli
 
@@ -377,20 +382,20 @@ Each public item is classified:
 | enum | `DocsAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:175 | 🟡 Type Declaration | 🔴 |
 | enum | `GitAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:192 | 🟡 Type Declaration | 🔴 |
 | enum | `GoalAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:578 | 🟡 Type Declaration | 🔴 |
-| enum | `KataAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:615 | 🟡 Type Declaration | 🔴 |
-| enum | `KeyAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:759 | 🟡 Type Declaration | 🔴 |
+| enum | `KataAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:624 | 🟡 Type Declaration | 🔴 |
+| enum | `KeyAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:768 | 🟡 Type Declaration | 🔴 |
 | enum | `KeystoreAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:385 | 🟡 Type Declaration | 🔴 |
-| enum | `MatrixAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:795 | 🟡 Type Declaration | 🔴 |
+| enum | `MatrixAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:804 | 🟡 Type Declaration | 🔴 |
 | enum | `McpAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:109 | 🟡 Type Declaration | 🔴 |
 | enum | `PodAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:68 | 🟡 Type Declaration | 🔴 |
 | enum | `ReplicantAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:343 | 🟡 Type Declaration | 🔴 |
-| enum | `SettingsAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:645 | 🟡 Type Declaration | 🔴 |
+| enum | `SettingsAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:654 | 🟡 Type Declaration | 🔴 |
 | enum | `SkillAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:600 | 🟡 Type Declaration | 🔴 |
 | enum | `SovereigntyAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:152 | 🟡 Type Declaration | 🔴 |
 | enum | `SpecAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:428 | 🟡 Type Declaration | 🔴 |
 | enum | `StyleAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:483 | 🟡 Type Declaration | 🔴 |
 | enum | `TemplateAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:7 | 🟡 Type Declaration | 🔴 |
-| enum | `WalletAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:658 | 🟡 Type Declaration | 🔴 |
+| enum | `WalletAction` | hkask-cli::cli::actions | crates/hkask-cli/src/cli/actions.rs:667 | 🟡 Type Declaration | 🔴 |
 | fn | `init_logging` | hkask-cli::cli::helpers | crates/hkask-cli/src/cli/helpers.rs:31 | 🔴 Core Logic | 🟢 |
 | fn | `parse_data_category` | hkask-cli::cli::helpers | crates/hkask-cli/src/cli/helpers.rs:10 | 🔴 Core Logic | 🟢 |
 | fn | `parse_template_type` | hkask-cli::cli::helpers | crates/hkask-cli/src/cli/helpers.rs:20 | 🔴 Core Logic | 🟢 |
@@ -429,10 +434,10 @@ Each public item is classified:
 | fn | `run` | hkask-cli::commands::models | crates/hkask-cli/src/commands/models.rs:10 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `run` | hkask-cli::commands::onboard | crates/hkask-cli/src/commands/onboard.rs:12 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `run_pod` | hkask-cli::commands::pod | crates/hkask-cli/src/commands/pod.rs:94 | 🔴 Core Logic | 🟢 |
-| fn | `run_list` | hkask-cli::commands::registry | crates/hkask-cli/src/commands/registry.rs:21 | 🔴 Core Logic | 🟢 |
-| fn | `run_rm` | hkask-cli::commands::registry | crates/hkask-cli/src/commands/registry.rs:44 | 🔴 Core Logic | 🟢 |
+| fn | `run_list` | hkask-cli::commands::registry | crates/hkask-cli/src/commands/registry.rs:22 | 🔴 Core Logic | 🟢 |
+| fn | `run_rm` | hkask-cli::commands::registry | crates/hkask-cli/src/commands/registry.rs:45 | 🔴 Core Logic | 🟢 |
 | fn | `run` | hkask-cli::commands::settings | crates/hkask-cli/src/commands/settings.rs:17 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `run_skill` | hkask-cli::commands::skill | crates/hkask-cli/src/commands/skill.rs:23 | 🔴 Core Logic | 🟢 |
+| fn | `run_skill` | hkask-cli::commands::skill | crates/hkask-cli/src/commands/skill.rs:25 | 🔴 Core Logic | 🟢 |
 | fn | `run` | hkask-cli::commands::sovereignty | crates/hkask-cli/src/commands/sovereignty.rs:11 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `run` | hkask-cli::commands::spec | crates/hkask-cli/src/commands/spec.rs:15 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `run` | hkask-cli::commands::style | crates/hkask-cli/src/commands/style.rs:9 | 🟢 Accessor/Constructor | 🟢 |
@@ -473,39 +478,46 @@ Each public item is classified:
 | fn | `run` | hkask-cli::transcript_viewer | crates/hkask-cli/src/transcript_viewer.rs:72 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `TranscriptViewer` | hkask-cli::transcript_viewer | crates/hkask-cli/src/transcript_viewer.rs:26 | 🟡 Type Declaration | 🔴 |
 
-| hkask-cns | 107 | 97 | 10 | 90% | 138 |
+| hkask-cns | 137 | 128 | 9 | 93% | 193 |
 
 ### hkask-cns
 
 | Kind | Item | Module | Location | Risk Tier | REQ |
 |------|------|--------|----------|-----------|-----|
-| enum | `AlertSeverity` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:32 | 🟡 Type Declaration | 🟢 |
-| fn | `is_critical` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:95 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_warning` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:103 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:60 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `should_escalate` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:87 | 🔴 Core Logic | 🟢 |
-| struct | `RuntimeAlert` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:43 | 🟡 Type Declaration | 🟢 |
-| enum | `ApiMeteringAlert` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:260 | 🟡 Type Declaration | 🟢 |
-| enum | `RateLimitStatus` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:102 | 🟡 Type Declaration | 🟢 |
-| fn | `alert_type` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:287 | 🔴 Core Logic | 🟢 |
-| fn | `as_str` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:116 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `check_and_record` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:163 | 🔴 Core Logic | 🟢 |
-| fn | `current_rpm` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:196 | 🔴 Core Logic | 🟢 |
-| fn | `endpoint_weight` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:36 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:142 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:237 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `severity` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:302 | 🔴 Core Logic | 🟢 |
-| struct | `ApiMeter` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:132 | 🟡 Type Declaration | 🟢 |
-| struct | `ApiRequestSpan` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:221 | 🟡 Type Declaration | 🟢 |
+| enum | `AlertSeverity` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:33 | 🟡 Type Declaration | 🟢 |
+| fn | `is_critical` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:146 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_warning` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:167 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:70 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `should_escalate` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:125 | 🔴 Core Logic | 🟢 |
+| struct | `RuntimeAlert` | hkask-cns::algedonic | crates/hkask-cns/src/algedonic.rs:44 | 🟡 Type Declaration | 🟢 |
+| enum | `ApiMeteringAlert` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:273 | 🟡 Type Declaration | 🟢 |
+| enum | `RateLimitStatus` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:104 | 🟡 Type Declaration | 🟢 |
+| fn | `alert_type` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:302 | 🔴 Core Logic | 🟢 |
+| fn | `as_str` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:120 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `check_and_record` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:172 | 🔴 Core Logic | 🟢 |
+| fn | `current_rpm` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:207 | 🔴 Core Logic | 🟢 |
+| fn | `endpoint_weight` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:38 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:148 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:250 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `severity` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:319 | 🔴 Core Logic | 🟢 |
+| struct | `ApiMeter` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:136 | 🟡 Type Declaration | 🟢 |
+| struct | `ApiRequestSpan` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:232 | 🟡 Type Declaration | 🟢 |
 | struct | `EndpointWeight` | hkask-cns::api_metering | crates/hkask-cns/src/api_metering.rs:21 | 🟡 Type Declaration | 🟢 |
-| fn | `allow_request` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:86 | 🔴 Core Logic | 🟢 |
-| fn | `default_for_inference` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:78 | 🔴 Core Logic | 🟢 |
-| fn | `record_failure` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:148 | 🔴 Core Logic | 🟢 |
-| fn | `record_success` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:123 | 🔴 Core Logic | 🟢 |
-| fn | `state` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:172 | 🔴 Core Logic | 🟢 |
+| fn | `current_table` | hkask-cns::calibrated_energy_estimator | crates/hkask-cns/src/calibrated_energy_estimator.rs:217 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-cns::calibrated_energy_estimator | crates/hkask-cns/src/calibrated_energy_estimator.rs:72 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `spawn_calibration` | hkask-cns::calibrated_energy_estimator | crates/hkask-cns/src/calibrated_energy_estimator.rs:196 | 🔴 Core Logic | 🟢 |
+| fn | `with_event_sink` | hkask-cns::calibrated_energy_estimator | crates/hkask-cns/src/calibrated_energy_estimator.rs:103 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_initial_lookback` | hkask-cns::calibrated_energy_estimator | crates/hkask-cns/src/calibrated_energy_estimator.rs:90 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `CalibratedEnergyEstimator` | hkask-cns::calibrated_energy_estimator | crates/hkask-cns/src/calibrated_energy_estimator.rs:56 | 🟡 Type Declaration | 🟢 |
+| fn | `allow_request` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:90 | 🔴 Core Logic | 🟢 |
+| fn | `default_for_inference` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:80 | 🔴 Core Logic | 🟢 |
+| fn | `record_failure` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:154 | 🔴 Core Logic | 🟢 |
+| fn | `record_success` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:129 | 🔴 Core Logic | 🟢 |
+| fn | `state` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:178 | 🔴 Core Logic | 🟢 |
 | struct | `CircuitBreaker` | hkask-cns::circuit_breaker | crates/hkask-cns/src/circuit_breaker.rs:43 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-cns::composite_energy_estimator | crates/hkask-cns/src/composite_energy_estimator.rs:26 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `CompositeEnergyEstimator` | hkask-cns::composite_energy_estimator | crates/hkask-cns/src/composite_energy_estimator.rs:15 | 🟡 Type Declaration | 🟢 |
+| fn | `from_dynamic_table` | hkask-cns::composite_energy_estimator | crates/hkask-cns/src/composite_energy_estimator.rs:43 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-cns::composite_energy_estimator | crates/hkask-cns/src/composite_energy_estimator.rs:28 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `CompositeEnergyEstimator` | hkask-cns::composite_energy_estimator | crates/hkask-cns/src/composite_energy_estimator.rs:16 | 🟡 Type Declaration | 🟢 |
 | fn | `emit_contract_coverage` | hkask-cns::contract_discipline | crates/hkask-cns/src/contract_discipline.rs:80 | 🔴 Core Logic | 🟢 |
 | fn | `emit_contract_violated` | hkask-cns::contract_discipline | crates/hkask-cns/src/contract_discipline.rs:40 | 🔴 Core Logic | 🟢 |
 | fn | `new` | hkask-cns::cybernetics_loop | crates/hkask-cns/src/cybernetics_loop.rs:73 | 🟢 Accessor/Constructor | 🟢 |
@@ -515,49 +527,66 @@ Each public item is classified:
 | fn | `with_set_points` | hkask-cns::cybernetics_loop | crates/hkask-cns/src/cybernetics_loop.rs:77 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `with_tool_consumption_channel` | hkask-cns::cybernetics_loop | crates/hkask-cns/src/cybernetics_loop.rs:112 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `CyberneticsLoop` | hkask-cns::cybernetics_loop | crates/hkask-cns/src/cybernetics_loop.rs:53 | 🟡 Type Declaration | 🟢 |
-| enum | `EnergyError` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:486 | 🟡 Type Declaration | 🟢 |
-| fn | `as_raw` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:117 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `as_raw` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:45 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `available` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:286 | 🔴 Core Logic | 🟢 |
-| fn | `can_proceed` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:276 | 🔴 Core Logic | 🟢 |
-| fn | `consume` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:375 | 🔴 Core Logic | 🟢 |
-| fn | `from_raw` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:109 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `from_raw` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:37 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_ascending` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:136 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_descending` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:127 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:218 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `replenish_by_weighted` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:435 | 🔴 Core Logic | 🟢 |
-| fn | `replenish_by` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:415 | 🔴 Core Logic | 🟢 |
-| fn | `replenish` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:398 | 🔴 Core Logic | 🟢 |
-| fn | `reserve` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:307 | 🔴 Core Logic | 🟢 |
-| fn | `settle` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:340 | 🔴 Core Logic | 🟢 |
-| fn | `unlimited` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:238 | 🔴 Core Logic | 🟢 |
-| fn | `with_alert_threshold` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:256 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_hard_limit` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:265 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_replenish_rate` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:246 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `AgentEnergyStatus` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:453 | 🟡 Type Declaration | 🟢 |
-| struct | `EnergyBudget` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:186 | 🟡 Type Declaration | 🟢 |
-| struct | `EnergyCost` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:27 | 🟡 Type Declaration | 🟢 |
-| struct | `EnergyDelta` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:99 | 🟡 Type Declaration | 🟢 |
+| fn | `calibrate` | hkask-cns::dynamic_gas_table | crates/hkask-cns/src/dynamic_gas_table.rs:141 | 🔴 Core Logic | 🟢 |
+| fn | `current_ratios` | hkask-cns::dynamic_gas_table | crates/hkask-cns/src/dynamic_gas_table.rs:181 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-cns::dynamic_gas_table | crates/hkask-cns/src/dynamic_gas_table.rs:80 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `observation_count` | hkask-cns::dynamic_gas_table | crates/hkask-cns/src/dynamic_gas_table.rs:191 | 🔴 Core Logic | 🟢 |
+| fn | `record_observation` | hkask-cns::dynamic_gas_table | crates/hkask-cns/src/dynamic_gas_table.rs:105 | 🔴 Core Logic | 🟢 |
+| fn | `report_table` | hkask-cns::dynamic_gas_table | crates/hkask-cns/src/dynamic_gas_table.rs:170 | 🔴 Core Logic | 🟢 |
+| struct | `DynamicGasTable` | hkask-cns::dynamic_gas_table | crates/hkask-cns/src/dynamic_gas_table.rs:58 | 🟡 Type Declaration | 🟢 |
+| enum | `EnergyError` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:524 | 🟡 Type Declaration | 🟢 |
+| fn | `as_raw` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:126 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `as_raw` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:50 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `available` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:323 | 🔴 Core Logic | 🟢 |
+| fn | `can_proceed` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:310 | 🔴 Core Logic | 🟢 |
+| fn | `consume` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:410 | 🔴 Core Logic | 🟢 |
+| fn | `from_raw` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:116 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `from_raw` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:40 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_ascending` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:149 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_descending` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:138 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:237 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `replenish_by_weighted` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:473 | 🔴 Core Logic | 🟢 |
+| fn | `replenish_by` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:455 | 🔴 Core Logic | 🟢 |
+| fn | `replenish` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:435 | 🔴 Core Logic | 🟢 |
+| fn | `reserve` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:341 | 🔴 Core Logic | 🟢 |
+| fn | `settle` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:375 | 🔴 Core Logic | 🟢 |
+| fn | `unlimited` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:260 | 🔴 Core Logic | 🟢 |
+| fn | `with_alert_threshold` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:284 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_hard_limit` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:296 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_replenish_rate` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:271 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `AgentEnergyStatus` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:491 | 🟡 Type Declaration | 🟢 |
+| struct | `EnergyBudget` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:201 | 🟡 Type Declaration | 🟢 |
+| struct | `EnergyCost` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:28 | 🟡 Type Declaration | 🟢 |
+| struct | `EnergyDelta` | hkask-cns::energy | crates/hkask-cns/src/energy.rs:104 | 🟡 Type Declaration | 🟢 |
 | fn | `new` | hkask-cns::energy_budget_management | crates/hkask-cns/src/energy_budget_management.rs:64 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `EnergyBudgetManager` | hkask-cns::energy_budget_management | crates/hkask-cns/src/energy_budget_management.rs:47 | 🟡 Type Declaration | 🔴 |
-| fn | `new` | hkask-cns::governed_inference | crates/hkask-cns/src/governed_inference.rs:62 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_agent` | hkask-cns::governed_inference | crates/hkask-cns/src/governed_inference.rs:82 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `EnergyBudgetManager` | hkask-cns::energy_budget_management | crates/hkask-cns/src/energy_budget_management.rs:47 | 🟡 Type Declaration | 🟢 |
+| fn | `calibrate_table` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:281 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:137 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `query_all_agents` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:182 | 🔴 Core Logic | 🟢 |
+| fn | `query_by_agent` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:156 | 🔴 Core Logic | 🟢 |
+| fn | `query_total` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:220 | 🔴 Core Logic | 🟢 |
+| struct | `AgentGasReport` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:76 | 🟡 Type Declaration | 🟢 |
+| struct | `AgentGasSummary` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:55 | 🟡 Type Declaration | 🟢 |
+| struct | `GasReport` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:124 | 🟡 Type Declaration | 🟢 |
+| struct | `GasTotals` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:91 | 🟡 Type Declaration | 🟢 |
+| struct | `ToolGasBreakdown` | hkask-cns::gas_report | crates/hkask-cns/src/gas_report.rs:38 | 🟡 Type Declaration | 🟢 |
+| fn | `new` | hkask-cns::governed_inference | crates/hkask-cns/src/governed_inference.rs:65 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_agent` | hkask-cns::governed_inference | crates/hkask-cns/src/governed_inference.rs:88 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `GovernedInference` | hkask-cns::governed_inference | crates/hkask-cns/src/governed_inference.rs:48 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-cns::governed_tool | crates/hkask-cns/src/governed_tool.rs:98 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_agent` | hkask-cns::governed_tool | crates/hkask-cns/src/governed_tool.rs:134 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_tool_consumption_channel` | hkask-cns::governed_tool | crates/hkask-cns/src/governed_tool.rs:121 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-cns::governed_tool | crates/hkask-cns/src/governed_tool.rs:102 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_agent` | hkask-cns::governed_tool | crates/hkask-cns/src/governed_tool.rs:144 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_tool_consumption_channel` | hkask-cns::governed_tool | crates/hkask-cns/src/governed_tool.rs:128 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `GovernedTool` | hkask-cns::governed_tool | crates/hkask-cns/src/governed_tool.rs:81 | 🟡 Type Declaration | 🟢 |
 | trait | `EnergyEstimator` | hkask-cns::governed_tool | crates/hkask-cns/src/governed_tool.rs:52 | 🟡 Type Declaration | 🟢 |
-| fn | `blocking_variety_for_domain` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:381 | 🔴 Core Logic | 🟢 |
-| fn | `calibrate_threshold_blocking` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:559 | 🔴 Core Logic | 🟢 |
-| fn | `domains` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:217 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:194 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `subscribe` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:582 | 🔴 Core Logic | 🟢 |
-| fn | `variety_for_domain` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:209 | 🔴 Core Logic | 🟢 |
-| fn | `with_threshold` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:275 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `CnsRuntime` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:264 | 🟡 Type Declaration | 🟢 |
-| struct | `NoopEventSink` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:683 | 🟡 Type Declaration | 🟢 |
+| fn | `blocking_variety_for_domain` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:404 | 🔴 Core Logic | 🟢 |
+| fn | `calibrate_threshold_blocking` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:597 | 🔴 Core Logic | 🟢 |
+| fn | `domains` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:223 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:196 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `subscribe` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:622 | 🔴 Core Logic | 🟢 |
+| fn | `variety_for_domain` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:213 | 🔴 Core Logic | 🟢 |
+| fn | `with_threshold` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:283 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `CnsRuntime` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:270 | 🟡 Type Declaration | 🟢 |
+| struct | `NoopEventSink` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:733 | 🟡 Type Declaration | 🟢 |
 | struct | `VarietyMonitor` | hkask-cns::runtime | crates/hkask-cns/src/runtime.rs:185 | 🟡 Type Declaration | 🟢 |
 | fn | `load` | hkask-cns::seam_watcher | crates/hkask-cns/src/seam_watcher.rs:114 | 🔴 Core Logic | 🟢 |
 | fn | `refresh` | hkask-cns::seam_watcher | crates/hkask-cns/src/seam_watcher.rs:407 | 🔴 Core Logic | 🟢 |
@@ -582,10 +611,16 @@ Each public item is classified:
 | fn | `settle` | hkask-cns::wallet_budget | crates/hkask-cns/src/wallet_budget.rs:152 | 🔴 Core Logic | 🟢 |
 | fn | `with_api_key` | hkask-cns::wallet_budget | crates/hkask-cns/src/wallet_budget.rs:62 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `WalletBackedBudget` | hkask-cns::wallet_budget | crates/hkask-cns/src/wallet_budget.rs:32 | 🟡 Type Declaration | 🟢 |
-| fn | `calibrate` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:70 | 🔴 Core Logic | 🟢 |
-| fn | `current_ratio` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:97 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:46 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `WalletEnergyEstimator` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:30 | 🟡 Type Declaration | 🟢 |
+| fn | `calibrate` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:78 | 🔴 Core Logic | 🟢 |
+| fn | `current_ratio` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:105 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:38 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_estimator` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:51 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `WalletEnergyEstimator` | hkask-cns::wallet_energy_estimator | crates/hkask-cns/src/wallet_energy_estimator.rs:22 | 🟡 Type Declaration | 🟢 |
+| fn | `new` | hkask-cns::wallet_gas_calibrator | crates/hkask-cns/src/wallet_gas_calibrator.rs:58 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `spawn_calibration` | hkask-cns::wallet_gas_calibrator | crates/hkask-cns/src/wallet_gas_calibrator.rs:197 | 🔴 Core Logic | 🟢 |
+| fn | `with_event_sink` | hkask-cns::wallet_gas_calibrator | crates/hkask-cns/src/wallet_gas_calibrator.rs:89 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_initial_lookback` | hkask-cns::wallet_gas_calibrator | crates/hkask-cns/src/wallet_gas_calibrator.rs:77 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `WalletGasCalibrator` | hkask-cns::wallet_gas_calibrator | crates/hkask-cns/src/wallet_gas_calibrator.rs:42 | 🟡 Type Declaration | 🟢 |
 
 | hkask-communication | 17 | 17 | 0 | 100% | 50 |
 
@@ -611,7 +646,7 @@ Each public item is classified:
 | struct | `Thread` | hkask-communication::matrix | crates/hkask-communication/src/matrix.rs:70 | 🟡 Type Declaration | 🟢 |
 | struct | `UserId` | hkask-communication::matrix | crates/hkask-communication/src/matrix.rs:47 | 🟡 Type Declaration | 🟢 |
 
-| hkask-condenser | 35 | 30 | 5 | 85% | 36 |
+| hkask-condenser | 35 | 30 | 5 | 85% | 37 |
 
 ### hkask-condenser
 
@@ -622,7 +657,7 @@ Each public item is classified:
 | fn | `new` | hkask-condenser::algorithms | crates/hkask-condenser/src/algorithms.rs:377 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `select` | hkask-condenser::algorithms | crates/hkask-condenser/src/algorithms.rs:386 | 🔴 Core Logic | 🟢 |
 | struct | `AlgorithmRegistry` | hkask-condenser::algorithms | crates/hkask-condenser/src/algorithms.rs:366 | 🟡 Type Declaration | 🟢 |
-| struct | `FlashrankAlgorithm` | hkask-condenser::algorithms | crates/hkask-condenser/src/algorithms.rs:221 | 🟡 Type Declaration | 🟢 |
+| struct | `FlashrankAlgorithm` | hkask-condenser::algorithms | crates/hkask-condenser/src/algorithms.rs:220 | 🟡 Type Declaration | 🟢 |
 | struct | `RtkStyleAlgorithm` | hkask-condenser::algorithms | crates/hkask-condenser/src/algorithms.rs:47 | 🟡 Type Declaration | 🟢 |
 | struct | `SaliencyRankAlgorithm` | hkask-condenser::algorithms | crates/hkask-condenser/src/algorithms.rs:112 | 🟡 Type Declaration | 🟢 |
 | trait | `CondenserAlgorithm` | hkask-condenser::algorithms | crates/hkask-condenser/src/algorithms.rs:33 | 🟡 Type Declaration | 🟢 |
@@ -711,59 +746,59 @@ Each public item is classified:
 | fn | `diverge` | hkask-improv::riffing | crates/hkask-improv/src/riffing.rs:43 | 🔴 Core Logic | 🟢 |
 | fn | `resolve` | hkask-improv::riffing | crates/hkask-improv/src/riffing.rs:55 | 🔴 Core Logic | 🟢 |
 
-| hkask-inference | 49 | 49 | 0 | 100% | 97 |
+| hkask-inference | 49 | 49 | 0 | 100% | 96 |
 
 ### hkask-inference
 
 | Kind | Item | Module | Location | Risk Tier | REQ |
 |------|------|--------|----------|-----------|-----|
-| fn | `infer_vision_support` | hkask-inference | crates/hkask-inference/src/lib.rs:81 | 🔴 Core Logic | 🟢 |
+| fn | `infer_vision_support` | hkask-inference | crates/hkask-inference/src/lib.rs:82 | 🔴 Core Logic | 🟢 |
 | struct | `RouterModelEntry` | hkask-inference | crates/hkask-inference/src/lib.rs:50 | 🟡 Type Declaration | 🟢 |
-| fn | `build_chat_request` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:74 | 🔴 Core Logic | 🟢 |
-| fn | `chat_response_to_result` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:255 | 🔴 Core Logic | 🟢 |
-| fn | `map_token_probs` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:230 | 🔴 Core Logic | 🟢 |
-| fn | `map_tool_calls` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:204 | 🔴 Core Logic | 🟢 |
-| fn | `parse_sse_stream` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:290 | 🔴 Core Logic | 🟢 |
-| fn | `validate_prompt` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:355 | 🔴 Core Logic | 🟢 |
-| struct | `ChatChoice` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:115 | 🟡 Type Declaration | 🟢 |
+| fn | `build_chat_request` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:75 | 🔴 Core Logic | 🟢 |
+| fn | `chat_response_to_result` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:259 | 🔴 Core Logic | 🟢 |
+| fn | `map_token_probs` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:233 | 🔴 Core Logic | 🟢 |
+| fn | `map_tool_calls` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:206 | 🔴 Core Logic | 🟢 |
+| fn | `parse_sse_stream` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:295 | 🔴 Core Logic | 🟢 |
+| fn | `validate_prompt` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:361 | 🔴 Core Logic | 🟢 |
+| struct | `ChatChoice` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:116 | 🟡 Type Declaration | 🟢 |
 | struct | `ChatMessage` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:57 | 🟡 Type Declaration | 🟢 |
 | struct | `ChatRequest` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:32 | 🟡 Type Declaration | 🟢 |
-| struct | `ChatResponseMessage` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:125 | 🟡 Type Declaration | 🟢 |
-| struct | `ChatResponse` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:108 | 🟡 Type Declaration | 🟢 |
-| struct | `ChatUsage` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:131 | 🟡 Type Declaration | 🟢 |
-| struct | `RawFunctionCall` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:163 | 🟡 Type Declaration | 🟢 |
-| struct | `RawTokenProbTopK` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:148 | 🟡 Type Declaration | 🟢 |
-| struct | `RawTokenProb` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:140 | 🟡 Type Declaration | 🟢 |
-| struct | `RawToolCall` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:156 | 🟡 Type Declaration | 🟢 |
-| struct | `StreamChoice` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:180 | 🟡 Type Declaration | 🟢 |
-| struct | `StreamChunk` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:172 | 🟡 Type Declaration | 🟢 |
-| struct | `StreamDelta` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:188 | 🟡 Type Declaration | 🟢 |
+| struct | `ChatResponseMessage` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:126 | 🟡 Type Declaration | 🟢 |
+| struct | `ChatResponse` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:109 | 🟡 Type Declaration | 🟢 |
+| struct | `ChatUsage` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:132 | 🟡 Type Declaration | 🟢 |
+| struct | `RawFunctionCall` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:164 | 🟡 Type Declaration | 🟢 |
+| struct | `RawTokenProbTopK` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:149 | 🟡 Type Declaration | 🟢 |
+| struct | `RawTokenProb` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:141 | 🟡 Type Declaration | 🟢 |
+| struct | `RawToolCall` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:157 | 🟡 Type Declaration | 🟢 |
+| struct | `StreamChoice` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:181 | 🟡 Type Declaration | 🟢 |
+| struct | `StreamChunk` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:173 | 🟡 Type Declaration | 🟢 |
+| struct | `StreamDelta` | hkask-inference::chat_protocol | crates/hkask-inference/src/chat_protocol.rs:189 | 🟡 Type Declaration | 🟢 |
 | enum | `ProviderId` | hkask-inference::config | crates/hkask-inference/src/config.rs:38 | 🟡 Type Declaration | 🟢 |
-| fn | `as_str` | hkask-inference::config | crates/hkask-inference/src/config.rs:98 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `build_client` | hkask-inference::config | crates/hkask-inference/src/config.rs:229 | 🔴 Core Logic | 🟢 |
-| fn | `from_env` | hkask-inference::config | crates/hkask-inference/src/config.rs:188 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `parse_from_model` | hkask-inference::config | crates/hkask-inference/src/config.rs:63 | 🔴 Core Logic | 🟢 |
-| fn | `prefix_model` | hkask-inference::config | crates/hkask-inference/src/config.rs:90 | 🔴 Core Logic | 🟢 |
-| struct | `InferenceConfig` | hkask-inference::config | crates/hkask-inference/src/config.rs:115 | 🟡 Type Declaration | 🟢 |
-| fn | `generate_stream` | hkask-inference::deepinfra_backend | crates/hkask-inference/src/deepinfra_backend.rs:176 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-inference::deepinfra_backend | crates/hkask-inference/src/deepinfra_backend.rs:36 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `as_str` | hkask-inference::config | crates/hkask-inference/src/config.rs:101 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `build_client` | hkask-inference::config | crates/hkask-inference/src/config.rs:234 | 🔴 Core Logic | 🟢 |
+| fn | `from_env` | hkask-inference::config | crates/hkask-inference/src/config.rs:192 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `parse_from_model` | hkask-inference::config | crates/hkask-inference/src/config.rs:64 | 🔴 Core Logic | 🟢 |
+| fn | `prefix_model` | hkask-inference::config | crates/hkask-inference/src/config.rs:92 | 🔴 Core Logic | 🟢 |
+| struct | `InferenceConfig` | hkask-inference::config | crates/hkask-inference/src/config.rs:118 | 🟡 Type Declaration | 🟢 |
+| fn | `generate_stream` | hkask-inference::deepinfra_backend | crates/hkask-inference/src/deepinfra_backend.rs:180 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-inference::deepinfra_backend | crates/hkask-inference/src/deepinfra_backend.rs:37 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `DeepInfraBackend` | hkask-inference::deepinfra_backend | crates/hkask-inference/src/deepinfra_backend.rs:22 | 🟡 Type Declaration | 🟢 |
-| struct | `DeepInfraModelEntry` | hkask-inference::deepinfra_backend | crates/hkask-inference/src/deepinfra_backend.rs:480 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-inference::embedding_router | crates/hkask-inference/src/embedding_router.rs:29 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `DeepInfraModelEntry` | hkask-inference::deepinfra_backend | crates/hkask-inference/src/deepinfra_backend.rs:490 | 🟡 Type Declaration | 🟢 |
+| fn | `new` | hkask-inference::embedding_router | crates/hkask-inference/src/embedding_router.rs:30 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `EmbeddingRouter` | hkask-inference::embedding_router | crates/hkask-inference/src/embedding_router.rs:17 | 🟡 Type Declaration | 🟢 |
-| fn | `generate_stream` | hkask-inference::fal_backend | crates/hkask-inference/src/fal_backend.rs:176 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-inference::fal_backend | crates/hkask-inference/src/fal_backend.rs:36 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `generate_stream` | hkask-inference::fal_backend | crates/hkask-inference/src/fal_backend.rs:180 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-inference::fal_backend | crates/hkask-inference/src/fal_backend.rs:37 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `FalBackend` | hkask-inference::fal_backend | crates/hkask-inference/src/fal_backend.rs:22 | 🟡 Type Declaration | 🟢 |
-| struct | `FalModelEntry` | hkask-inference::fal_backend | crates/hkask-inference/src/fal_backend.rs:591 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-inference::inference_router | crates/hkask-inference/src/inference_router.rs:47 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `FalModelEntry` | hkask-inference::fal_backend | crates/hkask-inference/src/fal_backend.rs:605 | 🟡 Type Declaration | 🟢 |
+| fn | `new` | hkask-inference::inference_router | crates/hkask-inference/src/inference_router.rs:48 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `InferenceRouter` | hkask-inference::inference_router | crates/hkask-inference/src/inference_router.rs:25 | 🟡 Type Declaration | 🟢 |
-| fn | `generate_stream` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:162 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:30 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `generate_stream` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:166 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:31 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `OllamaBackend` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:19 | 🟡 Type Declaration | 🟢 |
-| struct | `OllamaModelDetails` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:262 | 🟡 Type Declaration | 🟢 |
-| struct | `OllamaModelEntry` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:252 | 🟡 Type Declaration | 🟢 |
-| fn | `generate_stream` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:125 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:47 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `OllamaModelDetails` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:267 | 🟡 Type Declaration | 🟢 |
+| struct | `OllamaModelEntry` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:257 | 🟡 Type Declaration | 🟢 |
+| fn | `generate_stream` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:128 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:48 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `TogetherBackend` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:18 | 🟡 Type Declaration | 🟢 |
 | struct | `TogetherModel` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:26 | 🟡 Type Declaration | 🟢 |
 
@@ -784,7 +819,7 @@ Each public item is classified:
 | enum | `KeychainError` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:14 | 🟡 Type Declaration | 🟢 |
 | fn | `delete_by_key` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:129 | 🔴 Core Logic | 🟢 |
 | fn | `delete` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:85 | 🔴 Core Logic | 🟢 |
-| fn | `get_or_create_ocap_secret` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:310 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_or_create_ocap_secret` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:304 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `new` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:44 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `resolve_acp_secret` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:197 | 🔴 Core Logic | 🟢 |
 | fn | `resolve_capability_key` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:264 | 🔴 Core Logic | 🟢 |
@@ -792,12 +827,12 @@ Each public item is classified:
 | fn | `resolve_mcp_secret` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:223 | 🔴 Core Logic | 🟢 |
 | fn | `resolve_mcp_security_key` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:244 | 🔴 Core Logic | 🟢 |
 | fn | `resolve_secret_chain` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:171 | 🔴 Core Logic | 🟢 |
-| fn | `resolve_treasury_key` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:416 | 🔴 Core Logic | 🟢 |
-| fn | `resolve_wallet_seed` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:443 | 🔴 Core Logic | 🟢 |
-| fn | `resolve` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:353 | 🔴 Core Logic | 🟢 |
+| fn | `resolve_treasury_key` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:410 | 🔴 Core Logic | 🟢 |
+| fn | `resolve_wallet_seed` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:437 | 🔴 Core Logic | 🟢 |
+| fn | `resolve` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:347 | 🔴 Core Logic | 🟢 |
 | fn | `retrieve_by_key` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:117 | 🔴 Core Logic | 🟢 |
 | fn | `retrieve` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:72 | 🔴 Core Logic | 🟢 |
-| fn | `sign_api_key_capability` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:463 | 🔴 Core Logic | 🟢 |
+| fn | `sign_api_key_capability` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:457 | 🔴 Core Logic | 🟢 |
 | fn | `store_by_key` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:101 | 🔴 Core Logic | 🟢 |
 | fn | `store` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:56 | 🔴 Core Logic | 🟢 |
 | struct | `Keychain` | hkask-keystore::keychain | crates/hkask-keystore/src/keychain.rs:35 | 🟡 Type Declaration | 🟢 |
@@ -1239,9 +1274,9 @@ Each public item is classified:
 | fn | `new` | hkask-mcp-research::types::rate_limiter | mcp-servers/hkask-mcp-research/src/types/rate_limiter.rs:26 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `RateLimiter` | hkask-mcp-research::types::rate_limiter | mcp-servers/hkask-mcp-research/src/types/rate_limiter.rs:14 | 🟡 Type Declaration | 🟢 |
 | fn | `sanitize_health_error` | hkask-mcp-research::types::validation | mcp-servers/hkask-mcp-research/src/types/validation.rs:17 | 🔴 MCP Tool Handler | 🔴 |
-| fn | `validate_browse_request` | hkask-mcp-research::types::validation | mcp-servers/hkask-mcp-research/src/types/validation.rs:89 | 🔴 MCP Tool Handler | 🔴 |
-| fn | `validate_extract_request` | hkask-mcp-research::types::validation | mcp-servers/hkask-mcp-research/src/types/validation.rs:61 | 🔴 MCP Tool Handler | 🔴 |
-| fn | `validate_search_request` | hkask-mcp-research::types::validation | mcp-servers/hkask-mcp-research/src/types/validation.rs:47 | 🔴 MCP Tool Handler | 🔴 |
+| fn | `validate_browse_request` | hkask-mcp-research::types::validation | mcp-servers/hkask-mcp-research/src/types/validation.rs:90 | 🔴 MCP Tool Handler | 🔴 |
+| fn | `validate_extract_request` | hkask-mcp-research::types::validation | mcp-servers/hkask-mcp-research/src/types/validation.rs:62 | 🔴 MCP Tool Handler | 🔴 |
+| fn | `validate_search_request` | hkask-mcp-research::types::validation | mcp-servers/hkask-mcp-research/src/types/validation.rs:48 | 🔴 MCP Tool Handler | 🔴 |
 
 | hkask-mcp-spec | 22 | 0 | 22 | 0% | 10 |
 
@@ -1295,23 +1330,23 @@ Each public item is classified:
 | struct | `TrainStatusRequest` | hkask-mcp-training | mcp-servers/hkask-mcp-training/src/main.rs:107 | 🟡 Type Declaration | 🟢 |
 | struct | `TrainSubmitRequest` | hkask-mcp-training | mcp-servers/hkask-mcp-training/src/main.rs:96 | 🟡 Type Declaration | 🟢 |
 | struct | `TrainingServer` | hkask-mcp-training | mcp-servers/hkask-mcp-training/src/main.rs:322 | 🟡 Type Declaration | 🟢 |
-| enum | `AdapterStoreError` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:123 | 🟡 Type Declaration | 🟢 |
-| fn | `get` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:553 | 🔴 MCP Tool Handler | 🟢 |
-| fn | `list_all` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:582 | 🔴 MCP Tool Handler | 🟢 |
-| fn | `migrate` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:243 | 🔴 MCP Tool Handler | 🟢 |
-| fn | `new` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:145 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:234 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:499 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:64 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `store` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:510 | 🔴 MCP Tool Handler | 🟢 |
-| fn | `update_status` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:540 | 🔴 MCP Tool Handler | 🟢 |
+| enum | `AdapterStoreError` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:124 | 🟡 Type Declaration | 🟢 |
+| fn | `get` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:555 | 🔴 MCP Tool Handler | 🟢 |
+| fn | `list_all` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:584 | 🔴 MCP Tool Handler | 🟢 |
+| fn | `migrate` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:244 | 🔴 MCP Tool Handler | 🟢 |
+| fn | `new` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:146 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:235 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:500 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:65 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `store` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:512 | 🔴 MCP Tool Handler | 🟢 |
+| fn | `update_status` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:542 | 🔴 MCP Tool Handler | 🟢 |
 | struct | `AdapterMetrics` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:51 | 🟡 Type Declaration | 🟢 |
-| struct | `InMemoryAdapterStore` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:138 | 🟡 Type Declaration | 🟢 |
-| struct | `JobStore` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:494 | 🟡 Type Declaration | 🟢 |
+| struct | `InMemoryAdapterStore` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:139 | 🟡 Type Declaration | 🟢 |
+| struct | `JobStore` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:495 | 🟡 Type Declaration | 🟢 |
 | struct | `LoRAAdapter` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:24 | 🟡 Type Declaration | 🟢 |
-| struct | `SqliteAdapterStore` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:228 | 🟡 Type Declaration | 🟢 |
-| struct | `StoredJob` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:481 | 🟡 Type Declaration | 🟢 |
-| trait | `AdapterStore` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:97 | 🟡 Type Declaration | 🟢 |
+| struct | `SqliteAdapterStore` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:229 | 🟡 Type Declaration | 🟢 |
+| struct | `StoredJob` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:482 | 🟡 Type Declaration | 🟢 |
+| trait | `AdapterStore` | hkask-mcp-training::adapters | mcp-servers/hkask-mcp-training/src/adapters.rs:98 | 🟡 Type Declaration | 🟢 |
 | enum | `DatasetError` | hkask-mcp-training::dataset | mcp-servers/hkask-mcp-training/src/dataset.rs:80 | 🟡 Type Declaration | 🟢 |
 | enum | `DatasetFormat` | hkask-mcp-training::dataset | mcp-servers/hkask-mcp-training/src/dataset.rs:32 | 🟡 Type Declaration | 🟢 |
 | fn | `detect` | hkask-mcp-training::dataset | mcp-servers/hkask-mcp-training/src/dataset.rs:45 | 🔴 MCP Tool Handler | 🟢 |
@@ -1354,74 +1389,92 @@ Each public item is classified:
 
 | Kind | Item | Module | Location | Risk Tier | REQ |
 |------|------|--------|----------|-----------|-----|
-| fn | `consolidate` | hkask-memory::consolidation | crates/hkask-memory/src/consolidation.rs:168 | 🔴 Core Logic | 🟢 |
-| fn | `consolidation_candidate_count` | hkask-memory::consolidation | crates/hkask-memory/src/consolidation.rs:204 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-memory::consolidation | crates/hkask-memory/src/consolidation.rs:52 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `consolidate` | hkask-memory::consolidation | crates/hkask-memory/src/consolidation.rs:173 | 🔴 Core Logic | 🟢 |
+| fn | `consolidation_candidate_count` | hkask-memory::consolidation | crates/hkask-memory/src/consolidation.rs:211 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-memory::consolidation | crates/hkask-memory/src/consolidation.rs:54 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `ConsolidationBridge` | hkask-memory::consolidation | crates/hkask-memory/src/consolidation.rs:26 | 🟡 Type Declaration | 🟢 |
-| fn | `consolidate` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:67 | 🔴 Core Logic | 🟢 |
-| fn | `consolidation_candidate_count` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:212 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:39 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `semantic_low_confidence_count` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:222 | 🔴 Core Logic | 🟢 |
-| fn | `semantic_triple_count` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:231 | 🔴 Core Logic | 🟢 |
+| fn | `consolidate` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:72 | 🔴 Core Logic | 🟢 |
+| fn | `consolidation_candidate_count` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:219 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:41 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `semantic_low_confidence_count` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:231 | 🔴 Core Logic | 🟢 |
+| fn | `semantic_triple_count` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:242 | 🔴 Core Logic | 🟢 |
 | struct | `ConsolidationService` | hkask-memory::consolidation_service | crates/hkask-memory/src/consolidation_service.rs:24 | 🟡 Type Declaration | 🟢 |
 | enum | `EpisodicMemoryError` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:18 | 🟡 Type Declaration | 🟢 |
-| fn | `consolidation_candidate_count` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:238 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:60 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `query_for_deduped` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:106 | 🔴 Core Logic | 🟢 |
-| fn | `storage_budget` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:223 | 🔴 Core Logic | 🟢 |
-| fn | `storage_usage` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:152 | 🔴 Core Logic | 🟢 |
-| fn | `store` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:78 | 🔴 Core Logic | 🟢 |
+| fn | `consolidation_candidate_count` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:251 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:62 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `query_for_deduped` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:113 | 🔴 Core Logic | 🟢 |
+| fn | `storage_budget` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:234 | 🔴 Core Logic | 🟢 |
+| fn | `storage_usage` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:161 | 🔴 Core Logic | 🟢 |
+| fn | `store` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:83 | 🔴 Core Logic | 🟢 |
 | struct | `EpisodicMemory` | hkask-memory::episodic | crates/hkask-memory/src/episodic.rs:46 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-memory::episodic_loop | crates/hkask-memory/src/episodic_loop.rs:45 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `storage_budget` | hkask-memory::episodic_loop | crates/hkask-memory/src/episodic_loop.rs:85 | 🔴 Core Logic | 🟢 |
-| fn | `with_consolidation` | hkask-memory::episodic_loop | crates/hkask-memory/src/episodic_loop.rs:65 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-memory::episodic_loop | crates/hkask-memory/src/episodic_loop.rs:47 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `storage_budget` | hkask-memory::episodic_loop | crates/hkask-memory/src/episodic_loop.rs:91 | 🔴 Core Logic | 🟢 |
+| fn | `with_consolidation` | hkask-memory::episodic_loop | crates/hkask-memory/src/episodic_loop.rs:69 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `EpisodicLoop` | hkask-memory::episodic_loop | crates/hkask-memory/src/episodic_loop.rs:25 | 🟡 Type Declaration | 🟢 |
-| fn | `normalize_date_bucket` | hkask-memory::ranking | crates/hkask-memory/src/ranking.rs:172 | 🔴 Core Logic | 🟢 |
-| fn | `parse_age_to_days` | hkask-memory::ranking | crates/hkask-memory/src/ranking.rs:35 | 🔴 Core Logic | 🟢 |
-| fn | `rrf_score` | hkask-memory::ranking | crates/hkask-memory/src/ranking.rs:18 | 🔴 Core Logic | 🟢 |
-| fn | `dedup_triples` | hkask-memory::recall_dedup | crates/hkask-memory/src/recall_dedup.rs:67 | 🔴 Core Logic | 🟢 |
-| fn | `eav_hash` | hkask-memory::recall_dedup | crates/hkask-memory/src/recall_dedup.rs:24 | 🔴 Core Logic | 🟢 |
-| enum | `BudgetConfig` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:809 | 🟡 Type Declaration | 🟢 |
-| fn | `all_tags` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:648 | 🔴 Core Logic | 🟢 |
-| fn | `compute_method_signals` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:89 | 🔴 Core Logic | 🟢 |
-| fn | `compute_salience_batch` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:707 | 🔴 Core Logic | 🟢 |
-| fn | `matches` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:562 | 🔴 Core Logic | 🟢 |
-| fn | `resolve` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:852 | 🔴 Core Logic | 🟢 |
-| fn | `tag_count` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:662 | 🔴 Core Logic | 🟢 |
-| fn | `tag_entities` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:618 | 🔴 Core Logic | 🟢 |
-| struct | `DeclaredMethod` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:491 | 🟡 Type Declaration | 🟢 |
-| struct | `EntityTags` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:601 | 🟡 Type Declaration | 🟢 |
+| fn | `normalize_date_bucket` | hkask-memory::ranking | crates/hkask-memory/src/ranking.rs:178 | 🔴 Core Logic | 🟢 |
+| fn | `parse_age_to_days` | hkask-memory::ranking | crates/hkask-memory/src/ranking.rs:39 | 🔴 Core Logic | 🟢 |
+| fn | `rrf_score` | hkask-memory::ranking | crates/hkask-memory/src/ranking.rs:20 | 🔴 Core Logic | 🟢 |
+| fn | `dedup_triples` | hkask-memory::recall_dedup | crates/hkask-memory/src/recall_dedup.rs:71 | 🔴 Core Logic | 🟢 |
+| fn | `eav_hash` | hkask-memory::recall_dedup | crates/hkask-memory/src/recall_dedup.rs:26 | 🔴 Core Logic | 🟢 |
+| enum | `BudgetConfig` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:821 | 🟡 Type Declaration | 🟢 |
+| fn | `all_tags` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:656 | 🔴 Core Logic | 🟢 |
+| fn | `compute_method_signals` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:91 | 🔴 Core Logic | 🟢 |
+| fn | `compute_salience_batch` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:719 | 🔴 Core Logic | 🟢 |
+| fn | `matches` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:566 | 🔴 Core Logic | 🟢 |
+| fn | `resolve` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:866 | 🔴 Core Logic | 🟢 |
+| fn | `tag_count` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:672 | 🔴 Core Logic | 🟢 |
+| fn | `tag_entities` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:624 | 🔴 Core Logic | 🟢 |
+| struct | `DeclaredMethod` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:493 | 🟡 Type Declaration | 🟢 |
+| struct | `EntityTags` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:605 | 🟡 Type Declaration | 🟢 |
 | struct | `MethodSignals` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:22 | 🟡 Type Declaration | 🟢 |
-| struct | `MethodThresholds` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:509 | 🟡 Type Declaration | 🟢 |
+| struct | `MethodThresholds` | hkask-memory::salience | crates/hkask-memory/src/salience.rs:511 | 🟡 Type Declaration | 🟢 |
 | enum | `SemanticMemoryError` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:21 | 🟡 Type Declaration | 🟢 |
-| fn | `chunk_text` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:348 | 🔴 Core Logic | 🟢 |
-| fn | `compute_centroid` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:229 | 🔴 Core Logic | 🟢 |
-| fn | `delete_triple` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:496 | 🔴 Core Logic | 🟢 |
-| fn | `embedding_count` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:188 | 🔴 Core Logic | 🟢 |
-| fn | `embedding_store` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:197 | 🔴 Core Logic | 🟢 |
-| fn | `low_confidence_count` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:531 | 🔴 Core Logic | 🟢 |
-| fn | `low_confidence_triples` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:548 | 🔴 Core Logic | 🟢 |
-| fn | `lowest_confidence_triples` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:516 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:68 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `purge_by_prefix` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:313 | 🔴 Core Logic | 🟢 |
-| fn | `query_by_attribute` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:142 | 🔴 Core Logic | 🟢 |
-| fn | `query_deduped` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:84 | 🔴 Core Logic | 🟢 |
-| fn | `search_similar` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:176 | 🔴 Core Logic | 🟢 |
-| fn | `store_embedding` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:157 | 🔴 Core Logic | 🟢 |
-| fn | `store` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:101 | 🔴 Core Logic | 🟢 |
-| fn | `strip_gutenberg_headers` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:458 | 🔴 Core Logic | 🟢 |
-| fn | `triple_count_for_entity` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:133 | 🔴 Core Logic | 🟢 |
-| fn | `triple_count` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:124 | 🔴 Core Logic | 🟢 |
+| fn | `chunk_text` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:374 | 🔴 Core Logic | 🟢 |
+| fn | `compute_centroid` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:251 | 🔴 Core Logic | 🟢 |
+| fn | `delete_triple` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:526 | 🔴 Core Logic | 🟢 |
+| fn | `embedding_count` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:206 | 🔴 Core Logic | 🟢 |
+| fn | `embedding_store` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:217 | 🔴 Core Logic | 🟢 |
+| fn | `low_confidence_count` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:565 | 🔴 Core Logic | 🟢 |
+| fn | `low_confidence_triples` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:584 | 🔴 Core Logic | 🟢 |
+| fn | `lowest_confidence_triples` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:548 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:70 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `purge_by_prefix` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:337 | 🔴 Core Logic | 🟢 |
+| fn | `query_by_attribute` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:154 | 🔴 Core Logic | 🟢 |
+| fn | `query_deduped` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:88 | 🔴 Core Logic | 🟢 |
+| fn | `search_similar` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:192 | 🔴 Core Logic | 🟢 |
+| fn | `store_embedding` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:171 | 🔴 Core Logic | 🟢 |
+| fn | `store` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:107 | 🔴 Core Logic | 🟢 |
+| fn | `strip_gutenberg_headers` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:486 | 🔴 Core Logic | 🟢 |
+| fn | `triple_count_for_entity` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:143 | 🔴 Core Logic | 🟢 |
+| fn | `triple_count` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:132 | 🔴 Core Logic | 🟢 |
 | struct | `CentroidResult` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:38 | 🟡 Type Declaration | 🟢 |
 | struct | `SemanticMemory` | hkask-memory::semantic | crates/hkask-memory/src/semantic.rs:57 | 🟡 Type Declaration | 🟢 |
-| fn | `low_confidence_threshold` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:108 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:52 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `storage_budget` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:100 | 🔴 Core Logic | 🟢 |
-| fn | `with_budget_and_threshold` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:84 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_budget` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:67 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `low_confidence_threshold` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:118 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:54 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `storage_budget` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:108 | 🔴 Core Logic | 🟢 |
+| fn | `with_budget_and_threshold` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:90 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_budget` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:71 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `SemanticLoop` | hkask-memory::semantic_loop | crates/hkask-memory/src/semantic_loop.rs:37 | 🟡 Type Declaration | 🟢 |
 
-| hkask-services | 288 | 268 | 20 | 93% | 319 |
+| hkask-rsolidity | 2 | 2 | 0 | 100% | 12 |
+
+### hkask-rsolidity
+
+| Kind | Item | Module | Location | Risk Tier | REQ |
+|------|------|--------|----------|-----------|-----|
+| fn | `__private_emit` | hkask-rsolidity | crates/hkask-rsolidity/src/lib.rs:25 | 🔴 Core Logic | 🟢 |
+| trait | `Ocap` | hkask-rsolidity | crates/hkask-rsolidity/src/lib.rs:17 | 🟡 Type Declaration | 🟢 |
+
+| hkask-rsolidity-macros | 2 | 2 | 0 | 100% | 2 |
+
+### hkask-rsolidity-macros
+
+| Kind | Item | Module | Location | Risk Tier | REQ |
+|------|------|--------|----------|-----------|-----|
+| fn | `contract` | hkask-rsolidity-macros | crates/hkask-rsolidity-macros/src/lib.rs:113 | 🔴 Core Logic | 🟢 |
+| fn | `ocap` | hkask-rsolidity-macros | crates/hkask-rsolidity-macros/src/lib.rs:50 | 🔴 Core Logic | 🟢 |
+
+| hkask-services | 303 | 283 | 20 | 93% | 331 |
 
 ### hkask-services
 
@@ -1430,55 +1483,55 @@ Each public item is classified:
 | struct | `ArchivalService` | hkask-services::archival | crates/hkask-services/src/archival.rs:35 | 🟡 Type Declaration | 🟢 |
 | struct | `ArchiveResult` | hkask-services::archival | crates/hkask-services/src/archival.rs:16 | 🟡 Type Declaration | 🟢 |
 | struct | `SnapshotResult` | hkask-services::archival | crates/hkask-services/src/archival.rs:25 | 🟡 Type Declaration | 🟢 |
-| fn | `backup_config_path` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:175 | 🔴 Core Logic | 🟢 |
-| fn | `from_duration_str` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:140 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `load_backup_config` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:186 | 🔴 Core Logic | 🟢 |
-| fn | `save_backup_config` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:199 | 🔴 Core Logic | 🟢 |
-| fn | `should_keep` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:109 | 🔴 Core Logic | 🟢 |
+| fn | `backup_config_path` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:178 | 🔴 Core Logic | 🟢 |
+| fn | `from_duration_str` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:142 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `load_backup_config` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:190 | 🔴 Core Logic | 🟢 |
+| fn | `save_backup_config` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:204 | 🔴 Core Logic | 🟢 |
+| fn | `should_keep` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:110 | 🔴 Core Logic | 🟢 |
 | struct | `BackupConfig` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:13 | 🟡 Type Declaration | 🟢 |
 | struct | `EncryptionConfig` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:38 | 🟡 Type Declaration | 🟢 |
 | struct | `RetentionPolicy` | hkask-services::backup::config | crates/hkask-services/src/backup/config.rs:73 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-services::backup::loop | crates/hkask-services/src/backup/loop.rs:50 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-services::backup::loop | crates/hkask-services/src/backup/loop.rs:51 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `BackupLoop` | hkask-services::backup::loop | crates/hkask-services/src/backup/loop.rs:39 | 🟡 Type Declaration | 🟢 |
 | enum | `SnapshotTrigger` | hkask-services::backup::metadata | crates/hkask-services/src/backup/metadata.rs:11 | 🟡 Type Declaration | 🔴 |
 | struct | `PruneReport` | hkask-services::backup::metadata | crates/hkask-services/src/backup/metadata.rs:41 | 🟡 Type Declaration | 🔴 |
 | struct | `SnapshotMetadata` | hkask-services::backup::metadata | crates/hkask-services/src/backup/metadata.rs:25 | 🟡 Type Declaration | 🔴 |
 | enum | `BackupError` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:44 | 🟡 Type Declaration | 🟢 |
-| fn | `config` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:546 | 🔴 Core Logic | 🟢 |
-| fn | `enable_encryption` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:569 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:108 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `update_config` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:555 | 🔴 Core Logic | 🟢 |
-| fn | `with_config` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:123 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `config` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:554 | 🔴 Core Logic | 🟢 |
+| fn | `enable_encryption` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:579 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:109 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `update_config` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:564 | 🔴 Core Logic | 🟢 |
+| fn | `with_config` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:125 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `BackupService` | hkask-services::backup::mod | crates/hkask-services/src/backup/mod.rs:85 | 🟡 Type Declaration | 🟢 |
 | enum | `ArtifactType` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:20 | 🟡 Type Declaration | 🟢 |
-| enum | `BackupScope` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:89 | 🟡 Type Declaration | 🟢 |
-| enum | `RestoreScope` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:121 | 🟡 Type Declaration | 🟢 |
-| fn | `description` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:107 | 🔴 Core Logic | 🟢 |
-| fn | `label` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:62 | 🔴 Core Logic | 🟢 |
-| fn | `repo_id` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:41 | 🔴 Core Logic | 🟢 |
-| struct | `ListFilter` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:135 | 🟡 Type Declaration | 🟢 |
-| fn | `artifact_git_path` | hkask-services::backup::serialization | crates/hkask-services/src/backup/serialization.rs:81 | 🔴 Core Logic | 🟢 |
-| fn | `deserialize_artifact` | hkask-services::backup::serialization | crates/hkask-services/src/backup/serialization.rs:42 | 🔴 Core Logic | 🟢 |
-| fn | `serialize_artifact` | hkask-services::backup::serialization | crates/hkask-services/src/backup/serialization.rs:21 | 🔴 Core Logic | 🟢 |
-| struct | `ArtifactEnvelopeValue` | hkask-services::backup::serialization | crates/hkask-services/src/backup/serialization.rs:63 | 🟡 Type Declaration | 🟢 |
-| fn | `deactivate` | hkask-services::bundle | crates/hkask-services/src/bundle.rs:312 | 🔴 Core Logic | 🟢 |
+| enum | `BackupScope` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:91 | 🟡 Type Declaration | 🟢 |
+| enum | `RestoreScope` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:124 | 🟡 Type Declaration | 🟢 |
+| fn | `description` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:110 | 🔴 Core Logic | 🟢 |
+| fn | `label` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:64 | 🔴 Core Logic | 🟢 |
+| fn | `repo_id` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:42 | 🔴 Core Logic | 🟢 |
+| struct | `ListFilter` | hkask-services::backup::scope | crates/hkask-services/src/backup/scope.rs:138 | 🟡 Type Declaration | 🟢 |
+| fn | `artifact_git_path` | hkask-services::backup::serialization | crates/hkask-services/src/backup/serialization.rs:84 | 🔴 Core Logic | 🟢 |
+| fn | `deserialize_artifact` | hkask-services::backup::serialization | crates/hkask-services/src/backup/serialization.rs:44 | 🔴 Core Logic | 🟢 |
+| fn | `serialize_artifact` | hkask-services::backup::serialization | crates/hkask-services/src/backup/serialization.rs:22 | 🔴 Core Logic | 🟢 |
+| struct | `ArtifactEnvelopeValue` | hkask-services::backup::serialization | crates/hkask-services/src/backup/serialization.rs:65 | 🟡 Type Declaration | 🟢 |
+| fn | `deactivate` | hkask-services::bundle | crates/hkask-services/src/bundle.rs:318 | 🔴 Core Logic | 🟢 |
 | struct | `BundleComposeResult` | hkask-services::bundle | crates/hkask-services/src/bundle.rs:33 | 🟡 Type Declaration | 🟢 |
 | struct | `BundleService` | hkask-services::bundle | crates/hkask-services/src/bundle.rs:41 | 🟡 Type Declaration | 🟢 |
-| enum | `MessageSource` | hkask-services::chat | crates/hkask-services/src/chat.rs:861 | 🟡 Type Declaration | 🟢 |
-| fn | `apply_persona_filter` | hkask-services::chat | crates/hkask-services/src/chat.rs:584 | 🔴 Core Logic | 🟢 |
-| fn | `gas_cost` | hkask-services::chat | crates/hkask-services/src/chat.rs:48 | 🔴 Core Logic | 🟢 |
-| fn | `recall_raw_episodes` | hkask-services::chat | crates/hkask-services/src/chat.rs:481 | 🔴 Core Logic | 🟢 |
-| fn | `recall_recent_turns` | hkask-services::chat | crates/hkask-services/src/chat.rs:439 | 🔴 Core Logic | 🟢 |
-| fn | `recall_semantic` | hkask-services::chat | crates/hkask-services/src/chat.rs:363 | 🔴 Core Logic | 🟢 |
-| fn | `store_episodic` | hkask-services::chat | crates/hkask-services/src/chat.rs:391 | 🔴 Core Logic | 🟢 |
-| fn | `wrap_manifest_input` | hkask-services::chat | crates/hkask-services/src/chat.rs:572 | 🔴 Core Logic | 🟢 |
-| struct | `ChatRequest` | hkask-services::chat | crates/hkask-services/src/chat.rs:76 | 🟡 Type Declaration | 🟢 |
-| struct | `ChatResponse` | hkask-services::chat | crates/hkask-services/src/chat.rs:61 | 🟡 Type Declaration | 🟢 |
-| struct | `ChatService` | hkask-services::chat | crates/hkask-services/src/chat.rs:125 | 🟡 Type Declaration | 🟢 |
-| struct | `PreparedChat` | hkask-services::chat | crates/hkask-services/src/chat.rs:107 | 🟡 Type Declaration | 🟢 |
+| enum | `MessageSource` | hkask-services::chat | crates/hkask-services/src/chat.rs:872 | 🟡 Type Declaration | 🟢 |
+| fn | `apply_persona_filter` | hkask-services::chat | crates/hkask-services/src/chat.rs:594 | 🔴 Core Logic | 🟢 |
+| fn | `gas_cost` | hkask-services::chat | crates/hkask-services/src/chat.rs:49 | 🔴 Core Logic | 🟢 |
+| fn | `recall_raw_episodes` | hkask-services::chat | crates/hkask-services/src/chat.rs:488 | 🔴 Core Logic | 🟢 |
+| fn | `recall_recent_turns` | hkask-services::chat | crates/hkask-services/src/chat.rs:445 | 🔴 Core Logic | 🟢 |
+| fn | `recall_semantic` | hkask-services::chat | crates/hkask-services/src/chat.rs:367 | 🔴 Core Logic | 🟢 |
+| fn | `store_episodic` | hkask-services::chat | crates/hkask-services/src/chat.rs:396 | 🔴 Core Logic | 🟢 |
+| fn | `wrap_manifest_input` | hkask-services::chat | crates/hkask-services/src/chat.rs:581 | 🔴 Core Logic | 🟢 |
+| struct | `ChatRequest` | hkask-services::chat | crates/hkask-services/src/chat.rs:77 | 🟡 Type Declaration | 🟢 |
+| struct | `ChatResponse` | hkask-services::chat | crates/hkask-services/src/chat.rs:62 | 🟡 Type Declaration | 🟢 |
+| struct | `ChatService` | hkask-services::chat | crates/hkask-services/src/chat.rs:126 | 🟡 Type Declaration | 🟢 |
+| struct | `PreparedChat` | hkask-services::chat | crates/hkask-services/src/chat.rs:108 | 🟡 Type Declaration | 🟢 |
 | struct | `TokenUsage` | hkask-services::chat | crates/hkask-services/src/chat.rs:36 | 🟡 Type Declaration | 🟢 |
-| struct | `TurnRequest` | hkask-services::chat | crates/hkask-services/src/chat.rs:804 | 🟡 Type Declaration | 🟢 |
-| struct | `TurnResult` | hkask-services::chat | crates/hkask-services/src/chat.rs:881 | 🟡 Type Declaration | 🟢 |
+| struct | `TurnRequest` | hkask-services::chat | crates/hkask-services/src/chat.rs:815 | 🟡 Type Declaration | 🟢 |
+| struct | `TurnResult` | hkask-services::chat | crates/hkask-services/src/chat.rs:892 | 🟡 Type Declaration | 🟢 |
 | fn | `from_def` | hkask-services::classify | crates/hkask-services/src/classify.rs:161 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `load_classifier_config` | hkask-services::classify | crates/hkask-services/src/classify.rs:117 | 🔴 Core Logic | 🟢 |
 | struct | `ClassifierConfig` | hkask-services::classify | crates/hkask-services/src/classify.rs:147 | 🟡 Type Declaration | 🟢 |
@@ -1486,11 +1539,11 @@ Each public item is classified:
 | struct | `ClassifierYaml` | hkask-services::classify | crates/hkask-services/src/classify.rs:62 | 🟡 Type Declaration | 🟢 |
 | struct | `ClassifyResult` | hkask-services::classify | crates/hkask-services/src/classify.rs:17 | 🟡 Type Declaration | 🟢 |
 | struct | `TripleExtraction` | hkask-services::classify | crates/hkask-services/src/classify.rs:25 | 🟡 Type Declaration | 🟢 |
-| fn | `get_set_points` | hkask-services::cns | crates/hkask-services/src/cns.rs:69 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-services::cns | crates/hkask-services/src/cns.rs:30 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `update_set_points` | hkask-services::cns | crates/hkask-services/src/cns.rs:81 | 🔴 Core Logic | 🟢 |
+| fn | `get_set_points` | hkask-services::cns | crates/hkask-services/src/cns.rs:74 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-services::cns | crates/hkask-services/src/cns.rs:31 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `update_set_points` | hkask-services::cns | crates/hkask-services/src/cns.rs:87 | 🔴 Core Logic | 🟢 |
 | struct | `CnsService` | hkask-services::cns | crates/hkask-services/src/cns.rs:20 | 🟡 Type Declaration | 🟢 |
-| fn | `cosine_distance` | hkask-services::compose | crates/hkask-services/src/compose.rs:453 | 🔴 Core Logic | 🟢 |
+| fn | `cosine_distance` | hkask-services::compose | crates/hkask-services/src/compose.rs:455 | 🔴 Core Logic | 🟢 |
 | struct | `CentroidValidation` | hkask-services::compose | crates/hkask-services/src/compose.rs:140 | 🟡 Type Declaration | 🟢 |
 | struct | `CognitionConfig` | hkask-services::compose | crates/hkask-services/src/compose.rs:38 | 🟡 Type Declaration | 🟢 |
 | struct | `ComposeRequest` | hkask-services::compose | crates/hkask-services/src/compose.rs:114 | 🟡 Type Declaration | 🟢 |
@@ -1499,62 +1552,64 @@ Each public item is classified:
 | struct | `EmbeddingSection` | hkask-services::compose | crates/hkask-services/src/compose.rs:60 | 🟡 Type Declaration | 🟢 |
 | struct | `RetrievalSection` | hkask-services::compose | crates/hkask-services/src/compose.rs:69 | 🟡 Type Declaration | 🟢 |
 | struct | `ValidationSection` | hkask-services::compose | crates/hkask-services/src/compose.rs:107 | 🟡 Type Declaration | 🟢 |
-| fn | `effective_memory_db_path` | hkask-services::config | crates/hkask-services/src/config.rs:261 | 🔴 Core Logic | 🟢 |
-| fn | `from_env` | hkask-services::config | crates/hkask-services/src/config.rs:122 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `from_secrets` | hkask-services::config | crates/hkask-services/src/config.rs:185 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `in_memory` | hkask-services::config | crates/hkask-services/src/config.rs:228 | 🔴 Core Logic | 🟢 |
+| fn | `effective_memory_db_path` | hkask-services::config | crates/hkask-services/src/config.rs:265 | 🔴 Core Logic | 🟢 |
+| fn | `from_env` | hkask-services::config | crates/hkask-services/src/config.rs:123 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `from_secrets` | hkask-services::config | crates/hkask-services/src/config.rs:187 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `in_memory` | hkask-services::config | crates/hkask-services/src/config.rs:231 | 🔴 Core Logic | 🟢 |
 | struct | `ServiceConfig` | hkask-services::config | crates/hkask-services/src/config.rs:37 | 🟡 Type Declaration | 🟢 |
-| fn | `check_rate_limit` | hkask-services::consolidation | crates/hkask-services/src/consolidation.rs:32 | 🔴 Core Logic | 🟢 |
-| fn | `consolidate` | hkask-services::consolidation | crates/hkask-services/src/consolidation.rs:77 | 🔴 Core Logic | 🟢 |
-| fn | `db_path_for_agent` | hkask-services::consolidation | crates/hkask-services/src/consolidation.rs:52 | 🔴 Core Logic | 🟢 |
-| fn | `verify_passphrase` | hkask-services::consolidation | crates/hkask-services/src/consolidation.rs:58 | 🔴 Core Logic | 🟢 |
-| fn | `add` | hkask-services::contacts | crates/hkask-services/src/contacts.rs:18 | 🔴 Core Logic | 🟢 |
-| fn | `find` | hkask-services::contacts | crates/hkask-services/src/contacts.rs:41 | 🔴 Core Logic | 🟢 |
-| fn | `list` | hkask-services::contacts | crates/hkask-services/src/contacts.rs:56 | 🔴 Core Logic | 🟢 |
+| fn | `check_rate_limit` | hkask-services::consolidation | crates/hkask-services/src/consolidation.rs:33 | 🔴 Core Logic | 🟢 |
+| fn | `consolidate` | hkask-services::consolidation | crates/hkask-services/src/consolidation.rs:81 | 🔴 Core Logic | 🟢 |
+| fn | `db_path_for_agent` | hkask-services::consolidation | crates/hkask-services/src/consolidation.rs:54 | 🔴 Core Logic | 🟢 |
+| fn | `verify_passphrase` | hkask-services::consolidation | crates/hkask-services/src/consolidation.rs:61 | 🔴 Core Logic | 🟢 |
+| fn | `add` | hkask-services::contacts | crates/hkask-services/src/contacts.rs:19 | 🔴 Core Logic | 🟢 |
+| fn | `find` | hkask-services::contacts | crates/hkask-services/src/contacts.rs:43 | 🔴 Core Logic | 🟢 |
+| fn | `list` | hkask-services::contacts | crates/hkask-services/src/contacts.rs:59 | 🔴 Core Logic | 🟢 |
 | struct | `ContactService` | hkask-services::contacts | crates/hkask-services/src/contacts.rs:10 | 🟡 Type Declaration | 🟢 |
-| fn | `agent_registry_store` | hkask-services::context | crates/hkask-services/src/context.rs:422 | 🔴 Core Logic | 🟢 |
-| fn | `build_per_agent_memory` | hkask-services::context | crates/hkask-services/src/context.rs:471 | 🔴 Core Logic | 🟢 |
-| fn | `capability_checker` | hkask-services::context | crates/hkask-services/src/context.rs:311 | 🔴 Core Logic | 🟢 |
-| fn | `cns_runtime` | hkask-services::context | crates/hkask-services/src/context.rs:266 | 🔴 Core Logic | 🟢 |
-| fn | `config` | hkask-services::context | crates/hkask-services/src/context.rs:209 | 🔴 Core Logic | 🟢 |
-| fn | `curation_inbox_tx` | hkask-services::context | crates/hkask-services/src/context.rs:390 | 🔴 Core Logic | 🟢 |
-| fn | `cybernetics_loop` | hkask-services::context | crates/hkask-services/src/context.rs:274 | 🔴 Core Logic | 🟢 |
-| fn | `daemon_handler` | hkask-services::context | crates/hkask-services/src/context.rs:441 | 🔴 Core Logic | 🟢 |
-| fn | `escalation_queue` | hkask-services::context | crates/hkask-services/src/context.rs:327 | 🔴 Core Logic | 🟢 |
-| fn | `event_sink` | hkask-services::context | crates/hkask-services/src/context.rs:290 | 🔴 Core Logic | 🟢 |
-| fn | `goal_repo` | hkask-services::context | crates/hkask-services/src/context.rs:256 | 🔴 Core Logic | 🟢 |
-| fn | `identity` | hkask-services::context | crates/hkask-services/src/context.rs:363 | 🔴 Core Logic | 🟢 |
-| fn | `inference_port` | hkask-services::context | crates/hkask-services/src/context.rs:337 | 🔴 Core Logic | 🟢 |
-| fn | `loop_system` | hkask-services::context | crates/hkask-services/src/context.rs:282 | 🔴 Core Logic | 🟢 |
-| fn | `matrix_transport` | hkask-services::context | crates/hkask-services/src/context.rs:453 | 🔴 Core Logic | 🟢 |
-| fn | `mcp_dispatcher` | hkask-services::context | crates/hkask-services/src/context.rs:319 | 🔴 Core Logic | 🟢 |
-| fn | `mcp_runtime` | hkask-services::context | crates/hkask-services/src/context.rs:345 | 🔴 Core Logic | 🟢 |
-| fn | `memory` | hkask-services::context | crates/hkask-services/src/context.rs:238 | 🔴 Core Logic | 🟢 |
-| fn | `open_agent_registry` | hkask-services::context | crates/hkask-services/src/context.rs:557 | 🔴 Core Logic | 🟢 |
-| fn | `open_consent_manager` | hkask-services::context | crates/hkask-services/src/context.rs:535 | 🔴 Core Logic | 🟢 |
-| fn | `open_escalation_queue` | hkask-services::context | crates/hkask-services/src/context.rs:513 | 🔴 Core Logic | 🟢 |
-| fn | `open_spec_store` | hkask-services::context | crates/hkask-services/src/context.rs:523 | 🔴 Core Logic | 🟢 |
-| fn | `pod_manager` | hkask-services::context | crates/hkask-services/src/context.rs:353 | 🔴 Core Logic | 🟢 |
-| fn | `registry` | hkask-services::context | crates/hkask-services/src/context.rs:248 | 🔴 Core Logic | 🟢 |
-| fn | `seam_watcher` | hkask-services::context | crates/hkask-services/src/context.rs:300 | 🔴 Core Logic | 🟢 |
-| fn | `sovereignty_boundary_store` | hkask-services::context | crates/hkask-services/src/context.rs:400 | 🔴 Core Logic | 🟢 |
-| fn | `sovereignty` | hkask-services::context | crates/hkask-services/src/context.rs:374 | 🔴 Core Logic | 🟢 |
-| fn | `spec_store` | hkask-services::context | crates/hkask-services/src/context.rs:412 | 🔴 Core Logic | 🟢 |
-| fn | `user_store` | hkask-services::context | crates/hkask-services/src/context.rs:432 | 🔴 Core Logic | 🟢 |
-| fn | `wallet_store` | hkask-services::context | crates/hkask-services/src/context.rs:227 | 🔴 Core Logic | 🟢 |
-| fn | `wallet` | hkask-services::context | crates/hkask-services/src/context.rs:218 | 🔴 Core Logic | 🟢 |
+| fn | `agent_registry_store` | hkask-services::context | crates/hkask-services/src/context.rs:473 | 🔴 Core Logic | 🟢 |
+| fn | `build_per_agent_memory` | hkask-services::context | crates/hkask-services/src/context.rs:526 | 🔴 Core Logic | 🟢 |
+| fn | `capability_checker` | hkask-services::context | crates/hkask-services/src/context.rs:351 | 🔴 Core Logic | 🟢 |
+| fn | `cns_runtime` | hkask-services::context | crates/hkask-services/src/context.rs:289 | 🔴 Core Logic | 🟢 |
+| fn | `config` | hkask-services::context | crates/hkask-services/src/context.rs:216 | 🔴 Core Logic | 🟢 |
+| fn | `curation_inbox_tx` | hkask-services::context | crates/hkask-services/src/context.rs:438 | 🔴 Core Logic | 🟢 |
+| fn | `cybernetics_loop` | hkask-services::context | crates/hkask-services/src/context.rs:298 | 🔴 Core Logic | 🟢 |
+| fn | `daemon_handler` | hkask-services::context | crates/hkask-services/src/context.rs:494 | 🔴 Core Logic | 🟢 |
+| fn | `energy_estimator` | hkask-services::context | crates/hkask-services/src/context.rs:327 | 🔴 Core Logic | 🟢 |
+| fn | `escalation_queue` | hkask-services::context | crates/hkask-services/src/context.rs:369 | 🔴 Core Logic | 🟢 |
+| fn | `event_sink` | hkask-services::context | crates/hkask-services/src/context.rs:316 | 🔴 Core Logic | 🟢 |
+| fn | `goal_repo` | hkask-services::context | crates/hkask-services/src/context.rs:278 | 🔴 Core Logic | 🟢 |
+| fn | `identity` | hkask-services::context | crates/hkask-services/src/context.rs:409 | 🔴 Core Logic | 🟢 |
+| fn | `inference_port` | hkask-services::context | crates/hkask-services/src/context.rs:380 | 🔴 Core Logic | 🟢 |
+| fn | `loop_system` | hkask-services::context | crates/hkask-services/src/context.rs:307 | 🔴 Core Logic | 🟢 |
+| fn | `matrix_transport` | hkask-services::context | crates/hkask-services/src/context.rs:507 | 🔴 Core Logic | 🟢 |
+| fn | `mcp_dispatcher` | hkask-services::context | crates/hkask-services/src/context.rs:360 | 🔴 Core Logic | 🟢 |
+| fn | `mcp_runtime` | hkask-services::context | crates/hkask-services/src/context.rs:389 | 🔴 Core Logic | 🟢 |
+| fn | `memory` | hkask-services::context | crates/hkask-services/src/context.rs:258 | 🔴 Core Logic | 🟢 |
+| fn | `open_agent_registry` | hkask-services::context | crates/hkask-services/src/context.rs:616 | 🔴 Core Logic | 🟢 |
+| fn | `open_consent_manager` | hkask-services::context | crates/hkask-services/src/context.rs:593 | 🔴 Core Logic | 🟢 |
+| fn | `open_escalation_queue` | hkask-services::context | crates/hkask-services/src/context.rs:569 | 🔴 Core Logic | 🟢 |
+| fn | `open_spec_store` | hkask-services::context | crates/hkask-services/src/context.rs:580 | 🔴 Core Logic | 🟢 |
+| fn | `pod_manager` | hkask-services::context | crates/hkask-services/src/context.rs:398 | 🔴 Core Logic | 🟢 |
+| fn | `registry` | hkask-services::context | crates/hkask-services/src/context.rs:269 | 🔴 Core Logic | 🟢 |
+| fn | `seam_watcher` | hkask-services::context | crates/hkask-services/src/context.rs:339 | 🔴 Core Logic | 🟢 |
+| fn | `sovereignty_boundary_store` | hkask-services::context | crates/hkask-services/src/context.rs:449 | 🔴 Core Logic | 🟢 |
+| fn | `sovereignty` | hkask-services::context | crates/hkask-services/src/context.rs:421 | 🔴 Core Logic | 🟢 |
+| fn | `spec_store` | hkask-services::context | crates/hkask-services/src/context.rs:462 | 🔴 Core Logic | 🟢 |
+| fn | `user_store` | hkask-services::context | crates/hkask-services/src/context.rs:484 | 🔴 Core Logic | 🟢 |
+| fn | `wallet_gas_calibrator` | hkask-services::context | crates/hkask-services/src/context.rs:246 | 🔴 Core Logic | 🟢 |
+| fn | `wallet_store` | hkask-services::context | crates/hkask-services/src/context.rs:236 | 🔴 Core Logic | 🟢 |
+| fn | `wallet` | hkask-services::context | crates/hkask-services/src/context.rs:226 | 🔴 Core Logic | 🟢 |
 | struct | `AgentService` | hkask-services::context | crates/hkask-services/src/context.rs:93 | 🟡 Type Declaration | 🟢 |
-| struct | `PerAgentMemory` | hkask-services::context | crates/hkask-services/src/context.rs:195 | 🟡 Type Declaration | 🟢 |
-| fn | `dismiss` | hkask-services::curator | crates/hkask-services/src/curator.rs:116 | 🔴 Core Logic | 🟢 |
-| fn | `list_escalations` | hkask-services::curator | crates/hkask-services/src/curator.rs:65 | 🔴 Core Logic | 🟢 |
-| fn | `resolve` | hkask-services::curator | crates/hkask-services/src/curator.rs:79 | 🔴 Core Logic | 🟢 |
+| struct | `PerAgentMemory` | hkask-services::context | crates/hkask-services/src/context.rs:201 | 🟡 Type Declaration | 🟢 |
+| fn | `dismiss` | hkask-services::curator | crates/hkask-services/src/curator.rs:119 | 🔴 Core Logic | 🟢 |
+| fn | `list_escalations` | hkask-services::curator | crates/hkask-services/src/curator.rs:66 | 🔴 Core Logic | 🟢 |
+| fn | `resolve` | hkask-services::curator | crates/hkask-services/src/curator.rs:81 | 🔴 Core Logic | 🟢 |
 | struct | `CuratorService` | hkask-services::curator | crates/hkask-services/src/curator.rs:55 | 🟡 Type Declaration | 🟢 |
 | struct | `EscalationResponse` | hkask-services::curator | crates/hkask-services/src/curator.rs:22 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-services::daemon_handler | crates/hkask-services/src/daemon_handler.rs:59 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-services::daemon_handler | crates/hkask-services/src/daemon_handler.rs:60 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `ServiceDaemonHandler` | hkask-services::daemon_handler | crates/hkask-services/src/daemon_handler.rs:46 | 🟡 Type Declaration | 🟢 |
-| fn | `default_corpus_config` | hkask-services::discover | crates/hkask-services/src/discover.rs:527 | 🔴 Core Logic | 🟢 |
-| fn | `generate_corpus_yaml` | hkask-services::discover | crates/hkask-services/src/discover.rs:457 | 🔴 Core Logic | 🟢 |
-| fn | `slugify` | hkask-services::discover | crates/hkask-services/src/discover.rs:1429 | 🔴 Core Logic | 🟢 |
+| fn | `default_corpus_config` | hkask-services::discover | crates/hkask-services/src/discover.rs:530 | 🔴 Core Logic | 🟢 |
+| fn | `generate_corpus_yaml` | hkask-services::discover | crates/hkask-services/src/discover.rs:459 | 🔴 Core Logic | 🟢 |
+| fn | `slugify` | hkask-services::discover | crates/hkask-services/src/discover.rs:1434 | 🔴 Core Logic | 🟢 |
 | struct | `DiscoverRequest` | hkask-services::discover | crates/hkask-services/src/discover.rs:36 | 🟡 Type Declaration | 🟢 |
 | struct | `DiscoverResult` | hkask-services::discover | crates/hkask-services/src/discover.rs:91 | 🟡 Type Declaration | 🟢 |
 | struct | `DiscoveredWork` | hkask-services::discover | crates/hkask-services/src/discover.rs:118 | 🟡 Type Declaration | 🟢 |
@@ -1562,8 +1617,8 @@ Each public item is classified:
 | enum | `EmbedPhase` | hkask-services::embed | crates/hkask-services/src/embed.rs:53 | 🟡 Type Declaration | 🔴 |
 | fn | `format_full` | hkask-services::embed | crates/hkask-services/src/embed.rs:84 | 🔴 Core Logic | 🔴 |
 | fn | `format_page_progress` | hkask-services::embed | crates/hkask-services/src/embed.rs:63 | 🔴 Core Logic | 🔴 |
-| fn | `parse_config` | hkask-services::embed | crates/hkask-services/src/embed.rs:1148 | 🔴 Core Logic | 🔴 |
-| fn | `strip_html_tags` | hkask-services::embed | crates/hkask-services/src/embed.rs:1431 | 🔴 Core Logic | 🔴 |
+| fn | `parse_config` | hkask-services::embed | crates/hkask-services/src/embed.rs:1152 | 🔴 Core Logic | 🔴 |
+| fn | `strip_html_tags` | hkask-services::embed | crates/hkask-services/src/embed.rs:1435 | 🔴 Core Logic | 🔴 |
 | struct | `ChunkingConfig` | hkask-services::embed | crates/hkask-services/src/embed.rs:287 | 🟡 Type Declaration | 🔴 |
 | struct | `CorpusConfig` | hkask-services::embed | crates/hkask-services/src/embed.rs:111 | 🟡 Type Declaration | 🔴 |
 | struct | `DimensionCentroidResult` | hkask-services::embed | crates/hkask-services/src/embed.rs:400 | 🟡 Type Declaration | 🔴 |
@@ -1580,55 +1635,55 @@ Each public item is classified:
 | struct | `Work` | hkask-services::embed | crates/hkask-services/src/embed.rs:244 | 🟡 Type Declaration | 🟢 |
 | type | `ProgressFn` | hkask-services::embed | crates/hkask-services/src/embed.rs:39 | 🟡 Type Declaration | 🔴 |
 | enum | `ServiceError` | hkask-services::error | crates/hkask-services/src/error.rs:59 | 🟡 Type Declaration | 🟢 |
-| fn | `is_retryable` | hkask-services::error | crates/hkask-services/src/error.rs:443 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `message_key` | hkask-services::error | crates/hkask-services/src/error.rs:541 | 🔴 Core Logic | 🟢 |
-| fn | `nu_event` | hkask-services::error | crates/hkask-services/src/error.rs:640 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-services::experience | crates/hkask-services/src/experience.rs:41 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_retryable` | hkask-services::error | crates/hkask-services/src/error.rs:444 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `message_key` | hkask-services::error | crates/hkask-services/src/error.rs:543 | 🔴 Core Logic | 🟢 |
+| fn | `nu_event` | hkask-services::error | crates/hkask-services/src/error.rs:643 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-services::experience | crates/hkask-services/src/experience.rs:42 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `CliExperienceRecorder` | hkask-services::experience | crates/hkask-services/src/experience.rs:29 | 🟡 Type Declaration | 🟢 |
-| fn | `create_goal` | hkask-services::goal | crates/hkask-services/src/goal.rs:51 | 🔴 Core Logic | 🟢 |
-| fn | `list_goals` | hkask-services::goal | crates/hkask-services/src/goal.rs:76 | 🔴 Core Logic | 🟢 |
-| fn | `set_goal_state` | hkask-services::goal | crates/hkask-services/src/goal.rs:104 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `create_goal` | hkask-services::goal | crates/hkask-services/src/goal.rs:52 | 🔴 Core Logic | 🟢 |
+| fn | `list_goals` | hkask-services::goal | crates/hkask-services/src/goal.rs:78 | 🔴 Core Logic | 🟢 |
+| fn | `set_goal_state` | hkask-services::goal | crates/hkask-services/src/goal.rs:107 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `CreateGoalRequest` | hkask-services::goal | crates/hkask-services/src/goal.rs:17 | 🟡 Type Declaration | 🟢 |
 | struct | `GoalResponse` | hkask-services::goal | crates/hkask-services/src/goal.rs:24 | 🟡 Type Declaration | 🟢 |
 | struct | `GoalService` | hkask-services::goal | crates/hkask-services/src/goal.rs:43 | 🟡 Type Declaration | 🟢 |
-| fn | `from_parts` | hkask-services::inference | crates/hkask-services/src/inference.rs:47 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `resolve_port` | hkask-services::inference | crates/hkask-services/src/inference.rs:116 | 🔴 Core Logic | 🟢 |
+| fn | `from_parts` | hkask-services::inference | crates/hkask-services/src/inference.rs:48 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `resolve_port` | hkask-services::inference | crates/hkask-services/src/inference.rs:118 | 🔴 Core Logic | 🟢 |
 | struct | `InferenceContext` | hkask-services::inference | crates/hkask-services/src/inference.rs:29 | 🟡 Type Declaration | 🟢 |
-| struct | `InferenceService` | hkask-services::inference | crates/hkask-services/src/inference.rs:101 | 🟡 Type Declaration | 🟢 |
-| struct | `ModelInfo` | hkask-services::inference | crates/hkask-services/src/inference.rs:72 | 🟡 Type Declaration | 🟢 |
-| enum | `ImprovementDirection` | hkask-services::kata | crates/hkask-services/src/kata.rs:478 | 🟡 Type Declaration | 🟢 |
-| enum | `KataError` | hkask-services::kata | crates/hkask-services/src/kata.rs:1693 | 🟡 Type Declaration | 🟢 |
-| fn | `can_graduate_from_starter` | hkask-services::kata | crates/hkask-services/src/kata.rs:393 | 🔴 Core Logic | 🟢 |
-| fn | `compute_automaticity` | hkask-services::kata | crates/hkask-services/src/kata.rs:357 | 🔴 Core Logic | 🟢 |
-| fn | `current_streak` | hkask-services::kata | crates/hkask-services/src/kata.rs:320 | 🔴 Core Logic | 🟢 |
-| fn | `days_since_last` | hkask-services::kata | crates/hkask-services/src/kata.rs:376 | 🔴 Core Logic | 🟢 |
-| fn | `from_env` | hkask-services::kata | crates/hkask-services/src/kata.rs:646 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `load_manifest` | hkask-services::kata | crates/hkask-services/src/kata.rs:768 | 🔴 Core Logic | 🟢 |
-| fn | `load` | hkask-services::kata | crates/hkask-services/src/kata.rs:270 | 🔴 Core Logic | 🟢 |
-| fn | `load` | hkask-services::kata | crates/hkask-services/src/kata.rs:553 | 🔴 Core Logic | 🟢 |
-| fn | `needs_habit_intervention` | hkask-services::kata | crates/hkask-services/src/kata.rs:402 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-services::kata | crates/hkask-services/src/kata.rs:624 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `record_history_entry` | hkask-services::kata | crates/hkask-services/src/kata.rs:737 | 🔴 Core Logic | 🟢 |
-| fn | `record` | hkask-services::kata | crates/hkask-services/src/kata.rs:308 | 🔴 Core Logic | 🟢 |
-| fn | `save` | hkask-services::kata | crates/hkask-services/src/kata.rs:290 | 🔴 Core Logic | 🟢 |
-| fn | `save` | hkask-services::kata | crates/hkask-services/src/kata.rs:535 | 🔴 Core Logic | 🟢 |
-| fn | `with_cns_runtime` | hkask-services::kata | crates/hkask-services/src/kata.rs:723 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_cns` | hkask-services::kata | crates/hkask-services/src/kata.rs:670 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_consent` | hkask-services::kata | crates/hkask-services/src/kata.rs:657 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_history_store` | hkask-services::kata | crates/hkask-services/src/kata.rs:697 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_history` | hkask-services::kata | crates/hkask-services/src/kata.rs:683 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_metrics` | hkask-services::kata | crates/hkask-services/src/kata.rs:707 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `InferenceService` | hkask-services::inference | crates/hkask-services/src/inference.rs:102 | 🟡 Type Declaration | 🟢 |
+| struct | `ModelInfo` | hkask-services::inference | crates/hkask-services/src/inference.rs:73 | 🟡 Type Declaration | 🟢 |
+| enum | `ImprovementDirection` | hkask-services::kata | crates/hkask-services/src/kata.rs:486 | 🟡 Type Declaration | 🟢 |
+| enum | `KataError` | hkask-services::kata | crates/hkask-services/src/kata.rs:1722 | 🟡 Type Declaration | 🟢 |
+| fn | `can_graduate_from_starter` | hkask-services::kata | crates/hkask-services/src/kata.rs:400 | 🔴 Core Logic | 🟢 |
+| fn | `compute_automaticity` | hkask-services::kata | crates/hkask-services/src/kata.rs:362 | 🔴 Core Logic | 🟢 |
+| fn | `current_streak` | hkask-services::kata | crates/hkask-services/src/kata.rs:324 | 🔴 Core Logic | 🟢 |
+| fn | `days_since_last` | hkask-services::kata | crates/hkask-services/src/kata.rs:382 | 🔴 Core Logic | 🟢 |
+| fn | `from_env` | hkask-services::kata | crates/hkask-services/src/kata.rs:658 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `load_manifest` | hkask-services::kata | crates/hkask-services/src/kata.rs:788 | 🔴 Core Logic | 🟢 |
+| fn | `load` | hkask-services::kata | crates/hkask-services/src/kata.rs:271 | 🔴 Core Logic | 🟢 |
+| fn | `load` | hkask-services::kata | crates/hkask-services/src/kata.rs:563 | 🔴 Core Logic | 🟢 |
+| fn | `needs_habit_intervention` | hkask-services::kata | crates/hkask-services/src/kata.rs:410 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-services::kata | crates/hkask-services/src/kata.rs:635 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `record_history_entry` | hkask-services::kata | crates/hkask-services/src/kata.rs:756 | 🔴 Core Logic | 🟢 |
+| fn | `record` | hkask-services::kata | crates/hkask-services/src/kata.rs:311 | 🔴 Core Logic | 🟢 |
+| fn | `save` | hkask-services::kata | crates/hkask-services/src/kata.rs:292 | 🔴 Core Logic | 🟢 |
+| fn | `save` | hkask-services::kata | crates/hkask-services/src/kata.rs:544 | 🔴 Core Logic | 🟢 |
+| fn | `with_cns_runtime` | hkask-services::kata | crates/hkask-services/src/kata.rs:741 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_cns` | hkask-services::kata | crates/hkask-services/src/kata.rs:684 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_consent` | hkask-services::kata | crates/hkask-services/src/kata.rs:670 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_history_store` | hkask-services::kata | crates/hkask-services/src/kata.rs:713 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_history` | hkask-services::kata | crates/hkask-services/src/kata.rs:698 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_metrics` | hkask-services::kata | crates/hkask-services/src/kata.rs:724 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `AuditConfig` | hkask-services::kata | crates/hkask-services/src/kata.rs:215 | 🟡 Type Declaration | 🟢 |
 | struct | `CnsConfig` | hkask-services::kata | crates/hkask-services/src/kata.rs:176 | 🟡 Type Declaration | 🟢 |
 | struct | `CoachQuestion` | hkask-services::kata | crates/hkask-services/src/kata.rs:125 | 🟡 Type Declaration | 🟢 |
 | struct | `ErrorHandling` | hkask-services::kata | crates/hkask-services/src/kata.rs:153 | 🟡 Type Declaration | 🟢 |
 | struct | `GasConfig` | hkask-services::kata | crates/hkask-services/src/kata.rs:71 | 🟡 Type Declaration | 🟢 |
-| struct | `ImprovementSignal` | hkask-services::kata | crates/hkask-services/src/kata.rs:466 | 🟡 Type Declaration | 🟢 |
-| struct | `KataEngine` | hkask-services::kata | crates/hkask-services/src/kata.rs:600 | 🟡 Type Declaration | 🟢 |
+| struct | `ImprovementSignal` | hkask-services::kata | crates/hkask-services/src/kata.rs:474 | 🟡 Type Declaration | 🟢 |
+| struct | `KataEngine` | hkask-services::kata | crates/hkask-services/src/kata.rs:610 | 🟡 Type Declaration | 🟢 |
 | struct | `KataHistory` | hkask-services::kata | crates/hkask-services/src/kata.rs:249 | 🟡 Type Declaration | 🟢 |
 | struct | `KataManifest` | hkask-services::kata | crates/hkask-services/src/kata.rs:35 | 🟡 Type Declaration | 🟢 |
-| struct | `KataResult` | hkask-services::kata | crates/hkask-services/src/kata.rs:568 | 🟡 Type Declaration | 🟢 |
-| struct | `KataState` | hkask-services::kata | crates/hkask-services/src/kata.rs:501 | 🟡 Type Declaration | 🟢 |
+| struct | `KataResult` | hkask-services::kata | crates/hkask-services/src/kata.rs:578 | 🟡 Type Declaration | 🟢 |
+| struct | `KataState` | hkask-services::kata | crates/hkask-services/src/kata.rs:509 | 🟡 Type Declaration | 🟢 |
 | struct | `KataStep` | hkask-services::kata | crates/hkask-services/src/kata.rs:98 | 🟡 Type Declaration | 🟢 |
 | struct | `ManifestMeta` | hkask-services::kata | crates/hkask-services/src/kata.rs:58 | 🟡 Type Declaration | 🟢 |
 | struct | `MetricDef` | hkask-services::kata | crates/hkask-services/src/kata.rs:200 | 🟡 Type Declaration | 🟢 |
@@ -1636,23 +1691,23 @@ Each public item is classified:
 | struct | `PracticeEntry` | hkask-services::kata | crates/hkask-services/src/kata.rs:256 | 🟡 Type Declaration | 🟢 |
 | struct | `PracticeRoutine` | hkask-services::kata | crates/hkask-services/src/kata.rs:137 | 🟡 Type Declaration | 🟢 |
 | struct | `StarterOutcome` | hkask-services::kata | crates/hkask-services/src/kata.rs:208 | 🟡 Type Declaration | 🟢 |
-| struct | `StepExperience` | hkask-services::kata | crates/hkask-services/src/kata.rs:487 | 🟡 Type Declaration | 🟢 |
-| type | `CnsObserverFn` | hkask-services::kata | crates/hkask-services/src/kata.rs:590 | 🟡 Type Declaration | 🟢 |
-| type | `ConsentCheckFn` | hkask-services::kata | crates/hkask-services/src/kata.rs:588 | 🟡 Type Declaration | 🟢 |
-| type | `MetricCollectorFn` | hkask-services::kata | crates/hkask-services/src/kata.rs:592 | 🟡 Type Declaration | 🟢 |
+| struct | `StepExperience` | hkask-services::kata | crates/hkask-services/src/kata.rs:495 | 🟡 Type Declaration | 🟢 |
+| type | `CnsObserverFn` | hkask-services::kata | crates/hkask-services/src/kata.rs:600 | 🟡 Type Declaration | 🟢 |
+| type | `ConsentCheckFn` | hkask-services::kata | crates/hkask-services/src/kata.rs:598 | 🟡 Type Declaration | 🟢 |
+| type | `MetricCollectorFn` | hkask-services::kata | crates/hkask-services/src/kata.rs:602 | 🟡 Type Declaration | 🟢 |
 | enum | `LifecycleError` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:16 | 🟡 Type Declaration | 🟢 |
 | enum | `ServerHealth` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:29 | 🟡 Type Declaration | 🟢 |
-| fn | `from_env` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:120 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_healthy` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:44 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `ServerLifecycleConfig` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:99 | 🟡 Type Declaration | 🟢 |
-| trait | `ServerLifecycle` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:63 | 🟡 Type Declaration | 🟢 |
-| fn | `cleanup_failed_onboarding` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:364 | 🔴 Core Logic | 🟢 |
-| fn | `derive_secrets` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:64 | 🔴 Core Logic | 🟢 |
-| fn | `get_user_profile` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:221 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `remove_orphaned_db` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:318 | 🔴 Core Logic | 🟢 |
-| fn | `store_user_profile` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:207 | 🔴 Core Logic | 🟢 |
-| fn | `try_list_existing_replicants` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:283 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `MatrixRegistrationResult` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:538 | 🟡 Type Declaration | 🟢 |
+| fn | `from_env` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:122 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_healthy` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:45 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `ServerLifecycleConfig` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:100 | 🟡 Type Declaration | 🟢 |
+| trait | `ServerLifecycle` | hkask-services::lifecycle | crates/hkask-services/src/lifecycle.rs:64 | 🟡 Type Declaration | 🟢 |
+| fn | `cleanup_failed_onboarding` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:373 | 🔴 Core Logic | 🟢 |
+| fn | `derive_secrets` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:65 | 🔴 Core Logic | 🟢 |
+| fn | `get_user_profile` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:226 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `remove_orphaned_db` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:326 | 🔴 Core Logic | 🟢 |
+| fn | `store_user_profile` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:211 | 🔴 Core Logic | 🟢 |
+| fn | `try_list_existing_replicants` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:290 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `MatrixRegistrationResult` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:549 | 🟡 Type Declaration | 🟢 |
 | struct | `OnboardingService` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:53 | 🟡 Type Declaration | 🟢 |
 | struct | `RegistryHandle` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:45 | 🟡 Type Declaration | 🟢 |
 | struct | `ReplicantContactConfig` | hkask-services::onboarding | crates/hkask-services/src/onboarding.rs:19 | 🟡 Type Declaration | 🟢 |
@@ -1662,44 +1717,57 @@ Each public item is classified:
 | struct | `PodResponse` | hkask-services::pods | crates/hkask-services/src/pods.rs:21 | 🟡 Type Declaration | 🟢 |
 | struct | `PodService` | hkask-services::pods | crates/hkask-services/src/pods.rs:51 | 🟡 Type Declaration | 🟢 |
 | struct | `PodStatusResponse` | hkask-services::pods | crates/hkask-services/src/pods.rs:26 | 🟡 Type Declaration | 🟢 |
-| fn | `due_tasks` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:58 | 🔴 Core Logic | 🟢 |
-| fn | `list` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:44 | 🔴 Core Logic | 🟢 |
-| fn | `reschedule` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:72 | 🔴 Core Logic | 🟢 |
-| fn | `schedule` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:18 | 🔴 Core Logic | 🟢 |
+| fn | `due_tasks` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:61 | 🔴 Core Logic | 🟢 |
+| fn | `list` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:46 | 🔴 Core Logic | 🟢 |
+| fn | `reschedule` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:76 | 🔴 Core Logic | 🟢 |
+| fn | `schedule` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:19 | 🔴 Core Logic | 🟢 |
 | struct | `SchedulerService` | hkask-services::scheduler | crates/hkask-services/src/scheduler.rs:10 | 🟡 Type Declaration | 🟢 |
-| fn | `classifier_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:158 | 🔴 Core Logic | 🟢 |
-| fn | `embedding_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:145 | 🔴 Core Logic | 🟢 |
-| fn | `generation_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:132 | 🔴 Core Logic | 🟢 |
-| fn | `load_settings` | hkask-services::settings | crates/hkask-services/src/settings.rs:196 | 🔴 Core Logic | 🟢 |
-| fn | `load` | hkask-services::settings | crates/hkask-services/src/settings.rs:94 | 🔴 Core Logic | 🟢 |
-| fn | `ocr_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:171 | 🔴 Core Logic | 🟢 |
-| fn | `resolve_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:114 | 🔴 Core Logic | 🟢 |
-| fn | `save_settings` | hkask-services::settings | crates/hkask-services/src/settings.rs:218 | 🔴 Core Logic | 🟢 |
-| fn | `save` | hkask-services::settings | crates/hkask-services/src/settings.rs:180 | 🔴 Core Logic | 🟢 |
-| fn | `settings_path` | hkask-services::settings | crates/hkask-services/src/settings.rs:15 | 🔴 Core Logic | 🟢 |
-| struct | `HkaskSettings` | hkask-services::settings | crates/hkask-services/src/settings.rs:27 | 🟡 Type Declaration | 🟢 |
-| fn | `compute_file_hash` | hkask-services::skill | crates/hkask-services/src/skill.rs:139 | 🔴 Core Logic | 🟢 |
-| fn | `discover_skills` | hkask-services::skill | crates/hkask-services/src/skill.rs:51 | 🔴 Core Logic | 🟢 |
-| fn | `find_public_skill` | hkask-services::skill | crates/hkask-services/src/skill.rs:152 | 🔴 Core Logic | 🟢 |
-| fn | `publish_skill` | hkask-services::skill | crates/hkask-services/src/skill.rs:183 | 🔴 Core Logic | 🟢 |
-| fn | `read_skill_namespace` | hkask-services::skill | crates/hkask-services/src/skill.rs:128 | 🔴 Core Logic | 🟢 |
-| fn | `read_skill_visibility` | hkask-services::skill | crates/hkask-services/src/skill.rs:99 | 🔴 Core Logic | 🟢 |
-| fn | `resolve_replicant_name` | hkask-services::skill | crates/hkask-services/src/skill.rs:260 | 🔴 Core Logic | 🟢 |
+| fn | `classifier_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:164 | 🔴 Core Logic | 🟢 |
+| fn | `embedding_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:150 | 🔴 Core Logic | 🟢 |
+| fn | `generation_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:136 | 🔴 Core Logic | 🟢 |
+| fn | `load_settings` | hkask-services::settings | crates/hkask-services/src/settings.rs:205 | 🔴 Core Logic | 🟢 |
+| fn | `load` | hkask-services::settings | crates/hkask-services/src/settings.rs:96 | 🔴 Core Logic | 🟢 |
+| fn | `ocr_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:178 | 🔴 Core Logic | 🟢 |
+| fn | `resolve_model` | hkask-services::settings | crates/hkask-services/src/settings.rs:117 | 🔴 Core Logic | 🟢 |
+| fn | `save_settings` | hkask-services::settings | crates/hkask-services/src/settings.rs:228 | 🔴 Core Logic | 🟢 |
+| fn | `save` | hkask-services::settings | crates/hkask-services/src/settings.rs:188 | 🔴 Core Logic | 🟢 |
+| fn | `settings_path` | hkask-services::settings | crates/hkask-services/src/settings.rs:16 | 🔴 Core Logic | 🟢 |
+| struct | `HkaskSettings` | hkask-services::settings | crates/hkask-services/src/settings.rs:28 | 🟡 Type Declaration | 🟢 |
+| fn | `compute_file_hash` | hkask-services::skill | crates/hkask-services/src/skill.rs:143 | 🔴 Core Logic | 🟢 |
+| fn | `discover_skills` | hkask-services::skill | crates/hkask-services/src/skill.rs:52 | 🔴 Core Logic | 🟢 |
+| fn | `find_public_skill` | hkask-services::skill | crates/hkask-services/src/skill.rs:157 | 🔴 Core Logic | 🟢 |
+| fn | `publish_skill` | hkask-services::skill | crates/hkask-services/src/skill.rs:189 | 🔴 Core Logic | 🟢 |
+| fn | `read_skill_namespace` | hkask-services::skill | crates/hkask-services/src/skill.rs:131 | 🔴 Core Logic | 🟢 |
+| fn | `read_skill_visibility` | hkask-services::skill | crates/hkask-services/src/skill.rs:101 | 🔴 Core Logic | 🟢 |
+| fn | `resolve_replicant_name` | hkask-services::skill | crates/hkask-services/src/skill.rs:267 | 🔴 Core Logic | 🟢 |
 | struct | `SkillInfo` | hkask-services::skill | crates/hkask-services/src/skill.rs:35 | 🟡 Type Declaration | 🟢 |
 | struct | `SkillPublishResult` | hkask-services::skill | crates/hkask-services/src/skill.rs:22 | 🟡 Type Declaration | 🟢 |
+| enum | `SkillAuditError` | hkask-services::skills | crates/hkask-services/src/skills.rs:157 | 🟡 Type Declaration | 🟢 |
+| enum | `SkillStatus` | hkask-services::skills | crates/hkask-services/src/skills.rs:148 | 🟡 Type Declaration | 🟢 |
+| fn | `active_count` | hkask-services::skills | crates/hkask-services/src/skills.rs:101 | 🔴 Core Logic | 🟢 |
+| fn | `audit_all` | hkask-services::skills | crates/hkask-services/src/skills.rs:55 | 🔴 Core Logic | 🟢 |
+| fn | `audit_skill` | hkask-services::skills | crates/hkask-services/src/skills.rs:73 | 🔴 Core Logic | 🟢 |
+| fn | `flowdef_on_j2_count` | hkask-services::skills | crates/hkask-services/src/skills.rs:110 | 🔴 Core Logic | 🟢 |
+| fn | `is_active` | hkask-services::skills | crates/hkask-services/src/skills.rs:141 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-services::skills | crates/hkask-services/src/skills.rs:35 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `to_json` | hkask-services::skills | crates/hkask-services/src/skills.rs:91 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `SkillAuditReport` | hkask-services::skills | crates/hkask-services/src/skills.rs:80 | 🟡 Type Declaration | 🟢 |
+| struct | `SkillAuditor` | hkask-services::skills | crates/hkask-services/src/skills.rs:26 | 🟡 Type Declaration | 🟢 |
+| struct | `SkillHealthScore` | hkask-services::skills | crates/hkask-services/src/skills.rs:125 | 🟡 Type Declaration | 🟢 |
+| struct | `TemplateSummary` | hkask-services::skills | crates/hkask-services/src/skills.rs:168 | 🟡 Type Declaration | 🟢 |
 | fn | `get_granted_categories` | hkask-services::sovereignty | crates/hkask-services/src/sovereignty.rs:48 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `grant_consent` | hkask-services::sovereignty | crates/hkask-services/src/sovereignty.rs:29 | 🔴 Core Logic | 🟢 |
 | fn | `has_consent` | hkask-services::sovereignty | crates/hkask-services/src/sovereignty.rs:43 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `new` | hkask-services::sovereignty | crates/hkask-services/src/sovereignty.rs:24 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `revoke_consent` | hkask-services::sovereignty | crates/hkask-services/src/sovereignty.rs:36 | 🔴 Core Logic | 🟢 |
 | struct | `SovereigntyService` | hkask-services::sovereignty | crates/hkask-services/src/sovereignty.rs:18 | 🟡 Type Declaration | 🟢 |
-| fn | `capture` | hkask-services::spec | crates/hkask-services/src/spec.rs:106 | 🔴 Core Logic | 🟢 |
-| fn | `category_coverage` | hkask-services::spec | crates/hkask-services/src/spec.rs:224 | 🔴 Core Logic | 🟢 |
-| fn | `get_by_id` | hkask-services::spec | crates/hkask-services/src/spec.rs:198 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_full` | hkask-services::spec | crates/hkask-services/src/spec.rs:187 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `list` | hkask-services::spec | crates/hkask-services/src/spec.rs:159 | 🔴 Core Logic | 🟢 |
-| fn | `structural_quality_check` | hkask-services::spec | crates/hkask-services/src/spec.rs:269 | 🔴 Core Logic | 🟢 |
-| fn | `validate` | hkask-services::spec | crates/hkask-services/src/spec.rs:303 | 🔴 Core Logic | 🟢 |
+| fn | `capture` | hkask-services::spec | crates/hkask-services/src/spec.rs:107 | 🔴 Core Logic | 🟢 |
+| fn | `category_coverage` | hkask-services::spec | crates/hkask-services/src/spec.rs:229 | 🔴 Core Logic | 🟢 |
+| fn | `get_by_id` | hkask-services::spec | crates/hkask-services/src/spec.rs:202 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_full` | hkask-services::spec | crates/hkask-services/src/spec.rs:190 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `list` | hkask-services::spec | crates/hkask-services/src/spec.rs:161 | 🔴 Core Logic | 🟢 |
+| fn | `structural_quality_check` | hkask-services::spec | crates/hkask-services/src/spec.rs:275 | 🔴 Core Logic | 🟢 |
+| fn | `validate` | hkask-services::spec | crates/hkask-services/src/spec.rs:310 | 🔴 Core Logic | 🟢 |
 | struct | `CoherenceResult` | hkask-services::spec | crates/hkask-services/src/spec.rs:80 | 🟡 Type Declaration | 🟢 |
 | struct | `SpecCaptureRequest` | hkask-services::spec | crates/hkask-services/src/spec.rs:26 | 🟡 Type Declaration | 🟢 |
 | struct | `SpecCaptureResponse` | hkask-services::spec | crates/hkask-services/src/spec.rs:40 | 🟡 Type Declaration | 🟢 |
@@ -1707,8 +1775,8 @@ Each public item is classified:
 | struct | `SpecListEntry` | hkask-services::spec | crates/hkask-services/src/spec.rs:49 | 🟡 Type Declaration | 🟢 |
 | struct | `SpecService` | hkask-services::spec | crates/hkask-services/src/spec.rs:93 | 🟡 Type Declaration | 🟢 |
 | struct | `WritingQualityResult` | hkask-services::spec | crates/hkask-services/src/spec.rs:87 | 🟡 Type Declaration | 🟢 |
-| fn | `verify_json` | hkask-services::verification | crates/hkask-services/src/verification.rs:110 | 🔴 Core Logic | 🟢 |
-| fn | `verify` | hkask-services::verification | crates/hkask-services/src/verification.rs:104 | 🔴 Core Logic | 🟢 |
+| fn | `verify_json` | hkask-services::verification | crates/hkask-services/src/verification.rs:112 | 🔴 Core Logic | 🟢 |
+| fn | `verify` | hkask-services::verification | crates/hkask-services/src/verification.rs:105 | 🔴 Core Logic | 🟢 |
 | struct | `AssertionResult` | hkask-services::verification | crates/hkask-services/src/verification.rs:35 | 🟡 Type Declaration | 🟢 |
 | struct | `Assertion` | hkask-services::verification | crates/hkask-services/src/verification.rs:23 | 🟡 Type Declaration | 🟢 |
 | struct | `Manifest` | hkask-services::verification | crates/hkask-services/src/verification.rs:15 | 🟡 Type Declaration | 🟢 |
@@ -1723,361 +1791,361 @@ Each public item is classified:
 | Kind | Item | Module | Location | Risk Tier | REQ |
 |------|------|--------|----------|-----------|-----|
 | enum | `AgentRegistryError` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:10 | 🟡 Type Declaration | 🟢 |
-| fn | `add_contact` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:272 | 🔴 Core Logic | 🟢 |
-| fn | `add_scheduled_task` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:346 | 🔴 Core Logic | 🟢 |
-| fn | `find_contacts` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:293 | 🔴 Core Logic | 🟢 |
-| fn | `get_user_profile` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:255 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:98 | 🔴 Core Logic | 🟢 |
-| fn | `initialize_schema` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:31 | 🔴 Core Logic | 🟢 |
-| fn | `insert` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:74 | 🔴 Core Logic | 🟢 |
-| fn | `list_by_kind` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:176 | 🔴 Core Logic | 🟢 |
-| fn | `list_contacts` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:322 | 🔴 Core Logic | 🟢 |
-| fn | `list_due_tasks` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:369 | 🔴 Core Logic | 🟢 |
-| fn | `list_scheduled_tasks` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:395 | 🔴 Core Logic | 🟢 |
-| fn | `list` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:133 | 🔴 Core Logic | 🟢 |
-| fn | `remove` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:222 | 🔴 Core Logic | 🟢 |
-| fn | `store_user_profile` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:240 | 🔴 Core Logic | 🟢 |
-| fn | `update_next_run` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:424 | 🔴 Core Logic | 🟢 |
+| fn | `add_contact` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:281 | 🔴 Core Logic | 🟢 |
+| fn | `add_scheduled_task` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:358 | 🔴 Core Logic | 🟢 |
+| fn | `find_contacts` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:303 | 🔴 Core Logic | 🟢 |
+| fn | `get_user_profile` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:263 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:101 | 🔴 Core Logic | 🟢 |
+| fn | `initialize_schema` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:32 | 🔴 Core Logic | 🟢 |
+| fn | `insert` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:76 | 🔴 Core Logic | 🟢 |
+| fn | `list_by_kind` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:181 | 🔴 Core Logic | 🟢 |
+| fn | `list_contacts` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:333 | 🔴 Core Logic | 🟢 |
+| fn | `list_due_tasks` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:382 | 🔴 Core Logic | 🟢 |
+| fn | `list_scheduled_tasks` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:409 | 🔴 Core Logic | 🟢 |
+| fn | `list` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:137 | 🔴 Core Logic | 🟢 |
+| fn | `remove` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:228 | 🔴 Core Logic | 🟢 |
+| fn | `store_user_profile` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:247 | 🔴 Core Logic | 🟢 |
+| fn | `update_next_run` | hkask-storage::agent_registry | crates/hkask-storage/src/agent_registry.rs:439 | 🔴 Core Logic | 🟢 |
 | enum | `ConsentStoreError` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:15 | 🟡 Type Declaration | 🟢 |
-| fn | `delete` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:141 | 🔴 Core Logic | 🟢 |
-| fn | `get` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:101 | 🔴 Core Logic | 🟢 |
-| fn | `initialize_schema` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:46 | 🔴 Core Logic | 🟢 |
-| fn | `store` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:69 | 🔴 Core Logic | 🟢 |
+| fn | `delete` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:145 | 🔴 Core Logic | 🟢 |
+| fn | `get` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:104 | 🔴 Core Logic | 🟢 |
+| fn | `initialize_schema` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:47 | 🔴 Core Logic | 🟢 |
+| fn | `store` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:71 | 🔴 Core Logic | 🟢 |
 | struct | `StoredConsentRecord` | hkask-storage::consent_store | crates/hkask-storage/src/consent_store.rs:29 | 🟡 Type Declaration | 🟢 |
 | enum | `DatabaseError` | hkask-storage::database | crates/hkask-storage/src/database.rs:55 | 🟡 Type Declaration | 🟢 |
-| fn | `conn_arc` | hkask-storage::database | crates/hkask-storage/src/database.rs:221 | 🔴 Core Logic | 🟢 |
-| fn | `in_memory_db` | hkask-storage::database | crates/hkask-storage/src/database.rs:258 | 🔴 Core Logic | 🟢 |
-| fn | `in_memory_with_extensions` | hkask-storage::database | crates/hkask-storage/src/database.rs:193 | 🔴 Core Logic | 🟢 |
-| fn | `in_memory` | hkask-storage::database | crates/hkask-storage/src/database.rs:175 | 🔴 Core Logic | 🟢 |
-| fn | `open_database` | hkask-storage::database | crates/hkask-storage/src/database.rs:238 | 🔴 Core Logic | 🟢 |
-| fn | `open_with_extensions` | hkask-storage::database | crates/hkask-storage/src/database.rs:149 | 🔴 Core Logic | 🟢 |
-| fn | `open` | hkask-storage::database | crates/hkask-storage/src/database.rs:129 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `conn_arc` | hkask-storage::database | crates/hkask-storage/src/database.rs:229 | 🔴 Core Logic | 🟢 |
+| fn | `in_memory_db` | hkask-storage::database | crates/hkask-storage/src/database.rs:268 | 🔴 Core Logic | 🟢 |
+| fn | `in_memory_with_extensions` | hkask-storage::database | crates/hkask-storage/src/database.rs:200 | 🔴 Core Logic | 🟢 |
+| fn | `in_memory` | hkask-storage::database | crates/hkask-storage/src/database.rs:180 | 🔴 Core Logic | 🟢 |
+| fn | `open_database` | hkask-storage::database | crates/hkask-storage/src/database.rs:247 | 🔴 Core Logic | 🟢 |
+| fn | `open_with_extensions` | hkask-storage::database | crates/hkask-storage/src/database.rs:153 | 🔴 Core Logic | 🟢 |
+| fn | `open` | hkask-storage::database | crates/hkask-storage/src/database.rs:131 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `Database` | hkask-storage::database | crates/hkask-storage/src/database.rs:71 | 🟡 Type Declaration | 🟢 |
 | enum | `EmbeddingError` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:25 | 🟡 Type Declaration | 🟢 |
-| fn | `count` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:339 | 🔴 Core Logic | 🟢 |
-| fn | `delete` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:286 | 🔴 Core Logic | 🟢 |
-| fn | `get` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:197 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:73 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `query_by_prefix` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:353 | 🔴 Core Logic | 🟢 |
-| fn | `search` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:235 | 🔴 Core Logic | 🟢 |
-| fn | `store` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:137 | 🔴 Core Logic | 🟢 |
-| fn | `with_dim` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:86 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `count` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:346 | 🔴 Core Logic | 🟢 |
+| fn | `delete` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:292 | 🔴 Core Logic | 🟢 |
+| fn | `get` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:201 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:74 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `query_by_prefix` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:361 | 🔴 Core Logic | 🟢 |
+| fn | `search` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:240 | 🔴 Core Logic | 🟢 |
+| fn | `store` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:140 | 🔴 Core Logic | 🟢 |
+| fn | `with_dim` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:88 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `EmbeddingStore` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:50 | 🟡 Type Declaration | 🟢 |
 | struct | `SimilarityResult` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:19 | 🟡 Type Declaration | 🟢 |
 | struct | `StoredEmbedding` | hkask-storage::embeddings | crates/hkask-storage/src/embeddings.rs:11 | 🟡 Type Declaration | 🟢 |
-| enum | `EscalationError` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:66 | 🟡 Type Declaration | 🟢 |
-| enum | `EscalationStatus` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:55 | 🟡 Type Declaration | 🟢 |
-| fn | `add` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:125 | 🔴 Core Logic | 🟢 |
-| fn | `dismiss` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:279 | 🔴 Core Logic | 🟢 |
-| fn | `get` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:203 | 🔴 Core Logic | 🟢 |
-| fn | `list_pending` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:159 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:338 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:94 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `pending` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:36 | 🔴 Core Logic | 🟢 |
-| fn | `resolve` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:262 | 🔴 Core Logic | 🟢 |
-| fn | `stats` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:295 | 🔴 Core Logic | 🟢 |
-| fn | `summary` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:352 | 🔴 Core Logic | 🟢 |
-| struct | `EscalationBatch` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:324 | 🟡 Type Declaration | 🟢 |
+| enum | `EscalationError` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:67 | 🟡 Type Declaration | 🟢 |
+| enum | `EscalationStatus` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:56 | 🟡 Type Declaration | 🟢 |
+| fn | `add` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:128 | 🔴 Core Logic | 🟢 |
+| fn | `dismiss` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:286 | 🔴 Core Logic | 🟢 |
+| fn | `get` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:208 | 🔴 Core Logic | 🟢 |
+| fn | `list_pending` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:163 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:347 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:96 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `pending` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:37 | 🔴 Core Logic | 🟢 |
+| fn | `resolve` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:268 | 🔴 Core Logic | 🟢 |
+| fn | `stats` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:303 | 🔴 Core Logic | 🟢 |
+| fn | `summary` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:362 | 🔴 Core Logic | 🟢 |
+| struct | `EscalationBatch` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:332 | 🟡 Type Declaration | 🟢 |
 | struct | `EscalationEntry` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:16 | 🟡 Type Declaration | 🟢 |
-| struct | `EscalationQueue` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:61 | 🟡 Type Declaration | 🟢 |
-| struct | `EscalationStats` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:369 | 🟡 Type Declaration | 🟢 |
+| struct | `EscalationQueue` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:62 | 🟡 Type Declaration | 🟢 |
+| struct | `EscalationStats` | hkask-storage::escalation | crates/hkask-storage/src/escalation.rs:379 | 🟡 Type Declaration | 🟢 |
 | enum | `GalleryMode` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:43 | 🟡 Type Declaration | 🟢 |
 | enum | `GalleryStoreError` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:21 | 🟡 Type Declaration | 🟢 |
-| fn | `add_image` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:266 | 🔴 Core Logic | 🟢 |
-| fn | `as_str` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:70 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `create` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:218 | 🔴 Core Logic | 🟢 |
-| fn | `get_all_tags` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:478 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_face` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:593 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_gallery` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:440 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_image` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:319 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_tags` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:415 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `init_tables` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:145 | 🔴 Core Logic | 🟢 |
-| fn | `list_faces` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:558 | 🔴 Core Logic | 🟢 |
-| fn | `register_face` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:519 | 🔴 Core Logic | 🟢 |
-| fn | `remove_face` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:621 | 🔴 Core Logic | 🟢 |
-| fn | `tag_image` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:371 | 🔴 Core Logic | 🟢 |
-| fn | `update_face` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:641 | 🔴 Core Logic | 🟢 |
-| struct | `FaceRegistryRecord` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:122 | 🟡 Type Declaration | 🟢 |
-| struct | `GalleryRecord` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:81 | 🟡 Type Declaration | 🟢 |
-| struct | `ImageRecord` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:93 | 🟡 Type Declaration | 🟢 |
-| struct | `TagRecord` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:108 | 🟡 Type Declaration | 🟢 |
+| fn | `add_image` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:270 | 🔴 Core Logic | 🟢 |
+| fn | `as_str` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:71 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `create` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:221 | 🔴 Core Logic | 🟢 |
+| fn | `get_all_tags` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:487 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_face` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:605 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_gallery` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:448 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_image` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:324 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_tags` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:422 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `init_tables` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:147 | 🔴 Core Logic | 🟢 |
+| fn | `list_faces` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:569 | 🔴 Core Logic | 🟢 |
+| fn | `register_face` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:529 | 🔴 Core Logic | 🟢 |
+| fn | `remove_face` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:634 | 🔴 Core Logic | 🟢 |
+| fn | `tag_image` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:377 | 🔴 Core Logic | 🟢 |
+| fn | `update_face` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:655 | 🔴 Core Logic | 🟢 |
+| struct | `FaceRegistryRecord` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:123 | 🟡 Type Declaration | 🟢 |
+| struct | `GalleryRecord` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:82 | 🟡 Type Declaration | 🟢 |
+| struct | `ImageRecord` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:94 | 🟡 Type Declaration | 🟢 |
+| struct | `TagRecord` | hkask-storage::gallery | crates/hkask-storage/src/gallery.rs:109 | 🟡 Type Declaration | 🟢 |
 | enum | `GoalRepositoryError` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:20 | 🟡 Type Declaration | 🟢 |
-| fn | `add_artifact` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:312 | 🔴 Core Logic | 🟢 |
-| fn | `add_criterion` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:289 | 🔴 Core Logic | 🟢 |
-| fn | `create_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:201 | 🔴 Core Logic | 🟢 |
-| fn | `create_subgoal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:402 | 🔴 Core Logic | 🟢 |
-| fn | `delete_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:448 | 🔴 Core Logic | 🟢 |
-| fn | `get_artifacts` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:361 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_criteria` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:334 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:220 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_subgoals` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:435 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `goal_from_row` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:145 | 🔴 Core Logic | 🟢 |
-| fn | `list_goals` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:266 | 🔴 Core Logic | 🟢 |
-| fn | `list_quarantined_goals` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:545 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:98 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `quarantine_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:466 | 🔴 Core Logic | 🟢 |
-| fn | `repair_quarantined_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:491 | 🔴 Core Logic | 🟢 |
-| fn | `try_goal_from_row` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:130 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `update_goal_state` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:235 | 🔴 Core Logic | 🟢 |
-| fn | `with_telemetry` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:110 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `add_artifact` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:322 | 🔴 Core Logic | 🟢 |
+| fn | `add_criterion` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:298 | 🔴 Core Logic | 🟢 |
+| fn | `create_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:206 | 🔴 Core Logic | 🟢 |
+| fn | `create_subgoal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:415 | 🔴 Core Logic | 🟢 |
+| fn | `delete_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:463 | 🔴 Core Logic | 🟢 |
+| fn | `get_artifacts` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:373 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_criteria` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:345 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:226 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_subgoals` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:449 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `goal_from_row` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:149 | 🔴 Core Logic | 🟢 |
+| fn | `list_goals` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:274 | 🔴 Core Logic | 🟢 |
+| fn | `list_quarantined_goals` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:563 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:99 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `quarantine_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:482 | 🔴 Core Logic | 🟢 |
+| fn | `repair_quarantined_goal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:508 | 🔴 Core Logic | 🟢 |
+| fn | `try_goal_from_row` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:133 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `update_goal_state` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:242 | 🔴 Core Logic | 🟢 |
+| fn | `with_telemetry` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:112 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `QuarantinedGoal` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:49 | 🟡 Type Declaration | 🟢 |
 | struct | `SqliteGoalRepository` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:73 | 🟡 Type Declaration | 🟢 |
 | type | `Result` | hkask-storage::goals | crates/hkask-storage/src/goals.rs:45 | 🟡 Type Declaration | 🟢 |
 | enum | `KataHistoryError` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:43 | 🟡 Type Declaration | 🟢 |
-| fn | `count_entries_for_agent` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:136 | 🔴 Core Logic | 🟢 |
-| fn | `count_entries_on` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:152 | 🔴 Core Logic | 🟢 |
-| fn | `delete_entries_before` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:267 | 🔴 Core Logic | 🟢 |
-| fn | `entries_for_agent` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:90 | 🔴 Core Logic | 🟢 |
-| fn | `entries_in_range` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:218 | 🔴 Core Logic | 🟢 |
-| fn | `last_entry_for_agent` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:172 | 🔴 Core Logic | 🟢 |
-| fn | `record` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:67 | 🔴 Core Logic | 🟢 |
+| fn | `count_entries_for_agent` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:140 | 🔴 Core Logic | 🟢 |
+| fn | `count_entries_on` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:157 | 🔴 Core Logic | 🟢 |
+| fn | `delete_entries_before` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:275 | 🔴 Core Logic | 🟢 |
+| fn | `entries_for_agent` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:93 | 🔴 Core Logic | 🟢 |
+| fn | `entries_in_range` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:225 | 🔴 Core Logic | 🟢 |
+| fn | `last_entry_for_agent` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:178 | 🔴 Core Logic | 🟢 |
+| fn | `record` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:69 | 🔴 Core Logic | 🟢 |
 | struct | `KataHistoryEntry` | hkask-storage::kata_history | crates/hkask-storage/src/kata_history.rs:22 | 🟡 Type Declaration | 🟢 |
-| fn | `lock_mutex` | hkask-storage::lock_helpers | crates/hkask-storage/src/lock_helpers.rs:33 | 🔴 Core Logic | 🟢 |
-| fn | `read_rwlock` | hkask-storage::lock_helpers | crates/hkask-storage/src/lock_helpers.rs:50 | 🔴 Core Logic | 🟢 |
-| fn | `write_rwlock` | hkask-storage::lock_helpers | crates/hkask-storage/src/lock_helpers.rs:67 | 🔴 Core Logic | 🟢 |
-| fn | `lambda_for` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:117 | 🔴 Core Logic | 🟢 |
-| fn | `load_cursor` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:190 | 🔴 Core Logic | 🟢 |
-| fn | `persist_cursor` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:172 | 🔴 Core Logic | 🟢 |
-| fn | `query_algedonic` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:204 | 🔴 Core Logic | 🟢 |
-| fn | `replay_weighted` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:81 | 🔴 Core Logic | 🟢 |
+| fn | `lock_mutex` | hkask-storage::lock_helpers | crates/hkask-storage/src/lock_helpers.rs:34 | 🔴 Core Logic | 🟢 |
+| fn | `read_rwlock` | hkask-storage::lock_helpers | crates/hkask-storage/src/lock_helpers.rs:52 | 🔴 Core Logic | 🟢 |
+| fn | `write_rwlock` | hkask-storage::lock_helpers | crates/hkask-storage/src/lock_helpers.rs:70 | 🔴 Core Logic | 🟢 |
+| fn | `lambda_for` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:120 | 🔴 Core Logic | 🟢 |
+| fn | `load_cursor` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:195 | 🔴 Core Logic | 🟢 |
+| fn | `persist_cursor` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:176 | 🔴 Core Logic | 🟢 |
+| fn | `query_algedonic` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:210 | 🔴 Core Logic | 🟢 |
+| fn | `replay_weighted` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:83 | 🔴 Core Logic | 🟢 |
 | struct | `DecayConfig` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:13 | 🟡 Type Declaration | 🟢 |
 | struct | `WeightedEvent` | hkask-storage::nu_event_store | crates/hkask-storage/src/nu_event_store.rs:40 | 🟡 Type Declaration | 🟢 |
-| fn | `sanitize_path` | hkask-storage::security | crates/hkask-storage/src/security.rs:17 | 🔴 Core Logic | 🟢 |
+| fn | `sanitize_path` | hkask-storage::security | crates/hkask-storage/src/security.rs:19 | 🔴 Core Logic | 🟢 |
 | enum | `SovereigntyStoreError` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:17 | 🟡 Type Declaration | 🟢 |
-| fn | `delete` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:274 | 🔴 Core Logic | 🟢 |
-| fn | `get` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:223 | 🔴 Core Logic | 🟢 |
-| fn | `initialize_schema` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:54 | 🔴 Core Logic | 🟢 |
-| fn | `store` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:184 | 🔴 Core Logic | 🟢 |
+| fn | `delete` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:278 | 🔴 Core Logic | 🟢 |
+| fn | `get` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:226 | 🔴 Core Logic | 🟢 |
+| fn | `initialize_schema` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:55 | 🔴 Core Logic | 🟢 |
+| fn | `store` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:186 | 🔴 Core Logic | 🟢 |
 | struct | `SovereigntyBoundaryEntry` | hkask-storage::sovereignty | crates/hkask-storage/src/sovereignty.rs:31 | 🟡 Type Declaration | 🟢 |
-| fn | `init_schema` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:135 | 🔴 Core Logic | 🟢 |
-| fn | `init_schema` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:156 | 🔴 Core Logic | 🟢 |
-| fn | `list_curation_records_since` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:216 | 🔴 Core Logic | 🟢 |
-| fn | `load_all_curation_records` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:243 | 🔴 Core Logic | 🟢 |
-| fn | `load_curation_records` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:196 | 🔴 Core Logic | 🟢 |
-| fn | `save_curation_record` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:174 | 🔴 Core Logic | 🟢 |
+| fn | `init_schema` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:136 | 🔴 Core Logic | 🟢 |
+| fn | `init_schema` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:158 | 🔴 Core Logic | 🟢 |
+| fn | `list_curation_records_since` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:221 | 🔴 Core Logic | 🟢 |
+| fn | `load_all_curation_records` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:249 | 🔴 Core Logic | 🟢 |
+| fn | `load_curation_records` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:200 | 🔴 Core Logic | 🟢 |
+| fn | `save_curation_record` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:177 | 🔴 Core Logic | 🟢 |
 | trait | `SpecStore` | hkask-storage::spec_store | crates/hkask-storage/src/spec_store.rs:19 | 🟡 Type Declaration | 🟢 |
-| enum | `DomainAnchor` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:160 | 🟡 Type Declaration | 🟢 |
-| enum | `SpecCategory` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:81 | 🟡 Type Declaration | 🟢 |
-| enum | `SpecError` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:390 | 🟡 Type Declaration | 🟢 |
-| fn | `all` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:122 | 🔴 Core Logic | 🟢 |
-| fn | `as_str` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:21 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `as_str` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:96 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `can_have_subgoals` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:220 | 🔴 Core Logic | 🟢 |
-| fn | `coherence` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:230 | 🔴 Core Logic | 🟢 |
-| fn | `coherence` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:337 | 🔴 Core Logic | 🟢 |
-| fn | `collection_coherence` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:344 | 🔴 Core Logic | 🟢 |
-| fn | `drift` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:310 | 🔴 Core Logic | 🟢 |
-| fn | `from_string` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:54 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `infer_spec_category` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:141 | 🔴 Core Logic | 🟢 |
-| fn | `is_complete` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:224 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_complete` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:333 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `mark_satisfied` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:181 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:174 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:198 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:271 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:371 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:46 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `parse_str` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:111 | 🔴 Core Logic | 🟢 |
-| fn | `parse_str` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:28 | 🔴 Core Logic | 🟢 |
-| fn | `with_criterion` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:215 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_declared_verb` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:288 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_display_name` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:210 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_goal` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:328 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_signature` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:296 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_valid_from` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:300 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_valid_to` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:304 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_version` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:292 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `Criterion` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:168 | 🟡 Type Declaration | 🟢 |
-| struct | `DriftReport` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:248 | 🟡 Type Declaration | 🟢 |
-| struct | `GoalSpec` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:187 | 🟡 Type Declaration | 🟢 |
-| struct | `SpecCurationRecord` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:361 | 🟡 Type Declaration | 🟢 |
-| struct | `SpecId` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:39 | 🟡 Type Declaration | 🟢 |
-| struct | `Spec` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:255 | 🟡 Type Declaration | 🟢 |
-| trait | `SpecCurator` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:422 | 🟡 Type Declaration | 🟢 |
+| enum | `DomainAnchor` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:167 | 🟡 Type Declaration | 🟢 |
+| enum | `SpecCategory` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:85 | 🟡 Type Declaration | 🟢 |
+| enum | `SpecError` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:397 | 🟡 Type Declaration | 🟢 |
+| fn | `all` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:128 | 🔴 Core Logic | 🟢 |
+| fn | `as_str` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:101 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `as_str` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:22 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `can_have_subgoals` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:227 | 🔴 Core Logic | 🟢 |
+| fn | `coherence` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:237 | 🔴 Core Logic | 🟢 |
+| fn | `coherence` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:344 | 🔴 Core Logic | 🟢 |
+| fn | `collection_coherence` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:351 | 🔴 Core Logic | 🟢 |
+| fn | `drift` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:317 | 🔴 Core Logic | 🟢 |
+| fn | `from_string` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:58 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `infer_spec_category` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:148 | 🔴 Core Logic | 🟢 |
+| fn | `is_complete` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:231 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_complete` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:340 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `mark_satisfied` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:188 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:181 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:205 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:278 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:378 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:49 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `parse_str` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:117 | 🔴 Core Logic | 🟢 |
+| fn | `parse_str` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:30 | 🔴 Core Logic | 🟢 |
+| fn | `with_criterion` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:222 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_declared_verb` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:295 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_display_name` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:217 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_goal` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:335 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_signature` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:303 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_valid_from` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:307 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_valid_to` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:311 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_version` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:299 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `Criterion` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:175 | 🟡 Type Declaration | 🟢 |
+| struct | `DriftReport` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:255 | 🟡 Type Declaration | 🟢 |
+| struct | `GoalSpec` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:194 | 🟡 Type Declaration | 🟢 |
+| struct | `SpecCurationRecord` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:368 | 🟡 Type Declaration | 🟢 |
+| struct | `SpecId` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:41 | 🟡 Type Declaration | 🟢 |
+| struct | `Spec` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:262 | 🟡 Type Declaration | 🟢 |
+| trait | `SpecCurator` | hkask-storage::spec_types | crates/hkask-storage/src/spec_types.rs:429 | 🟡 Type Declaration | 🟢 |
 | fn | `new` | hkask-storage::store_macros | crates/hkask-storage/src/store_macros.rs:66 | 🟢 Accessor/Constructor | 🟢 |
 | trait | `Store` | hkask-storage::store_macros | crates/hkask-storage/src/store_macros.rs:32 | 🟡 Type Declaration | 🟢 |
 | enum | `TripleError` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:13 | 🟡 Type Declaration | 🟢 |
-| fn | `close_by_id` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:419 | 🔴 Core Logic | 🟢 |
-| fn | `count_by_perspective` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:403 | 🔴 Core Logic | 🟢 |
-| fn | `count_semantic_below_confidence` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:330 | 🔴 Core Logic | 🟢 |
-| fn | `count_semantic_by_entity` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:387 | 🔴 Core Logic | 🟢 |
-| fn | `count_semantic` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:371 | 🔴 Core Logic | 🟢 |
-| fn | `delete_by_entity_prefix` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:449 | 🔴 Core Logic | 🟢 |
-| fn | `delete_by_id` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:435 | 🔴 Core Logic | 🟢 |
-| fn | `get_by_id` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:283 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `insert` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:105 | 🔴 Core Logic | 🟢 |
-| fn | `is_episodic` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:83 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_semantic` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:90 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:42 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `query_by_attribute` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:189 | 🔴 Core Logic | 🟢 |
-| fn | `query_by_entity_attribute` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:148 | 🔴 Core Logic | 🟢 |
-| fn | `query_by_entity` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:130 | 🔴 Core Logic | 🟢 |
-| fn | `query_by_perspective` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:170 | 🔴 Core Logic | 🟢 |
-| fn | `query_semantic_below_confidence` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:346 | 🔴 Core Logic | 🟢 |
-| fn | `query_semantic_lowest_confidence` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:305 | 🔴 Core Logic | 🟢 |
-| fn | `update` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:209 | 🔴 Core Logic | 🟢 |
-| fn | `with_confidence` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:58 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_perspective` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:66 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_visibility` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:74 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `close_by_id` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:440 | 🔴 Core Logic | 🟢 |
+| fn | `count_by_perspective` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:423 | 🔴 Core Logic | 🟢 |
+| fn | `count_semantic_below_confidence` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:346 | 🔴 Core Logic | 🟢 |
+| fn | `count_semantic_by_entity` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:406 | 🔴 Core Logic | 🟢 |
+| fn | `count_semantic` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:389 | 🔴 Core Logic | 🟢 |
+| fn | `delete_by_entity_prefix` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:472 | 🔴 Core Logic | 🟢 |
+| fn | `delete_by_id` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:457 | 🔴 Core Logic | 🟢 |
+| fn | `get_by_id` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:297 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `insert` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:113 | 🔴 Core Logic | 🟢 |
+| fn | `is_episodic` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:89 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_semantic` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:97 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:44 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `query_by_attribute` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:201 | 🔴 Core Logic | 🟢 |
+| fn | `query_by_entity_attribute` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:158 | 🔴 Core Logic | 🟢 |
+| fn | `query_by_entity` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:139 | 🔴 Core Logic | 🟢 |
+| fn | `query_by_perspective` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:181 | 🔴 Core Logic | 🟢 |
+| fn | `query_semantic_below_confidence` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:363 | 🔴 Core Logic | 🟢 |
+| fn | `query_semantic_lowest_confidence` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:320 | 🔴 Core Logic | 🟢 |
+| fn | `update` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:222 | 🔴 Core Logic | 🟢 |
+| fn | `with_confidence` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:61 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_perspective` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:70 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_visibility` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:79 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `Triple` | hkask-storage::triples | crates/hkask-storage/src/triples.rs:26 | 🟡 Type Declaration | 🟢 |
 | enum | `UserStoreError` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:18 | 🟡 Type Declaration | 🟢 |
-| fn | `change_passphrase` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:225 | 🔴 Core Logic | 🟢 |
-| fn | `check_passphrase_expiry` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:267 | 🔴 Core Logic | 🟢 |
-| fn | `get_replicant` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:332 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_session` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:298 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_user` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:349 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_wallet_id` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:396 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `initialize_schema` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:84 | 🔴 Core Logic | 🟢 |
-| fn | `list_replicants` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:382 | 🔴 Core Logic | 🟢 |
-| fn | `list_sessions` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:315 | 🔴 Core Logic | 🟢 |
-| fn | `login` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:174 | 🔴 Core Logic | 🟢 |
-| fn | `logout` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:210 | 🔴 Core Logic | 🟢 |
+| fn | `change_passphrase` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:228 | 🔴 Core Logic | 🟢 |
+| fn | `check_passphrase_expiry` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:271 | 🔴 Core Logic | 🟢 |
+| fn | `get_replicant` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:339 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_session` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:303 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_user` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:357 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_wallet_id` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:406 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `initialize_schema` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:82 | 🔴 Core Logic | 🟢 |
+| fn | `list_replicants` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:391 | 🔴 Core Logic | 🟢 |
+| fn | `list_sessions` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:321 | 🔴 Core Logic | 🟢 |
+| fn | `login` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:175 | 🔴 Core Logic | 🟢 |
+| fn | `logout` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:212 | 🔴 Core Logic | 🟢 |
 | fn | `register_replicant` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:101 | 🔴 Core Logic | 🟢 |
-| fn | `set_wallet_id` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:409 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `set_wallet_id` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:420 | 🟢 Accessor/Constructor | 🟢 |
 | type | `UserResult` | hkask-storage::user_store | crates/hkask-storage/src/user_store.rs:42 | 🟡 Type Declaration | 🟢 |
-| fn | `consume_deposit_reference` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:648 | 🔴 Core Logic | 🟢 |
-| fn | `consume_encumbrance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:801 | 🔴 Core Logic | 🟢 |
-| fn | `credit_rjoules` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:181 | 🔴 Core Logic | 🟢 |
-| fn | `debit_rjoules` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:208 | 🔴 Core Logic | 🟢 |
-| fn | `enable_wal_mode` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:84 | 🔴 Core Logic | 🟢 |
-| fn | `encumber_rjoules` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:698 | 🔴 Core Logic | 🟢 |
-| fn | `ensure_wallet` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:152 | 🔴 Core Logic | 🟢 |
-| fn | `get_api_key_by_public_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:406 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_api_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:369 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_balance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:104 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_deposit_addresses` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:561 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_encumbrance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:874 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_transactions` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:274 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `list_api_keys` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:446 | 🔴 Core Logic | 🟢 |
-| fn | `list_wallet_ids` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:162 | 🔴 Core Logic | 🟢 |
-| fn | `purge_expired_references` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:676 | 🔴 Core Logic | 🟢 |
-| fn | `record_transaction` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:246 | 🔴 Core Logic | 🟢 |
-| fn | `release_encumbrance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:754 | 🔴 Core Logic | 🟢 |
-| fn | `resolve_wallet_for_address` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:601 | 🔴 Core Logic | 🟢 |
-| fn | `revoke_api_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:484 | 🔴 Core Logic | 🟢 |
-| fn | `store_api_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:335 | 🔴 Core Logic | 🟢 |
-| fn | `store_deposit_address` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:533 | 🔴 Core Logic | 🟢 |
-| fn | `store_deposit_reference` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:626 | 🔴 Core Logic | 🟢 |
-| fn | `transaction_exists_by_hash` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:317 | 🔴 Core Logic | 🟢 |
-| fn | `update_spent_rj` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:516 | 🔴 Core Logic | 🟢 |
+| fn | `consume_deposit_reference` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:669 | 🔴 Core Logic | 🟢 |
+| fn | `consume_encumbrance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:826 | 🔴 Core Logic | 🟢 |
+| fn | `credit_rjoules` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:187 | 🔴 Core Logic | 🟢 |
+| fn | `debit_rjoules` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:215 | 🔴 Core Logic | 🟢 |
+| fn | `enable_wal_mode` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:86 | 🔴 Core Logic | 🟢 |
+| fn | `encumber_rjoules` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:721 | 🔴 Core Logic | 🟢 |
+| fn | `ensure_wallet` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:156 | 🔴 Core Logic | 🟢 |
+| fn | `get_api_key_by_public_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:419 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_api_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:381 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_balance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:107 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_deposit_addresses` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:579 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_encumbrance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:900 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_transactions` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:283 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `list_api_keys` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:460 | 🔴 Core Logic | 🟢 |
+| fn | `list_wallet_ids` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:167 | 🔴 Core Logic | 🟢 |
+| fn | `purge_expired_references` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:698 | 🔴 Core Logic | 🟢 |
+| fn | `record_transaction` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:254 | 🔴 Core Logic | 🟢 |
+| fn | `release_encumbrance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:778 | 🔴 Core Logic | 🟢 |
+| fn | `resolve_wallet_for_address` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:620 | 🔴 Core Logic | 🟢 |
+| fn | `revoke_api_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:499 | 🔴 Core Logic | 🟢 |
+| fn | `store_api_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:346 | 🔴 Core Logic | 🟢 |
+| fn | `store_deposit_address` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:550 | 🔴 Core Logic | 🟢 |
+| fn | `store_deposit_reference` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:646 | 🔴 Core Logic | 🟢 |
+| fn | `transaction_exists_by_hash` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:327 | 🔴 Core Logic | 🟢 |
+| fn | `update_spent_rj` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:532 | 🔴 Core Logic | 🟢 |
 
-| hkask-templates | 65 | 62 | 3 | 95% | 79 |
+| hkask-templates | 65 | 62 | 3 | 95% | 80 |
 
 ### hkask-templates
 
 | Kind | Item | Module | Location | Risk Tier | REQ |
 |------|------|--------|----------|-----------|-----|
-| fn | `new` | hkask-templates::capability_validator | crates/hkask-templates/src/capability_validator.rs:28 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `validate_capabilities` | hkask-templates::capability_validator | crates/hkask-templates/src/capability_validator.rs:43 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-templates::capability_validator | crates/hkask-templates/src/capability_validator.rs:30 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `validate_capabilities` | hkask-templates::capability_validator | crates/hkask-templates/src/capability_validator.rs:47 | 🔴 Core Logic | 🟢 |
 | struct | `CapabilityAwareValidator` | hkask-templates::capability_validator | crates/hkask-templates/src/capability_validator.rs:21 | 🟡 Type Declaration | 🟢 |
 | enum | `ValidationMode` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:16 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:34 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `validate_terms` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:69 | 🔴 Core Logic | 🟢 |
-| fn | `with_lexicon` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:46 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_mode` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:57 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:36 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `validate_terms` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:76 | 🔴 Core Logic | 🟢 |
+| fn | `with_lexicon` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:50 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_mode` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:62 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `ContractValidator` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:24 | 🟡 Type Declaration | 🟢 |
-| fn | `new` | hkask-templates::executor | crates/hkask-templates/src/executor.rs:75 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-templates::executor | crates/hkask-templates/src/executor.rs:77 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `ManifestExecutor` | hkask-templates::executor | crates/hkask-templates/src/executor.rs:54 | 🟡 Type Declaration | 🟢 |
-| fn | `load_hlexicon_default` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:93 | 🔴 Core Logic | 🟢 |
-| fn | `load_hlexicon_from_file` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:81 | 🔴 Core Logic | 🟢 |
-| fn | `load_hlexicon_from_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:54 | 🔴 Core Logic | 🟢 |
-| fn | `parse_markdown_catalog` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:117 | 🔴 Core Logic | 🟢 |
-| fn | `regenerate_workspace_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:244 | 🔴 Core Logic | 🟢 |
-| fn | `render_workspace_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:185 | 🔴 Core Logic | 🟢 |
-| fn | `resolve_manifest` | hkask-templates::manifest_loader | crates/hkask-templates/src/manifest_loader.rs:171 | 🔴 Core Logic | 🟢 |
+| fn | `load_hlexicon_default` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:99 | 🔴 Core Logic | 🟢 |
+| fn | `load_hlexicon_from_file` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:85 | 🔴 Core Logic | 🟢 |
+| fn | `load_hlexicon_from_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:56 | 🔴 Core Logic | 🟢 |
+| fn | `parse_markdown_catalog` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:125 | 🔴 Core Logic | 🟢 |
+| fn | `regenerate_workspace_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:256 | 🔴 Core Logic | 🟢 |
+| fn | `render_workspace_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:195 | 🔴 Core Logic | 🟢 |
+| fn | `resolve_manifest` | hkask-templates::manifest_loader | crates/hkask-templates/src/manifest_loader.rs:173 | 🔴 Core Logic | 🟢 |
 | enum | `TemplateError` | hkask-templates::ports | crates/hkask-templates/src/ports.rs:16 | 🟡 Type Declaration | 🔴 |
 | trait | `McpPort` | hkask-templates::ports | crates/hkask-templates/src/ports.rs:54 | 🟡 Type Declaration | 🔴 |
 | type | `Result` | hkask-templates::ports | crates/hkask-templates/src/ports.rs:41 | 🟡 Type Declaration | 🔴 |
 | enum | `PromptStrategy` | hkask-templates::prompt_strategy | crates/hkask-templates/src/prompt_strategy.rs:13 | 🟡 Type Declaration | 🟢 |
-| fn | `frame` | hkask-templates::prompt_strategy | crates/hkask-templates/src/prompt_strategy.rs:43 | 🔴 Core Logic | 🟢 |
-| fn | `from_input` | hkask-templates::prompt_strategy | crates/hkask-templates/src/prompt_strategy.rs:28 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `name` | hkask-templates::prompt_strategy | crates/hkask-templates/src/prompt_strategy.rs:55 | 🔴 Core Logic | 🟢 |
-| fn | `bootstrap` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:337 | 🔴 Core Logic | 🟢 |
-| fn | `count` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:194 | 🔴 Core Logic | 🟢 |
-| fn | `find_bundle_by_skills` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:318 | 🔴 Core Logic | 🟢 |
-| fn | `get_bundle` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:290 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_skill` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:242 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:179 | 🔴 Core Logic | 🟢 |
-| fn | `list_bundles` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:298 | 🔴 Core Logic | 🟢 |
-| fn | `list_skills_by_visibility` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:211 | 🔴 Core Logic | 🟢 |
-| fn | `list_skills` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:202 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:45 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `register_bundle` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:281 | 🔴 Core Logic | 🟢 |
-| fn | `register_skill` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:233 | 🔴 Core Logic | 🟢 |
-| fn | `register` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:151 | 🔴 Core Logic | 🟢 |
-| fn | `reload` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:72 | 🔴 Core Logic | 🟢 |
-| fn | `remove_bundle` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:307 | 🔴 Core Logic | 🟢 |
-| fn | `remove_skill` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:224 | 🔴 Core Logic | 🟢 |
-| fn | `set_lexicon` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:59 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `skills_by_domain` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:251 | 🔴 Core Logic | 🟢 |
-| fn | `skills_referencing_template` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:264 | 🔴 Core Logic | 🟢 |
-| fn | `validate_template_path` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:86 | 🔴 Core Logic | 🟢 |
+| fn | `frame` | hkask-templates::prompt_strategy | crates/hkask-templates/src/prompt_strategy.rs:45 | 🔴 Core Logic | 🟢 |
+| fn | `from_input` | hkask-templates::prompt_strategy | crates/hkask-templates/src/prompt_strategy.rs:29 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `name` | hkask-templates::prompt_strategy | crates/hkask-templates/src/prompt_strategy.rs:58 | 🔴 Core Logic | 🟢 |
+| fn | `bootstrap` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:359 | 🔴 Core Logic | 🟢 |
+| fn | `count` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:203 | 🔴 Core Logic | 🟢 |
+| fn | `find_bundle_by_skills` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:339 | 🔴 Core Logic | 🟢 |
+| fn | `get_bundle` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:308 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_skill` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:256 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:187 | 🔴 Core Logic | 🟢 |
+| fn | `list_bundles` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:317 | 🔴 Core Logic | 🟢 |
+| fn | `list_skills_by_visibility` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:222 | 🔴 Core Logic | 🟢 |
+| fn | `list_skills` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:212 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:46 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `register_bundle` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:298 | 🔴 Core Logic | 🟢 |
+| fn | `register_skill` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:246 | 🔴 Core Logic | 🟢 |
+| fn | `register` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:158 | 🔴 Core Logic | 🟢 |
+| fn | `reload` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:76 | 🔴 Core Logic | 🟢 |
+| fn | `remove_bundle` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:327 | 🔴 Core Logic | 🟢 |
+| fn | `remove_skill` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:236 | 🔴 Core Logic | 🟢 |
+| fn | `set_lexicon` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:62 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `skills_by_domain` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:266 | 🔴 Core Logic | 🟢 |
+| fn | `skills_referencing_template` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:280 | 🔴 Core Logic | 🟢 |
+| fn | `validate_template_path` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:92 | 🔴 Core Logic | 🟢 |
 | struct | `Registry` | hkask-templates::registry | crates/hkask-templates/src/registry.rs:30 | 🟡 Type Declaration | 🟢 |
-| fn | `count` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:314 | 🔴 Core Logic | 🟢 |
-| fn | `delete_entry` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:266 | 🔴 Core Logic | 🟢 |
-| fn | `get_entry` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:244 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_skill_owned` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:562 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `list_skills_owned` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:616 | 🔴 Core Logic | 🟢 |
-| fn | `new_with_conn` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:100 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:76 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `register` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:150 | 🔴 Core Logic | 🟢 |
-| fn | `search_by_lexicon` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:291 | 🔴 Core Logic | 🟢 |
-| fn | `set_lexicon` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:139 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `skills_by_domain_owned` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:625 | 🔴 Core Logic | 🟢 |
-| fn | `skills_referencing_template_owned` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:637 | 🔴 Core Logic | 🟢 |
+| fn | `count` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:324 | 🔴 Core Logic | 🟢 |
+| fn | `delete_entry` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:273 | 🔴 Core Logic | 🟢 |
+| fn | `get_entry` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:250 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_skill_owned` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:573 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `list_skills_owned` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:628 | 🔴 Core Logic | 🟢 |
+| fn | `new_with_conn` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:102 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:77 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `register` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:155 | 🔴 Core Logic | 🟢 |
+| fn | `search_by_lexicon` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:300 | 🔴 Core Logic | 🟢 |
+| fn | `set_lexicon` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:143 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `skills_by_domain_owned` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:638 | 🔴 Core Logic | 🟢 |
+| fn | `skills_referencing_template_owned` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:651 | 🔴 Core Logic | 🟢 |
 | struct | `SqliteRegistry` | hkask-templates::registry_sqlite | crates/hkask-templates/src/registry_sqlite.rs:65 | 🟡 Type Declaration | 🟢 |
-| fn | `load_into` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:64 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:52 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `parse_front_matter` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:193 | 🔴 Core Logic | 🟢 |
-| struct | `SkillFrontMatter` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:21 | 🟡 Type Declaration | 🟢 |
-| struct | `SkillLoadResult` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:34 | 🟡 Type Declaration | 🟢 |
-| struct | `SkillLoader` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:41 | 🟡 Type Declaration | 🟢 |
+| fn | `load_into` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:81 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:68 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `parse_front_matter` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:266 | 🔴 Core Logic | 🟢 |
+| struct | `SkillFrontMatter` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:22 | 🟡 Type Declaration | 🟢 |
+| struct | `SkillLoadResult` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:49 | 🟡 Type Declaration | 🟢 |
+| struct | `SkillLoader` | hkask-templates::skill_loader | crates/hkask-templates/src/skill_loader.rs:56 | 🟡 Type Declaration | 🟢 |
 
-| hkask-test-harness | 51 | 51 | 0 | 100% | 60 |
+| hkask-test-harness | 51 | 51 | 0 | 100% | 62 |
 
 ### hkask-test-harness
 
 | Kind | Item | Module | Location | Risk Tier | REQ |
 |------|------|--------|----------|-----------|-----|
-| enum | `MockToolState` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:409 | 🟡 Type Declaration | 🟢 |
-| enum | `SignalValence` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:251 | 🟡 Type Declaration | 🟢 |
-| fn | `advance_time` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:328 | 🔴 Core Logic | 🟢 |
-| fn | `alice` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:166 | 🔴 Core Logic | 🟢 |
-| fn | `bob` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:174 | 🔴 Core Logic | 🟢 |
-| fn | `carol` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:182 | 🔴 Core Logic | 🟢 |
-| fn | `conn_arc` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:78 | 🔴 Core Logic | 🟢 |
-| fn | `conn` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:70 | 🔴 Core Logic | 🟢 |
-| fn | `execute_batch` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:87 | 🔴 Core Logic | 🟢 |
-| fn | `from_persona` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:199 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `homeostatic` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:220 | 🔴 Core Logic | 🟢 |
-| fn | `inject` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:312 | 🔴 Core Logic | 🟢 |
-| fn | `is_homeostatic` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:369 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_negative_valence` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:262 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_positive_valence` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:270 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `key_path` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:133 | 🔴 Core Logic | 🟢 |
-| fn | `master_key` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:141 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:109 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:290 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:57 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `path` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:125 | 🔴 Core Logic | 🟢 |
-| fn | `perturbed` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:234 | 🔴 Core Logic | 🟢 |
-| fn | `random` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:190 | 🔴 Core Logic | 🟢 |
-| fn | `recent_signals` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:347 | 🔴 Core Logic | 🟢 |
-| fn | `record_variety` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:378 | 🔴 Core Logic | 🟢 |
-| fn | `temp_dir` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:428 | 🔴 Core Logic | 🟢 |
-| fn | `test_event_with_observer` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:464 | 🔴 Core Logic | 🟢 |
-| fn | `test_event` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:449 | 🔴 Core Logic | 🟢 |
-| fn | `test_triple_with_owner` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:492 | 🔴 Core Logic | 🟢 |
-| fn | `test_triple` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:483 | 🔴 Core Logic | 🟢 |
-| fn | `tool_state` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:356 | 🔴 Core Logic | 🟢 |
-| fn | `variety_for_domain` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:391 | 🔴 Core Logic | 🟢 |
-| fn | `with_state` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:301 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `MockAlgedonicSignal` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:244 | 🟡 Type Declaration | 🟢 |
-| struct | `MockCnsRuntime` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:281 | 🟡 Type Declaration | 🟢 |
-| struct | `MockCnsState` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:208 | 🟡 Type Declaration | 🟢 |
+| enum | `MockToolState` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:425 | 🟡 Type Declaration | 🟢 |
+| enum | `SignalValence` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:267 | 🟡 Type Declaration | 🟢 |
+| fn | `advance_time` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:344 | 🔴 Core Logic | 🟢 |
+| fn | `alice` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:182 | 🔴 Core Logic | 🟢 |
+| fn | `bob` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:190 | 🔴 Core Logic | 🟢 |
+| fn | `carol` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:198 | 🔴 Core Logic | 🟢 |
+| fn | `conn_arc` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:86 | 🔴 Core Logic | 🟢 |
+| fn | `conn` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:78 | 🔴 Core Logic | 🟢 |
+| fn | `execute_batch` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:95 | 🔴 Core Logic | 🟢 |
+| fn | `from_persona` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:215 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `homeostatic` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:236 | 🔴 Core Logic | 🟢 |
+| fn | `inject` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:328 | 🔴 Core Logic | 🟢 |
+| fn | `is_homeostatic` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:385 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_negative_valence` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:278 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_positive_valence` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:286 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `key_path` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:149 | 🔴 Core Logic | 🟢 |
+| fn | `master_key` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:157 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:125 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:306 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:65 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `path` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:141 | 🔴 Core Logic | 🟢 |
+| fn | `perturbed` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:250 | 🔴 Core Logic | 🟢 |
+| fn | `random` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:206 | 🔴 Core Logic | 🟢 |
+| fn | `recent_signals` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:363 | 🔴 Core Logic | 🟢 |
+| fn | `record_variety` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:394 | 🔴 Core Logic | 🟢 |
+| fn | `temp_dir` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:444 | 🔴 Core Logic | 🟢 |
+| fn | `test_event_with_observer` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:480 | 🔴 Core Logic | 🟢 |
+| fn | `test_event` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:465 | 🔴 Core Logic | 🟢 |
+| fn | `test_triple_with_owner` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:508 | 🔴 Core Logic | 🟢 |
+| fn | `test_triple` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:499 | 🔴 Core Logic | 🟢 |
+| fn | `tool_state` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:372 | 🔴 Core Logic | 🟢 |
+| fn | `variety_for_domain` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:407 | 🔴 Core Logic | 🟢 |
+| fn | `with_state` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:317 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `MockAlgedonicSignal` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:260 | 🟡 Type Declaration | 🟢 |
+| struct | `MockCnsRuntime` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:297 | 🟡 Type Declaration | 🟢 |
+| struct | `MockCnsState` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:224 | 🟡 Type Declaration | 🟢 |
 | struct | `TestDb` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:48 | 🟡 Type Declaration | 🟢 |
-| struct | `TestKeystore` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:98 | 🟡 Type Declaration | 🟢 |
-| struct | `TestWebId` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:159 | 🟡 Type Declaration | 🟢 |
+| struct | `TestKeystore` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:106 | 🟡 Type Declaration | 🟢 |
+| struct | `TestWebId` | hkask-test-harness | crates/hkask-test-harness/src/lib.rs:175 | 🟡 Type Declaration | 🟢 |
 | fn | `clear_error` | hkask-test-harness::mocks | crates/hkask-test-harness/src/mocks.rs:109 | 🔴 Core Logic | 🟢 |
 | fn | `new` | hkask-test-harness::mocks | crates/hkask-test-harness/src/mocks.rs:47 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `set_error` | hkask-test-harness::mocks | crates/hkask-test-harness/src/mocks.rs:101 | 🟢 Accessor/Constructor | 🟢 |
@@ -2348,27 +2416,27 @@ Each public item is classified:
 | fn | `new` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:20 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `redacted_display` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:88 | 🔴 Core Logic | 🟢 |
 | struct | `WebID` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:14 | 🟡 Type Declaration | 🟢 |
-| enum | `MdsCategory` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:108 | 🟡 Type Declaration | 🟢 |
+| enum | `MdsCategory` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:105 | 🟡 Type Declaration | 🟢 |
 | enum | `TemplateType` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:28 | 🟡 Type Declaration | 🟢 |
-| fn | `add` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:194 | 🔴 Core Logic | 🟢 |
+| fn | `add` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:191 | 🔴 Core Logic | 🟢 |
 | fn | `as_spec_name` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:75 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `as_str` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:120 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `as_str` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:117 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `as_str` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:41 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `bootstrap` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:237 | 🔴 Core Logic | 🟢 |
-| fn | `contains` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:208 | 🔴 Core Logic | 🟢 |
+| fn | `bootstrap` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:234 | 🔴 Core Logic | 🟢 |
+| fn | `contains` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:205 | 🔴 Core Logic | 🟢 |
 | fn | `file_extension` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:64 | 🔴 Core Logic | 🟢 |
-| fn | `get` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:201 | 🔴 Core Logic | 🟢 |
+| fn | `get` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:198 | 🔴 Core Logic | 🟢 |
 | fn | `infer_from_extension` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:86 | 🔴 Core Logic | 🟢 |
-| fn | `is_empty` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:231 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `len` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:225 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:149 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:185 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_empty` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:228 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `len` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:222 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:146 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:182 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `parse_str` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:52 | 🔴 Core Logic | 🟢 |
-| fn | `validate` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:215 | 🔴 Core Logic | 🟢 |
-| fn | `with_citation` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:162 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_mds_category` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:170 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `HLexicon` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:178 | 🟡 Type Declaration | 🟢 |
-| struct | `LexiconTerm` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:133 | 🟡 Type Declaration | 🟢 |
+| fn | `validate` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:212 | 🔴 Core Logic | 🟢 |
+| fn | `with_citation` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:159 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_mds_category` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:167 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `HLexicon` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:175 | 🟡 Type Declaration | 🟢 |
+| struct | `LexiconTerm` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:130 | 🟡 Type Declaration | 🟢 |
 | enum | `ActionType` | hkask-types::loops::actions | crates/hkask-types/src/loops/actions.rs:25 | 🟡 Type Declaration | 🔴 |
 | fn | `new` | hkask-types::loops::actions | crates/hkask-types/src/loops/actions.rs:14 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `LoopAction` | hkask-types::loops::actions | crates/hkask-types/src/loops/actions.rs:7 | 🟡 Type Declaration | 🔴 |
@@ -2501,25 +2569,25 @@ Each public item is classified:
 | fn | `keychain` | hkask-types::secret | crates/hkask-types/src/secret.rs:59 | 🔴 Core Logic | 🔴 |
 | fn | `new` | hkask-types::secret | crates/hkask-types/src/secret.rs:133 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `ZeroizingSecret` | hkask-types::secret | crates/hkask-types/src/secret.rs:130 | 🟡 Type Declaration | 🔴 |
-| enum | `BoundaryClassification` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:152 | 🟡 Type Declaration | 🟢 |
+| enum | `BoundaryClassification` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:153 | 🟡 Type Declaration | 🟢 |
 | enum | `DataCategory` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:21 | 🟡 Type Declaration | 🟢 |
-| fn | `access_required` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:179 | 🔴 Core Logic | 🟢 |
+| fn | `access_required` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:180 | 🔴 Core Logic | 🟢 |
 | fn | `as_str` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:48 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `classify` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:289 | 🔴 Core Logic | 🟢 |
-| fn | `default_visibility` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:120 | 🔴 Core Logic | 🟢 |
-| fn | `grant_consent` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:335 | 🔴 Core Logic | 🟢 |
-| fn | `hkask_default` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:210 | 🔴 Core Logic | 🟢 |
-| fn | `is_category_public` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:267 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_category_shared` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:255 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `is_sovereign` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:240 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `classify` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:290 | 🔴 Core Logic | 🟢 |
+| fn | `default_visibility` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:121 | 🔴 Core Logic | 🟢 |
+| fn | `grant_consent` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:336 | 🔴 Core Logic | 🟢 |
+| fn | `hkask_default` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:211 | 🔴 Core Logic | 🟢 |
+| fn | `is_category_public` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:268 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_category_shared` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:256 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `is_sovereign` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:241 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `is_typically_sovereign` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:90 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `label` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:165 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:322 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `label` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:166 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:323 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `parse` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:71 | 🔴 Core Logic | 🟢 |
-| fn | `requires_affirmative_consent` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:276 | 🔴 Core Logic | 🟢 |
-| fn | `revoke_consent` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:344 | 🔴 Core Logic | 🟢 |
-| struct | `DataSovereigntyBoundary` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:135 | 🟡 Type Declaration | 🟢 |
-| struct | `UserSovereigntyState` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:309 | 🟡 Type Declaration | 🟢 |
+| fn | `requires_affirmative_consent` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:277 | 🔴 Core Logic | 🟢 |
+| fn | `revoke_consent` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:345 | 🔴 Core Logic | 🟢 |
+| struct | `DataSovereigntyBoundary` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:136 | 🟡 Type Declaration | 🟢 |
+| struct | `UserSovereigntyState` | hkask-types::sovereignty | crates/hkask-types/src/sovereignty.rs:310 | 🟡 Type Declaration | 🟢 |
 | struct | `LLMParameters` | hkask-types::template | crates/hkask-types/src/template.rs:14 | 🟡 Type Declaration | 🔴 |
 | struct | `TemplateCrate` | hkask-types::template | crates/hkask-types/src/template.rs:116 | 🟡 Type Declaration | 🔴 |
 | struct | `TemplateFile` | hkask-types::template | crates/hkask-types/src/template.rs:107 | 🟡 Type Declaration | 🔴 |
@@ -2588,7 +2656,7 @@ Each public item is classified:
 | struct | `WalletConfig` | hkask-types::wallet::types | crates/hkask-types/src/wallet/types.rs:107 | 🟡 Type Declaration | 🟢 |
 | struct | `WalletTransaction` | hkask-types::wallet::types | crates/hkask-types/src/wallet/types.rs:215 | 🟡 Type Declaration | 🟢 |
 
-| hkask-wallet | 66 | 62 | 4 | 93% | 104 |
+| hkask-wallet | 68 | 64 | 4 | 94% | 108 |
 
 ### hkask-wallet
 
@@ -2602,40 +2670,42 @@ Each public item is classified:
 | fn | `new` | hkask-wallet::hedera | crates/hkask-wallet/src/hedera.rs:149 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `with_event_sink` | hkask-wallet::hedera | crates/hkask-wallet/src/hedera.rs:176 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `HederaPort` | hkask-wallet::hedera | crates/hkask-wallet/src/hedera.rs:128 | 🟡 Type Declaration | 🟢 |
-| fn | `in_cooldown` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:659 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:189 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_default_base` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:235 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_event_sink` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:241 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `in_cooldown` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:661 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:191 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_default_base` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:237 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_event_sink` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:243 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `HinkalPort` | hkask-wallet::hinkal | crates/hkask-wallet/src/hinkal.rs:156 | 🟡 Type Declaration | 🟢 |
-| fn | `create_key` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:100 | 🔴 Core Logic | 🟢 |
-| fn | `list_keys` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:197 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:55 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `revoke_key` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:176 | 🔴 Core Logic | 🟢 |
-| fn | `with_event_sink` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:70 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `ApiKeyIssuer` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:38 | 🟡 Type Declaration | 🟢 |
-| fn | `build` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:57 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `can_afford` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:849 | 🔴 Core Logic | 🟢 |
-| fn | `consume` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:997 | 🔴 Core Logic | 🟢 |
-| fn | `emit_chain_error_for_actor` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:165 | 🔴 Core Logic | 🟢 |
-| fn | `emit_chain_error` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:186 | 🔴 Core Logic | 🟢 |
-| fn | `emit_key_alert` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:136 | 🔴 Core Logic | 🟢 |
-| fn | `encumber` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:947 | 🔴 Core Logic | 🟢 |
-| fn | `ensure_wallet` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:228 | 🔴 Core Logic | 🟢 |
-| fn | `gas_to_rjoules` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:789 | 🔴 Core Logic | 🟢 |
-| fn | `generate_deposit_reference` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:905 | 🔴 Core Logic | 🟢 |
-| fn | `get_api_key` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:220 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_balance` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:200 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_deposit_address` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:752 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_encumbrance` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:1008 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_transactions` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:233 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `price_feed` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:95 | 🔴 Core Logic | 🟢 |
-| fn | `release_encumbrance` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:975 | 🔴 Core Logic | 🟢 |
-| fn | `reserve_rjoules` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:861 | 🔴 Core Logic | 🟢 |
-| fn | `rjoules_to_gas` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:801 | 🔴 Core Logic | 🟢 |
-| fn | `settle_rjoules` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:881 | 🔴 Core Logic | 🟢 |
-| fn | `with_event_sink` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:82 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_price_feed` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:89 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `WalletManager` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:35 | 🟡 Type Declaration | 🟢 |
+| fn | `create_key` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:112 | 🔴 Core Logic | 🟢 |
+| fn | `list_keys` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:217 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:63 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `revoke_key` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:192 | 🔴 Core Logic | 🟢 |
+| fn | `with_event_sink` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:78 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `ApiKeyIssuer` | hkask-wallet::issuer | crates/hkask-wallet/src/issuer.rs:42 | 🟡 Type Declaration | 🟢 |
+| fn | `build` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:65 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `can_afford` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:895 | 🔴 Core Logic | 🟢 |
+| fn | `consume` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:1056 | 🔴 Core Logic | 🟢 |
+| fn | `emit_chain_error_for_actor` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:177 | 🔴 Core Logic | 🟢 |
+| fn | `emit_chain_error` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:198 | 🔴 Core Logic | 🟢 |
+| fn | `emit_key_alert` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:146 | 🔴 Core Logic | 🟢 |
+| fn | `encumber` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:1000 | 🔴 Core Logic | 🟢 |
+| fn | `ensure_wallet` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:244 | 🔴 Core Logic | 🟢 |
+| fn | `gas_per_rjoule` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:834 | 🔴 Core Logic | 🟢 |
+| fn | `gas_to_rjoules` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:809 | 🔴 Core Logic | 🟢 |
+| fn | `generate_deposit_reference` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:955 | 🔴 Core Logic | 🟢 |
+| fn | `get_api_key` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:236 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_balance` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:214 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_deposit_address` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:768 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_encumbrance` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:1070 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_transactions` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:249 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `price_feed` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:105 | 🔴 Core Logic | 🟢 |
+| fn | `release_encumbrance` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:1031 | 🔴 Core Logic | 🟢 |
+| fn | `reserve_rjoules` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:909 | 🔴 Core Logic | 🟢 |
+| fn | `rjoules_to_gas` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:826 | 🔴 Core Logic | 🟢 |
+| fn | `set_gas_per_rjoule` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:843 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `settle_rjoules` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:931 | 🔴 Core Logic | 🟢 |
+| fn | `with_event_sink` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:92 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_price_feed` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:99 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `WalletManager` | hkask-wallet::manager | crates/hkask-wallet/src/manager.rs:38 | 🟡 Type Declaration | 🟢 |
 | fn | `estimate_withdrawal_fee` | hkask-wallet::price_feed | crates/hkask-wallet/src/price_feed.rs:512 | 🔴 Core Logic | 🟢 |
 | fn | `from_env` | hkask-wallet::price_feed | crates/hkask-wallet/src/price_feed.rs:109 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `new` | hkask-wallet::price_feed | crates/hkask-wallet/src/price_feed.rs:119 | 🟢 Accessor/Constructor | 🟢 |
@@ -2652,9 +2722,9 @@ Each public item is classified:
 | trait | `PriceFeed` | hkask-wallet::price_feed | crates/hkask-wallet/src/price_feed.rs:42 | 🟡 Type Declaration | 🟢 |
 | struct | `ShieldedTransfer` | hkask-wallet::privacy | crates/hkask-wallet/src/privacy.rs:17 | 🟡 Type Declaration | 🔴 |
 | trait | `PrivacyPort` | hkask-wallet::privacy | crates/hkask-wallet/src/privacy.rs:45 | 🟡 Type Declaration | 🔴 |
-| fn | `sign_capability` | hkask-wallet::signing | crates/hkask-wallet/src/signing.rs:117 | 🔴 Core Logic | 🟢 |
-| fn | `sign_message` | hkask-wallet::signing | crates/hkask-wallet/src/signing.rs:87 | 🔴 Core Logic | 🟢 |
-| fn | `sign_withdrawal` | hkask-wallet::signing | crates/hkask-wallet/src/signing.rs:77 | 🔴 Core Logic | 🟢 |
+| fn | `sign_capability` | hkask-wallet::signing | crates/hkask-wallet/src/signing.rs:125 | 🔴 Core Logic | 🟢 |
+| fn | `sign_message` | hkask-wallet::signing | crates/hkask-wallet/src/signing.rs:92 | 🔴 Core Logic | 🟢 |
+| fn | `sign_withdrawal` | hkask-wallet::signing | crates/hkask-wallet/src/signing.rs:80 | 🔴 Core Logic | 🟢 |
 | fn | `new_devnet` | hkask-wallet::solana | crates/hkask-wallet/src/solana.rs:165 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `new_mainnet` | hkask-wallet::solana | crates/hkask-wallet/src/solana.rs:174 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `new` | hkask-wallet::solana | crates/hkask-wallet/src/solana.rs:85 | 🟢 Accessor/Constructor | 🟢 |
@@ -2668,9 +2738,9 @@ Each public item is classified:
 
 | Metric | Value |
 |--------|-------|
-| Total public items | 2465 |
-| Covered (🟢) | 2055 |
+| Total public items | 2521 |
+| Covered (🟢) | 2111 |
 | Uncovered (🔴) | 410 |
 | Overall coverage | 83% |
-| Total REQ-tagged tests | 2279 |
-| Crates analyzed | 26 |
+| Total REQ-tagged tests | 2375 |
+| Crates analyzed | 28 |

@@ -269,8 +269,16 @@ jobs:
         with:
           tool: cargo-deny
 
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
       - name: Check dependency policy
         run: cargo deny check
+
+      - name: Check for known vulnerabilities
+        run: cargo audit
 
   # ============================================================================
   # Build Binary (Release)

@@ -67,3 +67,17 @@ jobs:
           name: documentation
           path: target/doc
           retention-days: 30
+
+  # ============================================================================
+  # Link Check
+  # ============================================================================
+  links:
+    name: Check Documentation Links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check internal documentation links
+        run: bash scripts/check-docs.sh

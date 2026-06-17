@@ -119,6 +119,14 @@ jobs:
 
       - name: Install cross-compilation tools (AArch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
+        # NOTE: This multiarch approach (dpkg --add-architecture arm64) is fragile.
+        # Ubuntu image changes may break libssl-dev:arm64 / libsqlite3-dev:arm64 availability.
+        # Alternative: use `cross` (https://github.com/cross-rs/cross) which provides
+        # pre-built Docker images with all cross-compilation dependencies.
+        # To switch, replace this step with:
+        #   uses: taiki-e/install-action@v2
+        #   with: { tool: cross }
+        #   run: cross build --release --package hkask-cli --target ${{ matrix.target }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \

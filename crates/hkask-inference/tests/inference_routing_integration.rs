@@ -393,3 +393,104 @@ async fn disable_thinking_flows_to_wire_format() {
     // This integration test confirms the router passes LLMParameters through
     // to the backend without interference.
 }
+
+/// REQ: P9-inf-test-generate-unavailable-backend — generate() with unavailable default provider
+/// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
+///
+/// When the default model resolves to a provider whose backend is None,
+/// `generate()` returns Err(Connection).
+#[tokio::test]
+async fn generate_unavailable_backend_returns_error() {
+    // Configure router with NO backends at all
+    let config = InferenceConfig {
+        default_provider: ProviderId::DeepInfra,
+        deepinfra_api_key: String::new(), // empty → DI backend not created
+        ..Default::default()
+    };
+    let router = InferenceRouter::new(config);
+
+    let result = router.generate("Hello", &default_params()).await;
+    assert!(
+        result.is_err(),
+        "generate() should fail when default provider backend is unavailable"
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("not available") || err.contains("DeepInfra") || err.contains("backend"),
+        "Error should mention unavailable backend, got: {}",
+        err
+    );
+}
+
+/// REQ: P9-inf-test-generate-stream-unavailable — generate_stream() with unavailable default provider
+/// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
+///
+/// When the default model resolves to a provider whose backend is None,
+/// `generate_stream()` yields an Err(Connection) as its first (and only) item.
+#[tokio::test]
+async fn generate_stream_unavailable_backend_returns_error() {
+    use futures_util::StreamExt;
+
+    let config = InferenceConfig {
+        default_provider: ProviderId::DeepInfra,
+        deepinfra_api_key: String::new(),
+        ..Default::default()
+    };
+    let router = InferenceRouter::new(config);
+
+    let mut stream = router.generate_stream("Hello", &default_params());
+    let first = stream.next().await;
+    assert!(
+        first.is_some(),
+        "generate_stream() should yield at least one item"
+    );
+    assert!(
+        first.unwrap().is_err(),
+        "generate_stream() first item should be Err when backend unavailable"
+    );
+}
+
+/// REQ: P9-inf-test-generate-stream-with-model-unavailable — generate_stream_with_model() with unavailable provider
+/// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
+///
+/// When model_override resolves to a provider whose backend is None,
+/// `generate_stream_with_model()` yields an Err(Connection) as its first item.
+#[tokio::test]
+async fn generate_stream_with_model_unavailable_backend_returns_error() {
+    use futures_util::StreamExt;
+
+    let ollama_mock = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(mock_chat_response("qwen3:8b", "Ollama response")),
+        )
+        .mount(&ollama_mock)
+        .await;
+
+    let config = InferenceConfig {
+        default_provider: ProviderId::Ollama,
+        ollama_base_url: ollama_mock.uri(),
+        deepinfra_api_key: String::new(),
+        ..Default::default()
+    };
+    let router = InferenceRouter::new(config);
+
+    // OM/ prefix → stream should work
+    let mut stream =
+        router.generate_stream_with_model("Hello", &default_params(), Some("OM/qwen3:8b"));
+    let first = stream.next().await;
+    assert!(first.is_some(), "OM/ stream should yield items");
+    assert!(first.unwrap().is_ok(), "OM/ stream should succeed");
+
+    // DI/ prefix → stream should yield error
+    let mut stream =
+        router.generate_stream_with_model("Hello", &default_params(), Some("DI/some-model"));
+    let first = stream.next().await;
+    assert!(first.is_some(), "DI/ stream should yield at least one item");
+    assert!(
+        first.unwrap().is_err(),
+        "DI/ stream first item should be Err when backend unavailable"
+    );
+}
