@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Get workspace root
-WORKSPACE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKSPACE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$WORKSPACE_ROOT"
 
 log "Building hKask in $WORKSPACE_ROOT"

@@ -230,8 +230,8 @@ clone_repo() {
         return 0
     fi
 
-    if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/../Cargo.toml" ]; then
-        HKASK_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/../../Cargo.toml" ]; then
+        HKASK_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
         log "Detected repo from script location: $HKASK_SOURCE_DIR"
         return 0
     fi

@@ -1,8 +1,9 @@
-use std::time::Duration;
+use async_trait::async_trait;
 use super::{
     ProviderSearchOutput, WebBrowseProvider, WebError, WebExtractProvider, WebSearchProvider,
 };
 use crate::types::*;
+use std::time::Duration;
 
 pub struct FirecrawlProvider {
     client: reqwest::Client,
@@ -24,6 +25,7 @@ impl FirecrawlProvider {
             .ok_or(WebError::NoProvider)
     }
 }
+#[async_trait]
 impl WebSearchProvider for FirecrawlProvider {
     fn kind(&self) -> &str {
         "firecrawl"

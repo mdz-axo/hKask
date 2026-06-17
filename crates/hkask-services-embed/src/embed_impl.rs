@@ -718,7 +718,8 @@ impl EmbedService {
             tracing::info!("No classifier configured — all passages default to Statement");
             hkask_services_classify::ClassifierConfig::from_def(&Default::default())
         } else {
-            let def = hkask_services_classify::load_classifier_config(&config.classifier, registry_dir)?;
+            let def =
+                hkask_services_classify::load_classifier_config(&config.classifier, registry_dir)?;
             hkask_services_classify::ClassifierConfig::from_def(&def)
         };
 
@@ -731,7 +732,8 @@ impl EmbedService {
             "Starting section type classification"
         );
 
-        let classify_results = hkask_services_classify::classify_batch(&texts, classifier_config).await?;
+        let classify_results =
+            hkask_services_classify::classify_batch(&texts, classifier_config).await?;
 
         for (passage, result) in all_passages.iter_mut().zip(classify_results.iter()) {
             passage.section_type = result.category.clone();

@@ -1,7 +1,8 @@
-use std::time::Duration;
+use async_trait::async_trait;
 use super::{WebBrowseProvider, WebError, WebExtractProvider, validate_provider_url};
 use crate::strip_html;
 use crate::types::*;
+use std::time::Duration;
 
 pub struct RawFetchProvider {
     client: reqwest::Client,

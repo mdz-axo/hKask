@@ -211,7 +211,6 @@ mod tests {
         healthy: bool,
     }
 
-    
     impl ServerLifecycle for MockServer {
         async fn init(&mut self, _config: &ServerLifecycleConfig) -> Result<(), LifecycleError> {
             Ok(())

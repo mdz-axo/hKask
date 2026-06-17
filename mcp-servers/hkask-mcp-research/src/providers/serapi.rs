@@ -1,4 +1,4 @@
-
+use async_trait::async_trait;
 use super::{ProviderSearchOutput, WebError, WebSearchProvider};
 use crate::types::*;
 
@@ -150,6 +150,7 @@ impl SerapiProvider {
         })
     }
 }
+#[async_trait]
 impl WebSearchProvider for SerapiProvider {
     fn kind(&self) -> &str {
         "serpapi"

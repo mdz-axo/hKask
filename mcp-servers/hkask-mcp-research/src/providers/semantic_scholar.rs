@@ -1,4 +1,4 @@
-
+use async_trait::async_trait;
 use super::{ProviderSearchOutput, WebError, WebSearchProvider};
 use crate::types::*;
 
@@ -26,6 +26,7 @@ impl Default for SemanticScholarProvider {
 }
 
 const SEMANTIC_SCHOLAR_API_BASE: &str = "https://api.semanticscholar.org/graph/v1";
+#[async_trait]
 impl WebSearchProvider for SemanticScholarProvider {
     fn kind(&self) -> &str {
         "semantic_scholar"

@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use async_trait::async_trait;
 use super::{ProviderSearchOutput, WebError, WebSearchProvider, truncate_str};
 use crate::types::*;
+use std::collections::HashMap;
 
 pub struct ExaProvider {
     client: reqwest::Client,
@@ -90,6 +91,7 @@ impl ExaProvider {
         })
     }
 }
+#[async_trait]
 impl WebSearchProvider for ExaProvider {
     fn kind(&self) -> &str {
         "exa"

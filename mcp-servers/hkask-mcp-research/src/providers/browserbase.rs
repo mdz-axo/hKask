@@ -1,6 +1,7 @@
-use std::time::Duration;
+use async_trait::async_trait;
 use super::{WebBrowseProvider, WebError};
 use crate::types::*;
+use std::time::Duration;
 
 pub struct BrowserbaseProvider {
     client: reqwest::Client,

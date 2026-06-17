@@ -1,4 +1,4 @@
-
+use async_trait::async_trait;
 use super::{ProviderSearchOutput, WebError, WebSearchProvider};
 use crate::types::*;
 
@@ -15,6 +15,7 @@ impl BraveProvider {
         }
     }
 }
+#[async_trait]
 impl WebSearchProvider for BraveProvider {
     fn kind(&self) -> &str {
         "brave"
