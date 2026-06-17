@@ -543,7 +543,7 @@ graph TD
 | `EndpointCostAccrued` | `cns.endpoint.cost_accrued` | Cost tracked per invocation |
 | `EndpointCostBudgetWarning` | `cns.endpoint.cost_budget_warning` | Budget threshold exceeded |
 
-See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-training-guide.md`, `docs/architecture/PUBLIC_SURFACE-hkask-adapter.md`
+See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-training-guide.md`, `docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md`
 
 ---
 
@@ -822,6 +822,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
 | [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (Ollama, Fireworks, DeepInfra) |
+| [`PUBLIC_SURFACE_JUSTIFICATIONS.md`](PUBLIC_SURFACE_JUSTIFICATIONS.md) | Deep-module audit — 16-crate public surface justifications (consolidated) |
 
 
 ---
@@ -866,22 +867,7 @@ docs/architecture/
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
 ├── matrix-integration-architecture.md     # Specification (Matrix transport, Conduit sidecar)
-├── PUBLIC_SURFACE-hkask-adapter.md        # Trained adapter lifecycle & inference composition
-├── PUBLIC_SURFACE-hkask-agents.md
-├── PUBLIC_SURFACE-hkask-api.md
-├── PUBLIC_SURFACE-hkask-cns.md
-├── PUBLIC_SURFACE-hkask-improv.md
-├── PUBLIC_SURFACE-hkask-inference.md
-├── PUBLIC_SURFACE-hkask-keystore.md
-├── PUBLIC_SURFACE-hkask-mcp.md
-├── PUBLIC_SURFACE-hkask-mcp-training.md   # Training MCP (17 tools, 5 providers)
-├── PUBLIC_SURFACE-hkask-memory.md
-├── PUBLIC_SURFACE-hkask-services.md
-├── PUBLIC_SURFACE-hkask-storage.md
-├── PUBLIC_SURFACE-hkask-templates.md
-├── PUBLIC_SURFACE-hkask-test-harness.md
-├── PUBLIC_SURFACE-hkask-types.md
-├── PUBLIC_SURFACE-hkask-wallet.md
+├── PUBLIC_SURFACE_JUSTIFICATIONS.md       # Governance (16-crate deep-module audit)
 ├── core/
 │   ├── magna-carta.md                     # Foundation (4 inviolable principles)
 │   ├── PRINCIPLES.md                      # Framework (P1-P12)
@@ -916,7 +902,7 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 31 active architecture documents (11 core + 1 mandate + 4 root + 9 ADRs + 1 template + 6 reference artifacts) + 15 PUBLIC_SURFACE justifications + 1 domain specification.
+**Total:** 16 active architecture documents (11 core + 1 mandate + 4 root + 9 ADRs + 1 template + 6 reference artifacts) + 1 PUBLIC_SURFACE justification + 1 domain specification.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 

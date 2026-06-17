@@ -80,6 +80,7 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | interface | API and CLI documentation generation |
 | [`template-header-standard.md`](architecture/reference/template-header-standard.md) | composition | hLexicon functional role headers |
 | [`hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) | domain | Canonical human-facing replicant |
+| [`PUBLIC_SURFACE_JUSTIFICATIONS.md`](architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md) | composition, curation | Deep-module audit — 16-crate public surface justifications (consolidated) |
 
 
 ---
