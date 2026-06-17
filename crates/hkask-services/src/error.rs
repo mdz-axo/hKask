@@ -101,7 +101,7 @@ pub enum ServiceError {
 
     /// Upstream A2A error.
     #[error(transparent)]
-    Acp(#[from] A2AError),
+    A2A(#[from] A2AError),
 
     /// Upstream agent-registry loader error.
     #[error(transparent)]

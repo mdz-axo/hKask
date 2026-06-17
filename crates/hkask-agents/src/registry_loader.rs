@@ -20,7 +20,7 @@ pub enum RegistryLoaderError {
         source: serde_yaml::Error,
     },
     #[error("A2A error: {0}")]
-    Acp(#[from] A2AError),
+    A2A(#[from] A2AError),
     #[error("Storage error: {0}")]
     Storage(#[from] AgentRegistryError),
     #[error("Invalid agent definition: {0}")]

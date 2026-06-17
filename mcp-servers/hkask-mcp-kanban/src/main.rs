@@ -8,9 +8,13 @@ pub mod types;
 
 use hkask_mcp::server::{ServerContext, ToolSpanGuard};
 use hkask_services::KanbanService;
+use hkask_storage::Store;
+use hkask_storage::TripleStore;
 use hkask_types::{ConsentProof, TaskFilter, TaskSpec, VerificationCriterion, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
+use rusqlite::Connection;
+use std::sync::{Arc, Mutex};
 use types::*;
 
 fn respond<T: serde::Serialize>(span: ToolSpanGuard, resp: &T) -> String {
@@ -29,8 +33,24 @@ pub struct KanbanServer {
 
 impl KanbanServer {
     pub fn new(webid: WebID) -> Self {
+        let conn = Arc::new(Mutex::new(
+            Connection::open_in_memory().expect("in-memory DB"),
+        ));
+        let store = TripleStore::new(conn);
+        store
+            .lock_conn()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS triples (
+                    id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+                    value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+                    confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
+                    owner_webid TEXT NOT NULL
+                )",
+            )
+            .unwrap();
         Self {
-            service: KanbanService::new(),
+            service: KanbanService::new(store),
             webid,
         }
     }
@@ -127,8 +147,9 @@ impl KanbanServer {
         let bid = match board_id.parse::<hkask_types::BoardId>() {
             Ok(id) => id,
             Err(e) => {
-                return span
-                    .internal_error(serde_json::json!({"error": format!("invalid board_id: {e}")}));
+                return span.internal_error(
+                    serde_json::json!({"error": format!("invalid board_id: {e}")}),
+                );
             }
         };
         let mut spec = TaskSpec::new(title);
@@ -175,8 +196,9 @@ impl KanbanServer {
         let bid = match board_id.parse::<hkask_types::BoardId>() {
             Ok(id) => id,
             Err(e) => {
-                return span
-                    .internal_error(serde_json::json!({"error": format!("invalid board_id: {e}")}));
+                return span.internal_error(
+                    serde_json::json!({"error": format!("invalid board_id: {e}")}),
+                );
             }
         };
         let filter = match status {

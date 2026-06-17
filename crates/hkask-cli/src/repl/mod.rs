@@ -25,7 +25,7 @@ use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
-use hkask_services::AgentService;
+use hkask_services::{AgentService, KanbanService};
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
@@ -106,6 +106,8 @@ pub(crate) struct ReplState {
     /// Active improv mode — set via /improv command.
     /// None means no improv posture is active (default agent behavior).
     pub(crate) improv_mode: Option<hkask_improv::ImprovMode>,
+    /// Kanban service — lazily initialized for /kanban commands.
+    pub(crate) kanban_service: Option<KanbanService>,
 }
 
 pub fn run(

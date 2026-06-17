@@ -85,13 +85,13 @@ pub struct AgentListResponse {
 /// post: returns OpenApiRouter<ApiState> with A2A routes registered
 pub fn a2a_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
-        .route("/api/v1/acp/register", axum::routing::post(acp_register))
-        .routes(routes!(acp_list_agents))
-        .routes(routes!(acp_unregister_agent))
+        .route("/api/v1/a2a/register", axum::routing::post(a2a_register))
+        .routes(routes!(a2a_list_agents))
+        .routes(routes!(a2a_unregister_agent))
 }
 
 /// Register an agent with the A2A runtime
-async fn acp_register(
+async fn a2a_register(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<A2ARegisterRequest>,
@@ -117,7 +117,7 @@ async fn acp_register(
     }
 
     let a2a = state.agent_service.pod_manager().a2a_runtime();
-    let token = acp
+    let token = a2a
         .register_agent(webid, agent_kind, req.capabilities)
         .await?;
 
@@ -131,7 +131,7 @@ async fn acp_register(
 /// List all registered A2A agents
 #[utoipa::path(
     get,
-    path = "/api/v1/acp/agents",
+    path = "/api/v1/a2a/agents",
     tag = "a2a",
     responses(
         (status = 200, description = "List of registered agents", body = AgentListResponse),
@@ -139,12 +139,12 @@ async fn acp_register(
         (status = 500, description = "Internal server error"),
     ),
 )]
-pub(crate) async fn acp_list_agents(
+pub(crate) async fn a2a_list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<AgentListResponse>, ServiceErrorResponse> {
     let a2a = state.agent_service.pod_manager().a2a_runtime();
-    let agents = acp.list_agents().await;
+    let agents = a2a.list_agents().await;
 
     let agent_responses: Vec<A2AAgentResponse> = agents
         .into_iter()
@@ -165,7 +165,7 @@ pub(crate) async fn acp_list_agents(
 /// Unregister an A2A agent
 #[utoipa::path(
     delete,
-    path = "/api/v1/acp/agents/{agent_id}",
+    path = "/api/v1/a2a/agents/{agent_id}",
     tag = "a2a",
     params(
         ("agent_id" = String, Path, description = "A2A agent ID to unregister"),
@@ -178,7 +178,7 @@ pub(crate) async fn acp_list_agents(
         (status = 500, description = "Internal server error"),
     ),
 )]
-pub(crate) async fn acp_unregister_agent(
+pub(crate) async fn a2a_unregister_agent(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(agent_id): Path<String>,
@@ -188,7 +188,7 @@ pub(crate) async fn acp_unregister_agent(
     let webid = parse_webid(&agent_id)?;
 
     let a2a = state.agent_service.pod_manager().a2a_runtime();
-    acp.unregister_agent(&webid).await?;
+    a2a.unregister_agent(&webid).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }

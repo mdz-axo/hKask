@@ -993,7 +993,7 @@ async fn build_loops(
     // Curation loop
     let cns_for_curator: Arc<CnsRuntime> = Arc::new(f.cns_runtime.read().await.clone());
     let a2a_runtime = Arc::new(hkask_agents::A2ARuntime::new(&config.a2a_secret));
-    let acp_port: Arc<dyn hkask_agents::ports::A2APort> = a2a_runtime.clone();
+    let a2a_port: Arc<dyn hkask_agents::ports::A2APort> = a2a_runtime.clone();
     let curator_context = Arc::new(
         CuratorContext::new(
             CuratorHandle::system(),
@@ -1001,7 +1001,7 @@ async fn build_loops(
             Some(curator_directive_tx.clone()),
             Arc::clone(&f.escalation_queue),
         )
-        .with_a2a(acp_port),
+        .with_a2a(a2a_port),
     );
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),

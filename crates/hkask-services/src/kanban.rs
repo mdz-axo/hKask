@@ -23,6 +23,7 @@ use serde_json::Value;
 ///
 /// Persists boards and tasks as RDF triples in a TripleStore.
 /// Public surface: exactly 7 operations (deep-module discipline).
+#[derive(Clone)]
 pub struct KanbanService {
     store: TripleStore,
 }
@@ -65,19 +66,13 @@ impl KanbanService {
         }
 
         let board = Board::new(name.to_string(), owner, columns.to_vec());
-        let value = serde_json::to_value(&board).map_err(|e| {
-            KanbanError::Internal(format!("serialization failed: {e}"))
-        })?;
+        let value = serde_json::to_value(&board)
+            .map_err(|e| KanbanError::Internal(format!("serialization failed: {e}")))?;
 
-        let triple = Triple::new(
-            BOARD_ENTITY,
-            &board.id.to_string(),
-            value,
-            owner,
-        );
-        self.store.insert(&triple).map_err(|e| {
-            KanbanError::Internal(format!("triple insert failed: {e}"))
-        })?;
+        let triple = Triple::new(BOARD_ENTITY, &board.id.to_string(), value, owner);
+        self.store
+            .insert(&triple)
+            .map_err(|e| KanbanError::Internal(format!("triple insert failed: {e}")))?;
 
         Ok(board)
     }
@@ -145,16 +140,24 @@ impl KanbanService {
             .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
         let _ = board;
 
-        let task = Task::new(board_id, spec, owner);
-        let value = serde_json::to_value(&task).map_err(|e| {
-            KanbanError::Internal(format!("serialization failed: {e}"))
-        })?;
+        // Extract sizing fields before Task::new consumes the spec
+        let sp = spec.story_points;
+        let eh = spec.estimated_hours;
+        let dd = spec.due_date;
+        let lbls = spec.labels.clone();
+        let mut task = Task::new(board_id, spec, owner);
+        task.story_points = sp;
+        task.estimated_hours = eh;
+        task.due_date = dd;
+        task.labels = lbls;
+        let value = serde_json::to_value(&task)
+            .map_err(|e| KanbanError::Internal(format!("serialization failed: {e}")))?;
 
         // Persist the task
         let triple = Triple::new(TASK_ENTITY, &task.id.to_string(), value, owner);
-        self.store.insert(&triple).map_err(|e| {
-            KanbanError::Internal(format!("triple insert failed: {e}"))
-        })?;
+        self.store
+            .insert(&triple)
+            .map_err(|e| KanbanError::Internal(format!("triple insert failed: {e}")))?;
 
         // Persist board→task index
         let index_entity = format!("{BOARD_TASKS_PREFIX}{board_id}");
@@ -164,11 +167,42 @@ impl KanbanService {
             Value::String(task.id.to_string()),
             owner,
         );
-        self.store.insert(&index_triple).map_err(|e| {
-            KanbanError::Internal(format!("index triple insert failed: {e}"))
-        })?;
+        self.store
+            .insert(&index_triple)
+            .map_err(|e| KanbanError::Internal(format!("index triple insert failed: {e}")))?;
 
         Ok(task)
+    }
+
+    /// Count tasks in a given status on a board (for WIP enforcement).
+    fn count_tasks_in_status(
+        &self,
+        board_id: BoardId,
+        status: TaskStatus,
+    ) -> Result<usize, KanbanError> {
+        let index_entity = format!("{BOARD_TASKS_PREFIX}{board_id}");
+        let index_triples = self
+            .store
+            .query_by_entity(&index_entity)
+            .map_err(|e| KanbanError::Internal(format!("index query failed: {e}")))?;
+
+        let mut count = 0usize;
+        for idx_t in &index_triples {
+            if let Some(task_id_str) = idx_t.value.as_str() {
+                let task_triples = self
+                    .store
+                    .query_by_entity_attribute(TASK_ENTITY, task_id_str)
+                    .map_err(|e| KanbanError::Internal(format!("task query failed: {e}")))?;
+                for t in &task_triples {
+                    if let Ok(task) = serde_json::from_value::<Task>(t.value.clone()) {
+                        if task.status == status {
+                            count += 1;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(count)
     }
 
     /// List tasks on a board, optionally filtered.
@@ -195,14 +229,11 @@ impl KanbanService {
                 let task_triples = self
                     .store
                     .query_by_entity_attribute(TASK_ENTITY, task_id_str)
-                    .map_err(|e| {
-                        KanbanError::Internal(format!("task query failed: {e}"))
-                    })?;
+                    .map_err(|e| KanbanError::Internal(format!("task query failed: {e}")))?;
 
                 for t in &task_triples {
                     if let Ok(task) = serde_json::from_value::<Task>(t.value.clone()) {
-                        let status_match =
-                            filter.status.map_or(true, |s| task.status == s);
+                        let status_match = filter.status.map_or(true, |s| task.status == s);
                         let assignee_match =
                             filter.assignee.map_or(true, |a| task.assignee == Some(a));
 
@@ -266,14 +297,29 @@ impl KanbanService {
             });
         }
 
+        // WIP limit enforcement (Anderson §4: "limit WIP to expose problems")
+        if let Some(board) = self.board_get(task.board_id)? {
+            if let Some(col) = board.column_for_status(target) {
+                if let Some(wip_limit) = col.wip_limit {
+                    let current_count = self.count_tasks_in_status(task.board_id, target)?;
+                    if current_count >= wip_limit as usize {
+                        return Err(KanbanError::WipLimitExceeded {
+                            column: col.name.clone(),
+                            limit: wip_limit,
+                            current: current_count as u32,
+                        });
+                    }
+                }
+            }
+        }
+
         task.status = target;
         task.updated_at = chrono::Utc::now();
         let _ = actor;
 
         // Update the triple value
-        let new_value = serde_json::to_value(&task).map_err(|e| {
-            KanbanError::Internal(format!("serialization failed: {e}"))
-        })?;
+        let new_value = serde_json::to_value(&task)
+            .map_err(|e| KanbanError::Internal(format!("serialization failed: {e}")))?;
 
         // Find the triple ID and update
         let triples = self
@@ -282,9 +328,9 @@ impl KanbanService {
             .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
 
         if let Some(t) = triples.into_iter().next() {
-            self.store.update(&t.id, new_value, 1.0f64).map_err(|e| {
-                KanbanError::Internal(format!("triple update failed: {e}"))
-            })?;
+            self.store
+                .update(&t.id, new_value, 1.0f64)
+                .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
         Ok(task)
@@ -322,9 +368,8 @@ impl KanbanService {
         task.assignee = Some(agent);
         task.updated_at = chrono::Utc::now();
 
-        let new_value = serde_json::to_value(&task).map_err(|e| {
-            KanbanError::Internal(format!("serialization failed: {e}"))
-        })?;
+        let new_value = serde_json::to_value(&task)
+            .map_err(|e| KanbanError::Internal(format!("serialization failed: {e}")))?;
 
         let triples = self
             .store
@@ -332,9 +377,9 @@ impl KanbanService {
             .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
 
         if let Some(t) = triples.into_iter().next() {
-            self.store.update(&t.id, new_value, 1.0f64).map_err(|e| {
-                KanbanError::Internal(format!("triple update failed: {e}"))
-            })?;
+            self.store
+                .update(&t.id, new_value, 1.0f64)
+                .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
         Ok(task)
@@ -378,8 +423,7 @@ impl KanbanService {
         let reasoning = if passed {
             "All acceptance criteria matched the submitted evidence.".to_string()
         } else {
-            "One or more acceptance criteria were not satisfied by the evidence."
-                .to_string()
+            "One or more acceptance criteria were not satisfied by the evidence.".to_string()
         };
 
         let verification = Verification::new(passed, reasoning, verifier);
@@ -390,9 +434,8 @@ impl KanbanService {
         }
         task.updated_at = chrono::Utc::now();
 
-        let new_value = serde_json::to_value(&task).map_err(|e| {
-            KanbanError::Internal(format!("serialization failed: {e}"))
-        })?;
+        let new_value = serde_json::to_value(&task)
+            .map_err(|e| KanbanError::Internal(format!("serialization failed: {e}")))?;
 
         let triples = self
             .store
@@ -400,14 +443,101 @@ impl KanbanService {
             .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
 
         if let Some(t) = triples.into_iter().next() {
-            self.store.update(&t.id, new_value, 1.0f64).map_err(|e| {
-                KanbanError::Internal(format!("triple update failed: {e}"))
-            })?;
+            self.store
+                .update(&t.id, new_value, 1.0f64)
+                .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
         Ok((task, verification))
     }
 }
+
+    /// Decompose a project description into kanban tasks.
+    ///
+    /// REQ: KAN-SVC-020
+    /// pre:  board_id is valid; project_description is non-empty
+    /// post: returns a decomposition prompt suitable for LLM processing
+    ///
+    /// This is the decomposition *template*. Actual LLM-mediated decomposition
+    /// requires an inference engine (Task 6). The returned prompt can be fed
+    /// to any LLM to produce a structured task list.
+    pub fn decompose_prompt(
+        &self,
+        board_id: BoardId,
+        project_description: &str,
+        target_task_points: Option<u32>,
+        target_hours: Option<f64>,
+    ) -> Result<String, KanbanError> {
+        // Verify board exists
+        self.board_get(board_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+
+        let sizing_guidance = match (target_task_points, target_hours) {
+            (Some(p), Some(h)) => format!(
+                "Each task should be approximately {p} story points or {h} hours of work."
+            ),
+            (Some(p), None) => format!("Each task should be approximately {p} story points."),
+            (None, Some(h)) => format!("Each task should be approximately {h} hours of work."),
+            (None, None) => "Aim for tasks that take 2-8 hours each.".to_string(),
+        };
+
+        Ok(format!(
+            "You are a task decomposition expert. Given the following project description,              break it down into discrete, independently verifiable kanban tasks.
+
+             Project: {project_description}
+
+             Sizing: {sizing_guidance}
+
+             For each task, provide:
+             1. Title (concise, action-oriented)
+             2. Description (1-2 sentences of context)
+             3. Story points (integer)
+             4. Estimated hours (float)
+             5. Labels (comma-separated tags)
+             6. Acceptance criteria (bullet points — what "done" means)
+             7. Dependencies (task titles this depends on, if any)
+
+             Return as a JSON array of objects with fields:              title, description, story_points, estimated_hours, labels, criteria, dependencies."
+        ))
+    }
+
+    /// Spawn a sub-replicant to execute a task.
+    ///
+    /// REQ: KAN-SVC-021
+    /// pre:  task_id is valid; spawn spec defines delegation
+    /// post: returns spawn instructions (future: creates pod + assigns)
+    ///
+    /// Currently returns the spawn configuration for manual execution.
+    /// Future: integrates with pod infrastructure for automated spawning.
+    pub fn spawn_task(
+        &self,
+        task_id: TaskId,
+        spawn_spec: hkask_types::SpawnSpec,
+    ) -> Result<String, KanbanError> {
+        let task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        Ok(format!(
+            "Spawn configuration for task '{}' ({}):
+             Delegation level: {}
+             Skills: {:?}
+             Memory scope: {}
+             Tool servers: {:?}
+             Gas budget: {:?}
+             Timeout: {:?}s
+
+             [Future: pod activation will execute this spawn automatically]",
+            task.title,
+            task.id,
+            spawn_spec.delegation_level,
+            spawn_spec.delegated_skills,
+            spawn_spec.memory_scope,
+            spawn_spec.tool_servers,
+            spawn_spec.gas_budget,
+            spawn_spec.timeout_seconds,
+        ))
+    }
 
 // ── Error types ────────────────────────────────────────────────────────────
 
@@ -432,12 +562,20 @@ pub enum KanbanError {
 
     #[error("internal error: {0}")]
     Internal(String),
+
+    #[error("WIP limit exceeded: column '{column}' has {current}/{limit} tasks (limit: {limit})")]
+    WipLimitExceeded {
+        column: String,
+        limit: u32,
+        current: u32,
+    },
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
+    use hkask_storage::Store;
     use super::*;
     use hkask_types::VerificationCriterion;
     use rusqlite::Connection;
@@ -543,8 +681,7 @@ mod tests {
     #[test]
     fn task_create_rejects_unknown_board() {
         let svc = KanbanService::new(make_store());
-        let result =
-            svc.task_create(BoardId::new(), TaskSpec::new("Test".into()), WebID::new());
+        let result = svc.task_create(BoardId::new(), TaskSpec::new("Test".into()), WebID::new());
         assert!(result.is_err());
     }
 
@@ -569,8 +706,7 @@ mod tests {
             .task_create(board.id, TaskSpec::new("T1".into()), owner)
             .unwrap();
         svc.task_move(t1.id, TaskStatus::Ready, owner).unwrap();
-        svc.task_move(t1.id, TaskStatus::InProgress, owner)
-            .unwrap();
+        svc.task_move(t1.id, TaskStatus::InProgress, owner).unwrap();
 
         svc.task_create(board.id, TaskSpec::new("T2".into()), owner)
             .unwrap();

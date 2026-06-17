@@ -194,6 +194,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "<ROOM_ID> <MESSAGE>",
         about: "Send a message to a Matrix room",
     },
+    SlashCommand {
+        primary: "kanban",
+        aliases: &["kb"],
+        args: "list|board|task|move|accept|submit|decompose|spawn",
+        about: "Kanban board and task coordination",
+    },
 ];
 
 // ── Lookup ─────────────────────────────────────────────────────────────
@@ -319,6 +325,7 @@ pub(super) fn handle_slash_command(
         "improv" | "imp" => handlers::handle_improv(arg1, arg2, state),
         "matrix" | "mx" => handlers::handle_matrix(arg1, rt),
         "msg" | "dm" => handlers::handle_msg(arg1, arg2, rt),
+        "kanban" | "kb" => handlers::handle_kanban(arg1, arg2, state, rt),
 
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);

@@ -41,7 +41,7 @@ pub enum CoreError {
 
     /// A2A protocol failure
     #[error(transparent)]
-    Acp(#[from] crate::a2a::A2AError),
+    A2A(#[from] crate::a2a::A2AError),
 }
 
 impl From<rusqlite::Error> for CoreError {

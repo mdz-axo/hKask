@@ -87,6 +87,10 @@ fn main() {
 
         Commands::Style { action } => commands::style::run(&rt, action),
 
+        Commands::Kanban { action } => {
+            let webid = hkask_types::WebID::new(); // P12: every action has author
+            commands::kanban::run_cli(action, webid, None);
+        }
         Commands::Kata { action } => commands::kata::run(action, &registry),
 
         Commands::Models => commands::models::run(&rt),

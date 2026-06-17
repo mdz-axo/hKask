@@ -833,3 +833,53 @@ pub enum MatrixAction {
     /// Check sidecar health (Docker containers, API, database)
     StatusSidecar,
 }
+
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum KanbanAction {
+    /// Create a new kanban board
+    BoardCreate {
+        name: String,
+        #[arg(short, long, default_value = "")]
+        columns: Option<String>,
+    },
+    /// List all boards
+    BoardList,
+    /// Create a new task
+    TaskCreate {
+        board_id: String,
+        title: String,
+        #[arg(short, long)]
+        description: Option<String>,
+        #[arg(short, long)]
+        criteria: Vec<String>,
+        #[arg(short, long)]
+        assign: Option<String>,
+    },
+    /// List tasks on a board
+    TaskList {
+        board_id: String,
+        #[arg(short, long)]
+        status: Option<String>,
+    },
+    /// Show task details
+    TaskShow {
+        task_id: String,
+    },
+    /// Move a task to a new column
+    TaskMove {
+        task_id: String,
+        status: String,
+    },
+    /// Assign a task to an agent
+    TaskAssign {
+        task_id: String,
+        agent: String,
+    },
+    /// Verify a task against acceptance criteria
+    TaskVerify {
+        task_id: String,
+        #[arg(short, long)]
+        evidence: String,
+    },
+}

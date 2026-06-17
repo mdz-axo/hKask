@@ -23,7 +23,7 @@ pub struct CuratorContext {
     nu_event_store: Option<Arc<NuEventStore>>,
     /// A2A port for A2A messaging (e.g. directing bots).
     /// Optional so existing construction sites don't break.
-    acp: Option<Arc<dyn A2APort>>,
+    a2a_port: Option<Arc<dyn A2APort>>,
 }
 
 impl CuratorContext {
@@ -46,7 +46,7 @@ impl CuratorContext {
             curator_directive_tx,
             escalation_queue,
             nu_event_store: None,
-            a2a: None,
+            a2a_port: None,
         }
     }
 
@@ -71,7 +71,7 @@ impl CuratorContext {
             curator_directive_tx,
             escalation_queue,
             nu_event_store: Some(nu_event_store),
-            a2a: None,
+            a2a_port: None,
         }
     }
 
@@ -79,10 +79,10 @@ impl CuratorContext {
     ///
     /// REQ: P9-agt-curator-context-with-a2a
     /// \[P4\] Motivating: Clear Boundaries — A2A port lets Curator direct bots
-    /// pre:  `acp` is a valid `Arc<dyn A2APort>`.
-    /// post: Returns `self` with `a2a` set to `Some(acp)`.
-    pub fn with_a2a(mut self, a2a: Arc<dyn A2APort>) -> Self {
-        self.a2a = Some(acp);
+    /// pre:  `a2a_port` is a valid `Arc<dyn A2APort>`.
+    /// post: Returns `self` with `a2a_port` set to `Some(a2a_port)`.
+    pub fn with_a2a(mut self, a2a_port: Arc<dyn A2APort>) -> Self {
+        self.a2a_port = Some(a2a_port);
         self
     }
 
@@ -118,7 +118,7 @@ impl CuratorContext {
     ///
     /// Returns None if no A2A port is configured (graceful degradation).
     pub(crate) fn a2a(&self) -> Option<&Arc<dyn A2APort>> {
-        self.a2a.as_ref()
+        self.a2a_port.as_ref()
     }
 
     /// Issue a CuratorDirective unconditionally on the direct channel.

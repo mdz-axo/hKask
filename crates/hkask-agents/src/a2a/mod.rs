@@ -207,7 +207,7 @@ impl A2AMessageVisitor for RouteFields<'_> {
 impl A2AMessage {
     /// Dispatch a visitor over the variant. Single match site in the codebase.
     ///
-    /// REQ: P4-agt-acp-message-visit
+    /// REQ: P4-agt-a2a-message-visit
     /// \[P4\] Motivating: Clear Boundaries — single dispatch site for A2A message variants
     /// pre:  `visitor` is a valid `&mut dyn A2AMessageVisitor`.
     /// post: Calls the appropriate visitor method based on the message
@@ -256,7 +256,7 @@ impl A2AMessage {
     /// Returns `Some` for `TemplateDispatch` (from) and `MemoryArtifact` (producer),
     /// `None` for `TemplateResponse` (no sender).
     ///
-    /// REQ: P4-agt-acp-message-sender
+    /// REQ: P4-agt-a2a-message-sender
     /// \[P4\] Motivating: Clear Boundaries — sender identity is explicit per variant
     /// \[P1\] Constraining: User Sovereignty — identity belongs to the agent/user
     /// pre:  (none).
@@ -276,7 +276,7 @@ impl A2AMessage {
     /// `TemplateDispatch` and `TemplateResponse` use `correlation_id`,
     /// `MemoryArtifact` uses `artifact_id`.
     ///
-    /// REQ: P4-agt-acp-message-id
+    /// REQ: P4-agt-a2a-message-id
     /// \[P4\] Motivating: Clear Boundaries — correlation/artifact IDs enable traceability
     /// pre:  (none).
     /// post: Returns the correlation/artifact ID string for the message
@@ -291,7 +291,7 @@ impl A2AMessage {
 
     /// Get a human-readable message type name.
     ///
-    /// REQ: P4-agt-acp-message-type
+    /// REQ: P4-agt-a2a-message-type
     /// \[P8\] Motivating: Semantic Grounding — stable message type labels
     /// pre:  (none).
     /// post: Returns a `&'static str`: `"template_dispatch"`,
@@ -359,7 +359,7 @@ impl A2ARuntime {
 
     /// Keys are cryptographically independent — compromising one doesn't compromise others.
     ///
-    /// REQ: P4-agt-acp-secret-derive
+    /// REQ: P4-agt-a2a-secret-derive
     /// \[P4\] Motivating: Clear Boundaries — HKDF isolates per-agent secrets
     /// \[P1\] Constraining: User Sovereignty — secrets are bound to agent identity
     /// pre:  `agent_webid` is a valid `WebID`.
@@ -393,7 +393,7 @@ impl A2ARuntime {
 
     /// Returns primary DelegationToken for the agent.
     ///
-    /// REQ: P4-agt-acp-token-issue
+    /// REQ: P4-agt-a2a-token-issue
     /// \[P4\] Motivating: Clear Boundaries — DelegationToken attenuates capabilities
     /// \[P1\] Constraining: User Sovereignty — tokens are issued to named agents
     /// pre:  `webid` is a valid `WebID`; `agent_type` is a valid
@@ -469,7 +469,7 @@ impl A2ARuntime {
         Ok(primary_token)
     }
 
-    /// REQ: P4-agt-acp-agent-unregister
+    /// REQ: P4-agt-a2a-agent-unregister
     /// \[P4\] Motivating: Clear Boundaries — unregister revokes all agent capabilities
     /// pre:  `webid` is a valid `WebID`.
     /// post: If the agent exists, removes it and its capability tokens
@@ -497,7 +497,7 @@ impl A2ARuntime {
 
     /// R2: Persist Agent State. Returns count of agents restored.
     ///
-    /// REQ: P4-agt-acp-agents-restore
+    /// REQ: P4-agt-a2a-agents-restore
     /// \[P4\] Motivating: Clear Boundaries — restore preserves capability graph
     /// pre:  `agents` is a list of `A2AAgent` records; `tokens` is a map
     ///       of WebID → `Vec<DelegationToken>`.
@@ -596,7 +596,7 @@ impl A2ARuntime {
 
     /// List all registered agents.
     ///
-    /// REQ: P4-agt-acp-agents-list
+    /// REQ: P4-agt-a2a-agents-list
     /// \[P4\] Motivating: Clear Boundaries — enumerate registered agents
     /// pre:  (none).
     /// post: Returns a `Vec<A2AAgent>` containing clones of all currently
@@ -679,7 +679,7 @@ mod tests {
     use super::*;
     use hkask_types::{AgentKind, DelegationResource, WebID};
 
-    const TEST_SECRET: &[u8] = b"test-acp-secret-32-bytes-min!";
+    const TEST_SECRET: &[u8] = b"test-a2a-secret-32-bytes-min!";
 
     fn test_webid(label: &str) -> WebID {
         WebID::from_persona(label.as_bytes())
@@ -687,13 +687,13 @@ mod tests {
 
     // ── A2A Wildcard Rejection ──────────────────────────────────────────────
 
-    // REQ: P4-agt-acp-wildcard-reject-test — A2A rejects wildcard capability "*"
+    // REQ: P4-agt-A2A-wildcard-reject-test — A2A rejects wildcard capability "*"
     #[tokio::test]
-    async fn acp_rejects_wildcard_capability() {
+    async fn a2a_rejects_wildcard_capability() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
-        let result = acp
+        let result = a2a
             .register_agent(webid, AgentKind::Bot, vec!["*".to_string()])
             .await;
 
@@ -704,13 +704,13 @@ mod tests {
         }
     }
 
-    // REQ: P4-agt-acp-wildcard-mixed-reject-test — A2A rejects wildcard mixed with valid capabilities
+    // REQ: P4-agt-A2A-wildcard-mixed-reject-test — A2A rejects wildcard mixed with valid capabilities
     #[tokio::test]
-    async fn acp_rejects_wildcard_mixed_with_valid_capabilities() {
+    async fn a2a_rejects_wildcard_mixed_with_valid_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
-        let result = acp
+        let result = a2a
             .register_agent(
                 webid,
                 AgentKind::Bot,
@@ -727,13 +727,13 @@ mod tests {
 
     // ── ACP Registration ────────────────────────────────────────────────────
 
-    // REQ: P4-agt-acp-register-test — ACP registers agent and returns delegation token
+    // REQ: P4-agt-A2A-register-test — ACP registers agent and returns delegation token
     #[tokio::test]
-    async fn acp_registers_agent_and_returns_token() {
+    async fn a2a_registers_agent_and_returns_token() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
-        let token = acp
+        let token = a2a
             .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
             .await
             .expect("Registration should succeed");
@@ -741,12 +741,12 @@ mod tests {
         assert_eq!(token.delegated_to, webid);
         assert_eq!(token.resource, DelegationResource::Tool);
         assert!(token.verify());
-        assert!(acp.is_registered(&webid).await);
+        assert!(a2a.is_registered(&webid).await);
     }
 
-    // REQ: P4-agt-acp-register-dup-test — A2A rejects duplicate agent registration
+    // REQ: P4-agt-A2A-register-dup-test — A2A rejects duplicate agent registration
     #[tokio::test]
-    async fn acp_rejects_duplicate_registration() {
+    async fn a2a_rejects_duplicate_registration() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
@@ -754,7 +754,7 @@ mod tests {
             .await
             .expect("First registration should succeed");
 
-        let result = acp
+        let result = a2a
             .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
             .await;
 
@@ -765,7 +765,7 @@ mod tests {
         }
     }
 
-    // REQ: P4-agt-acp-register-capabilities-test — Root authority creates delegation tokens for all requested capabilities
+    // REQ: P4-agt-A2A-register-capabilities-test — Root authority creates delegation tokens for all requested capabilities
     #[tokio::test]
     async fn root_authority_creates_tokens_for_all_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -777,12 +777,12 @@ mod tests {
             "template:dispatch".to_string(),
         ];
 
-        let _token = acp
+        let _token = a2a
             .register_agent(webid, AgentKind::Bot, capabilities.clone())
             .await
             .expect("Registration should succeed");
 
-        let stored_tokens = acp.get_capabilities(&webid).await;
+        let stored_tokens = a2a.get_capabilities(&webid).await;
         assert_eq!(
             stored_tokens.len(),
             3,
@@ -797,9 +797,9 @@ mod tests {
 
     // ── ACP Unregistration ──────────────────────────────────────────────────
 
-    // REQ: P4-agt-acp-unregister-test — ACP unregisters agent and removes tokens
+    // REQ: P4-agt-A2A-unregister-test — ACP unregisters agent and removes tokens
     #[tokio::test]
-    async fn acp_unregisters_agent_and_removes_tokens() {
+    async fn a2a_unregisters_agent_and_removes_tokens() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
@@ -807,24 +807,24 @@ mod tests {
             .await
             .expect("Registration should succeed");
 
-        assert!(acp.is_registered(&webid).await);
-        assert!(!acp.get_capabilities(&webid).await.is_empty());
+        assert!(a2a.is_registered(&webid).await);
+        assert!(!a2a.get_capabilities(&webid).await.is_empty());
 
-        acp.unregister_agent(&webid)
+        a2a.unregister_agent(&webid)
             .await
             .expect("Unregistration should succeed");
 
-        assert!(!acp.is_registered(&webid).await);
-        assert!(acp.get_capabilities(&webid).await.is_empty());
+        assert!(!a2a.is_registered(&webid).await);
+        assert!(a2a.get_capabilities(&webid).await.is_empty());
     }
 
-    // REQ: P4-agt-acp-unregister-unknown-test — ACP unregister of unknown agent returns error
+    // REQ: P4-agt-A2A-unregister-unknown-test — ACP unregister of unknown agent returns error
     #[tokio::test]
-    async fn acp_unregister_unknown_agent_returns_error() {
+    async fn a2a_unregister_unknown_agent_returns_error() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("nonexistent");
 
-        let result = acp.unregister_agent(&webid).await;
+        let result = a2a.unregister_agent(&webid).await;
         assert!(result.is_err());
         match result.unwrap_err() {
             A2AError::AgentNotFound(w) => assert_eq!(w, webid),
@@ -834,33 +834,33 @@ mod tests {
 
     // ── ACP Token Revocation ────────────────────────────────────────────────
 
-    // REQ: P4-agt-acp-revoke-test — ACP revokes token and denies subsequent access
+    // REQ: P4-agt-A2A-revoke-test — ACP revokes token and denies subsequent access
     #[tokio::test]
-    async fn acp_revokes_token() {
+    async fn a2a_revokes_token() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
-        let token = acp
+        let token = a2a
             .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
             .await
             .expect("Registration should succeed");
 
         let token_id = token.id.clone();
-        acp.revoke_capability(&token_id).await;
+        a2a.revoke_capability(&token_id).await;
 
-        let state = acp.state.read().await;
+        let state = a2a.state.read().await;
         assert!(state.revoked_tokens.contains(&token_id));
     }
 
     // ── ACP Restore ─────────────────────────────────────────────────────────
 
-    // REQ: P4-agt-acp-restore-test — A2A restored from storage has same capabilities
+    // REQ: P4-agt-A2A-restore-test — A2A restored from storage has same capabilities
     #[tokio::test]
-    async fn acp_restore_preserves_capabilities() {
+    async fn a2a_restore_preserves_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
-        let token = acp
+        let token = a2a
             .register_agent(
                 webid,
                 AgentKind::Bot,
@@ -897,9 +897,9 @@ mod tests {
 
     // ── ACP List Agents ─────────────────────────────────────────────────────
 
-    // REQ: P4-agt-acp-list-test — ACP lists all registered agents
+    // REQ: P4-agt-A2A-list-test — ACP lists all registered agents
     #[tokio::test]
-    async fn acp_lists_registered_agents() {
+    async fn a2a_lists_registered_agents() {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let alice = test_webid("alice");
         let bob = test_webid("bob");
@@ -912,7 +912,7 @@ mod tests {
             .await
             .expect("Bob registration should succeed");
 
-        let agents = acp.list_agents().await;
+        let agents = a2a.list_agents().await;
         assert_eq!(agents.len(), 2);
 
         let webids: Vec<WebID> = agents.iter().map(|a| a.webid).collect();
@@ -920,11 +920,11 @@ mod tests {
         assert!(webids.contains(&bob));
     }
 
-    // REQ: P4-agt-acp-list-empty-test — ACP list is empty when no agents registered
+    // REQ: P4-agt-a2a-list-empty-test — ACP list is empty when no agents registered
     #[tokio::test]
-    async fn acp_list_empty_when_no_agents() {
+    async fn a2a_list_empty_when_no_agents() {
         let a2a = A2ARuntime::new(TEST_SECRET);
-        let agents = acp.list_agents().await;
+        let agents = a2a.list_agents().await;
         assert!(agents.is_empty());
     }
 }

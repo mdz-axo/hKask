@@ -249,6 +249,7 @@ pub(super) fn init_repl_state(
         talk_enabled: false,
         voice_design: None,
         improv_mode: None,
+        kanban_service: None,
     };
 
     // Discover available MCP tools and format the system prompt section.

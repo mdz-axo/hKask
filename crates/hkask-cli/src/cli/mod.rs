@@ -164,6 +164,12 @@ pub enum Commands {
         action: KataAction,
     },
 
+
+    /// Kanban board and task coordination
+    Kanban {
+        #[command(subcommand)]
+        action: KanbanAction,
+    },
     /// List available LLM models
     Models,
 

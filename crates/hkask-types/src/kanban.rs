@@ -122,20 +122,31 @@ pub struct ColumnDef {
     pub status: TaskStatus,
     /// Position in the column ordering (0-based).
     pub position: u32,
+    /// Optional WIP limit — maximum tasks allowed in this column.
+    /// None means no limit. Per Anderson: WIP limits are the core
+    /// mechanism that exposes system problems and stimulates collaboration.
+    pub wip_limit: Option<u32>,
 }
 
 impl ColumnDef {
     /// REQ: KAN-005
     /// pre:  name is non-empty; status is valid; position is >= 0
-    /// post: returns a new ColumnDef with a random ColumnId
+    /// post: returns a new ColumnDef with a random ColumnId, no WIP limit
     pub fn new(name: String, status: TaskStatus, position: u32) -> Self {
         Self {
             id: ColumnId::new(),
             name,
             status,
             position,
+            wip_limit: None,
         }
     }
+
+    pub fn with_wip_limit(mut self, limit: u32) -> Self {
+        self.wip_limit = Some(limit);
+        self
+    }
+
 }
 
 // ── Verification Criterion ─────────────────────────────────────────────────
@@ -265,7 +276,7 @@ impl Board {
 // ── Task ───────────────────────────────────────────────────────────────────
 
 /// TaskSpec — input specification for creating a new task.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TaskSpec {
     /// Short title for the task.
     pub title: String,
@@ -275,6 +286,14 @@ pub struct TaskSpec {
     pub criteria: Vec<VerificationCriterion>,
     /// Optional agent assignment (requires consent).
     pub assignee: Option<WebID>,
+    /// Story points for relative sizing (agile convention).
+    pub story_points: Option<u32>,
+    /// Estimated hours for completion.
+    pub estimated_hours: Option<f64>,
+    /// Due date for the task.
+    pub due_date: Option<DateTime<Utc>>,
+    /// Labels/tags for categorization.
+    pub labels: Vec<String>,
 }
 
 impl TaskSpec {
@@ -287,6 +306,10 @@ impl TaskSpec {
             description: None,
             criteria: Vec::new(),
             assignee: None,
+            story_points: None,
+            estimated_hours: None,
+            due_date: None,
+            labels: Vec::new(),
         }
     }
 
@@ -316,13 +339,41 @@ impl TaskSpec {
         self.assignee = Some(assignee);
         self
     }
+
+    /// REQ: KAN-016b
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_story_points(mut self, points: u32) -> Self {
+        self.story_points = Some(points);
+        self
+    }
+
+    /// REQ: KAN-016c
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_estimated_hours(mut self, hours: f64) -> Self {
+        self.estimated_hours = Some(hours);
+        self
+    }
+
+    /// REQ: KAN-016d
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_due_date(mut self, due: DateTime<Utc>) -> Self {
+        self.due_date = Some(due);
+        self
+    }
+
+    /// REQ: KAN-016e
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_labels(mut self, labels: Vec<String>) -> Self {
+        self.labels = labels;
+        self
+    }
 }
 
 /// Task — a single work item on a kanban board.
 ///
 /// Every task carries `owner: WebID` (P12) — the creator of the task.
 /// Assignment is separate and requires agent consent (P1).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Task {
     /// Unique task identifier.
     pub id: TaskId,
@@ -342,6 +393,14 @@ pub struct Task {
     pub criteria: Vec<VerificationCriterion>,
     /// Verification result, if the task has been verified.
     pub verification: Option<Verification>,
+    /// Story points (relative sizing, agile convention).
+    pub story_points: Option<u32>,
+    /// Estimated hours for completion.
+    pub estimated_hours: Option<f64>,
+    /// Due date for the task.
+    pub due_date: Option<DateTime<Utc>>,
+    /// Labels/tags for categorization and filtering.
+    pub labels: Vec<String>,
     /// When the task was created.
     pub created_at: DateTime<Utc>,
     /// When the task was last updated.
@@ -364,6 +423,10 @@ impl Task {
             assignee: spec.assignee,
             criteria: spec.criteria,
             verification: None,
+            story_points: None,
+            estimated_hours: None,
+            due_date: None,
+            labels: Vec::new(),
             created_at: now,
             updated_at: now,
         }
@@ -448,6 +511,89 @@ impl ConsentProof {
         }
     }
 }
+// ── Spawn Specification ─────────────────────────────────────────────────
+
+/// SpawnSpec — configuration for spawning a sub-replicant to execute a task.
+///
+/// Defines what capabilities (skills, memory scope, tool access) the parent
+/// replicant delegates to the spawned sub-agent. Spawning is consent-mediated
+/// (P1) — the parent chooses what to delegate.
+///
+/// Delegation levels:
+/// - Minimal: read-only access to the task, no memory, restricted tools
+/// - Standard: read-write task access, episodic memory, kanban tools
+/// - Maximal: full replicant capabilities within the task scope
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpawnSpec {
+    /// The task this spawn is for.
+    pub task_id: TaskId,
+    /// Delegation level: "minimal", "standard", or "maximal".
+    pub delegation_level: String,
+    /// Skills to delegate to the spawned replicant.
+    pub delegated_skills: Vec<String>,
+    /// Memory scope: "none", "episodic", or "full".
+    pub memory_scope: String,
+    /// Tool servers accessible to the spawned replicant.
+    pub tool_servers: Vec<String>,
+    /// Maximum gas/energy budget for the spawned replicant.
+    pub gas_budget: Option<u64>,
+    /// Maximum time the spawned replicant can run (seconds).
+    pub timeout_seconds: Option<u64>,
+}
+
+impl SpawnSpec {
+    /// REQ: KAN-030
+    /// pre:  task_id is valid
+    /// post: returns a SpawnSpec with standard delegation defaults
+    pub fn new(task_id: TaskId) -> Self {
+        Self {
+            task_id,
+            delegation_level: "standard".into(),
+            delegated_skills: vec!["kanban".into()],
+            memory_scope: "episodic".into(),
+            tool_servers: vec!["hkask-mcp-kanban".into()],
+            gas_budget: None,
+            timeout_seconds: None,
+        }
+    }
+
+    /// REQ: KAN-031
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_level(mut self, level: &str) -> Self {
+        self.delegation_level = level.into();
+        self
+    }
+
+    /// REQ: KAN-032
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_skills(mut self, skills: Vec<String>) -> Self {
+        self.delegated_skills = skills;
+        self
+    }
+
+    /// REQ: KAN-033
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_memory(mut self, scope: &str) -> Self {
+        self.memory_scope = scope.into();
+        self
+    }
+
+    /// REQ: KAN-034
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_gas_budget(mut self, budget: u64) -> Self {
+        self.gas_budget = Some(budget);
+        self
+    }
+
+    /// REQ: KAN-035
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_timeout(mut self, seconds: u64) -> Self {
+        self.timeout_seconds = Some(seconds);
+        self
+    }
+}
+
+
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 

@@ -63,7 +63,7 @@ pub use id::{
 };
 pub use kanban::{
     Board, ColumnDef, ConsentProof, Task, TaskFilter, TaskSpec, TaskStatus, Verification,
-    VerificationCriterion,
+    VerificationCriterion, SpawnSpec,
 };
 pub use loops::{CurationInput, CuratorHandle, ExperienceClassification};
 pub use ports::{
