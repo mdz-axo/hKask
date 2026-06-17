@@ -1,0 +1,20 @@
+[package]
+name = "hkask-acp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "ACP (Agent Client Protocol) replicant — presents hKask coding agents in IDEs via the Agent Client Protocol"
+
+[dependencies]
+hkask-mcp = { path = "../hkask-mcp" }
+hkask-types = { path = "../hkask-types" }
+hkask-inference = { path = "../hkask-inference" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+dotenvy.workspace = true

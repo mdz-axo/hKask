@@ -4,9 +4,49 @@
 //! Task status transitions are column-ordered: Backlog → Ready → InProgress → Review → Done.
 //! Verification criteria accept natural-language acceptance specs with optional LLM evaluation prompts.
 
-use crate::id::{BoardId, ColumnId, TaskId, WebID};
+use crate::id::{BoardId, ColumnId, CommentId, PhaseId, TaskId, WebID};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+
+
+// ── Priority ────────────────────────────────────────────────────────────────
+
+/// Priority level for kanban tasks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Priority {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+impl Priority {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Priority::Low => "low",
+            Priority::Medium => "medium",
+            Priority::High => "high",
+            Priority::Critical => "critical",
+        }
+    }
+
+    pub fn parse_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "low" => Some(Priority::Low),
+            "medium" | "med" => Some(Priority::Medium),
+            "high" => Some(Priority::High),
+            "critical" | "crit" => Some(Priority::Critical),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for Priority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
 
 // ── Task Status ────────────────────────────────────────────────────────────
 
@@ -216,6 +256,45 @@ impl Verification {
     }
 }
 
+
+// ── Phase ──────────────────────────────────────────────────────────────────
+
+/// Phase — a grouping category for tasks within a board.
+///
+/// Phases group work for reassembly: when all tasks in a phase complete,
+/// their deliverables can be composed into a coherent output.
+/// Unlike columns (which track workflow state), phases track project structure.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Phase {
+    pub id: PhaseId,
+    pub name: String,
+    pub description: Option<String>,
+    /// Display order (0-based).
+    pub order: u32,
+    /// When the phase was created.
+    pub created_at: DateTime<Utc>,
+}
+
+impl Phase {
+    /// REQ: KAN-040
+    pub fn new(name: String, order: u32) -> Self {
+        Self {
+            id: PhaseId::new(),
+            name,
+            description: None,
+            order,
+            created_at: Utc::now(),
+        }
+    }
+
+    /// REQ: KAN-041
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_description(mut self, desc: String) -> Self {
+        self.description = Some(desc);
+        self
+    }
+}
+
 // ── Board ──────────────────────────────────────────────────────────────────
 
 /// Board — a kanban board containing columns and tasks.
@@ -233,6 +312,8 @@ pub struct Board {
     pub owner: WebID,
     /// Columns in display order (position-sorted).
     pub columns: Vec<ColumnDef>,
+    /// Project phases for work grouping and reassembly.
+    pub phases: Vec<Phase>,
     /// When the board was created.
     pub created_at: DateTime<Utc>,
 }
@@ -247,6 +328,7 @@ impl Board {
             name,
             owner,
             columns,
+            phases: Vec::new(),
             created_at: Utc::now(),
         }
     }
@@ -290,10 +372,12 @@ pub struct TaskSpec {
     pub story_points: Option<u32>,
     /// Estimated hours for completion.
     pub estimated_hours: Option<f64>,
-    /// Due date for the task.
-    pub due_date: Option<DateTime<Utc>>,
     /// Labels/tags for categorization.
     pub labels: Vec<String>,
+    /// Priority level.
+    pub priority: Option<Priority>,
+    /// Optional phase grouping.
+    pub phase_id: Option<PhaseId>,
 }
 
 impl TaskSpec {
@@ -308,8 +392,9 @@ impl TaskSpec {
             assignee: None,
             story_points: None,
             estimated_hours: None,
-            due_date: None,
             labels: Vec::new(),
+            priority: None,
+            phase_id: None,
         }
     }
 
@@ -356,8 +441,8 @@ impl TaskSpec {
 
     /// REQ: KAN-016d
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_due_date(mut self, due: DateTime<Utc>) -> Self {
-        self.due_date = Some(due);
+    pub fn with_priority(mut self, priority: Priority) -> Self {
+        self.priority = Some(priority);
         self
     }
 
@@ -365,6 +450,13 @@ impl TaskSpec {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_labels(mut self, labels: Vec<String>) -> Self {
         self.labels = labels;
+        self
+    }
+
+    /// REQ: KAN-016f
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_phase(mut self, phase_id: PhaseId) -> Self {
+        self.phase_id = Some(phase_id);
         self
     }
 }
@@ -397,10 +489,16 @@ pub struct Task {
     pub story_points: Option<u32>,
     /// Estimated hours for completion.
     pub estimated_hours: Option<f64>,
-    /// Due date for the task.
-    pub due_date: Option<DateTime<Utc>>,
+    /// Priority level.
+    pub priority: Option<Priority>,
     /// Labels/tags for categorization and filtering.
     pub labels: Vec<String>,
+    /// Task comments — mini-REPL thread for in-process communication.
+    pub comments: Vec<Comment>,
+    /// Deliverable links — file paths or URLs pointing to work outputs.
+    pub deliverables: Vec<String>,
+    /// Optional phase grouping for work reassembly.
+    pub phase_id: Option<PhaseId>,
     /// When the task was created.
     pub created_at: DateTime<Utc>,
     /// When the task was last updated.
@@ -425,8 +523,11 @@ impl Task {
             verification: None,
             story_points: None,
             estimated_hours: None,
-            due_date: None,
             labels: Vec::new(),
+            priority: None,
+            comments: Vec::new(),
+            deliverables: Vec::new(),
+            phase_id: None,
             created_at: now,
             updated_at: now,
         }
@@ -440,6 +541,30 @@ impl Task {
     }
 }
 
+
+// ── Comment ────────────────────────────────────────────────────────────────
+
+/// Comment — a text note appended to a task by an agent.
+///
+/// Forms a mini-REPL thread attached to each task: agents append notes
+/// as they work, and the coordinating replicant responds inline.
+/// Every comment carries `author: WebID` (P12).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Comment {
+    pub id: CommentId,
+    pub task_id: TaskId,
+    pub author: WebID,
+    pub body: String,
+    pub created_at: DateTime<Utc>,
+}
+
+impl Comment {
+    /// REQ: KAN-050
+    pub fn new(task_id: TaskId, author: WebID, body: String) -> Self {
+        Self { id: CommentId::new(), task_id, author, body, created_at: Utc::now() }
+    }
+}
+
 // ── Filter ─────────────────────────────────────────────────────────────────
 
 /// TaskFilter — criteria for listing/filtering tasks on a board.
@@ -449,6 +574,8 @@ pub struct TaskFilter {
     pub status: Option<TaskStatus>,
     /// Filter by assignee.
     pub assignee: Option<WebID>,
+    /// Filter by priority.
+    pub priority: Option<Priority>,
     /// Limit the number of results.
     pub limit: Option<usize>,
 }
@@ -457,7 +584,12 @@ impl TaskFilter {
     /// REQ: KAN-019
     /// post: returns an empty filter (matches all tasks)
     pub fn all() -> Self {
-        Self::default()
+        Self {
+            status: None,
+            assignee: None,
+            priority: None,
+            limit: None,
+        }
     }
 
     /// REQ: KAN-020
@@ -467,6 +599,7 @@ impl TaskFilter {
         Self {
             status: Some(status),
             assignee: None,
+            priority: None,
             limit: None,
         }
     }
@@ -478,6 +611,17 @@ impl TaskFilter {
         Self {
             status: None,
             assignee: Some(assignee),
+            priority: None,
+            limit: None,
+        }
+    }
+
+    /// REQ: KAN-021b
+    pub fn by_priority(priority: Priority) -> Self {
+        Self {
+            status: None,
+            assignee: None,
+            priority: Some(priority),
             limit: None,
         }
     }

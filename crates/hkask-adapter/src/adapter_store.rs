@@ -29,6 +29,8 @@ struct AdapterRow {
     checksum: String,
     storage_path: String,
     base_model_family: String,
+    version: Option<String>,
+    huggingface_repo: Option<String>,
     owner_webid: String,
     training_run_id: String,
     training_source: String,
@@ -74,10 +76,16 @@ pub struct TrainedLoRAAdapter {
     pub expertise: Expertise,
     /// SHA-256 checksum of the adapter weights
     pub checksum: Checksum,
-    /// Path to the adapter weights on disk or remote URI
+    /// Path to the adapter weights directory (contains adapter_config.json + adapter_model.safetensors)
     pub storage_path: String,
-    /// Base model family (e.g. "llama-3.3-70b")
+    /// Base model family (derived from expertise.training_source — kept for fast DB queries)
     pub base_model_family: String,
+    /// Optional version identifier (e.g. "v3", "latest"). Caller-managed; never implicitly superseded (P2).
+    #[serde(default)]
+    pub version: Option<String>,
+    /// Optional Hugging Face Hub repo URL for adapter upload to providers that use HF as source.
+    #[serde(default)]
+    pub huggingface_repo: Option<String>,
     /// Owner (sovereign-scoped — no anonymous artifacts, P12)
     pub owner: WebID,
     /// When the adapter was stored
@@ -109,6 +117,13 @@ pub enum AdapterStoreError {
     Serialization(#[from] serde_json::Error),
 }
 
+// ── Shared SELECT columns ─────────────────────────────────────────────────
+
+const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domain, \
+    capability_manifest_json, checksum, storage_path, base_model_family, \
+    version, huggingface_repo, owner_webid, training_run_id, training_source, \
+    completed_at, training_metrics_json, created_at FROM trained_adapters";
+
 // ── AdapterStore implementation ──────────────────────────────────────────────
 
 impl AdapterStore {
@@ -120,24 +135,26 @@ impl AdapterStore {
         let conn = self.lock_conn()?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS trained_adapters (
-                adapter_id          TEXT PRIMARY KEY NOT NULL,
-                expertise_name      TEXT NOT NULL,
-                expertise_domain    TEXT NOT NULL,
-                capability_manifest_json TEXT NOT NULL DEFAULT '{}',
-                checksum            TEXT NOT NULL,
-                storage_path        TEXT NOT NULL,
-                base_model_family   TEXT NOT NULL,
-                owner_webid         TEXT NOT NULL,
-                training_run_id     TEXT NOT NULL,
-                training_source     TEXT NOT NULL,
-                completed_at        TEXT NOT NULL,
-                training_metrics_json TEXT,
-                created_at          TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-            CREATE INDEX IF NOT EXISTS idx_adapter_expertise
-                ON trained_adapters(expertise_name);
-            CREATE INDEX IF NOT EXISTS idx_adapter_owner
-                ON trained_adapters(owner_webid);",
+                        adapter_id          TEXT PRIMARY KEY NOT NULL,
+                        expertise_name      TEXT NOT NULL,
+                        expertise_domain    TEXT NOT NULL,
+                        capability_manifest_json TEXT NOT NULL DEFAULT '{}',
+                        checksum            TEXT NOT NULL,
+                        storage_path        TEXT NOT NULL,
+                        base_model_family   TEXT NOT NULL,
+                        version             TEXT,
+                        huggingface_repo    TEXT,
+                        owner_webid         TEXT NOT NULL,
+                        training_run_id     TEXT NOT NULL,
+                        training_source     TEXT NOT NULL,
+                        completed_at        TEXT NOT NULL,
+                        training_metrics_json TEXT,
+                        created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_adapter_expertise
+                        ON trained_adapters(expertise_name);
+                    CREATE INDEX IF NOT EXISTS idx_adapter_owner
+                        ON trained_adapters(owner_webid);",
         )?;
         Ok(())
     }
@@ -156,10 +173,10 @@ impl AdapterStore {
         conn.execute(
             "INSERT INTO trained_adapters
                 (adapter_id, expertise_name, expertise_domain, capability_manifest_json,
-                 checksum, storage_path, base_model_family, owner_webid,
-                 training_run_id, training_source, completed_at,
+                 checksum, storage_path, base_model_family, version, huggingface_repo,
+                 owner_webid, training_run_id, training_source, completed_at,
                  training_metrics_json, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             rusqlite::params![
                 adapter.id.to_string(),
                 adapter.expertise.name,
@@ -168,6 +185,8 @@ impl AdapterStore {
                 adapter.checksum.as_str(),
                 adapter.storage_path,
                 adapter.base_model_family,
+                adapter.version,
+                adapter.huggingface_repo,
                 adapter.owner.as_uuid().to_string(),
                 adapter.expertise.training_source.training_run_id,
                 adapter.expertise.training_source.training_source,
@@ -186,13 +205,7 @@ impl AdapterStore {
     /// post: returns Some(TrainedLoRAAdapter) if found, None otherwise
     pub fn get_by_id(&self, id: Uuid) -> Result<Option<TrainedLoRAAdapter>, AdapterStoreError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT adapter_id, expertise_name, expertise_domain, capability_manifest_json,
-                    checksum, storage_path, base_model_family, owner_webid,
-                    training_run_id, training_source, completed_at,
-                    training_metrics_json, created_at
-             FROM trained_adapters WHERE adapter_id = ?1",
-        )?;
+        let mut stmt = conn.prepare(&format!("{} WHERE adapter_id = ?1", ADAPTER_SELECT))?;
 
         let rows: Vec<TrainedLoRAAdapter> = collect_rows_strict!(
             stmt,
@@ -206,12 +219,14 @@ impl AdapterStore {
                     checksum: row.get(4)?,
                     storage_path: row.get(5)?,
                     base_model_family: row.get(6)?,
-                    owner_webid: row.get(7)?,
-                    training_run_id: row.get(8)?,
-                    training_source: row.get(9)?,
-                    completed_at: row.get(10)?,
-                    training_metrics_json: row.get(11)?,
-                    created_at: row.get(12)?,
+                    version: row.get(7)?,
+                    huggingface_repo: row.get(8)?,
+                    owner_webid: row.get(9)?,
+                    training_run_id: row.get(10)?,
+                    training_source: row.get(11)?,
+                    completed_at: row.get(12)?,
+                    training_metrics_json: row.get(13)?,
+                    created_at: row.get(14)?,
                 })
             },
             |r: AdapterRow| -> Result<TrainedLoRAAdapter, AdapterStoreError> {
@@ -232,13 +247,7 @@ impl AdapterStore {
         expertise_name: &str,
     ) -> Result<Vec<TrainedLoRAAdapter>, AdapterStoreError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT adapter_id, expertise_name, expertise_domain, capability_manifest_json,
-                    checksum, storage_path, base_model_family, owner_webid,
-                    training_run_id, training_source, completed_at,
-                    training_metrics_json, created_at
-             FROM trained_adapters WHERE expertise_name = ?1",
-        )?;
+        let mut stmt = conn.prepare(&format!("{} WHERE expertise_name = ?1", ADAPTER_SELECT))?;
 
         let rows: Vec<TrainedLoRAAdapter> = collect_rows_strict!(
             stmt,
@@ -252,12 +261,14 @@ impl AdapterStore {
                     checksum: row.get(4)?,
                     storage_path: row.get(5)?,
                     base_model_family: row.get(6)?,
-                    owner_webid: row.get(7)?,
-                    training_run_id: row.get(8)?,
-                    training_source: row.get(9)?,
-                    completed_at: row.get(10)?,
-                    training_metrics_json: row.get(11)?,
-                    created_at: row.get(12)?,
+                    version: row.get(7)?,
+                    huggingface_repo: row.get(8)?,
+                    owner_webid: row.get(9)?,
+                    training_run_id: row.get(10)?,
+                    training_source: row.get(11)?,
+                    completed_at: row.get(12)?,
+                    training_metrics_json: row.get(13)?,
+                    created_at: row.get(14)?,
                 })
             },
             |r: AdapterRow| -> Result<TrainedLoRAAdapter, AdapterStoreError> {
@@ -275,13 +286,7 @@ impl AdapterStore {
     /// post: returns Vec of adapters owned by the given WebID
     pub fn list_owner(&self, owner: WebID) -> Result<Vec<TrainedLoRAAdapter>, AdapterStoreError> {
         let conn = self.lock_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT adapter_id, expertise_name, expertise_domain, capability_manifest_json,
-                    checksum, storage_path, base_model_family, owner_webid,
-                    training_run_id, training_source, completed_at,
-                    training_metrics_json, created_at
-             FROM trained_adapters WHERE owner_webid = ?1",
-        )?;
+        let mut stmt = conn.prepare(&format!("{} WHERE owner_webid = ?1", ADAPTER_SELECT))?;
 
         let rows: Vec<TrainedLoRAAdapter> = collect_rows_strict!(
             stmt,
@@ -295,12 +300,14 @@ impl AdapterStore {
                     checksum: row.get(4)?,
                     storage_path: row.get(5)?,
                     base_model_family: row.get(6)?,
-                    owner_webid: row.get(7)?,
-                    training_run_id: row.get(8)?,
-                    training_source: row.get(9)?,
-                    completed_at: row.get(10)?,
-                    training_metrics_json: row.get(11)?,
-                    created_at: row.get(12)?,
+                    version: row.get(7)?,
+                    huggingface_repo: row.get(8)?,
+                    owner_webid: row.get(9)?,
+                    training_run_id: row.get(10)?,
+                    training_source: row.get(11)?,
+                    completed_at: row.get(12)?,
+                    training_metrics_json: row.get(13)?,
+                    created_at: row.get(14)?,
                 })
             },
             |r: AdapterRow| -> Result<TrainedLoRAAdapter, AdapterStoreError> {
@@ -381,6 +388,8 @@ impl AdapterStore {
             checksum: Checksum::from_hex(&r.checksum),
             storage_path: r.storage_path,
             base_model_family: base_model,
+            version: r.version,
+            huggingface_repo: r.huggingface_repo,
             owner: WebID::from_uuid(owner_uuid),
             created_at: r.created_at,
         })
@@ -414,6 +423,8 @@ mod tests {
             checksum: Checksum::from_hex("abcdef1234567890"),
             storage_path: "/tmp/adapter.bin".into(),
             base_model_family: "llama-3.3-70b".into(),
+            version: None,
+            huggingface_repo: None,
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         }

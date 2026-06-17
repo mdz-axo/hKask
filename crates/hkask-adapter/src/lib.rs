@@ -18,6 +18,7 @@
 //! Every operation is OCAP-gated. Every state transition emits a CNS span.
 //! Every endpoint drains on session completion or budget exhaustion.
 
+pub mod adapter_config;
 pub mod adapter_port;
 pub mod adapter_router;
 pub mod adapter_store;

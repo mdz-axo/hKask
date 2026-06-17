@@ -845,6 +845,10 @@ pub enum KanbanAction {
     },
     /// List all boards
     BoardList,
+    /// View a board as a text-based column layout
+    BoardView {
+        board_id: String,
+    },
     /// Create a new task
     TaskCreate {
         board_id: String,

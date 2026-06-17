@@ -14,8 +14,8 @@ use std::sync::Arc;
 
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::{
-    Board, BoardId, ColumnDef, ConsentProof, Task, TaskFilter, TaskId, TaskSpec, TaskStatus,
-    Verification, WebID,
+    Board, BoardId, ColumnDef, Comment, ConsentProof, Phase, PhaseId, Task, TaskFilter, TaskId,
+    Priority, TaskSpec, TaskStatus, Verification, WebID,
 };
 use serde_json::Value;
 
@@ -121,7 +121,81 @@ impl KanbanService {
         }
     }
 
-    // ── Task operations ───────────────────────────────────────────────────
+    /// Render a text-based kanban board view.
+    ///
+    /// REQ: KAN-SVC-004b
+    /// pre:  board_id refers to an existing board
+    /// post: returns a formatted string showing columns with tasks arranged by status,
+    ///       WIP limits, story points, labels, overdue indicators, and verification status
+    pub fn board_view(&self, board_id: BoardId, filter: Option<&str>) -> Result<String, KanbanError> {
+        let board = self.board_get(board_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+        let mut tasks = self.task_list(board_id, TaskFilter::all())?;
+
+        // Apply filter if present
+        let filter_desc = if let Some(f) = filter {
+            if let Some(s) = TaskStatus::parse_str(f) {
+                tasks.retain(|t| t.status == s);
+                Some(format!("status={}", s))
+            } else if let Some(p) = hkask_types::Priority::parse_str(f) {
+                tasks.retain(|t| t.priority == Some(p));
+                Some(format!("priority={}", p))
+            } else if f.len() > 30 && f.parse::<WebID>().is_ok() {
+                let wid: WebID = f.parse().unwrap();
+                tasks.retain(|t| t.assignee == Some(wid));
+                Some(format!("assignee={}", wid.redacted_display()))
+            } else {
+                let lower = f.to_lowercase();
+                tasks.retain(|t| t.labels.iter().any(|l| l.to_lowercase().contains(&lower)));
+                Some(format!("label~{}", f))
+            }
+        } else {
+            None
+        };
+
+        let mut by_status: std::collections::HashMap<TaskStatus, Vec<&Task>> =
+            std::collections::HashMap::new();
+        for t in &tasks {
+            by_status.entry(t.status).or_default().push(t);
+        }
+
+        let mut out = format!("{}  {}", board.name, board.id);
+        if let Some(ref d) = filter_desc {
+            out.push_str(&format!("  [{}]", d));
+        }
+        out.push_str("\n\n");
+
+        for col in &board.columns {
+            let count = by_status.get(&col.status).map(|v| v.len()).unwrap_or(0);
+            if count == 0 && !tasks.is_empty() { continue; }
+            let wip = col.wip_limit.map_or(String::new(), |l| format!("/{}", l));
+            out.push_str(&format!("  {}{} ({}{})\n", col.name, wip, count, wip));
+        }
+        out.push_str("\n");
+
+        for col in &board.columns {
+            let col_tasks = by_status.get(&col.status).map(|v| v.as_slice()).unwrap_or(&[]);
+            if col_tasks.is_empty() { continue; }
+            out.push_str(&format!("  {}:\n", col.name));
+            for task in col_tasks {
+                let idx = tasks.iter().position(|t| t.id == task.id).unwrap_or(0) + 1;
+                let a = task.assignee.map(|a| format!(" <- {}", a.redacted_display())).unwrap_or_default();
+                let p = task.priority.map(|p| match p {
+                    hkask_types::Priority::Critical => " !!",
+                    hkask_types::Priority::High => " !",
+                    _ => "",
+                }).unwrap_or("");
+                out.push_str(&format!("    {}. {}{}{}\n", idx, task.title, p, a));
+            }
+            out.push_str("\n");
+        }
+
+        if tasks.is_empty() && filter.is_some() {
+            out.push_str("  (no tasks match)\n");
+        }
+
+        Ok(out)
+    }    // ── Task operations ───────────────────────────────────────────────────
 
     /// Create a new task on a board.
     ///
@@ -143,13 +217,15 @@ impl KanbanService {
         // Extract sizing fields before Task::new consumes the spec
         let sp = spec.story_points;
         let eh = spec.estimated_hours;
-        let dd = spec.due_date;
+        let pr = spec.priority;
         let lbls = spec.labels.clone();
+        let ph = spec.phase_id;
         let mut task = Task::new(board_id, spec, owner);
         task.story_points = sp;
         task.estimated_hours = eh;
-        task.due_date = dd;
         task.labels = lbls;
+        task.priority = pr;
+        task.phase_id = ph;
         let value = serde_json::to_value(&task)
             .map_err(|e| KanbanError::Internal(format!("serialization failed: {e}")))?;
 
@@ -236,8 +312,10 @@ impl KanbanService {
                         let status_match = filter.status.map_or(true, |s| task.status == s);
                         let assignee_match =
                             filter.assignee.map_or(true, |a| task.assignee == Some(a));
+                        let priority_match =
+                            filter.priority.map_or(true, |p| task.priority == Some(p));
 
-                        if status_match && assignee_match {
+                        if status_match && assignee_match && priority_match {
                             tasks.push(task);
                         }
                     }
@@ -464,12 +542,25 @@ impl KanbanService {
         self.board_get(board_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
         let sizing_guidance = match (target_task_points, target_hours) {
-            (Some(p), Some(h)) => format!("Each task should be approximately {p} story points or {h} hours."),
+            (Some(p), Some(h)) => {
+                format!("Each task should be approximately {p} story points or {h} hours.")
+            }
             (Some(p), None) => format!("Each task should be approximately {p} story points."),
             (None, Some(h)) => format!("Each task should be approximately {h} hours."),
             (None, None) => "Aim for tasks of 2-8 hours each.".to_string(),
         };
-        Ok(format!("Decompose project into kanban tasks. Project: {project_description}. Sizing: {sizing_guidance}. For each task provide: title, description, story_points (int), estimated_hours (float), labels (comma-separated), criteria (list of acceptance criteria strings). Return JSON array of objects."))
+        Ok(format!(
+            "Decompose project into kanban tasks following INVEST criteria and vertical slicing.
+
+             Project: {project_description}
+             Sizing: {sizing_guidance}
+
+             For each task provide: title, description, story_points (int), estimated_hours (float),              labels (list), criteria (list of verifiable acceptance criteria strings),              priority (low|medium|high|critical), dependencies (list of task titles).
+
+             REQUIRED: Include a recomposition strategy with phases, integration order, and final              verification. Return JSON with tasks array and recomposition object.              See kanban-task-decomposition skill manifest for full schema.",
+            project_description = project_description,
+            sizing_guidance = sizing_guidance
+        ))
     }
 
     /// Spawn a sub-replicant to execute a task.
@@ -480,14 +571,151 @@ impl KanbanService {
         task_id: TaskId,
         spawn_spec: hkask_types::SpawnSpec,
     ) -> Result<String, KanbanError> {
-        let task = self.task_get(task_id)?
+        let task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
-        Ok(format!("Spawn for task '{}': level={}, skills={:?}, memory={}, tools={:?}, gas={:?}, timeout={:?}s. [Future: pod activation]",
-            task.title, spawn_spec.delegation_level, spawn_spec.delegated_skills,
-            spawn_spec.memory_scope, spawn_spec.tool_servers, spawn_spec.gas_budget, spawn_spec.timeout_seconds))
+        Ok(format!(
+            "Spawn for task '{}': level={}, skills={:?}, memory={}, tools={:?}, gas={:?}, timeout={:?}s. [Future: pod activation]",
+            task.title,
+            spawn_spec.delegation_level,
+            spawn_spec.delegated_skills,
+            spawn_spec.memory_scope,
+            spawn_spec.tool_servers,
+            spawn_spec.gas_budget,
+            spawn_spec.timeout_seconds
+        ))
+    }
+
+    // ── Comments (mini-REPL per task) ─────────────────────────────────
+
+    /// Append a comment to a task.
+    ///
+    /// REQ: KAN-SVC-030
+    /// pre:  task_id is valid; author is valid WebID; body is non-empty
+    /// post: comment is appended to the task's comment thread
+    pub fn task_comment(
+        &self,
+        task_id: TaskId,
+        author: WebID,
+        body: &str,
+    ) -> Result<Comment, KanbanError> {
+        let mut task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let comment = Comment::new(task_id, author, body.to_string());
+        task.comments.push(comment.clone());
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+        Ok(comment)
+    }
+
+    /// List all comments on a task.
+    ///
+    /// REQ: KAN-SVC-031
+    pub fn task_comments(&self, task_id: TaskId) -> Result<Vec<Comment>, KanbanError> {
+        let task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        Ok(task.comments)
+    }
+
+    // ── Deliverables (file path / URL links) ──────────────────────────
+
+    /// Add a deliverable link to a task.
+    ///
+    /// REQ: KAN-SVC-032
+    /// pre:  task_id is valid; path is a non-empty file path or URL
+    /// post: path is appended to the task's deliverable list
+    pub fn task_add_deliverable(&self, task_id: TaskId, path: &str) -> Result<Task, KanbanError> {
+        let mut task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        task.deliverables.push(path.to_string());
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+        Ok(task)
+    }
+
+    // ── Phases ────────────────────────────────────────────────────────
+
+    /// Add a phase to a board.
+    ///
+    /// REQ: KAN-SVC-033
+    pub fn board_add_phase(
+        &self,
+        board_id: BoardId,
+        name: &str,
+        order: u32,
+    ) -> Result<Phase, KanbanError> {
+        let mut board = self
+            .board_get(board_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+        let phase = Phase::new(name.to_string(), order);
+        board.phases.push(phase.clone());
+        self.update_board_triple(&board)?;
+        Ok(phase)
+    }
+
+    /// Set a task's phase.
+    ///
+    /// REQ: KAN-SVC-034
+    pub fn task_set_phase(&self, task_id: TaskId, phase_id: PhaseId) -> Result<Task, KanbanError> {
+        let mut task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        task.phase_id = Some(phase_id);
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+        Ok(task)
+    }
+
+    /// List tasks in a specific phase.
+    ///
+    /// REQ: KAN-SVC-035
+    pub fn tasks_by_phase(
+        &self,
+        board_id: BoardId,
+        phase_id: PhaseId,
+    ) -> Result<Vec<Task>, KanbanError> {
+        let all = self.task_list(board_id, TaskFilter::all())?;
+        Ok(all
+            .into_iter()
+            .filter(|t| t.phase_id == Some(phase_id))
+            .collect())
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+
+    fn update_task_triple(&self, task: &Task) -> Result<(), KanbanError> {
+        let new_value = serde_json::to_value(task)
+            .map_err(|e| KanbanError::Internal(format!("serialization failed: {e}")))?;
+        let triples = self
+            .store
+            .query_by_entity_attribute(TASK_ENTITY, &task.id.to_string())
+            .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
+        if let Some(t) = triples.into_iter().next() {
+            self.store
+                .update(&t.id, new_value, 1.0f64)
+                .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
+        }
+        Ok(())
+    }
+
+    fn update_board_triple(&self, board: &Board) -> Result<(), KanbanError> {
+        let new_value = serde_json::to_value(board)
+            .map_err(|e| KanbanError::Internal(format!("serialization failed: {e}")))?;
+        let triples = self
+            .store
+            .query_by_entity_attribute(BOARD_ENTITY, &board.id.to_string())
+            .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
+        if let Some(t) = triples.into_iter().next() {
+            self.store
+                .update(&t.id, new_value, 1.0f64)
+                .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
+        }
+        Ok(())
     }
 }
-
 
 // ── Error types ────────────────────────────────────────────────────────────
 
@@ -525,8 +753,8 @@ pub enum KanbanError {
 
 #[cfg(test)]
 mod tests {
-    use hkask_storage::Store;
     use super::*;
+    use hkask_storage::Store;
     use hkask_types::VerificationCriterion;
     use rusqlite::Connection;
     use std::sync::Mutex;

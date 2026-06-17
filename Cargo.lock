@@ -3819,6 +3819,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-acp"
+version = "0.27.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dotenvy",
+ "hkask-inference",
+ "hkask-mcp",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "hkask-adapter"
 version = "0.27.0"
 dependencies = [
@@ -3826,6 +3844,7 @@ dependencies = [
  "hkask-inference",
  "hkask-storage",
  "hkask-types",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",

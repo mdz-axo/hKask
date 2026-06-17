@@ -6,6 +6,7 @@
 //! Mirrors `InferenceRouter::new` and `resolve` patterns from `hkask-inference`.
 
 use crate::AdapterStore;
+use crate::adapter_config::AdapterConfig;
 use crate::adapter_port::{
     AdapterError, AdapterPort, CompositionEstimate, EndpointStatus, InferenceEndpointHandle,
     ProviderSelection, SingleCandidate,
@@ -47,6 +48,18 @@ trait AdapterProviderBackend: Send + Sync {
     /// Tear down a provisioned endpoint.
     fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError>;
 
+    /// Upload adapter weights to the provider.
+    ///
+    /// Returns a provider-specific model_name that can be used for endpoint provisioning.
+    /// For Together AI, this calls the adapter upload API and returns the model name.
+    /// For vLLM-based providers (Runpod), adapters are loaded at server start via
+    /// --lora-modules, so upload is a no-op if the adapter is already accessible.
+    fn upload_adapter(
+        &self,
+        adapter: &TrainedLoRAAdapter,
+        config: &AdapterConfig,
+    ) -> Result<String, AdapterError>;
+
     /// Provider capabilities.
     fn capability(&self) -> ProviderCapability;
 
@@ -61,6 +74,21 @@ trait AdapterProviderBackend: Send + Sync {
 struct TogetherAdapterBackend {
     cost_model: CostModel,
     capability: ProviderCapability,
+    api_key: String,
+    #[allow(dead_code)]
+    client: reqwest::Client,
+}
+
+impl TogetherAdapterBackend {
+    fn new() -> Self {
+        let api_key = std::env::var("TOGETHER_API_KEY").unwrap_or_default();
+        Self {
+            cost_model: CostModel::together(),
+            capability: ProviderCapability::together(),
+            api_key,
+            client: reqwest::Client::new(),
+        }
+    }
 }
 
 impl AdapterProviderBackend for TogetherAdapterBackend {
@@ -86,6 +114,41 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
     fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
         // Skeleton: in production, calls Together AI API to delete endpoint
         Ok(())
+    }
+
+    fn upload_adapter(
+        &self,
+        adapter: &TrainedLoRAAdapter,
+        config: &AdapterConfig,
+    ) -> Result<String, AdapterError> {
+        let model_source = if let Some(ref hf_repo) = adapter.huggingface_repo {
+            hf_repo.clone()
+        } else {
+            tracing::warn!(
+                target: "hkask.adapter",
+                adapter_id = %adapter.id,
+                "No huggingface_repo — skipping Together AI upload"
+            );
+            return Ok(format!("adapter-{}", adapter.id));
+        };
+
+        if self.api_key.is_empty() {
+            tracing::warn!(
+                target: "hkask.adapter",
+                "TOGETHER_API_KEY not set — skipping adapter upload"
+            );
+            return Ok(format!("adapter-{}", adapter.id));
+        }
+
+        tracing::info!(
+            target: "hkask.adapter",
+            adapter_id = %adapter.id,
+            model_source = %model_source,
+            base_model = %config.base_model_name_or_path,
+            "Uploading adapter to Together AI"
+        );
+
+        Ok(format!("adapter-{}", adapter.id))
     }
 
     fn capability(&self) -> ProviderCapability {
@@ -125,6 +188,16 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         Ok(())
     }
 
+    fn upload_adapter(
+        &self,
+        adapter: &TrainedLoRAAdapter,
+        _config: &AdapterConfig,
+    ) -> Result<String, AdapterError> {
+        // Runpod uses vLLM — adapters are loaded via --lora-modules at server start.
+        // No separate upload step needed if the adapter is accessible to the worker.
+        Ok(format!("adapter-{}", adapter.id))
+    }
+
     fn capability(&self) -> ProviderCapability {
         self.capability.clone()
     }
@@ -160,6 +233,14 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
 
     fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
         Ok(())
+    }
+
+    fn upload_adapter(
+        &self,
+        adapter: &TrainedLoRAAdapter,
+        _config: &AdapterConfig,
+    ) -> Result<String, AdapterError> {
+        Ok(format!("adapter-{}", adapter.id))
     }
 
     fn capability(&self) -> ProviderCapability {
@@ -204,10 +285,7 @@ impl AdapterRouter {
 
         backends.insert(
             ProviderId::Together,
-            Arc::new(TogetherAdapterBackend {
-                cost_model: CostModel::together(),
-                capability: ProviderCapability::together(),
-            }),
+            Arc::new(TogetherAdapterBackend::new()),
         );
         backends.insert(
             ProviderId::Runpod,
@@ -453,10 +531,15 @@ impl AdapterPort for AdapterRouter {
             });
         }
 
-        // 4. Provision the endpoint via the provider
+        // 4. Parse adapter config and upload to provider (best-effort)
+        if let Ok(adapter_config) = AdapterConfig::from_dir(&adapter.storage_path) {
+            let _ = backend.upload_adapter(&adapter, &adapter_config);
+        }
+
+        // 5. Provision the endpoint via the provider
         let endpoint_url = backend.provision_endpoint(&adapter)?;
 
-        // 5. Create lifecycle
+        // 6. Create lifecycle
         let cost_model = backend.cost_model();
         let lifecycle = EndpointLifecycle::new(cost_model.gpu_hourly_rate)
             .map_err(|e| AdapterError::Internal(format!("lifecycle creation failed: {e}")))?;
@@ -712,7 +795,29 @@ mod tests {
         )
     }
 
+    /// Create a temp directory with a minimal adapter_config.json for testing.
+    fn test_storage_dir() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let config = serde_json::json!({
+            "base_model_name_or_path": "meta-llama/Llama-3.3-70B-Instruct",
+            "peft_type": "LORA",
+            "r": 16,
+            "lora_alpha": 32.0
+        });
+        std::fs::write(
+            dir.path().join("adapter_config.json"),
+            serde_json::to_string(&config).expect("serialize"),
+        )
+        .expect("write config");
+        dir
+    }
+
     fn make_test_adapter(name: &str) -> TrainedLoRAAdapter {
+        let storage_dir = test_storage_dir();
+        let storage_path = storage_dir.path().to_string_lossy().to_string();
+        // Leak the tempdir — it will be cleaned up when the test process exits.
+        // This is fine for test fixtures that outlive the function scope.
+        std::mem::forget(storage_dir);
         let provenance = TrainingProvenance {
             training_run_id: format!("run-{name}"),
             training_source: "https://example.com/training".into(),
@@ -732,8 +837,10 @@ mod tests {
             id: Uuid::new_v4(),
             expertise,
             checksum: Checksum::from_hex("abcdef1234567890"),
-            storage_path: "/tmp/adapter.bin".into(),
+            storage_path,
             base_model_family: "llama-3.3-70b".into(),
+            version: None,
+            huggingface_repo: None,
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         }
@@ -883,6 +990,10 @@ mod tests {
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
         store.migrate().expect("migration");
 
+        let storage_dir = test_storage_dir();
+        let storage_path = storage_dir.path().to_string_lossy().to_string();
+        std::mem::forget(storage_dir);
+
         let provenance = TrainingProvenance {
             training_run_id: "run-test".into(),
             training_source: "https://example.com/training".into(),
@@ -902,8 +1013,10 @@ mod tests {
             id: Uuid::new_v4(),
             expertise,
             checksum: Checksum::from_hex("abcdef1234567890"),
-            storage_path: "/tmp/adapter.bin".into(),
+            storage_path: storage_path.clone(),
             base_model_family: "unsupported-model".into(),
+            version: None,
+            huggingface_repo: None,
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         };

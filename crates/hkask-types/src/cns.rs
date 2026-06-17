@@ -247,6 +247,14 @@ pub enum CnsSpan {
     TaskVerified,
     /// Board created.
     BoardCreated,
+
+    // ── ACP Bridge spans (IDE replicant observability) ──────────────────
+    /// ACP bridge latency measurement.
+    AcpBridgeLatency,
+    /// ACP replicant memory size tracking.
+    AcpReplicantMemorySize,
+    /// ACP IDE connection state change.
+    AcpIdeConnectionState,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -390,6 +398,9 @@ impl CnsSpan {
             CnsSpan::TaskAssigned => "cns.kanban.task_assigned",
             CnsSpan::TaskVerified => "cns.kanban.task_verified",
             CnsSpan::BoardCreated => "cns.kanban.board_created",
+            CnsSpan::AcpBridgeLatency => "cns.acp.bridge.latency",
+            CnsSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
+            CnsSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
         }
     }
 }
@@ -517,6 +528,9 @@ impl std::str::FromStr for CnsSpan {
             "cns.kanban.task_assigned" => Ok(CnsSpan::TaskAssigned),
             "cns.kanban.task_verified" => Ok(CnsSpan::TaskVerified),
             "cns.kanban.board_created" => Ok(CnsSpan::BoardCreated),
+            "cns.acp.bridge.latency" => Ok(CnsSpan::AcpBridgeLatency),
+            "cns.acp.replicant.memory_size" => Ok(CnsSpan::AcpReplicantMemorySize),
+            "cns.acp.ide.connection_state" => Ok(CnsSpan::AcpIdeConnectionState),
             _ => Err(()),
         }
     }
@@ -684,6 +698,9 @@ mod cns_span_tests {
             CnsSpan::TaskAssigned,
             CnsSpan::TaskVerified,
             CnsSpan::BoardCreated,
+            CnsSpan::AcpBridgeLatency,
+            CnsSpan::AcpReplicantMemorySize,
+            CnsSpan::AcpIdeConnectionState,
         ];
         for variant in &all_variants {
             let s = variant.to_string();
@@ -699,8 +716,8 @@ mod cns_span_tests {
             );
         }
         // Verify count matches CANONICAL_NAMESPACES (excluding tool subsystem variants)
-        // 71 variants total (66 previous + 5 kanban)
-        assert_eq!(all_variants.len(), 71);
+        // 74 variants total (71 previous + 3 ACP bridge)
+        assert_eq!(all_variants.len(), 74);
     }
 
     // REQ: cns-span-006 — ToolSubsystem Display produces valid subsystem suffix

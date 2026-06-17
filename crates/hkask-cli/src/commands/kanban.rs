@@ -26,6 +26,16 @@ pub fn run_cli(action: KanbanAction, replicant_webid: WebID, _db_path: Option<&s
                 Err(e) => eprintln!("Error: {e}"),
             }
         }
+        KanbanAction::BoardView { board_id } => {
+            let bid = match board_id.parse() {
+                Ok(id) => id,
+                Err(e) => { eprintln!("Invalid board ID: {e}"); return; }
+            };
+            match service.board_view(bid, None) {
+                Ok(view) => println!("{}", view),
+                Err(e) => eprintln!("Error: {e}"),
+            }
+        }
         KanbanAction::BoardList => match service.board_list(&replicant_webid) {
             Ok(boards) => {
                 if boards.is_empty() {

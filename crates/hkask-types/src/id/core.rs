@@ -182,6 +182,14 @@ pub enum EscalationKind {}
 impl private::Sealed for EscalationKind {}
 impl IdKind for EscalationKind {}
 
+pub enum PhaseKind {}
+impl private::Sealed for PhaseKind {}
+impl IdKind for PhaseKind {}
+
+pub enum CommentKind {}
+impl private::Sealed for CommentKind {}
+impl IdKind for CommentKind {}
+
 pub enum BoardKind {}
 impl private::Sealed for BoardKind {}
 impl IdKind for BoardKind {}
@@ -208,6 +216,8 @@ pub type PodID = Id<PodKind>;
 pub type WalletId = Id<WalletKind>;
 pub type ApiKeyId = Id<ApiKeyKind>;
 pub type EscalationID = Id<EscalationKind>;
+pub type PhaseId = Id<PhaseKind>;
+pub type CommentId = Id<CommentKind>;
 pub type BoardId = Id<BoardKind>;
 pub type ColumnId = Id<ColumnKind>;
 pub type TaskId = Id<TaskKind>;
