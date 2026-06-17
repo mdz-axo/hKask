@@ -19,3 +19,6 @@ anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 dotenvy.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

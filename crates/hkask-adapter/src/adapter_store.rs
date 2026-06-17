@@ -15,6 +15,34 @@ use hkask_types::id::WebID;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+// ── Adapter distribution source ────────────────────────────────────────────
+
+/// Where the adapter weights are hosted for distribution to inference providers.
+///
+/// Each variant represents a different model registry or storage backend.
+/// Adding a new source is just adding an enum arm — no schema migration needed
+/// (stored as JSON in SQLite). Provider backends translate the source into
+/// their native upload/pull mechanism.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AdapterSource {
+    /// Adapter hosted on Hugging Face Hub (public, private, or gated).
+    /// All three inference providers (Together, Runpod, Baseten) can pull from HF Hub.
+    HuggingFace {
+        /// Repository path (e.g. "mdz-axo/solidity-audit-v3")
+        repo: String,
+    },
+}
+
+impl AdapterSource {
+    /// The repository identifier, regardless of source type.
+    pub fn repository_id(&self) -> &str {
+        match self {
+            AdapterSource::HuggingFace { repo } => repo,
+        }
+    }
+}
+
 // ── Store definition ─────────────────────────────────────────────────────────
 
 define_store!(AdapterStore);
@@ -30,7 +58,7 @@ struct AdapterRow {
     storage_path: String,
     base_model_family: String,
     version: Option<String>,
-    huggingface_repo: Option<String>,
+    source_json: String,
     owner_webid: String,
     training_run_id: String,
     training_source: String,
@@ -83,9 +111,9 @@ pub struct TrainedLoRAAdapter {
     /// Optional version identifier (e.g. "v3", "latest"). Caller-managed; never implicitly superseded (P2).
     #[serde(default)]
     pub version: Option<String>,
-    /// Optional Hugging Face Hub repo URL for adapter upload to providers that use HF as source.
-    #[serde(default)]
-    pub huggingface_repo: Option<String>,
+    /// Distribution source — where the adapter weights are hosted for provider pull.
+    /// Right now only HuggingFace, but the enum is designed for extension.
+    pub source: AdapterSource,
     /// Owner (sovereign-scoped — no anonymous artifacts, P12)
     pub owner: WebID,
     /// When the adapter was stored
@@ -121,7 +149,7 @@ pub enum AdapterStoreError {
 
 const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domain, \
     capability_manifest_json, checksum, storage_path, base_model_family, \
-    version, huggingface_repo, owner_webid, training_run_id, training_source, \
+    version, source_json, owner_webid, training_run_id, training_source, \
     completed_at, training_metrics_json, created_at FROM trained_adapters";
 
 // ── AdapterStore implementation ──────────────────────────────────────────────
@@ -143,7 +171,7 @@ impl AdapterStore {
                         storage_path        TEXT NOT NULL,
                         base_model_family   TEXT NOT NULL,
                         version             TEXT,
-                        huggingface_repo    TEXT,
+                        source_json         TEXT NOT NULL DEFAULT '{}',
                         owner_webid         TEXT NOT NULL,
                         training_run_id     TEXT NOT NULL,
                         training_source     TEXT NOT NULL,

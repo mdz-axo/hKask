@@ -27,6 +27,7 @@ pub mod expertise;
 pub mod provider_cost;
 
 // Re-exports — public API
+pub use adapter_config::AdapterConfig;
 pub use adapter_port::{
     AdapterError, AdapterPort, InferenceEndpointHandle, ProviderSelection, SingleCandidate,
 };

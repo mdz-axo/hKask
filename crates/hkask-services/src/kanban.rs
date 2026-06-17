@@ -684,6 +684,165 @@ impl KanbanService {
             .collect())
     }
 
+    // ── Lifecycle operations (P0) ─────────────────────────────────────
+
+    /// Delete a task and its board index entry.
+    ///
+    /// REQ: KAN-SVC-040
+    /// pre:  task_id is valid
+    /// post: task triple and index triple are soft-deleted
+    pub fn task_delete(&self, task_id: TaskId) -> Result<(), KanbanError> {
+        let task = self.task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        // Close the task triple
+        let triples = self.store
+            .query_by_entity_attribute(TASK_ENTITY, &task_id.to_string())
+            .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
+        for t in &triples {
+            self.store.close_by_id(&t.id)
+                .map_err(|e| KanbanError::Internal(format!("triple close failed: {e}")))?;
+        }
+
+        // Close the index triple
+        let index_entity = format!("{BOARD_TASKS_PREFIX}{}", task.board_id);
+        let idx_triples = self.store
+            .query_by_entity_attribute(&index_entity, &task_id.to_string())
+            .map_err(|e| KanbanError::Internal(format!("index query failed: {e}")))?;
+        for t in &idx_triples {
+            self.store.close_by_id(&t.id)
+                .map_err(|e| KanbanError::Internal(format!("index close failed: {e}")))?;
+        }
+
+        Ok(())
+    }
+
+    /// Unassign a task — remove the assignee.
+    ///
+    /// REQ: KAN-SVC-041
+    /// pre:  task_id is valid
+    /// post: task.assignee is set to None
+    pub fn task_unassign(&self, task_id: TaskId) -> Result<Task, KanbanError> {
+        let mut task = self.task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        task.assignee = None;
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+        Ok(task)
+    }
+
+    /// Reopen a completed task — move from Done back to InProgress.
+    ///
+    /// REQ: KAN-SVC-042
+    /// pre:  task_id refers to a task in Done status
+    /// post: task moves to InProgress, verification cleared
+    pub fn task_reopen(&self, task_id: TaskId) -> Result<Task, KanbanError> {
+        let mut task = self.task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        if task.status != TaskStatus::Done {
+            return Err(KanbanError::InvalidTransition {
+                task: task_id,
+                from: task.status,
+                to: TaskStatus::InProgress,
+            });
+        }
+
+        task.status = TaskStatus::InProgress;
+        task.verification = None;
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+        Ok(task)
+    }
+
+    /// Delete a board and all its tasks.
+    ///
+    /// REQ: KAN-SVC-043
+    /// pre:  board_id is valid
+    /// post: board triple and all associated task/index triples are soft-deleted
+    pub fn board_delete(&self, board_id: BoardId) -> Result<usize, KanbanError> {
+        let board = self.board_get(board_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+
+        // Delete all tasks on this board
+        let tasks = self.task_list(board_id, TaskFilter::all())?;
+        let task_count = tasks.len();
+        for task in &tasks {
+            let _ = self.task_delete(task.id);
+        }
+
+        // Close the board triple
+        let triples = self.store
+            .query_by_entity_attribute(BOARD_ENTITY, &board_id.to_string())
+            .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
+        for t in &triples {
+            self.store.close_by_id(&t.id)
+                .map_err(|e| KanbanError::Internal(format!("triple close failed: {e}")))?;
+        }
+        let _ = board;
+
+        Ok(task_count)
+    }
+
+    // ── De-jamming ────────────────────────────────────────────────────
+
+    /// Scan a board for stuck states and return a de-jam report.
+    ///
+    /// REQ: KAN-SVC-044
+    /// pre:  board_id is valid
+    /// post: returns a report of stuck tasks with suggested fixes
+    pub fn unjam_report(&self, board_id: BoardId) -> Result<Vec<UnjamItem>, KanbanError> {
+        let tasks = self.task_list(board_id, TaskFilter::all())?;
+        let now = chrono::Utc::now();
+        let mut items = Vec::new();
+
+        for task in &tasks {
+            // Stuck in InProgress: no movement for > estimated hours * 2
+            if task.status == TaskStatus::InProgress
+                || task.status == TaskStatus::Review
+            {
+                if let Some(hours) = task.estimated_hours {
+                    let elapsed = (now - task.updated_at).num_hours();
+                    if elapsed > (hours as i64) * 2 {
+                        items.push(UnjamItem {
+                            task_id: task.id,
+                            task_title: task.title.clone(),
+                            issue: format!("Stuck in {} for {}h (estimated {}h)", task.status, elapsed, hours),
+                            suggestion: "Consider escalating or reassigning.".into(),
+                        });
+                    }
+                }
+            }
+
+            // Assigned but never started (> 24h in Backlog/Ready)
+            if task.assignee.is_some()
+                && (task.status == TaskStatus::Backlog || task.status == TaskStatus::Ready)
+            {
+                let elapsed = (now - task.updated_at).num_hours();
+                if elapsed > 24 {
+                    items.push(UnjamItem {
+                        task_id: task.id,
+                        task_title: task.title.clone(),
+                        issue: format!("Assigned but not started for {}h", elapsed),
+                        suggestion: "Consider unassigning or escalating.".into(),
+                    });
+                }
+            }
+
+            // Done without verification
+            if task.status == TaskStatus::Done && task.verification.is_none() {
+                items.push(UnjamItem {
+                    task_id: task.id,
+                    task_title: task.title.clone(),
+                    issue: "Completed without verification.".into(),
+                    suggestion: "Reopen and verify, or verify retroactively.".into(),
+                });
+            }
+        }
+
+        Ok(items)
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────
 
     fn update_task_triple(&self, task: &Task) -> Result<(), KanbanError> {
@@ -715,6 +874,15 @@ impl KanbanService {
         }
         Ok(())
     }
+}
+
+/// UnjamItem — a stuck state detected by the de-jammer.
+#[derive(Debug, Clone)]
+pub struct UnjamItem {
+    pub task_id: hkask_types::TaskId,
+    pub task_title: String,
+    pub issue: String,
+    pub suggestion: String,
 }
 
 // ── Error types ────────────────────────────────────────────────────────────

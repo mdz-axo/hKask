@@ -172,7 +172,11 @@ struct CancelNotification {
 
 // ── ACP session/update (notification, agent → client) ──────────────────
 
-pub(crate) fn agent_message_chunk(session_id: &str, message_id: &str, text: &str) -> JsonRpcNotification {
+pub(crate) fn agent_message_chunk(
+    session_id: &str,
+    message_id: &str,
+    text: &str,
+) -> JsonRpcNotification {
     JsonRpcNotification {
         jsonrpc: "2.0".into(),
         method: "session/update".into(),
@@ -267,7 +271,7 @@ fn error_response(id: Value, code: i32, message: &str) -> JsonRpcResponse {
 }
 
 pub(crate) async fn write_notification(
-    stdout: &mut tokio::io::Stdout,
+    stdout: &mut (impl tokio::io::AsyncWrite + Unpin),
     notif: &JsonRpcNotification,
 ) -> std::io::Result<()> {
     use tokio::io::AsyncWriteExt;
@@ -289,8 +293,27 @@ impl StdioTransport {
     pub async fn serve(&mut self, agent: Arc<HkaskAcpAgent>) -> anyhow::Result<()> {
         let stdin = tokio::io::stdin();
         let mut stdout = tokio::io::stdout();
-        let reader = BufReader::new(stdin);
-        let mut lines = reader.lines();
+        self.serve_impl(agent, stdin, &mut stdout).await
+    }
+
+    /// Test entry point — serves ACP over arbitrary reader/writer.
+    pub async fn serve_with_streams<R: tokio::io::AsyncRead + Unpin>(
+        &mut self,
+        agent: Arc<HkaskAcpAgent>,
+        reader: R,
+        writer: &mut (impl tokio::io::AsyncWrite + Unpin),
+    ) -> anyhow::Result<()> {
+        self.serve_impl(agent, reader, writer).await
+    }
+
+    async fn serve_impl<R: tokio::io::AsyncRead + Unpin>(
+        &mut self,
+        agent: Arc<HkaskAcpAgent>,
+        reader: R,
+        writer: &mut (impl tokio::io::AsyncWrite + Unpin),
+    ) -> anyhow::Result<()> {
+        let buf_reader = BufReader::new(reader);
+        let mut lines = buf_reader.lines();
 
         while let Some(line) = lines.next_line().await? {
             if line.trim().is_empty() {
@@ -306,7 +329,7 @@ impl StdioTransport {
             };
 
             let is_notification = request.id.is_none();
-            let response = self.handle_request(&request, &agent, &mut stdout).await;
+            let response = self.handle_request_impl(&request, &agent, writer).await;
 
             if is_notification {
                 continue;
@@ -314,18 +337,18 @@ impl StdioTransport {
 
             let mut json = serde_json::to_string(&response)?;
             json.push('\n');
-            stdout.write_all(json.as_bytes()).await?;
-            stdout.flush().await?;
+            writer.write_all(json.as_bytes()).await?;
+            writer.flush().await?;
         }
 
         Ok(())
     }
 
-    async fn handle_request(
+    async fn handle_request_impl(
         &mut self,
         req: &JsonRpcRequest,
         agent: &Arc<HkaskAcpAgent>,
-        stdout: &mut tokio::io::Stdout,
+        stdout: &mut (impl tokio::io::AsyncWrite + Unpin),
     ) -> JsonRpcResponse {
         let id = req.id.clone().unwrap_or(Value::Null);
 

@@ -76,7 +76,7 @@ struct TogetherAdapterBackend {
     capability: ProviderCapability,
     api_key: String,
     #[allow(dead_code)]
-    client: reqwest::Client,
+    client: reqwest::blocking::Client,
 }
 
 impl TogetherAdapterBackend {
@@ -86,7 +86,7 @@ impl TogetherAdapterBackend {
             cost_model: CostModel::together(),
             capability: ProviderCapability::together(),
             api_key,
-            client: reqwest::Client::new(),
+            client: reqwest::blocking::Client::new(),
         }
     }
 }
@@ -121,7 +121,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         adapter: &TrainedLoRAAdapter,
         config: &AdapterConfig,
     ) -> Result<String, AdapterError> {
-        let model_source = if let Some(ref hf_repo) = adapter.huggingface_repo {
+        let hf_repo = if let Some(ref hf_repo) = adapter.huggingface_repo {
             hf_repo.clone()
         } else {
             tracing::warn!(
@@ -140,15 +140,59 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
             return Ok(format!("adapter-{}", adapter.id));
         }
 
+        // Together AI adapter upload API:
+        // POST https://api.together.xyz/v1/fine-tunes
+        // Body: { model_source, model_type: "adapter", base_model }
+
+        let body = serde_json::json!({
+            "model_source": hf_repo,
+            "model_type": "adapter",
+            "base_model": config.base_model_name_or_path,
+        });
+
         tracing::info!(
             target: "hkask.adapter",
             adapter_id = %adapter.id,
-            model_source = %model_source,
+            hf_repo = %hf_repo,
             base_model = %config.base_model_name_or_path,
-            "Uploading adapter to Together AI"
+            "Calling Together AI adapter upload API"
         );
 
-        Ok(format!("adapter-{}", adapter.id))
+        let response = self
+            .client
+            .post("https://api.together.xyz/v1/fine-tunes")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&body)
+            .send()
+            .map_err(|e| {
+                AdapterError::Internal(format!("Together AI upload request failed: {e}"))
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response.text().unwrap_or_default();
+            return Err(AdapterError::Internal(format!(
+                "Together AI upload returned {status}: {error_body}"
+            )));
+        }
+
+        let response_json: serde_json::Value = response.json().map_err(|e| {
+            AdapterError::Internal(format!("Failed to parse Together AI upload response: {e}"))
+        })?;
+
+        let model_name = response_json["model_name"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+
+        tracing::info!(
+            target: "hkask.adapter",
+            adapter_id = %adapter.id,
+            model_name = %model_name,
+            "Adapter uploaded to Together AI"
+        );
+
+        Ok(model_name)
     }
 
     fn capability(&self) -> ProviderCapability {
@@ -310,7 +354,10 @@ impl AdapterRouter {
     }
 
     /// List providers that can compose the given adapter.
-    pub fn list_compatible_providers(&self, adapter: &TrainedLoRAAdapter) -> Vec<ProviderInfo> {
+    pub(crate) fn list_compatible_providers(
+        &self,
+        adapter: &TrainedLoRAAdapter,
+    ) -> Vec<ProviderInfo> {
         self.backends
             .iter()
             .filter(|(_, backend)| backend.capability().can_compose(&adapter.base_model_family))

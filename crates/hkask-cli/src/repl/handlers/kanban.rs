@@ -50,6 +50,12 @@ pub(crate) fn handle_kanban(
             println!(
                 "    \x1b[36m/kanban phase list <board>\x1b[0m      List phases and tasks"
             );
+            println!("    \x1b[36m/kanban delete <task>\x1b[0m          Delete a task");
+            println!("    \x1b[36m/kanban unassign <task>\x1b[0m        Remove assignee");
+            println!("    \x1b[36m/kanban reopen <task>\x1b[0m         Reopen a completed task");
+            println!(
+                "    \x1b[36m/kanban unjam <board>\x1b[0m         Scan for stuck tasks"
+            );
             println!();
         }
 
@@ -400,6 +406,80 @@ pub(crate) fn handle_kanban(
             }
         }
 
+        "delete" => {
+            let task_str = rest.trim();
+            if task_str.is_empty() {
+                println!("  Usage: /kanban delete <task-id>");
+                return;
+            }
+            let tid = match task_str.parse() {
+                Ok(id) => id,
+                Err(_) => { println!("  Invalid task ID"); return; }
+            };
+            match service.task_delete(tid) {
+                Ok(()) => println!("  Task deleted."),
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
+        "unassign" => {
+            let task_str = rest.trim();
+            if task_str.is_empty() {
+                println!("  Usage: /kanban unassign <task-id>");
+                return;
+            }
+            let tid = match task_str.parse() {
+                Ok(id) => id,
+                Err(_) => { println!("  Invalid task ID"); return; }
+            };
+            match service.task_unassign(tid) {
+                Ok(task) => println!("  Task '{}' unassigned.", task.title),
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
+        "reopen" => {
+            let task_str = rest.trim();
+            if task_str.is_empty() {
+                println!("  Usage: /kanban reopen <task-id>");
+                return;
+            }
+            let tid = match task_str.parse() {
+                Ok(id) => id,
+                Err(_) => { println!("  Invalid task ID"); return; }
+            };
+            match service.task_reopen(tid) {
+                Ok(task) => println!("  Task '{}' reopened ({}).", task.title, task.status),
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
+        "unjam" => {
+            let board_str = rest.trim();
+            if board_str.is_empty() {
+                println!("  Usage: /kanban unjam <board-id>");
+                return;
+            }
+            let bid = match board_str.parse() {
+                Ok(id) => id,
+                Err(_) => { println!("  Invalid board ID"); return; }
+            };
+            match service.unjam_report(bid) {
+                Ok(items) => {
+                    if items.is_empty() {
+                        println!("  Board is flowing. No stuck tasks detected.");
+                    } else {
+                        println!("  Found {} stuck task(s):", items.len());
+                        for item in &items {
+                            println!("    {} — {}", item.task_title, item.issue);
+                            println!("      → {}", item.suggestion);
+                        }
+                    }
+                }
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
         "decompose" => {
             println!("  \x1b[33mTask decomposition requires LLM integration (Task 6).\x1b[0m");
             println!("  Planned: Given a project description, decompose into");
@@ -420,7 +500,7 @@ pub(crate) fn handle_kanban(
 
         _ => {
             println!("  Unknown kanban subcommand: {subcommand}");
-            println!("  Try: board, view, task, move, accept, submit, note, notes, deliver, phase, decompose, spawn");
+            println!("  Try: board, view, task, move, accept, submit, note, notes, deliver, phase, delete, unassign, reopen, unjam, decompose, spawn");
             println!();
         }
     }

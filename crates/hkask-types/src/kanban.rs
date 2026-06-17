@@ -671,23 +671,46 @@ impl ConsentProof {
 /// contract execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskContract {
+    /// Name of the capability package used.
     pub package_name: String,
+    /// The replicant delegating the work.
     pub delegator: crate::WebID,
+    /// The agent receiving the delegation.
     pub delegate: crate::WebID,
+    /// The task this contract governs.
     pub task_id: TaskId,
+    /// Task title for display.
     pub task_title: String,
-    /// Pre-conditions: acceptance criteria that must be verified.
+    /// Pre-conditions (acceptance criteria) — require!() gates.
+    /// These must be satisfied before work can be considered complete.
     pub pre_conditions: Vec<String>,
-    /// Post-conditions: what must hold after task completion.
+    /// Post-conditions — assert!() gates.
+    /// These are verified after the agent submits deliverables.
     pub post_conditions: Vec<String>,
-    /// OCAP capability token specs delegated for this task.
+    /// OCAP capability token specs delegated.
     pub ocap_gates: Vec<String>,
     /// Maximum gas/energy budget.
     pub gas_limit: u64,
     /// Maximum execution time in seconds.
     pub timeout: u64,
-    /// Maximum attenuation level for delegated tokens.
+    /// Maximum attenuation level.
     pub max_attenuation: u8,
+    /// Contract state: pending, active, completed, violated.
+    pub state: ContractState,
+}
+
+/// ContractState — the execution state of a TaskContract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ContractState {
+    /// Contract created but not yet active.
+    Pending,
+    /// Agent is actively working on the contract.
+    Active,
+    /// All post-conditions satisfied — contract fulfilled.
+    Completed,
+    /// One or more post-conditions violated.
+    Violated,
 }
 
 impl TaskContract {
@@ -711,13 +734,91 @@ impl TaskContract {
             gas_limit: 50000,
             timeout: 3600,
             max_attenuation: 3,
+            state: ContractState::Pending,
         }
     }
 
-    /// REQ: KAN-091 — Emit the contract as a CNS span for observability.
-    pub fn emit_contract_span(&self) -> String {
+    /// REQ: KAN-091 — Activate the contract. Sets state to Active.
+    /// The agent now has authority to work on the task.
+    pub fn activate(&mut self) {
+        self.state = ContractState::Active;
+    }
+
+    /// REQ: KAN-092 — Check if the contract is complete.
+    ///
+    /// THIS is the method both agent and replicant call.
+    /// The agent calls it to self-check: "Have I satisfied the contract?"
+    /// The replicant calls it to verify: "Did the agent complete the contract?"
+    ///
+    /// Each pre_condition is evaluated against the evidence. If all pass,
+    /// the contract state moves to Completed. If any fail, Violated.
+    ///
+    /// The evidence is a free-text description of what was done — the same
+    /// text the agent provides as a comment when submitting deliverables.
+    /// The matching is keyword-based for now; LLM-mediated evaluation (Task 6)
+    /// will replace this with semantic matching against the actual deliverables.
+    pub fn check_completion(
+        &mut self,
+        evidence: &str,
+    ) -> ContractVerification {
+        if self.pre_conditions.is_empty() {
+            self.state = ContractState::Completed;
+            return ContractVerification {
+                passed: true,
+                reasoning: "No pre-conditions — contract auto-completed.".into(),
+                results: vec![],
+            };
+        }
+
+        let evidence_lower = evidence.to_lowercase();
+        let mut results = Vec::new();
+        let mut all_passed = true;
+
+        for condition in &self.pre_conditions {
+            let condition_lower = condition.to_lowercase();
+            let passed = condition_lower
+                .split_whitespace()
+                .any(|word| evidence_lower.contains(word));
+
+            let result = ConditionResult {
+                condition: condition.clone(),
+                passed,
+                reason: if passed {
+                    "Evidence references this requirement".into()
+                } else {
+                    format!("No evidence found for: {}", condition)
+                },
+            };
+
+            if !passed {
+                all_passed = false;
+            }
+            results.push(result);
+        }
+
+        if all_passed {
+            self.state = ContractState::Completed;
+        } else {
+            self.state = ContractState::Violated;
+        }
+
+        ContractVerification {
+            passed: all_passed,
+            reasoning: if all_passed {
+                format!("All {} pre-conditions satisfied. Contract fulfilled.", self.pre_conditions.len())
+            } else {
+                let failed = results.iter().filter(|r| !r.passed).count();
+                format!("{} of {} conditions not met. Contract violated.", failed, self.pre_conditions.len())
+            },
+            results,
+        }
+    }
+
+    /// REQ: KAN-093 — Emit the contract as a CNS span.
+    pub fn emit_span(&self, verb: &str) -> String {
         format!(
-            "TaskContract '{}': delegator={}, delegate={}, task='{}', gates={}, gas={}, timeout={}s",
+            "TaskContract[{}] '{}': delegator={} delegate={} task='{}' gates={} gas={} timeout={}s state={:?}",
+            verb,
             self.package_name,
             self.delegator.redacted_display(),
             self.delegate.redacted_display(),
@@ -725,8 +826,25 @@ impl TaskContract {
             self.ocap_gates.len(),
             self.gas_limit,
             self.timeout,
+            self.state,
         )
     }
+}
+
+/// ContractVerification — result of checking a TaskContract's completion.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContractVerification {
+    pub passed: bool,
+    pub reasoning: String,
+    pub results: Vec<ConditionResult>,
+}
+
+/// ConditionResult — per-condition evaluation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConditionResult {
+    pub condition: String,
+    pub passed: bool,
+    pub reason: String,
 }
 
 // ── Spawn Specification ─────────────────────────────────────────────────
@@ -1012,68 +1130,7 @@ impl CapabilityPackage {
         serde_yaml::from_str(yaml).map_err(|e| e.to_string())
     }
 
-    // ── OCAP Integration ──────────────────────────────────────────────
 
-    /// REQ: KAN-080 — Generate OCAP DelegationTokens from this package.
-    ///
-    /// Each capability_tokens entry (e.g. "tool:kanban:execute") is converted
-    /// into a signed DelegationToken. The parent replicant attenuates their
-    /// own capabilities and delegates them to the child agent.
-    ///
-    /// Tokens are signed with the parent's signing key and carry the
-    /// specified attenuation level. The child cannot further attenuate
-    /// beyond max_attenuation.
-    pub fn to_delegation_tokens(
-        &self,
-        parent: crate::WebID,
-        child: crate::WebID,
-        signing_key: &ed25519_dalek::SigningKey,
-    ) -> Result<Vec<crate::capability::DelegationToken>, String> {
-        let mut tokens = Vec::new();
-        for spec_str in &self.capability_tokens {
-            let spec = crate::capability::CapabilitySpec::parse(spec_str)
-                .map_err(|e| format!("invalid capability spec '{}': {}", spec_str, e))?;
-            let token = crate::capability::DelegationTokenBuilder::new(
-                spec.resource,
-                &spec.resource_id,
-                spec.action,
-                parent,
-                child,
-            )
-            .attenuation(self.max_attenuation)
-            .sign(signing_key)
-            .map_err(|e| format!("failed to sign token for '{}': {}", spec_str, e))?;
-            tokens.push(token);
-        }
-        Ok(tokens)
-    }
-
-    /// REQ: KAN-081 — Verify that the parent holds the capabilities
-    /// they're trying to delegate. Returns Ok(()) if all tokens in
-    /// this package are covered by the parent's tokens.
-    pub fn verify_parent_capabilities(
-        &self,
-        parent_tokens: &[crate::capability::DelegationToken],
-    ) -> Result<(), String> {
-        for spec_str in &self.capability_tokens {
-            let covered = parent_tokens.iter().any(|pt| {
-                crate::capability::capabilities_match(
-                    &format!("{}:{}:{}",
-                        pt.resource.as_str(),
-                        pt.resource_id,
-                        pt.action.as_str()),
-                    spec_str,
-                )
-            });
-            if !covered {
-                return Err(format!(
-                    "Parent does not hold capability '{}' required by this package",
-                    spec_str
-                ));
-            }
-        }
-        Ok(())
-    }
 
     // ── rSolidity Contract Integration ─────────────────────────────────
 
@@ -1105,6 +1162,7 @@ impl CapabilityPackage {
             gas_limit: self.default_gas_budget.unwrap_or(50000),
             timeout: self.default_timeout_seconds.unwrap_or(3600),
             max_attenuation: self.max_attenuation,
+            state: ContractState::Pending,
         }
     }
 }
