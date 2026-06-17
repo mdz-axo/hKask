@@ -3,7 +3,6 @@
 use super::error::GitCasError;
 use super::types::{CommitHash, ContentHash, FileDiff, RepoId, TreeEntry, TreeEntryKind};
 use crate::text::blake3_hash;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -50,7 +49,7 @@ pub struct LogEntry {
 /// Implementations:
 /// - `GixCasAdapter` (production, in `hkask-mcp`)
 /// - [`MockGitCas`] (testing, in this module)
-#[async_trait]
+
 pub trait GitCASPort: Send + Sync {
     /// Store content, returning its BLAKE3 content hash.
     async fn put_blob(&self, repo: &RepoId, content: &[u8]) -> Result<ContentHash, GitCasError>;
@@ -145,8 +144,6 @@ impl Default for MockGitCas {
         Self::new()
     }
 }
-
-#[async_trait]
 impl GitCASPort for MockGitCas {
     async fn put_blob(&self, _repo: &RepoId, content: &[u8]) -> Result<ContentHash, GitCasError> {
         let hash = ContentHash::from_blake3(content);

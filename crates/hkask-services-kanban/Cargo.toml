@@ -16,3 +16,6 @@ chrono.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 hkask-agents = { path = "../hkask-agents" }
+
+[dev-dependencies]
+rusqlite = { workspace = true, features = ["bundled-sqlcipher"] }

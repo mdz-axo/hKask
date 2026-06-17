@@ -15,5 +15,4 @@ chrono.workspace = true
 tokio.workspace = true
 reqwest.workspace = true
 uuid.workspace = true
-async-trait.workspace = true
 hex.workspace = true

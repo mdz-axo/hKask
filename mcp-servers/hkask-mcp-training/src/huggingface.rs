@@ -40,7 +40,7 @@ pub enum HuggingFaceError {
 /// REQ: P4-trn-hf-model-registry
 /// pre:  HF_TOKEN set for gated models
 /// post: resolved HF model ID or downloaded weight path
-#[async_trait::async_trait]
+
 pub trait ModelRegistry: Send + Sync {
     /// Resolve a provider-prefixed base_model to a HuggingFace model ID.
     ///
@@ -75,7 +75,7 @@ pub trait ModelRegistry: Send + Sync {
 /// REQ: P4-trn-hf-adapter-registry
 /// pre:  adapter weights exist (local or remote)
 /// post: adapter published to / pulled from HF Hub
-#[async_trait::async_trait]
+
 pub trait AdapterRegistry: Send + Sync {
     /// Publish a LoRA adapter to a HuggingFace repository.
     ///
@@ -112,7 +112,7 @@ pub trait AdapterRegistry: Send + Sync {
 /// REQ: P4-trn-hf-dataset-registry
 /// pre:  dataset exists on HF Hub
 /// post: resolved dataset URL or downloaded local path
-#[async_trait::async_trait]
+
 pub trait DatasetRegistry: Send + Sync {
     /// Resolve a HuggingFace dataset ID to a download URL.
     ///
@@ -167,8 +167,6 @@ impl HfModelRegistry {
         }
     }
 }
-
-#[async_trait::async_trait]
 impl ModelRegistry for HfModelRegistry {
     fn resolve_model_id(&self, base_model: &str) -> String {
         resolve_model_id(base_model)

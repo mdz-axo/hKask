@@ -1,7 +1,4 @@
 use std::time::Duration;
-
-use async_trait::async_trait;
-
 use super::{WebBrowseProvider, WebError};
 use crate::types::*;
 
@@ -18,8 +15,6 @@ impl BrowserbaseProvider {
         }
     }
 }
-
-#[async_trait]
 impl WebBrowseProvider for BrowserbaseProvider {
     fn kind(&self) -> &str {
         "browserbase"

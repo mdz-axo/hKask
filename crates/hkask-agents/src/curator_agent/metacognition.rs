@@ -538,8 +538,6 @@ impl MetacognitionLoop {
 }
 
 // HkaskLoop — sense → compare → compute → act
-
-#[async_trait::async_trait]
 impl HkaskLoop for MetacognitionLoop {
     fn id(&self) -> LoopId {
         // Metacognition is a worker within Curation (Loop 5), not a governing loop.

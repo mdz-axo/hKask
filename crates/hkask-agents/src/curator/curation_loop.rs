@@ -167,8 +167,6 @@ impl CurationLoop {
     // Explicit 4-stage cycle: sense → compare → compute → act
     // Delegation methods removed — HkaskLoop trait impl provides tick().
 }
-
-#[async_trait::async_trait]
 impl HkaskLoop for CurationLoop {
     fn id(&self) -> LoopId {
         LoopId::Curation

@@ -81,8 +81,6 @@ impl BackupLoop {
         state.last_prune = Some(Instant::now());
     }
 }
-
-#[async_trait::async_trait]
 impl HkaskLoop for BackupLoop {
     fn id(&self) -> LoopId {
         LoopId::Cybernetics

@@ -1,7 +1,4 @@
 use std::time::Duration;
-
-use async_trait::async_trait;
-
 use super::{
     ProviderSearchOutput, WebBrowseProvider, WebError, WebExtractProvider, WebSearchProvider,
 };
@@ -27,8 +24,6 @@ impl FirecrawlProvider {
             .ok_or(WebError::NoProvider)
     }
 }
-
-#[async_trait]
 impl WebSearchProvider for FirecrawlProvider {
     fn kind(&self) -> &str {
         "firecrawl"
@@ -100,8 +95,6 @@ impl WebSearchProvider for FirecrawlProvider {
         Ok(())
     }
 }
-
-#[async_trait]
 impl WebExtractProvider for FirecrawlProvider {
     fn kind(&self) -> &str {
         "firecrawl"
@@ -182,8 +175,6 @@ impl WebExtractProvider for FirecrawlProvider {
         Ok(())
     }
 }
-
-#[async_trait]
 impl WebBrowseProvider for FirecrawlProvider {
     fn kind(&self) -> &str {
         "firecrawl"

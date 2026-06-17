@@ -1,7 +1,7 @@
 //! Integration tests for EmbedService corpus parsing.
 //! # REQ: P8 — every test verifies a stated behavioral property of a public seam.
 
-use hkask_services::embed::EmbedService;
+use hkask_services::EmbedService;
 
 /// Parse the Gentle Lovelace corpus config and verify all 11 works,
 /// 4 dimension centroids, 4 tag sets, tag_weights, and budget deserialize.

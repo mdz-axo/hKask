@@ -1,6 +1,5 @@
 //! CNS observability routes — including SSE event stream
 
-use async_trait::async_trait;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures_util::stream::Stream;
@@ -70,8 +69,6 @@ impl SseObserver {
         (observer, receiver)
     }
 }
-
-#[async_trait]
 impl CnsObserver for SseObserver {
     fn interest_mask(&self) -> Vec<SpanNamespace> {
         self.interest_mask.clone()

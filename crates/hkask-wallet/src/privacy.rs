@@ -8,6 +8,7 @@
 //! Shielded operations return `PrivacyUnavailable` error. Transparent path works normally.
 
 use async_trait::async_trait;
+
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
 use hkask_types::wallet::{ChainId, TxHash, WalletError, WalletId};
@@ -41,7 +42,8 @@ pub struct ShieldedTransfer {
 /// Implementations verify relayer responses independently where possible.
 /// Quantstamp audit finding: no integrity check on `encryptedOutputs`.
 /// hKask's deposit reference scheme provides a second factor.
-#[async_trait]
+
+#[async_trait::async_trait]
 pub trait PrivacyPort: Send + Sync {
     /// hKask's own shielded address in the privacy pool.
     fn our_shielded_address(&self) -> Result<String, WalletError>;

@@ -3,7 +3,7 @@
 #
 # This script builds hKask with proper configuration for Linux systems.
 #
-# Usage: ./scripts/build.sh [OPTIONS]
+# Usage: ./scripts/build/build.sh [OPTIONS]
 # Options:
 #   --release     Build in release mode (default: debug)
 #   --all         Build all targets including tests

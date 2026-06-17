@@ -26,7 +26,6 @@ tracing.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 chrono.workspace = true
-async-trait.workspace = true
 hkask-communication = { path = "../hkask-communication" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }

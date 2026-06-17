@@ -451,7 +451,7 @@ print_container_runtime_guide() {
 
     echo ""
     echo "  After installing, start Conduit:"
-    echo "    ./scripts/conduit-docker.sh start"
+    echo "    ./scripts/conduit/conduit-docker.sh start"
     echo ""
 }
 
@@ -467,7 +467,7 @@ print_container_runtime_guide() {
 #
 # Requires the repo to be cloned (HKASK_SOURCE_DIR must be set).
 setup_conduit() {
-    local conduit_script="$HKASK_SOURCE_DIR/scripts/conduit-docker.sh"
+    local conduit_script="$HKASK_SOURCE_DIR/scripts/conduit/conduit-docker.sh"
 
     if [ ! -f "$conduit_script" ]; then
         log_warning "conduit-docker.sh not found at $conduit_script — skipping Conduit setup"
@@ -535,7 +535,7 @@ verify_installation() {
         if curl -s "http://localhost:8008/_matrix/client/versions" > /dev/null 2>&1; then
             log_success "Conduit Matrix homeserver: healthy at http://localhost:8008"
         else
-            log_warning "Conduit Matrix homeserver: not responding — check logs with ./scripts/conduit-docker.sh logs"
+            log_warning "Conduit Matrix homeserver: not responding — check logs with ./scripts/conduit/conduit-docker.sh logs"
         fi
     fi
 }
@@ -740,7 +740,7 @@ main() {
                 setup_conduit
                 if [ "$matrix_lan" = true ] && [ "${CONDUIT_READY:-false}" = "true" ]; then
                     log "Setting up LAN access for phone connections..."
-                    bash "$HKASK_SOURCE_DIR/scripts/conduit-docker.sh" setup-lan
+                    bash "$HKASK_SOURCE_DIR/scripts/conduit/conduit-docker.sh" setup-lan
                 fi
             else
                 log "Skipping Conduit setup (--skip-conduit)"
@@ -760,11 +760,11 @@ main() {
             echo ""
             if [ "${CONDUIT_READY:-false}" = "true" ]; then
                 echo "  Matrix communication is ready at http://localhost:8008"
-                echo "  Manage Conduit: ./scripts/conduit-docker.sh {status|stop|logs|reset}"
+                echo "  Manage Conduit: ./scripts/conduit/conduit-docker.sh {status|stop|logs|reset}"
                 echo ""
             elif [ "$skip_conduit" = false ]; then
                 echo "  Matrix communication not available — Conduit not running."
-                echo "  Install Docker/Podman, then: ./scripts/conduit-docker.sh start"
+                echo "  Install Docker/Podman, then: ./scripts/conduit/conduit-docker.sh start"
                 echo ""
             fi
             if ! command -v kask &> /dev/null; then

@@ -1,7 +1,4 @@
 use std::time::Duration;
-
-use async_trait::async_trait;
-
 use super::{WebBrowseProvider, WebError, WebExtractProvider, validate_provider_url};
 use crate::strip_html;
 use crate::types::*;
@@ -23,8 +20,6 @@ impl RawFetchProvider {
         }
     }
 }
-
-#[async_trait]
 impl WebExtractProvider for RawFetchProvider {
     fn kind(&self) -> &str {
         "rawfetch"
@@ -81,8 +76,6 @@ impl WebExtractProvider for RawFetchProvider {
         }
     }
 }
-
-#[async_trait]
 impl WebBrowseProvider for RawFetchProvider {
     fn kind(&self) -> &str {
         "rawfetch"

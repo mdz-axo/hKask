@@ -119,8 +119,6 @@ impl SemanticLoop {
         self.low_confidence_threshold
     }
 }
-
-#[async_trait::async_trait]
 impl HkaskLoop for SemanticLoop {
     fn id(&self) -> LoopId {
         LoopId::Memory

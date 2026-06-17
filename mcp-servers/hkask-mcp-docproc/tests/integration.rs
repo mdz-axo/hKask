@@ -62,8 +62,6 @@ impl RealExecutor {
         }
     }
 }
-
-#[async_trait::async_trait]
 impl OcrExecutor for RealExecutor {
     fn is_available(&self, backend: &OcrBackend) -> bool {
         match backend {

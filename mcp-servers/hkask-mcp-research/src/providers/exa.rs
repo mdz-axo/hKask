@@ -1,7 +1,4 @@
 use std::collections::HashMap;
-
-use async_trait::async_trait;
-
 use super::{ProviderSearchOutput, WebError, WebSearchProvider, truncate_str};
 use crate::types::*;
 
@@ -93,8 +90,6 @@ impl ExaProvider {
         })
     }
 }
-
-#[async_trait]
 impl WebSearchProvider for ExaProvider {
     fn kind(&self) -> &str {
         "exa"

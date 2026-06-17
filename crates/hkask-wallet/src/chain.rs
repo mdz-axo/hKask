@@ -9,6 +9,7 @@
 //! - `HederaPort` — HTS USDC on Hedera (feature-gated: "hedera")
 
 use async_trait::async_trait;
+
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
 use hkask_types::wallet::{ChainId, TxHash, WalletError};
@@ -61,7 +62,8 @@ impl DepositEvent {
 /// # Security `[OUGHT-DECL]`
 /// Implementations do NOT hold treasury keys. Signing is delegated to the
 /// isolated `signing.rs` module. ChainPort only constructs unsigned transactions.
-#[async_trait]
+
+#[async_trait::async_trait]
 pub trait ChainPort: Send + Sync {
     /// Which chain this port serves.
     fn chain_id(&self) -> ChainId;

@@ -19,15 +19,15 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::config::{BackupConfig, EncryptionConfig, RetentionPolicy};
+use crate::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
+use crate::scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use argon2::Argon2;
 use chrono::Utc;
-use crate::config::{BackupConfig, EncryptionConfig, RetentionPolicy};
 use hkask_types::ports::git_cas::{CommitHash, GitCASPort, GitCasError, LogEntry, RepoId};
-use crate::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
 use rand::RngCore;
 use rand::rng;
-use crate::scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
 use tracing::{info, instrument, warn};
 
 /// Errors specific to backup operations.
@@ -308,8 +308,8 @@ impl BackupService {
                 };
 
                 // Parse the envelope to extract artifact type and ID
-                let envelope: crate::serialization::ArtifactEnvelopeValue = serde_json::from_slice(&blob)
-                    .map_err(|e| {
+                let envelope: crate::serialization::ArtifactEnvelopeValue =
+                    serde_json::from_slice(&blob).map_err(|e| {
                         BackupError::Serialization(format!(
                             "Failed to deserialize artifact at {}: {e}",
                             entry.path
@@ -736,8 +736,8 @@ fn artifact_type_from_label(label: &str) -> Option<ArtifactType> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crate::config::RetentionPolicy;
-    use crate::crate::serialization::serialize_artifact;
+    use crate::config::RetentionPolicy;
+    use crate::serialization::serialize_artifact;
     use hkask_types::ports::git_cas::MockGitCas;
 
     fn test_config() -> BackupConfig {

@@ -183,8 +183,6 @@ impl DocProcCnsObserver {
         }
     }
 }
-
-#[async_trait::async_trait]
 impl hkask_types::ports::CnsObserver for DocProcCnsObserver {
     fn interest_mask(&self) -> Vec<hkask_types::event::SpanNamespace> {
         vec![hkask_types::event::SpanNamespace::new("cns.pipeline")]
@@ -205,8 +203,6 @@ impl hkask_types::ports::CnsObserver for DocProcCnsObserver {
 }
 
 // ── OcrExecutor implementation ───────────────────────────────────────────
-
-#[async_trait::async_trait]
 impl OcrExecutor for DocProcServer {
     fn is_available(&self, backend: &OcrBackend) -> bool {
         match backend {

@@ -57,7 +57,7 @@ pub struct BackpressureSignal {
 }
 
 /// Subscribes to CNS events by span namespace.
-#[async_trait::async_trait]
+
 pub trait CnsObserver: Send + Sync {
     fn interest_mask(&self) -> Vec<SpanNamespace>;
 

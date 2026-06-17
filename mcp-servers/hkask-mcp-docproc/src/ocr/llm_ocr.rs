@@ -4,7 +4,6 @@
 //! through the inference router. Supports provider-prefixed model names
 //! (DI/, FW/, OM/) for backend routing.
 
-use async_trait::async_trait;
 use base64::Engine;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_types::ocr::{OcrBackend, OcrResult};
@@ -44,8 +43,6 @@ impl LlmOcrExecutor {
         self
     }
 }
-
-#[async_trait]
 impl OcrExecutor for LlmOcrExecutor {
     fn is_available(&self, backend: &OcrBackend) -> bool {
         matches!(backend, OcrBackend::LlmOcr(_))
