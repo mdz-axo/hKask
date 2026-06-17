@@ -28,7 +28,7 @@ use hkask_types::transcript::TranscriptSegment;
 use hkask_types::visibility::Visibility;
 use serde_json::Value;
 
-// ── Helper strategies ─────────────────────────────────────────────────────────
+// ── CNS type strategies ─────────────────────────────────────────────────────────
 
 fn non_empty_string() -> BoxedStrategy<String> {
     proptest::arbitrary::any::<String>()
@@ -190,6 +190,31 @@ pub fn any_transcript_segment() -> BoxedStrategy<TranscriptSegment> {
             text,
             start_ms,
             end_ms: start_ms + duration_ms,
+        })
+        .boxed()
+}
+
+// ── CNS proptest strategies ───────────────────────────────────────────────────
+
+/// Strategy generating valid `EnergyCost` values (1..10000).
+///
+/// REQ: HARN-045
+/// post: returns BoxedStrategy<EnergyCost> with values in 1..10000
+pub fn any_energy_cost() -> BoxedStrategy<hkask_cns::EnergyCost> {
+    (1u64..10000u64).prop_map(hkask_cns::EnergyCost).boxed()
+}
+
+/// Strategy generating valid `EnergyBudget` instances with hard limit.
+///
+/// REQ: HARN-046
+/// post: returns BoxedStrategy<EnergyBudget> with cap 100..10000, replenish_rate 1..cap
+pub fn any_energy_budget() -> BoxedStrategy<hkask_cns::EnergyBudget> {
+    (100u64..10000u64)
+        .prop_flat_map(|cap| {
+            (1u64..cap).prop_map(move |rate| {
+                hkask_cns::EnergyBudget::new(hkask_cns::EnergyCost(cap))
+                    .with_replenish_rate(hkask_cns::EnergyCost(rate))
+            })
         })
         .boxed()
 }

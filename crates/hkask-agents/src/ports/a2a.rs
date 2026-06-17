@@ -6,7 +6,7 @@
 use async_trait::async_trait;
 use hkask_types::{AgentKind, DelegationToken, WebID};
 
-use crate::a2a::{A2AMessage, A2AError};
+use crate::a2a::{A2AError, A2AMessage};
 
 /// A2A Port — Agent registration and A2A communication
 ///

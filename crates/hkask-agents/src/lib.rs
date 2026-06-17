@@ -28,7 +28,7 @@ pub mod prompt_analysis; // Loop 1 (inference variety sensing — relocated from
 pub mod registry_loader;
 pub mod sovereignty; // Loop 6 (sovereignty enforcement)
 
-pub use a2a::{A2AMessage, A2AAgent, A2AError, A2ARuntime};
+pub use a2a::{A2AAgent, A2AError, A2AMessage, A2ARuntime};
 
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;

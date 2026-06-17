@@ -144,8 +144,8 @@ impl SpecCategory {
 ///
 /// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
 // REQ: P8-sto-spec-infer-category — infer_spec_category maps context keywords to MDS categories
-    /// pre:  arguments are valid
-    /// post: returns expected result
+/// pre:  arguments are valid
+/// post: returns expected result
 /// \[P8\] Motivating: Semantic Grounding — infer MDS category from context
 pub fn infer_spec_category(context: Option<&str>) -> SpecCategory {
     let ctx = match context {

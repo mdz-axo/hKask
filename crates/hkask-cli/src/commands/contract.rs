@@ -18,8 +18,8 @@ use std::sync::Arc;
 const PROPOSAL_ENTITY: &str = "cns:contract_proposal";
 
 /// REQ: CLI-092
-    /// pre:  arguments are valid
-    /// post: returns expected result
+/// pre:  arguments are valid
+/// post: returns expected result
 pub fn run(rt: &tokio::runtime::Runtime, action: ContractAction) {
     match action {
         ContractAction::Propose {

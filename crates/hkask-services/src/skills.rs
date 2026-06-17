@@ -371,8 +371,8 @@ impl<'a> SkillAuditor<'a> {
         if manifest_present {
             let content = fs::read_to_string(&manifest_path)
                 .map_err(|e| SkillAuditError::Io(e.to_string()))?;
-            let manifest: serde_yaml_neo::Value =
-                serde_yaml_neo::from_str(&content).map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
+            let manifest: serde_yaml_neo::Value = serde_yaml_neo::from_str(&content)
+                .map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
             if let Some(c) = manifest.get("crate").and_then(|v| v.get("name")) {
                 crate_name = c.as_str().unwrap_or("").to_string();
             }

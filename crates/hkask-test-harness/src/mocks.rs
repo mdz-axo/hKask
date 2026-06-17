@@ -9,6 +9,7 @@
 
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceUsage};
 use hkask_types::template::LLMParameters;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Mutex;
@@ -255,5 +256,71 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.text, "response");
+    }
+}
+
+// ── MockDaemonClient ──────────────────────────────────────────────────────────
+
+/// A mock `DaemonClient` for ACP and MCP integration tests.
+///
+/// Returns canned responses for auth queries, assignments, capability checks,
+/// and experience storage. Supports configurable auth state and error injection.
+///
+/// REQ: HARN-047
+/// pre:  none
+/// post: returns MockDaemonClient with default (authenticated, all capabilities granted)
+pub struct MockDaemonClient {
+    /// Whether auth queries report the replicant as authenticated.
+    pub authenticated: bool,
+    /// Whether assignment queries succeed.
+    pub assigned: bool,
+    /// Whether capability queries succeed.
+    pub capabilities_granted: bool,
+    /// Canned tool dispatch response.
+    pub tool_response: Option<Value>,
+    /// Stored experiences (entity → attribute → value).
+    pub stored: Mutex<Vec<(String, String, Value)>>,
+}
+
+impl MockDaemonClient {
+    /// REQ: HARN-047
+    /// post: returns new MockDaemonClient with default settings (authenticated, all granted)
+    pub fn new() -> Self {
+        Self {
+            authenticated: true,
+            assigned: true,
+            capabilities_granted: true,
+            tool_response: None,
+            stored: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Set authentication state to false (simulates daemon unavailable).
+    pub fn unauthenticated(mut self) -> Self {
+        self.authenticated = false;
+        self
+    }
+
+    /// Set capabilities to denied.
+    pub fn capabilities_denied(mut self) -> Self {
+        self.capabilities_granted = false;
+        self
+    }
+
+    /// Set a canned tool dispatch response.
+    pub fn with_tool_response(mut self, response: Value) -> Self {
+        self.tool_response = Some(response);
+        self
+    }
+
+    /// Get stored experiences (for assertion in tests).
+    pub fn stored_experiences(&self) -> Vec<(String, String, Value)> {
+        self.stored.lock().unwrap().clone()
+    }
+}
+
+impl Default for MockDaemonClient {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -28,6 +28,7 @@ use uuid::Uuid;
 /// - `adapter:deploy` → estimate_composition, create_endpoint
 /// - `adapter:infer`  → infer
 /// - `adapter:teardown` → teardown_endpoint
+#[allow(async_fn_in_trait)]
 pub trait AdapterPort: Send + Sync {
     /// List adapters owned by the caller, optionally filtered by expertise name.
     fn list_adapters(

@@ -218,7 +218,7 @@ fn extract_req_tag(line: &str) -> Option<String> {
     if let Some(pos) = trimmed.find("REQ:") {
         let tag = trimmed[pos + 4..].trim();
         let end = tag.find(|c: char| c.is_whitespace()).unwrap_or(tag.len());
-        let req = tag[..end].trim_end_matches(&['.', ',', ';', ':', ')', ']', '}']);
+        let req = tag[..end].trim_end_matches(['.', ',', ';', ':', ')', ']', '}']);
         if !req.is_empty() && !req.contains('`') {
             return Some(req.to_string());
         }
@@ -328,9 +328,9 @@ fn walk_rs_files(dir: &std::path::Path, f: &mut dyn FnMut(&std::path::Path)) {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_dir() && path.file_name().map_or(false, |n| n != "tests") {
+            if path.is_dir() && path.file_name().is_some_and(|n| n != "tests") {
                 walk_rs_files(&path, f);
-            } else if path.extension().map_or(false, |e| e == "rs") {
+            } else if path.extension().is_some_and(|e| e == "rs") {
                 f(&path);
             }
         }
@@ -385,6 +385,7 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                         if let Some(tag) = extract_req_tag(trimmed) {
                             req_id = tag;
                         } else if trimmed.contains("#[rs::contract") {
+                            #[allow(clippy::collapsible_if)]
                             if let Some(start) = trimmed.find("id = \"") {
                                 let rest = &trimmed[start + 6..];
                                 if let Some(end) = rest.find('"') {
@@ -395,14 +396,14 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                     }
                     if pre.is_empty() && trimmed.contains("pre:") {
                         pre = trimmed
-                            .trim_start_matches(|c: char| c == '/' || c == '#' || c == ' ')
+                            .trim_start_matches(['/', '#', ' '])
                             .trim_start_matches("pre:")
                             .trim()
                             .to_string();
                     }
                     if post.is_empty() && trimmed.contains("post:") {
                         post = trimmed
-                            .trim_start_matches(|c: char| c == '/' || c == '#' || c == ' ')
+                            .trim_start_matches(['/', '#', ' '])
                             .trim_start_matches("post:")
                             .trim()
                             .to_string();
@@ -478,12 +479,14 @@ mod tests {
         assert_eq!(tag, Some("P9-cns-energy-budget-test".to_string()));
     }
 
+    // REQ: harness-trace-008
     #[test]
     fn extract_req_tag_from_doc_comment() {
         let tag = extract_req_tag("/// REQ: CNS-001  pre: x > 0");
         assert_eq!(tag, Some("CNS-001".to_string()));
     }
 
+    // REQ: harness-trace-009
     #[test]
     fn extract_req_tag_no_match() {
         assert_eq!(extract_req_tag("// just a comment"), None);
@@ -498,7 +501,7 @@ mod tests {
         assert_eq!(extract_count("no match", "running ", " test"), 0);
     }
 
-    // REQ: harness-trace-010
+    // REQ: HARN-048
     #[test]
     fn contract_test_result_debug_format() {
         let result = ContractTestResult {
@@ -511,5 +514,52 @@ mod tests {
         let dbg = format!("{:?}", result);
         assert!(dbg.contains("test-crate"));
         assert!(dbg.contains("10"));
+    }
+
+    // REQ: HARN-049 — discover finds contracted functions in harness
+    #[test]
+    fn discover_finds_contracted_functions() {
+        let audit = discover_uncontracted_functions(
+            "hkask-test-harness",
+            env!("CARGO_MANIFEST_DIR").trim_end_matches("/crates/hkask-test-harness"),
+        )
+        .expect("harness crate should exist");
+        assert!(audit.total_pub_fns > 0, "should find pub fn");
+        assert!(audit.contracted > 0, "harness has REQ-tagged functions");
+    }
+
+    // REQ: HARN-050 — discover returns None for nonexistent crate
+    #[test]
+    fn discover_nonexistent_crate_returns_none() {
+        let audit = discover_uncontracted_functions("nonexistent-crate", "/nonexistent/path");
+        assert!(audit.is_none(), "nonexistent crate should return None");
+    }
+
+    // REQ: HARN-051 — inventory returns contracts with REQ tags
+    #[test]
+    fn inventory_finds_contract_entries() {
+        let entries = inventory_contracts(
+            "hkask-test-harness",
+            env!("CARGO_MANIFEST_DIR").trim_end_matches("/crates/hkask-test-harness"),
+        )
+        .expect("harness crate should exist");
+        assert!(!entries.is_empty(), "should find contracted functions");
+        let has_req = entries.iter().any(|e| !e.req_id.is_empty());
+        assert!(has_req, "should find functions with REQ tags");
+    }
+
+    // REQ: HARN-052 — extract_req_tag rejects prose REQ references
+    #[test]
+    fn extract_req_tag_rejects_prose_references() {
+        // Prose mentions of REQ should not match
+        assert_eq!(
+            extract_req_tag("/// Called by CI when a proptest with a `// REQ:` tag fails"),
+            None
+        );
+        // Only exact REQ: declarations
+        assert_eq!(
+            extract_req_tag("/// REQ: HARN-001"),
+            Some("HARN-001".to_string())
+        );
     }
 }

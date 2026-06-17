@@ -29,7 +29,10 @@ pub fn run_cli(action: KanbanAction, replicant_webid: WebID, _db_path: Option<&s
         KanbanAction::BoardView { board_id } => {
             let bid = match board_id.parse() {
                 Ok(id) => id,
-                Err(e) => { eprintln!("Invalid board ID: {e}"); return; }
+                Err(e) => {
+                    eprintln!("Invalid board ID: {e}");
+                    return;
+                }
             };
             match service.board_view(bid, None) {
                 Ok(view) => println!("{}", view),

@@ -185,10 +185,7 @@ impl ProviderCapability {
         Self {
             supports_lora_composition: true,
             max_adapter_size_mb: Some(256),
-            supported_base_model_families: vec![
-                "llama-3.3-70b".into(),
-                "qwen2.5-72b".into(),
-            ],
+            supported_base_model_families: vec!["llama-3.3-70b".into(), "qwen2.5-72b".into()],
         }
     }
 
@@ -218,8 +215,7 @@ mod tests {
     // REQ: P9-adt-provider-cost-model — valid cost model creation
     #[test]
     fn cost_model_new_valid() {
-        let cm = CostModel::new(ProviderId::Runpod, 0.79, 5, 30, "USD")
-            .expect("valid cost model");
+        let cm = CostModel::new(ProviderId::Runpod, 0.79, 5, 30, "USD").expect("valid cost model");
         assert_eq!(cm.gpu_hourly_rate, 0.79);
         assert_eq!(cm.estimated_setup_minutes, 5);
         assert_eq!(cm.currency, "USD");

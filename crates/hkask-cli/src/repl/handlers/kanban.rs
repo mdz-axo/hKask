@@ -316,10 +316,7 @@ pub(crate) fn handle_kanban(
                         v.reasoning
                     );
                     println!("  Task status: {}", task.status);
-                    println!(
-                        "  (Contract-based. For LLM: /kanban verify {})",
-                        task_str
-                    );
+                    println!("  (Contract-based. For LLM: /kanban verify {})", task_str);
                 }
                 Err(e) => println!("  Error: {e}"),
             }
