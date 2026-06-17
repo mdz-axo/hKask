@@ -25,7 +25,6 @@ pub use hkask_services_backup::serialization::{
     ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
 };
 pub use hkask_services_backup::{BackupError, BackupService};
-pub use hkask_services_bundle::{BundleComposeResult, BundleService};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use hkask_services_core::error::ServiceError;
 pub use hkask_services_core::settings::{
@@ -51,14 +50,7 @@ pub use hkask_services_onboarding::{
     MatrixRegistrationResult, OnboardingService, RegistryHandle, ReplicantContactConfig,
     ResolvedSecrets, SignInOutcome, conduit_health_check,
 };
-pub use hkask_services_skill::{
-    SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
-    publish_skill, read_skill_namespace, read_skill_visibility, resolve_replicant_name,
-};
-pub use hkask_services_spec::{
-    CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
-    SpecService, WritingQualityResult,
-};
+pub use hkask_services_skill::resolve_replicant_name;
 pub use hkask_services_verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
 };
@@ -66,6 +58,7 @@ pub use hkask_services_wallet::WalletService;
 
 // ── Remaining inline modules ───────────────────────────────────────────
 
+pub mod bundle;
 pub mod chat;
 pub mod cns;
 pub mod compose;
@@ -78,8 +71,10 @@ pub mod goal;
 pub mod inference;
 pub mod pods;
 pub mod scheduler;
+pub mod skill;
 pub mod skills;
 pub mod sovereignty;
+pub mod spec;
 
 // ── Internal modules ───────────────────────────────────────────────────
 
@@ -88,6 +83,7 @@ pub mod consolidation;
 pub mod daemon_handler;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
+pub use bundle::{BundleComposeResult, BundleService};
 pub use chat::{
     ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
 };
@@ -109,3 +105,7 @@ pub use skills::{
     SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,
 };
 pub use sovereignty::SovereigntyService;
+pub use spec::{
+    CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
+    SpecService, WritingQualityResult,
+};

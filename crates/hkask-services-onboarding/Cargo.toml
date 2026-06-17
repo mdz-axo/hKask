@@ -12,3 +12,13 @@ hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 hex.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_neo.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+uuid.workspace = true
+async-trait.workspace = true

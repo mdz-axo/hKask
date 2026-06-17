@@ -4505,7 +4505,6 @@ dependencies = [
  "hkask-mcp",
  "hkask-memory",
  "hkask-services-backup",
- "hkask-services-bundle",
  "hkask-services-classify",
  "hkask-services-core",
  "hkask-services-discover",
@@ -4515,7 +4514,6 @@ dependencies = [
  "hkask-services-lifecycle",
  "hkask-services-onboarding",
  "hkask-services-skill",
- "hkask-services-spec",
  "hkask-services-verification",
  "hkask-services-wallet",
  "hkask-storage",
@@ -4559,15 +4557,6 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
-]
-
-[[package]]
-name = "hkask-services-bundle"
-version = "0.27.0"
-dependencies = [
- "hkask-services-core",
- "hkask-templates",
- "hkask-types",
 ]
 
 [[package]]
@@ -4691,59 +4680,101 @@ dependencies = [
 name = "hkask-services-lifecycle"
 version = "0.27.0"
 dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
  "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
 name = "hkask-services-onboarding"
 version = "0.27.0"
 dependencies = [
+ "async-trait",
+ "chrono",
  "hex",
  "hkask-agents",
  "hkask-keystore",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
 name = "hkask-services-skill"
 version = "0.27.0"
 dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
  "hkask-services-core",
  "hkask-templates",
  "hkask-types",
-]
-
-[[package]]
-name = "hkask-services-spec"
-version = "0.27.0"
-dependencies = [
- "hkask-agents",
- "hkask-services-core",
- "hkask-storage",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
 name = "hkask-services-verification"
 version = "0.27.0"
 dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
  "hkask-services-core",
  "hkask-types",
+ "reqwest",
  "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
 name = "hkask-services-wallet"
 version = "0.27.0"
 dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
  "hkask-agents",
  "hkask-cns",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
  "hkask-wallet",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "thiserror 2.0.18",
  "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
