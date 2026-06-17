@@ -11,7 +11,6 @@
 use crate::cli::ContractAction;
 use hkask_cns::{emit_contract_accepted, emit_contract_proposed, emit_contract_rejected};
 use hkask_storage::{NuEventStore, Triple, TripleStore, in_memory_db};
-use hkask_types::Confidence;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use std::sync::Arc;

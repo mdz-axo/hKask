@@ -134,6 +134,17 @@ CNS span `cns.training.harness.params_used` emitted on each harness-specific con
 | `FailureCategory` (5 types) | hallucination, omission, procedural_error, off_target, other — surfaced in curation output |
 | `AbBaseline` | Previous adapter metrics recorded on retrain for A/B comparison on completion |
 
+## hkask-adapter Integration (v0.28.0)
+
+The training MCP now depends on `hkask-adapter` as the canonical adapter lifecycle crate:
+
+- **`LoRAAdapter::to_canonical()`** — converts training-pipeline adapter to `TrainedLoRAAdapter`
+- **`EndpointLifecycle` / `EndpointPhase`** — imported from `hkask-adapter` (duplicate `endpoint.rs` removed)
+- **`MdsDomain` / `Expertise`** — imported from `hkask-adapter` (duplicate `expertise.rs` removed)
+- **`AdapterRouter`** — wired into `training_deploy` for real deployment pipeline (estimate → create → infer → teardown)
+- **Fallback path** — when `AdapterRouter` is unavailable, local deployment logic still works
+- **Deployment providers** — `DeploymentProvider::to_provider_id()` maps to `hkask_inference::ProviderId`
+
 ## Feedback Quality Gating
 
 `training_curate_feedback` now produces quality-gated output:

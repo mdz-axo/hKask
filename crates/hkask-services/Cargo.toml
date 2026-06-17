@@ -19,6 +19,7 @@ hkask-mcp = { path = "../hkask-mcp" }
 hkask-communication = { path = "../hkask-communication" }
 hkask-improv = { path = "../hkask-improv" }
 hkask-condenser = { path = "../hkask-condenser" }
+hkask-test-harness = { path = "../hkask-test-harness" }
 rusqlite.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

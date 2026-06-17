@@ -201,7 +201,7 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
-    // REQ: HAR-009 — NuEvent strategy generates valid events (P8)
+    // REQ: HARN-007 — NuEvent strategy generates valid events (P8)
     proptest! {
         #[test]
         fn nu_event_strategy_is_valid(e in any_nu_event()) {
@@ -211,7 +211,7 @@ mod tests {
         }
     }
 
-    // REQ: HAR-010 — Triple strategy generates valid triples (P8)
+    // REQ: HARN-008 — Triple strategy generates valid triples (P8)
     proptest! {
         #[test]
         fn triple_strategy_is_valid(t in any_triple()) {
@@ -221,7 +221,7 @@ mod tests {
         }
     }
 
-    // REQ: HAR-011 — CapabilitySpec strategy generates valid specs (P8)
+    // REQ: HARN-009 — CapabilitySpec strategy generates valid specs (P8)
     proptest! {
         #[test]
         fn capability_spec_strategy_is_valid(spec in any_capability_spec()) {
@@ -229,7 +229,7 @@ mod tests {
         }
     }
 
-    // REQ: HAR-012 — Goal strategy generates valid goals (P8)
+    // REQ: HARN-010 — Goal strategy generates valid goals (P8)
     proptest! {
         #[test]
         fn goal_strategy_is_valid(g in any_goal()) {
@@ -240,7 +240,7 @@ mod tests {
         }
     }
 
-    // REQ: HAR-013 — TranscriptSegment strategy generates valid segments (P8)
+    // REQ: HARN-011 — TranscriptSegment strategy generates valid segments (P8)
     proptest! {
         #[test]
         fn transcript_segment_strategy_is_valid(seg in any_transcript_segment()) {

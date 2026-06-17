@@ -96,8 +96,10 @@ impl TogetherAdapterBackend {
 
 impl AdapterProviderBackend for TogetherAdapterBackend {
     fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
-        // Skeleton: in production, calls Together AI API to provision LoRA endpoint
-        Ok(format!("https://api.together.xyz/v1",))
+        // Together AI adapters are auto-deployed after upload — the model_name
+        // from upload_adapter() is used directly for inference. No separate
+        // endpoint provisioning step needed.
+        Ok("https://api.together.xyz/v1".to_string())
     }
 
     fn infer(
@@ -231,10 +233,10 @@ impl RunpodAdapterBackend {
 
 impl AdapterProviderBackend for RunpodAdapterBackend {
     fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
-        Ok(format!(
-            "https://api.runpod.io/v2/{}/openai/v1",
-            Uuid::new_v4()
-        ))
+        // Runpod provisions GPU pods via GraphQL API. The endpoint URL
+        // is returned from the pod creation response. Skeleton until
+        // Runpod GraphQL integration is implemented.
+        Ok("https://api.runpod.io/v2".to_string())
     }
 
     fn infer(
@@ -295,10 +297,10 @@ impl BasetenAdapterBackend {
 
 impl AdapterProviderBackend for BasetenAdapterBackend {
     fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
-        Ok(format!(
-            "https://api.baseten.co/v1/endpoints/{}",
-            Uuid::new_v4()
-        ))
+        // Baseten provisions model endpoints via their API. The endpoint
+        // URL is returned from the deployment response. Skeleton until
+        // Baseten API integration is implemented.
+        Ok("https://api.baseten.co/v1".to_string())
     }
 
     fn infer(
@@ -518,11 +520,11 @@ impl AdapterRouter {
         })
     }
 
-    /// Drain (teardown) all endpoints owned by a WebID.
+    /// Drain (teardown) all billable endpoints.
     ///
     /// REQ: P5-adt-automatic-teardown — session cleanup
-    /// pre:  owner is a valid WebID
-    /// post: all endpoints owned by the WebID are transitioned to Terminated
+    /// pre:  owner is a valid WebID (unused — retained for future multi-tenant scoping)
+    /// post: all billable endpoints are transitioned to Terminated
     pub fn drain_all_owner(&self, _owner: WebID) -> Result<usize, AdapterError> {
         let mut endpoints = self
             .endpoints
@@ -568,16 +570,13 @@ impl AdapterRouter {
             .endpoints
             .lock()
             .map_err(|e| AdapterError::Internal(format!("lock poisoned: {e}")))?;
-        // Return a clone of the record data (not the lock guard)
-        let handle = endpoints
+        let record = endpoints
             .get(&endpoint_id)
-            .map(|r| r.handle.clone())
             .ok_or(AdapterError::EndpointNotFound(endpoint_id))?;
-        let backend = endpoints
-            .get(&endpoint_id)
-            .map(|r| Arc::clone(&r.backend))
-            .ok_or(AdapterError::EndpointNotFound(endpoint_id))?;
-        Ok(EndpointRecord { handle, backend })
+        Ok(EndpointRecord {
+            handle: record.handle.clone(),
+            backend: Arc::clone(&record.backend),
+        })
     }
 }
 

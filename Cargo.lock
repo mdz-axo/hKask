@@ -3944,6 +3944,7 @@ dependencies = [
  "hkask-services",
  "hkask-storage",
  "hkask-templates",
+ "hkask-test-harness",
  "hkask-types",
  "hkask-wallet",
  "minijinja",

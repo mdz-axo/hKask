@@ -1,17 +1,18 @@
 //! hKask Test Harness — Shared fixtures for test infrastructure
 //!
-//! Public API (≤7 items, essentialist G2):
+//! Public API:
 //! - `TestDb` — isolated temp SQLite database with full schema
 //! - `TestKeystore` — temp directory with test master key
 //! - `TestWebId` — factory for valid test WebIDs
 //! - `MockCnsRuntime` — CNS runtime with controllable state
+//! - `MockInferencePort` — mock inference with canned responses
 //! - `temp_dir()` — guarded temp directory, auto-cleans on drop
-//! - `test_event()` — factory for well-formed NuEvents
-//! - `test_triple()` — factory for well-formed Triples
-//! - `run_contract_tests()` — run cargo test, parse REQ-tagged failures
+//! - `test_event()` / `test_triple()` — factories for well-formed test entities
+//! - `strategies` — proptest strategy functions for core types
+//! - `test_runner` — cargo test invocation and REQ-tagged failure parsing
 //!
 //! # Principle grounding
-//! - P5 (Essentialism): ≤7 public items; each survives the deletion test
+//! - P5 (Essentialism): each public item does one thing well
 //! - P8 (Semantic Grounding): every test using these fixtures carries REQ tags
 //! - P12 (Replicant Host Mandate): all test identities use TestWebId (authenticated)
 

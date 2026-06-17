@@ -24,6 +24,7 @@ hkask-keystore = { path = "../hkask-keystore" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-improv = { path = "../hkask-improv" }
 hkask-communication = { path = "../hkask-communication" }
+hkask-test-harness = { path = "../hkask-test-harness" }
 axum.workspace = true
 clap.workspace = true
 chrono.workspace = true

@@ -48,6 +48,10 @@ impl AdapterConfig {
     }
 
     /// Read adapter_config.json from a directory path.
+    ///
+    /// REQ: P8-adt-adapter-config-parse
+    /// pre:  storage_path is a readable directory containing adapter_config.json
+    /// post: returns AdapterConfig parsed from adapter_config.json
     pub fn from_dir(storage_path: &str) -> Result<Self, AdapterConfigError> {
         let config_path = std::path::Path::new(storage_path).join("adapter_config.json");
         let bytes = std::fs::read(&config_path).map_err(|e| AdapterConfigError::Io {
@@ -58,6 +62,10 @@ impl AdapterConfig {
     }
 
     /// Validate that this adapter config is compatible with the expected base model.
+    ///
+    /// REQ: P8-adt-adapter-config-parse
+    /// pre:  expected_family is non-empty
+    /// post: returns Ok if base_model_name_or_path contains expected_family, Err otherwise
     pub fn validate_base_model(&self, expected_family: &str) -> Result<(), AdapterConfigError> {
         let actual = &self.base_model_name_or_path;
         // Flexible match — the config may contain full HuggingFace path like

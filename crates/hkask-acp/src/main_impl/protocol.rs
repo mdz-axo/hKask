@@ -287,10 +287,18 @@ pub(crate) async fn write_notification(
 pub struct StdioTransport {}
 
 impl StdioTransport {
+    /// REQ: ACP-006
+    /// post: returns empty StdioTransport ready for serve()
     pub fn new() -> Self {
         Self {}
     }
 
+    /// Serve ACP JSON-RPC 2.0 over stdin/stdout.
+    ///
+    /// REQ: ACP-007
+    /// pre:  agent is fully built (inference + daemon configured)
+    /// post: reads JSON-RPC requests from stdin, writes responses to stdout
+    /// post: runs until stdin EOF or unrecoverable error
     pub async fn serve(&mut self, agent: Arc<HkaskAcpAgent>) -> anyhow::Result<()> {
         let stdin = tokio::io::stdin();
         let mut stdout = tokio::io::stdout();
@@ -298,6 +306,11 @@ impl StdioTransport {
     }
 
     /// Test entry point — serves ACP over arbitrary reader/writer.
+    ///
+    /// REQ: ACP-008
+    /// pre:  agent is fully built; reader implements AsyncRead; writer implements AsyncWrite
+    /// post: reads JSON-RPC requests from reader, writes responses to writer
+    /// post: runs until reader EOF or unrecoverable error
     pub async fn serve_with_streams<R: tokio::io::AsyncRead + Unpin>(
         &mut self,
         agent: Arc<HkaskAcpAgent>,

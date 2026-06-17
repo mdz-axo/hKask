@@ -661,7 +661,7 @@ pub enum DeploymentProvider {
 
 impl DeploymentProvider {
     /// Map to `hkask_inference::ProviderId` for use with `hkask-adapter::AdapterRouter`.
-    fn to_provider_id(&self) -> hkask_inference::ProviderId {
+    fn as_provider_id(&self) -> hkask_inference::ProviderId {
         match self {
             DeploymentProvider::Together => hkask_inference::ProviderId::Together,
             DeploymentProvider::Baseten => hkask_inference::ProviderId::Baseten,
@@ -3150,7 +3150,7 @@ impl TrainingServer {
         // If AdapterRouter is configured, use canonical deployment pipeline.
         if let Some(ref router) = self.adapter_router {
             let canonical = adapter_meta.to_canonical();
-            let provider = req.provider.to_provider_id();
+            let provider = req.provider.as_provider_id();
             let token = hkask_types::capability::DelegationToken::new(
                 hkask_types::capability::DelegationResource::Tool,
                 "adapter:deploy".into(),

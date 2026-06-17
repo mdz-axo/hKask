@@ -1,8 +1,7 @@
 //! Test command handlers for `kask test`
 //!
 //! Runs contract tests on specified crates and reports REQ-tagged violations.
-//! Uses the embedded test runner from `hkask-services` to shell out to
-//! `cargo test` and parse results.
+//! Delegates to `hkask-test-harness::test_runner::run_contract_tests()`.
 
 use std::time::Duration;
 
@@ -54,11 +53,11 @@ fn run_all(crates: &[String], workspace_root: &str, format: &str) {
     let mut all_violations: Vec<(String, String, String)> = Vec::new();
 
     for crate_name in crates {
-        match run_one(crate_name, workspace_root) {
-            Some(outcome) => {
-                total_passed += outcome.passed;
-                total_failed += outcome.failed;
-                for v in &outcome.violations {
+        match hkask_test_harness::test_runner::run_contract_tests(crate_name, workspace_root) {
+            Some(result) => {
+                total_passed += result.passed;
+                total_failed += result.failed;
+                for v in &result.violations {
                     all_violations.push((
                         crate_name.clone(),
                         v.test_name.clone(),
@@ -117,138 +116,4 @@ fn run_all(crates: &[String], workspace_root: &str, format: &str) {
             }
         }
     }
-}
-
-/// Lightweight outcome from running one crate's tests.
-struct CrateOutcome {
-    passed: usize,
-    failed: usize,
-    violations: Vec<CrateViolation>,
-}
-
-struct CrateViolation {
-    test_name: String,
-    contract_id: String,
-}
-
-fn run_one(crate_name: &str, workspace_root: &str) -> Option<CrateOutcome> {
-    let output = std::process::Command::new("cargo")
-        .args([
-            "test",
-            "-p",
-            crate_name,
-            "--lib",
-            "--",
-            "--test-threads=1",
-            "--format=terse",
-        ])
-        .current_dir(workspace_root)
-        .output()
-        .ok()?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let combined = format!("{}{}", stdout, stderr);
-
-    let total_tests = {
-        let mut count = 0usize;
-        for line in combined.lines() {
-            if line.starts_with("running ") && line.contains(" test") {
-                let num = line
-                    .trim_start_matches("running ")
-                    .split_whitespace()
-                    .next()
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(0);
-                count += num;
-            }
-        }
-        count
-    };
-
-    let failed_tests: Vec<String> = combined
-        .lines()
-        .filter(|l| l.contains("... FAILED"))
-        .filter_map(|l| {
-            let parts: Vec<&str> = l.splitn(2, " ... FAILED").collect();
-            parts
-                .first()
-                .map(|s| s.trim().strip_prefix("test ").unwrap_or(s).to_string())
-        })
-        .collect();
-
-    let total_failed = failed_tests.len();
-    let actual_passed = total_tests.saturating_sub(total_failed);
-
-    let violations: Vec<CrateViolation> = failed_tests
-        .iter()
-        .map(|test_name| {
-            let fn_name = test_name.split("::").last().unwrap_or(test_name);
-            let contract_id = find_req_for_fn(workspace_root, crate_name, fn_name);
-            CrateViolation {
-                test_name: test_name.clone(),
-                contract_id,
-            }
-        })
-        .collect();
-
-    Some(CrateOutcome {
-        passed: actual_passed,
-        failed: total_failed,
-        violations,
-    })
-}
-
-/// Find a REQ tag near the given function name in the crate's source.
-fn find_req_for_fn(workspace_root: &str, crate_name: &str, fn_name: &str) -> String {
-    let src_dir = format!("{}/crates/{}/src", workspace_root, crate_name);
-    let tests_dir = format!("{}/crates/{}/tests", workspace_root, crate_name);
-
-    for dir in &[&src_dir, &tests_dir] {
-        let Ok(output) = std::process::Command::new("grep")
-            .args(["-rn", &format!("fn {}", fn_name), dir])
-            .output()
-        else {
-            continue;
-        };
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        for line in stdout.lines() {
-            let parts: Vec<&str> = line.splitn(2, ':').collect();
-            if parts.len() < 2 {
-                continue;
-            }
-            let file = parts[0];
-            let line_num: usize = parts[1]
-                .split(':')
-                .next()
-                .and_then(|s| s.trim().parse().ok())
-                .unwrap_or(0);
-
-            if line_num > 0 {
-                let Ok(content) = std::fs::read_to_string(file) else {
-                    continue;
-                };
-                let lines: Vec<&str> = content.lines().collect();
-                let start = line_num.saturating_sub(11).min(lines.len());
-                let end = (line_num - 1).min(lines.len());
-                if start < end {
-                    for ctx_line in &lines[start..end] {
-                        let trimmed = ctx_line.trim();
-                        if let Some(pos) = trimmed.find("REQ:") {
-                            let tag = trimmed[pos + 4..].trim();
-                            let end_pos =
-                                tag.find(|c: char| c.is_whitespace()).unwrap_or(tag.len());
-                            let req = tag[..end_pos]
-                                .trim_end_matches(&['.', ',', ';', ':', ')', ']', '}']);
-                            if !req.is_empty() {
-                                return req.to_string();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    "unknown".to_string()
 }
