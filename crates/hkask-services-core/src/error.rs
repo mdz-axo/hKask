@@ -23,8 +23,8 @@
 //! - `ServiceError` does NOT depend on surface types (CLI errors, API errors).
 //!   Dependency direction: surface → service → domain. Never the reverse.
 
-use thiserror::Error;
 use hkask_types::InfrastructureError;
+use thiserror::Error;
 
 /// Unified domain error for all service operations.
 #[derive(Debug, Error)]
@@ -86,7 +86,11 @@ pub enum ServiceError {
     #[error("CNS operation failed: {message}")]
     Cns { message: String },
     #[error("Keystore resolution failed: {message}")]
-    Keystore { message: String, #[source] source: Option<Box<dyn std::error::Error + Send + Sync>> },
+    Keystore {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
     #[error("Energy budget error: {message}")]
     Gas { message: String },
 
@@ -178,7 +182,9 @@ pub enum ServiceError {
 
 impl From<uuid::Error> for ServiceError {
     fn from(e: uuid::Error) -> Self {
-        ServiceError::InvalidWebID { message: e.to_string() }
+        ServiceError::InvalidWebID {
+            message: e.to_string(),
+        }
     }
 }
 
@@ -308,9 +314,9 @@ impl ServiceError {
             | ServiceError::Backup { message, .. }
             | ServiceError::RateLimited { message, .. }
             | ServiceError::Config { message, .. }
-            | ServiceError::Matrix { message, .. } => message.as_str(),
+            | ServiceError::Matrix { message, .. } => message.clone(),
             ServiceError::Infra(e) => return ("cns.cybernetics", key, e.to_string()),
-            ServiceError::McpTool { message, .. } => message.as_str(),
+            ServiceError::McpTool { message, .. } => message.clone(),
         };
         ("cns.cybernetics", key, msg)
     }

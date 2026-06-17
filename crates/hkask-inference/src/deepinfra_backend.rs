@@ -16,6 +16,7 @@ use hkask_types::ports::{InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 use tracing::info;
 
 /// DeepInfra backend for chat completions and model listing.
@@ -70,6 +71,11 @@ impl DeepInfraBackend {
         validate_prompt(prompt)?;
         let request = build_chat_request(model, prompt, None, params, Some(false), Some(5));
 
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "invoked", "CNS");
+
         let response = self
             .client
             .post(format!("{}/v1/chat/completions", self.base_url))
@@ -94,6 +100,9 @@ impl DeepInfraBackend {
             .map_err(|e| InferenceError::Json(format!("DeepInfra JSON parse: {}", e)))?;
 
         let result = chat_response_to_result(chat_response)?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %result.model, provider = "DI", action = "completed", latency_ms = %latency_ms, "CNS");
         info!(
             target: "hkask.inference",
             provider = "DI",
@@ -136,6 +145,11 @@ impl DeepInfraBackend {
             Some(5),
         );
 
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "invoked", "CNS");
+
         let response = self
             .client
             .post(format!("{}/v1/chat/completions", self.base_url))
@@ -160,6 +174,9 @@ impl DeepInfraBackend {
             .map_err(|e| InferenceError::Json(format!("DeepInfra JSON parse: {}", e)))?;
 
         let result = chat_response_to_result(chat_response)?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %result.model, provider = "DI", action = "completed", latency_ms = %latency_ms, "CNS");
         info!(
             target: "hkask.inference",
             provider = "DI",
@@ -200,6 +217,11 @@ impl DeepInfraBackend {
             futures_util::stream::once(async move {
                 let request = build_chat_request(&model, &prompt, None, &params, Some(true), None);
 
+                // P9: CNS span
+                // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+                let started = Instant::now();
+                info!(target: "cns.inference", model = %model, provider = "DI", action = "stream_started", "CNS");
+
                 let response = match client
                     .post(format!("{}/v1/chat/completions", base_url))
                     .header("Authorization", format!("Bearer {}", api_key))
@@ -229,6 +251,10 @@ impl DeepInfraBackend {
                     Ok(b) => b,
                     Err(e) => return vec![Err(e)],
                 };
+
+                // P9: CNS span
+                let latency_ms = started.elapsed().as_millis();
+                info!(target: "cns.inference", model = %model, provider = "DI", action = "stream_completed", latency_ms = %latency_ms, "CNS");
 
                 parse_sse_stream(&body, &model)
             })
@@ -293,6 +319,11 @@ impl DeepInfraBackend {
         model: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, InferenceError> {
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "invoked", "CNS");
+
         let url = format!("{}/v1/inference/{}", self.base_url, model);
         let resp = self
             .client
@@ -311,8 +342,12 @@ impl DeepInfraBackend {
                 model, status, text
             )));
         }
-        serde_json::from_str(&text)
-            .map_err(|e| InferenceError::Json(format!("DeepInfra JSON parse: {}", e)))
+        let result: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| InferenceError::Json(format!("DeepInfra JSON parse: {}", e)))?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "completed", latency_ms = %latency_ms, "CNS");
+        Ok(result)
     }
 
     /// Remove background from an image using Bria RMBG 2.0.
@@ -399,6 +434,11 @@ impl DeepInfraBackend {
             "output_format": "mp3",
         });
 
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "invoked", "CNS");
+
         let resp = self
             .client
             .post(&url)
@@ -426,12 +466,16 @@ impl DeepInfraBackend {
         // Return as base64 data URI for portability
         use base64::Engine;
         let b64 = base64::engine::general_purpose::STANDARD.encode(&audio_bytes);
-        Ok(serde_json::json!({
+        let result = serde_json::json!({
             "audio": format!("data:audio/mp3;base64,{}", b64),
             "format": "mp3",
             "model": model,
             "voice_id": voice_id,
-        }))
+        });
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "completed", latency_ms = %latency_ms, "CNS");
+        Ok(result)
     }
 
     /// Transcribe speech audio to text using Whisper.
@@ -460,6 +504,12 @@ impl DeepInfraBackend {
             body["language"] = serde_json::json!(lang);
         }
 
+        let model = "openai/whisper-large-v3";
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "invoked", "CNS");
+
         let resp = self
             .client
             .post(&url)
@@ -478,8 +528,12 @@ impl DeepInfraBackend {
             )));
         }
 
-        serde_json::from_str(&text)
-            .map_err(|e| InferenceError::Json(format!("DeepInfra STT parse: {}", e)))
+        let result: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| InferenceError::Json(format!("DeepInfra STT parse: {}", e)))?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "completed", latency_ms = %latency_ms, "CNS");
+        Ok(result)
     }
 }
 

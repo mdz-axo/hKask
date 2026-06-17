@@ -75,11 +75,17 @@ impl Keychain {
     /// REQ: KEYSTORE-002
     /// pre:  webid is a valid WebID
     /// post: returns Ok(secret) if stored, Err(NotFound) if not
+    // REQ: P9-CNS-KS-001 pre: operation valid, post: cns.keystore span emitted
     pub fn retrieve(&self, webid: &WebID) -> Result<String, KeychainError> {
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "retrieve", webid = %webid, status = "started", "CNS");
         let entry = Entry::new(&self.service_name, &webid.as_uuid().to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        entry.get_password().map_err(KeychainError::from)
+        let result = entry.get_password().map_err(KeychainError::from);
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "retrieve", webid = %webid, status = "completed", "CNS");
+        result
     }
 
     /// Delete a secret from the OS keychain by WebID.
@@ -88,7 +94,10 @@ impl Keychain {
     /// pre:  webid is a valid WebID
     /// post: secret removed from OS keychain
     /// post: idempotent — deleting non-existent entry is no-op (platform-dependent)
+    // REQ: P9-CNS-KS-001 pre: operation valid, post: cns.keystore span emitted
     pub fn delete(&self, webid: &WebID) -> Result<(), KeychainError> {
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "delete", webid = %webid, status = "started", "CNS");
         let entry = Entry::new(&self.service_name, &webid.as_uuid().to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
@@ -96,6 +105,8 @@ impl Keychain {
             .delete_credential()
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "delete", webid = %webid, status = "completed", "CNS");
         Ok(())
     }
 
@@ -179,12 +190,19 @@ pub fn resolve_secret_chain(
     env_var: &str,
     keychain_key: &str,
 ) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
-    resolve(&SecretRef::derived(
+    // P9: CNS span
+    let start = Instant::now();
+    info!(target: "cns.keystore", operation = "resolve_chain", env_var = %env_var, status = "started", "CNS");
+    let result = resolve(&SecretRef::derived(
         derivation_context.0,
         derivation_context.1,
     ))
     .or_else(|_| resolve(&SecretRef::env(env_var)))
-    .or_else(|_| resolve(&SecretRef::keychain(keychain_key)))
+    .or_else(|_| resolve(&SecretRef::keychain(keychain_key)));
+    // P9: CNS span
+    let latency_ms = start.elapsed().as_millis() as u64;
+    info!(target: "cns.keystore", operation = "resolve_chain", env_var = %env_var, status = "completed", latency_ms = latency_ms, "CNS");
+    result
 }
 
 /// Resolve the A2A (Agent-to-Agent Protocol) HMAC signing secret.

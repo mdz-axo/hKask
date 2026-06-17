@@ -18,6 +18,7 @@ use hkask_types::wallet::WalletConfig;
 
 /// Default path for the primary database file.
 pub const DEFAULT_DB_PATH: &str = "data/hkask.db";
+const DEFAULT_CNS_THRESHOLD: u64 = 100;
 const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
 const DEFAULT_TEMPLATE_CACHE_PATH: &str = "/tmp/hkask-templates";
@@ -136,19 +137,22 @@ impl ServiceConfig {
         // fall back to empty secrets (in-memory mode will be used).
         let a2a_secret = hkask_keystore::resolve_a2a_secret()
             .map_err(|e| ServiceError::Keystore {
-                message: format!("Failed to resolve A2A secret: {e}"),
+                source: Some(Box::new(e)),
+                message: "Failed to resolve A2A secret".into(),
             })?
             .to_vec();
 
         let db_passphrase_bytes =
             hkask_keystore::resolve_db_passphrase().map_err(|e| ServiceError::Keystore {
-                message: format!("Failed to resolve DB passphrase: {e}"),
+                source: Some(Box::new(e)),
+                message: "Failed to resolve DB passphrase".into(),
             })?;
         let db_passphrase = String::from_utf8_lossy(db_passphrase_bytes.as_ref()).into_owned();
 
         let mcp_secret_vec = hkask_keystore::resolve_mcp_secret()
             .map_err(|e| ServiceError::Keystore {
-                message: format!("Failed to resolve MCP secret: {e}"),
+                source: Some(Box::new(e)),
+                message: "Failed to resolve MCP secret".into(),
             })?
             .to_vec();
 
@@ -159,12 +163,12 @@ impl ServiceConfig {
             mcp_secret: mcp_secret_vec,
             default_model,
             inference_config,
-            cns_threshold: 0.7, // DEFAULT_THRESHOLD from hkask-cns
-                        energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
-                        gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
-                        in_memory: false,
-                        agent_name: DEFAULT_AGENT_NAME.to_string(),
-                        template_cache_path,
+            cns_threshold: DEFAULT_CNS_THRESHOLD,
+            energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
+            gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
+            in_memory: false,
+            agent_name: DEFAULT_AGENT_NAME.to_string(),
+            template_cache_path,
             memory_db_path,
             memory_passphrase: None,
             registry_yaml_path,
@@ -203,7 +207,7 @@ impl ServiceConfig {
             a2a_secret: a2a_secret.into_bytes(),
             mcp_secret: mcp_secret.into_bytes(),
             inference_config: inference_config.clone(),
-            cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
+            cns_threshold: DEFAULT_CNS_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
@@ -233,7 +237,7 @@ impl ServiceConfig {
             a2a_secret: vec![0u8; 32],
             mcp_secret: vec![0u8; 32],
             inference_config: inference_config.clone(),
-            cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
+            cns_threshold: DEFAULT_CNS_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: true,

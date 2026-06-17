@@ -1011,6 +1011,7 @@ impl AdapterPort for AdapterRouter {
         })
     }
 
+    // REQ: P9-CNS-AD-001 pre: operation valid, post: cns.endpoint span emitted
     async fn create_endpoint(
         &self,
         adapter_id: Uuid,
@@ -1037,6 +1038,9 @@ impl AdapterPort for AdapterRouter {
                 ),
             });
         }
+
+        // P9: CNS span — endpoint creation started
+        tracing::info!(target: "cns.endpoint", operation = "create_started", provider = %provider.as_str(), model = %adapter.base_model_family, "CNS");
 
         // 4. Parse adapter config and upload to provider (best-effort)
         let model_name = if let Ok(adapter_config) = AdapterConfig::from_dir(&adapter.storage_path)
@@ -1095,6 +1099,9 @@ impl AdapterPort for AdapterRouter {
         // 8. Persist endpoint for restart survival
         let _ = self.save_endpoint_to_store(&handle);
 
+        // P9: CNS span — endpoint creation confirmed
+        tracing::info!(target: "cns.endpoint", operation = "create_confirmed", endpoint_id = %handle.endpoint_id, provider = %provider.as_str(), "CNS");
+
         Ok(handle)
     }
 
@@ -1121,6 +1128,7 @@ impl AdapterPort for AdapterRouter {
         })
     }
 
+    // REQ: P9-CNS-AD-001 pre: operation valid, post: cns.endpoint span emitted
     async fn infer(
         &self,
         endpoint_id: Uuid,
@@ -1129,6 +1137,9 @@ impl AdapterPort for AdapterRouter {
         _token: &DelegationToken,
     ) -> Result<InferenceResult, AdapterError> {
         let record = self.resolve_endpoint(endpoint_id)?;
+
+        // P9: CNS span
+        tracing::info!(target: "cns.endpoint", operation = "inference", endpoint_id = %endpoint_id, "CNS");
 
         // Transition to Active if currently Ready
         {
@@ -1155,6 +1166,7 @@ impl AdapterPort for AdapterRouter {
             .await
     }
 
+    // REQ: P9-CNS-AD-001 pre: operation valid, post: cns.endpoint span emitted
     async fn teardown_endpoint(
         &self,
         endpoint_id: Uuid,
