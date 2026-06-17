@@ -4509,11 +4509,13 @@ dependencies = [
  "hkask-services-core",
  "hkask-services-discover",
  "hkask-services-embed",
+ "hkask-services-inference-svc",
  "hkask-services-kanban",
  "hkask-services-kata",
  "hkask-services-lifecycle",
  "hkask-services-onboarding",
  "hkask-services-skill",
+ "hkask-services-sovereignty",
  "hkask-services-verification",
  "hkask-services-wallet",
  "hkask-storage",
@@ -4641,6 +4643,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-services-inference-svc"
+version = "0.27.0"
+dependencies = [
+ "hkask-inference",
+ "hkask-services-core",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "hkask-services-kanban"
 version = "0.27.0"
 dependencies = [
@@ -4733,6 +4749,20 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-sovereignty"
+version = "0.27.0"
+dependencies = [
+ "hkask-agents",
+ "hkask-services-core",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

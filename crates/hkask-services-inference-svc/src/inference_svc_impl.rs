@@ -19,7 +19,7 @@ use std::sync::Arc;
 use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId, RouterModelEntry};
 use hkask_types::ports::InferencePort;
 
-use crate::ServiceError;
+use hkask_services_core::ServiceError;
 
 /// Lightweight context for `InferenceService` calls.
 ///
