@@ -32,11 +32,6 @@ fn err(span: ToolSpanGuard, msg: &str) -> String {
 
 // ── Server ──────────────────────────────────────────────────────────────────
 
-impl KanbanServer {
-    fn _replicant_name(&self) -> &str { &self.replicant }
-    fn _has_daemon(&self) -> bool { self.daemon.is_some() }
-}
-
 pub struct KanbanServer {
     service: KanbanService,
     webid: WebID,
