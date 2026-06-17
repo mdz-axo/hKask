@@ -27,7 +27,7 @@ Where each MDS category's authoritative documents live:
 | 1 | **Domain** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`reference/hKask-hLexicon.md`](../../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../../architecture/reference/hKask-Curator-persona.md) |
 | 2 | **Composition** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`reference/template-header-standard.md`](../../architecture/reference/template-header-standard.md) |
 | 3 | **Trust** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`magna-carta.md`](../../architecture/core/magna-carta.md) |
-| 4 | **Lifecycle** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`CI-CD-GUIDE.md`](../../guides/CI-CD-GUIDE.md), [`DEPLOYMENT.md`](../../guides/DEPLOYMENT.md) |
+| 4 | **Lifecycle** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`DEPLOYMENT.md`](../../guides/DEPLOYMENT.md) |
 | 5 | **Curation** | [`MDS.md`](../../architecture/core/MDS.md) + [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md) | `architecture/` + `specifications/` | — |
 
 **Rule:** New documents go in the directory of their primary MDS category. Cross-cutting documents (multiple categories) go in the directory of their dominant category. The portal provides category-based navigation; this scaffold provides the placement rule.

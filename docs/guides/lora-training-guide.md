@@ -54,7 +54,7 @@ The recommended format for hKask skill training is ChatML — each record is a f
 }
 ```
 
-Each trace teaches the model **how to think** through the decision process, not just the final answer. This is the decomposition trace pattern — see `docs/research/training-decomposition-traces.md` for the methodology.
+Each trace teaches the model **how to think** through the decision process, not just the final answer.
 
 ### 1.3 Ingesting a Dataset
 
@@ -635,7 +635,6 @@ println!("Classification: {}", result.content);
 - [`crates/hkask-adapter/src/adapter_router.rs`](../../crates/hkask-adapter/src/adapter_router.rs) — `AdapterRouter`, `EndpointGuard`
 - [`crates/hkask-adapter/src/endpoint_lifecycle.rs`](../../crates/hkask-adapter/src/endpoint_lifecycle.rs) — 5-phase state machine
 - [`crates/hkask-adapter/src/provider_cost.rs`](../../crates/hkask-adapter/src/provider_cost.rs) — `CostModel`, `ProviderCapability`
-- [`docs/research/training-decomposition-traces.md`](../research/training-decomposition-traces.md) — Training data methodology
 - [`docs/user-guides/lora-adapter-store-guide.md`](../user-guides/lora-adapter-store-guide.md) — Adapter store + lifecycle reference
 
 ---

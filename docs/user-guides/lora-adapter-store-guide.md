@@ -417,5 +417,4 @@ Some providers (`Ollama`, `DeepInfra`) do not support LoRA composition. Their `P
 - [`crates/hkask-adapter/src/provider_cost.rs`](../../crates/hkask-adapter/src/provider_cost.rs) — CostModel + ProviderCapability
 - [`crates/hkask-types/src/cns.rs`](../../crates/hkask-types/src/cns.rs) — CNS span registry
 - [`docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md`](../architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md) — 16-crate deep-module audit
-- [`docs/architecture/core/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) — P1–P12 principle definitions
-- [`docs/research/training-decomposition-traces.md`](../research/training-decomposition-traces.md) — Training data methodology
+- [`docs/architecture/core/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) — P1-P12 principle definitions

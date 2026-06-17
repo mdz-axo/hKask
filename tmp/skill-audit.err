@@ -1,5 +1,0 @@
-   Compiling hkask-services v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-services)
-   Compiling hkask-api v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-api)
-   Compiling hkask-cli v0.27.0 (/home/mdz-axolotl/Clones/hKask/crates/hkask-cli)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.88s
-     Running `target/debug/kask skill audit --json --fail-below 0.0`

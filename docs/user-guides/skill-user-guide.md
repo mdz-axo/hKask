@@ -243,6 +243,5 @@ Checks that template contracts are complete and consistent with their manifests.
 ## References
 
 - [Skill Designer Guide](../../docs/guides/skill-designer-guide.md) — Creating and maintaining skills
-- [Dual-Layer Skill Model](../architecture/core/skill-dual-layer-model.md) — Architecture specification
 - [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) — P1–P12 principles
 - [AGENTS.md](../../AGENTS.md) — Agent operating guide

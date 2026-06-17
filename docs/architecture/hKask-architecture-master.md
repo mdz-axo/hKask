@@ -831,17 +831,10 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | ADR | Topic |
 |-----|-------|
-| [`ADRs/ADR-030-skill-bundler.md`](ADRs/ADR-030-skill-bundler.md) | Skill bundler — meta-skill composition |
 | [`ADRs/ADR-031-consolidation-authorization.md`](ADRs/ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
-| [`ADRs/ADR-032-mcp-gateway-membrane.md`](ADRs/ADR-032-mcp-gateway-membrane.md) | MCP gateway membrane policy — Tier 1 (governed) vs Tier 2 (passthrough) |
-| [`ADRs/ADR-033-dampener-override-cooldown.md`](ADRs/ADR-033-dampener-override-cooldown.md) | Dampener override cooldown — per-issuer vs global |
-| [`ADRs/ADR-034-academic-author-pipeline.md`](ADRs/ADR-034-academic-author-pipeline.md) | Academic author pipeline — corpus_type discriminator, pre-processing, enumeration, disambiguation |
 | [`ADRs/ADR-035-replicant-server-mode.md`](ADRs/ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
-| [`ADRs/ADR-036-ocr-pipeline.md`](ADRs/ADR-036-ocr-pipeline.md) | OCR pipeline — sealed backend hierarchy (Tesseract, PaddleOCR, FalAI), deterministic routing |
-| [`ADRs/ADR-037-wallet-payments.md`](ADRs/ADR-037-wallet-payments.md) | Wallet payment mechanism — rJoule internal currency, multi-chain bridge architecture |
-| [`ADRs/ADR-038-media-server.md`](ADRs/ADR-038-media-server.md) | Media MCP server — 28 tools across 6 categories, fal.ai primary backend |
 
-**Archived (retroactive, 2026-06-15):** ADR-024, ADR-025, ADR-026, ADR-027. Recoverable via git history.
+**Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–038 (7 Draft ADRs, never adopted). **Archived (retroactive, 2026-06-15):** ADR-024–027. Recoverable via git history.
 
 ---
 
@@ -876,23 +869,13 @@ docs/architecture/
 │   ├── TESTING_NARRATIVE.md               # Narrative companion to testing discipline
 │   ├── CNS-DOMAIN-SPECIFICATION.md        # Specification (6 sub-domains, 44 contracts)
 │   ├── FUNCTIONAL_SPECIFICATION.md        # Specification (AgentService)
-│   ├── FUNCTIONAL_SPECIFICATION_APPENDIX.md # Appendix (service details)
-│   ├── HANDOFF_FUNCTIONAL_SPEC.md         # Specification (handoff lifecycle)
-│   ├── REQ_CONTRACT_INVENTORY.md          # Inventory (contract completeness)
 │   └── RSOLIDITY_VOCABULARY.md            # Reference (rSolidity terms)
 ├── mandates/
 │   └── P12-replicant-host-mandate.md      # Framework (replicant host mandate)
 ├── ADRs/
 │   ├── _TEMPLATE.md                       # ADR template
-│   ├── ADR-030-skill-bundler.md           # Decision record (Draft)
-│   ├── ADR-031-consolidation-authorization.md # Decision record
-│   ├── ADR-032-mcp-gateway-membrane.md    # Decision record (Draft)
-│   ├── ADR-033-dampener-override-cooldown.md # Decision record (Draft)
-│   ├── ADR-034-academic-author-pipeline.md # Decision record (Active)
-│   ├── ADR-035-replicant-server-mode.md   # Decision record (Active)
-│   ├── ADR-036-ocr-pipeline.md            # Decision record (Draft)
-│   ├── ADR-037-wallet-payments.md         # Decision record (Draft)
-│   └── ADR-038-media-server.md            # Decision record (Draft)
+│   ├── ADR-031-consolidation-authorization.md # Active
+│   └── ADR-035-replicant-server-mode.md   # Active
 └── reference/
     ├── hKask-hLexicon.md                  # Vocabulary catalog
     ├── ports-inventory.md                 # Port reference
@@ -902,7 +885,7 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 16 active architecture documents (11 core + 1 mandate + 4 root + 9 ADRs + 1 template + 6 reference artifacts) + 1 PUBLIC_SURFACE justification + 1 domain specification.
+**Total:** 19 architecture documents (8 core + 1 mandate + 4 root + 2 ADRs + 1 template + 6 reference) + 1 PUBLIC_SURFACE justification.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 

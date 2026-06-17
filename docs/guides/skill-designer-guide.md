@@ -12,7 +12,7 @@ mds_categories: [composition, lifecycle, curation]
 
 **Purpose:** Definitive reference for designing, building, and maintaining skills in the hKask dual-layer architecture. Covers when to create each layer, structural rules, template_type discipline, visibility (P11), CNS span grounding, registration, and testing.
 
-**Companion docs:** [`skill-dual-layer-model.md`](../architecture/core/skill-dual-layer-model.md) (architecture spec), [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) (P1–P12).
+**Companion docs:** [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) (P1-P12).
 
 ---
 
@@ -431,7 +431,6 @@ flowchart TD
 
 ## References
 
-- [Dual-Layer Skill Model](../architecture/core/skill-dual-layer-model.md) — Architecture specification
 - [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) — P1–P12 architecture principles
 - [AGENTS.md](../../AGENTS.md) — Agent operating guide and prohibitions
 - [CNS Domain Specification](../architecture/core/CNS-DOMAIN-SPECIFICATION.md) — CNS span registry and health checks

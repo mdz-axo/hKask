@@ -180,7 +180,6 @@ kask chat --replicant bob-jones
 | Guide | Location |
 |-------|----------|
 | Agent pod creation | [`user-guides/AGENT-POD-CREATION-GUIDE.md`](../user-guides/AGENT-POD-CREATION-GUIDE.md) |
-| Common agent patterns | [`user-guides/COMMON-AGENT-PATTERNS.md`](../user-guides/COMMON-AGENT-PATTERNS.md) |
 | Operations runbook | [`guides/OPERATIONS_RUNBOOK.md`](../guides/OPERATIONS_RUNBOOK.md) |
 | Kata user guide | [`guides/kata-user-guide.md`](../guides/kata-user-guide.md) |
 
