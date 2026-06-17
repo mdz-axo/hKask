@@ -24,7 +24,6 @@ use hkask_storage::user_store::UserStore;
 use hkask_types::ports::InferencePort;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
-use tracing;
 
 /// Number of experiences before triggering internal narrative generation.
 const NARRATIVE_THRESHOLD: usize = 10;

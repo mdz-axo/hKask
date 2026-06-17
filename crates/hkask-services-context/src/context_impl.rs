@@ -61,7 +61,6 @@ use hkask_types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_types::ports::InferencePort;
 use hkask_types::ports::git_cas::GitCASPort;
 use hkask_types::wallet::WalletId;
-use rusqlite;
 
 use hkask_services_core::ServiceConfig;
 use hkask_services_core::ServiceError;

@@ -866,9 +866,7 @@ impl AdapterRouter {
             if let Some(record) = endpoints.remove(&id) {
                 // Best-effort teardown — create a fresh runtime to avoid Handle::current() panic
                 let _ = tokio::runtime::Runtime::new()
-                    .and_then(|rt| {
-                        Ok(rt.block_on(record.backend.teardown(&record.handle.endpoint_url)))
-                    })
+                    .map(|rt| rt.block_on(record.backend.teardown(&record.handle.endpoint_url)))
                     .inspect_err(|e| tracing::warn!("Failed to create runtime for teardown: {e}"));
                 // Remove from persistent store
                 let _ = self.remove_endpoint_from_store(&id);

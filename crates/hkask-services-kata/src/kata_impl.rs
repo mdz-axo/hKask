@@ -26,7 +26,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing;
 
 // ── Manifest types ─────────────────────────────────────────────────────────
 

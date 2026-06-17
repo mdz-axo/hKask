@@ -61,6 +61,7 @@ impl ServerHealth {
 /// 4. Call `health()` periodically for CNS monitoring
 /// 5. Call `shutdown()` on graceful termination
 
+#[async_trait::async_trait]
 pub trait ServerLifecycle: Send + Sync {
     /// Initialize the server with its configuration.
     ///
@@ -211,6 +212,7 @@ mod tests {
         healthy: bool,
     }
 
+    #[async_trait::async_trait]
     impl ServerLifecycle for MockServer {
         async fn init(&mut self, _config: &ServerLifecycleConfig) -> Result<(), LifecycleError> {
             Ok(())

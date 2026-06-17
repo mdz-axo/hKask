@@ -171,10 +171,10 @@ impl KanbanService {
 
         let mut boards: Vec<Board> = Vec::new();
         for t in &triples {
-            if t.access.owner_webid == *owner {
-                if let Ok(board) = serde_json::from_value::<Board>(t.value.clone()) {
-                    boards.push(board);
-                }
+            if t.access.owner_webid == *owner
+                && let Ok(board) = serde_json::from_value::<Board>(t.value.clone())
+            {
+                boards.push(board);
             }
         }
 
@@ -259,7 +259,7 @@ impl KanbanService {
             let wip = col.wip_limit.map_or(String::new(), |l| format!("/{}", l));
             out.push_str(&format!("  {}{} ({}{})\n", col.name, wip, count, wip));
         }
-        out.push_str("\n");
+        out.push('\n');
 
         for col in &board.columns {
             let col_tasks = by_status
@@ -286,7 +286,7 @@ impl KanbanService {
                     .unwrap_or("");
                 out.push_str(&format!("    {}. {}{}{}\n", idx, task.title, p, a));
             }
-            out.push_str("\n");
+            out.push('\n');
         }
 
         if tasks.is_empty() && filter.is_some() {
@@ -369,10 +369,10 @@ impl KanbanService {
                     .query_by_entity_attribute(TASK_ENTITY, task_id_str)
                     .map_err(|e| KanbanError::Internal(format!("task query failed: {e}")))?;
                 for t in &task_triples {
-                    if let Ok(task) = serde_json::from_value::<Task>(t.value.clone()) {
-                        if task.status == status {
-                            count += 1;
-                        }
+                    if let Ok(task) = serde_json::from_value::<Task>(t.value.clone())
+                        && task.status == status
+                    {
+                        count += 1;
                     }
                 }
             }
@@ -408,11 +408,11 @@ impl KanbanService {
 
                 for t in &task_triples {
                     if let Ok(task) = serde_json::from_value::<Task>(t.value.clone()) {
-                        let status_match = filter.status.map_or(true, |s| task.status == s);
+                        let status_match = filter.status.is_none_or(|s| task.status == s);
                         let assignee_match =
-                            filter.assignee.map_or(true, |a| task.assignee == Some(a));
+                            filter.assignee.is_none_or(|a| task.assignee == Some(a));
                         let priority_match =
-                            filter.priority.map_or(true, |p| task.priority == Some(p));
+                            filter.priority.is_none_or(|p| task.priority == Some(p));
 
                         if status_match && assignee_match && priority_match {
                             tasks.push(task);
@@ -475,18 +475,17 @@ impl KanbanService {
         }
 
         // WIP limit enforcement (Anderson §4: "limit WIP to expose problems")
-        if let Some(board) = self.board_get(task.board_id)? {
-            if let Some(col) = board.column_for_status(target) {
-                if let Some(wip_limit) = col.wip_limit {
-                    let current_count = self.count_tasks_in_status(task.board_id, target)?;
-                    if current_count >= wip_limit as usize {
-                        return Err(KanbanError::WipLimitExceeded {
-                            column: col.name.clone(),
-                            limit: wip_limit,
-                            current: current_count as u32,
-                        });
-                    }
-                }
+        if let Some(board) = self.board_get(task.board_id)?
+            && let Some(col) = board.column_for_status(target)
+            && let Some(wip_limit) = col.wip_limit
+        {
+            let current_count = self.count_tasks_in_status(task.board_id, target)?;
+            if current_count >= wip_limit as usize {
+                return Err(KanbanError::WipLimitExceeded {
+                    column: col.name.clone(),
+                    limit: wip_limit,
+                    current: current_count as u32,
+                });
             }
         }
 
@@ -755,7 +754,7 @@ impl KanbanService {
                 .unwrap_or_default();
             let priority = task_val["priority"]
                 .as_str()
-                .and_then(|s| hkask_types::Priority::parse_str(s));
+                .and_then(hkask_types::Priority::parse_str);
 
             let mut spec = TaskSpec::new(title.into());
             if let Some(d) = description {
@@ -1136,20 +1135,20 @@ impl KanbanService {
 
         for task in &tasks {
             // Stuck in InProgress: no movement for > estimated hours * 2
-            if task.status == TaskStatus::InProgress || task.status == TaskStatus::Review {
-                if let Some(hours) = task.estimated_hours {
-                    let elapsed = (now - task.updated_at).num_hours();
-                    if elapsed > (hours as i64) * 2 {
-                        items.push(UnjamItem {
-                            task_id: task.id,
-                            task_title: task.title.clone(),
-                            issue: format!(
-                                "Stuck in {} for {}h (estimated {}h)",
-                                task.status, elapsed, hours
-                            ),
-                            suggestion: "Consider escalating or reassigning.".into(),
-                        });
-                    }
+            if (task.status == TaskStatus::InProgress || task.status == TaskStatus::Review)
+                && let Some(hours) = task.estimated_hours
+            {
+                let elapsed = (now - task.updated_at).num_hours();
+                if elapsed > (hours as i64) * 2 {
+                    items.push(UnjamItem {
+                        task_id: task.id,
+                        task_title: task.title.clone(),
+                        issue: format!(
+                            "Stuck in {} for {}h (estimated {}h)",
+                            task.status, elapsed, hours
+                        ),
+                        suggestion: "Consider escalating or reassigning.".into(),
+                    });
                 }
             }
 

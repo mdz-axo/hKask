@@ -191,6 +191,7 @@ mod tests {
         granted_tools: Vec<String>,
     }
 
+    #[async_trait::async_trait]
     impl DaemonHandler for GateMock {
         async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
             let auth = self.authenticated.load(Ordering::SeqCst);

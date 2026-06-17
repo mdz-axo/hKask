@@ -16,3 +16,4 @@ tokio.workspace = true
 reqwest.workspace = true
 uuid.workspace = true
 hex.workspace = true
+async-trait.workspace = true

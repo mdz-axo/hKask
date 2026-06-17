@@ -8,8 +8,6 @@
 //! - `SolanaPort` — SPL USDC on Solana (feature-gated: "solana")
 //! - `HederaPort` — HTS USDC on Hedera (feature-gated: "hedera")
 
-use async_trait::async_trait;
-
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
 use hkask_types::wallet::{ChainId, TxHash, WalletError};

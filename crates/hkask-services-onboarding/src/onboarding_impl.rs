@@ -3,7 +3,6 @@
 
 use std::sync::Arc;
 
-use hex;
 use hkask_agents::A2ARuntime;
 use hkask_keystore::{Keychain, derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
