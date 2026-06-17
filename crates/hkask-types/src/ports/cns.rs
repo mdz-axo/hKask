@@ -5,6 +5,8 @@ use crate::event::{NuEvent, SpanNamespace};
 use crate::id::WebID;
 use crate::loops::LoopId;
 
+use async_trait::async_trait;
+
 /// Circuit breaker boundary for the Cybernetics membrane.
 ///
 /// Allows the Inference loop to use circuit breaking without depending on hkask-cns.
@@ -58,6 +60,7 @@ pub struct BackpressureSignal {
 
 /// Subscribes to CNS events by span namespace.
 
+#[async_trait]
 pub trait CnsObserver: Send + Sync {
     fn interest_mask(&self) -> Vec<SpanNamespace>;
 

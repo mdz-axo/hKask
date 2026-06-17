@@ -38,6 +38,7 @@ impl std::fmt::Display for LoopId {
 /// All async methods return `Send` futures so loops can run in
 /// async tasks without `static bounds issues.
 
+#[async_trait::async_trait]
 pub trait Loop: Send + Sync {
     fn id(&self) -> LoopId;
 

@@ -1,4 +1,5 @@
 //! Git CAS hexagonal port — trait, mock implementation, and verification/report types.
+use async_trait::async_trait;
 
 use super::error::GitCasError;
 use super::types::{CommitHash, ContentHash, FileDiff, RepoId, TreeEntry, TreeEntryKind};
@@ -50,6 +51,7 @@ pub struct LogEntry {
 /// - `GixCasAdapter` (production, in `hkask-mcp`)
 /// - [`MockGitCas`] (testing, in this module)
 
+#[async_trait]
 pub trait GitCASPort: Send + Sync {
     /// Store content, returning its BLAKE3 content hash.
     async fn put_blob(&self, repo: &RepoId, content: &[u8]) -> Result<ContentHash, GitCasError>;
@@ -144,6 +146,8 @@ impl Default for MockGitCas {
         Self::new()
     }
 }
+
+#[async_trait]
 impl GitCASPort for MockGitCas {
     async fn put_blob(&self, _repo: &RepoId, content: &[u8]) -> Result<ContentHash, GitCasError> {
         let hash = ContentHash::from_blake3(content);

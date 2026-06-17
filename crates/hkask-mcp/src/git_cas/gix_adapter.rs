@@ -128,6 +128,8 @@ impl GixCasAdapter {
         Ok(self.base_path.join(repo.dir_name()))
     }
 }
+
+#[async_trait::async_trait]
 impl GitCASPort for GixCasAdapter {
     async fn put_blob(&self, repo: &RepoId, content: &[u8]) -> Result<ContentHash, GitCasError> {
         let repo_dir = self.ensure_repo_dir(repo).await?;

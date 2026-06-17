@@ -92,6 +92,8 @@ impl EpisodicLoop {
         self.storage_budget
     }
 }
+
+#[async_trait::async_trait]
 impl HkaskLoop for EpisodicLoop {
     fn id(&self) -> LoopId {
         LoopId::Memory
