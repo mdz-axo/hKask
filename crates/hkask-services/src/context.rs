@@ -1574,7 +1574,37 @@ fn build_registry_and_wallet(
             .map_err(ServiceError::A2A)?;
     }
 
-    // Wallet
+    // Wallet — non-fatal if config or build fails (daemon can run without wallet)
+    let (wallet_service, wallet_store, wallet_gas_calibrator) = match build_wallet(config, f, l) {
+        Ok(tuple) => tuple,
+        Err(e) => {
+            tracing::warn!(target: "cns.wallet", error = %e, "Wallet unavailable — running without rJoule");
+            (None, None, None)
+        }
+    };
+
+    Ok(RegWallet {
+        registry,
+        agent_registry_store,
+        wallet_service,
+        wallet_store,
+        wallet_gas_calibrator,
+    })
+}
+
+/// Build wallet subsystem — returns (service, store, gas_calibrator) or error.
+fn build_wallet(
+    config: &ServiceConfig,
+    f: &Foundation,
+    l: &Loops,
+) -> Result<
+    (
+        Option<Arc<WalletService>>,
+        Option<Arc<WalletStore>>,
+        Option<Arc<hkask_cns::WalletGasCalibrator>>,
+    ),
+    ServiceError,
+> {
     let wallet_conn = Arc::clone(&f.db.conn_arc());
     let wallet_store = Arc::new(WalletStore::new(wallet_conn));
     let svc = WalletService::build(
@@ -1681,13 +1711,7 @@ fn build_registry_and_wallet(
         Some(calibrator)
     };
 
-    Ok(RegWallet {
-        registry,
-        agent_registry_store,
-        wallet_service: Some(svc),
-        wallet_store: Some(wallet_store),
-        wallet_gas_calibrator,
-    })
+    Ok((Some(svc), Some(wallet_store), wallet_gas_calibrator))
 }
 
 /// Register a pod's replicant as a Matrix user on Conduit.

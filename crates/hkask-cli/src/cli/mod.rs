@@ -169,6 +169,18 @@ pub enum Commands {
         #[command(subcommand)]
         action: KanbanAction,
     },
+
+    /// Trained adapter lifecycle — deploy, infer, teardown
+    Adapter {
+        #[command(subcommand)]
+        action: AdapterAction,
+    },
+
+    /// Contract lifecycle — propose, accept, or reject behavioral contracts
+    Contract {
+        #[command(subcommand)]
+        action: ContractAction,
+    },
     /// List available LLM models
     Models,
 
@@ -209,6 +221,13 @@ pub enum Commands {
 
     /// Run the 6-loop regulation system
     Loops,
+
+    /// Start the hKask daemon (Unix socket for MCP server auth + CNS monitoring)
+    Daemon {
+        /// Daemon action
+        #[command(subcommand)]
+        action: DaemonAction,
+    },
 
     /// Run contract tests and report REQ-tagged violations
     Test {

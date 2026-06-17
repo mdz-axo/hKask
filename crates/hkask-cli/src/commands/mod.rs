@@ -3,6 +3,7 @@
 //! This module contains the actual command handlers, organized into focused submodules.
 //! Each subcommand domain has its own module: agents, chat, curator, etc.
 
+pub mod adapter;
 pub mod agent;
 pub mod backup_cmd;
 pub mod bundle;
@@ -11,7 +12,9 @@ pub mod cns;
 pub mod compose;
 
 pub mod consolidation;
+pub mod contract;
 pub mod curator;
+pub mod daemon;
 pub mod discover;
 pub mod docs;
 pub mod embed_corpus;

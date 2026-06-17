@@ -97,10 +97,7 @@ impl TogetherAdapterBackend {
 impl AdapterProviderBackend for TogetherAdapterBackend {
     fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
         // Skeleton: in production, calls Together AI API to provision LoRA endpoint
-        Ok(format!(
-            "https://api.together.xyz/v1/endpoints/{}",
-            Uuid::new_v4()
-        ))
+        Ok(format!("https://api.together.xyz/v1",))
     }
 
     fn infer(
@@ -110,67 +107,14 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         params: &LLMParameters,
         model_name: &str,
     ) -> Result<InferenceResult, AdapterError> {
-        if self.api_key.is_empty() {
-            return Err(AdapterError::ProviderUnavailable(
-                "TOGETHER_API_KEY not set".into(),
-            ));
-        }
-
-        let body = serde_json::json!({
-            "model": model_name,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": params.temperature,
-            "top_p": params.top_p,
-            "max_tokens": params.max_tokens,
-        });
-
-        let response = self
-            .client
-            .post(format!("{}/v1/chat/completions", endpoint_url))
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .json(&body)
-            .send()
-            .map_err(|e| {
-                AdapterError::Internal(format!("Together AI inference request failed: {e}"))
-            })?;
-
-        let status = response.status();
-        if !status.is_success() {
-            let error_body = response.text().unwrap_or_default();
-            return Err(AdapterError::Internal(format!(
-                "Together AI inference returned {status}: {error_body}"
-            )));
-        }
-
-        let response_json: serde_json::Value = response.json().map_err(|e| {
-            AdapterError::Internal(format!(
-                "Failed to parse Together AI inference response: {e}"
-            ))
-        })?;
-
-        let content = response_json["choices"][0]["message"]["content"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
-
-        let usage =
-            serde_json::from_value(response_json["usage"].clone()).unwrap_or(InferenceUsage {
-                prompt_tokens: 0,
-                completion_tokens: 0,
-                total_tokens: 0,
-            });
-
-        Ok(InferenceResult {
-            text: content,
-            model: model_name.to_string(),
-            usage,
-            finish_reason: response_json["choices"][0]["finish_reason"]
-                .as_str()
-                .unwrap_or("stop")
-                .to_string(),
-            token_probabilities: None,
-            tool_calls: vec![],
-        })
+        openai_compatible_infer(
+            &self.client,
+            &self.api_key,
+            endpoint_url,
+            prompt,
+            params,
+            model_name,
+        )
     }
 
     fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
@@ -198,11 +142,20 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         // POST https://api.together.xyz/v1/fine-tunes
         // Body: { model_source, model_type: "adapter", base_model }
 
-        let body = serde_json::json!({
-            "model_source": hf_repo,
-            "model_type": "adapter",
-            "base_model": config.base_model_name_or_path,
-        });
+        let body = if let Ok(hf_token) = std::env::var("HF_TOKEN") {
+            serde_json::json!({
+                "model_source": hf_repo,
+                "model_type": "adapter",
+                "base_model": config.base_model_name_or_path,
+                "hf_token": hf_token,
+            })
+        } else {
+            serde_json::json!({
+                "model_source": hf_repo,
+                "model_type": "adapter",
+                "base_model": config.base_model_name_or_path,
+            })
+        };
 
         tracing::info!(
             target: "hkask.adapter",
@@ -261,26 +214,44 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
 struct RunpodAdapterBackend {
     cost_model: CostModel,
     capability: ProviderCapability,
+    api_key: String,
+    client: reqwest::blocking::Client,
+}
+
+impl RunpodAdapterBackend {
+    fn new() -> Self {
+        Self {
+            cost_model: CostModel::runpod(),
+            capability: ProviderCapability::runpod(),
+            api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
+            client: reqwest::blocking::Client::new(),
+        }
+    }
 }
 
 impl AdapterProviderBackend for RunpodAdapterBackend {
     fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
         Ok(format!(
-            "https://api.runpod.io/v2/endpoints/{}",
+            "https://api.runpod.io/v2/{}/openai/v1",
             Uuid::new_v4()
         ))
     }
 
     fn infer(
         &self,
-        _endpoint_url: &str,
-        _prompt: &str,
-        _params: &LLMParameters,
-        _model_name: &str,
+        endpoint_url: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        model_name: &str,
     ) -> Result<InferenceResult, AdapterError> {
-        Err(AdapterError::Internal(
-            "Runpod adapter inference not yet implemented — API integration pending".into(),
-        ))
+        openai_compatible_infer(
+            &self.client,
+            &self.api_key,
+            endpoint_url,
+            prompt,
+            params,
+            model_name,
+        )
     }
 
     fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
@@ -292,8 +263,6 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         adapter: &TrainedLoRAAdapter,
         _config: &AdapterConfig,
     ) -> Result<String, AdapterError> {
-        // Runpod uses vLLM — adapters are loaded via --lora-modules at server start.
-        // No separate upload step needed if the adapter is accessible to the worker.
         Ok(format!("adapter-{}", adapter.id))
     }
 
@@ -309,6 +278,19 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
 struct BasetenAdapterBackend {
     cost_model: CostModel,
     capability: ProviderCapability,
+    api_key: String,
+    client: reqwest::blocking::Client,
+}
+
+impl BasetenAdapterBackend {
+    fn new() -> Self {
+        Self {
+            cost_model: CostModel::baseten(),
+            capability: ProviderCapability::baseten(),
+            api_key: std::env::var("BASETEN_API_KEY").unwrap_or_default(),
+            client: reqwest::blocking::Client::new(),
+        }
+    }
 }
 
 impl AdapterProviderBackend for BasetenAdapterBackend {
@@ -321,14 +303,19 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
 
     fn infer(
         &self,
-        _endpoint_url: &str,
-        _prompt: &str,
-        _params: &LLMParameters,
-        _model_name: &str,
+        endpoint_url: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        model_name: &str,
     ) -> Result<InferenceResult, AdapterError> {
-        Err(AdapterError::Internal(
-            "Baseten adapter inference not yet implemented — API integration pending".into(),
-        ))
+        openai_compatible_infer(
+            &self.client,
+            &self.api_key,
+            endpoint_url,
+            prompt,
+            params,
+            model_name,
+        )
     }
 
     fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
@@ -350,6 +337,64 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
     fn cost_model(&self) -> CostModel {
         self.cost_model.clone()
     }
+}
+
+// ── Shared OpenAI-compatible inference helper ────────────────────────────
+
+fn openai_compatible_infer(
+    client: &reqwest::blocking::Client,
+    api_key: &str,
+    endpoint_url: &str,
+    prompt: &str,
+    params: &LLMParameters,
+    model_name: &str,
+) -> Result<InferenceResult, AdapterError> {
+    if api_key.is_empty() {
+        return Err(AdapterError::ProviderUnavailable("API key not set".into()));
+    }
+    let body = serde_json::json!({
+        "model": model_name,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": params.temperature,
+        "top_p": params.top_p,
+        "max_tokens": params.max_tokens,
+    });
+    let response = client
+        .post(format!("{}/chat/completions", endpoint_url))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&body)
+        .send()
+        .map_err(|e| AdapterError::Internal(format!("Inference request failed: {e}")))?;
+    let status = response.status();
+    if !status.is_success() {
+        let error_body = response.text().unwrap_or_default();
+        return Err(AdapterError::Internal(format!(
+            "Inference returned {status}: {error_body}"
+        )));
+    }
+    let response_json: serde_json::Value = response
+        .json()
+        .map_err(|e| AdapterError::Internal(format!("Failed to parse inference response: {e}")))?;
+    let content = response_json["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let usage = serde_json::from_value(response_json["usage"].clone()).unwrap_or(InferenceUsage {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+    });
+    Ok(InferenceResult {
+        text: content,
+        model: model_name.to_string(),
+        usage,
+        finish_reason: response_json["choices"][0]["finish_reason"]
+            .as_str()
+            .unwrap_or("stop")
+            .to_string(),
+        token_probabilities: None,
+        tool_calls: vec![],
+    })
 }
 
 // ── Endpoint record ──────────────────────────────────────────────────────────
@@ -387,20 +432,8 @@ impl AdapterRouter {
             ProviderId::Together,
             Arc::new(TogetherAdapterBackend::new()),
         );
-        backends.insert(
-            ProviderId::Runpod,
-            Arc::new(RunpodAdapterBackend {
-                cost_model: CostModel::runpod(),
-                capability: ProviderCapability::runpod(),
-            }),
-        );
-        backends.insert(
-            ProviderId::Baseten,
-            Arc::new(BasetenAdapterBackend {
-                cost_model: CostModel::baseten(),
-                capability: ProviderCapability::baseten(),
-            }),
-        );
+        backends.insert(ProviderId::Runpod, Arc::new(RunpodAdapterBackend::new()));
+        backends.insert(ProviderId::Baseten, Arc::new(BasetenAdapterBackend::new()));
 
         Self {
             store,
@@ -1293,5 +1326,103 @@ mod tests {
 
         let status = router.endpoint_status(handle.endpoint_id, &token);
         assert!(status.is_err());
+    }
+
+    // REQ: P4-adt-adapter-router-compose — end-to-end: store → deploy → status → teardown
+    #[test]
+    fn end_to_end_store_deploy_status_teardown() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        // 1. Store adapter
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = Arc::new(AdapterRouter::new(Arc::clone(&store)));
+        let token = test_token();
+
+        // 2. Select provider (P2 consent)
+        let selection = router.select_provider(adapter.id, None).expect("select");
+        assert!(!selection.providers.is_empty());
+
+        // 3. Create endpoint
+        let handle = router
+            .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .expect("create endpoint");
+        assert_eq!(handle.expertise_name, "solidity-audit");
+        assert!(!handle.endpoint_url.is_empty());
+        assert!(!handle.model_name.is_empty());
+        assert_eq!(handle.phase(), EndpointPhase::Ready);
+
+        // 4. Check status
+        let status = router
+            .endpoint_status(handle.endpoint_id, &token)
+            .expect("status");
+        assert_eq!(status.phase, EndpointPhase::Ready);
+        assert_eq!(status.provider, ProviderId::Together);
+
+        // 5. Teardown
+        router
+            .teardown_endpoint(handle.endpoint_id, &token)
+            .expect("teardown");
+        assert!(router.endpoint_status(handle.endpoint_id, &token).is_err());
+
+        // 6. Verify adapter still exists after teardown (only endpoint removed)
+        let stored = store
+            .get_by_id(adapter.id)
+            .expect("get adapter")
+            .expect("adapter exists");
+        assert_eq!(stored.expertise.name, "solidity-audit");
+    }
+
+    // REQ: P2-adt-provider-selection — end-to-end with budget enforcement
+    #[test]
+    fn end_to_end_budget_enforcement() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = Arc::new(AdapterRouter::new(Arc::clone(&store)));
+        let token = test_token();
+
+        // Select with tight budget — only Runpod ($0.79) fits under $0.80
+        let selection = router
+            .select_provider(adapter.id, Some(0.80))
+            .expect("select");
+        assert_eq!(selection.within_budget_count, 1);
+
+        // Select with generous budget — all three fit
+        let selection = router
+            .select_provider(adapter.id, Some(2.00))
+            .expect("select");
+        assert_eq!(selection.within_budget_count, 3);
+    }
+
+    // REQ: P8-adt-trained-adapter-store — end-to-end: store multiple versions, retrieve latest
+    #[test]
+    fn end_to_end_version_management() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let mut v1 = make_test_adapter("solidity-audit");
+        v1.version = Some("1".into());
+        store.store(&v1).expect("store v1");
+
+        let mut v2 = make_test_adapter("solidity-audit");
+        v2.version = Some("2".into());
+        store.store(&v2).expect("store v2");
+
+        let all = store.get_by_expertise("solidity-audit").expect("list");
+        assert_eq!(all.len(), 2);
+
+        // Both versions coexist (P2 — never implicitly supersede)
+        let versions: Vec<&str> = all.iter().filter_map(|a| a.version.as_deref()).collect();
+        assert!(versions.contains(&"1"));
+        assert!(versions.contains(&"2"));
     }
 }

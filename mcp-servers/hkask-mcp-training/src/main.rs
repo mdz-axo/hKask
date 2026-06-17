@@ -758,6 +758,7 @@ impl TrainingServer {
         pipeline: DatasetPipeline,
         adapter_store: Arc<dyn AdapterStore>,
         job_store: Option<JobStore>,
+        adapter_router: Option<Arc<AdapterRouter>>,
         inference_config: InferenceConfig,
     ) -> Self {
         Self {
@@ -771,7 +772,7 @@ impl TrainingServer {
             pipeline: Mutex::new(pipeline),
             adapter_store,
             job_store,
-            adapter_router: None,
+            adapter_router,
             inference_config,
             deployments: Mutex::new(HashMap::new()),
         }
@@ -3537,7 +3538,9 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-training",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            let (semantic, adapter_store, job_store) = match ctx.credentials.get("HKASK_MEMORY_DB")
+            let (semantic, adapter_store, job_store, adapter_router) = match ctx
+                .credentials
+                .get("HKASK_MEMORY_DB")
             {
                 Some(path) => {
                     let passphrase =
@@ -3558,15 +3561,26 @@ async fn main() -> anyhow::Result<()> {
                     store
                         .migrate()
                         .map_err(|e| anyhow::anyhow!("Failed to migrate adapter store: {}", e))?;
+
+                    // Build the canonical adapter store + router for deployment
+                    let canonical_store = hkask_adapter::AdapterStore::new(Arc::clone(&conn));
+                    canonical_store.migrate().map_err(|e| {
+                        anyhow::anyhow!("Failed to migrate canonical adapter store: {}", e)
+                    })?;
+                    let router = AdapterRouter::new(std::sync::Arc::new(canonical_store));
+                    let adapter_router = Some(std::sync::Arc::new(router));
+
                     (
                         semantic,
                         Arc::new(store) as Arc<dyn AdapterStore>,
                         job_store,
+                        adapter_router,
                     )
                 }
                 None => (
                     None,
                     Arc::new(InMemoryAdapterStore::new()) as Arc<dyn AdapterStore>,
+                    None,
                     None,
                 ),
             };
@@ -3587,6 +3601,7 @@ async fn main() -> anyhow::Result<()> {
                 pipeline.clone(),
                 adapter_store,
                 job_store,
+                adapter_router,
                 inference_config,
             ))
         },

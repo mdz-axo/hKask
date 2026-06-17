@@ -834,7 +834,6 @@ pub enum MatrixAction {
     StatusSidecar,
 }
 
-
 #[derive(Subcommand, Debug, Clone)]
 pub enum KanbanAction {
     /// Create a new kanban board
@@ -846,9 +845,7 @@ pub enum KanbanAction {
     /// List all boards
     BoardList,
     /// View a board as a text-based column layout
-    BoardView {
-        board_id: String,
-    },
+    BoardView { board_id: String },
     /// Create a new task
     TaskCreate {
         board_id: String,
@@ -867,23 +864,92 @@ pub enum KanbanAction {
         status: Option<String>,
     },
     /// Show task details
-    TaskShow {
-        task_id: String,
-    },
+    TaskShow { task_id: String },
     /// Move a task to a new column
-    TaskMove {
-        task_id: String,
-        status: String,
-    },
+    TaskMove { task_id: String, status: String },
     /// Assign a task to an agent
-    TaskAssign {
-        task_id: String,
-        agent: String,
-    },
+    TaskAssign { task_id: String, agent: String },
     /// Verify a task against acceptance criteria
     TaskVerify {
         task_id: String,
         #[arg(short, long)]
         evidence: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum DaemonAction {
+    /// Start the daemon (binds Unix socket, runs CNS loops, serves until shutdown)
+    Start,
+
+    /// Check daemon status (socket existence + health)
+    Status,
+
+    /// Stop the daemon (sends shutdown signal via socket)
+    Stop,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum ContractAction {
+    /// Propose a contract for a public function (replicant QA workflow)
+    Propose {
+        #[arg(short, long)]
+        crate_name: String,
+        #[arg(short, long)]
+        function: String,
+        #[arg(long)]
+        contract_id: String,
+        #[arg(long)]
+        pre: String,
+        #[arg(long)]
+        post: String,
+        #[arg(short, long)]
+        replicant: Option<String>,
+    },
+    /// Accept a proposed contract (human consent gate)
+    Accept {
+        contract_id: String,
+        #[arg(short, long)]
+        reviewer: Option<String>,
+    },
+    /// Reject a proposed contract with rationale
+    Reject {
+        contract_id: String,
+        /// Reason for rejection
+        #[arg(short, long)]
+        reason: String,
+        /// Reviewer WebID (default: "unknown")
+        #[arg(long)]
+        reviewer: Option<String>,
+    },
+    /// List proposed contracts awaiting review
+    List,
+}
+
+/// Trained adapter lifecycle — deploy, infer, teardown
+#[derive(Subcommand)]
+pub enum AdapterAction {
+    /// List trained adapters (delegates to training MCP)
+    List {
+        #[arg(short, long)]
+        skill: Option<String>,
+    },
+    /// Deploy an adapter to a cloud inference provider
+    Deploy {
+        /// Adapter name or ID
+        adapter: String,
+        /// Cloud provider (together, runpod, baseten)
+        #[arg(short, long, default_value = "together")]
+        provider: String,
+    },
+    /// Check deployment status
+    Status {
+        /// Deployment ID from deploy command
+        deployment_id: String,
+    },
+    /// Tear down a deployed endpoint
+    Teardown {
+        /// Deployment ID to tear down
+        deployment_id: String,
     },
 }

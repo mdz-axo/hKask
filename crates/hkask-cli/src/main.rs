@@ -91,6 +91,10 @@ fn main() {
             let webid = hkask_types::WebID::new(); // P12: every action has author
             commands::kanban::run_cli(action, webid, None);
         }
+        Commands::Adapter { action } => commands::adapter::run(action),
+
+        Commands::Contract { action } => commands::contract::run(&rt, action),
+
         Commands::Kata { action } => commands::kata::run(action, &registry),
 
         Commands::Models => commands::models::run(&rt),
@@ -114,6 +118,8 @@ fn main() {
         ),
 
         Commands::Loops => commands::loops::run(&rt),
+
+        Commands::Daemon { action } => commands::daemon::run(&rt, action),
 
         Commands::Test {
             crate_name,

@@ -8,7 +8,6 @@ use crate::id::{BoardId, ColumnId, CommentId, PhaseId, TaskId, WebID};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-
 // ── Priority ────────────────────────────────────────────────────────────────
 
 /// Priority level for kanban tasks.
@@ -186,7 +185,6 @@ impl ColumnDef {
         self.wip_limit = Some(limit);
         self
     }
-
 }
 
 // ── Verification Criterion ─────────────────────────────────────────────────
@@ -255,7 +253,6 @@ impl Verification {
         }
     }
 }
-
 
 // ── Phase ──────────────────────────────────────────────────────────────────
 
@@ -541,7 +538,6 @@ impl Task {
     }
 }
 
-
 // ── Comment ────────────────────────────────────────────────────────────────
 
 /// Comment — a text note appended to a task by an agent.
@@ -561,7 +557,13 @@ pub struct Comment {
 impl Comment {
     /// REQ: KAN-050
     pub fn new(task_id: TaskId, author: WebID, body: String) -> Self {
-        Self { id: CommentId::new(), task_id, author, body, created_at: Utc::now() }
+        Self {
+            id: CommentId::new(),
+            task_id,
+            author,
+            body,
+            created_at: Utc::now(),
+        }
     }
 }
 
@@ -728,8 +730,15 @@ impl TaskContract {
             delegate,
             task_id: task.id,
             task_title: task.title.clone(),
-            pre_conditions: task.criteria.iter().map(|c| c.description.clone()).collect(),
-            post_conditions: vec!["All criteria satisfied".into(), "Deliverables verified".into()],
+            pre_conditions: task
+                .criteria
+                .iter()
+                .map(|c| c.description.clone())
+                .collect(),
+            post_conditions: vec![
+                "All criteria satisfied".into(),
+                "Deliverables verified".into(),
+            ],
             ocap_gates,
             gas_limit: 50000,
             timeout: 3600,
@@ -757,10 +766,7 @@ impl TaskContract {
     /// text the agent provides as a comment when submitting deliverables.
     /// The matching is keyword-based for now; LLM-mediated evaluation (Task 6)
     /// will replace this with semantic matching against the actual deliverables.
-    pub fn check_completion(
-        &mut self,
-        evidence: &str,
-    ) -> ContractVerification {
+    pub fn check_completion(&mut self, evidence: &str) -> ContractVerification {
         if self.pre_conditions.is_empty() {
             self.state = ContractState::Completed;
             return ContractVerification {
@@ -805,10 +811,17 @@ impl TaskContract {
         ContractVerification {
             passed: all_passed,
             reasoning: if all_passed {
-                format!("All {} pre-conditions satisfied. Contract fulfilled.", self.pre_conditions.len())
+                format!(
+                    "All {} pre-conditions satisfied. Contract fulfilled.",
+                    self.pre_conditions.len()
+                )
             } else {
                 let failed = results.iter().filter(|r| !r.passed).count();
-                format!("{} of {} conditions not met. Contract violated.", failed, self.pre_conditions.len())
+                format!(
+                    "{} of {} conditions not met. Contract violated.",
+                    failed,
+                    self.pre_conditions.len()
+                )
             },
             results,
         }
@@ -961,8 +974,6 @@ impl SpawnSpec {
     }
 }
 
-
-
 // ── Capability Package ────────────────────────────────────────────────────
 
 /// CapabilityPackage — a named, reusable bundle of delegated capabilities.
@@ -1112,10 +1123,10 @@ impl CapabilityPackage {
     /// Converts "hkask-mcp-kanban" → "tool:kanban:execute".
     pub fn derive_tokens_from_tools(&mut self) {
         for server in &self.tool_servers.clone() {
-            if let Some(cap) = crate::capability::capability_from_server_id(server) {
-                if !self.capability_tokens.contains(&cap) {
-                    self.capability_tokens.push(cap);
-                }
+            if let Some(cap) = crate::capability::capability_from_server_id(server)
+                && !self.capability_tokens.contains(&cap)
+            {
+                self.capability_tokens.push(cap);
             }
         }
     }
@@ -1129,8 +1140,6 @@ impl CapabilityPackage {
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
         serde_yaml::from_str(yaml).map_err(|e| e.to_string())
     }
-
-
 
     // ── rSolidity Contract Integration ─────────────────────────────────
 
@@ -1153,7 +1162,11 @@ impl CapabilityPackage {
             delegate,
             task_id: task.id,
             task_title: task.title.clone(),
-            pre_conditions: task.criteria.iter().map(|c| c.description.clone()).collect(),
+            pre_conditions: task
+                .criteria
+                .iter()
+                .map(|c| c.description.clone())
+                .collect(),
             post_conditions: vec![
                 "All acceptance criteria satisfied".into(),
                 "Deliverables submitted and verified".into(),
@@ -1166,7 +1179,6 @@ impl CapabilityPackage {
         }
     }
 }
-
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 
