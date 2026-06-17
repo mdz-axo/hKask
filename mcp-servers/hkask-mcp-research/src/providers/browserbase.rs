@@ -16,6 +16,7 @@ impl BrowserbaseProvider {
         }
     }
 }
+#[async_trait]
 impl WebBrowseProvider for BrowserbaseProvider {
     fn kind(&self) -> &str {
         "browserbase"

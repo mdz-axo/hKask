@@ -1,8 +1,8 @@
-use async_trait::async_trait;
 //! Tesseract Backend — Classical OCR via libtesseract subprocess.
 //!
 //! Invokes the `tesseract` CLI binary with the image written to a temp file.
 //! Falls back gracefully if tesseract is not installed.
+use async_trait::async_trait;
 
 use hkask_types::ocr::{OcrBackend, OcrResult};
 use image::DynamicImage;
@@ -49,6 +49,7 @@ impl Default for TesseractExecutor {
         Self::new()
     }
 }
+#[async_trait]
 impl OcrExecutor for TesseractExecutor {
     fn is_available(&self, backend: &OcrBackend) -> bool {
         if *backend != OcrBackend::Tesseract {

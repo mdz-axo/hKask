@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 //! Integration tests for the OCR pipeline with real inference backends.
 //!
 //! These tests require external services and are ignored by default.
@@ -9,6 +8,7 @@ use async_trait::async_trait;
 //! - A vision-capable model pulled (e.g., `ollama pull minicpm-v:8b`)
 //! - `pdftoppm` from poppler-utils installed (for PDF decimation tests)
 //! - `tesseract` installed (for native Tesseract tests)
+use async_trait::async_trait;
 
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp_docproc::ocr::decimation;
@@ -63,6 +63,7 @@ impl RealExecutor {
         }
     }
 }
+#[async_trait]
 impl OcrExecutor for RealExecutor {
     fn is_available(&self, backend: &OcrBackend) -> bool {
         match backend {

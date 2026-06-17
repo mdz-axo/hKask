@@ -27,6 +27,7 @@ impl Default for ArxivProvider {
 
 const ARXIV_API_BASE: &str = "https://export.arxiv.org/api/query";
 #[async_trait]
+#[async_trait]
 impl WebSearchProvider for ArxivProvider {
     fn kind(&self) -> &str {
         "arxiv"

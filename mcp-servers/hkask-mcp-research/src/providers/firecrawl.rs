@@ -26,6 +26,7 @@ impl FirecrawlProvider {
     }
 }
 #[async_trait]
+#[async_trait]
 impl WebSearchProvider for FirecrawlProvider {
     fn kind(&self) -> &str {
         "firecrawl"
@@ -97,6 +98,7 @@ impl WebSearchProvider for FirecrawlProvider {
         Ok(())
     }
 }
+#[async_trait]
 impl WebExtractProvider for FirecrawlProvider {
     fn kind(&self) -> &str {
         "firecrawl"
@@ -177,6 +179,7 @@ impl WebExtractProvider for FirecrawlProvider {
         Ok(())
     }
 }
+#[async_trait]
 impl WebBrowseProvider for FirecrawlProvider {
     fn kind(&self) -> &str {
         "firecrawl"

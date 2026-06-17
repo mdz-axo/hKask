@@ -21,6 +21,7 @@ impl RawFetchProvider {
         }
     }
 }
+#[async_trait]
 impl WebExtractProvider for RawFetchProvider {
     fn kind(&self) -> &str {
         "rawfetch"
@@ -77,6 +78,7 @@ impl WebExtractProvider for RawFetchProvider {
         }
     }
 }
+#[async_trait]
 impl WebBrowseProvider for RawFetchProvider {
     fn kind(&self) -> &str {
         "rawfetch"

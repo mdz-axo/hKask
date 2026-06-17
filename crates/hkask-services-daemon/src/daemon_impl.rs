@@ -71,6 +71,7 @@ impl ServiceDaemonHandler {
     }
 }
 
+#[async_trait::async_trait]
 impl DaemonHandler for ServiceDaemonHandler {
     async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
         let has_sessions = {

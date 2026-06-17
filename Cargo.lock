@@ -4548,6 +4548,7 @@ version = "0.27.0"
 dependencies = [
  "aes-gcm",
  "argon2",
+ "async-trait",
  "chrono",
  "dirs",
  "hex",

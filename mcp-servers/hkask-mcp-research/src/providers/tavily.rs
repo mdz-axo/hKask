@@ -17,6 +17,7 @@ impl TavilyProvider {
     }
 }
 #[async_trait]
+#[async_trait]
 impl WebSearchProvider for TavilyProvider {
     fn kind(&self) -> &str {
         "tavily"

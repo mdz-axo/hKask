@@ -151,6 +151,7 @@ impl SerapiProvider {
     }
 }
 #[async_trait]
+#[async_trait]
 impl WebSearchProvider for SerapiProvider {
     fn kind(&self) -> &str {
         "serpapi"

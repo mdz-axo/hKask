@@ -92,6 +92,7 @@ impl ExaProvider {
     }
 }
 #[async_trait]
+#[async_trait]
 impl WebSearchProvider for ExaProvider {
     fn kind(&self) -> &str {
         "exa"

@@ -1,9 +1,9 @@
-use async_trait::async_trait;
 //! Vision LLM Backend — OCR via hkask-inference vision models.
 //!
 //! Sends page images as base64-encoded PNG to vision-capable LLMs
 //! through the inference router. Supports provider-prefixed model names
 //! (DI/, FW/, OM/) for backend routing.
+use async_trait::async_trait;
 
 use base64::Engine;
 use hkask_inference::{InferenceConfig, InferenceRouter};
@@ -44,6 +44,7 @@ impl LlmOcrExecutor {
         self
     }
 }
+#[async_trait]
 impl OcrExecutor for LlmOcrExecutor {
     fn is_available(&self, backend: &OcrBackend) -> bool {
         matches!(backend, OcrBackend::LlmOcr(_))
