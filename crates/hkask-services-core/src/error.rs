@@ -410,16 +410,8 @@ impl From<hkask_mcp::server::McpToolError> for ServiceError {
     }
 }
 
-impl From<crate::backup::BackupError> for ServiceError {
-    fn from(e: crate::backup::BackupError) -> Self {
-        let msg = e.to_string();
-        ServiceError::Backup {
-            source: Some(Box::new(e)),
-            message: msg,
-        }
-    }
-}
 
+impl From<hkask_mcp::server::McpToolError> for ServiceError {
 // ── Retryability semantics ─────────────────────────────────────────────
 //
 // The CNS energy budget needs to know whether retrying an operation will

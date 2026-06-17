@@ -77,7 +77,7 @@ All 25 workspace members.
 | Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `a2a/mod.rs:171` | 2026-06-10 |
 | Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-15 |
 | REQ tag coverage | ✅ 2334 REQ tags (100% coverage — every `pub fn` contracted) | 2026-06-17 |
-| Schema drift check | ✅ `scripts/check-schema-drift.sh` passes (37 tables/indexes) | 2026-06-17 |
+| Schema drift check | ✅ `scripts/ci/check-schema-drift.sh` passes (37 tables/indexes) | 2026-06-17 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
 | Runtime `.unwrap()` in targeted crates | ✅ Zero violations (Wave 2 denylist) | 2026-06-15 |
 | MCP Gate-3 startup verification | ✅ 10/10 servers enforce verify_startup_gates() | 2026-06-15 |
@@ -110,7 +110,7 @@ All 25 workspace members.
 | Runtime `.unwrap()` Denylist | `scripts/check-unwrap-denylist.sh` | ✅ Pass (0 violations) | 2026-06-15 |
 | MCP Gate-3 Consistency | `scripts/check-mcp-gate3.sh` | ✅ Pass (10/10 servers) | 2026-06-15 |
 | REQ Traceability Trend | `scripts/check-req-traceability.sh` | ✅ Pass (100% coverage) | 2026-06-16 |
-| Schema Drift (harness vs storage) | `scripts/check-schema-drift.sh` | ✅ Pass (37 tables/indexes) | 2026-06-17 |
+| Schema Drift (harness vs storage) | `scripts/ci/check-schema-drift.sh` | ✅ Pass (37 tables/indexes) | 2026-06-17 |
 | Contract Quality Review | `kask contract review` | ✅ Pass (0 NO_PRE+NO_POST, 0 NO_POST) | 2026-06-17 |
 | **Master** | `scripts/ci-quality-gates.sh` | ✅ ALL CHECKS PASSED | 2026-06-15 |
 

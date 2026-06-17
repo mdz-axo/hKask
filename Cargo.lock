@@ -4535,6 +4535,8 @@ dependencies = [
  "hkask-agents",
  "hkask-cns",
  "hkask-inference",
+ "hkask-keystore",
+ "hkask-mcp",
  "hkask-memory",
  "hkask-storage",
  "hkask-templates",

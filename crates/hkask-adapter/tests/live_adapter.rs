@@ -78,7 +78,7 @@ fn inference_params() -> LLMParameters {
 }
 
 fn require_env(var: &str) -> String {
-    std::env::var(var).expect(&format!("{var} must be set for live test"))
+    std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set for live test"))
 }
 
 // REQ: P4-adt-adapter-router-compose — live end-to-end: deploy → infer → teardown

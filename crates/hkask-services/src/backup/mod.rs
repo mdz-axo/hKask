@@ -71,6 +71,16 @@ pub enum BackupError {
     Encryption(String),
 }
 
+impl From<BackupError> for crate::ServiceError {
+    fn from(e: BackupError) -> Self {
+        let msg = e.to_string();
+        crate::ServiceError::Backup {
+            source: Some(Box::new(e)),
+            message: msg,
+        }
+    }
+}
+
 /// Policy layer for git-based artifact backup.
 ///
 /// Wraps a [`GitCASPort`] implementation and adds:

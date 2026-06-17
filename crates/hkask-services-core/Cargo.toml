@@ -13,6 +13,8 @@ hkask-cns = { path = "../hkask-cns" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-templates = { path = "../hkask-templates" }
+hkask-mcp = { path = "../hkask-mcp" }
+hkask-keystore = { path = "../hkask-keystore" }
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
