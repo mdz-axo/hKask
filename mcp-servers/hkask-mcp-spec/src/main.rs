@@ -9,7 +9,9 @@ pub mod types;
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
-use hkask_cns::{emit_contract_accepted, emit_contract_proposed, emit_contract_rejected};
+use hkask_cns::{
+    emit_contract_accepted, emit_contract_proposed, emit_contract_rejected, emit_contract_violated,
+};
 use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_services::{
     CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings,
@@ -1175,6 +1177,63 @@ impl SpecServer {
             .collect();
 
         respond(span, &ContractListResponse { proposals: entries })
+    }
+
+    /// Run contract tests on a crate and report REQ-tagged violations.
+    #[tool(description = "Run cargo test on a crate and report REQ-tagged contract violations.")]
+    async fn test_run(
+        &self,
+        Parameters(TestRunRequest {
+            crate_name,
+            workspace_root,
+        }): Parameters<TestRunRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("test_run", &self.webid);
+
+        let root = workspace_root.unwrap_or_else(|| {
+            std::env::var("HKASK_WORKSPACE_ROOT").unwrap_or_else(|_| {
+                std::env::current_dir()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|_| ".".to_string())
+            })
+        });
+
+        match hkask_test_harness::test_runner::run_contract_tests(&crate_name, &root) {
+            Some(result) => {
+                // Emit violations to CNS
+                for v in &result.violations {
+                    emit_contract_violated(
+                        &*self.event_sink,
+                        &v.test_name,
+                        &v.contract_id,
+                        &v.failure_reason,
+                    );
+                }
+
+                respond(
+                    span,
+                    &TestRunResponse {
+                        crate_name: result.crate_name,
+                        total_tests: result.total_tests,
+                        passed: result.passed,
+                        failed: result.failed,
+                        violations: result
+                            .violations
+                            .iter()
+                            .map(|v| TestViolation {
+                                test_name: v.test_name.clone(),
+                                contract_id: v.contract_id.clone(),
+                                failure_reason: v.failure_reason.clone(),
+                            })
+                            .collect(),
+                        pass: result.failed == 0,
+                    },
+                )
+            }
+            None => span.internal_error(
+                serde_json::json!({"error": format!("cargo test unavailable for crate '{}'", crate_name)}),
+            ),
+        }
     }
 }
 

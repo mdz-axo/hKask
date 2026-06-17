@@ -172,6 +172,7 @@ Transient session handoffs recording implementation state. Handoffs are committe
 | [`CI-CD-GUIDE.md`](guides/CI-CD-GUIDE.md) | lifecycle | CI/CD and installation guide |
 | [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | lifecycle | Deployment guide — systemd, Docker, K8s |
 | [`MATRIX-CLOUD-DEPLOYMENT.md`](guides/MATRIX-CLOUD-DEPLOYMENT.md) | lifecycle | Matrix cloud deployment — Conduit sidecar, 7R7 listener |
+| [`adapter-deployment.md`](guides/adapter-deployment.md) | lifecycle, composition | Adapter deployment — training MCP server, Together/Runpod/Baseten, lifecycle management |
 
 ---
 

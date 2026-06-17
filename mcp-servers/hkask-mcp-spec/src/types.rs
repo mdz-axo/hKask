@@ -355,3 +355,30 @@ pub struct AuditTotals {
     pub coverage_pct: f64,
     pub uncontracted_total: usize,
 }
+
+// ── Test Runner (test/run) ────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TestRunRequest {
+    /// Crate name (e.g., "hkask-cns"). Required.
+    pub crate_name: String,
+    /// Workspace root path. If omitted, defaults to HKASK_WORKSPACE_ROOT or cwd.
+    pub workspace_root: Option<String>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct TestRunResponse {
+    pub crate_name: String,
+    pub total_tests: usize,
+    pub passed: usize,
+    pub failed: usize,
+    pub violations: Vec<TestViolation>,
+    pub pass: bool,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct TestViolation {
+    pub test_name: String,
+    pub contract_id: String,
+    pub failure_reason: String,
+}
