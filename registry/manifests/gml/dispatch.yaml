@@ -9,6 +9,7 @@ manifest:
   version: "0.1.0"
   description: Apply GML to shift conceptual interpretation under contextual pressure
   functional_role: flowdef
+  visibility: Public
 
 inputs:
   - name: target_concept

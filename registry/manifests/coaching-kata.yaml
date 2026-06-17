@@ -12,7 +12,7 @@ manifest:
     Coaching Kata for teaching scientific thinking patterns.
     5-question dialogue to guide the bot through PDCA thinking.
   editor: Curator
-  visibility: public
+  visibility: Public
 
 gas:
   cap: 12000

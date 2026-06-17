@@ -14,7 +14,7 @@ manifest:
     obstacles or capability gaps are identified. Starter is self-contained.
   functional_role: flowdef
   editor: Curator
-  visibility: public
+  visibility: Public
 
 gas:
   accounting:

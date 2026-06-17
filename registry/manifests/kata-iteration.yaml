@@ -16,7 +16,7 @@ manifest:
     outputs across iterations to determine whether variance decreased and
     confidence increased. Maximum 2 iterations per session.
   editor: Curator
-  visibility: public
+  visibility: Public
 
 gas:
   cap: 50000

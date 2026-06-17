@@ -9,6 +9,7 @@ manifest:
   description: Resolve conflicts between specifications while preserving productive tensions
   functional_role: flowdef
   lexicon_terms: [reconcile, curate, evaluate, contextualise]
+  visibility: Public
 
 matroshka:
   max_depth: 5

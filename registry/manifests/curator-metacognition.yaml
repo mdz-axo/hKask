@@ -4,14 +4,13 @@
 manifest:
   id: curator-metacognition
   name: Curator Metacognition
+  functional_role: knowact
   description: >
-  functional_role: knowact
-  functional_role: knowact
     Metacognitive reasoning for system sense-making, performance monitoring,
     and coordination with hKask Administrator on system evolution.
   version: 0.21.0
   editor: hKask-Administrator
-  visibility: Primary
+  visibility: Public
 
 # Metacognition Template Reference
 metacognition_template: registry/templates/curator-metacognition.yaml
@@ -36,7 +35,7 @@ steps:
       Synthesize variety counters, alert states, and performance metrics.
     renderer: minijinja
     template_ref: curator/system_state_gather.j2
-    mcp: hkask-mcp-memory  # was hkask-mcp-storage
+    mcp: hkask-mcp-memory # was hkask-mcp-storage
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:
@@ -78,7 +77,7 @@ steps:
       Calibrate thresholds, diagnose issues, or prepare escalation.
     renderer: minijinja
     template_ref: curator/metacognition-${operation}.j2
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 6000
     timeout_seconds: 60
     output_schema:
@@ -98,7 +97,7 @@ steps:
     renderer: null
     template_ref: null
     target: emit_metacognition_outcome
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     tool: cns_emit
     gas_cap: 2000
     timeout_seconds: 10

@@ -100,64 +100,24 @@ jobs:
             libsqlite3-dev \
             libdbus-1-dev
 
-      - name: Install musl-tools (musl)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            musl-tools \
-            musl-dev \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libdbus-1-dev
-
-      - name: Configure musl static build
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          echo "RUSTFLAGS=-C target-feature=+crt-static" >> $GITHUB_ENV
-
-      - name: Install cross-compilation tools (AArch64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        # NOTE: This multiarch approach (dpkg --add-architecture arm64) is fragile.
-        # Ubuntu image changes may break libssl-dev:arm64 / libsqlite3-dev:arm64 availability.
-        # Alternative: use `cross` (https://github.com/cross-rs/cross) which provides
-        # pre-built Docker images with all cross-compilation dependencies.
-        # To switch, replace this step with:
-        #   uses: taiki-e/install-action@v2
-        #   with: { tool: cross }
-        #   run: cross build --release --package hkask-cli --target ${{ matrix.target }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu \
-            pkg-config \
-            lld
-
-          # Add ARM64 architecture for cross-compiled system libraries
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libssl-dev:arm64 \
-            libsqlite3-dev:arm64
-
-      - name: Configure AArch64 cross-compilation
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
-          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
-          echo "OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+      - name: Install cross (for musl + AArch64)
+        if: matrix.target != 'x86_64-unknown-linux-gnu'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
 
-      - name: Build release binary
+      - name: Build release binary (GNU)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: cargo build --release --package hkask-cli --target ${{ matrix.target }}
+
+      - name: Build release binary (cross)
+        if: matrix.target != 'x86_64-unknown-linux-gnu'
+        run: cross build --release --package hkask-cli --target ${{ matrix.target }}
 
       - name: Package binary
         run: |

@@ -12,10 +12,10 @@ manifest:
     chat, ensemble sessions, and kata coaching loops. Governing principle:
     never explicitly negate — criticism is deletion-by-omission.
   editor: Curator
-  visibility: public
+  visibility: Public
 
 gas:
-  cap: 8000
+  cap: 10000
   cost_per_token: 0.15
   alert_threshold: 0.7
   hard_limit: true

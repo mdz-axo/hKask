@@ -4,6 +4,7 @@ manifest:
   version: "0.1.0"
   description: Compose minimum viable specification set from user goals
   functional_role: flowdef
+  visibility: Public
 
 steps:
   - ordinal: 1

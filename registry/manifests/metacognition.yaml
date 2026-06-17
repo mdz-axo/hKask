@@ -6,10 +6,9 @@ manifest:
   id: metacognition
   name: Metacognition
   description: >
-  functional_role: knowact
-  functional_role: knowact
     Metacognitive reasoning with goal decomposition and strategy reflection.
     Enables cross-cycle adaptation and effort calibration.
+  functional_role: knowact
   version: 0.21.0
   editor: curator-or-human-admin
   visibility: Shared
@@ -44,7 +43,7 @@ steps:
       Check dependency graph is acyclic and effort estimates sum to ~1.0.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory  # was hkask-mcp-storage
+    mcp: hkask-mcp-memory # was hkask-mcp-storage
     gas_cap: 500
     timeout_seconds: 10
     validation_rules:
@@ -62,7 +61,7 @@ steps:
       Track decomposition quality and strategy selection patterns.
     renderer: null
     template_ref: null
-    mcp: null  # CNS is ambient (CnsRuntime)
+    mcp: null # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:

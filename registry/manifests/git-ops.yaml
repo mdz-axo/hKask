@@ -7,6 +7,7 @@ manifest:
   version: "0.1.0"
   description: Git CAS operations with SHA-based versioning
   functional_role: flowdef
+  visibility: Public
 
 steps:
   - ordinal: 1

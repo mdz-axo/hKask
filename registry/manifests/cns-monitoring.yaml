@@ -7,6 +7,7 @@ manifest:
   version: "0.1.0"
   description: Cybernetic Nervous System monitoring and calibration
   functional_role: knowact
+  visibility: Public
 
 steps:
   - ordinal: 1

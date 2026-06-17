@@ -9,6 +9,7 @@ manifest:
   description: Compose specifications from user intent through template selection and population
   functional_role: flowdef
   lexicon_terms: [specify, require, elicit, curate, recognize, match]
+  visibility: Public
 
 matroshka:
   max_depth: 5

@@ -7,6 +7,7 @@ manifest:
   version: "0.1.0"
   description: Template dispatch orchestration with selector-driven routing
   functional_role: flowdef
+  visibility: Public
 
 matroshka:
   max_depth: 7

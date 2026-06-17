@@ -9,6 +9,7 @@ manifest:
   description: Elicit user goals through structured questioning and refinement
   functional_role: flowdef
   lexicon_terms: [elicit, specify, require, recognize, contextualise]
+  visibility: Public
 
 matroshka:
   max_depth: 7

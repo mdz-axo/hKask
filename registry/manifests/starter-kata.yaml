@@ -12,7 +12,7 @@ manifest:
     Starter Kata for building foundational capability habits.
     3 practice routines for bots with low success rates or basic gaps.
   editor: Curator
-  visibility: public
+  visibility: Public
 
 gas:
   cap: 8000

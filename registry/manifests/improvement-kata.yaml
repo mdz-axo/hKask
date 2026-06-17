@@ -13,7 +13,7 @@ manifest:
     4-step cycle: Understand Direction → Grasp Current Condition →
     Establish Target → Experiment Toward Target
   editor: Curator
-  visibility: public
+  visibility: Public
 
 gas:
   cap: 15000
