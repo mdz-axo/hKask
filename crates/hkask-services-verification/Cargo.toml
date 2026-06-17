@@ -1,0 +1,11 @@
+[package]
+name = "hkask-services-verification"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask verification service — Magna Carta principle assertion checking"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-types = { path = "../hkask-types" }
+serde.workspace = true

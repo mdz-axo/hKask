@@ -4505,12 +4505,19 @@ dependencies = [
  "hkask-mcp",
  "hkask-memory",
  "hkask-services-backup",
+ "hkask-services-bundle",
  "hkask-services-classify",
  "hkask-services-core",
  "hkask-services-discover",
  "hkask-services-embed",
  "hkask-services-kanban",
  "hkask-services-kata",
+ "hkask-services-lifecycle",
+ "hkask-services-onboarding",
+ "hkask-services-skill",
+ "hkask-services-spec",
+ "hkask-services-verification",
+ "hkask-services-wallet",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
@@ -4552,6 +4559,15 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "hkask-services-bundle"
+version = "0.27.0"
+dependencies = [
+ "hkask-services-core",
+ "hkask-templates",
+ "hkask-types",
 ]
 
 [[package]]
@@ -4669,6 +4685,65 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "hkask-services-lifecycle"
+version = "0.27.0"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "hkask-services-onboarding"
+version = "0.27.0"
+dependencies = [
+ "hex",
+ "hkask-agents",
+ "hkask-keystore",
+ "hkask-services-core",
+ "hkask-storage",
+ "hkask-types",
+]
+
+[[package]]
+name = "hkask-services-skill"
+version = "0.27.0"
+dependencies = [
+ "hkask-services-core",
+ "hkask-templates",
+ "hkask-types",
+]
+
+[[package]]
+name = "hkask-services-spec"
+version = "0.27.0"
+dependencies = [
+ "hkask-agents",
+ "hkask-services-core",
+ "hkask-storage",
+]
+
+[[package]]
+name = "hkask-services-verification"
+version = "0.27.0"
+dependencies = [
+ "hkask-services-core",
+ "hkask-types",
+ "serde",
+]
+
+[[package]]
+name = "hkask-services-wallet"
+version = "0.27.0"
+dependencies = [
+ "hkask-agents",
+ "hkask-cns",
+ "hkask-services-core",
+ "hkask-storage",
+ "hkask-types",
+ "hkask-wallet",
+ "tokio",
 ]
 
 [[package]]

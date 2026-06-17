@@ -1,0 +1,15 @@
+[package]
+name = "hkask-services-wallet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask wallet service — gas budgeting, price feeds, CNS integration"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-agents = { path = "../hkask-agents" }
+hkask-cns = { path = "../hkask-cns" }
+hkask-storage = { path = "../hkask-storage" }
+hkask-types = { path = "../hkask-types" }
+hkask-wallet = { path = "../hkask-wallet" }
+tokio.workspace = true

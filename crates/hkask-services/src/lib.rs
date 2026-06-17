@@ -12,7 +12,7 @@
 //! Modules marked **Internal** are accessible via their full path but are not
 //! part of the committed public API. They may change without semver notice.
 
-// ── Re-exports from hkask-services-core ───────────────────────────────
+// ── Re-exports from extracted service crates ───────────────────────────
 
 pub use hkask_services_backup::config::{
     BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
@@ -25,6 +25,7 @@ pub use hkask_services_backup::serialization::{
     ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
 };
 pub use hkask_services_backup::{BackupError, BackupService};
+pub use hkask_services_bundle::{BundleComposeResult, BundleService};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use hkask_services_core::error::ServiceError;
 pub use hkask_services_core::settings::{
@@ -43,10 +44,28 @@ pub use hkask_services_kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
     KataResult, KataState, KataStep, PracticeEntry, StepExperience,
 };
+pub use hkask_services_lifecycle::{
+    LifecycleError, ServerHealth, ServerLifecycle, ServerLifecycleConfig, run_lifecycle,
+};
+pub use hkask_services_onboarding::{
+    MatrixRegistrationResult, OnboardingService, RegistryHandle, ReplicantContactConfig,
+    ResolvedSecrets, SignInOutcome, conduit_health_check,
+};
+pub use hkask_services_skill::{
+    SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
+    publish_skill, read_skill_namespace, read_skill_visibility, resolve_replicant_name,
+};
+pub use hkask_services_spec::{
+    CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
+    SpecService, WritingQualityResult,
+};
+pub use hkask_services_verification::{
+    Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
+};
+pub use hkask_services_wallet::WalletService;
 
-// ── Public API modules ─────────────────────────────────────────────────
+// ── Remaining inline modules ───────────────────────────────────────────
 
-pub mod bundle;
 pub mod chat;
 pub mod cns;
 pub mod compose;
@@ -57,25 +76,18 @@ pub mod deletion_test;
 pub mod experience;
 pub mod goal;
 pub mod inference;
-pub mod lifecycle;
-pub mod onboarding;
 pub mod pods;
 pub mod scheduler;
-pub mod skill;
 pub mod skills;
 pub mod sovereignty;
-pub mod spec;
-pub mod verification;
-pub mod wallet;
 
-// ── Internal modules (accessible, not part of committed API) ───────────
+// ── Internal modules ───────────────────────────────────────────────────
 
 pub mod archival;
 pub mod consolidation;
 pub mod daemon_handler;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
-pub use bundle::{BundleComposeResult, BundleService};
 pub use chat::{
     ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
 };
@@ -91,28 +103,9 @@ pub use deletion_test::DeletionTest;
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
-pub use lifecycle::{
-    LifecycleError, ServerHealth, ServerLifecycle, ServerLifecycleConfig, run_lifecycle,
-};
-pub use onboarding::{
-    MatrixRegistrationResult, OnboardingService, RegistryHandle, ReplicantContactConfig,
-    ResolvedSecrets, SignInOutcome, conduit_health_check,
-};
 pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
 pub use scheduler::SchedulerService;
-pub use skill::{
-    SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
-    publish_skill, read_skill_namespace, read_skill_visibility, resolve_replicant_name,
-};
 pub use skills::{
     SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,
 };
 pub use sovereignty::SovereigntyService;
-pub use spec::{
-    CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
-    SpecService, WritingQualityResult,
-};
-pub use verification::{
-    Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
-};
-pub use wallet::WalletService;

@@ -1,0 +1,11 @@
+[package]
+name = "hkask-services-skill"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask skill service — skill discovery, publishing, hashing"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-templates = { path = "../hkask-templates" }
+hkask-types = { path = "../hkask-types" }

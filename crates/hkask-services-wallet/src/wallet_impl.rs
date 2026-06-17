@@ -32,7 +32,7 @@ use hkask_wallet::price_feed::StaticPriceFeed;
 use hkask_wallet::{ApiKeyIssuer, WalletManager, WithdrawalFee, resolve_price_feed};
 use tokio::sync::RwLock;
 
-use crate::ServiceError;
+use hkask_services_core::ServiceError;
 
 /// Service for wallet operations — balance, deposits, withdrawals, API keys.
 ///

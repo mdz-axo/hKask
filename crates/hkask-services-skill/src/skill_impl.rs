@@ -15,7 +15,7 @@ use hkask_types::visibility::Visibility;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::ServiceError;
+use hkask_services_core::ServiceError;
 
 /// Result of publishing a skill from private to public zone.
 #[derive(Debug)]

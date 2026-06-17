@@ -13,6 +13,13 @@ hkask-services-kanban = { path = "../hkask-services-kanban" }
 hkask-services-classify = { path = "../hkask-services-classify" }
 hkask-services-embed = { path = "../hkask-services-embed" }
 hkask-services-discover = { path = "../hkask-services-discover" }
+hkask-services-wallet = { path = "../hkask-services-wallet" }
+hkask-services-onboarding = { path = "../hkask-services-onboarding" }
+hkask-services-spec = { path = "../hkask-services-spec" }
+hkask-services-verification = { path = "../hkask-services-verification" }
+hkask-services-skill = { path = "../hkask-services-skill" }
+hkask-services-bundle = { path = "../hkask-services-bundle" }
+hkask-services-lifecycle = { path = "../hkask-services-lifecycle" }
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-storage = { path = "../hkask-storage" }
