@@ -159,19 +159,17 @@ graph TD
 5. **Curator curates Skills.** `DefaultSpecCurator` evaluates coherence, detects drift, recommends revisions. Ensures template DNA stays aligned with implemented system.
 6. **Agents produce CNS data.** Agency produces observability; observability enables regulation; regulation ensures healthy agency. Virtuous cycle.
 
-### Identified Gaps (2026-06-15)
+### Identified Gaps (2026-06-17)
+
+All gaps from 2026-06-15 are now closed. Current open gaps:
 
 | Gap | Severity | Status | Description |
 |-----|----------|--------|-------------|
-| **Key rotation fragility** | Medium | **Closed (v0.27.0)** | Master key rotation now supported via key versioning. `derive_sub_key_with_version()` embeds `key_version` in HKDF info string (`"hkask-v{version}:{context}"`). Version stored in `~/.config/hkask/version`. `kask keystore rotate` increments version, derives new secrets, stores in keychain. Old-version secrets remain derivable. |
-| **Variety vs. outcome quality** | Medium | **Closed (v0.27.0)** | `VarietyTracker` counted diversity but not success/failure distribution. Fixed by adding `OutcomeTracker` with per-domain success rate tracking, `AlgedonicManager::check_outcome()` with 50%/25% thresholds, and wiring `GovernedTool::invoke()` to call `record_outcome()` after every tool completion. New CNS spans: `cns.outcome.tool`, `cns.outcome.inference`, `cns.outcome.memory`. |
-| **CNS span→counter connection** | Low | Verified | Tracing spans emit via `tracing` crate; `VarietyTracker::increment()` called explicitly by `CnsRuntime::increment_variety()`. Connection is through `CyberneticsLoop` sense→compute→act cycle. |
-| **Metacognitive override mechanism** | Low | Verified | `MetacognitionLoop::act_on_throttle()` → `CuratorDirective::CalibrateThreshold` → `mpsc::UnboundedSender` → `CyberneticsLoop` → `CnsRuntime::calibrate_threshold()`. Implemented and traced. |
-| **Public seam observability (P8 runtime enforcement)** | Medium | **Closed (v0.28.0)** | P8 required every `#[test]` to verify a public seam, but coverage was only checked at CI time. R7.3 `SeamWatcher` now loads the machine-readable public seam inventory at startup (embedded JSON), registers 25 per-crate variety domains, runs periodic drift checks (30-min interval), and fires algedonic alerts on coverage degradation. Coverage improvements emit positive `Notify` signals. Curator `/status` displays seam coverage. New CNS spans: `cns.architecture.seam.coverage`, `cns.architecture.seam.drift`. New `SignalMetric::SeamCoverage` with `BelowSetPoint`→`Escalate` and `AboveSetPoint`→`Notify`. 9 REQ-tagged tests verify behavioral properties. |
-| **Code quality & smell reduction (6-wave execution)** | High | **Closed (v0.27.0)** | Top-10 ranked improvements executed across 6 waves: (1) Uniform MCP Gate-3 capability verification across all 10 servers, (2) 37 runtime `.unwrap()` calls replaced with typed errors, (3) 45 new REQ-tagged tests across types/agents/API + real `CapabilityAwareValidator` replacing passthrough stub, (4) Settings strangler extraction to `hkask-services`, `LoopQuality` CNS telemetry, `SpanKind` typed span constructors, (5) 13 public surface justification docs + unsafe documentation policy CI enforcement, (6) 5 CI quality gate scripts wired into `.github/workflows/ci.yml`. 472 tests, 453 REQ tags (96% coverage), 0 clippy warnings. |
-| **Contract debt (behavioral contracts)** | High | **Closed (v0.27.0)** | All 1579 `pub fn` across 17 crates now carry `/// REQ:` with `pre:`/`post:` conditions. 1915 REQ tags (121.2% due to multi-contract builders). Zero contract debt. CNS `cns.contract.coverage` spans at 100%. Phase B2 (agent contract generation) unblocked. |
-| **Dynamic gas table + wallet calibration** | High | **Closed (v0.27.0)** | `DynamicGasTable` was an orphan file (undeclared in `lib.rs`). Declared it, fixed 6 test typos, wired `CalibratedEnergyEstimator` into `AgentService` as the production energy estimator with a background 5-minute calibration loop. Added `WalletGasCalibrator` observing aggregate `cns.gas.settled` events to calibrate `WalletManager::gas_per_rjoule` at runtime. `WalletBackedBudget` now reads the live atomic rate. Added CNS observability spans: `cns.gas.calibrated` and `cns.wallet.conversion.calibrated`. 80 CNS lib tests pass; contract coverage for `hkask-cns` at 119.3%. |
-| **Trained adapter lifecycle & inference composition** | High | **New (v0.28.0)** | `hkask-adapter` crate introduced. Full lifecycle: `Expertise` (P8 semantic grounding) → `TrainedLoRAAdapter` (content-addressed, owner-scoped) stored in `AdapterStore` (SQLite CRUD) → `AdapterRouter` composes adapter + base model + provider via `AdapterPort` trait (6 OCAP-gated methods, P4) → `EndpointLifecycle` state machine (5 phases with validated transitions and cost accrual, P9) → `EndpointGuard` (RAII teardown, P5). Provider support: Together AI (real HTTP upload + inference), Runpod, Baseten (vLLM skeletons). `AdapterSource` enum for distribution source abstraction (HuggingFace today, extensible). `CostModel` per provider for transparent pricing (P2 affirmative consent). 48 tests, 10 new CNS span namespaces (`cns.adapter.*`, `cns.endpoint.*`). |
+| **Kata documentation narrative** | Low | **Open** | Kata engine and skills are fully implemented (4 skills, 23 templates, 5 manifests) and documented in the architecture master and user guide, but CNS narrative companion (analogous to TESTING_NARRATIVE.md) has not been commissioned. Decision deferred per Task 9. |
+| **Skill ↔ MCP server documentation boundary** | Low | **Open** | Skills live in `.agents/skills/` (Zed agent layer) and `registry/templates/` (hKask runtime layer). MCP servers live in `mcp-servers/`. No unified "capability documentation" showing how a skill, its templates, and its MCP surface compose. Deferred per Task 9. |
+| **utoipa annotation completeness** | Medium | **Open** | No `#[utoipa::path]` annotations found in `crates/`. The OpenAPI spec (`docs/generated/openapi.json`, 4454 lines) may be manually maintained. Unannotated endpoints are invisible to auto-generation. Task 6 audits this. |
+| **Versioned documentation** | Low | **Open** | No versioning strategy for docs. As codebase evolves (kanban v2, kata refinements, additional MCP servers), documentation will drift again. Deferred per Task 9. |
+| **LoRA store security model** | Medium | **Open** | Adapter ownership model (P12) is specified but threat model (adapter tampering, weight poisoning, provenance verification) is not documented. Deferred per Task 9. |
 
 ---
 
@@ -365,6 +363,188 @@ graph TD
 | `BoardCreated` | `cns.kanban.board_created` |
 
 See also: `docs/user-guides/kanban-user-guide.md`
+
+---
+
+## Kata — Cybernetic Capability Development
+
+**Crates:** `hkask-services` (KataEngine), `hkask-cns` (variety counters, algedonic alerts), `hkask-storage` (KataHistoryStore)
+
+**Skills:** `.agents/skills/kata-starter/`, `.agents/skills/kata-improvement/`, `.agents/skills/kata-coaching/`, `.agents/skills/kata/` (bundle)
+
+**Templates:** 23 Jinja2 templates across 4 skill directories, 5 YAML manifests, registered in `registry/templates/bootstrap-registry.yaml`
+
+**MCP surface:** Kanban MCP (`hkask-mcp-kanban`) — kata cycles execute as kanban tasks (tri-surface: CLI, REPL, MCP)
+
+### Summary
+
+Kata implements the Toyota Kata methodology (Rother, 2009) as a cybernetic capability development system. Three independently usable skills compose through a bundle orchestrator, with CNS observing every practice, PDCA iteration, and coaching session. The kanban MCP surface provides task-based execution for kata experiments.
+
+| Skill | Purpose | Steps | Templates | Manifest |
+|-------|---------|-------|-----------|----------|
+| **kata-starter** | Build foundational scientific thinking habits | 5 | 5 (4 FlowDef, 1 KnowAct) | `starter-kata.yaml` |
+| **kata-improvement** | 4-step PDCA scientific pattern for capability gaps | 4 | 5 (1 FlowDef, 4 WordAct) | `improvement-kata.yaml` |
+| **kata-coaching** | 5-question dialogue for teaching scientific thinking | 5 | 6 (1 FlowDef, 5 WordAct) | `coaching-kata.yaml` |
+| **kata** (bundle) | Full orchestration: routing, habit monitoring, iteration | 7 | 7 (6 KnowAct, 1 WordAct) | `kata-pattern.yaml` |
+
+### Key Features
+
+- **PDCA cycle with before/after metrics:** The `KataEngine` captures `metric_before` from CNS counters, executes the 4-step PDCA pattern, captures `metric_after`, and computes an `ImprovementSignal` (Positive/Negative/Stalled/NotMeasured)
+- **Automaticity tracking:** Practice history stored in `data/kata-history.json` + SQLite (`KataHistoryStore`). Automaticity linearly approaches 1.0 over 21 consecutive practice days. 3+ day gaps trigger habit decay alerts
+- **CNS variety counters:** `kata.practices.completed`, `kata.automaticity.score`, `kata.habit.formation` — baseline 5/week, +0.05/week, 1 per 21 days
+- **Algedonic alerts:** Variety deficits exceeding threshold (default 100) emit `kata.algedonic` warnings
+- **OCAP consent gates:** kata-starter (self-consent), kata-improvement (Curator), kata-coaching (Learner) — per P2 Affirmative Consent
+- **Memory integration:** Every step produces a `StepExperience` recorded to episodic memory via dual-encoding pipeline
+- **Kanban integration:** PDCA experiments map to kanban tasks; coaching 5 questions map to task fields; improvement cycles tracked as task state transitions
+
+### Kata → Kanban → CNS Feedback Path
+
+```mermaid
+sequenceDiagram
+    participant L as Learner (Agent)
+    participant KE as KataEngine
+    participant CNS as CNS (cns.rs)
+    participant KB as KanbanService
+    participant C as Coach (Curator)
+
+    L->>KE: Start improvement cycle
+    KE->>CNS: kata.cycle.start (automaticity_before)
+    KE->>KB: TaskCreated (PDCA experiment)
+    
+    loop PDCA (one obstacle at a time)
+        KE->>CNS: kata.step.start (Plan)
+        L->>KE: Execute experiment
+        KE->>CNS: kata.step.checked (Do→Check)
+        KE->>KB: TaskMoved (state transition)
+        KE->>CNS: kata.step.complete (Act)
+    end
+    
+    C->>L: Coaching 5 questions (via KB task comments)
+    C->>KB: TaskAssigned (coaching session)
+    
+    KE->>CNS: kata.cycle.complete (improvement_signal)
+    KE->>KB: TaskVerified (with evidence)
+    KE->>CNS: variety counters incremented
+    
+    alt Variety deficit
+        CNS-->>C: kata.algedonic (escalation)
+    end
+```
+
+### CNS Spans
+
+| Span | Namespace | Trigger |
+|------|-----------|---------|
+| `KataImprovEffectiveness` | `cns.kata.improv_effectiveness` | After each improvement cycle |
+| `kata.cycle.start` | `hkask.kata.cycle.start` | Cycle begins |
+| `kata.step.start` | `hkask.kata.step.start` | Each PDCA step begins |
+| `kata.step.checked` | `hkask.kata.step.checked` | PDCA Check phase |
+| `kata.step.complete` | `hkask.kata.step.complete` | Each step completes |
+| `kata.coaching.question` | `hkask.kata.coaching.question` | Each coaching question |
+| `kata.starter.practice` | `hkask.kata.starter.practice` | Each starter practice |
+| `kata.starter.habit_check` | `hkask.kata.starter.habit_check` | Before starter cycle |
+| `kata.cycle.complete` | `hkask.kata.cycle.complete` | Cycle completes |
+| `kata.algedonic` | `hkask.kata.algedonic` | Variety deficit detected |
+
+### Coaching 5 Questions → Kanban Task Mapping
+
+| Question | Kanban Task Field | Purpose |
+|----------|-------------------|---------|
+| 1. What is the Target Condition? | `task.goal` | Ground in measurable outcome |
+| 2. What is the Actual Condition now? | `task.evidence_before` | Facts and data (IS, not assumptions) |
+| 3. What Obstacles? Which ONE? | `task.blockers` | Focus — one obstacle at a time |
+| 4. Next Step? What do you expect? | `task.next_action` + `task.prediction` | PDCA Plan with prediction |
+| 5. How quickly can we go see? | `task.review_interval` | Close the feedback loop |
+
+See also: `docs/guides/kata-user-guide.md`
+
+---
+
+## LoRA Adapter Lifecycle & Inference Composition
+
+**Crates:** `hkask-adapter` (lifecycle, routing, store), `hkask-types` (CNS spans), `hkask-services` (orchestration)
+
+**MCP surface:** Training via `hkask-mcp-training` (17 tools, 5 providers)
+
+**Status:** Active — 48 tests, 10 CNS span namespaces, 45 public functions (17 exposed in lib.rs)
+
+### Summary
+
+`hkask-adapter` manages the full lifecycle of trained LoRA adapters — from training provenance through cloud deployment to cost-tracked inference and teardown. Every operation is OCAP-gated (P4). Every state transition emits a CNS span (P9). Every adapter has an owner WebID (P12).
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| **Expertise** | Domain type | Semantic grounding: what the adapter was trained on (MdsDomain, TrainingProvenance) |
+| **TrainedLoRAAdapter** | Domain type | Content-addressed, owner-scoped adapter with 12 fields (id, name, owner WebID, base_model, source, expertise, status, etc.) |
+| **AdapterStore** | Persistence | SQLite CRUD via `define_store!` — store, retrieve, list, delete adapters |
+| **AdapterRouter** | Composition | Composes adapter + base model + provider via `AdapterPort` trait (6 OCAP-gated methods) |
+| **EndpointLifecycle** | Lifecycle | 5-phase state machine: Provisioning → Ready → Active → Draining → Terminated |
+| **EndpointGuard** | Teardown | RAII guard ensuring resource cleanup (P5 — no leaked endpoints) |
+| **CostModel** | Pricing | Per-provider transparent pricing (P2 affirmative consent) |
+
+### Adapter Lifecycle State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Provisioning: create_endpoint()
+    Provisioning --> Ready: provider confirms deployment
+    Ready --> Active: start_inference()
+    Active --> Draining: drain_endpoint()
+    Draining --> Terminated: all requests complete
+    Active --> Terminated: force_terminate()
+    Provisioning --> Terminated: deployment failed
+    Terminated --> [*]: EndpointGuard drops
+
+    note right of Active
+        Cost accrual (P9)
+        Budget enforcement
+        CNS: EndpointInference
+        CNS: EndpointCostAccrued
+    end note
+
+    note right of Draining
+        No new requests accepted
+        In-flight requests complete
+        CNS: EndpointDraining
+    end note
+```
+
+### Key Features
+
+- **Content-addressed storage:** Adapters identified by content hash + owner WebID — no anonymous artifacts (P12)
+- **Provider abstraction:** `AdapterSource` enum supports HuggingFace repos (extensible); providers: Together AI (real HTTP upload + inference), Runpod (vLLM skeleton), Baseten (vLLM skeleton)
+- **Transparent pricing:** `CostModel` per provider — user sees cost before deployment (P2)
+- **Budget enforcement:** `EndpointLifecycle` checks cost accrual against budget; `EndpointCostBudgetWarning` CNS span on threshold breach (P9)
+- **OCAP-gated composition:** `AdapterPort` trait exposes 6 methods, each requiring a capability token (P4)
+- **RAII teardown:** `EndpointGuard` ensures endpoints are terminated even on panic (P5)
+
+### Dependency Direction
+
+```mermaid
+graph TD
+    TRAIN["hkask-mcp-training"] --> ADAPTER["hkask-adapter"]
+    ADAPTER --> TYPES["hkask-types (CNS spans, WebID)"]
+    ADAPTER --> STORAGE["hkask-storage (define_store!)"]
+    ADAPTER --> INFERENCE["hkask-inference (provider routing)"]
+```
+
+### CNS Spans
+
+| Span | Namespace | Trigger |
+|------|-----------|---------|
+| `AdapterStored` | `cns.adapter.stored` | Adapter saved to AdapterStore |
+| `AdapterRetrieved` | `cns.adapter.retrieved` | Adapter loaded from AdapterStore |
+| `AdapterDeleted` | `cns.adapter.deleted` | Adapter removed from AdapterStore |
+| `EndpointCreateStarted` | `cns.endpoint.create_started` | Endpoint provisioning begins |
+| `EndpointCreateConfirmed` | `cns.endpoint.create_confirmed` | Provider confirms deployment |
+| `EndpointInference` | `cns.endpoint.inference` | Each inference request |
+| `EndpointDraining` | `cns.endpoint.draining` | Draining phase begins |
+| `EndpointTerminated` | `cns.endpoint.terminated` | Endpoint fully terminated |
+| `EndpointCostAccrued` | `cns.endpoint.cost_accrued` | Cost tracked per invocation |
+| `EndpointCostBudgetWarning` | `cns.endpoint.cost_budget_warning` | Budget threshold exceeded |
+
+See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-training-guide.md`, `docs/architecture/PUBLIC_SURFACE-hkask-adapter.md`
+
 ---
 
 ## Daemon & Replicant Server Mode
@@ -686,26 +866,34 @@ docs/architecture/
 ├── loop-architecture.md                   # Framework (4-loop authority model)
 ├── energy-gas-payments-api-keys.md        # Framework (gas, payments, API key system)
 ├── matrix-integration-architecture.md     # Specification (Matrix transport, Conduit sidecar)
+├── PUBLIC_SURFACE-hkask-adapter.md        # Trained adapter lifecycle & inference composition
 ├── PUBLIC_SURFACE-hkask-agents.md
 ├── PUBLIC_SURFACE-hkask-api.md
 ├── PUBLIC_SURFACE-hkask-cns.md
 ├── PUBLIC_SURFACE-hkask-improv.md
 ├── PUBLIC_SURFACE-hkask-inference.md
-├── PUBLIC_SURFACE-hkask-adapter.md         # Trained adapter lifecycle & inference composition
 ├── PUBLIC_SURFACE-hkask-keystore.md
 ├── PUBLIC_SURFACE-hkask-mcp.md
-├── PUBLIC_SURFACE-hkask-mcp-training.md    # Training MCP (17 tools, 5 providers)
+├── PUBLIC_SURFACE-hkask-mcp-training.md   # Training MCP (17 tools, 5 providers)
 ├── PUBLIC_SURFACE-hkask-memory.md
 ├── PUBLIC_SURFACE-hkask-services.md
 ├── PUBLIC_SURFACE-hkask-storage.md
 ├── PUBLIC_SURFACE-hkask-templates.md
+├── PUBLIC_SURFACE-hkask-test-harness.md
 ├── PUBLIC_SURFACE-hkask-types.md
 ├── PUBLIC_SURFACE-hkask-wallet.md
 ├── core/
 │   ├── magna-carta.md                     # Foundation (4 inviolable principles)
 │   ├── PRINCIPLES.md                      # Framework (P1-P12)
 │   ├── MDS.md                             # Framework (5 categories, 5 tools)
-│   └── CNS-DOMAIN-SPECIFICATION.md       # Specification (6 sub-domains, 44 contracts)
+│   ├── TESTING_DISCIPLINE.md              # Specification (contract-anchored testing)
+│   ├── TESTING_NARRATIVE.md               # Narrative companion to testing discipline
+│   ├── CNS-DOMAIN-SPECIFICATION.md        # Specification (6 sub-domains, 44 contracts)
+│   ├── FUNCTIONAL_SPECIFICATION.md        # Specification (AgentService)
+│   ├── FUNCTIONAL_SPECIFICATION_APPENDIX.md # Appendix (service details)
+│   ├── HANDOFF_FUNCTIONAL_SPEC.md         # Specification (handoff lifecycle)
+│   ├── REQ_CONTRACT_INVENTORY.md          # Inventory (contract completeness)
+│   └── RSOLIDITY_VOCABULARY.md            # Reference (rSolidity terms)
 ├── mandates/
 │   └── P12-replicant-host-mandate.md      # Framework (replicant host mandate)
 ├── ADRs/
@@ -728,9 +916,9 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 23 active architecture documents (3 core + 1 mandate + 4 root + 9 ADRs + 1 template + 6 reference artifacts) + 14 PUBLIC_SURFACE justifications + 1 domain specification.
+**Total:** 31 active architecture documents (11 core + 1 mandate + 4 root + 9 ADRs + 1 template + 6 reference artifacts) + 15 PUBLIC_SURFACE justifications + 1 domain specification.
 
-**Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.)
+**Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 
 ---
 

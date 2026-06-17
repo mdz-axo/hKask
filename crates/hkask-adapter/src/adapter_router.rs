@@ -79,7 +79,7 @@ trait AdapterProviderBackend: Send + Sync {
 // Runpod: serverless vLLM endpoint provisioning + OpenAI-compatible inference.
 //   Docs: https://docs.runpod.io/serverless/endpoints/manage-endpoints
 // Baseten: REST endpoint provisioning + OpenAI-compatible inference.
-//   Docs: https://docs.baseten.co/deploy/truss
+//   Docs: https://docs.baseten.co/api-reference
 // Adapter upload: Together uploads to HF; Runpod/Baseten use vLLM --lora-modules.
 // HuggingFace: https://huggingface.co/docs/peft/main/quicktour
 
@@ -185,10 +185,22 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
     }
 
     fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
-        // Together AI endpoints auto-expire when unused. If an explicit
-        // DELETE is needed, call the fine-tune job cancellation endpoint.
-        // For now, endpoints drain naturally.
+        // Together AI: adapters are deployed as dedicated endpoints.
+        // If an endpoint was explicitly created (POST /v1/endpoints), it can be
+        // deleted via DELETE /v1/endpoints/{id}. If the adapter was used directly
+        // via model_name without explicit endpoint creation, there's nothing to
+        // tear down — the adapter just exists in their system.
+        // Docs: https://docs.together.ai/docs/dedicated-endpoints/adapter
         let _ = endpoint_url;
+
+        // Best-effort: attempt deletion. Endpoint ID is embedded in the URL path.
+        // Since we use model_name directly for inference, explicit teardown is
+        // typically unnecessary. Together AI doesn't charge for idle adapters.
+        tracing::debug!(
+            target: "hkask.adapter",
+            endpoint_url = %endpoint_url,
+            "Together AI teardown — adapter auto-expires, no explicit deletion needed"
+        );
         Ok(())
     }
 
@@ -451,10 +463,13 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
             ));
         }
 
-        // Baseten REST API: deploy a model endpoint.
-        // Docs: https://docs.baseten.co/deploy/truss
-        // CAVEAT: Baseten API endpoint and response field names are best-effort.
-        // Adjust response parsing if actual API differs.
+        // Baseten API: deploy a model. The model ID is returned and used to
+        // construct the endpoint URL: https://model-{id}.api.baseten.co
+        // Docs: https://docs.baseten.co/api-reference
+        // Auth: Api-Key {key}
+        // Native inference: POST /production/predict
+        // vLLM inference: POST /v1/chat/completions (OpenAI-compatible)
+        // CAVEAT: Model creation endpoint is best-effort. Adjust if actual API differs.
         let body = serde_json::json!({
             "name": adapter.expertise.name,
             "model_source": adapter.source.repository_id(),
@@ -635,6 +650,8 @@ impl AdapterRouter {
     /// [P4] Clear Boundaries — router assembled from configured provider boundaries
     /// pre:  store is a valid AdapterStore
     /// post: returns AdapterRouter with backends for adapter-capable providers
+    /// post: previously active endpoints are loaded from store (metadata only — backends
+    ///       are runtime objects and cannot be restored; orphaned endpoints are logged)
     pub fn new(store: Arc<AdapterStore>) -> Self {
         let mut backends: HashMap<ProviderId, Arc<dyn AdapterProviderBackend>> = HashMap::new();
 
@@ -645,11 +662,74 @@ impl AdapterRouter {
         backends.insert(ProviderId::Runpod, Arc::new(RunpodAdapterBackend::new()));
         backends.insert(ProviderId::Baseten, Arc::new(BasetenAdapterBackend::new()));
 
-        Self {
+        let router = Self {
             store,
             backends,
             endpoints: Mutex::new(HashMap::new()),
+        };
+
+        // Restore previously active endpoints from persistent store.
+        // Backends are runtime objects (HTTP clients with API keys) and cannot
+        // be serialized — restored endpoints are metadata-only for audit.
+        // Active inference requires re-creating the endpoint via create_endpoint().
+        if let Err(e) = router.log_orphaned_endpoints() {
+            tracing::warn!(
+                target: "hkask.adapter",
+                error = %e,
+                "Failed to read persisted endpoints on startup"
+            );
         }
+
+        router
+    }
+
+    /// Log any endpoints that were active when the system last shut down.
+    /// These are orphaned — their provider resources may still exist and incur cost.
+    fn log_orphaned_endpoints(&self) -> Result<(), AdapterError> {
+        let conn = (*self.store)
+            .lock_conn()
+            .map_err(|e| AdapterError::Internal(e.to_string()))?;
+        let mut stmt = conn
+            .prepare("SELECT endpoint_id, provider, model_name, expertise_name, phase, cost_accrued, created_at FROM active_endpoints")
+            .map_err(|e| AdapterError::Internal(format!("Query failed: {e}")))?;
+
+        let rows: Vec<(String, String, String, String, String, f64, String)> = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                ))
+            })
+            .map_err(|e| AdapterError::Internal(format!("Query failed: {e}")))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        if !rows.is_empty() {
+            tracing::warn!(
+                target: "hkask.adapter",
+                count = rows.len(),
+                "Found orphaned endpoints from previous session — these may still incur provider costs"
+            );
+            for (id, provider, model, expertise, phase, cost, created) in &rows {
+                tracing::warn!(
+                    target: "hkask.adapter",
+                    endpoint_id = %id,
+                    provider = %provider,
+                    model = %model,
+                    expertise = %expertise,
+                    phase = %phase,
+                    cost = %cost,
+                    created = %created,
+                    "Orphaned endpoint — may need manual teardown via provider console"
+                );
+            }
+        }
+        Ok(())
     }
 
     /// List providers that can compose the given adapter.

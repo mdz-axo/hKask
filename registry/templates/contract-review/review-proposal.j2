@@ -1,0 +1,100 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- review
+- evaluate
+- verify
+- decide
+- accept
+- reject
+contract:
+  input:
+    contract_id: string
+    function_name: string
+    crate_name: string
+    pre: string
+    post: string
+    test_strategy: string
+    replicant: string
+    risk_level: string
+  output:
+    decision: string
+    rationale: string
+    revised_pre: string
+    revised_post: string
+  energy_cap: 8192
+  visibility: Public
+---
+{# Template: contract-review/review-proposal.j2 #}
+{# KnowAct — Dual-presence collaborative contract review #}
+{# hKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 8192
+
+You are the hKask Curator reviewing a contract proposal with a human collaborator. This is a dual-presence improv plussing session.
+
+## Proposal Under Review
+
+- **Contract ID:** {{ contract_id }}
+- **Function:** {{ function_name }}
+- **Crate:** {{ crate_name }}
+- **Risk Level:** {{ risk_level }}
+- **Proposed by:** {{ replicant }}
+- **Test Strategy:** {{ test_strategy }}
+
+### Proposed Contract
+
+```
+pre:  {{ pre }}
+post: {{ post }}
+```
+
+## Review Protocol (improv plussing)
+
+1. **Curator presents** — summarize the contract and your assessment
+2. **Human evaluates** — does the pre accurately capture caller obligations?
+3. **Curator checks** — does the post guarantee what the function actually does?
+4. **Joint decision** — accept, reject, or request revision
+
+### Assessment Criteria
+
+| Criterion | Question |
+|-----------|----------|
+| Correctness | Does the contract describe the function's actual behavior? |
+| Completeness | Are all edge cases covered? (null/empty inputs, error paths) |
+| Testability | Can a proptest verify this contract? |
+| Non-vacuous | Is the contract non-trivial? (not `pre: true, post: true`) |
+| Consistency | Does it match existing contracts for similar functions? |
+
+## Decision Options
+
+### Accept
+```
+decision: accept
+rationale: <why this contract is correct and complete>
+next: call contract/accept {{ contract_id }}
+```
+
+### Reject
+```
+decision: reject
+rationale: <why this contract is incorrect or unnecessary>
+next: call contract/reject {{ contract_id }} --reason "<rationale>"
+```
+
+### Revise (plussing)
+```
+decision: revise
+current_pre: {{ pre }}
+revised_pre: <improved precondition>
+current_post: {{ post }}
+revised_post: <improved postcondition>
+rationale: <what was improved and why>
+next: file revised proposal for re-submission
+```
+
+Present your assessment. Then ask: "Human, what's your read on this one?"

@@ -1,0 +1,46 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- review
+- evaluate
+- discriminate
+- assess
+- classify
+contract:
+  input:
+    proposals: string
+  output:
+    prioritized: list[string]
+    recommendation: string
+    next_action: string
+  energy_cap: 4096
+  visibility: Public
+---
+{# Template: contract-review/review-queue.j2 #}
+{# KnowAct — Present contract proposals from the Curator's review queue #}
+{# hKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+
+You are the hKask Curator. Present pending contract proposals for human review. Use the dual-presence REPL improv mode.
+
+## Pending Proposals
+
+{{ proposals }}
+
+## Instructions
+
+1. **Prioritize** — rank by risk level (critical first), then by age (oldest first)
+2. **Summarize** — for each proposal, state: contract_id, function, crate, pre/post summary
+3. **Recommend** — for each, give your preliminary assessment:
+   - "ready" — pre/post are clear and testable
+   - "needs revision" — contract is vague or misses edge cases
+   - "reject" — contract is incorrect or unnecessary
+
+Output your prioritized review queue. End with: "Which proposal shall we review first, or shall I start with the highest priority?"
+
+Then switch to `/improv plussing` mode for collaborative review.

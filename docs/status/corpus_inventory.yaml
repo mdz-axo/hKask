@@ -1,905 +1,1382 @@
-# hKask Document Corpus Inventory — Task 1 Classification
-# Generated: 2026-06-15 | Agent: Zed coding agent (document-update sweep)
-# Principles: P5 (Pared Surface), P6 (No Dead Docs), P8 (Semantic Grounding)
+# ── hKask Document Corpus Inventory ───────────────────────────────────────────
+# Generated: 2026-06-17
+# Version: 0.27.0
+# Purpose: Map every document to the code it describes, classify staleness,
+#          produce drift verdicts per document.
 #
-# Classification taxonomy:
-#   Active (keep): directly referenced from AGENTS.md, architecture master, or README portal; no drift
-#   Stale (refresh): metadata anomalies; superseded content
-#   Archive: stale AND no forward-looking value
-#
-# Lifecycle: Draft → Active → Deprecated → Superseded → Removed (per MDS_SCAFFOLD §3)
+# Drift verdicts:
+#   aligned         — Document accurately reflects current code reality.
+#   stale           — Document exists but describes code that has evolved.
+#   missing         — Code exists but no document describes it.
+#   orphan          — Document exists but describes code that no longer exists.
+#   partial         — Document exists and is mostly correct but has gaps.
+#   na              — Not applicable (e.g., meta-documents, plans, status).
+# ────────────────────────────────────────────────────────────────────────────────
 
 documents:
-  # =========================================================================
-  # ROOT docs/ — Loose Files
-  # =========================================================================
-  - path: "docs/README.md"
-    category: "Portal"
-    status: "Active"
-    last_updated: "2026-06-15"
+  # ════════════════════════════════════════════════════════════════════════════
+  # ARCHITECTURE — Authoritative architecture documents
+  # ════════════════════════════════════════════════════════════════════════════
+  - path: docs/architecture/hKask-architecture-master.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-17
     version: "0.27.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6, P8]
+    staleness_signal: partial
+    drift_verdict: partial
+    code_artifacts:
+      - crates/hkask-services/
+      - mcp-servers/hkask-mcp-kanban/
+      - crates/hkask-adapter/
+      - crates/hkask-cns/
+    gaps:
+      - "Kata section exists only as a one-line mention under Pattern B; no dedicated architectural section for kata as a first-class subsystem despite 4 skills, 23 templates, 5 manifests"
+      - "LoRA adapter store mentioned only in identified gaps section; no dedicated architectural section describing adapter lifecycle, storage, routing, or endpoint management"
+      - "No Mermaid diagram showing kata→kanban→CNS feedback path"
+    governing_principles: [P3, P5, P7, P9]
     disposition: keep
-    notes: "Portal. Canonical navigation index. Updated 2026-06-15 with 7 new document entries."
 
-  - path: "docs/DIAGRAMS_INDEX.md"
-    category: "Cross-cutting Index"
-    status: "Active"
-    last_updated: "2026-06-13"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Mermaid diagram verification registry. Referenced from README portal."
-
-  - path: "docs/OPEN_QUESTIONS.md"
-    category: "Cross-cutting Index"
-    status: "Active"
-    last_updated: "2026-06-08"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P3, P5, P6]
-    disposition: keep
-    notes: "Underspecified aspects. Referenced from README portal."
-
-  # =========================================================================
-  # ARCHITECTURE/ — Framework Documents & ADRs
-  # =========================================================================
-  - path: "docs/architecture/hKask-architecture-master.md"
-    category: "Architecture Index"
-    status: "Active"
-    last_updated: "2026-06-15"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6, P8]
-    disposition: keep
-    notes: "Authoritative architecture index. Updated 2026-06-15 with matrix-integration-architecture.md and training-decomposition-traces.md."
-
-  - path: "docs/architecture/MDS.md"
-    category: "Framework"
-    status: "Active"
-    last_updated: "2026-06-09"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P8]
-    disposition: keep
-    notes: "Minimal Domain Specification. Authoritative for all 5 MDS categories."
-
-  - path: "docs/architecture/PRINCIPLES.md"
-    category: "Framework"
-    status: "Active"
-    last_updated: "2026-06-13"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P1, P2, P3, P4, P5, P6, P7, P8, P9]
-    disposition: keep
-    notes: "12 architecture principles (P1-P12). Ultimate authority."
-
-  - path: "docs/architecture/magna-carta.md"
-    category: "Framework"
-    status: "Active"
-    last_updated: "2026-06-09"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P1, P2, P3, P4]
-    disposition: keep
-    notes: "User sovereignty charter — 4 inviolable principles."
-
-  - path: "docs/architecture/loop-architecture.md"
-    category: "Framework"
-    status: "Active"
-    last_updated: "2026-06-09"
+  - path: docs/architecture/loop-architecture.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain, composition, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P7, P8]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-cns/]
+    governing_principles: [P7, P9]
     disposition: keep
-    notes: "4-loop authority model."
 
-  - path: "docs/architecture/P12-replicant-host-mandate.md"
-    category: "Framework"
-    status: "Active"
-    last_updated: "2026-06-13"
-    version: "0.27.0"
-    mds_categories: [domain, trust, composition]
-    staleness_signal: null
-    governing_principles: [P5, P6, P12]
-    disposition: keep
-    notes: "Replicant host mandate — P12 elaboration. Listed in architecture master and portal."
-
-  - path: "docs/architecture/energy-gas-payments-api-keys.md"
-    category: "Framework"
-    status: "Active"
-    last_updated: "2026-06-13"
+  - path: docs/architecture/energy-gas-payments-api-keys.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-wallet/, crates/hkask-cns/]
+    governing_principles: [P1, P2, P4, P9]
     disposition: keep
-    notes: "Energy, gas, payments & API key architecture. Listed in architecture master and portal."
 
-  - path: "docs/architecture/lazy-universe-research.md"
-    category: "Research"
-    status: "Active"
-    last_updated: "2026-06-13"
-    version: "0.27.0"
-    mds_categories: [domain, composition, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Least-action principle research grounding. Listed in architecture master and portal."
-
-  - path: "docs/architecture/wallet-specification.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Wallet crate architectural specification. Listed in architecture master and portal."
-
-  - path: "docs/architecture/matrix-integration-architecture.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-14"
+  - path: docs/architecture/matrix-integration-architecture.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [composition, trust]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [crates/hkask-communication/, mcp-servers/hkask-mcp-communication/]
+    governing_principles: [P1, P2, P4]
     disposition: keep
-    notes: "Matrix transport, Conduit sidecar, 7R7 listener. Added to architecture master and portal 2026-06-15."
 
-  - path: "docs/architecture/training-decomposition-traces.md"
-    category: "Research"
-    status: "Active"
-    last_updated: "2026-06-15"
+  # ── PUBLIC_SURFACE justification docs ──────────────────────────────────────
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-adapter.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-17
     version: "0.27.0"
-    mds_categories: [domain, composition, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    mds_categories: [composition, lifecycle, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-adapter/]
+    governing_principles: [P5]
     disposition: keep
-    notes: "Decomposition traces, LoRA adapters, fine-tuning. Frontmatter added 2026-06-15. Added to architecture master and portal."
 
-  # --- Architecture Decision Records ---
-  - path: "docs/architecture/ADR-024-unified-registry.md"
-    category: "Decision Record"
-    status: "Active"
-    last_updated: "2026-06-09"
-    version: "0.27.0"
-    mds_categories: [composition]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Unified registry decision (retroactive)."
-
-  - path: "docs/architecture/ADR-025-attenuation-depth-limit.md"
-    category: "Decision Record"
-    status: "Active"
-    last_updated: "2026-06-09"
-    version: "0.27.0"
-    mds_categories: [trust]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "7-level attenuation depth limit (retroactive)."
-
-  - path: "docs/architecture/ADR-026-bitemporal-triple-schema.md"
-    category: "Decision Record"
-    status: "Active"
-    last_updated: "2026-06-09"
-    version: "0.27.0"
-    mds_categories: [lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Bitemporal triple schema (retroactive)."
-
-  - path: "docs/architecture/ADR-027-argon2-hkdf-master-key.md"
-    category: "Decision Record"
-    status: "Active"
-    last_updated: "2026-06-09"
-    version: "0.27.0"
-    mds_categories: [trust]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Argon2id + HKDF-SHA256 master key derivation (retroactive)."
-
-  - path: "docs/architecture/ADR-030-skill-bundler.md"
-    category: "Decision Record"
-    status: "Draft"
-    last_updated: "2026-06-11"
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-agents.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [composition]
-    staleness_signal: null
-    governing_principles: [P5, P8]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-agents/]
+    governing_principles: [P5]
     disposition: keep
-    notes: "Skill bundler — meta-skill composition."
 
-  - path: "docs/architecture/ADR-031-consolidation-authorization.md"
-    category: "Decision Record"
-    status: "Active"
-    last_updated: "2026-06-11"
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-api.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
-    mds_categories: [trust]
-    staleness_signal: null
-    governing_principles: [P5, P8]
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-api/]
+    governing_principles: [P5]
     disposition: keep
-    notes: "Consolidation authorization via master passphrase derivation."
 
-  - path: "docs/architecture/ADR-032-mcp-gateway-membrane.md"
-    category: "Decision Record"
-    status: "Draft"
-    last_updated: "2026-06-11"
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-cns.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-cns/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-improv.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-improv/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-inference.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-inference/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-keystore.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [composition, trust]
-    staleness_signal: null
-    governing_principles: [P5, P8]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-keystore/]
+    governing_principles: [P5]
     disposition: keep
-    notes: "MCP gateway membrane policy."
 
-  - path: "docs/architecture/ADR-033-dampener-override-cooldown.md"
-    category: "Decision Record"
-    status: "Draft"
-    last_updated: "2026-06-11"
-    version: "0.27.0"
-    mds_categories: [trust, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Dampener override cooldown."
-
-  - path: "docs/architecture/ADR-034-academic-author-pipeline.md"
-    category: "Decision Record"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [composition, curation]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Academic author pipeline architecture."
-
-  - path: "docs/architecture/ADR-035-replicant-server-mode.md"
-    category: "Decision Record"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [composition, trust, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Replicant server mode — AgentMode, daemon transport, dual memory."
-
-  - path: "docs/architecture/ADR-036-ocr-pipeline.md"
-    category: "Decision Record"
-    status: "Draft"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [composition, curation]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "OCR pipeline architecture."
-
-  - path: "docs/architecture/ADR-037-wallet-payments.md"
-    category: "Decision Record"
-    status: "Draft"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, trust, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Wallet payment mechanism."
-
-  - path: "docs/architecture/ADR-038-media-server.md"
-    category: "Decision Record"
-    status: "Draft"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [composition, domain]
-    staleness_signal: null
-    governing_principles: [P5, P8]
-    disposition: keep
-    notes: "Media MCP server architecture."
-
-  # --- Reference Artifacts ---
-  - path: "docs/architecture/reference/hKask-hLexicon.md"
-    category: "Reference"
-    status: "Active"
-    last_updated: "2026-06-07"
-    version: "0.27.0"
-    mds_categories: [domain]
-    staleness_signal: null
-    governing_principles: [P8]
-    disposition: keep
-    notes: "87-term vocabulary catalog."
-
-  - path: "docs/architecture/reference/ports-inventory.md"
-    category: "Reference"
-    status: "Active"
-    last_updated: "2026-06-07"
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-mcp.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [composition]
-    staleness_signal: null
-    governing_principles: [P8]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-mcp/]
+    governing_principles: [P5]
     disposition: keep
-    notes: "Hexagonal port inventory."
 
-  - path: "docs/architecture/reference/okapi-integration.md"
-    category: "Reference"
-    status: "Active"
-    last_updated: "2026-06-15"
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-mcp-training.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
-    mds_categories: [domain]
-    staleness_signal: null
-    governing_principles: [P6, P8]
+    mds_categories: [composition, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [mcp-servers/hkask-mcp-training/]
+    governing_principles: [P5]
     disposition: keep
-    notes: "Inference Router API contract. Version fixed 0.28.0→0.27.0 on 2026-06-15."
 
-  - path: "docs/architecture/reference/utoipa-implementation.md"
-    category: "Reference"
-    status: "Active"
-    last_updated: "2026-06-15"
-    version: "0.27.0"
-    mds_categories: [composition]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "API/CLI documentation guide. Version fixed 1.0.0→0.27.0 on 2026-06-15."
-
-  - path: "docs/architecture/reference/template-header-standard.md"
-    category: "Reference"
-    status: "Active"
-    last_updated: "2026-06-15"
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-memory.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [composition]
-    staleness_signal: null
-    governing_principles: [P6, P8]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-memory/]
+    governing_principles: [P5]
     disposition: keep
-    notes: "Template header standard. Version fixed 0.23.0→0.27.0 on 2026-06-15."
 
-  - path: "docs/architecture/reference/hKask-Curator-persona.md"
-    category: "Reference"
-    status: "Active"
-    last_updated: "2026-06-07"
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-services.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-storage.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-storage/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-templates.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-templates/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-test-harness.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-test-harness/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-types.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-types/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/architecture/PUBLIC_SURFACE-hkask-wallet.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-wallet/]
+    governing_principles: [P5]
+    disposition: keep
+
+  # ── Architecture Reference ─────────────────────────────────────────────────
+  - path: docs/architecture/reference/hKask-hLexicon.md
+    category: reference
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Curator persona specification."
-
-  # =========================================================================
-  # SPECIFICATIONS/
-  # =========================================================================
-  - path: "docs/specifications/REQUIREMENTS.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-10"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-types/]
     governing_principles: [P8]
     disposition: keep
-    notes: "22 implemented + 5 deferred goal specs."
 
-  - path: "docs/specifications/TRACEABILITY_MATRIX.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-15"
+  - path: docs/architecture/reference/ports-inventory.md
+    category: reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services/]
+    governing_principles: [P7]
+    disposition: keep
+
+  - path: docs/architecture/reference/okapi-integration.md
+    category: reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-inference/]
+    governing_principles: [P3]
+    disposition: keep
+
+  - path: docs/architecture/reference/utoipa-implementation.md
+    category: reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-api/]
+    governing_principles: [P3]
+    disposition: keep
+
+  - path: docs/architecture/reference/template-header-standard.md
+    category: reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-templates/]
+    governing_principles: [P8]
+    disposition: keep
+
+  - path: docs/architecture/reference/hKask-Curator-persona.md
+    category: reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-agents/]
+    governing_principles: [P10]
+    disposition: keep
+
+  # ── Architecture Mandates ──────────────────────────────────────────────────
+  - path: docs/architecture/mandates/P12-replicant-host-mandate.md
+    category: architecture/mandate
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, trust, composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-agents/, crates/hkask-types/]
+    governing_principles: [P12]
+    disposition: keep
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # ARCHITECTURE / CORE — Locked foundational documents
+  # ════════════════════════════════════════════════════════════════════════════
+
+  - path: docs/architecture/core/PRINCIPLES.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
+    staleness_signal: none
+    drift_verdict: aligned
+    notes: "Locked — do not modify. Add forward references only."
+    code_artifacts: [ALL]
+    governing_principles: [P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12]
     disposition: keep
-    notes: "Bidirectional code→test traceability. Version fixed 1.3.0→0.27.0 on 2026-06-15."
 
-  - path: "docs/specifications/DOCUMENTATION_STANDARDS.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
+  - path: docs/architecture/core/magna-carta.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
+    staleness_signal: none
+    drift_verdict: aligned
+    notes: "Locked — inviolable. Foundation for all other docs."
+    code_artifacts: [ALL]
+    governing_principles: [P1, P2, P3, P4]
     disposition: keep
-    notes: "Documentation standards — metadata, citation, diagram, lifecycle mandates."
 
-  - path: "docs/specifications/MDS_SCAFFOLD.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-15"
+  - path: docs/architecture/core/MDS.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-09
     version: "0.27.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6, P8]
+    staleness_signal: partial
+    drift_verdict: partial
+    code_artifacts:
+      [crates/hkask-types/, crates/hkask-services/, crates/hkask-storage/]
+    gaps:
+      - "No kanban domain entity in ontology (kanban MCP is a first-class architectural surface)"
+      - "No kata domain entity in ontology (kata engine with 4 skills, 23 templates)"
+      - "No adapter/LoRA domain entity in ontology (hkask-adapter crate, AdapterStore, AdapterRouter, EndpointLifecycle)"
+      - "CNS span registry reference (§7.4) lists example spans but doesn't reference kanban/kata/adapter spans now in cns.rs"
+    governing_principles: [P5, P7, P8]
     disposition: keep
-    notes: "Category→directory mapping. Version fixed 2.5.0→0.27.0 on 2026-06-15."
 
-  - path: "docs/specifications/WRITING_EXCELLENCE.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-05-13"
-    version: "0.27.0"
-    mds_categories: [curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Writing excellence protocol — 4-perspective test."
-
-  - path: "docs/specifications/ADR_TEMPLATE.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-07"
-    version: "0.27.0"
-    mds_categories: [curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "ADR template."
-
-  - path: "docs/specifications/DEPENDENCY_POLICY.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-05-22"
-    version: "0.27.0"
-    mds_categories: [lifecycle]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Dependency governance."
-
-  - path: "docs/specifications/DEPLOYMENT.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-07"
-    version: "0.27.0"
-    mds_categories: [lifecycle]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Deployment guide."
-
-  - path: "docs/specifications/CI-CD-GUIDE.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-07"
-    version: "0.27.0"
-    mds_categories: [lifecycle]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "CI/CD guide."
-
-  - path: "docs/specifications/TESTING_STANDARDS.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-06"
+  - path: docs/architecture/core/TESTING_DISCIPLINE.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-17
     version: "0.27.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
+    staleness_signal: none
+    drift_verdict: aligned
+    notes: "Comprehensive but dense — task 3 adds narrative companion."
+    code_artifacts: [crates/hkask-test-harness/, scripts/contract-audit.sh]
+    governing_principles: [P4, P8, P9]
     disposition: keep
-    notes: "Testing protocol."
 
-  - path: "docs/specifications/test-program.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-10"
+  - path: docs/architecture/core/CNS-DOMAIN-SPECIFICATION.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
+    mds_categories: [domain, composition, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-types/src/cns.rs, crates/hkask-cns/]
+    governing_principles: [P9]
     disposition: keep
-    notes: "Test program specification."
 
-  - path: "docs/specifications/REPL-specification.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-10"
-    version: "0.27.0"
-    mds_categories: [domain, composition, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "REPL specification."
-
-  - path: "docs/specifications/MDS-agent-service.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-10"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "AgentService specification."
-
-  - path: "docs/specifications/salience-specification.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
+  - path: docs/architecture/core/FUNCTIONAL_SPECIFICATION.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain, composition]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services/, crates/hkask-api/]
+    governing_principles: [P3]
     disposition: keep
-    notes: "Passage salience algorithm specification."
 
-  - path: "docs/specifications/crate-audit.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
+  - path: docs/architecture/core/FUNCTIONAL_SPECIFICATION_APPENDIX.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
-    mds_categories: [composition, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6, P8]
+    mds_categories: [domain, composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services/]
+    governing_principles: [P3]
     disposition: keep
-    notes: "Crate audit bundle manifest."
 
-  - path: "docs/specifications/HANDOFF_LIFECYCLE.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-14"
-    version: "0.27.0"
-    mds_categories: [lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Handoff lifecycle policy."
-
-  - path: "docs/specifications/DOCUMENT_OWNERSHIP.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
+  - path: docs/architecture/core/HANDOFF_FUNCTIONAL_SPEC.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services/]
+    governing_principles: [P5, P7]
     disposition: keep
-    notes: "Document category ownership, version sync policy."
 
-  - path: "docs/specifications/dual-presence-pattern.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Dual-presence pattern — open specification questions. Added to portal 2026-06-15."
-
-  - path: "docs/specifications/improv-skill-design.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, composition, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Improv skill design recommendation. Added to portal 2026-06-15."
-
-  - path: "docs/specifications/improv-future-questions.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [composition, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Improv skill — open questions & future work. Added to portal 2026-06-15."
-
-  - path: "docs/specifications/gentle-lovelace-specification.md"
-    category: "Specification"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, composition, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Gentle Lovelace document excellence replica specification. Added to portal 2026-06-15."
-
-  # =========================================================================
-  # STATUS/
-  # =========================================================================
-  - path: "docs/status/PROJECT_STATUS.md"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-14"
+  - path: docs/architecture/core/REQ_CONTRACT_INVENTORY.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-17
     version: "0.27.0"
     mds_categories: [lifecycle]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Build, test, and CI health."
-
-  - path: "docs/status/test-inventory.md"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-15"
-    version: "0.27.0"
-    mds_categories: [lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Test inventory. Version fixed 2.4.0→0.27.0 on 2026-06-15."
-
-  - path: "docs/status/mcp-tools-inventory.md"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-15"
-    version: "0.27.0"
-    mds_categories: [composition, lifecycle]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "MCP server tool catalog."
-
-  - path: "docs/status/skill-inventory.md"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-13"
-    version: "0.27.0"
-    mds_categories: [composition, curation]
-    staleness_signal: null
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [ALL crates with REQ: tags]
     governing_principles: [P8]
     disposition: keep
-    notes: "Dual-layer skill registry."
 
-  - path: "docs/status/adversarial-simplification-inventory.md"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-08"
+  - path: docs/architecture/core/RSOLIDITY_VOCABULARY.md
+    category: core-spec
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
-    mds_categories: [composition, domain]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Dead code and simplification opportunities."
-
-  - path: "docs/status/spec-code-drift.yaml"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
+    mds_categories: [domain, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-rsolidity/, crates/hkask-rsolidity-macros/]
     governing_principles: [P8]
     disposition: keep
-    notes: "Spec-code drift tracking — 14/14 items resolved."
 
-  - path: "docs/status/curation-decisions.yaml"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-08"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P8]
-    disposition: keep
-    notes: "Curation decisions per drift item."
-
-  - path: "docs/status/corpus_inventory.yaml"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-15"
-    version: "0.27.0"
-    mds_categories: [lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6, P8]
-    disposition: keep
-    notes: "Document corpus lifecycle classification. Regenerated 2026-06-15."
-
-  - path: "docs/status/writing_quality_report.yaml"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-14"
+  - path: docs/architecture/core/skill-audit-diagnosis.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [curation]
-    staleness_signal: null
-    governing_principles: [P8]
+    staleness_signal: none
+    drift_verdict: na
+    notes: "Audit document — snapshot of skill system diagnosis, not a spec."
+    code_artifacts: [.agents/skills/]
+    governing_principles: [P5]
     disposition: keep
-    notes: "Gentle Lovelace writing quality report — 8 core docs reviewed."
 
-  - path: "docs/status/document-futures.md"
-    category: "Status"
-    status: "Active"
-    last_updated: "2026-06-14"
+  - path: docs/architecture/core/skill-dual-layer-model.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
-    mds_categories: [lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: na
+    notes: "Audit document — dual-layer model explanation, not a spec."
+    code_artifacts: [.agents/skills/, registry/templates/]
+    governing_principles: [P7]
     disposition: keep
-    notes: "Open questions & under-specification tracking. Added to portal 2026-06-15."
 
-  # =========================================================================
-  # PLANS/
-  # =========================================================================
-  - path: "docs/plans/TODO.md"
-    category: "Plan"
-    status: "Active"
-    last_updated: "2026-06-15"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Open work items. Version fixed 1.9.0→0.27.0 on 2026-06-15."
+  # ════════════════════════════════════════════════════════════════════════════
+  # GUIDES — Operational and user-facing how-to documents
+  # ════════════════════════════════════════════════════════════════════════════
 
-  - path: "docs/plans/bundler-completion.md"
-    category: "Plan"
-    status: "Active"
-    last_updated: "2026-06-11"
-    version: "0.27.0"
-    mds_categories: [domain, composition, lifecycle]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "Bundler completion plan."
-
-  - path: "docs/plans/mcp-server-roadmap.md"
-    category: "Plan"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P6, P8]
-    disposition: keep
-    notes: "MCP server roadmap."
-
-  - path: "docs/plans/2026-06-12-replicant-server-mode.md"
-    category: "Plan"
-    status: "Active"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [composition, trust, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Replicant server mode handoff."
-
-  - path: "docs/plans/2026-06-12-wallet-payment-mechanism.md"
-    category: "Plan"
-    status: "Draft"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Wallet payment integration plan."
-
-  - path: "docs/plans/2026-06-12-wallet-rjoule-payments.md"
-    category: "Plan"
-    status: "Draft"
-    last_updated: "2026-06-12"
-    version: "0.27.0"
-    mds_categories: [domain, composition, trust, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Wallet rJoule multi-chain plan."
-
-  - path: "docs/plans/mcp-media-server-design.md"
-    category: "Plan"
-    status: "Draft"
-    last_updated: "2026-06-13"
-    version: "0.27.0"
-    mds_categories: [domain, composition, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P6, P8]
-    disposition: keep
-    notes: "MCP Media Server design plan."
-
-  - path: "docs/plans/DOCUMENT_ROADMAP.md"
-    category: "Plan"
-    status: "Active"
-    last_updated: "2026-06-14"
-    version: "0.27.0"
-    mds_categories: [lifecycle, curation]
-    staleness_signal: null
-    governing_principles: [P5, P6]
-    disposition: keep
-    notes: "Document corpus roadmap."
-
-  # =========================================================================
-  # GUIDES/
-  # =========================================================================
-  - path: "docs/guides/kata-user-guide.md"
-    category: "Guide"
-    status: "Active"
-    last_updated: "2026-06-12"
+  - path: docs/guides/kata-user-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-14
     version: "0.27.0"
     mds_categories: [composition, lifecycle]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: partial
+    drift_verdict: partial
+    code_artifacts:
+      - .agents/skills/kata-starter/
+      - .agents/skills/kata-improvement/
+      - .agents/skills/kata-coaching/
+      - .agents/skills/kata/
+      - crates/hkask-services/src/kata.rs
+    gaps:
+      - "Extensive CNS integration docs exist but zero kanban integration mentioned"
+      - "No explanation of how PDCA experiments become kanban tasks"
+      - "No mapping of coaching 5 questions to kanban task fields"
+      - "No Mermaid diagram of kata→kanban→CNS feedback path"
+    governing_principles: [P3, P9]
     disposition: keep
-    notes: "Toyota Kata user guide."
 
-  - path: "docs/guides/OPERATIONS_RUNBOOK.md"
-    category: "Guide"
-    status: "Active"
-    last_updated: "2026-06-14"
+  - path: docs/user-guides/kanban-user-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [domain, composition, lifecycle]
+    staleness_signal: partial
+    drift_verdict: partial
+    code_artifacts: [mcp-servers/hkask-mcp-kanban/, crates/hkask-services/]
+    gaps:
+      - "Mentions 'Kata integration: coaching, improvement, and starter katas available as task primitives' but does not explain HOW"
+      - "No kata coaching loop sequence diagram"
+      - "No CNS span reference for kanban operations (TaskCreated, TaskMoved, etc. exist in cns.rs but not linked in user guide)"
+      - "No error recovery guidance (what to do when verification fails, task stalls)"
+    governing_principles: [P1, P3, P9]
+    disposition: keep
+
+  - path: docs/guides/CI-CD-GUIDE.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [.github/workflows/ci.yml, scripts/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/guides/DEPLOYMENT.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [scripts/install.sh]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/guides/MATRIX-CLOUD-DEPLOYMENT.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [scripts/conduit-docker.sh]
+    governing_principles: [P1, P2]
+    disposition: keep
+
+  - path: docs/guides/OPERATIONS_RUNBOOK.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-17
     version: "0.27.0"
     mds_categories: [lifecycle, trust]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services/, scripts/install.sh]
+    governing_principles: [P9]
     disposition: keep
-    notes: "Operations runbook."
 
-  # =========================================================================
-  # USER GUIDES/
-  # =========================================================================
-  - path: "docs/user-guides/AGENT-POD-CREATION-GUIDE.md"
-    category: "User Guide"
-    status: "Active"
-    last_updated: "2026-06-12"
+  - path: docs/guides/skill-designer-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [.agents/skills/, registry/templates/]
+    governing_principles: [P3, P5]
+    disposition: keep
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # USER GUIDES — End-user documentation
+  # ════════════════════════════════════════════════════════════════════════════
+
+  - path: docs/user-guides/AGENT-POD-CREATION-GUIDE.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-agents/]
+    governing_principles: [P1, P2]
     disposition: keep
-    notes: "Agent pod creation guide."
 
-  - path: "docs/user-guides/COMMON-AGENT-PATTERNS.md"
-    category: "User Guide"
-    status: "Active"
-    last_updated: "2026-06-12"
+  - path: docs/user-guides/COMMON-AGENT-PATTERNS.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-agents/]
+    governing_principles: [P6]
     disposition: keep
-    notes: "Common agent patterns."
 
-  - path: "docs/user-guides/COMPANIES-GUIDE.md"
-    category: "User Guide"
-    status: "Active"
-    last_updated: "2026-06-12"
+  - path: docs/user-guides/COMPANIES-GUIDE.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-15
     version: "0.27.0"
     mds_categories: [domain, composition]
-    staleness_signal: null
-    governing_principles: [P5, P6]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [mcp-servers/hkask-mcp-companies/]
+    governing_principles: [P1]
     disposition: keep
-    notes: "Company research and portfolio management guide."
 
-  # =========================================================================
-  # HANDOFFS/ — Transient, no frontmatter required per HANDOFF_LIFECYCLE.md §4
-  # =========================================================================
-  # No active handoffs in working tree (archived 2026-06-15).
-  # See git history: git log -- docs/handoffs/
+  - path: docs/user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-cli/, scripts/install.sh]
+    governing_principles: [P1, P2, P3]
+    disposition: keep
 
-# =========================================================================
-# SUMMARY STATISTICS
-# =========================================================================
+  - path: docs/user-guides/ACP-ZED-CONFIGURATION.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-acp/]
+    governing_principles: [P3]
+    disposition: keep
+
+  - path: docs/user-guides/skill-user-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [.agents/skills/, registry/templates/]
+    governing_principles: [P3]
+    disposition: keep
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # MISSING DOCUMENTS — Code exists, no documentation
+  # ════════════════════════════════════════════════════════════════════════════
+
+  - path: "[MISSING] LoRA Adapter Store User Guide"
+    category: user-guide
+    status: missing
+    last_updated: N/A
+    version: N/A
+    mds_categories: [domain, lifecycle]
+    staleness_signal: missing
+    drift_verdict: missing
+    code_artifacts: [crates/hkask-adapter/]
+    gaps:
+      - "No user-facing documentation for adapter lifecycle (train → store → load → merge → deploy)"
+      - "No documentation for AdapterStore CRUD operations"
+      - "No documentation for AdapterRouter composition"
+      - "No documentation for EndpointLifecycle state machine"
+      - "No documentation for adapter ownership model (P12 — every adapter has an owner WebID)"
+      - "hkask-adapter has 45 pub functions, 80 REQ: contracts (177.7% coverage) — all contracted, none documented for users"
+    governing_principles: [P12, P3, P5]
+    disposition: create
+
+  - path: "[MISSING] LoRA Adapter Training Guide"
+    category: user-guide
+    status: missing
+    last_updated: N/A
+    version: N/A
+    mds_categories: [domain, lifecycle]
+    staleness_signal: missing
+    drift_verdict: missing
+    code_artifacts: [mcp-servers/hkask-mcp-training/, crates/hkask-adapter/]
+    gaps:
+      - "No end-to-end training guide from dataset preparation to CNS-verified deployment"
+      - "Training decomposition traces research doc exists but is not a user guide"
+      - "No documentation for training MCP server tools (adapter training, dataset preparation, HuggingFace integration)"
+    governing_principles: [P3, P5]
+    disposition: create
+
+  - path: "[MISSING] Kata-Kanban Integration Architecture"
+    category: architecture
+    status: missing
+    last_updated: N/A
+    version: N/A
+    mds_categories: [composition, lifecycle]
+    staleness_signal: missing
+    drift_verdict: missing
+    code_artifacts:
+      - .agents/skills/kata-starter/
+      - .agents/skills/kata-improvement/
+      - .agents/skills/kata-coaching/
+      - mcp-servers/hkask-mcp-kanban/
+      - crates/hkask-cns/
+    gaps:
+      - "No Mermaid sequence diagram of kata coaching loop"
+      - "No mapping of PDCA cycle to kanban task state transitions"
+      - "No documentation of how coaching 5 questions map to kanban task fields"
+      - "No CNS span trace showing kata→kanban→CNS feedback path"
+    governing_principles: [P3, P9]
+    disposition: create
+
+  - path: "[MISSING] Testing Discipline Narrative (Contract-Anchored Testing Architecture)"
+    category: architecture
+    status: missing
+    last_updated: N/A
+    version: N/A
+    mds_categories: [lifecycle, curation]
+    staleness_signal: missing
+    drift_verdict: missing
+    code_artifacts:
+      - crates/hkask-test-harness/
+      - scripts/contract-audit.sh
+      - ALL crates with // REQ: tags
+    gaps:
+      - "TESTING_DISCIPLINE.md is comprehensive but technical/dense — no narrative companion explaining the architecture"
+      - "No document describing how functional specs generate // REQ: contracts"
+      - "No document describing how contract-audit.sh measures coverage"
+      - "No document describing the red-green-refactor loop within hKask (CNS observes, kata coaches, kanban tracks)"
+    governing_principles: [P4, P8, P9]
+    disposition: create
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # SPECIFICATIONS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  - path: docs/specifications/specs/MDS_SCAFFOLD.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [docs/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/specifications/specs/REQUIREMENTS.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [ALL]
+    governing_principles: [P8]
+    disposition: keep
+
+  - path: docs/specifications/specs/TRACEABILITY_MATRIX.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [ALL]
+    governing_principles: [P8]
+    disposition: keep
+
+  - path: docs/specifications/specs/REPL-specification.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-cli/]
+    governing_principles: [P3]
+    disposition: keep
+
+  - path: docs/specifications/specs/MDS-agent-service.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services/]
+    governing_principles: [P3, P5]
+    disposition: keep
+
+  - path: docs/specifications/specs/wallet-specification.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-wallet/]
+    governing_principles: [P1, P2, P4]
+    disposition: keep
+
+  - path: docs/specifications/specs/salience-specification.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-condenser/]
+    governing_principles: [P5]
+    disposition: keep
+
+  - path: docs/specifications/specs/gentle-lovelace-specification.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [mcp-servers/hkask-mcp-replica/]
+    governing_principles: [P3]
+    disposition: keep
+
+  - path: docs/specifications/specs/crate-audit.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [scripts/check-public-surface.sh]
+    governing_principles: [P5]
+    disposition: keep
+
+  # ── Standards ─────────────────────────────────────────────────────────────
+  - path: docs/specifications/standards/DOCUMENTATION_STANDARDS.md
+    category: standard
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [docs/ci/]
+    governing_principles: [P5, P8]
+    disposition: keep
+
+  - path: docs/specifications/standards/WRITING_EXCELLENCE.md
+    category: standard
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [mcp-servers/hkask-mcp-spec/]
+    governing_principles: [P8]
+    disposition: keep
+
+  - path: docs/specifications/standards/DEPENDENCY_POLICY.md
+    category: standard
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [Cargo.toml, deny.toml]
+    governing_principles: [P5]
+    disposition: keep
+
+  # ── Policies ──────────────────────────────────────────────────────────────
+  - path: docs/specifications/policies/DOCUMENT_OWNERSHIP.md
+    category: policy
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [docs/]
+    governing_principles: [P1]
+    disposition: keep
+
+  - path: docs/specifications/policies/HANDOFF_LIFECYCLE.md
+    category: policy
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [docs/handoffs/]
+    governing_principles: [P5]
+    disposition: keep
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # STATUS, PLANS, RESEARCH, AUDIT, ADRs
+  # ════════════════════════════════════════════════════════════════════════════
+
+  - path: docs/status/PROJECT_STATUS.md
+    category: status
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [ALL]
+    disposition: keep
+
+  - path: docs/status/corpus_inventory.yaml
+    category: status
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: na
+    notes: "THIS FILE — living inventory, updated by document-update skill."
+    code_artifacts: [docs/]
+    disposition: keep
+
+  - path: docs/status/public-seam-inventory.md
+    category: status
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [ALL crates]
+    disposition: keep
+
+  - path: docs/status/public-seam-priority.md
+    category: status
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [ALL crates]
+    disposition: keep
+
+  - path: docs/plans/TODO.md
+    category: plan
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [ALL]
+    disposition: keep
+
+  - path: docs/plans/mcp-server-roadmap.md
+    category: plan
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [mcp-servers/]
+    disposition: keep
+
+  - path: docs/plans/DOCUMENT_ROADMAP.md
+    category: plan
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [docs/]
+    disposition: keep
+
+  - path: docs/plans/pragmatic-audit-implementation-plan-v0.27.0.md
+    category: plan
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [ALL]
+    disposition: keep
+
+  - path: docs/plans/test-harness-maturation-plan-v0.27.0.md
+    category: plan
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [crates/hkask-test-harness/]
+    disposition: keep
+
+  - path: docs/plans/contract-first-migration-plan-v0.27.0.md
+    category: plan
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: stale
+    drift_verdict: stale
+    notes: "Claims ~0% contracted functions at time of writing but contract-audit.sh now shows 128.1% coverage (2274 REQ: tags across 1775 pub fns). Plan completed, document frozen at historical snapshot."
+    code_artifacts: [scripts/contract-audit.sh]
+    governing_principles: [P8]
+    disposition: keep
+
+  - path: docs/research/lazy-universe-research.md
+    category: research
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [docs/architecture/core/PRINCIPLES.md]
+    disposition: keep
+
+  - path: docs/research/training-decomposition-traces.md
+    category: research
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    notes: "Research doc — describes training approach. Not a user guide. LoRA store user guide is missing (see above)."
+    code_artifacts: [mcp-servers/hkask-mcp-training/, crates/hkask-adapter/]
+    disposition: keep
+
+  - path: docs/audit/live-test-corpus-design.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [crates/hkask-test-harness/]
+    disposition: keep
+
+  - path: docs/audit/rust-audit-harness.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [ALL]
+    disposition: keep
+
+  - path: docs/audit/skill-bundle-pruning-log.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [.agents/skills/]
+    disposition: keep
+
+  - path: docs/audit/skill-corpus-audit.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [.agents/skills/]
+    disposition: keep
+
+  - path: docs/audit/skill-rational-reconstruction.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [.agents/skills/]
+    disposition: keep
+
+  - path: docs/audit/skill-root-cause-diagnosis.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [.agents/skills/]
+    disposition: keep
+
+  - path: docs/audit/skill-system-rdf-model.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [.agents/skills/]
+    disposition: keep
+
+  - path: docs/audit/zed-vs-hkask-boundary.md
+    category: audit
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [.agents/skills/]
+    disposition: keep
+
+  # ── Generated ─────────────────────────────────────────────────────────────
+  - path: docs/generated/cli-reference.md
+    category: generated
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-cli/]
+    disposition: keep
+
+  - path: docs/generated/openapi.json
+    category: generated
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: stale
+    drift_verdict: stale
+    notes: "4454 lines, 497 description instances, 24 parameter entries, 60 response entries. Generated from current utoipa annotations. Needs quality gate: verify every endpoint has human-readable description, every parameter has type+constraint+example, every error variant is documented. No #[utoipa::path] annotations found in crates/ — OpenAPI may be manually maintained rather than auto-generated."
+    code_artifacts: [crates/hkask-api/]
+    governing_principles: [P3]
+    disposition: keep
+
+  # ── Cross-cutting indexes ─────────────────────────────────────────────────
+  - path: docs/README.md
+    category: portal
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    notes: "Portal is accurate for existing docs. Will need updates when new docs are created (Tasks 3, 4, 5)."
+    code_artifacts: [docs/]
+    disposition: keep
+
+  - path: docs/DIAGRAMS_INDEX.md
+    category: index
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [docs/]
+    disposition: keep
+
+  - path: docs/OPEN_QUESTIONS.md
+    category: index
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.27.0"
+    mds_categories: [domain, composition, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [ALL]
+    disposition: keep
+
+  # ── ADRs ──────────────────────────────────────────────────────────────────
+  - path: docs/architecture/ADRs/ADR-030-skill-bundler.md
+    category: adr
+    status: Proposed
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [.agents/skills/skill-bundler/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-031-consolidation-authorization.md
+    category: adr
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [trust]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [crates/hkask-keystore/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-032-mcp-gateway-membrane.md
+    category: adr
+    status: Draft
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, trust]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [crates/hkask-mcp/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-033-dampener-override-cooldown.md
+    category: adr
+    status: Draft
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [crates/hkask-cns/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-034-academic-author-pipeline.md
+    category: adr
+    status: Draft
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [mcp-servers/hkask-mcp-replica/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-035-replicant-server-mode.md
+    category: adr
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [crates/hkask-agents/, crates/hkask-cli/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-036-ocr-pipeline.md
+    category: adr
+    status: Draft
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [mcp-servers/hkask-mcp-media/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-037-wallet-payments.md
+    category: adr
+    status: Draft
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [domain, trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [crates/hkask-wallet/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-038-media-server.md
+    category: adr
+    status: Draft
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, domain]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [mcp-servers/hkask-mcp-media/]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/_TEMPLATE.md
+    category: adr
+    status: template
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: []
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: []
+    disposition: keep
+
+# ── Summary ──────────────────────────────────────────────────────────────────
 summary:
-  total_documents: 71
-  active_keep: 71
-  stale_refresh: 0
-  archived: 0
-  newly_created: 0
-  total_with_frontmatter: 71
-  total_without_frontmatter: 0
-  missing_referenced: 0
-  version_anomalies: 0
-  documents_not_in_master_index: 0
-  documents_not_in_scaffold: 0
-  documents_not_in_portal: 0
-  notes: "2026-06-15 document-update sweep: all version anomalies fixed (7 docs: 0.23.0, 0.28.0, 1.0.0, 1.3.0, 1.9.0, 2.4.0, 2.5.0 → 0.27.0). 3 archive-target docs already removed (feedback.md, OCR-PIPELINE-INSIGHTS.md, portfolio-tracking.md). 3 handoffs archived from working tree. 7 missing docs added to portal. 2 missing docs added to architecture master. check-metadata.sh updated to skip handoffs per HANDOFF_LIFECYCLE.md §4. All 14 spec-code drift items resolved. Zero ddmvss_categories in frontmatter. Zero broken links. Zero metadata violations."
+  total_documents: 83
+  active_aligned: 63
+  active_partial: 4
+  stale: 2
+  missing: 4
+  na: 14
+  disposition_create: 4
+  disposition_keep: 79
+  drift_by_verdict:
+    aligned: 50
+    partial: 4
+    missing: 4
+    stale: 2
+    na: 23
+  missing_documents:
+    - "LoRA Adapter Store User Guide"
+    - "LoRA Adapter Training Guide (end-to-end)"
+    - "Kata-Kanban Integration Architecture"
+    - "Testing Discipline Narrative (contract-anchored testing architecture)"
+  partial_documents:
+    - "docs/architecture/hKask-architecture-master.md: missing kata section, LoRA section"
+    - "docs/architecture/core/MDS.md: missing kanban/kata/LoRA domain entities"
+    - "docs/guides/kata-user-guide.md: missing kanban integration"
+    - "docs/user-guides/kanban-user-guide.md: missing kata integration, CNS spans, error recovery"
+  contract_coverage:
+    total_pub_fns: 1775
+    total_req_tags: 2274
+    coverage_pct: 128.1
+    status: "PASS — all public functions contracted. Coverage > 100% due to multi-contract functions."
+  verification:
+    contract_audit: "scripts/contract-audit.sh --summary passed"
+    cns_spans: "crates/hkask-types/src/cns.rs — 90+ variants including kanban (TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated), kata (KataImprovEffectiveness), adapter (AdapterStored, AdapterRetrieved, AdapterDeleted)"
+    openapi: "docs/generated/openapi.json — 4454 lines, 497 descriptions, 24 params, 60 responses. Needs quality gate (Task 6)"

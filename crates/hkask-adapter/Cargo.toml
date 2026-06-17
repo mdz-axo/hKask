@@ -21,3 +21,7 @@ reqwest.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+
+[[test]]
+name = "live_adapter"
+path = "tests/live_adapter.rs"

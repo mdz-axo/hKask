@@ -18,7 +18,7 @@ use hkask_services::{
 use hkask_storage::spec_types::{
     DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, infer_spec_category,
 };
-use hkask_storage::{Database, EmbeddingStore, SpecStore, TripleStore, in_memory_db};
+use hkask_storage::{Database, EmbeddingStore, NuEventStore, SpecStore, TripleStore};
 use hkask_types::time::now_rfc3339;
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind,
@@ -50,6 +50,10 @@ pub struct SpecServer {
     replicant: String,
     /// Daemon client for dual-encoding experiences (None if daemon unavailable)
     daemon: Option<hkask_mcp::DaemonClient>,
+    /// Event sink for CNS span persistence — proposals flow to Curator's review queue.
+    event_sink: Arc<dyn hkask_types::event::NuEventSink>,
+    /// Triple store for proposal persistence.
+    triple_store: Arc<TripleStore>,
 }
 
 impl std::fmt::Debug for SpecServer {
@@ -77,6 +81,8 @@ impl SpecServer {
         capability_checker: CapabilityChecker,
         replicant: String,
         daemon: Option<hkask_mcp::DaemonClient>,
+        event_sink: Arc<dyn hkask_types::event::NuEventSink>,
+        triple_store: Arc<TripleStore>,
     ) -> Self {
         Self {
             store,
@@ -84,6 +90,8 @@ impl SpecServer {
             webid,
             replicant,
             daemon,
+            event_sink,
+            triple_store,
         }
     }
 
@@ -1022,15 +1030,34 @@ impl SpecServer {
     ) -> String {
         let span = ToolSpanGuard::new("contract_propose", &self.webid);
         let rep = replicant.unwrap_or_else(|| self.webid.to_string());
-        let _ = (&pre, &post); // carried in request but CNS span is metadata-only
 
+        // Emit CNS span to real event sink (flows to Curator's review queue)
         emit_contract_proposed(
-            &*self.daemon_sink(),
+            &*self.event_sink,
             &rep,
             &crate_name,
             &function,
             &contract_id,
         );
+
+        // Persist proposal as triple for Curator review
+        let value = serde_json::json!({
+            "replicant": rep,
+            "crate": crate_name,
+            "function": function,
+            "contract_id": contract_id,
+            "pre": pre,
+            "post": post,
+            "status": "proposed",
+            "proposed_at": chrono::Utc::now().to_rfc3339(),
+        });
+        let triple = hkask_storage::Triple::new(
+            "cns:contract_proposal",
+            &contract_id,
+            value,
+            hkask_types::WebID::from_persona(rep.as_bytes()),
+        );
+        let _ = self.triple_store.insert(&triple);
 
         respond(
             span,
@@ -1055,7 +1082,24 @@ impl SpecServer {
         let span = ToolSpanGuard::new("contract_accept", &self.webid);
         let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
 
-        emit_contract_accepted(&*self.daemon_sink(), &rev, "", "", "", &contract_id);
+        emit_contract_accepted(&*self.event_sink, &rev, "", "", "", &contract_id);
+
+        // Update proposal triple status
+        if let Ok(mut existing) = self
+            .triple_store
+            .query_by_entity_attribute("cns:contract_proposal", &contract_id)
+        {
+            if let Some(mut triple) = existing.pop() {
+                let mut value = triple.value.clone();
+                value["status"] = serde_json::json!("accepted");
+                value["reviewer"] = serde_json::json!(&rev);
+                value["accepted_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+                triple.value = value.clone();
+                let _ =
+                    self.triple_store
+                        .update(&triple.id, value, hkask_types::Confidence::full());
+            }
+        }
 
         respond(
             span,
@@ -1079,15 +1123,25 @@ impl SpecServer {
         let span = ToolSpanGuard::new("contract_reject", &self.webid);
         let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
 
-        emit_contract_rejected(
-            &*self.daemon_sink(),
-            &rev,
-            "",
-            "",
-            "",
-            &contract_id,
-            &reason,
-        );
+        emit_contract_rejected(&*self.event_sink, &rev, "", "", "", &contract_id, &reason);
+
+        // Update proposal triple status
+        if let Ok(mut existing) = self
+            .triple_store
+            .query_by_entity_attribute("cns:contract_proposal", &contract_id)
+        {
+            if let Some(mut triple) = existing.pop() {
+                let mut value = triple.value.clone();
+                value["status"] = serde_json::json!("rejected");
+                value["reviewer"] = serde_json::json!(&rev);
+                value["reason"] = serde_json::json!(&reason);
+                value["rejected_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+                triple.value = value.clone();
+                let _ =
+                    self.triple_store
+                        .update(&triple.id, value, hkask_types::Confidence::full());
+            }
+        }
 
         respond(
             span,
@@ -1102,10 +1156,7 @@ impl SpecServer {
     #[tool(description = "List proposed behavioral contracts and their review status.")]
     async fn contract_list(&self) -> String {
         let span = ToolSpanGuard::new("contract_list", &self.webid);
-        let db = in_memory_db();
-        let conn = db.conn_arc();
-        let store = TripleStore::new(conn);
-        let proposals = match store.query_by_entity("cns:contract_proposal") {
+        let proposals = match self.triple_store.query_by_entity("cns:contract_proposal") {
             Ok(p) => p,
             Err(_) => vec![],
         };
@@ -1124,20 +1175,6 @@ impl SpecServer {
             .collect();
 
         respond(span, &ContractListResponse { proposals: entries })
-    }
-
-    /// Noop event sink for CNS span emission in tools that don't need persistence.
-    fn daemon_sink(&self) -> Arc<dyn hkask_types::event::NuEventSink> {
-        struct NoopSink;
-        impl hkask_types::event::NuEventSink for NoopSink {
-            fn persist(
-                &self,
-                _event: &hkask_types::event::NuEvent,
-            ) -> Result<(), hkask_types::InfrastructureError> {
-                Ok(())
-            }
-        }
-        Arc::new(NoopSink)
     }
 }
 
@@ -1187,10 +1224,14 @@ async fn main() -> anyhow::Result<()> {
                     std::sync::Arc::new(std::sync::Mutex::new(conn))
                 }
             };
-            let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(conn));
-            store
-                .init_schema()
-                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(Arc::clone(&conn)));
+            store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+            // Event sink + triple store for contract proposal persistence
+            let event_sink: Arc<dyn hkask_types::event::NuEventSink> =
+                std::sync::Arc::new(NuEventStore::new(Arc::clone(&conn)));
+            let triple_store = std::sync::Arc::new(TripleStore::new(Arc::clone(&conn)));
+
             let secret_hex =
                 ctx.credentials
                     .get("HKASK_OCAP_SECRET")
@@ -1202,7 +1243,7 @@ async fn main() -> anyhow::Result<()> {
             let secret = hex::decode(secret_hex)
                 .map_err(|e| anyhow::anyhow!("HKASK_OCAP_SECRET must be hex-encoded: {e}"))?;
             let checker = CapabilityChecker::new(&secret);
-            Ok(SpecServer::new(store, ctx.webid, checker, replicant.clone(), daemon_client.clone()))
+            Ok(SpecServer::new(store, ctx.webid, checker, replicant.clone(), daemon_client.clone(), event_sink, triple_store))
         },
         vec![
             hkask_mcp::CredentialRequirement::required(

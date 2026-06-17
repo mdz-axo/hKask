@@ -1,0 +1,48 @@
+# Template crate manifest for contract-review skill
+# hKask v0.27.0
+
+crate:
+  name: contract-review
+  version: "0.27.0"
+  description: >
+    Dual-presence Curator+Human contract review workflow. The Curator presents
+    proposed behavioral contracts from the review queue, the human evaluates
+    them, and together they accept, reject, or revise. Uses improv plussing
+    mode for collaborative refinement.
+
+templates:
+  - id: contract-review/review-queue
+    path: review-queue.j2
+    type: KnowAct
+    lexicon_terms: [review, evaluate, discriminate, assess, classify]
+    description: >
+      Present pending contract proposals from the Curator's review queue.
+      Lists proposals by status and priority, preparing them for dual-presence
+      collaborative review with the human.
+
+  - id: contract-review/review-proposal
+    path: review-proposal.j2
+    type: KnowAct
+    lexicon_terms: [review, evaluate, verify, decide, accept, reject]
+    description: >
+      Review a single contract proposal in dual-presence mode. The Curator
+      presents the proposal (pre/post conditions, test strategy, risk level),
+      the human evaluates, and they decide to accept, reject, or request
+      revision. Uses improv plussing for collaborative refinement.
+
+hlexicon_terms:
+  - review
+  - evaluate
+  - discriminate
+  - assess
+  - classify
+  - verify
+  - decide
+  - accept
+  - reject
+  - revise
+  - proposal
+  - contract
+  - pre
+  - post
+  - invariant
