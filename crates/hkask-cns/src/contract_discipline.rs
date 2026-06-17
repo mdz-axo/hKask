@@ -48,6 +48,11 @@ pub enum ContractBridgeError {
 
 /// Emit a `cns.contract.violated` span when a contracted function's test fails.
 ///
+/// REQ: CNS-CVB-003
+/// \[P9\] Motivating: Homeostatic Self-Regulation — algedonic signal for contract failure
+/// pre:  sink is a valid NuEventSink; function_name, contract_id, failure_reason are non-empty
+/// post: cns.contract.violated span persisted to sink
+///
 /// Called by CI or test infrastructure when a proptest with a `// REQ:` tag
 /// fails. The span carries the function name, contract spec_id, and failure
 /// reason for algedonic routing.
@@ -87,6 +92,11 @@ pub fn emit_contract_violated(
 }
 
 /// Emit a `cns.contract.coverage` span with the current contract coverage ratio.
+///
+/// REQ: CNS-CVB-004
+/// \[P9\] Motivating: Homeostatic Self-Regulation — variety-based coverage monitoring
+/// pre:  sink is a valid NuEventSink; total_pub_fns >= contracted_fns
+/// post: cns.contract.coverage span persisted with coverage_pct
 ///
 /// Called periodically by the Cybernetics Loop or CI to report the fraction
 /// of `pub fn` that have `// REQ: pre:` contracts. The CNS compares this

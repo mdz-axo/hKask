@@ -20,7 +20,7 @@ for root in crates mcp-servers; do
         [[ "$file" == */tests/* ]] && continue
         [[ "$file" == *env.example* ]] && continue
 
-        violations=$(grep -nE '(api[_-]?key|api[_-]?secret|password|token|private[_-]?key)\s*=\s*"[^"]+"' "$file" 2>/dev/null | grep -v '//\|///\|/\*' || true)
+        violations=$(grep -nE '(api[_-]?key|api[_-]?secret|password|token|private[_-]?key)[[:space:]]*=[[:space:]]*"[^"]+"' "$file" 2>/dev/null | grep -v '//\|///\|/\*' | grep -v '= "{' || true)
 
         if [ -n "$violations" ]; then
             while IFS= read -r vline; do

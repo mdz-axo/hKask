@@ -111,12 +111,12 @@ async fn read_responses<R: AsyncRead + Unpin>(
     results
 }
 
+// REQ: acp-integration-001 — initialize handshake returns agent info
 #[tokio::test]
 async fn test_initialize() {
     let inference: Arc<dyn InferencePort> = Arc::new(MockInferencePort::new("test", vec![]));
     let agent = Arc::new(HkaskAcpAgent::for_testing(inference));
 
-    // Single duplex pair — test writes to test_side, server reads/writes server_side
     let (test_side, server_side) = tokio::io::duplex(4096);
     let (server_read, mut server_write) = tokio::io::split(server_side);
 
@@ -147,6 +147,7 @@ async fn test_initialize() {
     handle.abort();
 }
 
+// REQ: acp-integration-002 — session new + prompt streaming returns chunks
 #[tokio::test]
 async fn test_session_new_and_prompt_streaming() {
     let chunks = vec![
@@ -214,6 +215,7 @@ async fn test_session_new_and_prompt_streaming() {
     handle.abort();
 }
 
+// REQ: acp-integration-003 — empty prompt returns end_turn immediately
 #[tokio::test]
 async fn test_empty_prompt_returns_end_turn() {
     let inference: Arc<dyn InferencePort> = Arc::new(MockInferencePort::new("test", vec![]));
@@ -252,6 +254,7 @@ async fn test_empty_prompt_returns_end_turn() {
     handle.abort();
 }
 
+// REQ: acp-integration-004 — unknown method returns JSON-RPC error
 #[tokio::test]
 async fn test_unknown_method_returns_error() {
     let inference: Arc<dyn InferencePort> = Arc::new(MockInferencePort::new("test", vec![]));

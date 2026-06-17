@@ -278,7 +278,7 @@ fn in_memory_store() -> TripleStore {
     let store = TripleStore::new(conn);
     store
         .lock_conn()
-        .unwrap()
+        .expect("mutex not poisoned")
         .execute_batch(
             "CREATE TABLE IF NOT EXISTS triples (
                 id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
@@ -287,6 +287,6 @@ fn in_memory_store() -> TripleStore {
                 owner_webid TEXT NOT NULL
             )",
         )
-        .unwrap();
+        .expect("DDL batch must succeed");
     store
 }

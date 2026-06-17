@@ -758,9 +758,9 @@ pub struct SeamCoverage {
     #[serde(default = "default_crate_name")]
     pub crate_name: String,
     pub total_items: u64,
-    #[serde(rename = "covered")]
+    #[serde(rename = "covered", alias = "covered_items")]
     pub covered_items: u64,
-    #[serde(rename = "uncovered")]
+    #[serde(rename = "uncovered", alias = "uncovered_items")]
     pub uncovered_items: u64,
     pub coverage_pct: f64,
     pub req_tests: u64,
@@ -781,6 +781,7 @@ fn default_crate_name() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SeamInventory {
     /// ISO 8601 generation timestamp
+    #[serde(default)]
     pub generated: String,
     /// Workspace-wide aggregate
     pub totals: SeamCoverage,

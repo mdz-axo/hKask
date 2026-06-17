@@ -45,14 +45,14 @@ impl KanbanServer {
     pub fn new(webid: WebID, replicant: String, daemon: Option<hkask_mcp::DaemonClient>) -> Self {
         let conn = Arc::new(Mutex::new(Connection::open_in_memory().expect("in-memory DB")));
         let store = TripleStore::new(conn);
-        store.lock_conn().unwrap().execute_batch(
+        store.lock_conn().expect("mutex not poisoned").execute_batch(
             "CREATE TABLE IF NOT EXISTS triples (
                 id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
                 value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
                 confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
                 owner_webid TEXT NOT NULL
             )",
-        ).unwrap();
+        ).expect("DDL batch must succeed");
         Self { service: KanbanService::new(store), webid, replicant, daemon }
     }
 }

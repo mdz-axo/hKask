@@ -494,81 +494,91 @@ fn call_conduit_admin_register(
         .unwrap_or(username)
         .to_string();
 
-    let client = reqwest::blocking::Client::new();
+    let handle = tokio::runtime::Handle::current();
 
-    // Try Conduit-specific admin endpoint first
-    let admin_url = format!(
-        "{}/_conduit/admin/register",
-        homeserver.trim_end_matches('/')
-    );
-    let body = serde_json::json!({
-        "username": localpart,
-        "password": password,
-        "device_display_name": format!("hKask Agent {}", username),
-    });
+    handle.block_on(async {
+        let client = reqwest::Client::new();
 
-    let response = client
-        .post(&admin_url)
-        .header("Authorization", format!("Bearer {}", admin_token))
-        .json(&body)
-        .send()
-        .map_err(|e| format!("HTTP request failed: {}", e))?;
+        // Try Conduit-specific admin endpoint first
+        let admin_url = format!(
+            "{}/_conduit/admin/register",
+            homeserver.trim_end_matches('/')
+        );
+        let body = serde_json::json!({
+            "username": localpart,
+            "password": password,
+            "device_display_name": format!("hKask Agent {}", username),
+        });
 
-    if response.status().is_success() {
-        return Ok(());
-    }
+        let response = client
+            .post(&admin_url)
+            .header("Authorization", format!("Bearer {}", admin_token))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed: {}", e))?;
 
-    // Fallback 1: try standard Matrix registration API with admin token
-    let register_url = format!(
-        "{}/_matrix/client/v3/register",
-        homeserver.trim_end_matches('/')
-    );
-    let body = serde_json::json!({
-        "username": localpart,
-        "password": password,
-        "initial_device_display_name": format!("hKask Agent {}", username),
-        "admin_token": admin_token,
-    });
+        if response.status().is_success() {
+            return Ok(());
+        }
 
-    let response = client
-        .post(&register_url)
-        .json(&body)
-        .send()
-        .map_err(|e| format!("HTTP request failed: {}", e))?;
+        // Fallback 1: try standard Matrix registration API with admin token
+        let register_url = format!(
+            "{}/_matrix/client/v3/register",
+            homeserver.trim_end_matches('/')
+        );
+        let body = serde_json::json!({
+            "username": localpart,
+            "password": password,
+            "initial_device_display_name": format!("hKask Agent {}", username),
+            "admin_token": admin_token,
+        });
 
-    if response.status().is_success() {
-        return Ok(());
-    }
+        let response = client
+            .post(&register_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed: {}", e))?;
 
-    // Fallback 2: try registration token (hkask-dev mode)
-    let reg_token = std::env::var("HKASK_MATRIX_REGISTRATION_TOKEN")
-        .unwrap_or_else(|_| "hkask-dev".to_string());
-    let body = serde_json::json!({
-        "username": localpart,
-        "password": password,
-        "initial_device_display_name": format!("hKask Agent {}", username),
-        "auth": {"type": "m.login.registration_token", "token": reg_token},
-    });
+        if response.status().is_success() {
+            return Ok(());
+        }
 
-    let response = client
-        .post(&register_url)
-        .json(&body)
-        .send()
-        .map_err(|e| format!("HTTP request failed: {}", e))?;
+        // Fallback 2: try registration token (hkask-dev mode)
+        let reg_token = std::env::var("HKASK_MATRIX_REGISTRATION_TOKEN")
+            .unwrap_or_else(|_| "hkask-dev".to_string());
+        let body = serde_json::json!({
+            "username": localpart,
+            "password": password,
+            "initial_device_display_name": format!("hKask Agent {}", username),
+            "auth": {"type": "m.login.registration_token", "token": reg_token},
+        });
 
-    let status = response.status();
-    let body_text = response.text().unwrap_or_else(|_| "(no body)".to_string());
+        let response = client
+            .post(&register_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed: {}", e))?;
 
-    if status.is_success() {
-        Ok(())
-    } else {
-        Err(format!(
-            "Server returned {} {}: {}",
-            status.as_u16(),
-            status.canonical_reason().unwrap_or("Unknown"),
-            body_text
-        ))
-    }
+        let status = response.status();
+        let body_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "(no body)".to_string());
+
+        if status.is_success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "Server returned {} {}: {}",
+                status.as_u16(),
+                status.canonical_reason().unwrap_or("Unknown"),
+                body_text
+            ))
+        }
+    })
 }
 
 fn write_file(dir: &Path, name: &str, content: &str) {

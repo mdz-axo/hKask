@@ -850,7 +850,7 @@ fn kanban_service(state: &mut ReplState) -> KanbanService {
             let store = TripleStore::new(conn);
             store
                 .lock_conn()
-                .unwrap()
+                .expect("mutex not poisoned")
                 .execute_batch(
                     "CREATE TABLE IF NOT EXISTS triples (
                         id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
@@ -859,7 +859,7 @@ fn kanban_service(state: &mut ReplState) -> KanbanService {
                         owner_webid TEXT NOT NULL
                     )",
                 )
-                .unwrap();
+                .expect("DDL batch must succeed");
             KanbanService::new(store)
         })
         .clone()

@@ -3166,7 +3166,9 @@ impl TrainingServer {
                 canonical.id,
                 provider,
                 &token,
-            ) {
+            )
+            .await
+            {
                 Ok(e) => e,
                 Err(e) => {
                     return span.error(
@@ -3180,6 +3182,7 @@ impl TrainingServer {
             // Create endpoint
             let handle =
                 match AdapterPort::create_endpoint(router.as_ref(), canonical.id, provider, &token)
+                    .await
                 {
                     Ok(h) => h,
                     Err(e) => {
@@ -3273,8 +3276,9 @@ impl TrainingServer {
         };
 
         // Create and initialize lifecycle state machine
-        let mut lifecycle = EndpointLifecycle::new(cost_hr as f64)
-            .unwrap_or_else(|_| EndpointLifecycle::new(1.0).unwrap());
+        let mut lifecycle = EndpointLifecycle::new(cost_hr as f64).unwrap_or_else(|_| {
+            EndpointLifecycle::new(1.0).expect("default cost_hr of 1.0 must be valid")
+        });
         if initial_phase != EndpointPhase::Provisioning {
             let _ = lifecycle.transition(initial_phase);
         }
@@ -3408,7 +3412,7 @@ impl TrainingServer {
                     self.webid,
                     &hkask_types::capability::auth::derive_signing_key(b"training-mcp-teardown"),
                 );
-                match AdapterPort::teardown_endpoint(router.as_ref(), endpoint_id, &token) {
+                match AdapterPort::teardown_endpoint(router.as_ref(), endpoint_id, &token).await {
                     Ok(()) => {
                         let result = json!({"deployment_id": req.deployment_id, "status": "torn_down", "route": "hkask-adapter"});
                         self.record_experience(

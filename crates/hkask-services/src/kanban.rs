@@ -10,14 +10,13 @@
 //!   kanban:task  → {task_id}  → JSON Task
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
-
 use hkask_storage::{Triple, TripleStore};
-use std::sync::Arc;
 use hkask_types::{
     Board, BoardId, ColumnDef, Comment, ConsentProof, Phase, PhaseId, Task, TaskFilter, TaskId,
     TaskSpec, TaskStatus, Verification, WebID,
 };
 use serde_json::Value;
+use std::sync::Arc;
 
 /// Core kanban coordination service.
 ///
@@ -41,7 +40,10 @@ impl KanbanService {
     /// pre:  store must have the triples table initialized
     /// post: returns a KanbanService ready for use
     pub fn new(store: TripleStore) -> Self {
-        Self { store, pod_manager: None }
+        Self {
+            store,
+            pod_manager: None,
+        }
     }
 
     /// Attach a PodManager for live spawn capability.
@@ -117,14 +119,19 @@ impl KanbanService {
         let template: BoardTemplate = serde_yaml::from_str(template_yaml)
             .map_err(|e| KanbanError::InvalidInput(format!("Invalid template YAML: {e}")))?;
 
-        let columns: Vec<ColumnDef> = template.columns.iter().enumerate().map(|(i, c)| {
-            let status = TaskStatus::parse_str(&c.status).unwrap_or(TaskStatus::Backlog);
-            let mut col = ColumnDef::new(c.name.clone(), status, i as u32);
-            if let Some(wip) = c.wip_limit {
-                col = col.with_wip_limit(wip);
-            }
-            col
-        }).collect();
+        let columns: Vec<ColumnDef> = template
+            .columns
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let status = TaskStatus::parse_str(&c.status).unwrap_or(TaskStatus::Backlog);
+                let mut col = ColumnDef::new(c.name.clone(), status, i as u32);
+                if let Some(wip) = c.wip_limit {
+                    col = col.with_wip_limit(wip);
+                }
+                col
+            })
+            .collect();
 
         let board = self.board_create(owner, name, &columns)?;
 
@@ -140,7 +147,12 @@ impl KanbanService {
     ///
     /// REQ: KAN-SVC-002c
     pub fn list_templates() -> Vec<String> {
-        vec!["software-project".into(), "writing-project".into(), "scientific-research".into(), "investment-research".into()]
+        vec![
+            "software-project".into(),
+            "writing-project".into(),
+            "scientific-research".into(),
+            "investment-research".into(),
+        ]
     }
 
     /// List all boards for a given owner.
@@ -193,8 +205,13 @@ impl KanbanService {
     /// pre:  board_id refers to an existing board
     /// post: returns a formatted string showing columns with tasks arranged by status,
     ///       WIP limits, story points, labels, overdue indicators, and verification status
-    pub fn board_view(&self, board_id: BoardId, filter: Option<&str>) -> Result<String, KanbanError> {
-        let board = self.board_get(board_id)?
+    pub fn board_view(
+        &self,
+        board_id: BoardId,
+        filter: Option<&str>,
+    ) -> Result<String, KanbanError> {
+        let board = self
+            .board_get(board_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
         let mut tasks = self.task_list(board_id, TaskFilter::all())?;
 
@@ -207,7 +224,7 @@ impl KanbanService {
                 tasks.retain(|t| t.priority == Some(p));
                 Some(format!("priority={}", p))
             } else if f.len() > 30 && f.parse::<WebID>().is_ok() {
-                let wid: WebID = f.parse().unwrap();
+                let wid: WebID = f.parse().expect("validated by is_ok check above");
                 tasks.retain(|t| t.assignee == Some(wid));
                 Some(format!("assignee={}", wid.redacted_display()))
             } else {
@@ -233,24 +250,37 @@ impl KanbanService {
 
         for col in &board.columns {
             let count = by_status.get(&col.status).map(|v| v.len()).unwrap_or(0);
-            if count == 0 && !tasks.is_empty() { continue; }
+            if count == 0 && !tasks.is_empty() {
+                continue;
+            }
             let wip = col.wip_limit.map_or(String::new(), |l| format!("/{}", l));
             out.push_str(&format!("  {}{} ({}{})\n", col.name, wip, count, wip));
         }
         out.push_str("\n");
 
         for col in &board.columns {
-            let col_tasks = by_status.get(&col.status).map(|v| v.as_slice()).unwrap_or(&[]);
-            if col_tasks.is_empty() { continue; }
+            let col_tasks = by_status
+                .get(&col.status)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]);
+            if col_tasks.is_empty() {
+                continue;
+            }
             out.push_str(&format!("  {}:\n", col.name));
             for task in col_tasks {
                 let idx = tasks.iter().position(|t| t.id == task.id).unwrap_or(0) + 1;
-                let a = task.assignee.map(|a| format!(" <- {}", a.redacted_display())).unwrap_or_default();
-                let p = task.priority.map(|p| match p {
-                    hkask_types::Priority::Critical => " !!",
-                    hkask_types::Priority::High => " !",
-                    _ => "",
-                }).unwrap_or("");
+                let a = task
+                    .assignee
+                    .map(|a| format!(" <- {}", a.redacted_display()))
+                    .unwrap_or_default();
+                let p = task
+                    .priority
+                    .map(|p| match p {
+                        hkask_types::Priority::Critical => " !!",
+                        hkask_types::Priority::High => " !",
+                        _ => "",
+                    })
+                    .unwrap_or("");
                 out.push_str(&format!("    {}. {}{}{}\n", idx, task.title, p, a));
             }
             out.push_str("\n");
@@ -261,7 +291,7 @@ impl KanbanService {
         }
 
         Ok(out)
-    }    // ── Task operations ───────────────────────────────────────────────────
+    } // ── Task operations ───────────────────────────────────────────────────
 
     /// Create a new task on a board.
     ///
@@ -555,13 +585,8 @@ impl KanbanService {
 
         // rSolidity contract-based verification
         // The task IS a contract. Both agent and replicant run the same assertions.
-        let mut contract = hkask_types::TaskContract::new(
-            "inline".into(),
-            task.owner,
-            verifier,
-            &task,
-            vec![],
-        );
+        let mut contract =
+            hkask_types::TaskContract::new("inline".into(), task.owner, verifier, &task, vec![]);
         let result = contract.check_completion(evidence);
 
         let passed = result.passed;
@@ -647,21 +672,30 @@ impl KanbanService {
         // Schema validation
         if parsed.get("tasks").is_none() {
             return Err(KanbanError::InvalidInput(
-                "JSON must have a tasks array at top level".into()
+                "JSON must have a tasks array at top level".into(),
             ));
         }
-        let tasks_array = parsed["tasks"].as_array()
+        let tasks_array = parsed["tasks"]
+            .as_array()
             .ok_or_else(|| KanbanError::InvalidInput("'tasks' must be an array".into()))?;
         if tasks_array.is_empty() {
-            return Err(KanbanError::InvalidInput("'tasks' array is empty — nothing to create".into()));
+            return Err(KanbanError::InvalidInput(
+                "'tasks' array is empty — nothing to create".into(),
+            ));
         }
 
         // Validate each task has a title
         for (i, task_val) in tasks_array.iter().enumerate() {
-            if task_val.get("title").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
-                return Err(KanbanError::InvalidInput(
-                    format!("Task {} is missing 'title' field", i + 1)
-                ));
+            if task_val
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .is_empty()
+            {
+                return Err(KanbanError::InvalidInput(format!(
+                    "Task {} is missing 'title' field",
+                    i + 1
+                )));
             }
         }
 
@@ -695,22 +729,45 @@ impl KanbanService {
             let description = task_val["description"].as_str().map(|s| s.to_string());
             let story_points = task_val["story_points"].as_u64().map(|n| n as u32);
             let estimated_hours = task_val["estimated_hours"].as_f64();
-            let labels: Vec<String> = task_val["labels"].as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            let labels: Vec<String> = task_val["labels"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
-            let criteria: Vec<hkask_types::VerificationCriterion> = task_val["criteria"].as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str()
-                    .map(|s| hkask_types::VerificationCriterion::new(s.into()))).collect())
+            let criteria: Vec<hkask_types::VerificationCriterion> = task_val["criteria"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| {
+                            v.as_str()
+                                .map(|s| hkask_types::VerificationCriterion::new(s.into()))
+                        })
+                        .collect()
+                })
                 .unwrap_or_default();
-            let priority = task_val["priority"].as_str()
+            let priority = task_val["priority"]
+                .as_str()
                 .and_then(|s| hkask_types::Priority::parse_str(s));
 
             let mut spec = TaskSpec::new(title.into());
-            if let Some(d) = description { spec = spec.with_description(d); }
-            if !criteria.is_empty() { spec = spec.with_criteria(criteria); }
-            if let Some(sp) = story_points { spec = spec.with_story_points(sp); }
-            if let Some(eh) = estimated_hours { spec = spec.with_estimated_hours(eh); }
-            if let Some(p) = priority { spec = spec.with_priority(p); }
+            if let Some(d) = description {
+                spec = spec.with_description(d);
+            }
+            if !criteria.is_empty() {
+                spec = spec.with_criteria(criteria);
+            }
+            if let Some(sp) = story_points {
+                spec = spec.with_story_points(sp);
+            }
+            if let Some(eh) = estimated_hours {
+                spec = spec.with_estimated_hours(eh);
+            }
+            if let Some(p) = priority {
+                spec = spec.with_priority(p);
+            }
 
             // Assign phase if any label matches a phase
             if !phase_map.is_empty() && !labels.is_empty() {
@@ -722,7 +779,9 @@ impl KanbanService {
                 }
             }
 
-            if !labels.is_empty() { spec = spec.with_labels(labels); }
+            if !labels.is_empty() {
+                spec = spec.with_labels(labels);
+            }
 
             self.task_create(board_id, spec, owner)?;
             created += 1;
@@ -751,7 +810,14 @@ impl KanbanService {
 
         // Attempt live pod creation if PodManager is attached
         if let Some(ref pm) = self.pod_manager {
-            let pod_name = format!("kanban-{}", task.title.chars().take(20).collect::<String>().replace(' ', "-"));
+            let pod_name = format!(
+                "kanban-{}",
+                task.title
+                    .chars()
+                    .take(20)
+                    .collect::<String>()
+                    .replace(' ', "-")
+            );
             let persona_yaml = format!(
                 "agent:
   name: {name}
@@ -765,31 +831,49 @@ impl KanbanService {
 ",
                 name = pod_name,
                 title = task.title,
-                skills = spawn_spec.delegated_skills.iter().map(|s| format!("  - {}", s)).collect::<Vec<_>>().join("
-"),
+                skills = spawn_spec
+                    .delegated_skills
+                    .iter()
+                    .map(|s| format!("  - {}", s))
+                    .collect::<Vec<_>>()
+                    .join(
+                        "
+"
+                    ),
             );
             match hkask_agents::pod::AgentPersona::from_yaml(&persona_yaml) {
                 Ok(persona) => {
                     let rt = tokio::runtime::Handle::current();
-                    match rt.block_on(pm.create_pod("kanban-agent", &persona, Some(pod_name.clone()))) {
-                        Ok(pod_id) => {
-                            match rt.block_on(pm.activate_pod(&pod_id)) {
-                                Ok(()) => {
-                                    let webid = persona.webid();
-                                    let note = format!(
-                                        "Pod activated: id={}, webid={}, skills={:?}, tools={:?}",
-                                        pod_id, webid.redacted_display(), spawn_spec.delegated_skills, spawn_spec.tool_servers
-                                    );
-                                    let comment = hkask_types::Comment::new(task_id, task.owner, note);
-                                    task.comments.push(comment);
-                                    task.updated_at = chrono::Utc::now();
-                                    self.update_task_triple(&task)?;
-                                    return Ok(format!("Pod {} activated (webid: {}). Use /kanban note {} to communicate.",
-                                        pod_id, webid.redacted_display(), task_id));
-                                }
-                                Err(e) => return Ok(format!("Pod created but activation failed: {}", e)),
+                    match rt.block_on(pm.create_pod(
+                        "kanban-agent",
+                        &persona,
+                        Some(pod_name.clone()),
+                    )) {
+                        Ok(pod_id) => match rt.block_on(pm.activate_pod(&pod_id)) {
+                            Ok(()) => {
+                                let webid = persona.webid();
+                                let note = format!(
+                                    "Pod activated: id={}, webid={}, skills={:?}, tools={:?}",
+                                    pod_id,
+                                    webid.redacted_display(),
+                                    spawn_spec.delegated_skills,
+                                    spawn_spec.tool_servers
+                                );
+                                let comment = hkask_types::Comment::new(task_id, task.owner, note);
+                                task.comments.push(comment);
+                                task.updated_at = chrono::Utc::now();
+                                self.update_task_triple(&task)?;
+                                return Ok(format!(
+                                    "Pod {} activated (webid: {}). Use /kanban note {} to communicate.",
+                                    pod_id,
+                                    webid.redacted_display(),
+                                    task_id
+                                ));
                             }
-                        }
+                            Err(e) => {
+                                return Ok(format!("Pod created but activation failed: {}", e));
+                            }
+                        },
                         Err(e) => return Ok(format!("Pod creation failed: {}", e)),
                     }
                 }
@@ -800,14 +884,19 @@ impl KanbanService {
         // Fallback: string-based spawn when no PodManager
         let spawn_note = format!(
             "Spawn configured (no PodManager): level={}, skills={:?}, memory={}, tools={:?}",
-            spawn_spec.delegation_level, spawn_spec.delegated_skills,
-            spawn_spec.memory_scope, spawn_spec.tool_servers,
+            spawn_spec.delegation_level,
+            spawn_spec.delegated_skills,
+            spawn_spec.memory_scope,
+            spawn_spec.tool_servers,
         );
         let comment = hkask_types::Comment::new(task_id, task.owner, spawn_note);
         task.comments.push(comment);
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
-        Ok(format!("Spawn configured for '{}' (no PodManager — string mode). Skills: {:?}", task.title, spawn_spec.delegated_skills))
+        Ok(format!(
+            "Spawn configured for '{}' (no PodManager — string mode). Skills: {:?}",
+            task.title, spawn_spec.delegated_skills
+        ))
     }
 
     // ── Comments (mini-REPL per task) ─────────────────────────────────
@@ -916,25 +1005,30 @@ impl KanbanService {
     /// pre:  task_id is valid
     /// post: task triple and index triple are soft-deleted
     pub fn task_delete(&self, task_id: TaskId) -> Result<(), KanbanError> {
-        let task = self.task_get(task_id)?
+        let task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
 
         // Close the task triple
-        let triples = self.store
+        let triples = self
+            .store
             .query_by_entity_attribute(TASK_ENTITY, &task_id.to_string())
             .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
         for t in &triples {
-            self.store.close_by_id(&t.id)
+            self.store
+                .close_by_id(&t.id)
                 .map_err(|e| KanbanError::Internal(format!("triple close failed: {e}")))?;
         }
 
         // Close the index triple
         let index_entity = format!("{BOARD_TASKS_PREFIX}{}", task.board_id);
-        let idx_triples = self.store
+        let idx_triples = self
+            .store
             .query_by_entity_attribute(&index_entity, &task_id.to_string())
             .map_err(|e| KanbanError::Internal(format!("index query failed: {e}")))?;
         for t in &idx_triples {
-            self.store.close_by_id(&t.id)
+            self.store
+                .close_by_id(&t.id)
                 .map_err(|e| KanbanError::Internal(format!("index close failed: {e}")))?;
         }
 
@@ -947,7 +1041,8 @@ impl KanbanService {
     /// pre:  task_id is valid
     /// post: task.assignee is set to None
     pub fn task_unassign(&self, task_id: TaskId) -> Result<Task, KanbanError> {
-        let mut task = self.task_get(task_id)?
+        let mut task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
         task.assignee = None;
         task.updated_at = chrono::Utc::now();
@@ -961,7 +1056,8 @@ impl KanbanService {
     /// pre:  task_id refers to a task in Done status
     /// post: task moves to InProgress, verification cleared
     pub fn task_reopen(&self, task_id: TaskId) -> Result<Task, KanbanError> {
-        let mut task = self.task_get(task_id)?
+        let mut task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
 
         if task.status != TaskStatus::Done {
@@ -985,7 +1081,8 @@ impl KanbanService {
     /// pre:  board_id is valid
     /// post: board triple and all associated task/index triples are soft-deleted
     pub fn board_delete(&self, board_id: BoardId) -> Result<usize, KanbanError> {
-        let board = self.board_get(board_id)?
+        let board = self
+            .board_get(board_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
 
         // Delete all tasks on this board
@@ -996,11 +1093,13 @@ impl KanbanService {
         }
 
         // Close the board triple
-        let triples = self.store
+        let triples = self
+            .store
             .query_by_entity_attribute(BOARD_ENTITY, &board_id.to_string())
             .map_err(|e| KanbanError::Internal(format!("triple query failed: {e}")))?;
         for t in &triples {
-            self.store.close_by_id(&t.id)
+            self.store
+                .close_by_id(&t.id)
                 .map_err(|e| KanbanError::Internal(format!("triple close failed: {e}")))?;
         }
         let _ = board;
@@ -1022,16 +1121,17 @@ impl KanbanService {
 
         for task in &tasks {
             // Stuck in InProgress: no movement for > estimated hours * 2
-            if task.status == TaskStatus::InProgress
-                || task.status == TaskStatus::Review
-            {
+            if task.status == TaskStatus::InProgress || task.status == TaskStatus::Review {
                 if let Some(hours) = task.estimated_hours {
                     let elapsed = (now - task.updated_at).num_hours();
                     if elapsed > (hours as i64) * 2 {
                         items.push(UnjamItem {
                             task_id: task.id,
                             task_title: task.title.clone(),
-                            issue: format!("Stuck in {} for {}h (estimated {}h)", task.status, elapsed, hours),
+                            issue: format!(
+                                "Stuck in {} for {}h (estimated {}h)",
+                                task.status, elapsed, hours
+                            ),
                             suggestion: "Consider escalating or reassigning.".into(),
                         });
                     }
@@ -1129,14 +1229,19 @@ impl KanbanService {
         task_id: TaskId,
         evidence: &str,
     ) -> Result<String, KanbanError> {
-        let task = self.task_get(task_id)?
+        let task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
 
         if task.criteria.is_empty() {
-            return Err(KanbanError::InvalidInput("Task has no acceptance criteria".into()));
+            return Err(KanbanError::InvalidInput(
+                "Task has no acceptance criteria".into(),
+            ));
         }
 
-        let criteria_text: Vec<String> = task.criteria.iter()
+        let criteria_text: Vec<String> = task
+            .criteria
+            .iter()
             .enumerate()
             .map(|(i, c)| format!("{}. {}", i + 1, c.description))
             .collect();
@@ -1169,7 +1274,8 @@ impl KanbanService {
         verifier: WebID,
         llm_json: &str,
     ) -> Result<(Task, Verification), KanbanError> {
-        let mut task = self.task_get(task_id)?
+        let mut task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
 
         if task.status != TaskStatus::Review {
@@ -1184,7 +1290,10 @@ impl KanbanService {
             .map_err(|e| KanbanError::InvalidInput(format!("Invalid LLM JSON: {e}")))?;
 
         let passed = parsed["passed"].as_bool().unwrap_or(false);
-        let reasoning = parsed["reasoning"].as_str().unwrap_or("No reasoning provided").to_string();
+        let reasoning = parsed["reasoning"]
+            .as_str()
+            .unwrap_or("No reasoning provided")
+            .to_string();
 
         let verification = Verification::new(passed, reasoning, verifier);
         task.verification = Some(verification.clone());
@@ -1208,22 +1317,23 @@ impl KanbanService {
     ///       The task's criteria ARE the target condition. The task's state,
     ///       comments, and deliverables ARE the actual condition. The unjam
     ///       report identifies obstacles.
-    pub fn task_coaching_prompt(
-        &self,
-        task_id: TaskId,
-    ) -> Result<String, KanbanError> {
-        let task = self.task_get(task_id)?
+    pub fn task_coaching_prompt(&self, task_id: TaskId) -> Result<String, KanbanError> {
+        let task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
 
         // Build target condition from acceptance criteria
         let target = if task.criteria.is_empty() {
             format!("Complete task '{}'", task.title)
         } else {
-            task.criteria.iter()
+            task.criteria
+                .iter()
                 .map(|c| format!("- {}", c.description))
                 .collect::<Vec<_>>()
-                .join("
-")
+                .join(
+                    "
+",
+                )
         };
 
         // Build actual condition from the full evidence corpus:
@@ -1236,28 +1346,38 @@ Est. hours: {}
 Story points: {}
 Updated: {}",
             task.status,
-            task.assignee.map(|a| a.redacted_display()).unwrap_or_else(|| "none".into()),
-            task.estimated_hours.map_or("?".into(), |h| format!("{}h", h)),
+            task.assignee
+                .map(|a| a.redacted_display())
+                .unwrap_or_else(|| "none".into()),
+            task.estimated_hours
+                .map_or("?".into(), |h| format!("{}h", h)),
             task.story_points.map_or("?".into(), |p| format!("{}pt", p)),
             task.updated_at.format("%Y-%m-%d %H:%M"),
         );
 
         // Deliverables — the actual work output
         if !task.deliverables.is_empty() {
-            evidence.push_str("
+            evidence.push_str(
+                "
 
-Deliverables (file links = work output):");
+Deliverables (file links = work output):",
+            );
             for d in &task.deliverables {
-                evidence.push_str(&format!("
-  - {}", d));
+                evidence.push_str(&format!(
+                    "
+  - {}",
+                    d
+                ));
             }
         }
 
         // Comments — the agent/replicant chat stream
         if !task.comments.is_empty() {
-            evidence.push_str("
+            evidence.push_str(
+                "
 
-Comment thread (agent/replicant communication):");
+Comment thread (agent/replicant communication):",
+            );
             for c in &task.comments {
                 evidence.push_str(&format!(
                     "
@@ -1296,31 +1416,46 @@ Comment thread (agent/replicant communication):");
     /// REQ: KAN-SVC-061
     /// pre:  task_id is valid
     /// post: returns a 4-step improvement kata prompt with task as subject
-    pub fn task_improvement_prompt(
-        &self,
-        task_id: TaskId,
-    ) -> Result<String, KanbanError> {
-        let task = self.task_get(task_id)?
+    pub fn task_improvement_prompt(&self, task_id: TaskId) -> Result<String, KanbanError> {
+        let task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
 
         let direction = task.description.as_deref().unwrap_or(&task.title);
         let mut current = format!(
             "Task '{}' is in status '{}'.
 Evidence: {} deliverables, {} comments, {} criteria.",
-            task.title, task.status, task.deliverables.len(), task.comments.len(), task.criteria.len()
+            task.title,
+            task.status,
+            task.deliverables.len(),
+            task.comments.len(),
+            task.criteria.len()
         );
         if !task.deliverables.is_empty() {
-            current.push_str("
-Deliverables:");
-            for d in &task.deliverables { current.push_str(&format!("
-  {}", d)); }
+            current.push_str(
+                "
+Deliverables:",
+            );
+            for d in &task.deliverables {
+                current.push_str(&format!(
+                    "
+  {}",
+                    d
+                ));
+            }
         }
         if !task.comments.is_empty() {
-            current.push_str("
-Recent comments:");
+            current.push_str(
+                "
+Recent comments:",
+            );
             for c in task.comments.iter().rev().take(3) {
-                current.push_str(&format!("
-  [{}] {}", c.created_at.format("%H:%M"), c.body));
+                current.push_str(&format!(
+                    "
+  [{}] {}",
+                    c.created_at.format("%H:%M"),
+                    c.body
+                ));
             }
         }
 
@@ -1354,7 +1489,8 @@ Recent comments:");
         task_id: TaskId,
         sub_problem: &str,
     ) -> Result<String, KanbanError> {
-        let task = self.task_get(task_id)?
+        let task = self
+            .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
 
         Ok(format!(
@@ -1363,14 +1499,14 @@ Recent comments:");
              Focus: {sub_problem}
 
              List what you OBSERVE (facts, data, evidence):
-             1. 
-2. 
-3. 
+             1.
+2.
+3.
 
              List what you INTERPRET (assumptions, guesses, theories):
-             1. 
-2. 
-3. 
+             1.
+2.
+3.
 
              For each interpretation, ask: How would I test this?              What experiment would distinguish this interpretation from alternatives?",
             title = task.title,
@@ -1464,11 +1600,11 @@ pub enum KanbanError {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use super::*;
     use hkask_storage::Store;
     use hkask_types::VerificationCriterion;
     use rusqlite::Connection;
+    use std::sync::Arc;
     use std::sync::Mutex;
 
     fn make_store() -> TripleStore {

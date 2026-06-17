@@ -223,6 +223,15 @@ mod tests {
         ) -> (bool, Option<String>, Option<String>) {
             (true, Some("ep-001".into()), Some("sem-001".into()))
         }
+
+        async fn dispatch_tool(
+            &self,
+            _replicant: &str,
+            _tool: &str,
+            _input: &serde_json::Value,
+        ) -> (bool, Option<serde_json::Value>, Option<String>) {
+            (true, None, None)
+        }
     }
 
     async fn setup_gate_test(

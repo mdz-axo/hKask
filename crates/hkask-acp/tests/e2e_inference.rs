@@ -39,12 +39,15 @@ async fn read_responses<R: AsyncRead + Unpin>(
     results
 }
 
+// REQ: acp-e2e-002 — real inference streaming end-to-end via ACP transport
 #[tokio::test]
 #[ignore = "requires running Ollama"]
 async fn e2e_real_inference_streaming() {
     let config = InferenceConfig::from_env();
     let router = Arc::new(InferenceRouter::new(config));
-    let agent = Arc::new(HkaskAcpAgent::for_testing(router as Arc<dyn InferencePort>).with_model("llama3.1:8b"));
+    let agent = Arc::new(
+        HkaskAcpAgent::for_testing(router as Arc<dyn InferencePort>).with_model("llama3.1:8b"),
+    );
 
     let (test_side, server_side) = tokio::io::duplex(65536);
     let (server_read, mut server_write) = tokio::io::split(server_side);

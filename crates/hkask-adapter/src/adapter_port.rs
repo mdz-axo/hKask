@@ -37,7 +37,7 @@ pub trait AdapterPort: Send + Sync {
     ) -> Result<Vec<TrainedLoRAAdapter>, AdapterError>;
 
     /// Estimate cost and setup time for composing an adapter with a provider.
-    fn estimate_composition(
+    async fn estimate_composition(
         &self,
         adapter_id: Uuid,
         provider: ProviderId,
@@ -45,7 +45,7 @@ pub trait AdapterPort: Send + Sync {
     ) -> Result<CompositionEstimate, AdapterError>;
 
     /// Provision an inference endpoint: compose adapter + base model + provider.
-    fn create_endpoint(
+    async fn create_endpoint(
         &self,
         adapter_id: Uuid,
         provider: ProviderId,
@@ -60,7 +60,7 @@ pub trait AdapterPort: Send + Sync {
     ) -> Result<EndpointStatus, AdapterError>;
 
     /// Run inference against a composed endpoint.
-    fn infer(
+    async fn infer(
         &self,
         endpoint_id: Uuid,
         prompt: &str,
@@ -69,7 +69,7 @@ pub trait AdapterPort: Send + Sync {
     ) -> Result<InferenceResult, AdapterError>;
 
     /// Initiate teardown (transition to Draining → Terminated).
-    fn teardown_endpoint(
+    async fn teardown_endpoint(
         &self,
         endpoint_id: Uuid,
         token: &DelegationToken,

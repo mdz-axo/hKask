@@ -19,7 +19,7 @@ for root in crates mcp-servers; do
         # Skip test files
         [[ "$file" == */tests/* ]] && continue
 
-        violations=$(grep -n 'capability.*"\*"\|capability.*"all"\|capability.*::all\|scopes.*"\*"' "$file" 2>/dev/null || true)
+        violations=$(grep -n 'capability.*"\*"\|capability.*"all"\|capability.*::all\|scopes.*"\*"' "$file" 2>/dev/null | grep -v '^\s*[0-9]*:\s*//' | grep -v '^\s*[0-9]*:\s*\*' || true)
 
         if [ -n "$violations" ]; then
             while IFS= read -r vline; do

@@ -210,13 +210,16 @@ fn resolve_req_tag(
 /// Extract REQ tag from a comment line. Returns the tag value (e.g., "P9-cns-energy-budget-test").
 fn extract_req_tag(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    // Match: // REQ: TAG or /// REQ: TAG
+    // Only match lines where REQ: is at the start of a contract declaration,
+    // not embedded in prose text (e.g., "a proptest with a `// REQ:` tag")
+    if !trimmed.starts_with("/// REQ:") && !trimmed.starts_with("// REQ:") {
+        return None;
+    }
     if let Some(pos) = trimmed.find("REQ:") {
         let tag = trimmed[pos + 4..].trim();
-        // Take up to first space or end of line
         let end = tag.find(|c: char| c.is_whitespace()).unwrap_or(tag.len());
         let req = tag[..end].trim_end_matches(&['.', ',', ';', ':', ')', ']', '}']);
-        if !req.is_empty() {
+        if !req.is_empty() && !req.contains('`') {
             return Some(req.to_string());
         }
     }
@@ -361,7 +364,8 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
             {
                 let fn_name = extract_function_name(line);
 
-                // Search 20 lines above for REQ tag and pre/post
+                // Search 20 lines above for REQ tag and pre/post.
+                // Stop at function boundaries (closing braces at column 0).
                 let mut req_id = String::new();
                 let mut pre = String::new();
                 let mut post = String::new();
@@ -371,29 +375,33 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                     if j >= lines.len() {
                         continue;
                     }
-                    let ctx = lines[j].trim();
+                    let ctx = lines[j];
+                    // Stop at previous function's closing brace
+                    if ctx.trim() == "}" {
+                        break;
+                    }
+                    let trimmed = ctx.trim();
                     if req_id.is_empty() {
-                        if let Some(tag) = extract_req_tag(ctx) {
+                        if let Some(tag) = extract_req_tag(trimmed) {
                             req_id = tag;
-                        } else if ctx.contains("#[rs::contract") {
-                            // Extract id from #[rs::contract(id = "...")]
-                            if let Some(start) = ctx.find("id = \"") {
-                                let rest = &ctx[start + 6..];
+                        } else if trimmed.contains("#[rs::contract") {
+                            if let Some(start) = trimmed.find("id = \"") {
+                                let rest = &trimmed[start + 6..];
                                 if let Some(end) = rest.find('"') {
                                     req_id = rest[..end].to_string();
                                 }
                             }
                         }
                     }
-                    if pre.is_empty() && ctx.contains("pre:") {
-                        pre = ctx
+                    if pre.is_empty() && trimmed.contains("pre:") {
+                        pre = trimmed
                             .trim_start_matches(|c: char| c == '/' || c == '#' || c == ' ')
                             .trim_start_matches("pre:")
                             .trim()
                             .to_string();
                     }
-                    if post.is_empty() && ctx.contains("post:") {
-                        post = ctx
+                    if post.is_empty() && trimmed.contains("post:") {
+                        post = trimmed
                             .trim_start_matches(|c: char| c == '/' || c == '#' || c == ' ')
                             .trim_start_matches("post:")
                             .trim()
@@ -463,6 +471,7 @@ fn extract_function_name(line: &str) -> String {
 mod tests {
     use super::*;
 
+    // REQ: harness-trace-008 — extract_req_tag parses // REQ: and /// REQ: anchors
     #[test]
     fn extract_req_tag_from_line_comment() {
         let tag = extract_req_tag("    // REQ: P9-cns-energy-budget-test");
@@ -481,6 +490,7 @@ mod tests {
         assert_eq!(extract_req_tag(""), None);
     }
 
+    // REQ: harness-trace-009 — extract_count parses test count from cargo output
     #[test]
     fn extract_count_parses_cargo_output() {
         let output = "running 47 tests\ntest result: ok. 47 passed; 0 failed";
@@ -488,6 +498,7 @@ mod tests {
         assert_eq!(extract_count("no match", "running ", " test"), 0);
     }
 
+    // REQ: harness-trace-010 — ContractTestResult Debug format includes all fields
     #[test]
     fn contract_test_result_debug_format() {
         let result = ContractTestResult {

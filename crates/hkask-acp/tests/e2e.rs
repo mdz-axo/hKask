@@ -28,6 +28,7 @@ async fn read_line_timeout<R: tokio::io::AsyncRead + Unpin>(
     }
 }
 
+// REQ: acp-e2e-001 — end-to-end initialize + prompt round-trip via ACP binary
 #[tokio::test]
 #[ignore = "requires running daemon and Ollama"]
 async fn e2e_initialize_and_prompt() {

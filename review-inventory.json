@@ -61,16 +61,6 @@
   },
   {
     "crate_name": "hkask-adapter",
-    "function": "count",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/adapter_store.rs",
-    "line": 400,
-    "req_id": "P8-adt-trained-adapter-store",
-    "pre": "adapter exists",
-    "post": "adapter row is removed",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-adapter",
     "function": "from_bytes",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/adapter_config.rs",
     "line": 46,
@@ -131,16 +121,6 @@
   },
   {
     "crate_name": "hkask-adapter",
-    "function": "is_billable",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/endpoint_lifecycle.rs",
-    "line": 29,
-    "req_id": "P9-adt-endpoint-lifecycle",
-    "pre": "",
-    "post": "",
-    "flags": "NO_PRE NO_POST"
-  },
-  {
-    "crate_name": "hkask-adapter",
     "function": "new",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/endpoint_lifecycle.rs",
     "line": 103,
@@ -171,26 +151,6 @@
   },
   {
     "crate_name": "hkask-adapter",
-    "function": "is_billable",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/endpoint_lifecycle.rs",
-    "line": 166,
-    "req_id": "P9-adt-endpoint-lifecycle",
-    "pre": "duration_seconds >= 0.0",
-    "post": "cost_accrued increased by (duration_seconds / 3600) * hourly_rate",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-adapter",
-    "function": "elapsed_seconds",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/endpoint_lifecycle.rs",
-    "line": 171,
-    "req_id": "P9-adt-endpoint-lifecycle",
-    "pre": "duration_seconds >= 0.0",
-    "post": "cost_accrued increased by (duration_seconds / 3600) * hourly_rate",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-adapter",
     "function": "is_over_budget",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/endpoint_lifecycle.rs",
     "line": 180,
@@ -201,19 +161,9 @@
   },
   {
     "crate_name": "hkask-adapter",
-    "function": "time_until_budget_exceeded",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/endpoint_lifecycle.rs",
-    "line": 186,
-    "req_id": "P9-adt-endpoint-lifecycle",
-    "pre": "budget_limit >= 0.0",
-    "post": "returns true if cost_accrued > budget_limit",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-adapter",
     "function": "new",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/adapter_router.rs",
-    "line": 655,
+    "line": 677,
     "req_id": "P4-adt-adapter-router-compose",
     "pre": "store is a valid AdapterStore",
     "post": "previously active endpoints are loaded from store (metadata only — backends",
@@ -223,7 +173,7 @@
     "crate_name": "hkask-adapter",
     "function": "select_provider",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/adapter_router.rs",
-    "line": 762,
+    "line": 784,
     "req_id": "P2-adt-provider-selection",
     "pre": "adapter exists in store, at least one provider supports LoRA composition",
     "post": "returns list of compatible providers with cost estimates; caller selects",
@@ -233,20 +183,10 @@
     "crate_name": "hkask-adapter",
     "function": "drain_all_owner",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/adapter_router.rs",
-    "line": 816,
+    "line": 838,
     "req_id": "P5-adt-automatic-teardown",
     "pre": "owner is a valid WebID (reserved for future multi-tenant scoping)",
     "post": "all billable endpoints are transitioned to Terminated",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-adapter",
-    "function": "new",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/adapter_router.rs",
-    "line": 1205,
-    "req_id": "P5-adt-automatic-teardown",
-    "pre": "guard is created after successful endpoint provisioning",
-    "post": "on drop, the endpoint is transitioned to Draining → Terminated",
     "flags": ""
   },
   {
@@ -257,16 +197,6 @@
     "req_id": "P9-adt-provider-cost-model",
     "pre": "gpu_hourly_rate > 0.0, estimated_setup_minutes > 0",
     "post": "returns CostModel for the given provider",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-adapter",
-    "function": "can_compose",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-adapter/src/provider_cost.rs",
-    "line": 96,
-    "req_id": "P9-adt-provider-cost-model",
-    "pre": "provider is a recognized ProviderId variant",
-    "post": "ProviderCapability indicates whether LoRA composition is supported",
     "flags": ""
   },
   {
@@ -525,9 +455,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-memory/src/consolidation_service.rs",
     "line": 242,
     "req_id": "P3-mem-consolidation-service-triple-count",
-    "pre": "threshold in [0.0, 1.0]",
+    "pre": "",
     "post": "returns 0 on error (graceful degradation)",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-memory",
@@ -615,9 +545,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-memory/src/semantic.rs",
     "line": 206,
     "req_id": "P3-mem-semantic-embedding-count",
-    "pre": "query_vector is non-empty, limit > 0",
+    "pre": "",
     "post": "returns total count of embeddings in store",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-memory",
@@ -745,9 +675,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-memory/src/semantic_loop.rs",
     "line": 108,
     "req_id": "P3-mem-semantic-loop-storage-budget",
-    "pre": "low_confidence_threshold in [0.0, 1.0]",
+    "pre": "",
     "post": "returns the storage_budget value set at construction",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-memory",
@@ -1005,9 +935,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-keystore/src/version_file.rs",
     "line": 65,
     "req_id": "KEY-019",
-    "pre": "version is a valid u32",
+    "pre": "",
     "post": "returns new version number",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-keystore",
@@ -1125,9 +1055,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/runtime.rs",
     "line": 223,
     "req_id": "P9-cns-runtime-variety-monitor-domains",
-    "pre": "domain is non-empty",
+    "pre": "",
     "post": "returns Vec of domain name strings",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-cns",
@@ -1145,9 +1075,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/runtime.rs",
     "line": 298,
     "req_id": "P9-cns-runtime-health",
-    "pre": "threshold > 0",
+    "pre": "",
     "post": "returns CnsHealth with current state",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-cns",
@@ -1665,9 +1595,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/energy.rs",
     "line": 296,
     "req_id": "P9-cns-energy-budget-with-hard-limit",
-    "pre": "threshold is a valid ratio",
+    "pre": "",
     "post": "self.hard_limit == hard",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-cns",
@@ -1685,9 +1615,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/energy.rs",
     "line": 323,
     "req_id": "P9-cns-energy-budget-available",
-    "pre": "gas is a valid EnergyCost",
+    "pre": "",
     "post": "result == remaining.saturating_sub(reserved)",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-cns",
@@ -1815,9 +1745,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/circuit_breaker.rs",
     "line": 90,
     "req_id": "P9-cns-circuit-allow-request",
-    "pre": "name is non-empty",
+    "pre": "",
     "post": "returns true if circuit is closed or half-open, false if open",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-cns",
@@ -1833,27 +1763,27 @@
     "crate_name": "hkask-cns",
     "function": "emit_contract_violated",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/contract_discipline.rs",
-    "line": 60,
-    "req_id": "`",
-    "pre": "",
-    "post": "",
-    "flags": "NO_PRE NO_POST"
+    "line": 65,
+    "req_id": "CNS-CVB-003",
+    "pre": "sink is a valid NuEventSink; function_name, contract_id, failure_reason are non-empty",
+    "post": "cns.contract.violated span persisted to sink",
+    "flags": ""
   },
   {
     "crate_name": "hkask-cns",
     "function": "emit_contract_coverage",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/contract_discipline.rs",
-    "line": 100,
-    "req_id": "pre:`",
+    "line": 110,
+    "req_id": "CNS-CVB-004",
     "pre": "- `contracted_fns` — number of functions with `// REQ: pre:` contracts",
-    "post": "",
-    "flags": "NO_POST"
+    "post": "cns.contract.coverage span persisted with coverage_pct",
+    "flags": ""
   },
   {
     "crate_name": "hkask-cns",
     "function": "create_contract_violation_task",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/contract_discipline.rs",
-    "line": 196,
+    "line": 206,
     "req_id": "CNS-CVB-001",
     "pre": "store is initialized; function_name, contract_id, and failure_reason are non-empty; owner is valid",
     "post": "board exists in store; task triple is persisted with correct attributes",
@@ -1863,7 +1793,7 @@
     "crate_name": "hkask-cns",
     "function": "emit_contract_violated_with_task",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/contract_discipline.rs",
-    "line": 260,
+    "line": 270,
     "req_id": "CNS-CVB-002",
     "pre": "sink and store are initialized; function_name, contract_id, failure_reason are non-empty",
     "post": "CNS span persisted; kanban task created; task_id returned",
@@ -1873,7 +1803,7 @@
     "crate_name": "hkask-cns",
     "function": "emit_contract_proposed",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/contract_discipline.rs",
-    "line": 294,
+    "line": 304,
     "req_id": "CNS-CTR-003",
     "pre": "sink is initialized; replicant_webid and function_name are non-empty",
     "post": "CNS span persisted with proposal metadata",
@@ -1883,7 +1813,7 @@
     "crate_name": "hkask-cns",
     "function": "emit_contract_accepted",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/contract_discipline.rs",
-    "line": 334,
+    "line": 344,
     "req_id": "CNS-CTR-004",
     "pre": "sink is initialized; reviewer_webid, replicant_webid, function_name are non-empty",
     "post": "CNS span persisted with acceptance metadata",
@@ -1893,7 +1823,7 @@
     "crate_name": "hkask-cns",
     "function": "emit_contract_rejected",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/contract_discipline.rs",
-    "line": 375,
+    "line": 385,
     "req_id": "CNS-CTR-005",
     "pre": "sink is initialized; reviewer_webid, function_name are non-empty",
     "post": "CNS span persisted with rejection rationale",
@@ -1958,16 +1888,6 @@
     "pre": "",
     "post": "returns a copy of the internal server_costs map",
     "flags": "NO_PRE"
-  },
-  {
-    "crate_name": "hkask-cns",
-    "function": "reserve",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-cns/src/wallet_budget.rs",
-    "line": 151,
-    "req_id": "MUST-6",
-    "pre": "",
-    "post": "",
-    "flags": "NO_PRE NO_POST"
   },
   {
     "crate_name": "hkask-cns",
@@ -2355,9 +2275,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/adapter_container.rs",
     "line": 54,
     "req_id": "MCP-012",
-    "pre": "port is a valid GitCASPort",
+    "pre": "",
     "post": "returns Some(port) if configured, None otherwise",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-mcp",
@@ -2411,16 +2331,6 @@
   },
   {
     "crate_name": "hkask-mcp",
-    "function": "bind",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/daemon.rs",
-    "line": 310,
-    "req_id": "MCP-020",
-    "pre": "path is a valid filesystem path",
-    "post": "returns DaemonListener with custom socket path",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-mcp",
     "function": "validate_input",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/runtime.rs",
     "line": 43,
@@ -2434,16 +2344,6 @@
     "function": "new",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/runtime.rs",
     "line": 116,
-    "req_id": "MCP-025",
-    "pre": "",
-    "post": "returns McpRuntime with empty servers, tool_registry, connections",
-    "flags": "NO_PRE"
-  },
-  {
-    "crate_name": "hkask-mcp",
-    "function": "register_server",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/runtime.rs",
-    "line": 126,
     "req_id": "MCP-025",
     "pre": "",
     "post": "returns McpRuntime with empty servers, tool_registry, connections",
@@ -2474,16 +2374,6 @@
     "function": "issue_capability",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/dispatch.rs",
     "line": 217,
-    "req_id": "MCP-015",
-    "pre": "tool_name is non-empty, from and to are valid WebIDs",
-    "post": "returns DelegationToken granting tool access from → to",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-mcp",
-    "function": "shutdown_all",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/dispatch.rs",
-    "line": 225,
     "req_id": "MCP-015",
     "pre": "tool_name is non-empty, from and to are valid WebIDs",
     "post": "returns DelegationToken granting tool access from → to",
@@ -2565,9 +2455,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/server.rs",
     "line": 225,
     "req_id": "MCP-033",
-    "pre": "tool_name is non-empty, caller is valid",
+    "pre": "",
     "post": "returns output unchanged",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-mcp",
@@ -2625,9 +2515,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/server.rs",
     "line": 354,
     "req_id": "MCP-039",
-    "pre": "kind is a valid McpErrorKind, message is non-empty",
+    "pre": "",
     "post": "returns McpToolError with Internal kind",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-mcp",
@@ -2635,9 +2525,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/server.rs",
     "line": 361,
     "req_id": "MCP-040",
-    "pre": "kind is a valid McpErrorKind, message is non-empty",
+    "pre": "",
     "post": "returns McpToolError with NotFound kind",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-mcp",
@@ -2805,9 +2695,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-mcp/src/git_cas/gix_adapter.rs",
     "line": 106,
     "req_id": "MCP-024",
-    "pre": "base_path is a valid directory path (created if missing)",
+    "pre": "",
     "post": "returns GixCasAdapter at resolved CAS home path",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-services",
@@ -2954,7 +2844,7 @@
     "function": "compose",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/compose.rs",
     "line": 165,
-    "req_id": "P3-svc-compose-004",
+    "req_id": "P3-svc-compose-095",
     "pre": "request.db_path must point to a valid database; request.prompt must be non-empty; request.cognition must have valid embedding config",
     "post": "returns ComposeResult with generated_prose, exemplar_count, and optional CentroidValidation; Err on DB open failure, embedding failure, or inference failure",
     "flags": ""
@@ -4015,9 +3905,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/kanban.rs",
     "line": 51,
     "req_id": "KAN-SVC-001b",
-    "pre": "store must have the triples table initialized",
-    "post": "returns a KanbanService ready for use",
-    "flags": ""
+    "pre": "",
+    "post": "",
+    "flags": "NO_PRE NO_POST"
   },
   {
     "crate_name": "hkask-services",
@@ -4186,8 +4076,8 @@
     "line": 839,
     "req_id": "KAN-SVC-031",
     "pre": "",
-    "post": "comment is appended to the task's comment thread",
-    "flags": "NO_PRE"
+    "post": "",
+    "flags": "NO_PRE NO_POST"
   },
   {
     "crate_name": "hkask-services",
@@ -4205,9 +4095,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/kanban.rs",
     "line": 868,
     "req_id": "KAN-SVC-033",
-    "pre": "task_id is valid; path is a non-empty file path or URL",
-    "post": "path is appended to the task's deliverable list",
-    "flags": ""
+    "pre": "",
+    "post": "",
+    "flags": "NO_PRE NO_POST"
   },
   {
     "crate_name": "hkask-services",
@@ -4634,7 +4524,7 @@
     "function": "resolve_port",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/inference.rs",
     "line": 118,
-    "req_id": "P9-svc-inference-svc-inf-003",
+    "req_id": "P9-svc-inference-229",
     "pre": "ctx must have valid inference_config; model must be non-empty",
     "post": "returns Arc<dyn InferencePort> — shared port if model matches default, else fresh InferenceRouter; Err on connection failure",
     "flags": ""
@@ -4644,7 +4534,7 @@
     "function": "list_models",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/inference.rs",
     "line": 141,
-    "req_id": "P9-svc-inference-svc-inf-004",
+    "req_id": "P9-svc-inference-230",
     "pre": "ctx must have valid inference_config",
     "post": "returns Vec<ModelInfo> from all configured providers; empty Vec if none",
     "flags": ""
@@ -4654,7 +4544,7 @@
     "function": "search_models",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/inference.rs",
     "line": 154,
-    "req_id": "P9-svc-inference-svc-inf-005",
+    "req_id": "P9-svc-inference-231",
     "pre": "ctx must have valid inference_config; query must be non-empty",
     "post": "returns Vec<ModelInfo> matching query; empty Vec if no matches",
     "flags": ""
@@ -4734,7 +4624,7 @@
     "function": "recall_recent_turns",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/chat.rs",
     "line": 663,
-    "req_id": "P4-svc-chat-ocap-history",
+    "req_id": "P3-svc-chat-239",
     "pre": "episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0",
     "post": "returns Some(String) of formatted recent turns; None if no episodes or recall fails",
     "flags": ""
@@ -4791,16 +4681,6 @@
   },
   {
     "crate_name": "hkask-services",
-    "function": "new",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/skills.rs",
-    "line": 35,
-    "req_id": "P5-svc-skills-096",
-    "pre": "registry and skill_index are valid; project_root points to hKask root",
-    "post": "returns an auditor configured for both layers",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-services",
     "function": "audit_all",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/skills.rs",
     "line": 55,
@@ -4825,9 +4705,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/skills.rs",
     "line": 91,
     "req_id": "P5-svc-skills-099",
-    "pre": "name is non-empty",
+    "pre": "",
     "post": "returns a JSON string representation of the report",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-services",
@@ -4994,7 +4874,7 @@
     "function": "capability_checker",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/context.rs",
     "line": 351,
-    "req_id": "P4",
+    "req_id": "P3-svc-context-256",
     "pre": "self must be fully built",
     "post": "returns &Arc<CapabilityChecker>",
     "flags": ""
@@ -5064,7 +4944,7 @@
     "function": "sovereignty",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-services/src/context.rs",
     "line": 421,
-    "req_id": "P1",
+    "req_id": "P3-svc-context-263",
     "pre": "self must be fully built",
     "post": "returns SovereigntyService wrapping the consent manager",
     "flags": ""
@@ -5565,9 +5445,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/contract_validator.rs",
     "line": 62,
     "req_id": "P3-tpl-contract-validator-with-mode",
-    "pre": "hlexicon is a valid HLexicon",
+    "pre": "",
     "post": "returns Self with mode updated (builder pattern)",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-templates",
@@ -5605,9 +5485,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/prompt_strategy.rs",
     "line": 58,
     "req_id": "P3-tpl-prompt-strategy-name",
-    "pre": "input is non-empty",
+    "pre": "",
     "post": "returns lowercase strategy name",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-templates",
@@ -5645,9 +5525,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/lexicon.rs",
     "line": 99,
     "req_id": "P3-tpl-load-hlexicon-default",
-    "pre": "path points to a valid hlexicon-workspace YAML file",
+    "pre": "",
     "post": "respects HKASK_TEMPLATES_PATH env var for path resolution",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-templates",
@@ -5835,9 +5715,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/registry.rs",
     "line": 76,
     "req_id": "P3-tpl-registry-reload",
-    "pre": "lexicon is a valid HLexicon",
+    "pre": "",
     "post": "templates cache cleared and reloaded from bootstrap",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-templates",
@@ -5875,9 +5755,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/registry.rs",
     "line": 203,
     "req_id": "P3-tpl-registry-count",
-    "pre": "id is non-empty",
+    "pre": "",
     "post": "returns count of templates in registry",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-templates",
@@ -5975,9 +5855,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/registry.rs",
     "line": 317,
     "req_id": "P3-tpl-registry-list-bundles",
-    "pre": "id is non-empty",
+    "pre": "",
     "post": "returns Vec<&BundleManifest> with all registered bundles",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-templates",
@@ -6965,9 +6845,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/nu_event_store.rs",
     "line": 210,
     "req_id": "P3-sto-nu-event-algedonic-query",
-    "pre": "key is non-empty",
+    "pre": "",
     "post": "returns Vec of algedonic signal events",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-storage",
@@ -7045,9 +6925,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/escalation.rs",
     "line": 303,
     "req_id": "P3-sto-escalation-stats",
-    "pre": "id is non-empty, resolved_by is non-empty",
+    "pre": "",
     "post": "returns EscalationStats with counts by status",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-storage",
@@ -7065,9 +6945,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/escalation.rs",
     "line": 362,
     "req_id": "P3-sto-escalation-summary-text",
-    "pre": "domain is non-empty, threshold > 0",
+    "pre": "",
     "post": "returns summary string with counts and threshold info",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-storage",
@@ -7085,9 +6965,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/triples.rs",
     "line": 61,
     "req_id": "P3-sto-triple-with-confidence",
-    "pre": "entity and attribute are non-empty, owner_webid is valid",
+    "pre": "",
     "post": "returns Self with confidence set (builder pattern)",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-storage",
@@ -7385,9 +7265,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/wallet_store.rs",
     "line": 167,
     "req_id": "P3-sto-wallet-list-ids",
-    "pre": "wallet_id is valid",
+    "pre": "",
     "post": "returns Vec of all WalletId",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-storage",
@@ -7654,16 +7534,6 @@
     "function": "parse_str",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/spec_types.rs",
     "line": 117,
-    "req_id": "P8-sto-spec-category-parse",
-    "pre": "",
-    "post": "returns Some(SpecCategory) if valid, None otherwise",
-    "flags": "NO_PRE"
-  },
-  {
-    "crate_name": "hkask-storage",
-    "function": "all",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/spec_types.rs",
-    "line": 128,
     "req_id": "P8-sto-spec-category-parse",
     "pre": "",
     "post": "returns Some(SpecCategory) if valid, None otherwise",
@@ -8325,9 +8195,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/agent_registry.rs",
     "line": 263,
     "req_id": "P3-sto-agent-registry-profile-get",
-    "pre": "profile has valid fields",
+    "pre": "",
     "post": "returns Some(profile) if exists, None otherwise",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-storage",
@@ -8415,9 +8285,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-storage/src/goals.rs",
     "line": 112,
     "req_id": "P3-sto-goal-repo-telemetry",
-    "pre": "conn is a valid SQLite connection",
+    "pre": "",
     "post": "returns Self with telemetry sink configured",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-storage",
@@ -9265,9 +9135,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/visibility.rs",
     "line": 137,
     "req_id": "TYP-129",
-    "pre": "owner is valid",
+    "pre": "",
     "post": "returns AccessControl with Public visibility, no perspective",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -9335,9 +9205,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/visibility.rs",
     "line": 253,
     "req_id": "TYP-136",
-    "pre": "value in [0.0, 1.0]",
+    "pre": "",
     "post": "returns Confidence(1.0)",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -9465,9 +9335,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/event.rs",
     "line": 191,
     "req_id": "TYP-172",
-    "pre": "namespace is non-empty",
+    "pre": "",
     "post": "returns Some(SpanNamespace) if valid, None otherwise",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -9514,16 +9384,6 @@
     "function": "new",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/event.rs",
     "line": 345,
-    "req_id": "TYP-173",
-    "pre": "namespace is valid, path is non-empty",
-    "post": "returns Span",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-types",
-    "function": "as_str",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/event.rs",
-    "line": 354,
     "req_id": "TYP-173",
     "pre": "namespace is valid, path is non-empty",
     "post": "returns Span",
@@ -9595,9 +9455,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/goal.rs",
     "line": 156,
     "req_id": "TYP-163",
-    "pre": "goal_id is valid, description is non-empty",
+    "pre": "",
     "post": "satisfied set to true",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -9841,16 +9701,6 @@
   },
   {
     "crate_name": "hkask-types",
-    "function": "with_wip_limit",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/kanban.rs",
-    "line": 184,
-    "req_id": "KAN-005",
-    "pre": "name is non-empty; status is valid; position is >= 0",
-    "post": "returns a new ColumnDef with a random ColumnId, no WIP limit",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-types",
     "function": "new",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/kanban.rs",
     "line": 208,
@@ -9985,9 +9835,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/kanban.rs",
     "line": 427,
     "req_id": "KAN-016b",
-    "pre": "self is valid; assignee is a valid WebID",
-    "post": "returns self with assignee set",
-    "flags": ""
+    "pre": "",
+    "post": "",
+    "flags": "NO_PRE NO_POST"
   },
   {
     "crate_name": "hkask-types",
@@ -9995,9 +9845,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/kanban.rs",
     "line": 434,
     "req_id": "KAN-016c",
-    "pre": "self is valid; assignee is a valid WebID",
-    "post": "returns self with assignee set",
-    "flags": ""
+    "pre": "",
+    "post": "",
+    "flags": "NO_PRE NO_POST"
   },
   {
     "crate_name": "hkask-types",
@@ -10095,9 +9945,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/kanban.rs",
     "line": 622,
     "req_id": "KAN-021b",
-    "pre": "assignee is a valid WebID",
-    "post": "returns a filter matching only tasks assigned to the given agent",
-    "flags": ""
+    "pre": "",
+    "post": "",
+    "flags": "NO_PRE NO_POST"
   },
   {
     "crate_name": "hkask-types",
@@ -10165,9 +10015,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/kanban.rs",
     "line": 922,
     "req_id": "KAN-031",
-    "pre": "task_id is valid",
-    "post": "returns a SpawnSpec with standard delegation defaults",
-    "flags": ""
+    "pre": "",
+    "post": "",
+    "flags": "NO_PRE NO_POST"
   },
   {
     "crate_name": "hkask-types",
@@ -10495,9 +10345,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/lexicon.rs",
     "line": 182,
     "req_id": "TYP-221",
-    "pre": "cat is a valid MdsCategory variant",
+    "pre": "",
     "post": "returns an empty HLexicon",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -10545,9 +10395,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/lexicon.rs",
     "line": 222,
     "req_id": "TYP-226",
-    "pre": "terms is a slice of String keys to validate",
+    "pre": "",
     "post": "returns the number of terms in the lexicon",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -10555,9 +10405,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/lexicon.rs",
     "line": 228,
     "req_id": "TYP-227",
-    "pre": "terms is a slice of String keys to validate",
+    "pre": "",
     "post": "returns true if the lexicon contains no terms; false otherwise",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -10655,9 +10505,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/bundle/manifest.rs",
     "line": 280,
     "req_id": "TYP-237",
-    "pre": "phase is a valid CascadePhase variant",
+    "pre": "",
     "post": "returns Vec<String> of all skill ids in the bundle",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -11325,9 +11175,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-types/src/sovereignty.rs",
     "line": 277,
     "req_id": "TYP-153",
-    "pre": "category is valid",
+    "pre": "",
     "post": "returns true (always required under Magna Carta)",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-types",
@@ -12915,9 +12765,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-inference/src/config.rs",
     "line": 109,
     "req_id": "P9-inf-provider-as-str",
-    "pre": "model is non-empty",
+    "pre": "",
     "post": "returns \"OM\", \"DI\", \"FA\", \"TG\", \"RP\", or \"BT\"",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-inference",
@@ -13471,26 +13321,6 @@
   },
   {
     "crate_name": "hkask-wallet",
-    "function": "ensure_wallet",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-wallet/src/manager.rs",
-    "line": 250,
-    "req_id": "P9-wallet-mgr-api-key-get",
-    "pre": "key_id is a valid ApiKeyId",
-    "post": "returns Ok(None) if key doesn't exist or is revoked",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-wallet",
-    "function": "get_transactions",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-wallet/src/manager.rs",
-    "line": 255,
-    "req_id": "P9-wallet-mgr-api-key-get",
-    "pre": "key_id is a valid ApiKeyId",
-    "post": "returns Ok(None) if key doesn't exist or is revoked",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-wallet",
     "function": "gas_to_rjoules",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-wallet/src/manager.rs",
     "line": 821,
@@ -13515,9 +13345,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-wallet/src/manager.rs",
     "line": 846,
     "req_id": "P9-wallet-mgr-gas-per-rjoule",
-    "pre": "rj is a non-negative RJoule",
+    "pre": "",
     "post": "returns the manager's current gas_per_rjoule rate",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-wallet",
@@ -13865,9 +13695,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-test-harness/src/lib.rs",
     "line": 346,
     "req_id": "HARN-032",
-    "pre": "event is a valid NuEvent",
+    "pre": "",
     "post": "if duration >= 5s, homeostatic restored, throttled tools cleared, positive signal appended",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-test-harness",
@@ -13895,9 +13725,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-test-harness/src/lib.rs",
     "line": 387,
     "req_id": "HARN-035",
-    "pre": "tool_name is non-empty",
+    "pre": "",
     "post": "returns true iff homeostatic flag is true",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-test-harness",
@@ -13963,7 +13793,7 @@
     "crate_name": "hkask-test-harness",
     "function": "discover_uncontracted_functions",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-test-harness/src/test_runner.rs",
-    "line": 258,
+    "line": 261,
     "req_id": "HARN-043",
     "pre": "workspace_root exists and contains crates/<crate_name>/src/",
     "post": "returns ContractAudit with counts and uncontracted function list",
@@ -13973,7 +13803,7 @@
     "crate_name": "hkask-test-harness",
     "function": "inventory_contracts",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-test-harness/src/test_runner.rs",
-    "line": 342,
+    "line": 345,
     "req_id": "HARN-044",
     "pre": "workspace_root exists and contains crates/<crate_name>/src/",
     "post": "returns Vec of ContractEntry with REQ tag, pre/post, and quality flags",
@@ -14025,9 +13855,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-test-harness/src/mocks.rs",
     "line": 101,
     "req_id": "HARN-005",
-    "pre": "model is non-empty",
+    "pre": "",
     "post": "error_override set — subsequent generate() calls return Err",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-test-harness",
@@ -14115,9 +13945,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-communication/src/matrix.rs",
     "line": 40,
     "req_id": "COMM-023",
-    "pre": "id is a valid Matrix room ID (e.g., \"!abc123:localhost\")",
+    "pre": "",
     "post": "returns &str of the inner room ID",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-communication",
@@ -14135,9 +13965,9 @@
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-communication/src/matrix.rs",
     "line": 63,
     "req_id": "COMM-025",
-    "pre": "id is a valid Matrix user ID (e.g., \"@agent:localhost\")",
+    "pre": "",
     "post": "returns &str of the inner user ID",
-    "flags": ""
+    "flags": "NO_PRE"
   },
   {
     "crate_name": "hkask-communication",

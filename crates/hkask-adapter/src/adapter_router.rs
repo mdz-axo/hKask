@@ -37,12 +37,16 @@ use uuid::Uuid;
 /// Each provider backend handles the actual HTTP API calls to provision
 /// endpoints, run inference, and tear down. This is the trait boundary
 /// for adding new providers (P7 — Evolutionary Architecture).
+#[async_trait::async_trait]
 trait AdapterProviderBackend: Send + Sync {
     /// Provision a new endpoint for adapter inference.
-    fn provision_endpoint(&self, adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError>;
+    async fn provision_endpoint(
+        &self,
+        adapter: &TrainedLoRAAdapter,
+    ) -> Result<String, AdapterError>;
 
     /// Run inference against a provisioned endpoint.
-    fn infer(
+    async fn infer(
         &self,
         endpoint_url: &str,
         prompt: &str,
@@ -51,7 +55,7 @@ trait AdapterProviderBackend: Send + Sync {
     ) -> Result<InferenceResult, AdapterError>;
 
     /// Tear down a provisioned endpoint.
-    fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError>;
+    async fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError>;
 
     /// Upload adapter weights to the provider.
     ///
@@ -59,7 +63,7 @@ trait AdapterProviderBackend: Send + Sync {
     /// For Together AI, this calls the adapter upload API and returns the model name.
     /// For vLLM-based providers (Runpod), adapters are loaded at server start via
     /// --lora-modules, so upload is a no-op if the adapter is already accessible.
-    fn upload_adapter(
+    async fn upload_adapter(
         &self,
         adapter: &TrainedLoRAAdapter,
         config: &AdapterConfig,
@@ -88,7 +92,7 @@ struct TogetherAdapterBackend {
     capability: ProviderCapability,
     api_key: String,
     #[allow(dead_code)]
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
 }
 
 impl TogetherAdapterBackend {
@@ -98,12 +102,12 @@ impl TogetherAdapterBackend {
             cost_model: CostModel::together(),
             capability: ProviderCapability::together(),
             api_key,
-            client: reqwest::blocking::Client::new(),
+            client: reqwest::Client::new(),
         }
     }
 
     /// Poll Together AI fine-tune job until completed, then return model_name.
-    fn poll_until_complete(&self, job_id: &str) -> Result<String, AdapterError> {
+    async fn poll_until_complete(&self, job_id: &str) -> Result<String, AdapterError> {
         let max_attempts = 30;
         for attempt in 1..=max_attempts {
             let response = self
@@ -111,19 +115,20 @@ impl TogetherAdapterBackend {
                 .get(format!("https://api.together.ai/v1/jobs/{}", job_id))
                 .header("Authorization", format!("Bearer {}", self.api_key))
                 .send()
+                .await
                 .map_err(|e| {
                     AdapterError::Internal(format!("Together AI poll request failed: {e}"))
                 })?;
 
             let status_code = response.status();
             if !status_code.is_success() {
-                let error_body = response.text().unwrap_or_default();
+                let error_body = response.text().await.unwrap_or_default();
                 return Err(AdapterError::Internal(format!(
                     "Together AI poll returned {status_code}: {error_body}"
                 )));
             }
 
-            let json: serde_json::Value = response.json().map_err(|e| {
+            let json: serde_json::Value = response.json().await.map_err(|e| {
                 AdapterError::Internal(format!("Failed to parse poll response: {e}"))
             })?;
 
@@ -149,7 +154,7 @@ impl TogetherAdapterBackend {
                         attempt = attempt,
                         "Together AI fine-tune job still pending"
                     );
-                    std::thread::sleep(std::time::Duration::from_secs(10));
+                    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                 }
             }
         }
@@ -159,15 +164,19 @@ impl TogetherAdapterBackend {
     }
 }
 
+#[async_trait::async_trait]
 impl AdapterProviderBackend for TogetherAdapterBackend {
-    fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
+    async fn provision_endpoint(
+        &self,
+        _adapter: &TrainedLoRAAdapter,
+    ) -> Result<String, AdapterError> {
         // Together AI: adapters are deployed as dedicated endpoints after upload.
         // The inference URL is always https://api.together.ai/v1
         // Docs: https://docs.together.ai/docs/dedicated-endpoints/adapter
         Ok("https://api.together.ai/v1".to_string())
     }
 
-    fn infer(
+    async fn infer(
         &self,
         endpoint_url: &str,
         prompt: &str,
@@ -182,9 +191,10 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
             params,
             model_name,
         )
+        .await
     }
 
-    fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
+    async fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
         // Together AI: adapters are deployed as dedicated endpoints.
         // If an endpoint was explicitly created (POST /v1/endpoints), it can be
         // deleted via DELETE /v1/endpoints/{id}. If the adapter was used directly
@@ -204,7 +214,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         Ok(())
     }
 
-    fn upload_adapter(
+    async fn upload_adapter(
         &self,
         adapter: &TrainedLoRAAdapter,
         config: &AdapterConfig,
@@ -258,19 +268,20 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&body)
             .send()
+            .await
             .map_err(|e| {
                 AdapterError::Internal(format!("Together AI upload request failed: {e}"))
             })?;
 
         let status = response.status();
         if !status.is_success() {
-            let error_body = response.text().unwrap_or_default();
+            let error_body = response.text().await.unwrap_or_default();
             return Err(AdapterError::Internal(format!(
                 "Together AI upload returned {status}: {error_body}"
             )));
         }
 
-        let response_json: serde_json::Value = response.json().map_err(|e| {
+        let response_json: serde_json::Value = response.json().await.map_err(|e| {
             AdapterError::Internal(format!("Failed to parse Together AI upload response: {e}"))
         })?;
 
@@ -287,7 +298,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
                 "Together AI upload async — polling for completion"
             );
             // Poll for completion (max 30 attempts, 10s interval = 5 min timeout)
-            let model = self.poll_until_complete(jid)?;
+            let model = self.poll_until_complete(jid).await?;
             tracing::info!(
                 target: "hkask.adapter",
                 job_id = %jid,
@@ -326,7 +337,7 @@ struct RunpodAdapterBackend {
     cost_model: CostModel,
     capability: ProviderCapability,
     api_key: String,
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
 }
 
 impl RunpodAdapterBackend {
@@ -335,13 +346,17 @@ impl RunpodAdapterBackend {
             cost_model: CostModel::runpod(),
             capability: ProviderCapability::runpod(),
             api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
-            client: reqwest::blocking::Client::new(),
+            client: reqwest::Client::new(),
         }
     }
 }
 
+#[async_trait::async_trait]
 impl AdapterProviderBackend for RunpodAdapterBackend {
-    fn provision_endpoint(&self, adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
+    async fn provision_endpoint(
+        &self,
+        adapter: &TrainedLoRAAdapter,
+    ) -> Result<String, AdapterError> {
         if self.api_key.is_empty() {
             return Err(AdapterError::ProviderUnavailable(
                 "RUNPOD_API_KEY not set".into(),
@@ -378,7 +393,7 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         Ok(endpoint_url)
     }
 
-    fn infer(
+    async fn infer(
         &self,
         endpoint_url: &str,
         prompt: &str,
@@ -393,9 +408,10 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             params,
             model_name,
         )
+        .await
     }
 
-    fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
+    async fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
         // Runpod serverless endpoint deletion is console-only per their docs.
         // Docs: https://docs.runpod.io/serverless/endpoints/manage-endpoints#delete-an-endpoint
         // DELETE to API endpoint may work but is not officially documented.
@@ -409,6 +425,7 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             .delete(endpoint_url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
+            .await
         {
             Ok(_) => {
                 tracing::info!(target: "hkask.adapter", endpoint_url = %endpoint_url, "Runpod endpoint teardown requested");
@@ -420,7 +437,7 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         Ok(())
     }
 
-    fn upload_adapter(
+    async fn upload_adapter(
         &self,
         adapter: &TrainedLoRAAdapter,
         _config: &AdapterConfig,
@@ -441,7 +458,7 @@ struct BasetenAdapterBackend {
     cost_model: CostModel,
     capability: ProviderCapability,
     api_key: String,
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
 }
 
 impl BasetenAdapterBackend {
@@ -450,13 +467,17 @@ impl BasetenAdapterBackend {
             cost_model: CostModel::baseten(),
             capability: ProviderCapability::baseten(),
             api_key: std::env::var("BASETEN_API_KEY").unwrap_or_default(),
-            client: reqwest::blocking::Client::new(),
+            client: reqwest::Client::new(),
         }
     }
 }
 
+#[async_trait::async_trait]
 impl AdapterProviderBackend for BasetenAdapterBackend {
-    fn provision_endpoint(&self, adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
+    async fn provision_endpoint(
+        &self,
+        adapter: &TrainedLoRAAdapter,
+    ) -> Result<String, AdapterError> {
         if self.api_key.is_empty() {
             return Err(AdapterError::ProviderUnavailable(
                 "BASETEN_API_KEY not set".into(),
@@ -488,17 +509,18 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
             .header("Authorization", format!("Api-Key {}", self.api_key))
             .json(&body)
             .send()
+            .await
             .map_err(|e| AdapterError::Internal(format!("Baseten API request failed: {e}")))?;
 
         let status = response.status();
         if !status.is_success() {
-            let error_body = response.text().unwrap_or_default();
+            let error_body = response.text().await.unwrap_or_default();
             return Err(AdapterError::Internal(format!(
                 "Baseten API returned {status}: {error_body}"
             )));
         }
 
-        let response_json: serde_json::Value = response.json().map_err(|e| {
+        let response_json: serde_json::Value = response.json().await.map_err(|e| {
             AdapterError::Internal(format!("Failed to parse Baseten response: {e}"))
         })?;
 
@@ -515,7 +537,7 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
         Ok(endpoint_url)
     }
 
-    fn infer(
+    async fn infer(
         &self,
         endpoint_url: &str,
         prompt: &str,
@@ -530,9 +552,10 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
             params,
             model_name,
         )
+        .await
     }
 
-    fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
+    async fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
         if self.api_key.is_empty() {
             return Err(AdapterError::ProviderUnavailable(
                 "BASETEN_API_KEY not set".into(),
@@ -542,12 +565,13 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
             .delete(endpoint_url)
             .header("Authorization", format!("Api-Key {}", self.api_key))
             .send()
+            .await
             .map_err(|e| AdapterError::Internal(format!("Baseten teardown failed: {e}")))?;
         tracing::info!(target: "hkask.adapter", endpoint_url = %endpoint_url, "Baseten endpoint torn down");
         Ok(())
     }
 
-    fn upload_adapter(
+    async fn upload_adapter(
         &self,
         adapter: &TrainedLoRAAdapter,
         _config: &AdapterConfig,
@@ -566,8 +590,8 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
 
 // ── Shared OpenAI-compatible inference helper ────────────────────────────
 
-fn openai_compatible_infer(
-    client: &reqwest::blocking::Client,
+async fn openai_compatible_infer(
+    client: &reqwest::Client,
     api_key: &str,
     endpoint_url: &str,
     prompt: &str,
@@ -589,16 +613,18 @@ fn openai_compatible_infer(
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&body)
         .send()
+        .await
         .map_err(|e| AdapterError::Internal(format!("Inference request failed: {e}")))?;
     let status = response.status();
     if !status.is_success() {
-        let error_body = response.text().unwrap_or_default();
+        let error_body = response.text().await.unwrap_or_default();
         return Err(AdapterError::Internal(format!(
             "Inference returned {status}: {error_body}"
         )));
     }
     let response_json: serde_json::Value = response
         .json()
+        .await
         .map_err(|e| AdapterError::Internal(format!("Failed to parse inference response: {e}")))?;
     let content = response_json["choices"][0]["message"]["content"]
         .as_str()
@@ -947,7 +973,7 @@ impl AdapterPort for AdapterRouter {
         }
     }
 
-    fn estimate_composition(
+    async fn estimate_composition(
         &self,
         adapter_id: Uuid,
         provider: ProviderId,
@@ -983,7 +1009,7 @@ impl AdapterPort for AdapterRouter {
         })
     }
 
-    fn create_endpoint(
+    async fn create_endpoint(
         &self,
         adapter_id: Uuid,
         provider: ProviderId,
@@ -1015,13 +1041,14 @@ impl AdapterPort for AdapterRouter {
         {
             backend
                 .upload_adapter(&adapter, &adapter_config)
+                .await
                 .unwrap_or_else(|_| format!("adapter-{}", adapter.id))
         } else {
             format!("adapter-{}", adapter.id)
         };
 
         // 5. Provision the endpoint via the provider
-        let endpoint_url = backend.provision_endpoint(&adapter)?;
+        let endpoint_url = backend.provision_endpoint(&adapter).await?;
 
         // 6. Create lifecycle
         let cost_model = backend.cost_model();
@@ -1092,7 +1119,7 @@ impl AdapterPort for AdapterRouter {
         })
     }
 
-    fn infer(
+    async fn infer(
         &self,
         endpoint_id: Uuid,
         prompt: &str,
@@ -1123,9 +1150,10 @@ impl AdapterPort for AdapterRouter {
         record
             .backend
             .infer(&record.handle.endpoint_url, prompt, &params, &model_name)
+            .await
     }
 
-    fn teardown_endpoint(
+    async fn teardown_endpoint(
         &self,
         endpoint_id: Uuid,
         _token: &DelegationToken,
@@ -1149,7 +1177,7 @@ impl AdapterPort for AdapterRouter {
         }
 
         // Call provider teardown
-        record.backend.teardown(&record.handle.endpoint_url)?;
+        record.backend.teardown(&record.handle.endpoint_url).await?;
 
         // Transition to Terminated
         {
@@ -1224,7 +1252,8 @@ impl EndpointGuard {
                 WebID::from_persona(b"endpoint-guard"),
                 &derive_signing_key(b"endpoint-guard-secret"),
             );
-            router.teardown_endpoint(self.endpoint_id, &token)
+            tokio::runtime::Handle::current()
+                .block_on(router.teardown_endpoint(self.endpoint_id, &token))
         } else {
             Ok(()) // Router already dropped
         }
@@ -1241,22 +1270,27 @@ impl Drop for EndpointGuard {
         if !self.consumed
             && let Some(router) = self.router.upgrade()
         {
-            let token = DelegationToken::new(
-                DelegationResource::Tool,
-                "adapter:teardown".into(),
-                DelegationAction::Execute,
-                WebID::from_persona(b"endpoint-guard"),
-                WebID::from_persona(b"endpoint-guard"),
-                &derive_signing_key(b"endpoint-guard-secret"),
-            );
-            if let Err(e) = router.teardown_endpoint(self.endpoint_id, &token) {
-                tracing::warn!(
-                    target: "hkask.adapter",
-                    endpoint_id = %self.endpoint_id,
-                    error = %e,
-                    "EndpointGuard: teardown on drop failed"
+            let endpoint_id = self.endpoint_id;
+            // Fire-and-forget: drop cannot be async, so spawn a task.
+            // The router and its Arc hold resources until the task completes.
+            tokio::task::spawn(async move {
+                let token = DelegationToken::new(
+                    DelegationResource::Tool,
+                    "adapter:teardown".into(),
+                    DelegationAction::Execute,
+                    WebID::from_persona(b"endpoint-guard"),
+                    WebID::from_persona(b"endpoint-guard"),
+                    &derive_signing_key(b"endpoint-guard-secret"),
                 );
-            }
+                if let Err(e) = router.teardown_endpoint(endpoint_id, &token).await {
+                    tracing::warn!(
+                        target: "hkask.adapter",
+                        endpoint_id = %endpoint_id,
+                        error = %e,
+                        "EndpointGuard: teardown on drop failed"
+                    );
+                }
+            });
         }
     }
 }
