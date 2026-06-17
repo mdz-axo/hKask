@@ -280,10 +280,10 @@ impl TraceType {
 /// when retraining. The new adapter must improve on at least 2 of 3 metrics
 /// (loss, perplexity, or eval accuracy) to be promoted.
 #[derive(Debug, Clone, Serialize)]
-struct AbBaseline {
-    previous_version: u32,
-    previous_loss: f32,
-    previous_perplexity: f32,
+pub struct AbBaseline {
+    pub previous_version: u32,
+    pub previous_loss: f32,
+    pub previous_perplexity: f32,
 }
 
 // ── Request structs ──────────────────────────────────────────────────────
@@ -857,6 +857,22 @@ impl TrainingServer {
             }
         }
 
+        // Resolve model provenance before submitting — catches gated/invalid models early
+        let resolver = hkask_mcp_training::huggingface::LocalModelResolver;
+        let provenance = hkask_mcp_training::huggingface::ModelResolver::resolve(
+            &resolver, &base_model,
+        );
+        if let Ok(ref p) = provenance {            tracing::info!(
+                target: "cns.training.provenance.resolved",
+                model_id = %p.model_id,
+                architecture = %p.architecture,
+                license = ?p.license,
+                lora_compatible = p.lora_compatible,
+                is_gated = p.is_gated,
+                "Model provenance resolved"
+            );
+        }
+
         let job = TrainingJob {
             id: uuid::Uuid::new_v4().to_string(),
             dataset_path: normalized_path.clone(),
@@ -1064,10 +1080,10 @@ impl TrainingServer {
                             .await
                         {
                             // Don't compare against self
-                            if prev.id != adapter.id {
-                                if let (Some(new_loss), Some(prev_loss)) =
+                            if prev.id != adapter.id
+                                && let (Some(new_loss), Some(prev_loss)) =
                                     (current_loss, prev.metrics.as_ref().and_then(|m| m.loss))
-                                {
+                            {
                                     let improved = new_loss < prev_loss;
                                     result["ab_comparison"] = json!({
                                         "skill_name": adapter.skill_name,
@@ -1089,7 +1105,6 @@ impl TrainingServer {
                                         "A/B comparison completed"
                                     );
                                 }
-                            }
                         }
                     }
                 }
@@ -1408,6 +1423,23 @@ impl TrainingServer {
         let detected_type = trace_type.unwrap_or_else(|| TraceType::detect(&skill_text));
         let trace_type_guidance = trace_type_prompt(detected_type);
 
+        // Contrastive mode: generate pairs of correct + incorrect traces
+        let contrastive_guidance = if contrastive {
+            "\nCONTRASTIVE MODE: Generate PAIRS of traces for the same situation.\n\n\
+             For each situation, produce TWO assistant responses:\n\
+             1. A CORRECT trace following the skill's methodology precisely.\n\n\
+             2. An INCORRECT trace that makes a subtle but real error — wrong classification,\n\
+                skipped step, misapplied rule, or plausible-sounding but wrong conclusion.\n\n\
+             The incorrect trace must be believable — a novice might make this mistake.\n\n\
+             Output format: each example has a 'chosen' (correct) and 'rejected' (incorrect) field\n\
+             alongside the standard 'messages' field. The 'rejected' trace goes in a separate\n\
+             assistant message with the same user situation.\n\
+             This trains judgment — the model learns to prefer correct over incorrect reasoning.\n\
+            "
+        } else {
+            ""
+        };
+
         tracing::info!(
             target: "cns.training.trace.type",
             skill = %skill_name,
@@ -1451,7 +1483,8 @@ impl TrainingServer {
             let prompt = format!(
                 "You are generating training data for fine-tuning an AI agent on the '{skill_name}' skill{chunk_label}.\n\n\
                      SKILL DOCUMENT{chunk_label}:\n{chunk_text}\n\n\
-                     {trace_type_guidance}\n\n\
+                     {trace_type_guidance}\n\
+                     {contrastive_guidance}\n\
                      Generate {traces_per_chunk} training examples in ChatML JSONL format. \
                      Each example must be a DECOMPOSITION TRACE: an ill-formed situation that requires \
                      the skill's process to transform it into answerable sub-questions, then synthesize a resolution.\n\n\
@@ -1553,6 +1586,8 @@ impl TrainingServer {
                     "skill_name": skill_name,
                     "traces_requested": count,
                     "traces_generated": total_valid,
+                    "trace_type": format!("{:?}", detected_type).to_lowercase(),
+                    "contrastive": contrastive,
                     "parse_errors": total_parse_errors,
                     "chunks_processed": chunks.len(),
                     "output_path": output_path,

@@ -180,6 +180,8 @@ These endpoints use direct `.route()` registration without `#[utoipa::path]` ann
 
 MCP tools are discovered dynamically at runtime — the OpenAPI spec does not enumerate individual tools. New servers (e.g., `hkask-mcp-replica` with 6 style replication tools) appear automatically in `GET /api/mcp/tools` when started.
 
+**Training surface is MCP-only.** The `hkask-mcp-training` server exposes 17 MCP tools for skill training (generate traces, submit jobs, sweep parameters, curate feedback, retrain with A/B evaluation, etc.) but has no REST API route. This is by design: training is a headless operation triggered by the Curator or CLI, not by HTTP clients. The `hkask-api` crate has no training route module. Training tools are accessible via `POST /api/mcp/invoke` with `server: "training"` and `tool: "training_submit"` etc.
+
 ## 3. Diagram
 
 ```mermaid

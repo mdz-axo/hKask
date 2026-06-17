@@ -830,3 +830,43 @@ These are set in the `training_submit` request, separate from inference paramete
 ---
 
 *This document is a living architecture record. Update as the training pipeline evolves.*
+
+## 9. Training Best Practices & References
+
+### Axolotl
+
+| Resource | URL |
+|----------|-----|
+| Configuration reference | <https://axolotl-ai-cloud.github.io/axolotl/docs/config> |
+| LoRA fine-tuning guide | <https://axolotl-ai-cloud.github.io/axolotl/docs/lora> |
+| QLoRA configuration | <https://axolotl-ai-cloud.github.io/axolotl/docs/qlora> |
+| Multi-GPU / DeepSpeed | <https://axolotl-ai-cloud.github.io/axolotl/docs/multi-gpu> |
+| Example configs | <https://github.com/axolotl-ai-cloud/axolotl/tree/main/examples> |
+
+### Unsloth
+
+| Resource | URL |
+|----------|-----|
+| GitHub repository | <https://github.com/unslothai/unsloth> |
+| Colab notebook (LoRA) | <https://colab.research.google.com/github/unslothai/notebooks/blob/main/unsloth_notebooks/LoRA_finetuning.ipynb> |
+| Documentation | <https://docs.unsloth.ai> |
+| FastLanguageModel API | <https://docs.unsloth.ai/basics/lora-parameters> |
+
+### LoRA / PEFT Fundamentals
+
+| Resource | URL |
+|----------|-----|
+| LoRA paper (Hu et al., 2021) | <https://arxiv.org/abs/2106.09685> |
+| QLoRA paper (Dettmers et al., 2023) | <https://arxiv.org/abs/2305.14314> |
+| PEFT library docs | <https://huggingface.co/docs/peft> |
+| LoRA hyperparameter guide | <https://huggingface.co/docs/peft/en/developer_guides/lora> |
+| DPO paper (Rafailov et al., 2023) | <https://arxiv.org/abs/2305.18290> |
+
+### HuggingFace
+
+| Resource | URL |
+|----------|-----|
+| Model Hub | <https://huggingface.co/models> |
+| TRL (Transformer Reinforcement Learning) | <https://huggingface.co/docs/trl> |
+| SFTTrainer documentation | <https://huggingface.co/docs/trl/en/sft_trainer> |
+| Datasets library | <https://huggingface.co/docs/datasets> |
