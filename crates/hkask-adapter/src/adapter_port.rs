@@ -106,6 +106,8 @@ pub struct InferenceEndpointHandle {
     pub endpoint_id: Uuid,
     /// Provider-assigned endpoint URL for inference
     pub endpoint_url: String,
+    /// The model name returned by the provider after adapter upload
+    pub model_name: String,
     /// Which provider hosts this endpoint
     pub provider: ProviderId,
     /// The expertise this endpoint serves
@@ -237,6 +239,7 @@ mod tests {
         let handle = InferenceEndpointHandle {
             endpoint_id: Uuid::new_v4(),
             endpoint_url: "https://example.com/v1".into(),
+            model_name: "test-model".into(),
             provider: ProviderId::Together,
             expertise_name: "solidity-audit".into(),
             lifecycle: Arc::new(Mutex::new(lc_mut)),
@@ -256,6 +259,7 @@ mod tests {
         let handle = InferenceEndpointHandle {
             endpoint_id: Uuid::new_v4(),
             endpoint_url: "https://example.com/v1".into(),
+            model_name: "test-model".into(),
             provider: ProviderId::Together,
             expertise_name: "solidity-audit".into(),
             lifecycle: Arc::new(Mutex::new(lc)),

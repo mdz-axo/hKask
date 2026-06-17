@@ -32,7 +32,7 @@ pub use adapter_port::{
     AdapterError, AdapterPort, InferenceEndpointHandle, ProviderSelection, SingleCandidate,
 };
 pub use adapter_router::{AdapterRouter, EndpointGuard};
-pub use adapter_store::{AdapterStore, AdapterStoreError, TrainedLoRAAdapter};
+pub use adapter_store::{AdapterSource, AdapterStore, AdapterStoreError, TrainedLoRAAdapter};
 pub use endpoint_lifecycle::{EndpointLifecycle, EndpointPhase, EndpointPhaseError};
 pub use expertise::{Expertise, MdsDomain, TrainingProvenance};
 pub use provider_cost::{CostModel, CostModelError, ProviderCapability, ProviderInfo};

@@ -51,7 +51,10 @@ pub use wallet_gas_calibrator::{
     DEFAULT_WALLET_CALIBRATION_INTERVAL, DEFAULT_WALLET_INITIAL_LOOKBACK, WalletGasCalibrator,
 };
 // allosteric types deleted — MWC sigmoid added zero runtime-observable behavior.
-pub use contract_discipline::{emit_contract_coverage, emit_contract_violated};
+pub use contract_discipline::{
+    ContractBridgeError, create_contract_violation_task, emit_contract_coverage,
+    emit_contract_violated, emit_contract_violated_with_task,
+};
 pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};
 pub use hkask_types::cns::QueueDepth;
 pub use runtime::CnsRuntime;

@@ -4,7 +4,7 @@ use crate::repl::ReplState;
 use hkask_services::KanbanService;
 use hkask_storage::Store;
 use hkask_storage::TripleStore;
-use hkask_types::{ConsentProof, Phase, TaskFilter, TaskSpec};
+use hkask_types::{ConsentProof, Phase, TaskFilter, TaskSpec, SpawnSpec};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -34,7 +34,7 @@ pub(crate) fn handle_kanban(
             println!(
                 "    \x1b[36m/kanban submit <task> <evidence>\x1b[0m  Submit for verification"
             );
-            println!("    \x1b[36m/kanban decompose <project>\x1b[0m     LLM decompose into tasks");
+            println!("    \x1b[36m/kanban decompose <board> <desc>\x1b[0m  Generate decomposition prompt");
             println!(
                 "    \x1b[36m/kanban spawn <task>\x1b[0m            Spawn replicant to execute"
             );
@@ -84,7 +84,22 @@ pub(crate) fn handle_kanban(
                     }
                     Err(e) => println!("  Error: {e}"),
                 },
-                _ => println!("  Usage: /kanban board create|list"),
+                "delete" => {
+                    let board_id = parts.get(1).copied().unwrap_or("");
+                    if board_id.is_empty() {
+                        println!("  Usage: /kanban board delete <board-id>");
+                        return;
+                    }
+                    let bid = match board_id.parse() {
+                        Ok(id) => id,
+                        Err(_) => { println!("  Invalid board ID"); return; }
+                    };
+                    match service.board_delete(bid) {
+                        Ok(count) => println!("  Board deleted ({} tasks removed).", count),
+                        Err(e) => println!("  Error: {e}"),
+                    }
+                },
+                _ => println!("  Usage: /kanban board create|list|delete"),
             }
         }
 

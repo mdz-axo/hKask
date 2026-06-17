@@ -197,11 +197,12 @@ impl AdapterStore {
         let metrics_json =
             serde_json::to_string(&adapter.expertise.training_source.training_metrics)?;
         let manifest_json = serde_json::to_string(&adapter.expertise.capability_manifest)?;
+        let source_json = serde_json::to_string(&adapter.source)?;
 
         conn.execute(
             "INSERT INTO trained_adapters
                 (adapter_id, expertise_name, expertise_domain, capability_manifest_json,
-                 checksum, storage_path, base_model_family, version, huggingface_repo,
+                 checksum, storage_path, base_model_family, version, source_json,
                  owner_webid, training_run_id, training_source, completed_at,
                  training_metrics_json, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
@@ -214,7 +215,7 @@ impl AdapterStore {
                 adapter.storage_path,
                 adapter.base_model_family,
                 adapter.version,
-                adapter.huggingface_repo,
+                source_json,
                 adapter.owner.as_uuid().to_string(),
                 adapter.expertise.training_source.training_run_id,
                 adapter.expertise.training_source.training_source,
@@ -248,7 +249,7 @@ impl AdapterStore {
                     storage_path: row.get(5)?,
                     base_model_family: row.get(6)?,
                     version: row.get(7)?,
-                    huggingface_repo: row.get(8)?,
+                    source_json: row.get(8)?,
                     owner_webid: row.get(9)?,
                     training_run_id: row.get(10)?,
                     training_source: row.get(11)?,
@@ -290,7 +291,7 @@ impl AdapterStore {
                     storage_path: row.get(5)?,
                     base_model_family: row.get(6)?,
                     version: row.get(7)?,
-                    huggingface_repo: row.get(8)?,
+                    source_json: row.get(8)?,
                     owner_webid: row.get(9)?,
                     training_run_id: row.get(10)?,
                     training_source: row.get(11)?,
@@ -329,7 +330,7 @@ impl AdapterStore {
                     storage_path: row.get(5)?,
                     base_model_family: row.get(6)?,
                     version: row.get(7)?,
-                    huggingface_repo: row.get(8)?,
+                    source_json: row.get(8)?,
                     owner_webid: row.get(9)?,
                     training_run_id: row.get(10)?,
                     training_source: row.get(11)?,
@@ -389,6 +390,10 @@ impl AdapterStore {
             .unwrap_or_default();
 
         let base_model = r.base_model_family.clone();
+        let source: AdapterSource =
+            serde_json::from_str(&r.source_json).unwrap_or_else(|_| AdapterSource::HuggingFace {
+                repo: "unknown".into(),
+            });
         let provenance = TrainingProvenance {
             training_run_id: r.training_run_id,
             training_source: r.training_source,
@@ -417,7 +422,7 @@ impl AdapterStore {
             storage_path: r.storage_path,
             base_model_family: base_model,
             version: r.version,
-            huggingface_repo: r.huggingface_repo,
+            source,
             owner: WebID::from_uuid(owner_uuid),
             created_at: r.created_at,
         })
@@ -452,7 +457,9 @@ mod tests {
             storage_path: "/tmp/adapter.bin".into(),
             base_model_family: "llama-3.3-70b".into(),
             version: None,
-            huggingface_repo: None,
+            source: AdapterSource::HuggingFace {
+                repo: "test/adapter".into(),
+            },
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         }

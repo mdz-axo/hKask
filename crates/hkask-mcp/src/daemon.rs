@@ -63,6 +63,13 @@ pub enum DaemonRequest {
         value: serde_json::Value,
         confidence: Option<f64>,
     },
+    /// Dispatch a tool call through the daemon to an MCP server.
+    #[serde(rename = "tool_dispatch")]
+    ToolDispatch {
+        replicant: String,
+        tool: String,
+        input: serde_json::Value,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,6 +94,14 @@ pub enum DaemonResponse {
         stored: bool,
         episodic_id: Option<String>,
         semantic_id: Option<String>,
+    },
+    #[serde(rename = "tool_dispatch_response")]
+    ToolDispatchResponse {
+        ok: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        output: Option<serde_json::Value>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
     },
 }
 
@@ -191,6 +206,21 @@ impl DaemonClient {
         })
         .await
     }
+
+    /// Dispatch a tool call through the daemon to an MCP server.
+    pub async fn tool_dispatch(
+        &self,
+        replicant: &str,
+        tool: &str,
+        input: &serde_json::Value,
+    ) -> std::io::Result<DaemonResponse> {
+        self.send_recv(&DaemonRequest::ToolDispatch {
+            replicant: replicant.to_string(),
+            tool: tool.to_string(),
+            input: input.clone(),
+        })
+        .await
+    }
 }
 
 impl Default for DaemonClient {
@@ -226,6 +256,15 @@ pub trait DaemonHandler: Send + Sync {
         value: &serde_json::Value,
         confidence: Option<f64>,
     ) -> (bool, Option<String>, Option<String>);
+
+    /// Dispatch a tool call to an MCP server.
+    /// Returns (ok, output, error_message).
+    async fn dispatch_tool(
+        &self,
+        replicant: &str,
+        tool: &str,
+        input: &serde_json::Value,
+    ) -> (bool, Option<serde_json::Value>, Option<String>);
 }
 
 /// Unix domain socket listener for the hKask daemon.
@@ -357,6 +396,14 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
                 episodic_id,
                 semantic_id,
             }
+        }
+        DaemonRequest::ToolDispatch {
+            replicant,
+            tool,
+            input,
+        } => {
+            let (ok, output, error) = handler.dispatch_tool(&replicant, &tool, &input).await;
+            DaemonResponse::ToolDispatchResponse { ok, output, error }
         }
     };
 

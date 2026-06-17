@@ -549,18 +549,72 @@ impl KanbanService {
             (None, Some(h)) => format!("Each task should be approximately {h} hours."),
             (None, None) => "Aim for tasks of 2-8 hours each.".to_string(),
         };
-        Ok(format!(
-            "Decompose project into kanban tasks following INVEST criteria and vertical slicing.
+        let prompt = format!(
+            "Decompose this project into kanban tasks.
 
              Project: {project_description}
              Sizing: {sizing_guidance}
 
-             For each task provide: title, description, story_points (int), estimated_hours (float),              labels (list), criteria (list of verifiable acceptance criteria strings),              priority (low|medium|high|critical), dependencies (list of task titles).
-
-             REQUIRED: Include a recomposition strategy with phases, integration order, and final              verification. Return JSON with tasks array and recomposition object.              See kanban-task-decomposition skill manifest for full schema.",
+             Return JSON with a tasks array. Each task: title, description, story_points (int),             estimated_hours (float), labels (array), criteria (array), priority, dependencies.             Include recomposition strategy.",
             project_description = project_description,
             sizing_guidance = sizing_guidance
-        ))
+        );
+        Ok(prompt)
+    }
+
+    /// Populate the board from an LLM decomposition JSON response.
+    ///
+    /// REQ: KAN-SVC-020b
+    /// pre:  board_id is valid; json_output is a JSON string from the LLM
+    /// post: tasks from the JSON are created on the board; returns count and recomposition info
+    pub fn decompose_populate(
+        &self,
+        board_id: BoardId,
+        owner: WebID,
+        json_output: &str,
+    ) -> Result<(usize, Option<String>), KanbanError> {
+        // Verify board exists
+        self.board_get(board_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+
+        // Parse the JSON output
+        let parsed: serde_json::Value = serde_json::from_str(json_output)
+            .map_err(|e| KanbanError::InvalidInput(format!("invalid JSON: {e}")))?;
+
+        let tasks_array = parsed["tasks"].as_array()
+            .ok_or_else(|| KanbanError::InvalidInput("JSON missing 'tasks' array".into()))?;
+
+        let mut created = 0usize;
+        for task_val in tasks_array {
+            let title = task_val["title"].as_str().unwrap_or("Untitled");
+            let description = task_val["description"].as_str().map(|s| s.to_string());
+            let story_points = task_val["story_points"].as_u64().map(|n| n as u32);
+            let estimated_hours = task_val["estimated_hours"].as_f64();
+            let labels: Vec<String> = task_val["labels"].as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default();
+            let criteria: Vec<hkask_types::VerificationCriterion> = task_val["criteria"].as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| hkask_types::VerificationCriterion::new(s.into()))).collect())
+                .unwrap_or_default();
+            let priority = task_val["priority"].as_str()
+                .and_then(|s| hkask_types::Priority::parse_str(s));
+
+            let mut spec = TaskSpec::new(title.into());
+            if let Some(d) = description { spec = spec.with_description(d); }
+            if !criteria.is_empty() { spec = spec.with_criteria(criteria); }
+            if let Some(sp) = story_points { spec = spec.with_story_points(sp); }
+            if let Some(eh) = estimated_hours { spec = spec.with_estimated_hours(eh); }
+            if let Some(p) = priority { spec = spec.with_priority(p); }
+            if !labels.is_empty() { spec = spec.with_labels(labels); }
+
+            self.task_create(board_id, spec, owner)?;
+            created += 1;
+        }
+
+        // Extract recomposition strategy if present
+        let recomposition = parsed["recomposition"]["strategy"].as_str().map(String::from);
+
+        Ok((created, recomposition))
     }
 
     /// Spawn a sub-replicant to execute a task.

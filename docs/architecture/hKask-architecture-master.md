@@ -394,6 +394,86 @@ Concurrent chat+server mode planned for future release (3-6 months).
 
 ---
 
+## ACP Replicant — IDE Agent Presence
+
+**Crate:** `hkask-acp`, **Protocol:** [Agent Client Protocol](https://agentclientprotocol.com) (ACP)
+
+### Summary
+
+hKask agents can present themselves in any ACP-compatible IDE (Zed, VS Code with extensions, JetBrains) via the `hkask-acp` replicant. ACP is an open standard (agentclientprotocol.com) for bidirectional agent↔editor communication — distinct from hKask's internal A2A (Agent-to-Agent) protocol used for inter-agent template dispatch.
+
+The ACP replicant runs as a subprocess spawned by the IDE, communicating via JSON-RPC 2.0 over stdio. It connects to the same daemon socket as MCP servers (`~/.config/hkask/daemon.sock`) for authentication, capability verification, and memory encoding. Inference is routed through hKask's centralized `InferenceRouter`.
+
+### Architecture
+
+```mermaid
+graph TD
+    subgraph "IDE (Zed, VS Code, etc.)"
+        USER["User"]
+        ACP_CLIENT["ACP Client"]
+        USER --> ACP_CLIENT
+    end
+
+    subgraph "hkask-acp (Subprocess)"
+        AGENT["HkaskAcpAgent"]
+        TRANSPORT["StdioTransport<br/>(JSON-RPC 2.0)"]
+        INF["InferenceRouter"]
+        AGENT --> TRANSPORT
+        AGENT --> INF
+    end
+
+    subgraph "hKask System"
+        DL["DaemonListener<br/>(daemon.sock)"]
+        MEM["MemoryStore<br/>(episodic)"]
+    end
+
+    ACP_CLIENT -->|"stdio JSON-RPC"| TRANSPORT
+    AGENT -->|"auth + capability + store_experience"| DL
+    DL --> MEM
+```
+
+### ACP Protocol vs MCP vs A2A
+
+| Protocol | Direction | Purpose | Implementation |
+|----------|-----------|---------|---------------|
+| **ACP** (Agent Client Protocol) | Bidirectional IDE ↔ Agent | Streaming agent presence in editor: session lifecycle, content streaming, tool progress, permission requests, plan communication | `hkask-acp` (JSON-RPC 2.0 over stdio) |
+| **MCP** (Model Context Protocol) | IDE → Server | Tool invocation: request/response tool calls | `hkask-mcp-*` (10 servers) |
+| **A2A** (Agent-to-Agent) | Agent ↔ Agent | Inter-agent template dispatch, memory artifact routing, capability delegation | `hkask-agents::a2a` (A2ARuntime) |
+
+### Prompt Turn Lifecycle
+
+```text
+initialize → session/new → session/prompt → [streaming loop] → stop_reason
+                                              │
+                                              ├─ agent_message_chunk
+                                              ├─ tool_call (pending)
+                                              ├─ tool_call_update (in_progress)
+                                              ├─ tool_call_update (completed)
+                                              └─ usage_update
+```
+
+The replicant streams inference output as `session/update` notifications while the prompt is processing. The final response carries a structured `StopReason` (`end_turn`, `max_tokens`, `cancelled`).
+
+### How It Reuses Existing Infrastructure
+
+| Capability | Reused Component |
+|-----------|-----------------|
+| Identity | `WebID` (same identity across REPL, ACP, and MCP surfaces) |
+| Authentication | `DaemonClient::auth_query()` (P4 Gate 1) |
+| Capability tokens | `verify_startup_gates()` → `A2ARuntime` (P4 Gate 2/3) |
+| Memory | `DaemonClient::store_experience()` → dual episodic/semantic encoding |
+| Inference | `InferenceRouter` (same provider dispatch as REPL) |
+| Observability | CNS spans: `cns.acp.bridge.latency`, `cns.acp.replicant.memory_size`, `cns.acp.ide.connection_state` |
+| Accountability | Every memory triple carries the replicant's `WebID` as `owner` (P12) |
+
+### Key Constraints
+
+1. **P2 Affirmative Consent:** The ACP replicant never initiates without user invocation. Sessions are created by the IDE (user action), not by the replicant.
+2. **1:1 session isolation:** One ACP replicant process = one IDE connection. Concurrent multi-IDE support is gated on usage data (P7 — Evolutionary Architecture).
+3. **Surface-independent identity:** An agent registered in hKask uses the same `WebID`, capability tokens, and memory store whether it's accessed via REPL (`kask chat`), ACP (IDE), or MCP (tools).
+
+---
+
 ## Deployment
 
 hKask is designed for two deployment targets: **local workstation** (Ollama) and **cloud server** (remote inference providers). The common deployment target is a headless Ubuntu cloud server accessed via SSH.

@@ -1,7 +1,7 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-16
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,20 +12,20 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Training System Deepening — TrainingParams expanded (5 sub-structs), harness/host disambiguated, trace types specialized (WordAct/FlowDef/KnowAct/Composite), feedback quality gated, A/B evaluation implemented, parameter sweep tool added, HuggingFace model provenance integrated. Clippy clean. Zero prohibitions. (2026-06-16)
+**Current session:** ACP Replicant — `hkask-acp` crate implements the Agent Client Protocol (agentclientprotocol.com) enabling hKask agents to present themselves in ACP-compatible IDEs (Zed, VS Code). Bidirectional JSON-RPC 2.0 over stdio with streaming inference output, tool call notifications, and session lifecycle management. A2A protocol renamed from `acp` to `a2a` across ~70 files (the internal agent-to-agent messaging fabric). (2026-06-17)
 
 ---
 
 ## Build
 
-All 24 workspace members.
+All 25 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (24/24 crates) | 2026-06-15 |
-| Workspace (`cargo clippy --workspace -- -D warnings`) | ✅ Pass (0 warnings) | 2026-06-15 |
-| Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication) | ✅ Pass | 2026-06-15 |
-| MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory) | ✅ Pass | 2026-06-15 |
+| Workspace (`cargo check --workspace`) | ✅ Pass (25/25 crates) | 2026-06-17 |
+| ACP crate (`cargo check -p hkask-acp`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-17 |
+| Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication, acp) | ✅ Pass | 2026-06-17 |
+| MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory, kanban) | ✅ Pass | 2026-06-15 |
 
 ---
 
@@ -53,7 +53,8 @@ All 24 workspace members.
 | hkask-mcp | 38 | 71 |
 | hkask-cli | 43 | 118 |
 | hkask-api | ~12 | 66 |
-| **Crate subtotal** | **~571** | **1860** |
+| hkask-acp | 4 | — |
+| **Crate subtotal** | **~575** | **1860** |
 | MCP servers (10) | — | ~55 |
 | **Workspace total** | **~571** | **~1915** |
 
@@ -72,7 +73,7 @@ All 24 workspace members.
 | Check | Result | Date |
 |-------|--------|------|
 | `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-15 |
-| Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `acp/mod.rs:171` | 2026-06-10 |
+| Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `a2a/mod.rs:171` | 2026-06-10 |
 | Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-15 |
 | REQ tag coverage | ✅ 1915 REQ tags (100% coverage — every `pub fn` contracted) | 2026-06-16 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
@@ -87,19 +88,14 @@ All 24 workspace members.
 
 | Metric | Value |
 |--------|-------|
-| Source files (crates) | 321 |
+| Source files (crates) | 324 |
 | Source files (MCP servers) | 70 |
-| Source files (total) | 391 |
-| Workspace members | 18 |
-| Active docs | 86 |
-| Archived docs | 10 |
+| Source files (total) | 394 |
+| Workspace members | 25 |
 | Skills | 28 |
-| MCP servers | 10 |
-| MCP tools (total) | 143 (all fully implemented) |
-| Tests (total) | ~571 |
-| REQ tags | 1915 |
-| CI quality gate scripts | 6 |
-| Public surface justifications | 17 (incl. CnsSpan G2 + 4 new module G2s) |
+| MCP servers | 11 |
+| ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
+| CNS spans | 74 (3 ACP bridge spans added) |
 
 ---
 

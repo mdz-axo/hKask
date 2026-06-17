@@ -16,16 +16,16 @@ mds_categories: [composition]
 
 ## Why This Surface Is Large
 
-`hkask-agents` is the **agent orchestration crate** — pod lifecycle, ACP integration, curation loop, and sovereignty enforcement. Its surface is large because it spans multiple agent concerns:
+`hkask-agents` is the **agent orchestration crate** — pod lifecycle, A2A (Agent-to-Agent) integration, curation loop, and sovereignty enforcement. Its surface is large because it spans multiple agent concerns:
 
 1. **Pod lifecycle** — `AgentPod`, `PodLifecycleState`, `AgentMode`, `AgentPersona` are public because they're used by CLI, API, and MCP servers for agent management.
-2. **ACP integration** — `A2ARuntime`, `A2AError`, and ACP adapters are public for registration and capability management.
+2. **A2A integration** — `A2ARuntime`, `A2AError`, and A2A adapters are public for registration and capability management.
 3. **Curation loop** — `CurationLoop`, curator agent, and persona filter are public for metacognitive monitoring.
 4. **Sovereignty** — `SovereigntyConsent` trait and `DenyAllConsent` are public for OCAP enforcement.
 
 ## Mitigations
 
-- **Submodule organization:** pod/, acp/, curator/, curator_agent/, adapters/ each have focused concerns.
+- **Submodule organization:** pod/, a2a/, curator/, curator_agent/, adapters/ each have focused concerns.
 - **Trait-based ports:** `A2APort`, `MCPRuntimePort` enable testability without exposing implementation details.
 
 ## Deletion Test

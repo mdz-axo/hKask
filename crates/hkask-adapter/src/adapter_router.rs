@@ -11,6 +11,7 @@ use crate::adapter_port::{
     AdapterError, AdapterPort, CompositionEstimate, EndpointStatus, InferenceEndpointHandle,
     ProviderSelection, SingleCandidate,
 };
+use crate::adapter_store::AdapterSource;
 use crate::adapter_store::TrainedLoRAAdapter;
 use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
 use crate::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
@@ -20,6 +21,7 @@ use hkask_types::capability::auth::derive_signing_key;
 use hkask_types::capability::{DelegationAction, DelegationResource};
 use hkask_types::id::WebID;
 use hkask_types::ports::InferenceResult;
+use hkask_types::ports::InferenceUsage;
 use hkask_types::template::LLMParameters;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
@@ -43,6 +45,7 @@ trait AdapterProviderBackend: Send + Sync {
         endpoint_url: &str,
         prompt: &str,
         params: &LLMParameters,
+        model_name: &str,
     ) -> Result<InferenceResult, AdapterError>;
 
     /// Tear down a provisioned endpoint.
@@ -102,13 +105,72 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
 
     fn infer(
         &self,
-        _endpoint_url: &str,
-        _prompt: &str,
-        _params: &LLMParameters,
+        endpoint_url: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        model_name: &str,
     ) -> Result<InferenceResult, AdapterError> {
-        Err(AdapterError::Internal(
-            "Together adapter inference not yet implemented — API integration pending".into(),
-        ))
+        if self.api_key.is_empty() {
+            return Err(AdapterError::ProviderUnavailable(
+                "TOGETHER_API_KEY not set".into(),
+            ));
+        }
+
+        let body = serde_json::json!({
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": params.temperature,
+            "top_p": params.top_p,
+            "max_tokens": params.max_tokens,
+        });
+
+        let response = self
+            .client
+            .post(format!("{}/v1/chat/completions", endpoint_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&body)
+            .send()
+            .map_err(|e| {
+                AdapterError::Internal(format!("Together AI inference request failed: {e}"))
+            })?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response.text().unwrap_or_default();
+            return Err(AdapterError::Internal(format!(
+                "Together AI inference returned {status}: {error_body}"
+            )));
+        }
+
+        let response_json: serde_json::Value = response.json().map_err(|e| {
+            AdapterError::Internal(format!(
+                "Failed to parse Together AI inference response: {e}"
+            ))
+        })?;
+
+        let content = response_json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+
+        let usage =
+            serde_json::from_value(response_json["usage"].clone()).unwrap_or(InferenceUsage {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+            });
+
+        Ok(InferenceResult {
+            text: content,
+            model: model_name.to_string(),
+            usage,
+            finish_reason: response_json["choices"][0]["finish_reason"]
+                .as_str()
+                .unwrap_or("stop")
+                .to_string(),
+            token_probabilities: None,
+            tool_calls: vec![],
+        })
     }
 
     fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
@@ -121,16 +183,8 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         adapter: &TrainedLoRAAdapter,
         config: &AdapterConfig,
     ) -> Result<String, AdapterError> {
-        let hf_repo = if let Some(ref hf_repo) = adapter.huggingface_repo {
-            hf_repo.clone()
-        } else {
-            tracing::warn!(
-                target: "hkask.adapter",
-                adapter_id = %adapter.id,
-                "No huggingface_repo — skipping Together AI upload"
-            );
-            return Ok(format!("adapter-{}", adapter.id));
-        };
+        let AdapterSource::HuggingFace { ref repo } = adapter.source;
+        let hf_repo = repo.clone();
 
         if self.api_key.is_empty() {
             tracing::warn!(
@@ -222,6 +276,7 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         _endpoint_url: &str,
         _prompt: &str,
         _params: &LLMParameters,
+        _model_name: &str,
     ) -> Result<InferenceResult, AdapterError> {
         Err(AdapterError::Internal(
             "Runpod adapter inference not yet implemented — API integration pending".into(),
@@ -269,6 +324,7 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
         _endpoint_url: &str,
         _prompt: &str,
         _params: &LLMParameters,
+        _model_name: &str,
     ) -> Result<InferenceResult, AdapterError> {
         Err(AdapterError::Internal(
             "Baseten adapter inference not yet implemented — API integration pending".into(),
@@ -579,9 +635,14 @@ impl AdapterPort for AdapterRouter {
         }
 
         // 4. Parse adapter config and upload to provider (best-effort)
-        if let Ok(adapter_config) = AdapterConfig::from_dir(&adapter.storage_path) {
-            let _ = backend.upload_adapter(&adapter, &adapter_config);
-        }
+        let model_name = if let Ok(adapter_config) = AdapterConfig::from_dir(&adapter.storage_path)
+        {
+            backend
+                .upload_adapter(&adapter, &adapter_config)
+                .unwrap_or_else(|_| format!("adapter-{}", adapter.id))
+        } else {
+            format!("adapter-{}", adapter.id)
+        };
 
         // 5. Provision the endpoint via the provider
         let endpoint_url = backend.provision_endpoint(&adapter)?;
@@ -603,6 +664,7 @@ impl AdapterPort for AdapterRouter {
         let handle = InferenceEndpointHandle {
             endpoint_id: Uuid::new_v4(),
             endpoint_url,
+            model_name: model_name.clone(),
             provider,
             expertise_name: adapter.expertise.name.clone(),
             lifecycle: Arc::new(Mutex::new(lifecycle)),
@@ -678,9 +740,10 @@ impl AdapterPort for AdapterRouter {
         }
 
         // Run inference via the provider backend
+        let model_name = record.handle.model_name.clone();
         record
             .backend
-            .infer(&record.handle.endpoint_url, prompt, &params)
+            .infer(&record.handle.endpoint_url, prompt, &params, &model_name)
     }
 
     fn teardown_endpoint(
@@ -822,6 +885,7 @@ impl Drop for EndpointGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapter_store::AdapterSource;
     use crate::adapter_store::Checksum;
     use crate::expertise::{Expertise, MdsDomain, TrainingProvenance};
     use hkask_storage::in_memory_db;
@@ -887,7 +951,9 @@ mod tests {
             storage_path,
             base_model_family: "llama-3.3-70b".into(),
             version: None,
-            huggingface_repo: None,
+            source: AdapterSource::HuggingFace {
+                repo: "test/adapter".into(),
+            },
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         }
@@ -1063,7 +1129,9 @@ mod tests {
             storage_path: storage_path.clone(),
             base_model_family: "unsupported-model".into(),
             version: None,
-            huggingface_repo: None,
+            source: AdapterSource::HuggingFace {
+                repo: "test/adapter".into(),
+            },
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         };
