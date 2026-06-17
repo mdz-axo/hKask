@@ -422,7 +422,7 @@ mod tests {
     // REQ: P8-adt-trained-adapter-store — store and retrieve by ID
     #[test]
     fn store_and_retrieve_by_id() {
-        let db = hkask_storage::in_memory_db().expect("in-memory db");
+        let db = hkask_storage::in_memory_db();
         let store = AdapterStore::new(db.conn_arc());
         store.migrate().expect("migration");
 
@@ -442,7 +442,7 @@ mod tests {
     // REQ: P8-adt-trained-adapter-store — retrieve by expertise
     #[test]
     fn retrieve_by_expertise() {
-        let db = hkask_storage::in_memory_db().expect("in-memory db");
+        let db = hkask_storage::in_memory_db();
         let store = AdapterStore::new(db.conn_arc());
         store.migrate().expect("migration");
 
@@ -464,7 +464,7 @@ mod tests {
     // REQ: P8-adt-trained-adapter-store — list by owner
     #[test]
     fn list_by_owner() {
-        let db = hkask_storage::in_memory_db().expect("in-memory db");
+        let db = hkask_storage::in_memory_db();
         let store = AdapterStore::new(db.conn_arc());
         store.migrate().expect("migration");
 
@@ -484,7 +484,7 @@ mod tests {
     // REQ: P8-adt-trained-adapter-store — delete adapter
     #[test]
     fn delete_adapter() {
-        let db = hkask_storage::in_memory_db().expect("in-memory db");
+        let db = hkask_storage::in_memory_db();
         let store = AdapterStore::new(db.conn_arc());
         store.migrate().expect("migration");
 
@@ -499,7 +499,7 @@ mod tests {
     // REQ: P8-adt-trained-adapter-store — delete non-existent returns error
     #[test]
     fn delete_non_existent_returns_error() {
-        let db = hkask_storage::in_memory_db().expect("in-memory db");
+        let db = hkask_storage::in_memory_db();
         let store = AdapterStore::new(db.conn_arc());
         store.migrate().expect("migration");
 

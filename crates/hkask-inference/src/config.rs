@@ -48,6 +48,12 @@ pub enum ProviderId {
     /// Together AI (cloud) — prefix `TG/`
     #[serde(rename = "TG")]
     Together,
+    /// Runpod (cloud) — prefix `RP/`
+    #[serde(rename = "RP")]
+    Runpod,
+    /// Baseten (cloud) — prefix `BT/`
+    #[serde(rename = "BT")]
+    Baseten,
 }
 
 impl ProviderId {
@@ -59,7 +65,7 @@ impl ProviderId {
     /// REQ: P9-inf-parse-provider-from-model
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model-name routing to provider boundary
     /// pre:  model is non-empty
-    /// post: returns Some((ProviderId, stripped_model)) for OM/, DI/, FA/, TG/ prefixes
+    /// post: returns Some((ProviderId, stripped_model)) for OM/, DI/, FA/, TG/, RP/, BT/ prefixes
     /// post: returns None for unrecognized or missing prefix
     pub fn parse_from_model(model: &str) -> Option<(Self, &str)> {
         if model.len() < 4 {
@@ -79,6 +85,8 @@ impl ProviderId {
             "DI" => Some((ProviderId::DeepInfra, rest)),
             "FA" => Some((ProviderId::Fal, rest)),
             "TG" => Some((ProviderId::Together, rest)),
+            "RP" => Some((ProviderId::Runpod, rest)),
+            "BT" => Some((ProviderId::Baseten, rest)),
             _ => None,
         }
     }
@@ -97,13 +105,15 @@ impl ProviderId {
     ///
     /// REQ: P9-inf-provider-as-str
     /// \[P9\] Motivating: Homeostatic Self-Regulation — stable provider code for routing
-    /// post: returns "OM", "DI", "FA", or "TG"
+    /// post: returns "OM", "DI", "FA", "TG", "RP", or "BT"
     pub fn as_str(&self) -> &'static str {
         match self {
             ProviderId::Ollama => "OM",
             ProviderId::DeepInfra => "DI",
             ProviderId::Fal => "FA",
             ProviderId::Together => "TG",
+            ProviderId::Runpod => "RP",
+            ProviderId::Baseten => "BT",
         }
     }
 }
@@ -286,13 +296,15 @@ fn resolve_default_provider() -> ProviderId {
 
 /// Parse a provider code string to a ProviderId.
 ///
-/// Accepted values: OM, FW, DI, FA. Anything else (including empty) → Ollama.
+/// Accepted values: OM, DI, FA, TG, RP, BT. Anything else (including empty) → Ollama.
 fn parse_provider_code(raw: &str) -> ProviderId {
     match raw {
         "OM" => ProviderId::Ollama,
         "DI" => ProviderId::DeepInfra,
         "FA" => ProviderId::Fal,
         "TG" => ProviderId::Together,
+        "RP" => ProviderId::Runpod,
+        "BT" => ProviderId::Baseten,
         _ => ProviderId::Ollama,
     }
 }
@@ -301,7 +313,7 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 mod tests {
     use super::*;
 
-    /// REQ: P9-inf-test-parse-provider-prefix — ProviderId::parse_from_model parses all three prefixes
+    /// REQ: P9-inf-test-parse-provider-prefix — ProviderId::parse_from_model parses all prefixes
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates provider routing parser
     #[test]
     fn parse_provider_prefix() {
@@ -316,6 +328,14 @@ mod tests {
         assert_eq!(
             ProviderId::parse_from_model("DI/meta-llama/Llama-3.3-70B-Instruct"),
             Some((ProviderId::DeepInfra, "meta-llama/Llama-3.3-70B-Instruct"))
+        );
+        assert_eq!(
+            ProviderId::parse_from_model("RP/my-model"),
+            Some((ProviderId::Runpod, "my-model"))
+        );
+        assert_eq!(
+            ProviderId::parse_from_model("BT/my-model"),
+            Some((ProviderId::Baseten, "my-model"))
         );
     }
 
@@ -367,6 +387,8 @@ mod tests {
             "DI/meta-llama/Llama-3.3-70B"
         );
         assert_eq!(ProviderId::Fal.prefix_model("paddleocr"), "FA/paddleocr");
+        assert_eq!(ProviderId::Runpod.prefix_model("my-model"), "RP/my-model");
+        assert_eq!(ProviderId::Baseten.prefix_model("my-model"), "BT/my-model");
     }
 
     /// REQ: P9-inf-test-fal-prefix — FA/ prefix parses correctly
@@ -385,7 +407,7 @@ mod tests {
 
     // ── parse_provider_code ────────────────────────────────────────────
 
-    /// REQ: P9-inf-test-provider-code — parse_provider_code parses all four provider codes
+    /// REQ: P9-inf-test-provider-code — parse_provider_code parses all six provider codes
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates provider code parser
     #[test]
     fn parse_provider_code_all_codes() {
@@ -393,6 +415,8 @@ mod tests {
         assert_eq!(parse_provider_code("DI"), ProviderId::DeepInfra);
         assert_eq!(parse_provider_code("FA"), ProviderId::Fal);
         assert_eq!(parse_provider_code("TG"), ProviderId::Together);
+        assert_eq!(parse_provider_code("RP"), ProviderId::Runpod);
+        assert_eq!(parse_provider_code("BT"), ProviderId::Baseten);
     }
 
     /// REQ: P9-inf-test-provider-code-default — unknown or empty provider code defaults to Ollama

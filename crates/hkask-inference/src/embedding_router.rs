@@ -63,6 +63,7 @@ impl EmbeddingRouter {
             ProviderId::DeepInfra => self.deepinfra_client.is_some(),
             ProviderId::Fal => false, // fal.ai does not expose embedding endpoints
             ProviderId::Together => false, // Together AI embedding client not yet implemented
+            ProviderId::Runpod | ProviderId::Baseten => false, // adapter-composition providers
         };
 
         if !available {
@@ -121,6 +122,11 @@ impl EmbeddingRouter {
             ProviderId::Together => {
                 return Err(EmbeddingGenerationError::Connection(
                     "Together AI embedding client not yet implemented".into(),
+                ));
+            }
+            ProviderId::Runpod | ProviderId::Baseten => {
+                return Err(EmbeddingGenerationError::Connection(
+                    "Runpod/Baseten are adapter-composition providers".into(),
                 ));
             }
         };

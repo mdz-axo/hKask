@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "hKask API",
-    "description": "A Minimal Viable Container for Agents - HTTP API",
+    "description": "A Minimal Viable Container for Agents — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2).",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -2090,6 +2090,7 @@
     "schemas": {
       "AccessCheckResponse": {
         "type": "object",
+        "description": "Access check response — P4 (OCAP) membrane result.\n\nReports whether the authenticated agent has access to a specific data\ncategory. `classification` is one of: PUBLIC, SHARED, SOVEREIGN.\n`access_required` is the OCAP-level gate (e.g., \"capability:memory\",\n\"consent:required\").",
         "required": [
           "category",
           "classification",
@@ -2097,13 +2098,16 @@
         ],
         "properties": {
           "access_required": {
-            "type": "string"
+            "type": "string",
+            "description": "OCAP-level access gate description"
           },
           "category": {
-            "type": "string"
+            "type": "string",
+            "description": "Data category checked"
           },
           "classification": {
-            "type": "string"
+            "type": "string",
+            "description": "Classification: PUBLIC, SHARED, or SOVEREIGN"
           }
         }
       },
@@ -2513,6 +2517,7 @@
       },
       "BotStatusReportResponse": {
         "type": "object",
+        "description": "Bot status report — reflects the health of a specific bot agent.",
         "required": [
           "bot_name",
           "status",
@@ -2520,22 +2525,26 @@
         ],
         "properties": {
           "bot_name": {
-            "type": "string"
+            "type": "string",
+            "description": "Bot name"
           },
           "issues": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Active issues requiring attention"
           },
           "last_report": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "ISO 8601 timestamp of last report (None if never reported)"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Aggregate status: \"healthy\", \"degraded\", or \"critical\""
           }
         }
       },
@@ -2639,7 +2648,7 @@
       },
       "CnsHealthResponse": {
         "type": "object",
-        "description": "CNS health response",
+        "description": "CNS health response — P9 (Homeostatic Self-Regulation).\n\n`healthy: false` means one or more variety domains are in deficit (below\ntheir configured threshold). Check `critical_count` and `warning_count` for\nseverity. `overall_deficit` is the sum of all per-domain deficits.",
         "required": [
           "overall_deficit",
           "critical_count",
@@ -2649,18 +2658,22 @@
         "properties": {
           "critical_count": {
             "type": "integer",
+            "description": "Count of domains in critical deficit (escalation-triggered)",
             "minimum": 0
           },
           "healthy": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether all variety domains are within healthy thresholds"
           },
           "overall_deficit": {
             "type": "integer",
             "format": "int64",
+            "description": "Sum of all per-domain variety deficits",
             "minimum": 0
           },
           "warning_count": {
             "type": "integer",
+            "description": "Count of domains in warning deficit",
             "minimum": 0
           }
         }
@@ -2680,7 +2693,7 @@
       },
       "CnsVarietyResponse": {
         "type": "object",
-        "description": "CNS variety response",
+        "description": "CNS variety response — per-domain variety counters for the Cybernetic Nervous System (Pattern B).\n\n`domains` lists all canonical CNS span namespaces registered (e.g., cns.tool,\ncns.inference, cns.memory). `total_deficit` is the aggregate variety gap across\nall domains.",
         "required": [
           "domains",
           "total_deficit",
@@ -2689,6 +2702,7 @@
         "properties": {
           "counters": {
             "type": "object",
+            "description": "Per-domain variety counters keyed by namespace",
             "additionalProperties": {
               "$ref": "#/components/schemas/VarietyCounterResponse"
             },
@@ -2700,11 +2714,13 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "All registered CNS span namespace domains"
           },
           "total_deficit": {
             "type": "integer",
             "format": "int64",
+            "description": "Aggregate variety deficit across all domains",
             "minimum": 0
           }
         }
@@ -2841,18 +2857,21 @@
       },
       "CreateGoalRequest": {
         "type": "object",
+        "description": "Create goal request — P4 OCAP-gated goal creation.\n\nVisibility defaults to \"private\" when omitted. See P11 (Digital Public/Private\nSphere) for the visibility taxonomy.",
         "required": [
           "text"
         ],
         "properties": {
           "text": {
-            "type": "string"
+            "type": "string",
+            "description": "Goal description text"
           },
           "visibility": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Visibility: \"private\" or \"shared\" (defaults to \"private\")"
           }
         }
       },
@@ -2898,6 +2917,7 @@
       },
       "CreatePodRequest": {
         "type": "object",
+        "description": "Create pod request — Pattern D agent creation.\n\n`template` is a FlowDef template ID. `persona_yaml` is the agent persona\ndefinition in YAML format (maps to a WordAct).",
         "required": [
           "template",
           "persona_yaml"
@@ -2907,24 +2927,29 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Optional human-readable pod name"
           },
           "persona_yaml": {
-            "type": "string"
+            "type": "string",
+            "description": "Agent persona definition in YAML (WordAct)"
           },
           "template": {
-            "type": "string"
+            "type": "string",
+            "description": "FlowDef template ID defining the agent's operational pattern"
           }
         }
       },
       "CreatePodResponse": {
         "type": "object",
+        "description": "Create pod response — returns the new pod's ID.",
         "required": [
           "pod_id"
         ],
         "properties": {
           "pod_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique pod identifier"
           }
         }
       },
@@ -2998,33 +3023,38 @@
       },
       "DismissEscalationRequest": {
         "type": "object",
+        "description": "Dismiss escalation request — P12 (accountable identity).",
         "required": [
           "dismissed_by"
         ],
         "properties": {
           "dismissed_by": {
-            "type": "string"
+            "type": "string",
+            "description": "WebID of the human or agent dismissing the escalation"
           }
         }
       },
       "DismissEscalationResponse": {
         "type": "object",
+        "description": "Dismiss escalation response.",
         "required": [
           "id",
           "status"
         ],
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Escalation ID that was dismissed"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "New status: \"dismissed\""
           }
         }
       },
       "EpisodeResponse": {
         "type": "object",
-        "description": "A single episodic triple as returned over the API.",
+        "description": "A single episodic triple as returned over the API.\n\nEach episode is a (entity, attribute, value) triple with confidence,\nvisibility governance (P11), and a temporal validity marker (`valid_from`).\n`visibility` is one of: \"private\", \"shared\", \"public\".\n`perspective` is the WebID of the observing agent (P12).",
         "required": [
           "id",
           "entity",
@@ -3036,30 +3066,39 @@
         ],
         "properties": {
           "attribute": {
-            "type": "string"
+            "type": "string",
+            "description": "Attribute (predicate / property)"
           },
           "confidence": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Confidence score (0.0–1.0)"
           },
           "entity": {
-            "type": "string"
+            "type": "string",
+            "description": "Entity (subject of the experience)"
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique episode ID"
           },
           "perspective": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "WebID of the observing agent (P12)"
           },
           "valid_from": {
-            "type": "string"
+            "type": "string",
+            "description": "ISO 8601 timestamp when this triple became valid"
           },
-          "value": {},
+          "value": {
+            "description": "Value (object of the triple)"
+          },
           "visibility": {
-            "type": "string"
+            "type": "string",
+            "description": "Visibility: \"private\", \"shared\", or \"public\" (P11)"
           }
         }
       },
@@ -3085,6 +3124,7 @@
       },
       "EscalationEntryResponse": {
         "type": "object",
+        "description": "Escalation entry — a pending Curator escalation triggered by bot output below\nconfidence threshold or context errors (Pattern C, P12).\n\nStatus: \"pending\", \"resolved\", or \"dismissed\".",
         "required": [
           "id",
           "template_id",
@@ -3098,51 +3138,63 @@
         ],
         "properties": {
           "bot_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Bot WebID that triggered the escalation"
           },
           "confidence": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Confidence score (0.0–1.0) at time of escalation"
           },
           "created_at": {
-            "type": "string"
+            "type": "string",
+            "description": "ISO 8601 creation timestamp"
           },
           "error_context": {
-            "type": "string"
+            "type": "string",
+            "description": "Error context or reason for escalation"
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Escalation ID"
           },
           "output": {
-            "type": "string"
+            "type": "string",
+            "description": "Flagged output text"
           },
           "resolved_at": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "ISO 8601 resolution timestamp (when resolved/dismissed)"
           },
           "resolved_by": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "WebID of the resolver (P12 — accountable identity)"
           },
           "retry_count": {
             "type": "integer",
             "format": "int32",
+            "description": "Number of retry attempts before escalation",
             "minimum": 0
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Current status: \"pending\", \"resolved\", or \"dismissed\""
           },
           "template_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Template that produced the flagged output"
           }
         }
       },
       "EscalationStatsResponse": {
         "type": "object",
+        "description": "Escalation statistics — aggregate counts across all escalations.",
         "required": [
           "total",
           "pending",
@@ -3152,19 +3204,23 @@
         "properties": {
           "dismissed": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Escalations dismissed as non-actionable"
           },
           "pending": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Escalations awaiting resolution"
           },
           "resolved": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Escalations that have been resolved"
           },
           "total": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Total escalations ever created"
           }
         }
       },
@@ -3190,6 +3246,7 @@
       },
       "GoalListResponse": {
         "type": "object",
+        "description": "Goal list response.",
         "required": [
           "goals"
         ],
@@ -3198,12 +3255,14 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GoalResponse"
-            }
+            },
+            "description": "Goals for the authenticated agent"
           }
         }
       },
       "GoalResponse": {
         "type": "object",
+        "description": "Goal response — reflects current goal state and visibility (P4, P11).",
         "required": [
           "id",
           "text",
@@ -3212,33 +3271,39 @@
         ],
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique goal identifier"
           },
           "state": {
-            "type": "string"
+            "type": "string",
+            "description": "Current state: \"active\", \"completed\", or \"abandoned\""
           },
           "text": {
-            "type": "string"
+            "type": "string",
+            "description": "Goal description text"
           },
           "visibility": {
-            "type": "string"
+            "type": "string",
+            "description": "Visibility: \"private\" or \"shared\""
           }
         }
       },
       "GrantCapabilityRequest": {
         "type": "object",
-        "description": "Capability request",
+        "description": "Capability grant request — P4 OCAP capability assignment to a bot agent.\n\nCapabilities follow the `verb:resource` pattern (e.g., \"tool:execute\",\n\"template:render\").",
         "required": [
           "capability"
         ],
         "properties": {
           "capability": {
-            "type": "string"
+            "type": "string",
+            "description": "Capability to grant (e.g., \"tool:execute\", \"template:render\")"
           }
         }
       },
       "ListEscalationsResponse": {
         "type": "object",
+        "description": "List of pending escalations.",
         "required": [
           "escalations"
         ],
@@ -3247,12 +3312,14 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EscalationEntryResponse"
-            }
+            },
+            "description": "Pending escalations in the queue"
           }
         }
       },
       "ListPodsResponse": {
         "type": "object",
+        "description": "List pods response.",
         "required": [
           "pods"
         ],
@@ -3261,7 +3328,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PodStatusResponse"
-            }
+            },
+            "description": "All active pods"
           }
         }
       },
@@ -3320,6 +3388,7 @@
       },
       "MetacognitionStatusResponse": {
         "type": "object",
+        "description": "Curator metacognition status — aggregate view of system health (Pattern C).\n\nCombines escalation queue statistics with per-bot health reports.\nThis is the primary observability endpoint for the Curator mediation loop.",
         "required": [
           "escalation_stats",
           "bot_reports"
@@ -3329,10 +3398,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BotStatusReportResponse"
-            }
+            },
+            "description": "Per-bot health reports"
           },
           "escalation_stats": {
-            "$ref": "#/components/schemas/EscalationStatsResponse"
+            "$ref": "#/components/schemas/EscalationStatsResponse",
+            "description": "Aggregate escalation statistics"
           }
         }
       },
@@ -3415,6 +3486,7 @@
       },
       "PodStatusResponse": {
         "type": "object",
+        "description": "Pod status response — current state of an agent pod (Pattern D).\n\n`state` is one of: \"active\", \"inactive\", \"error\".\n`agent_type` is one of: \"Bot\", \"Replicant\" (P10).",
         "required": [
           "pod_id",
           "state",
@@ -3425,29 +3497,36 @@
         ],
         "properties": {
           "agent_type": {
-            "type": "string"
+            "type": "string",
+            "description": "Agent type: \"Bot\" or \"Replicant\" (P10)"
           },
           "created_at": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Unix epoch seconds of pod creation"
           },
           "name": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Human-readable pod name"
           },
           "pod_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique pod identifier"
           },
           "state": {
-            "type": "string"
+            "type": "string",
+            "description": "Pod state: \"active\", \"inactive\", or \"error\""
           },
           "template": {
-            "type": "string"
+            "type": "string",
+            "description": "FlowDef template ID"
           },
           "webid": {
-            "type": "string"
+            "type": "string",
+            "description": "Agent WebID (P12 — accountable identity)"
           }
         }
       },
@@ -3500,7 +3579,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EpisodeResponse"
-            }
+            },
+            "description": "Retrieved episodic triples"
           }
         }
       },
@@ -3538,27 +3618,32 @@
       },
       "ResolveEscalationRequest": {
         "type": "object",
+        "description": "Resolve escalation request — P12 (accountable identity).",
         "required": [
           "resolved_by"
         ],
         "properties": {
           "resolved_by": {
-            "type": "string"
+            "type": "string",
+            "description": "WebID of the human or agent resolving the escalation"
           }
         }
       },
       "ResolveEscalationResponse": {
         "type": "object",
+        "description": "Resolve escalation response.",
         "required": [
           "id",
           "status"
         ],
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Escalation ID that was resolved"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "New status: \"resolved\""
           }
         }
       },
@@ -3641,12 +3726,14 @@
       },
       "SetGoalStateRequest": {
         "type": "object",
+        "description": "Set goal state request — state machine transition.\n\nLegal states: \"active\", \"completed\", \"abandoned\".\nLegal transitions: active→completed, active→abandoned.",
         "required": [
           "state"
         ],
         "properties": {
           "state": {
-            "type": "string"
+            "type": "string",
+            "description": "Target state: \"active\", \"completed\", or \"abandoned\""
           }
         }
       },
@@ -3704,6 +3791,7 @@
       },
       "SovereigntyConsentResponse": {
         "type": "object",
+        "description": "Sovereignty consent response — P2 (Affirmative Consent).\n\n`consent: true` means the grant was accepted and data sharing is enabled\nfor the listed categories. `consent: false` means consent was revoked and\nonly public data remains accessible.",
         "required": [
           "consent",
           "message",
@@ -3714,18 +3802,22 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Categories currently granted consent"
           },
           "consent": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether consent is currently granted"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "Human-readable status message"
           }
         }
       },
       "SovereigntyStatusResponse": {
         "type": "object",
+        "description": "Sovereignty status response — P1 (User Sovereignty) and P2 (Affirmative Consent).\n\nReflects the authenticated agent's current data sovereignty boundary:\nwhich categories are sovereign (agent-only), shared (consent-gated), and\npublic (always accessible). `granted_categories` lists categories where\nexplicit consent has been given.",
         "required": [
           "explicit_consent",
           "requires_affirmative_consent",
@@ -3736,34 +3828,40 @@
         ],
         "properties": {
           "explicit_consent": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether any explicit consent has been granted"
           },
           "granted_categories": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Categories for which explicit consent has been granted"
           },
           "public_data": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Data categories that are always publicly accessible"
           },
           "requires_affirmative_consent": {
-            "type": "string"
+            "type": "string",
+            "description": "\"required\" if the boundary demands affirmative consent; \"open\" otherwise"
           },
           "shared_data": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Data categories eligible for sharing after explicit consent"
           },
           "sovereign_data": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Data categories that are agent-sovereign (never shared without consent)"
           }
         }
       },
@@ -3814,7 +3912,7 @@
       },
       "SpecDetailResponse": {
         "type": "object",
-        "description": "Spec detail response (single spec by ID)",
+        "description": "Spec detail response — full details for a single MDS specification.\n\n`domain_anchor` identifies the bounded context (always \"hkask\" for this system).\n`requirements` lists the spec's captured requirements as plain-text statements.",
         "required": [
           "spec_id",
           "name",
@@ -3824,28 +3922,33 @@
         ],
         "properties": {
           "category": {
-            "type": "string"
+            "type": "string",
+            "description": "MDS category: domain, composition, trust, lifecycle, or curation"
           },
           "domain_anchor": {
-            "type": "string"
+            "type": "string",
+            "description": "Bounded context anchor (always \"hkask\")"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Specification name"
           },
           "requirements": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Captured requirement statements"
           },
           "spec_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique specification ID"
           }
         }
       },
       "SpecListResponse": {
         "type": "object",
-        "description": "Spec list response",
+        "description": "Spec list response — summary of a single MDS specification.\n\n`category` is one of the five MDS categories: domain, composition, trust,\nlifecycle, curation. `complete` indicates whether the spec satisfies its\ncategory completeness predicate (MDS §2).",
         "required": [
           "spec_id",
           "name",
@@ -3854,16 +3957,20 @@
         ],
         "properties": {
           "category": {
-            "type": "string"
+            "type": "string",
+            "description": "MDS category: domain, composition, trust, lifecycle, or curation"
           },
           "complete": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the spec satisfies its category completeness predicate"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Specification name"
           },
           "spec_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique specification ID"
           }
         }
       },
@@ -3934,7 +4041,7 @@
       },
       "TemplateResponse": {
         "type": "object",
-        "description": "Template response",
+        "description": "Template response — a registered skill template in the WordAct / FlowDef / KnowAct taxonomy (Pattern A).\n\n`template_type` is one of: WordAct, FlowDef, KnowAct.\n`lexicon_terms` maps the template to canonical hLexicon vocabulary terms.",
         "required": [
           "id",
           "template_type",
@@ -3945,25 +4052,31 @@
         ],
         "properties": {
           "description": {
-            "type": "string"
+            "type": "string",
+            "description": "Template description"
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique template identifier"
           },
           "lexicon_terms": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Canonical hLexicon terms this template implements"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Human-readable template name"
           },
           "source_path": {
-            "type": "string"
+            "type": "string",
+            "description": "Source file path within the registry"
           },
           "template_type": {
-            "type": "string"
+            "type": "string",
+            "description": "Template type: WordAct, FlowDef, or KnowAct"
           }
         }
       },
@@ -4038,7 +4151,7 @@
       },
       "VarietyCounterResponse": {
         "type": "object",
-        "description": "CNS variety counter response",
+        "description": "CNS variety counter for a single domain.\n\n`variety` is the tracked behavioral diversity for this domain.\n`entropy` is the Shannon entropy of the domain's observation distribution\n(0.0 when not yet computed).",
         "required": [
           "variety",
           "total",
@@ -4047,16 +4160,19 @@
         "properties": {
           "entropy": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Shannon entropy (0.0 = not computed yet)"
           },
           "total": {
             "type": "integer",
             "format": "int64",
+            "description": "Total observations in this domain",
             "minimum": 0
           },
           "variety": {
             "type": "integer",
             "format": "int64",
+            "description": "Tracked behavioral diversity count",
             "minimum": 0
           }
         }
@@ -4192,68 +4308,81 @@
           }
         }
       }
+    },
+    "securitySchemes": {
+      "bearer_token": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "DelegationToken",
+        "description": "DelegationToken — an OCAP capability token carrying the authenticated WebID and scoped permissions (P4).\n\nObtain via the REPL onboarding flow (`kask secret`) or agent registration (ACP)."
+      }
     }
   },
+  "security": [
+    {
+      "bearer_token": []
+    }
+  ],
   "tags": [
     {
       "name": "templates",
-      "description": "Template management"
+      "description": "Template registry — WordAct / FlowDef / KnowAct skills in the hLexicon taxonomy (Pattern A)"
     },
     {
       "name": "bots",
-      "description": "Bot capability management"
+      "description": "Bot capability management — OCAP-gated capability grants to bot agents (P4, P10)"
     },
     {
       "name": "mcp",
-      "description": "MCP servers and tools"
+      "description": "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"
     },
     {
       "name": "cns",
-      "description": "CNS monitoring"
+      "description": "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"
     },
     {
       "name": "chat",
-      "description": "Curator chat interface"
+      "description": "Curator chat interface — inference with model switching and streaming (Pattern C)"
     },
     {
       "name": "models",
-      "description": "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI)"
+      "description": "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI) — discover and search available LLMs"
     },
     {
       "name": "curator",
-      "description": "Curator escalation and metacognition"
+      "description": "Curator escalation and metacognition — bot health reports and pending escalation queue (Pattern C, P12)"
     },
     {
       "name": "git",
-      "description": "Git archival and resolution"
+      "description": "Git archival and resolution — template crate loading and SHA resolution via GitCASPort hexagonal boundary"
     },
     {
       "name": "acp",
-      "description": "ACP agent registration and management"
+      "description": "ACP agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"
     },
     {
       "name": "goals",
-      "description": "Goal coordination substrate (OCAP-gated)"
+      "description": "Goal coordination substrate — creation, listing, and state transitions with OCAP authority gating (P4)"
     },
     {
       "name": "bundles",
-      "description": "Bundle composition, application, and evolution"
+      "description": "Bundle composition and evolution — inference-driven skill bundling with apply/deactivate lifecycle (Pattern A)"
     },
     {
       "name": "episodic",
-      "description": "Episodic memory store and query"
+      "description": "Episodic memory — store and query bitemporal triples with OCAP-gated access (P1, P4, P11)"
     },
     {
       "name": "sovereignty",
-      "description": "Consent and access governance (Magna Carta)"
+      "description": "Sovereignty governance — consent grant/revoke and access checks under Magna Carta P1–P4"
     },
     {
       "name": "specs",
-      "description": "MDS specification management"
+      "description": "MDS specification management — capture, list, coherence assessment, and writing-quality checks (MDS §3)"
     },
     {
       "name": "consolidation",
-      "description": "Context consolidation and condensation"
+      "description": "Context consolidation — episodic→semantic memory condensation with passphrase-gated authorization"
     }
   ]
 }

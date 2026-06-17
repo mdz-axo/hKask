@@ -87,6 +87,8 @@ impl InferenceRouter {
             ProviderId::DeepInfra => self.deepinfra.is_some(),
             ProviderId::Fal => self.fal.is_some(),
             ProviderId::Together => self.together.is_some(),
+            // Runpod and Baseten are adapter-composition providers — not direct inference backends
+            ProviderId::Runpod | ProviderId::Baseten => false,
         };
 
         if !available {
@@ -293,6 +295,9 @@ impl InferenceRouter {
                     .generate_vision(&model, &prompt, &images, &params)
                     .await
             }
+            ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
+                "Runpod/Baseten are adapter-composition providers; use AdapterRouter".to_string(),
+            )),
         }
     }
 
@@ -582,6 +587,9 @@ impl InferencePort for InferenceRouter {
                             .generate(&model, &prompt, &parameters)
                             .await
                     }
+                    ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
+                        "Runpod/Baseten are adapter providers".to_string(),
+                    )),
                 }
             });
         }
@@ -633,6 +641,9 @@ impl InferencePort for InferenceRouter {
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
+                ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
+                    "Runpod/Baseten are adapter providers".to_string(),
+                )),
             }
         })
     }
@@ -702,6 +713,9 @@ impl InferencePort for InferenceRouter {
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
+                ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
+                    "Runpod/Baseten are adapter providers".to_string(),
+                )),
             }
         })
     }
@@ -785,6 +799,13 @@ impl InferencePort for InferenceRouter {
                     Ok(b) => b.generate_stream(&model, &prompt, &parameters),
                     Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
                 }
+            }
+            ProviderId::Runpod | ProviderId::Baseten => {
+                Box::pin(futures_util::stream::once(async move {
+                    Err(InferenceError::Connection(
+                        "Runpod/Baseten are adapter providers".to_string(),
+                    ))
+                }))
             }
         }
     }

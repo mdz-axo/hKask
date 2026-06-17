@@ -8,6 +8,7 @@ description = "Trained adapter lifecycle — adapter store, expertise, endpoint 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
+hkask-inference = { path = "../hkask-inference" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

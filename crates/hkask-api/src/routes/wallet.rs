@@ -40,26 +40,49 @@ pub fn wallet_router() -> OpenApiRouter<ApiState> {
 
 // ── Response types ───────────────────────────────────────────────────────────
 
+/// Wallet balance response — current rJoule balance and fiat equivalents.
+///
+/// `rjoules` is the canonical energy unit for inference and memory operations.
+/// `usdc_equivalent` and `gas_equivalent` are approximate fiat conversions
+/// based on the current calibrated gas-per-rjoule rate (P9 homeostatic calibration).
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct WalletBalanceResponse {
+    /// Wallet ID (UUID)
     pub wallet_id: String,
+    /// Balance in rJoules — the canonical energy unit for inference operations
     pub rjoules: u64,
+    /// Approximate USD Coin equivalent at current calibration rate
     pub usdc_equivalent: f64,
+    /// Approximate native gas units equivalent (chain-dependent)
     pub gas_equivalent: u64,
 }
 
+/// Withdrawal fee estimate — cost of withdrawing rJoules to a target chain.
+///
+/// `rjoules` is the fee in the canonical energy unit.
+/// `native_units` and `usdc_equivalent` are approximate conversions.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct WithdrawalFeeEstimateResponse {
+    /// Target blockchain: "hinkal", "solana", or "hedera"
     pub chain: String,
+    /// Fee in rJoules
     pub rjoules: u64,
+    /// Fee in native chain units (e.g., SOL, HBAR)
     pub native_units: f64,
+    /// Approximate USD Coin equivalent
     pub usdc_equivalent: f64,
 }
 
+/// Deposit address response — a generated deposit address for a specific chain.
+///
+/// `privacy` is "shielded" (private, zk-protected) or "transparent" (public).
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct DepositAddressResponse {
+    /// On-chain deposit address
     pub address: String,
+    /// Blockchain: "hinkal", "solana", or "hedera"
     pub chain: String,
+    /// Privacy mode: "shielded" or "transparent"
     pub privacy: String,
 }
 
@@ -70,10 +93,14 @@ pub struct DepositReferenceRequest {
     pub wallet_id: Option<String>,
 }
 
+/// Deposit reference response — a time-limited reference code for an incoming deposit.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct DepositReferenceResponse {
+    /// Unique deposit reference code
     pub reference: String,
+    /// Blockchain this reference is for
     pub chain: String,
+    /// ISO 8601 expiration timestamp
     pub expires_at: String,
 }
 
@@ -85,15 +112,23 @@ pub struct TransactionQuery {
     pub wallet_id: Option<String>,
 }
 
+/// Transaction response — a single wallet transaction.
+///
+/// `rjoules_delta` is positive for deposits, negative for withdrawals.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct TransactionResponse {
+    /// Change in rJoules (positive = deposit, negative = withdrawal)
     pub rjoules_delta: i64,
+    /// Balance after this transaction
     pub balance_after: u64,
+    /// ISO 8601 timestamp
     pub timestamp: String,
 }
 
+/// Transaction list response.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct TransactionListResponse {
+    /// Wallet transactions, newest first
     pub transactions: Vec<TransactionResponse>,
 }
 

@@ -211,6 +211,30 @@ pub enum CnsSpan {
     TrainingHarnessUtilized,
     /// Adapter selected for inference routing.
     TrainingAdapterSelected,
+
+    // ── Adapter lifecycle spans (Adapter System §Task 7) ──────────────
+    /// Adapter stored in AdapterStore.
+    AdapterStored,
+    /// Adapter retrieved from AdapterStore.
+    AdapterRetrieved,
+    /// Adapter deleted from AdapterStore.
+    AdapterDeleted,
+
+    // ── Endpoint lifecycle spans (Adapter System §Task 7) ────────────
+    /// Endpoint creation started.
+    EndpointCreateStarted,
+    /// Endpoint creation confirmed by provider.
+    EndpointCreateConfirmed,
+    /// Endpoint serving an inference request.
+    EndpointInference,
+    /// Endpoint draining (no new requests).
+    EndpointDraining,
+    /// Endpoint fully terminated.
+    EndpointTerminated,
+    /// Endpoint cost accrued update.
+    EndpointCostAccrued,
+    /// Endpoint cost budget warning.
+    EndpointCostBudgetWarning,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -336,6 +360,16 @@ impl CnsSpan {
             CnsSpan::TrainingCostEstimated => "cns.training.cost.estimated",
             CnsSpan::TrainingHarnessUtilized => "cns.training.harness.utilized",
             CnsSpan::TrainingAdapterSelected => "cns.training.adapter.selected",
+            CnsSpan::AdapterStored => "cns.adapter.stored",
+            CnsSpan::AdapterRetrieved => "cns.adapter.retrieved",
+            CnsSpan::AdapterDeleted => "cns.adapter.deleted",
+            CnsSpan::EndpointCreateStarted => "cns.endpoint.create.started",
+            CnsSpan::EndpointCreateConfirmed => "cns.endpoint.create.confirmed",
+            CnsSpan::EndpointInference => "cns.endpoint.inference",
+            CnsSpan::EndpointDraining => "cns.endpoint.draining",
+            CnsSpan::EndpointTerminated => "cns.endpoint.terminated",
+            CnsSpan::EndpointCostAccrued => "cns.endpoint.cost.accrued",
+            CnsSpan::EndpointCostBudgetWarning => "cns.endpoint.cost.budget_warning",
         }
     }
 }
@@ -445,6 +479,16 @@ impl std::str::FromStr for CnsSpan {
             "cns.training.cost.estimated" => Ok(CnsSpan::TrainingCostEstimated),
             "cns.training.harness.utilized" => Ok(CnsSpan::TrainingHarnessUtilized),
             "cns.training.adapter.selected" => Ok(CnsSpan::TrainingAdapterSelected),
+            "cns.adapter.stored" => Ok(CnsSpan::AdapterStored),
+            "cns.adapter.retrieved" => Ok(CnsSpan::AdapterRetrieved),
+            "cns.adapter.deleted" => Ok(CnsSpan::AdapterDeleted),
+            "cns.endpoint.create.started" => Ok(CnsSpan::EndpointCreateStarted),
+            "cns.endpoint.create.confirmed" => Ok(CnsSpan::EndpointCreateConfirmed),
+            "cns.endpoint.inference" => Ok(CnsSpan::EndpointInference),
+            "cns.endpoint.draining" => Ok(CnsSpan::EndpointDraining),
+            "cns.endpoint.terminated" => Ok(CnsSpan::EndpointTerminated),
+            "cns.endpoint.cost.accrued" => Ok(CnsSpan::EndpointCostAccrued),
+            "cns.endpoint.cost.budget_warning" => Ok(CnsSpan::EndpointCostBudgetWarning),
             _ => Err(()),
         }
     }
@@ -597,6 +641,16 @@ mod cns_span_tests {
             CnsSpan::TrainingCostEstimated,
             CnsSpan::TrainingHarnessUtilized,
             CnsSpan::TrainingAdapterSelected,
+            CnsSpan::AdapterStored,
+            CnsSpan::AdapterRetrieved,
+            CnsSpan::AdapterDeleted,
+            CnsSpan::EndpointCreateStarted,
+            CnsSpan::EndpointCreateConfirmed,
+            CnsSpan::EndpointInference,
+            CnsSpan::EndpointDraining,
+            CnsSpan::EndpointTerminated,
+            CnsSpan::EndpointCostAccrued,
+            CnsSpan::EndpointCostBudgetWarning,
         ];
         for variant in &all_variants {
             let s = variant.to_string();
@@ -612,8 +666,8 @@ mod cns_span_tests {
             );
         }
         // Verify count matches CANONICAL_NAMESPACES (excluding tool subsystem variants)
-        // 56 variants total
-        assert_eq!(all_variants.len(), 56);
+        // 66 variants total (56 previous + 10 new adapter/endpoint)
+        assert_eq!(all_variants.len(), 66);
     }
 
     // REQ: cns-span-006 — ToolSubsystem Display produces valid subsystem suffix

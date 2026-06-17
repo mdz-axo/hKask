@@ -15,6 +15,7 @@ pub mod event;
 pub mod goal;
 pub mod id;
 pub mod identity;
+pub mod kanban;
 pub mod ocr;
 
 pub mod lexicon;
@@ -59,6 +60,10 @@ pub use goal::Goal;
 pub use id::{
     ApiKeyId, BotID, EmbeddingID, EscalationID, EventID, GoalID, Id, IdKind, PodID, TemplateID,
     TripleID, UserID, WalletId, WebID,
+};
+pub use kanban::{
+    Board, BoardId, ColumnDef, ColumnId, ConsentProof, Task, TaskFilter, TaskId, TaskSpec,
+    TaskStatus, Verification, VerificationCriterion,
 };
 pub use loops::{CurationInput, CuratorHandle, ExperienceClassification};
 pub use ports::{

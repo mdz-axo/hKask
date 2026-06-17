@@ -3823,6 +3823,7 @@ name = "hkask-adapter"
 version = "0.27.0"
 dependencies = [
  "chrono",
+ "hkask-inference",
  "hkask-storage",
  "hkask-types",
  "rusqlite",
