@@ -969,7 +969,10 @@ impl HarnessAdapter for UnslothHarness {
         script.push_str("trainer.train()\n");
         script.push_str(&format!(
             "model.save_pretrained(\"{}\")\n",
-            self.completion_marker(&job.id).parent().unwrap().display()
+            self.completion_marker(&job.id)
+                .parent()
+                .expect("completion marker always has a parent directory")
+                .display()
         ));
 
         Ok(script)

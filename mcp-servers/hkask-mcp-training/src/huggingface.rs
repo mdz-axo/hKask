@@ -225,21 +225,25 @@ impl ModelRegistry for HfModelRegistry {
 mod tests {
     use super::*;
 
+    // REQ: P8-trn-hf-resolve-ollama-prefix — resolve_model_id strips OM/ prefix
     #[test]
     fn resolve_ollama_prefix() {
         assert_eq!(resolve_model_id("OM/qwen3:8b"), "qwen3:8b");
     }
 
+    // REQ: P8-trn-hf-resolve-together-prefix — resolve_model_id strips TG/ prefix
     #[test]
     fn resolve_together_prefix() {
         assert_eq!(resolve_model_id("TG/Qwen/Qwen3.5-9B"), "Qwen/Qwen3.5-9B");
     }
 
+    // REQ: P8-trn-hf-resolve-no-prefix-passthrough — resolve_model_id passes through unprefixed IDs
     #[test]
     fn resolve_no_prefix_passthrough() {
         assert_eq!(resolve_model_id("Qwen/Qwen3.5-9B"), "Qwen/Qwen3.5-9B");
     }
 
+    // REQ: P8-trn-hf-resolve-deepinfra-prefix — resolve_model_id strips DI/ prefix
     #[test]
     fn resolve_deepinfra_prefix() {
         assert_eq!(
@@ -248,6 +252,7 @@ mod tests {
         );
     }
 
+    // REQ: P8-trn-hf-resolve-fireworks-prefix — resolve_model_id strips FA/ prefix
     #[test]
     fn resolve_fireworks_prefix() {
         assert_eq!(
@@ -288,28 +293,27 @@ impl ModelResolver for LocalModelResolver {
         if !model_id.contains('/') {
             return Err(HuggingFaceError::ModelNotFound(model_id.to_string()));
         }
-        let (org, model) = model_id.split_once('/').ok_or_else(|| {
-            HuggingFaceError::ModelNotFound(model_id.to_string())
-        })?;
+        let (org, model) = model_id
+            .split_once('/')
+            .ok_or_else(|| HuggingFaceError::ModelNotFound(model_id.to_string()))?;
         let model_lower = model.to_lowercase();
-        let (arch, license, lora_ok, gated) =
-            if model_lower.contains("llama") {
-                ("llama", Some("llama3"), true, org == "meta-llama")
-            } else if model_lower.contains("mistral") {
-                ("mistral", Some("apache-2.0"), true, false)
-            } else if model_lower.contains("qwen") {
-                ("qwen", Some("apache-2.0"), true, false)
-            } else if model_lower.contains("gemma") {
-                ("gemma", Some("gemma"), true, org == "google")
-            } else if model_lower.contains("phi") {
-                ("phi", Some("mit"), true, false)
-            } else if model_lower.contains("deepseek") {
-                ("deepseek", Some("mit"), true, false)
-            } else if model_lower.contains("yi") {
-                ("yi", Some("apache-2.0"), true, false)
-            } else {
-                ("unknown", None, true, false)
-            };
+        let (arch, license, lora_ok, gated) = if model_lower.contains("llama") {
+            ("llama", Some("llama3"), true, org == "meta-llama")
+        } else if model_lower.contains("mistral") {
+            ("mistral", Some("apache-2.0"), true, false)
+        } else if model_lower.contains("qwen") {
+            ("qwen", Some("apache-2.0"), true, false)
+        } else if model_lower.contains("gemma") {
+            ("gemma", Some("gemma"), true, org == "google")
+        } else if model_lower.contains("phi") {
+            ("phi", Some("mit"), true, false)
+        } else if model_lower.contains("deepseek") {
+            ("deepseek", Some("mit"), true, false)
+        } else if model_lower.contains("yi") {
+            ("yi", Some("apache-2.0"), true, false)
+        } else {
+            ("unknown", None, true, false)
+        };
         Ok(ModelProvenance {
             model_id: model_id.to_string(),
             architecture: arch.to_string(),
