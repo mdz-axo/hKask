@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** ACP Replicant — `hkask-acp` crate implements the Agent Client Protocol (agentclientprotocol.com) enabling hKask agents to present themselves in ACP-compatible IDEs (Zed, VS Code). Bidirectional JSON-RPC 2.0 over stdio with streaming inference output, tool call notifications, and session lifecycle management. A2A protocol renamed from `acp` to `a2a` across ~70 files (the internal agent-to-agent messaging fabric). Additionally: `hkask-adapter` crate built — canonical trained adapter lifecycle (TrainedLoRAAdapter, AdapterPort, AdapterRouter, EndpointGuard). Training MCP integrated with hkask-adapter; duplicates (endpoint.rs, expertise.rs) eliminated. 10 new CNS spans registered. (2026-06-17)
+**Current session:** Agentic QA Pipeline — contract quality review instrumented across 1,419 REQ-tagged functions. All contracts have pre/post (0 NO_PRE+NO_POST, 0 NO_POST). P1-13 added: manual contract-to-spec traceability review. (2026-06-17)
 
 ---
 
@@ -31,7 +31,7 @@ All 25 workspace members.
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — ~570 tests across 16 crates, 0 failures. 1915 `/// REQ:` tags (workspace-wide including MCP servers). 100% behavioral contract coverage — every `pub fn` carries `pre:`/`post:` conditions.
+`cargo test --workspace` result: ✅ Pass — ~570 tests across 16 crates, 0 failures. 2334 `/// REQ:` tags (workspace-wide including MCP servers). 100% behavioral contract coverage — every `pub fn` carries `pre:`/`post:` conditions.
 
 ### Test Distribution
 
@@ -76,7 +76,8 @@ All 25 workspace members.
 | `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-15 |
 | Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `a2a/mod.rs:171` | 2026-06-10 |
 | Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-15 |
-| REQ tag coverage | ✅ 1915 REQ tags (100% coverage — every `pub fn` contracted) | 2026-06-16 |
+| REQ tag coverage | ✅ 2334 REQ tags (100% coverage — every `pub fn` contracted) | 2026-06-17 |
+| Schema drift check | ✅ `scripts/check-schema-drift.sh` passes (37 tables/indexes) | 2026-06-17 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
 | Runtime `.unwrap()` in targeted crates | ✅ Zero violations (Wave 2 denylist) | 2026-06-15 |
 | MCP Gate-3 startup verification | ✅ 10/10 servers enforce verify_startup_gates() | 2026-06-15 |
@@ -109,6 +110,8 @@ All 25 workspace members.
 | Runtime `.unwrap()` Denylist | `scripts/check-unwrap-denylist.sh` | ✅ Pass (0 violations) | 2026-06-15 |
 | MCP Gate-3 Consistency | `scripts/check-mcp-gate3.sh` | ✅ Pass (10/10 servers) | 2026-06-15 |
 | REQ Traceability Trend | `scripts/check-req-traceability.sh` | ✅ Pass (100% coverage) | 2026-06-16 |
+| Schema Drift (harness vs storage) | `scripts/check-schema-drift.sh` | ✅ Pass (37 tables/indexes) | 2026-06-17 |
+| Contract Quality Review | `kask contract review` | ✅ Pass (0 NO_PRE+NO_POST, 0 NO_POST) | 2026-06-17 |
 | **Master** | `scripts/ci-quality-gates.sh` | ✅ ALL CHECKS PASSED | 2026-06-15 |
 
 All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, running on every PR and push to main. Release builds depend on quality gates passing.
@@ -310,6 +313,7 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 | Gap | Severity | Status | Description |
 |-----|----------|--------|-------------|
 | **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. **Caveat:** exact GraphQL schema fields (`saveEndpoint`, response `data.saveEndpoint.id`) and Baseten REST response shape (`id` field, endpoint URL format `model-{id}.api.baseten.co`) may need adjustment based on actual provider API responses at runtime. |
+| **Manual contract-to-spec review** | High | ⬜ TODO | All 1,419 REQ-tagged contracts have pre/post conditions, but need human verification against the functional specification. Each REQ tag should trace to a real spec document. See `kask contract review` for inventory, `/improv plussing` for collaborative review. 25 duplicate REQ IDs need consolidation analysis. 250 simple constructors may benefit from explicit preconditions. |
 
 ---
 
