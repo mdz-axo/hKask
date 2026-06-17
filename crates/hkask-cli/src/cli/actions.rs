@@ -626,12 +626,12 @@ pub enum KataAction {
     List,
     /// Show details of a specific kata manifest
     Show {
-        /// Manifest name (e.g., "starter-kata", "improvement-kata")
+        /// Manifest name (e.g., "kata-starter", "kata-improvement")
         name: String,
     },
     /// Execute a kata cycle
     Start {
-        /// Manifest name (e.g., "improvement-kata", "starter-kata")
+        /// Manifest name (e.g., "kata-improvement", "kata-starter")
         name: String,
         /// Learner bot identity (e.g., "Alice")
         #[arg(short, long)]

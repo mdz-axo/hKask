@@ -842,9 +842,9 @@ impl KataEngine {
             .unwrap_or("starter");
 
         let kata_manifest_name = match selected {
-            "improvement" => "improvement-kata.yaml",
-            "coaching" => "coaching-kata.yaml",
-            _ => "starter-kata.yaml",
+            "improvement" => "kata-improvement.yaml",
+            "coaching" => "kata-coaching.yaml",
+            _ => "kata-starter.yaml",
         };
 
         tracing::info!(

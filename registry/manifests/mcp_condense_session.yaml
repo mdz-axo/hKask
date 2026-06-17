@@ -5,9 +5,9 @@ manifest:
   id: mcp/condense_session
   name: MCP Session Condenser
   description: >
-  functional_role: flowdef
     Condense conversation sessions into summaries with key decisions and action items.
     Supports configurable compression ratio and selective extraction.
+  functional_role: flowdef
   version: 0.21.0
   editor: curator-or-human-admin
   visibility: Shared
@@ -55,7 +55,7 @@ steps:
       Track compression efficiency and quality.
     renderer: null
     template_ref: null
-    mcp: null  # CNS is ambient (CnsRuntime)
+    mcp: null # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:

@@ -315,6 +315,6 @@ rSolidity is a Rust layer. Python generator scripts are **not** retained in the 
 - [`FUNCTIONAL_SPECIFICATION.md`](./FUNCTIONAL_SPECIFICATION.md) — spec anchor
 - [`PRINCIPLES.md`](./PRINCIPLES.md) — P1–P12 definitions
 - [`MDS.md`](./MDS.md) — Minimum Definition Specification
-- [`crates/hkask-cns/src/energy.rs`](../../crates/hkask-cns/src/energy.rs) — first migration target
-- [`crates/hkask-rsolidity/src/lib.rs`](../../crates/hkask-rsolidity/src/lib.rs) — macro and trait implementations
-- [`crates/hkask-rsolidity-macros/src/lib.rs`](../../crates/hkask-rsolidity-macros/src/lib.rs) — attribute proc-macro implementations
+- [`crates/hkask-cns/src/energy.rs`](../../../crates/hkask-cns/src/energy.rs) — first migration target
+- [`crates/hkask-rsolidity/src/lib.rs`](../../../crates/hkask-rsolidity/src/lib.rs) — macro and trait implementations
+- [`crates/hkask-rsolidity-macros/src/lib.rs`](../../../crates/hkask-rsolidity-macros/src/lib.rs) — attribute proc-macro implementations
