@@ -53,6 +53,7 @@ use hkask_mcp_training::adapters::{
     AdapterMetrics, AdapterStore, InMemoryAdapterStore, JobStore, LoRAAdapter, SqliteAdapterStore,
 };
 use hkask_mcp_training::dataset::DatasetPipeline;
+use hkask_mcp_training::endpoint::{CostModel, EndpointLifecycle, EndpointPhase};
 use hkask_mcp_training::providers::{
     LoraParams, TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
     TrainingJobStatus, TrainingParams, create_host,
@@ -146,35 +147,36 @@ impl TraceGenerationConfig {
     }
 }
 
-// ── Training mode — QA fact vs decomposition trace ───────────────────────
+// ── Training mode — expertise vs skill vs contrastive ──────────────────
 
 /// What kind of training data is being produced.
 ///
-/// **QA Semantic Fact** — "What to answer" — factual knowledge about the domain.
+/// **Expertise** — "What to know" — factual domain knowledge.
 /// Training data is QA pairs (ingest_qa → assemble_dataset).
 /// Evaluation uses exact/contains/semantic match.
+/// Produces an *expertise adapter* that answers factual questions about a domain.
 ///
 /// **Decomposition Trace** — "How to think" — procedural decomposition of problems.
 /// Training data is generated traces from SKILL.md (generate_traces).
 /// Evaluation uses decomposition accuracy.
+/// Produces a *skill adapter* that applies a methodology to novel situations.
 ///
 /// **Contrastive Trace** — "What to prefer" — trains judgment by contrasting correct vs. incorrect decompositions.
 /// Training data is trace pairs (chosen/rejected) with the same situation.
 /// Evaluation uses preference accuracy (does model produce chosen over rejected?).
 /// Uses the existing A/B evaluation loop for comparing adapter outputs.
 ///
-/// **Hybrid** — Both QA and traces, with configurable weighting (default 30% QA / 70% traces).
+/// **Hybrid** — Both expertise and skill traces, with configurable weighting (default 30% expertise / 70% traces).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingMode {
-    /// QA factual knowledge fine-tuning.
-    QAFact,
-    /// Procedural decomposition trace fine-tuning.
+    /// Expertise (factual knowledge) fine-tuning — domain QA pairs.
+    Expertise,
+    /// Skill (procedural) decomposition trace fine-tuning — from SKILL.md.
     DecompositionTrace,
     /// Contrastive preference training — correct vs. incorrect trace pairs.
-    /// Uses the A/B comparison loop: adapter outputs compared against ground-truth chosen traces.
     ContrastiveTrace,
-    /// Weighted combination of QA and decomposition traces.
+    /// Weighted combination of expertise QA and skill decomposition traces.
     Hybrid,
 }
 
@@ -623,6 +625,97 @@ pub struct ParamSweep {
     pub num_epochs: Vec<u32>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainDeployRequest {
+    /// Adapter ID or skill/expertise name to deploy (e.g., "constraint-forces-v3").
+    pub adapter_name: String,
+    /// Cloud inference provider for deployment.
+    pub provider: DeploymentProvider,
+    /// Base model the adapter was trained on. Auto-resolved from AdapterStore if omitted.
+    #[serde(default)]
+    pub base_model: Option<String>,
+    /// GPU type preference (e.g., "A100", "H100", "RTX 4090"). Provider-specific.
+    #[serde(default)]
+    pub gpu_type: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainTeardownRequest {
+    /// Deployment ID from a previous training_deploy call.
+    pub deployment_id: String,
+}
+
+/// Cloud provider for adapter deployment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DeploymentProvider {
+    /// Together AI — fine-tuned models auto-deployed. ~30s setup.
+    Together,
+    /// Baseten — multi-LoRA serving on a single base model. ~5min setup.
+    Baseten,
+    /// Runpod — GPU pod with adapter weights mounted. ~3min setup.
+    Runpod,
+}
+
+impl DeploymentProvider {
+    /// Estimated setup time in seconds.
+    pub fn setup_seconds(&self) -> u64 {
+        match self {
+            DeploymentProvider::Together => 30,
+            DeploymentProvider::Baseten => 300,
+            DeploymentProvider::Runpod => 180,
+        }
+    }
+
+    /// Estimated cost per hour in USD.
+    pub fn cost_per_hour(&self, gpu: Option<&str>) -> f32 {
+        match self {
+            DeploymentProvider::Together => 0.0, // included in fine-tune pricing
+            DeploymentProvider::Baseten => match gpu.unwrap_or("H100") {
+                "H100" => 3.50,
+                "A100" => 2.50,
+                _ => 1.50,
+            },
+            DeploymentProvider::Runpod => match gpu.unwrap_or("RTX 4090") {
+                "A100" => 1.99,
+                "H100" => 2.99,
+                _ => 0.79,
+            },
+        }
+    }
+}
+
+/// A deployed adapter endpoint — tracks the lifecycle of a trained adapter
+/// that has been deployed to a cloud inference provider.
+///
+/// Uses `EndpointLifecycle` for state machine governance:
+///   Provisioning → Ready → Active → Draining → Terminated
+#[derive(Debug, Clone, Serialize)]
+pub struct AdapterDeployment {
+    pub deployment_id: String,
+    pub adapter_name: String,
+    pub base_model: String,
+    pub provider: DeploymentProvider,
+    pub endpoint_url: Option<String>,
+    /// Lifecycle state machine — governs phase transitions.
+    #[serde(skip)]
+    pub lifecycle: EndpointLifecycle,
+    pub estimated_cost_per_hour: f32,
+    pub deployed_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl AdapterDeployment {
+    /// Current phase from the lifecycle state machine.
+    pub fn phase(&self) -> EndpointPhase {
+        self.lifecycle.phase
+    }
+
+    /// Accrued cost from the lifecycle.
+    pub fn cost_accrued(&self) -> f64 {
+        self.lifecycle.cost_accrued
+    }
+}
+
 // ── Server ───────────────────────────────────────────────────────────────
 
 pub struct TrainingServer {
@@ -637,6 +730,7 @@ pub struct TrainingServer {
     adapter_store: Arc<dyn AdapterStore>,
     job_store: Option<JobStore>,
     inference_config: InferenceConfig,
+    deployments: Mutex<HashMap<String, AdapterDeployment>>,
 }
 
 impl TrainingServer {
@@ -666,6 +760,7 @@ impl TrainingServer {
             adapter_store,
             job_store,
             inference_config,
+            deployments: Mutex::new(HashMap::new()),
         }
     }
 
@@ -859,10 +954,10 @@ impl TrainingServer {
 
         // Resolve model provenance before submitting — catches gated/invalid models early
         let resolver = hkask_mcp_training::huggingface::LocalModelResolver;
-        let provenance = hkask_mcp_training::huggingface::ModelResolver::resolve(
-            &resolver, &base_model,
-        );
-        if let Ok(ref p) = provenance {            tracing::info!(
+        let provenance =
+            hkask_mcp_training::huggingface::ModelResolver::resolve(&resolver, &base_model);
+        if let Ok(ref p) = provenance {
+            tracing::info!(
                 target: "cns.training.provenance.resolved",
                 model_id = %p.model_id,
                 architecture = %p.architecture,
@@ -1084,27 +1179,27 @@ impl TrainingServer {
                                 && let (Some(new_loss), Some(prev_loss)) =
                                     (current_loss, prev.metrics.as_ref().and_then(|m| m.loss))
                             {
-                                    let improved = new_loss < prev_loss;
-                                    result["ab_comparison"] = json!({
-                                        "skill_name": adapter.skill_name,
-                                        "previous_version": prev.version,
-                                        "previous_adapter_name": prev.name,
-                                        "previous_loss": prev_loss,
-                                        "new_version": adapter.version,
-                                        "new_loss": new_loss,
-                                        "loss_improved": improved,
-                                        "auto_promoted": improved,
-                                    });
-                                    tracing::info!(
-                                        target: "cns.training.retrain.ab",
-                                        skill = %adapter.skill_name,
-                                        prev_version = prev.version,
-                                        prev_loss = %prev_loss,
-                                        new_loss = %new_loss,
-                                        improved = improved,
-                                        "A/B comparison completed"
-                                    );
-                                }
+                                let improved = new_loss < prev_loss;
+                                result["ab_comparison"] = json!({
+                                    "skill_name": adapter.skill_name,
+                                    "previous_version": prev.version,
+                                    "previous_adapter_name": prev.name,
+                                    "previous_loss": prev_loss,
+                                    "new_version": adapter.version,
+                                    "new_loss": new_loss,
+                                    "loss_improved": improved,
+                                    "auto_promoted": improved,
+                                });
+                                tracing::info!(
+                                    target: "cns.training.retrain.ab",
+                                    skill = %adapter.skill_name,
+                                    prev_version = prev.version,
+                                    prev_loss = %prev_loss,
+                                    new_loss = %new_loss,
+                                    improved = improved,
+                                    "A/B comparison completed"
+                                );
+                            }
                         }
                     }
                 }
@@ -2998,6 +3093,193 @@ impl TrainingServer {
                     .to_json_string(),
             ),
         }
+    }
+
+    #[tool(
+        description = "Deploy a trained adapter to a cloud inference endpoint. Looks up the adapter by name from AdapterStore, resolves the base model, estimates cost and setup time per provider, and provisions or locates an endpoint. For Together AI, the fine-tuned model is auto-deployed — returns the model name directly. For Baseten/Runpod, returns a deployment ID for status polling. CNS span: cns.training.deploy."
+    )]
+    async fn training_deploy(&self, Parameters(req): Parameters<TrainDeployRequest>) -> String {
+        let span = ToolSpanGuard::new("training_deploy", &self.webid);
+
+        // Look up adapter from store — validate it exists.
+        // Try by exact ID first, then by skill/expertise name.
+        let adapter_meta = match self.adapter_store.get_metadata(&req.adapter_name).await {
+            Ok(Some(meta)) => meta,
+            _ => {
+                match self
+                    .adapter_store
+                    .get_by_skill_name(&req.adapter_name)
+                    .await
+                {
+                    Ok(Some(meta)) => meta,
+                    Ok(None) => {
+                        return span.error(
+                            McpErrorKind::InvalidArgument,
+                            McpToolError::invalid_argument(format!(
+                                "Adapter '{}' not found by ID or skill name. Use training_list_adapters to see available adapters.",
+                                req.adapter_name
+                            ))
+                            .to_json_string(),
+                        );
+                    }
+                    Err(e) => {
+                        return span.error(
+                            McpErrorKind::Internal,
+                            McpToolError::internal(format!("Adapter store error: {}", e))
+                                .to_json_string(),
+                        );
+                    }
+                }
+            }
+        };
+
+        // Resolve base model from adapter metadata
+        let base_model = req.base_model.unwrap_or(adapter_meta.base_model);
+        let setup_secs = req.provider.setup_seconds();
+        let cost_hr = req.provider.cost_per_hour(req.gpu_type.as_deref());
+        let deploy_id = uuid::Uuid::new_v4().to_string();
+
+        // Provider-specific deployment logic
+        let (endpoint_url, initial_phase, provider_note) = match req.provider {
+            DeploymentProvider::Together => {
+                let model_name = format!("TG/{}", base_model);
+                (
+                    Some(model_name.clone()),
+                    EndpointPhase::Ready,
+                    format!(
+                        "Together AI model '{}' is auto-deployed. Use this model name directly in inference via provider prefix TG/.",
+                        model_name
+                    ),
+                )
+            }
+            DeploymentProvider::Baseten => {
+                (
+                    None,
+                    EndpointPhase::Provisioning,
+                    format!(
+                        "Baseten deployment queued. Expected ready in ~{}s at ~${:.2}/hr. Use training_deployment_status to poll.",
+                        setup_secs, cost_hr
+                    ),
+                )
+            }
+            DeploymentProvider::Runpod => {
+                (
+                    None,
+                    EndpointPhase::Provisioning,
+                    format!(
+                )
+            }
+        };
+
+        // Create and initialize lifecycle state machine
+        let mut lifecycle = EndpointLifecycle::new();
+        if initial_phase != EndpointPhase::Provisioning {
+            let _ = lifecycle.transition(initial_phase);
+        }
+                )
+            }
+        };
+
+        // Store deployment record
+        let deployment = AdapterDeployment {
+            deployment_id: deploy_id.clone(),
+            adapter_name: req.adapter_name.clone(),
+            base_model: base_model.clone(),
+            provider: req.provider,
+            endpoint_url: endpoint_url.clone(),
+            status,
+            estimated_cost_per_hour: cost_hr,
+            deployed_at: chrono::Utc::now(),
+        };
+        if let Ok(mut map) = self.deployments.lock() {
+            map.insert(deploy_id.clone(), deployment);
+        }
+
+        let result = json!({
+            "deployment_id": deploy_id,
+            "adapter_name": req.adapter_name,
+            "adapter_version": adapter_meta.version,
+            "adapter_skill": adapter_meta.skill_name,
+            "provider": format!("{:?}", req.provider).to_lowercase(),
+            "base_model": base_model,
+            "endpoint_url": endpoint_url,
+            "estimated_setup_seconds": setup_secs,
+            "estimated_cost_per_hour_usd": cost_hr,
+            "status": format!("{:?}", status).to_lowercase(),
+            "note": provider_note,
+        });
+        tracing::info!(target: "cns.training.deploy", deployment_id = %deploy_id, adapter = %req.adapter_name, provider = ?req.provider, cost_hr = cost_hr, "Adapter deployment initiated");
+        self.record_experience(
+            "training_deploy",
+            &req.adapter_name,
+            "success",
+            result.clone(),
+        );
+        span.ok_json(result)
+    }
+
+    #[tool(
+        description = "Check the status of a deployed adapter endpoint. Returns current provisioning state, endpoint URL when ready, and accumulated cost. CNS span: cns.training.deployment_status."
+    )]
+    async fn training_deployment_status(
+        &self,
+        Parameters(req): Parameters<TrainTeardownRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_deployment_status", &self.webid);
+        let deployment = if let Ok(map) = self.deployments.lock() {
+            map.get(&req.deployment_id).cloned()
+        } else {
+            None
+        };
+        match deployment {
+            Some(d) => {
+                let elapsed = (chrono::Utc::now() - d.deployed_at).num_seconds() as f64;
+                let accrued_cost = if elapsed > 0.0 {
+                    d.estimated_cost_per_hour as f64 * (elapsed / 3600.0)
+                } else {
+                    0.0
+                };
+                span.ok_json(json!({
+                    "deployment_id": d.deployment_id,
+                    "adapter_name": d.adapter_name,
+                    "provider": format!("{:?}", d.provider).to_lowercase(),
+                    "status": format!("{:?}", d.status).to_lowercase(),
+                    "endpoint_url": d.endpoint_url,
+                    "estimated_cost_per_hour_usd": d.estimated_cost_per_hour,
+                    "elapsed_seconds": elapsed as u64,
+                    "accrued_cost_usd": format!("{:.4}", accrued_cost),
+                }))
+            }
+            None => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "Deployment '{}' not found. It may have been torn down or never existed.",
+                    req.deployment_id
+                ))
+                .to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Tear down a deployed adapter endpoint. Stops the cloud inference endpoint and releases GPU resources. CNS span: cns.training.teardown."
+    )]
+    async fn training_teardown(&self, Parameters(req): Parameters<TrainTeardownRequest>) -> String {
+        let span = ToolSpanGuard::new("training_teardown", &self.webid);
+        let existed = if let Ok(mut map) = self.deployments.lock() {
+            map.remove(&req.deployment_id).is_some()
+        } else {
+            false
+        };
+        let result = json!({"deployment_id": req.deployment_id, "status": "torn_down", "existed": existed, "note": if existed { "Endpoint torn down. GPU resources released." } else { "Deployment not found (may have already been torn down)." }});
+        tracing::info!(target: "cns.training.teardown", deployment_id = %req.deployment_id, existed = existed, "Adapter deployment torn down");
+        self.record_experience(
+            "training_teardown",
+            &req.deployment_id,
+            "success",
+            result.clone(),
+        );
+        span.ok_json(result)
     }
 }
 

@@ -834,6 +834,69 @@ The dual-presence pattern — where two entities (a sovereign host replicant and
 
 ---
 
+
+## Training System Open Questions
+
+### TRN-001: Harness-specific optimizer naming layer
+
+**MDS Category:** Capability
+**Status:** Open
+**Opened:** 2026-06-16
+
+Axolotl supports `adamw_bnb_8bit`, `lion_8bit`, `adafactor`. Unsloth defaults to `adamw_8bit`. The canonical `TrainingParams` exposes `optimizer: Option<String>` — a free-form string. How should optimizer choice be exposed without coupling to specific harness implementations? A harness-aware optimizer mapping layer is needed.
+
+**Options:**
+1. Harness-agnostic optimizer enum (e.g., `AdamW8Bit`, `Lion`, `Adafactor`) with per-harness mapping
+2. Free-form string with validation at config-generation time
+3. Separate optimizer params per harness (adds surface, violates unification)
+
+### TRN-002: Multi-LoRA composition at inference time
+
+**MDS Category:** Composition
+**Status:** Open
+**Opened:** 2026-06-16
+
+The architecture doc mentions adapters can be composed. How should two skill adapters (e.g., `coding-guidelines + deep-module`) be served simultaneously? `hkask-inference` supports one adapter per request (`LLMParameters.adapter`), not multiple.
+
+**Options:**
+1. Weight interpolation (blend adapter weights)
+2. Sequential application (pass through adapter A, then adapter B)
+3. MoE-style gating (router selects which adapter to activate per token)
+4. Prompt-level composition (include both skill instructions in system prompt)
+
+### TRN-003: Adapter version drift detection
+
+**MDS Category:** Lifecycle
+**Status:** Open
+**Opened:** 2026-06-16
+
+When a SKILL.md is updated, the adapter trained on the old version may produce incorrect decompositions. Should the system detect skill-document drift and flag adapters as stale? This is a CNS drift-detection problem already solved for specs (`DefaultSpecCurator`). Can the same mechanism apply to skill→adapter drift?
+
+### TRN-004: HuggingFace dataset versioning
+
+**MDS Category:** Domain
+**Status:** Open
+**Opened:** 2026-06-16
+
+The `DatasetPipeline` uses local JSONL files. Should it also support loading datasets directly from HuggingFace Hub via `datasets.load_dataset` with version pinning? This would enable reproducible training with canonical datasets.
+
+### TRN-005: Cloud harness config embedding
+
+**MDS Category:** Composition
+**Status:** Open
+**Opened:** 2026-06-16
+
+Axolotl and Unsloth are currently local-only; cloud dispatch returns `Unavailable`. For cloud hosts (Together, Runpod, Baseten), the harness field is tracked in `TrainingJob` but the actual axolotl YAML or unsloth Python script is not embedded in the dispatch payload. Should cloud hosts generate and include harness-specific config, or is the cloud host native training API sufficient?
+
+### TRN-006: Training CNS span registration
+
+**MDS Category:** Observability
+**Status:** Open
+**Opened:** 2026-06-16
+
+CNS spans like `cns.training.sweep.iteration` and `cns.training.retrain.ab` are emitted via `tracing::info!` with string targets but not registered in `crates/hkask-types/src/cns.rs` `CnsSpan` enum. They work for logging but cannot be subscribed to programmatically via CNS variety tracking. Which of these spans meet the deletion test for programmatic observability?
+
+
 ## References
 
 [^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification*. `docs/architecture/MDS.md`.

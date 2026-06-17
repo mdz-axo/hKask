@@ -30,13 +30,25 @@ pub fn sovereignty_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(sovereignty_check_access))
 }
 
+/// Sovereignty status response — P1 (User Sovereignty) and P2 (Affirmative Consent).
+///
+/// Reflects the authenticated agent's current data sovereignty boundary:
+/// which categories are sovereign (agent-only), shared (consent-gated), and
+/// public (always accessible). `granted_categories` lists categories where
+/// explicit consent has been given.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct SovereigntyStatusResponse {
+    /// Whether any explicit consent has been granted
     pub explicit_consent: bool,
+    /// "required" if the boundary demands affirmative consent; "open" otherwise
     pub requires_affirmative_consent: String,
+    /// Data categories that are agent-sovereign (never shared without consent)
     pub sovereign_data: Vec<String>,
+    /// Data categories eligible for sharing after explicit consent
     pub shared_data: Vec<String>,
+    /// Data categories that are always publicly accessible
     pub public_data: Vec<String>,
+    /// Categories for which explicit consent has been granted
     pub granted_categories: Vec<String>,
 }
 
@@ -46,17 +58,34 @@ pub struct SovereigntyConsentRequest {
     pub category: String,
 }
 
+/// Sovereignty consent response — P2 (Affirmative Consent).
+///
+/// `consent: true` means the grant was accepted and data sharing is enabled
+/// for the listed categories. `consent: false` means consent was revoked and
+/// only public data remains accessible.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct SovereigntyConsentResponse {
+    /// Whether consent is currently granted
     pub consent: bool,
+    /// Human-readable status message
     pub message: String,
+    /// Categories currently granted consent
     pub categories: Vec<String>,
 }
 
+/// Access check response — P4 (OCAP) membrane result.
+///
+/// Reports whether the authenticated agent has access to a specific data
+/// category. `classification` is one of: PUBLIC, SHARED, SOVEREIGN.
+/// `access_required` is the OCAP-level gate (e.g., "capability:memory",
+/// "consent:required").
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct AccessCheckResponse {
+    /// Data category checked
     pub category: String,
+    /// Classification: PUBLIC, SHARED, or SOVEREIGN
     pub classification: String,
+    /// OCAP-level access gate description
     pub access_required: String,
 }
 

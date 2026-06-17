@@ -20,22 +20,38 @@ pub fn goal_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(set_goal_state))
 }
 
+/// Create goal request — P4 OCAP-gated goal creation.
+///
+/// Visibility defaults to "private" when omitted. See P11 (Digital Public/Private
+/// Sphere) for the visibility taxonomy.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct CreateGoalRequest {
+    /// Goal description text
     pub text: String,
+    /// Visibility: "private" or "shared" (defaults to "private")
     pub visibility: Option<String>,
 }
 
+/// Set goal state request — state machine transition.
+///
+/// Legal states: "active", "completed", "abandoned".
+/// Legal transitions: active→completed, active→abandoned.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct SetGoalStateRequest {
+    /// Target state: "active", "completed", or "abandoned"
     pub state: String,
 }
 
+/// Goal response — reflects current goal state and visibility (P4, P11).
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalResponse {
+    /// Unique goal identifier
     pub id: String,
+    /// Goal description text
     pub text: String,
+    /// Current state: "active", "completed", or "abandoned"
     pub state: String,
+    /// Visibility: "private" or "shared"
     pub visibility: String,
 }
 
@@ -50,8 +66,10 @@ impl From<hkask_services::GoalResponse> for GoalResponse {
     }
 }
 
+/// Goal list response.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GoalListResponse {
+    /// Goals for the authenticated agent
     pub goals: Vec<GoalResponse>,
 }
 

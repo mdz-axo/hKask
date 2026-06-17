@@ -15,31 +15,53 @@ use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+/// Create pod request — Pattern D agent creation.
+///
+/// `template` is a FlowDef template ID. `persona_yaml` is the agent persona
+/// definition in YAML format (maps to a WordAct).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePodRequest {
+    /// FlowDef template ID defining the agent's operational pattern
     pub template: String,
+    /// Agent persona definition in YAML (WordAct)
     pub persona_yaml: String,
+    /// Optional human-readable pod name
     pub name: Option<String>,
 }
 
+/// Create pod response — returns the new pod's ID.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePodResponse {
+    /// Unique pod identifier
     pub pod_id: String,
 }
 
+/// Pod status response — current state of an agent pod (Pattern D).
+///
+/// `state` is one of: "active", "inactive", "error".
+/// `agent_type` is one of: "Bot", "Replicant" (P10).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct PodStatusResponse {
+    /// Unique pod identifier
     pub pod_id: String,
+    /// Human-readable pod name
     pub name: Option<String>,
+    /// Pod state: "active", "inactive", or "error"
     pub state: String,
+    /// Agent WebID (P12 — accountable identity)
     pub webid: String,
+    /// Agent type: "Bot" or "Replicant" (P10)
     pub agent_type: String,
+    /// FlowDef template ID
     pub template: String,
+    /// Unix epoch seconds of pod creation
     pub created_at: i64,
 }
 
+/// List pods response.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ListPodsResponse {
+    /// All active pods
     pub pods: Vec<PodStatusResponse>,
 }
 

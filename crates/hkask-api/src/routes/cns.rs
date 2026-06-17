@@ -237,27 +237,49 @@ pub(crate) async fn cns_subscribe(
 
 // ── Response Types ──
 
-/// CNS health response
+/// CNS health response — P9 (Homeostatic Self-Regulation).
+///
+/// `healthy: false` means one or more variety domains are in deficit (below
+/// their configured threshold). Check `critical_count` and `warning_count` for
+/// severity. `overall_deficit` is the sum of all per-domain deficits.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CnsHealthResponse {
+    /// Sum of all per-domain variety deficits
     pub overall_deficit: u64,
+    /// Count of domains in critical deficit (escalation-triggered)
     pub critical_count: usize,
+    /// Count of domains in warning deficit
     pub warning_count: usize,
+    /// Whether all variety domains are within healthy thresholds
     pub healthy: bool,
 }
 
-/// CNS variety counter response
+/// CNS variety counter for a single domain.
+///
+/// `variety` is the tracked behavioral diversity for this domain.
+/// `entropy` is the Shannon entropy of the domain's observation distribution
+/// (0.0 when not yet computed).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct VarietyCounterResponse {
+    /// Tracked behavioral diversity count
     pub variety: u64,
+    /// Total observations in this domain
     pub total: u64,
+    /// Shannon entropy (0.0 = not computed yet)
     pub entropy: f64,
 }
 
-/// CNS variety response
+/// CNS variety response — per-domain variety counters for the Cybernetic Nervous System (Pattern B).
+///
+/// `domains` lists all canonical CNS span namespaces registered (e.g., cns.tool,
+/// cns.inference, cns.memory). `total_deficit` is the aggregate variety gap across
+/// all domains.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CnsVarietyResponse {
+    /// All registered CNS span namespace domains
     pub domains: Vec<String>,
+    /// Aggregate variety deficit across all domains
     pub total_deficit: u64,
+    /// Per-domain variety counters keyed by namespace
     pub counters: std::collections::HashMap<String, VarietyCounterResponse>,
 }

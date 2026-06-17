@@ -50,6 +50,8 @@ SKILL.md → training_generate_traces → ChatML JSONL (type-specialized)
 | 15 | `training_curate_feedback` | Continuous loop | LLM-as-judge feedback curation with failure categorization (hallucination/omission/procedural_error/off_target) and quality threshold gating |
 | 16 | `training_retrain` | Continuous loop | Merge original + quality-gated feedback, A/B baseline recording, retrain with incremented version |
 | 17 | `training_sweep` | Optimization | Parameter grid search across learning rates, LoRA ranks, batch sizes, epochs — submits N jobs, reports best config |
+| 18 | `training_deploy` | Deployment | Deploy a trained adapter to cloud inference endpoint (Together/Baseten/Runpod) with cost/setup time estimates |
+| 19 | `training_teardown` | Deployment | Tear down a deployed endpoint and release GPU resources |
 
 ## Trace Type Specialization
 
@@ -66,7 +68,7 @@ Decomposition traces are generated per skill type, auto-detected by hLexicon ter
 
 | Mode | What is trained | Training data | Evaluation |
 |------|----------------|---------------|------------|
-| **QA Semantic Fact** | "What to answer" — factual domain knowledge | QA pairs (ingest_qa → assemble_dataset) | Exact/contains/semantic match |
+| **Expertise** | "What to answer" — factual domain knowledge | QA pairs (ingest_qa → assemble_dataset) | Exact/contains/semantic match |
 | **Decomposition Trace** | "How to think" — procedural decomposition | Generated traces from SKILL.md | Decomposition accuracy |
 | **Hybrid** | Both QA + traces | Weighted merge (default 30% QA / 70% traces) | Combined metrics |
 
@@ -178,7 +180,7 @@ The training MCP server is the **skills training engine** — it spans the full 
 
 ## Deletion Test
 
-Delete `hkask-mcp-training` and the skills training pipeline (data generation, LoRA training, evaluation, continuous improvement, parameter sweep) must be rebuilt from scratch across scattered scripts and manual processes. The 17-tool surface consolidates what would otherwise be 7+ separate workflows. The crate earns its existence.
+Delete `hkask-mcp-training` and the skills training pipeline (data generation, LoRA training, evaluation, continuous improvement, parameter sweep) must be rebuilt from scratch across scattered scripts and manual processes. The 19-tool surface consolidates what would otherwise be 7+ separate workflows. The crate earns its existence.
 
 ## Multi-LoRA Inference Routing
 

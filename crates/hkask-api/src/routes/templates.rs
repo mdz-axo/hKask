@@ -23,20 +23,33 @@ use crate::error::ServiceErrorResponse;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// Template response
+/// Template response — a registered skill template in the WordAct / FlowDef / KnowAct taxonomy (Pattern A).
+///
+/// `template_type` is one of: WordAct, FlowDef, KnowAct.
+/// `lexicon_terms` maps the template to canonical hLexicon vocabulary terms.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct TemplateResponse {
+    /// Unique template identifier
     pub id: String,
+    /// Template type: WordAct, FlowDef, or KnowAct
     pub template_type: String,
+    /// Human-readable template name
     pub name: String,
+    /// Template description
     pub description: String,
+    /// Source file path within the registry
     pub source_path: String,
+    /// Canonical hLexicon terms this template implements
     pub lexicon_terms: Vec<String>,
 }
 
-/// Capability request
+/// Capability grant request — P4 OCAP capability assignment to a bot agent.
+///
+/// Capabilities follow the `verb:resource` pattern (e.g., "tool:execute",
+/// "template:render").
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GrantCapabilityRequest {
+    /// Capability to grant (e.g., "tool:execute", "template:render")
     pub capability: String,
 }
 

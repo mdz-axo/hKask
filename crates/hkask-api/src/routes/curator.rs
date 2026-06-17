@@ -10,67 +10,110 @@ use crate::ApiState;
 use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
+/// Escalation entry — a pending Curator escalation triggered by bot output below
+/// confidence threshold or context errors (Pattern C, P12).
+///
+/// Status: "pending", "resolved", or "dismissed".
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct EscalationEntryResponse {
+    /// Escalation ID
     pub id: String,
+    /// Template that produced the flagged output
     pub template_id: String,
+    /// Bot WebID that triggered the escalation
     pub bot_id: String,
+    /// Flagged output text
     pub output: String,
+    /// Confidence score (0.0–1.0) at time of escalation
     pub confidence: f64,
+    /// Number of retry attempts before escalation
     pub retry_count: u32,
+    /// Error context or reason for escalation
     pub error_context: String,
+    /// ISO 8601 creation timestamp
     pub created_at: String,
+    /// Current status: "pending", "resolved", or "dismissed"
     pub status: String,
+    /// ISO 8601 resolution timestamp (when resolved/dismissed)
     pub resolved_at: Option<String>,
+    /// WebID of the resolver (P12 — accountable identity)
     pub resolved_by: Option<String>,
 }
 
+/// List of pending escalations.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ListEscalationsResponse {
+    /// Pending escalations in the queue
     pub escalations: Vec<EscalationEntryResponse>,
 }
 
+/// Resolve escalation request — P12 (accountable identity).
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ResolveEscalationRequest {
+    /// WebID of the human or agent resolving the escalation
     pub resolved_by: String,
 }
 
+/// Resolve escalation response.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ResolveEscalationResponse {
+    /// Escalation ID that was resolved
     pub id: String,
+    /// New status: "resolved"
     pub status: String,
 }
 
+/// Dismiss escalation request — P12 (accountable identity).
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct DismissEscalationRequest {
+    /// WebID of the human or agent dismissing the escalation
     pub dismissed_by: String,
 }
 
+/// Dismiss escalation response.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct DismissEscalationResponse {
+    /// Escalation ID that was dismissed
     pub id: String,
+    /// New status: "dismissed"
     pub status: String,
 }
 
+/// Escalation statistics — aggregate counts across all escalations.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct EscalationStatsResponse {
+    /// Total escalations ever created
     pub total: i64,
+    /// Escalations awaiting resolution
     pub pending: i64,
+    /// Escalations that have been resolved
     pub resolved: i64,
+    /// Escalations dismissed as non-actionable
     pub dismissed: i64,
 }
 
+/// Bot status report — reflects the health of a specific bot agent.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct BotStatusReportResponse {
+    /// Bot name
     pub bot_name: String,
+    /// Aggregate status: "healthy", "degraded", or "critical"
     pub status: String,
+    /// ISO 8601 timestamp of last report (None if never reported)
     pub last_report: Option<String>,
+    /// Active issues requiring attention
     pub issues: Vec<String>,
 }
 
+/// Curator metacognition status — aggregate view of system health (Pattern C).
+///
+/// Combines escalation queue statistics with per-bot health reports.
+/// This is the primary observability endpoint for the Curator mediation loop.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct MetacognitionStatusResponse {
+    /// Aggregate escalation statistics
     pub escalation_stats: EscalationStatsResponse,
+    /// Per-bot health reports
     pub bot_reports: Vec<BotStatusReportResponse>,
 }
 

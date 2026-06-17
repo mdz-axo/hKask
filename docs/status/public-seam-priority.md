@@ -1,6 +1,6 @@
 # Public Seam Priority List
 
-**Generated:** 2026-06-17T00:01:33Z
+**Generated:** 2026-06-17T03:44:21Z
 **Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
 
@@ -111,7 +111,7 @@ risk and typically covered by struct-level or integration tests.
 | 91 | hkask-api | fn | `verify_token` | hkask-api::middleware::auth | crates/hkask-api/src/middleware/auth.rs:76 | API Route Handler |
 | 92 | hkask-api | fn | `wallet_router` | hkask-api::routes::wallet | crates/hkask-api/src/routes/wallet.rs:30 | API Route Handler |
 | 93 | hkask-cli | fn | `build_service_context` | hkask-cli::commands::helpers | crates/hkask-cli/src/commands/helpers.rs:27 | Core Logic |
-| 94 | hkask-cli | fn | `change_passphrase` | hkask-cli::commands::user | crates/hkask-cli/src/commands/user.rs:407 | Core Logic |
+| 94 | hkask-cli | fn | `change_passphrase` | hkask-cli::commands::user | crates/hkask-cli/src/commands/user.rs:424 | Core Logic |
 | 95 | hkask-cli | fn | `create` | hkask-cli::commands::goal | crates/hkask-cli/src/commands/goal.rs:12 | Core Logic |
 | 96 | hkask-cli | fn | `curator_webid` | hkask-cli::bootstrap | crates/hkask-cli/src/bootstrap.rs:389 | Core Logic |
 | 97 | hkask-cli | fn | `format_tool_prompt_section` | hkask-cli::repl::tool_augmented | crates/hkask-cli/src/repl/tool_augmented.rs:43 | Core Logic |
@@ -143,8 +143,8 @@ risk and typically covered by struct-level or integration tests.
 | hkask-api | 24 |
 | hkask-inference | 14 |
 | hkask-condenser | 14 |
+| hkask-mcp-training | 12 |
 | hkask-mcp-docproc | 12 |
-| hkask-mcp-training | 8 |
 | hkask-mcp-media | 7 |
 | hkask-rsolidity-macros | 2 |
 | hkask-mcp-spec | 2 |
@@ -152,4 +152,4 @@ risk and typically covered by struct-level or integration tests.
 | hkask-mcp-communication | 1 |
 | hkask-communication | 1 |
 
-**Total high-risk uncovered:** 949
+**Total high-risk uncovered:** 953

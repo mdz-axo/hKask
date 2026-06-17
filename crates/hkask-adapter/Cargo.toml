@@ -1,0 +1,21 @@
+[package]
+name = "hkask-adapter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Trained adapter lifecycle — adapter store, expertise, endpoint lifecycle, provider cost model"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-storage = { path = "../hkask-storage" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+rusqlite.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

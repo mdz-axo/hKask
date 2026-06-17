@@ -59,21 +59,35 @@ pub struct QueryEpisodesParams {
 }
 
 /// A single episodic triple as returned over the API.
+///
+/// Each episode is a (entity, attribute, value) triple with confidence,
+/// visibility governance (P11), and a temporal validity marker (`valid_from`).
+/// `visibility` is one of: "private", "shared", "public".
+/// `perspective` is the WebID of the observing agent (P12).
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct EpisodeResponse {
+    /// Unique episode ID
     pub id: String,
+    /// Entity (subject of the experience)
     pub entity: String,
+    /// Attribute (predicate / property)
     pub attribute: String,
+    /// Value (object of the triple)
     pub value: serde_json::Value,
+    /// Confidence score (0.0–1.0)
     pub confidence: f64,
+    /// WebID of the observing agent (P12)
     pub perspective: Option<String>,
+    /// Visibility: "private", "shared", or "public" (P11)
     pub visibility: String,
+    /// ISO 8601 timestamp when this triple became valid
     pub valid_from: String,
 }
 
 /// Response from querying episodic memories.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct QueryEpisodesResponse {
+    /// Retrieved episodic triples
     pub episodes: Vec<EpisodeResponse>,
 }
 

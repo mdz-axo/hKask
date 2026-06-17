@@ -20,6 +20,51 @@ use crate::routes::{
 use crate::routes::cns::CnsSubscribeParams;
 
 /// API documentation
+///
+/// # Architectural Context
+///
+/// hKask is grounded in the **Principle of Least Action** (P0). Every endpoint
+/// and schema exists because it reduces total system action — there is no
+/// speculative generality.
+///
+/// ## Core Patterns (see docs/architecture/hKask-architecture-master.md)
+///
+/// - **Pattern A — Skills Model:** Templates in WordAct / FlowDef / KnowAct taxonomy.
+///   Endpoints: `/api/templates`, `/api/v1/bundles`, `/api/v1/git/archive`.
+/// - **Pattern B — CNS Feedback Loop:** Cybernetic self-regulation via variety
+///   counters, algedonic alerts, and homeostatic backpressure (P9).
+///   Endpoints: `/api/cns/health`, `/api/cns/variety`, `/api/cns/subscribe`.
+/// - **Pattern C — Agentic AI Mediation:** Curator agent + escalation queue +
+///   metacognition (Pattern C). Endpoints: `/api/chat`, `/api/v1/curator/*`.
+/// - **Pattern D — Agent Creation:** Pod lifecycle with sovereign memory, per-agent
+///   databases, and consent-governed data boundaries (P1, P2, P4).
+///   Endpoints: `/api/bots`, `/api/episodic`, `/api/sovereignty`.
+///
+/// ## Magna Carta Principles (see docs/architecture/core/PRINCIPLES.md)
+///
+/// - **P1 — User Sovereignty:** Users own their data and delegation boundaries.
+/// - **P2 — Affirmative Consent:** Default is deny; access requires explicit,
+///   scoped, revocable consent.
+/// - **P3 — Generative Space:** All settings are equally exposed across
+///   CLI/API/REPL — no hidden or engineer-only controls.
+/// - **P4 — Clear Boundaries (OCAP):** Every request carries a DelegationToken;
+///   no ambient authority, no admin bypass.
+/// - **P5 — Essentialism:** Every endpoint must earn its existence. Prefer
+///   deletion over deprecation.
+/// - **P8 — Semantic Grounding:** Responses carry provenance-aware representations.
+/// - **P12 — Replicant Host Mandate:** Every action has an accountable host identity
+///   (WebID). No anonymous agency.
+///
+/// ## Authentication
+///
+/// All endpoints use **Bearer token** authentication. The token is a
+/// DelegationToken — an unforgeable, attenuating OCAP capability token
+/// carrying the authenticated WebID and scoped permissions.
+///
+/// ## hLexicon
+///
+/// All domain terms used in request/response schemas are grounded in the
+/// canonical hLexicon vocabulary (see docs/architecture/reference/hKask-hLexicon.md).
 #[derive(OpenApi)]
 #[openapi(
     components(schemas(
@@ -57,30 +102,62 @@ use crate::routes::cns::CnsSubscribeParams;
         // CNS subscribe params
         CnsSubscribeParams,
     )),
+    modifiers(&SecurityAddon),
     tags(
-        (name = "templates", description = "Template management"),
-        (name = "bots", description = "Bot capability management"),
-        (name = "mcp", description = "MCP servers and tools"),
-        (name = "cns", description = "CNS monitoring"),
-        (name = "chat", description = "Curator chat interface"),
-        (name = "models", description = "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI)"),
-        (name = "curator", description = "Curator escalation and metacognition"),
-        (name = "git", description = "Git archival and resolution"),
-        (name = "acp", description = "ACP agent registration and management"),
-        (name = "goals", description = "Goal coordination substrate (OCAP-gated)"),
-        (name = "bundles", description = "Bundle composition, application, and evolution"),
-        (name = "episodic", description = "Episodic memory store and query"),
-        (name = "sovereignty", description = "Consent and access governance (Magna Carta)"),
-        (name = "specs", description = "MDS specification management"),
-        (name = "consolidation", description = "Context consolidation and condensation"),
+        (name = "templates", description = "Template registry — WordAct / FlowDef / KnowAct skills in the hLexicon taxonomy (Pattern A)"),
+        (name = "bots", description = "Bot capability management — OCAP-gated capability grants to bot agents (P4, P10)"),
+        (name = "mcp", description = "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"),
+        (name = "cns", description = "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"),
+        (name = "chat", description = "Curator chat interface — inference with model switching and streaming (Pattern C)"),
+        (name = "models", description = "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI) — discover and search available LLMs"),
+        (name = "curator", description = "Curator escalation and metacognition — bot health reports and pending escalation queue (Pattern C, P12)"),
+        (name = "git", description = "Git archival and resolution — template crate loading and SHA resolution via GitCASPort hexagonal boundary"),
+        (name = "acp", description = "ACP agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"),
+        (name = "goals", description = "Goal coordination substrate — creation, listing, and state transitions with OCAP authority gating (P4)"),
+        (name = "bundles", description = "Bundle composition and evolution — inference-driven skill bundling with apply/deactivate lifecycle (Pattern A)"),
+        (name = "episodic", description = "Episodic memory — store and query bitemporal triples with OCAP-gated access (P1, P4, P11)"),
+        (name = "sovereignty", description = "Sovereignty governance — consent grant/revoke and access checks under Magna Carta P1–P4"),
+        (name = "specs", description = "MDS specification management — capture, list, coherence assessment, and writing-quality checks (MDS §3)"),
+        (name = "consolidation", description = "Context consolidation — episodic→semantic memory condensation with passphrase-gated authorization"),
     ),
     info(
         title = "hKask API",
         version = "0.27.0",
-        description = "A Minimal Viable Container for Agents - HTTP API"
+        description = "A Minimal Viable Container for Agents — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2)."
     ),
     servers(
         (url = "/api", description = "hKask API server"),
     ),
 )]
 pub struct ApiDoc;
+
+/// Security addon — injects Bearer token security scheme into the OpenAPI spec.
+///
+/// hKask uses DelegationTokens (OCAP capability tokens carrying the authenticated
+/// WebID and scoped permissions) transmitted as Bearer tokens in the Authorization
+/// header. Every endpoint is gated by the auth middleware.
+struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "bearer_token",
+                utoipa::openapi::security::SecurityScheme::Http(
+                    utoipa::openapi::security::Http::new(
+                        utoipa::openapi::security::HttpAuthScheme::Bearer,
+                    )
+                    .description(Some(
+                        "DelegationToken — an OCAP capability token carrying the authenticated WebID and scoped permissions (P4).\n\nObtain via the REPL onboarding flow (`kask secret`) or agent registration (ACP)."
+                    ))
+                    .bearer_format("DelegationToken"),
+                ),
+            );
+        }
+        // Apply bearer_token security to all operations
+        openapi.security = Some(vec![std::collections::BTreeMap::from([(
+            "bearer_token".to_string(),
+            Vec::new(),
+        )])]);
+    }
+}

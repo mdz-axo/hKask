@@ -24,22 +24,38 @@ pub struct SpecCaptureRequestDto {
     pub context: Option<String>,
 }
 
-/// Spec list response
+/// Spec list response — summary of a single MDS specification.
+///
+/// `category` is one of the five MDS categories: domain, composition, trust,
+/// lifecycle, curation. `complete` indicates whether the spec satisfies its
+/// category completeness predicate (MDS §2).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SpecListResponse {
+    /// Unique specification ID
     pub spec_id: String,
+    /// Specification name
     pub name: String,
+    /// MDS category: domain, composition, trust, lifecycle, or curation
     pub category: String,
+    /// Whether the spec satisfies its category completeness predicate
     pub complete: bool,
 }
 
-/// Spec detail response (single spec by ID)
+/// Spec detail response — full details for a single MDS specification.
+///
+/// `domain_anchor` identifies the bounded context (always "hkask" for this system).
+/// `requirements` lists the spec's captured requirements as plain-text statements.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SpecDetailResponse {
+    /// Unique specification ID
     pub spec_id: String,
+    /// Specification name
     pub name: String,
+    /// MDS category: domain, composition, trust, lifecycle, or curation
     pub category: String,
+    /// Bounded context anchor (always "hkask")
     pub domain_anchor: String,
+    /// Captured requirement statements
     pub requirements: Vec<String>,
 }
 

@@ -291,6 +291,8 @@ hKask will need composition when agents must apply multiple skills simultaneousl
 - [x] Feedback failure categorization — 5 types (hallucination/omission/procedural_error/off_target/other) with quality threshold gating
 - [x] `HarnessCapability` enum (15 variants) with per-capability CNS observability
 - [x] CNS spans: `cns.training.harness.params_used`, `cns.training.sweep.iteration`, `cns.training.retrain.started`, `cns.training.retrain.ab`, `cns.training.trace.type`
+- [x] Contrastive trace mode — `ContrastiveTrace` training variant for judgment/preference training (correct vs. incorrect trace pairs)
+- [x] Best practice reference links for Axolotl, Unsloth, LoRA/PEFT, HuggingFace (Section 9)
 
 ### 4.2 Near-Term (Next 2-4 Weeks)
 

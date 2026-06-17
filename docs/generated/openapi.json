@@ -294,88 +294,6 @@
         }
       }
     },
-    "/api/ensemble/chat": {
-      "post": {
-        "tags": [
-          "ensemble"
-        ],
-        "summary": "Create a new ensemble chat session with the specified session ID.",
-        "operationId": "create_chat",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateChatRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Chat session created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EnsembleResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/ensemble/chat/{session}/improv": {
-      "post": {
-        "tags": [
-          "ensemble"
-        ],
-        "summary": "Execute an improvisation turn in a chat session",
-        "operationId": "improv_turn",
-        "parameters": [
-          {
-            "name": "session",
-            "in": "path",
-            "description": "Chat session ID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ImprovTurnRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Improv turn completed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImprovTurnResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Chat session not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
     "/api/episodic/query": {
       "get": {
         "tags": [
@@ -717,7 +635,7 @@
           "models"
         ],
         "summary": "List all available models from all configured providers.",
-        "description": "Queries Ollama, Fireworks, and DeepInfra and returns metadata for each\navailable model with provider prefix applied. Returns an empty list if\nno providers are reachable (graceful degradation).",
+        "description": "Queries Ollama, DeepInfra, fal.ai, and Together AI and returns metadata for each\navailable model with provider prefix applied. Returns an empty list if\nno providers are reachable (graceful degradation).",
         "operationId": "list_models",
         "responses": {
           "200": {
@@ -1172,6 +1090,260 @@
         }
       }
     },
+    "/api/v1/backup/config": {
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Get current backup configuration.",
+        "operationId": "get_config",
+        "responses": {
+          "200": {
+            "description": "Backup configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupConfigResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Update backup configuration.",
+        "operationId": "update_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupConfigResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid configuration"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/backup/list": {
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "List backup snapshots.",
+        "operationId": "list_snapshots",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by artifact type.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum snapshots to return.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshots listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/backup/prune": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Prune expired backup snapshots.",
+        "operationId": "prune",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PruneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Prune report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PruneResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/backup/restore": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Restore artifacts from a backup snapshot.",
+        "operationId": "restore",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Artifacts restored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid commit hash or scope"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/backup/snapshot": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Create a backup snapshot.",
+        "operationId": "snapshot",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Snapshot created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid scope or untracked type"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/backup/verify": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Verify backup integrity.",
+        "operationId": "verify",
+        "responses": {
+          "200": {
+            "description": "Integrity report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/api/v1/bundles": {
       "get": {
         "tags": [
@@ -1518,70 +1690,6 @@
         }
       }
     },
-    "/api/v1/ensemble/standing-start": {
-      "post": {
-        "tags": [
-          "ensemble"
-        ],
-        "summary": "Start a standing ensemble session with initial context",
-        "operationId": "standing_start",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StandingStartRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Standing session started",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StandingStartResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/v1/ensemble/standing-status": {
-      "get": {
-        "tags": [
-          "ensemble"
-        ],
-        "summary": "Get standing session status",
-        "operationId": "standing_status",
-        "responses": {
-          "200": {
-            "description": "Standing session status",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StandingStatusResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "404": {
-            "description": "No standing session found"
-          }
-        }
-      }
-    },
     "/api/v1/git/archive": {
       "post": {
         "tags": [
@@ -1708,6 +1816,18 @@
                 "null"
               ]
             }
+          },
+          {
+            "name": "wallet_id",
+            "in": "query",
+            "description": "Wallet ID (UUID). Defaults to system wallet if omitted.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -1748,6 +1868,40 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DepositReferenceResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Wallet service not configured"
+          }
+        }
+      }
+    },
+    "/api/wallet/fee": {
+      "get": {
+        "summary": "Estimate current network withdrawal fee using configured price feed.",
+        "operationId": "get_fee_estimate",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WithdrawalFeeEstimateResponse"
                 }
               }
             }
@@ -1869,6 +2023,18 @@
               "format": "int32",
               "minimum": 0
             }
+          },
+          {
+            "name": "wallet_id",
+            "in": "query",
+            "description": "Wallet ID (UUID). Defaults to system wallet if omitted.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -1988,6 +2154,67 @@
           }
         }
       },
+      "ApiBackupScope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Snapshot all tracked artifact types.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "full"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Snapshot all artifacts of a single type.",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "by_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Snapshot specific artifacts by ID.",
+            "required": [
+              "artifact_type",
+              "ids",
+              "kind"
+            ],
+            "properties": {
+              "artifact_type": {
+                "type": "string"
+              },
+              "ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "by_ids"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Backup scope for API requests."
+      },
       "ApiKeyCreatedResponse": {
         "type": "object",
         "required": [
@@ -2097,6 +2324,64 @@
           }
         }
       },
+      "ApiRestoreScope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "full"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "by_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "artifact_type",
+              "ids",
+              "kind"
+            ],
+            "properties": {
+              "artifact_type": {
+                "type": "string"
+              },
+              "ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "by_ids"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Backup restore scope for API requests."
+      },
       "ApplyBundleResponse": {
         "type": "object",
         "description": "Apply bundle response",
@@ -2190,6 +2475,39 @@
             "items": {
               "$ref": "#/components/schemas/ArchiveEntry"
             }
+          }
+        }
+      },
+      "BackupConfigResponse": {
+        "type": "object",
+        "description": "Backup config response.",
+        "required": [
+          "tracked_types",
+          "auto_snapshot",
+          "verify_after_snapshot"
+        ],
+        "properties": {
+          "auto_snapshot": {
+            "type": "boolean"
+          },
+          "retention": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RetentionConfigResponse"
+              }
+            ]
+          },
+          "tracked_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "verify_after_snapshot": {
+            "type": "boolean"
           }
         }
       },
@@ -2391,6 +2709,21 @@
           }
         }
       },
+      "CommitInfo": {
+        "type": "object",
+        "required": [
+          "repo",
+          "commit"
+        ],
+        "properties": {
+          "commit": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          }
+        }
+      },
       "ComposeBundleRequest": {
         "type": "object",
         "description": "Compose bundle request",
@@ -2506,18 +2839,6 @@
           }
         }
       },
-      "CreateChatRequest": {
-        "type": "object",
-        "description": "Create chat request",
-        "required": [
-          "session_id"
-        ],
-        "properties": {
-          "session_id": {
-            "type": "string"
-          }
-        }
-      },
       "CreateGoalRequest": {
         "type": "object",
         "required": [
@@ -2565,6 +2886,13 @@
               "boolean",
               "null"
             ]
+          },
+          "wallet_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Wallet ID (UUID). Defaults to system wallet if omitted."
           }
         }
       },
@@ -2639,6 +2967,13 @@
         "properties": {
           "chain": {
             "type": "string"
+          },
+          "wallet_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Wallet ID (UUID). Defaults to system wallet if omitted."
           }
         }
       },
@@ -2684,22 +3019,6 @@
           },
           "status": {
             "type": "string"
-          }
-        }
-      },
-      "EnsembleResponse": {
-        "type": "object",
-        "description": "Chat response",
-        "required": [
-          "success",
-          "message"
-        ],
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "success": {
-            "type": "boolean"
           }
         }
       },
@@ -2918,46 +3237,6 @@
           }
         }
       },
-      "ImprovTurnRequest": {
-        "type": "object",
-        "description": "Improv turn request",
-        "required": [
-          "user_message"
-        ],
-        "properties": {
-          "user_message": {
-            "type": "string"
-          }
-        }
-      },
-      "ImprovTurnResponse": {
-        "type": "object",
-        "description": "Improv turn response",
-        "required": [
-          "user_message",
-          "judgment_count",
-          "response_count"
-        ],
-        "properties": {
-          "curator_synthesis": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "judgment_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "response_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "user_message": {
-            "type": "string"
-          }
-        }
-      },
       "ListEscalationsResponse": {
         "type": "object",
         "required": [
@@ -2982,6 +3261,21 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PodStatusResponse"
+            }
+          }
+        }
+      },
+      "ListResponse": {
+        "type": "object",
+        "description": "Backup list response.",
+        "required": [
+          "snapshots"
+        ],
+        "properties": {
+          "snapshots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SnapshotResponse"
             }
           }
         }
@@ -3119,61 +3413,6 @@
           }
         }
       },
-      "ParticipantEntryRequest": {
-        "type": "object",
-        "description": "Participant entry for standing session start",
-        "required": [
-          "agent",
-          "type",
-          "role",
-          "description"
-        ],
-        "properties": {
-          "agent": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "domains": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Template domains this participant owns (e.g., `[\"cns\", \"storage\"]`).\nConverted to capability specs (`\"tool:<domain>:execute\"`) internally."
-          },
-          "role": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          }
-        }
-      },
-      "ParticipantStatusResponse": {
-        "type": "object",
-        "description": "Participant status in standing session response",
-        "required": [
-          "name",
-          "webid",
-          "role",
-          "description"
-        ],
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "role": {
-            "type": "string"
-          },
-          "webid": {
-            "type": "string"
-          }
-        }
-      },
       "PodStatusResponse": {
         "type": "object",
         "required": [
@@ -3212,6 +3451,44 @@
           }
         }
       },
+      "PruneRequest": {
+        "type": "object",
+        "description": "Backup prune request.",
+        "properties": {
+          "dry_run": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PruneResponse": {
+        "type": "object",
+        "description": "Backup prune response.",
+        "required": [
+          "dry_run",
+          "evaluated",
+          "removed",
+          "retained"
+        ],
+        "properties": {
+          "dry_run": {
+            "type": "boolean"
+          },
+          "evaluated": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "removed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommitInfo"
+            }
+          },
+          "retained": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "QueryEpisodesResponse": {
         "type": "object",
         "description": "Response from querying episodic memories.",
@@ -3224,6 +3501,38 @@
             "items": {
               "$ref": "#/components/schemas/EpisodeResponse"
             }
+          }
+        }
+      },
+      "RepoVerifyReport": {
+        "type": "object",
+        "required": [
+          "repo",
+          "total_blobs",
+          "verified_blobs",
+          "corrupt_hashes",
+          "ok"
+        ],
+        "properties": {
+          "corrupt_hashes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "total_blobs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "verified_blobs": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -3265,6 +3574,71 @@
           }
         }
       },
+      "RestoreRequest": {
+        "type": "object",
+        "description": "Backup restore request.",
+        "required": [
+          "commit_hash",
+          "scope"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ApiRestoreScope"
+          }
+        }
+      },
+      "RestoreResponse": {
+        "type": "object",
+        "description": "Backup restore response.",
+        "required": [
+          "artifacts"
+        ],
+        "properties": {
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RestoredArtifact"
+            }
+          }
+        }
+      },
+      "RestoredArtifact": {
+        "type": "object",
+        "required": [
+          "artifact_type",
+          "artifact_id"
+        ],
+        "properties": {
+          "artifact_id": {
+            "type": "string"
+          },
+          "artifact_type": {
+            "type": "string"
+          }
+        }
+      },
+      "RetentionConfigResponse": {
+        "type": "object",
+        "required": [
+          "daily_days",
+          "weekly_weeks"
+        ],
+        "properties": {
+          "daily_days": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "weekly_weeks": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
       "SetGoalStateRequest": {
         "type": "object",
         "required": [
@@ -3272,6 +3646,46 @@
         ],
         "properties": {
           "state": {
+            "type": "string"
+          }
+        }
+      },
+      "SnapshotRequest": {
+        "type": "object",
+        "description": "Backup snapshot request.",
+        "required": [
+          "scope"
+        ],
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/ApiBackupScope"
+          }
+        }
+      },
+      "SnapshotResponse": {
+        "type": "object",
+        "description": "Backup snapshot response.",
+        "required": [
+          "commits",
+          "artifact_count",
+          "trigger",
+          "timestamp"
+        ],
+        "properties": {
+          "artifact_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "commits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommitInfo"
+            }
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "trigger": {
             "type": "string"
           }
         }
@@ -3470,95 +3884,6 @@
           }
         }
       },
-      "StandingStartRequest": {
-        "type": "object",
-        "description": "Standing session start request",
-        "required": [
-          "session_id",
-          "name",
-          "description",
-          "initial_context",
-          "participants"
-        ],
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "initial_context": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "participants": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ParticipantEntryRequest"
-            }
-          },
-          "session_id": {
-            "type": "string"
-          }
-        }
-      },
-      "StandingStartResponse": {
-        "type": "object",
-        "description": "Standing session start response",
-        "required": [
-          "session_id",
-          "description",
-          "participant_count",
-          "message"
-        ],
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "participant_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "session_id": {
-            "type": "string"
-          }
-        }
-      },
-      "StandingStatusResponse": {
-        "type": "object",
-        "description": "Standing session status response",
-        "required": [
-          "session_id",
-          "description",
-          "participant_count",
-          "message_count",
-          "participants"
-        ],
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "message_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "participant_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "participants": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ParticipantStatusResponse"
-            }
-          },
-          "session_id": {
-            "type": "string"
-          }
-        }
-      },
       "StoreEpisodeRequest": {
         "type": "object",
         "description": "Request to store an episodic triple.",
@@ -3678,6 +4003,39 @@
           }
         }
       },
+      "UpdateConfigRequest": {
+        "type": "object",
+        "description": "Backup config update request.",
+        "properties": {
+          "auto_snapshot": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "retention": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tracked_types": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "verify_after_snapshot": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
       "VarietyCounterResponse": {
         "type": "object",
         "description": "CNS variety counter response",
@@ -3700,6 +4058,21 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          }
+        }
+      },
+      "VerifyResponse": {
+        "type": "object",
+        "description": "Backup verify response.",
+        "required": [
+          "reports"
+        ],
+        "properties": {
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RepoVerifyReport"
+            }
           }
         }
       },
@@ -3757,6 +4130,40 @@
           },
           "to_address": {
             "type": "string"
+          },
+          "wallet_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Wallet ID (UUID). Defaults to system wallet if omitted."
+          }
+        }
+      },
+      "WithdrawalFeeEstimateResponse": {
+        "type": "object",
+        "required": [
+          "chain",
+          "rjoules",
+          "native_units",
+          "usdc_equivalent"
+        ],
+        "properties": {
+          "chain": {
+            "type": "string"
+          },
+          "native_units": {
+            "type": "number",
+            "format": "double"
+          },
+          "rjoules": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "usdc_equivalent": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -3810,15 +4217,11 @@
     },
     {
       "name": "models",
-      "description": "Multi-provider model catalog (Ollama, Fireworks, DeepInfra)"
+      "description": "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI)"
     },
     {
       "name": "curator",
       "description": "Curator escalation and metacognition"
-    },
-    {
-      "name": "ensemble",
-      "description": "Ensemble multi-agent coordination"
     },
     {
       "name": "git",
