@@ -107,7 +107,7 @@ pub fn register_replicant_with_passphrase(
     validate_registration(&request)?;
     store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .register_replicant(
             request.replicant_name,
             request.email,
@@ -129,7 +129,7 @@ pub fn login_with_passphrase(
 ) -> Result<UserSession, ServiceError> {
     store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .login(replicant_name, &passphrase)
         .map_err(|_| ServiceError::LoginFailed {
             source: None,
@@ -146,7 +146,7 @@ pub fn get_replicant(
 ) -> Result<ReplicantIdentity, ServiceError> {
     store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .get_replicant(replicant_name)?
         .ok_or_else(|| ServiceError::UserNotFound {
             source: None,
@@ -163,7 +163,7 @@ pub fn get_replicants(
 ) -> Result<Vec<ReplicantIdentity>, ServiceError> {
     store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .list_replicants(user_id)
         .map_err(Into::into)
 }
@@ -174,7 +174,7 @@ pub fn get_replicants(
 pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSession>, ServiceError> {
     store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .list_sessions(replicant_name)
         .map_err(Into::into)
 }
@@ -185,13 +185,13 @@ pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSessi
 pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, ServiceError> {
     let session = store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .get_session(session_id)?
         .ok_or_else(|| ServiceError::UserNotFound {
             source: None,
             message: format!("Session '{}'", session_id),
         })?;
-    store.lock().unwrap().logout(session_id)?;
+    store.lock().unwrap_or_else(|e| e.into_inner()).logout(session_id)?;
     Ok(session)
 }
 
@@ -269,12 +269,12 @@ pub fn login_replicant() {
     io_or_die(io::stdout().flush(), "flush stdout");
     io_or_die(io::stdin().read_line(&mut name), "read name");
     let store = build_store();
-    if let Ok(Some(identity)) = store.lock().unwrap().get_replicant(name.trim()) {
+    if let Ok(Some(identity)) = store.lock().unwrap_or_else(|e| e.into_inner()).get_replicant(name.trim()) {
         print!("Enter passphrase: ");
         io_or_die(io::stdout().flush(), "flush stdout");
         let mut passphrase = String::new();
         io_or_die(io::stdin().read_line(&mut passphrase), "read passphrase");
-        match store.lock().unwrap().login(name.trim(), passphrase.trim()) {
+        match store.lock().unwrap_or_else(|e| e.into_inner()).login(name.trim(), passphrase.trim()) {
             Ok(session) => {
                 println!("  ✓ Logged in as {}", identity.replicant_name);
                 println!("  Session: {}", session.session_id);
@@ -292,7 +292,7 @@ pub fn login_replicant() {
 pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
     let identity = store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .get_replicant(replicant_name)?
         .ok_or_else(|| ServiceError::UserNotFound {
             source: None,
@@ -314,7 +314,7 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
     let user_id = hkask_types::UserID::new();
     let replicants = store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .list_replicants(&user_id)
         .map_err(ServiceError::from)?;
     if replicants.is_empty() {
@@ -340,13 +340,13 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
 pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
     let session = store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .get_session(session_id)?
         .ok_or_else(|| ServiceError::UserNotFound {
             source: None,
             message: format!("Session '{}'", session_id),
         })?;
-    store.lock().unwrap().logout(session_id)?;
+    store.lock().unwrap_or_else(|e| e.into_inner()).logout(session_id)?;
     println!("Session revoked: {}", session.session_id);
     Ok(())
 }
@@ -355,7 +355,7 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
 /// pre:  store is a valid UserStore; replicant_name is non-empty
 /// post: prints all active sessions with session_id and last_active timestamp; prints "No active sessions." if none
 pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
-    let sessions = store.lock().unwrap().list_sessions(replicant_name)?;
+    let sessions = store.lock().unwrap_or_else(|e| e.into_inner()).list_sessions(replicant_name)?;
     if sessions.is_empty() {
         println!("No active sessions.");
         return Ok(());
@@ -411,7 +411,7 @@ pub fn change_passphrase(replicant_name: &str) {
     // Verify identity exists
     if store
         .lock()
-        .unwrap()
+        .expect("CLI operation")
         .get_replicant(replicant_name)
         .unwrap_or(None)
         .is_none()
@@ -446,7 +446,7 @@ pub fn change_passphrase(replicant_name: &str) {
         return;
     }
 
-    match store.lock().unwrap().change_passphrase(
+    match store.lock().unwrap_or_else(|e| e.into_inner()).change_passphrase(
         replicant_name,
         old_passphrase.trim(),
         new_passphrase.trim(),

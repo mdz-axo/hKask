@@ -27,7 +27,8 @@ impl CapabilitySpec {
             capability.to_string()
         };
         let action =
-            DelegationAction::parse_str(parts.last().unwrap()).unwrap_or(DelegationAction::Execute);
+            DelegationAction::parse_str(parts.last().expect("splitn always produces >=1 part"))
+                .unwrap_or(DelegationAction::Execute);
         Ok(Self {
             resource,
             resource_id,

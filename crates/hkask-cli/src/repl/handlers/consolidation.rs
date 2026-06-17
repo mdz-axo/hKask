@@ -63,7 +63,7 @@ pub(crate) fn handle_consolidate(
     while i < parts.len() {
         // Handle --flag=value syntax by splitting on '='
         let (flag, inline_value) = if parts[i].starts_with('-') && parts[i].contains('=') {
-            let (f, v) = parts[i].split_once('=').unwrap();
+            let (f, v) = parts[i].split_once('=').expect('key=value format');
             (f, Some(v.to_string()))
         } else {
             (parts[i], None)

@@ -124,7 +124,10 @@ impl MockGitCas {
     /// post: returns a [`Vec`] of all snapshots recorded via [`GitCASPort::snapshot`] calls,
     ///       in insertion order (oldest first); never panics
     pub fn snapshot_history(&self) -> Vec<(RepoId, String, CommitHash)> {
-        self.snapshots.read().unwrap().clone()
+        self.snapshots
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Return the number of blobs stored via `put_blob`.
@@ -133,7 +136,7 @@ impl MockGitCas {
     /// pre:  self is any [`MockGitCas`]
     /// post: returns the count of unique blobs currently stored; never panics
     pub fn blob_count(&self) -> usize {
-        self.blobs.read().unwrap().len()
+        self.blobs.read().unwrap_or_else(|e| e.into_inner()).len()
     }
 }
 
@@ -149,7 +152,7 @@ impl GitCASPort for MockGitCas {
         let hash = ContentHash::from_blake3(content);
         self.blobs
             .write()
-            .unwrap()
+            .expect("MockGitCas RwLock write")
             .insert(hash.clone(), content.to_vec());
         Ok(hash)
     }
@@ -157,7 +160,7 @@ impl GitCASPort for MockGitCas {
     async fn get_blob(&self, _repo: &RepoId, hash: &ContentHash) -> Result<Vec<u8>, GitCasError> {
         self.blobs
             .read()
-            .unwrap()
+            .expect("MockGitCas RwLock read")
             .get(hash)
             .cloned()
             .ok_or_else(|| GitCasError::NotFound(hash.to_string()))
@@ -172,7 +175,7 @@ impl GitCASPort for MockGitCas {
 
         self.snapshots
             .write()
-            .unwrap()
+            .expect("MockGitCas RwLock write")
             .push((repo.clone(), message.to_string(), commit.clone()));
         Ok(commit)
     }
@@ -182,7 +185,7 @@ impl GitCASPort for MockGitCas {
         _repo: &RepoId,
         _reference: &str,
     ) -> Result<CommitHash, GitCasError> {
-        let snapshots = self.snapshots.read().unwrap();
+        let snapshots = self.snapshots.read().unwrap_or_else(|e| e.into_inner());
         snapshots
             .last()
             .map(|(_, _, hash)| hash.clone())
@@ -204,7 +207,7 @@ impl GitCASPort for MockGitCas {
         _reference: &str,
         _prefix: &str,
     ) -> Result<Vec<TreeEntry>, GitCasError> {
-        let blobs = self.blobs.read().unwrap();
+        let blobs = self.blobs.read().unwrap_or_else(|e| e.into_inner());
         let mut entries: Vec<TreeEntry> = blobs
             .iter()
             .enumerate()
@@ -229,7 +232,7 @@ impl GitCASPort for MockGitCas {
     }
 
     async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError> {
-        let blobs = self.blobs.read().unwrap();
+        let blobs = self.blobs.read().unwrap_or_else(|e| e.into_inner());
         let total = blobs.len();
         let mut corrupt = Vec::new();
         for (hash, content) in blobs.iter() {
@@ -247,7 +250,7 @@ impl GitCASPort for MockGitCas {
     }
 
     async fn log(&self, repo: &RepoId, max_count: usize) -> Result<Vec<LogEntry>, GitCasError> {
-        let snapshots = self.snapshots.read().unwrap();
+        let snapshots = self.snapshots.read().unwrap_or_else(|e| e.into_inner());
         let entries: Vec<LogEntry> = snapshots
             .iter()
             .rev() // newest first

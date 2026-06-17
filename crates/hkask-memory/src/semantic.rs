@@ -417,7 +417,7 @@ impl SemanticMemory {
                     current.push(*word);
 
                     if current.len() >= max_words {
-                        let last = current.last().unwrap();
+                        let last = current.last().expect("non-empty current list");
                         let ends_with_boundary = last
                             .chars()
                             .last()

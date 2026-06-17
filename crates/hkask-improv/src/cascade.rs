@@ -101,7 +101,7 @@ impl ImprovCascade {
         }
 
         // Safe: cascade has at least 1 mode (enforced at construction).
-        Ok(current_response.unwrap())
+        Ok(current_response.expect("response present after check"))
     }
 
     /// Number of modes in this cascade (not counting nested).

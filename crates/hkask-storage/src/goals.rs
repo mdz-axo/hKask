@@ -534,7 +534,7 @@ impl SqliteGoalRepository {
             return Ok(false);
         }
 
-        let goal: Goal = serde_json::from_str(&quarantined.original_data).unwrap();
+        let goal: Goal = serde_json::from_str(&quarantined.original_data).expect("goal deserialization");
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name)

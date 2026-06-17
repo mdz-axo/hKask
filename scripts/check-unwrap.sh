@@ -47,7 +47,7 @@ check_dir() {
                 next
             }
             !in_test { print }
-        ' "$file" 2>/dev/null | grep -n '\.unwrap()' || true)
+        ' "$file" 2>/dev/null | grep -n '\.unwrap()' | grep -v '///' || true)
 
         if [ -n "$violations" ]; then
             while IFS= read -r vline; do
@@ -58,8 +58,8 @@ check_dir() {
     done < <(find "$dir" -name '*.rs' -print0 2>/dev/null)
 }
 
-# Hot-path crates
-for crate in hkask-cns hkask-agents hkask-inference hkask-services hkask-mcp hkask-communication hkask-condenser; do
+# All crates except test-harness (test infrastructure, not production code)
+for crate in hkask-condenser hkask-types hkask-inference hkask-services hkask-storage hkask-memory hkask-cns hkask-templates hkask-agents hkask-keystore hkask-wallet hkask-mcp hkask-cli hkask-api hkask-improv hkask-communication hkask-rsolidity hkask-rsolidity-macros; do
     crate_dir="crates/${crate}"
     [ -d "$crate_dir" ] || continue
     check_dir "$crate_dir/src" "$crate"

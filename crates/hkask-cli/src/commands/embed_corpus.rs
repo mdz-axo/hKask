@@ -27,10 +27,10 @@ fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, St
     // Agent-specific DB path: ~/.config/hkask/agents/<replicant>.db
     let agent_db_path = hkask_services::settings_path()
         .parent()
-        .unwrap()
+        .expect("embed corpus path")
         .join("agents")
         .join(format!("{}.db", replicant));
-    let _ = std::fs::create_dir_all(agent_db_path.parent().unwrap());
+    let _ = std::fs::create_dir_all(agent_db_path.parent().expect("embed corpus path"));
 
     Ok((
         agent_db_path.to_string_lossy().to_string(),

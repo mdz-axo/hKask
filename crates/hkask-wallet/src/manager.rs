@@ -367,7 +367,7 @@ impl WalletManager {
 
         let rj_amount = self.usdc_to_rjoules(event.amount_usdc_micro);
         self.store.credit_rjoules(wallet_id, rj_amount)?;
-        let balance = self.store.get_balance(wallet_id)?.unwrap();
+        let balance = self.store.get_balance(wallet_id)?.expect("balance exists for active wallet");
         self.store.record_transaction(&WalletTransaction {
             id: 0,
             wallet_id,
@@ -462,7 +462,7 @@ impl WalletManager {
 
         let rj_amount = self.usdc_to_rjoules(transfer.amount_usdc_micro);
         self.store.credit_rjoules(wallet_id, rj_amount)?;
-        let balance = self.store.get_balance(wallet_id)?.unwrap();
+        let balance = self.store.get_balance(wallet_id)?.expect("balance exists for active wallet");
         let commitment = transfer.commitment.clone();
         self.store.record_transaction(&WalletTransaction {
             id: 0,
@@ -570,7 +570,7 @@ impl WalletManager {
         let tx_hash_result: Result<TxHash, WalletError> = async {
             match privacy {
                 PrivacyMode::Transparent => {
-                    let port = self.chains.get(&chain).unwrap(); // safety: verified above
+                    let port = self.chains.get(&chain).expect("chain port verified above");
                     let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
 
                     // CNS span: withdrawal built
@@ -609,7 +609,7 @@ impl WalletManager {
                     Ok(tx_hash)
                 }
                 PrivacyMode::Shielded => {
-                    let privacy_port = self.privacy.as_ref().unwrap(); // safety: verified above
+                    let privacy_port = self.privacy.as_ref().expect("privacy port verified above");
                     let tx_bytes = privacy_port.build_unshield_tx(to_address, amount_usdc_micro)?;
 
                     if chain == ChainId::Hinkal {
