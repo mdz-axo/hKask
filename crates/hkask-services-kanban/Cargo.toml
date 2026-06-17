@@ -1,0 +1,12 @@
+[package]
+name = "hkask-services-kanban"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask Kanban board service — unjam detection and workflow management"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-storage = { path = "../hkask-storage" }
+hkask-types = { path = "../hkask-types" }
+serde_json.workspace = true

@@ -15,12 +15,6 @@
 //! 6. `config` — get current backup configuration
 //! 7. `update_config` — update backup configuration
 
-pub mod config;
-pub mod r#loop;
-pub mod metadata;
-pub mod scope;
-pub mod serialization;
-
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
@@ -28,12 +22,12 @@ use std::time::Instant;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use argon2::Argon2;
 use chrono::Utc;
-use config::{BackupConfig, EncryptionConfig, RetentionPolicy};
+use crate::config::{BackupConfig, EncryptionConfig, RetentionPolicy};
 use hkask_types::ports::git_cas::{CommitHash, GitCASPort, GitCasError, LogEntry, RepoId};
-use metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
+use crate::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
 use rand::RngCore;
 use rand::rng;
-use scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
+use crate::scope::{ArtifactType, BackupScope, ListFilter, RestoreScope};
 use tracing::{info, instrument, warn};
 
 /// Errors specific to backup operations.
@@ -106,7 +100,7 @@ pub struct BackupService {
 impl BackupService {
     /// Create a new backup service wrapping a CAS port.
     ///
-    /// The config is loaded from disk via [`config::load_backup_config`]
+    /// The config is loaded from disk via [`crate::config::load_backup_config`]
     /// at construction time. Use [`Self::update_config`] to change it.
     ///
     /// If an encryption passphrase is available via the `HKASK_BACKUP_PASSPHRASE`
@@ -117,7 +111,7 @@ impl BackupService {
     /// pre:  cas must be a valid GitCASPort
     /// post: returns BackupService with config loaded from disk and encryption key derived if passphrase available
     pub fn new(cas: Arc<dyn GitCASPort>) -> Self {
-        let config = config::load_backup_config();
+        let config = crate::config::load_backup_config();
         let encryption_key = Self::derive_key(&config);
         Self {
             cas,
@@ -314,7 +308,7 @@ impl BackupService {
                 };
 
                 // Parse the envelope to extract artifact type and ID
-                let envelope: serialization::ArtifactEnvelopeValue = serde_json::from_slice(&blob)
+                let envelope: crate::serialization::ArtifactEnvelopeValue = serde_json::from_slice(&blob)
                     .map_err(|e| {
                         BackupError::Serialization(format!(
                             "Failed to deserialize artifact at {}: {e}",
@@ -573,7 +567,7 @@ impl BackupService {
     /// post: config is persisted to disk and self.config is updated; encryption key is re-derived; Err(Config) on save failure
     pub fn update_config(&mut self, config: BackupConfig) -> Result<(), BackupError> {
         self.encryption_key = Self::derive_key(&config);
-        config::save_backup_config(&config)
+        crate::config::save_backup_config(&config)
             .map_err(|e| BackupError::Config(format!("Failed to save config: {e}")))?;
         self.config = config;
         Ok(())
@@ -596,7 +590,7 @@ impl BackupService {
             memory_kb: 19456, // Argon2 default
             iterations: 2,    // Argon2 default
         });
-        config::save_backup_config(&self.config)
+        crate::config::save_backup_config(&self.config)
             .map_err(|e| BackupError::Config(format!("Failed to save config: {e}")))?;
 
         // Derive key from the new passphrase.
@@ -742,8 +736,8 @@ fn artifact_type_from_label(label: &str) -> Option<ArtifactType> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::RetentionPolicy;
-    use crate::serialization::serialize_artifact;
+    use crate::crate::config::RetentionPolicy;
+    use crate::crate::serialization::serialize_artifact;
     use hkask_types::ports::git_cas::MockGitCas;
 
     fn test_config() -> BackupConfig {

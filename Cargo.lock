@@ -3976,6 +3976,7 @@ dependencies = [
  "hkask-mcp",
  "hkask-memory",
  "hkask-services",
+ "hkask-services-backup",
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
@@ -4505,6 +4506,8 @@ dependencies = [
  "hkask-memory",
  "hkask-services-backup",
  "hkask-services-core",
+ "hkask-services-kanban",
+ "hkask-services-kata",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
@@ -4534,12 +4537,16 @@ version = "0.27.0"
 dependencies = [
  "aes-gcm",
  "argon2",
+ "async-trait",
  "chrono",
+ "dirs",
+ "hex",
  "hkask-services-core",
  "hkask-types",
  "parking_lot",
  "rand 0.9.4",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -4563,6 +4570,30 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-kanban"
+version = "0.27.0"
+dependencies = [
+ "hkask-services-core",
+ "hkask-storage",
+ "hkask-types",
+ "serde_json",
+]
+
+[[package]]
+name = "hkask-services-kata"
+version = "0.27.0"
+dependencies = [
+ "hkask-cns",
+ "hkask-services-core",
+ "hkask-storage",
+ "hkask-templates",
+ "hkask-types",
+ "serde",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -4,6 +4,8 @@ members = [
     # Core crates (13 — ≤35k lines total)
     "crates/hkask-services-core",
     "crates/hkask-services-backup",
+    "crates/hkask-services-kata",
+    "crates/hkask-services-kanban",
     "crates/hkask-condenser",
     "crates/hkask-types",
     "crates/hkask-inference",

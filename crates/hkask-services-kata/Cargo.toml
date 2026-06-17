@@ -1,0 +1,16 @@
+[package]
+name = "hkask-services-kata"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask Toyota Kata engine — Improvement Kata and Coaching Kata"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-cns = { path = "../hkask-cns" }
+hkask-storage = { path = "../hkask-storage" }
+hkask-templates = { path = "../hkask-templates" }
+hkask-types = { path = "../hkask-types" }
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true

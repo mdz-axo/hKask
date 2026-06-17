@@ -17,6 +17,7 @@ mod service;
 pub use config::{
     BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
 };
+pub use r#loop::BackupLoop;
 pub use metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
 pub use scope::ArtifactType;
 pub use scope::{BackupScope, ListFilter, RestoreScope};

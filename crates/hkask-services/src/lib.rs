@@ -30,6 +30,11 @@ pub use hkask_services_core::error::ServiceError;
 pub use hkask_services_core::settings::{
     HkaskSettings, load_settings, save_settings, settings_path,
 };
+pub use hkask_services_kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
+pub use hkask_services_kata::{
+    ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
+    KataResult, KataState, KataStep, PracticeEntry, StepExperience,
+};
 
 // ── Public API modules ─────────────────────────────────────────────────
 
