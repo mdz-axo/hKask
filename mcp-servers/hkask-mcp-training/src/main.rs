@@ -3332,8 +3332,8 @@ impl TrainingServer {
         let span = ToolSpanGuard::new("training_deployment_status", &self.webid);
 
         // Try router first for live status
-        if let Some(ref router) = self.adapter_router {
-            if let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id) {
+        if let Some(ref router) = self.adapter_router
+            && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id) {
                 let token = hkask_types::capability::DelegationToken::new(
                     hkask_types::capability::DelegationResource::Tool,
                     "adapter:read".into(),
@@ -3356,7 +3356,6 @@ impl TrainingServer {
                     }));
                 }
             }
-        }
 
         // Fallback: local deployment map
         let deployment = if let Ok(map) = self.deployments.lock() {
@@ -3402,8 +3401,8 @@ impl TrainingServer {
         let span = ToolSpanGuard::new("training_teardown", &self.webid);
 
         // Try router first
-        if let Some(ref router) = self.adapter_router {
-            if let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id) {
+        if let Some(ref router) = self.adapter_router
+            && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id) {
                 let token = hkask_types::capability::DelegationToken::new(
                     hkask_types::capability::DelegationResource::Tool,
                     "adapter:teardown".into(),
@@ -3431,7 +3430,6 @@ impl TrainingServer {
                     }
                 }
             }
-        }
 
         // Fallback: local deployment map
         let existed = if let Ok(mut map) = self.deployments.lock() {

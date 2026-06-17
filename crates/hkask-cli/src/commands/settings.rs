@@ -4,7 +4,7 @@
 //! interactive REPL share the same configuration. Magna Carta P3 (Generative
 //! Space): all settings exposed equally across every surface.
 //!
-//! Delegates load/save to `hkask_services::settings` for shared persistence.
+//! Delegates load/save to `hkask_services (via hkask-services-core)` for shared persistence.
 
 use crate::cli::SettingsAction;
 use crate::repl::handlers::ReplSettings;

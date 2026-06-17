@@ -8,7 +8,7 @@ KASK="./target/debug/kask"
 REPLICANT="e2e-test-acp"
 MODEL="qwen3:8b"
 TMPDIR=$(mktemp -d)
-trap "rm -rf $TMPDIR; kill %1 2>/dev/null || true" EXIT
+trap 'rm -rf $TMPDIR; kill %1 2>/dev/null || true' EXIT
 
 echo "=== E2E: hkask-acp with real daemon ==="
 
@@ -23,9 +23,8 @@ HKASK_REPLICANT="$REPLICANT" HKASK_MODEL="$MODEL" RUST_LOG=hkask.acp=debug $BINA
 ACP_PID=$!
 sleep 2
 
-# Communication via named pipes
+# Communication via named pipe
 IN_PIPE="$TMPDIR/in"
-OUT_PIPE="$TMPDIR/out"
 mkfifo "$IN_PIPE"
 
 # Send initialize request
