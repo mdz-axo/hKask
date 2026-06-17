@@ -9,7 +9,7 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::State};
-use hkask_services::backup::config::RetentionPolicy;
+use hkask_services::RetentionPolicy;
 use hkask_services::{
     ArtifactType, BackupScope, BackupService, ListFilter, RestoreScope, ServiceError,
     SnapshotMetadata,

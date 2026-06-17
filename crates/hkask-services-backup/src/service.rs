@@ -742,8 +742,8 @@ fn artifact_type_from_label(label: &str) -> Option<ArtifactType> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backup::config::RetentionPolicy;
-    use crate::backup::serialization::serialize_artifact;
+    use crate::config::RetentionPolicy;
+    use crate::serialization::serialize_artifact;
     use hkask_types::ports::git_cas::MockGitCas;
 
     fn test_config() -> BackupConfig {

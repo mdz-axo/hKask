@@ -151,8 +151,8 @@ impl From<hkask_types::ports::RegistryError> for ServiceErrorResponse {
     }
 }
 
-impl From<hkask_services::backup::BackupError> for ServiceErrorResponse {
-    fn from(e: hkask_services::backup::BackupError) -> Self {
+impl From<hkask_services_backup::BackupError> for ServiceErrorResponse {
+    fn from(e: hkask_services_backup::BackupError) -> Self {
         let msg = e.to_string();
         ServiceErrorResponse(hkask_services::ServiceError::Backup {
             source: Some(Box::new(e)),
