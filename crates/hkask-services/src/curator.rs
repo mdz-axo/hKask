@@ -16,7 +16,7 @@ use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 
 use crate::AgentService;
-use crate::error::ServiceError;
+use crate::ServiceError;
 
 /// Response for a single escalation entry.
 pub struct EscalationResponse {

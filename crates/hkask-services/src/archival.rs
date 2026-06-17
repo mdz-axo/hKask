@@ -6,7 +6,7 @@ use hkask_mcp::server::{api_get, api_put, resolve_credential};
 use hkask_storage::AgentRegistryStore;
 use serde_json::json;
 
-use crate::error::ServiceError;
+use crate::ServiceError;
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const DEFAULT_REGISTRY_PATH: &str = "registry";

@@ -10,8 +10,8 @@ use hkask_storage::{AgentRegistryStore, Database};
 use hkask_types::time::now_rfc3339;
 use hkask_types::{AgentDefinition, AgentKind, Charter, RegisteredAgent, UserProfile, WebID};
 
-use crate::config::ServiceConfig;
-use crate::error::ServiceError;
+use crate::ServiceConfig;
+use crate::ServiceError;
 
 /// Optional contact and voice configuration for a new replicant.
 /// Grouped to keep `register_replicant` argument count manageable.

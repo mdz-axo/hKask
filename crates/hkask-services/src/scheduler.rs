@@ -5,7 +5,7 @@
 use hkask_storage::AgentRegistryStore;
 use hkask_types::ScheduledTask;
 
-use crate::error::ServiceError;
+use crate::ServiceError;
 
 pub struct SchedulerService;
 

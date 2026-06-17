@@ -16,7 +16,7 @@ use hkask_storage::spec_types::{
 };
 
 use crate::AgentService;
-use crate::error::ServiceError;
+use crate::ServiceError;
 
 /// Request to capture a new specification.
 ///

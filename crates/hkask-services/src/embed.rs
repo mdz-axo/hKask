@@ -28,7 +28,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::error::ServiceError;
+use crate::ServiceError;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
@@ -1506,7 +1506,7 @@ pub fn strip_html_tags(html: &str) -> String {
 /// Default OCR model for scanned PDF fallback.
 /// Override via settings.json or HKASK_OCR_MODEL env var.
 fn ocr_model() -> String {
-    crate::settings::HkaskSettings::load().ocr_model()
+    crate::HkaskSettings::load().ocr_model()
 }
 
 /// OCR system prompt — instructs the vision model to extract text faithfully.

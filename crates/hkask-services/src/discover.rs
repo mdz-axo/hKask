@@ -18,7 +18,7 @@
 //! 8. Generate/augment corpus.yaml
 
 use crate::embed::{CorpusConfig, EntityConfig, Work};
-use crate::error::ServiceError;
+use crate::ServiceError;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_memory::salience::{DeclaredMethod, MethodThresholds};
 use hkask_templates::ports::McpPort;

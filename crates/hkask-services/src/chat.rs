@@ -23,7 +23,7 @@ use hkask_types::{
     AuthContext, Confidence, DelegationAction, DelegationToken, PersonaConstraints, WebID,
 };
 
-use crate::error::ServiceError;
+use crate::ServiceError;
 use crate::{AgentService, InferenceContext, InferenceService};
 
 /// System prompt for the auto-condense summarization request.

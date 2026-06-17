@@ -4503,6 +4503,7 @@ dependencies = [
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
+ "hkask-services-core",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",
@@ -4524,6 +4525,24 @@ dependencies = [
  "tracing",
  "trybuild",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-core"
+version = "0.27.0"
+dependencies = [
+ "dirs",
+ "hkask-agents",
+ "hkask-cns",
+ "hkask-inference",
+ "hkask-memory",
+ "hkask-storage",
+ "hkask-templates",
+ "hkask-types",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]

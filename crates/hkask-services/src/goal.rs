@@ -11,7 +11,7 @@ use hkask_types::id::{GoalID, WebID};
 use hkask_types::visibility::Visibility;
 
 use crate::AgentService;
-use crate::error::ServiceError;
+use crate::ServiceError;
 
 /// Request to create a new goal.
 pub struct CreateGoalRequest {

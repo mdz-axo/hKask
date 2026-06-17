@@ -1,5 +1,8 @@
 //! hKask Service Layer — shared startup infrastructure and domain operations.
 //!
+//! Foundation types (`ServiceError`, `ServiceConfig`, `HkaskSettings`) live in
+//! `hkask-services-core` and are re-exported here for backward compatibility.
+//!
 //! # Module visibility
 //!
 //! Modules marked **Public API** are the stable surface. Prefer the re-exported
@@ -9,6 +12,14 @@
 //! Modules marked **Internal** are accessible via their full path but are not
 //! part of the committed public API. They may change without semver notice.
 
+// ── Re-exports from hkask-services-core ───────────────────────────────
+
+pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
+pub use hkask_services_core::error::ServiceError;
+pub use hkask_services_core::settings::{
+    HkaskSettings, load_settings, save_settings, settings_path,
+};
+
 // ── Public API modules ─────────────────────────────────────────────────
 
 pub mod backup;
@@ -16,14 +27,12 @@ pub mod bundle;
 pub mod chat;
 pub mod cns;
 pub mod compose;
-pub mod config;
 pub mod contacts;
 pub mod context;
 pub mod curator;
 pub mod deletion_test;
 pub mod discover;
 pub mod embed;
-pub mod error;
 pub mod experience;
 pub mod goal;
 pub mod inference;
@@ -33,7 +42,6 @@ pub mod lifecycle;
 pub mod onboarding;
 pub mod pods;
 pub mod scheduler;
-pub mod settings;
 pub mod skill;
 pub mod skills;
 pub mod sovereignty;
@@ -69,8 +77,6 @@ pub use compose::{
     CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
     EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
 };
-pub use config::DEFAULT_DB_PATH;
-pub use config::ServiceConfig;
 pub use contacts::ContactService;
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
@@ -83,7 +89,6 @@ pub use embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
     EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
 };
-pub use error::ServiceError;
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
@@ -101,7 +106,6 @@ pub use onboarding::{
 };
 pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
 pub use scheduler::SchedulerService;
-pub use settings::{HkaskSettings, settings_path};
 pub use skill::{
     SkillInfo, SkillPublishResult, compute_file_hash, discover_skills, find_public_skill,
     publish_skill, read_skill_namespace, read_skill_visibility, resolve_replicant_name,

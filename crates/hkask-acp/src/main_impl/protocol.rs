@@ -289,6 +289,7 @@ pub struct StdioTransport {}
 impl StdioTransport {
     /// REQ: ACP-006
     /// post: returns empty StdioTransport ready for serve()
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {}
     }
@@ -486,6 +487,7 @@ impl StdioTransport {
 
             "session/cancel" => {
                 // Notification — handle but no response expected
+                #[allow(clippy::collapsible_if)]
                 if let Some(params) = &req.params {
                     if let Ok(cancel) = serde_json::from_value::<CancelNotification>(params.clone())
                     {

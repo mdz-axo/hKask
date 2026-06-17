@@ -8,7 +8,7 @@ use std::sync::Arc;
 use hkask_agents::consent::ConsentManager;
 use hkask_types::sovereignty::DataCategory;
 
-use crate::error::ServiceError;
+use crate::ServiceError;
 
 /// Service for sovereignty consent operations — grant, revoke, check.
 ///
@@ -99,10 +99,10 @@ mod tests {
         let svc = SovereigntyService::new(cm);
 
         // These must compile and succeed: return type is Result<_, ServiceError>
-        let _: Result<(), crate::error::ServiceError> =
+        let _: Result<(), crate::ServiceError> =
             svc.grant_consent("user", &DataCategory::EpisodicMemory);
         // Revoke on a non-existent webid returns ConsentNotFound, wrapped as ServiceError
-        let result: Result<(), crate::error::ServiceError> = svc.revoke_consent("user");
+        let result: Result<(), crate::ServiceError> = svc.revoke_consent("user");
         // Either Ok or Err(ServiceError::Consent(ConsentNotFound)) — both are ServiceError
         assert!(
             result.is_err() || result.is_ok(),

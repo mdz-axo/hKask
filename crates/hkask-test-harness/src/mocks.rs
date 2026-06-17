@@ -261,6 +261,7 @@ mod tests {
 
 // ── MockDaemonClient ──────────────────────────────────────────────────────────
 
+#[allow(clippy::items_after_test_module)]
 /// A mock `DaemonClient` for ACP and MCP integration tests.
 ///
 /// Returns canned responses for auth queries, assignments, capability checks,

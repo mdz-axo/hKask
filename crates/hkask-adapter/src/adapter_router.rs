@@ -865,7 +865,8 @@ impl AdapterRouter {
         for id in to_remove {
             if let Some(record) = endpoints.remove(&id) {
                 // Best-effort teardown — log errors but continue
-                let _ = record.backend.teardown(&record.handle.endpoint_url);
+                let _ = tokio::runtime::Handle::current()
+                    .block_on(record.backend.teardown(&record.handle.endpoint_url));
                 // Remove from persistent store
                 let _ = self.remove_endpoint_from_store(&id);
             }
@@ -1778,7 +1779,7 @@ mod tests {
         store.store(&adapter).expect("store");
 
         let router = Arc::new(AdapterRouter::new(Arc::clone(&store)));
-        let token = test_token();
+        let _token = test_token();
 
         // Select with tight budget — only Runpod ($0.79) fits under $0.80
         let selection = router
