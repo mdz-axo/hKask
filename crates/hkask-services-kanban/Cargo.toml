@@ -10,3 +10,9 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 serde_json.workspace = true
+serde.workspace = true
+serde_yaml_neo.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+hkask-agents = { path = "../hkask-agents" }

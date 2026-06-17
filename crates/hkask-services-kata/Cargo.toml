@@ -14,3 +14,9 @@ hkask-types = { path = "../hkask-types" }
 serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+serde_json.workspace = true
+serde_yaml_neo.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+hkask-inference = { path = "../hkask-inference" }
+minijinja.workspace = true

@@ -51,8 +51,6 @@ pub mod embed;
 pub mod experience;
 pub mod goal;
 pub mod inference;
-pub mod kanban;
-pub mod kata;
 pub mod lifecycle;
 pub mod onboarding;
 pub mod pods;
@@ -96,11 +94,6 @@ pub use embed::{
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
-pub use kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
-pub use kata::{
-    ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
-    KataResult, KataState, KataStep, PracticeEntry, StepExperience,
-};
 pub use lifecycle::{
     LifecycleError, ServerHealth, ServerLifecycle, ServerLifecycleConfig, run_lifecycle,
 };

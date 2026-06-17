@@ -4576,22 +4576,34 @@ dependencies = [
 name = "hkask-services-kanban"
 version = "0.27.0"
 dependencies = [
+ "chrono",
+ "hkask-agents",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
+ "serde",
  "serde_json",
+ "serde_yaml_neo",
+ "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]
 name = "hkask-services-kata"
 version = "0.27.0"
 dependencies = [
+ "chrono",
  "hkask-cns",
+ "hkask-inference",
  "hkask-services-core",
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
+ "minijinja",
  "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
