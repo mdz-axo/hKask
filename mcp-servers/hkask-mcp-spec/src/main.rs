@@ -1090,16 +1090,17 @@ impl SpecServer {
         if let Ok(mut existing) = self
             .triple_store
             .query_by_entity_attribute("cns:contract_proposal", &contract_id)
-            && let Some(mut triple) = existing.pop() {
-                let mut value = triple.value.clone();
-                value["status"] = serde_json::json!("accepted");
-                value["reviewer"] = serde_json::json!(&rev);
-                value["accepted_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
-                triple.value = value.clone();
-                let _ =
-                    self.triple_store
-                        .update(&triple.id, value, hkask_types::Confidence::full());
-            }
+            && let Some(mut triple) = existing.pop()
+        {
+            let mut value = triple.value.clone();
+            value["status"] = serde_json::json!("accepted");
+            value["reviewer"] = serde_json::json!(&rev);
+            value["accepted_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+            triple.value = value.clone();
+            let _ = self
+                .triple_store
+                .update(&triple.id, value, hkask_types::Confidence::full());
+        }
 
         respond(
             span,
@@ -1129,17 +1130,18 @@ impl SpecServer {
         if let Ok(mut existing) = self
             .triple_store
             .query_by_entity_attribute("cns:contract_proposal", &contract_id)
-            && let Some(mut triple) = existing.pop() {
-                let mut value = triple.value.clone();
-                value["status"] = serde_json::json!("rejected");
-                value["reviewer"] = serde_json::json!(&rev);
-                value["reason"] = serde_json::json!(&reason);
-                value["rejected_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
-                triple.value = value.clone();
-                let _ =
-                    self.triple_store
-                        .update(&triple.id, value, hkask_types::Confidence::full());
-            }
+            && let Some(mut triple) = existing.pop()
+        {
+            let mut value = triple.value.clone();
+            value["status"] = serde_json::json!("rejected");
+            value["reviewer"] = serde_json::json!(&rev);
+            value["reason"] = serde_json::json!(&reason);
+            value["rejected_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+            triple.value = value.clone();
+            let _ = self
+                .triple_store
+                .update(&triple.id, value, hkask_types::Confidence::full());
+        }
 
         respond(
             span,
@@ -1154,7 +1156,10 @@ impl SpecServer {
     #[tool(description = "List proposed behavioral contracts and their review status.")]
     async fn contract_list(&self) -> String {
         let span = ToolSpanGuard::new("contract_list", &self.webid);
-        let proposals = self.triple_store.query_by_entity("cns:contract_proposal").unwrap_or_default();
+        let proposals = self
+            .triple_store
+            .query_by_entity("cns:contract_proposal")
+            .unwrap_or_default();
 
         let entries: Vec<ProposalEntry> = proposals
             .iter()

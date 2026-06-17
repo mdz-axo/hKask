@@ -159,5 +159,5 @@ dotenvy = "0.15"
 # Matrix protocol
 matrix-sdk = { version = "0.16", default-features = false, features = ["native-tls"] }
 
-[lints.rust]
+[workspace.lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("solana", "hedera", "hinkal"))'] }
