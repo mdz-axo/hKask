@@ -116,6 +116,20 @@ pub trait AdapterStore: Send + Sync {
 
     /// Delete an adapter (both metadata and blob).
     async fn delete(&self, adapter_id: &str) -> Result<(), AdapterStoreError>;
+
+    /// Retrieve the latest adapter for a given skill name (highest version).
+    /// Returns `None` if no adapter exists for this skill.
+    async fn get_by_skill_name(
+        &self,
+        skill_name: &str,
+    ) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
+        // Default: scan all adapters. SQLite overrides with an indexed query.
+        let all = self.list_all().await?;
+        Ok(all
+            .into_iter()
+            .filter(|a| a.skill_name == skill_name)
+            .max_by_key(|a| a.version))
+    }
 }
 
 // ── Store errors ───────────────────────────────────────────────────────────
@@ -472,6 +486,57 @@ impl AdapterStore for SqliteAdapterStore {
             "LoRA adapter deleted from storage"
         );
         Ok(())
+    }
+
+    async fn get_by_skill_name(
+        &self,
+        skill_name: &str,
+    ) -> Result<Option<LoRAAdapter>, AdapterStoreError> {
+        let conn = self.lock()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, base_model, dataset_hash, training_job_id, created_at, size_bytes, skill_name, version, metrics_json
+                 FROM lora_adapters WHERE skill_name = ?1 ORDER BY version DESC LIMIT 1",
+            )
+            .map_err(|e| AdapterStoreError::Storage(format!("Query failed: {}", e)))?;
+
+        let result = stmt.query_row(rusqlite::params![skill_name], |row| {
+            let created_at: i64 = row.get(5)?;
+            let size_bytes_i64: i64 = row.get(6)?;
+            let skill_name: String = row.get(7)?;
+            let version_i64: i64 = row.get(8)?;
+            let metrics_json: Option<String> = row.get(9)?;
+            let metrics = match metrics_json {
+                Some(ref json) if !json.is_empty() && json != "null" => {
+                    Some(serde_json::from_str(json).map_err(|_| {
+                        rusqlite::Error::InvalidColumnType(
+                            7,
+                            "Invalid metrics JSON".to_string(),
+                            rusqlite::types::Type::Text,
+                        )
+                    })?)
+                }
+                _ => None,
+            };
+            Ok(LoRAAdapter {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                base_model: row.get(2)?,
+                dataset_hash: row.get(3)?,
+                training_job_id: row.get(4)?,
+                created_at,
+                size_bytes: size_bytes_i64 as u64,
+                skill_name,
+                version: version_i64 as u32,
+                metrics,
+            })
+        });
+
+        match result {
+            Ok(adapter) => Ok(Some(adapter)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(AdapterStoreError::Storage(format!("Query failed: {}", e))),
+        }
     }
 }
 

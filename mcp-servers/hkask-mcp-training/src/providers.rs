@@ -103,6 +103,10 @@ pub struct TrainingJob {
     /// User/owner WebID for provenance.
     #[serde(default)]
     pub owner: Option<String>,
+    /// Skill name for retraining — when set, enables A/B comparison on completion.
+    /// Semantic/generic fine-tuning leaves this `None`.
+    #[serde(default)]
+    pub skill_name: Option<String>,
 }
 
 impl TrainingJob {
@@ -123,6 +127,7 @@ impl TrainingJob {
             host,
             harness,
             owner: None,
+            skill_name: None,
         }
     }
 }

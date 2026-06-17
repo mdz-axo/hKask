@@ -158,6 +158,11 @@ impl TraceGenerationConfig {
 /// Training data is generated traces from SKILL.md (generate_traces).
 /// Evaluation uses decomposition accuracy.
 ///
+/// **Contrastive Trace** — "What to prefer" — trains judgment by contrasting correct vs. incorrect decompositions.
+/// Training data is trace pairs (chosen/rejected) with the same situation.
+/// Evaluation uses preference accuracy (does model produce chosen over rejected?).
+/// Uses the existing A/B evaluation loop for comparing adapter outputs.
+///
 /// **Hybrid** — Both QA and traces, with configurable weighting (default 30% QA / 70% traces).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -166,6 +171,9 @@ pub enum TrainingMode {
     QAFact,
     /// Procedural decomposition trace fine-tuning.
     DecompositionTrace,
+    /// Contrastive preference training — correct vs. incorrect trace pairs.
+    /// Uses the A/B comparison loop: adapter outputs compared against ground-truth chosen traces.
+    ContrastiveTrace,
     /// Weighted combination of QA and decomposition traces.
     Hybrid,
 }
@@ -381,10 +389,14 @@ pub struct GenerateTracesRequest {
     #[serde(default)]
     pub model: Option<String>,
     /// Sampling configuration for trace generation (temperature, top_p, top_k, etc.).
-    /// Per-Bloom-level overrides supported via `bloom_level_configs`.
     /// Default: temperature=0.7, top_p=0.95, top_k=50, frequency_penalty=0.3, max_new_tokens=4096.
     #[serde(default)]
     pub generation_config: Option<TraceGenerationConfig>,
+    /// Generate contrastive trace pairs (chosen + rejected) instead of single traces.
+    /// Each pair has the same situation with a correct decomposition and an intentionally
+    /// incorrect one. Used for ContrastiveTrace training mode.
+    #[serde(default)]
+    pub contrastive: bool,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -855,6 +867,7 @@ impl TrainingServer {
             host: self.host_id,
             harness: self.harness_id,
             owner: None,
+            skill_name: None,
         };
 
         // Persist job for survival across server restarts
@@ -938,13 +951,16 @@ impl TrainingServer {
 
                 // Auto-register adapter on completion
                 if status == TrainingJobStatus::Completed {
-                    match self.adapter_store.get_metadata(&job_id).await {
-                        Ok(Some(_)) => {
+                    let adapter: LoRAAdapter = match self.adapter_store.get_metadata(&job_id).await
+                    {
+                        Ok(Some(existing)) => {
                             result["adapter_registered"] = json!(true);
-                            result["adapter_note"] = json!("Already registered");
+                            result["adapter_note"] =
+                                json!("Already registered (pre-registered by retrain)");
+                            existing
                         }
                         _ => {
-                            // Try to get completion metadata from host
+                            // Fresh auto-registration from host completion metadata
                             match self.host.completion_metadata(&job_id).await {
                                 Ok(Some(meta)) => {
                                     let adapter = LoRAAdapter {
@@ -1017,53 +1033,60 @@ impl TrainingServer {
                                                 adapter_id = %job_id,
                                                 "Adapter auto-registered on completion"
                                             );
-
-                                            // A/B comparison: if a previous version of this adapter
-                                            // (from a retrain) exists, compare metrics.
-                                            if adapter.name.contains('-') {
-                                                let base_name = adapter
-                                                    .name
-                                                    .rsplit_once('-')
-                                                    .map(|(base, _)| base)
-                                                    .unwrap_or("");
-                                                if let Ok(Some(prev)) =
-                                                    self.adapter_store.get_metadata(base_name).await
-                                                {
-                                                    let new_loss = meta.loss.unwrap_or(f32::MAX);
-                                                    let prev_loss = prev
-                                                        .metrics
-                                                        .as_ref()
-                                                        .and_then(|m| m.loss)
-                                                        .unwrap_or(f32::MAX);
-                                                    let improved = new_loss < prev_loss;
-                                                    result["ab_comparison"] = json!({
-                                                        "previous_version": prev.version,
-                                                        "previous_loss": prev_loss,
-                                                        "new_loss": new_loss,
-                                                        "loss_improved": improved,
-                                                        "auto_promoted": improved,
-                                                    });
-                                                    tracing::info!(
-                                                        target: "cns.training.retrain.ab",
-                                                        adapter = %base_name,
-                                                        prev_loss = %prev_loss,
-                                                        new_loss = %new_loss,
-                                                        improved = improved,
-                                                        "A/B comparison completed"
-                                                    );
-                                                }
-                                            }
+                                            adapter
                                         }
                                         Err(e) => {
                                             result["adapter_registered"] = json!(false);
                                             result["adapter_error"] = json!(e.to_string());
+                                            return span.ok_json(result);
                                         }
                                     }
                                 }
                                 _ => {
                                     result["adapter_registered"] = json!(false);
-                                    result["adapter_note"] = json!(
-                                        "Host does not support auto-registration. Use training_register_adapter to register manually."
+                                    result["adapter_note"] =
+                                        json!("No completion metadata available");
+                                    return span.ok_json(result);
+                                }
+                            }
+                        }
+                    };
+
+                    // ── A/B comparison (skill retraining only) ─────────────────
+                    // Runs for both pre-registered and auto-registered adapters.
+                    // Only applicable when the adapter has a skill_name (retrains),
+                    // not for generic/semantic fine-tuning (skill_name is empty).
+                    if !adapter.skill_name.is_empty() {
+                        let current_loss = adapter.metrics.as_ref().and_then(|m| m.loss);
+                        if let Ok(Some(prev)) = self
+                            .adapter_store
+                            .get_by_skill_name(&adapter.skill_name)
+                            .await
+                        {
+                            // Don't compare against self
+                            if prev.id != adapter.id {
+                                if let (Some(new_loss), Some(prev_loss)) =
+                                    (current_loss, prev.metrics.as_ref().and_then(|m| m.loss))
+                                {
+                                    let improved = new_loss < prev_loss;
+                                    result["ab_comparison"] = json!({
+                                        "skill_name": adapter.skill_name,
+                                        "previous_version": prev.version,
+                                        "previous_adapter_name": prev.name,
+                                        "previous_loss": prev_loss,
+                                        "new_version": adapter.version,
+                                        "new_loss": new_loss,
+                                        "loss_improved": improved,
+                                        "auto_promoted": improved,
+                                    });
+                                    tracing::info!(
+                                        target: "cns.training.retrain.ab",
+                                        skill = %adapter.skill_name,
+                                        prev_version = prev.version,
+                                        prev_loss = %prev_loss,
+                                        new_loss = %new_loss,
+                                        improved = improved,
+                                        "A/B comparison completed"
                                     );
                                 }
                             }
@@ -1351,6 +1374,7 @@ impl TrainingServer {
             system_prompt,
             model,
             generation_config,
+            contrastive,
         }): Parameters<GenerateTracesRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("training_generate_traces", &self.webid);
@@ -2394,9 +2418,9 @@ impl TrainingServer {
             );
         }
 
-        // Determine version: look up previous adapter version and increment
+        // Determine version: look up previous adapter by skill name and increment
         let (version, previous_adapter_exists) =
-            match self.adapter_store.get_metadata(&skill_name).await {
+            match self.adapter_store.get_by_skill_name(&skill_name).await {
                 Ok(Some(prev)) => (prev.version + 1, true),
                 _ => (1, false),
             };
@@ -2405,7 +2429,7 @@ impl TrainingServer {
         // so training_status can compare when the new job completes.
         let ab_baseline: Option<AbBaseline> = if previous_adapter_exists {
             self.adapter_store
-                .get_metadata(&skill_name)
+                .get_by_skill_name(&skill_name)
                 .await
                 .ok()
                 .flatten()
@@ -2446,6 +2470,7 @@ impl TrainingServer {
             host: self.host_id,
             harness: self.harness_id,
             owner: None,
+            skill_name: Some(skill_name.clone()),
         };
 
         // Persist job
@@ -2643,6 +2668,7 @@ impl TrainingServer {
                             host: self.host_id,
                             harness: self.harness_id,
                             owner: None,
+                            skill_name: None,
                         };
                         tracing::info!(target: "cns.training.sweep.iteration", idx = idx, lr = lr, r = r, bs = bs, epochs = ne, "Sweep job submitted");
                         match self.host.submit(&job).await {

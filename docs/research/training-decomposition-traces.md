@@ -261,7 +261,7 @@ hKask will need composition when agents must apply multiple skills simultaneousl
 
 ### 4.1 Completed
 
-- [x] Training MCP server (14 tools — full skills training surface)
+- [x] Training MCP server (17 tools — full skills training surface)
 - [x] Together AI provider integration (upload + fine-tune + deploy)
 - [x] Runpod provider integration (GPU pod dispatch for axolotl training)
 - [x] Decomposition trace generation (`training_generate_traces`) with model override + chunking
@@ -271,8 +271,8 @@ hKask will need composition when agents must apply multiple skills simultaneousl
 - [x] `training_register_adapter` — persistent adapter registry with versioning
 - [x] `training_recommend_model` — base model selection guidance
 - [x] `training_record_invocation` — episodic invocation recording for continuous loop
-- [x] `training_curate_feedback` — LLM-as-judge feedback curation from QA pairs
-- [x] `training_retrain` — merge + dedup + retrain with auto-incremented version
+- [x] `training_curate_feedback` — LLM-as-judge feedback curation with failure categorization and quality gating
+- [x] `training_retrain` — merge + dedup + retrain with auto-incremented version + A/B baseline
 - [x] Adapter registry: Versioned adapter store with metadata (skill, base model, version, evaluation scores, training date)
 - [x] Job persistence: `training_jobs` table survives server restarts
 - [x] Blob storage: Adapter weights stored for local providers (Axolotl/Unsloth)
@@ -280,6 +280,17 @@ hKask will need composition when agents must apply multiple skills simultaneousl
 - [x] Token-length validation in `training_submit`
 - [x] System prompt support in `training_assemble_dataset`
 - [x] Chunking for large skill documents in `training_generate_traces`
+- [x] Trace type specialization (WordAct/FlowDef/KnowAct/Composite) with auto-detection by hLexicon density
+- [x] Training mode distinction (QAFact / DecompositionTrace / Hybrid)
+- [x] CoT (chain-of-thought) trace generation (`training_generate_cot`)
+- [x] `training_sweep` — parameter grid search (learning rates × LoRA ranks × batch sizes × epochs)
+- [x] A/B evaluation — auto-compare new vs. old loss on adapter registration, auto-promote when improved
+- [x] Deepened `TrainingParams` — 5 sub-structs (LoraParams, QuantizationParams, OptimizationParams, SequenceParams, AdvancedParams)
+- [x] Harness/host disambiguation — `TrainingJob` carries both `harness` and `host`; cloud hosts are harness-aware
+- [x] HuggingFace model provenance — `ModelResolver` trait, `LocalModelResolver` with 8 known architectures
+- [x] Feedback failure categorization — 5 types (hallucination/omission/procedural_error/off_target/other) with quality threshold gating
+- [x] `HarnessCapability` enum (15 variants) with per-capability CNS observability
+- [x] CNS spans: `cns.training.harness.params_used`, `cns.training.sweep.iteration`, `cns.training.retrain.started`, `cns.training.retrain.ab`, `cns.training.trace.type`
 
 ### 4.2 Near-Term (Next 2-4 Weeks)
 
@@ -298,7 +309,6 @@ hKask will need composition when agents must apply multiple skills simultaneousl
 - [ ] **Continual adaptation**: Generate training traces from agent experiences (CNS episodic memory) — adapters improve from real usage, not just static documents.
 - [ ] **Cross-model adapters**: Train adapters for different base models (Qwen3.5, DeepSeek, Llama 4) — skill portability across inference providers.
 - [ ] **`training_monitor_health`** (DEFERRED): Track adapter quality metrics over time (accuracy trend, alert correlation, confidence distribution). Deferred until we have sufficient active usage data to make trends meaningful.
-- [ ] **`training_ab_test`** (DEFERRED): Serve multiple adapter versions simultaneously, route fraction of traffic to each, compare outcomes. Deferred until we have multiple adapter versions in active use.
 
 ### 4.5 Providers
 
@@ -358,6 +368,18 @@ QA pairs train **what** to answer. Decomposition traces train **how** to think. 
 
 ---
 
+### 5.8 Why Trace Type Specialization?
+
+Not all skills are procedural. Persona skills (WordAct) train *how to sound* — tone, voice, conversational posture. Classification skills (KnowAct) train *how to recognize patterns* — positive/negative cases, decision boundaries. Procedural skills (FlowDef) train *how to decompose problems* — situation -> steps -> synthesis -> verification. Training all skills uniformly as FlowDef traces produces noise: the model learns decomposition structure for skills that need persona calibration or pattern recognition. Type-specialized traces match training structure to skill nature.
+
+### 5.9 Why Harness/Host Disambiguation?
+
+Axolotl and Unsloth are training *harnesses* (config format generators). Together AI, Runpod, and Baseten are training *hosts* (compute locations). Conflating them — as the previous architecture did — silently drops user intent when dispatching to cloud hosts that use their own training API rather than the user's chosen harness. The three-layer model (harness = config format, host = compute location) ensures user intent is never dropped and each TrainingJob carries both identifiers.
+
+### 5.10 Why Deepened TrainingParams?
+
+The previous TrainingParams had 6 flat fields (num_epochs, batch_size, learning_rate, lora_r, lora_alpha, target_modules). Axolotl accepts 30+ configuration fields; Unsloth exposes ~25 parameters through FastLanguageModel and TrainingArguments. The deepened structure (5 sub-structs: LoraParams, QuantizationParams, OptimizationParams, SequenceParams, AdvancedParams) exposes the union of capabilities that pass the deletion test: at least 2 providers support it, or one provider supports it with a specifically requested training mode. CNS span cns.training.harness.params_used tracks which parameters each harness actually uses.
+
 ## 6. Appendix: Decomposition Trace Format Specification
 
 ### 6.1 ChatML Structure
@@ -381,6 +403,19 @@ QA pairs train **what** to answer. Decomposition traces train **how** to think. 
 }
 ```
 
+
+#### 6.1.1 Type-Specialized Trace Formats
+
+Traces are generated per TraceType, auto-detected from the SKILL.md by hLexicon term density:
+
+| Type | Purpose | Structure |
+|------|---------|-----------|
+| **WordAct** | Persona calibration | {context, persona_constraints, target_utterance, calibration_notes} |
+| **FlowDef** | Procedural decomposition | {situation, decomposition_sequence, synthesis, verification} |
+| **KnowAct** | Pattern recognition | {pattern_exemplar, positive_cases[], negative_cases[], decision_boundary} |
+| **Composite** | Mixed WordAct + FlowDef | Alternating persona and procedural segments |
+
+Trace type is auto-detected by counting hLexicon terms in the skill document — highest density wins. CNS span `cns.training.trace.type` emitted on detection.
 ### 6.2 Trace Quality Criteria
 
 1. **Explicit methodology**: Each step labeled (Step 1, Step 2...), each criterion checked

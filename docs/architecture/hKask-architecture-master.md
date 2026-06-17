@@ -558,7 +558,7 @@ docs/architecture/
 ├── PUBLIC_SURFACE-hkask-inference.md
 ├── PUBLIC_SURFACE-hkask-keystore.md
 ├── PUBLIC_SURFACE-hkask-mcp.md
-├── PUBLIC_SURFACE-hkask-mcp-training.md    # Training MCP (15 tools, 5 providers)
+├── PUBLIC_SURFACE-hkask-mcp-training.md    # Training MCP (17 tools, 5 providers)
 ├── PUBLIC_SURFACE-hkask-memory.md
 ├── PUBLIC_SURFACE-hkask-services.md
 ├── PUBLIC_SURFACE-hkask-storage.md

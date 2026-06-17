@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Contract Migration Complete — 100% behavioral contract coverage across all 17 crates (2026-06-16). Every `pub fn` carries `/// REQ:` with `pre:`/`post:` conditions. 1915 REQ tags workspace-wide. Zero `todo!()`/`unimplemented!()`.
+**Current session:** Training System Deepening — TrainingParams expanded (5 sub-structs), harness/host disambiguated, trace types specialized (WordAct/FlowDef/KnowAct/Composite), feedback quality gated, A/B evaluation implemented, parameter sweep tool added, HuggingFace model provenance integrated. Clippy clean. Zero prohibitions. (2026-06-16)
 
 ---
 
