@@ -128,6 +128,10 @@ impl DatasetPipeline {
     /// Full pipeline: detect format → normalize to ChatML → validate → cache.
     /// Returns the cached path on subsequent calls with the same input.
     pub fn ingest(&mut self, file_path: &std::path::Path) -> Result<PathBuf, DatasetError> {
+        self.ingest_local(file_path)
+    }
+
+    fn ingest_local(&mut self, file_path: &std::path::Path) -> Result<PathBuf, DatasetError> {
         // Check cache first
         let cache_key = self.compute_cache_key(file_path)?;
         let cached_path = self.cache_dir.join(format!("{}.jsonl", cache_key));

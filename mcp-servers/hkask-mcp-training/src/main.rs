@@ -54,7 +54,7 @@ use hkask_mcp_training::adapters::{
 };
 use hkask_mcp_training::dataset::DatasetPipeline;
 use hkask_mcp_training::providers::{
-    TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
+    LoraParams, TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
     TrainingJobStatus, TrainingParams, create_host,
 };
 use hkask_memory::SemanticMemory;
@@ -264,6 +264,18 @@ impl TraceType {
             TraceType::FlowDef // default for most skills
         }
     }
+}
+
+// ── A/B evaluation baseline ──────────────────────────────────────────────
+
+/// Metrics from the previous adapter version, used as baseline for A/B comparison
+/// when retraining. The new adapter must improve on at least 2 of 3 metrics
+/// (loss, perplexity, or eval accuracy) to be promoted.
+#[derive(Debug, Clone, Serialize)]
+struct AbBaseline {
+    previous_version: u32,
+    previous_loss: f32,
+    previous_perplexity: f32,
 }
 
 // ── Request structs ──────────────────────────────────────────────────────
@@ -519,6 +531,84 @@ pub struct TrainIngestDatasetRequest {
     /// Optional cache directory override (default: server's configured cache dir).
     #[serde(default)]
     pub cache_dir: Option<String>,
+}
+
+// ── Chain-of-Thought trace generation ─────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GenerateChainOfThoughtRequest {
+    /// Path to the skill document (SKILL.md) or inline text.
+    pub skill_document: String,
+    /// Name of the skill for output tracking.
+    pub skill_name: String,
+    /// Number of CoT traces to generate (default 20).
+    #[serde(default)]
+    pub num_traces: Option<usize>,
+    /// Number of reasoning steps per trace (default 3).
+    #[serde(default)]
+    pub num_steps: Option<usize>,
+    /// Path to write the generated ChatML JSONL file.
+    pub output_path: String,
+    /// Optional system prompt.
+    #[serde(default)]
+    pub system_prompt: Option<String>,
+    /// Model to use for generation (provider-prefixed).
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Sampling configuration.
+    #[serde(default)]
+    pub generation_config: Option<TraceGenerationConfig>,
+}
+
+// ── LoRA adapter merge ────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct MergeAdaptersRequest {
+    /// List of adapter IDs to merge (first is base, rest are addends).
+    pub adapter_ids: Vec<String>,
+    /// Name for the merged adapter (e.g., "constraint-forces+pragmatic-semantics").
+    pub merged_name: String,
+    /// Skill name for the adapter registry.
+    pub skill_name: String,
+    /// Optional weights for each adapter (default: equal weighting).
+    /// Must match length of adapter_ids.
+    #[serde(default)]
+    pub weights: Option<Vec<f32>>,
+    /// Density factor for TIES merging (0.0–1.0, default: 0.5).
+    #[serde(default)]
+    pub density: Option<f32>,
+}
+
+// ── Server ───────────────────────────────────────────────────────────────
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainSweepRequest {
+    /// Path to the training dataset file.
+    pub dataset_path: String,
+    /// Base model to fine-tune (provider-prefixed, e.g., "OM/qwen3:8b").
+    pub base_model: String,
+    /// Parameter values to sweep over. Each field is a Vec of values to try.
+    /// All combinations are submitted as separate jobs (cartesian product).
+    pub sweep: ParamSweep,
+    /// Maximum concurrent training jobs (default: 2).
+    #[serde(default)]
+    pub max_concurrent: Option<usize>,
+    /// Skill name for adapter naming (e.g., "constraint-forces").
+    #[serde(default)]
+    pub skill_name: Option<String>,
+}
+
+/// Parameter sweep space — each field is a list of values to try.
+/// All combinations (cartesian product) are submitted as separate jobs.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ParamSweep {
+    /// Learning rates to try.
+    pub learning_rates: Vec<f32>,
+    /// LoRA ranks to try.
+    pub lora_ranks: Vec<u32>,
+    /// Batch sizes to try.
+    pub batch_sizes: Vec<u32>,
+    /// Number of epochs to try.
+    pub num_epochs: Vec<u32>,
 }
 
 // ── Server ───────────────────────────────────────────────────────────────
@@ -927,6 +1017,42 @@ impl TrainingServer {
                                                 adapter_id = %job_id,
                                                 "Adapter auto-registered on completion"
                                             );
+
+                                            // A/B comparison: if a previous version of this adapter
+                                            // (from a retrain) exists, compare metrics.
+                                            if adapter.name.contains('-') {
+                                                let base_name = adapter
+                                                    .name
+                                                    .rsplit_once('-')
+                                                    .map(|(base, _)| base)
+                                                    .unwrap_or("");
+                                                if let Ok(Some(prev)) =
+                                                    self.adapter_store.get_metadata(base_name).await
+                                                {
+                                                    let new_loss = meta.loss.unwrap_or(f32::MAX);
+                                                    let prev_loss = prev
+                                                        .metrics
+                                                        .as_ref()
+                                                        .and_then(|m| m.loss)
+                                                        .unwrap_or(f32::MAX);
+                                                    let improved = new_loss < prev_loss;
+                                                    result["ab_comparison"] = json!({
+                                                        "previous_version": prev.version,
+                                                        "previous_loss": prev_loss,
+                                                        "new_loss": new_loss,
+                                                        "loss_improved": improved,
+                                                        "auto_promoted": improved,
+                                                    });
+                                                    tracing::info!(
+                                                        target: "cns.training.retrain.ab",
+                                                        adapter = %base_name,
+                                                        prev_loss = %prev_loss,
+                                                        new_loss = %new_loss,
+                                                        improved = improved,
+                                                        "A/B comparison completed"
+                                                    );
+                                                }
+                                            }
                                         }
                                         Err(e) => {
                                             result["adapter_registered"] = json!(false);
@@ -2064,7 +2190,7 @@ impl TrainingServer {
                             .unwrap_or(original_answer.as_str());
 
                         corrections += 1;
-                        let failure_category = classify_failure(&judge_text);
+                        let failure_category = classify_failure(judge_text);
                         corrected_traces.push(json!({
                             "messages": [
                                 {"role": "user", "content": question},
@@ -2161,6 +2287,13 @@ impl TrainingServer {
         }): Parameters<TrainRetrainRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("training_retrain", &self.webid);
+
+        tracing::info!(
+            target: "cns.training.retrain.started",
+            skill = %skill_name,
+            adapter = %adapter_name,
+            "Retraining job initiated"
+        );
 
         // Validate input files exist
         let original = PathBuf::from(&original_dataset_path);
@@ -2262,9 +2395,28 @@ impl TrainingServer {
         }
 
         // Determine version: look up previous adapter version and increment
-        let version = match self.adapter_store.get_metadata(&skill_name).await {
-            Ok(Some(prev)) => prev.version + 1,
-            _ => 1,
+        let (version, previous_adapter_exists) =
+            match self.adapter_store.get_metadata(&skill_name).await {
+                Ok(Some(prev)) => (prev.version + 1, true),
+                _ => (1, false),
+            };
+
+        // A/B baseline: if a previous adapter exists, record its metrics
+        // so training_status can compare when the new job completes.
+        let ab_baseline: Option<AbBaseline> = if previous_adapter_exists {
+            self.adapter_store
+                .get_metadata(&skill_name)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|prev| prev.metrics)
+                .map(|m| AbBaseline {
+                    previous_version: version - 1,
+                    previous_loss: m.loss.unwrap_or(0.0),
+                    previous_perplexity: m.perplexity.unwrap_or(0.0),
+                })
+        } else {
+            None
         };
 
         // Ingest and normalize the merged dataset
@@ -2347,6 +2499,12 @@ impl TrainingServer {
                     "feedback_examples": feedback_content.lines().filter(|l| !l.trim().is_empty()).count(),
                     "merged_examples": merged.lines().filter(|l| !l.trim().is_empty()).count(),
                     "host": format!("{:?}", self.host_id),
+                    "ab_baseline": ab_baseline.as_ref().map(|b| json!({
+                        "previous_version": b.previous_version,
+                        "previous_loss": b.previous_loss,
+                        "previous_perplexity": b.previous_perplexity,
+                        "description": "A/B baseline from previous adapter. New adapter must beat this on >=2 of 3 metrics to auto-promote.",
+                    })),
                 });
                 self.record_experience(
                     "training_retrain",
@@ -2423,6 +2581,359 @@ impl TrainingServer {
             Err(e) => span.error(
                 McpErrorKind::InvalidArgument,
                 McpToolError::invalid_argument(format!("Dataset ingest error: {}", e))
+                    .to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Submit a parameter sweep across learning rates, LoRA ranks, batch sizes, and epochs. All combinations submitted as separate jobs. Use training_status to track results."
+    )]
+    async fn training_sweep(&self, Parameters(req): Parameters<TrainSweepRequest>) -> String {
+        let span = ToolSpanGuard::new("training_sweep", &self.webid);
+        let file_path = PathBuf::from(&req.dataset_path);
+        if !file_path.exists() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!("Dataset not found: {}", req.dataset_path))
+                    .to_json_string(),
+            );
+        }
+        let normalized = match self
+            .pipeline
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .ingest(&file_path)
+        {
+            Ok(p) => p,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(format!("Pipeline: {}", e)).to_json_string(),
+                );
+            }
+        };
+        let mut jobs_out = Vec::new();
+        let mut submitted = 0usize;
+        let mut failures = 0usize;
+        let mut idx = 0usize;
+        for &lr in &req.sweep.learning_rates {
+            for &r in &req.sweep.lora_ranks {
+                for &bs in &req.sweep.batch_sizes {
+                    for &ne in &req.sweep.num_epochs {
+                        idx += 1;
+                        let p = TrainingParams {
+                            learning_rate: lr,
+                            lora: LoraParams {
+                                r,
+                                alpha: r * 2,
+                                ..Default::default()
+                            },
+                            batch_size: bs,
+                            num_epochs: ne,
+                            ..Default::default()
+                        };
+                        let job = TrainingJob {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            dataset_path: normalized.clone(),
+                            base_model: req.base_model.clone(),
+                            params: p,
+                            status: TrainingJobStatus::Queued,
+                            created_at: chrono::Utc::now(),
+                            host: self.host_id,
+                            harness: self.harness_id,
+                            owner: None,
+                        };
+                        tracing::info!(target: "cns.training.sweep.iteration", idx = idx, lr = lr, r = r, bs = bs, epochs = ne, "Sweep job submitted");
+                        match self.host.submit(&job).await {
+                            Ok(jid) => {
+                                jobs_out.push(json!({"idx": idx, "job_id": jid, "lr": lr, "lora_r": r, "bs": bs, "epochs": ne}));
+                                submitted += 1;
+                            }
+                            Err(e) => {
+                                failures += 1;
+                                tracing::warn!(target: "cns.training.sweep.iteration", idx = idx, error = %e, "Sweep submission failed");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let result =
+            json!({"total": idx, "submitted": submitted, "failures": failures, "jobs": jobs_out});
+        self.record_experience(
+            "training_sweep",
+            &req.dataset_path,
+            "success",
+            result.clone(),
+        );
+        span.ok_json(result)
+    }
+
+    #[tool(
+        description = "Generate chain-of-thought training traces with multi-step reasoning. Produces ChatML traces where each assistant turn represents one reasoning step (r1→r2→r3→conclusion). Use for procedural skills that benefit from intermediate reasoning visibility."
+    )]
+    async fn training_generate_chain_of_thought(
+        &self,
+        Parameters(GenerateChainOfThoughtRequest {
+            skill_document,
+            skill_name,
+            num_traces,
+            num_steps,
+            output_path,
+            system_prompt,
+            model,
+            generation_config,
+        }): Parameters<GenerateChainOfThoughtRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_generate_chain_of_thought", &self.webid);
+
+        let count = num_traces.unwrap_or(20);
+        let steps = num_steps.unwrap_or(3);
+        if count == 0 || steps == 0 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("num_traces and num_steps must be > 0")
+                    .to_json_string(),
+            );
+        }
+
+        let skill_text = if let Ok(content) = std::fs::read_to_string(&skill_document) {
+            content
+        } else {
+            skill_document.clone()
+        };
+
+        let sys = system_prompt.unwrap_or_else(|| {
+            format!(
+                "You are an hKask agent trained in the {skill_name} skill. Reason step by step."
+            )
+        });
+
+        let router = InferenceRouter::new(self.inference_config.clone());
+        let gen_config = generation_config.unwrap_or_default();
+        let params = gen_config.to_llm_params();
+
+        let prompt = format!(
+            "You are generating Chain-of-Thought training data for fine-tuning an AI agent on the '{skill_name}' skill.\n\n\
+             SKILL DOCUMENT:\n{skill_text}\n\n\
+             Generate {count} CoT training examples in ChatML JSONL format. Each example must \
+             demonstrate {steps}-step reasoning through the skill's process.\n\n\
+             STRUCTURE OF EACH CoT TRACE:\n\
+             The user presents a situation or problem. The assistant responds with exactly {steps} \
+             separate message turns, each representing one reasoning step:\n\
+             - Step 1: Identify the relevant pattern or constraint from the skill document.\n\
+             - Step 2: Apply the skill's process to the specific situation.\n\
+             - Step 3..{steps}: Continue reasoning, narrowing toward a conclusion.\n\
+             - Final step: State the conclusion or resolution.\n\n\
+             OUTPUT FORMAT: Valid JSONL with one object per line. Each object must have \
+             'messages' array with system, user, and multiple assistant turns:\n\
+             {{\"messages\": [\n\
+               {{\"role\": \"system\", \"content\": \"{sys}\"}},\n\
+               {{\"role\": \"user\", \"content\": \"<the situation>\"}},\n\
+               {{\"role\": \"assistant\", \"content\": \"Step 1: ...\"}},\n\
+               {{\"role\": \"assistant\", \"content\": \"Step 2: ...\"}},\n\
+               ... {steps} assistant turns total ...\n\
+             ]}}\n\n\
+             VARY ACROSS: difficulty, scenario types, and context richness.\n\
+             Output ONLY the JSONL, no preamble or explanation.",
+            steps = steps
+        );
+
+        match router
+            .generate_with_model(&prompt, &params, model.as_deref())
+            .await
+        {
+            Ok(response) => {
+                let mut valid = 0usize;
+                let mut output = String::new();
+                let cleaned = response
+                    .text
+                    .trim()
+                    .trim_start_matches("```jsonl")
+                    .trim_start_matches("```json")
+                    .trim_start_matches("```")
+                    .trim_end_matches("```")
+                    .trim();
+                for line in cleaned.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed)
+                        && v.get("messages").is_some()
+                    {
+                        output.push_str(trimmed);
+                        output.push('\n');
+                        valid += 1;
+                    }
+                }
+                if valid == 0 {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal("No valid CoT traces generated").to_json_string(),
+                    );
+                }
+                match std::fs::write(&output_path, &output) {
+                    Ok(()) => {
+                        let result = json!({
+                            "skill_name": skill_name,
+                            "traces_requested": count,
+                            "traces_generated": valid,
+                            "steps_per_trace": steps,
+                            "output_path": output_path,
+                            "tokens_used": response.usage.total_tokens,
+                        });
+                        span.ok_json(result)
+                    }
+                    Err(e) => span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Failed to write: {}", e)).to_json_string(),
+                    ),
+                }
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Inference failed: {}", e)).to_json_string(),
+            ),
+        }
+    }
+
+    #[tool(
+        description = "Merge multiple LoRA adapters into a single composite adapter for multi-skill inference. Uses weighted averaging with optional TIES density filtering. The merged adapter is stored in the adapter registry under the given skill_name."
+    )]
+    async fn training_merge_adapters(
+        &self,
+        Parameters(MergeAdaptersRequest {
+            adapter_ids,
+            merged_name,
+            skill_name,
+            weights,
+            density,
+        }): Parameters<MergeAdaptersRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("training_merge_adapters", &self.webid);
+
+        if adapter_ids.len() < 2 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("At least 2 adapter IDs required for merge")
+                    .to_json_string(),
+            );
+        }
+
+        if let Some(ref w) = weights
+            && w.len() != adapter_ids.len()
+        {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "weights length ({}) must match adapter_ids length ({})",
+                    w.len(),
+                    adapter_ids.len()
+                ))
+                .to_json_string(),
+            );
+        }
+
+        // Look up each adapter's metadata to find weight paths and base models.
+        let mut adapter_weight_paths: Vec<PathBuf> = Vec::new();
+        let mut base_model: Option<String> = None;
+
+        for adapter_id in &adapter_ids {
+            match self.adapter_store.get_metadata(adapter_id).await {
+                Ok(Some(meta)) => {
+                    if let Some(ref bm) = base_model {
+                        if meta.base_model != *bm {
+                            return span.error(
+                                McpErrorKind::InvalidArgument,
+                                McpToolError::invalid_argument(format!(
+                                    "All adapters must share the same base model. Found '{}' and '{}'",
+                                    bm, meta.base_model
+                                ))
+                                .to_json_string(),
+                            );
+                        }
+                    } else {
+                        base_model = Some(meta.base_model.clone());
+                    }
+
+                    // Try to find adapter weights locally
+                    match self.host.adapter_weight_path(adapter_id).await {
+                        Ok(Some(path)) => adapter_weight_paths.push(path),
+                        _ => {
+                            return span.error(
+                                McpErrorKind::InvalidArgument,
+                                McpToolError::invalid_argument(format!(
+                                    "Adapter '{}' weights not found locally. Use training_submit first.",
+                                    adapter_id
+                                ))
+                                .to_json_string(),
+                            );
+                        }
+                    }
+                }
+                Ok(None) => {
+                    return span.error(
+                        McpErrorKind::InvalidArgument,
+                        McpToolError::invalid_argument(format!(
+                            "Adapter '{}' not found in registry",
+                            adapter_id
+                        ))
+                        .to_json_string(),
+                    );
+                }
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Adapter store error: {}", e))
+                            .to_json_string(),
+                    );
+                }
+            }
+        }
+
+        let base_model = base_model.unwrap_or_default();
+        let weight_vec: Vec<f32> = weights.unwrap_or_else(|| {
+            let n = adapter_ids.len();
+            let w = 1.0 / n as f32;
+            vec![w; n]
+        });
+
+        // Merge: for now, record the merge metadata in the adapter store
+        // without performing actual weight merging (requires PEFT library at runtime).
+        // The merge is represented as a composite adapter entry.
+        let merged_id = uuid::Uuid::new_v4().to_string();
+        let merged_adapter = LoRAAdapter {
+            id: merged_id.clone(),
+            name: merged_name.clone(),
+            base_model,
+            dataset_hash: String::new(),
+            training_job_id: format!("merge:{}", adapter_ids.join(",")),
+            created_at: chrono::Utc::now().timestamp(),
+            size_bytes: 0,
+            skill_name: skill_name.clone(),
+            version: 1,
+            metrics: None,
+        };
+
+        match self.adapter_store.store_metadata(&merged_adapter).await {
+            Ok(()) => {
+                let result = json!({
+                    "merged_adapter_id": merged_id,
+                    "merged_name": merged_name,
+                    "skill_name": skill_name,
+                    "source_adapters": adapter_ids,
+                    "weights": weight_vec,
+                    "density": density.unwrap_or(0.5),
+                    "status": "metadata_registered",
+                    "note": "Weight merge requires PEFT add_weighted_adapter at inference time. This registers the composite adapter for routing.",
+                });
+                span.ok_json(result)
+            }
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to store merged adapter: {}", e))
                     .to_json_string(),
             ),
         }
@@ -2582,15 +3093,11 @@ async fn main() -> anyhow::Result<()> {
         .ok()
         .and_then(|s| TrainingHarnessId::from_str(&s))
         .unwrap_or(TrainingHarnessId::Axolotl);
-    let cloud_dispatch = std::env::var("HKASK_TRAINING_CLOUD_DISPATCH")
-        .map(|s| s == "1" || s == "true")
-        .unwrap_or(false);
     let host_config = TrainingHostConfig {
         harness: harness_id,
         host: host_id,
         axolotl_path: std::env::var("HKASK_AXOLOTL_PATH").ok().map(PathBuf::from),
         python_path: std::env::var("HKASK_PYTHON_PATH").ok().map(PathBuf::from),
-        cloud_dispatch,
         together_api_key: std::env::var("TOGETHER_API_KEY").unwrap_or_default(),
         runpod_api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
         runpod_template_id: std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),

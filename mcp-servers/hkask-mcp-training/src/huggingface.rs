@@ -256,3 +256,66 @@ mod tests {
         );
     }
 }
+
+// ── Model provenance ──────────────────────────────────────────────────────
+
+use serde::Serialize;
+
+/// Resolved model provenance — what we know about a model before training.
+#[derive(Debug, Clone, Serialize)]
+pub struct ModelProvenance {
+    pub model_id: String,
+    pub architecture: String,
+    pub license: Option<String>,
+    pub lora_compatible: bool,
+    pub is_gated: bool,
+}
+
+/// ModelResolver — resolves model identity and provenance before training.
+pub trait ModelResolver: Send + Sync {
+    fn resolve(&self, model_id: &str) -> Result<ModelProvenance, HuggingFaceError>;
+    fn validate(&self, model_id: &str) -> bool {
+        self.resolve(model_id).is_ok()
+    }
+}
+
+/// Static model resolver using built-in known-model registry.
+#[derive(Default)]
+pub struct LocalModelResolver;
+
+impl ModelResolver for LocalModelResolver {
+    fn resolve(&self, model_id: &str) -> Result<ModelProvenance, HuggingFaceError> {
+        if !model_id.contains('/') {
+            return Err(HuggingFaceError::ModelNotFound(model_id.to_string()));
+        }
+        let (org, model) = model_id.split_once('/').ok_or_else(|| {
+            HuggingFaceError::ModelNotFound(model_id.to_string())
+        })?;
+        let model_lower = model.to_lowercase();
+        let (arch, license, lora_ok, gated) =
+            if model_lower.contains("llama") {
+                ("llama", Some("llama3"), true, org == "meta-llama")
+            } else if model_lower.contains("mistral") {
+                ("mistral", Some("apache-2.0"), true, false)
+            } else if model_lower.contains("qwen") {
+                ("qwen", Some("apache-2.0"), true, false)
+            } else if model_lower.contains("gemma") {
+                ("gemma", Some("gemma"), true, org == "google")
+            } else if model_lower.contains("phi") {
+                ("phi", Some("mit"), true, false)
+            } else if model_lower.contains("deepseek") {
+                ("deepseek", Some("mit"), true, false)
+            } else if model_lower.contains("yi") {
+                ("yi", Some("apache-2.0"), true, false)
+            } else {
+                ("unknown", None, true, false)
+            };
+        Ok(ModelProvenance {
+            model_id: model_id.to_string(),
+            architecture: arch.to_string(),
+            license: license.map(|s| s.to_string()),
+            lora_compatible: lora_ok,
+            is_gated: gated,
+        })
+    }
+}
