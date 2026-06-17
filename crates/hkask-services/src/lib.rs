@@ -38,6 +38,7 @@ pub use hkask_services_embed::{
     ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
     EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
 };
+pub use hkask_services_inference_svc::{InferenceContext, InferenceService, ModelInfo};
 pub use hkask_services_kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
 pub use hkask_services_kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
@@ -51,6 +52,7 @@ pub use hkask_services_onboarding::{
     ResolvedSecrets, SignInOutcome, conduit_health_check,
 };
 pub use hkask_services_skill::resolve_replicant_name;
+pub use hkask_services_sovereignty::SovereigntyService;
 pub use hkask_services_verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
 };
@@ -68,7 +70,6 @@ pub mod curator;
 pub mod deletion_test;
 pub mod experience;
 pub mod goal;
-pub mod inference;
 pub mod pods;
 pub mod scheduler;
 pub mod skill;
