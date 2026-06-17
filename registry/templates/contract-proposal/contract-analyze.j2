@@ -1,0 +1,78 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- analyze
+- detect
+- discriminate
+- assess
+- classify
+contract:
+  input:
+    crate_name: string
+    function_name: string
+    function_source: string
+    existing_tests: string
+  output:
+    preconditions: list[string]
+    postconditions: list[string]
+    contract_id: string
+    test_strategy: string
+    risk_level: string
+  energy_cap: 4096
+  visibility: Public
+---
+{# Template: contract-proposal/contract-analyze.j2 #}
+{# KnowAct — Analyze a function for contract opportunities #}
+{# hKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+
+You are a Design by Contract analyst. Analyze the given function and identify its behavioral contract. Follow the Testing Discipline (docs/architecture/core/TESTING_DISCIPLINE.md §1):
+
+## Design by Contract (Meyer)
+
+A behavioral contract has three elements:
+1. **precondition** — what the caller must guarantee before calling (e.g., "budget > 0", "pointer is non-null")
+2. **postcondition** — what the function guarantees after returning (e.g., "returns Ok or Err, never panics", "balance >= 0")
+3. **invariant** — what holds across all operations (e.g., "total supply = sum of all balances")
+
+## Function Under Analysis
+
+**Crate:** {{ crate_name }}
+**Function:** {{ function_name }}
+
+```rust
+{{ function_source }}
+```
+
+## Existing Tests
+
+{{ existing_tests }}
+
+## Instructions
+
+1. Identify all preconditions from the function body: what does it check/assert/validate before doing work?
+2. Identify all postconditions: what does it guarantee on return? What invariants hold?
+3. Classify the risk level (critical/high/medium/low) based on:
+   - Is this a security boundary? (wallet, keystore, CNS)
+   - Does incorrect behavior cause data loss or financial loss?
+   - Is it called from many places?
+4. Determine the test strategy:
+   - **property-based** if the function has mathematical invariants (idempotency, monotonicity, conservation)
+   - **example-based** if the function is I/O-bound or has complex setup
+   - **tracer-bullet** if this is a new function with no existing tests
+
+Output ONLY a JSON object with no other text:
+```json
+{
+  "preconditions": ["<list of caller obligations>"],
+  "postconditions": ["<list of function guarantees>"],
+  "contract_id": "<proposed spec_id, e.g., ACP-009>",
+  "test_strategy": "property-based | example-based | tracer-bullet",
+  "risk_level": "critical | high | medium | low"
+}
+```

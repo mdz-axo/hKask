@@ -309,7 +309,7 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 
 | Gap | Severity | Status | Description |
 |-----|----------|--------|-------------|
-| **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. API contracts may need adjustment based on actual provider responses. |
+| **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. **Caveat:** exact GraphQL schema fields (`saveEndpoint`, response `data.saveEndpoint.id`) and Baseten REST response shape (`id` field, endpoint URL format `model-{id}.api.baseten.co`) may need adjustment based on actual provider API responses at runtime. |
 
 ---
 

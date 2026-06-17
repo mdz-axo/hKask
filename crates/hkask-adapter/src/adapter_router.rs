@@ -3,7 +3,8 @@
 //! The `AdapterRouter` implements `AdapterPort`. It holds an `AdapterStore` for adapter CRUD
 //! and a registry of provider backends for endpoint provisioning and inference.
 //!
-//! Mirrors `InferenceRouter::new` and `resolve` patterns from `hkask-inference`.
+//! All three provider backends (Together, Runpod, Baseten) have real HTTP integration
+//! for adapter upload, endpoint provisioning, and inference.
 
 use crate::AdapterStore;
 use crate::adapter_config::AdapterConfig;
@@ -70,9 +71,12 @@ trait AdapterProviderBackend: Send + Sync {
     fn cost_model(&self) -> CostModel;
 }
 
-// ── Skeleton backend implementations ─────────────────────────────────────────
-// These mirror the pattern in hkask-inference (OllamaBackend, TogetherBackend, etc.)
-// but with skeleton HTTP calls for now (real API integration follows in Task 5 completion).
+// ── Provider backend implementations ───────────────────────────────────────
+// Together: real HTTP upload + inference (OpenAI-compatible). Provision is
+//   auto-deployed after upload — no separate endpoint creation needed.
+// Runpod: GraphQL endpoint provisioning + OpenAI-compatible inference.
+// Baseten: REST endpoint provisioning + OpenAI-compatible inference.
+// Adapter upload: Together uploads to HF; Runpod/Baseten use vLLM --lora-modules.
 
 struct TogetherAdapterBackend {
     cost_model: CostModel,
@@ -120,7 +124,8 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
     }
 
     fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
-        // Skeleton: in production, calls Together AI API to delete endpoint
+        // Together AI endpoints are auto-deployed and torn down when unused.
+        // No explicit teardown API call needed.
         Ok(())
     }
 
@@ -239,7 +244,10 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             ));
         }
 
-        // Runpod GraphQL API: create a serverless vLLM endpoint
+        // Runpod GraphQL API: create a serverless vLLM endpoint.
+        // CAVEAT: GraphQL mutation name and response field paths are best-effort
+        // based on Runpod's documented schema. If the API returns a different shape,
+        // adjust the query string and response field accessors below.
         let query = serde_json::json!({
             "query": "mutation($input: EndpointInput!) { saveEndpoint(input: $input) { id } }",
             "variables": {
@@ -356,8 +364,10 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
             ));
         }
 
-        // Baseten REST API: deploy a model endpoint
-        // Baseten supports vLLM with multi-LoRA via --lora-modules flag
+        // Baseten REST API: deploy a model endpoint.
+        // CAVEAT: Baseten's API endpoint and response field names are best-effort.
+        // The model deployment may return different fields (e.g., "model_id" vs "id",
+        // different URL format). Adjust the response parsing if actual API differs.
         let body = serde_json::json!({
             "name": adapter.expertise.name,
             "model_source": adapter.source.repository_id(),

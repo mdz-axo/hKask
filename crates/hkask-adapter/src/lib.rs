@@ -5,16 +5,20 @@
 //! ```text
 //! AdapterRouter
 //!   ├── AdapterStore      — CRUD for trained LoRA adapters
+//!   ├── AdapterConfig     — PEFT adapter_config.json parser
 //!   ├── Expertise         — semantic capability descriptor
-//!   ├── EndpointLifecycle — state machine (provisioning → running → draining → terminated)
-//!   └── ProviderCost      — cost model per inference provider
+//!   ├── EndpointLifecycle — state machine (5-phase, cost-tracked)
+//!   ├── ProviderCost      — cost model per inference provider
+//!   ├── AdapterPort       — trait boundary (6 OCAP-gated methods)
+//!   ├── EndpointGuard     — RAII teardown on drop
+//!   └── ProviderSelection — user-in-the-loop provider picker (P2 consent)
 //! ```
 //!
 //! # Design
 //!
 //! An `Expertise` (a named, provenance-tracked capability descriptor) links a
 //! `TrainedLoRAAdapter` (content-addressed, owner-scoped artifact) to an
-//! `InferenceEndpoint` (a provider-provisioned, lifecycle-governed, cost-tracked resource).
+//! `InferenceEndpointHandle` (a provider-provisioned, lifecycle-governed, cost-tracked resource).
 //! Every operation is OCAP-gated. Every state transition emits a CNS span.
 //! Every endpoint drains on session completion or budget exhaustion.
 

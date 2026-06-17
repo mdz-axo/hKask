@@ -22,7 +22,7 @@ use serde_json::Value;
 /// Core kanban coordination service.
 ///
 /// Persists boards and tasks as RDF triples in a TripleStore.
-/// Public surface: exactly 7 operations (deep-module discipline).
+/// Public surface: board and task coordination operations.
 #[derive(Clone)]
 pub struct KanbanService {
     store: TripleStore,
@@ -107,8 +107,6 @@ impl KanbanService {
         #[derive(serde::Deserialize)]
         struct TemplatePhase {
             name: String,
-            description: Option<String>,
-            task_labels: Vec<String>,
         }
         #[derive(serde::Deserialize)]
         struct BoardTemplate {

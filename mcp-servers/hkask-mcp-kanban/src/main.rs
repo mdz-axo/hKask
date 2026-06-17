@@ -29,13 +29,6 @@ fn err(span: ToolSpanGuard, msg: &str) -> String {
     span.internal_error(serde_json::json!({"error": msg}))
 }
 
-fn parse_id<T: std::str::FromStr>(span: &ToolSpanGuard, s: &str, label: &str) -> Result<T, String>
-where T::Err: std::fmt::Display {
-    s.parse::<T>().map_err(|e| {
-        let _ = span; // span consumed by caller on error
-        format!("invalid {}: {}", label, e)
-    })
-}
 
 // ── Server ──────────────────────────────────────────────────────────────────
 

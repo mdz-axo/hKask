@@ -59,7 +59,7 @@ pub(crate) fn handle_kanban(
             let parts: Vec<&str> = rest.splitn(3, ' ').collect();
             match parts.first().copied().unwrap_or("") {
                 "create" => {
-                    let rest_parts: Vec<&str> = rest.splitn(4, ' ').collect();
+                    let _rest_parts: Vec<&str> = rest.splitn(4, ' ').collect();
                     let name = parts.get(1).copied().unwrap_or("Unnamed Board");
                     let tmpl_flag = parts.get(2).copied().unwrap_or("");
                     let tmpl_name = parts.get(3).copied().unwrap_or("");
@@ -307,7 +307,7 @@ pub(crate) fn handle_kanban(
                     return;
                 }
             };
-            // Quick keyword-based verification
+            // Contract-based verification (TaskContract.check_completion)
             match service.task_verify(tid, evidence, webid) {
                 Ok((task, v)) => {
                     println!(
@@ -317,7 +317,7 @@ pub(crate) fn handle_kanban(
                     );
                     println!("  Task status: {}", task.status);
                     println!(
-                        "  (Keyword-based. For LLM evaluation: /kanban verify {})",
+                        "  (Contract-based. For LLM: /kanban verify {})",
                         task_str
                     );
                 }

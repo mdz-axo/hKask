@@ -1,0 +1,108 @@
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- write
+- specify
+- constrain
+- verify
+- propose
+contract:
+  input:
+    crate_name: string
+    function_name: string
+    contract_id: string
+    preconditions: list[string]
+    postconditions: list[string]
+    function_source: string
+    test_strategy: string
+  output:
+    contract_doc: string
+    test_code: string
+    submission_command: string
+  energy_cap: 8192
+  visibility: Public
+---
+{# Template: contract-proposal/contract-propose.j2 #}
+{# KnowAct — Generate a contract + proptest, submit via kask contract propose #}
+{# hKask v0.27.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 8192
+
+You are a Design by Contract agent. Generate a behavioral contract and property-based test for the given function, then submit it for human review.
+
+## Function
+
+**Crate:** {{ crate_name }}
+**Function:** {{ function_name }}
+**Contract ID:** {{ contract_id }}
+
+```rust
+{{ function_source }}
+```
+
+## Contract
+
+- **Preconditions:** {{ preconditions | join(", ") }}
+- **Postconditions:** {{ postconditions | join(", ") }}
+- **Test Strategy:** {{ test_strategy }}
+
+## Instructions
+
+### Step 1: Write the Contract
+
+Add a doc-comment contract above the function following the hKask contract syntax (Testing Discipline §1.2):
+
+```rust
+/// REQ: {{ contract_id }}
+/// pre:  <caller obligations>
+/// post: <function guarantees>
+/// inv:  <cross-operation invariants, if any>
+```
+
+### Step 2: Write the Test
+
+{% if test_strategy == "property-based" %}
+Write a `proptest!` block that verifies the contract for ALL valid inputs. Use `hkask_test_harness::strategies` for type generation. Every test must carry `// REQ: {{ contract_id }}`.
+
+```rust
+// REQ: {{ contract_id }} — property-based verification
+proptest! {
+    #[test]
+    fn contract_holds_for_all_inputs(input in strategies::any_<type>()) {
+        // Verify precondition holds for generated input
+        // Verify postcondition holds after function call
+    }
+}
+```
+{% else %}
+Write example-based tests that verify the contract for representative inputs, including edge cases. Every test must carry `// REQ: {{ contract_id }}`.
+
+```rust
+// REQ: {{ contract_id }} — example-based verification
+#[test]
+fn contract_holds_for_valid_input() {
+    // Verify precondition holds
+    // Verify postcondition holds after function call
+}
+```
+{% endif %}
+
+### Step 3: Submit
+
+Run this command to submit the proposal for human consent:
+
+```bash
+kask contract propose \
+  -c {{ crate_name }} \
+  -f {{ function_name }} \
+  --contract-id {{ contract_id }} \
+  --pre "{{ preconditions[0] }}" \
+  --post "{{ postconditions[0] }}" \
+  -r <your-replicant-webid>
+```
+
+Output the contract, test code, and submission command. Do not modify any files — the human reviewer will apply the contract after consent.

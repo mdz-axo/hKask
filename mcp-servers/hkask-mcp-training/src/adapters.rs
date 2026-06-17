@@ -4,8 +4,8 @@
 //! linking back to originating `TrainingJob`, base model, and dataset provenance.
 //!
 //! Adapters are stored as blobs in `hkask-storage` with metadata in a dedicated
-//! `lora_adapters` table. Referenced from `hkask-templates` registry for model
-//! composition (base + adapter = effective model).
+//! `lora_adapters` table. Deployment uses `hkask-adapter::AdapterRouter` for
+//! cloud inference endpoint provisioning.
 
 use chrono::Utc;
 use hkask_adapter::adapter_store::Checksum;

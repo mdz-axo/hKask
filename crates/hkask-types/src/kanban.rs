@@ -764,8 +764,8 @@ impl TaskContract {
     ///
     /// The evidence is a free-text description of what was done — the same
     /// text the agent provides as a comment when submitting deliverables.
-    /// The matching is keyword-based for now; LLM-mediated evaluation (Task 6)
-    /// will replace this with semantic matching against the actual deliverables.
+    /// Uses per-criterion matching. For LLM-mediated evaluation, use
+    /// KanbanService::verification_prompt() and verify_with_llm().
     pub fn check_completion(&mut self, evidence: &str) -> ContractVerification {
         if self.pre_conditions.is_empty() {
             self.state = ContractState::Completed;
@@ -980,7 +980,7 @@ impl SpawnSpec {
 ///
 /// Saved spawn configurations that can be reused across tasks and projects.
 /// After a board completes, the user is prompted to save any capability
-/// packages they composed, so future delegations can reference them by name.
+/// packages they composed, so delegations can reference them by name.
 ///
 /// Stored as YAML in registry/capabilities/ alongside kata manifests.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
