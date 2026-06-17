@@ -26,7 +26,7 @@ use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::daemon::DaemonClient;
 use hkask_mcp::startup::{StartupGateResult, verify_startup_gates};
 use hkask_types::cns::CnsSpan;
-use hkask_types::ports::InferencePort;
+use hkask_types::ports::{InferencePort, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use protocol::*;
 use std::collections::HashMap;
@@ -98,11 +98,14 @@ impl HkaskAcpAgent {
         })
     }
 
-    async fn run_inference(
+    async fn run_inference_stream(
         &self,
         prompt: &str,
         session_id: &str,
-    ) -> Result<hkask_types::ports::inference_types::InferenceResult, String> {
+        stdout: &mut tokio::io::Stdout,
+    ) -> Result<String, String> {
+        use futures_util::StreamExt;
+
         let params = LLMParameters {
             temperature: 0.7,
             top_p: 0.9,
@@ -113,21 +116,91 @@ impl HkaskAcpAgent {
 
         let port: Arc<dyn InferencePort> = Arc::clone(&self.inference) as Arc<dyn InferencePort>;
         let start = std::time::Instant::now();
-        let result = port
-            .generate_with_model(prompt, &params, Some(&self.default_model))
-            .await
-            .map_err(|e| format!("Inference error: {}", e))?;
+        let mut stream =
+            port.generate_stream_with_model(prompt, &params, Some(&self.default_model));
+
+        let mut total_text = String::new();
+        let mut finish_reason = String::from("end_turn");
+        let mut total_tokens = 0u32;
+        let message_id = format!("msg-{}", uuid::Uuid::new_v4());
+        let mut tool_call_counter = 0u32;
+
+        while let Some(chunk_result) = stream.next().await {
+            let chunk: InferenceStreamChunk =
+                chunk_result.map_err(|e| format!("Stream error: {}", e))?;
+
+            // Tool calls in this chunk
+            for tc in &chunk.tool_calls {
+                tool_call_counter += 1;
+                let tc_id = format!("tc-{}-{}", session_id, tool_call_counter);
+                let kind = map_tool_kind(tc);
+
+                let notif = tool_call_notification(
+                    session_id,
+                    &tc_id,
+                    &format!("{} {}", tc.server, tc.tool),
+                    &kind,
+                );
+                write_notification(stdout, &notif)
+                    .await
+                    .map_err(|e| format!("Write error: {}", e))?;
+
+                // Mark in-progress
+                let update = tool_call_update(session_id, &tc_id, "in_progress", None);
+                write_notification(stdout, &update)
+                    .await
+                    .map_err(|e| format!("Write error: {}", e))?;
+
+                // Mark completed
+                let update = tool_call_update(
+                    session_id,
+                    &tc_id,
+                    "completed",
+                    Some(&format!("Tool call: {} {}", tc.server, tc.tool)),
+                );
+                write_notification(stdout, &update)
+                    .await
+                    .map_err(|e| format!("Write error: {}", e))?;
+            }
+
+            // Text content
+            if !chunk.text_delta.is_empty() {
+                total_text.push_str(&chunk.text_delta);
+                let notif = agent_message_chunk(session_id, &message_id, &chunk.text_delta);
+                write_notification(stdout, &notif)
+                    .await
+                    .map_err(|e| format!("Write error: {}", e))?;
+            }
+
+            // Track usage and finish reason from final chunk
+            if let Some(ref usage) = chunk.usage {
+                total_tokens = usage.total_tokens;
+            }
+            if let Some(ref fr) = chunk.finish_reason {
+                finish_reason = fr.clone();
+            }
+        }
 
         let latency_ms = start.elapsed().as_millis() as u64;
+
+        // Usage update notification
+        let usage_notif = usage_update(session_id, total_tokens, total_tokens);
+        write_notification(stdout, &usage_notif)
+            .await
+            .map_err(|e| format!("Write error: {}", e))?;
+
         info!(
             target: "hkask.acp",
             session_id = %session_id,
             latency_ms = %latency_ms,
-            tokens = %result.usage.total_tokens,
-            "Inference complete"
+            tokens = %total_tokens,
+            finish_reason = %finish_reason,
+            text_len = total_text.len(),
+            tool_calls = tool_call_counter,
+            "Inference stream complete"
         );
 
-        // Encode interaction as memory triple via daemon
+        // Encode memory
         let entity = format!("session:{}:prompt", session_id);
         let _ = self
             .daemon
@@ -136,16 +209,41 @@ impl HkaskAcpAgent {
                 &entity,
                 "response",
                 &serde_json::json!({
-                    "response_len": result.text.len(),
-                    "tokens": result.usage.total_tokens,
-                    "model": result.model,
-                    "finish": result.finish_reason,
+                    "response_len": total_text.len(),
+                    "tokens": total_tokens,
+                    "model": &self.default_model,
+                    "finish": &finish_reason,
+                    "tool_calls": tool_call_counter,
                 }),
                 Some(0.9),
             )
             .await;
 
-        Ok(result)
+        // Map finish_reason to ACP StopReason
+        let stop_reason = match finish_reason.as_str() {
+            "stop" | "end_turn" => "end_turn",
+            "length" => "max_tokens",
+            "tool_calls" => "end_turn",
+            _ => "end_turn",
+        };
+
+        Ok(stop_reason.to_string())
+    }
+
+    // run_inference removed — replaced by run_inference_stream
+}
+
+/// Map a StructuredToolCall to an ACP tool kind string.
+fn map_tool_kind(tc: &hkask_types::ports::inference_types::StructuredToolCall) -> String {
+    match tc.tool.as_str() {
+        "web_search" | "brave_search" | "tavily_search" => "search".into(),
+        "web_extract" | "fetch" | "scrape" => "fetch".into(),
+        "execute" | "run" | "shell" => "execute".into(),
+        "read" | "cat" => "read".into(),
+        "write" | "edit" | "patch" => "edit".into(),
+        "delete" | "rm" => "delete".into(),
+        "think" | "reason" | "plan" => "think".into(),
+        _ => "other".into(),
     }
 }
 

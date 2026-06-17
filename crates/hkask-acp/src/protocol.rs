@@ -19,7 +19,7 @@ use super::HkaskAcpAgent;
 // ── JSON-RPC envelope ──────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
-struct JsonRpcRequest {
+pub(crate) struct JsonRpcRequest {
     jsonrpc: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<Value>,
@@ -29,7 +29,7 @@ struct JsonRpcRequest {
 }
 
 #[derive(Debug, Serialize)]
-struct JsonRpcResponse {
+pub(crate) struct JsonRpcResponse {
     jsonrpc: String,
     id: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -39,7 +39,7 @@ struct JsonRpcResponse {
 }
 
 #[derive(Debug, Serialize)]
-struct JsonRpcNotification {
+pub(crate) struct JsonRpcNotification {
     jsonrpc: String,
     method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -47,7 +47,7 @@ struct JsonRpcNotification {
 }
 
 #[derive(Debug, Serialize)]
-struct JsonRpcError {
+pub(crate) struct JsonRpcError {
     code: i32,
     message: String,
 }
@@ -172,8 +172,7 @@ struct CancelNotification {
 
 // ── ACP session/update (notification, agent → client) ──────────────────
 
-#[allow(dead_code)]
-fn agent_message_chunk(session_id: &str, message_id: &str, text: &str) -> JsonRpcNotification {
+pub(crate) fn agent_message_chunk(session_id: &str, message_id: &str, text: &str) -> JsonRpcNotification {
     JsonRpcNotification {
         jsonrpc: "2.0".into(),
         method: "session/update".into(),
@@ -191,7 +190,56 @@ fn agent_message_chunk(session_id: &str, message_id: &str, text: &str) -> JsonRp
     }
 }
 
-fn usage_update(session_id: &str, used: u32, size: u32) -> JsonRpcNotification {
+pub(crate) fn tool_call_notification(
+    session_id: &str,
+    tool_call_id: &str,
+    title: &str,
+    kind: &str,
+) -> JsonRpcNotification {
+    JsonRpcNotification {
+        jsonrpc: "2.0".into(),
+        method: "session/update".into(),
+        params: Some(serde_json::json!({
+            "sessionId": session_id,
+            "update": {
+                "sessionUpdate": "tool_call",
+                "toolCallId": tool_call_id,
+                "title": title,
+                "kind": kind,
+                "status": "pending",
+            },
+        })),
+    }
+}
+
+pub(crate) fn tool_call_update(
+    session_id: &str,
+    tool_call_id: &str,
+    status: &str,
+    content_text: Option<&str>,
+) -> JsonRpcNotification {
+    let mut update = serde_json::json!({
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": tool_call_id,
+        "status": status,
+    });
+    if let Some(text) = content_text {
+        update["content"] = serde_json::json!([{
+            "type": "content",
+            "content": { "type": "text", "text": text },
+        }]);
+    }
+    JsonRpcNotification {
+        jsonrpc: "2.0".into(),
+        method: "session/update".into(),
+        params: Some(serde_json::json!({
+            "sessionId": session_id,
+            "update": update,
+        })),
+    }
+}
+
+pub(crate) fn usage_update(session_id: &str, used: u32, size: u32) -> JsonRpcNotification {
     JsonRpcNotification {
         jsonrpc: "2.0".into(),
         method: "session/update".into(),
@@ -216,6 +264,17 @@ fn error_response(id: Value, code: i32, message: &str) -> JsonRpcResponse {
             message: message.into(),
         }),
     }
+}
+
+pub(crate) async fn write_notification(
+    stdout: &mut tokio::io::Stdout,
+    notif: &JsonRpcNotification,
+) -> std::io::Result<()> {
+    use tokio::io::AsyncWriteExt;
+    let mut json = serde_json::to_string(notif)?;
+    json.push('\n');
+    stdout.write_all(json.as_bytes()).await?;
+    stdout.flush().await
 }
 
 // ── Stdio transport ────────────────────────────────────────────────────
@@ -246,14 +305,13 @@ impl StdioTransport {
                 }
             };
 
-            let response = self.handle_request(&request, &agent).await;
+            let is_notification = request.id.is_none();
+            let response = self.handle_request(&request, &agent, &mut stdout).await;
 
-            // Notifications have no id, so no response
-            let Some(_id) = request.id else {
+            if is_notification {
                 continue;
-            };
+            }
 
-            // Send response
             let mut json = serde_json::to_string(&response)?;
             json.push('\n');
             stdout.write_all(json.as_bytes()).await?;
@@ -263,11 +321,11 @@ impl StdioTransport {
         Ok(())
     }
 
-    #[allow(unused_variables)]
     async fn handle_request(
         &mut self,
         req: &JsonRpcRequest,
         agent: &Arc<HkaskAcpAgent>,
+        stdout: &mut tokio::io::Stdout,
     ) -> JsonRpcResponse {
         let id = req.id.clone().unwrap_or(Value::Null);
 
@@ -327,7 +385,6 @@ impl StdioTransport {
                         }
                     };
 
-                // Extract text content
                 let prompt_text: String = params
                     .prompt
                     .iter()
@@ -350,16 +407,12 @@ impl StdioTransport {
                     return prompt_response(id, "end_turn");
                 }
 
-                // Run inference
-                match agent.run_inference(&prompt_text, &params.session_id).await {
-                    Ok(result) => {
-                        let finish = match result.finish_reason.as_str() {
-                            "stop" | "end_turn" => "end_turn",
-                            "length" => "max_tokens",
-                            _ => "end_turn",
-                        };
-                        prompt_response(id, finish)
-                    }
+                // Streaming inference — notifications written inline
+                match agent
+                    .run_inference_stream(&prompt_text, &params.session_id, stdout)
+                    .await
+                {
+                    Ok(stop_reason) => prompt_response(id, &stop_reason),
                     Err(e) => {
                         warn!(target: "hkask.acp", "Inference failed: {}", e);
                         prompt_response(id, "end_turn")

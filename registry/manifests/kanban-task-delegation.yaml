@@ -1,32 +1,33 @@
 # Kanban Task Delegation Skill
 # ℏKask v0.27.0 — Agent coordination via kanban boards
 #
-# Manages the full lifecycle of delegated kanban tasks: spawn
-# replicants, track deliverables, provide chat feedback, verify
-# completion, and evaluate submitted work against acceptance criteria.
+# Handles the initial handoff of kanban tasks to sub-replicants:
+# configure spawn parameters and execute the task. Ongoing
+# coordination (verification, feedback, board management) is
+# handled by the kanban-task-management skill.
 #
-# This is NOT a generic spawn skill — it is specifically scoped to
-# kanban board task management. Every operation is anchored to a
-# kanban task with its acceptance criteria, deliverable links, and
+# This is NOT a generic spawn skill — it is scoped to kanban
+# board task delegation. Every operation is anchored to a kanban
+# task with its acceptance criteria, deliverable links, and
 # comment thread for agent↔coordinator communication.
 
 manifest:
   id: kanban-task-delegation
   name: Kanban Task Delegation
-  version: "0.1.0"
+  version: "0.2.0"
   description: >
-    Manage the full lifecycle of delegated kanban tasks. Spawn
-    sub-replicants to execute tasks, track deliverables via file
-    links, provide bidirectional chat feedback through task comments,
-    verify completion against acceptance criteria, and evaluate
-    whether submitted files satisfy requirements. All operations
-    are anchored to the kanban task model — this skill is specific
-    to kanban board task management, not generic agent spawning.
+    Delegate kanban tasks to sub-replicants. Configure spawn
+    parameters (delegation level, skills, memory scope, tool
+    servers, gas budget, timeout) and execute the task. The
+    spawned agent works on the task, producing deliverables
+    and appending progress notes to the comment thread.
+    Ongoing coordination (verification, feedback, board flow)
+    is handled by kanban-task-management.
   editor: Curator
   visibility: Public
 
 gas:
-  cap: 20000
+  cap: 12000
   cost_per_token: 0.25
   alert_threshold: 0.7
   hard_limit: true
@@ -71,59 +72,12 @@ steps:
     description: >
       Execute the spawned task. The replicant works on the task,
       producing deliverables and appending progress notes to the
-      task's comment thread. The coordinator can respond inline
-      with guidance, questions, or escalation.
+      task's comment thread. The coordinator monitors progress
+      through the kanban-task-management skill.
     renderer: minijinja
     template_ref: kanban-task-delegation/execute-task
     gas_cap: 5000
     timeout_seconds: 120
-
-  - ordinal: 3
-    action: populate
-    description: >
-      Verify task completion. Evaluate submitted deliverables against
-      the task's acceptance criteria. Check each criterion: does the
-      submitted work satisfy it? Produce a structured verification
-      with pass/fail per criterion and overall reasoning. If criteria
-      are not met, provide specific feedback on what's missing.
-    renderer: minijinja
-    template_ref: kanban-task-delegation/verify-completion
-    classifier: true
-    gas_cap: 4000
-    timeout_seconds: 45
-    output_schema:
-      type: object
-      properties:
-        passed:
-          type: boolean
-        reasoning:
-          type: string
-        criteria_results:
-          type: array
-          items:
-            type: object
-            properties:
-              criterion:
-                type: string
-              satisfied:
-                type: boolean
-              evidence:
-                type: string
-              feedback:
-                type: string
-
-  - ordinal: 4
-    action: populate
-    description: >
-      Provide feedback to the spawned agent. If verification passed,
-      acknowledge completion and move task to Done. If failed, provide
-      specific, actionable feedback on what needs to change. This
-      feedback is appended to the task's comment thread so the agent
-      can read it and iterate.
-    renderer: minijinja
-    template_ref: kanban-task-delegation/provide-feedback
-    gas_cap: 2000
-    timeout_seconds: 20
 
 cns:
   emit_spans: true
@@ -135,20 +89,17 @@ outcomes:
   - name: task_spawned
     condition: "spawn configured successfully"
     action: "Replicant spawned for task execution"
-  - name: task_verified
-    condition: "verification complete"
-    action: "Task deliverables evaluated against criteria"
-  - name: task_completed
-    condition: "verification.passed == true"
-    action: "Task moved to Done"
+  - name: task_executing
+    condition: "agent working on task"
+    action: "Task execution in progress"
 
 metrics:
   - name: delegation_level
     description: "Delegation level used for spawn"
     span: cns.kanban.delegation.level
-  - name: verification_pass_rate
-    description: "Whether verification passed or failed"
-    span: cns.kanban.delegation.verify
+  - name: spawn_count
+    description: "Number of tasks delegated"
+    span: cns.kanban.delegation.count
 
 audit:
   enabled: true

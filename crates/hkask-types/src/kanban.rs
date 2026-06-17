@@ -655,6 +655,80 @@ impl ConsentProof {
         }
     }
 }
+
+// ── Task Contract (rSolidity) ─────────────────────────────────────────────
+
+/// TaskContract — a kanban task assignment expressed as an rSolidity contract.
+///
+/// Binds delegator and delegate with:
+/// - Pre-conditions: acceptance criteria (what must be true before work starts)
+/// - Post-conditions: verification conditions (what must be true to accept work)
+/// - OCAP gates: capability tokens delegated for the work
+/// - Gas limit: maximum energy budget
+/// - Timeout: maximum execution time
+///
+/// Maps to rSolidity's require!/assert!/emit! macros for CNS-observable
+/// contract execution.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TaskContract {
+    pub package_name: String,
+    pub delegator: crate::WebID,
+    pub delegate: crate::WebID,
+    pub task_id: TaskId,
+    pub task_title: String,
+    /// Pre-conditions: acceptance criteria that must be verified.
+    pub pre_conditions: Vec<String>,
+    /// Post-conditions: what must hold after task completion.
+    pub post_conditions: Vec<String>,
+    /// OCAP capability token specs delegated for this task.
+    pub ocap_gates: Vec<String>,
+    /// Maximum gas/energy budget.
+    pub gas_limit: u64,
+    /// Maximum execution time in seconds.
+    pub timeout: u64,
+    /// Maximum attenuation level for delegated tokens.
+    pub max_attenuation: u8,
+}
+
+impl TaskContract {
+    /// REQ: KAN-090
+    pub fn new(
+        package_name: String,
+        delegator: crate::WebID,
+        delegate: crate::WebID,
+        task: &Task,
+        ocap_gates: Vec<String>,
+    ) -> Self {
+        Self {
+            package_name,
+            delegator,
+            delegate,
+            task_id: task.id,
+            task_title: task.title.clone(),
+            pre_conditions: task.criteria.iter().map(|c| c.description.clone()).collect(),
+            post_conditions: vec!["All criteria satisfied".into(), "Deliverables verified".into()],
+            ocap_gates,
+            gas_limit: 50000,
+            timeout: 3600,
+            max_attenuation: 3,
+        }
+    }
+
+    /// REQ: KAN-091 — Emit the contract as a CNS span for observability.
+    pub fn emit_contract_span(&self) -> String {
+        format!(
+            "TaskContract '{}': delegator={}, delegate={}, task='{}', gates={}, gas={}, timeout={}s",
+            self.package_name,
+            self.delegator.redacted_display(),
+            self.delegate.redacted_display(),
+            self.task_title,
+            self.ocap_gates.len(),
+            self.gas_limit,
+            self.timeout,
+        )
+    }
+}
+
 // ── Spawn Specification ─────────────────────────────────────────────────
 
 /// SpawnSpec — configuration for spawning a sub-replicant to execute a task.
@@ -683,6 +757,14 @@ pub struct SpawnSpec {
     pub gas_budget: Option<u64>,
     /// Maximum time the spawned replicant can run (seconds).
     pub timeout_seconds: Option<u64>,
+    /// Template/skill registries accessible to the spawned replicant.
+    pub registries: Vec<String>,
+    /// File paths or artifact roots the agent can access.
+    pub artifacts: Vec<String>,
+    /// OCAP capability token specs (e.g. "tool:kanban:execute").
+    /// These are validated against the parent replicant's tokens at spawn time.
+    /// Each entry is a CapabilitySpec string: "resource:domain:action".
+    pub capability_tokens: Vec<String>,
 }
 
 impl SpawnSpec {
@@ -698,6 +780,9 @@ impl SpawnSpec {
             tool_servers: vec!["hkask-mcp-kanban".into()],
             gas_budget: None,
             timeout_seconds: None,
+            registries: Vec::new(),
+            artifacts: Vec::new(),
+            capability_tokens: Vec::new(),
         }
     }
 
@@ -735,8 +820,294 @@ impl SpawnSpec {
         self.timeout_seconds = Some(seconds);
         self
     }
+
+    /// REQ: KAN-036
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_registries(mut self, registries: Vec<String>) -> Self {
+        self.registries = registries;
+        self
+    }
+
+    /// REQ: KAN-037
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_artifacts(mut self, artifacts: Vec<String>) -> Self {
+        self.artifacts = artifacts;
+        self
+    }
+
+    /// REQ: KAN-038 — Set OCAP capability token specs.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_capability_tokens(mut self, tokens: Vec<String>) -> Self {
+        self.capability_tokens = tokens;
+        self
+    }
 }
 
+
+
+// ── Capability Package ────────────────────────────────────────────────────
+
+/// CapabilityPackage — a named, reusable bundle of delegated capabilities.
+///
+/// Saved spawn configurations that can be reused across tasks and projects.
+/// After a board completes, the user is prompted to save any capability
+/// packages they composed, so future delegations can reference them by name.
+///
+/// Stored as YAML in registry/capabilities/ alongside kata manifests.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapabilityPackage {
+    /// Unique package name (e.g., "backend-dev", "docs-writer").
+    pub name: String,
+    /// Human-readable description of what this package provides.
+    pub description: String,
+    /// Delegation level: minimal, standard, maximal.
+    pub delegation_level: String,
+    /// Skills delegated to the agent.
+    pub skills: Vec<String>,
+    /// Memory scope: none, episodic, full.
+    pub memory_scope: String,
+    /// MCP tool servers accessible.
+    pub tool_servers: Vec<String>,
+    /// Template/skill registries accessible.
+    pub registries: Vec<String>,
+    /// File paths or artifact roots.
+    pub artifacts: Vec<String>,
+    /// Default gas budget (can be overridden per task).
+    pub default_gas_budget: Option<u64>,
+    /// Default timeout in seconds (can be overridden per task).
+    pub default_timeout_seconds: Option<u64>,
+    /// OCAP capability token specs delegated to the agent.
+    /// These are the actual OCAP strings validated at spawn time
+    /// (e.g. "tool:kanban:execute", "registry:templates:read").
+    pub capability_tokens: Vec<String>,
+    /// Maximum attenuation level for delegated tokens (0-7).
+    /// The spawned agent cannot further attenuate beyond this.
+    pub max_attenuation: u8,
+}
+
+impl CapabilityPackage {
+    /// REQ: KAN-060
+    pub fn new(name: String, description: String) -> Self {
+        Self {
+            name,
+            description,
+            delegation_level: "standard".into(),
+            skills: Vec::new(),
+            memory_scope: "episodic".into(),
+            tool_servers: Vec::new(),
+            registries: Vec::new(),
+            artifacts: Vec::new(),
+            default_gas_budget: None,
+            default_timeout_seconds: None,
+            capability_tokens: Vec::new(),
+            max_attenuation: 3,
+        }
+    }
+
+    /// REQ: KAN-061 — Convert to a SpawnSpec for a specific task.
+    pub fn to_spawn_spec(&self, task_id: TaskId) -> SpawnSpec {
+        SpawnSpec {
+            task_id,
+            delegation_level: self.delegation_level.clone(),
+            delegated_skills: self.skills.clone(),
+            memory_scope: self.memory_scope.clone(),
+            tool_servers: self.tool_servers.clone(),
+            gas_budget: self.default_gas_budget,
+            timeout_seconds: self.default_timeout_seconds,
+            registries: self.registries.clone(),
+            artifacts: self.artifacts.clone(),
+            capability_tokens: self.capability_tokens.clone(),
+        }
+    }
+
+    /// REQ: KAN-062 — Builder: set delegation level.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_level(mut self, level: &str) -> Self {
+        self.delegation_level = level.into();
+        self
+    }
+
+    /// REQ: KAN-063
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_skills(mut self, skills: Vec<String>) -> Self {
+        self.skills = skills;
+        self
+    }
+
+    /// REQ: KAN-064
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_memory(mut self, scope: &str) -> Self {
+        self.memory_scope = scope.into();
+        self
+    }
+
+    /// REQ: KAN-065
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_tools(mut self, tools: Vec<String>) -> Self {
+        self.tool_servers = tools;
+        self
+    }
+
+    /// REQ: KAN-066
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_registries(mut self, registries: Vec<String>) -> Self {
+        self.registries = registries;
+        self
+    }
+
+    /// REQ: KAN-067
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_artifacts(mut self, artifacts: Vec<String>) -> Self {
+        self.artifacts = artifacts;
+        self
+    }
+
+    /// REQ: KAN-068
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_gas(mut self, budget: u64) -> Self {
+        self.default_gas_budget = Some(budget);
+        self
+    }
+
+    /// REQ: KAN-069
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_timeout(mut self, seconds: u64) -> Self {
+        self.default_timeout_seconds = Some(seconds);
+        self
+    }
+
+    /// REQ: KAN-070
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_capability_tokens(mut self, tokens: Vec<String>) -> Self {
+        self.capability_tokens = tokens;
+        self
+    }
+
+    /// REQ: KAN-071 — Set max attenuation (0-7, clamped to SYSTEM_MAX).
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_max_attenuation(mut self, level: u8) -> Self {
+        self.max_attenuation = level.min(7);
+        self
+    }
+
+    /// REQ: KAN-072 — Derive capability token specs from tool servers.
+    /// Converts "hkask-mcp-kanban" → "tool:kanban:execute".
+    pub fn derive_tokens_from_tools(&mut self) {
+        for server in &self.tool_servers.clone() {
+            if let Some(cap) = crate::capability::capability_from_server_id(server) {
+                if !self.capability_tokens.contains(&cap) {
+                    self.capability_tokens.push(cap);
+                }
+            }
+        }
+    }
+
+    /// REQ: KAN-073 — Serialize to YAML for saving as a reusable package.
+    pub fn to_yaml(&self) -> Result<String, String> {
+        serde_yaml::to_string(self).map_err(|e| e.to_string())
+    }
+
+    /// REQ: KAN-074 — Deserialize from YAML.
+    pub fn from_yaml(yaml: &str) -> Result<Self, String> {
+        serde_yaml::from_str(yaml).map_err(|e| e.to_string())
+    }
+
+    // ── OCAP Integration ──────────────────────────────────────────────
+
+    /// REQ: KAN-080 — Generate OCAP DelegationTokens from this package.
+    ///
+    /// Each capability_tokens entry (e.g. "tool:kanban:execute") is converted
+    /// into a signed DelegationToken. The parent replicant attenuates their
+    /// own capabilities and delegates them to the child agent.
+    ///
+    /// Tokens are signed with the parent's signing key and carry the
+    /// specified attenuation level. The child cannot further attenuate
+    /// beyond max_attenuation.
+    pub fn to_delegation_tokens(
+        &self,
+        parent: crate::WebID,
+        child: crate::WebID,
+        signing_key: &ed25519_dalek::SigningKey,
+    ) -> Result<Vec<crate::capability::DelegationToken>, String> {
+        let mut tokens = Vec::new();
+        for spec_str in &self.capability_tokens {
+            let spec = crate::capability::CapabilitySpec::parse(spec_str)
+                .map_err(|e| format!("invalid capability spec '{}': {}", spec_str, e))?;
+            let token = crate::capability::DelegationTokenBuilder::new(
+                spec.resource,
+                &spec.resource_id,
+                spec.action,
+                parent,
+                child,
+            )
+            .attenuation(self.max_attenuation)
+            .sign(signing_key)
+            .map_err(|e| format!("failed to sign token for '{}': {}", spec_str, e))?;
+            tokens.push(token);
+        }
+        Ok(tokens)
+    }
+
+    /// REQ: KAN-081 — Verify that the parent holds the capabilities
+    /// they're trying to delegate. Returns Ok(()) if all tokens in
+    /// this package are covered by the parent's tokens.
+    pub fn verify_parent_capabilities(
+        &self,
+        parent_tokens: &[crate::capability::DelegationToken],
+    ) -> Result<(), String> {
+        for spec_str in &self.capability_tokens {
+            let covered = parent_tokens.iter().any(|pt| {
+                crate::capability::capabilities_match(
+                    &format!("{}:{}:{}",
+                        pt.resource.as_str(),
+                        pt.resource_id,
+                        pt.action.as_str()),
+                    spec_str,
+                )
+            });
+            if !covered {
+                return Err(format!(
+                    "Parent does not hold capability '{}' required by this package",
+                    spec_str
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    // ── rSolidity Contract Integration ─────────────────────────────────
+
+    /// REQ: KAN-082 — Express this capability package as an rSolidity
+    /// task contract. The contract binds delegator and delegate with
+    /// pre-conditions (acceptance criteria), post-conditions (verification),
+    /// and OCAP gates (capability tokens).
+    ///
+    /// Returns a structured representation suitable for rSolidity
+    /// contract execution and CNS span emission.
+    pub fn to_task_contract(
+        &self,
+        task: &Task,
+        delegator: crate::WebID,
+        delegate: crate::WebID,
+    ) -> TaskContract {
+        TaskContract {
+            package_name: self.name.clone(),
+            delegator,
+            delegate,
+            task_id: task.id,
+            task_title: task.title.clone(),
+            pre_conditions: task.criteria.iter().map(|c| c.description.clone()).collect(),
+            post_conditions: vec![
+                "All acceptance criteria satisfied".into(),
+                "Deliverables submitted and verified".into(),
+            ],
+            ocap_gates: self.capability_tokens.clone(),
+            gas_limit: self.default_gas_budget.unwrap_or(50000),
+            timeout: self.default_timeout_seconds.unwrap_or(3600),
+            max_attenuation: self.max_attenuation,
+        }
+    }
+}
 
 
 // ── Tests ──────────────────────────────────────────────────────────────────
