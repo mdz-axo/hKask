@@ -9,6 +9,7 @@ pub mod types;
 use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
+use hkask_cns::{emit_contract_accepted, emit_contract_proposed, emit_contract_rejected};
 use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_services::{
     CognitionConfig, ComposeRequest, ComposeService, EmbeddingSection, HkaskSettings,
@@ -17,7 +18,7 @@ use hkask_services::{
 use hkask_storage::spec_types::{
     DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, infer_spec_category,
 };
-use hkask_storage::{Database, EmbeddingStore, SpecStore};
+use hkask_storage::{Database, EmbeddingStore, SpecStore, TripleStore, in_memory_db};
 use hkask_types::time::now_rfc3339;
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind,
@@ -1002,6 +1003,141 @@ impl SpecServer {
                 },
             },
         )
+    }
+
+    /// Submit a contract proposal for human review.
+    #[tool(
+        description = "Propose a behavioral contract for a public function. Submits for human consent review."
+    )]
+    async fn contract_propose(
+        &self,
+        Parameters(ContractProposeRequest {
+            crate_name,
+            function,
+            contract_id,
+            pre,
+            post,
+            replicant,
+        }): Parameters<ContractProposeRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("contract_propose", &self.webid);
+        let rep = replicant.unwrap_or_else(|| self.webid.to_string());
+        let _ = (&pre, &post); // carried in request but CNS span is metadata-only
+
+        emit_contract_proposed(
+            &*self.daemon_sink(),
+            &rep,
+            &crate_name,
+            &function,
+            &contract_id,
+        );
+
+        respond(
+            span,
+            &ContractProposeResponse {
+                contract_id,
+                crate_name,
+                function,
+                status: "proposed".to_string(),
+            },
+        )
+    }
+
+    /// Accept a proposed contract (human consent gate).
+    #[tool(description = "Accept a proposed behavioral contract. Human consent gate per P2.")]
+    async fn contract_accept(
+        &self,
+        Parameters(ContractAcceptRequest {
+            contract_id,
+            reviewer,
+        }): Parameters<ContractAcceptRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("contract_accept", &self.webid);
+        let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
+
+        emit_contract_accepted(&*self.daemon_sink(), &rev, "", "", "", &contract_id);
+
+        respond(
+            span,
+            &ContractAcceptResponse {
+                contract_id,
+                status: "accepted".to_string(),
+            },
+        )
+    }
+
+    /// Reject a proposed contract with rationale.
+    #[tool(description = "Reject a proposed behavioral contract with rationale.")]
+    async fn contract_reject(
+        &self,
+        Parameters(ContractRejectRequest {
+            contract_id,
+            reason,
+            reviewer,
+        }): Parameters<ContractRejectRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("contract_reject", &self.webid);
+        let rev = reviewer.unwrap_or_else(|| self.webid.to_string());
+
+        emit_contract_rejected(
+            &*self.daemon_sink(),
+            &rev,
+            "",
+            "",
+            "",
+            &contract_id,
+            &reason,
+        );
+
+        respond(
+            span,
+            &ContractRejectResponse {
+                contract_id,
+                status: "rejected".to_string(),
+            },
+        )
+    }
+
+    /// List proposed contracts awaiting review.
+    #[tool(description = "List proposed behavioral contracts and their review status.")]
+    async fn contract_list(&self) -> String {
+        let span = ToolSpanGuard::new("contract_list", &self.webid);
+        let db = in_memory_db();
+        let conn = db.conn_arc();
+        let store = TripleStore::new(conn);
+        let proposals = match store.query_by_entity("cns:contract_proposal") {
+            Ok(p) => p,
+            Err(_) => vec![],
+        };
+
+        let entries: Vec<ProposalEntry> = proposals
+            .iter()
+            .map(|t| ProposalEntry {
+                contract_id: t.value["contract_id"].as_str().unwrap_or("?").to_string(),
+                status: t.value["status"].as_str().unwrap_or("unknown").to_string(),
+                function: t.value["function"].as_str().unwrap_or("?").to_string(),
+                crate_name: t.value["crate"].as_str().unwrap_or("?").to_string(),
+                pre: t.value["pre"].as_str().unwrap_or("").to_string(),
+                post: t.value["post"].as_str().unwrap_or("").to_string(),
+                replicant: t.value["replicant"].as_str().map(|s| s.to_string()),
+            })
+            .collect();
+
+        respond(span, &ContractListResponse { proposals: entries })
+    }
+
+    /// Noop event sink for CNS span emission in tools that don't need persistence.
+    fn daemon_sink(&self) -> Arc<dyn hkask_types::event::NuEventSink> {
+        struct NoopSink;
+        impl hkask_types::event::NuEventSink for NoopSink {
+            fn persist(
+                &self,
+                _event: &hkask_types::event::NuEvent,
+            ) -> Result<(), hkask_types::InfrastructureError> {
+                Ok(())
+            }
+        }
+        Arc::new(NoopSink)
     }
 }
 

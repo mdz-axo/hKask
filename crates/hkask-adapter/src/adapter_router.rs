@@ -75,9 +75,13 @@ trait AdapterProviderBackend: Send + Sync {
 // ── Provider backend implementations ───────────────────────────────────────
 // Together: real HTTP upload + inference (OpenAI-compatible). Provision is
 //   auto-deployed after upload — no separate endpoint creation needed.
-// Runpod: GraphQL endpoint provisioning + OpenAI-compatible inference.
+//   Docs: https://docs.together.ai/docs/dedicated-endpoints/adapter
+// Runpod: serverless vLLM endpoint provisioning + OpenAI-compatible inference.
+//   Docs: https://docs.runpod.io/serverless/endpoints/manage-endpoints
 // Baseten: REST endpoint provisioning + OpenAI-compatible inference.
+//   Docs: https://docs.baseten.co/deploy/truss
 // Adapter upload: Together uploads to HF; Runpod/Baseten use vLLM --lora-modules.
+// HuggingFace: https://huggingface.co/docs/peft/main/quicktour
 
 struct TogetherAdapterBackend {
     cost_model: CostModel,
@@ -104,7 +108,7 @@ impl TogetherAdapterBackend {
         for attempt in 1..=max_attempts {
             let response = self
                 .client
-                .get(format!("https://api.together.xyz/v1/fine-tunes/{}", job_id))
+                .get(format!("https://api.together.ai/v1/jobs/{}", job_id))
                 .header("Authorization", format!("Bearer {}", self.api_key))
                 .send()
                 .map_err(|e| {
@@ -157,10 +161,10 @@ impl TogetherAdapterBackend {
 
 impl AdapterProviderBackend for TogetherAdapterBackend {
     fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
-        // Together AI adapters are auto-deployed after upload — the model_name
-        // from upload_adapter() is used directly for inference. No separate
-        // endpoint provisioning step needed.
-        Ok("https://api.together.xyz/v1".to_string())
+        // Together AI: adapters are deployed as dedicated endpoints after upload.
+        // The inference URL is always https://api.together.ai/v1
+        // Docs: https://docs.together.ai/docs/dedicated-endpoints/adapter
+        Ok("https://api.together.ai/v1".to_string())
     }
 
     fn infer(
@@ -180,9 +184,11 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         )
     }
 
-    fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
-        // Together AI endpoints are auto-deployed and torn down when unused.
-        // No explicit teardown API call needed.
+    fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
+        // Together AI endpoints auto-expire when unused. If an explicit
+        // DELETE is needed, call the fine-tune job cancellation endpoint.
+        // For now, endpoints drain naturally.
+        let _ = endpoint_url;
         Ok(())
     }
 
@@ -203,8 +209,13 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         }
 
         // Together AI adapter upload API:
-        // POST https://api.together.xyz/v1/fine-tunes
-        // Body: { model_source, model_type: "adapter", base_model }
+        // Docs: https://docs.together.ai/docs/dedicated-endpoints/adapter
+        // POST https://api.together.ai/v1/models (upload)
+        // Body: { model_source, model_type: "adapter", base_model, hf_token? }
+        // Returns: { job_id, model_name } — upload is async, poll for completion
+        // Status: GET https://api.together.ai/v1/jobs/{job_id}
+        // Inference: POST https://api.together.ai/v1/chat/completions
+        // Teardown: DELETE https://api.together.ai/v1/endpoints/{endpoint_id}
 
         let body = if let Ok(hf_token) = std::env::var("HF_TOKEN") {
             serde_json::json!({
@@ -231,7 +242,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
 
         let response = self
             .client
-            .post("https://api.together.xyz/v1/fine-tunes")
+            .post("https://api.together.ai/v1/models")
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&body)
             .send()
@@ -326,8 +337,10 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         }
 
         // Runpod serverless endpoint API — provisions a serverless worker
-        // that auto-scales to zero when idle. Template ID from RUNPOD_TEMPLATE_ID
-        // should point to a vLLM serverless template (see console.runpod.io/serverless).
+        // that auto-scales to zero when idle.
+        // Docs: https://docs.runpod.io/serverless/endpoints/manage-endpoints
+        // Inference: POST https://api.runpod.ai/v2/{endpoint_id}/openai/v1/chat/completions
+        // Teardown: DELETE via console (no REST API for deletion yet)
         let template_id = std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default();
         if template_id.is_empty() {
             return Err(AdapterError::ProviderUnavailable(
@@ -370,7 +383,28 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         )
     }
 
-    fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
+    fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
+        // Runpod serverless endpoint deletion is console-only per their docs.
+        // Docs: https://docs.runpod.io/serverless/endpoints/manage-endpoints#delete-an-endpoint
+        // DELETE to API endpoint may work but is not officially documented.
+        // Best-effort: attempt DELETE, log warning on failure.
+        if self.api_key.is_empty() {
+            tracing::warn!("RUNPOD_API_KEY not set — skipping teardown");
+            return Ok(());
+        }
+        match self
+            .client
+            .delete(endpoint_url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .send()
+        {
+            Ok(_) => {
+                tracing::info!(target: "hkask.adapter", endpoint_url = %endpoint_url, "Runpod endpoint teardown requested");
+            }
+            Err(e) => {
+                tracing::warn!(target: "hkask.adapter", endpoint_url = %endpoint_url, error = %e, "Runpod teardown failed (may require console deletion)");
+            }
+        }
         Ok(())
     }
 
@@ -418,9 +452,9 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
         }
 
         // Baseten REST API: deploy a model endpoint.
-        // CAVEAT: Baseten's API endpoint and response field names are best-effort.
-        // The model deployment may return different fields (e.g., "model_id" vs "id",
-        // different URL format). Adjust the response parsing if actual API differs.
+        // Docs: https://docs.baseten.co/deploy/truss
+        // CAVEAT: Baseten API endpoint and response field names are best-effort.
+        // Adjust response parsing if actual API differs.
         let body = serde_json::json!({
             "name": adapter.expertise.name,
             "model_source": adapter.source.repository_id(),
@@ -483,7 +517,18 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
         )
     }
 
-    fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
+    fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
+        if self.api_key.is_empty() {
+            return Err(AdapterError::ProviderUnavailable(
+                "BASETEN_API_KEY not set".into(),
+            ));
+        }
+        self.client
+            .delete(endpoint_url)
+            .header("Authorization", format!("Api-Key {}", self.api_key))
+            .send()
+            .map_err(|e| AdapterError::Internal(format!("Baseten teardown failed: {e}")))?;
+        tracing::info!(target: "hkask.adapter", endpoint_url = %endpoint_url, "Baseten endpoint torn down");
         Ok(())
     }
 

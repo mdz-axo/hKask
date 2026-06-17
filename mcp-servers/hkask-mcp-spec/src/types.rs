@@ -271,6 +271,67 @@ pub struct ContractAuditResponse {
     pub totals: AuditTotals,
 }
 
+// ── Contract Proposal (contract/propose, accept, reject) ─────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ContractProposeRequest {
+    pub crate_name: String,
+    pub function: String,
+    pub contract_id: String,
+    pub pre: String,
+    pub post: String,
+    pub replicant: Option<String>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ContractProposeResponse {
+    pub contract_id: String,
+    pub crate_name: String,
+    pub function: String,
+    pub status: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ContractAcceptRequest {
+    pub contract_id: String,
+    pub reviewer: Option<String>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ContractAcceptResponse {
+    pub contract_id: String,
+    pub status: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ContractRejectRequest {
+    pub contract_id: String,
+    pub reason: String,
+    pub reviewer: Option<String>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ContractRejectResponse {
+    pub contract_id: String,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ContractListResponse {
+    pub proposals: Vec<ProposalEntry>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ProposalEntry {
+    pub contract_id: String,
+    pub status: String,
+    pub function: String,
+    pub crate_name: String,
+    pub pre: String,
+    pub post: String,
+    pub replicant: Option<String>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct CrateCoverage {
     pub crate_name: String,
