@@ -1,6 +1,9 @@
 //! Contract test runner — shells out to `cargo test`, parses REQ-tagged
 //! failures, returns structured results for CNS span emission.
 //!
+//! Also provides `discover_uncontracted_functions` for source-level contract
+//! audit without running tests — useful for agent discovery workflows.
+//!
 //! # Principle grounding
 //! - P8 (Semantic Grounding): every failure carries the REQ tag it violated
 //! - P5 (Essentialism): one function, no framework — just runs cargo test and parses
@@ -218,6 +221,127 @@ fn extract_req_tag(line: &str) -> Option<String> {
         }
     }
     None
+}
+
+// ── Source-level contract discovery ────────────────────────────────────────
+
+/// A public function without a REQ contract.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct UncontractedFunction {
+    pub crate_name: String,
+    pub function_name: String,
+    pub file: String,
+    pub line: usize,
+    pub signature: String,
+}
+
+/// Crate-level contract audit summary.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ContractAudit {
+    pub crate_name: String,
+    pub total_pub_fns: usize,
+    pub contracted: usize,
+    pub coverage_pct: f64,
+    pub uncontracted: Vec<UncontractedFunction>,
+}
+
+/// Discover public functions without REQ contracts in a crate.
+///
+/// Walks `crates/<crate_name>/src/` looking for `pub fn` and `pub async fn`
+/// declarations, then checks if a `REQ:` tag exists within 10 lines above.
+///
+/// Returns `None` if the crate source directory doesn't exist.
+///
+/// REQ: HARN-043
+/// pre:  workspace_root exists and contains crates/<crate_name>/src/
+/// post: returns ContractAudit with counts and uncontracted function list
+pub fn discover_uncontracted_functions(
+    crate_name: &str,
+    workspace_root: &str,
+) -> Option<ContractAudit> {
+    let src_dir = format!("{}/crates/{}/src", workspace_root, crate_name);
+    let dir = std::path::Path::new(&src_dir);
+    if !dir.exists() {
+        return None;
+    }
+
+    let mut total = 0usize;
+    let mut contracted = 0usize;
+    let mut uncontracted = Vec::new();
+
+    walk_rs_files(dir, &mut |file_path| {
+        let Ok(content) = std::fs::read_to_string(file_path) else {
+            return;
+        };
+        let lines: Vec<&str> = content.lines().collect();
+        let mut i = 0;
+        while i < lines.len() {
+            let line = lines[i].trim();
+            if (line.starts_with("pub fn ") || line.starts_with("pub async fn "))
+                && !line.contains("cfg(test)")
+            {
+                total += 1;
+                let fn_name = extract_function_name(line);
+                let has_req = (i.saturating_sub(10)..i)
+                    .any(|j| j < lines.len() && extract_req_tag(lines[j]).is_some());
+                if has_req {
+                    contracted += 1;
+                } else {
+                    uncontracted.push(UncontractedFunction {
+                        crate_name: crate_name.to_string(),
+                        function_name: fn_name,
+                        file: file_path.to_string_lossy().to_string(),
+                        line: i + 1,
+                        signature: line.to_string(),
+                    });
+                }
+            }
+            i += 1;
+        }
+    });
+
+    let coverage_pct = if total > 0 {
+        (contracted as f64 / total as f64) * 100.0
+    } else {
+        100.0
+    };
+
+    Some(ContractAudit {
+        crate_name: crate_name.to_string(),
+        total_pub_fns: total,
+        contracted,
+        coverage_pct,
+        uncontracted,
+    })
+}
+
+/// Walk all .rs files in a directory tree, calling `f` for each.
+fn walk_rs_files(dir: &std::path::Path, f: &mut dyn FnMut(&std::path::Path)) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() && path.file_name().map_or(false, |n| n != "tests") {
+                walk_rs_files(&path, f);
+            } else if path.extension().map_or(false, |e| e == "rs") {
+                f(&path);
+            }
+        }
+    }
+}
+
+/// Extract the function name from a `pub fn` or `pub async fn` declaration.
+fn extract_function_name(line: &str) -> String {
+    let trimmed = line.trim();
+    let after_fn = trimmed
+        .trim_start_matches("pub ")
+        .trim_start_matches("async ")
+        .trim_start_matches("fn ");
+    after_fn
+        .split('(')
+        .next()
+        .unwrap_or("unknown")
+        .trim()
+        .to_string()
 }
 
 #[cfg(test)]

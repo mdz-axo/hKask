@@ -1,7 +1,7 @@
 //! hkask-mcp-kanban — Kanban board coordination MCP server.
 //!
 //! Provides 7 MCP tools for kanban board and task management.
-//! All tools carry the caller\'s WebID for P12 compliance.
+//! All tools carry the caller's WebID for P12 compliance.
 
 pub mod types;
 
@@ -32,10 +32,22 @@ fn err(span: ToolSpanGuard, msg: &str) -> String {
 
 // ── Server ──────────────────────────────────────────────────────────────────
 
-pub struct KanbanServer { service: KanbanService, webid: WebID }
+impl KanbanServer {
+    fn _replicant_name(&self) -> &str { &self.replicant }
+    fn _has_daemon(&self) -> bool { self.daemon.is_some() }
+}
+
+pub struct KanbanServer {
+    service: KanbanService,
+    webid: WebID,
+    /// Replicant identity serving this MCP server
+    replicant: String,
+    /// Daemon client for dual-encoding experiences (None if daemon unavailable)
+    daemon: Option<hkask_mcp::DaemonClient>,
+}
 
 impl KanbanServer {
-    pub fn new(webid: WebID) -> Self {
+    pub fn new(webid: WebID, replicant: String, daemon: Option<hkask_mcp::DaemonClient>) -> Self {
         let conn = Arc::new(Mutex::new(Connection::open_in_memory().expect("in-memory DB")));
         let store = TripleStore::new(conn);
         store.lock_conn().unwrap().execute_batch(
@@ -46,7 +58,7 @@ impl KanbanServer {
                 owner_webid TEXT NOT NULL
             )",
         ).unwrap();
-        Self { service: KanbanService::new(store), webid }
+        Self { service: KanbanService::new(store), webid, replicant, daemon }
     }
 }
 
@@ -230,10 +242,40 @@ fn default_columns() -> Vec<hkask_types::ColumnDef> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
+    let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
+
+    let daemon_ok = match try_daemon_flow(&replicant).await {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!(target: "hkask.mcp.kanban", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            false
+        }
+    };
+
+    let daemon_client = if daemon_ok {
+        Some(hkask_mcp::DaemonClient::new())
+    } else {
+        None
+    };
+
     hkask_mcp::run_server(
         "hkask-mcp-kanban",
         env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| Ok(KanbanServer::new(ctx.webid)),
+        |ctx: ServerContext| {
+            let server = KanbanServer::new(ctx.webid, replicant.clone(), daemon_client.clone());
+            Ok(server)
+        },
         vec![],
     ).await
+}
+
+async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+    let client = hkask_mcp::DaemonClient::new();
+    let result = hkask_mcp::verify_startup_gates(&client, replicant, "kanban", &[]).await?;
+    tracing::info!(target: "hkask.mcp.kanban", replicant = %replicant,
+        "P4 gates verified{}",
+        if result.denied_tools.is_empty() { String::new() }
+        else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }
+    );
+    Ok(())
 }

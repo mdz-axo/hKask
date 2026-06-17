@@ -79,6 +79,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: ContractAction) {
                 eprintln!("List failed: {}", e);
             }
         }
+        ContractAction::Discover { crate_name } => {
+            let workspace = std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| ".".to_string());
+            handle_discover(crate_name, &workspace);
+        }
     }
 }
 
@@ -185,4 +191,52 @@ async fn handle_list() -> Result<(), String> {
         println!("    post: {}", post);
     }
     Ok(())
+}
+
+fn handle_discover(crate_name: Option<String>, workspace_root: &str) {
+    use hkask_test_harness::test_runner::discover_uncontracted_functions;
+
+    let crates: Vec<String> = if let Some(c) = crate_name {
+        vec![c]
+    } else {
+        let crates_dir = std::path::Path::new(workspace_root).join("crates");
+        if let Ok(entries) = std::fs::read_dir(&crates_dir) {
+            entries
+                .flatten()
+                .filter(|e| e.path().is_dir())
+                .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+                .filter(|s| s.starts_with("hkask-"))
+                .collect()
+        } else {
+            vec![]
+        }
+    };
+
+    for name in &crates {
+        match discover_uncontracted_functions(name, workspace_root) {
+            Some(audit) if !audit.uncontracted.is_empty() => {
+                println!(
+                    "{}: {}/{} contracted ({:.1}%), {} uncontracted:",
+                    audit.crate_name,
+                    audit.contracted,
+                    audit.total_pub_fns,
+                    audit.coverage_pct,
+                    audit.uncontracted.len(),
+                );
+                for f in &audit.uncontracted {
+                    println!("  {} L{} — {}", f.file, f.line, f.signature);
+                }
+                println!();
+            }
+            Some(audit) => {
+                println!(
+                    "{}: {}/{} contracted ({:.1}%) — all clear",
+                    audit.crate_name, audit.contracted, audit.total_pub_fns, audit.coverage_pct
+                );
+            }
+            None => {
+                eprintln!("  {}: source directory not found", name);
+            }
+        }
+    }
 }

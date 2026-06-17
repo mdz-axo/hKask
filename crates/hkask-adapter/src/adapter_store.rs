@@ -189,7 +189,20 @@ impl AdapterStore {
                     CREATE INDEX IF NOT EXISTS idx_adapter_expertise
                         ON trained_adapters(expertise_name);
                     CREATE INDEX IF NOT EXISTS idx_adapter_owner
-                        ON trained_adapters(owner_webid);",
+                        ON trained_adapters(owner_webid);
+                    CREATE TABLE IF NOT EXISTS active_endpoints (
+                        endpoint_id     TEXT PRIMARY KEY NOT NULL,
+                        adapter_id      TEXT NOT NULL,
+                        provider        TEXT NOT NULL,
+                        endpoint_url    TEXT NOT NULL,
+                        model_name      TEXT NOT NULL,
+                        expertise_name  TEXT NOT NULL,
+                        phase           TEXT NOT NULL DEFAULT 'provisioning',
+                        cost_accrued    REAL NOT NULL DEFAULT 0.0,
+                        hourly_rate     REAL NOT NULL DEFAULT 0.0,
+                        created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+                        FOREIGN KEY (adapter_id) REFERENCES trained_adapters(adapter_id)
+                    );",
         )?;
         Ok(())
     }

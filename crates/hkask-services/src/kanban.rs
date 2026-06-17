@@ -1,6 +1,6 @@
 //! KanbanService — core kanban board and task coordination.
 //!
-//! Implements the 7 public operations from the kanban agent coordination spec.
+//! Implements kanban board and task coordination operations.
 //! Every operation carries ownership tracking (P12) and enforces agent consent
 //! on assignment (P1). State transitions are column-ordered.
 //!

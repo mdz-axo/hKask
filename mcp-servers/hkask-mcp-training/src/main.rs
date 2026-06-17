@@ -3205,6 +3205,26 @@ impl TrainingServer {
                 "phase": format!("{:?}", handle.phase()).to_lowercase(),
                 "route": "hkask-adapter",
             });
+
+            // Also store in local deployments map for status/teardown lookup
+            let deployment = AdapterDeployment {
+                deployment_id: handle.endpoint_id.to_string(),
+                adapter_name: req.adapter_name.clone(),
+                base_model: canonical.base_model_family.clone(),
+                provider: req.provider,
+                endpoint_url: Some(handle.endpoint_url.clone()),
+                lifecycle: handle
+                    .lifecycle
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone(),
+                estimated_cost_per_hour: estimate.estimated_hourly_cost as f32,
+                deployed_at: chrono::Utc::now(),
+            };
+            if let Ok(mut map) = self.deployments.lock() {
+                map.insert(handle.endpoint_id.to_string(), deployment);
+            }
+
             tracing::info!(target: "cns.training.deploy", endpoint_id = %handle.endpoint_id, adapter = %req.adapter_name, provider = ?req.provider, "Adapter deployed via AdapterRouter");
             self.record_experience(
                 "training_deploy",

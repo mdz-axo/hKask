@@ -924,6 +924,12 @@ pub enum ContractAction {
     },
     /// List proposed contracts awaiting review
     List,
+    /// Discover uncontracted public functions in a crate
+    Discover {
+        /// Crate name (default: all crates)
+        #[arg(short, long)]
+        crate_name: Option<String>,
+    },
 }
 
 /// Trained adapter lifecycle — deploy, infer, teardown

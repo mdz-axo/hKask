@@ -904,6 +904,105 @@ impl SpecServer {
             Err(e) => span.internal_error(serde_json::json!({"error": e})),
         }
     }
+
+    /// Discover uncontracted public functions in a crate.
+    /// Returns per-crate coverage percentages and lists of uncontracted functions
+    /// for replicant-driven contract proposals.
+    #[tool(
+        description = "Discover uncontracted public functions in a crate. Returns coverage percentages and lists of functions lacking REQ contracts for replicant-driven proposals."
+    )]
+    async fn contract_audit(
+        &self,
+        Parameters(ContractAuditRequest {
+            crate_name,
+            workspace_root,
+        }): Parameters<ContractAuditRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("contract_audit", &self.webid);
+
+        let root = workspace_root.unwrap_or_else(|| {
+            std::env::var("HKASK_WORKSPACE_ROOT").unwrap_or_else(|_| {
+                std::env::current_dir()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|_| ".".to_string())
+            })
+        });
+
+        let crates: Vec<String> = if let Some(c) = crate_name {
+            vec![c]
+        } else {
+            let crates_dir = std::path::Path::new(&root).join("crates");
+            match std::fs::read_dir(&crates_dir) {
+                Ok(entries) => entries
+                    .flatten()
+                    .filter(|e| e.path().is_dir())
+                    .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+                    .filter(|s| s.starts_with("hkask-"))
+                    .collect(),
+                Err(_) => return span.internal_error(
+                    serde_json::json!({"error": format!("crates directory not found: {}", crates_dir.display())})
+                ),
+            }
+        };
+
+        let mut crate_results = Vec::new();
+        let mut total_fns = 0usize;
+        let mut total_contracted = 0usize;
+        let mut total_uncontracted = 0usize;
+
+        for name in &crates {
+            match hkask_test_harness::test_runner::discover_uncontracted_functions(name, &root) {
+                Some(audit) => {
+                    total_fns += audit.total_pub_fns;
+                    total_contracted += audit.contracted;
+                    total_uncontracted += audit.uncontracted.len();
+                    crate_results.push(CrateCoverage {
+                        crate_name: name.clone(),
+                        total_pub_fns: audit.total_pub_fns,
+                        contracted: audit.contracted,
+                        coverage_pct: audit.coverage_pct,
+                        uncontracted: audit
+                            .uncontracted
+                            .iter()
+                            .map(|f| UncontractedFn {
+                                function_name: f.function_name.clone(),
+                                file: f.file.clone(),
+                                line: f.line,
+                            })
+                            .collect(),
+                    });
+                }
+                None => {
+                    crate_results.push(CrateCoverage {
+                        crate_name: name.clone(),
+                        total_pub_fns: 0,
+                        contracted: 0,
+                        coverage_pct: 0.0,
+                        uncontracted: vec![],
+                    });
+                }
+            }
+        }
+
+        let overall_pct = if total_fns > 0 {
+            (total_contracted as f64 / total_fns as f64) * 100.0
+        } else {
+            100.0
+        };
+
+        respond(
+            span,
+            &ContractAuditResponse {
+                crates: crate_results,
+                totals: AuditTotals {
+                    total_pub_fns: total_fns,
+                    contracted: total_contracted,
+                    coverage_pct: overall_pct,
+                    uncontracted_total: total_uncontracted,
+                },
+            },
+        )
+    }
 }
 
 #[tokio::main]

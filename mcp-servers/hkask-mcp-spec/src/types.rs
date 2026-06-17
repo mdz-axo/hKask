@@ -250,3 +250,47 @@ pub struct ReplicaRewriteResponse {
     /// Elapsed rewrite time in milliseconds.
     pub elapsed_ms: u64,
 }
+
+// ── Contract Audit (contract/audit) ─────────────────────────────
+
+/// Request: discover uncontracted public functions in a crate.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ContractAuditRequest {
+    /// Crate name (e.g., "hkask-cns"). If omitted, audits all crates.
+    pub crate_name: Option<String>,
+    /// Workspace root path. If omitted, defaults to HKASK_WORKSPACE_ROOT or cwd.
+    pub workspace_root: Option<String>,
+}
+
+/// Response: per-crate contract coverage summary.
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ContractAuditResponse {
+    /// Per-crate audit results.
+    pub crates: Vec<CrateCoverage>,
+    /// Workspace-wide totals.
+    pub totals: AuditTotals,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct CrateCoverage {
+    pub crate_name: String,
+    pub total_pub_fns: usize,
+    pub contracted: usize,
+    pub coverage_pct: f64,
+    pub uncontracted: Vec<UncontractedFn>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct UncontractedFn {
+    pub function_name: String,
+    pub file: String,
+    pub line: usize,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct AuditTotals {
+    pub total_pub_fns: usize,
+    pub contracted: usize,
+    pub coverage_pct: f64,
+    pub uncontracted_total: usize,
+}

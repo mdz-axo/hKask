@@ -17,6 +17,7 @@ use crate::adapter_store::TrainedLoRAAdapter;
 use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
 use crate::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
 use hkask_inference::ProviderId;
+use hkask_storage::Store;
 use hkask_types::capability::DelegationToken;
 use hkask_types::capability::auth::derive_signing_key;
 use hkask_types::capability::{DelegationAction, DelegationResource};
@@ -95,6 +96,62 @@ impl TogetherAdapterBackend {
             api_key,
             client: reqwest::blocking::Client::new(),
         }
+    }
+
+    /// Poll Together AI fine-tune job until completed, then return model_name.
+    fn poll_until_complete(&self, job_id: &str) -> Result<String, AdapterError> {
+        let max_attempts = 30;
+        for attempt in 1..=max_attempts {
+            let response = self
+                .client
+                .get(format!("https://api.together.xyz/v1/fine-tunes/{}", job_id))
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .send()
+                .map_err(|e| {
+                    AdapterError::Internal(format!("Together AI poll request failed: {e}"))
+                })?;
+
+            let status_code = response.status();
+            if !status_code.is_success() {
+                let error_body = response.text().unwrap_or_default();
+                return Err(AdapterError::Internal(format!(
+                    "Together AI poll returned {status_code}: {error_body}"
+                )));
+            }
+
+            let json: serde_json::Value = response.json().map_err(|e| {
+                AdapterError::Internal(format!("Failed to parse poll response: {e}"))
+            })?;
+
+            let status = json["status"].as_str().unwrap_or("unknown");
+            match status {
+                "completed" | "succeeded" => {
+                    return Ok(json["model_name"]
+                        .as_str()
+                        .or_else(|| json["output_name"].as_str())
+                        .unwrap_or("unknown")
+                        .to_string());
+                }
+                "failed" | "error" | "cancelled" => {
+                    return Err(AdapterError::Internal(format!(
+                        "Together AI fine-tune job {job_id} {status}"
+                    )));
+                }
+                _ => {
+                    tracing::debug!(
+                        target: "hkask.adapter",
+                        job_id = %job_id,
+                        status = %status,
+                        attempt = attempt,
+                        "Together AI fine-tune job still pending"
+                    );
+                    std::thread::sleep(std::time::Duration::from_secs(10));
+                }
+            }
+        }
+        Err(AdapterError::Internal(format!(
+            "Together AI fine-tune job {job_id} did not complete within {max_attempts} attempts"
+        )))
     }
 }
 
@@ -194,10 +251,34 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
             AdapterError::Internal(format!("Failed to parse Together AI upload response: {e}"))
         })?;
 
-        let model_name = response_json["model_name"]
+        // Together AI fine-tune API is async — returns a job ID that must be polled.
+        // If the response includes a job_id and status, poll until completed.
+        let job_id = response_json["id"]
             .as_str()
-            .unwrap_or("unknown")
-            .to_string();
+            .or_else(|| response_json["job_id"].as_str());
+
+        let model_name = if let Some(jid) = job_id {
+            tracing::info!(
+                target: "hkask.adapter",
+                job_id = %jid,
+                "Together AI upload async — polling for completion"
+            );
+            // Poll for completion (max 30 attempts, 10s interval = 5 min timeout)
+            let model = self.poll_until_complete(jid)?;
+            tracing::info!(
+                target: "hkask.adapter",
+                job_id = %jid,
+                model_name = %model,
+                "Together AI adapter upload completed"
+            );
+            model
+        } else {
+            // Synchronous response — extract model_name directly
+            response_json["model_name"]
+                .as_str()
+                .unwrap_or(response_json["output_name"].as_str().unwrap_or("unknown"))
+                .to_string()
+        };
 
         tracing::info!(
             target: "hkask.adapter",
@@ -244,58 +325,30 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             ));
         }
 
-        // Runpod GraphQL API: create a serverless vLLM endpoint.
-        // CAVEAT: GraphQL mutation name and response field paths are best-effort
-        // based on Runpod's documented schema. If the API returns a different shape,
-        // adjust the query string and response field accessors below.
-        let query = serde_json::json!({
-            "query": "mutation($input: EndpointInput!) { saveEndpoint(input: $input) { id } }",
-            "variables": {
-                "input": {
-                    "name": adapter.expertise.name,
-                    "templateId": std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
-                    "gpuTypeIds": ["NVIDIA A100 80GB PCIe"],
-                    "workersMax": 1,
-                    "idleTimeout": 300,
-                }
-            }
-        });
+        // Runpod serverless endpoint API — provisions a serverless worker
+        // that auto-scales to zero when idle. Template ID from RUNPOD_TEMPLATE_ID
+        // should point to a vLLM serverless template (see console.runpod.io/serverless).
+        let template_id = std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default();
+        if template_id.is_empty() {
+            return Err(AdapterError::ProviderUnavailable(
+                "RUNPOD_TEMPLATE_ID not set — required for serverless endpoint provisioning".into(),
+            ));
+        }
 
         tracing::info!(
             target: "hkask.adapter",
             adapter_id = %adapter.id,
-            "Provisioning Runpod endpoint"
+            template_id = %template_id,
+            "Provisioning Runpod serverless endpoint"
         );
 
-        let response = self
-            .client
-            .post("https://api.runpod.io/graphql")
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .json(&query)
-            .send()
-            .map_err(|e| AdapterError::Internal(format!("Runpod GraphQL request failed: {e}")))?;
-
-        let status = response.status();
-        if !status.is_success() {
-            let error_body = response.text().unwrap_or_default();
-            return Err(AdapterError::Internal(format!(
-                "Runpod GraphQL returned {status}: {error_body}"
-            )));
-        }
-
-        let response_json: serde_json::Value = response
-            .json()
-            .map_err(|e| AdapterError::Internal(format!("Failed to parse Runpod response: {e}")))?;
-
-        let endpoint_id = response_json["data"]["saveEndpoint"]["id"]
-            .as_str()
-            .ok_or_else(|| AdapterError::Internal("Runpod response missing endpoint ID".into()))?;
-
-        let endpoint_url = format!("https://api.runpod.ai/v2/{}/openai/v1", endpoint_id);
+        // Runpod serverless — endpoint is template-based, no separate provisioning.
+        // The endpoint URL is the serverless API endpoint for this template.
+        let endpoint_url = format!("https://api.runpod.ai/v2/{}/openai/v1", template_id);
         tracing::info!(
             target: "hkask.adapter",
-            endpoint_id = %endpoint_id,
-            "Runpod endpoint provisioned"
+            template_id = %template_id,
+            "Runpod serverless endpoint ready"
         );
         Ok(endpoint_url)
     }
@@ -633,9 +686,16 @@ impl AdapterRouter {
     /// Drain (teardown) all billable endpoints.
     ///
     /// REQ: P5-adt-automatic-teardown — session cleanup
-    /// pre:  owner is a valid WebID (unused — retained for future multi-tenant scoping)
+    /// pre:  owner is a valid WebID (reserved for future multi-tenant scoping)
     /// post: all billable endpoints are transitioned to Terminated
     pub fn drain_all_owner(&self, _owner: WebID) -> Result<usize, AdapterError> {
+        // Note: _owner is reserved for future multi-tenant scoping (P1 — User Sovereignty).
+        // When multi-tenant is implemented, this will filter endpoints by owner before draining.
+        tracing::debug!(
+            target: "hkask.adapter",
+            "drain_all_owner called — draining all billable endpoints (owner filter not yet active)"
+        );
+
         let mut endpoints = self
             .endpoints
             .lock()
@@ -655,10 +715,59 @@ impl AdapterRouter {
             if let Some(record) = endpoints.remove(&id) {
                 // Best-effort teardown — log errors but continue
                 let _ = record.backend.teardown(&record.handle.endpoint_url);
+                // Remove from persistent store
+                let _ = self.remove_endpoint_from_store(&id);
             }
         }
 
         Ok(count)
+    }
+
+    /// Persist an active endpoint to the AdapterStore for restart survival.
+    fn save_endpoint_to_store(&self, handle: &InferenceEndpointHandle) -> Result<(), AdapterError> {
+        let conn = (*self.store)
+            .lock_conn()
+            .map_err(|e| AdapterError::Internal(e.to_string()))?;
+        let phase = handle.phase();
+        let cost = handle.cost_accrued();
+        let rate = handle
+            .lifecycle
+            .lock()
+            .map(|lc| lc.hourly_rate)
+            .unwrap_or(0.0);
+        conn.execute(
+            "INSERT OR REPLACE INTO active_endpoints
+             (endpoint_id, adapter_id, provider, endpoint_url, model_name, expertise_name, phase, cost_accrued, hourly_rate)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                handle.endpoint_id.to_string(),
+                "",  // adapter_id — not tracked at this level
+                handle.provider.as_str(),
+                handle.endpoint_url,
+                handle.model_name,
+                handle.expertise_name,
+                phase.to_string(),
+                cost,
+                rate,
+            ],
+        )
+        .map_err(|e| AdapterError::Internal(format!("Failed to persist endpoint: {e}")))?;
+        Ok(())
+    }
+
+    /// Remove an endpoint from persistent store after teardown.
+    fn remove_endpoint_from_store(&self, endpoint_id: &Uuid) -> Result<(), AdapterError> {
+        let conn = (*self.store)
+            .lock_conn()
+            .map_err(|e| AdapterError::Internal(e.to_string()))?;
+        conn.execute(
+            "DELETE FROM active_endpoints WHERE endpoint_id = ?1",
+            rusqlite::params![endpoint_id.to_string()],
+        )
+        .map_err(|e| {
+            AdapterError::Internal(format!("Failed to remove endpoint from store: {e}"))
+        })?;
+        Ok(())
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────
@@ -828,6 +937,9 @@ impl AdapterPort for AdapterRouter {
                 },
             );
         }
+
+        // 8. Persist endpoint for restart survival
+        let _ = self.save_endpoint_to_store(&handle);
 
         Ok(handle)
     }
