@@ -10,6 +10,9 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-services-kata = { path = "../hkask-services-kata" }
 hkask-services-kanban = { path = "../hkask-services-kanban" }
+hkask-services-classify = { path = "../hkask-services-classify" }
+hkask-services-embed = { path = "../hkask-services-embed" }
+hkask-services-discover = { path = "../hkask-services-discover" }
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-storage = { path = "../hkask-storage" }

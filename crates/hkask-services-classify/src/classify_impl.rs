@@ -6,7 +6,7 @@
 //! Supports DeepInfra (OpenAI-compatible) with concurrent batch requests.
 //! Graceful degradation: no API key → all passages default to fallback category.
 
-use crate::ServiceError;
+use hkask_services_core::ServiceError;
 use reqwest::Client;
 use serde::Deserialize;
 use std::path::Path;

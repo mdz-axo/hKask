@@ -1,0 +1,24 @@
+[package]
+name = "hkask-services-discover"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask corpus discovery service — find, download, and process corpora"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-embed = { path = "../hkask-services-embed" }
+hkask-inference = { path = "../hkask-inference" }
+hkask-memory = { path = "../hkask-memory" }
+hkask-templates = { path = "../hkask-templates" }
+hkask-types = { path = "../hkask-types" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_neo.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+thiserror.workspace = true
+minijinja.workspace = true
+uuid.workspace = true
+pdf-extract = "0.7"

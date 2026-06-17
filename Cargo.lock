@@ -4505,7 +4505,10 @@ dependencies = [
  "hkask-mcp",
  "hkask-memory",
  "hkask-services-backup",
+ "hkask-services-classify",
  "hkask-services-core",
+ "hkask-services-discover",
+ "hkask-services-embed",
  "hkask-services-kanban",
  "hkask-services-kata",
  "hkask-storage",
@@ -4552,6 +4555,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-services-classify"
+version = "0.27.0"
+dependencies = [
+ "hkask-inference",
+ "hkask-services-core",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "hkask-services-core"
 version = "0.27.0"
 dependencies = [
@@ -4568,6 +4585,52 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "hkask-services-discover"
+version = "0.27.0"
+dependencies = [
+ "hkask-inference",
+ "hkask-memory",
+ "hkask-services-core",
+ "hkask-services-embed",
+ "hkask-templates",
+ "hkask-types",
+ "minijinja",
+ "pdf-extract",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "hkask-services-embed"
+version = "0.27.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "hkask-inference",
+ "hkask-memory",
+ "hkask-services-classify",
+ "hkask-services-core",
+ "hkask-storage",
+ "hkask-types",
+ "pdf-extract",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
  "tracing",
  "uuid",
 ]

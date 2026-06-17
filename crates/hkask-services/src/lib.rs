@@ -30,6 +30,14 @@ pub use hkask_services_core::error::ServiceError;
 pub use hkask_services_core::settings::{
     HkaskSettings, load_settings, save_settings, settings_path,
 };
+pub use hkask_services_discover::{
+    DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, default_corpus_config,
+    download_and_cache, generate_corpus_yaml, slugify,
+};
+pub use hkask_services_embed::{
+    ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
+    EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
+};
 pub use hkask_services_kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
 pub use hkask_services_kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
@@ -46,8 +54,6 @@ pub mod contacts;
 pub mod context;
 pub mod curator;
 pub mod deletion_test;
-pub mod discover;
-pub mod embed;
 pub mod experience;
 pub mod goal;
 pub mod inference;
@@ -65,7 +71,6 @@ pub mod wallet;
 // ── Internal modules (accessible, not part of committed API) ───────────
 
 pub mod archival;
-pub mod classify;
 pub mod consolidation;
 pub mod daemon_handler;
 
@@ -83,14 +88,6 @@ pub use contacts::ContactService;
 pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
 pub use deletion_test::DeletionTest;
-pub use discover::{
-    DiscoverRequest, DiscoverResult, DiscoveredWork, DiscoveryService, default_corpus_config,
-    download_and_cache, generate_corpus_yaml, slugify,
-};
-pub use embed::{
-    ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbedService,
-    EmbeddingConfig, Entity, EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
-};
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};

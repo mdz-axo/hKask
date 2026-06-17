@@ -19,7 +19,7 @@ use hkask_types::Visibility;
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;
 
-use crate::classify::TripleExtraction;
+use hkask_services_classify::TripleExtraction;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -28,7 +28,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::ServiceError;
+use hkask_services_core::ServiceError;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
@@ -716,10 +716,10 @@ impl EmbedService {
         // Load classifier config if specified in corpus.yaml
         let classifier_config = if config.classifier.is_empty() {
             tracing::info!("No classifier configured — all passages default to Statement");
-            crate::classify::ClassifierConfig::from_def(&Default::default())
+            hkask_services_classify::ClassifierConfig::from_def(&Default::default())
         } else {
-            let def = crate::classify::load_classifier_config(&config.classifier, registry_dir)?;
-            crate::classify::ClassifierConfig::from_def(&def)
+            let def = hkask_services_classify::load_classifier_config(&config.classifier, registry_dir)?;
+            hkask_services_classify::ClassifierConfig::from_def(&def)
         };
 
         let texts: Vec<String> = all_passages.iter().map(|p| p.text.clone()).collect();
@@ -731,7 +731,7 @@ impl EmbedService {
             "Starting section type classification"
         );
 
-        let classify_results = crate::classify::classify_batch(&texts, classifier_config).await?;
+        let classify_results = hkask_services_classify::classify_batch(&texts, classifier_config).await?;
 
         for (passage, result) in all_passages.iter_mut().zip(classify_results.iter()) {
             passage.section_type = result.category.clone();
@@ -748,11 +748,11 @@ impl EmbedService {
         // ── Extract semantic triples (Gemma 4 classifier) ───────────
         if !config.triple_classifier.is_empty() {
             let triple_config = {
-                let def = crate::classify::load_classifier_config(
+                let def = hkask_services_classify::load_classifier_config(
                     &config.triple_classifier,
                     registry_dir,
                 )?;
-                crate::classify::ClassifierConfig::from_def(&def)
+                hkask_services_classify::ClassifierConfig::from_def(&def)
             };
 
             tracing::info!(
@@ -763,7 +763,7 @@ impl EmbedService {
             );
 
             let triple_extractions =
-                crate::classify::extract_triples_batch(&texts, &triple_config).await?;
+                hkask_services_classify::extract_triples_batch(&texts, &triple_config).await?;
 
             for (passage, extraction) in all_passages.iter_mut().zip(triple_extractions.iter()) {
                 passage.semantic_triples = extraction.clone();
@@ -1506,7 +1506,7 @@ pub fn strip_html_tags(html: &str) -> String {
 /// Default OCR model for scanned PDF fallback.
 /// Override via settings.json or HKASK_OCR_MODEL env var.
 fn ocr_model() -> String {
-    crate::HkaskSettings::load().ocr_model()
+    hkask_services_core::HkaskSettings::load().ocr_model()
 }
 
 /// OCR system prompt — instructs the vision model to extract text faithfully.
