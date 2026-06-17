@@ -669,43 +669,55 @@ impl KanbanService {
         self.board_get(board_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
 
-        // Parse + validate the JSON
+        let tasks_array = Self::validate_decompose_json(json_output)?;
+        let phase_map = self.create_phases_from_recomposition(board_id, json_output)?;
+
+        // Create tasks
+        let mut created = 0usize;
+        for task_val in tasks_array {
+            let spec = Self::build_task_spec_from_json(task_val, &phase_map);
+            self.task_create(board_id, spec, owner)?;
+            created += 1;
+        }
+
+        // Extract recomposition strategy
         let parsed: serde_json::Value = serde_json::from_str(json_output)
             .map_err(|e| KanbanError::InvalidInput(format!("Invalid JSON: {e}")))?;
+        let recomposition = parsed["recomposition"]["strategy"]
+            .as_str()
+            .or_else(|| parsed["recomposition"].as_str())
+            .map(String::from);
 
-        // Schema validation
+        Ok((created, recomposition))
+    }
+
+    fn validate_decompose_json(json_output: &str) -> Result<Vec<serde_json::Value>, KanbanError> {
+        let parsed: serde_json::Value = serde_json::from_str(json_output)
+            .map_err(|e| KanbanError::InvalidInput(format!("Invalid JSON: {e}")))?;
         if parsed.get("tasks").is_none() {
-            return Err(KanbanError::InvalidInput(
-                "JSON must have a tasks array at top level".into(),
-            ));
+            return Err(KanbanError::InvalidInput("JSON must have a tasks array at top level".into()));
         }
-        let tasks_array = parsed["tasks"]
-            .as_array()
+        let tasks_array = parsed["tasks"].as_array()
             .ok_or_else(|| KanbanError::InvalidInput("'tasks' must be an array".into()))?;
         if tasks_array.is_empty() {
-            return Err(KanbanError::InvalidInput(
-                "'tasks' array is empty — nothing to create".into(),
-            ));
+            return Err(KanbanError::InvalidInput("'tasks' array is empty".into()));
         }
-
-        // Validate each task has a title
         for (i, task_val) in tasks_array.iter().enumerate() {
-            if task_val
-                .get("title")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .is_empty()
-            {
-                return Err(KanbanError::InvalidInput(format!(
-                    "Task {} is missing 'title' field",
-                    i + 1
-                )));
+            if task_val.get("title").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
+                return Err(KanbanError::InvalidInput(format!("Task {} is missing 'title' field", i + 1)));
             }
         }
+        Ok(tasks_array)
+    }
 
-        // Create phases from recomposition if present
-        let mut phase_map: std::collections::HashMap<String, hkask_types::PhaseId> =
-            std::collections::HashMap::new();
+    fn create_phases_from_recomposition(
+        &self,
+        board_id: BoardId,
+        json_output: &str,
+    ) -> Result<std::collections::HashMap<String, hkask_types::PhaseId>, KanbanError> {
+        let parsed: serde_json::Value = serde_json::from_str(json_output)
+            .map_err(|e| KanbanError::InvalidInput(format!("Invalid JSON: {e}")))?;
+        let mut phase_map = std::collections::HashMap::new();
         if let Some(phases) = parsed["recomposition"]["phases"].as_array() {
             for (i, phase_val) in phases.iter().enumerate() {
                 let name = phase_val["name"].as_str().unwrap_or("Unnamed");
@@ -714,7 +726,6 @@ impl KanbanService {
                 if let Some(d) = desc {
                     phase = phase.with_description(d.to_string());
                 }
-                // Store task_labels mapping for assignment
                 if let Some(labels) = phase_val["task_labels"].as_array() {
                     for label in labels {
                         if let Some(l) = label.as_str() {
@@ -725,79 +736,43 @@ impl KanbanService {
                 self.board_add_phase(board_id, &phase.name, phase.order)?;
             }
         }
+        Ok(phase_map)
+    }
 
-        // Create tasks
-        let mut created = 0usize;
-        for task_val in tasks_array {
-            let title = task_val["title"].as_str().unwrap_or("Untitled");
-            let description = task_val["description"].as_str().map(|s| s.to_string());
-            let story_points = task_val["story_points"].as_u64().map(|n| n as u32);
-            let estimated_hours = task_val["estimated_hours"].as_f64();
-            let labels: Vec<String> = task_val["labels"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default();
-            let criteria: Vec<hkask_types::VerificationCriterion> = task_val["criteria"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| {
-                            v.as_str()
-                                .map(|s| hkask_types::VerificationCriterion::new(s.into()))
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            let priority = task_val["priority"]
-                .as_str()
-                .and_then(hkask_types::Priority::parse_str);
+    fn build_task_spec_from_json(
+        task_val: &serde_json::Value,
+        phase_map: &std::collections::HashMap<String, hkask_types::PhaseId>,
+    ) -> TaskSpec {
+        let title = task_val["title"].as_str().unwrap_or("Untitled");
+        let description = task_val["description"].as_str().map(|s| s.to_string());
+        let story_points = task_val["story_points"].as_u64().map(|n| n as u32);
+        let estimated_hours = task_val["estimated_hours"].as_f64();
+        let labels: Vec<String> = task_val["labels"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+        let criteria: Vec<hkask_types::VerificationCriterion> = task_val["criteria"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| hkask_types::VerificationCriterion::new(s.into()))).collect())
+            .unwrap_or_default();
+        let priority = task_val["priority"].as_str().and_then(hkask_types::Priority::parse_str);
 
-            let mut spec = TaskSpec::new(title.into());
-            if let Some(d) = description {
-                spec = spec.with_description(d);
-            }
-            if !criteria.is_empty() {
-                spec = spec.with_criteria(criteria);
-            }
-            if let Some(sp) = story_points {
-                spec = spec.with_story_points(sp);
-            }
-            if let Some(eh) = estimated_hours {
-                spec = spec.with_estimated_hours(eh);
-            }
-            if let Some(p) = priority {
-                spec = spec.with_priority(p);
-            }
-
-            // Assign phase if any label matches a phase
-            if !phase_map.is_empty() && !labels.is_empty() {
-                for label in &labels {
-                    if let Some(pid) = phase_map.get(&label.to_lowercase()) {
-                        spec = spec.with_phase(*pid);
-                        break;
-                    }
+        let mut spec = TaskSpec::new(title.into());
+        if let Some(d) = description { spec = spec.with_description(d); }
+        if !criteria.is_empty() { spec = spec.with_criteria(criteria); }
+        if let Some(sp) = story_points { spec = spec.with_story_points(sp); }
+        if let Some(eh) = estimated_hours { spec = spec.with_estimated_hours(eh); }
+        if let Some(p) = priority { spec = spec.with_priority(p); }
+        if !phase_map.is_empty() && !labels.is_empty() {
+            for label in &labels {
+                if let Some(pid) = phase_map.get(&label.to_lowercase()) {
+                    spec = spec.with_phase(*pid);
+                    break;
                 }
             }
-
-            if !labels.is_empty() {
-                spec = spec.with_labels(labels);
-            }
-
-            self.task_create(board_id, spec, owner)?;
-            created += 1;
         }
-
-        // Extract recomposition strategy
-        let recomposition = parsed["recomposition"]["strategy"]
-            .as_str()
-            .or_else(|| parsed["recomposition"].as_str())
-            .map(String::from);
-
-        Ok((created, recomposition))
+        if !labels.is_empty() { spec = spec.with_labels(labels); }
+        spec
     }
 
     /// Spawn a sub-replicant to execute a task.
@@ -816,72 +791,21 @@ impl KanbanService {
 
         // Attempt live pod creation if PodManager is attached
         if let Some(ref pm) = self.pod_manager {
-            let pod_name = format!(
-                "kanban-{}",
-                task.title
-                    .chars()
-                    .take(20)
-                    .collect::<String>()
-                    .replace(' ', "-")
-            );
-            let persona_yaml = format!(
-                "agent:
-  name: {name}
-  type: bot
-  version: 0.1.0
-                 charter:
-  description: Task: {title}
-  editor: kanban
-                 capabilities:
-{skills}
-",
-                name = pod_name,
-                title = task.title,
-                skills = spawn_spec
-                    .delegated_skills
-                    .iter()
-                    .map(|s| format!("  - {}", s))
-                    .collect::<Vec<_>>()
-                    .join(
-                        "
-"
-                    ),
-            );
+            let pod_name = Self::build_pod_name(&task.title);
+            let persona_yaml = Self::build_persona_yaml(&pod_name, &task.title, &spawn_spec);
             match hkask_agents::pod::AgentPersona::from_yaml(&persona_yaml) {
                 Ok(persona) => {
-                    let rt = tokio::runtime::Handle::current();
-                    match rt.block_on(pm.create_pod(
-                        "kanban-agent",
-                        &persona,
-                        Some(pod_name.clone()),
-                    )) {
-                        Ok(pod_id) => match rt.block_on(pm.activate_pod(&pod_id)) {
-                            Ok(()) => {
-                                let webid = persona.webid();
-                                let note = format!(
-                                    "Pod activated: id={}, webid={}, skills={:?}, tools={:?}",
-                                    pod_id,
-                                    webid.redacted_display(),
-                                    spawn_spec.delegated_skills,
-                                    spawn_spec.tool_servers
-                                );
-                                let comment = hkask_types::Comment::new(task_id, task.owner, note);
-                                task.comments.push(comment);
-                                task.updated_at = chrono::Utc::now();
-                                self.update_task_triple(&task)?;
-                                return Ok(format!(
-                                    "Pod {} activated (webid: {}). Use /kanban note {} to communicate.",
-                                    pod_id,
-                                    webid.redacted_display(),
-                                    task_id
-                                ));
-                            }
-                            Err(e) => {
-                                return Ok(format!("Pod created but activation failed: {}", e));
-                            }
-                        },
-                        Err(e) => return Ok(format!("Pod creation failed: {}", e)),
-                    }
+                    let pod_note = Self::activate_pod(pm, "kanban-agent", &persona, &pod_name, &spawn_spec)?;
+                    let comment = hkask_types::Comment::new(task_id, task.owner, pod_note);
+                    task.comments.push(comment);
+                    task.updated_at = chrono::Utc::now();
+                    self.update_task_triple(&task)?;
+                    return Ok(format!(
+                        "Pod {} activated (webid: {}). Use /kanban note {} to communicate.",
+                        pod_name,
+                        persona.webid().redacted_display(),
+                        task_id
+                    ));
                 }
                 Err(e) => return Ok(format!("Persona parse failed: {}", e)),
             }
@@ -902,6 +826,48 @@ impl KanbanService {
         Ok(format!(
             "Spawn configured for '{}' (no PodManager — string mode). Skills: {:?}",
             task.title, spawn_spec.delegated_skills
+        ))
+    }
+
+    fn build_pod_name(title: &str) -> String {
+        format!(
+            "kanban-{}",
+            title.chars().take(20).collect::<String>().replace(' ', "-")
+        )
+    }
+
+    fn build_persona_yaml(pod_name: &str, title: &str, spec: &hkask_types::SpawnSpec) -> String {
+        let skills = spec.delegated_skills.iter()
+            .map(|s| format!("  - {}", s))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            "agent:\n  name: {name}\n  type: bot\n  version: 0.1.0\n  charter:\n    description: Task: {title}\n    editor: kanban\n  capabilities:\n{skills}\n",
+            name = pod_name,
+            title = title,
+            skills = skills,
+        )
+    }
+
+    fn activate_pod(
+        pm: &hkask_agents::pod::PodManager,
+        agent_type: &str,
+        persona: &hkask_agents::pod::AgentPersona,
+        pod_name: &str,
+        spec: &hkask_types::SpawnSpec,
+    ) -> Result<String, KanbanError> {
+        let rt = tokio::runtime::Handle::current();
+        let pod_id = rt.block_on(pm.create_pod(agent_type, persona, Some(pod_name.to_string())))
+            .map_err(|e| KanbanError::Internal(format!("Pod creation failed: {}", e)))?;
+        rt.block_on(pm.activate_pod(&pod_id))
+            .map_err(|e| KanbanError::Internal(format!("Pod activation failed: {}", e)))?;
+        let webid = persona.webid();
+        Ok(format!(
+            "Pod activated: id={}, webid={}, skills={:?}, tools={:?}",
+            pod_id,
+            webid.redacted_display(),
+            spec.delegated_skills,
+            spec.tool_servers
         ))
     }
 

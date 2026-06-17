@@ -222,7 +222,7 @@ All gaps from 2026-06-15 are now closed. Current open gaps:
 | **utoipa annotation completeness** | Medium | **Open** | No `#[utoipa::path]` annotations found in `crates/`. The OpenAPI spec (`docs/generated/openapi.json`, 4454 lines) may be manually maintained. Unannotated endpoints are invisible to auto-generation. Task 6 audits this. |
 | **Versioned documentation** | Low | **Open** | No versioning strategy for docs. As codebase evolves (kanban v2, kata refinements, additional MCP servers), documentation will drift again. Deferred per Task 9. |
 | **LoRA store security model** | Medium | **Open** | Adapter ownership model (P12) is specified but threat model (adapter tampering, weight poisoning, provenance verification) is not documented. Deferred per Task 9. |
-
+| **User roles undocumented** | Medium | **Resolved (2026-06-17)** | Two-role model (Admin/Member) with invite flow. Documented in User Roles section. |
 ---
 
 ## Document Hierarchy
@@ -249,6 +249,7 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 | [`energy-gas-payments-api-keys.md`](energy-gas-payments-api-keys.md) | Energy, Gas, Payments & API Key System — economic layer, rJoules, wallets, key lifecycle |
 | [`core/CNS-DOMAIN-SPECIFICATION.md`](core/CNS-DOMAIN-SPECIFICATION.md) | CNS Domain Specification — 6 sub-domains, 44 contracts, P4/P9/P12 governed membranes |
 
+| [`../plans/deployment-and-backup.md`](../plans/deployment-and-backup.md) | Deployment & Multi-User Plan |
 ---
 
 ## REPL Architecture
@@ -763,48 +764,19 @@ The replicant streams inference output as `session/update` notifications while t
 
 ## Deployment
 
-hKask is designed for two deployment targets: **local workstation** (Ollama) and **cloud server** (remote inference providers). The common deployment target is a headless Ubuntu cloud server accessed via SSH.
+**Authoritative model:** See Deployment Model section above. hKask deploys as a single cloud server. There is no client binary. Users access hKask through a browser terminal (xterm.js + WebSocket). SSH is optional for power users.
 
-### Deployment Architecture
+### Cloud Server Deployment
 
-```mermaid
-graph TD
-    subgraph "Cloud Server (Ubuntu, headless)"
-        KASK["kask binary"]
-        KEYCHAIN["OS Keychain<br/>(secret-service / flat file)"]
-        DB["SQLCipher<br/>(~/.config/hkask/)"]
-        SOCK["Daemon Socket<br/>(~/.config/hkask/daemon.sock)"]
-        KASK --> KEYCHAIN
-        KASK --> DB
-        KASK --> SOCK
-    end
+The production deployment is a headless Ubuntu cloud server:
 
-    subgraph "External Inference"
-        DI["DeepInfra<br/>(primary)"]
-        FW["Fireworks.ai<br/>(fallback)"]
-        FA["fal.ai<br/>(vision/OCR)"]
-    end
-
-    subgraph "User Access"
-        SSH["SSH Terminal"]
-        IDE["Zed / VSCode<br/>(via MCP)"]
-    end
-
-    KASK -->|"HTTPS + API Key"| DI
-    KASK -->|"HTTPS + API Key"| FW
-    KASK -->|"HTTPS + API Key"| FA
-    SSH -->|"kask chat"| KASK
-    IDE -->|"MCP over SSH tunnel"| SOCK
-```
-
-### Common Deployment: Cloud Server
-
-The intended production deployment is an Ubuntu cloud server without local GPU inference:
-
-1. **No Ollama dependency.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Fireworks, fal.ai). Ollama is optional and disabled by default on cloud deployments.
-2. **API keys in OS keychain.** Provider API keys are stored in the OS keychain (Linux Secret Service or flat-file fallback), not in environment variables or plaintext files. Loaded once via `kask keystore load --shred`, which securely deletes the source file after explicit user consent.
-3. **Encrypted database at rest.** All persistent state (agent registry, memory, sessions) uses SQLCipher with a passphrase-derived key.
-4. **SSH-first interaction.** The primary interface is `kask chat` over SSH. MCP servers (for IDE integration) connect via SSH-tunneled Unix socket.
+1. **Single binary.** All crates compiled. No Cargo features for client/server.
+2. **Browser-first interaction.** Primary interface is xterm.js terminal via browser. Secondary: SSH (`kask repl`). MCP servers (for IDE integration) connect via the REST API or SSH-tunneled socket.
+3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Fireworks, fal.ai).
+4. **API keys in OS keychain.** Provider API keys are stored in the OS keychain (Linux Secret Service or flat-file fallback), not in environment variables or plaintext files.
+5. **Encrypted database at rest.** All persistent state uses SQLCipher with a passphrase-derived key.
+6. **Multi-tenant.** Multiple users per server. Data scoped by `owner_webid`. OAuth (GitHub/Google) sign-in.
+7. **Caddy + Conduit sidecars.** Docker containers for TLS termination and Matrix homeserver.
 
 ### Provider Configuration
 
@@ -812,54 +784,37 @@ API keys resolve through a 2-tier chain at startup:
 
 | Tier | Source | Security | Persistence |
 |------|--------|----------|-------------|
-| 1 | OS Keychain (`secret-service` or `~/.local/share/keyrings/`) | Encrypted at rest by OS | Survives reboot |
+| 1 | OS Keychain | Encrypted at rest by OS | Survives reboot |
 | 2 | Environment variable | Plaintext in process memory only | Session-only |
 
-Provider selection is controlled by `HKASK_DEFAULT_PROVIDER` (stored in keychain or env var):
+Provider selection via `HKASK_DEFAULT_PROVIDER`:
 
 | Value | Provider | Use Case |
 |-------|----------|----------|
-| `DI` | DeepInfra | Primary cloud provider — wide model catalog, per-token pricing, free tier |
+| `DI` | DeepInfra | Primary cloud provider |
 | `FW` | Fireworks.ai | Fast serverless inference, fallback |
 | `FA` | fal.ai | Specialized vision/OCR/media models |
-| `OM` | Ollama | Local inference only (default, typically disabled on cloud) |
 
 ### Setup Flow
 
 ```bash
 # One-time setup on cloud server
-cp providers.env.example providers.env   # Fill in DI_API_KEY=sk-...
-kask keystore load --path providers.env --shred  # Loads into keychain, shreds file
-kask chat                                   # First run: onboarding creates replicant
+cp providers.env.example providers.env
+kask keystore load --path providers.env --shred
+kask matrix deploy-sidecar --domain my-server.example.com
+cd ~/.config/hkask/sidecar && docker compose up -d
+kask init --profile server
 ```
-
-The onboarding flow (`kask chat` first run) prompts for provider configuration if no keys are detected, offering three paths: load from `providers.env`, enter API key directly (masked input), or skip (Ollama-only).
 
 ### Security Properties
 
 | Property | Mechanism |
 |----------|-----------|
 | No plaintext secrets on disk | Keys live in OS keychain; source file shredded after load |
-| No secrets in environment | `InferenceConfig` reads from keychain at startup, not `std::env` |
-| Affirmative consent before deletion | `--shred` requires explicit `y` response to warning prompt |
+| No secrets in environment | `InferenceConfig` reads from keychain at startup |
+| Affirmative consent before deletion | `--shred` requires explicit confirmation |
 | Graceful degradation | Missing keys → backend unavailable (logged), not crash |
-| Backward compatible | Existing `export`/`.env` setups continue working (env var tier) |
-
-### Local Development
-
-For local development with Ollama:
-
-```bash
-# Default: Ollama on localhost:11434
-kask chat
-# Or use cloud provider alongside Ollama:
-export DI_API_KEY=sk-...
-kask chat -m DI/meta-llama/Llama-3.3-70B-Instruct
-```
-
-Local and cloud deployments share the same binary, same config, same code path. The only difference is which provider keys are configured.
-
----
+| Multi-user isolation | All data scoped by `owner_webid`; OAuth identity verification |
 
 ## Reference Artifacts
 
