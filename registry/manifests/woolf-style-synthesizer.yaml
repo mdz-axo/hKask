@@ -15,7 +15,7 @@ manifest:
     Embedding layer uses Qwen/Qwen3-Embedding-0.6B for exemplar retrieval and centroid validation.
   version: 0.27.0
   editor: curator
-  visibility: Shared
+  visibility: Public
 
 # Energy Budget Configuration
 gas:

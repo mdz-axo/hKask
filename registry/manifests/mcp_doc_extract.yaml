@@ -5,12 +5,12 @@ manifest:
   id: mcp/doc_extract
   name: MCP Document Extractor
   description: >
-  functional_role: flowdef
     Extract structured content from documents (PDF, DOCX, HTML, etc.).
     Supports custom extraction schemas and metadata capture.
+  functional_role: flowdef
   version: 0.23.0
   editor: curator-or-human-admin
-  visibility: Shared
+  visibility: Public
 
 # Energy Budget Configuration
 gas:
@@ -55,7 +55,7 @@ steps:
       Track extraction quality and completeness.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory  # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # CNS feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:

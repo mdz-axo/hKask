@@ -12,7 +12,7 @@ manifest:
   functional_role: knowact
   version: 0.21.0
   editor: curator
-  visibility: Shared
+  visibility: Public
 
 # Energy Budget Configuration
 gas:

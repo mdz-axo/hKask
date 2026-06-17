@@ -25,7 +25,7 @@ manifest:
   version: 0.27.0
   functional_role: flowdef
   editor: curator-or-human-admin
-  visibility: Shared
+  visibility: Public
 
 # ── Parameters (supplied by caller) ──────────────────────────────────────────
 parameters:

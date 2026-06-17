@@ -12,7 +12,7 @@ manifest:
   functional_role: knowact
   version: 0.21.0
   editor: curator-or-human-admin
-  visibility: Shared
+  visibility: Public
 
 gas:
   cap: 20000

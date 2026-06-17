@@ -8,7 +8,7 @@ manifest:
   version: 0.21.2
   functional_role: flowdef
   editor: curator-or-human-admin
-  visibility: Shared
+  visibility: Public
 
 gas_budget:
   caps:

@@ -29,7 +29,7 @@ manifest:
     structured diagnostic scores usable by document-update Task 3.
   version: 0.27.0
   editor: curator
-  visibility: Shared
+  visibility: Public
 
 # Energy Budget Configuration
 gas:

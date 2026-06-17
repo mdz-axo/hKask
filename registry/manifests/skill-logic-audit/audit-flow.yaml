@@ -8,7 +8,7 @@ manifest:
     and drives a bounded accept/reject/counter-proposal loop.
   version: "0.27.0"
   editor: hkask
-  visibility: Shared
+  visibility: Public
   functional_role: flowdef
 
 inputs:

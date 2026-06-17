@@ -8,7 +8,7 @@ manifest:
   functional_role: flowdef
   version: 0.28.0
   editor: curator-or-human-admin
-  visibility: Shared
+  visibility: Public
 
 providers:
   - id: ollama-local

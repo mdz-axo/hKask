@@ -5,12 +5,12 @@ manifest:
   id: mcp/inference_call
   name: MCP Inference Call
   description: >
-  functional_role: flowdef
     LLM inference call via MCP with capability validation and CNS monitoring.
     Supports model tier selection, temperature control, and token budgeting.
+  functional_role: flowdef
   version: 0.21.0
   editor: curator-or-human-admin
-  visibility: Shared
+  visibility: Public
 
 # Energy Budget Configuration
 gas:
@@ -55,7 +55,7 @@ steps:
       Track token usage and model performance.
     renderer: null
     template_ref: null
-    mcp: null  # CNS is ambient (CnsRuntime)
+    mcp: null # CNS is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:

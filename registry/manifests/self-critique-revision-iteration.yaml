@@ -14,7 +14,7 @@ manifest:
   functional_role: knowact
   version: 0.21.0
   editor: curator-or-human-admin
-  visibility: Shared
+  visibility: Public
   parent_manifest: self-critique-revision
   max_iterations: 3
 

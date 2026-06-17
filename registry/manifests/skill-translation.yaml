@@ -11,7 +11,7 @@ manifest:
   functional_role: flowdef
   version: 0.21.2
   editor: curator-or-human-admin
-  visibility: Shared
+  visibility: Public
 
 pipeline:
   version: 0.21.2

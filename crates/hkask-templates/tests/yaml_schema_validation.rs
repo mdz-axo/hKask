@@ -6,6 +6,7 @@
 //!
 //! # Principle grounding
 //! - P8 (Semantic Grounding): config errors should be caught before runtime
+//! - P11 (Digital Public/Private Sphere): visibility must be canonical
 
 use serde::Deserialize;
 use std::path::Path;
@@ -23,6 +24,10 @@ struct ManifestHeader {
     name: String,
     description: String,
     version: String,
+    #[serde(default)]
+    visibility: Option<String>,
+    #[serde(default)]
+    functional_role: Option<String>,
 }
 
 // REQ: P3-tpl-test-manifest-schema-validation — Manifest schema validation (P8)
@@ -63,6 +68,20 @@ fn all_skill_manifests_are_well_formed() {
                         "{}: manifest.name is empty",
                         path.display()
                     );
+                    // P11: visibility must be present and canonical (Public or Private only)
+                    let vis = mf.manifest.visibility.as_deref().unwrap_or("");
+                    assert!(
+                        !vis.is_empty(),
+                        "{}: manifest.visibility is missing",
+                        path.display()
+                    );
+                    assert!(
+                        vis == "Public" || vis == "Private",
+                        "{}: manifest.visibility is '{vis}' — must be Public or Private (P11)",
+                        path.display()
+                    );
+                    // functional_role should be present if the manifest uses it
+                    // (Note: some manifests like kata and improv use alternative structural schemas)
                 }
                 Err(e) => {
                     errors.push(format!("{}: YAML parse error: {}", path.display(), e));
