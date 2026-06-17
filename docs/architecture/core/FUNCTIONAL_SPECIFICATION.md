@@ -47,7 +47,7 @@ mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
 | 20 | Type System | `types` | hkask-types | 40 | P8 (Semantic Grounding) |
 | 21 | API Surface | `api` | hkask-api | 25 | P1 + P4 (Sovereignty + Boundaries) |
 | 22 | CLI Surface | `cli` | kask | 12 | P3 (Generative Space) |
-| 23 | Web Interface | `web` | hkask-api + hkask-web | 15 | P1 (User Sovereignty) + P4 (Clear Boundaries) |
+| 23 | Web Interface | `web` | hkask-api + hkask-web | 19 | P1 (User Sovereignty) + P4 (Clear Boundaries) |
 | 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | P1 (User Sovereignty) + P2 (Affirmative Consent) |
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | P1 (User Sovereignty) + P3 (Generative Space) |
 
@@ -849,6 +849,9 @@ The web interface is the primary deployment surface: users visit a URL, sign in 
 | FR-WEB10 | `P4-web-terminal-xtermjs` | Static `/terminal` page serving xterm.js | [P4] Motivating: Clear Boundaries — single static HTML file (~50 lines), no JavaScript framework; [P5] Constraining: Essentialism — xterm.js loaded from CDN or bundled as static asset |
 | FR-WEB11 | `P1-web-session-cns-span` | `CnsSpan::SessionOpen { user_id, provider }` | [P1] Motivating: User Sovereignty — every session open is observable; [P12] Constraining: Subscriber Consent — emitted only if CNS sink subscribed |
 | FR-WEB12 | `P1-web-terminal-scoping` | All TripleStore queries scoped `WHERE owner_webid = ?` | [P1] Motivating: User Sovereignty — users only access own triples, pods, wallet; [P4] Constraining: Clear Boundaries — per-user resource isolation |
+| FR-WEB13 | `P1-web-terminal-layout` | Tiled/tabbed terminal layout: 1/2/4 tiles, up to 6 tabs per tile, max 24 terminals | [P1] User Sovereignty — user controls workspace; [P5] Essentialism — client-side DOM, no server multiplexing |
+| FR-WEB14 | `P1-web-terminal-tab-spawn` | Each new tab opens WebSocket to `/api/v1/terminal/ws` with existing session cookie | [P1] User Sovereignty — auto-authenticated; [P4] Clear Boundaries — each tab is independent PTY process |
+| FR-WEB15 | `P1-web-terminal-layout-persist` | Layout preference persisted in browser localStorage, restored on next visit | [P1] User Sovereignty — user workspace preference; [P5] Essentialism — no server-side layout state |
 
 #### Test Contracts (3)
 
@@ -857,6 +860,7 @@ The web interface is the primary deployment surface: users visit a URL, sign in 
 | FR-WEB-T1 | `P1-web-test-oauth-flow` | oauth_callback_creates_user_and_session |
 | FR-WEB-T2 | `P1-web-test-terminal-ws` | websocket_pty_pipes_io |
 | FR-WEB-T3 | `P1-web-test-multi-tenant-scoping` | user_a_cannot_access_user_b_triples |
+| FR-WEB-T4 | `P1-web-test-terminal-layout` | terminal_layout_tabs_spawn_independent_pty |
 
 ### 3.16 Multi-User (`hkask-api` + `hkask-storage`)
 
@@ -986,7 +990,7 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 | Memory | `src/**/*.rs` | `MEM-*`, `memory-salience-*`, `semantic-*` | `P3-mem-*` | 68 |
 | Inference | `src/*.rs`, `tests/*.rs` | `INFER-*`, `inf-cfg-*`, `chat-proto-*`, `INT-*`, `LIVE-*` | `P9-inf-*`, `P4-inf-*` | 58 |
 | Templates | `src/*.rs`, `tests/*.rs` | `TPL-*`, `cap-validator-*`, `templates-contract-*`, `templates-lexicon-*`, `FUZ-*`, `YML-*` | `P3-tpl-*` | 53 |
-| Web Interface | (new) | (new) | `P1-web-*`, `P4-web-*` | 15 |
+| Web Interface | (new) | (new) | `P1-web-*`, `P4-web-*` | 19 |
 | Multi-User | (new) | (new) | `P1-multi-*`, `P2-multi-*` | 12 |
 | Backup & Migration | (new) | (new) | `P1-backup-*`, `P3-backup-*` | 18 |
 

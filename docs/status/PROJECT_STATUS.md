@@ -75,6 +75,7 @@ All 25 workspace members.
 |-------|--------|------|
 | `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-15 |
 | Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `a2a/mod.rs:171` | 2026-06-10 |
+| Deployment model locked in | Single cloud server, browser terminal, no client binary. See deployment-and-backup.md | 2026-06-17 |
 | Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-15 |
 | REQ tag coverage | ✅ 2334 REQ tags (100% coverage — every `pub fn` contracted) | 2026-06-17 |
 | Schema drift check | ✅ `scripts/ci/check-schema-drift.sh` passes (37 tables/indexes) | 2026-06-17 |

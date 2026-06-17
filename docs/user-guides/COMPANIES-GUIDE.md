@@ -1,7 +1,7 @@
 ---
 title: "hKask Companies MCP Server — User Guide"
 audience: [users, agents, operators]
-last_updated: 2026-06-14
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "hkask-mcp-companies"
@@ -193,7 +193,7 @@ mcp-servers/hkask-mcp-companies/src/
 
 ```bash
 # 1. Import your brokerage history
-kask chat -f sample_ledger.csv -m qwen3:8b
+/chat -f sample_ledger.csv -m qwen3:8b
 > ledger_import my_portfolio csv "<paste CSV content>"
 
 # 2. Check your positions

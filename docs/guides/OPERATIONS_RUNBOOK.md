@@ -1,7 +1,7 @@
 ---
 title: "hKask Operations Runbook"
 audience: [operators, deployers, project maintainers]
-last_updated: 2026-06-14
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Draft"
 domain: "Cross-cutting"
@@ -87,11 +87,12 @@ kask daemon start
 kask daemon status
 # Expected: daemon.sock present, PID file exists
 
-# Interactive chat (Curator, default model)
-kask chat
+# Start a chat session (from within the browser terminal)
+# Interactive chat with Curator, default model
+/chat
 
 # Named agent with specific model
-kask chat Alice -m llama3.1:70b
+/chat Alice -m llama3.1:70b
 ```
 
 ---
@@ -163,7 +164,7 @@ kask settings show
 kask keystore list
 
 # Test with explicit provider
-echo "test" | kask chat -f - -m DI/meta-llama/Llama-3.3-70B-Instruct
+echo "test" | kask repl -f - -m DI/meta-llama/Llama-3.3-70B-Instruct
 ```
 
 ### MCP Server Connection Issues
