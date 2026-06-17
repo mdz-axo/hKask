@@ -28,7 +28,7 @@ pub enum McpError {
 ///
 /// Consolidates `Infra(#[from] InfrastructureError)`, `NoSnapshot`,
 /// and `Acp` delegation that were previously duplicated across
-/// `MemoryError`, `EscalationError`, `MetacognitionError`, and `AcpError`.
+/// `MemoryError`, `EscalationError`, `MetacognitionError`, and `A2AError`.
 #[derive(Debug, Error)]
 pub enum CoreError {
     /// Infrastructure failure (DB, IO, serialization, etc.)
@@ -41,7 +41,7 @@ pub enum CoreError {
 
     /// ACP protocol failure
     #[error(transparent)]
-    Acp(#[from] crate::acp::AcpError),
+    Acp(#[from] crate::a2a::A2AError),
 }
 
 impl From<rusqlite::Error> for CoreError {

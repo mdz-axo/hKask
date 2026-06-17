@@ -10,7 +10,7 @@ pub mod version_file;
 pub use encryption::derive_key;
 pub use error::KeystoreError;
 pub use keychain::{
-    Keychain, KeychainError, get_or_create_ocap_secret, resolve, resolve_acp_secret,
+    Keychain, KeychainError, get_or_create_ocap_secret, resolve, resolve_a2a_secret,
     resolve_capability_key, resolve_db_passphrase, resolve_mcp_secret, resolve_mcp_security_key,
     resolve_secret_chain, resolve_treasury_key, resolve_wallet_seed, sign_api_key_capability,
 };

@@ -1,7 +1,7 @@
 //! Agent registration and bot listing — delegates to AgentService.
 //!
 //! All domain operations (ACP, store) come from AgentService.
-//! No direct Database::open(), AcpRuntime::new(), or AgentRegistryStore::new().
+//! No direct Database::open(), A2ARuntime::new(), or AgentRegistryStore::new().
 
 use std::str::FromStr;
 

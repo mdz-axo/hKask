@@ -32,7 +32,7 @@ pub(super) fn single_agent_turn(
     input: &str,
     state: &mut ReplState,
     rt: &tokio::runtime::Handle,
-    acp_secret: &[u8],
+    a2a_secret: &[u8],
 ) -> bool {
     let settings = state.repl_settings.clone();
     let max_loops = settings.tool_loop_limit;
@@ -147,7 +147,7 @@ pub(super) fn single_agent_turn(
             &state.current_agent,
             &state.governed_tool,
             &state.agent_webid,
-            acp_secret,
+            a2a_secret,
             if structured_calls.is_empty() {
                 None
             } else {

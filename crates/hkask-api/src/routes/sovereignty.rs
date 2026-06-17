@@ -52,6 +52,10 @@ pub struct SovereigntyStatusResponse {
     pub granted_categories: Vec<String>,
 }
 
+/// Sovereignty consent request — P2 (Affirmative Consent).
+///
+/// Grant explicit consent for a data category. Valid categories:
+/// "memory", "inference", "replica", "all".
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct SovereigntyConsentRequest {
     /// Data category to grant consent for (e.g. "memory", "inference", "all")
@@ -224,7 +228,7 @@ pub(crate) async fn sovereignty_check_access(
 
     if !has_consent && classification != "PUBLIC" {
         return Err(
-            ServiceError::Acp(hkask_agents::acp::AcpError::CapabilityDenied(
+            ServiceError::Acp(hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 format!("No consent for category '{cat_name}' (class {classification})"),
             ))

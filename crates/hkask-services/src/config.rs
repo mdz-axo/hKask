@@ -43,15 +43,15 @@ pub struct ServiceConfig {
 
     /// HMAC secret for ACP token signing (in-process agent capability policy).
     ///
-    /// Used by AcpRuntime, PodManager, FullMcpAdapter, ManifestExecutor, and
+    /// Used by A2ARuntime, PodManager, FullMcpAdapter, ManifestExecutor, and
     /// CLI tool invocation. Tokens signed with this secret are verified within
-    /// the same process by the ACP runtime.
+    /// the same process by the A2A runtime.
     ///
     /// Guardrail: This secret is intentionally separate from `mcp_secret` to
     /// maintain defense in depth — in-process capability tokens and inter-process
     /// MCP auth tokens use independent HMAC keys so compromising one boundary
     /// does not compromise the other.
-    pub acp_secret: Vec<u8>,
+    pub a2a_secret: Vec<u8>,
 
     /// HMAC secret for MCP protocol authorization (inter-process).
     ///
@@ -59,7 +59,7 @@ pub struct ServiceConfig {
     /// `capability_checker`, and `McpDispatcher`. Tokens signed with this
     /// secret are verified by external MCP servers and API callers.
     ///
-    /// Guardrail: See `acp_secret` for the rationale for keeping these secrets
+    /// Guardrail: See `a2a_secret` for the rationale for keeping these secrets
     /// independent.
     pub mcp_secret: Vec<u8>,
 
@@ -118,7 +118,7 @@ impl ServiceConfig {
     ///
     /// REQ: P7-svc-config-221
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  keystore must have acp_secret, db_passphrase, and mcp_secret configured
+    /// pre:  keystore must have a2a_secret, db_passphrase, and mcp_secret configured
     /// post: returns ServiceConfig with env-derived values and keystore secrets; Err(Keystore) on secret resolution failure
     pub fn from_env() -> Result<Self, ServiceError> {
         let db_path =
@@ -134,7 +134,7 @@ impl ServiceConfig {
 
         // Resolve secrets from keystore. If keystore resolution fails,
         // fall back to empty secrets (in-memory mode will be used).
-        let acp_secret = hkask_keystore::resolve_acp_secret()
+        let a2a_secret = hkask_keystore::resolve_a2a_secret()
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to resolve ACP secret".into(),
@@ -158,7 +158,7 @@ impl ServiceConfig {
         Ok(Self {
             db_path,
             db_passphrase,
-            acp_secret,
+            a2a_secret,
             mcp_secret: mcp_secret_vec,
             default_model,
             inference_config,
@@ -182,10 +182,10 @@ impl ServiceConfig {
     ///
     /// REQ: P7-svc-config-222
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  acp_secret, db_passphrase, mcp_secret, agent_name must be non-empty
+    /// pre:  a2a_secret, db_passphrase, mcp_secret, agent_name must be non-empty
     /// post: returns ServiceConfig with provided secrets and env-derived or default values
     pub fn from_secrets(
-        acp_secret: String,
+        a2a_secret: String,
         db_passphrase: String,
         mcp_secret: String,
         agent_name: String,
@@ -203,7 +203,7 @@ impl ServiceConfig {
         Self {
             db_path,
             db_passphrase,
-            acp_secret: acp_secret.into_bytes(),
+            a2a_secret: a2a_secret.into_bytes(),
             mcp_secret: mcp_secret.into_bytes(),
             inference_config: inference_config.clone(),
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
@@ -233,7 +233,7 @@ impl ServiceConfig {
         Self {
             db_path: ":memory:".to_string(),
             db_passphrase: String::new(),
-            acp_secret: vec![0u8; 32],
+            a2a_secret: vec![0u8; 32],
             mcp_secret: vec![0u8; 32],
             inference_config: inference_config.clone(),
             cns_threshold: hkask_cns::DEFAULT_THRESHOLD,

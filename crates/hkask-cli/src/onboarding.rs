@@ -309,9 +309,9 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
 
     // Initialize registry with the derived secrets directly
     let config = ServiceConfig::from_secrets(
-        resolved.acp_secret.clone(),
+        resolved.a2a_secret.clone(),
         resolved.db_passphrase.clone(),
-        resolved.acp_secret.clone(), // MCP secret fallback to ACP
+        resolved.a2a_secret.clone(), // MCP secret fallback to ACP
         display_name.clone(),
     );
     let handle = OnboardingService::init_registry(&config)

@@ -26,6 +26,11 @@ use crate::middleware::AuthContext;
 // ── Request/Response types (API-surface only, no domain type coupling) ──
 
 /// Backup scope for API requests.
+///
+/// Controls which artifacts a snapshot or restore targets:
+/// - `Full` — all tracked artifact types (templates, styles, triples).
+/// - `ByType` — all artifacts of a single type (e.g., "template").
+/// - `ByIds` — specific artifacts by ID within a type.
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ApiBackupScope {
@@ -46,7 +51,10 @@ pub struct SnapshotRequest {
     pub scope: ApiBackupScope,
 }
 
-/// Backup snapshot response.
+/// Backup snapshot response — result of a snapshot operation via GitCAS.
+///
+/// `commits` lists the Git commits backing this snapshot.
+/// `trigger` is "manual" (API-triggered) or "auto" (scheduled).
 #[derive(Debug, Serialize, ToSchema)]
 pub struct SnapshotResponse {
     pub commits: Vec<CommitInfo>,
@@ -55,6 +63,7 @@ pub struct SnapshotResponse {
     pub timestamp: String,
 }
 
+/// Git commit info — repository and commit hash for a backup snapshot.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CommitInfo {
     pub repo: String,
@@ -81,11 +90,14 @@ pub struct RestoreRequest {
 }
 
 /// Backup restore response.
+///
+/// `artifacts` lists the artifacts recovered from the backup snapshot.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RestoreResponse {
     pub artifacts: Vec<RestoredArtifact>,
 }
 
+/// Restored artifact — identifies a single artifact recovered from a backup.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RestoredArtifact {
     pub artifact_type: String,
@@ -114,6 +126,9 @@ pub struct ListResponse {
 }
 
 /// Backup prune request.
+///
+/// `dry_run` (default: true) reports what would be removed without deleting.
+/// Set to false to actually remove expired snapshots.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct PruneRequest {
     #[serde(default = "default_dry_run")]
@@ -125,6 +140,9 @@ fn default_dry_run() -> bool {
 }
 
 /// Backup prune response.
+///
+/// `evaluated` is snapshots checked. `removed` lists deleted commit hashes.
+/// `retained` is snapshots kept.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct PruneResponse {
     pub dry_run: bool,
@@ -134,11 +152,14 @@ pub struct PruneResponse {
 }
 
 /// Backup verify response.
+///
+/// Returns per-repository integrity verification reports from GitCAS.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct VerifyResponse {
     pub reports: Vec<RepoVerifyReport>,
 }
 
+/// Repository verify report — per-repo Git integrity verification result.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RepoVerifyReport {
     pub repo: String,
@@ -148,7 +169,10 @@ pub struct RepoVerifyReport {
     pub ok: bool,
 }
 
-/// Backup config response.
+/// Backup config response — current snapshot and retention configuration.
+///
+/// `tracked_types` lists artifact types included in snapshots.
+/// `retention` is the time-based cleanup policy (None = keep indefinitely).
 #[derive(Debug, Serialize, ToSchema)]
 pub struct BackupConfigResponse {
     pub tracked_types: Vec<String>,
@@ -157,6 +181,10 @@ pub struct BackupConfigResponse {
     pub retention: Option<RetentionConfigResponse>,
 }
 
+/// Retention config — time-based snapshot cleanup policy.
+///
+/// `daily_days` is how many daily snapshots to keep.
+/// `weekly_weeks` is how many weekly snapshots to keep.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RetentionConfigResponse {
     pub daily_days: u32,
@@ -164,6 +192,9 @@ pub struct RetentionConfigResponse {
 }
 
 /// Backup config update request.
+///
+/// All fields are optional — only provided fields are updated.
+/// `retention` accepts "daily:N,weekly:M" format (e.g., "daily:7,weekly:4").
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateConfigRequest {
     pub tracked_types: Option<Vec<String>>,

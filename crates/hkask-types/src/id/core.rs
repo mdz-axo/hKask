@@ -182,6 +182,18 @@ pub enum EscalationKind {}
 impl private::Sealed for EscalationKind {}
 impl IdKind for EscalationKind {}
 
+pub enum BoardKind {}
+impl private::Sealed for BoardKind {}
+impl IdKind for BoardKind {}
+
+pub enum ColumnKind {}
+impl private::Sealed for ColumnKind {}
+impl IdKind for ColumnKind {}
+
+pub enum TaskKind {}
+impl private::Sealed for TaskKind {}
+impl IdKind for TaskKind {}
+
 // ── Type aliases ──────────────────────────────────────────────────────────
 
 pub type TemplateID = Id<TemplateKind>;
@@ -196,3 +208,6 @@ pub type PodID = Id<PodKind>;
 pub type WalletId = Id<WalletKind>;
 pub type ApiKeyId = Id<ApiKeyKind>;
 pub type EscalationID = Id<EscalationKind>;
+pub type BoardId = Id<BoardKind>;
+pub type ColumnId = Id<ColumnKind>;
+pub type TaskId = Id<TaskKind>;

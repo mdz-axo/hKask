@@ -2,13 +2,13 @@
 //!
 //! # Service layer depth test
 //!
-//! AcpService was considered but **rejected** as shallow: every handler is a thin
-//! delegation to `AcpRuntime` methods (`register_agent`, `list_agents`,
+//! A2AService was considered but **rejected** as shallow: every handler is a thin
+//! delegation to `A2ARuntime` methods (`register_agent`, `list_agents`,
 //! `unregister_agent`) plus HTTP response mapping. No CLI ACP commands exist.
-//! An AcpService would just be `self.acp_runtime().register_agent()` — a pure
+//! An A2AService would just be `self.a2a_runtime().register_agent()` — a pure
 //! pass-through that increases interface cost without adding behavior.
 //!
-//! Decision: Guideline — keep direct `service_context.pod_manager().acp_runtime()` access.
+//! Decision: Guideline — keep direct `service_context.pod_manager().a2a_runtime()` access.
 //! Revisit if ACP policy logic (e.g., capability scoping, agent tier enforcement)
 //! grows beyond simple registration/delegation.
 
@@ -38,7 +38,7 @@ fn parse_webid(raw: &str) -> Result<WebID, ServiceError> {
 
 /// ACP registration request
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct AcpRegisterRequest {
+pub struct A2ARegisterRequest {
     /// Agent WebID (UUID string)
     pub webid: String,
     /// Agent type: "Bot" or "Replicant"
@@ -49,7 +49,7 @@ pub struct AcpRegisterRequest {
 
 /// ACP registration response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct AcpRegisterResponse {
+pub struct A2ARegisterResponse {
     /// Granted capability token (HMAC-signed)
     pub token: String,
     /// Registration timestamp (Unix epoch seconds)
@@ -58,9 +58,13 @@ pub struct AcpRegisterResponse {
     pub webid: String,
 }
 
-/// ACP agent response
+/// ACP agent response — registered agent in the ACP capability delegation system (P4 OCAP).
+///
+/// `agent_type` is "Bot" or "Replicant" (P10).
+/// `capabilities` are the granted capability verbs this agent holds.
+/// `active` indicates whether the agent is currently allowed to exercise its capabilities.
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct AcpAgentResponse {
+pub struct A2AAgentResponse {
     pub webid: String,
     pub agent_type: String,
     pub capabilities: Vec<String>,
@@ -68,10 +72,10 @@ pub struct AcpAgentResponse {
     pub active: bool,
 }
 
-/// Agent list response
+/// Agent list response — all ACP-registered agents.
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct AgentListResponse {
-    pub agents: Vec<AcpAgentResponse>,
+    pub agents: Vec<A2AAgentResponse>,
 }
 
 /// Create ACP router
@@ -79,19 +83,19 @@ pub struct AgentListResponse {
 /// REQ: API-014
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with ACP routes registered
-pub fn acp_router() -> OpenApiRouter<ApiState> {
+pub fn a2a_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/v1/acp/register", axum::routing::post(acp_register))
         .routes(routes!(acp_list_agents))
         .routes(routes!(acp_unregister_agent))
 }
 
-/// Register an agent with the ACP runtime
+/// Register an agent with the A2A runtime
 async fn acp_register(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-    Json(req): Json<AcpRegisterRequest>,
-) -> Result<Json<AcpRegisterResponse>, ServiceErrorResponse> {
+    Json(req): Json<A2ARegisterRequest>,
+) -> Result<Json<A2ARegisterResponse>, ServiceErrorResponse> {
     let webid = parse_webid(&req.webid)?;
 
     let agent_kind = hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| {
@@ -112,12 +116,12 @@ async fn acp_register(
         .into());
     }
 
-    let acp = state.agent_service.pod_manager().acp_runtime();
+    let acp = state.agent_service.pod_manager().a2a_runtime();
     let token = acp
         .register_agent(webid, agent_kind, req.capabilities)
         .await?;
 
-    Ok(Json(AcpRegisterResponse {
+    Ok(Json(A2ARegisterResponse {
         token: token.id.clone(),
         registered_at: chrono::Utc::now().timestamp(),
         webid: req.webid,
@@ -128,7 +132,7 @@ async fn acp_register(
 #[utoipa::path(
     get,
     path = "/api/v1/acp/agents",
-    tag = "acp",
+    tag = "a2a",
     responses(
         (status = 200, description = "List of registered agents", body = AgentListResponse),
         (status = 401, description = "Unauthorized"),
@@ -139,12 +143,12 @@ pub(crate) async fn acp_list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<AgentListResponse>, ServiceErrorResponse> {
-    let acp = state.agent_service.pod_manager().acp_runtime();
+    let acp = state.agent_service.pod_manager().a2a_runtime();
     let agents = acp.list_agents().await;
 
-    let agent_responses: Vec<AcpAgentResponse> = agents
+    let agent_responses: Vec<A2AAgentResponse> = agents
         .into_iter()
-        .map(|a| AcpAgentResponse {
+        .map(|a| A2AAgentResponse {
             webid: a.webid.to_string(),
             agent_type: a.agent_type.to_string(),
             capabilities: a.capabilities,
@@ -162,7 +166,7 @@ pub(crate) async fn acp_list_agents(
 #[utoipa::path(
     delete,
     path = "/api/v1/acp/agents/{agent_id}",
-    tag = "acp",
+    tag = "a2a",
     params(
         ("agent_id" = String, Path, description = "ACP agent ID to unregister"),
     ),
@@ -183,7 +187,7 @@ pub(crate) async fn acp_unregister_agent(
 
     let webid = parse_webid(&agent_id)?;
 
-    let acp = state.agent_service.pod_manager().acp_runtime();
+    let acp = state.agent_service.pod_manager().a2a_runtime();
     acp.unregister_agent(&webid).await?;
 
     Ok(StatusCode::NO_CONTENT)

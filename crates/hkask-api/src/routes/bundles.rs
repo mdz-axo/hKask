@@ -16,7 +16,10 @@ use crate::error::ServiceErrorResponse;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// Bundle summary for list responses
+/// Bundle summary for list responses — a skill bundle in the Skills Model (Pattern A).
+///
+/// `visibility` is "private" or "shared" (P11).
+/// `skill_count` is the number of WordAct/FlowDef/KnowAct templates in the bundle.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct BundleSummary {
     pub id: String,
@@ -27,7 +30,10 @@ pub struct BundleSummary {
     pub skill_count: usize,
 }
 
-/// Compose bundle request
+/// Compose bundle request — create a new skill bundle from individual template IDs (Pattern A).
+///
+/// Requires at least 2 skills. The bundle composer uses inference to generate
+/// a manifest describing how the skills compose together.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ComposeBundleRequest {
     /// Skill IDs to bundle
@@ -43,7 +49,10 @@ fn default_visibility() -> String {
     "private".to_string()
 }
 
-/// Compose bundle response
+/// Compose bundle response — result of inference-driven bundle composition.
+///
+/// `manifest` is the composed bundle definition (JSON).
+/// `warnings` lists any composition concerns detected.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ComposeBundleResponse {
     /// The composed bundle manifest (as JSON)
@@ -54,7 +63,9 @@ pub struct ComposeBundleResponse {
     pub message: String,
 }
 
-/// Apply bundle response
+/// Apply bundle response — result of activating a bundle in the current session.
+///
+/// `status` is "active" on success.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ApplyBundleResponse {
     pub status: String,
@@ -63,7 +74,10 @@ pub struct ApplyBundleResponse {
     pub skill_count: usize,
 }
 
-/// Evolve bundle response
+/// Evolve bundle response — result of re-composing a bundle after skill changes.
+///
+/// `evolved_manifest` is the updated bundle definition.
+/// `changes` lists what changed from the previous version.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct EvolveBundleResponse {
     pub evolved_manifest: Option<serde_json::Value>,
@@ -71,13 +85,15 @@ pub struct EvolveBundleResponse {
     pub message: String,
 }
 
-/// List bundles response
+/// List bundles response.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct BundleListResponse {
     pub bundles: Vec<BundleSummary>,
 }
 
-/// Deactivate bundle response
+/// Deactivate bundle response.
+///
+/// `status` is "deactivated" on success.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct DeactivateBundleResponse {
     pub status: String,

@@ -187,8 +187,8 @@ pub fn run(
                 // Derived from onboarding — same secret that governs OCAP authority.
                 // Wrapped in ZeroizingSecret for defense-in-depth: the secret bytes
                 // are scrubbed from memory on drop.
-                let acp_secret = match &state.resolved_secrets {
-                    Some(secrets) => ZeroizingSecret::new(secrets.acp_secret.as_bytes().to_vec()),
+                let a2a_secret = match &state.resolved_secrets {
+                    Some(secrets) => ZeroizingSecret::new(secrets.a2a_secret.as_bytes().to_vec()),
                     None => {
                         eprintln!(
                             "Error: No ACP secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
@@ -200,9 +200,9 @@ pub fn run(
                 if let Some(ref _session) = state.active_session.clone() {
                     // Dual-presence active. Fall back to single-agent mode.
                     state.active_session = None;
-                    turn::single_agent_turn(input, &mut state, &rt, &acp_secret);
+                    turn::single_agent_turn(input, &mut state, &rt, &a2a_secret);
                 } else {
-                    turn::single_agent_turn(input, &mut state, &rt, &acp_secret);
+                    turn::single_agent_turn(input, &mut state, &rt, &a2a_secret);
                 }
             }
             Err(ReadlineError::Interrupted) => {

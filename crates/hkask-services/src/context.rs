@@ -155,8 +155,8 @@ pub struct AgentService {
     /// Spec store for specification capture, validation, and cultivation.
     spec_store: SqliteSpecStore,
 
-    /// ACP runtime for capability token management and agent registration.
-    acp_runtime: Arc<hkask_agents::AcpRuntime>,
+    /// A2A runtime for capability token management and agent registration.
+    a2a_runtime: Arc<hkask_agents::A2ARuntime>,
 
     /// Agent registry store for persistent agent records.
     agent_registry_store: hkask_storage::AgentRegistryStore,
@@ -400,14 +400,14 @@ impl AgentService {
     }
 
     // --- Identity ---
-    /// System WebID + ACP runtime.
+    /// System WebID + A2A runtime.
     ///
     /// REQ: P3-svc-context-262
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
-    /// post: returns (&WebID, &Arc<AcpRuntime>) tuple
-    pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::AcpRuntime>) {
-        (&self.system_webid, &self.acp_runtime)
+    /// post: returns (&WebID, &Arc<A2ARuntime>) tuple
+    pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::A2ARuntime>) {
+        (&self.system_webid, &self.a2a_runtime)
     }
 
     /// Sovereignty: consent management service.
@@ -424,9 +424,9 @@ impl AgentService {
 
     // === Category 4: Internal implementation (crate-visible only) ===
 
-    /// Access ACP runtime for agent registration and capability management.
-    pub(crate) fn acp_runtime(&self) -> &Arc<hkask_agents::AcpRuntime> {
-        &self.acp_runtime
+    /// Access A2A runtime for agent registration and capability management.
+    pub(crate) fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime> {
+        &self.a2a_runtime
     }
 
     /// Access curation inbox transmitter.
@@ -607,24 +607,24 @@ pub fn open_consent_manager(
     Ok((cm, sovereignty_boundary_store))
 }
 
-/// Build an ACP runtime + agent registry store from config.
+/// Build an A2A runtime + agent registry store from config.
 ///
 /// REQ: P3-svc-context-275
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-/// pre:  config must have valid db_path, db_passphrase, and acp_secret
-/// post: returns (Arc<AcpRuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
+/// pre:  config must have valid db_path, db_passphrase, and a2a_secret
+/// post: returns (Arc<A2ARuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
 pub fn open_agent_registry(
     config: &ServiceConfig,
 ) -> Result<
     (
-        Arc<hkask_agents::AcpRuntime>,
+        Arc<hkask_agents::A2ARuntime>,
         hkask_storage::AgentRegistryStore,
     ),
     ServiceError,
 > {
     let db = Database::open(&config.db_path, &config.db_passphrase)?;
     let conn = db.conn_arc();
-    let acp = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
+    let acp = Arc::new(hkask_agents::A2ARuntime::new(&config.a2a_secret));
     let store = hkask_storage::AgentRegistryStore::new(conn);
     store
         .initialize_schema()
@@ -651,7 +651,7 @@ impl AgentService {
     /// 3. CNS runtime + event sink
     /// 4. Loop system + cybernetics loop
     /// 5. GovernedTool membrane + MCP dispatcher
-    /// 6. ACP runtime + pod manager
+    /// 6. A2A runtime + pod manager
     /// 7. Inference port (optional, based on config)
     /// 8. Memory adapters (episodic + semantic)
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError> {
@@ -693,7 +693,7 @@ impl AgentService {
             energy_estimator: mcp_pods.energy_estimator,
             sovereignty_boundary_store: foundation.sovereignty_boundary_store,
             spec_store: foundation.spec_store,
-            acp_runtime: loops.acp_runtime,
+            a2a_runtime: loops.a2a_runtime,
             agent_registry_store: reg_wallet.agent_registry_store,
             user_store: foundation.user_store,
             daemon_handler: mcp_pods.daemon_handler,
@@ -903,7 +903,7 @@ struct Loops {
     episodic_storage: Arc<dyn EpisodicStoragePort>,
     semantic_storage: Arc<dyn SemanticStoragePort>,
     tool_consumption_tx: tokio::sync::mpsc::UnboundedSender<ToolConsumptionEvent>,
-    acp_runtime: Arc<hkask_agents::AcpRuntime>,
+    a2a_runtime: Arc<hkask_agents::A2ARuntime>,
 }
 
 async fn build_loops(
@@ -992,8 +992,8 @@ async fn build_loops(
 
     // Curation loop
     let cns_for_curator: Arc<CnsRuntime> = Arc::new(f.cns_runtime.read().await.clone());
-    let acp_runtime = Arc::new(hkask_agents::AcpRuntime::new(&config.acp_secret));
-    let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
+    let a2a_runtime = Arc::new(hkask_agents::A2ARuntime::new(&config.a2a_secret));
+    let acp_port: Arc<dyn hkask_agents::ports::A2APort> = a2a_runtime.clone();
     let curator_context = Arc::new(
         CuratorContext::new(
             CuratorHandle::system(),
@@ -1046,7 +1046,7 @@ async fn build_loops(
         episodic_storage,
         semantic_storage,
         tool_consumption_tx,
-        acp_runtime,
+        a2a_runtime,
     })
 }
 
@@ -1098,7 +1098,7 @@ async fn build_mcp_and_pods(
     // Pod manager
     let capability_checker = Arc::new(CapabilityChecker::new(&config.mcp_secret));
     let mcp_runtime_adapter = hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
-        Arc::new(CapabilityChecker::new(&config.acp_secret)),
+        Arc::new(CapabilityChecker::new(&config.a2a_secret)),
         Arc::new((*mcp_runtime).clone()),
         tokio::runtime::Handle::current(),
     );
@@ -1106,12 +1106,12 @@ async fn build_mcp_and_pods(
         Some(Arc::new(hkask_mcp::GitCasAdapter::from_path(
             std::path::PathBuf::from(&config.template_cache_path),
         ))),
-        Some(l.acp_runtime.clone()),
+        Some(l.a2a_runtime.clone()),
         Some(Arc::new(mcp_runtime_adapter)),
         Some(Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>),
         Some(Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>),
         None,
-        Some(Arc::new(CapabilityChecker::new(&config.acp_secret))),
+        Some(Arc::new(CapabilityChecker::new(&config.a2a_secret))),
         Some(governed_tool.clone()),
         None,
     ));
@@ -1262,9 +1262,9 @@ fn build_registry_and_wallet(
         .map_err(ServiceError::AgentRegistryStore)?;
     if !registered_agents.is_empty() {
         use std::str::FromStr;
-        let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
+        let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
             .iter()
-            .map(|ra| hkask_agents::acp::AcpAgent {
+            .map(|ra| hkask_agents::a2a::A2AAgent {
                 webid: hkask_types::WebID::from_str(&ra.definition.name).unwrap_or_else(|_| {
                     hkask_types::WebID::from_persona(ra.definition.name.as_bytes())
                 }),
@@ -1281,7 +1281,7 @@ fn build_registry_and_wallet(
         // This is acceptable because build() runs at startup, not in a hot loop.
         let handle = tokio::runtime::Handle::current();
         handle
-            .block_on(l.acp_runtime.restore_from_storage(agents, tokens))
+            .block_on(l.a2a_runtime.restore_from_storage(agents, tokens))
             .map_err(ServiceError::Acp)?;
     }
 

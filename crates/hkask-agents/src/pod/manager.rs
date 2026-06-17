@@ -23,7 +23,7 @@ pub type ActivationHook = Box<dyn Fn(WebID, String) + Send + Sync>;
 pub struct PodManager {
     pub(crate) pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
     git_cas: Arc<GitCasAdapter>,
-    acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
+    a2a_runtime: Arc<dyn crate::ports::A2APort + Send + Sync>,
     pub(crate) mcp_runtime: Arc<dyn MCPRuntimePort>,
     pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,
@@ -74,7 +74,7 @@ impl PodManager {
     ///       pod registry and activation hooks.
     pub fn new(
         git_cas: Option<Arc<GitCasAdapter>>,
-        acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
+        a2a_runtime: Option<Arc<dyn crate::ports::A2APort + Send + Sync>>,
         mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
         episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
         semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
@@ -90,7 +90,7 @@ impl PodManager {
         }
         let default_adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
         let capability_checker =
-            capability_checker.or_else(|| resolve_acp_secret_for_checker().map(Arc::new));
+            capability_checker.or_else(|| resolve_a2a_secret_for_checker().map(Arc::new));
         if capability_checker.is_none() {
             tracing::info!(target: "hkask.ocap",
                 "No capability checker configured — PodContext::require_capability() will deny capabilities");
@@ -102,7 +102,7 @@ impl PodManager {
                     "./registry/templates",
                 )))
             }),
-            acp_runtime: acp_runtime.unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
+            a2a_runtime: a2a_runtime.unwrap_or_else(|| Arc::new(crate::a2a::A2ARuntime::default())),
             mcp_runtime: mcp_runtime.unwrap_or_else(|| {
                 Arc::new(CapabilityOnlyAdapter::new(Arc::new(
                     CapabilityChecker::new(&[]),
@@ -174,7 +174,7 @@ impl PodManager {
     ///       defaults), `DenyAllConsent`, and empty pod registry.
     pub fn with_inference(
         git_cas: Arc<GitCasAdapter>,
-        acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
+        a2a_runtime: Arc<dyn crate::ports::A2APort + Send + Sync>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         episodic_storage: Arc<dyn EpisodicStoragePort>,
         semantic_storage: Arc<dyn SemanticStoragePort>,
@@ -182,7 +182,7 @@ impl PodManager {
     ) -> Self {
         Self::new(
             Some(git_cas),
-            Some(acp_runtime),
+            Some(a2a_runtime),
             Some(mcp_runtime),
             Some(episodic_storage),
             Some(semantic_storage),
@@ -234,7 +234,7 @@ impl PodManager {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
-            acp_runtime: Arc::new(crate::acp::AcpRuntime::new(MOCK_ACP_SECRET)),
+            a2a_runtime: Arc::new(crate::a2a::A2ARuntime::new(MOCK_ACP_SECRET)),
             mcp_runtime: Arc::new(CapabilityOnlyAdapter::new(Arc::clone(&capability_checker))),
             episodic_storage: adapter.clone(),
             semantic_storage: adapter,
@@ -303,7 +303,7 @@ impl PodManager {
         };
         let token = if let Some((webid, agent_type, capabilities)) = registration_data {
             Some(
-                self.acp_runtime
+                self.a2a_runtime
                     .register_agent(webid, agent_type, capabilities)
                     .await
                     .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?,
@@ -370,7 +370,7 @@ impl PodManager {
             );
         }
         if let Err(e) = self
-            .acp_runtime()
+            .a2a_runtime()
             .revoke_capability(&token_id, &webid)
             .await
         {
@@ -435,9 +435,9 @@ impl PodManager {
     /// REQ: P1-agt-pod-manager-acp-port
     /// \[P4\] Constraining: Clear Boundaries — accessor for ACP port
     /// pre:  (none — accessor).
-    /// post: Returns a clone of the inner `Arc<dyn AcpPort + Send + Sync>`.
-    pub fn acp_runtime(&self) -> Arc<dyn crate::ports::AcpPort + Send + Sync> {
-        Arc::clone(&self.acp_runtime)
+    /// post: Returns a clone of the inner `Arc<dyn A2APort + Send + Sync>`.
+    pub fn a2a_runtime(&self) -> Arc<dyn crate::ports::A2APort + Send + Sync> {
+        Arc::clone(&self.a2a_runtime)
     }
 
     // ── Daemon-oriented accessors ──
@@ -576,8 +576,8 @@ impl Default for PodManager {
     }
 }
 
-fn resolve_acp_secret_for_checker() -> Option<CapabilityChecker> {
-    hkask_keystore::resolve_acp_secret()
+fn resolve_a2a_secret_for_checker() -> Option<CapabilityChecker> {
+    hkask_keystore::resolve_a2a_secret()
         .ok()
         .map(|secret| CapabilityChecker::new(&secret))
 }

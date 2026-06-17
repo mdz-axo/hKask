@@ -112,7 +112,7 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "models", description = "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI) — discover and search available LLMs"),
         (name = "curator", description = "Curator escalation and metacognition — bot health reports and pending escalation queue (Pattern C, P12)"),
         (name = "git", description = "Git archival and resolution — template crate loading and SHA resolution via GitCASPort hexagonal boundary"),
-        (name = "acp", description = "ACP agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"),
+        (name = "a2a", description = "ACP agent registration — register, list, and unregister agents with capability delegation (P4 OCAP)"),
         (name = "goals", description = "Goal coordination substrate — creation, listing, and state transitions with OCAP authority gating (P4)"),
         (name = "bundles", description = "Bundle composition and evolution — inference-driven skill bundling with apply/deactivate lifecycle (Pattern A)"),
         (name = "episodic", description = "Episodic memory — store and query bitemporal triples with OCAP-gated access (P1, P4, P11)"),

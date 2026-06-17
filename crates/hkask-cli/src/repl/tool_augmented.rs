@@ -186,7 +186,7 @@ pub async fn invoke_tool_call(
     call: &ToolCall,
     governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,
     agent_webid: &WebID,
-    acp_secret: &[u8],
+    a2a_secret: &[u8],
 ) -> Result<serde_json::Value, String> {
     let token = DelegationToken::new(
         DelegationResource::Tool,
@@ -194,7 +194,7 @@ pub async fn invoke_tool_call(
         DelegationAction::Execute,
         WebID::new(),
         *agent_webid,
-        &derive_signing_key(acp_secret),
+        &derive_signing_key(a2a_secret),
     );
 
     governed_tool
@@ -248,7 +248,7 @@ pub async fn process_response(
     agent_name: &str,
     governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,
     agent_webid: &WebID,
-    acp_secret: &[u8],
+    a2a_secret: &[u8],
     structured_tool_calls: Option<&[StructuredToolCall]>,
 ) -> ProcessedResponse {
     // Priority 1: Use structured tool calls from native function calling
@@ -309,7 +309,7 @@ pub async fn process_response(
         }
         println!("...");
 
-        let result = invoke_tool_call(call, governed_tool, agent_webid, acp_secret).await;
+        let result = invoke_tool_call(call, governed_tool, agent_webid, a2a_secret).await;
 
         match &result {
             Ok(value) => {

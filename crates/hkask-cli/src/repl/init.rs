@@ -102,7 +102,7 @@ pub(super) fn init_repl_state(
                 .map(|s| String::from_utf8_lossy(&s).to_string())
                 .unwrap_or_else(|_| "hkask-mcp-default".to_string());
             hkask_services::ServiceConfig::from_secrets(
-                secrets.acp_secret.clone(),
+                secrets.a2a_secret.clone(),
                 secrets.db_passphrase.clone(),
                 mcp_secret,
                 onboarding_outcome.signed_in_agent.clone(),
@@ -280,15 +280,15 @@ pub(super) fn init_repl_state(
         let manifest = hkask_templates::resolve_manifest(manifest_ref, registry);
 
         if let Some(bundle) = manifest {
-            let acp_secret: &[u8] = state
+            let a2a_secret: &[u8] = state
                 .resolved_secrets
                 .as_ref()
-                .map(|s| s.acp_secret.as_bytes())
+                .map(|s| s.a2a_secret.as_bytes())
                 .unwrap_or(&[]);
 
             let mcp_dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(
                 (*mcp_runtime).clone(),
-                acp_secret,
+                a2a_secret,
                 state.governed_tool.clone(),
             );
 
@@ -296,7 +296,7 @@ pub(super) fn init_repl_state(
                 state.inference_port.clone(),
                 Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
                 LLMParameters::default(),
-                acp_secret.to_vec(),
+                a2a_secret.to_vec(),
             );
 
             tracing::info!(

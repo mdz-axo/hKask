@@ -246,7 +246,7 @@ fn run_rotate(keychain: &hkask_keystore::Keychain, new_passphrase: Option<&str>)
         });
     };
 
-    store("hkask-acp-secret", &secrets.acp_secret);
+    store("hkask-acp-secret", &secrets.a2a_secret);
     store("hkask-capability-key", &secrets.capability_key);
     store("hkask-mcp-security-key", &secrets.mcp_security_key);
     store("hkask-ocap-secret", &secrets.ocap_secret);

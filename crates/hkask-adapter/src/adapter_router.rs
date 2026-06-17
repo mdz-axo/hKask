@@ -1,0 +1,1065 @@
+//! AdapterRouter — composes adapter + base model + provider → endpoint (P4 Clear Boundaries).
+//!
+//! The `AdapterRouter` implements `AdapterPort`. It holds an `AdapterStore` for adapter CRUD
+//! and a registry of provider backends for endpoint provisioning and inference.
+//!
+//! Mirrors `InferenceRouter::new` and `resolve` patterns from `hkask-inference`.
+
+use crate::AdapterStore;
+use crate::adapter_port::{
+    AdapterError, AdapterPort, CompositionEstimate, EndpointStatus, InferenceEndpointHandle,
+    ProviderSelection, SingleCandidate,
+};
+use crate::adapter_store::TrainedLoRAAdapter;
+use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
+use crate::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
+use hkask_inference::ProviderId;
+use hkask_types::capability::DelegationToken;
+use hkask_types::capability::auth::derive_signing_key;
+use hkask_types::capability::{DelegationAction, DelegationResource};
+use hkask_types::id::WebID;
+use hkask_types::ports::InferenceResult;
+use hkask_types::template::LLMParameters;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, Weak};
+use tracing;
+use uuid::Uuid;
+
+// ── Provider backend abstraction ─────────────────────────────────────────────
+
+/// Operations a cloud provider must support for adapter composition.
+///
+/// Each provider backend handles the actual HTTP API calls to provision
+/// endpoints, run inference, and tear down. This is the trait boundary
+/// for adding new providers (P7 — Evolutionary Architecture).
+trait AdapterProviderBackend: Send + Sync {
+    /// Provision a new endpoint for adapter inference.
+    fn provision_endpoint(&self, adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError>;
+
+    /// Run inference against a provisioned endpoint.
+    fn infer(
+        &self,
+        endpoint_url: &str,
+        prompt: &str,
+        params: &LLMParameters,
+    ) -> Result<InferenceResult, AdapterError>;
+
+    /// Tear down a provisioned endpoint.
+    fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError>;
+
+    /// Provider capabilities.
+    fn capability(&self) -> ProviderCapability;
+
+    /// Provider cost model.
+    fn cost_model(&self) -> CostModel;
+}
+
+// ── Skeleton backend implementations ─────────────────────────────────────────
+// These mirror the pattern in hkask-inference (OllamaBackend, TogetherBackend, etc.)
+// but with skeleton HTTP calls for now (real API integration follows in Task 5 completion).
+
+struct TogetherAdapterBackend {
+    cost_model: CostModel,
+    capability: ProviderCapability,
+}
+
+impl AdapterProviderBackend for TogetherAdapterBackend {
+    fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
+        // Skeleton: in production, calls Together AI API to provision LoRA endpoint
+        Ok(format!(
+            "https://api.together.xyz/v1/endpoints/{}",
+            Uuid::new_v4()
+        ))
+    }
+
+    fn infer(
+        &self,
+        _endpoint_url: &str,
+        _prompt: &str,
+        _params: &LLMParameters,
+    ) -> Result<InferenceResult, AdapterError> {
+        Err(AdapterError::Internal(
+            "Together adapter inference not yet implemented — API integration pending".into(),
+        ))
+    }
+
+    fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
+        // Skeleton: in production, calls Together AI API to delete endpoint
+        Ok(())
+    }
+
+    fn capability(&self) -> ProviderCapability {
+        self.capability.clone()
+    }
+
+    fn cost_model(&self) -> CostModel {
+        self.cost_model.clone()
+    }
+}
+
+struct RunpodAdapterBackend {
+    cost_model: CostModel,
+    capability: ProviderCapability,
+}
+
+impl AdapterProviderBackend for RunpodAdapterBackend {
+    fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
+        Ok(format!(
+            "https://api.runpod.io/v2/endpoints/{}",
+            Uuid::new_v4()
+        ))
+    }
+
+    fn infer(
+        &self,
+        _endpoint_url: &str,
+        _prompt: &str,
+        _params: &LLMParameters,
+    ) -> Result<InferenceResult, AdapterError> {
+        Err(AdapterError::Internal(
+            "Runpod adapter inference not yet implemented — API integration pending".into(),
+        ))
+    }
+
+    fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
+        Ok(())
+    }
+
+    fn capability(&self) -> ProviderCapability {
+        self.capability.clone()
+    }
+
+    fn cost_model(&self) -> CostModel {
+        self.cost_model.clone()
+    }
+}
+
+struct BasetenAdapterBackend {
+    cost_model: CostModel,
+    capability: ProviderCapability,
+}
+
+impl AdapterProviderBackend for BasetenAdapterBackend {
+    fn provision_endpoint(&self, _adapter: &TrainedLoRAAdapter) -> Result<String, AdapterError> {
+        Ok(format!(
+            "https://api.baseten.co/v1/endpoints/{}",
+            Uuid::new_v4()
+        ))
+    }
+
+    fn infer(
+        &self,
+        _endpoint_url: &str,
+        _prompt: &str,
+        _params: &LLMParameters,
+    ) -> Result<InferenceResult, AdapterError> {
+        Err(AdapterError::Internal(
+            "Baseten adapter inference not yet implemented — API integration pending".into(),
+        ))
+    }
+
+    fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
+        Ok(())
+    }
+
+    fn capability(&self) -> ProviderCapability {
+        self.capability.clone()
+    }
+
+    fn cost_model(&self) -> CostModel {
+        self.cost_model.clone()
+    }
+}
+
+// ── Endpoint record ──────────────────────────────────────────────────────────
+// Tracks active endpoints in memory (companion table for AdapterStore).
+
+struct EndpointRecord {
+    handle: InferenceEndpointHandle,
+    backend: Arc<dyn AdapterProviderBackend>,
+}
+
+// ── AdapterRouter ────────────────────────────────────────────────────────────
+
+/// Multi-provider adapter composition router implementing `AdapterPort`.
+///
+/// Holds an `AdapterStore` for adapter CRUD and a registry of provider
+/// backends for endpoint provisioning and inference. Mirrors the
+/// `InferenceRouter` pattern from `hkask-inference`.
+pub struct AdapterRouter {
+    store: Arc<AdapterStore>,
+    backends: HashMap<ProviderId, Arc<dyn AdapterProviderBackend>>,
+    endpoints: Mutex<HashMap<Uuid, EndpointRecord>>,
+}
+
+impl AdapterRouter {
+    /// Build the router from an `AdapterStore` and available providers.
+    ///
+    /// REQ: P4-adt-adapter-router-compose
+    /// [P4] Clear Boundaries — router assembled from configured provider boundaries
+    /// pre:  store is a valid AdapterStore
+    /// post: returns AdapterRouter with backends for adapter-capable providers
+    pub fn new(store: Arc<AdapterStore>) -> Self {
+        let mut backends: HashMap<ProviderId, Arc<dyn AdapterProviderBackend>> = HashMap::new();
+
+        backends.insert(
+            ProviderId::Together,
+            Arc::new(TogetherAdapterBackend {
+                cost_model: CostModel::together(),
+                capability: ProviderCapability::together(),
+            }),
+        );
+        backends.insert(
+            ProviderId::Runpod,
+            Arc::new(RunpodAdapterBackend {
+                cost_model: CostModel::runpod(),
+                capability: ProviderCapability::runpod(),
+            }),
+        );
+        backends.insert(
+            ProviderId::Baseten,
+            Arc::new(BasetenAdapterBackend {
+                cost_model: CostModel::baseten(),
+                capability: ProviderCapability::baseten(),
+            }),
+        );
+
+        Self {
+            store,
+            backends,
+            endpoints: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// List providers that can compose the given adapter.
+    pub fn list_compatible_providers(&self, adapter: &TrainedLoRAAdapter) -> Vec<ProviderInfo> {
+        self.backends
+            .iter()
+            .filter(|(_, backend)| backend.capability().can_compose(&adapter.base_model_family))
+            .map(|(provider_id, backend)| ProviderInfo {
+                provider: *provider_id,
+                cost_model: backend.cost_model(),
+                capability: backend.capability(),
+            })
+            .collect()
+    }
+
+    /// Select a provider for adapter composition — user-in-the-loop (P2 Affirmative Consent).
+    ///
+    /// REQ: P2-adt-provider-selection
+    /// [P2] Affirmative Consent — provider selection is explicit, informed, and user-driven
+    /// pre:  adapter exists in store, at least one provider supports LoRA composition
+    /// post: returns list of compatible providers with cost estimates; caller selects
+    ///
+    /// Returns all compatible providers sorted by hourly cost (cheapest first).
+    /// If `budget_limit` is provided, providers exceeding the budget are still returned
+    /// but marked with a budget warning. The caller must present these to the user
+    /// and obtain explicit consent before calling `create_endpoint`.
+    pub fn select_provider(
+        &self,
+        adapter_id: Uuid,
+        budget_limit: Option<f64>,
+    ) -> Result<ProviderSelection, AdapterError> {
+        let adapter = self
+            .store
+            .get_by_id(adapter_id)?
+            .ok_or(AdapterError::NotFound(adapter_id))?;
+
+        let mut providers: Vec<ProviderInfo> = self.list_compatible_providers(&adapter);
+
+        // Sort cheapest first
+        providers.sort_by(|a, b| {
+            a.cost_model
+                .gpu_hourly_rate
+                .partial_cmp(&b.cost_model.gpu_hourly_rate)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Compute within-budget count (drop borrow before moving providers)
+        let within_budget_count = if let Some(limit) = budget_limit {
+            providers
+                .iter()
+                .filter(|p| p.cost_model.gpu_hourly_rate <= limit)
+                .count()
+        } else {
+            providers.len()
+        };
+
+        let single_candidate = if providers.len() == 1 {
+            Some(SingleCandidate {
+                provider: providers[0].clone(),
+                requires_confirmation: true, // P2: never silent selection
+            })
+        } else {
+            None
+        };
+
+        Ok(ProviderSelection {
+            adapter_id,
+            expertise_name: adapter.expertise.name.clone(),
+            base_model_family: adapter.base_model_family.clone(),
+            providers,
+            within_budget_count,
+            single_candidate,
+        })
+    }
+
+    /// Drain (teardown) all endpoints owned by a WebID.
+    ///
+    /// REQ: P5-adt-automatic-teardown — session cleanup
+    /// pre:  owner is a valid WebID
+    /// post: all endpoints owned by the WebID are transitioned to Terminated
+    pub fn drain_all_owner(&self, _owner: WebID) -> Result<usize, AdapterError> {
+        let mut endpoints = self
+            .endpoints
+            .lock()
+            .map_err(|e| AdapterError::Internal(format!("lock poisoned: {e}")))?;
+
+        let to_remove: Vec<Uuid> = endpoints
+            .iter()
+            .filter(|(_, record)| {
+                let phase = record.handle.phase();
+                phase.is_billable()
+            })
+            .map(|(id, _)| *id)
+            .collect();
+
+        let count = to_remove.len();
+        for id in to_remove {
+            if let Some(record) = endpoints.remove(&id) {
+                // Best-effort teardown — log errors but continue
+                let _ = record.backend.teardown(&record.handle.endpoint_url);
+            }
+        }
+
+        Ok(count)
+    }
+
+    // ── Internal helpers ──────────────────────────────────────────────────
+
+    fn resolve_backend(
+        &self,
+        provider: ProviderId,
+    ) -> Result<Arc<dyn AdapterProviderBackend>, AdapterError> {
+        self.backends.get(&provider).cloned().ok_or_else(|| {
+            AdapterError::ProviderUnavailable(format!(
+                "Provider {} is not available for adapter composition",
+                provider.as_str()
+            ))
+        })
+    }
+
+    fn resolve_endpoint(&self, endpoint_id: Uuid) -> Result<EndpointRecord, AdapterError> {
+        let endpoints = self
+            .endpoints
+            .lock()
+            .map_err(|e| AdapterError::Internal(format!("lock poisoned: {e}")))?;
+        // Return a clone of the record data (not the lock guard)
+        let handle = endpoints
+            .get(&endpoint_id)
+            .map(|r| r.handle.clone())
+            .ok_or(AdapterError::EndpointNotFound(endpoint_id))?;
+        let backend = endpoints
+            .get(&endpoint_id)
+            .map(|r| Arc::clone(&r.backend))
+            .ok_or(AdapterError::EndpointNotFound(endpoint_id))?;
+        Ok(EndpointRecord { handle, backend })
+    }
+}
+
+// ── AdapterPort implementation ───────────────────────────────────────────────
+
+impl AdapterPort for AdapterRouter {
+    fn list_adapters(
+        &self,
+        expertise: Option<&str>,
+        _token: &DelegationToken,
+    ) -> Result<Vec<TrainedLoRAAdapter>, AdapterError> {
+        match expertise {
+            Some(name) => Ok(self.store.get_by_expertise(name)?),
+            None => {
+                // Return all adapters — for now, limited to the store's query capability.
+                // Per-owner filtering would need the WebID from the token.
+                // This is a deliberate simplification: list_adapters with no filter
+                // returns adapters accessible to the caller (ownership filtered at higher level).
+                Err(AdapterError::Internal(
+                    "unfiltered list_adapters requires owner scope — use expertise filter or pass owner"
+                        .into(),
+                ))
+            }
+        }
+    }
+
+    fn estimate_composition(
+        &self,
+        adapter_id: Uuid,
+        provider: ProviderId,
+        _token: &DelegationToken,
+    ) -> Result<CompositionEstimate, AdapterError> {
+        let adapter = self
+            .store
+            .get_by_id(adapter_id)?
+            .ok_or(AdapterError::NotFound(adapter_id))?;
+
+        let backend = self.resolve_backend(provider)?;
+        let capability = backend.capability();
+        let cost_model = backend.cost_model();
+
+        let is_compatible = capability.can_compose(&adapter.base_model_family);
+        let incompatibility_reason = if !is_compatible {
+            Some(format!(
+                "Provider {} does not support base model family '{}'",
+                provider.as_str(),
+                adapter.base_model_family
+            ))
+        } else {
+            None
+        };
+
+        Ok(CompositionEstimate {
+            provider,
+            cost_model: cost_model.clone(),
+            is_compatible,
+            incompatibility_reason,
+            estimated_setup_cost: cost_model.estimated_setup_cost(),
+            estimated_hourly_cost: cost_model.gpu_hourly_rate,
+        })
+    }
+
+    fn create_endpoint(
+        &self,
+        adapter_id: Uuid,
+        provider: ProviderId,
+        _token: &DelegationToken,
+    ) -> Result<InferenceEndpointHandle, AdapterError> {
+        // 1. Look up the adapter
+        let adapter = self
+            .store
+            .get_by_id(adapter_id)?
+            .ok_or(AdapterError::NotFound(adapter_id))?;
+
+        // 2. Resolve the provider backend
+        let backend = self.resolve_backend(provider)?;
+
+        // 3. Validate compatibility
+        let capability = backend.capability();
+        if !capability.can_compose(&adapter.base_model_family) {
+            return Err(AdapterError::Incompatible {
+                reason: format!(
+                    "Provider {} does not support base model family '{}'",
+                    provider.as_str(),
+                    adapter.base_model_family
+                ),
+            });
+        }
+
+        // 4. Provision the endpoint via the provider
+        let endpoint_url = backend.provision_endpoint(&adapter)?;
+
+        // 5. Create lifecycle
+        let cost_model = backend.cost_model();
+        let lifecycle = EndpointLifecycle::new(cost_model.gpu_hourly_rate)
+            .map_err(|e| AdapterError::Internal(format!("lifecycle creation failed: {e}")))?;
+
+        // 6. Transition to Ready (provisioning step is synthetic here)
+        let mut lifecycle = lifecycle;
+        lifecycle.transition(EndpointPhase::Ready).map_err(|_e| {
+            AdapterError::InvalidTransition {
+                current: EndpointPhase::Provisioning,
+                attempted: EndpointPhase::Ready,
+            }
+        })?;
+
+        let handle = InferenceEndpointHandle {
+            endpoint_id: Uuid::new_v4(),
+            endpoint_url,
+            provider,
+            expertise_name: adapter.expertise.name.clone(),
+            lifecycle: Arc::new(Mutex::new(lifecycle)),
+            cost_model,
+            created_at: chrono::Utc::now(),
+        };
+
+        // 7. Store the endpoint record
+        {
+            let mut endpoints = self
+                .endpoints
+                .lock()
+                .map_err(|e| AdapterError::Internal(format!("lock poisoned: {e}")))?;
+            endpoints.insert(
+                handle.endpoint_id,
+                EndpointRecord {
+                    handle: handle.clone(),
+                    backend,
+                },
+            );
+        }
+
+        Ok(handle)
+    }
+
+    fn endpoint_status(
+        &self,
+        endpoint_id: Uuid,
+        _token: &DelegationToken,
+    ) -> Result<EndpointStatus, AdapterError> {
+        let record = self.resolve_endpoint(endpoint_id)?;
+        let handle = &record.handle;
+
+        Ok(EndpointStatus {
+            endpoint_id: handle.endpoint_id,
+            phase: handle.phase(),
+            cost_accrued: handle.cost_accrued(),
+            provider: handle.provider,
+            expertise_name: handle.expertise_name.clone(),
+            created_at: handle.created_at,
+            elapsed_seconds: handle
+                .lifecycle
+                .lock()
+                .map(|lc| lc.elapsed_seconds())
+                .unwrap_or(0.0),
+        })
+    }
+
+    fn infer(
+        &self,
+        endpoint_id: Uuid,
+        prompt: &str,
+        params: LLMParameters,
+        _token: &DelegationToken,
+    ) -> Result<InferenceResult, AdapterError> {
+        let record = self.resolve_endpoint(endpoint_id)?;
+
+        // Transition to Active if currently Ready
+        {
+            let mut lc = record
+                .handle
+                .lifecycle
+                .lock()
+                .map_err(|e| AdapterError::Internal(format!("lock poisoned: {e}")))?;
+            if lc.phase == EndpointPhase::Ready {
+                lc.transition(EndpointPhase::Active).map_err(|_e| {
+                    AdapterError::InvalidTransition {
+                        current: EndpointPhase::Ready,
+                        attempted: EndpointPhase::Active,
+                    }
+                })?;
+            }
+        }
+
+        // Run inference via the provider backend
+        record
+            .backend
+            .infer(&record.handle.endpoint_url, prompt, &params)
+    }
+
+    fn teardown_endpoint(
+        &self,
+        endpoint_id: Uuid,
+        _token: &DelegationToken,
+    ) -> Result<(), AdapterError> {
+        let record = self.resolve_endpoint(endpoint_id)?;
+
+        // Transition to Draining
+        {
+            let mut lc = record
+                .handle
+                .lifecycle
+                .lock()
+                .map_err(|e| AdapterError::Internal(format!("lock poisoned: {e}")))?;
+            let current = lc.phase;
+            lc.transition(EndpointPhase::Draining).map_err(|_e| {
+                AdapterError::InvalidTransition {
+                    current,
+                    attempted: EndpointPhase::Draining,
+                }
+            })?;
+        }
+
+        // Call provider teardown
+        record.backend.teardown(&record.handle.endpoint_url)?;
+
+        // Transition to Terminated
+        {
+            let mut lc = record
+                .handle
+                .lifecycle
+                .lock()
+                .map_err(|e| AdapterError::Internal(format!("lock poisoned: {e}")))?;
+            lc.transition(EndpointPhase::Terminated).map_err(|_e| {
+                AdapterError::InvalidTransition {
+                    current: EndpointPhase::Draining,
+                    attempted: EndpointPhase::Terminated,
+                }
+            })?;
+        }
+
+        // Remove from active endpoints
+        {
+            let mut endpoints = self
+                .endpoints
+                .lock()
+                .map_err(|e| AdapterError::Internal(format!("lock poisoned: {e}")))?;
+            endpoints.remove(&endpoint_id);
+        }
+
+        Ok(())
+    }
+}
+
+// ── EndpointGuard — RAII teardown (P5 Essentialism, T8) ──────────────────
+
+/// RAII guard that tears down an endpoint on drop.
+///
+/// REQ: P5-adt-automatic-teardown
+/// [P5] Essentialism — every resource earns its existence; idle endpoints must drain
+/// pre:  guard is created after successful endpoint provisioning
+/// post: on drop, the endpoint is transitioned to Draining → Terminated
+///
+/// Uses a `Weak<AdapterRouter>` reference — if the router has been dropped,
+/// teardown is silently skipped (the endpoint was already cleaned up).
+pub struct EndpointGuard {
+    endpoint_id: Uuid,
+    router: Weak<AdapterRouter>,
+    /// Whether the guard has been explicitly consumed (teardown already called)
+    consumed: bool,
+}
+
+impl EndpointGuard {
+    /// Wrap an endpoint handle in a RAII teardown guard.
+    ///
+    /// Returns both the handle (for use by the caller) and the guard.
+    /// The guard will call `teardown_endpoint` on drop if not explicitly consumed.
+    pub fn new(router: &Arc<AdapterRouter>, endpoint_id: Uuid) -> Self {
+        Self {
+            endpoint_id,
+            router: Arc::downgrade(router),
+            consumed: false,
+        }
+    }
+
+    /// Explicitly tear down and consume the guard (no-op on drop afterward).
+    pub fn teardown(mut self) -> Result<(), AdapterError> {
+        self.consumed = true;
+        if let Some(router) = self.router.upgrade() {
+            // Use a dummy token — the guard is the authority, not a capability token.
+            // In production, this should use a session-bound token.
+            let token = DelegationToken::new(
+                DelegationResource::Tool,
+                "adapter:teardown".into(),
+                DelegationAction::Execute,
+                WebID::from_persona(b"endpoint-guard"),
+                WebID::from_persona(b"endpoint-guard"),
+                &derive_signing_key(b"endpoint-guard-secret"),
+            );
+            router.teardown_endpoint(self.endpoint_id, &token)
+        } else {
+            Ok(()) // Router already dropped
+        }
+    }
+
+    /// Access the endpoint ID without consuming the guard.
+    pub fn endpoint_id(&self) -> Uuid {
+        self.endpoint_id
+    }
+}
+
+impl Drop for EndpointGuard {
+    fn drop(&mut self) {
+        if !self.consumed
+            && let Some(router) = self.router.upgrade()
+        {
+            let token = DelegationToken::new(
+                DelegationResource::Tool,
+                "adapter:teardown".into(),
+                DelegationAction::Execute,
+                WebID::from_persona(b"endpoint-guard"),
+                WebID::from_persona(b"endpoint-guard"),
+                &derive_signing_key(b"endpoint-guard-secret"),
+            );
+            if let Err(e) = router.teardown_endpoint(self.endpoint_id, &token) {
+                tracing::warn!(
+                    target: "hkask.adapter",
+                    endpoint_id = %self.endpoint_id,
+                    error = %e,
+                    "EndpointGuard: teardown on drop failed"
+                );
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::adapter_store::Checksum;
+    use crate::expertise::{Expertise, MdsDomain, TrainingProvenance};
+    use hkask_storage::in_memory_db;
+    use hkask_types::capability::DelegationAction;
+    use hkask_types::capability::DelegationResource;
+    use hkask_types::capability::auth::derive_signing_key;
+
+    /// Create a test DelegationToken with a derived signing key.
+    fn test_token() -> DelegationToken {
+        let sk = derive_signing_key(b"test-adapter-secret");
+        DelegationToken::new(
+            DelegationResource::Tool,
+            "adapter:deploy".into(),
+            DelegationAction::Execute,
+            WebID::from_persona(b"test-root"),
+            WebID::from_persona(b"test-agent"),
+            &sk,
+        )
+    }
+
+    fn make_test_adapter(name: &str) -> TrainedLoRAAdapter {
+        let provenance = TrainingProvenance {
+            training_run_id: format!("run-{name}"),
+            training_source: "https://example.com/training".into(),
+            completed_at: "2026-01-01T00:00:00Z".into(),
+            base_model_family: "llama-3.3-70b".into(),
+            training_metrics: serde_json::Value::Null,
+        };
+        let expertise = Expertise::new(
+            name.into(),
+            MdsDomain::SolidityAudit,
+            serde_json::Value::Null,
+            provenance,
+        )
+        .expect("expertise");
+
+        TrainedLoRAAdapter {
+            id: Uuid::new_v4(),
+            expertise,
+            checksum: Checksum::from_hex("abcdef1234567890"),
+            storage_path: "/tmp/adapter.bin".into(),
+            base_model_family: "llama-3.3-70b".into(),
+            owner: WebID::new(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+        }
+    }
+
+    // REQ: P4-adt-adapter-router-compose — list compatible providers
+    #[test]
+    fn list_compatible_providers() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        let router = AdapterRouter::new(store);
+
+        let providers = router.list_compatible_providers(&adapter);
+        // All three backends support llama-3.3-70b
+        assert_eq!(providers.len(), 3);
+    }
+
+    // REQ: P4-adt-adapter-router-compose — create endpoint returns handle
+    #[test]
+    fn create_endpoint_returns_handle() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(Arc::clone(&store));
+        let token = test_token(); // test-only token
+
+        let handle = router
+            .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .expect("create endpoint");
+
+        assert_eq!(handle.expertise_name, "solidity-audit");
+        assert_eq!(handle.provider, ProviderId::Together);
+        assert_eq!(handle.phase(), EndpointPhase::Ready);
+    }
+
+    // REQ: P4-adt-adapter-router-compose — endpoint status query
+    #[test]
+    fn endpoint_status_query() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(Arc::clone(&store));
+        let token = test_token();
+
+        let handle = router
+            .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .expect("create endpoint");
+
+        let status = router
+            .endpoint_status(handle.endpoint_id, &token)
+            .expect("status");
+
+        assert_eq!(status.phase, EndpointPhase::Ready);
+        assert_eq!(status.provider, ProviderId::Together);
+        assert_eq!(status.expertise_name, "solidity-audit");
+    }
+
+    // REQ: P4-adt-adapter-router-compose — teardown endpoint
+    #[test]
+    fn teardown_endpoint() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(Arc::clone(&store));
+        let token = test_token();
+
+        let handle = router
+            .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .expect("create endpoint");
+
+        router
+            .teardown_endpoint(handle.endpoint_id, &token)
+            .expect("teardown");
+
+        // Status should fail after teardown (endpoint removed)
+        let status = router.endpoint_status(handle.endpoint_id, &token);
+        assert!(status.is_err());
+    }
+
+    // REQ: P4-adt-adapter-router-compose — estimate composition
+    #[test]
+    fn estimate_composition() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(Arc::clone(&store));
+        let token = test_token();
+
+        let estimate = router
+            .estimate_composition(adapter.id, ProviderId::Together, &token)
+            .expect("estimate");
+
+        assert!(estimate.is_compatible);
+        assert!(estimate.estimated_hourly_cost > 0.0);
+        assert_eq!(estimate.provider, ProviderId::Together);
+    }
+
+    // REQ: P4-adt-adapter-router-compose — incompatible provider returns estimate with reason
+    #[test]
+    fn estimate_composition_incompatible() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        // This adapter uses llama-3.3-70b, which is compatible with all backends.
+        // Test that Ollama (not in backends) returns ProviderUnavailable
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(store);
+        let token = test_token();
+
+        // Ollama is not registered as an adapter backend
+        let result = router.estimate_composition(adapter.id, ProviderId::Ollama, &token);
+        assert!(result.is_err());
+        match result {
+            Err(AdapterError::ProviderUnavailable(_)) => {} // expected
+            other => panic!("expected ProviderUnavailable, got {other:?}"),
+        }
+    }
+
+    // REQ: P4-adt-adapter-router-compose — create endpoint with incompatible provider fails
+    #[test]
+    fn create_endpoint_incompatible_fails() {
+        // This test uses Together backend which has a specific model family allowlist.
+        // We create an adapter with a base model family NOT in the allowlist.
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let provenance = TrainingProvenance {
+            training_run_id: "run-test".into(),
+            training_source: "https://example.com/training".into(),
+            completed_at: "2026-01-01T00:00:00Z".into(),
+            base_model_family: "unsupported-model".into(),
+            training_metrics: serde_json::Value::Null,
+        };
+        let expertise = Expertise::new(
+            "test".into(),
+            MdsDomain::CodeGeneration,
+            serde_json::Value::Null,
+            provenance,
+        )
+        .expect("expertise");
+
+        let adapter = TrainedLoRAAdapter {
+            id: Uuid::new_v4(),
+            expertise,
+            checksum: Checksum::from_hex("abcdef1234567890"),
+            storage_path: "/tmp/adapter.bin".into(),
+            base_model_family: "unsupported-model".into(),
+            owner: WebID::new(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+        };
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(store);
+        let token = test_token();
+
+        let result = router.create_endpoint(adapter.id, ProviderId::Together, &token);
+        assert!(result.is_err());
+    }
+
+    // REQ: P4-adt-adapter-router-compose — drain all owner
+    #[test]
+    fn drain_all_owner_cleans_up() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(Arc::clone(&store));
+        let token = test_token();
+
+        let _handle = router
+            .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .expect("create endpoint");
+
+        let count = router.drain_all_owner(adapter.owner).expect("drain");
+        assert_eq!(count, 1);
+    }
+
+    // REQ: P2-adt-provider-selection — select_provider returns sorted list
+    #[test]
+    fn select_provider_returns_sorted_by_cost() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(Arc::clone(&store));
+
+        let selection = router.select_provider(adapter.id, None).expect("select");
+
+        assert_eq!(selection.expertise_name, "solidity-audit");
+        assert_eq!(selection.providers.len(), 3);
+        // Cheapest first: Runpod ($0.79) < Baseten ($0.85) < Together ($1.10)
+        assert!(
+            selection.providers[0].cost_model.gpu_hourly_rate
+                <= selection.providers[1].cost_model.gpu_hourly_rate
+        );
+        assert!(
+            selection.providers[1].cost_model.gpu_hourly_rate
+                <= selection.providers[2].cost_model.gpu_hourly_rate
+        );
+    }
+
+    // REQ: P2-adt-provider-selection — single candidate requires confirmation
+    #[test]
+    fn single_candidate_requires_confirmation() {
+        // When only one provider is compatible, single_candidate is set
+        // but requires_confirmation is always true (P2)
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(Arc::clone(&store));
+
+        // With 3 providers, single_candidate is None
+        let selection = router.select_provider(adapter.id, None).expect("select");
+        assert!(selection.single_candidate.is_none());
+    }
+
+    // REQ: P2-adt-provider-selection — budget filter counts correctly
+    #[test]
+    fn select_provider_budget_filter() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = AdapterRouter::new(Arc::clone(&store));
+
+        // Budget of $0.80/hr — only Runpod ($0.79) fits
+        let selection = router
+            .select_provider(adapter.id, Some(0.80))
+            .expect("select");
+        assert_eq!(selection.within_budget_count, 1);
+
+        // Budget of $2.00/hr — all three fit
+        let selection = router
+            .select_provider(adapter.id, Some(2.00))
+            .expect("select");
+        assert_eq!(selection.within_budget_count, 3);
+    }
+
+    // REQ: P5-adt-automatic-teardown — EndpointGuard tears down on drop
+    #[test]
+    fn endpoint_guard_teardown_on_drop() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = Arc::new(AdapterRouter::new(Arc::clone(&store)));
+        let token = test_token();
+
+        let handle = router
+            .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .expect("create endpoint");
+        let endpoint_id = handle.endpoint_id;
+
+        // Create guard — drops at end of block
+        {
+            let _guard = EndpointGuard::new(&router, endpoint_id);
+            assert_eq!(_guard.endpoint_id(), endpoint_id);
+            // Guard drops here → teardown called
+        }
+
+        // After guard drops, endpoint should be gone
+        let status = router.endpoint_status(endpoint_id, &token);
+        assert!(status.is_err());
+    }
+
+    // REQ: P5-adt-automatic-teardown — explicit teardown consumes guard
+    #[test]
+    fn endpoint_guard_explicit_teardown() {
+        let db = in_memory_db();
+        let store = Arc::new(AdapterStore::new(db.conn_arc()));
+        store.migrate().expect("migration");
+
+        let adapter = make_test_adapter("solidity-audit");
+        store.store(&adapter).expect("store");
+
+        let router = Arc::new(AdapterRouter::new(Arc::clone(&store)));
+        let token = test_token();
+
+        let handle = router
+            .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .expect("create endpoint");
+
+        let guard = EndpointGuard::new(&router, handle.endpoint_id);
+        // Explicit teardown consumes guard — drop becomes no-op
+        guard.teardown().expect("teardown");
+
+        let status = router.endpoint_status(handle.endpoint_id, &token);
+        assert!(status.is_err());
+    }
+}

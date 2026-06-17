@@ -1,6 +1,6 @@
 //! AgentRegistryLoader — Load agent YAML definitions, register with ACP, persist to storage
 
-use crate::acp::{AcpError, AcpRuntime};
+use crate::a2a::{A2AError, A2ARuntime};
 use crate::ports::RegistrySourcePort;
 use hkask_storage::{AgentRegistryError, AgentRegistryStore, now_rfc3339};
 use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
@@ -20,7 +20,7 @@ pub enum RegistryLoaderError {
         source: serde_yaml::Error,
     },
     #[error("ACP error: {0}")]
-    Acp(#[from] AcpError),
+    Acp(#[from] A2AError),
     #[error("Storage error: {0}")]
     Storage(#[from] AgentRegistryError),
     #[error("Invalid agent definition: {0}")]
@@ -222,7 +222,7 @@ impl RawYamlAgent {
 
 pub struct AgentRegistryLoader {
     registry_path: PathBuf,
-    acp_runtime: Arc<AcpRuntime>,
+    a2a_runtime: Arc<A2ARuntime>,
     store: AgentRegistryStore,
     source: Arc<dyn RegistrySourcePort>,
 }
@@ -230,20 +230,20 @@ pub struct AgentRegistryLoader {
 impl AgentRegistryLoader {
     /// REQ: P3-agt-registry-loader-new
     /// \[P3\] Motivating: Generative Space — loader reads YAML agent definitions into registry
-    /// pre:  `registry_path` is a valid `PathBuf`; `acp_runtime` is a
-    ///       valid `Arc<AcpRuntime>`; `store` is a valid
+    /// pre:  `registry_path` is a valid `PathBuf`; `a2a_runtime` is a
+    ///       valid `Arc<A2ARuntime>`; `store` is a valid
     ///       `AgentRegistryStore`; `source` is a valid
     ///       `Arc<dyn RegistrySourcePort>`.
     /// post: Returns an `AgentRegistryLoader` with all fields set.
     pub fn new(
         registry_path: PathBuf,
-        acp_runtime: Arc<AcpRuntime>,
+        a2a_runtime: Arc<A2ARuntime>,
         store: AgentRegistryStore,
         source: Arc<dyn RegistrySourcePort>,
     ) -> Self {
         Self {
             registry_path,
-            acp_runtime,
+            a2a_runtime,
             store,
             source,
         }
@@ -330,7 +330,7 @@ impl AgentRegistryLoader {
         let webid = WebID::from_persona(definition.name.as_bytes());
 
         let token = match self
-            .acp_runtime
+            .a2a_runtime
             .register_agent(
                 webid,
                 definition.agent_kind,
@@ -339,11 +339,11 @@ impl AgentRegistryLoader {
             .await
         {
             Ok(token) => token,
-            Err(AcpError::AgentAlreadyRegistered(_)) => {
-                let tokens = self.acp_runtime.get_capabilities(&webid).await;
+            Err(A2AError::AgentAlreadyRegistered(_)) => {
+                let tokens = self.a2a_runtime.get_capabilities(&webid).await;
                 tokens.into_iter().next().ok_or_else(|| {
                     RegistryLoaderError::InvalidDefinition(format!(
-                        "Agent '{}' already registered but has no capability tokens in ACP runtime",
+                        "Agent '{}' already registered but has no capability tokens in A2A runtime",
                         definition.name
                     ))
                 })?

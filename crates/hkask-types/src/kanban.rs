@@ -4,32 +4,9 @@
 //! Task status transitions are column-ordered: Backlog → Ready → InProgress → Review → Done.
 //! Verification criteria accept natural-language acceptance specs with optional LLM evaluation prompts.
 
-use crate::id::WebID;
+use crate::id::{BoardId, ColumnId, TaskId, WebID};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-
-// ── Phantom-type IDs ──────────────────────────────────────────────────────
-
-/// Identifier for a kanban board.
-pub type BoardId = crate::id::Id<BoardKind>;
-
-enum BoardKind {}
-impl crate::id::private::Sealed for BoardKind {}
-impl crate::id::IdKind for BoardKind {}
-
-/// Identifier for a kanban column within a board.
-pub type ColumnId = crate::id::Id<ColumnKind>;
-
-enum ColumnKind {}
-impl crate::id::private::Sealed for ColumnKind {}
-impl crate::id::IdKind for ColumnKind {}
-
-/// Identifier for a task on a board.
-pub type TaskId = crate::id::Id<TaskKind>;
-
-enum TaskKind {}
-impl crate::id::private::Sealed for TaskKind {}
-impl crate::id::IdKind for TaskKind {}
 
 // ── Task Status ────────────────────────────────────────────────────────────
 
@@ -548,7 +525,10 @@ mod tests {
             TaskStatus::parse_str("in-progress"),
             Some(TaskStatus::InProgress)
         );
-        assert_eq!(TaskStatus::parse_str("IN_PROGRESS"), Some(TaskStatus::InProgress));
+        assert_eq!(
+            TaskStatus::parse_str("IN_PROGRESS"),
+            Some(TaskStatus::InProgress)
+        );
         assert_eq!(TaskStatus::parse_str("Done"), Some(TaskStatus::Done));
         assert_eq!(TaskStatus::parse_str("invalid"), None);
     }

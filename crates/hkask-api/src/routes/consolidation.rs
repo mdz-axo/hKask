@@ -14,6 +14,11 @@ use crate::error::ServiceErrorResponse;
 
 // Handlers
 
+/// Consolidate request — triggers episodic-to-semantic memory consolidation.
+///
+/// Requires the agents master passphrase for authorization (P4 OCAP).
+/// The passphrase is derived via HKDF-SHA256 to produce the capability_key
+/// used as the DB passphrase.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ConsolidateRequest {
     /// Agent WebID whose episodic memory to consolidate
@@ -32,6 +37,7 @@ pub struct ConsolidateRequest {
     pub max_semantic_triples: Option<usize>,
 }
 
+/// Consolidate response — outcome counts from the semantic consolidation loop.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ConsolidateResponse {
     pub consolidated_count: usize,

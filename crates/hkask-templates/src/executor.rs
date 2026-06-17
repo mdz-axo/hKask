@@ -59,7 +59,7 @@ pub struct ManifestExecutor {
     /// Default LLM parameters for inference calls
     default_params: LLMParameters,
     /// Secret for minting delegation tokens
-    acp_secret: Vec<u8>,
+    a2a_secret: Vec<u8>,
     /// Base filesystem path for resolving template_ref values.
     /// When `step.renderer == "minijinja"`, `step.template_ref` is resolved
     /// relative to this path. Defaults to `registry/templates/`.
@@ -72,19 +72,19 @@ impl ManifestExecutor {
     /// REQ: P3-tpl-manifest-executor-new
     /// \[P3\] Motivating: Generative Space — executor for template manifest cascades
     /// \[P4\] Constraining: Clear Boundaries — requires ACP secret for delegation
-    /// pre:  inference and mcp are initialized, acp_secret is non-empty
+    /// pre:  inference and mcp are initialized, a2a_secret is non-empty
     /// post: returns ManifestExecutor with default template_base_path
     pub fn new(
         inference: Arc<dyn InferencePort>,
         mcp: Arc<dyn McpPort>,
         default_params: LLMParameters,
-        acp_secret: Vec<u8>,
+        a2a_secret: Vec<u8>,
     ) -> Self {
         Self {
             inference,
             mcp,
             default_params,
-            acp_secret,
+            a2a_secret,
             template_base_path: PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
         }
     }
@@ -214,9 +214,9 @@ impl ManifestExecutor {
             });
 
         // Create a delegation token for tool invocation
-        let secret_bytes: [u8; 32] = self.acp_secret[..32]
+        let secret_bytes: [u8; 32] = self.a2a_secret[..32]
             .try_into()
-            .expect("acp_secret must be at least 32 bytes");
+            .expect("a2a_secret must be at least 32 bytes");
         let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
         let token = DelegationToken::new(
             DelegationResource::Tool,

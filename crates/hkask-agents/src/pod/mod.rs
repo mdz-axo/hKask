@@ -27,7 +27,7 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
 //! use hkask_mcp::GitCasAdapter;
-//! use hkask_agents::acp::AcpRuntime;
+//! use hkask_agents::a2a::A2ARuntime;
 //! use hkask_agents::adapters::mcp_runtime::CapabilityOnlyAdapter;
 //! use hkask_types::{CapabilityChecker, WebID};
 //! use hkask_agents::{DenyAllConsent, SovereigntyConsent};
@@ -35,7 +35,7 @@
 //!
 //! // Create adapters
 //! let git_adapter = GitCasAdapter::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
-//! let acp_runtime = Arc::new(AcpRuntime::default());
+//! let a2a_runtime = Arc::new(A2ARuntime::default());
 //! let checker = Arc::new(CapabilityChecker::new(&[]));
 //! let mcp_runtime = CapabilityOnlyAdapter::new(checker);
 //!
@@ -53,7 +53,7 @@
 //!     &git_adapter,
 //!     Arc::new(DenyAllConsent) as Arc<dyn SovereigntyConsent>,
 //! )?;
-//! pod.register(acp_runtime.as_ref()).await?;
+//! pod.register(a2a_runtime.as_ref()).await?;
 //! pod.activate(&mcp_runtime)?;
 //! # Ok(())
 //! # }
@@ -256,12 +256,12 @@ impl AgentPod {
         })
     }
 
-    /// Register the pod with the ACP runtime
+    /// Register the pod with the A2A runtime
     ///
     /// Transitions state: `Populated` → `Registered`
     ///
     /// # Arguments
-    /// * `acp` — ACP runtime port for agent registration
+    /// * `acp` — A2A runtime port for agent registration
     ///
     /// # Returns
     /// * `Ok(())` — Registration successful
@@ -270,11 +270,11 @@ impl AgentPod {
     /// REQ: P1-agt-pod-register
     /// \[P1\] Motivating: User Sovereignty — register pod with ACP under its WebID
     /// pre:  `self.state` must be `Populated` (or `Registered` for
-    ///       idempotent re-registration); `acp` is a valid `AcpPort`.
+    ///       idempotent re-registration); `acp` is a valid `A2APort`.
     /// post: On success, `self.state` is `Registered` and
     ///       `self.capability_token` is updated with the ACP-issued token.
     ///       On failure, state is unchanged.
-    pub async fn register(&mut self, acp: &dyn crate::ports::AcpPort) -> AgentPodResult<()> {
+    pub async fn register(&mut self, acp: &dyn crate::ports::A2APort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Registered) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,

@@ -64,8 +64,8 @@ pub(crate) fn handle_invoke(
     // Mint a capability token for this tool invocation using the ACP secret
     // from onboarding. Capability tokens are signed with the same secret that
     // governs OCAP authority throughout the system.
-    let acp_secret = match state.resolved_secrets {
-        Some(ref secrets) => secrets.acp_secret.as_bytes(),
+    let a2a_secret = match state.resolved_secrets {
+        Some(ref secrets) => secrets.a2a_secret.as_bytes(),
         None => {
             eprintln!(
                 "Error: No ACP secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
@@ -82,7 +82,7 @@ pub(crate) fn handle_invoke(
         DelegationAction::Execute,
         from_webid,
         to_webid,
-        &derive_signing_key(acp_secret),
+        &derive_signing_key(a2a_secret),
     );
 
     // Invoke through the GovernedTool membrane — all governance

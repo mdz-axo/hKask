@@ -21,7 +21,7 @@ fn main() {
     // ctx.inference_port       // ERROR: private
     // ctx.capability_checker   // ERROR: private
     // ctx.config               // ERROR: private
-    // ctx.acp_runtime          // ERROR: private (pub(crate) only)
+    // ctx.a2a_runtime          // ERROR: private (pub(crate) only)
     // ctx.system_webid         // ERROR: private
     // ctx.escalation_queue     // ERROR: private
     // ctx.consent_manager      // ERROR: private

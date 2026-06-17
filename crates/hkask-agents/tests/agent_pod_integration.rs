@@ -243,7 +243,7 @@ async fn inference_port_wiring() {
     );
     let manager = PodManager::new(
         None,                    // git_cas → defaults to ./registry/templates
-        None,                    // acp_runtime → defaults
+        None,                    // a2a_runtime → defaults
         None,                    // mcp_runtime → defaults
         None,                    // episodic_storage → in-memory
         None,                    // semantic_storage → in-memory

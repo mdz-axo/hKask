@@ -4,12 +4,12 @@
 //! All port traits live here so that domain code depends only on
 //! these abstractions, never on concrete adapters.
 
-pub mod acp;
+pub mod a2a;
 pub mod mcp_runtime;
 pub mod memory_storage;
 pub mod registry_source;
 
-pub use acp::AcpPort;
+pub use a2a::A2APort;
 pub use hkask_mcp::GitCasAdapter;
 pub use hkask_types::audit::{AuditEntry, AuditOutcome};
 pub use mcp_runtime::MCPRuntimePort;

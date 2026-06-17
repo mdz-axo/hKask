@@ -55,7 +55,7 @@ pub const DEFAULT_KEY_VERSION: u32 = 1;
 #[derive()]
 pub struct InternalSecrets {
     /// ACP HMAC signing secret (hex-encoded 256-bit key)
-    pub acp_secret: String,
+    pub a2a_secret: String,
     /// API capability token signing key (hex-encoded 256-bit key)
     pub capability_key: String,
     /// MCP security gateway HMAC key (hex-encoded 256-bit key)
@@ -67,7 +67,7 @@ pub struct InternalSecrets {
 impl std::fmt::Debug for InternalSecrets {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InternalSecrets")
-            .field("acp_secret", &"[REDACTED]")
+            .field("a2a_secret", &"[REDACTED]")
             .field("capability_key", &"[REDACTED]")
             .field("mcp_security_key", &"[REDACTED]")
             .field("ocap_secret", &"[REDACTED]")
@@ -115,7 +115,7 @@ pub fn derive_all_internal_secrets_with_version(
 
     // Step 2: HKDF-SHA256 expand with versioned contexts (fast, ~1μs each)
     let master_key_bytes: &[u8] = &*master_key;
-    let acp_secret = derive_sub_key_hex_versioned(
+    let a2a_secret = derive_sub_key_hex_versioned(
         master_key_bytes,
         derivation_contexts::ACP_SECRET,
         key_version,
@@ -137,7 +137,7 @@ pub fn derive_all_internal_secrets_with_version(
     );
 
     InternalSecrets {
-        acp_secret,
+        a2a_secret,
         capability_key,
         mcp_security_key,
         ocap_secret,
@@ -244,7 +244,7 @@ mod tests {
         let secrets_a = derive_all_internal_secrets_with_version(passphrase, 1);
         let secrets_b = derive_all_internal_secrets_with_version(passphrase, 1);
 
-        assert_eq!(secrets_a.acp_secret, secrets_b.acp_secret);
+        assert_eq!(secrets_a.a2a_secret, secrets_b.a2a_secret);
         assert_eq!(secrets_a.capability_key, secrets_b.capability_key);
         assert_eq!(secrets_a.ocap_secret, secrets_b.ocap_secret);
     }
@@ -257,7 +257,7 @@ mod tests {
         let secrets_v1 = derive_all_internal_secrets_with_version(passphrase, 1);
         let secrets_v2 = derive_all_internal_secrets_with_version(passphrase, 2);
 
-        assert_ne!(secrets_v1.acp_secret, secrets_v2.acp_secret);
+        assert_ne!(secrets_v1.a2a_secret, secrets_v2.a2a_secret);
         assert_ne!(secrets_v1.capability_key, secrets_v2.capability_key);
         assert_ne!(secrets_v1.ocap_secret, secrets_v2.ocap_secret);
     }

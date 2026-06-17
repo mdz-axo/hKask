@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use hex;
-use hkask_agents::AcpRuntime;
+use hkask_agents::A2ARuntime;
 use hkask_keystore::{Keychain, derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
 use hkask_types::time::now_rfc3339;
@@ -27,7 +27,7 @@ pub struct ReplicantContactConfig {
 /// mutating environment variables.
 #[derive(Debug, Clone)]
 pub struct ResolvedSecrets {
-    pub acp_secret: String,
+    pub a2a_secret: String,
     pub db_passphrase: String,
 }
 
@@ -40,10 +40,10 @@ pub struct SignInOutcome {
     pub resolved_secrets: ResolvedSecrets,
 }
 
-/// Result of registry initialization: the ACP runtime and agent store
+/// Result of registry initialization: the A2A runtime and agent store
 /// are both ready for use.
 pub struct RegistryHandle {
-    pub acp: Arc<AcpRuntime>,
+    pub acp: Arc<A2ARuntime>,
     pub store: AgentRegistryStore,
 }
 
@@ -61,13 +61,13 @@ impl OnboardingService {
     /// REQ: P1-svc-onboarding-188
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  passphrase must be non-empty; store=true requires writable keychain
-    /// post: returns ResolvedSecrets with acp_secret and db_passphrase; if store=true, secrets are persisted to keychain; Err(Keystore) on keychain failure
+    /// post: returns ResolvedSecrets with a2a_secret and db_passphrase; if store=true, secrets are persisted to keychain; Err(Keystore) on keychain failure
     pub fn derive_secrets(passphrase: &str, store: bool) -> Result<ResolvedSecrets, ServiceError> {
         let secrets = derive_all_internal_secrets(passphrase);
         if store {
             let keychain = Keychain::default();
             keychain
-                .store_by_key("acp-secret", &secrets.acp_secret)
+                .store_by_key("acp-secret", &secrets.a2a_secret)
                 .map_err(|e| ServiceError::Keystore {
                     source: Some(Box::new(e)),
                     message: "Failed to store acp-secret".into(),
@@ -80,23 +80,23 @@ impl OnboardingService {
                 })?;
         }
         Ok(ResolvedSecrets {
-            acp_secret: secrets.acp_secret.clone(),
+            a2a_secret: secrets.a2a_secret.clone(),
             db_passphrase: secrets.capability_key.clone(),
         })
     }
 
-    /// Initialize the ACP runtime and agent registry store from a ServiceConfig.
+    /// Initialize the A2A runtime and agent registry store from a ServiceConfig.
     ///
     /// Opens the database, initializes the schema, restores ACP state from
-    /// persisted agent registrations, and returns both the ACP runtime and
+    /// persisted agent registrations, and returns both the A2A runtime and
     /// the registry store ready for use.
     ///
     /// REQ: P1-svc-onboarding-189
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  config must have valid db_path, db_passphrase, and acp_secret
-    /// post: returns RegistryHandle with ACP runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
+    /// pre:  config must have valid db_path, db_passphrase, and a2a_secret
+    /// post: returns RegistryHandle with A2A runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
     pub async fn init_registry(config: &ServiceConfig) -> Result<RegistryHandle, ServiceError> {
-        let acp = Arc::new(AcpRuntime::new(&config.acp_secret));
+        let acp = Arc::new(A2ARuntime::new(&config.a2a_secret));
 
         let db = Database::open(&config.db_path, &config.db_passphrase)?;
         let store = AgentRegistryStore::new(db.conn_arc());
@@ -105,9 +105,9 @@ impl OnboardingService {
         // ACP state restoration: reload registered agents from the store
         let registered_agents = store.list().map_err(ServiceError::AgentRegistryStore)?;
         if !registered_agents.is_empty() {
-            let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
+            let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
                 .iter()
-                .map(|ra| hkask_agents::acp::AcpAgent {
+                .map(|ra| hkask_agents::a2a::A2AAgent {
                     webid: WebID::from_persona_with_namespace(
                         ra.definition.name.as_bytes(),
                         "replicant",
@@ -143,7 +143,7 @@ impl OnboardingService {
     /// pre:  acp must be initialized; store must be initialized; name and description must be non-empty
     /// post: replicant is registered in ACP with default capabilities and persisted to store; Err(Acp) on registration failure; Err(AgentRegistryStore) on persistence failure
     pub async fn register_replicant(
-        acp: &Arc<AcpRuntime>,
+        acp: &Arc<A2ARuntime>,
         store: &AgentRegistryStore,
         name: &str,
         description: &str,
@@ -260,7 +260,7 @@ impl OnboardingService {
         // Success — store secrets in keychain for future sessions
         let keychain = Keychain::default();
         keychain
-            .store_by_key("acp-secret", &resolved_secrets.acp_secret)
+            .store_by_key("acp-secret", &resolved_secrets.a2a_secret)
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to store acp-secret".into(),
@@ -279,7 +279,7 @@ impl OnboardingService {
     }
 
     /// Try to list existing replicants from the database without requiring
-    /// an ACP runtime. Used to determine which onboarding path to take.
+    /// an A2A runtime. Used to determine which onboarding path to take.
     ///
     /// Returns an empty Vec if the DB can't be opened or has no replicants.
     ///

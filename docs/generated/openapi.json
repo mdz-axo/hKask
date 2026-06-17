@@ -2113,7 +2113,7 @@
       },
       "AcpAgentResponse": {
         "type": "object",
-        "description": "ACP agent response",
+        "description": "ACP agent response — registered agent in the ACP capability delegation system (P4 OCAP).\n\n`agent_type` is \"Bot\" or \"Replicant\" (P10).\n`capabilities` are the granted capability verbs this agent holds.\n`active` indicates whether the agent is currently allowed to exercise its capabilities.",
         "required": [
           "webid",
           "agent_type",
@@ -2145,7 +2145,7 @@
       },
       "AgentListResponse": {
         "type": "object",
-        "description": "Agent list response",
+        "description": "Agent list response — all ACP-registered agents.",
         "required": [
           "agents"
         ],
@@ -2217,10 +2217,11 @@
             }
           }
         ],
-        "description": "Backup scope for API requests."
+        "description": "Backup scope for API requests.\n\nControls which artifacts a snapshot or restore targets:\n- `Full` — all tracked artifact types (templates, styles, triples).\n- `ByType` — all artifacts of a single type (e.g., \"template\").\n- `ByIds` — specific artifacts by ID within a type."
       },
       "ApiKeyCreatedResponse": {
         "type": "object",
+        "description": "API key created response.\n\n**Security:** `private_key_hex` is shown only once. Store it securely.",
         "required": [
           "key_id",
           "private_key_hex",
@@ -2232,32 +2233,39 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "ISO 8601 expiry timestamp (None = no expiry)"
           },
           "key_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique key identifier"
           },
           "preferred_chain": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Preferred blockchain for settlement"
           },
           "privacy_mode": {
-            "type": "string"
+            "type": "string",
+            "description": "Privacy mode: \"shielded\" or \"transparent\""
           },
           "private_key_hex": {
-            "type": "string"
+            "type": "string",
+            "description": "Private key in hex (shown only once — store securely)"
           },
           "spending_limit_rj": {
             "type": "integer",
             "format": "int64",
+            "description": "Spending limit in rJoules",
             "minimum": 0
           }
         }
       },
       "ApiKeyEntry": {
         "type": "object",
+        "description": "API key entry — status of an existing API key.\n\n`status` is \"active\", \"revoked\", \"exhausted\", or \"expired\".",
         "required": [
           "key_id",
           "spent_rj",
@@ -2270,37 +2278,45 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "ISO 8601 expiry timestamp (None = no expiry)"
           },
           "key_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique key identifier"
           },
           "limit_rj": {
             "type": "integer",
             "format": "int64",
+            "description": "Spending limit in rJoules",
             "minimum": 0
           },
           "preferred_chain": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Preferred blockchain for settlement"
           },
           "privacy_mode": {
-            "type": "string"
+            "type": "string",
+            "description": "Privacy mode: \"shielded\" or \"transparent\""
           },
           "spent_rj": {
             "type": "integer",
             "format": "int64",
+            "description": "Cumulative rJoules spent via this key",
             "minimum": 0
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Status: \"active\", \"revoked\", \"exhausted\", or \"expired\""
           }
         }
       },
       "ApiKeyListResponse": {
         "type": "object",
+        "description": "API key list response.",
         "required": [
           "keys"
         ],
@@ -2309,22 +2325,26 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ApiKeyEntry"
-            }
+            },
+            "description": "All API keys for the authenticated wallet"
           }
         }
       },
       "ApiKeyRevokedResponse": {
         "type": "object",
+        "description": "API key revoked response.",
         "required": [
           "key_id",
           "revoked"
         ],
         "properties": {
           "key_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Key ID that was revoked"
           },
           "revoked": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Always true on success"
           }
         }
       },
@@ -2388,7 +2408,7 @@
       },
       "ApplyBundleResponse": {
         "type": "object",
-        "description": "Apply bundle response",
+        "description": "Apply bundle response — result of activating a bundle in the current session.\n\n`status` is \"active\" on success.",
         "required": [
           "status",
           "bundle_id",
@@ -2484,7 +2504,7 @@
       },
       "BackupConfigResponse": {
         "type": "object",
-        "description": "Backup config response.",
+        "description": "Backup config response — current snapshot and retention configuration.\n\n`tracked_types` lists artifact types included in snapshots.\n`retention` is the time-based cleanup policy (None = keep indefinitely).",
         "required": [
           "tracked_types",
           "auto_snapshot",
@@ -2550,7 +2570,7 @@
       },
       "BundleListResponse": {
         "type": "object",
-        "description": "List bundles response",
+        "description": "List bundles response.",
         "required": [
           "bundles"
         ],
@@ -2565,7 +2585,7 @@
       },
       "BundleSummary": {
         "type": "object",
-        "description": "Bundle summary for list responses",
+        "description": "Bundle summary for list responses — a skill bundle in the Skills Model (Pattern A).\n\n`visibility` is \"private\" or \"shared\" (P11).\n`skill_count` is the number of WordAct/FlowDef/KnowAct templates in the bundle.",
         "required": [
           "id",
           "name",
@@ -2727,6 +2747,7 @@
       },
       "CommitInfo": {
         "type": "object",
+        "description": "Git commit info — repository and commit hash for a backup snapshot.",
         "required": [
           "repo",
           "commit"
@@ -2742,7 +2763,7 @@
       },
       "ComposeBundleRequest": {
         "type": "object",
-        "description": "Compose bundle request",
+        "description": "Compose bundle request — create a new skill bundle from individual template IDs (Pattern A).\n\nRequires at least 2 skills. The bundle composer uses inference to generate\na manifest describing how the skills compose together.",
         "required": [
           "skills"
         ],
@@ -2769,7 +2790,7 @@
       },
       "ComposeBundleResponse": {
         "type": "object",
-        "description": "Compose bundle response",
+        "description": "Compose bundle response — result of inference-driven bundle composition.\n\n`manifest` is the composed bundle definition (JSON).\n`warnings` lists any composition concerns detected.",
         "required": [
           "warnings",
           "message"
@@ -2793,6 +2814,7 @@
       },
       "ConsolidateRequest": {
         "type": "object",
+        "description": "Consolidate request — triggers episodic-to-semantic memory consolidation.\n\nRequires the agents master passphrase for authorization (P4 OCAP).\nThe passphrase is derived via HKDF-SHA256 to produce the capability_key\nused as the DB passphrase.",
         "required": [
           "agent_webid",
           "passphrase"
@@ -2835,6 +2857,7 @@
       },
       "ConsolidateResponse": {
         "type": "object",
+        "description": "Consolidate response — outcome counts from the semantic consolidation loop.",
         "required": [
           "consolidated_count",
           "deleted_count",
@@ -2877,6 +2900,7 @@
       },
       "CreateKeyRequest": {
         "type": "object",
+        "description": "Create API key request.\n\nAPI keys carry a spending limit in rJoules and an optional expiry.\n`private` controls shielded (default: true) vs transparent mode.",
         "required": [
           "limit_rj"
         ],
@@ -2885,7 +2909,8 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Preferred chain: \"hinkal\", \"solana\", or \"hedera\" (default: \"hinkal\")"
           },
           "expiry_days": {
             "type": [
@@ -2893,18 +2918,21 @@
               "null"
             ],
             "format": "int32",
+            "description": "Key expiry in days from creation (None = no expiry)",
             "minimum": 0
           },
           "limit_rj": {
             "type": "integer",
             "format": "int64",
+            "description": "Spending limit in rJoules",
             "minimum": 0
           },
           "private": {
             "type": [
               "boolean",
               "null"
-            ]
+            ],
+            "description": "Privacy: true = shielded, false = transparent (default: true)"
           },
           "wallet_id": {
             "type": [
@@ -2955,7 +2983,7 @@
       },
       "DeactivateBundleResponse": {
         "type": "object",
-        "description": "Deactivate bundle response",
+        "description": "Deactivate bundle response.\n\n`status` is \"deactivated\" on success.",
         "required": [
           "status"
         ],
@@ -2967,6 +2995,7 @@
       },
       "DepositAddressResponse": {
         "type": "object",
+        "description": "Deposit address response — a generated deposit address for a specific chain.\n\n`privacy` is \"shielded\" (private, zk-protected) or \"transparent\" (public).",
         "required": [
           "address",
           "chain",
@@ -2974,18 +3003,22 @@
         ],
         "properties": {
           "address": {
-            "type": "string"
+            "type": "string",
+            "description": "On-chain deposit address"
           },
           "chain": {
-            "type": "string"
+            "type": "string",
+            "description": "Blockchain: \"hinkal\", \"solana\", or \"hedera\""
           },
           "privacy": {
-            "type": "string"
+            "type": "string",
+            "description": "Privacy mode: \"shielded\" or \"transparent\""
           }
         }
       },
       "DepositReferenceRequest": {
         "type": "object",
+        "description": "Deposit reference request — create a time-limited deposit reference for tracking.",
         "required": [
           "chain"
         ],
@@ -3004,6 +3037,7 @@
       },
       "DepositReferenceResponse": {
         "type": "object",
+        "description": "Deposit reference response — a time-limited reference code for an incoming deposit.",
         "required": [
           "reference",
           "chain",
@@ -3011,13 +3045,16 @@
         ],
         "properties": {
           "chain": {
-            "type": "string"
+            "type": "string",
+            "description": "Blockchain this reference is for"
           },
           "expires_at": {
-            "type": "string"
+            "type": "string",
+            "description": "ISO 8601 expiration timestamp"
           },
           "reference": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique deposit reference code"
           }
         }
       },
@@ -3226,7 +3263,7 @@
       },
       "EvolveBundleResponse": {
         "type": "object",
-        "description": "Evolve bundle response",
+        "description": "Evolve bundle response — result of re-composing a bundle after skill changes.\n\n`evolved_manifest` is the updated bundle definition.\n`changes` lists what changed from the previous version.",
         "required": [
           "changes",
           "message"
@@ -3350,7 +3387,7 @@
       },
       "McpInvokeRequest": {
         "type": "object",
-        "description": "MCP invoke request body",
+        "description": "MCP invoke request — invoke a tool on a running MCP server.\n\n`tool` is the fully-qualified tool name. Use GET /api/mcp/tools to\ndiscover available tools before invoking. `input` is a JSON object of\ntool arguments (defaults to {}).",
         "required": [
           "tool"
         ],
@@ -3366,7 +3403,7 @@
       },
       "McpInvokeResponse": {
         "type": "object",
-        "description": "MCP invoke response body",
+        "description": "MCP invoke response — result of a tool invocation.\n\nThe `result` shape varies by tool. `server` identifies which MCP server\nhandled the invocation.",
         "required": [
           "server",
           "tool",
@@ -3532,7 +3569,7 @@
       },
       "PruneRequest": {
         "type": "object",
-        "description": "Backup prune request.",
+        "description": "Backup prune request.\n\n`dry_run` (default: true) reports what would be removed without deleting.\nSet to false to actually remove expired snapshots.",
         "properties": {
           "dry_run": {
             "type": "boolean"
@@ -3541,7 +3578,7 @@
       },
       "PruneResponse": {
         "type": "object",
-        "description": "Backup prune response.",
+        "description": "Backup prune response.\n\n`evaluated` is snapshots checked. `removed` lists deleted commit hashes.\n`retained` is snapshots kept.",
         "required": [
           "dry_run",
           "evaluated",
@@ -3586,6 +3623,7 @@
       },
       "RepoVerifyReport": {
         "type": "object",
+        "description": "Repository verify report — per-repo Git integrity verification result.",
         "required": [
           "repo",
           "total_blobs",
@@ -3677,7 +3715,7 @@
       },
       "RestoreResponse": {
         "type": "object",
-        "description": "Backup restore response.",
+        "description": "Backup restore response.\n\n`artifacts` lists the artifacts recovered from the backup snapshot.",
         "required": [
           "artifacts"
         ],
@@ -3692,6 +3730,7 @@
       },
       "RestoredArtifact": {
         "type": "object",
+        "description": "Restored artifact — identifies a single artifact recovered from a backup.",
         "required": [
           "artifact_type",
           "artifact_id"
@@ -3707,6 +3746,7 @@
       },
       "RetentionConfigResponse": {
         "type": "object",
+        "description": "Retention config — time-based snapshot cleanup policy.\n\n`daily_days` is how many daily snapshots to keep.\n`weekly_weeks` is how many weekly snapshots to keep.",
         "required": [
           "daily_days",
           "weekly_weeks"
@@ -3751,7 +3791,7 @@
       },
       "SnapshotResponse": {
         "type": "object",
-        "description": "Backup snapshot response.",
+        "description": "Backup snapshot response — result of a snapshot operation via GitCAS.\n\n`commits` lists the Git commits backing this snapshot.\n`trigger` is \"manual\" (API-triggered) or \"auto\" (scheduled).",
         "required": [
           "commits",
           "artifact_count",
@@ -3779,6 +3819,7 @@
       },
       "SovereigntyConsentRequest": {
         "type": "object",
+        "description": "Sovereignty consent request — P2 (Affirmative Consent).\n\nGrant explicit consent for a data category. Valid categories:\n\"memory\", \"inference\", \"replica\", \"all\".",
         "required": [
           "category"
         ],
@@ -4082,6 +4123,7 @@
       },
       "TransactionListResponse": {
         "type": "object",
+        "description": "Transaction list response.",
         "required": [
           "transactions"
         ],
@@ -4090,12 +4132,14 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TransactionResponse"
-            }
+            },
+            "description": "Wallet transactions, newest first"
           }
         }
       },
       "TransactionResponse": {
         "type": "object",
+        "description": "Transaction response — a single wallet transaction.\n\n`rjoules_delta` is positive for deposits, negative for withdrawals.",
         "required": [
           "rjoules_delta",
           "balance_after",
@@ -4105,20 +4149,23 @@
           "balance_after": {
             "type": "integer",
             "format": "int64",
+            "description": "Balance after this transaction",
             "minimum": 0
           },
           "rjoules_delta": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Change in rJoules (positive = deposit, negative = withdrawal)"
           },
           "timestamp": {
-            "type": "string"
+            "type": "string",
+            "description": "ISO 8601 timestamp"
           }
         }
       },
       "UpdateConfigRequest": {
         "type": "object",
-        "description": "Backup config update request.",
+        "description": "Backup config update request.\n\nAll fields are optional — only provided fields are updated.\n`retention` accepts \"daily:N,weekly:M\" format (e.g., \"daily:7,weekly:4\").",
         "properties": {
           "auto_snapshot": {
             "type": [
@@ -4179,7 +4226,7 @@
       },
       "VerifyResponse": {
         "type": "object",
-        "description": "Backup verify response.",
+        "description": "Backup verify response.\n\nReturns per-repository integrity verification reports from GitCAS.",
         "required": [
           "reports"
         ],
@@ -4194,6 +4241,7 @@
       },
       "WalletBalanceResponse": {
         "type": "object",
+        "description": "Wallet balance response — current rJoule balance and fiat equivalents.\n\n`rjoules` is the canonical energy unit for inference and memory operations.\n`usdc_equivalent` and `gas_equivalent` are approximate fiat conversions\nbased on the current calibrated gas-per-rjoule rate (P9 homeostatic calibration).",
         "required": [
           "wallet_id",
           "rjoules",
@@ -4204,24 +4252,29 @@
           "gas_equivalent": {
             "type": "integer",
             "format": "int64",
+            "description": "Approximate native gas units equivalent (chain-dependent)",
             "minimum": 0
           },
           "rjoules": {
             "type": "integer",
             "format": "int64",
+            "description": "Balance in rJoules — the canonical energy unit for inference operations",
             "minimum": 0
           },
           "usdc_equivalent": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Approximate USD Coin equivalent at current calibration rate"
           },
           "wallet_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Wallet ID (UUID)"
           }
         }
       },
       "WithdrawRequest": {
         "type": "object",
+        "description": "Withdraw request — withdraw rJoules to an on-chain address.\n\n`chain` selects the target blockchain (default: \"hinkal\").\n`private` controls shielded vs transparent mode (default: true).",
         "required": [
           "amount_rj",
           "to_address"
@@ -4230,22 +4283,26 @@
           "amount_rj": {
             "type": "integer",
             "format": "int64",
+            "description": "Amount to withdraw in rJoules",
             "minimum": 0
           },
           "chain": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Target chain: \"hinkal\", \"solana\", or \"hedera\" (default: \"hinkal\")"
           },
           "private": {
             "type": [
               "boolean",
               "null"
-            ]
+            ],
+            "description": "Privacy: true = shielded, false = transparent (default: true)"
           },
           "to_address": {
-            "type": "string"
+            "type": "string",
+            "description": "Destination on-chain address"
           },
           "wallet_id": {
             "type": [
@@ -4258,6 +4315,7 @@
       },
       "WithdrawalFeeEstimateResponse": {
         "type": "object",
+        "description": "Withdrawal fee estimate — cost of withdrawing rJoules to a target chain.\n\n`rjoules` is the fee in the canonical energy unit.\n`native_units` and `usdc_equivalent` are approximate conversions.",
         "required": [
           "chain",
           "rjoules",
@@ -4266,25 +4324,30 @@
         ],
         "properties": {
           "chain": {
-            "type": "string"
+            "type": "string",
+            "description": "Target blockchain: \"hinkal\", \"solana\", or \"hedera\""
           },
           "native_units": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Fee in native chain units (e.g., SOL, HBAR)"
           },
           "rjoules": {
             "type": "integer",
             "format": "int64",
+            "description": "Fee in rJoules",
             "minimum": 0
           },
           "usdc_equivalent": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Approximate USD Coin equivalent"
           }
         }
       },
       "WithdrawalResponse": {
         "type": "object",
+        "description": "Withdrawal response — confirmation of a completed on-chain withdrawal.",
         "required": [
           "tx_hash",
           "amount_rj",
@@ -4295,16 +4358,20 @@
           "amount_rj": {
             "type": "integer",
             "format": "int64",
+            "description": "Amount withdrawn in rJoules",
             "minimum": 0
           },
           "chain": {
-            "type": "string"
+            "type": "string",
+            "description": "Settlement chain"
           },
           "privacy": {
-            "type": "string"
+            "type": "string",
+            "description": "Privacy mode used: \"shielded\" or \"transparent\""
           },
           "tx_hash": {
-            "type": "string"
+            "type": "string",
+            "description": "On-chain transaction hash"
           }
         }
       }

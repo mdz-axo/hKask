@@ -171,6 +171,28 @@ impl EndpointLifecycle {
     pub fn elapsed_seconds(&self) -> f64 {
         (Utc::now() - self.created_at).num_milliseconds() as f64 / 1000.0
     }
+
+    /// Check whether the accrued cost exceeds a budget limit.
+    ///
+    /// REQ: P9-adt-endpoint-lifecycle — budget cap enforcement
+    /// pre:  budget_limit >= 0.0
+    /// post: returns true if cost_accrued > budget_limit
+    pub fn is_over_budget(&self, budget_limit: f64) -> bool {
+        self.cost_accrued > budget_limit
+    }
+
+    /// Estimated time remaining before the budget cap is hit, in seconds.
+    /// Returns None if hourly_rate is 0 (should never happen).
+    pub fn time_until_budget_exceeded(&self, budget_limit: f64) -> Option<f64> {
+        if self.hourly_rate <= 0.0 {
+            return None;
+        }
+        let remaining = budget_limit - self.cost_accrued;
+        if remaining <= 0.0 {
+            return Some(0.0);
+        }
+        Some((remaining / self.hourly_rate) * 3600.0)
+    }
 }
 
 #[cfg(test)]
@@ -267,5 +289,34 @@ mod tests {
 
         lc.accrue_cost(-1.0);
         assert_eq!(lc.cost_accrued, 0.0);
+    }
+
+    // REQ: P9-adt-endpoint-lifecycle — budget enforcement
+    #[test]
+    fn is_over_budget() {
+        let mut lc = EndpointLifecycle::new(10.0).expect("creation");
+        assert!(!lc.is_over_budget(50.0));
+
+        lc.accrue_cost(3600.0); // $10 accrued
+        assert!(!lc.is_over_budget(50.0));
+
+        lc.accrue_cost(3600.0 * 5.0); // $60 total accrued
+        assert!(lc.is_over_budget(50.0));
+    }
+
+    // REQ: P9-adt-endpoint-lifecycle — time until budget exceeded
+    #[test]
+    fn time_until_budget_exceeded() {
+        let lc = EndpointLifecycle::new(10.0).expect("creation");
+
+        // No cost accrued, budget of $10 → 1 hour remaining
+        let remaining = lc.time_until_budget_exceeded(10.0);
+        assert!(remaining.is_some());
+        assert!((remaining.unwrap() - 3600.0).abs() < 1.0);
+
+        // Budget already exceeded → 0 seconds
+        let mut lc2 = EndpointLifecycle::new(10.0).expect("creation");
+        lc2.accrue_cost(7200.0); // $20 accrued
+        assert_eq!(lc2.time_until_budget_exceeded(10.0), Some(0.0));
     }
 }

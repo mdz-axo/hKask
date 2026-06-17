@@ -58,12 +58,12 @@ pub use error::{InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::Goal;
 pub use id::{
-    ApiKeyId, BotID, EmbeddingID, EscalationID, EventID, GoalID, Id, IdKind, PodID, TemplateID,
-    TripleID, UserID, WalletId, WebID,
+    ApiKeyId, BoardId, BotID, ColumnId, EmbeddingID, EscalationID, EventID, GoalID, Id, IdKind,
+    PodID, TaskId, TemplateID, TripleID, UserID, WalletId, WebID,
 };
 pub use kanban::{
-    Board, BoardId, ColumnDef, ColumnId, ConsentProof, Task, TaskFilter, TaskId, TaskSpec,
-    TaskStatus, Verification, VerificationCriterion,
+    Board, ColumnDef, ConsentProof, Task, TaskFilter, TaskSpec, TaskStatus, Verification,
+    VerificationCriterion,
 };
 pub use loops::{CurationInput, CuratorHandle, ExperienceClassification};
 pub use ports::{

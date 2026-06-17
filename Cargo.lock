@@ -4173,6 +4173,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-kanban"
+version = "0.27.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dotenvy",
+ "hkask-mcp",
+ "hkask-services",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "hkask-mcp-media"
 version = "0.27.0"
 dependencies = [

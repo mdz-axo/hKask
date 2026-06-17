@@ -27,6 +27,7 @@ pub mod error;
 pub mod experience;
 pub mod goal;
 pub mod inference;
+pub mod kanban;
 pub mod kata;
 pub mod lifecycle;
 pub mod onboarding;
@@ -86,6 +87,7 @@ pub use error::ServiceError;
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
+pub use kanban::{KanbanError, KanbanService};
 pub use kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
     KataResult, KataState, KataStep, PracticeEntry, StepExperience,

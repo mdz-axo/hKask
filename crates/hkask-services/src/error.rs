@@ -29,7 +29,7 @@
 use thiserror::Error;
 
 // ── Domain error imports ──────────────────────────────────────────────────
-use hkask_agents::acp::AcpError;
+use hkask_agents::a2a::A2AError;
 use hkask_agents::consent::ConsentError;
 use hkask_agents::curator_agent::metacognition::MetacognitionError;
 use hkask_agents::pod::AgentPodError;
@@ -101,7 +101,7 @@ pub enum ServiceError {
 
     /// Upstream ACP error.
     #[error(transparent)]
-    Acp(#[from] AcpError),
+    Acp(#[from] A2AError),
 
     /// Upstream agent-registry loader error.
     #[error(transparent)]

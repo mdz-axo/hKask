@@ -1,7 +1,7 @@
 //! Curator Agent metacognition: sense→compare→compute→act governance loop.
 //! Moved from `curator::metacognition` — persona concern, not regulatory.
 
-use crate::acp::A2AMessage;
+use crate::a2a::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_health::BotHealthEvaluator;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
@@ -48,8 +48,8 @@ pub enum MetacognitionError {
     Core(#[from] crate::error::CoreError),
 }
 
-impl From<crate::acp::AcpError> for MetacognitionError {
-    fn from(e: crate::acp::AcpError) -> Self {
+impl From<crate::a2a::A2AError> for MetacognitionError {
+    fn from(e: crate::a2a::A2AError) -> Self {
         MetacognitionError::Core(crate::error::CoreError::Acp(e))
     }
 }

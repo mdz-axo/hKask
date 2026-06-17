@@ -86,6 +86,7 @@ pub struct DepositAddressResponse {
     pub privacy: String,
 }
 
+/// Deposit reference request — create a time-limited deposit reference for tracking.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct DepositReferenceRequest {
     pub chain: String,
@@ -132,63 +133,108 @@ pub struct TransactionListResponse {
     pub transactions: Vec<TransactionResponse>,
 }
 
+/// Create API key request.
+///
+/// API keys carry a spending limit in rJoules and an optional expiry.
+/// `private` controls shielded (default: true) vs transparent mode.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateKeyRequest {
+    /// Spending limit in rJoules
     pub limit_rj: u64,
+    /// Key expiry in days from creation (None = no expiry)
     pub expiry_days: Option<u32>,
+    /// Privacy: true = shielded, false = transparent (default: true)
     pub private: Option<bool>,
+    /// Preferred chain: "hinkal", "solana", or "hedera" (default: "hinkal")
     pub chain: Option<String>,
     /// Wallet ID (UUID). Defaults to system wallet if omitted.
     pub wallet_id: Option<String>,
 }
 
+/// API key created response.
+///
+/// **Security:** `private_key_hex` is shown only once. Store it securely.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ApiKeyCreatedResponse {
+    /// Unique key identifier
     pub key_id: String,
+    /// Private key in hex (shown only once — store securely)
     pub private_key_hex: String,
+    /// Spending limit in rJoules
     pub spending_limit_rj: u64,
+    /// ISO 8601 expiry timestamp (None = no expiry)
     pub expires_at: Option<String>,
+    /// Privacy mode: "shielded" or "transparent"
     pub privacy_mode: String,
+    /// Preferred blockchain for settlement
     pub preferred_chain: Option<String>,
 }
 
+/// API key entry — status of an existing API key.
+///
+/// `status` is "active", "revoked", "exhausted", or "expired".
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ApiKeyEntry {
+    /// Unique key identifier
     pub key_id: String,
+    /// Cumulative rJoules spent via this key
     pub spent_rj: u64,
+    /// Spending limit in rJoules
     pub limit_rj: u64,
+    /// Status: "active", "revoked", "exhausted", or "expired"
     pub status: String,
+    /// Privacy mode: "shielded" or "transparent"
     pub privacy_mode: String,
+    /// ISO 8601 expiry timestamp (None = no expiry)
     pub expires_at: Option<String>,
+    /// Preferred blockchain for settlement
     pub preferred_chain: Option<String>,
 }
 
+/// API key list response.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ApiKeyListResponse {
+    /// All API keys for the authenticated wallet
     pub keys: Vec<ApiKeyEntry>,
 }
 
+/// API key revoked response.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ApiKeyRevokedResponse {
+    /// Key ID that was revoked
     pub key_id: String,
+    /// Always true on success
     pub revoked: bool,
 }
 
+/// Withdraw request — withdraw rJoules to an on-chain address.
+///
+/// `chain` selects the target blockchain (default: "hinkal").
+/// `private` controls shielded vs transparent mode (default: true).
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct WithdrawRequest {
+    /// Amount to withdraw in rJoules
     pub amount_rj: u64,
+    /// Destination on-chain address
     pub to_address: String,
+    /// Target chain: "hinkal", "solana", or "hedera" (default: "hinkal")
     pub chain: Option<String>,
+    /// Privacy: true = shielded, false = transparent (default: true)
     pub private: Option<bool>,
     /// Wallet ID (UUID). Defaults to system wallet if omitted.
     pub wallet_id: Option<String>,
 }
 
+/// Withdrawal response — confirmation of a completed on-chain withdrawal.
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct WithdrawalResponse {
+    /// On-chain transaction hash
     pub tx_hash: String,
+    /// Amount withdrawn in rJoules
     pub amount_rj: u64,
+    /// Settlement chain
     pub chain: String,
+    /// Privacy mode used: "shielded" or "transparent"
     pub privacy: String,
 }
 

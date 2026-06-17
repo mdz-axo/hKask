@@ -16,7 +16,7 @@ use hkask_types::{
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use super::AcpError;
+use super::A2AError;
 
 /// Root authority for OCAP capability delegation
 ///
@@ -72,7 +72,7 @@ impl RootAuthority {
         resource_id: String,
         action: DelegationAction,
         delegated_to: WebID,
-    ) -> Result<DelegationToken, AcpError> {
+    ) -> Result<DelegationToken, A2AError> {
         let token_id = {
             let mut counter = self.token_counter.write().await;
             *counter += 1;

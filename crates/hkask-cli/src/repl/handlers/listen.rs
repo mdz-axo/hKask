@@ -59,8 +59,8 @@ fn handle_start(duration_arg: &str, state: &mut ReplState, rt: &tokio::runtime::
     let duration_secs = duration_secs.clamp(1.0, 3600.0);
 
     // Mint capability token
-    let acp_secret = match state.resolved_secrets {
-        Some(ref secrets) => secrets.acp_secret.as_bytes(),
+    let a2a_secret = match state.resolved_secrets {
+        Some(ref secrets) => secrets.a2a_secret.as_bytes(),
         None => {
             println!("  \x1b[31mError:\x1b[0m No ACP secret resolved. Run onboarding first.");
             println!();
@@ -74,7 +74,7 @@ fn handle_start(duration_arg: &str, state: &mut ReplState, rt: &tokio::runtime::
         DelegationAction::Execute,
         WebID::new(),
         state.agent_webid,
-        &derive_signing_key(acp_secret),
+        &derive_signing_key(a2a_secret),
     );
 
     // Step 1: Capture audio

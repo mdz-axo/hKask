@@ -111,8 +111,8 @@ impl IntoResponse for ServiceErrorResponse {
 // These impls bridge domain errors that route handlers propagate with `?`.
 // They delegate to `ServiceError`'s `#[from]` wrappers.
 
-impl From<hkask_agents::acp::AcpError> for ServiceErrorResponse {
-    fn from(e: hkask_agents::acp::AcpError) -> Self {
+impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
+    fn from(e: hkask_agents::a2a::A2AError) -> Self {
         ServiceErrorResponse(hkask_services::ServiceError::Acp(e))
     }
 }
@@ -186,16 +186,16 @@ impl From<hkask_services::ServiceError> for ApiError {
             SE::LoginFailed { .. } => ApiError::Unauthorized {
                 reason: "Invalid credentials".into(),
             },
-            SE::Acp(hkask_agents::acp::AcpError::CapabilityDenied(webid, perm)) => {
+            SE::Acp(hkask_agents::a2a::A2AError::CapabilityDenied(webid, perm)) => {
                 ApiError::Forbidden {
                     reason: format!("Agent {} lacks permission: {}", webid, perm),
                 }
             }
-            SE::Acp(hkask_agents::acp::AcpError::AgentNotFound(webid)) => ApiError::NotFound {
+            SE::Acp(hkask_agents::a2a::A2AError::AgentNotFound(webid)) => ApiError::NotFound {
                 resource: "agent".into(),
                 id: webid.to_string(),
             },
-            SE::Acp(hkask_agents::acp::AcpError::AgentAlreadyRegistered(webid)) => {
+            SE::Acp(hkask_agents::a2a::A2AError::AgentAlreadyRegistered(webid)) => {
                 ApiError::Conflict {
                     message: format!("Agent already registered: {}", webid),
                 }

@@ -151,7 +151,7 @@ impl Default for Keychain {
 //
 // Benefits:
 //   - Eliminates copy-paste drift (10+ independent copies collapsed to 1 implementation)
-//   - Fixes the ACP env var inconsistency (HKASK_ACP_SECRET vs HKASK_ACP_SECRET_KEY)
+//   - Fixes the ACP env var inconsistency (HKASK_A2A_SECRET vs HKASK_A2A_SECRET_KEY)
 //   - Single place to audit secret resolution behavior
 
 /// Resolve a secret through the standard 3-tier chain:
@@ -160,7 +160,7 @@ impl Default for Keychain {
 /// 3. OS keychain lookup
 ///
 /// This is the canonical resolution pattern for all hKask secrets.
-/// Domain-specific functions (`resolve_acp_secret`, etc.) call this with
+/// Domain-specific functions (`resolve_a2a_secret`, etc.) call this with
 /// the appropriate parameters.
 ///
 /// REQ: KEYSTORE-003
@@ -184,26 +184,26 @@ pub fn resolve_secret_chain(
 /// Resolve the ACP (Agent Capability Protocol) HMAC signing secret.
 ///
 /// Chain: master key derivation → env var → OS keychain.
-/// Tries both `HKASK_ACP_SECRET` (canonical) and `HKASK_ACP_SECRET_KEY` (legacy)
+/// Tries both `HKASK_A2A_SECRET` (canonical) and `HKASK_A2A_SECRET_KEY` (legacy)
 /// environment variables for backward compatibility.
 /// Resolve the ACP secret for agent capability protocol signing.
 ///
 /// Chain: master key derivation → env var → OS keychain.
-/// Tries both `HKASK_ACP_SECRET` (canonical) and `HKASK_ACP_SECRET_KEY` (legacy)
+/// Tries both `HKASK_A2A_SECRET` (canonical) and `HKASK_A2A_SECRET_KEY` (legacy)
 /// environment variables for backward compatibility.
 ///
 /// REQ: KEY-010
 /// post: returns Zeroizing<Vec<u8>> from first successful resolution step
-pub fn resolve_acp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
         (
             derivation_contexts::MASTER_KEY_ENV,
             derivation_contexts::ACP_SECRET,
         ),
-        "HKASK_ACP_SECRET",
+        "HKASK_A2A_SECRET",
         "acp-secret",
     )
-    .or_else(|_| resolve(&SecretRef::env("HKASK_ACP_SECRET_KEY")))
+    .or_else(|_| resolve(&SecretRef::env("HKASK_A2A_SECRET_KEY")))
 }
 
 /// Resolve the MCP dispatch and tool invocation signing key.
@@ -229,7 +229,7 @@ pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
         "HKASK_MCP_SECRET",
         "mcp-secret",
     )
-    .or_else(|_| resolve_acp_secret())
+    .or_else(|_| resolve_a2a_secret())
 }
 
 /// Resolve the MCP security gateway HMAC key (used for API auth).

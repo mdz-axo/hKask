@@ -75,7 +75,11 @@ pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String
     Json(tools)
 }
 
-/// MCP invoke request body
+/// MCP invoke request — invoke a tool on a running MCP server.
+///
+/// `tool` is the fully-qualified tool name. Use GET /api/mcp/tools to
+/// discover available tools before invoking. `input` is a JSON object of
+/// tool arguments (defaults to {}).
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct McpInvokeRequest {
     /// Tool name to invoke (e.g., "inference_generate")
@@ -85,7 +89,10 @@ pub struct McpInvokeRequest {
     pub input: serde_json::Value,
 }
 
-/// MCP invoke response body
+/// MCP invoke response — result of a tool invocation.
+///
+/// The `result` shape varies by tool. `server` identifies which MCP server
+/// handled the invocation.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct McpInvokeResponse {
     /// MCP server that provided the tool

@@ -1,6 +1,6 @@
 //! HTTP routes — per-domain modules
 
-pub(crate) mod acp;
+pub(crate) mod a2a;
 pub(crate) mod backup;
 pub(crate) mod bots;
 pub(crate) mod bundles;
@@ -21,7 +21,7 @@ pub(crate) mod templates;
 pub(crate) mod wallet;
 
 // Re-export router functions
-pub use acp::acp_router;
+pub use a2a::a2a_router;
 pub use backup::backup_router;
 pub use bots::bots_router;
 pub use bundles::bundles_router;
@@ -42,7 +42,7 @@ pub use templates::templates_router;
 pub use wallet::wallet_router;
 
 // Re-export domain-local types that may be used externally
-pub use acp::{AcpAgentResponse, AcpRegisterRequest, AcpRegisterResponse, AgentListResponse};
+pub use a2a::{A2AAgentResponse, A2ARegisterRequest, A2ARegisterResponse, AgentListResponse};
 pub use bundles::{
     ApplyBundleResponse, BundleListResponse, BundleSummary, ComposeBundleRequest,
     ComposeBundleResponse, DeactivateBundleResponse, EvolveBundleResponse,

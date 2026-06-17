@@ -235,6 +235,18 @@ pub enum CnsSpan {
     EndpointCostAccrued,
     /// Endpoint cost budget warning.
     EndpointCostBudgetWarning,
+
+    // ── Kanban spans (Agent Coordination) ─────────────────────────────
+    /// Task created on a kanban board.
+    TaskCreated,
+    /// Task moved between columns (state transition).
+    TaskMoved,
+    /// Task assigned to an agent with consent proof.
+    TaskAssigned,
+    /// Task verified against acceptance criteria.
+    TaskVerified,
+    /// Board created.
+    BoardCreated,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -253,6 +265,7 @@ pub enum ToolSubsystem {
     Registry,
     Wallet,
     Media,
+    Kanban,
     /// Catch-all for unknown or future MCP servers.
     Other,
 }
@@ -271,6 +284,7 @@ impl ToolSubsystem {
             ToolSubsystem::Registry => "registry",
             ToolSubsystem::Wallet => "wallet",
             ToolSubsystem::Media => "media",
+            ToolSubsystem::Kanban => "kanban",
             ToolSubsystem::Other => "other",
         }
     }
@@ -303,6 +317,7 @@ impl CnsSpan {
                 ToolSubsystem::Registry => "cns.tool.registry",
                 ToolSubsystem::Wallet => "cns.tool.wallet",
                 ToolSubsystem::Media => "cns.tool.media",
+                ToolSubsystem::Kanban => "cns.tool.kanban",
                 ToolSubsystem::Other => "cns.tool",
             },
             CnsSpan::Prompt => "cns.prompt",
@@ -370,6 +385,11 @@ impl CnsSpan {
             CnsSpan::EndpointTerminated => "cns.endpoint.terminated",
             CnsSpan::EndpointCostAccrued => "cns.endpoint.cost.accrued",
             CnsSpan::EndpointCostBudgetWarning => "cns.endpoint.cost.budget_warning",
+            CnsSpan::TaskCreated => "cns.kanban.task_created",
+            CnsSpan::TaskMoved => "cns.kanban.task_moved",
+            CnsSpan::TaskAssigned => "cns.kanban.task_assigned",
+            CnsSpan::TaskVerified => "cns.kanban.task_verified",
+            CnsSpan::BoardCreated => "cns.kanban.board_created",
         }
     }
 }
@@ -420,6 +440,9 @@ impl std::str::FromStr for CnsSpan {
             }),
             "cns.tool.wallet" => Ok(CnsSpan::Tool {
                 subsystem: ToolSubsystem::Wallet,
+            }),
+            "cns.tool.kanban" => Ok(CnsSpan::Tool {
+                subsystem: ToolSubsystem::Kanban,
             }),
             "cns.tool.media" => Ok(CnsSpan::Tool {
                 subsystem: ToolSubsystem::Media,
@@ -489,6 +512,11 @@ impl std::str::FromStr for CnsSpan {
             "cns.endpoint.terminated" => Ok(CnsSpan::EndpointTerminated),
             "cns.endpoint.cost.accrued" => Ok(CnsSpan::EndpointCostAccrued),
             "cns.endpoint.cost.budget_warning" => Ok(CnsSpan::EndpointCostBudgetWarning),
+            "cns.kanban.task_created" => Ok(CnsSpan::TaskCreated),
+            "cns.kanban.task_moved" => Ok(CnsSpan::TaskMoved),
+            "cns.kanban.task_assigned" => Ok(CnsSpan::TaskAssigned),
+            "cns.kanban.task_verified" => Ok(CnsSpan::TaskVerified),
+            "cns.kanban.board_created" => Ok(CnsSpan::BoardCreated),
             _ => Err(()),
         }
     }
@@ -651,6 +679,11 @@ mod cns_span_tests {
             CnsSpan::EndpointTerminated,
             CnsSpan::EndpointCostAccrued,
             CnsSpan::EndpointCostBudgetWarning,
+            CnsSpan::TaskCreated,
+            CnsSpan::TaskMoved,
+            CnsSpan::TaskAssigned,
+            CnsSpan::TaskVerified,
+            CnsSpan::BoardCreated,
         ];
         for variant in &all_variants {
             let s = variant.to_string();
@@ -666,8 +699,8 @@ mod cns_span_tests {
             );
         }
         // Verify count matches CANONICAL_NAMESPACES (excluding tool subsystem variants)
-        // 66 variants total (56 previous + 10 new adapter/endpoint)
-        assert_eq!(all_variants.len(), 66);
+        // 71 variants total (66 previous + 5 kanban)
+        assert_eq!(all_variants.len(), 71);
     }
 
     // REQ: cns-span-006 — ToolSubsystem Display produces valid subsystem suffix

@@ -1,6 +1,6 @@
 //! CurationContext — Runtime composition of Curator capability handles
 
-use crate::ports::AcpPort;
+use crate::ports::A2APort;
 use hkask_cns::CnsRuntime;
 use hkask_storage::EscalationQueue;
 use hkask_storage::NuEventStore;
@@ -23,7 +23,7 @@ pub struct CuratorContext {
     nu_event_store: Option<Arc<NuEventStore>>,
     /// ACP port for A2A messaging (e.g. directing bots).
     /// Optional so existing construction sites don't break.
-    acp: Option<Arc<dyn AcpPort>>,
+    acp: Option<Arc<dyn A2APort>>,
 }
 
 impl CuratorContext {
@@ -79,9 +79,9 @@ impl CuratorContext {
     ///
     /// REQ: P9-agt-curator-context-with-acp
     /// \[P4\] Motivating: Clear Boundaries — ACP port lets Curator direct bots
-    /// pre:  `acp` is a valid `Arc<dyn AcpPort>`.
+    /// pre:  `acp` is a valid `Arc<dyn A2APort>`.
     /// post: Returns `self` with `acp` set to `Some(acp)`.
-    pub fn with_acp(mut self, acp: Arc<dyn AcpPort>) -> Self {
+    pub fn with_acp(mut self, acp: Arc<dyn A2APort>) -> Self {
         self.acp = Some(acp);
         self
     }
@@ -117,7 +117,7 @@ impl CuratorContext {
     /// Access the ACP port for A2A messaging.
     ///
     /// Returns None if no ACP port is configured (graceful degradation).
-    pub(crate) fn acp(&self) -> Option<&Arc<dyn AcpPort>> {
+    pub(crate) fn acp(&self) -> Option<&Arc<dyn A2APort>> {
         self.acp.as_ref()
     }
 

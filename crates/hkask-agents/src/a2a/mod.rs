@@ -1,6 +1,6 @@
 //! ACP (Agent Communication Protocol) Runtime Integration
 //!
-//! This module provides ACP runtime adapters for agent registration,
+//! This module provides A2A runtime adapters for agent registration,
 //! A2A message handling, and capability-gated communication.
 //!
 //! # Security Model
@@ -49,18 +49,18 @@ pub type AgentSecret = Arc<Zeroizing<Vec<u8>>>;
 
 /// Parse a capability string using the canonical [`CapabilitySpec`] parser.
 ///
-/// Converts `CapabilityParseError` into `AcpError::MalformedCapability`.
+/// Converts `CapabilityParseError` into `A2AError::MalformedCapability`.
 fn parse_capability(
     capability: &str,
-) -> Result<(DelegationResource, String, DelegationAction), AcpError> {
+) -> Result<(DelegationResource, String, DelegationAction), A2AError> {
     let spec = CapabilitySpec::parse(capability)
-        .map_err(|e| AcpError::MalformedCapability(e.to_string()))?;
+        .map_err(|e| A2AError::MalformedCapability(e.to_string()))?;
     Ok((spec.resource, spec.resource_id, spec.action))
 }
 
 /// ACP error types for security and validation
 #[derive(Debug, Error)]
-pub enum AcpError {
+pub enum A2AError {
     #[error("Agent {0:?} already registered")]
     AgentAlreadyRegistered(WebID),
 
@@ -90,7 +90,7 @@ pub enum AcpError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AcpAgent {
+pub struct A2AAgent {
     pub webid: WebID,
     pub agent_type: AgentKind,
     /// Explicit capabilities — no wildcards
@@ -316,30 +316,30 @@ impl A2AMessage {
 /// lock, eliminating dead-lock potential from multi-lock acquisitions
 /// and guaranteeing consistent snapshots across read-modify-write ops.
 #[derive(Default)]
-struct AcpState {
-    agents: HashMap<WebID, AcpAgent>,
+struct A2AState {
+    agents: HashMap<WebID, A2AAgent>,
     pending_messages: HashMap<String, A2AMessage>,
     capability_tokens: HashMap<WebID, Vec<DelegationToken>>,
     agent_secrets: HashMap<WebID, AgentSecret>,
     revoked_tokens: std::collections::HashSet<String>,
 }
 
-pub struct AcpRuntime {
-    state: Arc<RwLock<AcpState>>,
+pub struct A2ARuntime {
+    state: Arc<RwLock<A2AState>>,
     secret: Arc<Zeroizing<Vec<u8>>>,
     audit_log: Arc<AuditLog>,
     root_authority: Arc<RootAuthority>,
 }
 
-impl AcpRuntime {
+impl A2ARuntime {
     /// `secret` is the master key for HKDF agent-secret derivation.
     /// The Ed25519 signing key for token issuance is derived from it.
     ///
-    /// REQ: P4-agt-acp-runtime-new
-    /// \[P4\] Motivating: Clear Boundaries — ACP runtime derives root authority from master secret
+    /// REQ: P4-agt-a2a-runtime-new
+    /// \[P4\] Motivating: Clear Boundaries — A2A runtime derives root authority from master secret
     /// \[P1\] Constraining: User Sovereignty — root WebID is user-derived
     /// pre:  `secret` is a non-empty byte slice (master key material).
-    /// post: Returns an `AcpRuntime` with a derived root WebID, signing
+    /// post: Returns an `A2ARuntime` with a derived root WebID, signing
     ///       key, empty agent state, and a fresh audit log.
     pub fn new(secret: &[u8]) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
@@ -350,7 +350,7 @@ impl AcpRuntime {
         let secret_arc = Arc::new(Zeroizing::new(secret.to_vec()));
 
         Self {
-            state: Arc::new(RwLock::new(AcpState::default())),
+            state: Arc::new(RwLock::new(A2AState::default())),
             secret: secret_arc,
             audit_log: Arc::new(AuditLog::new()),
             root_authority,
@@ -376,7 +376,7 @@ impl AcpRuntime {
         }
 
         // Derive using HKDF-SHA256 with agent WebID as domain separator
-        let context = format!("hkask:acp-agent:{}", agent_webid);
+        let context = format!("hkask:a2a-agent:{}", agent_webid);
         let derived = hkask_keystore::derive_sub_key(self.secret.as_ref(), &context);
         let arc_key = Arc::new(derived);
 
@@ -400,7 +400,7 @@ impl AcpRuntime {
     ///       `AgentKind`; `capabilities` is a list of capability strings
     ///       (no wildcards allowed).
     /// post: On success, returns `Ok(DelegationToken)` — the primary token
-    ///       for the agent. On failure, returns `Err(AcpError)`:
+    ///       for the agent. On failure, returns `Err(A2AError)`:
     ///       `WildcardCapabilityNotAllowed` if any capability is `"*"`;
     ///       `AgentAlreadyRegistered` if the WebID is already registered.
     pub async fn register_agent(
@@ -408,15 +408,15 @@ impl AcpRuntime {
         webid: WebID,
         agent_type: AgentKind,
         capabilities: Vec<String>,
-    ) -> Result<DelegationToken, AcpError> {
+    ) -> Result<DelegationToken, A2AError> {
         // Validate capabilities - reject wildcards
         for cap in &capabilities {
             if cap == "*" {
-                return Err(AcpError::WildcardCapabilityNotAllowed);
+                return Err(A2AError::WildcardCapabilityNotAllowed);
             }
         }
 
-        let agent = AcpAgent {
+        let agent = A2AAgent {
             webid,
             agent_type,
             capabilities: capabilities.clone(),
@@ -452,18 +452,18 @@ impl AcpRuntime {
         {
             let mut state = self.state.write().await;
             if state.agents.contains_key(&webid) {
-                return Err(AcpError::AgentAlreadyRegistered(webid));
+                return Err(A2AError::AgentAlreadyRegistered(webid));
             }
             state.agents.insert(webid, agent);
             state.capability_tokens.insert(webid, tokens_vec);
         }
 
         info!(
-            target: "hkask.acp",
+            target: "hkask.a2a",
             webid = %webid,
             agent_type = %agent_type.as_str(),
             capabilities = ?capabilities,
-            "Agent registered with ACP runtime"
+            "Agent registered with A2A runtime"
         );
 
         Ok(primary_token)
@@ -474,12 +474,12 @@ impl AcpRuntime {
     /// pre:  `webid` is a valid `WebID`.
     /// post: If the agent exists, removes it and its capability tokens
     ///       and derived key, returns `Ok(())`. If not found, returns
-    ///       `Err(AcpError::AgentNotFound)`.
-    pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
+    ///       `Err(A2AError::AgentNotFound)`.
+    pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), A2AError> {
         let mut state = self.state.write().await;
 
         if state.agents.remove(webid).is_none() {
-            return Err(AcpError::AgentNotFound(*webid));
+            return Err(A2AError::AgentNotFound(*webid));
         }
 
         // Remove capability tokens and per-agent derived key
@@ -487,9 +487,9 @@ impl AcpRuntime {
         state.agent_secrets.remove(webid);
 
         info!(
-            target: "hkask.acp",
+            target: "hkask.a2a",
             webid = %webid,
-            "Agent unregistered from ACP runtime"
+            "Agent unregistered from A2A runtime"
         );
 
         Ok(())
@@ -499,15 +499,15 @@ impl AcpRuntime {
     ///
     /// REQ: P4-agt-acp-agents-restore
     /// \[P4\] Motivating: Clear Boundaries — restore preserves capability graph
-    /// pre:  `agents` is a list of `AcpAgent` records; `tokens` is a map
+    /// pre:  `agents` is a list of `A2AAgent` records; `tokens` is a map
     ///       of WebID → `Vec<DelegationToken>`.
     /// post: All agents and tokens are inserted into the runtime state;
     ///       returns `Ok(usize)` with the count of agents restored.
     pub async fn restore_from_storage(
         &self,
-        agents: Vec<AcpAgent>,
+        agents: Vec<A2AAgent>,
         tokens: std::collections::HashMap<WebID, Vec<DelegationToken>>,
-    ) -> Result<usize, AcpError> {
+    ) -> Result<usize, A2AError> {
         let mut state = self.state.write().await;
 
         let count = agents.len();
@@ -521,7 +521,7 @@ impl AcpRuntime {
         }
 
         info!(
-            target: "hkask.acp",
+            target: "hkask.a2a",
             agent_count = count,
             "Agent state restored from storage"
         );
@@ -534,7 +534,7 @@ impl AcpRuntime {
         state.agents.contains_key(webid)
     }
 
-    pub(crate) async fn send_message(&self, message: A2AMessage) -> Result<String, AcpError> {
+    pub(crate) async fn send_message(&self, message: A2AMessage) -> Result<String, A2AError> {
         let from = message.from_webid().copied();
         let to = match &message {
             A2AMessage::TemplateDispatch { to, .. } => *to,
@@ -569,7 +569,7 @@ impl AcpRuntime {
         self.audit_log.log(audit_entry).await;
 
         info!(
-            target: "hkask.acp",
+            target: "hkask.a2a",
             correlation_id = %correlation_id,
             message_type = %message_type,
             "A2A message sent"
@@ -599,78 +599,78 @@ impl AcpRuntime {
     /// REQ: P4-agt-acp-agents-list
     /// \[P4\] Motivating: Clear Boundaries — enumerate registered agents
     /// pre:  (none).
-    /// post: Returns a `Vec<AcpAgent>` containing clones of all currently
+    /// post: Returns a `Vec<A2AAgent>` containing clones of all currently
     ///       registered agents.
-    pub async fn list_agents(&self) -> Vec<AcpAgent> {
+    pub async fn list_agents(&self) -> Vec<A2AAgent> {
         let state = self.state.read().await;
         state.agents.values().cloned().collect()
     }
 }
 
-fn current_timestamp() -> Result<i64, AcpError> {
+fn current_timestamp() -> Result<i64, A2AError> {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
-        .map_err(|e| AcpError::ClockError(e.to_string()))
+        .map_err(|e| A2AError::ClockError(e.to_string()))
 }
 
-impl Default for AcpRuntime {
-    /// Construct a default ACP runtime using the resolved ACP secret.
+impl Default for A2ARuntime {
+    /// Construct a default A2A runtime using the resolved ACP secret.
     ///
     /// P4.1: The `Default` trait cannot return `Result`, so this is a
     /// documented panic if the secret is unavailable. The panic message
     /// is the actionable onboarding instruction ("run `kask chat` to
-    /// complete onboarding, or set HKASK_MASTER_KEY or HKASK_ACP_SECRET").
+    /// complete onboarding, or set HKASK_MASTER_KEY or HKASK_A2A_SECRET").
     /// \[NORMATIVE\] Callers that need graceful failure should call (P4 — Clear Boundaries).
-    /// `hkask_keystore::resolve_acp_secret()` directly and handle the
+    /// `hkask_keystore::resolve_a2a_secret()` directly and handle the
     /// `Result` instead of using `Default::default()`.
     fn default() -> Self {
-        let secret = hkask_keystore::resolve_acp_secret().expect(
+        let secret = hkask_keystore::resolve_a2a_secret().expect(
             "ACP secret not available. Run `kask chat` to complete onboarding, \
-                 or set HKASK_MASTER_KEY or HKASK_ACP_SECRET.",
+                 or set HKASK_MASTER_KEY or HKASK_A2A_SECRET.",
         );
         Self::new(&secret)
     }
 }
 
 #[async_trait::async_trait]
-impl crate::ports::AcpPort for AcpRuntime {
+impl crate::ports::A2APort for A2ARuntime {
     async fn register_agent(
         &self,
         webid: WebID,
         agent_type: AgentKind,
         capabilities: Vec<String>,
-    ) -> Result<DelegationToken, AcpError> {
-        AcpRuntime::register_agent(self, webid, agent_type, capabilities).await
+    ) -> Result<DelegationToken, A2AError> {
+        A2ARuntime::register_agent(self, webid, agent_type, capabilities).await
     }
-    async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
-        AcpRuntime::unregister_agent(self, webid).await
+    async fn unregister_agent(&self, webid: &WebID) -> Result<(), A2AError> {
+        A2ARuntime::unregister_agent(self, webid).await
     }
-    async fn send_message(&self, msg: A2AMessage) -> Result<String, AcpError> {
-        AcpRuntime::send_message(self, msg).await
+    async fn send_message(&self, msg: A2AMessage) -> Result<String, A2AError> {
+        A2ARuntime::send_message(self, msg).await
     }
-    async fn list_capabilities(&self, webid: &WebID) -> Result<Vec<String>, AcpError> {
+    async fn list_capabilities(&self, webid: &WebID) -> Result<Vec<String>, A2AError> {
         self.state
             .read()
             .await
             .agents
             .get(webid)
             .map(|agent| agent.capabilities.clone())
-            .ok_or(AcpError::AgentNotFound(*webid))
+            .ok_or(A2AError::AgentNotFound(*webid))
     }
     async fn is_registered(&self, webid: &WebID) -> bool {
-        AcpRuntime::is_registered(self, webid).await
+        A2ARuntime::is_registered(self, webid).await
     }
-    async fn revoke_capability(&self, token_id: &str, _holder: &WebID) -> Result<(), AcpError> {
-        AcpRuntime::revoke_capability(self, token_id).await;
+    async fn revoke_capability(&self, token_id: &str, _holder: &WebID) -> Result<(), A2AError> {
+        A2ARuntime::revoke_capability(self, token_id).await;
         Ok(())
     }
     async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
-        AcpRuntime::get_capabilities(self, webid).await
+        A2ARuntime::get_capabilities(self, webid).await
     }
-    async fn list_agents(&self) -> Vec<AcpAgent> {
-        AcpRuntime::list_agents(self).await
+    async fn list_agents(&self) -> Vec<A2AAgent> {
+        A2ARuntime::list_agents(self).await
     }
 }
 
@@ -690,7 +690,7 @@ mod tests {
     // REQ: P4-agt-acp-wildcard-reject-test — ACP rejects wildcard capability "*"
     #[tokio::test]
     async fn acp_rejects_wildcard_capability() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
         let result = acp
@@ -699,7 +699,7 @@ mod tests {
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            AcpError::WildcardCapabilityNotAllowed => {} // expected
+            A2AError::WildcardCapabilityNotAllowed => {} // expected
             other => panic!("Expected WildcardCapabilityNotAllowed, got: {:?}", other),
         }
     }
@@ -707,7 +707,7 @@ mod tests {
     // REQ: P4-agt-acp-wildcard-mixed-reject-test — ACP rejects wildcard mixed with valid capabilities
     #[tokio::test]
     async fn acp_rejects_wildcard_mixed_with_valid_capabilities() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
         let result = acp
@@ -720,7 +720,7 @@ mod tests {
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            AcpError::WildcardCapabilityNotAllowed => {}
+            A2AError::WildcardCapabilityNotAllowed => {}
             other => panic!("Expected WildcardCapabilityNotAllowed, got: {:?}", other),
         }
     }
@@ -730,7 +730,7 @@ mod tests {
     // REQ: P4-agt-acp-register-test — ACP registers agent and returns delegation token
     #[tokio::test]
     async fn acp_registers_agent_and_returns_token() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
         let token = acp
@@ -747,7 +747,7 @@ mod tests {
     // REQ: P4-agt-acp-register-dup-test — ACP rejects duplicate agent registration
     #[tokio::test]
     async fn acp_rejects_duplicate_registration() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
         acp.register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
@@ -760,7 +760,7 @@ mod tests {
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            AcpError::AgentAlreadyRegistered(w) => assert_eq!(w, webid),
+            A2AError::AgentAlreadyRegistered(w) => assert_eq!(w, webid),
             other => panic!("Expected AgentAlreadyRegistered, got: {:?}", other),
         }
     }
@@ -768,7 +768,7 @@ mod tests {
     // REQ: P4-agt-acp-register-capabilities-test — Root authority creates delegation tokens for all requested capabilities
     #[tokio::test]
     async fn root_authority_creates_tokens_for_all_capabilities() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("multi-cap-agent");
 
         let capabilities = vec![
@@ -800,7 +800,7 @@ mod tests {
     // REQ: P4-agt-acp-unregister-test — ACP unregisters agent and removes tokens
     #[tokio::test]
     async fn acp_unregisters_agent_and_removes_tokens() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
         acp.register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
@@ -821,13 +821,13 @@ mod tests {
     // REQ: P4-agt-acp-unregister-unknown-test — ACP unregister of unknown agent returns error
     #[tokio::test]
     async fn acp_unregister_unknown_agent_returns_error() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("nonexistent");
 
         let result = acp.unregister_agent(&webid).await;
         assert!(result.is_err());
         match result.unwrap_err() {
-            AcpError::AgentNotFound(w) => assert_eq!(w, webid),
+            A2AError::AgentNotFound(w) => assert_eq!(w, webid),
             other => panic!("Expected AgentNotFound, got: {:?}", other),
         }
     }
@@ -837,7 +837,7 @@ mod tests {
     // REQ: P4-agt-acp-revoke-test — ACP revokes token and denies subsequent access
     #[tokio::test]
     async fn acp_revokes_token() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
         let token = acp
@@ -857,7 +857,7 @@ mod tests {
     // REQ: P4-agt-acp-restore-test — ACP restored from storage has same capabilities
     #[tokio::test]
     async fn acp_restore_preserves_capabilities() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
         let token = acp
@@ -869,7 +869,7 @@ mod tests {
             .await
             .expect("Registration should succeed");
 
-        let agent = AcpAgent {
+        let agent = A2AAgent {
             webid,
             agent_type: AgentKind::Bot,
             capabilities: vec!["tool:execute".to_string(), "memory:read".to_string()],
@@ -880,7 +880,7 @@ mod tests {
         let mut tokens_map = std::collections::HashMap::new();
         tokens_map.insert(webid, vec![token.clone()]);
 
-        let acp2 = AcpRuntime::new(TEST_SECRET);
+        let acp2 = A2ARuntime::new(TEST_SECRET);
         let count = acp2
             .restore_from_storage(vec![agent], tokens_map)
             .await
@@ -900,7 +900,7 @@ mod tests {
     // REQ: P4-agt-acp-list-test — ACP lists all registered agents
     #[tokio::test]
     async fn acp_lists_registered_agents() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let alice = test_webid("alice");
         let bob = test_webid("bob");
 
@@ -923,7 +923,7 @@ mod tests {
     // REQ: P4-agt-acp-list-empty-test — ACP list is empty when no agents registered
     #[tokio::test]
     async fn acp_list_empty_when_no_agents() {
-        let acp = AcpRuntime::new(TEST_SECRET);
+        let acp = A2ARuntime::new(TEST_SECRET);
         let agents = acp.list_agents().await;
         assert!(agents.is_empty());
     }

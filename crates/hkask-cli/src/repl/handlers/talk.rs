@@ -96,8 +96,8 @@ pub(crate) fn handle_talk(
             }
 
             // Set voice via voice_design MCP tool
-            let acp_secret = match state.resolved_secrets {
-                Some(ref secrets) => secrets.acp_secret.as_bytes(),
+            let a2a_secret = match state.resolved_secrets {
+                Some(ref secrets) => secrets.a2a_secret.as_bytes(),
                 None => {
                     println!(
                         "  \x1b[31mError:\x1b[0m No ACP secret resolved. Run onboarding first."
@@ -113,7 +113,7 @@ pub(crate) fn handle_talk(
                 DelegationAction::Execute,
                 WebID::new(),
                 state.agent_webid,
-                &derive_signing_key(acp_secret),
+                &derive_signing_key(a2a_secret),
             );
 
             println!("  \x1b[2mDesigning voice from description...\x1b[0m");
@@ -226,8 +226,8 @@ pub(crate) fn speak_response(
     };
 
     // Step 2: Generate speech audio
-    let acp_secret = match state.resolved_secrets {
-        Some(ref secrets) => secrets.acp_secret.as_bytes(),
+    let a2a_secret = match state.resolved_secrets {
+        Some(ref secrets) => secrets.a2a_secret.as_bytes(),
         None => return,
     };
 
@@ -237,7 +237,7 @@ pub(crate) fn speak_response(
         DelegationAction::Execute,
         WebID::new(),
         state.agent_webid,
-        &derive_signing_key(acp_secret),
+        &derive_signing_key(a2a_secret),
     );
 
     let voice_design = state.voice_design.clone();

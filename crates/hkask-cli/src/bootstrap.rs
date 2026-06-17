@@ -204,7 +204,7 @@ impl BootstrapSequence {
                 // Store derived secrets in OS keychain for later resolution.
                 let keychain = Keychain::default();
                 for (key, value) in &[
-                    ("acp-secret", &secrets.acp_secret),
+                    ("acp-secret", &secrets.a2a_secret),
                     ("capability-key", &secrets.capability_key),
                     ("mcp-security-key", &secrets.mcp_security_key),
                     ("hkask-ocap-secret", &secrets.ocap_secret),

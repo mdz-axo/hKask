@@ -30,7 +30,7 @@ async fn build_chat_context(
                 .map(|s| String::from_utf8_lossy(&s).to_string())
                 .unwrap_or_else(|_| "hkask-mcp-default".to_string());
             hkask_services::ServiceConfig::from_secrets(
-                s.acp_secret.clone(),
+                s.a2a_secret.clone(),
                 s.db_passphrase.clone(),
                 mcp_secret,
                 name.to_string(),

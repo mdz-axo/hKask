@@ -363,7 +363,7 @@ impl ChatService {
         // Load agent registry to find the agent definition
         let loader = hkask_agents::AgentRegistryLoader::new(
             ctx.config().registry_yaml_path.clone(),
-            ctx.acp_runtime().clone(),
+            ctx.a2a_runtime().clone(),
             ctx.agent_registry_store().clone(),
             Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
         );
@@ -467,7 +467,7 @@ impl ChatService {
     /// semantic recall → inference → episodic storage.
     ///
     /// Uses `AgentService` for shared infrastructure (inference port,
-    /// memory ports, ACP runtime, agent registry). When the context's
+    /// memory ports, A2A runtime, agent registry). When the context's
     /// inference_port is `None`, creates a fresh port via InferenceService.
     ///
     /// For streaming, use `prepare_chat()` + `generate_stream_with_model()`
