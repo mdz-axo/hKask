@@ -10,7 +10,7 @@ mds_categories: [domain, lifecycle]
 
 # Replicant Onboarding Walkthrough
 
-**Purpose:** End-to-end guide from installing hKask through your first conversation with a named replicant. Covers `kask onboard`, passphrase creation, and the first `kask chat` session.
+**Purpose:** End-to-end guide from your first sign-in through your first conversation with a replicant. Covers the browser-based OAuth flow, automatic onboarding, and your first chat session.
 
 **Governing Principles:** P1 (User Sovereignty), P2 (Affirmative Consent), P12 (Replicant Host Mandate)
 
@@ -18,80 +18,65 @@ mds_categories: [domain, lifecycle]
 
 ## 1. Prerequisites
 
-- **Rust toolchain** (stable, via `rustup`): hKask builds from source.
-- **Ollama** (optional but recommended): local inference engine. Install from [ollama.com](https://ollama.com). Pull at least one model: `ollama pull qwen3:8b`.
-- **SQLite** (system library): `apt install libsqlite3-dev` (Debian/Ubuntu) or `brew install sqlite` (macOS).
-- **Git**: hKask uses git for template archival (CAS).
-
-```bash
-# Verify prerequisites
-rustc --version   # ≥1.80
-ollama --version  # optional
-sqlite3 --version
-git --version
-```
+- **A modern web browser** (Chrome, Firefox, Safari, or Edge).
+- **A GitHub or Google account** for sign-in.
+- That's it. No local installation, no command-line tools, no API keys.
 
 ---
 
-## 2. Build and Install
+## 2. Sign In
 
-```bash
-git clone https://github.com/your-org/hKask.git
-cd hKask
-cargo build --release
-# Binary at target/release/kask
+Open your browser and visit your hKask instance:
+
+```
+https://hkask.your-domain.com
 ```
 
-Optionally, add to PATH:
-```bash
-export PATH="$PWD/target/release:$PATH"
-# Or symlink: ln -s "$PWD/target/release/kask" ~/.local/bin/kask
-```
+Click **"Sign in with GitHub"** (or **"Sign in with Google"** if your instance supports it). You'll be redirected through an OAuth consent screen — grant access, and you'll land in your terminal.
+
+If this is your first sign-in, the onboarding flow starts automatically (see §3). If you've signed in before, you go straight to your terminal.
 
 ---
 
-## 3. First Launch — The Onboarding Flow
+## 3. First Sign-In — The Onboarding Flow
 
-Run `kask` for the first time. If no configuration exists, the onboarding flow starts automatically:
-
-```bash
-kask
-```
+On your very first sign-in, hKask provisions your account automatically. You don't need to run any commands — it all happens as soon as you land.
 
 ### 3.1 What Happens
 
-1. **Keystore creation.** hKask generates a master key via Argon2id key derivation. This key encrypts all secrets (API keys, passphrases, wallet keys). You'll be prompted for a master passphrase — **write this down and store it securely.** It cannot be recovered.
+1. **OAuth handshake.** hKask exchanges your GitHub (or Google) OAuth token for an identity. This is your root credential — no separate passphrase to remember.
 
-2. **Replicant creation.** You'll be asked for:
-   - **Full name** (first and last, e.g., "Alice Smith"). This becomes your replicant's identity. It's used for WebID derivation and Matrix integration.
-   - **Passphrase.** Your replicant's authentication credential. Different from the master passphrase. This is what you'll use to sign in.
+2. **WebID provisioned.** A WebID is derived from your OAuth identity (e.g., `webid://alice-smith`). This is your permanent identifier in the hKask sovereign namespace.
 
-3. **API key configuration (optional).** If you have API keys for cloud inference providers (DeepInfra, Fireworks, Together AI), you can enter them now or later via `kask settings set`.
+3. **Default replicant created.** A replicant is automatically created for you with a default name derived from your account. You don't choose a name during onboarding — one is assigned. You can customize it later (see §6.3).
 
-4. **Model selection.** Choose a default inference model. If Ollama is running, local models are detected automatically.
+4. **Wallet assigned.** A sovereign wallet is generated for your replicant, holding capability tokens and consent grants.
 
-### 3.2 Manual Onboarding
+5. **Terminal appears.** The browser loads a terminal emulator connected to your replicant. The Curator greets you with a welcome message — you can start chatting immediately.
 
-If you skipped onboarding or need to add a replicant to an existing installation:
+### 3.2 Returning Users
+
+If you've signed in before, you skip onboarding and go straight to your terminal. Your replicant, memory, and pods are exactly as you left them.
+
+### 3.3 Customizing Your Replicant Name
+
+The default name is functional but not personal. To rename your replicant at any time:
 
 ```bash
-kask onboard
+kask replicant rename "Alice Smith"
 ```
 
-This runs the same flow interactively. Use `kask onboard --name "Alice Smith"` to pre-fill the name.
+(All commands in this guide are typed directly into the browser terminal — you're already connected.)
 
 ---
 
 ## 4. Verify Your Replicant
 
-After onboarding, verify everything is set up:
+After onboarding, your terminal is already connected. Type these commands to confirm everything is set up:
 
 ```bash
 # List your replicants
 kask pod list
-
-# Check sovereignty status
-kask sovereignty status
 
 # Verify CNS health
 kask cns health
@@ -102,7 +87,6 @@ Expected output:
 Replicants:
   alice-smith (webid://alice-smith) — Active
 
-Sovereignty: Maximum (default-deny, explicit consent required)
 CNS: 5/5 loops healthy, 0 alerts
 ```
 
@@ -110,11 +94,7 @@ CNS: 5/5 loops healthy, 0 alerts
 
 ## 5. First Chat Session
 
-Start your first conversation with your replicant:
-
-```bash
-kask chat
-```
+You're already in the terminal after sign-in — no need to start anything. Just type and your replicant responds.
 
 ### 5.1 What You'll See
 
@@ -126,7 +106,7 @@ Type /help for commands, /exit to end session.
 You: Hello! Who are you?
 ```
 
-Your replicant responds using the default inference model. The Curator (system persona) mediates the conversation — it routes messages, enforces sovereignty boundaries, and logs interactions to episodic memory.
+Your replicant responds using the inference model configured by your instance administrator. The Curator (system persona) mediates the conversation — it routes messages, enforces sovereignty boundaries, and logs interactions to episodic memory.
 
 ### 5.2 Key Commands
 
@@ -141,7 +121,7 @@ Your replicant responds using the default inference model. The Curator (system p
 
 ### 5.3 What's Happening Under the Hood
 
-- **Authentication:** Your replicant's passphrase is verified against the keystore.
+- **Authentication:** Your OAuth session token is verified on every request — no separate passphrase needed.
 - **OCAP gates:** The daemon verifies your replicant is authenticated, assigned to the chat role, and holds capability tokens for the tools being used.
 - **Dual memory:** Every exchange is encoded to episodic memory (personal, sovereign) and semantic memory (shared, consent-gated).
 - **CNS monitoring:** The Cybernetic Nervous System tracks variety, algedonic signals, and loop health throughout the session.
@@ -167,12 +147,19 @@ kask mcp list-servers
 kask mcp list-tools --server research
 ```
 
-### 6.3 Create Additional Replicants
+### 6.3 Customize Your Replicant
+
+Rename your replicant if you haven't already:
 
 ```bash
-kask onboard --name "Bob Jones"
+kask replicant rename "Alice Smith"
+```
+
+Create additional replicants:
+
+```bash
+kask replicant create --name "Bob Jones"
 kask pod activate bob-jones
-kask chat --replicant bob-jones
 ```
 
 ### 6.4 Read the Guides
@@ -187,39 +174,17 @@ kask chat --replicant bob-jones
 
 ## 7. Troubleshooting
 
-### "Daemon unavailable"
-
-The hKask daemon runs on a Unix socket at `~/.config/hkask/daemon.sock`. If it's not running, start it via the serve command:
-
-```bash
-kask serve
-```
-
 ### "Replicant not authenticated"
 
-Your replicant's passphrase may have expired or been revoked. Re-authenticate:
-
-```bash
-kask replicant login alice-smith
-```
-
-### "Model not found"
-
-If using Ollama, ensure the model is pulled:
-```bash
-ollama pull qwen3:8b
-```
-
-If using a cloud provider, verify your API key:
-```bash
-kask settings show INFERENCE_MODEL
-kask settings show DI_API_KEY   # DeepInfra
-kask settings show FW_API_KEY   # Fireworks
-```
+Your OAuth session may have expired. Sign out and sign in again — your replicant and data are preserved.
 
 ### "Permission denied" on memory access
 
 You haven't granted consent yet. See §6.1 above.
+
+### Connection lost
+
+If your terminal disconnects, refresh the page. Your session state is preserved on the server — you'll pick up where you left off.
 
 ---
 

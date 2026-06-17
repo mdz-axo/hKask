@@ -27,6 +27,7 @@ by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.27.
 | [`architecture/core/PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | Architecture principles (P1-P12) |
 | [`architecture/core/TESTING_NARRATIVE.md`](architecture/core/TESTING_NARRATIVE.md) | Contract-anchored testing — narrative walkthrough (start here) |
 | [`plans/TODO.md`](plans/TODO.md) | Open work |
+| [`plans/deployment-and-backup.md`](plans/deployment-and-backup.md) | Deployment & Multi-User Plan |
 
 ---
 
@@ -131,7 +132,8 @@ by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.27.
 | Document | Description |
 |----------|-------------|
 | [`kata-user-guide.md`](guides/kata-user-guide.md) | Toyota Kata — research, technical build, kanban integration, user how-to |
-| [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | Deployment — systemd, Docker, K8s, CI/CD, Matrix cloud |
+| [`admin-install-guide.md`](guides/admin-install-guide.md) | Admin install — cloud server setup, OAuth, domain, sidecar deployment |
+| [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | Deployment — production server, systemd, health checks, security hardening |
 | [`OPERATIONS_RUNBOOK.md`](guides/OPERATIONS_RUNBOOK.md) | Operations — health checks, troubleshooting, backup/recovery |
 | [`lora-training-guide.md`](guides/lora-training-guide.md) | LoRA training — dataset prep to CNS-verified deployment, hardening, troubleshooting |
 | [`skill-designer-guide.md`](guides/skill-designer-guide.md) | Skill design — creating, packaging, registering |

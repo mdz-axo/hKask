@@ -1,18 +1,18 @@
 ---
 title: "hKask REPL Specification"
 audience: [architects, developers, users]
-last_updated: 2026-06-11
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "Surface"
 mds_categories: [domain, composition, lifecycle, curation]
 ---
 
-# hKask REPL Specification — `kask chat`
+# hKask REPL Specification — `kask repl`
 
 ## 1. Purpose and Scope
 
-This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop), invoked via `kask chat`. The REPL provides the primary human-facing surface of hKask. It offers a terminal-based conversational interface to agents, models, tools, and pods — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). The project defers multi-agent ensemble sessions (2026-06-14) as a future mode evolving from the dual-presence pattern.
+This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop). The REPL is accessed through a browser terminal (xterm.js + WebSocket) or optionally via SSH. The hKask server spawns `kask repl --webid <user>` on a PTY per authenticated user session, providing a terminal-based conversational interface to agents, models, tools, and pods — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). The project defers multi-agent ensemble sessions (2026-06-14) as a future mode evolving from the dual-presence pattern.
 
 **Audience:** Architects, developers, users, and agents interacting with hKask.
 
@@ -48,7 +48,7 @@ Every capability is discoverable from `/help`, which displays a categorized comm
 
 ### 2.4 Headless Constraint
 
-Per PRINCIPLES.md P6, the REPL is strictly terminal-based. No visual UI, no dashboards, no web frontends, no graphs. Output is rendered with ANSI codes and structured text. Code execution output (Phase 2+) uses terminal-appropriate MIME ranking, not GUI rendering.
+Per PRINCIPLES.md P6, the REPL is strictly terminal-based. The browser terminal (xterm.js rendering a PTY over WebSocket) is a terminal emulator, not a visual web application. No dashboards, no Grafana/Prometheus stacks, no graphical UI. Output is rendered with ANSI codes and structured text. Code execution output (Phase 2+) uses terminal-appropriate MIME ranking, not GUI rendering.
 
 ## 3. Architecture
 
@@ -88,7 +88,7 @@ pub(crate) struct ReplState {
     pub(crate) inference_loop: Arc<InferenceLoop>,              // CNS-observable energy budget + model tracking
     pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,  // Private, agent-scoped memory
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,  // Public, shared memory
-    pub(crate) agent_webid: WebID,                              // Deterministic from agent name
+    pub(crate) agent_webid: WebID,                              // Provided by server via --webid (from OAuth identity)
     pub(crate) current_model: String,                           // Active Okapi model name
     pub(crate) current_agent: String,                           // Active agent name (from onboarding)
     pub(crate) active_session: Option<String>,                  // Deferred (2026-06-14): Future multi-agent session ID (None = single-agent)
@@ -103,32 +103,33 @@ pub(crate) struct ReplState {
     pub(crate) tool_prompt_section: String,                     // Pre-formatted tool section of system prompt
     pub(crate) service_context: Arc<AgentService>,              // Canonical infrastructure assembly
     pub(crate) repl_settings: ReplSettings,                     // User-configurable inference parameters
-    pub(crate) is_first_run: bool,                              // true on first onboarding, false on returning sessions
+    pub(crate) is_first_run: bool,                              // true on first OAuth sign-in (onboarding triggered), false on returning sessions
 }
 ```
 
-**Design Intent:** `init::init_repl_state()` initializes `ReplState` once at REPL boot and mutates it in place across turns. Five fields remain private (only accessed within `repl/` submodules): `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. The system no longer stores session history in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `OnboardingOutcome.is_first_run` sets `is_first_run`, which gates the First Steps guide shown in the welcome banner.
+**Design Intent:** `init::init_repl_state()` initializes `ReplState` once at REPL boot and mutates it in place across turns. Five fields remain private (only accessed within `repl/` submodules): `consolidation_service`, `persona_constraints`, `manifest_executor`, `process_manifest`. The system no longer stores session history in-memory — all history access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` is set when the user's OAuth sign-in triggers provisioning of a new WebID and default replicant; it gates the First Steps guide shown in the welcome banner.
 
 ### 3.3 Dependency Injection (init.rs)
 
 The `init_repl_state()` function assembles the REPL's dependency graph in order:
 
-1. **Run onboarding** (`run_onboarding()`) — replicant identity creation / key resolution / model selection. Sets `is_first_run`.
-2. Resolve effective model: onboarding selection > CLI `--model` arg > hardcoded default (`deepseek-v4-pro`)
-3. Load persisted `ReplSettings` from `~/.config/hkask/settings.json`
-4. Resolve Okapi base URL from `OKAPI_BASE_URL` env or default
-5. Initialize shared `InferencePort` for selected model + wrap in `InferenceLoop`
-6. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
-7. Register inference loop on loop system
-8. Start built-in MCP servers (10 servers)
-9. Build `GovernedTool` membrane wrapped around MCP runtime
-10. Register agent energy budget with `CyberneticsLoop`
-11. Open per-agent SQLCipher-encrypted memory database
-12. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
-13. Populate tool prompt section from MCP runtime discovery
-14. Load persona constraints and process manifest for initial agent
+1. Receive WebID from `--webid` flag (set by server per authenticated user session)
+2. Run onboarding if `is_first_run` — replicant creation and model selection for first-time OAuth sign-ins. Sets `is_first_run`.
+3. Resolve effective model: onboarding selection > persisted `ReplSettings` > CLI `--model` arg > hardcoded default (`deepseek-v4-pro`)
+4. Load persisted `ReplSettings` from per-user config (`~/.config/hkask/settings.json`)
+5. Resolve Okapi base URL from server environment (`OKAPI_BASE_URL`) or default
+6. Initialize shared `InferencePort` for selected model + wrap in `InferenceLoop`
+7. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
+8. Register inference loop on loop system
+9. Start built-in MCP servers (10 servers)
+10. Build `GovernedTool` membrane wrapped around MCP runtime
+11. Register agent energy budget with `CyberneticsLoop`
+12. Open per-agent SQLCipher-encrypted memory database (keyed by WebID)
+13. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
+14. Populate tool prompt section from MCP runtime discovery
+15. Load persona constraints and process manifest for initial agent
 
-**Note:** Onboarding runs first (step 1) so that the model the user selects during setup is immediately used to initialize the inference port (step 5). Previously, the model was derived from the CLI arg alone and onboarding ran mid-sequence.
+**Note:** The WebID arrives from the server via `--webid` (derived from OAuth identity). Onboarding no longer includes a "skip, use local Ollama" path — the cloud server has no local GPU inference. Model selection during onboarding uses the server's configured inference providers. All state (config, memory, history) is scoped to the authenticated WebID.
 
 ## 4. Input Loop
 
@@ -254,16 +255,16 @@ Ensemble multi-agent commands are deferred. The dual-presence pattern (§7) is t
 |---------|---------|------|-------------|
 | `/consolidate` | `/cons` | `[LIMIT] [--floor CONFIDENCE] [--max MAX_TRIPLES]` | Trigger episodic→semantic consolidation |
 
-### 5.8 Onboarding Commands
+### 5.8 Onboarding and Feedback Commands
 
 | Command | Aliases | Args | Description |
 |---------|---------|------|-------------|
 | `/start` | `/tour`, `/onboarding` | | Interactive step-by-step guided tour (9 steps, press Enter to advance, type `skip` to exit) |
 | `/feedback` | | | Prompt for a free-text usability note; appended with UTC timestamp + replicant name to `~/.local/share/hkask/feedback.md` |
 
-**`/start` detail:** Each step covers one capability domain: Chat, Commands, Models, Status, Tools, Settings, Memory, Done. Always available — not only on first run. `/tour` and `/onboarding` are aliases.
+**`/start` detail:** Each step covers one capability domain: Chat, Commands, Models, Status, Tools, Settings, Memory, Done. Always available — not only on first sign-in. `/tour` and `/onboarding` are aliases. The interactive tour is the same flow that runs automatically on first OAuth sign-in; it can be re-run at any time.
 
-**`/feedback` scope:** REPL-only. Not exposed via CLI subcommand or HTTP API. The file is append-only; each entry is a Markdown `##` heading with ISO-8601 UTC timestamp and a blockquote body. Nothing is transmitted anywhere.
+**`/feedback` scope:** REPL-only. Not exposed via CLI subcommand or HTTP API. The file is append-only; each entry is a Markdown `##` heading with ISO-8601 UTC timestamp and a blockquote body. Nothing is transmitted anywhere. Feedback is stored per-user under the authenticated WebID's data directory.
 
 ## 6. Single-Agent Turn Pipeline
 
@@ -629,7 +630,7 @@ Agent: {name}  Model: {model}  Template: {template}
 /help for commands  <TAB> autocomplete  /quit exit
 ```
 
-**First Steps guide (first-run only):** When `ReplState.is_first_run` is `true` (set by `OnboardingOutcome.is_first_run` from `run_onboarding()`), the compact one-liner is replaced with an expanded guide:
+**First Steps guide (first sign-in only):** When `ReplState.is_first_run` is `true` (set on first OAuth sign-in when a new WebID and default replicant are provisioned), the compact one-liner is replaced with an expanded guide:
 
 ```
   ━━ First Steps ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -805,7 +806,7 @@ Agent writes code → executes → sees error traceback → rewrites → re-exec
 
 | Constraint | Compliance |
 |-----------|------------|
-| Headless only (P6) | ✓ Terminal-based; no GUI, web, or dashboard |
+| Headless only (P6) | ✓ Terminal-based (browser terminal renders PTY); no GUI, web app, or dashboard |
 | No external MCP deps (P1.2) | ✓ All 10 servers are `hkask-mcp-*` crates |
 | No `todo!()`, `unimplemented!()` (P7) | ✓ No stubs in REPL code |
 | No deprecated code (P7) | ✓ No `#[deprecated]` annotations |

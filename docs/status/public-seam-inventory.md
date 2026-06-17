@@ -1,6 +1,6 @@
 # Public Seam Inventory
 
-**Generated:** 2026-06-17T23:01:26Z
+**Generated:** 2026-06-17T23:14:42Z
 **Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** P8 traceability — maps public API items to REQ-tagged test coverage.
 
@@ -1944,11 +1944,11 @@ Each public item is classified:
 
 | Kind | Item | Module | Location | Risk Tier | REQ |
 |------|------|--------|----------|-----------|-----|
-| enum | `KanbanError` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1576 | 🟡 Type Declaration | 🟢 |
-| fn | `board_add_phase` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:958 | 🔴 Core Logic | 🟢 |
+| enum | `KanbanError` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1591 | 🟡 Type Declaration | 🟢 |
+| fn | `board_add_phase` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:973 | 🔴 Core Logic | 🟢 |
 | fn | `board_create_from_template` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:99 | 🔴 Core Logic | 🟢 |
 | fn | `board_create` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:67 | 🔴 Core Logic | 🟢 |
-| fn | `board_delete` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1088 | 🔴 Core Logic | 🟢 |
+| fn | `board_delete` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1103 | 🔴 Core Logic | 🟢 |
 | fn | `board_get` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:190 | 🔴 Core Logic | 🟢 |
 | fn | `board_list` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:166 | 🔴 Core Logic | 🟢 |
 | fn | `board_view` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:211 | 🔴 Core Logic | 🟢 |
@@ -1956,32 +1956,32 @@ Each public item is classified:
 | fn | `decompose_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:627 | 🔴 Core Logic | 🟢 |
 | fn | `list_templates` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:152 | 🔴 Core Logic | 🟢 |
 | fn | `new` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:42 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `spawn_task` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:808 | 🔴 Core Logic | 🟢 |
-| fn | `task_add_deliverable` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:941 | 🔴 Core Logic | 🟢 |
+| fn | `spawn_task` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:819 | 🔴 Core Logic | 🟢 |
+| fn | `task_add_deliverable` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:956 | 🔴 Core Logic | 🟢 |
 | fn | `task_assign` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:522 | 🔴 Core Logic | 🟢 |
-| fn | `task_coaching_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1325 | 🔴 Core Logic | 🟢 |
-| fn | `task_comments` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:927 | 🔴 Core Logic | 🟢 |
-| fn | `task_comment` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:906 | 🔴 Core Logic | 🟢 |
+| fn | `task_coaching_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1340 | 🔴 Core Logic | 🟢 |
+| fn | `task_comments` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:942 | 🔴 Core Logic | 🟢 |
+| fn | `task_comment` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:921 | 🔴 Core Logic | 🟢 |
 | fn | `task_create` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:304 | 🔴 Core Logic | 🟢 |
-| fn | `task_delete` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1012 | 🔴 Core Logic | 🟢 |
+| fn | `task_delete` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1027 | 🔴 Core Logic | 🟢 |
 | fn | `task_get` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:438 | 🔴 Core Logic | 🟢 |
-| fn | `task_improvement_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1424 | 🔴 Core Logic | 🟢 |
+| fn | `task_improvement_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1439 | 🔴 Core Logic | 🟢 |
 | fn | `task_list` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:388 | 🔴 Core Logic | 🟢 |
 | fn | `task_move` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:459 | 🔴 Core Logic | 🟢 |
-| fn | `task_practice_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1492 | 🔴 Core Logic | 🟢 |
-| fn | `task_reopen` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1063 | 🔴 Core Logic | 🟢 |
-| fn | `task_set_phase` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:978 | 🔴 Core Logic | 🟢 |
-| fn | `task_unassign` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1048 | 🔴 Core Logic | 🟢 |
+| fn | `task_practice_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1507 | 🔴 Core Logic | 🟢 |
+| fn | `task_reopen` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1078 | 🔴 Core Logic | 🟢 |
+| fn | `task_set_phase` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:993 | 🔴 Core Logic | 🟢 |
+| fn | `task_unassign` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1063 | 🔴 Core Logic | 🟢 |
 | fn | `task_verify` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:570 | 🔴 Core Logic | 🟢 |
-| fn | `tasks_by_phase` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:993 | 🔴 Core Logic | 🟢 |
-| fn | `unjam_fix` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1180 | 🔴 Core Logic | 🟢 |
-| fn | `unjam_report` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1122 | 🔴 Core Logic | 🟢 |
-| fn | `verification_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1232 | 🔴 Core Logic | 🟢 |
-| fn | `verify_with_llm` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1276 | 🔴 Core Logic | 🟢 |
+| fn | `tasks_by_phase` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1008 | 🔴 Core Logic | 🟢 |
+| fn | `unjam_fix` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1195 | 🔴 Core Logic | 🟢 |
+| fn | `unjam_report` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1137 | 🔴 Core Logic | 🟢 |
+| fn | `verification_prompt` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1247 | 🔴 Core Logic | 🟢 |
+| fn | `verify_with_llm` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1291 | 🔴 Core Logic | 🟢 |
 | fn | `with_pod_manager` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:55 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `KanbanService` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:26 | 🟡 Type Declaration | 🟢 |
-| struct | `UnjamFix` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1566 | 🟡 Type Declaration | 🟢 |
-| struct | `UnjamItem` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1557 | 🟡 Type Declaration | 🟢 |
+| struct | `UnjamFix` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1581 | 🟡 Type Declaration | 🟢 |
+| struct | `UnjamItem` | hkask-services-kanban::kanban_impl | crates/hkask-services-kanban/src/kanban_impl.rs:1572 | 🟡 Type Declaration | 🟢 |
 
 | hkask-services-kata | 44 | 44 | 0 | 100% | 27 |
 
@@ -2340,7 +2340,7 @@ Each public item is classified:
 | fn | `get_api_key` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:381 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `get_balance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:107 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `get_deposit_addresses` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:579 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `get_encumbrance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:900 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `get_encumbrance` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:895 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `get_transactions` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:283 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `list_api_keys` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:460 | 🔴 Core Logic | 🟢 |
 | fn | `list_wallet_ids` | hkask-storage::wallet_store | crates/hkask-storage/src/wallet_store.rs:167 | 🔴 Core Logic | 🟢 |

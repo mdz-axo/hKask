@@ -13,7 +13,7 @@ mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
 **Version:** v0.27.0
 **Created:** 2026-06-16
 **Status:** Active — anchor for the rSolidity contract vocabulary
-**Last Updated:** 2026-06-16
+**Last Updated:** 2026-06-17
 
 > This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. It serves as the specification anchor from which the rSolidity contract vocabulary will be derived.
 
@@ -47,6 +47,9 @@ mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
 | 20 | Type System | `types` | hkask-types | 40 | P8 (Semantic Grounding) |
 | 21 | API Surface | `api` | hkask-api | 25 | P1 + P4 (Sovereignty + Boundaries) |
 | 22 | CLI Surface | `cli` | kask | 12 | P3 (Generative Space) |
+| 23 | Web Interface | `web` | hkask-api + hkask-web | 15 | P1 (User Sovereignty) + P4 (Clear Boundaries) |
+| 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | P1 (User Sovereignty) + P2 (Affirmative Consent) |
+| 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | P1 (User Sovereignty) + P3 (Generative Space) |
 
 ### Domain Ownership Rules
 
@@ -58,6 +61,7 @@ Each contract carries a **motivating principle** in its ID prefix and **constrai
 4. **P12 (Subscriber Consent)** owns all subscriber/consent contracts: `subscribe`, `subscribe_async`
 5. **P3 (Generative Space)** owns all sync/blocking variants and content-domain contracts: blocking accessors, storage, memory, CLI
 6. **P7 (Evolutionary Architecture)** owns all configurable-from-real-usage contracts: threshold calibration, replenish rate tuning
+7. **P1 (User Sovereignty) + P2 (Affirmative Consent)** own the web interface, multi-user, and backup domains: OAuth sessions, PTY terminals, role assignment, invitation flow, portable sovereignty archives
 
 A contract may have **one motivating principle** and **multiple constraining principles**. The motivating principle determines the ID prefix (`P{N}`). Constraining principles appear as `[P{N}]` annotations in the contract body.
 
@@ -585,15 +589,10 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 | FR-I052 | `P9-inf-router-transcribe` | `transcribe()` | [P9] Motivating: Homeostatic Self-Regulation — regulated transcription dispatch |
 | FR-I053 | `P9-inf-router-embed-text` | `embed_text()` | [P9] Motivating: Homeostatic Self-Regulation — placeholder for regulated embedding dispatch |
 | FR-I054 | `P9-inf-infer-vision-support` | `infer_vision_support()` | [P9] Motivating: Homeostatic Self-Regulation — heuristic routing for multimodal models |
-| FR-I055 | `P4-inf-ollama-backend-new` | `new()` | [P4] Motivating: Clear Boundaries — local Ollama provider membrane established from config |
-| FR-I056 | `P9-inf-ollama-generate` | `generate()` | [P9] Motivating: Homeostatic Self-Regulation — regulated text generation |
-| FR-I057 | `P9-inf-ollama-generate-vision` | `generate_vision()` | [P9] Motivating: Homeostatic Self-Regulation — regulated multimodal generation |
-| FR-I058 | `P9-inf-ollama-generate-stream` | `generate_stream()` | [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation |
-| FR-I059 | `P9-inf-ollama-list-models` | `list_models()` | [P9] Motivating: Homeostatic Self-Regulation — model variety discovery |
-| FR-I060 | `P4-inf-together-backend-new` | `new()` | [P4] Motivating: Clear Boundaries — Together AI provider membrane requires valid API key |
-| FR-I061 | `P9-inf-together-generate` | `generate()` | [P9] Motivating: Homeostatic Self-Regulation — regulated text generation |
-| FR-I062 | `P9-inf-together-generate-stream` | `generate_stream()` | [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation |
-| FR-I063 | `P9-inf-together-list-models` | `list_models()` | [P9] Motivating: Homeostatic Self-Regulation — model variety discovery |
+| FR-I055 | `P4-inf-together-backend-new` | `new()` | [P4] Motivating: Clear Boundaries — Together AI provider membrane requires valid API key |
+| FR-I056 | `P9-inf-together-generate` | `generate()` | [P9] Motivating: Homeostatic Self-Regulation — regulated text generation |
+| FR-I057 | `P9-inf-together-generate-stream` | `generate_stream()` | [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation |
+| FR-I058 | `P9-inf-together-list-models` | `list_models()` | [P9] Motivating: Homeostatic Self-Regulation — model variety discovery |
 
 #### Test Contracts
 
@@ -613,25 +612,24 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 | FR-IT012 | `P9-inf-test-prefix-model-format` | `prefix_model_format()` |
 | FR-IT013 | `P9-inf-test-fal-prefix` | `parse_fal_prefix()` |
 | FR-IT014 | `P9-inf-test-provider-code` | `parse_provider_code_all_codes()` |
-| FR-IT015 | `P9-inf-test-provider-code-default` | `parse_provider_code_unknown_defaults_to_ollama()` |
-| FR-IT016 | `P9-inf-test-resolve-api-key-primary` | `resolve_api_key_primary_env()` |
-| FR-IT017 | `P9-inf-test-resolve-api-key-fallback` | `resolve_api_key_fallback_env()` |
-| FR-IT018 | `P9-inf-test-resolve-api-key-empty` | `resolve_api_key_empty_when_missing()` |
-| FR-IT019 | `P9-inf-test-resolve-api-key-priority` | `resolve_api_key_primary_wins_over_fallback()` |
-| FR-IT020 | `P9-inf-test-fal-backend-new-fails` | `construction_fails_without_api_key()` |
-| FR-IT021 | `P9-inf-test-fal-backend-new-succeeds` | `construction_succeeds_with_api_key()` |
-| FR-IT022 | `P9-inf-test-fal-static-catalog` | `static_catalog_returns_vision_models()` |
-| FR-IT023 | `P9-inf-test-fal-vision-support` | `vision_support_heuristic_recognizes_fal_models()` |
-| FR-IT024 | `P9-inf-test-routing-by-provider-prefix` | `routing_by_provider_prefix()` |
-| FR-IT025 | `P9-inf-test-unavailable-backend-error` | `unavailable_backend_returns_error()` |
-| FR-IT026 | `P9-inf-test-default-provider-routing` | `default_provider_routing()` |
-| FR-IT027 | `P9-inf-test-model-override-routing` | `model_override_routing()` |
-| FR-IT028 | `P9-inf-test-list-models-degradation` | `list_models_graceful_degradation()` |
-| FR-IT029 | `P9-inf-test-thinking-disable-flow` | `disable_thinking_flows_to_wire_format()` |
-| FR-IT030 | `P9-inf-test-deepinfra-live-summary` | `deepinfra_summarization()` |
-| FR-IT031 | `P9-inf-test-together-live-summary` | `together_summarization()` |
+| FR-IT015 | `P9-inf-test-resolve-api-key-primary` | `resolve_api_key_primary_env()` |
+| FR-IT016 | `P9-inf-test-resolve-api-key-fallback` | `resolve_api_key_fallback_env()` |
+| FR-IT017 | `P9-inf-test-resolve-api-key-empty` | `resolve_api_key_empty_when_missing()` |
+| FR-IT018 | `P9-inf-test-resolve-api-key-priority` | `resolve_api_key_primary_wins_over_fallback()` |
+| FR-IT019 | `P9-inf-test-fal-backend-new-fails` | `construction_fails_without_api_key()` |
+| FR-IT020 | `P9-inf-test-fal-backend-new-succeeds` | `construction_succeeds_with_api_key()` |
+| FR-IT021 | `P9-inf-test-fal-static-catalog` | `static_catalog_returns_vision_models()` |
+| FR-IT022 | `P9-inf-test-fal-vision-support` | `vision_support_heuristic_recognizes_fal_models()` |
+| FR-IT023 | `P9-inf-test-routing-by-provider-prefix` | `routing_by_provider_prefix()` |
+| FR-IT024 | `P9-inf-test-unavailable-backend-error` | `unavailable_backend_returns_error()` |
+| FR-IT025 | `P9-inf-test-default-provider-routing` | `default_provider_routing()` |
+| FR-IT026 | `P9-inf-test-model-override-routing` | `model_override_routing()` |
+| FR-IT027 | `P9-inf-test-list-models-degradation` | `list_models_graceful_degradation()` |
+| FR-IT028 | `P9-inf-test-thinking-disable-flow` | `disable_thinking_flows_to_wire_format()` |
+| FR-IT029 | `P9-inf-test-deepinfra-live-summary` | `deepinfra_summarization()` |
+| FR-IT030 | `P9-inf-test-together-live-summary` | `together_summarization()` |
 
-> **Note:** The original handoff estimated ~87 inference contract occurrences; the actual source contains **63 production** and **31 test** unique contract IDs. Backend constructors and the router constructor are P4 (boundary); all other production contracts and all tests are P9 (homeostatic).
+> **Note:** The original handoff estimated ~87 inference contract occurrences; the actual source contains **58 production** and **30 test** unique contract IDs. Backend constructors and the router constructor are P4 (boundary); all other production contracts and all tests are P9 (homeostatic). Cloud-only deployment — no local Ollama backend.
 
 ### 3.5 Templates (`hkask-templates`)
 
@@ -827,6 +825,110 @@ Representative domains:
 - `hkask-test-harness` — integration test infrastructure
 - Test fixtures, mock implementations, property-based testing
 
+### 3.15 Web Interface (`hkask-api` + `hkask-web`)
+
+**Motivating Principles:** P1 (User Sovereignty) + P4 (Clear Boundaries) — browser-based terminal access via OAuth sessions scoped to user WebID
+**Constraining Principles:** P2 (Affirmative Consent) — OAuth flow requires explicit user authorization; P12 (Subscriber Consent) — terminal sessions emit CNS observability
+**Crates:** `hkask-api`, `hkask-web` | **Reference:** `docs/plans/deployment-and-backup.md`
+
+The web interface is the primary deployment surface: users visit a URL, sign in with GitHub or Google, and get an xterm.js terminal connected via WebSocket to a server-spawned `kask repl` PTY. There is no client binary — the browser is the client. SSH is an optional power-user feature (`kask ssh-key add`), not the primary access method.
+
+#### Production Contracts (12)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-WEB1 | `P1-web-oauth-provider-enum` | `OAuthProvider` enum (`GitHub`, `Google`) | [P1] Motivating: User Sovereignty — user chooses identity provider; [P4] Constraining: Clear Boundaries — provider scope is fixed |
+| FR-WEB2 | `P4-web-oauth-config-new` | `OAuthConfig::new(client_id, client_secret, redirect_uri)` | [P4] Motivating: Clear Boundaries — provider membrane established from admin configuration; [P1] Constraining: User Sovereignty — secrets stored in OS keychain only |
+| FR-WEB3 | `P1-web-oauth-login` | `GET /api/v1/auth/login?provider={github\|google}` | [P1] Motivating: User Sovereignty — initiates OAuth flow; user redirects to provider; [P2] Constraining: Affirmative Consent — provider scopes explicitly requested |
+| FR-WEB4 | `P1-web-oauth-callback` | `GET /api/v1/auth/callback?provider={github\|google}&code=...` | [P1] Motivating: User Sovereignty — OAuth callback creates/loads HumanUser, provisions WebID + default replicant + wallet on first sign-in; [P2] Constraining: Affirmative Consent — session cookie set only after verified callback |
+| FR-WEB5 | `P1-web-session-create` | Session cookie set after OAuth callback | [P1] Motivating: User Sovereignty — cookie scoped to user's WebID; [P4] Constraining: Clear Boundaries — `HttpOnly`, `Secure`, `SameSite=Strict` |
+| FR-WEB6 | `P1-web-session-get` | `GET /api/v1/auth/session` | [P1] Motivating: User Sovereignty — returns current session info (WebID, provider, session expiry) |
+| FR-WEB7 | `P1-web-session-destroy` | `POST /api/v1/auth/logout` | [P1] Motivating: User Sovereignty — destroys session; [P12] Constraining: Subscriber Consent — emits `SessionClose` CNS span |
+| FR-WEB8 | `P1-web-terminal-ws` | `GET /api/v1/terminal/ws` (WebSocket upgrade) | [P1] Motivating: User Sovereignty — verifies session cookie, extracts WebID, spawns PTY; [P4] Constraining: Clear Boundaries — WebSocket scoped to authenticated WebID |
+| FR-WEB9 | `P1-web-terminal-pty-spawn` | PTY spawn: `kask repl --webid <webid>` | [P1] Motivating: User Sovereignty — each user gets a process scoped to their WebID; [P4] Constraining: Clear Boundaries — PTY I/O piped over WebSocket, no filesystem access beyond user scope |
+| FR-WEB10 | `P4-web-terminal-xtermjs` | Static `/terminal` page serving xterm.js | [P4] Motivating: Clear Boundaries — single static HTML file (~50 lines), no JavaScript framework; [P5] Constraining: Essentialism — xterm.js loaded from CDN or bundled as static asset |
+| FR-WEB11 | `P1-web-session-cns-span` | `CnsSpan::SessionOpen { user_id, provider }` | [P1] Motivating: User Sovereignty — every session open is observable; [P12] Constraining: Subscriber Consent — emitted only if CNS sink subscribed |
+| FR-WEB12 | `P1-web-terminal-scoping` | All TripleStore queries scoped `WHERE owner_webid = ?` | [P1] Motivating: User Sovereignty — users only access own triples, pods, wallet; [P4] Constraining: Clear Boundaries — per-user resource isolation |
+
+#### Test Contracts (3)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-WEB-T1 | `P1-web-test-oauth-flow` | oauth_callback_creates_user_and_session |
+| FR-WEB-T2 | `P1-web-test-terminal-ws` | websocket_pty_pipes_io |
+| FR-WEB-T3 | `P1-web-test-multi-tenant-scoping` | user_a_cannot_access_user_b_triples |
+
+### 3.16 Multi-User (`hkask-api` + `hkask-storage`)
+
+**Motivating Principles:** P1 (User Sovereignty) + P2 (Affirmative Consent) — two-role authorization model with admin-managed membership
+**Constraining Principles:** P4 (Clear Boundaries) — admin endpoints gated by role check; P12 (Subscriber Consent) — invitation lifecycle emits CNS observability
+**Crates:** `hkask-api`, `hkask-storage` | **Reference:** `docs/plans/deployment-and-backup.md`
+
+hKask supports exactly two roles: **Admin** and **Member**. Admin is the user who runs `kask init --profile server`. All subsequent users are Members. Admins can view/modify server config, invite new members, and view all active sessions. Members can only view/modify their own settings.
+
+#### Production Contracts (10)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-MU1 | `P1-multi-role-enum` | `HumanUser.role` field (`Admin` \| `Member`) | [P1] Motivating: User Sovereignty — role is an identity attribute; [P4] Constraining: Clear Boundaries — role stored in HumanUser record |
+| FR-MU2 | `P1-multi-role-assign` | Role assigned at `kask init --profile server` (Admin) / first OAuth sign-in (Member) | [P1] Motivating: User Sovereignty — role determined by provisioning path; [P12] Constraining: Subscriber Consent — emits `RoleAssigned` CNS span |
+| FR-MU3 | `P1-multi-admin-config-get` | `GET /api/v1/admin/config` (Admin-only) | [P1] Motivating: User Sovereignty — admin can view server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
+| FR-MU4 | `P1-multi-admin-config-patch` | `PATCH /api/v1/admin/config` (Admin-only) | [P1] Motivating: User Sovereignty — admin can modify server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
+| FR-MU5 | `P2-multi-admin-invite` | `POST /api/v1/admin/invite` — `kask invite <email>` (Admin-only) | [P2] Motivating: Affirmative Consent — admin explicitly invites new members; [P12] Constraining: Subscriber Consent — emits `InviteSent` CNS span |
+| FR-MU6 | `P2-multi-invite-accept` | Invitee clicks link, signs in via OAuth, account linked | [P2] Motivating: Affirmative Consent — invitee explicitly accepts; [P12] Constraining: Subscriber Consent — emits `InviteAccepted` CNS span |
+| FR-MU7 | `P1-multi-admin-sessions` | `GET /api/v1/admin/sessions` (Admin-only) | [P1] Motivating: User Sovereignty — admin can view all active sessions; [P4] Constraining: Clear Boundaries — Member cannot access this endpoint |
+| FR-MU8 | `P1-multi-member-settings` | `GET/PATCH /api/v1/user/settings` (Member: own settings only) | [P1] Motivating: User Sovereignty — user controls own settings; [P4] Constraining: Clear Boundaries — WebID-scoped, cannot modify other users |
+| FR-MU9 | `P1-multi-cns-role-assigned` | `CnsSpan::RoleAssigned { webid, role }` | [P1] Motivating: User Sovereignty — role assignment is observable; [P12] Constraining: Subscriber Consent — emitted at provisioning time |
+| FR-MU10 | `P1-multi-cns-invite-lifecycle` | `CnsSpan::InviteSent { email, invited_by }`, `CnsSpan::InviteAccepted { email, webid }` | [P1] Motivating: User Sovereignty — invitation lifecycle is observable; [P12] Constraining: Subscriber Consent — both spans emitted only if CNS sink subscribed |
+
+#### Test Contracts (2)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-MU-T1 | `P1-multi-test-role-gating` | member_cannot_access_admin_endpoints |
+| FR-MU-T2 | `P1-multi-test-invite-flow` | invite_accept_provisions_member |
+
+### 3.17 Backup & Migration (`hkask-storage` + `hkask-api`)
+
+**Motivating Principles:** P1 (User Sovereignty) + P3 (Generative Space) — portable sovereignty archive enables user-mediated server migration
+**Constraining Principles:** P2 (Affirmative Consent) — backup export requires explicit user passphrase; P4 (Clear Boundaries) — archive scoped to authenticated WebID
+**Crates:** `hkask-storage`, `hkask-api` | **Reference:** `docs/plans/deployment-and-backup.md`
+
+The backup archive is a single SQLCipher-encrypted SQLite file containing the user's full live triple set plus a `backup_meta` table. It is the P1 data portability artifact — download from one server, upload to another, resume. Replicant name collisions on upload trigger auto-rename. No server-to-server protocol.
+
+#### Production Contracts (11)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-BK1 | `P1-backup-archive-struct` | `BackupArchive` — wraps SQLCipher `Database` | [P1] Motivating: User Sovereignty — archive is user-owned and encrypted with user-provided passphrase; [P4] Constraining: Clear Boundaries — server never stores passphrase |
+| FR-BK2 | `P3-backup-archive-create` | `BackupArchive::create(user_passphrase, triples)` | [P3] Motivating: Generative Space — writes snapshot of user's live triple set; [P2] Constraining: Affirmative Consent — export requires explicit passphrase entry |
+| FR-BK3 | `P3-backup-archive-open` | `BackupArchive::open(user_passphrase) -> Result<Self>` | [P3] Motivating: Generative Space — decrypts archive for migration; [P4] Constraining: Clear Boundaries — wrong passphrase returns error |
+| FR-BK4 | `P1-backup-export` | `kask backup export --passphrase <p>` / `POST /api/v1/backup/export` | [P1] Motivating: User Sovereignty — user downloads their own data; [P4] Constraining: Clear Boundaries — `SELECT ... WHERE owner_webid = ? AND tombstone = false` |
+| FR-BK5 | `P1-backup-download` | `GET /api/v1/backup/download` | [P1] Motivating: User Sovereignty — download latest backup archive; [P4] Constraining: Clear Boundaries — scoped to authenticated WebID |
+| FR-BK6 | `P1-backup-upload` | `kask backup upload --server <url>` / `POST /api/v1/backup/upload` | [P1] Motivating: User Sovereignty — user mediates server migration; [P3] Constraining: Generative Space — idempotent `INSERT OR REPLACE` merge |
+| FR-BK7 | `P1-backup-auto-export` | `kask config set backup.auto-export.frequency <daily\|weekly>` | [P1] Motivating: User Sovereignty — scheduled exports for convenience; [P4] Constraining: Clear Boundaries — archives stored server-side, encrypted |
+| FR-BK8 | `P3-backup-replicant-rename` | `kask replicate rename <from> <to>` / `POST /api/v1/replicants/rename` | [P3] Motivating: Generative Space — user renames replicant entity; [P1] Constraining: User Sovereignty — only own replicants |
+| FR-BK9 | `P3-backup-replicant-merge` | `kask replicate merge --from <source> --into <target>` / `POST /api/v1/replicants/merge` | [P3] Motivating: Generative Space — idempotent upsert of all triples from source into target; [P1] Constraining: User Sovereignty — source unchanged after merge |
+| FR-BK10 | `P3-backup-replicant-delete` | `kask replicate delete <name>` / `DELETE /api/v1/replicants/{name}` | [P3] Motivating: Generative Space — user removes replicant and all its triples; [P1] Constraining: User Sovereignty — only own replicants |
+| FR-BK11 | `P3-backup-auto-rename` | Auto-rename on replicant collision: `"ada" → "ada-migrated-20260617"` | [P3] Motivating: Generative Space — prevents data loss on migration; [P1] Constraining: User Sovereignty — returns `MigrationReceipt { renamed_replicants }` |
+
+#### CNS Span Contracts (4)
+
+| FR# | Contract ID | Span | Fields |
+|-----|------------|------|--------|
+| FR-BK-C1 | `P1-backup-cns-export` | `CnsSpan::BackupExport` | `{ triple_count, bytes, duration_ms }` |
+| FR-BK-C2 | `P1-backup-cns-auto-export` | `CnsSpan::BackupAutoExport` | `{ webid, triple_count, bytes, duration_ms }` |
+| FR-BK-C3 | `P1-backup-cns-upload` | `CnsSpan::BackupUpload` | `{ triple_count, bytes_sent, duration_ms }` |
+| FR-BK-C4 | `P1-backup-cns-replicant-merge` | `CnsSpan::ReplicantMerge` | `{ source, target, triple_count, duration_ms }` |
+
+#### Test Contracts (3)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-BK-T1 | `P1-backup-test-export-encrypted` | export_archive_encrypted_with_passphrase |
+| FR-BK-T2 | `P1-backup-test-upload-idempotent` | upload_merge_idempotent_converges |
+| FR-BK-T3 | `P1-backup-test-collision-rename` | replicant_collision_auto_renames |
+
 ---
 
 ## 4. Realignment Status
@@ -882,16 +984,22 @@ Representative domains:
 | Storage — Wallet Store | `wallet_store.rs` | `STO-138`–`STO-162`, `SHOULD-8`, `MUST-10`, `wallet-*` | `P3-sto-wallet-*`, `P1-sto-wallet-*` | 25 |
 | Storage — Contract Tests | `tests/contract/services_storage_contract.rs` | `CTR-002` | `P4-sto-services-contract-test` | 0 (tests only) |
 | Memory | `src/**/*.rs` | `MEM-*`, `memory-salience-*`, `semantic-*` | `P3-mem-*` | 68 |
-| Inference | `src/*.rs`, `tests/*.rs` | `INFER-*`, `inf-cfg-*`, `chat-proto-*`, `INT-*`, `LIVE-*` | `P9-inf-*`, `P4-inf-*` | 63 |
+| Inference | `src/*.rs`, `tests/*.rs` | `INFER-*`, `inf-cfg-*`, `chat-proto-*`, `INT-*`, `LIVE-*` | `P9-inf-*`, `P4-inf-*` | 58 |
 | Templates | `src/*.rs`, `tests/*.rs` | `TPL-*`, `cap-validator-*`, `templates-contract-*`, `templates-lexicon-*`, `FUZ-*`, `YML-*` | `P3-tpl-*` | 53 |
+| Web Interface | (new) | (new) | `P1-web-*`, `P4-web-*` | 15 |
+| Multi-User | (new) | (new) | `P1-multi-*`, `P2-multi-*` | 12 |
+| Backup & Migration | (new) | (new) | `P1-backup-*`, `P3-backup-*` | 18 |
 
 **Total CNS contracts:** 99 (across all 9 source files).
 **Total wallet contracts:** 23 production occurrences (11 unique IDs).
 **Total agents contracts:** 174 production occurrences (30 unique IDs).
 **Total storage contracts:** 247 production occurrences (168 unique IDs).
 **Total memory contracts:** 67 production occurrences (52 unique production IDs + 16 test IDs).
-**Total inference contracts:** 95 occurrences (63 unique production IDs + 31 unique test IDs).
+**Total inference contracts:** 88 occurrences (58 unique production IDs + 30 unique test IDs).
 **Total templates contracts:** 80 occurrences (53 unique production IDs + 25 unique test IDs).
+**Total web contracts:** 15 (12 production + 3 test, new — not yet implemented).
+**Total multi-user contracts:** 12 (10 production + 2 test, new — not yet implemented).
+**Total backup contracts:** 18 (11 production + 4 CNS span + 3 test, new — not yet implemented).
 **Build status:** `cargo check -p hkask-cns`, `cargo check -p hkask-wallet`, `cargo check -p hkask-agents`, `cargo check -p hkask-storage`, `cargo check -p hkask-memory`, `cargo check -p hkask-inference`, and `cargo check -p hkask-templates` pass clean.
 
 ### 4.2 Idempotent Migration
@@ -970,11 +1078,16 @@ The following domains are **not yet realigned** and will use their own principle
 - `kask` CLI (P3): `P3-cli-*`
 - `mcp-servers/` (P5): `P5-mcp-*`
 
+The following domains are **new — not yet implemented**:
+- Web Interface (P1+P4): `P1-web-*`, `P4-web-*`
+- Multi-User (P1+P2): `P1-multi-*`, `P2-multi-*`
+- Backup & Migration (P1+P3): `P1-backup-*`, `P3-backup-*`
+
 - `hkask-wallet` is **complete** as of this revision: `P9-wallet-*`.
 - `hkask-agents` is **complete** as of this revision: `P1-agt-*`, `P2-agt-*`, `P3-agt-*`, `P4-agt-*`, `P9-agt-*`.
 - `hkask-storage` is **complete** as of this revision: `P1-sto-*`, `P2-sto-*`, `P3-sto-*`, `P4-sto-*`, `P8-sto-*`.
 - `hkask-memory` is **complete** as of this revision: `P3-mem-*`.
-- `hkask-inference` is **complete** as of this revision: `P9-inf-*`, `P4-inf-*`.
+- `hkask-inference` is **complete** as of this revision: `P9-inf-*`, `P4-inf-*`. Cloud-only — Ollama backend removed.
 - `hkask-services` is **not yet realigned**: still contains `SVC-*`, `svc-*`, `MUST-*`, `MDS-*`, `BACKUP-*`, `lifecycle-*`, `services-settings-*`, and bare `P9`/`P3` IDs.
 
 ---
@@ -986,26 +1099,30 @@ The following domains are **not yet realigned** and will use their own principle
 | Version | v0.27.0 |
 | Created | 2026-06-16 |
 | Status | Active — anchor for the rSolidity contract vocabulary |
-| Last Updated | 2026-06-16 |
-| Contract Count | 99 CNS + wallet/agents/storage/memory/inference/templates realignment |
+| Last Updated | 2026-06-17 |
+| Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates + 45 new (web 15 + multi-user 12 + backup 18, planned) |
 | Build Status | `cargo check -p hkask-cns -p hkask-wallet -p hkask-agents -p hkask-storage -p hkask-memory -p hkask-inference -p hkask-templates` — PASS |
 | rSolidity Status | Macro crate implemented — first migration (`hkask-cns` energy budget) complete — see `RSOLIDITY_VOCABULARY.md` |
 | Governance | PRINCIPLES.md §1–§5 |
+| Deployment Reference | [deployment-and-backup.md](../../plans/deployment-and-backup.md) — planning phase, not yet implemented |
 
 ## Appendix B: Validation Checklist
 
 - [x] All 99 CNS contracts carry principle annotations
 - [x] Build passes clean: `cargo check -p hkask-cns`
 - [x] All test IDs updated to new format
-- [x] Domain map complete (22 domains)
+- [x] Domain map complete (25 domains — 22 existing + 3 new: web, multi-user, backup)
 - [x] FR tables complete (all 8 CNS domains)
 - [x] Realignment status table complete
 - [x] Contract ID format specification complete
 - [x] Non-CNS domain contracts (wallet) — realigned to `P9-wallet-*`
 - [x] Non-CNS domain contracts (memory) — realigned to `P3-mem-*`
-- [x] Non-CNS domain contracts (inference) — realigned to `P9-inf-*` / `P4-inf-*`
+- [x] Non-CNS domain contracts (inference) — realigned to `P9-inf-*` / `P4-inf-*`, cloud-only (Ollama removed)
 - [x] Non-CNS domain contracts (templates) — realigned to `P3-tpl-*`
 - [x] rSolidity contract vocabulary derivation and macro crate — see `RSOLIDITY_VOCABULARY.md`
+- [x] Web Interface specification — OAuth, xterm.js terminal, WebSocket PTY (planned — see `docs/plans/deployment-and-backup.md`)
+- [x] Multi-User specification — Admin/Member roles, invite flow, admin-only endpoints (planned)
+- [x] Backup & Migration specification — SQLCipher archive, export/upload, replicant operations (planned)
 
 ## Appendix C: Key References
 

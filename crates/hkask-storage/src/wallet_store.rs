@@ -831,63 +831,58 @@ impl WalletStore {
         let conn = self.lock_conn()?;
         let cost = cost_rj.as_u64() as i64;
 
-        // Atomic consume: increment consumed_rj only if sufficient remaining
+        // Atomic consume
         let rows = conn.execute(
             "UPDATE encumbrances SET consumed_rj = consumed_rj + ?1 WHERE key_id = ?2 AND status = 'active' AND (amount_rj - consumed_rj) >= ?1",
             rusqlite::params![cost, key_id.to_string()],
         )?;
-
         if rows == 0 {
-            // Check why it failed — query inline on already-held conn to avoid
-            // Mutex deadlock (std::sync::Mutex is not reentrant).
-            let enc_row: Option<(String, i64, i64, String)> = conn
-                .query_row(
-                    "SELECT wallet_id, amount_rj, consumed_rj, status FROM encumbrances WHERE key_id = ?1",
-                    rusqlite::params![key_id.to_string()],
-                    |row| {
-                        Ok((
-                            row.get::<_, String>(0)?,
-                            row.get::<_, i64>(1)?,
-                            row.get::<_, i64>(2)?,
-                            row.get::<_, String>(3)?,
-                        ))
-                    },
-                )
-                .optional()?;
-            match enc_row {
-                Some((_wallet_id_str, amount, consumed, status_str)) => {
-                    let status = EncumbranceStatus::from_str(&status_str)
-                        .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?;
-                    if status != EncumbranceStatus::Active {
-                        return Err(WalletError::EncumbranceNotFound { key_id });
-                    }
-                    let remaining = (amount as u64).saturating_sub(consumed as u64);
-                    return Err(WalletError::EncumbranceInsufficient {
-                        key_id,
-                        remaining: RJoule::new(remaining),
-                        need: cost_rj,
-                    });
-                }
-                None => {
-                    return Err(WalletError::EncumbranceNotFound { key_id });
-                }
-            }
+            return Self::diagnose_consume_failure(&conn, key_id, cost_rj);
         }
 
-        // Keep api_keys.spent_rj in sync with encumbrance consumption.
-        // This preserves a single coherent spending view for auth/status APIs.
+        // Sync api_keys.spent_rj
         conn.execute(
             "UPDATE api_keys SET spent_rj = spent_rj + ?1 WHERE key_id = ?2",
             rusqlite::params![cost, key_id.to_string()],
         )?;
 
-        // Check if fully consumed — transition status
+        // Transition status if fully consumed
         conn.execute(
             "UPDATE encumbrances SET status = 'consumed', released_at = ?1 WHERE key_id = ?2 AND status = 'active' AND consumed_rj >= amount_rj",
             rusqlite::params![now_rfc3339(), key_id.to_string()],
         )?;
 
         Ok(())
+    }
+
+    fn diagnose_consume_failure(
+        conn: &rusqlite::Connection,
+        key_id: ApiKeyId,
+        cost_rj: RJoule,
+    ) -> Result<(), WalletError> {
+        let enc_row: Option<(String, i64, i64, String)> = conn
+            .query_row(
+                "SELECT wallet_id, amount_rj, consumed_rj, status FROM encumbrances WHERE key_id = ?1",
+                rusqlite::params![key_id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()?;
+        match enc_row {
+            Some((_wallet_id_str, amount, consumed, status_str)) => {
+                let status = EncumbranceStatus::from_str(&status_str)
+                    .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?;
+                if status != EncumbranceStatus::Active {
+                    return Err(WalletError::EncumbranceNotFound { key_id });
+                }
+                let remaining = (amount as u64).saturating_sub(consumed as u64);
+                Err(WalletError::EncumbranceInsufficient {
+                    key_id,
+                    remaining: RJoule::new(remaining),
+                    need: cost_rj,
+                })
+            }
+            None => Err(WalletError::EncumbranceNotFound { key_id }),
+        }
     }
 
     /// Get an encumbrance by key ID.

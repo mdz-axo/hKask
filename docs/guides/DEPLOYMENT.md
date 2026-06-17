@@ -1,7 +1,7 @@
 ---
 title: "hKask Deployment Guide"
 audience: [DevOps engineers, system administrators, deployment teams]
-last_updated: 2026-06-13
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "Technology"
@@ -36,18 +36,21 @@ mds_categories: [lifecycle]
 hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-native container platform. This guide covers production deployment of the `kask` binary and supporting infrastructure.
 
 **Components:**
-- `kask` CLI binary — User-facing command interface (interactive chat, template management, pod operations)
-- `hkask-api` — HTTP API server (optional, for programmatic access including `/api/chat` endpoint)
-- SQLite database — Persistent storage for registry, goals, CNS state
-- Inference Router — Multi-provider LLM inference (Ollama local, Fireworks.ai cloud, DeepInfra cloud)
+- `kask` binary — Single binary (daemon, API, MCP servers, agents)
+- Caddy (Docker sidecar) — TLS termination, reverse proxy
+- Conduit (Docker sidecar) — Matrix homeserver for agent communication
+- SQLCipher-encrypted SQLite — Persistent storage for all user data
+- Inference Router — Multi-provider cloud LLM inference (DeepInfra, Fireworks.ai, fal.ai)
 
 **Key Features:**
-- Interactive CLI chat with Curator persona
+- Browser terminal (xterm.js + WebSocket) — primary user access via OAuth sign-in
 - API-based chat endpoint (`POST /api/chat`)
+- Multi-tenant with Admin/Member roles
 - Template registry with hLexicon validation
 - Agent pod management (bot/replicant lifecycle)
 - CNS monitoring with algedonic alerts
 - User sovereignty enforcement (Magna Carta)
+- Portable encrypted backup via `kask backup export`
 
 ---
 
@@ -67,7 +70,6 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 | Dependency | Purpose | Required | Default |
 |------------|---------|----------|---------|
-| **Ollama** | Local LLM inference | Recommended | `http://127.0.0.1:11434` |
 | **Fireworks.ai** | Cloud LLM inference | Optional (requires API key) | `https://api.fireworks.ai/inference` |
 | **DeepInfra** | Cloud LLM inference | Optional (requires API key) | `https://api.deepinfra.com/v1/openai` |
 | **SQLite** | Database engine | Bundled (rusqlite) | — |
@@ -75,21 +77,9 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 ### 2.3 Inference Provider Setup
 
-hKask uses a multi-provider inference router supporting local and cloud LLM backends.
+hKask uses a multi-provider cloud inference router.
 
-**Option A: Local Ollama (Recommended for Development)**
-```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull a model
-ollama pull qwen3:8b
-
-# Ollama starts at http://127.0.0.1:11434 by default
-# hKask auto-detects Ollama at this address
-```
-
-**Option B: Fireworks.ai (Cloud)**
+**Option A: Fireworks.ai**
 ```bash
 # Configure Fireworks.ai API key
 export FIREWORKS_API_KEY="your-api-key-here"
@@ -98,7 +88,7 @@ export FIREWORKS_API_KEY="your-api-key-here"
 export FIREWORKS_BASE_URL="https://api.fireworks.ai/inference"
 ```
 
-**Option C: DeepInfra (Cloud)**
+**Option B: DeepInfra**
 ```bash
 # Configure DeepInfra API key
 export DEEPINFRA_API_KEY="your-api-key-here"
@@ -111,56 +101,59 @@ export DEEPINFRA_BASE_URL="https://api.deepinfra.com/v1/openai"
 
 ## 3. Quick Start
 
-### 3.1 Install from Source
+### 3.1 Admin Setup
 
+For a full step-by-step server deployment including OAuth, Caddy + Conduit sidecars, DNS, and first sign-in, see:
+
+→ **[Admin Install Guide](admin-install-guide.md)**
+
+Quick summary:
 ```bash
-# Clone repository
-git clone https://github.com/mdz-axo/hKask.git
-cd hKask
+# Clone and build
+cargo build --release --bin kask
+cp target/release/kask /usr/local/bin/kask
 
-# Build release binary
-cargo build --release -p hkask-cli
+# Initialize server (prompts for domain, passphrase, OAuth providers)
+kask init --profile server
 
-# Install binary
-cp target/release/hkask-cli /usr/local/bin/kask
+# Deploy Caddy (TLS) + Conduit (Matrix) sidecars
+kask matrix deploy-sidecar --domain hkask.your-domain.com
+cd ~/.config/hkask/sidecar && docker compose up -d
 
-# Verify installation
-kask --version
+# Users visit https://hkask.your-domain.com, sign in via OAuth, get a browser terminal
 ```
 
-### 3.2 Interactive CLI Chat
+### 3.2 Browser Terminal (Primary Access)
 
-```bash
-# Start interactive chat session (auto-selects template)
-kask chat --interactive
+Users access hKask entirely through a browser. No binary to install, no SSH setup.
 
-# Chat with specific template
-kask chat --interactive --template prompt/selector
-
-# Process single input from stdin
-echo "What is 2+2?" | kask chat
-
-# Process input from file
-kask chat -f questions.txt
+```
+https://hkask.your-domain.com
+  │
+  ├── /login       — OAuth sign-in (GitHub / Google)
+  ├── /terminal    — xterm.js terminal via WebSocket → kask repl
+  └── /api/v1/*    — REST API
 ```
 
-**Chat Features:**
-- Auto-template selection based on input type (questions, actions, defaults)
-- Explicit template selection via `--template` flag
-- Multi-provider inference (Ollama, Fireworks, DeepInfra) with configurable parameters (temperature: 0.7, max_tokens: 512)
-- Graceful error handling when providers are unavailable
-
-### 3.3 API Server (Optional)
+After OAuth sign-in, the browser opens a WebSocket-connected xterm.js terminal
+running `kask repl`. All standard CLI operations are available:
 
 ```bash
-# Build API server
-cargo build --release -p hkask-api
+# Inside browser terminal (kask repl)
+kask> chat --interactive
+kask> template list
+kask> cns health
+kask> sovereignty status
+kask> pod list
+```
 
-# Start API server
-./target/release/hkask-api
+### 3.3 API Server
 
+The API server is part of the single `kask` binary and starts with the daemon:
+
+```bash
 # Test chat endpoint
-curl -X POST http://127.0.0.1:11435/api/chat \
+curl -X POST https://hkask.your-domain.com/api/chat \
   -H "Content-Type: application/json" \
   -d '{"input": "What is the capital of France?", "template_id": null}'
 ```
@@ -169,13 +162,16 @@ curl -X POST http://127.0.0.1:11435/api/chat \
 
 ```bash
 # Check CNS health
-kask cns health
+curl -s https://hkask.your-domain.com/api/cns/health | jq
 
 # List templates
 kask template list
 
 # Check sovereignty status
 kask sovereignty status
+
+# Verify sidecars
+kask matrix status-sidecar
 ```
 
 ---
@@ -186,11 +182,11 @@ kask sovereignty status
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `OM_BASE_URL` | Ollama base URL | `http://127.0.0.1:11434` | No |
 | `FW_BASE_URL` | Fireworks API endpoint | `https://api.fireworks.ai/inference` | No |
 | `FW_API_KEY` | Fireworks API key (also `FIREWORKS_API_KEY`) | — | For FW provider |
 | `DI_BASE_URL` | DeepInfra base URL | `https://api.deepinfra.com` | No |
 | `DI_API_KEY` | DeepInfra API key (also `DEEPINFRA_API_KEY`) | — | For DI provider |
+| `FA_API_KEY` | fal.ai API key | — | For fal.ai provider |
 | `HKASK_DATABASE_URL` | SQLite database path | `./data/hkask.db` | No |
 | `HKASK_LOG_LEVEL` | Logging verbosity | `info` | No |
 | `RUST_LOG` | Rust tracing filter | — | No |
@@ -201,14 +197,12 @@ kask sovereignty status
 | `HKASK_SOAP_PERSONA_PATH` | Jack persona file path | `hkask-templates/personas/jack-nurse.md` | No |
 
 Model names use 2-letter provider prefixes for routing:
-- `OM/` → Ollama (local) — no API key needed
-- `FW/` → Fireworks.ai (cloud) — requires `FW_API_KEY`
 - `DI/` → DeepInfra (cloud) — requires `DI_API_KEY`
-- No prefix → defaults to Ollama
+- `FW/` → Fireworks.ai (cloud) — requires `FW_API_KEY`
+- `FA/` → fal.ai (cloud) — requires `FA_API_KEY`
+- No prefix → defaults to DeepInfra
 
-API keys can be set in environment variables or in a `.env` file in the
-working directory. The `kask` binary and all MCP servers auto-load `.env`
-on startup via `dotenvy`.
+API keys can be set in environment variables or in a `providers.env` file. The `kask` binary auto-loads `.env` on startup via `dotenvy`. For OAuth credentials (GitHub/Google client IDs and secrets), see the [Admin Install Guide](admin-install-guide.md).
 
 ### 4.2 Chat Configuration
 
@@ -231,7 +225,6 @@ To customize chat behavior, modify the source code in:
 
 ```bash
 # Production environment
-export OM_BASE_URL="http://ollama.internal:11434"
 export DI_API_KEY="your-deepinfra-key"
 export FW_API_KEY="your-fireworks-key"
 export HKASK_DATABASE_URL="/var/lib/hkask/hkask.db"
@@ -246,15 +239,8 @@ export HKASK_SOAP_MAX_TOKENS="4096"
 
 ### 4.4 Database Location
 
-Default database locations by platform:
+hKask stores all data on the cloud server. The default database path is set during `kask init --profile server`.
 
-| Platform | Default Path |
-|----------|--------------|
-| Linux | `~/.local/share/hkask/hkask.db` |
-| macOS | `~/Library/Application Support/hkask/hkask.db` |
-| Windows | `%APPDATA%\hkask\hkask.db` |
-
-Create custom location:
 ```bash
 mkdir -p /var/lib/hkask
 export HKASK_DATABASE_URL="/var/lib/hkask/hkask.db"
@@ -266,19 +252,18 @@ export HKASK_DATABASE_URL="/var/lib/hkask/hkask.db"
 
 ### 5.1 Systemd Service (Linux)
 
-Create `/etc/systemd/system/hkask-api.service`:
+Create `/etc/systemd/system/hkask.service`:
 
 ```ini
 [Unit]
-Description=hKask API Server
-After=network.target
+Description=hKask Server
+After=network.target docker.service
 
 [Service]
 Type=simple
 User=hkask
 Group=hkask
-ExecStart=/usr/local/bin/hkask-api serve --host 0.0.0.0 --port 8080
-Environment=OM_BASE_URL=http://ollama.internal:11434
+ExecStart=/usr/local/bin/kask daemon --host 0.0.0.0 --port 8080
 Environment=DI_API_KEY=${DEEPINFRA_KEY}
 Environment=HKASK_DATABASE_URL=/var/lib/hkask/hkask.db
 Environment=RUST_LOG=hkask=info
@@ -292,9 +277,9 @@ WantedBy=multi-user.target
 Enable and start:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable hkask-api
-sudo systemctl start hkask-api
-sudo systemctl status hkask-api
+sudo systemctl enable hkask
+sudo systemctl start hkask
+sudo systemctl status hkask
 ```
 
 ### 5.2 Docker Deployment
@@ -304,24 +289,22 @@ FROM rust:1.91-slim AS builder
 
 WORKDIR /app
 COPY . .
-RUN cargo build --release -p hkask-cli -p hkask-api
+RUN cargo build --release --bin kask
 
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/kask /usr/local/bin/
-COPY --from=builder /app/target/release/hkask-api /usr/local/bin/
 
 RUN useradd -m hkask
 USER hkask
 
 ENV HKASK_DATABASE_URL=/home/hkask/hkask.db
-ENV OM_BASE_URL=http://host.docker.internal:11434
 
 EXPOSE 8080
 
-CMD ["hkask-api", "serve", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["kask", "daemon", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
 Build and run:
@@ -353,8 +336,6 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        - name: OM_BASE_URL
-          value: "http://ollama.default.svc.cluster.local:11434"
         - name: DI_API_KEY
           valueFrom:
             secretKeyRef:
@@ -399,7 +380,7 @@ spec:
 
 ```bash
 # Check CNS health
-curl -s http://127.0.0.1:11435/api/cns/health | jq
+curl -s https://hkask.your-domain.com/api/cns/health | jq
 
 # Expected response
 {
@@ -412,8 +393,10 @@ curl -s http://127.0.0.1:11435/api/cns/health | jq
 
 ### 6.3 CLI Health Check
 
+From the browser terminal (`kask repl`):
+
 ```bash
-# Check CNS via CLI
+# Check CNS
 kask cns health
 
 # Check sovereignty status
@@ -437,13 +420,13 @@ kask sovereignty status
 
 ```bash
 # View recent errors
-journalctl -u hkask-api -p err --no-pager
+journalctl -u hkask -p err --no-pager
 
 # Search for CNS alerts
-journalctl -u hkask-api | grep "ALGEDONIC ALERT"
+journalctl -u hkask | grep "ALGEDONIC ALERT"
 
 # Monitor variety counters
-journalctl -u hkask-api | grep "variety"
+journalctl -u hkask | grep "variety"
 ```
 
 ### 7.3 Observability via CNS
@@ -456,7 +439,7 @@ CNS provides programmatic observability through:
 **No visual dashboards.** All monitoring is programmatic:
 - Query CNS spans via `hkask-cns` crate APIs
 - Check variety counters in application logs
-- Algedonic alerts appear in journal logs: `journalctl -u hkask-api | grep "ALGEDONIC ALERT"`
+- Algedonic alerts appear in journal logs: `journalctl -u hkask | grep "ALGEDONIC ALERT"`
 
 This is a deliberate design decision: hKask is a headless system with no visual UI.
 
@@ -464,38 +447,44 @@ This is a deliberate design decision: hKask is a headless system with no visual 
 
 ## 8. Backup & Recovery
 
-### 8.1 Database Backup
+### 8.1 Portable Encrypted Backup
+
+hKask backups are portable, encrypted SQLCipher archives exported via `kask backup export`.
+The archive contains the user's full triple set and can be uploaded to a new server for migration.
 
 ```bash
-# Backup SQLite database
-cp /var/lib/hkask/hkask.db /backup/hkask-$(date +%Y%m%d).db
+# Export encrypted backup archive
+kask backup export --passphrase "user-chosen-passphrase"
 
-# Verify backup integrity
-sqlite3 /backup/hkask-$(date +%Y%m%d).db "PRAGMA integrity_check;"
+# The archive is encrypted with the user-provided passphrase (never stored on server)
+# Downloadable via scp or the API
 ```
 
-### 8.2 Database Restore
+**Key properties:**
+- Single SQLCipher-encrypted SQLite file
+- User-provided passphrase at export time (server never stores it)
+- Portable across servers — upload to a new server and resume
+- `CnsSpan::BackupExport` emitted for observability
+
+### 8.2 Scheduled Auto-Export
 
 ```bash
-# Stop service
-sudo systemctl stop hkask-api
+# Configure daily automatic exports, keep last 7
+kask config set backup.auto-export.frequency daily
+kask config set backup.auto-export.retention 7
 
-# Restore from backup
-cp /backup/hkask-20260523.db /var/lib/hkask/hkask.db
-
-# Start service
-sudo systemctl start hkask-api
+# Archives stored at: /var/lib/hkask/exports/{webid}/
 ```
 
-### 8.3 Template Registry Backup
+### 8.3 Server Migration
+
+Download the archive from old server, upload to new server:
 
 ```bash
-# Export registry to JSON
-kask template list | jq > /backup/templates-$(date +%Y%m%d).json
-
-# Re-import after restore
-# (Manual re-registration required for v0.21.0)
+kask backup upload --server https://new-server.hkask.example
 ```
+
+See the [Deployment & Multi-User Plan](../plans/deployment-and-backup.md#4-backup-model--server-side-export-as-portable-sovereignty-archive) for full details.
 
 ---
 
@@ -512,8 +501,8 @@ chmod 600 /var/lib/hkask/hkask.db
 
 ### 9.2 Network Security
 
-- Run API behind reverse proxy (nginx, Traefik)
-- Enable TLS termination at proxy
+- Caddy handles TLS termination (auto Let's Encrypt)
+- Run API behind Caddy reverse proxy
 - Restrict inference provider access to internal network
 - Use firewall rules to limit API access
 
@@ -531,12 +520,13 @@ chmod 600 /var/lib/hkask/hkask.db
 
 | Issue | Cause | Resolution |
 |-------|-------|------------|
-| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `FW_API_KEY` in env or `.env` file |
+| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `FW_API_KEY` in env or `providers.env` file |
 | `Inference error: error sending request` | Provider unreachable | Verify provider URL and network connectivity |
 | `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
 | `Template not found` | Registry empty | Register templates with `kask template register` |
 | `Capability denied` | Missing/invalid token | Grant capability with `kask bot grant` |
 | `Chat response slow` | High inference latency | Check provider load; reduce `max_tokens` |
+| `WebSocket disconnected` | Session expired | Re-authenticate via OAuth sign-in |
 
 ### 10.2 Chat-Specific Issues
 
@@ -560,15 +550,15 @@ chmod 600 /var/lib/hkask/hkask.db
 ```bash
 # Enable verbose logging
 export RUST_LOG=debug
-kask chat --interactive --verbose
 
 # View detailed CNS spans
 kask cns health --verbose
 
-# Test Ollama connectivity directly
-curl http://127.0.0.1:11434/api/generate \
+# Test DeepInfra connectivity
+curl -s https://api.deepinfra.com/v1/openai/chat/completions \
+  -H "Authorization: Bearer $DI_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "test", "model": "qwen3:8b"}'
+  -d '{"model": "meta-llama/Llama-3.3-70B-Instruct", "messages": [{"role": "user", "content": "test"}]}'
 
 # Test DeepInfra embeddings
 curl https://api.deepinfra.com/v1/embeddings \
@@ -583,6 +573,7 @@ curl https://api.deepinfra.com/v1/embeddings \
 - Issue tracker: https://github.com/mdz-axo/hKask/issues
 - Architecture: `docs/architecture/hKask-architecture-master.md`
 - API Reference: `kask docs openapi` or `docs/openapi.json`
+- Step-by-step setup: [Admin Install Guide](admin-install-guide.md)
 
 ---
 
@@ -602,17 +593,17 @@ curl https://api.deepinfra.com/v1/embeddings \
 cp /var/lib/hkask/hkask.db /backup/hkask-pre-upgrade.db
 
 # Stop service
-sudo systemctl stop hkask-api
+sudo systemctl stop hkask
 
 # Install new binary
 cp target/release/kask /usr/local/bin/
 
 # Start service
-sudo systemctl start hkask-api
+sudo systemctl start hkask
 
 # Verify
 kask --version
-curl http://127.0.0.1:11435/api/cns/health
+curl -s https://hkask.your-domain.com/api/cns/health
 ```
 
 ---
@@ -625,7 +616,7 @@ curl http://127.0.0.1:11435/api/cns/health
 Curator chat with Okapi inference.
 
 ```bash
-curl -X POST http://127.0.0.1:11435/api/chat \
+curl -X POST https://hkask.your-domain.com/api/chat \
   -H "Content-Type: application/json" \
   -d '{
     "input": "What is the capital of France?",
@@ -696,11 +687,11 @@ Response:
 kask docs openapi -o docs/openapi.json
 
 # Or via API (if running)
-curl http://127.0.0.1:11435/api/openapi.json -o openapi.json
+curl -s https://hkask.your-domain.com/api/openapi.json -o openapi.json
 ```
 
 ---
 
-*This deployment guide is part of hKask v0.21.0 documentation. For architecture details, see `docs/architecture/hKask-architecture-master.md`.*
+*This deployment guide is part of hKask v0.27.0 documentation. For architecture details, see `docs/architecture/hKask-architecture-master.md`. For step-by-step server setup, see [Admin Install Guide](admin-install-guide.md).*
 
 **ℏKask - A Minimal Viable Container for Agents**

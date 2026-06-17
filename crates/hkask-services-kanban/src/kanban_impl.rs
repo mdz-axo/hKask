@@ -674,7 +674,7 @@ impl KanbanService {
 
         // Create tasks
         let mut created = 0usize;
-        for task_val in tasks_array {
+        for task_val in &tasks_array {
             let spec = Self::build_task_spec_from_json(task_val, &phase_map);
             self.task_create(board_id, spec, owner)?;
             created += 1;
@@ -695,19 +695,30 @@ impl KanbanService {
         let parsed: serde_json::Value = serde_json::from_str(json_output)
             .map_err(|e| KanbanError::InvalidInput(format!("Invalid JSON: {e}")))?;
         if parsed.get("tasks").is_none() {
-            return Err(KanbanError::InvalidInput("JSON must have a tasks array at top level".into()));
+            return Err(KanbanError::InvalidInput(
+                "JSON must have a tasks array at top level".into(),
+            ));
         }
-        let tasks_array = parsed["tasks"].as_array()
+        let tasks_array = parsed["tasks"]
+            .as_array()
             .ok_or_else(|| KanbanError::InvalidInput("'tasks' must be an array".into()))?;
         if tasks_array.is_empty() {
             return Err(KanbanError::InvalidInput("'tasks' array is empty".into()));
         }
         for (i, task_val) in tasks_array.iter().enumerate() {
-            if task_val.get("title").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
-                return Err(KanbanError::InvalidInput(format!("Task {} is missing 'title' field", i + 1)));
+            if task_val
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .is_empty()
+            {
+                return Err(KanbanError::InvalidInput(format!(
+                    "Task {} is missing 'title' field",
+                    i + 1
+                )));
             }
         }
-        Ok(tasks_array)
+        Ok(tasks_array.clone())
     }
 
     fn create_phases_from_recomposition(
@@ -749,20 +760,43 @@ impl KanbanService {
         let estimated_hours = task_val["estimated_hours"].as_f64();
         let labels: Vec<String> = task_val["labels"]
             .as_array()
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
         let criteria: Vec<hkask_types::VerificationCriterion> = task_val["criteria"]
             .as_array()
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| hkask_types::VerificationCriterion::new(s.into()))).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| {
+                        v.as_str()
+                            .map(|s| hkask_types::VerificationCriterion::new(s.into()))
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
-        let priority = task_val["priority"].as_str().and_then(hkask_types::Priority::parse_str);
+        let priority = task_val["priority"]
+            .as_str()
+            .and_then(hkask_types::Priority::parse_str);
 
         let mut spec = TaskSpec::new(title.into());
-        if let Some(d) = description { spec = spec.with_description(d); }
-        if !criteria.is_empty() { spec = spec.with_criteria(criteria); }
-        if let Some(sp) = story_points { spec = spec.with_story_points(sp); }
-        if let Some(eh) = estimated_hours { spec = spec.with_estimated_hours(eh); }
-        if let Some(p) = priority { spec = spec.with_priority(p); }
+        if let Some(d) = description {
+            spec = spec.with_description(d);
+        }
+        if !criteria.is_empty() {
+            spec = spec.with_criteria(criteria);
+        }
+        if let Some(sp) = story_points {
+            spec = spec.with_story_points(sp);
+        }
+        if let Some(eh) = estimated_hours {
+            spec = spec.with_estimated_hours(eh);
+        }
+        if let Some(p) = priority {
+            spec = spec.with_priority(p);
+        }
         if !phase_map.is_empty() && !labels.is_empty() {
             for label in &labels {
                 if let Some(pid) = phase_map.get(&label.to_lowercase()) {
@@ -771,7 +805,9 @@ impl KanbanService {
                 }
             }
         }
-        if !labels.is_empty() { spec = spec.with_labels(labels); }
+        if !labels.is_empty() {
+            spec = spec.with_labels(labels);
+        }
         spec
     }
 
@@ -795,7 +831,8 @@ impl KanbanService {
             let persona_yaml = Self::build_persona_yaml(&pod_name, &task.title, &spawn_spec);
             match hkask_agents::pod::AgentPersona::from_yaml(&persona_yaml) {
                 Ok(persona) => {
-                    let pod_note = Self::activate_pod(pm, "kanban-agent", &persona, &pod_name, &spawn_spec)?;
+                    let pod_note =
+                        Self::activate_pod(pm, "kanban-agent", &persona, &pod_name, &spawn_spec)?;
                     let comment = hkask_types::Comment::new(task_id, task.owner, pod_note);
                     task.comments.push(comment);
                     task.updated_at = chrono::Utc::now();
@@ -837,7 +874,9 @@ impl KanbanService {
     }
 
     fn build_persona_yaml(pod_name: &str, title: &str, spec: &hkask_types::SpawnSpec) -> String {
-        let skills = spec.delegated_skills.iter()
+        let skills = spec
+            .delegated_skills
+            .iter()
             .map(|s| format!("  - {}", s))
             .collect::<Vec<_>>()
             .join("\n");
@@ -857,7 +896,8 @@ impl KanbanService {
         spec: &hkask_types::SpawnSpec,
     ) -> Result<String, KanbanError> {
         let rt = tokio::runtime::Handle::current();
-        let pod_id = rt.block_on(pm.create_pod(agent_type, persona, Some(pod_name.to_string())))
+        let pod_id = rt
+            .block_on(pm.create_pod(agent_type, persona, Some(pod_name.to_string())))
             .map_err(|e| KanbanError::Internal(format!("Pod creation failed: {}", e)))?;
         rt.block_on(pm.activate_pod(&pod_id))
             .map_err(|e| KanbanError::Internal(format!("Pod activation failed: {}", e)))?;
