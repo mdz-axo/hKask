@@ -1217,14 +1217,14 @@ impl CapabilityPackage {
     /// pre:  self is valid
     /// post:      /// post: returns converted representation
     pub fn to_yaml(&self) -> Result<String, String> {
-        serde_yaml::to_string(self).map_err(|e| e.to_string())
+        serde_yaml_neo::to_string(self).map_err(|e| e.to_string())
     }
 
     /// REQ: KAN-074 — Deserialize from YAML.
     /// pre:  input is valid
     /// post:      /// post: returns parsed object
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
-        serde_yaml::from_str(yaml).map_err(|e| e.to_string())
+        serde_yaml_neo::from_str(yaml).map_err(|e| e.to_string())
     }
 
     // ── rSolidity Contract Integration ─────────────────────────────────

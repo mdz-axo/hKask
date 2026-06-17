@@ -3950,7 +3950,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -3983,7 +3983,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "subtle",
  "thiserror 2.0.18",
  "tokio",
@@ -4033,7 +4033,7 @@ dependencies = [
  "rustyline",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -4058,7 +4058,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4169,7 +4169,7 @@ dependencies = [
  "rmcp",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -4314,7 +4314,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "sha2 0.10.9",
  "tempfile",
  "tokio",
@@ -4517,7 +4517,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -4567,7 +4567,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4608,7 +4608,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_neo",
  "sha2 0.10.9",
  "subtle",
  "thiserror 2.0.18",
@@ -8289,10 +8289,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
+name = "serde_yaml_neo"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+checksum = "34b209c2fb1a006ef53382f97f8ee5d43b156f61c0db1328638fdfa749af865f"
 dependencies = [
  "indexmap 2.14.0",
  "itoa",

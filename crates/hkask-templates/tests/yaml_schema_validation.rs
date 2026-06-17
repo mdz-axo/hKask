@@ -56,7 +56,7 @@ fn all_skill_manifests_are_well_formed() {
         count += 1;
         let path = entry.path();
         match std::fs::read_to_string(path) {
-            Ok(content) => match serde_yaml::from_str::<ManifestFile>(&content) {
+            Ok(content) => match serde_yaml_neo::from_str::<ManifestFile>(&content) {
                 Ok(mf) => {
                     assert!(
                         !mf.manifest.id.is_empty(),
@@ -123,6 +123,6 @@ fn all_skill_manifests_are_well_formed() {
 #[test]
 fn invalid_yaml_is_rejected() {
     let invalid = "id: 123\nname: []\n"; // name should be string, not array
-    let result = serde_yaml::from_str::<ManifestFile>(invalid);
+    let result = serde_yaml_neo::from_str::<ManifestFile>(invalid);
     assert!(result.is_err(), "invalid YAML should be rejected");
 }

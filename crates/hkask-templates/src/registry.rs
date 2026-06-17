@@ -360,7 +360,7 @@ impl Registry {
         let mut registry = Self::new();
         let yaml = include_str!("../../../registry/templates/bootstrap-registry.yaml");
         let max_recursion = SYSTEM_MAX_RECURSION as u32;
-        match serde_yaml::from_str::<Vec<RegistryEntry>>(yaml) {
+        match serde_yaml_neo::from_str::<Vec<RegistryEntry>>(yaml) {
             Ok(entries) => {
                 for mut entry in entries {
                     entry.matroshka_limit = max_recursion;

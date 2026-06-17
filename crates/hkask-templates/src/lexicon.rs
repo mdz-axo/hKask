@@ -54,7 +54,7 @@ struct LexiconTermYaml {
 /// pre:  content is valid YAML in hlexicon-workspace format
 /// post: returns HLexicon populated with WordAct, FlowDef, KnowAct terms
 pub fn load_hlexicon_from_yaml(content: &str) -> Result<HLexicon, String> {
-    let workspace: HlexiconWorkspaceYaml = serde_yaml::from_str(content)
+    let workspace: HlexiconWorkspaceYaml = serde_yaml_neo::from_str(content)
         .map_err(|e| format!("Failed to parse hLexicon YAML: {}", e))?;
     let mut lexicon = HLexicon::new();
     for (terms, tt) in [

@@ -155,7 +155,7 @@ fn default_drift_threshold() -> f64 {
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
 ///
 /// Moved from `hkask-cns` — curation regulates cybernetics, not the other way around.
-/// YAML loading remains in `hkask-cns` (requires `serde_yaml`).
+/// YAML loading remains in `hkask-cns` (requires `serde_yaml_neo`).
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct CurationThresholdConfig {
     #[serde(default = "default_coherence_threshold")]

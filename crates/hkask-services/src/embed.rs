@@ -455,7 +455,7 @@ impl EmbedService {
                 message: msg,
             }
         })?;
-        let config: CorpusConfig = serde_yaml::from_str(&config_str).map_err(|e| {
+        let config: CorpusConfig = serde_yaml_neo::from_str(&config_str).map_err(|e| {
             let msg = format!("Failed to parse corpus config YAML: {e}");
             ServiceError::Embed {
                 source: Some(Box::new(e)),
@@ -1157,7 +1157,7 @@ impl EmbedService {
                 message: msg,
             }
         })?;
-        serde_yaml::from_str(&config_str).map_err(|e| {
+        serde_yaml_neo::from_str(&config_str).map_err(|e| {
             let msg = format!("Failed to parse corpus config YAML: {e}");
             ServiceError::Embed {
                 source: Some(Box::new(e)),

@@ -227,7 +227,7 @@ impl SkillLoader {
             Err(_) => return TemplateType::KnowAct,
         };
 
-        let manifest: SkillManifest = match serde_yaml::from_str(&content) {
+        let manifest: SkillManifest = match serde_yaml_neo::from_str(&content) {
             Ok(m) => m,
             Err(_) => return TemplateType::KnowAct,
         };
@@ -281,7 +281,7 @@ impl SkillLoader {
 
         let yaml_str = &rest[..end_marker];
 
-        let fm: HashMap<String, serde_yaml::Value> = serde_yaml::from_str(yaml_str)
+        let fm: HashMap<String, serde_yaml_neo::Value> = serde_yaml_neo::from_str(yaml_str)
             .map_err(|e| format!("SKILL.md YAML parse error: {}", e))?;
 
         let as_string = |key: &str| fm.get(key).and_then(|v| v.as_str()).map(|s| s.to_string());

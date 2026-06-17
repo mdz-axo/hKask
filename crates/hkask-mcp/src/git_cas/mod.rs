@@ -165,16 +165,16 @@ impl GitCasAdapter {
 fn parse_hlexicon_terms(content: &str) -> Vec<String> {
     let mut terms = Vec::new();
 
-    if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(content) {
+    if let Ok(value) = serde_yaml_neo::from_str::<serde_yaml_neo::Value>(content) {
         match value {
-            serde_yaml::Value::Sequence(seq) => {
+            serde_yaml_neo::Value::Sequence(seq) => {
                 for item in seq {
-                    if let serde_yaml::Value::String(term) = item {
+                    if let serde_yaml_neo::Value::String(term) = item {
                         terms.push(term);
                     }
                 }
             }
-            serde_yaml::Value::String(term) => {
+            serde_yaml_neo::Value::String(term) => {
                 terms.push(term);
             }
             _ => {}

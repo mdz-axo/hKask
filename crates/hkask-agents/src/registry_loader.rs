@@ -17,7 +17,7 @@ pub enum RegistryLoaderError {
     #[error("YAML parse error in {path}: {source}")]
     YamlParse {
         path: String,
-        source: serde_yaml::Error,
+        source: serde_yaml_neo::Error,
     },
     #[error("A2A error: {0}")]
     A2A(#[from] A2AError),
@@ -320,7 +320,7 @@ impl AgentRegistryLoader {
             .load_yaml(path)
             .map_err(|e| RegistryLoaderError::Io(Box::new(e)))?;
         let raw: RawYamlAgent =
-            serde_yaml::from_str(&content).map_err(|e| RegistryLoaderError::YamlParse {
+            serde_yaml_neo::from_str(&content).map_err(|e| RegistryLoaderError::YamlParse {
                 path: path.to_string(),
                 source: e,
             })?;

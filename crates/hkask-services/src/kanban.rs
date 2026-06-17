@@ -118,7 +118,7 @@ impl KanbanService {
             phases: Vec<TemplatePhase>,
         }
 
-        let template: BoardTemplate = serde_yaml::from_str(template_yaml)
+        let template: BoardTemplate = serde_yaml_neo::from_str(template_yaml)
             .map_err(|e| KanbanError::InvalidInput(format!("Invalid template YAML: {e}")))?;
 
         let columns: Vec<ColumnDef> = template

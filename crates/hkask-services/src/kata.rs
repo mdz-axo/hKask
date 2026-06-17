@@ -789,7 +789,7 @@ impl KataEngine {
         let content = std::fs::read_to_string(path).map_err(|e| {
             KataError::LoadFailed(format!("Failed to read {}: {}", path.display(), e))
         })?;
-        let manifest: KataManifest = serde_yaml::from_str(&content)
+        let manifest: KataManifest = serde_yaml_neo::from_str(&content)
             .map_err(|e| KataError::ParseFailed(format!("Failed to parse manifest: {}", e)))?;
         Ok(manifest)
     }

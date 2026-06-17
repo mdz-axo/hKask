@@ -95,8 +95,8 @@ pub struct SetPointsConfig {
 
 impl SetPointsConfig {
     /// Load set-points from a YAML string.
-    pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml::Error> {
-        serde_yaml::from_str(yaml)
+    pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml_neo::Error> {
+        serde_yaml_neo::from_str(yaml)
     }
 
     /// Load set-points from a YAML file.

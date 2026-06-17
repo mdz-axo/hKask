@@ -26,7 +26,7 @@ pub struct Assertion {
     pub claim: String,
     pub method: String,
     #[serde(default)]
-    pub targets: Vec<serde_yaml::Value>,
+    pub targets: Vec<serde_yaml_neo::Value>,
     #[serde(default)]
     pub prohibited: Vec<String>,
 }
@@ -149,7 +149,7 @@ fn load_manifests() -> Vec<Manifest> {
             continue;
         }
         match std::fs::read_to_string(&path) {
-            Ok(content) => match serde_yaml::from_str::<Manifest>(&content) {
+            Ok(content) => match serde_yaml_neo::from_str::<Manifest>(&content) {
                 Ok(manifest) => manifests.push(manifest),
                 Err(e) => tracing::warn!("Failed to parse {}: {e}", path.display()),
             },

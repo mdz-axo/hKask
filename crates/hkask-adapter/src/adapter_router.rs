@@ -1305,6 +1305,12 @@ mod tests {
     use hkask_types::capability::DelegationAction;
     use hkask_types::capability::DelegationResource;
     use hkask_types::capability::auth::derive_signing_key;
+    use std::future::Future;
+
+    /// Block on a future in a synchronous test context.
+    fn block_on<F: Future>(f: F) -> F::Output {
+        tokio::runtime::Runtime::new().unwrap().block_on(f)
+    }
 
     /// Create a test DelegationToken with a derived signing key.
     fn test_token() -> DelegationToken {
@@ -1402,8 +1408,7 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token(); // test-only token
 
-        let handle = router
-            .create_endpoint(adapter.id, ProviderId::Together, &token)
+        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
             .expect("create endpoint");
 
         assert_eq!(handle.expertise_name, "solidity-audit");
@@ -1424,8 +1429,7 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token();
 
-        let handle = router
-            .create_endpoint(adapter.id, ProviderId::Together, &token)
+        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
             .expect("create endpoint");
 
         let status = router
@@ -1450,13 +1454,10 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token();
 
-        let handle = router
-            .create_endpoint(adapter.id, ProviderId::Together, &token)
+        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
             .expect("create endpoint");
 
-        router
-            .teardown_endpoint(handle.endpoint_id, &token)
-            .expect("teardown");
+        block_on(router.teardown_endpoint(handle.endpoint_id, &token)).expect("teardown");
 
         // Status should fail after teardown (endpoint removed)
         let status = router.endpoint_status(handle.endpoint_id, &token);
@@ -1476,9 +1477,9 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token();
 
-        let estimate = router
-            .estimate_composition(adapter.id, ProviderId::Together, &token)
-            .expect("estimate");
+        let estimate =
+            block_on(router.estimate_composition(adapter.id, ProviderId::Together, &token))
+                .expect("estimate");
 
         assert!(estimate.is_compatible);
         assert!(estimate.estimated_hourly_cost > 0.0);
@@ -1501,7 +1502,7 @@ mod tests {
         let token = test_token();
 
         // Ollama is not registered as an adapter backend
-        let result = router.estimate_composition(adapter.id, ProviderId::Ollama, &token);
+        let result = block_on(router.estimate_composition(adapter.id, ProviderId::Ollama, &token));
         assert!(result.is_err());
         match result {
             Err(AdapterError::ProviderUnavailable(_)) => {} // expected
@@ -1557,7 +1558,7 @@ mod tests {
         let router = AdapterRouter::new(store);
         let token = test_token();
 
-        let result = router.create_endpoint(adapter.id, ProviderId::Together, &token);
+        let result = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token));
         assert!(result.is_err());
     }
 
@@ -1574,8 +1575,7 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token();
 
-        let _handle = router
-            .create_endpoint(adapter.id, ProviderId::Together, &token)
+        let _handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
             .expect("create endpoint");
 
         let count = router.drain_all_owner(adapter.owner).expect("drain");
@@ -1654,8 +1654,8 @@ mod tests {
     }
 
     // REQ: P5-adt-automatic-teardown — EndpointGuard tears down on drop
-    #[test]
-    fn endpoint_guard_teardown_on_drop() {
+    #[tokio::test]
+    async fn endpoint_guard_teardown_on_drop() {
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
         store.migrate().expect("migration");
@@ -1668,6 +1668,7 @@ mod tests {
 
         let handle = router
             .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .await
             .expect("create endpoint");
         let endpoint_id = handle.endpoint_id;
 
@@ -1684,8 +1685,8 @@ mod tests {
     }
 
     // REQ: P5-adt-automatic-teardown — explicit teardown consumes guard
-    #[test]
-    fn endpoint_guard_explicit_teardown() {
+    #[tokio::test]
+    async fn endpoint_guard_explicit_teardown() {
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
         store.migrate().expect("migration");
@@ -1698,6 +1699,7 @@ mod tests {
 
         let handle = router
             .create_endpoint(adapter.id, ProviderId::Together, &token)
+            .await
             .expect("create endpoint");
 
         let guard = EndpointGuard::new(&router, handle.endpoint_id);
@@ -1727,8 +1729,7 @@ mod tests {
         assert!(!selection.providers.is_empty());
 
         // 3. Create endpoint
-        let handle = router
-            .create_endpoint(adapter.id, ProviderId::Together, &token)
+        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
             .expect("create endpoint");
         assert_eq!(handle.expertise_name, "solidity-audit");
         assert!(!handle.endpoint_url.is_empty());
@@ -1743,9 +1744,7 @@ mod tests {
         assert_eq!(status.provider, ProviderId::Together);
 
         // 5. Teardown
-        router
-            .teardown_endpoint(handle.endpoint_id, &token)
-            .expect("teardown");
+        block_on(router.teardown_endpoint(handle.endpoint_id, &token)).expect("teardown");
         assert!(router.endpoint_status(handle.endpoint_id, &token).is_err());
 
         // 6. Verify adapter still exists after teardown (only endpoint removed)

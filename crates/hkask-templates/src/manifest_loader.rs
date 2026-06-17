@@ -122,7 +122,7 @@ pub(crate) fn load_manifest_from_file(
 /// it into a canonical `BundleManifest`.
 pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, ManifestLoadError> {
     let file: ManifestFile =
-        serde_yaml::from_str(yaml).map_err(|e| ManifestLoadError::Yaml { source: e })?;
+        serde_yaml_neo::from_str(yaml).map_err(|e| ManifestLoadError::Yaml { source: e })?;
 
     let manifest = BundleManifest {
         id: file.manifest.id,
@@ -244,5 +244,5 @@ pub(crate) enum ManifestLoadError {
         source: std::io::Error,
     },
     #[error("YAML parse error: {source}")]
-    Yaml { source: serde_yaml::Error },
+    Yaml { source: serde_yaml_neo::Error },
 }

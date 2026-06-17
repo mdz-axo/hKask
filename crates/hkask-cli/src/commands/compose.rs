@@ -30,7 +30,7 @@ pub fn run(
         );
         std::process::exit(1);
     });
-    let config: CognitionConfig = serde_yaml::from_str(&config_str).unwrap_or_else(|e| {
+    let config: CognitionConfig = serde_yaml_neo::from_str(&config_str).unwrap_or_else(|e| {
         eprintln!("Failed to parse cognition config YAML: {}", e);
         std::process::exit(1);
     });

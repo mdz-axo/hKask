@@ -95,7 +95,7 @@ fn show_manifest(name: &str) {
         }
     };
 
-    let parsed: serde_yaml::Value = match serde_yaml::from_str(&content) {
+    let parsed: serde_yaml_neo::Value = match serde_yaml_neo::from_str(&content) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("Failed to parse manifest '{}': {}", name, e);

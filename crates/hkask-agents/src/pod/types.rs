@@ -147,7 +147,7 @@ fn default_private_visibility() -> hkask_types::Visibility {
 impl AgentPersona {
     /// Parse agent persona from YAML string
     pub fn from_yaml(yaml: &str) -> Result<Self, AgentPodError> {
-        let mut persona: Self = serde_yaml::from_str(yaml)
+        let mut persona: Self = serde_yaml_neo::from_str(yaml)
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
 
         // Compute and cache WebID

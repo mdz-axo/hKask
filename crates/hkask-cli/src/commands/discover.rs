@@ -186,7 +186,7 @@ pub fn run(
                 // Load the config that DiscoveryService already wrote
                 // (which preserves entities/methods/rules when augmenting)
                 let existing_yaml = std::fs::read_to_string(&config_path).unwrap_or_default();
-                let mut config: hkask_services::CorpusConfig = serde_yaml::from_str(&existing_yaml)
+                let mut config: hkask_services::CorpusConfig = serde_yaml_neo::from_str(&existing_yaml)
                     .unwrap_or_else(|_| default_corpus_config(&r.author_slug));
 
                 // Dedup: only add curated works whose URLs aren't already in the config
@@ -214,7 +214,7 @@ pub fn run(
                 config.works.extend(new_works);
 
                 // Serialize and write back, preserving all metadata
-                match serde_yaml::to_string(&config) {
+                match serde_yaml_neo::to_string(&config) {
                     Ok(yaml) => {
                         if let Err(e) = std::fs::write(&config_path, &yaml) {
                             eprintln!("Warning: failed to write config: {e}");

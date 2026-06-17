@@ -495,7 +495,7 @@ pub fn generate_corpus_yaml(
     config.methods = methods.to_vec();
     config.corpus_type = "academic".to_string();
 
-    let config_yaml = serde_yaml::to_string(&config).map_err(|e| {
+    let config_yaml = serde_yaml_neo::to_string(&config).map_err(|e| {
         let msg = format!("Failed to serialize corpus config: {e}");
         ServiceError::Embed {
             source: Some(Box::new(e)),
@@ -585,7 +585,7 @@ fn augment_corpus_yaml(
             message: msg,
         }
     })?;
-    let mut config: CorpusConfig = serde_yaml::from_str(&existing_yaml).map_err(|e| {
+    let mut config: CorpusConfig = serde_yaml_neo::from_str(&existing_yaml).map_err(|e| {
         let msg = format!("Failed to parse existing corpus.yaml for augmentation: {e}");
         ServiceError::Embed {
             source: Some(Box::new(e)),
@@ -686,7 +686,7 @@ fn augment_corpus_yaml(
     }
 
     // Write back
-    let config_yaml = serde_yaml::to_string(&config).map_err(|e| {
+    let config_yaml = serde_yaml_neo::to_string(&config).map_err(|e| {
         let msg = format!("Failed to serialize augmented config: {e}");
         ServiceError::Embed {
             source: Some(Box::new(e)),

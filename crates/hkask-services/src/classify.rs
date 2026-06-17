@@ -129,7 +129,7 @@ pub fn load_classifier_config(
             message: msg,
         }
     })?;
-    let config: ClassifierYaml = serde_yaml::from_str(&yaml_str).map_err(|e| {
+    let config: ClassifierYaml = serde_yaml_neo::from_str(&yaml_str).map_err(|e| {
         let msg = format!(
             "Failed to parse classifier config {}: {e}",
             config_path.display()

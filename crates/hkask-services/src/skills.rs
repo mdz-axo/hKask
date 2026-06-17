@@ -371,8 +371,8 @@ impl<'a> SkillAuditor<'a> {
         if manifest_present {
             let content = fs::read_to_string(&manifest_path)
                 .map_err(|e| SkillAuditError::Io(e.to_string()))?;
-            let manifest: serde_yaml::Value =
-                serde_yaml::from_str(&content).map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
+            let manifest: serde_yaml_neo::Value =
+                serde_yaml_neo::from_str(&content).map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
             if let Some(c) = manifest.get("crate").and_then(|v| v.get("name")) {
                 crate_name = c.as_str().unwrap_or("").to_string();
             }
@@ -504,8 +504,8 @@ struct J2FrontMatter {
     template_type: Option<TemplateType>,
     template_type_raw: Option<String>,
     lexicon_terms: Vec<String>,
-    contract_input: Option<serde_yaml::Value>,
-    contract_output: Option<serde_yaml::Value>,
+    contract_input: Option<serde_yaml_neo::Value>,
+    contract_output: Option<serde_yaml_neo::Value>,
     energy_cap: Option<i64>,
     visibility: Option<String>,
 }
@@ -532,8 +532,8 @@ fn load_workspace_hlexicon(project_root: &Path) -> Result<HLexicon, SkillAuditEr
         .join("hlexicon")
         .join("hlexicon-workspace.yaml");
     let content = fs::read_to_string(&path).map_err(|e| SkillAuditError::Io(e.to_string()))?;
-    let value: serde_yaml::Value =
-        serde_yaml::from_str(&content).map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
+    let value: serde_yaml_neo::Value =
+        serde_yaml_neo::from_str(&content).map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
 
     let mut lexicon = HLexicon::new();
     let Some(hlexicon) = value.get("hlexicon") else {
@@ -575,11 +575,11 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
     let after_header = &content["[inference]".len()..].trim_start_matches('\n');
     let sep = after_header.find("\n---")?;
     let yaml_text = &after_header[..sep];
-    let yaml: serde_yaml::Value = serde_yaml::from_str(yaml_text).ok()?;
+    let yaml: serde_yaml_neo::Value = serde_yaml_neo::from_str(yaml_text).ok()?;
     let map = yaml.as_mapping()?;
 
     let template_type_raw = map
-        .get(serde_yaml::Value::String("template_type".to_string()))
+        .get(serde_yaml_neo::Value::String("template_type".to_string()))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
@@ -588,7 +588,7 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
         .and_then(TemplateType::parse_str);
 
     let lexicon_terms = map
-        .get(serde_yaml::Value::String("lexicon_terms".to_string()))
+        .get(serde_yaml_neo::Value::String("lexicon_terms".to_string()))
         .and_then(|v| v.as_sequence())
         .map(|seq| {
             seq.iter()
@@ -598,18 +598,18 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
         .unwrap_or_default();
 
     let contract = map
-        .get(serde_yaml::Value::String("contract".to_string()))
+        .get(serde_yaml_neo::Value::String("contract".to_string()))
         .and_then(|v| v.as_mapping());
     let (contract_input, contract_output, nested_energy_cap, nested_visibility) =
         if let Some(c) = contract {
             (
-                c.get(serde_yaml::Value::String("input".to_string()))
+                c.get(serde_yaml_neo::Value::String("input".to_string()))
                     .cloned(),
-                c.get(serde_yaml::Value::String("output".to_string()))
+                c.get(serde_yaml_neo::Value::String("output".to_string()))
                     .cloned(),
-                c.get(serde_yaml::Value::String("energy_cap".to_string()))
+                c.get(serde_yaml_neo::Value::String("energy_cap".to_string()))
                     .and_then(|v| v.as_i64()),
-                c.get(serde_yaml::Value::String("visibility".to_string()))
+                c.get(serde_yaml_neo::Value::String("visibility".to_string()))
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string()),
             )
@@ -618,12 +618,12 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
         };
 
     let top_level_energy_cap = map
-        .get(serde_yaml::Value::String("energy_cap".to_string()))
+        .get(serde_yaml_neo::Value::String("energy_cap".to_string()))
         .and_then(|v| v.as_i64())
         .or(nested_energy_cap);
 
     let top_level_visibility = map
-        .get(serde_yaml::Value::String("visibility".to_string()))
+        .get(serde_yaml_neo::Value::String("visibility".to_string()))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .or(nested_visibility);
