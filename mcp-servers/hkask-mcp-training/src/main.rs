@@ -3333,29 +3333,28 @@ impl TrainingServer {
 
         // Try router first for live status
         if let Some(ref router) = self.adapter_router
-            && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id) {
-                let token = hkask_types::capability::DelegationToken::new(
-                    hkask_types::capability::DelegationResource::Tool,
-                    "adapter:read".into(),
-                    hkask_types::capability::DelegationAction::Execute,
-                    self.webid,
-                    self.webid,
-                    &hkask_types::capability::auth::derive_signing_key(b"training-mcp-status"),
-                );
-                if let Ok(status) =
-                    AdapterPort::endpoint_status(router.as_ref(), endpoint_id, &token)
-                {
-                    return span.ok_json(json!({
-                        "deployment_id": status.endpoint_id.to_string(),
-                        "expertise_name": status.expertise_name,
-                        "provider": format!("{:?}", status.provider).to_lowercase(),
-                        "phase": format!("{:?}", status.phase).to_lowercase(),
-                        "cost_accrued": status.cost_accrued,
-                        "elapsed_seconds": status.elapsed_seconds as u64,
-                        "route": "hkask-adapter",
-                    }));
-                }
+            && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id)
+        {
+            let token = hkask_types::capability::DelegationToken::new(
+                hkask_types::capability::DelegationResource::Tool,
+                "adapter:read".into(),
+                hkask_types::capability::DelegationAction::Execute,
+                self.webid,
+                self.webid,
+                &hkask_types::capability::auth::derive_signing_key(b"training-mcp-status"),
+            );
+            if let Ok(status) = AdapterPort::endpoint_status(router.as_ref(), endpoint_id, &token) {
+                return span.ok_json(json!({
+                    "deployment_id": status.endpoint_id.to_string(),
+                    "expertise_name": status.expertise_name,
+                    "provider": format!("{:?}", status.provider).to_lowercase(),
+                    "phase": format!("{:?}", status.phase).to_lowercase(),
+                    "cost_accrued": status.cost_accrued,
+                    "elapsed_seconds": status.elapsed_seconds as u64,
+                    "route": "hkask-adapter",
+                }));
             }
+        }
 
         // Fallback: local deployment map
         let deployment = if let Ok(map) = self.deployments.lock() {
@@ -3402,34 +3401,35 @@ impl TrainingServer {
 
         // Try router first
         if let Some(ref router) = self.adapter_router
-            && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id) {
-                let token = hkask_types::capability::DelegationToken::new(
-                    hkask_types::capability::DelegationResource::Tool,
-                    "adapter:teardown".into(),
-                    hkask_types::capability::DelegationAction::Execute,
-                    self.webid,
-                    self.webid,
-                    &hkask_types::capability::auth::derive_signing_key(b"training-mcp-teardown"),
-                );
-                match AdapterPort::teardown_endpoint(router.as_ref(), endpoint_id, &token).await {
-                    Ok(()) => {
-                        let result = json!({"deployment_id": req.deployment_id, "status": "torn_down", "route": "hkask-adapter"});
-                        self.record_experience(
-                            "training_teardown",
-                            &req.deployment_id,
-                            "success",
-                            result.clone(),
-                        );
-                        return span.ok_json(result);
-                    }
-                    Err(e) => {
-                        return span.error(
-                            McpErrorKind::Internal,
-                            McpToolError::internal(e.to_string()).to_json_string(),
-                        );
-                    }
+            && let Ok(endpoint_id) = uuid::Uuid::parse_str(&req.deployment_id)
+        {
+            let token = hkask_types::capability::DelegationToken::new(
+                hkask_types::capability::DelegationResource::Tool,
+                "adapter:teardown".into(),
+                hkask_types::capability::DelegationAction::Execute,
+                self.webid,
+                self.webid,
+                &hkask_types::capability::auth::derive_signing_key(b"training-mcp-teardown"),
+            );
+            match AdapterPort::teardown_endpoint(router.as_ref(), endpoint_id, &token).await {
+                Ok(()) => {
+                    let result = json!({"deployment_id": req.deployment_id, "status": "torn_down", "route": "hkask-adapter"});
+                    self.record_experience(
+                        "training_teardown",
+                        &req.deployment_id,
+                        "success",
+                        result.clone(),
+                    );
+                    return span.ok_json(result);
+                }
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(e.to_string()).to_json_string(),
+                    );
                 }
             }
+        }
 
         // Fallback: local deployment map
         let existed = if let Ok(mut map) = self.deployments.lock() {

@@ -14,7 +14,7 @@ reviewed_via: [pragmatic-laziness, essentialist, grill-me, coding-guidelines]
 
 **Purpose:** Define the cloud server deployment model, multi-user OAuth sign-in, terminal session provisioning, the backup-as-portable-sovereignty-archive model, and the server migration procedure.
 
-**Decision:** There is no separate client binary. Users sign in via OAuth (GitHub/Google) and access hKask through a terminal session on the cloud server — either SSH or a browser-based terminal. The "client" is a session, not a binary.
+**Decision:** There is no client — no binary, no install, no SSH setup. Users visit a website, sign in with GitHub or Google, and get a terminal. The "client" is a browser tab running xterm.js connected to the server via WebSocket. The server spawns `kask repl` on a PTY and pipes I/O. That is the entire product surface.
 
 **Status:** Planning phase. Converged design after multi-perspective review. No implementation has begun.
 
@@ -55,10 +55,13 @@ One binary (`kask`), one server, many users. Each user gets a terminal session s
    │            │              │
 ┌──▼──┐   ┌────▼─────┐  ┌─────▼─────┐
 │SSH  │   │Browser   │  │Matrix     │
-│term │   │terminal  │  │client     │
-│     │   │(WebTTY)  │  │(Element)  │
+│     │   │(xterm.js)│  │client     │
+│(opt)│   │          │  │(Element)  │
 └─────┘   └──────────┘  └───────────┘
 ```
+
+**Primary access:** Browser. OAuth sign-in → WebSocket terminal.
+**Optional access:** SSH for power users who add their key via `kask ssh-key add`.
 
 ### 1.2 Caddy + Conduit Sidecars
 
@@ -79,40 +82,57 @@ Wallet operations (rJoule payments, multi-chain deposits, API key issuance, with
 
 ## 2. Multi-User Sign-In — OAuth + Terminal Session
 
-### 2.1 Sign-In Flow
+### 2.1 Sign-In → Terminal
 
 ```
-User visits https://my-server.hkask.example/login
-  │
-  ├── "Sign in with GitHub" → redirect to GitHub OAuth
-  ├── "Sign in with Google"  → redirect to Google OAuth
+User visits https://my-server.hkask.example
   │
   ▼
-OAuth provider authenticates user, returns authorization code
+Login page: "Sign in with GitHub" | "Sign in with Google"
+  (one HTML page, two buttons, zero JavaScript framework)
+  │
+  ├── GitHub OAuth → callback → session cookie set
+  ├── Google OAuth  → callback → session cookie set
   │
   ▼
-Server exchanges code for access token, retrieves user profile
-  (email, provider user ID, display name)
+Redirect to /terminal
   │
   ▼
-Server looks up or creates HumanUser record keyed by (provider, provider_user_id)
-  │  ┌─ New user: provision WebID, create default replicant, assign wallet
-  │  └─ Returning user: load existing WebID, replicants, session
+Terminal page: xterm.js in the browser
+  Connected via WebSocket to /api/v1/terminal/ws
+  Server spawns `kask repl --webid <user>` on a PTY
+  Pipes stdin/stdout over the WebSocket
   │
   ▼
-Server creates UserSession { session_id, webid, expires_at }
-  Sets session cookie or returns session token
-  │
-  ▼
-User lands in terminal session:
-  - SSH: server provisions a restricted shell session (or the user SSHes with an authorized key)
-  - Browser: WebTTY terminal embedded in the page, connected to server-side PTY
-  │
-  ▼
-User runs `kask` within the session. All operations scoped to their WebID.
+User is in hKask. Done.
 ```
 
-### 2.2 Existing Infrastructure for Auth
+### 2.2 Terminal Implementation
+
+The terminal page is two pieces:
+
+| Piece | What | Technology |
+|--------|------|------------|
+| Frontend | Terminal emulator in the browser | xterm.js (MIT, the same library VS Code and Codespaces use) |
+| Backend | PTY spawner + WebSocket bridge | `tokio-pty-process` spawns `kask repl`, `axum` WebSocket pipes I/O |
+
+**Total new code:** ~200 lines of Rust (WebSocket handler + PTY spawn). One static HTML file (~50 lines). No React, no SPA, no framework. xterm.js is loaded from a CDN or bundled as a static asset.
+
+**How it works:**
+```
+Browser                          Server
+  │                               │
+  │── WS /api/v1/terminal/ws ────>│  (session cookie attached)
+  │                               │  verify session → extract webid
+  │                               │  spawn: kask repl --webid <webid>
+  │                               │  PTY master ←→ child process
+  │<── PTY stdout ────────────────│  (streamed over WebSocket)
+  │── keystrokes ────────────────>│  (written to PTY stdin)
+```
+
+**Optional SSH access:** Power users can run `kask ssh-key add` in the repl to register an SSH public key. The server adds it to `authorized_keys` with `ForceCommand kask repl --webid <user>`. Then `ssh user@my-server.hkask.example` works. But this is secondary — the browser terminal is the default.
+
+### 2.3 Existing Infrastructure for Auth
 
 | Component | What It Does | Crate |
 |-----------|-------------|-------|
@@ -122,27 +142,17 @@ User runs `kask` within the session. All operations scoped to their WebID.
 | `AuthService` | Capability token verification (Ed25519), revocation tracking | `hkask-api` |
 | `AuthContext` | Attached to request extensions after auth middleware passes | `hkask-api` |
 
-### 2.3 What's New for OAuth
+### 2.4 What's New
 
 | Addition | Description |
 |----------|-------------|
-| OAuth provider config | `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET`, `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET` — stored in server config or OS keychain |
-| `/api/v1/auth/login` | Initiates OAuth flow — returns redirect URL for chosen provider |
-| `/api/v1/auth/callback` | OAuth callback — exchanges code for token, creates/loads user, starts session |
-| `OAuthProvider` enum | `GitHub`, `Google` — maps to provider-specific token exchange and profile fetch |
-| `HumanUser.provider` / `HumanUser.provider_user_id` | Links hKask identity to OAuth identity |
-| Session cookie or bearer token | Returned after OAuth callback — used for subsequent API calls and terminal auth |
-
-### 2.4 Terminal Session Provisioning
-
-Two options, not mutually exclusive:
-
-| Mode | How It Works | Infrastructure |
-|------|-------------|---------------|
-| **SSH** | User adds their SSH public key via the web dashboard. Server provisions a restricted shell that drops them into `kask repl` scoped to their WebID. | Standard SSH with `ForceCommand` or a custom shell binary. |
-| **Web terminal** | Browser-based PTY using WebTTY or ttyd. Server spawns a `kask repl` process per connected user. | Lightweight WebTTY container or embedded terminal in the hKask web dashboard. |
-
-**CNS span:** `SessionOpen { user_id, provider, mode }`, `SessionClose { user_id, duration }`.
+| OAuth provider config | Client ID + secret for GitHub and Google, stored in OS keychain |
+| `/api/v1/auth/login` | Initiates OAuth flow |
+| `/api/v1/auth/callback` | OAuth callback, creates/loads user, starts session |
+| `OAuthProvider` enum | `GitHub`, `Google` |
+| `HumanUser.provider` fields | Links hKask identity to OAuth identity |
+| Session cookie | Set after OAuth callback |
+| `/api/v1/terminal/ws` | WebSocket endpoint, verifies session, spawns PTY |
 
 ### 2.5 Multi-Tenant Scoping
 
@@ -191,7 +201,7 @@ cd ~/.config/hkask/sidecar && docker compose up -d
 
 ### 3.2 User Onboarding
 
-No install. Users visit `https://my-server.hkask.example/login`, sign in with GitHub or Google, and get a terminal session. First sign-in provisions their WebID, default replicant, and wallet.
+No install. No SSH keys. User visits `https://my-server.hkask.example`, clicks "Sign in with GitHub," and gets a terminal. First sign-in provisions their WebID, default replicant, and wallet.
 
 ---
 
@@ -401,7 +411,7 @@ kask replicate delete <name>
 ### 8.2 CNS Span Additions
 
 ```rust
-CnsSpan::SessionOpen,      // { user_id, provider, mode }
+CnsSpan::SessionOpen,      // { user_id, provider }
 CnsSpan::SessionClose,     // { user_id, duration }
 CnsSpan::BackupExport,     // { triple_count, bytes, duration }
 CnsSpan::BackupAutoExport, // { webid, triple_count, bytes, duration }
@@ -450,9 +460,9 @@ CnsSpan::ReplicantMerge,   // { source, target, triple_count, duration }
 
 Explicit exclusions — considered and rejected:
 
-- **No separate client binary.** The "client" is a terminal session (SSH or browser-based).
+- **No client binary.** The "client" is a browser tab rendering xterm.js.
 - **No feature gating or Cargo features.** Single binary, all crates compiled.
-- **No SyncPort trait.** No client-server sync protocol — backup is a file export.
+- **No SyncPort trait.** No client-server sync protocol. Backup is a file export.
 - **No client registration protocol.** Users authenticate via OAuth. Sessions are server-managed.
 - **No CRDT pull/upload streaming protocol.** Backup is a file. CRDT idempotence provides fault tolerance for migration uploads.
 - **No client-side encryption key management.** User provides passphrase at export time. Server never stores it.
@@ -460,6 +470,8 @@ Explicit exclusions — considered and rejected:
 - **No conflict resolution UI.** Replicant merge is user-initiated, idempotent upsert.
 - **No backup pruning code.** Server's memory pipeline handles pruning.
 - **No artifact replication (LORA, research files).** Out of scope. Backup covers triples only.
+- **No SSH key setup required.** Browser terminal is the default. SSH is an optional power-user feature.
+- **No terminal app to install.** Alacritty, WezTerm, etc. are user preference — hKask doesn't ship one.
 
 ---
 
@@ -468,30 +480,30 @@ Explicit exclusions — considered and rejected:
 ```
 1. [Deploy]  kask init --profile server
              kask matrix deploy-sidecar --domain example.com
-             → Caddy serves HTTPS, Conduit responds on /_matrix/
+             -> Caddy serves HTTPS, Conduit responds on /_matrix/
 
-2. [Auth]    User visits /login, signs in with GitHub
-             → OAuth callback succeeds, session created
-             → User lands in terminal session, kask repl scoped to their WebID
+2. [Login]   User visits https://example.com, clicks "Sign in with GitHub"
+             -> OAuth callback succeeds, session cookie set
+             -> redirected to /terminal, xterm.js loads
+             -> WebSocket connects, kask repl prompt appears
 
 3. [Export]  kask backup export --passphrase "user-chosen"
-             → archive.db created, encrypted with passphrase
-             → CnsSpan::BackupExport emitted
+             -> archive.db created, encrypted with passphrase
+             -> CnsSpan::BackupExport emitted
 
-4. [Download] scp archive.db user@laptop:~
-             → file opens only with correct passphrase
-             → triple count matches server
+4. [Migrate] kask backup upload --server https://new-server.example
+             -> MigrationReceipt.triple_count matches archive count
+             -> replicants renamed on collision
 
-5. [Migrate] kask backup upload --server https://new-server.example
-             → MigrationReceipt.triple_count matches archive count
-             → replicants renamed on collision
+5. [Merge]   kask replicate merge --from ada-migrated-xxx --into ada
+             -> triples merged, source unchanged
 
-6. [Merge]   kask replicate merge --from ada-migrated-xxx --into ada
-             → triples merged, source unchanged
+6. [Multi]   Users A and B both signed in
+             -> A cannot see B's triples, pods, or wallet
+             -> B cannot see A's triples, pods, or wallet
 
-7. [Multi]   Users A and B both signed in
-             → A cannot see B's triples, pods, or wallet
-             → B cannot see A's triples, pods, or wallet
+7. [Zero]    No binary to download, no SSH key to generate, no terminal to install
+             -> User only needs a browser
 ```
 
 ---
@@ -500,10 +512,9 @@ Explicit exclusions — considered and rejected:
 
 | # | Question | Why Deferred |
 |---|----------|-------------|
-| Q1 | Browser terminal vs SSH-only? SSH is simpler (no WebTTY dependency), but browser terminal lowers the barrier for non-technical users. | Deploy and gather user feedback. |
-| Q2 | Should the server auto-provision SSH authorized_keys from the web dashboard? Or is manual key addition acceptable? | Depends on target audience. |
-| Q3 | Should auto-export archives be encrypted with the user's session key (server-side) or require a passphrase at download time? | Session-key encryption is more convenient but means the server briefly holds the encryption key. Passphrase-at-download is more secure but requires the user to be present. |
-| Q4 | OAuth provider scope: GitHub only? GitHub + Google? Add more later? | Start with GitHub (developer audience). Add Google if demand exists. |
+| Q1 | Should auto-export archives be encrypted with the user's session key (server-side) or require a passphrase at download time? | Session-key encryption is more convenient but means the server briefly holds the key. Passphrase-at-download is more secure. |
+| Q2 | OAuth provider scope: GitHub only? GitHub + Google? | Start with GitHub (developer audience). Add Google if demand exists. |
+| Q3 | Should the backup include artifacts (LORA, research files, skill bundles) organized by registry in a zip? | Extends the backup format. Needs artifact store maturity first. |
 
 ---
 
@@ -511,9 +522,9 @@ Explicit exclusions — considered and rejected:
 
 | Phase | Tasks | Depends On |
 |-------|-------|-----------|
-| **Phase 1 — OAuth** | `OAuthProvider`, OAuth config, `/auth/login` + `/auth/callback` endpoints, session cookie, `HumanUser.provider` fields | — |
-| **Phase 2 — Sessions** | Session provisioning (SSH ForceCommand or WebTTY), session-scoped `kask repl`, `SessionOpen`/`SessionClose` CNS spans | Phase 1 |
-| **Phase 3 — Backup** | `BackupArchive` type, `kask backup export`, `GET /api/v1/backup/download`, auto-export scheduler, CNS spans | Phase 1 |
+| **Phase 1 — OAuth** | `OAuthProvider`, OAuth config, `/auth/login` + `/auth/callback`, session cookie, `HumanUser.provider` fields | — |
+| **Phase 2 — Terminal** | `/api/v1/terminal/ws` WebSocket endpoint, PTY spawn + I/O pipe, static `/terminal` page with xterm.js | Phase 1 |
+| **Phase 3 — Backup** | `BackupArchive` type, `kask backup export`, auto-export scheduler, CNS spans | Phase 1 |
 | **Phase 4 — Migration** | `kask backup upload`, replicant rename/merge/delete, `MigrationReceipt`, auto-rename on collision | Phase 3 |
-| **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → export → upload to second server → merge → verify | Phase 4 |
-| **Phase 6 — Harden** | Interruption testing, multi-user isolation testing, backup auto-export tuning | Phase 5 |
+| **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload to second server → merge → verify | Phase 4 |
+| **Phase 6 — Harden** | Interruption testing, multi-user isolation, backup auto-export tuning | Phase 5 | |

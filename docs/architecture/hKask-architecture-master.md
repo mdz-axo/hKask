@@ -159,6 +159,58 @@ graph TD
 5. **Curator curates Skills.** `DefaultSpecCurator` evaluates coherence, detects drift, recommends revisions. Ensures template DNA stays aligned with implemented system.
 6. **Agents produce CNS data.** Agency produces observability; observability enables regulation; regulation ensures healthy agency. Virtuous cycle.
 
+
+## Deployment Model
+
+**Decision (2026-06-17):** hKask deploys as a single cloud server. There is no client binary. Users access hKask through a browser: OAuth sign-in (GitHub/Google), then an xterm.js terminal connected via WebSocket. The server spawns `kask repl` on a PTY and pipes I/O.
+
+### Topology
+
+```
+CLOUD SERVER (single binary, all crates compiled)
+  Caddy (Docker) - TLS + reverse proxy
+  Conduit (Docker) - Matrix homeserver
+  hkask-api - OAuth, WebSocket /terminal, backup endpoints
+  hkask-core - daemon, MCP servers, agents, CNS, wallet, memory
+  Multi-user TripleStore (scoped by owner_webid)
+
+Access (all via HTTPS/Caddy):
+  Browser (xterm.js) - primary
+  SSH (optional) - power users
+  Matrix (Element) - chat clients
+```
+
+### Key Properties
+
+- **Single binary.** All crates compiled. No Cargo features for client/server.
+- **Browser-only access.** User visits a URL, signs in, gets a terminal. No install.
+- **Multi-tenant.** Multiple users per server. Data scoped by `owner_webid`. OAuth identity maps to WebID.
+- **Caddy + Conduit sidecars.** Docker containers. hKask generates config; user runs Docker.
+- **Backup as portable archive.** Encrypted SQLCipher file. Export from one server, upload to another. No server-to-server protocol.
+- **Wallet cloud-only.** Crypto operations never leave the server.
+
+**Full plan:** `docs/plans/deployment-and-backup.md`
+
+---
+
+## User Roles
+
+**Principle:** Two roles. One difference: what settings you can see.
+
+| Role | Who | Privileges |
+|------|-----|------------|
+| **Admin** | One or more users. First admin runs `kask init`. | View/modify server config. Invite members. View all sessions. |
+| **Member** | Users invited by an admin. | View/modify own settings. Cannot see server config or other users. |
+
+**Design rules:**
+- **Multiple admins.** Not a single root. Prevents bus-factor.
+- **Invite flow.** `kask invite <email>` sends invitation. Invitee signs in via OAuth, auto-assigned Member role.
+- **No role hierarchy beyond Admin/Member.** Third role must survive deletion test.
+- **Role stored in `HumanUser.role`** (enum `Admin` | `Member`). Enforced by API middleware.
+- **Admin-only endpoints:** `GET /api/v1/admin/config`, `POST /api/v1/admin/invite`, `GET /api/v1/admin/sessions`.
+
+**CNS spans:** `RoleAssigned`, `InviteSent`, `InviteAccepted`.
+
 ### Identified Gaps (2026-06-17)
 
 All gaps from 2026-06-15 are now closed. Current open gaps:
