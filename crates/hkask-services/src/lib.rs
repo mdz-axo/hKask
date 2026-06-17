@@ -87,7 +87,7 @@ pub use error::ServiceError;
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use inference::{InferenceContext, InferenceService, ModelInfo};
-pub use kanban::{KanbanError, KanbanService, UnjamItem};
+pub use kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
 pub use kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
     KataResult, KataState, KataStep, PracticeEntry, StepExperience,

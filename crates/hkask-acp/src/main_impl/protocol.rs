@@ -72,7 +72,8 @@ struct ClientInfo {
     version: Option<String>,
 }
 
-fn initialize_response(id: Value) -> JsonRpcResponse {
+fn initialize_response(id: Value, replicant: &str) -> JsonRpcResponse {
+    let title = format!("hKask — {}", replicant);
     let result = serde_json::json!({
         "protocolVersion": 1,
         "agentCapabilities": {
@@ -89,7 +90,7 @@ fn initialize_response(id: Value) -> JsonRpcResponse {
         },
         "agentInfo": {
             "name": "hkask-acp",
-            "title": "hKask Coding Agent",
+            "title": title,
             "version": env!("CARGO_PKG_VERSION"),
         },
         "authMethods": [],
@@ -354,11 +355,17 @@ impl StdioTransport {
 
         match req.method.as_str() {
             "initialize" => {
-                info!(target: "hkask.acp", "initialize");
-                initialize_response(id)
+                info!(target: "hkask.acp", replicant = %agent.replicant, "initialize");
+                if let Some(ref err) = agent.daemon_error {
+                    return error_response(id, -32000, err);
+                }
+                initialize_response(id, &agent.replicant)
             }
 
             "session/new" => {
+                if let Some(ref err) = agent.daemon_error {
+                    return error_response(id, -32000, err);
+                }
                 let params: NewSessionRequest =
                     match serde_json::from_value(req.params.clone().unwrap_or(Value::Null)) {
                         Ok(p) => p,
@@ -400,6 +407,9 @@ impl StdioTransport {
             }
 
             "session/prompt" => {
+                if let Some(ref err) = agent.daemon_error {
+                    return error_response(id, -32000, err);
+                }
                 let params: PromptRequest =
                     match serde_json::from_value(req.params.clone().unwrap_or(Value::Null)) {
                         Ok(p) => p,
@@ -408,16 +418,34 @@ impl StdioTransport {
                         }
                     };
 
-                let prompt_text: String = params
-                    .prompt
-                    .iter()
-                    .filter_map(|block| match block {
-                        ContentBlock::Text { text } => Some(text.as_str()),
-                        ContentBlock::Resource { resource } => resource.text.as_deref(),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
+                // Build prompt from content blocks, resolving ResourceLinks to local files
+                let mut parts: Vec<String> = Vec::new();
+                for block in &params.prompt {
+                    match block {
+                        ContentBlock::Text { text } => {
+                            parts.push(text.clone());
+                        }
+                        ContentBlock::Resource { resource } => {
+                            if let Some(ref text) = resource.text {
+                                parts.push(format!("File {}:\n{}", resource.uri, text));
+                            }
+                        }
+                        ContentBlock::ResourceLink { uri, name } => {
+                            if let Some(path) = uri.strip_prefix("file://") {
+                                match tokio::fs::read_to_string(path).await {
+                                    Ok(content) => {
+                                        let label = name.as_deref().unwrap_or(path);
+                                        parts.push(format!("File {}:\n{}", label, content));
+                                    }
+                                    Err(e) => {
+                                        warn!(target: "hkask.acp", uri = %uri, error = %e, "Failed to read ResourceLink");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                let prompt_text = parts.join("\n");
 
                 info!(
                     target: "hkask.acp",

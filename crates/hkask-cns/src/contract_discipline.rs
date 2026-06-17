@@ -164,8 +164,8 @@ fn ensure_violations_board(store: &TripleStore, owner: WebID) -> Result<(), Cont
 ///
 /// Persists a task triple using the canonical kanban scheme so it's queryable
 /// through `KanbanService`. The task carries the contract ID, function name,
-/// failure reason, and owner WebID. Auto-creates a "Contract Violations"
-/// board on first call.
+/// failure reason, optional counterexample, and owner WebID. Auto-creates a
+/// "Contract Violations" board on first call.
 ///
 /// # Returns
 /// The task ID (UUID string) for the created task.
@@ -175,6 +175,7 @@ fn ensure_violations_board(store: &TripleStore, owner: WebID) -> Result<(), Cont
 /// - `function_name` — fully-qualified function name (e.g., "energy::EnergyBudget::reserve")
 /// - `contract_id` — the `// REQ:` spec_id (e.g., "CNS-001")
 /// - `failure_reason` — human-readable description of the violation
+/// - `counterexample` — optional JSON value capturing the failing input (e.g., proptest shrunk value)
 /// - `owner` — WebID of the owner (usually the CNS system identity)
 ///
 /// # Example
@@ -184,6 +185,7 @@ fn ensure_violations_board(store: &TripleStore, owner: WebID) -> Result<(), Cont
 ///     "wallet::balance",
 ///     "WAL-003",
 ///     "invariant violated: balance went negative",
+///     None,
 ///     cns_webid,
 /// ).unwrap();
 /// ```
@@ -196,6 +198,7 @@ pub fn create_contract_violation_task(
     function_name: &str,
     contract_id: &str,
     failure_reason: &str,
+    counterexample: Option<&serde_json::Value>,
     owner: WebID,
 ) -> Result<String, ContractBridgeError> {
     ensure_violations_board(store, owner)?;
@@ -207,6 +210,15 @@ pub fn create_contract_violation_task(
         "Contract `{contract_id}` violated in `{function_name}`.\n\nFailure: {failure_reason}\n\nAction: Write a regression test that captures this violation, then fix the implementation. Add `// REQ: {contract_id}` to both the contract and the regression test."
     );
 
+    let mut origin = json!({
+        "function": function_name,
+        "contract_id": contract_id,
+        "failure_reason": failure_reason,
+    });
+    if let Some(ce) = counterexample {
+        origin["counterexample"] = ce.clone();
+    }
+
     let task_value = json!({
         "id": task_id,
         "board_entity": VIOLATIONS_BOARD_ENTITY,
@@ -217,11 +229,7 @@ pub fn create_contract_violation_task(
         "created_at": now,
         "labels": ["contract-violation", "cns-auto"],
         "priority": "high",
-        "origin": {
-            "function": function_name,
-            "contract_id": contract_id,
-            "failure_reason": failure_reason,
-        },
+        "origin": origin,
     });
 
     let triple = Triple::new(VIOLATION_TASK_ENTITY, &task_id, task_value, owner);
@@ -255,13 +263,148 @@ pub fn emit_contract_violated_with_task(
     function_name: &str,
     contract_id: &str,
     failure_reason: &str,
+    counterexample: Option<&serde_json::Value>,
 ) -> Result<String, ContractBridgeError> {
     // Ownership for violation tasks is CNS system identity.
     // In production this would be a configurable system WebID.
     let owner = WebID::from_persona(b"cns-contract-discipline");
 
     emit_contract_violated(sink, function_name, contract_id, failure_reason);
-    create_contract_violation_task(store, function_name, contract_id, failure_reason, owner)
+    create_contract_violation_task(
+        store,
+        function_name,
+        contract_id,
+        failure_reason,
+        counterexample,
+        owner,
+    )
+}
+
+// ── Phase B2–B4 lifecycle spans (canonical CNS span registry) ──────────────
+
+/// Emit `cns.contract.proposed` when a replicant proposes a contract.
+///
+/// Called during the Phase B2 workflow: agent analyzes function, proposes
+/// a `// REQ:` contract + proptest, and opens a PR. This span records
+/// the proposal event for CNS observability.
+///
+/// REQ: CNS-CTR-003
+/// pre:  sink is initialized; replicant_webid and function_name are non-empty
+/// post: CNS span persisted with proposal metadata
+pub fn emit_contract_proposed(
+    sink: &dyn NuEventSink,
+    replicant_webid: &str,
+    crate_name: &str,
+    function_name: &str,
+    contract_id: &str,
+) {
+    let span = Span::new(SpanNamespace::from(CnsSpan::ContractProposed), "proposed");
+    let event = NuEvent::new(
+        WebID::from_persona(replicant_webid.as_bytes()),
+        span,
+        Phase::Compute,
+        json!({
+            "replicant": replicant_webid,
+            "crate": crate_name,
+            "function": function_name,
+            "contract_id": contract_id,
+        }),
+        0,
+    );
+    if let Err(e) = sink.persist(&event) {
+        tracing::warn!(
+            target: "cns.contract",
+            replicant = replicant_webid,
+            function = function_name,
+            contract_id = contract_id,
+            error = %e,
+            "Failed to persist contract proposed span"
+        );
+    }
+}
+
+/// Emit `cns.contract.accepted` when a human approves and merges a contract proposal.
+///
+/// Called during the Phase B3 consent gate: human reviews the PR, approves it,
+/// and the merge triggers this span. Closes the proposal→acceptance loop.
+///
+/// REQ: CNS-CTR-004
+/// pre:  sink is initialized; reviewer_webid, replicant_webid, function_name are non-empty
+/// post: CNS span persisted with acceptance metadata
+pub fn emit_contract_accepted(
+    sink: &dyn NuEventSink,
+    reviewer_webid: &str,
+    replicant_webid: &str,
+    crate_name: &str,
+    function_name: &str,
+    contract_id: &str,
+) {
+    let span = Span::new(SpanNamespace::from(CnsSpan::ContractAccepted), "accepted");
+    let event = NuEvent::new(
+        WebID::from_persona(reviewer_webid.as_bytes()),
+        span,
+        Phase::Act,
+        json!({
+            "reviewer": reviewer_webid,
+            "replicant": replicant_webid,
+            "crate": crate_name,
+            "function": function_name,
+            "contract_id": contract_id,
+        }),
+        0,
+    );
+    if let Err(e) = sink.persist(&event) {
+        tracing::warn!(
+            target: "cns.contract",
+            reviewer = reviewer_webid,
+            function = function_name,
+            error = %e,
+            "Failed to persist contract accepted span"
+        );
+    }
+}
+
+/// Emit `cns.contract.rejected` when a human rejects a contract proposal.
+///
+/// Called during the Phase B3 consent gate: human reviews the PR, rejects it
+/// with rationale. The rejected contract is archived as a curation decision.
+///
+/// REQ: CNS-CTR-005
+/// pre:  sink is initialized; reviewer_webid, function_name are non-empty
+/// post: CNS span persisted with rejection rationale
+pub fn emit_contract_rejected(
+    sink: &dyn NuEventSink,
+    reviewer_webid: &str,
+    replicant_webid: &str,
+    crate_name: &str,
+    function_name: &str,
+    contract_id: &str,
+    rationale: &str,
+) {
+    let span = Span::new(SpanNamespace::from(CnsSpan::ContractRejected), "rejected");
+    let event = NuEvent::new(
+        WebID::from_persona(reviewer_webid.as_bytes()),
+        span,
+        Phase::Act,
+        json!({
+            "reviewer": reviewer_webid,
+            "replicant": replicant_webid,
+            "crate": crate_name,
+            "function": function_name,
+            "contract_id": contract_id,
+            "rationale": rationale,
+        }),
+        0,
+    );
+    if let Err(e) = sink.persist(&event) {
+        tracing::warn!(
+            target: "cns.contract",
+            reviewer = reviewer_webid,
+            function = function_name,
+            error = %e,
+            "Failed to persist contract rejected span"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -348,6 +491,7 @@ mod tests {
             "wallet::balance",
             "WAL-003",
             "invariant violated: balance went negative",
+            None,
             owner,
         )
         .unwrap();
@@ -379,12 +523,12 @@ mod tests {
         let owner = test_webid();
 
         // First call creates board
-        create_contract_violation_task(&store, "f1", "C1", "fail1", owner).unwrap();
+        create_contract_violation_task(&store, "f1", "C1", "fail1", None, owner).unwrap();
         let boards = store.query_by_entity(VIOLATIONS_BOARD_ENTITY).unwrap();
         assert_eq!(boards.len(), 1);
 
         // Second call reuses existing board (no duplicate)
-        create_contract_violation_task(&store, "f2", "C2", "fail2", owner).unwrap();
+        create_contract_violation_task(&store, "f2", "C2", "fail2", None, owner).unwrap();
         let boards_after = store.query_by_entity(VIOLATIONS_BOARD_ENTITY).unwrap();
         assert_eq!(boards_after.len(), 1, "board should not be duplicated");
     }
@@ -395,8 +539,10 @@ mod tests {
         let store = test_store();
         let owner = test_webid();
 
-        let id1 = create_contract_violation_task(&store, "a::foo", "REQ-1", "e1", owner).unwrap();
-        let id2 = create_contract_violation_task(&store, "b::bar", "REQ-2", "e2", owner).unwrap();
+        let id1 =
+            create_contract_violation_task(&store, "a::foo", "REQ-1", "e1", None, owner).unwrap();
+        let id2 =
+            create_contract_violation_task(&store, "b::bar", "REQ-2", "e2", None, owner).unwrap();
 
         assert_ne!(id1, id2);
         let tasks = store.query_by_entity(VIOLATION_TASK_ENTITY).unwrap();
@@ -409,8 +555,10 @@ mod tests {
         let store = test_store();
         let owner = test_webid();
 
-        create_contract_violation_task(&store, "mod::fn_a", "REQ-A", "bad input", owner).unwrap();
-        create_contract_violation_task(&store, "mod::fn_b", "REQ-B", "timeout", owner).unwrap();
+        create_contract_violation_task(&store, "mod::fn_a", "REQ-A", "bad input", None, owner)
+            .unwrap();
+        create_contract_violation_task(&store, "mod::fn_b", "REQ-B", "timeout", None, owner)
+            .unwrap();
 
         let tasks = store.query_by_entity(VIOLATION_TASK_ENTITY).unwrap();
         assert_eq!(tasks.len(), 2);
@@ -421,6 +569,56 @@ mod tests {
             .collect();
         assert!(origins.contains(&"REQ-A"));
         assert!(origins.contains(&"REQ-B"));
+    }
+
+    // REQ: CNS-CVB-001 — counterexample is persisted in origin when provided
+    #[test]
+    fn counterexample_persisted_in_task() {
+        let store = test_store();
+        let owner = test_webid();
+
+        let counterexample = json!({"input": -1, "expected": "positive balance"});
+        let task_id = create_contract_violation_task(
+            &store,
+            "wallet::deduct",
+            "WAL-004",
+            "post-condition violated: balance negative after deduct",
+            Some(&counterexample),
+            owner,
+        )
+        .unwrap();
+
+        assert!(!task_id.is_empty());
+
+        let tasks = store.query_by_entity(VIOLATION_TASK_ENTITY).unwrap();
+        assert_eq!(tasks.len(), 1);
+        let task_val = &tasks[0].value;
+        assert_eq!(task_val["origin"]["counterexample"], counterexample);
+        assert_eq!(task_val["origin"]["contract_id"], "WAL-004");
+        assert_eq!(task_val["origin"]["function"], "wallet::deduct");
+    }
+
+    // REQ: CNS-CVB-001 — counterexample is absent from origin when not provided
+    #[test]
+    fn counterexample_absent_when_none() {
+        let store = test_store();
+        let owner = test_webid();
+
+        create_contract_violation_task(
+            &store,
+            "wallet::deduct",
+            "WAL-004",
+            "post-condition violated",
+            None,
+            owner,
+        )
+        .unwrap();
+
+        let tasks = store.query_by_entity(VIOLATION_TASK_ENTITY).unwrap();
+        assert_eq!(tasks.len(), 1);
+        let task_val = &tasks[0].value;
+        assert!(task_val["origin"].get("counterexample").is_none());
+        assert_eq!(task_val["origin"]["contract_id"], "WAL-004");
     }
 
     // REQ: CNS-CVB-002 — emit_contract_violated_with_task creates both span and task
@@ -435,6 +633,7 @@ mod tests {
             "crate::func",
             "CNS-XYZ",
             "test failure",
+            None,
         )
         .unwrap();
 

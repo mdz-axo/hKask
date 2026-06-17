@@ -199,6 +199,12 @@ pub enum CnsSpan {
     ContractViolated,
     /// Contract coverage measurement.
     ContractCoverage,
+    /// Contract proposed by replicant (Phase B2–B4).
+    ContractProposed,
+    /// Contract accepted by human (Phase B3 consent gate).
+    ContractAccepted,
+    /// Contract rejected by human (Phase B3 consent gate).
+    ContractRejected,
 
     // ── Training observability spans (Training System §TASK 9) ────────────
     /// Trace generation completed (perplexity, diversity metrics).
@@ -378,6 +384,9 @@ impl CnsSpan {
             CnsSpan::OutcomeMemory => "cns.outcome.memory",
             CnsSpan::ContractViolated => "cns.contract.violated",
             CnsSpan::ContractCoverage => "cns.contract.coverage",
+            CnsSpan::ContractProposed => "cns.contract.proposed",
+            CnsSpan::ContractAccepted => "cns.contract.accepted",
+            CnsSpan::ContractRejected => "cns.contract.rejected",
             CnsSpan::TrainingTraceGenerated => "cns.training.trace.generated",
             CnsSpan::TrainingEvalCompleted => "cns.training.eval.completed",
             CnsSpan::TrainingCostEstimated => "cns.training.cost.estimated",
@@ -508,6 +517,9 @@ impl std::str::FromStr for CnsSpan {
             "cns.outcome.memory" => Ok(CnsSpan::OutcomeMemory),
             "cns.contract.violated" => Ok(CnsSpan::ContractViolated),
             "cns.contract.coverage" => Ok(CnsSpan::ContractCoverage),
+            "cns.contract.proposed" => Ok(CnsSpan::ContractProposed),
+            "cns.contract.accepted" => Ok(CnsSpan::ContractAccepted),
+            "cns.contract.rejected" => Ok(CnsSpan::ContractRejected),
             "cns.training.trace.generated" => Ok(CnsSpan::TrainingTraceGenerated),
             "cns.training.eval.completed" => Ok(CnsSpan::TrainingEvalCompleted),
             "cns.training.cost.estimated" => Ok(CnsSpan::TrainingCostEstimated),
@@ -678,6 +690,9 @@ mod cns_span_tests {
             CnsSpan::OutcomeMemory,
             CnsSpan::ContractViolated,
             CnsSpan::ContractCoverage,
+            CnsSpan::ContractProposed,
+            CnsSpan::ContractAccepted,
+            CnsSpan::ContractRejected,
             CnsSpan::TrainingTraceGenerated,
             CnsSpan::TrainingEvalCompleted,
             CnsSpan::TrainingCostEstimated,
@@ -716,8 +731,8 @@ mod cns_span_tests {
             );
         }
         // Verify count matches CANONICAL_NAMESPACES (excluding tool subsystem variants)
-        // 74 variants total (71 previous + 3 ACP bridge)
-        assert_eq!(all_variants.len(), 74);
+        // 77 variants total (74 previous + 3 contract lifecycle)
+        assert_eq!(all_variants.len(), 77);
     }
 
     // REQ: cns-span-006 — ToolSubsystem Display produces valid subsystem suffix

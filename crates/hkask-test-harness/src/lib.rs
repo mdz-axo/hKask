@@ -8,6 +8,7 @@
 //! - `temp_dir()` — guarded temp directory, auto-cleans on drop
 //! - `test_event()` — factory for well-formed NuEvents
 //! - `test_triple()` — factory for well-formed Triples
+//! - `run_contract_tests()` — run cargo test, parse REQ-tagged failures
 //!
 //! # Principle grounding
 //! - P5 (Essentialism): ≤7 public items; each survives the deletion test
@@ -17,6 +18,7 @@
 pub mod mocks;
 mod schema;
 pub mod strategies;
+pub mod test_runner;
 
 pub use schema::SCHEMA_SQL;
 

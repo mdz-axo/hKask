@@ -8,6 +8,9 @@
 //! composition (base + adapter = effective model).
 
 use chrono::Utc;
+use hkask_adapter::adapter_store::Checksum;
+use hkask_adapter::expertise::{Expertise, MdsDomain, TrainingProvenance};
+use hkask_adapter::{AdapterSource, TrainedLoRAAdapter};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -83,6 +86,66 @@ impl LoRAAdapter {
             skill_name,
             version,
             metrics,
+        }
+    }
+
+    /// Convert to the canonical `TrainedLoRAAdapter` for deployment via `hkask-adapter`.
+    pub fn to_canonical(&self) -> TrainedLoRAAdapter {
+        let metrics_json = self
+            .metrics
+            .as_ref()
+            .and_then(|m| serde_json::to_value(m).ok())
+            .unwrap_or_default();
+        let provenance = TrainingProvenance {
+            training_run_id: self.training_job_id.clone(),
+            training_source: String::new(),
+            completed_at: chrono::DateTime::from_timestamp(self.created_at, 0)
+                .map(|dt| dt.to_rfc3339())
+                .unwrap_or_default(),
+            base_model_family: self.base_model.clone(),
+            dataset_hash: if self.dataset_hash.is_empty() {
+                None
+            } else {
+                Some(self.dataset_hash.clone())
+            },
+            training_metrics: metrics_json,
+        };
+        let expertise = Expertise::new(
+            self.skill_name.clone(),
+            MdsDomain::CodeGeneration,
+            serde_json::Value::Null,
+            provenance,
+        )
+        .unwrap_or_else(|_| Expertise {
+            name: self.name.clone(),
+            domain: MdsDomain::CodeGeneration,
+            capability_manifest: serde_json::Value::Null,
+            training_source: TrainingProvenance {
+                training_run_id: String::new(),
+                training_source: String::new(),
+                completed_at: String::new(),
+                base_model_family: String::new(),
+                dataset_hash: None,
+                training_metrics: serde_json::Value::Null,
+            },
+        });
+        TrainedLoRAAdapter {
+            id: self.id.parse().unwrap_or_else(|_| Uuid::new_v4()),
+            expertise,
+            checksum: Checksum::from_hex("0000000000000000"),
+            storage_path: String::new(),
+            base_model_family: self.base_model.clone(),
+            version: Some(self.version.to_string()),
+            source: AdapterSource::HuggingFace {
+                repo: format!("hkask-training/{}", self.id),
+            },
+            size_bytes: if self.size_bytes > 0 {
+                Some(self.size_bytes)
+            } else {
+                None
+            },
+            owner: hkask_types::id::WebID::from_persona(b"training-pipeline"),
+            created_at: chrono::Utc::now().to_rfc3339(),
         }
     }
 }

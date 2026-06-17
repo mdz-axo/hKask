@@ -164,7 +164,6 @@ pub enum Commands {
         action: KataAction,
     },
 
-
     /// Kanban board and task coordination
     Kanban {
         #[command(subcommand)]
@@ -210,6 +209,21 @@ pub enum Commands {
 
     /// Run the 6-loop regulation system
     Loops,
+
+    /// Run contract tests and report REQ-tagged violations
+    Test {
+        /// Crate to test (default: all priority crates)
+        #[arg(short, long)]
+        crate_name: Option<String>,
+
+        /// Output format (default: text)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+
+        /// Watch mode — run continuously at interval (seconds)
+        #[arg(long)]
+        watch: Option<u64>,
+    },
 
     /// Search the web
     WebSearch {

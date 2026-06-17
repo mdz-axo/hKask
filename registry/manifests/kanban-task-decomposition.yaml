@@ -142,6 +142,26 @@ steps:
               description: "Ordered list of task titles showing assembly sequence"
             final_verification:
               type: string
+        kata_guidance:
+          type: object
+          description: "Optional guidance on Toyota Kata application per task. Not required — the system learns from experience when katas are useful."
+          properties:
+            per_task:
+              type: array
+              items:
+                type: object
+                properties:
+                  task_title:
+                    type: string
+                  starter_kata:
+                    type: string
+                    description: "When to use /kanban practice for observation drills"
+                  improvement_kata:
+                    type: string
+                    description: "When to use /kanban improve for PDCA experiments"
+                  coaching_guidance:
+                    type: string
+                    description: "For the replicant: how to coach this task effectively"
               description: "How to verify the fully reassembled deliverable"
 
   - ordinal: 3

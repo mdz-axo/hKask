@@ -115,6 +115,12 @@ fn main() {
 
         Commands::Loops => commands::loops::run(&rt),
 
+        Commands::Test {
+            crate_name,
+            format,
+            watch,
+        } => commands::test::run(&rt, crate_name, &format, watch),
+
         Commands::WebSearch { query, max_results } => {
             commands::web_search::run(&rt, query, max_results)
         }

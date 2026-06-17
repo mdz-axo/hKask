@@ -12,6 +12,7 @@
 
 
 use hkask_storage::{Triple, TripleStore};
+use std::sync::Arc;
 use hkask_types::{
     Board, BoardId, ColumnDef, Comment, ConsentProof, Phase, PhaseId, Task, TaskFilter, TaskId,
     TaskSpec, TaskStatus, Verification, WebID,
@@ -25,6 +26,7 @@ use serde_json::Value;
 #[derive(Clone)]
 pub struct KanbanService {
     store: TripleStore,
+    pod_manager: Option<Arc<hkask_agents::pod::PodManager>>,
 }
 
 // Triple entity prefixes
@@ -39,7 +41,16 @@ impl KanbanService {
     /// pre:  store must have the triples table initialized
     /// post: returns a KanbanService ready for use
     pub fn new(store: TripleStore) -> Self {
-        Self { store }
+        Self { store, pod_manager: None }
+    }
+
+    /// Attach a PodManager for live spawn capability.
+    ///
+    /// REQ: KAN-SVC-001b
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::PodManager>) -> Self {
+        self.pod_manager = Some(pm);
+        self
     }
 
     // ── Board operations ──────────────────────────────────────────────────
@@ -74,6 +85,64 @@ impl KanbanService {
             .map_err(|e| KanbanError::Internal(format!("triple insert failed: {e}")))?;
 
         Ok(board)
+    }
+
+    /// Create a board from a YAML template file.
+    ///
+    /// REQ: KAN-SVC-002b
+    /// pre:  template_path is a valid YAML file with board template schema
+    /// post: board is created with template-defined columns, WIP limits, and phases
+    pub fn board_create_from_template(
+        &self,
+        owner: WebID,
+        name: &str,
+        template_yaml: &str,
+    ) -> Result<Board, KanbanError> {
+        #[derive(serde::Deserialize)]
+        struct TemplateColumns {
+            name: String,
+            status: String,
+            wip_limit: Option<u32>,
+        }
+        #[derive(serde::Deserialize)]
+        struct TemplatePhase {
+            name: String,
+            description: Option<String>,
+            task_labels: Vec<String>,
+        }
+        #[derive(serde::Deserialize)]
+        struct BoardTemplate {
+            columns: Vec<TemplateColumns>,
+            phases: Vec<TemplatePhase>,
+        }
+
+        let template: BoardTemplate = serde_yaml::from_str(template_yaml)
+            .map_err(|e| KanbanError::InvalidInput(format!("Invalid template YAML: {e}")))?;
+
+        let columns: Vec<ColumnDef> = template.columns.iter().enumerate().map(|(i, c)| {
+            let status = TaskStatus::parse_str(&c.status).unwrap_or(TaskStatus::Backlog);
+            let mut col = ColumnDef::new(c.name.clone(), status, i as u32);
+            if let Some(wip) = c.wip_limit {
+                col = col.with_wip_limit(wip);
+            }
+            col
+        }).collect();
+
+        let board = self.board_create(owner, name, &columns)?;
+
+        // Create phases
+        for phase in &template.phases {
+            self.board_add_phase(board.id, &phase.name, 0)?;
+        }
+
+        Ok(board)
+    }
+
+    /// List all board templates.
+    ///
+    /// REQ: KAN-SVC-002c
+    pub fn list_templates() -> Vec<String> {
+        vec!["software-project".into(), "writing-project".into(), "scientific-research".into(), "investment-research".into()]
     }
 
     /// List all boards for a given owner.
@@ -486,22 +555,19 @@ impl KanbanService {
             });
         }
 
-        // Keyword-based verification
-        let passed = if task.criteria.is_empty() {
-            true
-        } else {
-            task.criteria.iter().all(|c| {
-                c.description
-                    .split_whitespace()
-                    .any(|word| evidence.to_lowercase().contains(&word.to_lowercase()))
-            })
-        };
+        // rSolidity contract-based verification
+        // The task IS a contract. Both agent and replicant run the same assertions.
+        let mut contract = hkask_types::TaskContract::new(
+            "inline".into(),
+            task.owner,
+            verifier,
+            &task,
+            vec![],
+        );
+        let result = contract.check_completion(evidence);
 
-        let reasoning = if passed {
-            "All acceptance criteria matched the submitted evidence.".to_string()
-        } else {
-            "One or more acceptance criteria were not satisfied by the evidence.".to_string()
-        };
+        let passed = result.passed;
+        let reasoning = result.reasoning;
 
         let verification = Verification::new(passed, reasoning, verifier);
         task.verification = Some(verification.clone());
@@ -685,38 +751,65 @@ impl KanbanService {
             .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
 
-        // Append spawn configuration as a comment on the task
+        // Attempt live pod creation if PodManager is attached
+        if let Some(ref pm) = self.pod_manager {
+            let pod_name = format!("kanban-{}", task.title.chars().take(20).collect::<String>().replace(' ', "-"));
+            let persona_yaml = format!(
+                "agent:
+  name: {name}
+  type: bot
+  version: 0.1.0
+                 charter:
+  description: Task: {title}
+  editor: kanban
+                 capabilities:
+{skills}
+",
+                name = pod_name,
+                title = task.title,
+                skills = spawn_spec.delegated_skills.iter().map(|s| format!("  - {}", s)).collect::<Vec<_>>().join("
+"),
+            );
+            match hkask_agents::pod::AgentPersona::from_yaml(&persona_yaml) {
+                Ok(persona) => {
+                    let rt = tokio::runtime::Handle::current();
+                    match rt.block_on(pm.create_pod("kanban-agent", &persona, Some(pod_name.clone()))) {
+                        Ok(pod_id) => {
+                            match rt.block_on(pm.activate_pod(&pod_id)) {
+                                Ok(()) => {
+                                    let webid = persona.webid();
+                                    let note = format!(
+                                        "Pod activated: id={}, webid={}, skills={:?}, tools={:?}",
+                                        pod_id, webid.redacted_display(), spawn_spec.delegated_skills, spawn_spec.tool_servers
+                                    );
+                                    let comment = hkask_types::Comment::new(task_id, task.owner, note);
+                                    task.comments.push(comment);
+                                    task.updated_at = chrono::Utc::now();
+                                    self.update_task_triple(&task)?;
+                                    return Ok(format!("Pod {} activated (webid: {}). Use /kanban note {} to communicate.",
+                                        pod_id, webid.redacted_display(), task_id));
+                                }
+                                Err(e) => return Ok(format!("Pod created but activation failed: {}", e)),
+                            }
+                        }
+                        Err(e) => return Ok(format!("Pod creation failed: {}", e)),
+                    }
+                }
+                Err(e) => return Ok(format!("Persona parse failed: {}", e)),
+            }
+        }
+
+        // Fallback: string-based spawn when no PodManager
         let spawn_note = format!(
-            "Spawn configured: level={}, skills={:?}, memory={}, tools={:?}, gas={:?}, timeout={:?}s. [Pod activation: future infrastructure]",
-            spawn_spec.delegation_level,
-            spawn_spec.delegated_skills,
-            spawn_spec.memory_scope,
-            spawn_spec.tool_servers,
-            spawn_spec.gas_budget,
-            spawn_spec.timeout_seconds,
+            "Spawn configured (no PodManager): level={}, skills={:?}, memory={}, tools={:?}",
+            spawn_spec.delegation_level, spawn_spec.delegated_skills,
+            spawn_spec.memory_scope, spawn_spec.tool_servers,
         );
         let comment = hkask_types::Comment::new(task_id, task.owner, spawn_note);
         task.comments.push(comment);
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
-
-        Ok(format!(
-            "Spawn configured for '{}':
-  Level: {}
-  Skills: {:?}
-  Memory: {}
-  Tools: {:?}
-  Gas: {:?}
-  Timeout: {:?}s
-  Note appended to task comments.",
-            task.title,
-            spawn_spec.delegation_level,
-            spawn_spec.delegated_skills,
-            spawn_spec.memory_scope,
-            spawn_spec.tool_servers,
-            spawn_spec.gas_budget,
-            spawn_spec.timeout_seconds,
-        ))
+        Ok(format!("Spawn configured for '{}' (no PodManager — string mode). Skills: {:?}", task.title, spawn_spec.delegated_skills))
     }
 
     // ── Comments (mini-REPL per task) ─────────────────────────────────
@@ -976,6 +1069,317 @@ impl KanbanService {
         Ok(items)
     }
 
+    /// Auto-fix clear-cut stuck states. Returns what was fixed.
+    ///
+    /// REQ: KAN-SVC-045
+    /// pre:  board_id is valid
+    /// post: stale assignments are unassigned; unverified Done tasks are reopened
+    pub fn unjam_fix(&self, board_id: BoardId) -> Result<Vec<UnjamFix>, KanbanError> {
+        let tasks = self.task_list(board_id, TaskFilter::all())?;
+        let now = chrono::Utc::now();
+        let mut fixes = Vec::new();
+
+        for task in &tasks {
+            // Auto-unassign stale assignments (>24h in Backlog/Ready with assignee)
+            if task.assignee.is_some()
+                && (task.status == TaskStatus::Backlog || task.status == TaskStatus::Ready)
+            {
+                let elapsed = (now - task.updated_at).num_hours();
+                if elapsed > 24 {
+                    match self.task_unassign(task.id) {
+                        Ok(_) => fixes.push(UnjamFix {
+                            task_id: task.id,
+                            task_title: task.title.clone(),
+                            action: format!("Unassigned after {}h idle", elapsed),
+                        }),
+                        Err(e) => fixes.push(UnjamFix {
+                            task_id: task.id,
+                            task_title: task.title.clone(),
+                            action: format!("Unassign failed: {}", e),
+                        }),
+                    }
+                }
+            }
+
+            // Auto-reopen unverified Done tasks
+            if task.status == TaskStatus::Done && task.verification.is_none() {
+                match self.task_reopen(task.id) {
+                    Ok(_) => fixes.push(UnjamFix {
+                        task_id: task.id,
+                        task_title: task.title.clone(),
+                        action: "Reopened (was Done without verification)".into(),
+                    }),
+                    Err(e) => fixes.push(UnjamFix {
+                        task_id: task.id,
+                        task_title: task.title.clone(),
+                        action: format!("Reopen failed: {}", e),
+                    }),
+                }
+            }
+        }
+
+        Ok(fixes)
+    }
+
+    /// Generate a structured prompt for LLM-mediated verification.
+    ///
+    /// REQ: KAN-SVC-050
+    /// pre:  task_id refers to a task in Review with acceptance criteria
+    /// post: returns a prompt that, when fed to an LLM, produces structured verification JSON
+    pub fn verification_prompt(
+        &self,
+        task_id: TaskId,
+        evidence: &str,
+    ) -> Result<String, KanbanError> {
+        let task = self.task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        if task.criteria.is_empty() {
+            return Err(KanbanError::InvalidInput("Task has no acceptance criteria".into()));
+        }
+
+        let criteria_text: Vec<String> = task.criteria.iter()
+            .enumerate()
+            .map(|(i, c)| format!("{}. {}", i + 1, c.description))
+            .collect();
+
+        Ok(format!(
+            "Verify whether this task satisfies its acceptance criteria.
+
+             Task: {title}
+             Evidence: {evidence}
+
+             Criteria:
+{criteria}
+
+             Return JSON with: passed (bool), reasoning (string),              criteria_results (array of objects with: criterion, satisfied, evidence_found, feedback).              Be rigorous. A criterion is satisfied ONLY if concrete evidence exists.",
+            title = task.title,
+            evidence = evidence,
+            criteria = criteria_text.join("
+"),
+        ))
+    }
+
+    /// Apply an LLM verification response to a task.
+    ///
+    /// REQ: KAN-SVC-051
+    /// pre:  task_id refers to a task in Review; llm_json is valid verification JSON
+    /// post: task.verification is set; task moves to Done if passed
+    pub fn verify_with_llm(
+        &self,
+        task_id: TaskId,
+        verifier: WebID,
+        llm_json: &str,
+    ) -> Result<(Task, Verification), KanbanError> {
+        let mut task = self.task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        if task.status != TaskStatus::Review {
+            return Err(KanbanError::InvalidTransition {
+                task: task_id,
+                from: task.status,
+                to: TaskStatus::Done,
+            });
+        }
+
+        let parsed: serde_json::Value = serde_json::from_str(llm_json)
+            .map_err(|e| KanbanError::InvalidInput(format!("Invalid LLM JSON: {e}")))?;
+
+        let passed = parsed["passed"].as_bool().unwrap_or(false);
+        let reasoning = parsed["reasoning"].as_str().unwrap_or("No reasoning provided").to_string();
+
+        let verification = Verification::new(passed, reasoning, verifier);
+        task.verification = Some(verification.clone());
+
+        if passed {
+            task.status = TaskStatus::Done;
+        }
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+
+        Ok((task, verification))
+    }
+
+    // ── Kata Integration (task-scoped scientific thinking) ──────────
+
+    /// Generate a coaching kata prompt scoped to this task.
+    ///
+    /// REQ: KAN-SVC-060
+    /// pre:  task_id is valid
+    /// post: returns a 5-question coaching prompt preloaded with task context.
+    ///       The task's criteria ARE the target condition. The task's state,
+    ///       comments, and deliverables ARE the actual condition. The unjam
+    ///       report identifies obstacles.
+    pub fn task_coaching_prompt(
+        &self,
+        task_id: TaskId,
+    ) -> Result<String, KanbanError> {
+        let task = self.task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        // Build target condition from acceptance criteria
+        let target = if task.criteria.is_empty() {
+            format!("Complete task '{}'", task.title)
+        } else {
+            task.criteria.iter()
+                .map(|c| format!("- {}", c.description))
+                .collect::<Vec<_>>()
+                .join("
+")
+        };
+
+        // Build actual condition from the full evidence corpus:
+        // comments (chat between agent/replicant), deliverables (file links),
+        // and task state (status, assignee, timing).
+        let mut evidence = format!(
+            "Status: {}
+Assignee: {}
+Est. hours: {}
+Story points: {}
+Updated: {}",
+            task.status,
+            task.assignee.map(|a| a.redacted_display()).unwrap_or_else(|| "none".into()),
+            task.estimated_hours.map_or("?".into(), |h| format!("{}h", h)),
+            task.story_points.map_or("?".into(), |p| format!("{}pt", p)),
+            task.updated_at.format("%Y-%m-%d %H:%M"),
+        );
+
+        // Deliverables — the actual work output
+        if !task.deliverables.is_empty() {
+            evidence.push_str("
+
+Deliverables (file links = work output):");
+            for d in &task.deliverables {
+                evidence.push_str(&format!("
+  - {}", d));
+            }
+        }
+
+        // Comments — the agent/replicant chat stream
+        if !task.comments.is_empty() {
+            evidence.push_str("
+
+Comment thread (agent/replicant communication):");
+            for c in &task.comments {
+                evidence.push_str(&format!(
+                    "
+  [{}] {}: {}",
+                    c.created_at.format("%H:%M"),
+                    c.author.redacted_display(),
+                    c.body,
+                ));
+            }
+        }
+
+        let actual = evidence;
+
+        Ok(format!(
+            "Coaching Kata — Task: {title}
+
+             Q1 — Target Condition:
+{target}
+
+             Q2 — Actual Condition:
+{actual}
+
+             Q3 — Obstacles: What is preventing this task from reaching the target?              Which ONE obstacle are you addressing now?
+
+             Q4 — Next Step: What experiment will you run? What do you expect?
+
+             Q5 — How quickly can we go and see what we learned?
+
+             Respond with your answers. The coach will guide, not solve.",
+            title = task.title,
+        ))
+    }
+
+    /// Generate an improvement kata prompt scoped to this task.
+    ///
+    /// REQ: KAN-SVC-061
+    /// pre:  task_id is valid
+    /// post: returns a 4-step improvement kata prompt with task as subject
+    pub fn task_improvement_prompt(
+        &self,
+        task_id: TaskId,
+    ) -> Result<String, KanbanError> {
+        let task = self.task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        let direction = task.description.as_deref().unwrap_or(&task.title);
+        let mut current = format!(
+            "Task '{}' is in status '{}'.
+Evidence: {} deliverables, {} comments, {} criteria.",
+            task.title, task.status, task.deliverables.len(), task.comments.len(), task.criteria.len()
+        );
+        if !task.deliverables.is_empty() {
+            current.push_str("
+Deliverables:");
+            for d in &task.deliverables { current.push_str(&format!("
+  {}", d)); }
+        }
+        if !task.comments.is_empty() {
+            current.push_str("
+Recent comments:");
+            for c in task.comments.iter().rev().take(3) {
+                current.push_str(&format!("
+  [{}] {}", c.created_at.format("%H:%M"), c.body));
+            }
+        }
+
+        Ok(format!(
+            "Improvement Kata — Task: {title}
+
+             Step 1 — Understand the Direction:
+{direction}
+
+             Step 2 — Grasp the Current Condition:
+{current}
+
+             Step 3 — Establish the Next Target Condition:
+             What specific, measurable condition do you want to achieve?
+
+             Step 4 — Iterate: What ONE experiment will you run? What do you predict?
+             Plan → Do → Check → Act. Record your experiment and result.",
+            title = task.title,
+            direction = direction,
+            current = current,
+        ))
+    }
+
+    /// Generate a starter kata observation drill for a task sub-problem.
+    ///
+    /// REQ: KAN-SVC-062
+    /// pre:  task_id is valid; sub_problem describes what's being examined
+    /// post: returns an observation drill prompt distinguishing facts from interpretations
+    pub fn task_practice_prompt(
+        &self,
+        task_id: TaskId,
+        sub_problem: &str,
+    ) -> Result<String, KanbanError> {
+        let task = self.task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        Ok(format!(
+            "Starter Kata — Observation Drill
+             Task: {title}
+             Focus: {sub_problem}
+
+             List what you OBSERVE (facts, data, evidence):
+             1. 
+2. 
+3. 
+
+             List what you INTERPRET (assumptions, guesses, theories):
+             1. 
+2. 
+3. 
+
+             For each interpretation, ask: How would I test this?              What experiment would distinguish this interpretation from alternatives?",
+            title = task.title,
+            sub_problem = sub_problem,
+        ))
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────
 
     fn update_task_triple(&self, task: &Task) -> Result<(), KanbanError> {
@@ -1016,6 +1420,14 @@ pub struct UnjamItem {
     pub task_title: String,
     pub issue: String,
     pub suggestion: String,
+}
+
+/// UnjamFix — records an auto-fix action taken by the de-jammer.
+#[derive(Debug, Clone)]
+pub struct UnjamFix {
+    pub task_id: hkask_types::TaskId,
+    pub task_title: String,
+    pub action: String,
 }
 
 // ── Error types ────────────────────────────────────────────────────────────

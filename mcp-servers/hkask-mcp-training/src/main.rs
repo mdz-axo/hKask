@@ -46,6 +46,8 @@
 //! - `HKASK_AXOLOTL_PATH` — Path to axolotl CLI (for Axolotl host)
 //! - `HKASK_PYTHON_PATH` — Path to python3 interpreter (for Unsloth host)
 
+use hkask_adapter::AdapterPort;
+use hkask_adapter::AdapterRouter;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
@@ -658,6 +660,15 @@ pub enum DeploymentProvider {
 }
 
 impl DeploymentProvider {
+    /// Map to `hkask_inference::ProviderId` for use with `hkask-adapter::AdapterRouter`.
+    fn to_provider_id(&self) -> hkask_inference::ProviderId {
+        match self {
+            DeploymentProvider::Together => hkask_inference::ProviderId::Together,
+            DeploymentProvider::Baseten => hkask_inference::ProviderId::Baseten,
+            DeploymentProvider::Runpod => hkask_inference::ProviderId::Runpod,
+        }
+    }
+
     /// Estimated setup time in seconds.
     pub fn setup_seconds(&self) -> u64 {
         match self {
@@ -729,6 +740,7 @@ pub struct TrainingServer {
     pipeline: Mutex<DatasetPipeline>,
     adapter_store: Arc<dyn AdapterStore>,
     job_store: Option<JobStore>,
+    adapter_router: Option<Arc<AdapterRouter>>,
     inference_config: InferenceConfig,
     deployments: Mutex<HashMap<String, AdapterDeployment>>,
 }
@@ -759,6 +771,7 @@ impl TrainingServer {
             pipeline: Mutex::new(pipeline),
             adapter_store,
             job_store,
+            adapter_router: None,
             inference_config,
             deployments: Mutex::new(HashMap::new()),
         }
@@ -3133,7 +3146,75 @@ impl TrainingServer {
             }
         };
 
-        // Resolve base model from adapter metadata
+        // If AdapterRouter is configured, use canonical deployment pipeline.
+        if let Some(ref router) = self.adapter_router {
+            let canonical = adapter_meta.to_canonical();
+            let provider = req.provider.to_provider_id();
+            let token = hkask_types::capability::DelegationToken::new(
+                hkask_types::capability::DelegationResource::Tool,
+                "adapter:deploy".into(),
+                hkask_types::capability::DelegationAction::Execute,
+                self.webid,
+                self.webid,
+                &hkask_types::capability::auth::derive_signing_key(b"training-mcp-deploy"),
+            );
+
+            // Estimate first (P2 — informed consent)
+            let estimate = match AdapterPort::estimate_composition(
+                router.as_ref(),
+                canonical.id,
+                provider,
+                &token,
+            ) {
+                Ok(e) => e,
+                Err(e) => {
+                    return span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Composition estimate failed: {e}"))
+                            .to_json_string(),
+                    );
+                }
+            };
+
+            // Create endpoint
+            let handle =
+                match AdapterPort::create_endpoint(router.as_ref(), canonical.id, provider, &token)
+                {
+                    Ok(h) => h,
+                    Err(e) => {
+                        return span.error(
+                            McpErrorKind::Internal,
+                            McpToolError::internal(format!("Endpoint creation failed: {e}"))
+                                .to_json_string(),
+                        );
+                    }
+                };
+
+            let result = json!({
+                "deployment_id": handle.endpoint_id.to_string(),
+                "adapter_name": req.adapter_name,
+                "adapter_version": adapter_meta.version,
+                "adapter_skill": adapter_meta.skill_name,
+                "provider": format!("{:?}", req.provider).to_lowercase(),
+                "base_model": canonical.base_model_family,
+                "endpoint_url": handle.endpoint_url,
+                "model_name": handle.model_name,
+                "estimated_setup_cost": estimate.estimated_setup_cost,
+                "estimated_hourly_cost": estimate.estimated_hourly_cost,
+                "phase": format!("{:?}", handle.phase()).to_lowercase(),
+                "route": "hkask-adapter",
+            });
+            tracing::info!(target: "cns.training.deploy", endpoint_id = %handle.endpoint_id, adapter = %req.adapter_name, provider = ?req.provider, "Adapter deployed via AdapterRouter");
+            self.record_experience(
+                "training_deploy",
+                &req.adapter_name,
+                "success",
+                result.clone(),
+            );
+            return span.ok_json(result);
+        }
+
+        // Fallback: local deployment pipeline
         let base_model = req.base_model.unwrap_or(adapter_meta.base_model);
         let setup_secs = req.provider.setup_seconds();
         let cost_hr = req.provider.cost_per_hour(req.gpu_type.as_deref());

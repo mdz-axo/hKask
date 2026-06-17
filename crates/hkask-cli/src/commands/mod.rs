@@ -37,6 +37,7 @@ pub mod sovereignty;
 pub mod spec;
 pub mod style;
 pub mod template;
+pub mod test;
 pub mod user;
 pub mod wallet;
 pub mod web_search;

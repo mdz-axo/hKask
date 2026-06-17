@@ -131,6 +131,12 @@ impl HkaskAcpAgent {
         }
     }
 
+    /// Set the default model for inference.
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.default_model = model.to_string();
+        self
+    }
+
     /// Whether the daemon is connected and ready.
     fn daemon_ready(&self) -> bool {
         self.daemon.is_some()
@@ -169,7 +175,11 @@ impl HkaskAcpAgent {
             // Tool calls in this chunk — dispatch via daemon or report only
             for tc in &chunk.tool_calls {
                 tool_call_counter += 1;
-                let tc_id = format!("tc-{}-{}", session_id, tool_call_counter);
+                let tc_id = tc
+                    .call_id
+                    .as_deref()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| format!("tc-{}-{}", session_id, tool_call_counter));
                 let kind = map_tool_kind(tc);
                 let title = format!("{} {}", tc.server, tc.tool);
 
@@ -241,6 +251,18 @@ impl HkaskAcpAgent {
         write_notification(stdout, &usage_notif)
             .await
             .map_err(|e| format!("Write error: {}", e))?;
+
+        // Empty response guard — tell the user something happened
+        if total_text.is_empty() && tool_call_counter == 0 {
+            let notif = agent_message_chunk(
+                session_id,
+                &format!("empty-{}", uuid::Uuid::new_v4()),
+                "[No output produced — the model returned an empty response.]",
+            );
+            write_notification(stdout, &notif)
+                .await
+                .map_err(|e| format!("Write error: {}", e))?;
+        }
 
         info!(
             target: "hkask.acp",
@@ -333,8 +355,8 @@ fn cns_emit(span: CnsSpan, replicant: &str, detail: &str) {
 }
 
 pub async fn run() -> anyhow::Result<()> {
-    let agent = Arc::new(HkaskAcpAgent::build().await?);
-    info!(target: "hkask.acp", replicant = %agent.replicant, "ACP replicant starting");
+    let agent = Arc::new(HkaskAcpAgent::build().await);
+    info!(target: "hkask.acp", replicant = %agent.replicant, daemon_ok = agent.daemon_ready(), "ACP replicant starting");
 
     let mut transport = protocol::StdioTransport::new();
     transport.serve(Arc::clone(&agent)).await?;

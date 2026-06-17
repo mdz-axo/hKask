@@ -4349,6 +4349,7 @@ dependencies = [
  "blake3",
  "chrono",
  "dotenvy",
+ "hkask-adapter",
  "hkask-inference",
  "hkask-mcp",
  "hkask-memory",

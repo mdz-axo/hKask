@@ -23,6 +23,7 @@
 //! 3. Is it surface-specific (CLI-only or API-only)? If yes, put it in the surface.
 
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -35,7 +36,7 @@ use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
-    SeamWatcher, SnapshotLoop, load_set_points,
+    SeamWatcher, SnapshotLoop, emit_contract_violated_with_task, load_set_points,
 };
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::RawMcpToolPort;
@@ -728,6 +729,8 @@ struct Foundation {
     cns_event_sink: Arc<dyn NuEventSink>,
     /// Concrete event store used for gas report queries and calibration.
     gas_event_store: Arc<NuEventStore>,
+    /// Triple store for kanban task bridge (contract violations → tasks).
+    triple_store: Arc<TripleStore>,
 }
 
 async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
@@ -812,8 +815,18 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let gas_event_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
     let cns_event_sink: Arc<dyn NuEventSink> = Arc::clone(&gas_event_store) as Arc<dyn NuEventSink>;
 
+    // Triple store for kanban task bridge — contract violations create tasks here.
+    let triple_store = Arc::new(TripleStore::new(Arc::clone(&primary_conn)));
+
     // Spawn periodic seam drift check (R7.3 background watcher).
     spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
+
+    // Spawn periodic contract test monitor — runs cargo test on priority crates
+    // and emits cns.contract.violated spans on REQ-tagged failures.
+    let workspace_root = std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| ".".to_string());
+    spawn_contract_test_loop(&cns_event_sink, &triple_store, &workspace_root);
 
     Ok(Foundation {
         db,
@@ -830,6 +843,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         seam_watcher,
         cns_event_sink,
         gas_event_store,
+        triple_store,
     })
 }
 
@@ -893,6 +907,281 @@ fn spawn_seam_drift_check(
             }
         }
     });
+}
+
+/// Spawn a background task that periodically runs `cargo test` on priority
+/// crates and emits `cns.contract.violated` CNS spans on REQ-tagged failures.
+///
+/// This closes the sense-loop for contract violations: test failures that
+/// were previously invisible to the CNS (only visible in CI logs) are now
+/// surfaced as CNS events that the CyberneticsLoop and CurationLoop can act on.
+///
+/// The interval is controlled by `HKASK_CONTRACT_TEST_INTERVAL_SECS`
+/// (default: 3600 = 1 hour). Set to 0 to disable.
+fn spawn_contract_test_loop(
+    event_sink: &Arc<dyn NuEventSink>,
+    triple_store: &Arc<TripleStore>,
+    workspace_root: &str,
+) {
+    let interval_secs: u64 = std::env::var("HKASK_CONTRACT_TEST_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3600);
+
+    if interval_secs == 0 {
+        tracing::info!(
+            target: "cns.contract",
+            "Contract test loop disabled (HKASK_CONTRACT_TEST_INTERVAL_SECS=0)"
+        );
+        return;
+    }
+
+    let sink = Arc::clone(event_sink);
+    let store = Arc::clone(triple_store);
+    let root = workspace_root.to_string();
+
+    // Priority crates — correctness-critical and high risk.
+    let priority_crates: &[&str] = &[
+        "hkask-cns",
+        "hkask-wallet",
+        "hkask-keystore",
+        "hkask-condenser",
+        "hkask-storage",
+        "hkask-services",
+        "hkask-mcp",
+    ];
+
+    tokio::spawn(async move {
+        tracing::info!(
+            target: "cns.contract",
+            interval_secs = %interval_secs,
+            crates = ?priority_crates,
+            "Contract test monitor started — running cargo test on priority crates every {}s",
+            interval_secs
+        );
+
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+        loop {
+            interval.tick().await;
+
+            for crate_name in priority_crates {
+                let result = run_cargo_test_on_crate(crate_name, &root);
+                match result {
+                    Some(r) if r.failed > 0 => {
+                        tracing::warn!(
+                            target: "cns.contract",
+                            crate_name = %r.crate_name,
+                            failed = %r.failed,
+                            passed = %r.passed,
+                            violations = %r.violations.len(),
+                            "Contract tests failed — emitting CNS spans"
+                        );
+                        for violation in &r.violations {
+                            let _ = emit_contract_violated_with_task(
+                                &*sink,
+                                &store,
+                                &violation.test_name,
+                                &violation.contract_id,
+                                &violation.failure_reason,
+                                None,
+                            );
+                        }
+                    }
+                    Some(r) => {
+                        tracing::debug!(
+                            target: "cns.contract",
+                            crate_name = %r.crate_name,
+                            passed = %r.passed,
+                            "Contract tests passed"
+                        );
+                    }
+                    None => {
+                        tracing::debug!(
+                            target: "cns.contract",
+                            crate_name = %crate_name,
+                            "Contract test runner unavailable — cargo not found or not a workspace"
+                        );
+                    }
+                }
+            }
+        }
+    });
+}
+
+/// Minimal cargo test runner embedded in the services layer.
+///
+/// Shells out to `cargo test -p <crate>` and parses REQ-tagged failures.
+/// Returns `None` if cargo is unavailable (non-fatal — the monitor skips).
+///
+/// This is intentionally simple: no dependency on `hkask-test-harness`,
+/// no framework. The test runner is a service-layer concern because the
+/// CNS needs to observe test health at runtime.
+fn run_cargo_test_on_crate(crate_name: &str, workspace_root: &str) -> Option<ContractTestOutcome> {
+    let output = Command::new("cargo")
+        .args(["test", "-p", crate_name, "--lib", "--", "--test-threads=1"])
+        .current_dir(workspace_root)
+        .output()
+        .ok()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}{}", stdout, stderr);
+
+    // Count total
+    let total_tests = {
+        let mut count = 0usize;
+        for line in combined.lines() {
+            if line.starts_with("running ") && line.contains(" test") {
+                let num = line
+                    .trim_start_matches("running ")
+                    .split_whitespace()
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0);
+                count += num;
+            }
+        }
+        count
+    };
+
+    // Collect failures
+    let failed_tests: Vec<String> = combined
+        .lines()
+        .filter(|l| l.contains("... FAILED"))
+        .filter_map(|l| {
+            let parts: Vec<&str> = l.splitn(2, " ... FAILED").collect();
+            parts
+                .first()
+                .map(|s| s.trim().strip_prefix("test ").unwrap_or(s).to_string())
+        })
+        .collect();
+
+    let total_failed = failed_tests.len();
+    let actual_passed = total_tests.saturating_sub(total_failed);
+
+    // Resolve REQ tags and failure messages for each failed test
+    let mut violations = Vec::new();
+    for test_name in &failed_tests {
+        let fn_name = test_name.split("::").last().unwrap_or(test_name);
+        let (contract_id, failure_reason) =
+            resolve_violation_details(workspace_root, crate_name, fn_name, &combined);
+        violations.push(ContractViolation {
+            test_name: test_name.clone(),
+            contract_id,
+            failure_reason,
+        });
+    }
+
+    Some(ContractTestOutcome {
+        crate_name: crate_name.to_string(),
+        total_tests,
+        passed: actual_passed,
+        failed: total_failed,
+        violations,
+    })
+}
+
+/// Lightweight test outcome struct — avoids depending on hkask-test-harness.
+struct ContractTestOutcome {
+    crate_name: String,
+    total_tests: usize,
+    passed: usize,
+    failed: usize,
+    violations: Vec<ContractViolation>,
+}
+
+/// Lightweight violation struct.
+struct ContractViolation {
+    test_name: String,
+    contract_id: String,
+    failure_reason: String,
+}
+
+/// Search source files for a REQ tag near the given function and extract
+/// the failure message from cargo test output.
+fn resolve_violation_details(
+    workspace_root: &str,
+    crate_name: &str,
+    fn_name: &str,
+    test_output: &str,
+) -> (String, String) {
+    // Try to find REQ tag by grepping source for the function and reading context
+    let contract_id = find_req_tag_near_fn(workspace_root, crate_name, fn_name);
+
+    // Extract failure message
+    let marker = format!("---- {} stdout ----", fn_name);
+    let failure_reason = if let Some(pos) = test_output.find(&marker) {
+        let rest = &test_output[pos..];
+        let snippet: String = rest.lines().take(10).collect::<Vec<_>>().join("\n");
+        if snippet.len() > 400 {
+            format!("{}...", &snippet[..397])
+        } else {
+            snippet
+        }
+    } else {
+        test_output
+            .lines()
+            .filter(|l| l.contains(fn_name) && (l.contains("panicked") || l.contains("FAILED")))
+            .take(2)
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    (contract_id, failure_reason)
+}
+
+/// Grep source files for a REQ tag within 10 lines above `fn <name>`.
+fn find_req_tag_near_fn(workspace_root: &str, crate_name: &str, fn_name: &str) -> String {
+    let src_dir = format!("{}/crates/{}/src", workspace_root, crate_name);
+    let tests_dir = format!("{}/crates/{}/tests", workspace_root, crate_name);
+
+    for dir in &[&src_dir, &tests_dir] {
+        let Ok(output) = Command::new("grep")
+            .args(["-rn", &format!("fn {}", fn_name), dir])
+            .output()
+        else {
+            continue;
+        };
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            let parts: Vec<&str> = line.splitn(2, ':').collect();
+            if parts.len() < 2 {
+                continue;
+            }
+            let file = parts[0];
+            let line_num: usize = parts[1]
+                .split(':')
+                .next()
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
+
+            if line_num > 0 {
+                let Ok(content) = std::fs::read_to_string(file) else {
+                    continue;
+                };
+                let lines: Vec<&str> = content.lines().collect();
+                let start = line_num.saturating_sub(11).min(lines.len());
+                let end = (line_num - 1).min(lines.len());
+                if start < end {
+                    for ctx_line in &lines[start..end] {
+                        let trimmed = ctx_line.trim();
+                        if let Some(pos) = trimmed.find("REQ:") {
+                            let tag = trimmed[pos + 4..].trim();
+                            let end_pos =
+                                tag.find(|c: char| c.is_whitespace()).unwrap_or(tag.len());
+                            let req = tag[..end_pos]
+                                .trim_end_matches(&['.', ',', ';', ':', ')', ']', '}']);
+                            if !req.is_empty() {
+                                return req.to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    "unknown".to_string()
 }
 
 /// Loops: cybernetics, inference, episodic, semantic, curation, snapshot, backup.

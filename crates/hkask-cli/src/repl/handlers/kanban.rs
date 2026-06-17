@@ -4,7 +4,7 @@ use crate::repl::ReplState;
 use hkask_services::KanbanService;
 use hkask_storage::Store;
 use hkask_storage::TripleStore;
-use hkask_types::{ConsentProof, Phase, TaskFilter, TaskSpec, SpawnSpec};
+use hkask_types::{ConsentProof, TaskFilter, TaskSpec};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -23,7 +23,9 @@ pub(crate) fn handle_kanban(
             println!("  \x1b[1mKanban Commands\x1b[0m");
             println!("    \x1b[36m/kanban board create <name>\x1b[0m     Create a board");
             println!("    \x1b[36m/kanban board list\x1b[0m              List boards");
-            println!("    \x1b[36m/kanban view <board> [filter]\x1b[0m  Board view, optional filter");
+            println!(
+                "    \x1b[36m/kanban view <board> [filter]\x1b[0m  Board view, optional filter"
+            );
             println!("    \x1b[36m/kanban task create <board> <title>\x1b[0m  Create a task");
             println!("    \x1b[36m/kanban task list <board> [status]\x1b[0m List tasks");
             println!("    \x1b[36m/kanban task show <id>\x1b[0m          Show task details");
@@ -34,28 +36,22 @@ pub(crate) fn handle_kanban(
             println!(
                 "    \x1b[36m/kanban submit <task> <evidence>\x1b[0m  Submit for verification"
             );
-            println!("    \x1b[36m/kanban decompose <board> <desc>\x1b[0m  Generate decomposition prompt");
+            println!(
+                "    \x1b[36m/kanban decompose <board> <desc>\x1b[0m  Generate decomposition prompt"
+            );
             println!(
                 "    \x1b[36m/kanban spawn <task>\x1b[0m            Spawn replicant to execute"
             );
             println!("    \x1b[36m/kanban note <task> <text>\x1b[0m      Append a comment");
             println!("    \x1b[36m/kanban notes <task>\x1b[0m           List task comments");
-            println!(
-                "    \x1b[36m/kanban deliver <task> <path>\x1b[0m   Add deliverable link"
-            );
+            println!("    \x1b[36m/kanban deliver <task> <path>\x1b[0m   Add deliverable link");
             println!("    \x1b[36m/kanban phase add <board> <name>\x1b[0m Add a project phase");
-            println!(
-                "    \x1b[36m/kanban phase set <task> <phase>\x1b[0m Assign task to phase"
-            );
-            println!(
-                "    \x1b[36m/kanban phase list <board>\x1b[0m      List phases and tasks"
-            );
+            println!("    \x1b[36m/kanban phase set <task> <phase>\x1b[0m Assign task to phase");
+            println!("    \x1b[36m/kanban phase list <board>\x1b[0m      List phases and tasks");
             println!("    \x1b[36m/kanban delete <task>\x1b[0m          Delete a task");
             println!("    \x1b[36m/kanban unassign <task>\x1b[0m        Remove assignee");
             println!("    \x1b[36m/kanban reopen <task>\x1b[0m         Reopen a completed task");
-            println!(
-                "    \x1b[36m/kanban unjam <board>\x1b[0m         Scan for stuck tasks"
-            );
+            println!("    \x1b[36m/kanban unjam <board>\x1b[0m         Scan for stuck tasks");
             println!();
         }
 
@@ -63,13 +59,45 @@ pub(crate) fn handle_kanban(
             let parts: Vec<&str> = rest.splitn(3, ' ').collect();
             match parts.first().copied().unwrap_or("") {
                 "create" => {
+                    let rest_parts: Vec<&str> = rest.splitn(4, ' ').collect();
                     let name = parts.get(1).copied().unwrap_or("Unnamed Board");
-                    match service.board_create(webid, name, &default_columns()) {
-                        Ok(board) => {
-                            println!("  Board created: {} ({})", board.name, board.id);
-                            println!("  Columns: Backlog → Ready → InProgress → Review → Done");
+                    let tmpl_flag = parts.get(2).copied().unwrap_or("");
+                    let tmpl_name = parts.get(3).copied().unwrap_or("");
+                    if tmpl_flag == "--template" && !tmpl_name.is_empty() {
+                        // Load template from registry
+                        let tmpl_path = format!("registry/board-templates/{}.yaml", tmpl_name);
+                        match std::fs::read_to_string(&tmpl_path) {
+                            Ok(yaml) => {
+                                match service.board_create_from_template(webid, name, &yaml) {
+                                    Ok(board) => {
+                                        println!(
+                                            "  Board created from template '{}': {} ({})",
+                                            tmpl_name, board.name, board.id
+                                        );
+                                        for c in &board.columns {
+                                            let wip = c
+                                                .wip_limit
+                                                .map_or("∞".to_string(), |l| l.to_string());
+                                            println!("    {} (WIP: {})", c.name, wip);
+                                        }
+                                    }
+                                    Err(e) => println!("  Error: {e}"),
+                                }
+                            }
+                            Err(_) => println!(
+                                "  Template '{}' not found. Available: {}",
+                                tmpl_name,
+                                hkask_services::KanbanService::list_templates().join(", ")
+                            ),
                         }
-                        Err(e) => println!("  Error: {e}"),
+                    } else {
+                        match service.board_create(webid, name, &default_columns()) {
+                            Ok(board) => {
+                                println!("  Board created: {} ({})", board.name, board.id);
+                                println!("  Columns: Backlog → Ready → InProgress → Review → Done");
+                            }
+                            Err(e) => println!("  Error: {e}"),
+                        }
                     }
                 }
                 "list" => match service.board_list(&webid) {
@@ -92,13 +120,16 @@ pub(crate) fn handle_kanban(
                     }
                     let bid = match board_id.parse() {
                         Ok(id) => id,
-                        Err(_) => { println!("  Invalid board ID"); return; }
+                        Err(_) => {
+                            println!("  Invalid board ID");
+                            return;
+                        }
                     };
                     match service.board_delete(bid) {
                         Ok(count) => println!("  Board deleted ({} tasks removed).", count),
                         Err(e) => println!("  Error: {e}"),
                     }
-                },
+                }
                 _ => println!("  Usage: /kanban board create|list|delete"),
             }
         }
@@ -200,7 +231,10 @@ pub(crate) fn handle_kanban(
             }
             let bid = match board_str.parse() {
                 Ok(id) => id,
-                Err(_) => { println!("  Invalid board ID"); return; }
+                Err(_) => {
+                    println!("  Invalid board ID");
+                    return;
+                }
             };
             match service.board_view(bid, filter) {
                 Ok(view) => println!("{}", view),
@@ -261,8 +295,9 @@ pub(crate) fn handle_kanban(
             let parts: Vec<&str> = rest.splitn(2, ' ').collect();
             let task_str = parts.first().copied().unwrap_or("");
             let evidence = parts.get(1).copied().unwrap_or("");
-            if task_str.is_empty() {
+            if task_str.is_empty() || evidence.is_empty() {
                 println!("  Usage: /kanban submit <task-id> <evidence>");
+                println!("  For LLM verification: /kanban verify <task-id> <evidence>");
                 return;
             }
             let tid = match task_str.parse() {
@@ -272,10 +307,76 @@ pub(crate) fn handle_kanban(
                     return;
                 }
             };
+            // Quick keyword-based verification
             match service.task_verify(tid, evidence, webid) {
                 Ok((task, v)) => {
                     println!(
                         "  Verification {} — {}",
+                        if v.passed { "PASSED" } else { "FAILED" },
+                        v.reasoning
+                    );
+                    println!("  Task status: {}", task.status);
+                    println!(
+                        "  (Keyword-based. For LLM evaluation: /kanban verify {})",
+                        task_str
+                    );
+                }
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
+        "verify" => {
+            let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+            let task_str = parts.first().copied().unwrap_or("");
+            let evidence = parts.get(1).copied().unwrap_or("");
+            if task_str.is_empty() || evidence.is_empty() {
+                println!("  Usage: /kanban verify <task-id> <evidence>");
+                println!(
+                    "  Generates a structured LLM prompt, then use /kanban verify-llm <task-id> '<json>'"
+                );
+                return;
+            }
+            let tid = match task_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
+            };
+            match service.verification_prompt(tid, evidence) {
+                Ok(prompt) => {
+                    println!("  Verification prompt ready. Feed to your LLM:");
+                    println!("  ---");
+                    println!("{}", prompt);
+                    println!("  ---");
+                    println!(
+                        "  Then: /kanban verify-llm {} '<llm-json-output>'",
+                        task_str
+                    );
+                }
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
+        "verify-llm" => {
+            let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+            let task_str = parts.first().copied().unwrap_or("");
+            let json = parts.get(1).copied().unwrap_or("");
+            if task_str.is_empty() || json.is_empty() {
+                println!("  Usage: /kanban verify-llm <task-id> '<llm-json-output>'");
+                return;
+            }
+            let tid = match task_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
+            };
+            match service.verify_with_llm(tid, webid, json) {
+                Ok((task, v)) => {
+                    println!(
+                        "  LLM Verification {} — {}",
                         if v.passed { "PASSED" } else { "FAILED" },
                         v.reasoning
                     );
@@ -295,7 +396,10 @@ pub(crate) fn handle_kanban(
             }
             let tid = match task_str.parse() {
                 Ok(id) => id,
-                Err(_) => { println!("  Invalid task ID"); return; }
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
             };
             match service.task_comment(tid, webid, text) {
                 Ok(comment) => println!("  Comment added ({})", comment.id),
@@ -311,7 +415,10 @@ pub(crate) fn handle_kanban(
             }
             let tid = match task_str.parse() {
                 Ok(id) => id,
-                Err(_) => { println!("  Invalid task ID"); return; }
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
             };
             match service.task_comments(tid) {
                 Ok(comments) => {
@@ -319,7 +426,12 @@ pub(crate) fn handle_kanban(
                         println!("  No comments.");
                     } else {
                         for c in &comments {
-                            println!("  [{}] {}: {}", c.created_at.format("%H:%M"), c.author.redacted_display(), c.body);
+                            println!(
+                                "  [{}] {}: {}",
+                                c.created_at.format("%H:%M"),
+                                c.author.redacted_display(),
+                                c.body
+                            );
                         }
                     }
                 }
@@ -337,10 +449,17 @@ pub(crate) fn handle_kanban(
             }
             let tid = match task_str.parse() {
                 Ok(id) => id,
-                Err(_) => { println!("  Invalid task ID"); return; }
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
             };
             match service.task_add_deliverable(tid, path) {
-                Ok(task) => println!("  Deliverable added ({}) — {} total", path, task.deliverables.len()),
+                Ok(task) => println!(
+                    "  Deliverable added ({}) — {} total",
+                    path,
+                    task.deliverables.len()
+                ),
                 Err(e) => println!("  Error: {e}"),
             }
         }
@@ -358,7 +477,10 @@ pub(crate) fn handle_kanban(
                     }
                     let bid = match board_str.parse() {
                         Ok(id) => id,
-                        Err(_) => { println!("  Invalid board ID"); return; }
+                        Err(_) => {
+                            println!("  Invalid board ID");
+                            return;
+                        }
                     };
                     match service.board_add_phase(bid, name, 0) {
                         Ok(phase) => println!("  Phase created: {} ({})", phase.name, phase.id),
@@ -374,11 +496,17 @@ pub(crate) fn handle_kanban(
                     }
                     let tid = match task_str.parse() {
                         Ok(id) => id,
-                        Err(_) => { println!("  Invalid task ID"); return; }
+                        Err(_) => {
+                            println!("  Invalid task ID");
+                            return;
+                        }
                     };
                     let pid = match phase_str.parse() {
                         Ok(id) => id,
-                        Err(_) => { println!("  Invalid phase ID"); return; }
+                        Err(_) => {
+                            println!("  Invalid phase ID");
+                            return;
+                        }
                     };
                     match service.task_set_phase(tid, pid) {
                         Ok(task) => println!("  Task '{}' assigned to phase", task.title),
@@ -393,7 +521,10 @@ pub(crate) fn handle_kanban(
                     }
                     let bid = match board_str.parse() {
                         Ok(id) => id,
-                        Err(_) => { println!("  Invalid board ID"); return; }
+                        Err(_) => {
+                            println!("  Invalid board ID");
+                            return;
+                        }
                     };
                     match service.board_get(bid) {
                         Ok(Some(board)) => {
@@ -429,7 +560,10 @@ pub(crate) fn handle_kanban(
             }
             let tid = match task_str.parse() {
                 Ok(id) => id,
-                Err(_) => { println!("  Invalid task ID"); return; }
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
             };
             match service.task_delete(tid) {
                 Ok(()) => println!("  Task deleted."),
@@ -445,7 +579,10 @@ pub(crate) fn handle_kanban(
             }
             let tid = match task_str.parse() {
                 Ok(id) => id,
-                Err(_) => { println!("  Invalid task ID"); return; }
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
             };
             match service.task_unassign(tid) {
                 Ok(task) => println!("  Task '{}' unassigned.", task.title),
@@ -461,7 +598,10 @@ pub(crate) fn handle_kanban(
             }
             let tid = match task_str.parse() {
                 Ok(id) => id,
-                Err(_) => { println!("  Invalid task ID"); return; }
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
             };
             match service.task_reopen(tid) {
                 Ok(task) => println!("  Task '{}' reopened ({}).", task.title, task.status),
@@ -470,52 +610,230 @@ pub(crate) fn handle_kanban(
         }
 
         "unjam" => {
-            let board_str = rest.trim();
+            let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+            let board_str = parts.first().copied().unwrap_or("");
+            let flag = parts.get(1).copied().unwrap_or("");
             if board_str.is_empty() {
-                println!("  Usage: /kanban unjam <board-id>");
+                println!("  Usage: /kanban unjam <board-id> [--fix]");
                 return;
             }
             let bid = match board_str.parse() {
                 Ok(id) => id,
-                Err(_) => { println!("  Invalid board ID"); return; }
+                Err(_) => {
+                    println!("  Invalid board ID");
+                    return;
+                }
             };
-            match service.unjam_report(bid) {
-                Ok(items) => {
-                    if items.is_empty() {
-                        println!("  Board is flowing. No stuck tasks detected.");
-                    } else {
-                        println!("  Found {} stuck task(s):", items.len());
-                        for item in &items {
-                            println!("    {} — {}", item.task_title, item.issue);
-                            println!("      → {}", item.suggestion);
+            if flag == "--fix" {
+                match service.unjam_fix(bid) {
+                    Ok(fixes) => {
+                        if fixes.is_empty() {
+                            println!("  Nothing to fix. Board is flowing.");
+                        } else {
+                            println!("  Auto-fixed {} issue(s):", fixes.len());
+                            for f in &fixes {
+                                println!("    {} — {}", f.task_title, f.action);
+                            }
                         }
                     }
+                    Err(e) => println!("  Error: {e}"),
+                }
+            } else {
+                match service.unjam_report(bid) {
+                    Ok(items) => {
+                        if items.is_empty() {
+                            println!("  Board is flowing. No stuck tasks detected.");
+                        } else {
+                            println!("  Found {} stuck task(s):", items.len());
+                            for item in &items {
+                                println!("    {} — {}", item.task_title, item.issue);
+                                println!("      → {}", item.suggestion);
+                            }
+                            println!(
+                                "  Run /kanban unjam {} --fix to auto-correct clear cases.",
+                                board_str
+                            );
+                        }
+                    }
+                    Err(e) => println!("  Error: {e}"),
+                }
+            }
+        }
+
+        "coach" => {
+            let task_str = rest.trim();
+            if task_str.is_empty() {
+                println!("  Usage: /kanban coach <task-id>");
+                println!("  Runs a 5-question coaching kata scoped to this task.");
+                return;
+            }
+            let tid = match task_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
+            };
+            match service.task_coaching_prompt(tid) {
+                Ok(prompt) => {
+                    println!("  Coaching Kata — task-scoped 5 questions:");
+                    println!("  ---");
+                    println!("{}", prompt);
+                    println!("  ---");
+                    println!(
+                        "  Respond with a comment: /kanban note {} '<your answers>'",
+                        task_str
+                    );
+                }
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
+        "improve" => {
+            let task_str = rest.trim();
+            if task_str.is_empty() {
+                println!("  Usage: /kanban improve <task-id>");
+                println!("  Runs a 4-step improvement kata scoped to this task.");
+                return;
+            }
+            let tid = match task_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
+            };
+            match service.task_improvement_prompt(tid) {
+                Ok(prompt) => {
+                    println!("  Improvement Kata — task-scoped PDCA:");
+                    println!("  ---");
+                    println!("{}", prompt);
+                    println!("  ---");
+                    println!(
+                        "  Record your experiment: /kanban note {} '<plan/do/check/act>'",
+                        task_str
+                    );
+                }
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
+        "practice" => {
+            let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+            let task_str = parts.first().copied().unwrap_or("");
+            let focus = parts.get(1).copied().unwrap_or("current blocker");
+            if task_str.is_empty() {
+                println!("  Usage: /kanban practice <task-id> [focus]");
+                println!("  Runs a starter kata observation drill on the task.");
+                return;
+            }
+            let tid = match task_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
+            };
+            match service.task_practice_prompt(tid, focus) {
+                Ok(prompt) => {
+                    println!("  Starter Kata — Observation Drill:");
+                    println!("  ---");
+                    println!("{}", prompt);
+                    println!("  ---");
+                    println!(
+                        "  Record your observations: /kanban note {} '<facts vs interpretations>'",
+                        task_str
+                    );
                 }
                 Err(e) => println!("  Error: {e}"),
             }
         }
 
         "decompose" => {
-            println!("  \x1b[33mTask decomposition requires LLM integration (Task 6).\x1b[0m");
-            println!("  Planned: Given a project description, decompose into");
-            println!("  agile-sized tasks with acceptance criteria and populate");
-            println!("  the kanban board. Target task size: configurable via");
-            println!("  kanban skill manifest.");
-            println!();
+            let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+            let board_str = parts.first().copied().unwrap_or("");
+            let project = parts.get(1).copied().unwrap_or("");
+            if board_str.is_empty() || project.is_empty() {
+                println!("  Usage: /kanban decompose <board-id> <project description>");
+                println!("  Then: feed prompt to LLM, paste output with /kanban populate");
+                return;
+            }
+            let bid = match board_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    println!("  Invalid board ID");
+                    return;
+                }
+            };
+            match service.decompose_prompt(bid, project, None, None) {
+                Ok(prompt) => {
+                    println!("  Prompt ready. Feed this to your LLM:");
+                    println!("  ---");
+                    println!("{}", prompt);
+                    println!("  ---");
+                    println!("  Then: /kanban populate {} '<llm-json>'", board_str);
+                }
+                Err(e) => println!("  Error: {e}"),
+            }
+        }
+
+        "populate" => {
+            let parts: Vec<&str> = rest.splitn(2, ' ').collect();
+            let board_str = parts.first().copied().unwrap_or("");
+            let json = parts.get(1).copied().unwrap_or("");
+            if board_str.is_empty() || json.is_empty() {
+                println!("  Usage: /kanban populate <board-id> '<json-from-llm>'");
+                return;
+            }
+            let bid = match board_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    println!("  Invalid board ID");
+                    return;
+                }
+            };
+            match service.decompose_populate(bid, webid, json) {
+                Ok((count, recomposition)) => {
+                    println!("  Created {} tasks.", count);
+                    if let Some(r) = recomposition {
+                        println!("  Recomposition: {}", r);
+                    }
+                    match service.board_view(bid, None) {
+                        Ok(view) => println!("{}", view),
+                        Err(e) => println!("  (view failed: {})", e),
+                    }
+                }
+                Err(e) => println!("  Error: {e}"),
+            }
         }
 
         "spawn" => {
-            println!("  \x1b[33mReplicant spawning requires pod infrastructure (future).\x1b[0m");
-            println!("  Planned: Spawn a sub-replicant with delegated capabilities");
-            println!("  (skills, memory scope, tool access) to execute a kanban task.");
-            println!("  Spawning is consent-mediated — the replicant chooses what");
-            println!("  to delegate (minimal vs maximal capability transfer).");
-            println!();
+            let task_str = rest.trim();
+            if task_str.is_empty() {
+                println!("  Usage: /kanban spawn <task-id> [capability-package]");
+                println!("  Packages: backend-dev, docs-writer (registry/capabilities/)");
+                return;
+            }
+            let parts: Vec<&str> = task_str.splitn(2, ' ').collect();
+            let tid = match parts[0].parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    println!("  Invalid task ID");
+                    return;
+                }
+            };
+            let spec = hkask_types::SpawnSpec::new(tid);
+            match service.spawn_task(tid, spec) {
+                Ok(output) => println!("  {}", output),
+                Err(e) => println!("  Error: {e}"),
+            }
         }
 
         _ => {
             println!("  Unknown kanban subcommand: {subcommand}");
-            println!("  Try: board, view, task, move, accept, submit, note, notes, deliver, phase, delete, unassign, reopen, unjam, decompose, spawn");
+            println!(
+                "  Try: board, view, task, move, accept, submit, note, notes, deliver, phase, delete, unassign, reopen, unjam, coach, improve, practice, decompose, spawn"
+            );
             println!();
         }
     }
