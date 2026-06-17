@@ -50,6 +50,8 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`lazy-universe-research.md`](research/lazy-universe-research.md) | domain, composition, curation | Least-action principle — research grounding |
 | [`matrix-integration-architecture.md`](architecture/matrix-integration-architecture.md) | composition, trust | Matrix transport, Conduit sidecar, 7R7 listener, agent registry |
 | [`training-decomposition-traces.md`](research/training-decomposition-traces.md) | domain, composition, lifecycle, curation | Decomposition traces, LoRA adapters, fine-tuning architecture |
+| [`TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | domain, composition, trust, lifecycle, curation | Contract-anchored testing discipline — DbC + PBT |
+| [`TESTING_NARRATIVE.md`](architecture/core/TESTING_NARRATIVE.md) | lifecycle, curation | Narrative companion to testing discipline — getting-started walkthrough |
 
 ### Architecture Decision Records
 
@@ -133,7 +135,7 @@ The architecture is specified in eight MDS-aligned documents, each authoritative
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | lifecycle | Build, test, and CI health |
 | [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | lifecycle, curation | Document corpus lifecycle classification — living inventory |
 | [`public-seam-inventory.md`](status/public-seam-inventory.md) | composition, curation | Public seam inventory — 77 seams across 18 crates |
-| [`public-seam-priority.md`](status/public-seam-priority.md) | composition, curation | Public seam priority ranking — test depth targets |
+| [`user-guide-gap-report.md`](status/user-guide-gap-report.md) | curation | User guide gap audit — grill-me posture, prioritized fix list |
 
 **Archived (2026-06-15):** test-inventory.md, mcp-tools-inventory.md, skill-inventory.md, adversarial-simplification-inventory.md, document-futures.md, spec-code-drift.yaml, curation-decisions.yaml, writing_quality_report.yaml, coherence_report.yaml. All served their purpose. Recoverable via git history.
 
@@ -172,6 +174,7 @@ Transient session handoffs recording implementation state. Handoffs are committe
 | [`CI-CD-GUIDE.md`](guides/CI-CD-GUIDE.md) | lifecycle | CI/CD and installation guide |
 | [`DEPLOYMENT.md`](guides/DEPLOYMENT.md) | lifecycle | Deployment guide — systemd, Docker, K8s |
 | [`MATRIX-CLOUD-DEPLOYMENT.md`](guides/MATRIX-CLOUD-DEPLOYMENT.md) | lifecycle | Matrix cloud deployment — Conduit sidecar, 7R7 listener |
+| [`lora-training-guide.md`](guides/lora-training-guide.md) | composition, lifecycle, curation | LoRA training — dataset prep to CNS-verified deployment |
 | [`adapter-deployment.md`](guides/adapter-deployment.md) | lifecycle, composition | Adapter deployment — training MCP server, Together/Runpod/Baseten, lifecycle management |
 
 ---
@@ -184,6 +187,9 @@ Transient session handoffs recording implementation state. Handoffs are committe
 | [`COMMON-AGENT-PATTERNS.md`](user-guides/COMMON-AGENT-PATTERNS.md) | domain | Common agent patterns and templates |
 | [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | domain, composition | Company research and portfolio management user guide |
 | [`REPLICANT-ONBOARDING-WALKTHROUGH.md`](user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md) | domain, lifecycle | End-to-end onboarding — install through first chat session |
+| [`kanban-user-guide.md`](user-guides/kanban-user-guide.md) | domain, composition, lifecycle | Kanban task coordination — boards, tasks, WIP, kata integration |
+| [`skill-user-guide.md`](user-guides/skill-user-guide.md) | composition, curation | Skill usage — installing, activating, composing |
+| [`lora-adapter-store-guide.md`](user-guides/lora-adapter-store-guide.md) | composition, lifecycle, trust | LoRA adapter store — store, route, deploy, manage |
 
 ---
 

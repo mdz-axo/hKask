@@ -282,8 +282,13 @@ pub fn discover_uncontracted_functions(
             {
                 total += 1;
                 let fn_name = extract_function_name(line);
-                let has_req = (i.saturating_sub(10)..i)
-                    .any(|j| j < lines.len() && extract_req_tag(lines[j]).is_some());
+                // Check 15 lines above for REQ: tag OR #[rs::contract] attribute
+                let has_req = (i.saturating_sub(15)..i).any(|j| {
+                    j < lines.len()
+                        && (extract_req_tag(lines[j]).is_some()
+                            || lines[j].contains("#[rs::contract]")
+                            || lines[j].contains("#[rs::contract("))
+                });
                 if has_req {
                     contracted += 1;
                 } else {

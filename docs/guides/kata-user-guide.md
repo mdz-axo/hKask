@@ -198,6 +198,33 @@ Every step produces a `StepExperience` struct recorded to the agent's episodic m
 
 All 23 kata templates are registered in `registry/templates/bootstrap-registry.yaml` under four sections: Kata Bundle (7 entries), Kata-Starter (5), Kata-Improvement (5), Kata-Coaching (6). Each template directory has a `manifest.yaml` describing template IDs, types (FlowDef/WordAct/KnowAct), and purposes.
 
+### 2.11 Kanban Integration
+
+Kata cycles execute as kanban tasks through the `hkask-mcp-kanban` MCP surface. This connects scientific capability development (kata) with headless task coordination (kanban), with CNS observing the full feedback path.
+
+**PDCA → Kanban mapping:**
+
+| PDCA Step | Kanban Action | Task State Transition | CNS Span |
+|-----------|--------------|----------------------|----------|
+| Plan | `/kanban improve <task-id>` | Backlog → Ready | `TaskCreated` |
+| Do | Agent executes experiment | Ready → InProgress | `kata.step.start` |
+| Check | Verify results against prediction | InProgress → Review | `kata.step.checked` |
+| Act | Apply findings, update knowledge threshold | Review → Done | `kata.cycle.complete` |
+
+**Coaching 5 Questions → Kanban Task Fields:**
+
+| Question | Kanban Task Field |
+|----------|-------------------|
+| 1. What is the Target Condition? | `task.goal` |
+| 2. What is the Actual Condition now? | `task.evidence_before` |
+| 3. What Obstacles? Which ONE? | `task.blockers` |
+| 4. Next Step? What do you expect? | `task.next_action` + `task.prediction` |
+| 5. How quickly can we go see? | `task.review_interval` |
+
+**Full feedback path:** KataEngine → CNS spans → KanbanService (task state transitions) → CNS variety counters → algedonic alerts → Curator escalation.
+
+See also: `docs/user-guides/kanban-user-guide.md`, `docs/architecture/hKask-architecture-master.md` (Kata section)
+
 ---
 
 ## 3. User How-To

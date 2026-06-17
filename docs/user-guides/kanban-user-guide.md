@@ -79,9 +79,44 @@ When things get stuck:
 ```
 
 The de-jammer detects:
-- Tasks stuck in InProgress > 2× estimated hours
+- Tasks stuck in InProgress > 2x estimated hours
 - Assignments in Backlog/Ready > 24h with no movement
 - Tasks in Done with no verification
+
+## Troubleshooting & Error Recovery
+
+### Common Errors
+
+| Error | Cause | Recovery |
+|-------|-------|----------|
+| **Board creation fails** | Missing or invalid template name | List available templates: `/kanban board templates`. Use one of: `software-project`, `writing-project`, `scientific-research`, `investment-research`. |
+| **Invalid template** | Typo or unsupported template | Check exact name from `/kanban board templates`. Templates are case-sensitive. |
+| **Populate with malformed JSON** | LLM returned non-JSON or invalid structure | Re-run `/kanban decompose <board-id> "..."` and copy the prompt to a different model if needed. Expected schema: array of task objects with `title`, `description`, `status`, `priority`. |
+| **Permission denied on assignment** | Agent lacks capability token (P4 OCAP) | Assign via Curator: `/kanban assign <task-id> <agent-webid>`. Self-assignment (`/kanban accept <task-id>`) requires board delegation token. |
+| **Verify fails (LLM rejection)** | Evidence insufficient | Review rejection reason. Add evidence and re-submit: `/kanban verify <task-id> <updated-evidence>`. Escalate: `/kanban escalate <task-id>`. |
+| **Agent unresponsive** | Agent pod crashed or disconnected | Check pod health: `/agent status <webid>`. Restart: `/agent restart <webid>`. Unassign: `/kanban unassign <task-id>`. |
+| **WIP limit exceeded** | Column at capacity | Complete or move tasks. Override (Curator): `/kanban override-wip <board-id> <column> <new-limit>`. |
+
+### General Recovery Workflow
+
+1. **Diagnose:** `/kanban unjam <board-id>` (scan for stuck tasks)
+2. **Inspect:** `/kanban view <board-id>` (full board), `/kanban view <board-id> blocked` (blocked filter)
+3. **Fix:** `/kanban unjam <board-id> --fix` (auto), `/kanban unassign <task-id>` (manual), `/kanban move <task-id> backlog` (reset)
+4. **Verify:** `/kanban cns health` (CNS health check)
+
+### CNS Spans for Kanban
+
+Every kanban operation emits CNS spans (from `crates/hkask-types/src/cns.rs`):
+
+| Span | Emitted When |
+|------|-------------|
+| `TaskCreated` | New task added to board |
+| `TaskMoved` | Task moves between columns |
+| `TaskAssigned` | Agent assigned to task (P12 consent) |
+| `TaskVerified` | Task passes LLM verification |
+| `BoardCreated` | New board created from template |
+
+Monitor with: `kask cns spans --filter kanban`
 
 ## Katas on Tasks
 
