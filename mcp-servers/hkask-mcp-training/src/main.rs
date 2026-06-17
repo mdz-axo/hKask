@@ -3424,7 +3424,6 @@ impl TrainingServer {
                         return span.ok_json(result);
                     }
                     Err(e) => {
-                        let result = json!({"deployment_id": req.deployment_id, "status": "teardown_failed", "error": e.to_string()});
                         return span.error(
                             McpErrorKind::Internal,
                             McpToolError::internal(e.to_string()).to_json_string(),

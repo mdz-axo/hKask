@@ -33,6 +33,7 @@ fn err(span: ToolSpanGuard, msg: &str) -> String {
 
 // ── Server ──────────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 pub struct KanbanServer {
     service: KanbanService,
     webid: WebID,

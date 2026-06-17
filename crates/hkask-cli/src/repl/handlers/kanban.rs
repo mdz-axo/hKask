@@ -170,7 +170,7 @@ pub(crate) fn handle_kanban(
                             return;
                         }
                     };
-                    let filter = match status.and_then(|s| hkask_types::TaskStatus::parse_str(s)) {
+                    let filter = match status.and_then(hkask_types::TaskStatus::parse_str) {
                         Some(st) => TaskFilter::by_status(st),
                         None => TaskFilter::all(),
                     };
@@ -530,13 +530,10 @@ pub(crate) fn handle_kanban(
                             } else {
                                 for p in &board.phases {
                                     println!("  Phase: {} ({})", p.name, p.id);
-                                    match service.tasks_by_phase(bid, p.id) {
-                                        Ok(tasks) => {
-                                            for t in &tasks {
-                                                println!("    - [{}] {}", t.status, t.title);
-                                            }
+                                    if let Ok(tasks) = service.tasks_by_phase(bid, p.id) {
+                                        for t in &tasks {
+                                            println!("    - [{}] {}", t.status, t.title);
                                         }
-                                        Err(_) => {}
                                     }
                                 }
                             }

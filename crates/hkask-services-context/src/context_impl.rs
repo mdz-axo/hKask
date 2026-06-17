@@ -575,6 +575,7 @@ impl AgentService {
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must have valid db_path and db_passphrase
 /// post: returns Arc<EscalationQueue> initialized from DB; Err on DB open or schema init failure
+#[allow(dead_code)]
 pub fn open_escalation_queue(config: &ServiceConfig) -> Result<Arc<EscalationQueue>, ServiceError> {
     let db = Database::open(&config.db_path, &config.db_passphrase)?;
     Ok(Arc::new(EscalationQueue::new(db.conn_arc())?))
@@ -586,6 +587,7 @@ pub fn open_escalation_queue(config: &ServiceConfig) -> Result<Arc<EscalationQue
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must have valid db_path and db_passphrase
 /// post: returns SqliteSpecStore with schema initialized; Err on DB open or schema init failure
+#[allow(dead_code)]
 pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, ServiceError> {
     let db = Database::open(&config.db_path, &config.db_passphrase)?;
     let store = SqliteSpecStore::new(db.conn_arc());
@@ -599,6 +601,7 @@ pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, Servic
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must have valid db_path and db_passphrase
 /// post: returns (Arc<ConsentManager>, SovereigntyBoundaryStore) with schemas initialized; Err on DB open or schema init failure
+#[allow(dead_code)]
 pub fn open_consent_manager(
     config: &ServiceConfig,
 ) -> Result<(Arc<ConsentManager>, SovereigntyBoundaryStore), ServiceError> {
@@ -622,6 +625,7 @@ pub fn open_consent_manager(
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must have valid db_path, db_passphrase, and a2a_secret
 /// post: returns (Arc<A2ARuntime>, AgentRegistryStore) with schema initialized; Err on DB open or schema init failure
+#[allow(dead_code)]
 pub fn open_agent_registry(
     config: &ServiceConfig,
 ) -> Result<
