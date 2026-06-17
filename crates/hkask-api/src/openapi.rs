@@ -144,20 +144,20 @@ impl utoipa::Modify for SecurityAddon {
             components.add_security_scheme(
                 "bearer_token",
                 utoipa::openapi::security::SecurityScheme::Http(
-                    utoipa::openapi::security::Http::new(
-                        utoipa::openapi::security::HttpAuthScheme::Bearer,
-                    )
-                    .description(Some(
-                        "DelegationToken — an OCAP capability token carrying the authenticated WebID and scoped permissions (P4).\n\nObtain via the REPL onboarding flow (`kask secret`) or agent registration (ACP)."
-                    ))
-                    .bearer_format("DelegationToken"),
+                    utoipa::openapi::security::HttpBuilder::new()
+                        .scheme(utoipa::openapi::security::HttpAuthScheme::Bearer)
+                        .description(Some(
+                            "DelegationToken — an OCAP capability token carrying the authenticated WebID and scoped permissions (P4).\n\nObtain via the REPL onboarding flow (`kask secret`) or agent registration (ACP)."
+                        ))
+                        .bearer_format("DelegationToken")
+                        .build(),
                 ),
             );
         }
         // Apply bearer_token security to all operations
-        openapi.security = Some(vec![std::collections::BTreeMap::from([(
-            "bearer_token".to_string(),
-            Vec::new(),
-        )])]);
+        openapi.security = Some(vec![utoipa::openapi::security::SecurityRequirement::new(
+            "bearer_token",
+            Vec::<String>::new(),
+        )]);
     }
 }

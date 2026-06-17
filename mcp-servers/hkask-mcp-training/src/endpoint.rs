@@ -53,7 +53,7 @@ impl EndpointPhase {
 ///
 /// REQ: P9-adt-provider-cost-model
 /// [P9] Homeostatic Self-Regulation — cost transparency enables budget-aware decisions
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CostModel {
     /// Provider identifier.
     pub provider: String,

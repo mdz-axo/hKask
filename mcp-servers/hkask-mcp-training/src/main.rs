@@ -3152,23 +3152,22 @@ impl TrainingServer {
                     ),
                 )
             }
-            DeploymentProvider::Baseten => {
-                (
-                    None,
-                    EndpointPhase::Provisioning,
-                    format!(
-                        "Baseten deployment queued. Expected ready in ~{}s at ~${:.2}/hr. Use training_deployment_status to poll.",
-                        setup_secs, cost_hr
-                    ),
-                )
-            }
-            DeploymentProvider::Runpod => {
-                (
-                    None,
-                    EndpointPhase::Provisioning,
-                    format!(
-                )
-            }
+            DeploymentProvider::Baseten => (
+                None,
+                EndpointPhase::Provisioning,
+                format!(
+                    "Baseten deployment queued. Expected ready in ~{}s at ~${:.2}/hr. Use training_deployment_status to poll.",
+                    setup_secs, cost_hr
+                ),
+            ),
+            DeploymentProvider::Runpod => (
+                None,
+                EndpointPhase::Provisioning,
+                format!(
+                    "Runpod pod queued. Expected ready in ~{}s at ~${:.2}/hr. Use training_deployment_status to poll.",
+                    setup_secs, cost_hr
+                ),
+            ),
         };
 
         // Create and initialize lifecycle state machine
@@ -3176,9 +3175,6 @@ impl TrainingServer {
         if initial_phase != EndpointPhase::Provisioning {
             let _ = lifecycle.transition(initial_phase);
         }
-                )
-            }
-        };
 
         // Store deployment record
         let deployment = AdapterDeployment {
@@ -3187,7 +3183,7 @@ impl TrainingServer {
             base_model: base_model.clone(),
             provider: req.provider,
             endpoint_url: endpoint_url.clone(),
-            status,
+            lifecycle,
             estimated_cost_per_hour: cost_hr,
             deployed_at: chrono::Utc::now(),
         };
@@ -3205,7 +3201,7 @@ impl TrainingServer {
             "endpoint_url": endpoint_url,
             "estimated_setup_seconds": setup_secs,
             "estimated_cost_per_hour_usd": cost_hr,
-            "status": format!("{:?}", status).to_lowercase(),
+            "phase": format!("{:?}", lifecycle.phase).to_lowercase(),
             "note": provider_note,
         });
         tracing::info!(target: "cns.training.deploy", deployment_id = %deploy_id, adapter = %req.adapter_name, provider = ?req.provider, cost_hr = cost_hr, "Adapter deployment initiated");
@@ -3234,20 +3230,21 @@ impl TrainingServer {
         match deployment {
             Some(d) => {
                 let elapsed = (chrono::Utc::now() - d.deployed_at).num_seconds() as f64;
-                let accrued_cost = if elapsed > 0.0 {
-                    d.estimated_cost_per_hour as f64 * (elapsed / 3600.0)
+                let lifecycle_cost = d.cost_accrued();
+                let estimated_cost = if lifecycle_cost > 0.0 {
+                    lifecycle_cost
                 } else {
-                    0.0
+                    d.estimated_cost_per_hour as f64 * (elapsed / 3600.0)
                 };
                 span.ok_json(json!({
                     "deployment_id": d.deployment_id,
                     "adapter_name": d.adapter_name,
                     "provider": format!("{:?}", d.provider).to_lowercase(),
-                    "status": format!("{:?}", d.status).to_lowercase(),
+                    "phase": format!("{:?}", d.phase()).to_lowercase(),
                     "endpoint_url": d.endpoint_url,
                     "estimated_cost_per_hour_usd": d.estimated_cost_per_hour,
                     "elapsed_seconds": elapsed as u64,
-                    "accrued_cost_usd": format!("{:.4}", accrued_cost),
+                    "accrued_cost_usd": format!("{:.4}", estimated_cost),
                 }))
             }
             None => span.error(

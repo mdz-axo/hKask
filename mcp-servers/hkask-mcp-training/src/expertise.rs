@@ -50,7 +50,7 @@ impl MdsDomain {
 }
 
 /// Training provenance — how and from what source this expertise was derived.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TrainingProvenance {
     /// Path or URI to the training source (SKILL.md, QA dataset, etc.).
     pub source_uri: String,
