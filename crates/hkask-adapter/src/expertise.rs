@@ -68,7 +68,7 @@ impl std::fmt::Display for MdsDomain {
 }
 
 /// Training provenance — links an expertise to its training run.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TrainingProvenance {
     /// Identifier of the training run that produced this expertise
     pub training_run_id: String,

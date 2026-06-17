@@ -53,7 +53,7 @@ use hkask_mcp_training::adapters::{
     AdapterMetrics, AdapterStore, InMemoryAdapterStore, JobStore, LoRAAdapter, SqliteAdapterStore,
 };
 use hkask_mcp_training::dataset::DatasetPipeline;
-use hkask_mcp_training::endpoint::{CostModel, EndpointLifecycle, EndpointPhase};
+use hkask_mcp_training::endpoint::{EndpointLifecycle, EndpointPhase};
 use hkask_mcp_training::providers::{
     LoraParams, TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
     TrainingJobStatus, TrainingParams, create_host,
@@ -3175,6 +3175,7 @@ impl TrainingServer {
         if initial_phase != EndpointPhase::Provisioning {
             let _ = lifecycle.transition(initial_phase);
         }
+        let current_phase = lifecycle.phase;
 
         // Store deployment record
         let deployment = AdapterDeployment {
@@ -3201,7 +3202,7 @@ impl TrainingServer {
             "endpoint_url": endpoint_url,
             "estimated_setup_seconds": setup_secs,
             "estimated_cost_per_hour_usd": cost_hr,
-            "phase": format!("{:?}", lifecycle.phase).to_lowercase(),
+            "phase": format!("{:?}", current_phase).to_lowercase(),
             "note": provider_note,
         });
         tracing::info!(target: "cns.training.deploy", deployment_id = %deploy_id, adapter = %req.adapter_name, provider = ?req.provider, cost_hr = cost_hr, "Adapter deployment initiated");

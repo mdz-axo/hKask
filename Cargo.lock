@@ -3819,6 +3819,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-adapter"
+version = "0.27.0"
+dependencies = [
+ "chrono",
+ "hkask-storage",
+ "hkask-types",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "hkask-agents"
 version = "0.27.0"
 dependencies = [

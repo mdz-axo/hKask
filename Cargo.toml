@@ -21,6 +21,7 @@ members = [
     "crates/hkask-rsolidity",
     "crates/hkask-rsolidity-macros",
     "crates/hkask-test-harness",
+    "crates/hkask-adapter",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-research",
