@@ -32,14 +32,12 @@
 //! Architecture:
 //!   SKILL.md → trace generation (type-specialized) → DatasetPipeline → TrainingJob
 //!          → TrainingHost (harness-aware dispatch: Axolotl/Unsloth on Together/Runpod/Baseten)
-//!          → LoRAAdapter (stored in hkask-storage)
-//!          → training_deploy → TrainedInferenceEndpoint (Together/Baseten/Runpod)
+//!          → LoRAAdapter → to_canonical() → TrainedLoRAAdapter (canonical type in hkask-adapter)
+//!          → training_deploy → AdapterRouter (hkask-adapter) → inference endpoint
 //!          → continuous loop: evaluate → curate (failure-gated) → retrain (A/B baseline) → version++
 
 pub mod adapters;
 pub mod dataset;
-pub mod endpoint;
-pub mod expertise;
 pub mod huggingface;
 pub mod providers;
 

@@ -48,6 +48,7 @@
 
 use hkask_adapter::AdapterPort;
 use hkask_adapter::AdapterRouter;
+use hkask_adapter::{EndpointLifecycle, EndpointPhase};
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
@@ -55,7 +56,6 @@ use hkask_mcp_training::adapters::{
     AdapterMetrics, AdapterStore, InMemoryAdapterStore, JobStore, LoRAAdapter, SqliteAdapterStore,
 };
 use hkask_mcp_training::dataset::DatasetPipeline;
-use hkask_mcp_training::endpoint::{EndpointLifecycle, EndpointPhase};
 use hkask_mcp_training::providers::{
     LoraParams, TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
     TrainingJobStatus, TrainingParams, create_host,
@@ -3253,7 +3253,8 @@ impl TrainingServer {
         };
 
         // Create and initialize lifecycle state machine
-        let mut lifecycle = EndpointLifecycle::new();
+        let mut lifecycle = EndpointLifecycle::new(cost_hr as f64)
+            .unwrap_or_else(|_| EndpointLifecycle::new(1.0).unwrap());
         if initial_phase != EndpointPhase::Provisioning {
             let _ = lifecycle.transition(initial_phase);
         }

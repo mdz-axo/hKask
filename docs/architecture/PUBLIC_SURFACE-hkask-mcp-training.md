@@ -1,7 +1,7 @@
 ---
 title: "Public Surface Justification — hkask-mcp-training"
 audience: [architects, developers]
-last_updated: 2026-06-16
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "Technology"
@@ -12,16 +12,19 @@ mds_categories: [composition]
 
 **Crate:** `hkask-mcp-training` (MCP server binary)  
 **Public items in lib.rs:** 4 modules (`adapters`, `dataset`, `huggingface`, `providers`) + re-exports  
-**MCP tools exposed:** 17  
+**MCP tools exposed:** 22  
+**Canonical types:** `hkask-adapter` (`TrainedLoRAAdapter`, `EndpointLifecycle`, `EndpointPhase`)  
 **Deep-module threshold:** ≤7 public functions (Ousterhout)
 
 ## Architecture
 
-The training MCP server implements a complete **skills training** pipeline: take a `SKILL.md` document, generate type-specialized decomposition traces (WordAct/FlowDef/KnowAct/Composite), train a LoRA adapter on a base model via a harness-aware host dispatch, and produce `base_model + adapter = skill implementation` that can outperform frontier models at that specific procedural skill.
+The training MCP server implements a complete **skills training → deployment** pipeline: take a `SKILL.md` document, generate type-specialized decomposition traces, train a LoRA adapter, and deploy it to cloud inference via `hkask-adapter::AdapterRouter`.
 
 ```
 SKILL.md → training_generate_traces → ChatML JSONL (type-specialized)
          → training_submit → TrainingHost (harness-aware) → LoRAAdapter
+         → to_canonical() → TrainedLoRAAdapter (hkask-adapter)
+         → training_deploy → AdapterRouter (Together/Runpod/Baseten)
          → training_evaluate → accuracy metrics
          → training_record_invocation → episodic memory
          → training_curate_feedback → failure-categorized, quality-gated traces
@@ -29,7 +32,7 @@ SKILL.md → training_generate_traces → ChatML JSONL (type-specialized)
          → training_sweep → parameter grid search → best config
 ```
 
-## Tool Surface (17 tools)
+## Tool Surface (22 tools)
 
 | # | Tool | Category | Description |
 |---|------|----------|-------------|
@@ -50,8 +53,11 @@ SKILL.md → training_generate_traces → ChatML JSONL (type-specialized)
 | 15 | `training_curate_feedback` | Continuous loop | LLM-as-judge feedback curation with failure categorization (hallucination/omission/procedural_error/off_target) and quality threshold gating |
 | 16 | `training_retrain` | Continuous loop | Merge original + quality-gated feedback, A/B baseline recording, retrain with incremented version |
 | 17 | `training_sweep` | Optimization | Parameter grid search across learning rates, LoRA ranks, batch sizes, epochs — submits N jobs, reports best config |
-| 18 | `training_deploy` | Deployment | Deploy a trained adapter to cloud inference endpoint (Together/Baseten/Runpod) with cost/setup time estimates |
-| 19 | `training_teardown` | Deployment | Tear down a deployed endpoint and release GPU resources |
+| 18 | `training_deploy` | Deployment | Deploy adapter to cloud inference endpoint via `hkask-adapter::AdapterRouter` with P2 consent (estimate → create), or local fallback |
+| 19 | `training_deployment_status` | Deployment | Check provisioning status, endpoint URL, and accrued cost |
+| 20 | `training_teardown` | Deployment | Tear down a deployed endpoint and release GPU resources |
+| 21 | `training_merge_adapters` | Registry | Merge multiple LoRA adapters into a combined adapter |
+| 22 | `training_compare_adapters` | Evaluation | Compare output quality across adapters |
 
 ## Trace Type Specialization
 
