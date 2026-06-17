@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 //! Tesseract Backend — Classical OCR via libtesseract subprocess.
 //!
 //! Invokes the `tesseract` CLI binary with the image written to a temp file.

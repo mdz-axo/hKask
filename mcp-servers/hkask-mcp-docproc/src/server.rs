@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 //! Unified DocProc server — combines OCR pipeline with knowledge extraction,
 //! triple extraction, embedding, QA generation, and caching.
 

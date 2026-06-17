@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 //! Vision LLM Backend — OCR via hkask-inference vision models.
 //!
 //! Sends page images as base64-encoded PNG to vision-capable LLMs

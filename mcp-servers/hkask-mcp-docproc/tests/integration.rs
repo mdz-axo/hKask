@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 //! Integration tests for the OCR pipeline with real inference backends.
 //!
 //! These tests require external services and are ignored by default.
