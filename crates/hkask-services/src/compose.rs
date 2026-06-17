@@ -12,7 +12,7 @@ use serde::Deserialize;
 use tracing::debug;
 
 use crate::ServiceError;
-use crate::inference::InferenceContext;
+use crate::InferenceContext;
 
 // ── Cognition configuration ──────────────────────────────────────────────
 

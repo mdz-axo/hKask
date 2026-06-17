@@ -1,0 +1,29 @@
+[package]
+name = "hkask-services-context"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask context service — AgentService, PerAgentMemory, loop construction"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-backup = { path = "../hkask-services-backup" }
+hkask-services-daemon = { path = "../hkask-services-daemon" }
+hkask-services-inference-svc = { path = "../hkask-services-inference-svc" }
+hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
+hkask-services-wallet = { path = "../hkask-services-wallet" }
+hkask-agents = { path = "../hkask-agents" }
+hkask-cns = { path = "../hkask-cns" }
+hkask-mcp = { path = "../hkask-mcp" }
+hkask-memory = { path = "../hkask-memory" }
+hkask-storage = { path = "../hkask-storage" }
+hkask-templates = { path = "../hkask-templates" }
+hkask-types = { path = "../hkask-types" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+async-trait.workspace = true

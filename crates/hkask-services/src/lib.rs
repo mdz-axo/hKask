@@ -74,14 +74,12 @@ pub mod pods;
 pub mod scheduler;
 pub mod skill;
 pub mod skills;
-pub mod sovereignty;
 pub mod spec;
 
 // ── Internal modules ───────────────────────────────────────────────────
 
 pub mod archival;
 pub mod consolidation;
-pub mod daemon_handler;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
 pub use bundle::{BundleComposeResult, BundleService};
@@ -99,13 +97,11 @@ pub use curator::{CuratorService, EscalationResponse};
 pub use deletion_test::DeletionTest;
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
-pub use inference::{InferenceContext, InferenceService, ModelInfo};
 pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};
 pub use scheduler::SchedulerService;
 pub use skills::{
     SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,
 };
-pub use sovereignty::SovereigntyService;
 pub use spec::{
     CoherenceResult, SpecCaptureRequest, SpecCaptureResponse, SpecDetail, SpecListEntry,
     SpecService, WritingQualityResult,

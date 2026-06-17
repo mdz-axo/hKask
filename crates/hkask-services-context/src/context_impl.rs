@@ -63,10 +63,10 @@ use hkask_types::ports::git_cas::GitCASPort;
 use hkask_types::wallet::WalletId;
 use rusqlite;
 
-use crate::ServiceConfig;
-use crate::ServiceError;
-use crate::SovereigntyService;
-use crate::WalletService;
+use hkask_services_core::ServiceConfig;
+use hkask_services_core::ServiceError;
+use hkask_services_sovereignty::SovereigntyService;
+use hkask_services_wallet::WalletService;
 
 /// Agent operational context — canonical composition root for hKask.
 ///
@@ -165,7 +165,7 @@ pub struct AgentService {
     user_store: Arc<std::sync::Mutex<UserStore>>,
 
     /// Daemon handler — bridges Unix socket queries to PodManager and UserStore.
-    daemon_handler: Arc<crate::daemon_handler::ServiceDaemonHandler>,
+    daemon_handler: Arc<hkask_services_daemon::ServiceDaemonHandler>,
 
     /// Matrix transport for agent-to-agent and human-to-agent communication.
     /// Owned by the daemon, shared with REPL, pod activation, and MCP wrapper.
@@ -202,6 +202,16 @@ pub struct PerAgentMemory {
     pub episodic_storage: Arc<dyn EpisodicStoragePort>,
     pub semantic_storage: Arc<dyn SemanticStoragePort>,
     pub consolidation_service: hkask_memory::ConsolidationService,
+}
+
+impl From<&AgentService> for hkask_services_inference_svc::InferenceContext {
+    fn from(ctx: &AgentService) -> Self {
+        Self {
+            shared_port: ctx.inference_port(),
+            default_model: ctx.config().default_model.clone(),
+            inference_config: ctx.config().inference_config.clone(),
+        }
+    }
 }
 
 impl AgentService {
@@ -491,7 +501,7 @@ impl AgentService {
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be fully built
     /// post: returns &Arc<ServiceDaemonHandler>
-    pub fn daemon_handler(&self) -> &Arc<crate::daemon_handler::ServiceDaemonHandler> {
+    pub fn daemon_handler(&self) -> &Arc<hkask_services_daemon::ServiceDaemonHandler> {
         &self.daemon_handler
     }
 
@@ -1155,7 +1165,7 @@ async fn build_loops(
     };
     let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
     loop_system.register_loop(Arc::new(snapshot_loop)).await;
-    let backup_service = Arc::new(crate::BackupService::new(Arc::clone(&git_cas_port)));
+    let backup_service = Arc::new(hkask_services_backup::BackupService::new(Arc::clone(&git_cas_port)));
     let backup_loop = hkask_services_backup::BackupLoop::new(backup_service);
     loop_system.register_loop(Arc::new(backup_loop)).await;
 
@@ -1176,7 +1186,7 @@ struct McpPods {
     mcp_dispatcher: Arc<McpDispatcher>,
     pod_manager: Arc<PodManager>,
     capability_checker: Arc<CapabilityChecker>,
-    daemon_handler: Arc<crate::daemon_handler::ServiceDaemonHandler>,
+    daemon_handler: Arc<hkask_services_daemon::ServiceDaemonHandler>,
     energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
 }
 
@@ -1252,7 +1262,7 @@ async fn build_mcp_and_pods(
     }
 
     // Daemon handler + listener (skip socket in test mode)
-    let daemon_handler = Arc::new(crate::daemon_handler::ServiceDaemonHandler::new(
+    let daemon_handler = Arc::new(hkask_services_daemon::ServiceDaemonHandler::new(
         Arc::clone(&pod_manager),
         Arc::clone(&f.user_store),
         l.inference_port.clone(),

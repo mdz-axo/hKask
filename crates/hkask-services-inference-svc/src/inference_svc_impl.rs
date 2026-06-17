@@ -58,16 +58,6 @@ impl InferenceContext {
     }
 }
 
-impl From<&crate::AgentService> for InferenceContext {
-    fn from(ctx: &crate::AgentService) -> Self {
-        Self {
-            shared_port: ctx.inference_port(),
-            default_model: ctx.config().default_model.clone(),
-            inference_config: ctx.config().inference_config.clone(),
-        }
-    }
-}
-
 /// Model metadata returned by the inference backend.
 #[derive(Debug, Clone)]
 pub struct ModelInfo {

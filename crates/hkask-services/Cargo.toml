@@ -20,6 +20,8 @@ hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-services-lifecycle = { path = "../hkask-services-lifecycle" }
 hkask-services-sovereignty = { path = "../hkask-services-sovereignty" }
 hkask-services-inference-svc = { path = "../hkask-services-inference-svc" }
+hkask-services-daemon = { path = "../hkask-services-daemon" }
+hkask-services-context = { path = "../hkask-services-context" }
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-storage = { path = "../hkask-storage" }
