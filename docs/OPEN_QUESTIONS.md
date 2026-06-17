@@ -1,7 +1,7 @@
 ---
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
-last_updated: 2026-06-08
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -895,6 +895,66 @@ Axolotl and Unsloth are currently local-only; cloud dispatch returns `Unavailabl
 **Opened:** 2026-06-16
 
 CNS spans like `cns.training.sweep.iteration` and `cns.training.retrain.ab` are emitted via `tracing::info!` with string targets but not registered in `crates/hkask-types/src/cns.rs` `CnsSpan` enum. They work for logging but cannot be subscribed to programmatically via CNS variety tracking. Which of these spans meet the deletion test for programmatic observability?
+
+### ADT-001: Adapter format normalization ✅ RESOLVED
+
+**MDS Category:** Composition
+**Status:** **Resolved**
+**Resolution Date:** 2026-06-17
+
+**Original question:** LoRA adapters from different training frameworks (PEFT, Axolotl, Unsloth) may have different serialization formats. Should `TrainedLoRAAdapter` normalize to a canonical format, or delegate format-awareness to the `InferenceProvider`?
+
+**Decision:** Format validation lives in `ProviderCapability` and `AdapterConfig`. The `AdapterConfig` type parses `adapter_config.json` (PEFT standard). Provider backends validate compatibility through `ProviderCapability::can_compose()`. Normalization is the training pipeline's responsibility, not the storage layer's.
+
+**Implementation:** `hkask-adapter::adapter_config::AdapterConfig::validate_base_model()`, `hkask-adapter::provider_cost::ProviderCapability::can_compose()`
+
+### ADT-002: Adapter versioning ✅ RESOLVED
+
+**MDS Category:** Lifecycle
+**Status:** **Resolved**
+**Resolution Date:** 2026-06-17
+
+**Original question:** If a user retrains the same expertise, does the new adapter supersede the old one, or coexist?
+
+**Decision:** Caller-managed versioning. `TrainedLoRAAdapter` carries an optional `version: Option<String>` field. Never implicitly superseded — P2 requires user consent for any change. Together AI and vLLM don't support native adapter versioning, so versions become distinct named adapters at the provider level.
+
+**Implementation:** `TrainedLoRAAdapter.version` field
+
+### ADT-003: Adapter distribution source ✅ RESOLVED
+
+**MDS Category:** Composition
+**Status:** **Resolved**
+**Resolution Date:** 2026-06-17
+
+**Original question:** Where do adapters live for provider access? S3? HuggingFace? Local disk?
+
+**Decision:** `AdapterSource` enum with `HuggingFace { repo: String }` as the initial variant. All three inference providers (Together, Runpod, Baseten) can pull adapters from Hugging Face Hub natively. The enum is designed for extension — adding a second source is just an enum arm with no schema migration.
+
+**Implementation:** `hkask-adapter::adapter_store::AdapterSource`
+
+### ADT-004: Cross-model-family safety ✅ RESOLVED
+
+**MDS Category:** Trust
+**Status:** **Resolved**
+**Resolution Date:** 2026-06-17
+
+**Original question:** Can an adapter trained on Llama-3.3-70B be composed with Qwen2.5-7B?
+
+**Decision:** `ProviderCapability::can_compose()` checks the provider's supported base model families against the adapter's `base_model_family`. Incompatible compositions are rejected at `create_endpoint()` time. The system does not warn about cross-family matches — it prevents them.
+
+**Implementation:** `hkask-adapter::provider_cost::ProviderCapability::can_compose()`
+
+### ADT-005: Adapter sharing between users ✅ RESOLVED
+
+**MDS Category:** Trust
+**Status:** **Resolved**
+**Resolution Date:** 2026-06-17
+
+**Original question:** Should one user's adapter be deployable by another user?
+
+**Decision:** Sovereign-scoped by default (P1). `TrainedLoRAAdapter` carries an `owner: WebID` and `AdapterStore::list_owner()` filters by WebID. Sharing requires explicit consent (P2) through a `DelegationToken` with `adapter:read` capability, which is the existing OCAP model. No separate sharing mechanism needed.
+
+**Implementation:** `TrainedLoRAAdapter.owner`, `AdapterStore::list_owner()`, `AdapterPort` trait methods accept `&DelegationToken`
 
 
 ## References

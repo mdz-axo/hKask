@@ -465,6 +465,15 @@ mod tests {
                 (false, None, None)
             }
         }
+
+        async fn dispatch_tool(
+            &self,
+            _replicant: &str,
+            _tool: &str,
+            _input: &serde_json::Value,
+        ) -> (bool, Option<serde_json::Value>, Option<String>) {
+            (true, Some(serde_json::json!({"status": "ok"})), None)
+        }
     }
 
     async fn setup_test_listener() -> (DaemonListener, PathBuf) {

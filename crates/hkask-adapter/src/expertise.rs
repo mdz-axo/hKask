@@ -78,6 +78,9 @@ pub struct TrainingProvenance {
     pub completed_at: String,
     /// Base model family the adapter was trained on (e.g. "llama-3.3-70b")
     pub base_model_family: String,
+    /// Content hash of the training dataset (SHA-256)
+    #[serde(default)]
+    pub dataset_hash: Option<String>,
     /// Training metrics (loss, accuracy, etc.) as JSON
     #[serde(default)]
     pub training_metrics: serde_json::Value,
@@ -149,6 +152,7 @@ mod tests {
             training_source: "https://example.com/training".into(),
             completed_at: "2026-01-01T00:00:00Z".into(),
             base_model_family: "llama-3.3-70b".into(),
+            dataset_hash: None,
             training_metrics: serde_json::json!({"loss": 0.01}),
         };
         let expertise = Expertise::new(
@@ -172,6 +176,7 @@ mod tests {
             training_source: "https://example.com/training".into(),
             completed_at: "2026-01-01T00:00:00Z".into(),
             base_model_family: "llama-3.3-70b".into(),
+            dataset_hash: None,
             training_metrics: serde_json::Value::Null,
         };
         let result = Expertise::new(
@@ -191,6 +196,7 @@ mod tests {
             training_source: "https://example.com/training".into(),
             completed_at: "2026-01-01T00:00:00Z".into(),
             base_model_family: "llama-3.3-70b".into(),
+            dataset_hash: None,
             training_metrics: serde_json::Value::Null,
         };
         let result = Expertise::new(
@@ -247,6 +253,7 @@ mod tests {
             training_source: "https://example.com/training".into(),
             completed_at: "2026-01-01T00:00:00Z".into(),
             base_model_family: "llama-3.3-70b".into(),
+            dataset_hash: None,
             training_metrics: serde_json::json!({"loss": 0.01}),
         };
         let original = Expertise::new(

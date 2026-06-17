@@ -10,12 +10,11 @@
 //!   kanban:task  → {task_id}  → JSON Task
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
-use std::sync::Arc;
 
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::{
     Board, BoardId, ColumnDef, Comment, ConsentProof, Phase, PhaseId, Task, TaskFilter, TaskId,
-    Priority, TaskSpec, TaskStatus, Verification, WebID,
+    TaskSpec, TaskStatus, Verification, WebID,
 };
 use serde_json::Value;
 
@@ -577,13 +576,55 @@ impl KanbanService {
         self.board_get(board_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
 
-        // Parse the JSON output
+        // Parse + validate the JSON
         let parsed: serde_json::Value = serde_json::from_str(json_output)
-            .map_err(|e| KanbanError::InvalidInput(format!("invalid JSON: {e}")))?;
+            .map_err(|e| KanbanError::InvalidInput(format!("Invalid JSON: {e}")))?;
 
+        // Schema validation
+        if parsed.get("tasks").is_none() {
+            return Err(KanbanError::InvalidInput(
+                "JSON must have a tasks array at top level".into()
+            ));
+        }
         let tasks_array = parsed["tasks"].as_array()
-            .ok_or_else(|| KanbanError::InvalidInput("JSON missing 'tasks' array".into()))?;
+            .ok_or_else(|| KanbanError::InvalidInput("'tasks' must be an array".into()))?;
+        if tasks_array.is_empty() {
+            return Err(KanbanError::InvalidInput("'tasks' array is empty — nothing to create".into()));
+        }
 
+        // Validate each task has a title
+        for (i, task_val) in tasks_array.iter().enumerate() {
+            if task_val.get("title").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
+                return Err(KanbanError::InvalidInput(
+                    format!("Task {} is missing 'title' field", i + 1)
+                ));
+            }
+        }
+
+        // Create phases from recomposition if present
+        let mut phase_map: std::collections::HashMap<String, hkask_types::PhaseId> =
+            std::collections::HashMap::new();
+        if let Some(phases) = parsed["recomposition"]["phases"].as_array() {
+            for (i, phase_val) in phases.iter().enumerate() {
+                let name = phase_val["name"].as_str().unwrap_or("Unnamed");
+                let desc = phase_val["description"].as_str();
+                let mut phase = hkask_types::Phase::new(name.to_string(), i as u32);
+                if let Some(d) = desc {
+                    phase = phase.with_description(d.to_string());
+                }
+                // Store task_labels mapping for assignment
+                if let Some(labels) = phase_val["task_labels"].as_array() {
+                    for label in labels {
+                        if let Some(l) = label.as_str() {
+                            phase_map.insert(l.to_lowercase(), phase.id);
+                        }
+                    }
+                }
+                self.board_add_phase(board_id, &phase.name, phase.order)?;
+            }
+        }
+
+        // Create tasks
         let mut created = 0usize;
         for task_val in tasks_array {
             let title = task_val["title"].as_str().unwrap_or("Untitled");
@@ -594,7 +635,8 @@ impl KanbanService {
                 .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                 .unwrap_or_default();
             let criteria: Vec<hkask_types::VerificationCriterion> = task_val["criteria"].as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| hkask_types::VerificationCriterion::new(s.into()))).collect())
+                .map(|a| a.iter().filter_map(|v| v.as_str()
+                    .map(|s| hkask_types::VerificationCriterion::new(s.into()))).collect())
                 .unwrap_or_default();
             let priority = task_val["priority"].as_str()
                 .and_then(|s| hkask_types::Priority::parse_str(s));
@@ -605,14 +647,28 @@ impl KanbanService {
             if let Some(sp) = story_points { spec = spec.with_story_points(sp); }
             if let Some(eh) = estimated_hours { spec = spec.with_estimated_hours(eh); }
             if let Some(p) = priority { spec = spec.with_priority(p); }
+
+            // Assign phase if any label matches a phase
+            if !phase_map.is_empty() && !labels.is_empty() {
+                for label in &labels {
+                    if let Some(pid) = phase_map.get(&label.to_lowercase()) {
+                        spec = spec.with_phase(*pid);
+                        break;
+                    }
+                }
+            }
+
             if !labels.is_empty() { spec = spec.with_labels(labels); }
 
             self.task_create(board_id, spec, owner)?;
             created += 1;
         }
 
-        // Extract recomposition strategy if present
-        let recomposition = parsed["recomposition"]["strategy"].as_str().map(String::from);
+        // Extract recomposition strategy
+        let recomposition = parsed["recomposition"]["strategy"]
+            .as_str()
+            .or_else(|| parsed["recomposition"].as_str())
+            .map(String::from);
 
         Ok((created, recomposition))
     }
@@ -625,18 +681,41 @@ impl KanbanService {
         task_id: TaskId,
         spawn_spec: hkask_types::SpawnSpec,
     ) -> Result<String, KanbanError> {
-        let task = self
+        let mut task = self
             .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        // Append spawn configuration as a comment on the task
+        let spawn_note = format!(
+            "Spawn configured: level={}, skills={:?}, memory={}, tools={:?}, gas={:?}, timeout={:?}s. [Pod activation: future infrastructure]",
+            spawn_spec.delegation_level,
+            spawn_spec.delegated_skills,
+            spawn_spec.memory_scope,
+            spawn_spec.tool_servers,
+            spawn_spec.gas_budget,
+            spawn_spec.timeout_seconds,
+        );
+        let comment = hkask_types::Comment::new(task_id, task.owner, spawn_note);
+        task.comments.push(comment);
+        task.updated_at = chrono::Utc::now();
+        self.update_task_triple(&task)?;
+
         Ok(format!(
-            "Spawn for task '{}': level={}, skills={:?}, memory={}, tools={:?}, gas={:?}, timeout={:?}s. [Future: pod activation]",
+            "Spawn configured for '{}':
+  Level: {}
+  Skills: {:?}
+  Memory: {}
+  Tools: {:?}
+  Gas: {:?}
+  Timeout: {:?}s
+  Note appended to task comments.",
             task.title,
             spawn_spec.delegation_level,
             spawn_spec.delegated_skills,
             spawn_spec.memory_scope,
             spawn_spec.tool_servers,
             spawn_spec.gas_budget,
-            spawn_spec.timeout_seconds
+            spawn_spec.timeout_seconds,
         ))
     }
 
@@ -975,6 +1054,7 @@ pub enum KanbanError {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use super::*;
     use hkask_storage::Store;
     use hkask_types::VerificationCriterion;

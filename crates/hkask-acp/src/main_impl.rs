@@ -48,14 +48,18 @@ pub struct SessionState {
 pub struct HkaskAcpAgent {
     replicant: String,
     daemon: Option<DaemonClient>,
+    /// Human-readable status message if daemon connection failed.
+    daemon_error: Option<String>,
     inference: Arc<dyn InferencePort>,
     default_model: String,
     pub sessions: Mutex<HashMap<String, SessionState>>,
 }
 
 impl HkaskAcpAgent {
-    /// Production constructor — connects to daemon.
-    async fn build() -> anyhow::Result<Self> {
+    /// Production constructor — connects to daemon. Never fails.
+    /// If the daemon is unreachable, the agent starts in degraded mode
+    /// and returns actionable errors to the IDE on each request.
+    async fn build() -> Self {
         let _ = dotenvy::dotenv();
 
         tracing_subscriber::fmt()
@@ -70,32 +74,49 @@ impl HkaskAcpAgent {
             "acp-replicant".to_string()
         });
 
-        let daemon = DaemonClient::new();
-        let gate_result = verify_startup_gates(&daemon, &replicant, "acp", &["inference:call"])
-            .await
-            .map_err(|e| anyhow::anyhow!("Startup gates failed: {}", e))?;
-
-        info!(
-            target: "hkask.acp",
-            replicant = %replicant,
-            "P4 gates verified — {} tool(s) denied: {:?}",
-            gate_result.denied_tools.len(),
-            gate_result.denied_tools
-        );
+        let daemon_client = DaemonClient::new();
+        let (daemon, daemon_error) = match verify_startup_gates(
+            &daemon_client,
+            &replicant,
+            "acp",
+            &["inference:call"],
+        )
+        .await
+        {
+            Ok(gate_result) => {
+                info!(
+                    target: "hkask.acp",
+                    replicant = %replicant,
+                    "P4 gates verified — {} tool(s) denied: {:?}",
+                    gate_result.denied_tools.len(),
+                    gate_result.denied_tools
+                );
+                cns_emit(CnsSpan::AcpIdeConnectionState, &replicant, "connected");
+                (Some(daemon_client), None)
+            }
+            Err(e) => {
+                let msg = format!(
+                    "hKask daemon unavailable: {}. Start it with: kask daemon start",
+                    e
+                );
+                warn!(target: "hkask.acp", replicant = %replicant, error = %msg);
+                cns_emit(CnsSpan::AcpIdeConnectionState, &replicant, "degraded");
+                (None, Some(msg))
+            }
+        };
 
         let inference: Arc<dyn InferencePort> =
             Arc::new(InferenceRouter::new(InferenceConfig::from_env()));
         let default_model = std::env::var("HKASK_MODEL").unwrap_or_else(|_| "qwen3:8b".to_string());
 
-        cns_emit(CnsSpan::AcpIdeConnectionState, &replicant, "connected");
-
-        Ok(Self {
+        Self {
             replicant,
-            daemon: Some(daemon),
+            daemon,
+            daemon_error,
             inference,
             default_model,
             sessions: Mutex::new(HashMap::new()),
-        })
+        }
     }
 
     /// Test constructor — uses provided inference port, no daemon.
@@ -103,13 +124,17 @@ impl HkaskAcpAgent {
         Self {
             replicant: "test-replicant".into(),
             daemon: None,
+            daemon_error: None,
             inference,
             default_model: "test-model".into(),
             sessions: Mutex::new(HashMap::new()),
         }
     }
 
-    // run_inference removed — replaced by run_inference_stream
+    /// Whether the daemon is connected and ready.
+    fn daemon_ready(&self) -> bool {
+        self.daemon.is_some()
+    }
     pub async fn run_inference_stream(
         &self,
         prompt: &str,
@@ -141,35 +166,51 @@ impl HkaskAcpAgent {
             let chunk: InferenceStreamChunk =
                 chunk_result.map_err(|e| format!("Stream error: {}", e))?;
 
-            // Tool calls in this chunk
+            // Tool calls in this chunk — dispatch via daemon or report only
             for tc in &chunk.tool_calls {
                 tool_call_counter += 1;
                 let tc_id = format!("tc-{}-{}", session_id, tool_call_counter);
                 let kind = map_tool_kind(tc);
+                let title = format!("{} {}", tc.server, tc.tool);
 
-                let notif = tool_call_notification(
-                    session_id,
-                    &tc_id,
-                    &format!("{} {}", tc.server, tc.tool),
-                    &kind,
-                );
+                // Notify: pending
+                let notif = tool_call_notification(session_id, &tc_id, &title, &kind);
                 write_notification(stdout, &notif)
                     .await
                     .map_err(|e| format!("Write error: {}", e))?;
 
-                // Mark in-progress
+                // Notify: in_progress
                 let update = tool_call_update(session_id, &tc_id, "in_progress", None);
                 write_notification(stdout, &update)
                     .await
                     .map_err(|e| format!("Write error: {}", e))?;
 
-                // Mark completed
-                let update = tool_call_update(
-                    session_id,
-                    &tc_id,
-                    "completed",
-                    Some(&format!("Tool call: {} {}", tc.server, tc.tool)),
-                );
+                // Dispatch tool call via daemon (if connected), or report stub
+                let result_text = if let Some(ref daemon) = self.daemon {
+                    let tool_name = format!("{}:{}", tc.server, tc.tool);
+                    match daemon
+                        .tool_dispatch(&self.replicant, &tool_name, &tc.args)
+                        .await
+                    {
+                        Ok(hkask_mcp::daemon::DaemonResponse::ToolDispatchResponse {
+                            ok: true,
+                            output: Some(ref out),
+                            ..
+                        }) => format!("{}", out),
+                        Ok(hkask_mcp::daemon::DaemonResponse::ToolDispatchResponse {
+                            ok: false,
+                            error: Some(ref err),
+                            ..
+                        }) => format!("Error: {}", err),
+                        Err(e) => format!("Dispatch error: {}", e),
+                        _ => "Unexpected response".into(),
+                    }
+                } else {
+                    format!("Tool call: {} {} (no daemon)", tc.server, tc.tool)
+                };
+
+                // Notify: completed with result
+                let update = tool_call_update(session_id, &tc_id, "completed", Some(&result_text));
                 write_notification(stdout, &update)
                     .await
                     .map_err(|e| format!("Write error: {}", e))?;
@@ -212,22 +253,43 @@ impl HkaskAcpAgent {
             "Inference stream complete"
         );
 
-        // Encode memory (only when daemon is connected)
+        // Encode memory — full content, not just metadata (same as REPL)
         if let Some(ref daemon) = self.daemon {
-            let entity = format!("session:{}:prompt", session_id);
+            // Store prompt text
             let _ = daemon
                 .store_experience(
                     &self.replicant,
-                    &entity,
-                    "response",
+                    &format!("session:{}:prompt", session_id),
+                    "text",
+                    &serde_json::json!(prompt),
+                    Some(0.9),
+                )
+                .await;
+
+            // Store response text
+            let _ = daemon
+                .store_experience(
+                    &self.replicant,
+                    &format!("session:{}:response", session_id),
+                    "text",
+                    &serde_json::json!(total_text),
+                    Some(0.9),
+                )
+                .await;
+
+            // Store response metadata
+            let _ = daemon
+                .store_experience(
+                    &self.replicant,
+                    &format!("session:{}:metadata", session_id),
+                    "stats",
                     &serde_json::json!({
-                        "response_len": total_text.len(),
                         "tokens": total_tokens,
                         "model": &self.default_model,
                         "finish": &finish_reason,
                         "tool_calls": tool_call_counter,
                     }),
-                    Some(0.9),
+                    Some(0.95),
                 )
                 .await;
         }

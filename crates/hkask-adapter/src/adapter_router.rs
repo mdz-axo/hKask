@@ -934,6 +934,7 @@ mod tests {
             training_source: "https://example.com/training".into(),
             completed_at: "2026-01-01T00:00:00Z".into(),
             base_model_family: "llama-3.3-70b".into(),
+            dataset_hash: None,
             training_metrics: serde_json::Value::Null,
         };
         let expertise = Expertise::new(
@@ -954,6 +955,7 @@ mod tests {
             source: AdapterSource::HuggingFace {
                 repo: "test/adapter".into(),
             },
+            size_bytes: None,
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         }
@@ -1112,6 +1114,7 @@ mod tests {
             training_source: "https://example.com/training".into(),
             completed_at: "2026-01-01T00:00:00Z".into(),
             base_model_family: "unsupported-model".into(),
+            dataset_hash: None,
             training_metrics: serde_json::Value::Null,
         };
         let expertise = Expertise::new(
@@ -1132,6 +1135,7 @@ mod tests {
             source: AdapterSource::HuggingFace {
                 repo: "test/adapter".into(),
             },
+            size_bytes: None,
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         };

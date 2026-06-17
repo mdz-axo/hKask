@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-16
+last_updated: 2026-06-17
 version: "0.27.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -171,6 +171,7 @@ graph TD
 | **Code quality & smell reduction (6-wave execution)** | High | **Closed (v0.27.0)** | Top-10 ranked improvements executed across 6 waves: (1) Uniform MCP Gate-3 capability verification across all 10 servers, (2) 37 runtime `.unwrap()` calls replaced with typed errors, (3) 45 new REQ-tagged tests across types/agents/API + real `CapabilityAwareValidator` replacing passthrough stub, (4) Settings strangler extraction to `hkask-services`, `LoopQuality` CNS telemetry, `SpanKind` typed span constructors, (5) 13 public surface justification docs + unsafe documentation policy CI enforcement, (6) 5 CI quality gate scripts wired into `.github/workflows/ci.yml`. 472 tests, 453 REQ tags (96% coverage), 0 clippy warnings. |
 | **Contract debt (behavioral contracts)** | High | **Closed (v0.27.0)** | All 1579 `pub fn` across 17 crates now carry `/// REQ:` with `pre:`/`post:` conditions. 1915 REQ tags (121.2% due to multi-contract builders). Zero contract debt. CNS `cns.contract.coverage` spans at 100%. Phase B2 (agent contract generation) unblocked. |
 | **Dynamic gas table + wallet calibration** | High | **Closed (v0.27.0)** | `DynamicGasTable` was an orphan file (undeclared in `lib.rs`). Declared it, fixed 6 test typos, wired `CalibratedEnergyEstimator` into `AgentService` as the production energy estimator with a background 5-minute calibration loop. Added `WalletGasCalibrator` observing aggregate `cns.gas.settled` events to calibrate `WalletManager::gas_per_rjoule` at runtime. `WalletBackedBudget` now reads the live atomic rate. Added CNS observability spans: `cns.gas.calibrated` and `cns.wallet.conversion.calibrated`. 80 CNS lib tests pass; contract coverage for `hkask-cns` at 119.3%. |
+| **Trained adapter lifecycle & inference composition** | High | **New (v0.28.0)** | `hkask-adapter` crate introduced. Full lifecycle: `Expertise` (P8 semantic grounding) → `TrainedLoRAAdapter` (content-addressed, owner-scoped) stored in `AdapterStore` (SQLite CRUD) → `AdapterRouter` composes adapter + base model + provider via `AdapterPort` trait (6 OCAP-gated methods, P4) → `EndpointLifecycle` state machine (5 phases with validated transitions and cost accrual, P9) → `EndpointGuard` (RAII teardown, P5). Provider support: Together AI (real HTTP upload + inference), Runpod, Baseten (vLLM skeletons). `AdapterSource` enum for distribution source abstraction (HuggingFace today, extensible). `CostModel` per provider for transparent pricing (P2 affirmative consent). 48 tests, 10 new CNS span namespaces (`cns.adapter.*`, `cns.endpoint.*`). |
 
 ---
 
@@ -636,6 +637,7 @@ docs/architecture/
 ├── PUBLIC_SURFACE-hkask-cns.md
 ├── PUBLIC_SURFACE-hkask-improv.md
 ├── PUBLIC_SURFACE-hkask-inference.md
+├── PUBLIC_SURFACE-hkask-adapter.md         # Trained adapter lifecycle & inference composition
 ├── PUBLIC_SURFACE-hkask-keystore.md
 ├── PUBLIC_SURFACE-hkask-mcp.md
 ├── PUBLIC_SURFACE-hkask-mcp-training.md    # Training MCP (17 tools, 5 providers)

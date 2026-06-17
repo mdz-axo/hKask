@@ -215,6 +215,33 @@ impl DaemonHandler for ServiceDaemonHandler {
 
         result
     }
+
+    async fn dispatch_tool(
+        &self,
+        replicant: &str,
+        tool: &str,
+        input: &serde_json::Value,
+    ) -> (bool, Option<serde_json::Value>, Option<String>) {
+        let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
+            Some(id) => id,
+            None => {
+                return (false, None, Some("Pod not found".into()));
+            }
+        };
+
+        let ctx =
+            match hkask_agents::pod::PodContext::from_manager(&self.pod_manager, &pod_id).await {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    return (false, None, Some(format!("PodContext error: {}", e)));
+                }
+            };
+
+        match ctx.invoke_tool(tool, input.clone()) {
+            Ok(output) => (true, Some(output), None),
+            Err(e) => (false, None, Some(e.to_string())),
+        }
+    }
 }
 
 /// Generate internal narrative observations from recent session experiences.

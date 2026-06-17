@@ -59,10 +59,12 @@ struct AdapterRow {
     base_model_family: String,
     version: Option<String>,
     source_json: String,
+    size_bytes: Option<i64>,
     owner_webid: String,
     training_run_id: String,
     training_source: String,
     completed_at: String,
+    dataset_hash: Option<String>,
     training_metrics_json: Option<String>,
     created_at: String,
 }
@@ -114,6 +116,9 @@ pub struct TrainedLoRAAdapter {
     /// Distribution source — where the adapter weights are hosted for provider pull.
     /// Right now only HuggingFace, but the enum is designed for extension.
     pub source: AdapterSource,
+    /// Size of adapter weights in bytes (populated after training completes).
+    #[serde(default)]
+    pub size_bytes: Option<u64>,
     /// Owner (sovereign-scoped — no anonymous artifacts, P12)
     pub owner: WebID,
     /// When the adapter was stored
@@ -149,8 +154,8 @@ pub enum AdapterStoreError {
 
 const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domain, \
     capability_manifest_json, checksum, storage_path, base_model_family, \
-    version, source_json, owner_webid, training_run_id, training_source, \
-    completed_at, training_metrics_json, created_at FROM trained_adapters";
+    version, source_json, size_bytes, owner_webid, training_run_id, training_source, \
+    completed_at, dataset_hash, training_metrics_json, created_at FROM trained_adapters";
 
 // ── AdapterStore implementation ──────────────────────────────────────────────
 
@@ -172,10 +177,12 @@ impl AdapterStore {
                         base_model_family   TEXT NOT NULL,
                         version             TEXT,
                         source_json         TEXT NOT NULL DEFAULT '{}',
+                        size_bytes          INTEGER,
                         owner_webid         TEXT NOT NULL,
                         training_run_id     TEXT NOT NULL,
                         training_source     TEXT NOT NULL,
                         completed_at        TEXT NOT NULL,
+                        dataset_hash        TEXT,
                         training_metrics_json TEXT,
                         created_at          TEXT NOT NULL DEFAULT (datetime('now'))
                     );
@@ -202,10 +209,10 @@ impl AdapterStore {
         conn.execute(
             "INSERT INTO trained_adapters
                 (adapter_id, expertise_name, expertise_domain, capability_manifest_json,
-                 checksum, storage_path, base_model_family, version, source_json,
-                 owner_webid, training_run_id, training_source, completed_at,
+                 checksum, storage_path, base_model_family, version, source_json, size_bytes,
+                 owner_webid, training_run_id, training_source, completed_at, dataset_hash,
                  training_metrics_json, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
             rusqlite::params![
                 adapter.id.to_string(),
                 adapter.expertise.name,
@@ -216,10 +223,12 @@ impl AdapterStore {
                 adapter.base_model_family,
                 adapter.version,
                 source_json,
+                adapter.size_bytes.map(|b| b as i64),
                 adapter.owner.as_uuid().to_string(),
                 adapter.expertise.training_source.training_run_id,
                 adapter.expertise.training_source.training_source,
                 adapter.expertise.training_source.completed_at,
+                adapter.expertise.training_source.dataset_hash,
                 metrics_json,
                 adapter.created_at,
             ],
@@ -250,12 +259,14 @@ impl AdapterStore {
                     base_model_family: row.get(6)?,
                     version: row.get(7)?,
                     source_json: row.get(8)?,
-                    owner_webid: row.get(9)?,
-                    training_run_id: row.get(10)?,
-                    training_source: row.get(11)?,
-                    completed_at: row.get(12)?,
-                    training_metrics_json: row.get(13)?,
-                    created_at: row.get(14)?,
+                    size_bytes: row.get(9)?,
+                    owner_webid: row.get(10)?,
+                    training_run_id: row.get(11)?,
+                    training_source: row.get(12)?,
+                    completed_at: row.get(13)?,
+                    dataset_hash: row.get(14)?,
+                    training_metrics_json: row.get(15)?,
+                    created_at: row.get(16)?,
                 })
             },
             |r: AdapterRow| -> Result<TrainedLoRAAdapter, AdapterStoreError> {
@@ -292,12 +303,14 @@ impl AdapterStore {
                     base_model_family: row.get(6)?,
                     version: row.get(7)?,
                     source_json: row.get(8)?,
-                    owner_webid: row.get(9)?,
-                    training_run_id: row.get(10)?,
-                    training_source: row.get(11)?,
-                    completed_at: row.get(12)?,
-                    training_metrics_json: row.get(13)?,
-                    created_at: row.get(14)?,
+                    size_bytes: row.get(9)?,
+                    owner_webid: row.get(10)?,
+                    training_run_id: row.get(11)?,
+                    training_source: row.get(12)?,
+                    completed_at: row.get(13)?,
+                    dataset_hash: row.get(14)?,
+                    training_metrics_json: row.get(15)?,
+                    created_at: row.get(16)?,
                 })
             },
             |r: AdapterRow| -> Result<TrainedLoRAAdapter, AdapterStoreError> {
@@ -308,7 +321,7 @@ impl AdapterStore {
         Ok(rows)
     }
 
-    /// List all adapters owned by a specific WebID.
+    /// List adapters owned by a specific WebID.
     ///
     /// REQ: P8-adt-trained-adapter-store
     /// pre:  owner is a valid WebID
@@ -331,12 +344,14 @@ impl AdapterStore {
                     base_model_family: row.get(6)?,
                     version: row.get(7)?,
                     source_json: row.get(8)?,
-                    owner_webid: row.get(9)?,
-                    training_run_id: row.get(10)?,
-                    training_source: row.get(11)?,
-                    completed_at: row.get(12)?,
-                    training_metrics_json: row.get(13)?,
-                    created_at: row.get(14)?,
+                    size_bytes: row.get(9)?,
+                    owner_webid: row.get(10)?,
+                    training_run_id: row.get(11)?,
+                    training_source: row.get(12)?,
+                    completed_at: row.get(13)?,
+                    dataset_hash: row.get(14)?,
+                    training_metrics_json: row.get(15)?,
+                    created_at: row.get(16)?,
                 })
             },
             |r: AdapterRow| -> Result<TrainedLoRAAdapter, AdapterStoreError> {
@@ -399,6 +414,7 @@ impl AdapterStore {
             training_source: r.training_source,
             completed_at: r.completed_at,
             base_model_family: r.base_model_family,
+            dataset_hash: r.dataset_hash,
             training_metrics,
         };
 
@@ -423,6 +439,7 @@ impl AdapterStore {
             base_model_family: base_model,
             version: r.version,
             source,
+            size_bytes: r.size_bytes.map(|b| b as u64),
             owner: WebID::from_uuid(owner_uuid),
             created_at: r.created_at,
         })
@@ -440,6 +457,7 @@ mod tests {
             training_source: "https://example.com/training".into(),
             completed_at: "2026-01-01T00:00:00Z".into(),
             base_model_family: "llama-3.3-70b".into(),
+            dataset_hash: None,
             training_metrics: serde_json::json!({"loss": 0.01}),
         };
         let expertise = Expertise::new(
@@ -460,6 +478,7 @@ mod tests {
             source: AdapterSource::HuggingFace {
                 repo: "test/adapter".into(),
             },
+            size_bytes: None,
             owner: WebID::new(),
             created_at: "2026-01-01T00:00:00Z".into(),
         }
