@@ -1,0 +1,18 @@
+[package]
+name = "hkask-services-backup"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask backup service — policy layer on top of GitCASPort"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-types = { path = "../hkask-types" }
+aes-gcm = "0.10"
+argon2 = "0.5"
+chrono.workspace = true
+rand.workspace = true
+tracing.workspace = true
+serde.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true

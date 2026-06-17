@@ -17,8 +17,8 @@
 //! 7. Method inference (LLM) → stylometric patterns from cached passages
 //! 8. Generate/augment corpus.yaml
 
-use crate::embed::{CorpusConfig, EntityConfig, Work};
 use crate::ServiceError;
+use crate::embed::{CorpusConfig, EntityConfig, Work};
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_memory::salience::{DeclaredMethod, MethodThresholds};
 use hkask_templates::ports::McpPort;

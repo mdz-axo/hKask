@@ -4503,6 +4503,7 @@ dependencies = [
  "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
+ "hkask-services-backup",
  "hkask-services-core",
  "hkask-storage",
  "hkask-templates",
@@ -4525,6 +4526,22 @@ dependencies = [
  "tracing",
  "trybuild",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-backup"
+version = "0.27.0"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "chrono",
+ "hkask-services-core",
+ "hkask-types",
+ "parking_lot",
+ "rand 0.9.4",
+ "serde",
+ "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]

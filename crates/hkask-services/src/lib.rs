@@ -14,6 +14,17 @@
 
 // ── Re-exports from hkask-services-core ───────────────────────────────
 
+pub use hkask_services_backup::config::{
+    BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
+};
+pub use hkask_services_backup::r#loop::BackupLoop;
+pub use hkask_services_backup::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
+pub use hkask_services_backup::scope::ArtifactType;
+pub use hkask_services_backup::scope::{BackupScope, ListFilter, RestoreScope};
+pub use hkask_services_backup::serialization::{
+    ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
+};
+pub use hkask_services_backup::{BackupError, BackupService};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use hkask_services_core::error::ServiceError;
 pub use hkask_services_core::settings::{
@@ -22,7 +33,6 @@ pub use hkask_services_core::settings::{
 
 // ── Public API modules ─────────────────────────────────────────────────
 
-pub mod backup;
 pub mod bundle;
 pub mod chat;
 pub mod cns;
@@ -57,17 +67,6 @@ pub mod consolidation;
 pub mod daemon_handler;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
-pub use backup::config::{
-    BackupConfig, EncryptionConfig, RetentionPolicy, backup_config_path, load_backup_config,
-};
-pub use backup::r#loop::BackupLoop;
-pub use backup::metadata::{PruneReport, SnapshotMetadata, SnapshotTrigger};
-pub use backup::scope::ArtifactType;
-pub use backup::scope::{BackupScope, ListFilter, RestoreScope};
-pub use backup::serialization::{
-    ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
-};
-pub use backup::{BackupError, BackupService};
 pub use bundle::{BundleComposeResult, BundleService};
 pub use chat::{
     ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,

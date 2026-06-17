@@ -25,8 +25,8 @@ use hkask_templates::BundleManifest;
 use hkask_types::Visibility;
 use hkask_types::ports::{BundleRegistryIndex, InferencePort, SkillRegistryIndex};
 
-use crate::context::AgentService;
 use crate::ServiceError;
+use crate::context::AgentService;
 
 /// Result of composing a bundle from skill IDs.
 #[derive(Debug)]

@@ -8,7 +8,7 @@
 
 use crate::cli::SettingsAction;
 use crate::repl::handlers::ReplSettings;
-use hkask_services::settings::{load_settings, save_settings};
+use hkask_services::{load_settings, save_settings};
 
 /// CLI handler for `kask settings {show,set,reset}`.
 /// REQ: CLI-072

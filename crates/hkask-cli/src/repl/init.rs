@@ -62,8 +62,7 @@ pub(super) fn init_repl_state(
     // ReplState is fully constructed. Loads from ~/.config/hkask/settings.json
     // if available; falls back to ReplSettings::default().
     // Mutable here so the user can override via /repl during the session.
-    let repl_settings: crate::repl::handlers::ReplSettings =
-        hkask_services::load_settings();
+    let repl_settings: crate::repl::handlers::ReplSettings = hkask_services::load_settings();
 
     // Resolve inference config from env for InferenceService calls.
     // Onboarding has already completed above; this is used to build the

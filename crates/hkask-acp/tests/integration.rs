@@ -127,7 +127,7 @@ async fn test_initialize() {
             .unwrap();
     });
 
-    let (mut test_read, mut test_write) = tokio::io::split(test_side);
+    let (test_read, mut test_write) = tokio::io::split(test_side);
 
     let req = serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize",
         "params":{"protocolVersion":1,"clientInfo":{"name":"test","version":"1.0"}}});
@@ -169,7 +169,7 @@ async fn test_session_new_and_prompt_streaming() {
             .unwrap();
     });
 
-    let (mut test_read, mut test_write) = tokio::io::split(test_side);
+    let (test_read, mut test_write) = tokio::io::split(test_side);
     let mut reader = BufReader::new(test_read);
 
     // Create session
@@ -231,7 +231,7 @@ async fn test_empty_prompt_returns_end_turn() {
             .unwrap();
     });
 
-    let (mut test_read, mut test_write) = tokio::io::split(test_side);
+    let (test_read, mut test_write) = tokio::io::split(test_side);
     let mut reader = BufReader::new(test_read);
 
     let req =
@@ -270,7 +270,7 @@ async fn test_unknown_method_returns_error() {
             .unwrap();
     });
 
-    let (mut test_read, mut test_write) = tokio::io::split(test_side);
+    let (test_read, mut test_write) = tokio::io::split(test_side);
     let mut reader = BufReader::new(test_read);
 
     let req = serde_json::json!({"jsonrpc":"2.0","id":1,"method":"nonexistent","params":{}});

@@ -410,8 +410,6 @@ impl From<hkask_mcp::server::McpToolError> for ServiceError {
     }
 }
 
-
-impl From<hkask_mcp::server::McpToolError> for ServiceError {
 // ── Retryability semantics ─────────────────────────────────────────────
 //
 // The CNS energy budget needs to know whether retrying an operation will
