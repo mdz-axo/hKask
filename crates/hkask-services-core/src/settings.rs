@@ -228,12 +228,12 @@ pub fn load_settings<T: serde::de::DeserializeOwned + Default>() -> T {
 pub fn save_settings<T: serde::Serialize>(settings: &T) -> Result<(), crate::ServiceError> {
     let path = settings_path();
     let json = serde_json::to_string_pretty(settings).map_err(|e| {
-        crate::ServiceError::Infra(hkask_types::InfrastructureError::Serialization(
+        ServiceError::Infra(InfrastructureError::Serialization(
             e.to_string(),
         ))
     })?;
     std::fs::write(&path, json).map_err(|e| {
-        crate::ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string()))
+        ServiceError::Infra(InfrastructureError::Io(e.to_string()))
     })
 }
 

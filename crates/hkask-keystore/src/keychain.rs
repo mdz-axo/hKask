@@ -7,7 +7,8 @@ use hkask_types::secret::derivation_contexts;
 use hkask_types::wallet::{ApiKeyCapability, ChainId};
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;
-use tracing::warn;
+use std::time::Instant;
+use tracing::{info, warn};
 use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
@@ -53,7 +54,10 @@ impl Keychain {
     /// pre:  webid is a valid WebID, secret is non-empty
     /// post: secret stored in OS keychain under service_name + webid.uuid
     /// post: returns Err(Platform) if keychain is unavailable
+    // REQ: P9-CNS-KS-001 pre: operation valid, post: cns.keystore span emitted
     pub fn store(&self, webid: &WebID, secret: &str) -> Result<(), KeychainError> {
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "store", webid = %webid, status = "started", "CNS");
         let entry = Entry::new(&self.service_name, &webid.as_uuid().to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
@@ -61,6 +65,8 @@ impl Keychain {
             .set_password(secret)
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "store", webid = %webid, status = "completed", "CNS");
         Ok(())
     }
 

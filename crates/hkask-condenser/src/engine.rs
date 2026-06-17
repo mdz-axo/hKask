@@ -43,6 +43,7 @@ impl CondenserEngine {
         (cat, algo.name().to_string())
     }
 
+    // REQ: P9-CNS-CD-001 pre: compression valid, post: cns.condenser span emitted
     pub fn compress(
         &mut self,
         tool_name: &str,
@@ -64,6 +65,9 @@ impl CondenserEngine {
         } else {
             (1.0 - (compressed_bytes as f64 / original_bytes as f64)) * 100.0
         };
+
+        // P9: CNS span
+        tracing::info!(target: "cns.condenser", operation = "compress", algorithm = %algorithm_name, original_bytes = %original_bytes, compressed_bytes = %compressed_bytes, ratio = %reduction_pct, "CNS");
 
         *self
             .stats
@@ -110,6 +114,14 @@ impl CondenserEngine {
     pub fn check_global_health(&self) -> Vec<CondenserHealthSignal> {
         let mut signals = Vec::new();
         let stats = &self.stats;
+
+        // P9: CNS span
+        {
+            let low_ratio = stats.total_original_bytes > 0
+                && stats.total_compressions >= 10
+                && (stats.total_original_bytes as f64 / stats.total_compressed_bytes.max(1) as f64) < 2.0;
+            tracing::info!(target: "cns.condenser", operation = "health_check", total_compressions = %stats.total_compressions, low_ratio = %low_ratio, "CNS");
+        }
 
         if stats.total_original_bytes > 0 {
             let ratio =
