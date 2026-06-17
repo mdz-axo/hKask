@@ -45,7 +45,7 @@ Preferred auxiliary tooling:
 
 - Shell (`bash`) for repository-level scripts under `scripts/`.
 - Rust binaries or `build.rs` for anything that needs to parse source or Cargo metadata.
-- `scripts/contract-audit.sh` remains the source-of-truth for contract coverage; it scans `/// REQ:` and `// REQ:` comments directly.
+- `scripts/ci/contract-audit.sh` — contract coverage source-of-truth; scans `/// REQ:` and `// REQ:` comments directly.
 
 ---
 
@@ -77,7 +77,7 @@ kask sovereignty verify
 kask cns health
 
 # Contract completeness audit (Testing Discipline §9.2)
-scripts/contract-audit.sh --summary
+scripts/ci/contract-audit.sh --summary
 
 # Or the raw grep one-liner:
 grep -rn "pub fn\|pub async fn" crates/ mcp-servers/ --include="*.rs" | grep -v "cfg(test)" | grep -v "/tests/" | wc -l  # public functions

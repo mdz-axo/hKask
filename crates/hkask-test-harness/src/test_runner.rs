@@ -334,6 +334,116 @@ fn walk_rs_files(dir: &std::path::Path, f: &mut dyn FnMut(&std::path::Path)) {
     }
 }
 
+/// Inventory of all REQ-tagged contracts in a crate.
+///
+/// REQ: HARN-044
+/// pre:  workspace_root exists and contains crates/<crate_name>/src/
+/// post: returns Vec of ContractEntry with REQ tag, pre/post, and quality flags
+pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec<ContractEntry>> {
+    let src_dir = format!("{}/crates/{}/src", workspace_root, crate_name);
+    let dir = std::path::Path::new(&src_dir);
+    if !dir.exists() {
+        return None;
+    }
+
+    let mut entries = Vec::new();
+
+    walk_rs_files(dir, &mut |file_path| {
+        let Ok(content) = std::fs::read_to_string(file_path) else {
+            return;
+        };
+        let lines: Vec<&str> = content.lines().collect();
+        let mut i = 0;
+        while i < lines.len() {
+            let line = lines[i].trim();
+            if (line.starts_with("pub fn ") || line.starts_with("pub async fn "))
+                && !line.contains("cfg(test)")
+            {
+                let fn_name = extract_function_name(line);
+
+                // Search 20 lines above for REQ tag and pre/post
+                let mut req_id = String::new();
+                let mut pre = String::new();
+                let mut post = String::new();
+                let mut flags = Vec::new();
+
+                for j in (i.saturating_sub(20)..i).rev() {
+                    if j >= lines.len() {
+                        continue;
+                    }
+                    let ctx = lines[j].trim();
+                    if req_id.is_empty() {
+                        if let Some(tag) = extract_req_tag(ctx) {
+                            req_id = tag;
+                        } else if ctx.contains("#[rs::contract") {
+                            // Extract id from #[rs::contract(id = "...")]
+                            if let Some(start) = ctx.find("id = \"") {
+                                let rest = &ctx[start + 6..];
+                                if let Some(end) = rest.find('"') {
+                                    req_id = rest[..end].to_string();
+                                }
+                            }
+                        }
+                    }
+                    if pre.is_empty() && ctx.contains("pre:") {
+                        pre = ctx
+                            .trim_start_matches(|c: char| c == '/' || c == '#' || c == ' ')
+                            .trim_start_matches("pre:")
+                            .trim()
+                            .to_string();
+                    }
+                    if post.is_empty() && ctx.contains("post:") {
+                        post = ctx
+                            .trim_start_matches(|c: char| c == '/' || c == '#' || c == ' ')
+                            .trim_start_matches("post:")
+                            .trim()
+                            .to_string();
+                    }
+                }
+
+                if !req_id.is_empty() {
+                    if pre == "true" || pre.is_empty() {
+                        flags.push("NO_PRE");
+                    }
+                    if post == "true" || post.is_empty() {
+                        flags.push("NO_POST");
+                    }
+                    if pre == "true" && post == "true" {
+                        flags.push("VACUOUS");
+                    }
+
+                    entries.push(ContractEntry {
+                        crate_name: crate_name.to_string(),
+                        function: fn_name,
+                        file: file_path.to_string_lossy().to_string(),
+                        line: i + 1,
+                        req_id,
+                        pre,
+                        post,
+                        flags: flags.join(" "),
+                    });
+                }
+            }
+            i += 1;
+        }
+    });
+
+    Some(entries)
+}
+
+/// A single REQ-tagged contract entry.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ContractEntry {
+    pub crate_name: String,
+    pub function: String,
+    pub file: String,
+    pub line: usize,
+    pub req_id: String,
+    pub pre: String,
+    pub post: String,
+    pub flags: String,
+}
+
 /// Extract the function name from a `pub fn` or `pub async fn` declaration.
 fn extract_function_name(line: &str) -> String {
     let trimmed = line.trim();

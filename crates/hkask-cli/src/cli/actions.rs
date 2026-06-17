@@ -924,6 +924,15 @@ pub enum ContractAction {
     },
     /// List proposed contracts awaiting review
     List,
+    /// Review all contracts in a crate for quality issues
+    Review {
+        /// Crate name (default: all crates)
+        #[arg(short, long)]
+        crate_name: Option<String>,
+        /// Output format
+        #[arg(short, long, default_value = "text")]
+        format: String,
+    },
     /// Discover uncontracted public functions in a crate
     Discover {
         /// Crate name (default: all crates)

@@ -79,6 +79,12 @@ pub fn run(rt: &tokio::runtime::Runtime, action: ContractAction) {
                 eprintln!("List failed: {}", e);
             }
         }
+        ContractAction::Review { crate_name, format } => {
+            let workspace = std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| ".".to_string());
+            handle_review(crate_name, &format, &workspace);
+        }
         ContractAction::Discover { crate_name } => {
             let workspace = std::env::current_dir()
                 .map(|p| p.to_string_lossy().to_string())
@@ -191,6 +197,77 @@ async fn handle_list() -> Result<(), String> {
         println!("    post: {}", post);
     }
     Ok(())
+}
+
+fn handle_review(crate_name: Option<String>, format: &str, workspace_root: &str) {
+    use hkask_test_harness::test_runner::inventory_contracts;
+
+    let crates: Vec<String> = if let Some(c) = crate_name {
+        vec![c]
+    } else {
+        let crates_dir = std::path::Path::new(workspace_root).join("crates");
+        if let Ok(entries) = std::fs::read_dir(&crates_dir) {
+            entries
+                .flatten()
+                .filter(|e| e.path().is_dir())
+                .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+                .filter(|s| s.starts_with("hkask-"))
+                .collect()
+        } else {
+            vec![]
+        }
+    };
+
+    let mut all_entries: Vec<hkask_test_harness::test_runner::ContractEntry> = Vec::new();
+    for name in &crates {
+        if let Some(entries) = inventory_contracts(name, workspace_root) {
+            all_entries.extend(entries);
+        }
+    }
+
+    if format == "json" {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&all_entries).unwrap_or_else(|_| "[]".to_string())
+        );
+        return;
+    }
+
+    let total = all_entries.len();
+    let issues: Vec<_> = all_entries.iter().filter(|e| !e.flags.is_empty()).collect();
+    let vacuous = all_entries
+        .iter()
+        .filter(|e| e.flags.contains("VACUOUS"))
+        .count();
+    let no_pre = all_entries
+        .iter()
+        .filter(|e| e.flags.contains("NO_PRE"))
+        .count();
+    let no_post = all_entries
+        .iter()
+        .filter(|e| e.flags.contains("NO_POST"))
+        .count();
+
+    println!("Contract Quality Review");
+    println!("=======================");
+    println!("Total contracted functions: {}", total);
+    println!("With quality issues:       {}", issues.len());
+    println!("  Vacuous (pre:true, post:true): {}", vacuous);
+    println!("  Missing precondition:          {}", no_pre);
+    println!("  Missing postcondition:         {}", no_post);
+    println!();
+
+    if !issues.is_empty() {
+        println!("Flagged contracts:");
+        for e in &issues {
+            println!(
+                "  [{}] {}::{} — {}",
+                e.flags, e.crate_name, e.function, e.req_id
+            );
+        }
+    } else {
+        println!("All contracts have valid pre/post conditions. No issues found.");
+    }
 }
 
 fn handle_discover(crate_name: Option<String>, workspace_root: &str) {
