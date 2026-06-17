@@ -7,7 +7,7 @@
 
 use hkask_agents::pod::{AgentPersona, PodID, PodStatus};
 
-use crate::AgentService;
+use hkask_services_context::AgentService;
 use crate::ServiceError;
 
 /// Request to create a new agent pod.

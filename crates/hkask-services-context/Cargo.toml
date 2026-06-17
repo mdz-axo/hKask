@@ -27,3 +27,16 @@ thiserror.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 async-trait.workspace = true
+hkask-communication = { path = "../hkask-communication" }
+hkask-inference = { path = "../hkask-inference" }
+hkask-keystore = { path = "../hkask-keystore" }
+reqwest.workspace = true
+hkask-test-harness = { path = "../hkask-test-harness" }
+rusqlite.workspace = true
+rand.workspace = true
+parking_lot.workspace = true
+hex.workspace = true
+blake3.workspace = true
+base64.workspace = true
+futures-util.workspace = true
+ed25519-dalek.workspace = true

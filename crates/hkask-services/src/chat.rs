@@ -24,7 +24,8 @@ use hkask_types::{
 };
 
 use crate::ServiceError;
-use crate::{AgentService, InferenceContext, InferenceService};
+use crate::{InferenceContext, InferenceService};
+use hkask_services_context::AgentService;
 
 /// System prompt for the auto-condense summarization request.
 const CONDENSER_SYSTEM_PROMPT: &str = "You are a context condensation assistant. Produce structured summaries that \

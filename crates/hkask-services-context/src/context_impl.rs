@@ -435,7 +435,7 @@ impl AgentService {
     // === Category 4: Internal implementation (crate-visible only) ===
 
     /// Access A2A runtime for agent registration and capability management.
-    pub(crate) fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime> {
+    pub fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime> {
         &self.a2a_runtime
     }
 
@@ -1165,7 +1165,9 @@ async fn build_loops(
     };
     let snapshot_loop = SnapshotLoop::new(Arc::clone(&git_cas_port));
     loop_system.register_loop(Arc::new(snapshot_loop)).await;
-    let backup_service = Arc::new(hkask_services_backup::BackupService::new(Arc::clone(&git_cas_port)));
+    let backup_service = Arc::new(hkask_services_backup::BackupService::new(Arc::clone(
+        &git_cas_port,
+    )));
     let backup_loop = hkask_services_backup::BackupLoop::new(backup_service);
     loop_system.register_loop(Arc::new(backup_loop)).await;
 

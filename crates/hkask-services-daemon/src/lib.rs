@@ -1,2 +1,2 @@
 mod daemon_impl;
-pub use daemon_impl::{DaemonService, ServiceDaemonHandler};
+pub use daemon_impl::ServiceDaemonHandler;

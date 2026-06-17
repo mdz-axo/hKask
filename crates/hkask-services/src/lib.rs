@@ -25,6 +25,7 @@ pub use hkask_services_backup::serialization::{
     ArtifactEnvelopeValue, artifact_git_path, deserialize_artifact, serialize_artifact,
 };
 pub use hkask_services_backup::{BackupError, BackupService};
+pub use hkask_services_context::{AgentService, PerAgentMemory};
 pub use hkask_services_core::config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use hkask_services_core::error::ServiceError;
 pub use hkask_services_core::settings::{
@@ -65,7 +66,6 @@ pub mod chat;
 pub mod cns;
 pub mod compose;
 pub mod contacts;
-pub mod context;
 pub mod curator;
 pub mod deletion_test;
 pub mod experience;
@@ -92,7 +92,6 @@ pub use compose::{
     EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
 };
 pub use contacts::ContactService;
-pub use context::{AgentService, PerAgentMemory};
 pub use curator::{CuratorService, EscalationResponse};
 pub use deletion_test::DeletionTest;
 pub use experience::CliExperienceRecorder;

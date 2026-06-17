@@ -4582,9 +4582,17 @@ name = "hkask-services-context"
 version = "0.27.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
+ "blake3",
  "chrono",
+ "ed25519-dalek 2.2.0",
+ "futures-util",
+ "hex",
  "hkask-agents",
  "hkask-cns",
+ "hkask-communication",
+ "hkask-inference",
+ "hkask-keystore",
  "hkask-mcp",
  "hkask-memory",
  "hkask-services-backup",
@@ -4595,7 +4603,12 @@ dependencies = [
  "hkask-services-wallet",
  "hkask-storage",
  "hkask-templates",
+ "hkask-test-harness",
  "hkask-types",
+ "parking_lot",
+ "rand 0.9.4",
+ "reqwest",
+ "rusqlite",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4629,11 +4642,15 @@ dependencies = [
 name = "hkask-services-daemon"
 version = "0.27.0"
 dependencies = [
+ "async-trait",
+ "chrono",
  "hkask-agents",
  "hkask-mcp",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
 ]

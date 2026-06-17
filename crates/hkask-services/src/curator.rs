@@ -15,7 +15,7 @@ use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 
-use crate::AgentService;
+use hkask_services_context::AgentService;
 use crate::ServiceError;
 
 /// Response for a single escalation entry.
