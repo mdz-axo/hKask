@@ -1,6 +1,6 @@
-use async_trait::async_trait;
 use super::{ProviderSearchOutput, WebError, WebSearchProvider};
 use crate::types::*;
+use async_trait::async_trait;
 use std::collections::HashMap;
 
 pub struct TavilyProvider {

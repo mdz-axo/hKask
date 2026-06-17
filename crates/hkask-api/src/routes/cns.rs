@@ -1,8 +1,8 @@
 //! CNS observability routes — including SSE event stream
 
+use async_trait::async_trait;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use async_trait::async_trait;
 use futures_util::stream::Stream;
 use hkask_types::event::{NuEvent, SpanNamespace};
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};

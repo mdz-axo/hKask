@@ -1,8 +1,8 @@
-use async_trait::async_trait;
 use super::{
     ProviderSearchOutput, WebBrowseProvider, WebError, WebExtractProvider, WebSearchProvider,
 };
 use crate::types::*;
+use async_trait::async_trait;
 use std::time::Duration;
 
 pub struct FirecrawlProvider {

@@ -1,6 +1,6 @@
-use async_trait::async_trait;
 use super::{ProviderSearchOutput, WebError, WebSearchProvider};
 use crate::types::*;
+use async_trait::async_trait;
 
 /// SerpAPI provider — Google web/news search + YouTube transcript extraction.
 ///
