@@ -182,7 +182,6 @@ pub struct HinkalPort {
 impl HinkalPort {
     /// Create a new HinkalPort connected to the Hinkal API.
     ///
-    /// REQ: P9-wallet-hinkal-port-new
     /// expect: "The system creates a privacy port for shielded transactions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop
     /// \[P4\] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey
@@ -190,6 +189,7 @@ impl HinkalPort {
     /// pre:  treasury_pubkey is a non-empty account/public key string
     /// post: HTTP client initialized with rustls TLS
     /// post: circuit breaker initialized with zero failures
+    #[rs::contract(id = "P9-wallet-hinkal-port-new", principle = "P9")]
     #[rs::contract(id = "P9-wallet-hinkal-port-new", principle = "P9")]
     pub fn new(api_base_url: &str, treasury_pubkey: &str) -> Result<Self, WalletError> {
         if api_base_url.trim().is_empty() {

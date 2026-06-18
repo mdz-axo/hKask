@@ -4,6 +4,8 @@
 //! capability with a manifest linking to its training source. This replaces
 //! ad-hoc "skill name" strings with a provable semantic type.
 
+use hkask_rsolidity::contract;
+
 use serde::{Deserialize, Serialize};
 
 /// Domain categories recognized by the MDS (Minimal Domain Specification).
@@ -30,9 +32,9 @@ pub enum MdsDomain {
 }
 
 impl MdsDomain {
-    /// REQ: P8-adt-domain-as-str
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// post: returns canonical kebab-case domain string
+    #[contract(id = "P8-adt-domain-as-str", principle = "P8")]
     pub fn as_str(&self) -> &'static str {
         match self {
             MdsDomain::SolidityAudit => "solidity-audit",
@@ -45,10 +47,10 @@ impl MdsDomain {
         }
     }
 
-    /// REQ: P8-adt-domain-parse
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  s is a non-empty string
     /// post: returns Some(MdsDomain) for recognized kebab-case domain names; None otherwise
+    #[contract(id = "P8-adt-domain-parse", principle = "P8")]
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "solidity-audit" => Some(MdsDomain::SolidityAudit),
@@ -93,7 +95,6 @@ pub struct TrainingProvenance {
 /// Grounds every trained adapter in a provable capability. Replaces
 /// ad-hoc "skill name" strings with a semantic type carrying provenance.
 ///
-/// REQ: P8-adt-expertise-definition
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P8] Semantic Grounding — expertise is a named, domain-scoped capability descriptor
 /// pre:  name is non-empty, domain is a recognized MDS domain category
@@ -114,11 +115,11 @@ pub struct Expertise {
 impl Expertise {
     /// Create a new Expertise with validation.
     ///
-    /// REQ: P8-adt-expertise-definition
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  name is non-empty, domain is a valid MdsDomain
     /// post: returns Ok(Expertise) with the given name, domain, manifest, and provenance
     /// post: returns Err if name is empty
+    #[contract(id = "P8-adt-expertise-definition", principle = "P8")]
     pub fn new(
         name: String,
         domain: MdsDomain,

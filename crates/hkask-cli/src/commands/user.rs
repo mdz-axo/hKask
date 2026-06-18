@@ -83,7 +83,6 @@ fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceErr
     Ok(())
 }
 
-/// REQ: CLI-051
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; replicant_name, first_name, last_name, email are non-empty; passphrase meets validation (8+ alphanumeric, mixed case)
 /// post: registers a new replicant identity in the store; returns ReplicantIdentity on success or ServiceError on validation/store failure
@@ -122,7 +121,6 @@ pub fn register_replicant_with_passphrase(
         })
 }
 
-/// REQ: CLI-052
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; replicant_name is non-empty; passphrase is the correct credential
 /// post: returns a UserSession on successful authentication or ServiceError::LoginFailed on invalid credentials
@@ -141,7 +139,6 @@ pub fn login_with_passphrase(
         })
 }
 
-/// REQ: CLI-053
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; replicant_name is non-empty
 /// post: returns the ReplicantIdentity if found, or ServiceError::UserNotFound if the replicant does not exist
@@ -162,7 +159,6 @@ pub fn get_replicant(
         })
 }
 
-/// REQ: CLI-054
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; user_id is a valid UserID
 /// post: returns all replicant identities belonging to the given user; empty vec if none
@@ -179,7 +175,6 @@ pub fn get_replicants(
         })
 }
 
-/// REQ: CLI-055
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; replicant_name is non-empty
 /// post: returns all active sessions for the replicant; empty vec if none
@@ -193,7 +188,6 @@ pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSessi
         })
 }
 
-/// REQ: CLI-056
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; session_id is a non-empty session identifier
 /// post: revokes the session (logs out) and returns the revoked UserSession; ServiceError if session not found
@@ -219,7 +213,6 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
     Ok(session)
 }
 
-/// REQ: CLI-057
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  stdin is available for interactive input
 /// post: prompts user for replicant details and passphrase; registers on success, prints ✓; exits on validation failure
@@ -284,7 +277,6 @@ pub fn register_replicant() {
     }
 }
 
-/// REQ: CLI-058
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  stdin is available; replicant must exist in store
 /// post: prompts for name and passphrase; prints session info on success or error message on failure
@@ -320,7 +312,6 @@ pub fn login_replicant() {
     }
 }
 
-/// REQ: CLI-059
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; replicant_name is non-empty and exists
 /// post: prints replicant details (name, user_id, created_at, primary status) to stdout; ServiceError if not found
@@ -345,7 +336,6 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), Service
     Ok(())
 }
 
-/// REQ: CLI-060
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore
 /// post: prints all replicants with name, primary status, user_id, and created_at; prints "No replicants registered." if empty
@@ -375,7 +365,6 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// REQ: CLI-061
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; session_id is a non-empty active session identifier
 /// post: revokes the session and prints confirmation; ServiceError if session not found
@@ -402,7 +391,6 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// REQ: CLI-062
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  store is a valid UserStore; replicant_name is non-empty
 /// post: prints all active sessions with session_id and last_active timestamp; prints "No active sessions." if none
@@ -429,7 +417,6 @@ pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceE
     Ok(())
 }
 
-/// REQ: CLI-063
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  action is a valid ReplicantAction variant
 /// post: dispatches to the appropriate handler (register, login, show, list, sessions, logout, passphrase); prints results or errors
@@ -459,7 +446,6 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
     }
 }
 
-/// REQ: CLI-064
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  replicant_name exists in store; stdin is available for interactive input
 /// post: prompts for old and new passphrase; validates match; updates passphrase and invalidates existing sessions on success

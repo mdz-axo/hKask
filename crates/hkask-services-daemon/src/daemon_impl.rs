@@ -14,6 +14,8 @@
 //! observing in the MCP session — the same way a chat-mode agent thinks about
 //! conversation turns.
 
+use hkask_rsolidity::contract;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -52,10 +54,10 @@ pub struct ServiceDaemonHandler {
 }
 
 impl ServiceDaemonHandler {
-    /// REQ: P7-svc-daemon_handler-135
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  pod_manager must be a valid Arc<PodManager>; user_store must be a valid Arc<Mutex<UserStore>>
     /// post: returns ServiceDaemonHandler with all fields initialized; inference_port may be None
+    #[contract(id = "P7-svc-daemon_handler-135", principle = "P7")]
     pub fn new(
         pod_manager: Arc<PodManager>,
         user_store: Arc<std::sync::Mutex<UserStore>>,

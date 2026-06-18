@@ -1,6 +1,8 @@
 //! ArchivalService — GitHub REST API for registry archival.
 //! # REQ: P4 (Clear Boundaries) — GitHub operations via adapter, not raw HTTP.
 
+use hkask_rsolidity::contract;
+
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use hkask_mcp::server::{api_get, api_put, resolve_credential};
 use hkask_storage::AgentRegistryStore;
@@ -40,10 +42,10 @@ impl ArchivalService {
     /// Uses the GitHub Contents API to create or update a file. If the file
     /// already exists, its SHA is fetched first for conflict detection.
     ///
-    /// REQ: P5-svc-archival-217
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name, branch, path, content must be non-empty; GitHub credentials must be in keychain
     /// post: returns ArchiveResult with path and commit_sha; file created or updated on GitHub; Err(Archival) on API failure
+    #[contract(id = "P5-svc-archival-217", principle = "P5")]
     pub async fn archive_to_git(
         repo_owner: &str,
         repo_name: &str,
@@ -105,10 +107,10 @@ impl ArchivalService {
     /// Fetches file content using the GitHub Contents API and decodes
     /// the base64-encoded response.
     ///
-    /// REQ: P5-svc-archival-218
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name, git_ref must be non-empty; target_path defaults to "registry" if "."
     /// post: returns decoded file content as String; Err(Archival) on API failure, missing content, or decode error
+    #[contract(id = "P5-svc-archival-218", principle = "P5")]
     pub async fn restore_from_git(
         repo_owner: &str,
         repo_name: &str,
@@ -165,10 +167,10 @@ impl ArchivalService {
     /// Uses the GitHub Commits API to list commits that touched the
     /// registry file.
     ///
-    /// REQ: P5-svc-archival-219
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name must be non-empty; GitHub credentials must be in keychain
     /// post: returns Vec<String> of commit SHAs; empty Vec if no commits; Err(Archival) on API failure
+    #[contract(id = "P5-svc-archival-219", principle = "P5")]
     pub async fn list_archives(
         repo_owner: &str,
         repo_name: &str,
@@ -205,10 +207,10 @@ impl ArchivalService {
     /// Reads the local registry database, serializes it to JSON, and
     /// pushes it to GitHub as a snapshot commit using the Contents API.
     ///
-    /// REQ: P5-svc-archival-220
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  repo_owner, repo_name, message must be non-empty; agent_registry_store must be initialized
     /// post: returns SnapshotResult with commit_sha; registry content pushed to GitHub; Err(Archival) on API or serialization failure
+    #[contract(id = "P5-svc-archival-220", principle = "P5")]
     pub async fn create_snapshot(
         repo_owner: &str,
         repo_name: &str,

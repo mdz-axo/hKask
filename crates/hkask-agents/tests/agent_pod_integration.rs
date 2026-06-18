@@ -59,7 +59,6 @@ fn set_test_master_key() {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-/// REQ: P1-agt-pod-integration-create-test — Two-pod creation and activation
 ///
 /// Two pods can be created with distinct identities and activated
 /// through the full lifecycle (Populated → Registered → Activated).
@@ -108,7 +107,6 @@ async fn two_pod_creation_and_activation() {
     assert!(format!("{:?}", bob_status.state).contains("Activated"));
 }
 
-/// REQ: P1-agt-pod-integration-list-test — Pod listing after multi-pod creation
 ///
 /// `list_pods()` returns all created pods with correct status.
 #[tokio::test]
@@ -146,7 +144,6 @@ async fn list_pods_after_multi_pod_creation() {
     assert!(format!("{:?}", carol_status.state).contains("Populated"));
 }
 
-/// REQ: P1-agt-pod-integration-mode-test — Mode transitions on activated pod
 ///
 /// An activated pod can enter server mode, exit, and enter chat mode.
 #[tokio::test]
@@ -186,7 +183,6 @@ async fn mode_transitions_on_activated_pod() {
         .expect("enter chat mode");
 }
 
-/// REQ: P1-agt-pod-integration-deactivate-test — Deactivation and reactivation
 ///
 /// A pod can be deactivated and its state transitions correctly.
 #[tokio::test]
@@ -209,7 +205,6 @@ async fn deactivation_and_reactivation() {
     );
 }
 
-/// REQ: P1-agt-pod-integration-not-found-test — Pod not found error
 ///
 /// Querying a non-existent pod returns PodNotFound.
 #[tokio::test]
@@ -225,7 +220,6 @@ async fn nonexistent_pod_returns_error() {
     );
 }
 
-/// REQ: P1-agt-pod-integration-inference-test — Inference port wiring
 ///
 /// A PodManager constructed with a MockInferencePort exposes it
 /// via `inference_port()` and pods can be created/activated with

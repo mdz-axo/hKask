@@ -3,6 +3,8 @@
 //! Every operation is OCAP-gated via `DelegationToken`. No ambient access.
 //! The trait is the seam for provider backends — new providers add without changing the router (P7).
 
+use hkask_rsolidity::contract;
+
 use crate::TrainedLoRAAdapter;
 use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
 use crate::provider_cost::{CostModel, ProviderInfo};
@@ -19,7 +21,6 @@ use uuid::Uuid;
 
 /// The core trait for trained adapter lifecycle operations.
 ///
-/// REQ: P4-adt-adapter-router-compose
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P4] Clear Boundaries — composition is explicit, OCAP-gated, and provider-validated
 /// [P7] Evolutionary Architecture — the trait is the seam for provider backends
@@ -124,6 +125,7 @@ pub struct InferenceEndpointHandle {
 
 impl InferenceEndpointHandle {
     /// Current phase of the endpoint lifecycle.
+    #[contract(id = "P4-adt-adapter-router-compose", principle = "P4")]
     pub fn phase(&self) -> EndpointPhase {
         self.lifecycle
             .lock()
@@ -162,7 +164,6 @@ pub struct EndpointStatus {
 
 /// Result of provider selection — returned by `AdapterRouter::select_provider()`.
 ///
-/// REQ: P2-adt-provider-selection
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P2] Affirmative Consent — the caller must present this to the user and obtain explicit consent
 #[derive(Debug, Clone)]

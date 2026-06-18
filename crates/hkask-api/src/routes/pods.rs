@@ -1,5 +1,6 @@
 //! Pod lifecycle management routes — call PodManager directly.
 
+use hkask_rsolidity as rs;
 use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
@@ -65,7 +66,6 @@ pub struct ListPodsResponse {
     pub pods: Vec<PodStatusResponse>,
 }
 
-/// REQ: API-004
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with pod routes registered

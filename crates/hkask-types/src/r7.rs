@@ -42,7 +42,6 @@ impl R7BotIdentity {
 
     /// Get the bot's WebID (always valid by construction)
     ///
-    /// REQ: TYP-186
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid R7BotIdentity (constructed via new or deserialized
     ///       with a valid webid field)
@@ -84,7 +83,6 @@ static DEFAULT_R7_BOTS: OnceLock<Vec<R7BotIdentity>> = OnceLock::new();
 ///
 /// Returns a reference to a statically cached `Vec<R7BotIdentity>`.
 ///
-/// REQ: TYP-187
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  (none — always callable)
 /// post: returns a &'static [R7BotIdentity] slice of exactly 7 entries

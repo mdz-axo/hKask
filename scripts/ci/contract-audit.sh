@@ -40,7 +40,24 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Helpers for scanning both crates/ and mcp-servers/ ────────────────────────
+
+# List all crate source directories (both crates/ and mcp-servers/).
+# Each entry: "crate_name|src_dir"
+list_all_crate_sources() {
+    for crate_dir in crates/*/; do
+        local c
+        c=$(basename "$crate_dir")
+        [ -d "crates/${c}/src" ] || continue
+        echo "${c}|crates/${c}/src"
+    done
+    for mcp_dir in mcp-servers/*/; do
+        local c
+        c=$(basename "$mcp_dir")
+        [ -d "mcp-servers/${c}/src" ] || continue
+        echo "${c}|mcp-servers/${c}/src"
+    done
+}
 
 count_pub_fns() {
     local dir="$1"
@@ -354,6 +371,7 @@ run_expect_mode() {
 run_principles_mode() {
     crate="$1"
     src="crates/${crate}/src"
+    [ -d "$src" ] || src="mcp-servers/${crate}/src"
     [ -d "$src" ] || return
 
     contracted_count=$(count_contracted "$src")
@@ -379,6 +397,7 @@ run_principles_mode() {
 run_constraining_mode() {
     crate="$1"
     src="crates/${crate}/src"
+    [ -d "$src" ] || src="mcp-servers/${crate}/src"
     [ -d "$src" ] || return
 
     contracted_count=$(count_contracted "$src")
@@ -420,6 +439,7 @@ run_constraining_mode() {
 run_contract_quality_mode() {
     crate="$1"
     src="crates/${crate}/src"
+    [ -d "$src" ] || src="mcp-servers/${crate}/src"
     [ -d "$src" ] || return
 
     contracted=$(count_contracted "$src")
@@ -516,14 +536,16 @@ run_full_mode() {
     echo ""
 
     if [ "$crate" = "ALL" ]; then
-        for crate_dir in crates/*/; do
-            c=$(basename "$crate_dir")
-            [ -d "crates/${c}/src" ] || continue
-            run_expect_mode "$c"
-            run_principles_mode "$c"
-            run_constraining_mode "$c"
-            run_rsolidity_mode "$c"
-        done
+        while IFS='|' read -r c _; do
+            [ -n "$c" ] || continue
+            # Determine src dir for this crate
+            if [ -d "crates/${c}/src" ]; then
+                run_expect_mode "$c"
+                run_principles_mode "$c"
+                run_constraining_mode "$c"
+                run_rsolidity_mode "$c"
+            fi
+        done < <(list_all_crate_sources)
         # Also run coverage summary
         echo "=== Contract Coverage Summary ==="
         echo ""
@@ -531,9 +553,7 @@ run_full_mode() {
         printf "%-30s %8s %10s %10s\n" "------------------------------" "--------" "----------" "----------"
         total_pub=0
         total_con=0
-        for crate_dir in crates/*/; do
-            c=$(basename "$crate_dir")
-            src="${crate_dir}src"
+        while IFS='|' read -r crate src; do
             [ -d "$src" ] || continue
             pub_count=$(count_pub_fns "$src")
             contracted_count=$(count_contracted "$src")
@@ -543,8 +563,8 @@ run_full_mode() {
             fi
             total_pub=$((total_pub + pub_count))
             total_con=$((total_con + contracted_count))
-            printf "%-30s %8d %10d %9s%%\n" "$c" "$pub_count" "$contracted_count" "$coverage_pct"
-        done
+            printf "%-30s %8d %10d %9s%%\n" "$crate" "$pub_count" "$contracted_count" "$coverage_pct"
+        done < <(list_all_crate_sources)
         echo ""
         total_cov="0.0"
         if [ "$total_pub" -gt 0 ]; then
@@ -561,6 +581,7 @@ run_full_mode() {
 
     # Detailed coverage for single crate
     src="crates/${crate}/src"
+    [ -d "$src" ] || src="mcp-servers/${crate}/src"
     pub_count=$(count_pub_fns "$src")
     contracted_count=$(count_contracted "$src")
     coverage_pct="0.0"
@@ -786,34 +807,57 @@ if [ "$MODE" = "csv" ]; then
 fi
 
 if [ "$MODE" = "summary" ]; then
-    echo "=== Contract Coverage Summary ==="
+    echo "=== Contract Audit Summary (v0.28.0 extended) ==="
     echo ""
-    printf "%-30s %8s %10s %10s\n" "Crate" "Pub Fns" "Contracted" "Coverage %"
-    printf "%-30s %8s %10s %10s\n" "------------------------------" "--------" "----------" "----------"
+    printf "%-32s %7s %9s %9s %7s %9s %11s\n" "Crate" "PubFns" "Contracted" "Cover%" "expect:" "Ground%" "#[contract]"
+    printf "%-32s %7s %9s %9s %7s %9s %11s\n" "--------------------------------" "-------" "---------" "------" "-------" "-------" "-----------"
     total_pub=0
     total_con=0
-    for crate_dir in crates/*/; do
-        crate=$(basename "$crate_dir")
-        src="${crate_dir}src"
+    total_exp=0
+    total_rs=0
+    while IFS='|' read -r crate src; do
         [ -d "$src" ] || continue
+        [ -n "$crate" ] || continue
         pub_count=$(count_pub_fns "$src")
         contracted_count=$(count_contracted "$src")
+        expect_count=$(count_expect "$src")
+        rsolidity_count=$(count_rsolidity "$src")
+
         coverage_pct="0.0"
+        grounding_pct="0.0"
         if [ "$pub_count" -gt 0 ]; then
             coverage_pct=$(echo "scale=1; $contracted_count * 100 / $pub_count" | bc 2>/dev/null || echo "0.0")
         fi
+        if [ "$contracted_count" -gt 0 ]; then
+            grounding_pct=$(echo "scale=1; $expect_count * 100 / $contracted_count" | bc 2>/dev/null || echo "0.0")
+        fi
+
         total_pub=$((total_pub + pub_count))
         total_con=$((total_con + contracted_count))
-        printf "%-30s %8d %10d %9s%%\n" "$crate" "$pub_count" "$contracted_count" "$coverage_pct"
-    done
+        total_exp=$((total_exp + expect_count))
+        total_rs=$((total_rs + rsolidity_count))
+
+        printf "%-32s %7d %9d %8s%% %7d %8s%% %11d\n" \
+            "$crate" "$pub_count" "$contracted_count" "$coverage_pct" \
+            "$expect_count" "$grounding_pct" "$rsolidity_count"
+    done < <(list_all_crate_sources)
     echo ""
     total_cov="0.0"
+    total_grounding="0.0"
     if [ "$total_pub" -gt 0 ]; then
         total_cov=$(echo "scale=1; $total_con * 100 / $total_pub" | bc 2>/dev/null || echo "0.0")
     fi
-    printf "%-30s %8d %10d %9s%%\n" "TOTAL" "$total_pub" "$total_con" "$total_cov"
+    if [ "$total_con" -gt 0 ]; then
+        total_grounding=$(echo "scale=1; $total_exp * 100 / $total_con" | bc 2>/dev/null || echo "0.0")
+    fi
+    printf "%-32s %7d %9d %8s%% %7d %8s%% %11d\n" \
+        "TOTAL" "$total_pub" "$total_con" "$total_cov" \
+        "$total_exp" "$total_grounding" "$total_rs"
     echo ""
-    echo "PASS: Contract coverage audit complete (trend monitor, not a hard gate)."
+    echo "Uncovered contracts (REQ: tags without expect:): $((total_con - total_exp))"
+    echo "rSolidity migration coverage: $total_rs / $total_con contracts"
+    echo ""
+    echo "PASS: Contract audit complete (trend monitor, not a hard gate)."
     exit 0
 fi
 

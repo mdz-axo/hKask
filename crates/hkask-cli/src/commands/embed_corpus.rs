@@ -38,7 +38,6 @@ fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, St
     ))
 }
 
-/// REQ: CLI-094
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; config is a valid corpus.yaml path; replicant is non-empty; passphrase is valid
 /// post: embeds corpus passages into the vector database; prints embedding stats, centroid info, and validation config

@@ -19,7 +19,6 @@ pub struct AdapterContainer {
 impl AdapterContainer {
     /// Create a new empty adapter container.
     ///
-    /// REQ: MCP-010
     /// post: returns AdapterContainer with no configured ports
     pub fn new() -> Self {
         Self {
@@ -33,7 +32,6 @@ impl AdapterContainer {
     /// MCP servers should call `get_git_cas_port()` to obtain the shared
     /// port instance rather than constructing their own adapters.
     ///
-    /// REQ: MCP-011
     /// pre:  port is a valid GitCASPort
     /// post: git_cas_port set
     pub fn configure_git_cas_port(&self, port: Arc<dyn GitCASPort>) -> Result<(), String> {
@@ -49,7 +47,6 @@ impl AdapterContainer {
     /// Returns `None` if not yet configured. MCP servers should prefer
     /// this over constructing their own `GixCasAdapter`.
     ///
-    /// REQ: MCP-012
     /// post: returns Some(port) if configured, None otherwise
     pub fn get_git_cas_port(&self) -> Result<Option<Arc<dyn GitCASPort>>, String> {
         let lock = self.git_cas_port.read().map_err(|e| e.to_string())?;

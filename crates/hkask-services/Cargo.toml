@@ -67,6 +67,7 @@ hkask-test-harness = { path = "../hkask-test-harness" }
 [[test]]
 name = "cli_to_storage_integration"
 path = "tests/cli_to_storage_integration.rs"
+hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
 
 [features]
 # Pass-through to hkask-wallet for chain port selection

@@ -13,7 +13,6 @@ pub enum Right {
 }
 
 impl Right {
-    /// REQ: TYP-191
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid Right variant (Read, Write, Execute, Coordinate, or EscalateTo)
     /// post: returns a human-readable display string like "read: resource_name"
@@ -46,7 +45,6 @@ pub enum Responsibility {
 }
 
 impl Responsibility {
-    /// REQ: TYP-192
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid Responsibility variant
     /// post: returns a human-readable display string describing the
@@ -86,7 +84,6 @@ impl UserProfile {
     /// and the human's last name, following the naming protocol:
     /// "{chosen_name} r{human_last_name}"
     ///
-    /// REQ: TYP-193
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  chosen_first_name is a non-empty string; self.last_name is non-empty
     /// post: returns "{chosen_first_name} r{self.last_name}"

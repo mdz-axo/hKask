@@ -4,6 +4,8 @@
 //! the adapter's rank, alpha, target modules, base model, and format version.
 //! Providers validate this config before accepting the adapter for upload.
 
+use hkask_rsolidity::contract;
+
 use serde::{Deserialize, Serialize};
 
 /// Parsed contents of adapter_config.json (Hugging Face PEFT format).
@@ -39,21 +41,21 @@ pub struct AdapterConfig {
 impl AdapterConfig {
     /// Parse adapter_config.json from raw bytes.
     ///
-    /// REQ: P8-adt-adapter-config-parse
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// [P8] Semantic Grounding — adapter config carries training provenance
     /// pre:  bytes is valid JSON matching the PEFT adapter_config.json schema
     /// post: returns AdapterConfig with base_model_name_or_path populated
+    #[contract(id = "P8-adt-adapter-config-parse", principle = "P8")]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, AdapterConfigError> {
         serde_json::from_slice(bytes).map_err(AdapterConfigError::Parse)
     }
 
     /// Read adapter_config.json from a directory path.
     ///
-    /// REQ: P8-adt-adapter-config-parse
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  storage_path is a readable directory containing adapter_config.json
     /// post: returns AdapterConfig parsed from adapter_config.json
+    #[contract(id = "P8-adt-adapter-config-parse", principle = "P8")]
     pub fn from_dir(storage_path: &str) -> Result<Self, AdapterConfigError> {
         let config_path = std::path::Path::new(storage_path).join("adapter_config.json");
         let bytes = std::fs::read(&config_path).map_err(|e| AdapterConfigError::Io {
@@ -65,10 +67,10 @@ impl AdapterConfig {
 
     /// Validate that this adapter config is compatible with the expected base model.
     ///
-    /// REQ: P8-adt-adapter-config-parse
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  expected_family is non-empty
     /// post: returns Ok if base_model_name_or_path contains expected_family, Err otherwise
+    #[contract(id = "P8-adt-adapter-config-parse", principle = "P8")]
     pub fn validate_base_model(&self, expected_family: &str) -> Result<(), AdapterConfigError> {
         let actual = &self.base_model_name_or_path;
         // Flexible match — the config may contain full HuggingFace path like

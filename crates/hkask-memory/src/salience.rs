@@ -18,6 +18,8 @@
 /// All fields are derived from simple text analysis — no model inference.
 /// These constitute the "how" (methods/techniques) dimension of the 5W1H
 /// metadata layer.
+use hkask_rsolidity::contract;
+
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct MethodSignals {
     /// Ratio of coordinating conjunctions (and, but, or) to total
@@ -82,13 +84,13 @@ pub struct MethodSignals {
 /// All signals are cheap substring/character operations. No allocations
 /// beyond what's needed for word splitting.
 ///
-/// REQ: P3-mem-salience-method-signals
 /// expect: "The system scores passage salience to gate triple storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — extracts cheap stylometric signals for method-aware retrieval
 /// \[P8\] Constraining: Semantic Grounding — signals are deterministic heuristics over raw text
 /// pre:  text is a valid &str
 /// post: returns MethodSignals with computed linguistic features
 /// post: returns MethodSignals::default() for empty text
+    #[contract(id = "P3-mem-salience-method-signals", principle = "P3")]
 pub fn compute_method_signals(text: &str) -> MethodSignals {
     let words: Vec<&str> = text.split_whitespace().collect();
     let word_count = words.len();
@@ -558,13 +560,13 @@ pub struct MethodThresholds {
 impl DeclaredMethod {
     /// Check whether a passage's signals match this method's thresholds.
     ///
-    /// REQ: P3-mem-salience-declared-method-matches
     /// expect: "The system scores passage salience to gate triple storage budget" [P3]
     /// \[P3\] Motivating: Generative Space — matches passage signals against declared method thresholds
     /// \[P8\] Constraining: Semantic Grounding — unconfigured thresholds are always satisfied
     /// pre:  signals is a valid MethodSignals
     /// post: returns true iff all configured min/max thresholds are satisfied
     /// post: unconfigured thresholds (None) are always satisfied
+    #[contract(id = "P3-mem-salience-declared-method-matches", principle = "P3")]
     pub fn matches(&self, signals: &MethodSignals) -> bool {
         let t = &self.signal;
         check_min(t.parataxis_ratio_min, signals.parataxis_ratio)
@@ -617,13 +619,13 @@ pub struct EntityTags {
 /// Uses simple case-insensitive substring matching. Returns distinct
 /// tags only (no duplicates within a category).
 ///
-/// REQ: P3-mem-salience-tag-entities
 /// expect: "The system scores passage salience to gate triple storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — tags passages with declared entities for the salience graph
 /// \[P8\] Constraining: Semantic Grounding — case-insensitive substring matching
 /// pre:  text is non-empty, entity lists are valid
 /// post: returns EntityTags with matched entities per category
 /// post: methods field is empty (filled separately)
+    #[contract(id = "P3-mem-salience-tag-entities", principle = "P3")]
 pub fn tag_entities(
     text: &str,
     characters: &[String],
@@ -652,11 +654,11 @@ fn filter_matches(lower_text: &str, candidates: &[String]) -> Vec<String> {
 impl EntityTags {
     /// All entity and method names as a single iterator for graph construction.
     ///
-    /// REQ: P3-mem-salience-all-tags
     /// expect: "The system scores passage salience to gate triple storage budget" [P3]
     /// \[P3\] Motivating: Generative Space — flattens entity categories for graph construction
     /// \[P5\] Constraining: Essentialism — minimal iterator over existing vectors
     /// post: returns iterator over all tag strings across all categories
+    #[contract(id = "P3-mem-salience-all-tags", principle = "P3")]
     pub fn all_tags(&self) -> impl Iterator<Item = &str> {
         self.characters
             .iter()
@@ -669,11 +671,11 @@ impl EntityTags {
 
     /// Number of distinct tags across all categories.
     ///
-    /// REQ: P3-mem-salience-tag-count
     /// expect: "The system scores passage salience to gate triple storage budget" [P3]
     /// \[P3\] Motivating: Generative Space — counts distinct tags across all categories
     /// \[P5\] Constraining: Essentialism — simple sum of category lengths
     /// post: returns sum of lengths of all tag category vectors
+    #[contract(id = "P3-mem-salience-tag-count", principle = "P3")]
     pub fn tag_count(&self) -> usize {
         self.characters.len()
             + self.places.len()
@@ -714,7 +716,6 @@ impl EntityTags {
 /// worst-case complexity at O(n × k × d) where k=50, d=average degree.
 /// Foundational rules (passages with zero tags) get salience 0.0.
 ///
-/// REQ: P3-mem-salience-compute-batch
 /// expect: "The system scores passage salience to gate triple storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — scores passage salience to gate triple storage budget
 /// \[P9\] Constraining: Homeostatic Self-Regulation — graph centrality bounded by neighbor sampling
@@ -722,6 +723,7 @@ impl EntityTags {
 /// post: returns Vec<f32> with one salience score per passage
 /// post: passages with zero tags get salience 0.0
 /// post: returns empty Vec for empty input
+    #[contract(id = "P3-mem-salience-compute-batch", principle = "P3")]
 pub fn compute_salience_batch(all_tags: &[EntityTags]) -> Vec<f32> {
     let n = all_tags.len();
     if n == 0 {
@@ -863,13 +865,13 @@ impl BudgetConfig {
     /// For `PerPage`: budget = (passage_count / 250) × per_100_pages.
     /// The constant 250 assumes ~250 passages ≈ 100 pages.
     ///
-    /// REQ: P3-mem-salience-budget-resolve
     /// expect: "The system scores passage salience to gate triple storage budget" [P3]
     /// \[P3\] Motivating: Generative Space — resolves passage count into absolute triple budget
     /// \[P9\] Constraining: Homeostatic Self-Regulation — budget caps generative storage growth
     /// pre:  passage_count ≥ 0
     /// post: returns computed absolute triple budget
     /// post: Flat variant caps at total_passages if set and smaller
+    #[contract(id = "P3-mem-salience-budget-resolve", principle = "P3")]
     pub fn resolve(&self, passage_count: usize) -> usize {
         match self {
             BudgetConfig::Flat {

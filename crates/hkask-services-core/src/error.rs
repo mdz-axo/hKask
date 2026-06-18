@@ -26,6 +26,8 @@
 //! - `ServiceError` does NOT depend on surface types (CLI errors, API errors).
 //!   Dependency direction: surface → service → domain. Never the reverse.
 
+use hkask_rsolidity::contract;
+
 use thiserror::Error;
 
 use hkask_types::InfrastructureError;
@@ -434,10 +436,10 @@ impl ServiceError {
     /// Non-retryable: not-found, invalid input, permission denied, database
     /// corruption, encryption failures, lock poisoning.
     ///
-    /// REQ: P4-svc-error-225
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServiceError variant
     /// post: returns true for retryable errors (network, rate-limit, keystore); false for non-retryable (not-found, validation, permission)
+    #[contract(id = "P4-svc-error-225", principle = "P4")]
     pub fn is_retryable(&self) -> bool {
         match self {
             // ── Retryable ────────────────────────────────────────────
@@ -525,10 +527,10 @@ impl ServiceError {
     /// parsing `Display` strings. Keys follow the pattern
     /// `error.<domain>.<condition>`.
     ///
-    /// REQ: P4-svc-error-226
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServiceError variant
     /// post: returns &'static str i18n key (e.g., "error.curator.escalation_not_found")
+    #[contract(id = "P4-svc-error-226", principle = "P4")]
     pub fn message_key(&self) -> &'static str {
         match self {
             // ── Curator domain ──────────────────────────────────────
@@ -625,10 +627,10 @@ impl ServiceError {
     /// The observer WebID is freshly generated per event — these are
     /// system-level observations, not agent-specific.
     ///
-    /// REQ: P4-svc-error-227
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServiceError variant
     /// post: returns Some(NuEvent) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
+    #[contract(id = "P4-svc-error-227", principle = "P4")]
     pub fn nu_event(&self) -> Option<hkask_types::event::NuEvent> {
         use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
         use hkask_types::id::WebID;

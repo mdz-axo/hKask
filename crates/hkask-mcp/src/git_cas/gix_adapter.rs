@@ -7,6 +7,7 @@
 //! Snapshot strategy: reads files from `cas/`, writes each as a git blob object,
 //! builds a tree from blob OIDs, commits the tree. No index needed.
 
+use hkask_rsolidity as rs;
 use hkask_types::ports::git_cas::{
     CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, LogEntry, RepoId,
     TreeEntry, TreeEntryKind, VerificationReport,
@@ -86,7 +87,6 @@ where
 impl GixCasAdapter {
     /// Create a new GixCasAdapter at the given base path.
     ///
-    /// REQ: MCP-023
     /// pre:  base_path is a valid directory path (created if missing)
     /// post: returns GixCasAdapter with initialized set
     pub fn new(base_path: impl Into<PathBuf>) -> Result<Self, GitCasError> {
@@ -101,7 +101,6 @@ impl GixCasAdapter {
 
     /// Create a GixCasAdapter from the HKASK_CAS_HOME environment variable.
     ///
-    /// REQ: MCP-024
     /// post: returns GixCasAdapter at resolved CAS home path
     pub fn from_env() -> Result<Self, GitCasError> {
         Self::new(resolve_cas_home())

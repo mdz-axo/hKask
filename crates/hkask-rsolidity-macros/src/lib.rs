@@ -3,6 +3,8 @@
 //! This crate is an implementation detail of `hkask-rsolidity`. Public API users
 //! should depend on `hkask-rsolidity` and use its re-exports.
 
+use hkask_rsolidity::contract;
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
@@ -43,12 +45,12 @@ fn get_named_value<'a>(pairs: &'a [MetaNameValue], name: &str) -> Option<&'a Met
     pairs.iter().find(|nv| nv.path.is_ident(name))
 }
 
-/// REQ: P9-rsolidity-macros-ocap
 /// pre:  arguments are valid
 /// post: returns expected result
 /// Injects a capability check at the start of the annotated method. The
 /// receiver type must implement `::hkask_rsolidity::Ocap`.
 #[proc_macro_attribute]
+    #[contract(id = "P9-rsolidity-macros-ocap", principle = "P9")]
 pub fn ocap(args: TokenStream, input: TokenStream) -> TokenStream {
     let pairs = match parse_name_value_args(args) {
         Ok(p) => p,
@@ -107,13 +109,13 @@ pub fn ocap(args: TokenStream, input: TokenStream) -> TokenStream {
     quote!(#item).into()
 }
 
-/// REQ: P9-rsolidity-macros-contract
 /// pre:  arguments are valid
 /// post: returns expected result
 /// Compile-time contract metadata. Validates the contract ID and principle
 /// format, then re-emits the annotated item unchanged so the existing source
 /// REQ comments remain the authoritative audit signal.
 #[proc_macro_attribute]
+    #[contract(id = "P9-rsolidity-macros-contract", principle = "P9")]
 pub fn contract(args: TokenStream, input: TokenStream) -> TokenStream {
     let pairs = match parse_name_value_args(args) {
         Ok(p) => p,

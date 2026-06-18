@@ -6,6 +6,8 @@
 //! All three provider backends (Together, Runpod, Baseten) have real HTTP integration
 //! for adapter upload, endpoint provisioning, and inference.
 
+use hkask_rsolidity::contract;
+
 use crate::AdapterStore;
 use crate::adapter_config::AdapterConfig;
 use crate::adapter_port::{
@@ -671,13 +673,13 @@ pub struct AdapterRouter {
 impl AdapterRouter {
     /// Build the router from an `AdapterStore` and available providers.
     ///
-    /// REQ: P4-adt-adapter-router-compose
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// [P4] Clear Boundaries — router assembled from configured provider boundaries
     /// pre:  store is a valid AdapterStore
     /// post: returns AdapterRouter with backends for adapter-capable providers
     /// post: previously active endpoints are loaded from store (metadata only — backends
     ///       are runtime objects and cannot be restored; orphaned endpoints are logged)
+    #[contract(id = "P4-adt-adapter-router-compose", principle = "P4")]
     pub fn new(store: Arc<AdapterStore>) -> Self {
         let mut backends: HashMap<ProviderId, Arc<dyn AdapterProviderBackend>> = HashMap::new();
 
@@ -776,7 +778,6 @@ impl AdapterRouter {
 
     /// Select a provider for adapter composition — user-in-the-loop (P2 Affirmative Consent).
     ///
-    /// REQ: P2-adt-provider-selection
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// [P2] Affirmative Consent — provider selection is explicit, informed, and user-driven
     /// pre:  adapter exists in store, at least one provider supports LoRA composition
@@ -786,6 +787,7 @@ impl AdapterRouter {
     /// If `budget_limit` is provided, providers exceeding the budget are still returned
     /// but marked with a budget warning. The caller must present these to the user
     /// and obtain explicit consent before calling `create_endpoint`.
+    #[contract(id = "P2-adt-provider-selection", principle = "P2")]
     pub fn select_provider(
         &self,
         adapter_id: Uuid,
@@ -837,10 +839,10 @@ impl AdapterRouter {
 
     /// Drain (teardown) all billable endpoints.
     ///
-    /// REQ: P5-adt-automatic-teardown — session cleanup
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  owner is a valid WebID (reserved for future multi-tenant scoping)
     /// post: all billable endpoints are transitioned to Terminated
+    #[contract(id = "P5-adt-automatic-teardown — session cleanup", principle = "P5")]
     pub fn drain_all_owner(&self, _owner: WebID) -> Result<usize, AdapterError> {
         // Note: _owner is reserved for future multi-tenant scoping (P1 — User Sovereignty).
         // When multi-tenant is implemented, this will filter endpoints by owner before draining.
@@ -1215,7 +1217,6 @@ impl AdapterPort for AdapterRouter {
 
 /// RAII guard that tears down an endpoint on drop.
 ///
-/// REQ: P5-adt-automatic-teardown
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P5] Essentialism — every resource earns its existence; idle endpoints must drain
 /// pre:  guard is created after successful endpoint provisioning
@@ -1235,6 +1236,7 @@ impl EndpointGuard {
     ///
     /// Returns both the handle (for use by the caller) and the guard.
     /// The guard will call `teardown_endpoint` on drop if not explicitly consumed.
+    #[contract(id = "P5-adt-automatic-teardown", principle = "P5")]
     pub fn new(router: &Arc<AdapterRouter>, endpoint_id: Uuid) -> Self {
         Self {
             endpoint_id,

@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 const PROPOSAL_ENTITY: &str = "cns:contract_proposal";
 
-/// REQ: CLI-092
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  arguments are valid
 /// post: returns expected result

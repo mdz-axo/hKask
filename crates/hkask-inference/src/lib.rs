@@ -22,6 +22,8 @@
 //! - `FA/paddleocr` → fal.ai
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
+use hkask_rsolidity::contract;
+
 pub mod chat_protocol;
 pub mod config;
 pub mod deepinfra_backend;
@@ -65,7 +67,6 @@ pub struct RouterModelEntry {
 impl RouterModelEntry {
     /// Construct a RouterModelEntry from a provider and model id.
     ///
-    /// REQ: P9-inf-router-model-entry-from
     /// expect: "The system heuristically routes multimodal models" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — canonical model entry construction
     /// pre:  model_id is non-empty
@@ -89,12 +90,12 @@ impl RouterModelEntry {
     /// Does not perform runtime probing — fast but incomplete.
     /// `None` means unknown; `Some(true)` means likely vision-capable.
     ///
-    /// REQ: P9-inf-infer-vision-support
     /// expect: "The system heuristically routes multimodal models" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — heuristic routing for multimodal models
     /// pre:  model is non-empty
     /// post: returns Some(true) if model/family matches known vision families
     /// post: returns None if unknown
+    #[contract(id = "P9-inf-infer-vision-support", principle = "P9")]
     pub fn infer_vision_support(model: &str, family: Option<&str>) -> Option<bool> {
         const VISION_FAMILIES: &[&str] = &[
             "llava",

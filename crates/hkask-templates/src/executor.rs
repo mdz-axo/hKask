@@ -25,6 +25,8 @@
 //! `InferencePort` (for select/populate) and `McpPort` (for execute),
 //! both of which are already dependencies of this crate.
 
+use hkask_rsolidity::contract;
+
 use crate::ports::{McpPort, Result, TemplateError};
 use hkask_types::bundle::BundleManifestStep;
 use hkask_types::ports::{InferencePort, InferenceResult};
@@ -69,12 +71,12 @@ pub struct ManifestExecutor {
 impl ManifestExecutor {
     /// Create a new executor with the given infrastructure ports.
     ///
-    /// REQ: P3-tpl-manifest-executor-new
 /// expect: "The system resolves and executes template manifest cascades" [P3]
     /// \[P3\] Motivating: Generative Space — executor for template manifest cascades
     /// \[P4\] Constraining: Clear Boundaries — requires A2A secret for delegation
     /// pre:  inference and mcp are initialized, a2a_secret is non-empty
     /// post: returns ManifestExecutor with default template_base_path
+    #[contract(id = "P3-tpl-manifest-executor-new", principle = "P3")]
     pub fn new(
         inference: Arc<dyn InferencePort>,
         mcp: Arc<dyn McpPort>,

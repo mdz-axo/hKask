@@ -17,6 +17,8 @@
 //! 7. Method inference (LLM) → stylometric patterns from cached passages
 //! 8. Generate/augment corpus.yaml
 
+use hkask_rsolidity::contract;
+
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_memory::salience::{DeclaredMethod, MethodThresholds};
 use hkask_services_core::ServiceError;
@@ -139,10 +141,10 @@ impl DiscoveryService {
     /// `hkask-mcp-research` server with configured providers.
     /// `token` is a delegation token for OCAP-gated tool invocation.
     ///
-    /// REQ: P3-svc-discover-166
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  req.author_name must be non-empty; mcp must be connected; token must be valid
     /// post: returns DiscoverResult with discovered works, sources, and academic works; output and cache directories created; Err on MCP or I/O failure
+    #[contract(id = "P3-svc-discover-166", principle = "P3")]
     pub async fn discover(
         req: &DiscoverRequest,
         mcp: &dyn McpPort,
@@ -456,10 +458,10 @@ impl DiscoveryService {
 /// they are included in the generated config. Sets `corpus_type: "academic"`
 /// since this is the academic discovery pipeline.
 ///
-/// REQ: P3-svc-discover-167
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  author_slug must be non-empty; works must be non-empty; output_dir must exist
 /// post: corpus.yaml is written to output_dir; returns PathBuf to the written file; Err on serialization or I/O failure
+    #[contract(id = "P3-svc-discover-167", principle = "P3")]
 pub fn generate_corpus_yaml(
     author_slug: &str,
     works: &[DiscoveredWork],
@@ -531,10 +533,10 @@ pub fn generate_corpus_yaml(
 /// Shared between `generate_corpus_yaml` and the CLI curation section
 /// to prevent default drift. All corpus config defaults live here.
 ///
-/// REQ: P3-svc-discover-168
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  author_slug must be non-empty
 /// post: returns CorpusConfig with default embedding, chunking, validation, and budget settings
+    #[contract(id = "P3-svc-discover-168", principle = "P3")]
 pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
     CorpusConfig {
         author: author_slug.to_string(),
@@ -1301,10 +1303,10 @@ async fn fetch_youtube_transcript(
 
 /// Download content from a URL and cache it to disk.
 ///
-/// REQ: P3-svc-discover-169
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  url must be a valid HTTP/HTTPS URL; cache_path's parent directory must exist
 /// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
+    #[contract(id = "P3-svc-discover-169", principle = "P3")]
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
     // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.discover span emitted
     // P9: CNS span
@@ -1439,10 +1441,10 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 
-/// REQ: P3-svc-discover-170
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  s may be any string (including empty)
 /// post: returns lowercase, alphanumeric-only slug with hyphens; empty string becomes empty slug
+    #[contract(id = "P3-svc-discover-170", principle = "P3")]
 pub fn slugify(s: &str) -> String {
     let slug = s
         .to_lowercase()

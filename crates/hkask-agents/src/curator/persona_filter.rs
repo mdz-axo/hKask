@@ -23,7 +23,6 @@ pub struct PersonaCheckResult {
 /// listing any violations. The `forbidden` field of `PersonaConstraints`
 /// \[NORMATIVE\] contains patterns that must not appear in Curator output. (P3 — Generative Space).
 ///
-/// REQ: P9-agt-curator-persona-check
 /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — persona filter prevents harmful output
 /// \[P4\] Constraining: Clear Boundaries — forbidden patterns are explicit
@@ -33,6 +32,7 @@ pub struct PersonaCheckResult {
 ///       forbidden patterns are found (case-insensitive substring match);
 ///       `passed = false` with a list of `(pattern, matched_text)`
 ///       violations otherwise. Does not panic on non-ASCII input.
+    #[rs::contract(id = "P9-agt-curator-persona-check", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-persona-check", principle = "P9")]
 pub fn check_persona_constraints(
     output: &str,
@@ -63,7 +63,6 @@ pub fn check_persona_constraints(
 /// Replaces each forbidden pattern occurrence with an empty string.
 /// Returns the cleaned output and a list of violations that were stripped.
 ///
-/// REQ: P9-agt-curator-persona-strip
 /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — stripping reduces harm while preserving utility
 /// pre:  `output` is a valid UTF-8 string; `constraints` is a valid
@@ -72,6 +71,7 @@ pub fn check_persona_constraints(
 ///       has all forbidden patterns removed (case-insensitive, first
 ///       occurrence only per pattern) and `violations` lists what was
 ///       stripped. Does not panic on non-ASCII input.
+    #[rs::contract(id = "P9-agt-curator-persona-strip", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-persona-strip", principle = "P9")]
 pub fn strip_forbidden_patterns(
     output: &str,

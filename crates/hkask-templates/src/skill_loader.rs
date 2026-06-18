@@ -9,6 +9,8 @@
 //! `SkillRegistryIndex`. Zone-vs-visibility mismatches emit a warning but
 //! do not block registration — the `visibility` field in SKILL.md wins.
 
+use hkask_rsolidity::contract;
+
 use hkask_types::ports::{Skill, SkillRegistryIndex, SkillZone};
 use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
@@ -61,11 +63,11 @@ pub struct SkillLoader {
 impl SkillLoader {
     /// Create a new skill loader rooted at `project_root`.
     ///
-    /// REQ: P3-tpl-skill-loader-new
 /// expect: "The system loads skills into the template registry" [P3]
     /// \[P3\] Motivating: Generative Space — loader for skill registry entries
     /// pre:  project_root is a valid directory path
     /// post: returns SkillLoader configured for the given root
+    #[contract(id = "P3-tpl-skill-loader-new", principle = "P3")]
     pub fn new(project_root: impl Into<PathBuf>) -> Self {
         Self {
             project_root: project_root.into(),
@@ -74,12 +76,12 @@ impl SkillLoader {
 
     /// Discover and load skills from both zones, registering them into the registry.
     ///
-    /// REQ: P3-tpl-skill-loader-load-into
 /// expect: "The system loads skills into the template registry" [P3]
     /// \[P3\] Motivating: Generative Space — loads skill into registry
     /// pre:  registry is initialized
     /// post: skills from private and public zones loaded and registered
     /// post: returns SkillLoadResult with loaded skills and any warnings
+    #[contract(id = "P3-tpl-skill-loader-load-into", principle = "P3")]
     pub fn load_into(&self, registry: &mut dyn SkillRegistryIndex) -> SkillLoadResult {
         let mut result = SkillLoadResult {
             loaded: Vec::new(),
@@ -212,7 +214,6 @@ impl SkillLoader {
     /// If no registry layer exists, default to KnowAct because a Zed-only SKILL.md
     /// is a reasoning companion guide.
     ///
-    /// REQ: P3-tpl-skill-loader-infer-domain
 /// expect: "The system loads skills into the template registry" [P3]
     /// \[P3\] Motivating: Generative Space — infers skill domain from registry contents
     /// pre:  id is non-empty
@@ -261,12 +262,12 @@ impl SkillLoader {
     /// Parse YAML front matter from a SKILL.md file.
     /// Expects `---\n` delimiters at the start and end of the front matter block.
     ///
-    /// REQ: P3-tpl-skill-loader-parse-front-matter
 /// expect: "The system loads skills into the template registry" [P3]
     /// \[P3\] Motivating: Generative Space — parses skill front matter metadata
     /// pre:  content is a valid SKILL.md file content
     /// post: returns SkillFrontMatter parsed from YAML front matter
     /// post: returns default SkillFrontMatter if no front matter present
+    #[contract(id = "P3-tpl-skill-loader-parse-front-matter", principle = "P3")]
     pub fn parse_front_matter(content: &str) -> Result<SkillFrontMatter, String> {
         let content = content.trim_start();
 

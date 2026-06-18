@@ -9,6 +9,7 @@ description = "hKask service-layer foundation — ServiceError, ServiceConfig, H
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
+hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true

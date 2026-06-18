@@ -12,7 +12,6 @@ use crate::cli::DaemonAction;
 use hkask_mcp::daemon::{DaemonHandler, DaemonListener, daemon_socket_path};
 use std::sync::Arc;
 
-/// REQ: CLI-091
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; action is a valid DaemonAction variant
 /// post: starts, checks status, or stops the daemon; prints result to stdout

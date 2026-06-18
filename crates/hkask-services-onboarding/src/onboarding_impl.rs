@@ -1,6 +1,8 @@
 //! Onboarding — secret derivation, keychain, registry init, sign-in.
 //! # REQ: P1 (User Sovereignty) — keychain secrets, passphrase-derived keys.
 
+use hkask_rsolidity::contract;
+
 use std::sync::Arc;
 
 use hkask_agents::A2ARuntime;
@@ -57,10 +59,10 @@ impl OnboardingService {
     /// If `store` is true, stores secrets in the OS keychain for future sessions.
     /// Returns `ResolvedSecrets` carrying the A2A secret and DB passphrase.
     ///
-    /// REQ: P1-svc-onboarding-188
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  passphrase must be non-empty; store=true requires writable keychain
     /// post: returns ResolvedSecrets with a2a_secret and db_passphrase; if store=true, secrets are persisted to keychain; Err(Keystore) on keychain failure
+    #[contract(id = "P1-svc-onboarding-188", principle = "P1")]
     pub fn derive_secrets(passphrase: &str, store: bool) -> Result<ResolvedSecrets, ServiceError> {
         let secrets = derive_all_internal_secrets(passphrase);
         if store {
@@ -98,10 +100,10 @@ impl OnboardingService {
     /// persisted agent registrations, and returns both the A2A runtime and
     /// the registry store ready for use.
     ///
-    /// REQ: P1-svc-onboarding-189
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must have valid db_path, db_passphrase, and a2a_secret
     /// post: returns RegistryHandle with A2A runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
+    #[contract(id = "P1-svc-onboarding-189", principle = "P1")]
     pub async fn init_registry(config: &ServiceConfig) -> Result<RegistryHandle, ServiceError> {
         let a2a = Arc::new(A2ARuntime::new(&config.a2a_secret));
 
@@ -166,10 +168,10 @@ impl OnboardingService {
     /// If `user_profile` is provided, the replicant's display name follows
     /// the naming protocol: "{chosen_name} r{human_last_name}".
     ///
-    /// REQ: P1-svc-onboarding-190
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  a2a must be initialized; store must be initialized; name and description must be non-empty
     /// post: replicant is registered in A2A with default capabilities and persisted to store; Err(A2A) on registration failure; Err(AgentRegistryStore) on persistence failure
+    #[contract(id = "P1-svc-onboarding-190", principle = "P1")]
     pub async fn register_replicant(
         a2a: &Arc<A2ARuntime>,
         store: &AgentRegistryStore,
@@ -246,10 +248,10 @@ impl OnboardingService {
 
     /// Store the human user's profile in the registry.
     ///
-    /// REQ: P1-svc-onboarding-191
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; profile must be a valid UserProfile
     /// post: profile is persisted to the registry store; Err(AgentRegistryStore) on store failure
+    #[contract(id = "P1-svc-onboarding-191", principle = "P1")]
     pub fn store_user_profile(
         store: &AgentRegistryStore,
         profile: &UserProfile,
@@ -266,10 +268,10 @@ impl OnboardingService {
 
     /// Retrieve the human user's profile from the registry.
     ///
-    /// REQ: P1-svc-onboarding-192
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized
     /// post: returns Some(UserProfile) if stored; None if no profile; Err(AgentRegistryStore) on store failure
+    #[contract(id = "P1-svc-onboarding-192", principle = "P1")]
     pub fn get_user_profile(
         store: &AgentRegistryStore,
     ) -> Result<Option<UserProfile>, ServiceError> {
@@ -289,10 +291,10 @@ impl OnboardingService {
     /// On success, stores the secrets in the keychain for future sessions
     /// and returns a `SignInOutcome`.
     ///
-    /// REQ: P1-svc-onboarding-193
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be valid; agent_name must match a registered replicant; resolved_secrets must be valid
     /// post: returns SignInOutcome on success; secrets stored in keychain; Err(AgentNotFound) if replicant missing; Err on registry init failure
+    #[contract(id = "P1-svc-onboarding-193", principle = "P1")]
     pub async fn try_sign_in(
         config: &ServiceConfig,
         agent_name: &str,
@@ -338,10 +340,10 @@ impl OnboardingService {
     ///
     /// Returns an empty Vec if the DB can't be opened or has no replicants.
     ///
-    /// REQ: P1-svc-onboarding-194
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config.db_path must be set; returns empty Vec on any failure
     /// post: returns Vec<RegisteredAgent> of replicants; empty Vec if DB inaccessible or no replicants
+    #[contract(id = "P1-svc-onboarding-194", principle = "P1")]
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
         // REQ: P9-CNS-SVC-046 pre: valid config, post: cns.onboarding span emitted
         // P9: CNS span
@@ -377,10 +379,10 @@ impl OnboardingService {
     /// current passphrase), it's orphaned and should be removed before
     /// starting a fresh onboarding. Returns `true` if cleanup was performed.
     ///
-    /// REQ: P1-svc-onboarding-195
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config.db_path must be set; :memory: paths are never orphaned
     /// post: returns true if orphaned DB was cleaned up; false if DB has replicants or doesn't exist
+    #[contract(id = "P1-svc-onboarding-195", principle = "P1")]
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
         // REQ: P9-CNS-SVC-047 pre: valid config, post: cns.onboarding span emitted
         // P9: CNS span
@@ -427,10 +429,10 @@ impl OnboardingService {
     /// stored but registration failed). Prevents orphaned state from
     /// poisoning subsequent attempts.
     ///
-    /// REQ: P1-svc-onboarding-196
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be valid; best-effort cleanup (errors are silently ignored)
     /// post: keychain entries (a2a-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
+    #[contract(id = "P1-svc-onboarding-196", principle = "P1")]
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
         // REQ: P9-CNS-SVC-048 pre: valid config, post: cns.onboarding span emitted
         // P9: CNS span
@@ -467,10 +469,10 @@ impl OnboardingService {
     ///
     /// Returns the created user IDs for display in the onboarding summary.
     ///
-    /// REQ: P1-svc-onboarding-197
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  user_profile must have first_name and last_name; replicant_display_name must be non-empty; passphrase must be non-empty; homeserver_url must be valid
     /// post: returns MatrixRegistrationResult with human and replicant user IDs; credentials stored in keychain; Err(Matrix) on registration failure
+    #[contract(id = "P1-svc-onboarding-197", principle = "P1")]
     pub async fn register_matrix_accounts(
         user_profile: &UserProfile,
         replicant_display_name: &str,
@@ -555,10 +557,10 @@ impl OnboardingService {
     ///
     /// Returns the created user IDs keyed by bot name.
     ///
-    /// REQ: P1-svc-onboarding-198
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  homeserver_url must be valid and reachable
     /// post: returns HashMap<String, String> of bot_name → user_id for successfully registered bots; failed registrations are silently skipped
+    #[contract(id = "P1-svc-onboarding-198", principle = "P1")]
     pub async fn register_system_accounts(
         homeserver_url: &str,
     ) -> Result<std::collections::HashMap<String, String>, ServiceError> {
@@ -726,10 +728,10 @@ async fn register_on_conduit(
 /// Performs a GET to `/_matrix/client/versions`. Returns `true` if the
 /// server responds with a successful HTTP status.
 ///
-/// REQ: P1-svc-onboarding-199
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  homeserver_url must be a valid HTTP URL
 /// post: returns true if server responds with 2xx; false on connection error or non-2xx status
+    #[contract(id = "P1-svc-onboarding-199", principle = "P1")]
 pub async fn conduit_health_check(homeserver_url: &str) -> bool {
     // REQ: P9-CNS-SVC-051 pre: valid URL, post: cns.onboarding span emitted
     // P9: CNS span

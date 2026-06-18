@@ -8,6 +8,7 @@
 //! with the new version. Old-version secrets remain derivable by
 //! specifying the old version number.
 
+use hkask_rsolidity as rs;
 use std::path::PathBuf;
 
 /// Default key version if no version file exists (backward compat).
@@ -15,7 +16,6 @@ pub const DEFAULT_KEY_VERSION: u32 = 1;
 
 /// Get the path to the key version file.
 ///
-/// REQ: KEY-016
 /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns PathBuf to ~/.config/hkask/version
 pub fn version_file_path() -> PathBuf {
@@ -30,7 +30,6 @@ pub fn version_file_path() -> PathBuf {
 /// Returns `DEFAULT_KEY_VERSION` (1) if the file doesn't exist
 /// (backward compatibility with pre-versioning installs).
 ///
-/// REQ: KEY-017
 /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns u32 version from file, or DEFAULT_KEY_VERSION if missing
 pub fn read_key_version() -> u32 {
@@ -53,7 +52,6 @@ pub fn read_key_version() -> u32 {
 ///
 /// Creates the parent directory if it doesn't exist.
 ///
-/// REQ: KEY-018
 /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// pre:  version is a valid u32
 /// post: version written to version file
@@ -72,7 +70,6 @@ pub fn write_key_version(version: u32) -> std::io::Result<()> {
 /// Reads current version, increments by 1, writes new version.
 /// Returns the new version number.
 ///
-/// REQ: KEY-019
 /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: version incremented by 1 and written to disk
 /// post: returns new version number

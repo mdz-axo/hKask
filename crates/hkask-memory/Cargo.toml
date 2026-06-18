@@ -17,4 +17,5 @@ tracing.workspace = true
 
 [dev-dependencies]
 hkask-test-harness = { path = "../hkask-test-harness" }
+hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
 proptest = "1"

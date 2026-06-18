@@ -32,7 +32,6 @@ pub struct SevenR7Listener {
 impl SevenR7Listener {
     /// Create a new 7R7 listener.
     ///
-    /// REQ: COMM-019
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  matrix is a valid MatrixTransport (authenticated)
     /// pre:  poll_interval_secs > 0
@@ -52,7 +51,6 @@ impl SevenR7Listener {
     /// The agent layer (Curator) subscribes to these spans and decides what
     /// action to take.
     ///
-    /// REQ: COMM-020
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  matrix transport is authenticated
     /// post: background polling task spawned
@@ -126,7 +124,6 @@ impl SevenR7Listener {
 
     /// Stop the polling loop.
     ///
-    /// REQ: COMM-021
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// post: active flag set to false
     /// post: idempotent — calling stop() on already-stopped listener is no-op

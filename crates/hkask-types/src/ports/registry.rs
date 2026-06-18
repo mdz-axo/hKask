@@ -21,7 +21,6 @@ pub struct RegistryEntry {
 impl RegistryEntry {
     /// Validate the registry entry for consistency.
     ///
-    /// REQ: TYP-100
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Vec of warning strings for invalid fields
     pub fn validate(&self) -> Vec<String> {
@@ -45,7 +44,6 @@ impl RegistryEntry {
     }
     /// Check if this entry can nest further.
     ///
-    /// REQ: TYP-101
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true iff cascade_level < matroshka_limit
     pub fn can_nest(&self) -> bool {
@@ -67,7 +65,6 @@ pub enum SkillZone {
 impl SkillZone {
     /// Get string representation of zone.
     ///
-    /// REQ: TYP-102
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns "private" or "public"
     pub fn as_str(&self) -> &'static str {
@@ -78,7 +75,6 @@ impl SkillZone {
     }
     /// Parse zone from string.
     ///
-    /// REQ: TYP-103
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Some(SkillZone) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -90,7 +86,6 @@ impl SkillZone {
     }
     /// Get the filesystem directory for this zone.
     ///
-    /// REQ: TYP-104
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns ".agents/skills" for Private, "skills" for Public
     pub fn directory(&self) -> &'static str {
@@ -126,7 +121,6 @@ pub struct Skill {
 impl Skill {
     /// Create a new Skill.
     ///
-    /// REQ: TYP-105
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  id is non-empty, domain is valid
     /// post: returns Skill with defaults (Private zone, Private visibility)
@@ -148,7 +142,6 @@ impl Skill {
     /// Builders with `Option<String>` from `&str`.
     /// Set the WordAct template reference.
     ///
-    /// REQ: TYP-106
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with word_act set (builder)
     pub fn with_word_act(mut self, v: &str) -> Self {
@@ -157,7 +150,6 @@ impl Skill {
     }
     /// Set the FlowDef template reference.
     ///
-    /// REQ: TYP-107
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with flow_def set (builder)
     pub fn with_flow_def(mut self, v: &str) -> Self {
@@ -166,7 +158,6 @@ impl Skill {
     }
     /// Set the KnowAct template reference.
     ///
-    /// REQ: TYP-108
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with know_act set (builder)
     pub fn with_know_act(mut self, v: &str) -> Self {
@@ -175,7 +166,6 @@ impl Skill {
     }
     /// Set the skill polarity.
     ///
-    /// REQ: TYP-109
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with polarity set (builder)
     pub fn with_polarity(mut self, v: SkillPolarity) -> Self {
@@ -184,7 +174,6 @@ impl Skill {
     }
     /// Set the content hash.
     ///
-    /// REQ: TYP-110
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with content_hash set (builder)
     pub fn with_content_hash(mut self, v: String) -> Self {
@@ -193,7 +182,6 @@ impl Skill {
     }
     /// Set the visibility.
     ///
-    /// REQ: TYP-111
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with visibility set (builder)
     #[must_use = "builder methods must be chained or assigned"]
@@ -203,7 +191,6 @@ impl Skill {
     }
     /// Set the zone.
     ///
-    /// REQ: TYP-112
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with zone set (builder)
     #[must_use = "builder methods must be chained or assigned"]
@@ -213,7 +200,6 @@ impl Skill {
     }
     /// Set the namespace.
     ///
-    /// REQ: TYP-113
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with namespace set (builder)
     #[must_use = "builder methods must be chained or assigned"]
@@ -225,7 +211,6 @@ impl Skill {
     /// Qualified ID: `<namespace>--<id>` if namespace set, else just `id`. Double-dash is unambiguous for filesystem dirs.
     /// Get the qualified ID (namespace--id).
     ///
-    /// REQ: TYP-114
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns "namespace--id" if namespace set, else just id
     pub fn qualified_id(&self) -> String {
@@ -237,7 +222,6 @@ impl Skill {
     /// Parse `<namespace>--<id>` into `(namespace, id)`. Returns `None` if not a qualified ID.
     /// Parse a qualified ID into (namespace, id).
     ///
-    /// REQ: TYP-115
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Some((namespace, id)) if valid qualified ID, None otherwise
     pub fn parse_qualified_id(qualified: &str) -> Option<(String, String)> {
@@ -252,7 +236,6 @@ impl Skill {
     /// Compute and set SHA-256 content hash from key fields.
     /// Compute and set the content hash.
     ///
-    /// REQ: TYP-116
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: content_hash computed from key fields
     pub fn compute_content_hash(&mut self) {

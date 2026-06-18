@@ -61,7 +61,6 @@ impl std::fmt::Debug for LoadedKey {
 
 /// Sign a withdrawal transaction for a specific chain.
 ///
-/// REQ: P9-wallet-sign-withdrawal
 /// expect: "The system signs withdrawal transactions with my treasury key" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow
 /// \[P1\] Constraining: User Sovereignty — treasury key derived from user master key
@@ -80,19 +79,20 @@ impl std::fmt::Debug for LoadedKey {
 /// - No key material is returned to the caller — only the signature
 /// - Per-operation key loading: key derived fresh each call, not held long-term
     #[rs::contract(id = "P9-wallet-sign-withdrawal", principle = "P9")]
+    #[rs::contract(id = "P9-wallet-sign-withdrawal", principle = "P9")]
 pub fn sign_withdrawal(chain: ChainId, tx_bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
     sign_bytes(chain, tx_bytes)
 }
 
 /// Sign an arbitrary message with the Hinkal treasury key.
 ///
-/// REQ: P9-wallet-sign-hinkal-message
 /// expect: "The system signs Hinkal privacy messages proving treasury origin" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow
 /// \[P4\] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin
 /// pre:  message is any byte slice (including empty)
 /// post: returns Ok(signature) — 64-byte Ed25519 signature
 /// post: treasury key loaded, used, and zeroized within this call
+    #[rs::contract(id = "P9-wallet-sign-hinkal-message", principle = "P9")]
     #[rs::contract(id = "P9-wallet-sign-hinkal-message", principle = "P9")]
 pub fn sign_message(message: &[u8]) -> Result<Vec<u8>, WalletError> {
     sign_bytes(ChainId::Hinkal, message)
@@ -113,7 +113,6 @@ fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
 
 /// Sign an API key capability token with the wallet's Ed25519 key.
 ///
-/// REQ: P9-wallet-sign-capability
 /// expect: "The system signs capability tokens for API key delegation" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — signing authorizes API key capability
 /// \[P1\] Constraining: User Sovereignty — treasury key derived from user master key
@@ -128,6 +127,7 @@ fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
 ///
 /// # Returns
 /// 64-byte Ed25519 signature as a hex-encoded string (128 hex chars).
+    #[rs::contract(id = "P9-wallet-sign-capability", principle = "P9")]
     #[rs::contract(id = "P9-wallet-sign-capability", principle = "P9")]
 pub fn sign_capability(capability: &ApiKeyCapability) -> Result<String, WalletError> {
     hkask_keystore::keychain::sign_api_key_capability(capability)

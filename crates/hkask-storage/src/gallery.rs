@@ -55,10 +55,10 @@ impl FromStr for GalleryMode {
 impl GalleryMode {
     /// Get the string representation of the face status.
     ///
-    /// REQ: P3-sto-gallery-mode-str
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — stable gallery mode labels
     /// post: returns "active" or "inactive"
+    #[rs::contract(id = "P3-sto-gallery-mode-str", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-mode-str", principle = "P3")]
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -126,11 +126,11 @@ impl GalleryStore {
     /// Initialize gallery tables in the database.
     /// Initialize gallery tables.
     ///
-    /// REQ: P3-sto-gallery-schema
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — schema for galleries, images, tags, faces
     /// pre:  conn is a valid SQLite connection
     /// post: gallery tables created if not exists
+    #[rs::contract(id = "P3-sto-gallery-schema", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-schema", principle = "P3")]
     pub fn init_tables(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute_batch(
@@ -191,15 +191,14 @@ impl GalleryStore {
     }
     /// Create a new gallery. Returns the gallery record.
     ///
-    /// REQ: P3-sto-gallery-create-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Create a new gallery.
     ///
-    /// REQ: P3-sto-gallery-create
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — create a gallery
     /// pre:  name is non-empty
     /// post: gallery created and returned
+    #[rs::contract(id = "P3-sto-gallery-create", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-create", principle = "P3")]
     pub fn create(
         &self,
@@ -237,16 +236,15 @@ impl GalleryStore {
     }
     /// Add an image to the gallery index.
     ///
-    /// REQ: P3-sto-gallery-add-image-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     #[allow(clippy::too_many_arguments)]
     /// Add an image to a gallery.
     ///
-    /// REQ: P3-sto-gallery-add-image
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — add image to gallery
     /// pre:  gallery_id is valid, image data is non-empty
     /// post: image stored in gallery
+    #[rs::contract(id = "P3-sto-gallery-add-image", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-add-image", principle = "P3")]
     pub fn add_image(
         &self,
@@ -291,15 +289,14 @@ impl GalleryStore {
     }
     /// Get an image by index (0-based position in gallery) or by hash.
     ///
-    /// REQ: P3-sto-gallery-get-image-index-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Get an image from a gallery.
     ///
-    /// REQ: P3-sto-gallery-get-image
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — get image by index or hash
     /// pre:  gallery_id is valid
     /// post: returns GalleryImage if found
+    #[rs::contract(id = "P3-sto-gallery-get-image", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-get-image", principle = "P3")]
     pub fn get_image(
         &self,
@@ -344,15 +341,14 @@ impl GalleryStore {
     }
     /// Tag an image with AI-generated metadata.
     ///
-    /// REQ: P3-sto-gallery-tag-image-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Tag an image in a gallery.
     ///
-    /// REQ: P3-sto-gallery-tag-image
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — tag an image
     /// pre:  gallery_id and image_hash are valid, tag is non-empty
     /// post: tag added to image
+    #[rs::contract(id = "P3-sto-gallery-tag-image", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-tag-image", principle = "P3")]
     pub fn tag_image(
         &self,
@@ -388,15 +384,14 @@ impl GalleryStore {
     }
     /// Get all tags for an image.
     ///
-    /// REQ: P3-sto-gallery-get-tags-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Get tags for an image.
     ///
-    /// REQ: P3-sto-gallery-get-tags
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — get tags for an image
     /// pre:  gallery_id and image_hash are valid
     /// post: returns Vec of tags
+    #[rs::contract(id = "P3-sto-gallery-get-tags", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-get-tags", principle = "P3")]
     pub fn get_tags(
         &self,
@@ -416,11 +411,11 @@ impl GalleryStore {
     /// Get gallery record by ID.
     /// Get a gallery by ID.
     ///
-    /// REQ: P3-sto-gallery-get
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — get gallery by ID
     /// pre:  gallery_id is valid
     /// post: returns Gallery if found
+    #[rs::contract(id = "P3-sto-gallery-get", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-get", principle = "P3")]
     pub fn get_gallery(
         &self,
@@ -453,14 +448,13 @@ impl GalleryStore {
     /// Get all tags for all images in a gallery.
     ///
     /// Returns tags joined with their image's relative path for search ranking.
-    /// REQ: P3-sto-gallery-all-tags
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Get all tags across all galleries.
     ///
-    /// REQ: P3-sto-gallery-all-tags
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — list all tags across galleries
     /// post: returns Vec of all unique tags
+    #[rs::contract(id = "P3-sto-gallery-all-tags", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-all-tags", principle = "P3")]
     pub fn get_all_tags(
         &self,
@@ -493,15 +487,14 @@ impl GalleryStore {
     }
     /// Register a face in the registry.
     ///
-    /// REQ: P3-sto-gallery-face-register-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Register a face in the gallery.
     ///
-    /// REQ: P3-sto-gallery-face-register
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — register a face
     /// pre:  face data is valid
     /// post: face registered and returned
+    #[rs::contract(id = "P3-sto-gallery-face-register", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-face-register", principle = "P3")]
     pub fn register_face(
         &self,
@@ -534,14 +527,13 @@ impl GalleryStore {
     }
     /// List all faces in the registry, optionally filtered by status.
     ///
-    /// REQ: P3-sto-gallery-face-list-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// List faces with optional status filter.
     ///
-    /// REQ: P3-sto-gallery-face-list
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — list faces
     /// post: returns Vec of faces, optionally filtered by status
+    #[rs::contract(id = "P3-sto-gallery-face-list", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-face-list", principle = "P3")]
     pub fn list_faces(
         &self,
@@ -570,15 +562,14 @@ impl GalleryStore {
     }
     /// Get a face registry entry by ID.
     ///
-    /// REQ: P3-sto-gallery-face-get-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Get a face by ID.
     ///
-    /// REQ: P3-sto-gallery-face-get
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — get face by ID
     /// pre:  face_id is non-empty
     /// post: returns Face if found
+    #[rs::contract(id = "P3-sto-gallery-face-get", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-face-get", principle = "P3")]
     pub fn get_face(
         &self,
@@ -600,15 +591,14 @@ impl GalleryStore {
     }
     /// Remove a face from the registry by ID.
     ///
-    /// REQ: P3-sto-gallery-face-remove-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Remove a face from the gallery.
     ///
-    /// REQ: P3-sto-gallery-face-remove
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — remove face
     /// pre:  face_id is non-empty
     /// post: face deleted
+    #[rs::contract(id = "P3-sto-gallery-face-remove", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-face-remove", principle = "P3")]
     pub fn remove_face(&self, face_id: &str) -> std::result::Result<(), GalleryStoreError> {
         let conn = self.lock_conn()?;
@@ -620,15 +610,14 @@ impl GalleryStore {
     }
     /// Update a face registry entry's status and notes.
     ///
-    /// REQ: P3-sto-gallery-face-update-test
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// Update a face's status.
     ///
-    /// REQ: P3-sto-gallery-face-update
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — update face status
     /// pre:  face_id is valid, status is valid
     /// post: face status updated
+    #[rs::contract(id = "P3-sto-gallery-face-update", principle = "P3")]
     #[rs::contract(id = "P3-sto-gallery-face-update", principle = "P3")]
     pub fn update_face(
         &self,
@@ -705,7 +694,6 @@ mod tests {
         drop(conn);
         GalleryStore::new(db.conn)
     }
-    /// REQ: P3-sto-gallery-create-test — create gallery returns valid record
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn create_gallery_returns_record() {
@@ -717,7 +705,6 @@ mod tests {
         assert_eq!(record.mode, "read-only");
         assert_eq!(record.image_count, 0);
     }
-    /// REQ: P3-sto-gallery-create-dup-test — duplicate path is rejected
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn create_duplicate_path_rejected() {
@@ -728,7 +715,6 @@ mod tests {
         let result = store.create("/tmp/test-gallery", GalleryMode::CopyOnWrite);
         assert!(result.is_err());
     }
-    /// REQ: P3-sto-gallery-add-image-test — add_image stores record
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn add_image_stores_record() {
@@ -752,7 +738,6 @@ mod tests {
         assert_eq!(img.width, 1920);
         assert_eq!(img.height, 1080);
     }
-    /// REQ: P3-sto-gallery-get-image-index-test — get by index
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_image_by_index() {
@@ -789,7 +774,6 @@ mod tests {
         let img = store.get_image(&gallery.id, Some(1), None).unwrap();
         assert_eq!(img.relative_path, "second.jpg");
     }
-    /// REQ: P3-sto-gallery-get-image-hash-test — get by hash
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_image_by_hash() {
@@ -812,7 +796,6 @@ mod tests {
         let img = store.get_image(&gallery.id, None, Some("abc123")).unwrap();
         assert_eq!(img.hash, "abc123");
     }
-    /// REQ: P3-sto-gallery-tag-image-test — tag_image stores tag
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn tag_image_stores_tag() {
@@ -845,7 +828,6 @@ mod tests {
         assert_eq!(tag.value, "young adult male");
         assert_eq!(tag.confidence, 0.95);
     }
-    /// REQ: P3-sto-gallery-get-tags-test — get_tags returns all tags
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_tags_returns_all() {
@@ -874,7 +856,6 @@ mod tests {
         let tags = store.get_tags(&img.id).unwrap();
         assert_eq!(tags.len(), 2);
     }
-    /// REQ: P3-sto-gallery-tag-dedup-test — tag_image ignores duplicate (image_id, tag_type, value)
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn tag_image_ignores_duplicates() {
@@ -908,7 +889,6 @@ mod tests {
         assert_eq!(tags.len(), 1);
     }
     // ── Face registry tests ──
-    /// REQ: P3-sto-gallery-face-register-test — register_face creates a valid record
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn register_face_creates_record() {
@@ -944,7 +924,6 @@ mod tests {
         assert_eq!(face.status, "valid");
         assert!(face.notes.contains("good lighting"));
     }
-    /// REQ: P3-sto-gallery-face-list-test — list_faces returns all registered faces
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_faces_returns_all() {
@@ -985,7 +964,6 @@ mod tests {
         let faces = store.list_faces(None).unwrap();
         assert_eq!(faces.len(), 2);
     }
-    /// REQ: P3-sto-gallery-face-list-filter-test — list_faces filters by status
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_faces_filters_by_status() {
@@ -1030,7 +1008,6 @@ mod tests {
         assert_eq!(rejected.len(), 1);
         assert_eq!(rejected[0].first_name, "Bob");
     }
-    /// REQ: P3-sto-gallery-face-get-test — get_face returns correct record
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_face_returns_record() {
@@ -1057,7 +1034,6 @@ mod tests {
         assert_eq!(retrieved.first_name, "Alice");
         assert_eq!(retrieved.last_name, "Chen");
     }
-    /// REQ: P3-sto-gallery-face-get-missing-test — get_face errors on unknown ID
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_face_unknown_id_errors() {
@@ -1065,7 +1041,6 @@ mod tests {
         let result = store.get_face("nonexistent-id");
         assert!(result.is_err());
     }
-    /// REQ: P3-sto-gallery-face-remove-test — remove_face deletes record
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn remove_face_deletes_record() {
@@ -1092,7 +1067,6 @@ mod tests {
         let result = store.get_face(&face.id);
         assert!(result.is_err());
     }
-    /// REQ: P3-sto-gallery-face-update-test — update_face changes status and notes
     /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn update_face_changes_status() {

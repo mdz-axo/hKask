@@ -77,7 +77,6 @@ fn json_value_strategy() -> BoxedStrategy<Value> {
 /// Produces events with random observer WebIDs, canonical CNS spans,
 /// valid phases, string observations, and recursion depth 0–7.
 ///
-/// REQ: HARN-007
 /// post: returns `BoxedStrategy<NuEvent>` with valid observer, span, phase, observation, depth 0–7
 /// expect: "I can generate valid ν-events with correct observer, canonical CNS spans, and valid phases for property-based testing" [P8]
 /// [P5] Constraining: one strategy per type, no duplicate generators
@@ -100,7 +99,6 @@ pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
 /// Produces triples with random entity/attribute strings,
 /// string JSON values, and random owner WebIDs.
 ///
-/// REQ: HARN-008
 /// post: returns `BoxedStrategy<Triple>` with non-empty entity, attribute, value, owner
 /// expect: "I can generate valid RDF triples with non-empty entities, attributes, and authenticated owners for property-based testing" [P8]
 /// [P12] Constraining: every triple carries an owner WebID — no anonymous agency
@@ -121,7 +119,6 @@ pub fn any_triple() -> BoxedStrategy<Triple> {
 ///
 /// Produces specs with random resource types, actions, and resource IDs.
 ///
-/// REQ: HARN-009
 /// post: returns BoxedStrategy<CapabilitySpec> with valid resource, action, resource_id
 /// expect: "I can generate valid capability specifications with correct resource types and delegation actions for property-based testing" [P8]
 /// [P4] Constraining: capabilities encode explicit boundaries — no ambient authority
@@ -153,7 +150,6 @@ pub fn any_capability_spec() -> BoxedStrategy<CapabilitySpec> {
 /// Produces goals with random text, states, visibility, depth 0–7,
 /// and optional display names.
 ///
-/// REQ: HARN-010
 /// post: returns BoxedStrategy<Goal> with valid webid, text, state, visibility, depth 0–7
 /// expect: "I can generate valid goals with correct WebID ownership, state, and visibility classification for property-based testing" [P8]
 /// [P1] Constraining: goals carry user-scoped WebIDs — sovereignty boundary respected
@@ -194,7 +190,6 @@ pub fn any_goal() -> BoxedStrategy<Goal> {
 /// Produces segments with random text, start times 0–1hr,
 /// and durations 100ms–30s.
 ///
-/// REQ: HARN-011
 /// post: returns BoxedStrategy<TranscriptSegment> with non-empty text, start_ms 0–1hr, duration 100ms–30s
 /// expect: "I can generate valid transcript segments with temporal ordering invariants (end > start) for property-based testing" [P8]
 pub fn any_transcript_segment() -> BoxedStrategy<TranscriptSegment> {
@@ -211,7 +206,6 @@ pub fn any_transcript_segment() -> BoxedStrategy<TranscriptSegment> {
 
 /// Strategy generating valid `EnergyCost` values (1..10000).
 ///
-/// REQ: HARN-045
 /// post: returns BoxedStrategy<EnergyCost> with values in 1..10000
 /// expect: "I can generate valid energy costs within bounded ranges for gas-budget property-based testing" [P9]
 pub fn any_energy_cost() -> BoxedStrategy<hkask_cns::EnergyCost> {
@@ -220,7 +214,6 @@ pub fn any_energy_cost() -> BoxedStrategy<hkask_cns::EnergyCost> {
 
 /// Strategy generating valid `EnergyBudget` instances with hard limit.
 ///
-/// REQ: HARN-046
 /// post: returns BoxedStrategy<EnergyBudget> with cap 100..10000, replenish_rate 1..cap
 /// expect: "I can generate valid energy budgets with caps that bound resource consumption for gas-guard property-based testing" [P9]
 /// [P4] Constraining: budget caps enforce OCAP boundaries on resource consumption

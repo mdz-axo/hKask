@@ -52,7 +52,6 @@ impl PodLifecycleState {
     /// \[DECLARATIVE\] Re-stating the current state is a no-op and always permitted. (P7 — Evolutionary Architecture).
     /// Terminal state `Deactivated` admits no further transitions.
     ///
-    /// REQ: P4-agt-pod-lifecycle-can-transition
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — lifecycle state machine enforces transitions
     /// \[P7\] Constraining: Evolutionary Architecture — linear model + idempotent restate
@@ -60,6 +59,7 @@ impl PodLifecycleState {
     /// post: Returns `true` if `self == next` (idempotent) or if the
     ///       transition follows the linear progression; `false` for all
     ///       other transitions (including from `Deactivated`).
+    #[rs::contract(id = "P4-agt-pod-lifecycle-can-transition", principle = "P4")]
     #[rs::contract(id = "P4-agt-pod-lifecycle-can-transition", principle = "P4")]
     pub fn can_transition_to(&self, next: PodLifecycleState) -> bool {
         if *self == next {

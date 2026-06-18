@@ -47,7 +47,6 @@ pub struct ConsolidateResponse {
 
 // Router
 
-/// REQ: API-009
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with consolidation route registered

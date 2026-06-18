@@ -4,6 +4,7 @@
 //! Persisted to ~/.config/hkask/settings.json. Magna Carta P3 (Generative
 //! Space): all settings exposed equally across every surface.
 
+use hkask_rsolidity as rs;
 use axum::Json;
 use axum::extract::{Extension, State};
 use axum::routing::get;
@@ -84,7 +85,6 @@ pub struct UpdateSettingsRequest {
     pub auto_condense: Option<bool>,
 }
 
-/// REQ: API-011
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with settings route registered

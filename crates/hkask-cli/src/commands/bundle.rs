@@ -38,7 +38,6 @@ fn resolve_editor() -> String {
     hkask_services::resolve_replicant_name()
 }
 
-/// REQ: CLI-074
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; action is a valid BundleAction variant
 /// post: dispatches to compose, apply, list, show, evolve, skills, or off based on action variant

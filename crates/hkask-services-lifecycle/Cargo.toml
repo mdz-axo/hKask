@@ -6,6 +6,7 @@ license.workspace = true
 description = "hKask lifecycle service — server health, startup/shutdown coordination"
 
 [dependencies]
+hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true

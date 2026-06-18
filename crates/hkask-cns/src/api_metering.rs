@@ -31,12 +31,12 @@ impl Default for EndpointWeight {
 /// Hardcoded table — configurable in future release.
 /// Get endpoint weight for rate limiting.
 ///
-/// REQ: P9-cns-api-meter-endpoint-weight
 /// expect: "The system assigns weight multipliers to API endpoints for rate limiting" [P9]
 /// [P9] Motivating: Homeostatic Self-Regulation — per-request rate limiting for API stability
 /// \[P7\] Constraining: Evolutionary Architecture — hardcoded table to be configurable later
 /// pre:  path is non-empty
 /// post: returns EndpointWeight based on path pattern
+    #[rs::contract(id = "P9-cns-api-meter-endpoint-weight", principle = "P9")]
     #[rs::contract(id = "P9-cns-api-meter-endpoint-weight", principle = "P9")]
 pub fn endpoint_weight(path: &str) -> EndpointWeight {
     if path.contains("embed-corpus") || path.contains("compose") {
@@ -116,11 +116,11 @@ pub enum RateLimitStatus {
 impl RateLimitStatus {
     /// Get string representation of alert type.
     ///
-    /// REQ: P9-cns-api-meter-rate-limit-status
     /// expect: "I can query the rate limit status as a stable string for CNS feedback" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS
     /// \[P8\] Constraining: Semantic Grounding — string representation must be stable across versions
     /// post: returns lowercase alert type string
+    #[rs::contract(id = "P9-cns-api-meter-rate-limit-status", principle = "P9")]
     #[rs::contract(id = "P9-cns-api-meter-rate-limit-status", principle = "P9")]
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -146,11 +146,11 @@ impl ApiMeter {
     /// Create a new empty meter.
     /// Create a new API meter.
     ///
-    /// REQ: P9-cns-api-meter-new
     /// expect: "The system creates an empty API meter for per-key rate tracking" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking
     /// \[P5\] Constraining: Essentialism — minimal constructor with empty buckets map
     /// post: returns ApiMeter with empty buckets
+    #[rs::contract(id = "P9-cns-api-meter-new", principle = "P9")]
     #[rs::contract(id = "P9-cns-api-meter-new", principle = "P9")]
     pub fn new() -> Self {
         Self {
@@ -171,12 +171,12 @@ impl ApiMeter {
     ///
     /// Check rate limit and record request.
     ///
-    /// REQ: P9-cns-api-meter-check-and-record
     /// expect: "The system enforces per-key rate limits and records requests atomically" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — rate limit enforcement is the CNS check
     /// \[P4\] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions
     /// pre:  key_id is valid
     /// post: returns Ok if within limit, Err if rate limited
+    #[rs::contract(id = "P9-cns-api-meter-check-and-record", principle = "P9")]
     #[rs::contract(id = "P9-cns-api-meter-check-and-record", principle = "P9")]
     pub fn check_and_record(
         &mut self,
@@ -208,12 +208,12 @@ impl ApiMeter {
     /// Get the current request count in the last minute for a key.
     /// Get current RPM for a key.
     ///
-    /// REQ: P9-cns-api-meter-current-rpm
     /// expect: "I can query the current requests-per-minute rate for any API key" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — current rate is the cybernetic state
     /// \[P8\] Constraining: Semantic Grounding — RPM count must be stable and accurate
     /// pre:  key_id is valid
     /// post: returns current requests per minute
+    #[rs::contract(id = "P9-cns-api-meter-current-rpm", principle = "P9")]
     #[rs::contract(id = "P9-cns-api-meter-current-rpm", principle = "P9")]
     pub fn current_rpm(&self, key_id: ApiKeyId) -> u32 {
         let now = Instant::now();
@@ -253,12 +253,12 @@ impl ApiRequestSpan {
     /// Build a span observation from metering data.
     /// Create a new API request span.
     ///
-    /// REQ: P9-cns-api-meter-span-new
     /// expect: "The system creates CNS observation spans for every metered API request" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — span creation is the CNS observation layer
     /// \[P8\] Constraining: Semantic Grounding — span fields must be traceable to source
     /// pre:  path and method are non-empty
     /// post: returns ApiRequestSpan
+    #[rs::contract(id = "P9-cns-api-meter-span-new", principle = "P9")]
     #[rs::contract(id = "P9-cns-api-meter-span-new", principle = "P9")]
     pub fn new(
         key_id: &str,
@@ -308,11 +308,11 @@ impl ApiMeteringAlert {
     /// CNS alert type string for span emission.
     /// Get alert type string.
     ///
-    /// REQ: P9-cns-api-meter-alert-type
     /// expect: "I can query the CNS alert type classification for a metering event" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification
     /// \[P8\] Constraining: Semantic Grounding — alert type labels must be stable across versions
     /// post: returns alert type label
+    #[rs::contract(id = "P9-cns-api-meter-alert-type", principle = "P9")]
     #[rs::contract(id = "P9-cns-api-meter-alert-type", principle = "P9")]
     pub fn alert_type(&self) -> &'static str {
         match self {
@@ -327,11 +327,11 @@ impl ApiMeteringAlert {
     /// Severity level for CNS algedonic signaling.
     /// Get severity string.
     ///
-    /// REQ: P9-cns-api-meter-alert-severity
     /// expect: "I can query the algedonic severity level for a metering alert" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — severity is the algedonic signal
     /// \[P8\] Constraining: Semantic Grounding — severity labels must be stable across versions
     /// post: returns severity label
+    #[rs::contract(id = "P9-cns-api-meter-alert-severity", principle = "P9")]
     #[rs::contract(id = "P9-cns-api-meter-alert-severity", principle = "P9")]
     pub fn severity(&self) -> &'static str {
         match self {

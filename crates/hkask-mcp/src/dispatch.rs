@@ -42,7 +42,6 @@ pub struct RawMcpToolPort {
 impl RawMcpToolPort {
     /// Create a new raw tool port wrapping the given MCP runtime.
     ///
-    /// REQ: MCP-013
     /// pre:  runtime is initialized
     /// post: returns RawMcpToolPort
     pub fn new(runtime: McpRuntime) -> Self {
@@ -194,7 +193,6 @@ impl McpDispatcher {
     /// OCAP verification, energy budgets, and CNS observability.
     /// The membrane IS the security property.
     ///
-    /// REQ: MCP-014
     /// pre:  runtime is initialized, secret is non-empty
     /// post: returns McpDispatcher with GovernedTool membrane
     pub fn with_governed_tool(
@@ -211,7 +209,6 @@ impl McpDispatcher {
 
     /// Issue capability token to a bot.
     ///
-    /// REQ: MCP-015
     /// pre:  tool_name is non-empty, from and to are valid WebIDs
     /// post: returns DelegationToken granting tool access from → to
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {

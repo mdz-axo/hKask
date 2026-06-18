@@ -166,7 +166,6 @@ pub enum ToolSubsystem {
 impl ToolSubsystem {
     /// Map an MCP server name (e.g., "memory", "hkask-mcp-spec") to a ToolSubsystem.
     ///
-    /// REQ: CNS-001 — P9 Homeostatic Self-Regulation: identify which MCP server emitted a tool span.
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  server_name is a non-empty string
     /// post: returns the corresponding ToolSubsystem variant; Other if unknown
@@ -213,7 +212,6 @@ impl ToolSubsystem {
 }
 
 impl CnsSpan {
-    /// REQ: TYP-208
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid CnsSpan variant
     /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
@@ -284,7 +282,6 @@ impl std::fmt::Display for CnsSpan {
 impl std::str::FromStr for CnsSpan {
     type Err = ();
 
-    /// REQ: TYP-209
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  s is a string matching a canonical CnsSpan namespace
     /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
@@ -578,7 +575,6 @@ fn default_multiplier() -> f64 {
 }
 
 impl RetryConfig {
-    /// REQ: TYP-210
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  attempt >= 0; self.initial_delay_ms, self.multiplier, self.max_delay_ms are valid
     /// post: returns the exponential backoff delay in ms, capped at self.max_delay_ms
@@ -587,7 +583,6 @@ impl RetryConfig {
         delay.min(self.max_delay_ms)
     }
 
-    /// REQ: TYP-211
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  status is a valid HTTP status code (u16)
     /// post: returns true if status is in the retryable_status list

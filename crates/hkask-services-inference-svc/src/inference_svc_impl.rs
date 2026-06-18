@@ -14,6 +14,8 @@
 //! - **Depth test** — Deleting this module would cause inference port
 //!   construction logic to reappear in 11+ call sites. Passes deletion test.
 
+use hkask_rsolidity::contract;
+
 use std::sync::Arc;
 
 use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId, RouterModelEntry};
@@ -41,10 +43,10 @@ impl InferenceContext {
     /// Construct from individual parts (for CLI/API surfaces that don't
     /// have a full `AgentService`).
     ///
-    /// REQ: P9-svc-inference-228
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  default_model must be non-empty; inference_config must be valid
     /// post: returns InferenceContext with provided parts; shared_port may be None
+    #[contract(id = "P9-svc-inference-228", principle = "P9")]
     pub fn from_parts(
         shared_port: Option<Arc<dyn InferencePort>>,
         default_model: impl Into<String>,
@@ -98,13 +100,13 @@ impl InferenceService {
     /// the default configured model. Falls back to creating a fresh
     /// `InferenceRouter` instance for other models.
     ///
-    /// REQ: P9-svc-inference-229
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must have valid inference_config; model must be non-empty
     /// post: returns Arc<dyn InferencePort> — shared port if model matches default, else fresh InferenceRouter; Err on connection failure
     /// # REQ: P9-svc-inference-svc-inf-001 — resolve_port returns shared port for default model
     /// # REQ: P9-svc-inference-svc-inf-002 — resolve_port creates fresh instance for non-default model
     /// # REQ: P9-svc-inference-svc-inf-003 — resolve_port returns Inference error on connection failure
+    #[contract(id = "P9-svc-inference-229", principle = "P9")]
     pub fn resolve_port(
         ctx: &InferenceContext,
         model: &str,
@@ -127,11 +129,11 @@ impl InferenceService {
 
     /// List all locally available models from all configured providers.
     ///
-    /// REQ: P9-svc-inference-230
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must have valid inference_config
     /// post: returns Vec<ModelInfo> from all configured providers; empty Vec if none
     /// # REQ: P9-svc-inference-svc-inf-004 — list_models returns model metadata from all providers
+    #[contract(id = "P9-svc-inference-230", principle = "P9")]
     pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
         // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.inference_svc span emitted
         // P9: CNS span
@@ -144,11 +146,11 @@ impl InferenceService {
 
     /// Search available models by name (case-insensitive substring match).
     ///
-    /// REQ: P9-svc-inference-231
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must have valid inference_config; query must be non-empty
     /// post: returns Vec<ModelInfo> matching query; empty Vec if no matches
     /// # REQ: P9-svc-inference-svc-inf-005 — search_models filters models by query substring
+    #[contract(id = "P9-svc-inference-231", principle = "P9")]
     pub async fn search_models(
         ctx: &InferenceContext,
         query: &str,

@@ -1,3 +1,5 @@
+use hkask_rsolidity::contract;
+
 use hkask_types::ports::registry::RegistryEntry;
 
 /// Known vocabulary terms — bootstrapped from manifest `lexicon_terms` across the skill corpus.
@@ -132,20 +134,20 @@ const KNOWN_TERMS: &[&str] = &[
 
 /// Is `term` a known vocabulary term?
 ///
-/// REQ: P3-tpl-vocab-known — checks term membership via binary search
 /// expect: "The system validates template contracts against the lexicon" [P3]
 /// pre:  term may be any string
 /// post: returns true if term is in KNOWN_TERMS
+    #[contract(id = "P3-tpl-vocab-known — checks term membership via binary search", principle = "P3")]
 pub fn is_known(term: &str) -> bool {
     KNOWN_TERMS.binary_search(&term).is_ok()
 }
 
 /// Returns unknown terms from `terms` that are not in the vocabulary.
 ///
-/// REQ: P3-tpl-vocab-validate — validates terms against known vocabulary
 /// expect: "The system validates template contracts against the lexicon" [P3]
 /// pre:  terms is a slice of declared lexicon terms
 /// post: returns Vec of terms not found in KNOWN_TERMS
+    #[contract(id = "P3-tpl-vocab-validate — validates terms against known vocabulary", principle = "P3")]
 pub fn unrecognized(terms: &[String]) -> Vec<String> {
     terms.iter().filter(|t| !is_known(t)).cloned().collect()
 }
@@ -153,10 +155,10 @@ pub fn unrecognized(terms: &[String]) -> Vec<String> {
 /// Validate an entry's `lexicon_terms` against the known vocabulary.
 /// Returns warnings for any unrecognized terms.
 ///
-/// REQ: P3-tpl-vocab-validate-entry — validates entry lexicon_terms
 /// expect: "The system validates template contracts against the lexicon" [P3]
 /// pre:  entry is a valid RegistryEntry
 /// post: returns Vec of warning strings for unrecognized terms
+    #[contract(id = "P3-tpl-vocab-validate-entry — validates entry lexicon_terms", principle = "P3")]
 pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
     let mut warnings = Vec::new();
     let unknown = unrecognized(&entry.lexicon_terms);

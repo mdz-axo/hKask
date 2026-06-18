@@ -121,10 +121,10 @@ fn row_to_curation_record(
 impl SqliteSpecStore {
     /// Initialize the spec store schema.
     ///
-    /// REQ: P3-sto-spec-schema
     /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — schema for specification documents
     /// post: specs table created if not exists
+    #[rs::contract(id = "P3-sto-spec-schema", principle = "P3")]
     #[rs::contract(id = "P3-sto-spec-schema", principle = "P3")]
     pub fn init_schema(&self) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
@@ -143,10 +143,10 @@ impl SqliteSpecStore {
 impl SqliteCurationRecordStore {
     /// Initialize the curation record store schema.
     ///
-    /// REQ: P3-sto-spec-curation-schema
     /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — schema for curation records
     /// post: spec_curation_records table created if not exists
+    #[rs::contract(id = "P3-sto-spec-curation-schema", principle = "P3")]
     #[rs::contract(id = "P3-sto-spec-curation-schema", principle = "P3")]
     pub fn init_schema(&self) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
@@ -162,11 +162,11 @@ impl SqliteCurationRecordStore {
     }
     /// Save a curation record.
     ///
-    /// REQ: P3-sto-spec-curation-save
     /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — save a curation decision
     /// pre:  record.spec_id is non-empty
     /// post: record inserted into spec_curation_records
+    #[rs::contract(id = "P3-sto-spec-curation-save", principle = "P3")]
     #[rs::contract(id = "P3-sto-spec-curation-save", principle = "P3")]
     pub fn save_curation_record(&self, record: &SpecCurationRecord) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
@@ -186,11 +186,11 @@ impl SqliteCurationRecordStore {
     }
     /// Load curation records for a spec.
     ///
-    /// REQ: P3-sto-spec-curation-load
     /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — load curation records for a spec
     /// pre:  spec_id is non-empty
     /// post: returns Vec of curation records for this spec
+    #[rs::contract(id = "P3-sto-spec-curation-load", principle = "P3")]
     #[rs::contract(id = "P3-sto-spec-curation-load", principle = "P3")]
     pub fn load_curation_records(
         &self,
@@ -209,10 +209,10 @@ impl SqliteCurationRecordStore {
     }
     /// List curation records since a timestamp.
     ///
-    /// REQ: P3-sto-spec-curation-since
     /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — list curation records since timestamp
     /// post: returns Vec of records created after since_ts
+    #[rs::contract(id = "P3-sto-spec-curation-since", principle = "P3")]
     #[rs::contract(id = "P3-sto-spec-curation-since", principle = "P3")]
     pub fn list_curation_records_since(
         &self,
@@ -238,10 +238,10 @@ impl SqliteCurationRecordStore {
     }
     /// Load all curation records.
     ///
-    /// REQ: P3-sto-spec-curation-all
     /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — load all curation records
     /// post: returns Vec of all curation records
+    #[rs::contract(id = "P3-sto-spec-curation-all", principle = "P3")]
     #[rs::contract(id = "P3-sto-spec-curation-all", principle = "P3")]
     pub fn load_all_curation_records(&self) -> Result<Vec<SpecCurationRecord>, SpecError> {
         let conn = self.lock_conn()?;

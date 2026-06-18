@@ -3,6 +3,7 @@
 //! REQ: DEP-310 — P1 User Sovereignty: user manages their replicants.
 //! expect: "My API access is scoped to my sovereignty boundaries" [P1]
 
+use hkask_rsolidity as rs;
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use serde::{Deserialize, Serialize};
 

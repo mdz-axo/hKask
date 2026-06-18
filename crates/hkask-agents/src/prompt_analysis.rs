@@ -576,7 +576,6 @@ fn split_sentences(text: &str) -> Vec<&str> {
 /// Input: the full prompt (system prompt + user input + any semantic context)
 /// Output: `PromptAnalysis` with depth/structure/domain buckets for CNS tracking.
 ///
-/// REQ: P9-agt-prompt-classify
 /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — classify prompt to guide loop action
 /// pre:  `prompt` is a valid UTF-8 string (may be empty).
@@ -584,6 +583,7 @@ fn split_sentences(text: &str) -> Vec<&str> {
 ///       density, depth bucket (shallow/medium/deep), topic keywords,
 ///       verb diversity, and counts of conditionals/questions/imperatives.
 ///       An empty prompt yields zero counts and density 0.0.
+    #[rs::contract(id = "P9-agt-prompt-classify", principle = "P9")]
     #[rs::contract(id = "P9-agt-prompt-classify", principle = "P9")]
 pub fn decompose_prompt(prompt: &str) -> PromptAnalysis {
     let sentences_raw = split_sentences(prompt);

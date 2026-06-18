@@ -6,6 +6,7 @@
 //! injects an `AuthContext` into request extensions so the capability token middleware
 //! can skip Bearer token verification.
 
+use hkask_rsolidity as rs;
 use crate::middleware::auth::AuthContext;
 use axum::{
     body::Body,
@@ -32,7 +33,6 @@ pub(crate) fn extract_cookie(headers: &axum::http::HeaderMap, name: &str) -> Opt
 
 /// Session middleware implementation — called from a closure in `create_router`.
 ///
-/// REQ: DEP-020
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  user_store is a valid Arc<Mutex<UserStore>>
 /// post: if valid session cookie → AuthContext injected, next.run called

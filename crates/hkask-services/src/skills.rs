@@ -5,6 +5,8 @@
 //!
 //! REQ: P5-svc-skills-095 — Implement dual-layer skill audit as a reusable service.
 
+use hkask_rsolidity::contract;
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,7 +21,6 @@ use serde::{Deserialize, Serialize};
 
 /// Auditor for the dual-layer skill corpus.
 ///
-/// REQ: P5-svc-skills-096
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  registry and skill_index are valid; project_root points to hKask root
 /// post: returns an auditor configured for both layers
@@ -31,6 +32,7 @@ pub struct SkillAuditor<'a> {
 
 impl<'a> SkillAuditor<'a> {
     /// Create a new auditor.
+    #[contract(id = "P5-svc-skills-096", principle = "P5")]
     pub fn new(
         registry: &'a dyn RegistryIndex,
         skill_index: &'a dyn SkillRegistryIndex,
@@ -45,9 +47,9 @@ impl<'a> SkillAuditor<'a> {
 
     /// Audit every skill name found in either layer.
     ///
-    /// REQ: P5-svc-skills-097
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// post: returns a report with a health score and defects per skill
+    #[contract(id = "P5-svc-skills-097", principle = "P5")]
     pub fn audit_all(&self) -> Result<SkillAuditReport, SkillAuditError> {
         let names = self.collect_skill_names()?;
         let mut entries = Vec::with_capacity(names.len());
@@ -62,10 +64,10 @@ impl<'a> SkillAuditor<'a> {
 
     /// Audit a single skill by name.
     ///
-    /// REQ: P5-svc-skills-098
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  name is non-empty
     /// post: returns the skill's health score or an error if audit fails
+    #[contract(id = "P5-svc-skills-098", principle = "P5")]
     pub fn audit_skill(&self, name: &str) -> Result<SkillHealthScore, SkillAuditError> {
         self.audit_skill_internal(name)
     }
@@ -81,9 +83,9 @@ pub struct SkillAuditReport {
 impl SkillAuditReport {
     /// Serialize the report to JSON.
     ///
-    /// REQ: P5-svc-skills-099
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// post: returns a JSON string representation of the report
+    #[contract(id = "P5-svc-skills-099", principle = "P5")]
     pub fn to_json(&self) -> Result<String, SkillAuditError> {
         serde_json::to_string_pretty(self)
             .map_err(|e| SkillAuditError::Serialize(format!("JSON serialize: {e}")))
@@ -91,18 +93,18 @@ impl SkillAuditReport {
 
     /// Count of active skills in the report.
     ///
-    /// REQ: P5-svc-skills-099b
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// post: returns number of entries with health_score >= 0.8
+    #[contract(id = "P5-svc-skills-099b", principle = "P5")]
     pub fn active_count(&self) -> usize {
         self.entries.iter().filter(|e| e.is_active()).count()
     }
 
     /// Count of .j2 files that incorrectly declare template_type FlowDef.
     ///
-    /// REQ: P5-svc-skills-099c
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// post: returns number of defects matching "FlowDef declared on .j2"
+    #[contract(id = "P5-svc-skills-099c", principle = "P5")]
     pub fn flowdef_on_j2_count(&self) -> usize {
         self.entries
             .iter()
@@ -131,9 +133,9 @@ pub struct SkillHealthScore {
 impl SkillHealthScore {
     /// True iff the skill is active (health_score >= 0.8).
     ///
-    /// REQ: P5-svc-skills-100
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// post: returns true iff health_score >= 0.8
+    #[contract(id = "P5-svc-skills-100", principle = "P5")]
     pub fn is_active(&self) -> bool {
         self.health_score >= 0.8
     }
@@ -577,7 +579,6 @@ fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
 mod tests {
     use super::*;
 
-    /// REQ: P5-svc-skills-101 — A complete skill with both layers and a valid .j2 template
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// scores >= 0.8 and is_active() returns true.
     #[test]

@@ -5,6 +5,8 @@
 //! 2. Deletes semantic triples at or below a configurable confidence floor
 //! 3. Enforces a maximum semantic triple count by deleting lowest-confidence
 
+use hkask_rsolidity::contract;
+
 use std::sync::Arc;
 
 use crate::consolidation::ConsolidationBridge;
@@ -32,13 +34,13 @@ impl ConsolidationService {
     ///
     /// The token must be issued by the Curator (system-level authority).
     ///
-    /// REQ: P3-mem-consolidation-service-new
     /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — user-facing entry point for memory consolidation and cleanup
     /// \[P4\] Constraining: Clear Boundaries — requires Curator-issued ConsolidationToken
     /// pre:  bridge and semantic are initialized
     /// pre:  token.issuer() == expected curator
     /// post: returns ConsolidationService ready for consolidation operations
+    #[contract(id = "P3-mem-consolidation-service-new", principle = "P3")]
     pub fn new(
         bridge: Arc<ConsolidationBridge>,
         semantic: Arc<SemanticMemory>,
@@ -60,7 +62,6 @@ impl ConsolidationService {
     /// 3. **Max triples** — delete lowest-confidence semantic triples until
     ///    count is at or below `max_semantic_triples` (if specified)
     ///
-    /// REQ: P3-mem-consolidation-service-consolidate
     /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — combines episodic promotion with semantic cleanup
     /// \[P9\] Constraining: Homeostatic Self-Regulation — enforces confidence floor and max triple limits
@@ -71,6 +72,7 @@ impl ConsolidationService {
     /// post: low-confidence semantic triples deleted if confidence_floor set
     /// post: excess semantic triples deleted if max_semantic_triples set
     /// post: returns ConsolidationOutcome with counts
+    #[contract(id = "P3-mem-consolidation-service-consolidate", principle = "P3")]
     pub fn consolidate(
         &self,
         perspective: &WebID,
@@ -213,37 +215,37 @@ impl ConsolidationService {
 
     /// Count episodic consolidation candidates for a perspective.
     ///
-    /// REQ: P3-mem-consolidation-service-candidate-count
     /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — reports how many episodic triples can be promoted
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count-only, graceful degradation on error
     /// pre:  perspective is a valid WebID
     /// post: returns count of episodic triples available for consolidation
+    #[contract(id = "P3-mem-consolidation-service-candidate-count", principle = "P3")]
     pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
         self.bridge.consolidation_candidate_count(perspective)
     }
 
     /// Count semantic triples at or below a confidence threshold.
     ///
-    /// REQ: P3-mem-consolidation-service-low-confidence-count
     /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — reports low-confidence semantic triples for cleanup
     /// \[P9\] Constraining: Homeostatic Self-Regulation — threshold-driven pruning signal
     /// pre:  threshold in [0.0, 1.0]
     /// post: returns count of semantic triples with confidence ≤ threshold
     /// post: returns 0 on error (graceful degradation)
+    #[contract(id = "P3-mem-consolidation-service-low-confidence-count", principle = "P3")]
     pub fn semantic_low_confidence_count(&self, threshold: f64) -> usize {
         self.semantic.low_confidence_count(threshold).unwrap_or(0)
     }
 
     /// Get current semantic triple count.
     ///
-    /// REQ: P3-mem-consolidation-service-triple-count
     /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — reports total semantic memory size
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count used for budget monitoring
     /// post: returns total count of triples in semantic memory
     /// post: returns 0 on error (graceful degradation)
+    #[contract(id = "P3-mem-consolidation-service-triple-count", principle = "P3")]
     pub fn semantic_triple_count(&self) -> usize {
         self.semantic.triple_count().unwrap_or(0)
     }

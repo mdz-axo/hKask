@@ -7,6 +7,7 @@
 //! `evolve` endpoints now use inference-driven composition via the shared
 //! service layer, replacing the previous stub responses.
 
+use hkask_rsolidity as rs;
 use axum::Json;
 use axum::extract::{Path, State};
 use hkask_services::{BundleService, ServiceError};
@@ -102,7 +103,6 @@ pub struct DeactivateBundleResponse {
 
 /// Create bundles router
 ///
-/// REQ: API-008
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with bundle routes registered

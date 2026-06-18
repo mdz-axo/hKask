@@ -47,7 +47,6 @@ fn make_server(id: &str, tools: Vec<McpTool>) -> McpServer {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-/// REQ: INT-002.1 — Server registration and tool discovery
 ///
 /// After registering a server with tools, `discover_tools()` returns
 /// all tool names and `list_servers()` returns the server.
@@ -77,7 +76,6 @@ async fn register_server_and_discover_tools() {
     assert_eq!(servers[0].tools.len(), 3);
 }
 
-/// REQ: INT-002.2 — Tool info retrieval
 ///
 /// `get_tool_info()` returns correct metadata including server_id
 /// and required capability.
@@ -101,7 +99,6 @@ async fn get_tool_info_returns_metadata() {
     // required_capability is derived from server_id — type system guarantees it exists
 }
 
-/// REQ: INT-002.3 — Tool definition retrieval
 ///
 /// `get_tool()` returns the full `McpTool` struct including input schema.
 #[tokio::test]
@@ -122,7 +119,6 @@ async fn get_tool_returns_full_definition() {
     assert!(retrieved.input_schema.is_object());
 }
 
-/// REQ: INT-002.4 — Multi-server tool isolation
 ///
 /// Tools from different servers are correctly namespaced and
 /// `get_tool_info()` returns the correct server_id for each.
@@ -168,7 +164,6 @@ async fn multi_server_tool_isolation() {
     assert_eq!(summarize_info.server_id, "server-b");
 }
 
-/// REQ: INT-002.5 — Missing tool returns None
 ///
 /// Querying a non-existent tool returns `None` for both
 /// `get_tool()` and `get_tool_info()`.
@@ -186,7 +181,6 @@ async fn missing_tool_returns_none() {
 
 // ── Schema validation contract tests ──────────────────────────────────────
 
-/// REQ: MCP-SCHEMA-001 — Tool input validates against JSON Schema
 ///
 /// Valid input conforming to the schema passes validation.
 #[test]
@@ -215,7 +209,6 @@ fn valid_input_passes_schema_validation() {
     assert!(tool.validate_input(&json!({"message": "hi"})).is_ok());
 }
 
-/// REQ: MCP-SCHEMA-001 — Invalid input fails schema validation
 #[test]
 fn invalid_input_fails_schema_validation() {
     let tool = McpTool {
@@ -241,7 +234,6 @@ fn invalid_input_fails_schema_validation() {
     assert!(result.is_err());
 }
 
-/// REQ: MCP-SCHEMA-001 — Empty schema passes all input (graceful degradation)
 #[test]
 fn empty_schema_passes_all_input() {
     let tool = McpTool {

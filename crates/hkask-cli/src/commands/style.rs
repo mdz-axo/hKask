@@ -3,7 +3,6 @@
 use crate::cli::StyleAction;
 
 /// Run a style subcommand
-/// REQ: CLI-067
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; action is a valid StyleAction variant
 /// post: dispatches to compose, embed_corpus, or discover subcommand based on action variant

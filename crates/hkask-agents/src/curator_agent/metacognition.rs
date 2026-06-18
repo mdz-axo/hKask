@@ -113,7 +113,6 @@ impl EscalationPolicy {
 
     /// Check all escalation conditions, return active alerts.
     ///
-    /// REQ: P9-agt-curator-agent-escalation-check
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — escalation policy classifies variety deficit
     /// \[P4\] Constraining: Clear Boundaries — thresholds define explicit boundaries
@@ -123,6 +122,7 @@ impl EscalationPolicy {
     ///       threshold exceeded: VarietyDeficit (Critical if > threshold,
     ///       Warning if > threshold/2), CriticalAlerts (Critical if ≥
     ///       threshold), BotFailures (Critical if ≥ threshold).
+    #[rs::contract(id = "P9-agt-curator-agent-escalation-check", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-agent-escalation-check", principle = "P9")]
     pub fn check_conditions(
         &self,
@@ -236,7 +236,6 @@ pub struct MetacognitionLoop {
 impl MetacognitionLoop {
     /// Create a new metacognition loop without a BotHealthEvaluator.
     ///
-    /// REQ: P9-agt-curator-agent-meta-new
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — MetacognitionLoop monitors agent health
     /// pre:  `context` is a valid `Arc<CuratorContext>`; `config` is a
@@ -244,6 +243,7 @@ impl MetacognitionLoop {
     /// post: Returns a `MetacognitionLoop` with an `EscalationPolicy`
     ///       derived from `config.thresholds`, empty bot reports, and a
     ///       fresh watch channel for health snapshots.
+    #[rs::contract(id = "P9-agt-curator-agent-meta-new", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-agent-meta-new", principle = "P9")]
     pub fn new(context: Arc<CuratorContext>, config: MetacognitionConfig) -> Self {
         let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
@@ -263,7 +263,6 @@ impl MetacognitionLoop {
     /// The evaluator reads gas data from the CNS runtime and populates
     /// bot health reports at each cycle.
     ///
-    /// REQ: P9-agt-bot-health-classify
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
@@ -271,6 +270,7 @@ impl MetacognitionLoop {
     ///       valid `MetacognitionConfig`; `evaluator` is a valid
     ///       `Arc<BotHealthEvaluator>`.
     /// post: Returns a `MetacognitionLoop` with the evaluator wired in.
+    #[rs::contract(id = "P9-agt-bot-health-classify", principle = "P9")]
     #[rs::contract(id = "P9-agt-bot-health-classify", principle = "P9")]
     pub fn with_evaluator(
         context: Arc<CuratorContext>,
@@ -307,13 +307,13 @@ impl MetacognitionLoop {
 
     /// Run a full cycle, returning the health snapshot.
     ///
-    /// REQ: P9-agt-curator-agent-tick
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — tick produces latest HealthSnapshot
     /// pre:  The loop has been registered and ticked at least once.
     /// post: On success, returns `Ok(HealthSnapshot)` — the latest
     ///       snapshot from the watch channel. If no snapshot has been
     ///       produced yet, returns `Err(MetacognitionError::Core(...))`.
+    #[rs::contract(id = "P9-agt-curator-agent-tick", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-agent-tick", principle = "P9")]
     pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
         info!(target: MC_TARGET, "Starting metacognition cycle");
@@ -325,13 +325,13 @@ impl MetacognitionLoop {
     }
     /// Generate a system state summary for posting to standing session.
     ///
-    /// REQ: P9-agt-curator-agent-summary
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — summary posts system state to standing session
     /// pre:  `snapshot` is a valid `&HealthSnapshot`.
     /// post: Returns a `String` containing a markdown-formatted summary
     ///       with timestamp, CNS health, critical/total alerts, variety
     ///       counters, and bot status reports.
+    #[rs::contract(id = "P9-agt-curator-agent-summary", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-agent-summary", principle = "P9")]
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
         use std::fmt::Write;
@@ -369,7 +369,6 @@ impl MetacognitionLoop {
 
     /// Direct a bot to take action via A2A message.
     ///
-    /// REQ: P9-agt-curator-agent-direct
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — direct a bot to take corrective action
     /// pre:  `bot_name` is a non-empty string; `reason` is a non-empty
@@ -378,6 +377,7 @@ impl MetacognitionLoop {
     ///       to the bot and returns `Ok(())`. If A2A is not configured,
     ///       logs a warning and returns `Ok(())` (graceful degradation).
     ///       Returns `Err` on A2A send failure.
+    #[rs::contract(id = "P9-agt-curator-agent-direct", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-agent-direct", principle = "P9")]
     pub async fn direct_bot(&self, bot_name: &str, reason: &str) -> Result<(), MetacognitionError> {
         let a2a = match self.context.a2a() {
@@ -419,12 +419,12 @@ impl MetacognitionLoop {
     /// Issue a CuratorDirective on the direct channel with DAMPEN filtering.
     /// Delegates to `CuratorContext::issue_directive()`.
     ///
-    /// REQ: P9-agt-curator-agent-issue-directive
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — delegate directive to CuratorContext
     /// pre:  `directive` is a valid `CuratorDirective`.
     /// post: Delegates to `self.context.issue_directive(directive)`;
     ///       same post-conditions as `CuratorContext::issue_directive`.
+    #[rs::contract(id = "P9-agt-curator-agent-issue-directive", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-agent-issue-directive", principle = "P9")]
     pub async fn issue_directive(&self, directive: CuratorDirective) {
         self.context.issue_directive(directive).await;

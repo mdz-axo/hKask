@@ -114,7 +114,6 @@ pub enum McpErrorKind {
 impl McpErrorKind {
     /// Whether errors of this kind are retryable with backoff.
     ///
-    /// REQ: TYP-198
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any McpErrorKind variant
     /// post: returns true only for Unavailable, Timeout, and RateLimited;
@@ -126,7 +125,6 @@ impl McpErrorKind {
 
     /// Whether this error requires user/admin intervention.
     ///
-    /// REQ: TYP-199
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any McpErrorKind variant
     /// post: returns true only for PermissionDenied and FailedPrecondition;

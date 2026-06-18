@@ -7,6 +7,8 @@
 //! - Layer 1: Memory recall dedup (this module)
 //! - Layer 2: Prompt assembly dedup (hkask-templates/src/context_assembly.rs)
 
+use hkask_rsolidity::contract;
+
 use hkask_storage::Triple;
 use std::collections::HashSet;
 
@@ -17,13 +19,13 @@ use std::collections::HashSet;
 /// so that the same factual content stored at different times or with
 /// different confidence levels is recognized as a duplicate.
 ///
-/// REQ: P3-mem-recall-eav-hash
 /// expect: "The system deduplicates triples to preserve generative storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — canonical recall dedup enables reuse of factual content across memory
 /// \[P8\] Constraining: Semantic Grounding — deterministic BLAKE3 hash over canonical EAV content
 /// pre:  triple is a valid Triple with entity, attribute, value
 /// post: returns deterministic 32-byte BLAKE3 hash of canonical EAV content
 /// post: same EAV content → same hash (metadata-independent)
+    #[contract(id = "P3-mem-recall-eav-hash", principle = "P3")]
 pub fn eav_hash(triple: &Triple) -> [u8; 32] {
     let canonical = format!(
         "{}\x00{}\x00{}",
@@ -62,7 +64,6 @@ fn canonical_value(value: &serde_json::Value) -> String {
 /// Returns only the first occurrence of each unique EAV content.
 /// Preserves the original ordering (first-seen wins).
 ///
-/// REQ: P3-mem-recall-dedup-triples
 /// expect: "The system deduplicates triples to preserve generative storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — deduplication preserves generative storage budget
 /// \[P5\] Constraining: Essentialism — first-seen wins, no speculative retention policy
@@ -70,6 +71,7 @@ fn canonical_value(value: &serde_json::Value) -> String {
 /// post: returns Vec with duplicates removed (by EAV hash)
 /// post: preserves original ordering (first occurrence kept)
 /// post: result.len() ≤ triples.len()
+    #[contract(id = "P3-mem-recall-dedup-triples", principle = "P3")]
 pub fn dedup_triples(triples: Vec<Triple>) -> Vec<Triple> {
     let mut seen = HashSet::new();
     let mut result = Vec::with_capacity(triples.len());

@@ -44,7 +44,6 @@ pub struct ProbContractRunner {
     k: u32,
 }
 
-/// REQ: HARN-047
 /// pre:  p in [0.0, 1.0]; delta in [0.0, 1.0]; k >= 0
 /// post: returns ProbContractRunner configured for (p, δ, k)-satisfaction
 /// expect: "I can verify non-deterministic functions meet a probability threshold — validating probabilistic contracts" [P9]
@@ -63,7 +62,6 @@ impl ProbContractRunner {
     /// The recovery window `k` allows up to `k` per-trial retries before
     /// counting a trial as failed (self-healing contracts, §7.6).
     ///
-    /// REQ: HARN-048
     /// pre:  trials > 0; f and predicate are callable
     /// post: returns ProbContractResult where passed == true iff actual_rate + delta >= p
     /// expect: "I can verify non-deterministic functions meet a probability threshold" [P9]

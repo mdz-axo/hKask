@@ -70,7 +70,6 @@ fn default_params() -> LLMParameters {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-/// REQ: P9-inf-test-routing-by-provider-prefix — Provider-prefix routing
 /// \[P9\] Motivating: Homeostatic Self-Regulation — end-to-end provider routing
 ///
 /// The router dispatches DI/-prefixed models to the DeepInfra backend
@@ -131,7 +130,6 @@ async fn routing_by_provider_prefix() {
     assert_eq!(result.model, "Qwen/Qwen2.5-7B-Instruct-Turbo");
 }
 
-/// REQ: P9-inf-test-unavailable-backend-error — Unavailable backend error
 /// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
 ///
 /// When a provider's backend is not configured (e.g., no API key),
@@ -185,7 +183,6 @@ async fn unavailable_backend_returns_error() {
     );
 }
 
-/// REQ: P9-inf-test-default-provider-routing — Default provider routing
 /// \[P9\] Motivating: Homeostatic Self-Regulation — validates default provider fallback
 ///
 /// Unprefixed model names use the configured default provider.
@@ -219,7 +216,6 @@ async fn default_provider_routing() {
     assert_eq!(result.model, "deepseek-v4-pro");
 }
 
-/// REQ: P9-inf-test-model-override-routing — Model override routing
 /// \[P9\] Motivating: Homeostatic Self-Regulation — validates explicit model override
 ///
 /// `generate_with_model` with an explicit model override routes to
@@ -279,7 +275,6 @@ async fn model_override_routing() {
     assert_eq!(result.text, "Override DeepInfra");
 }
 
-/// REQ: P9-inf-test-list-models-degradation — Graceful degradation in list_models
 /// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful catalog degradation
 ///
 /// When one provider's model-listing endpoint is unavailable,
@@ -327,7 +322,6 @@ async fn list_models_graceful_degradation() {
     assert_eq!(deepinfra_model.unwrap().provider, ProviderId::DeepInfra);
 }
 
-/// REQ: P9-inf-test-thinking-disable-flow — Thinking mode disable flows through router to wire format
 /// \[P9\] Motivating: Homeostatic Self-Regulation — validates reasoning flag propagation
 ///
 /// When `LLMParameters.disable_thinking` is `true`, the router passes it
@@ -381,7 +375,6 @@ async fn disable_thinking_flows_to_wire_format() {
     assert_eq!(result.model, "meta-llama/Llama-3.3-70B-Instruct");
 }
 
-/// REQ: P9-inf-test-generate-unavailable-backend — generate() with unavailable default provider
 /// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
 ///
 /// When the default model resolves to a provider whose backend is None,
@@ -408,7 +401,6 @@ async fn generate_unavailable_backend_returns_error() {
     );
 }
 
-/// REQ: P9-inf-test-generate-stream-unavailable — generate_stream() with unavailable default provider
 /// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
 ///
 /// When the default model resolves to a provider whose backend is None,
@@ -436,7 +428,6 @@ async fn generate_stream_unavailable_backend_returns_error() {
     );
 }
 
-/// REQ: P9-inf-test-generate-stream-with-model-unavailable — generate_stream_with_model() with unavailable provider
 /// \[P9\] Motivating: Homeostatic Self-Regulation — validates graceful boundary unavailability
 ///
 /// When model_override resolves to a provider whose backend is None,

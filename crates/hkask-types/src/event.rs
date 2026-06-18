@@ -30,7 +30,6 @@ pub struct NuEvent {
 impl NuEvent {
     /// Create a new NuEvent.
     ///
-    /// REQ: TYP-170
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  observer is valid, span is valid, phase is valid
     /// post: returns NuEvent
@@ -56,7 +55,6 @@ impl NuEvent {
         }
     }
 
-    /// REQ: TYP-200
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  outcome is a valid serde_json::Value
     /// post: returns self with outcome set to Some(outcome)
@@ -66,7 +64,6 @@ impl NuEvent {
         self
     }
 
-    /// REQ: TYP-201
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  regulation is a valid serde_json::Value
     /// post: returns self with regulation set to Some(regulation)
@@ -76,7 +73,6 @@ impl NuEvent {
         self
     }
 
-    /// REQ: TYP-202
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  parent is a valid EventID
     /// post: returns self with parent_event set to Some(parent)
@@ -86,7 +82,6 @@ impl NuEvent {
         self
     }
 
-    /// REQ: TYP-203
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  visibility is a non-empty string (e.g. "private", "public")
     /// post: returns self with visibility set to visibility.to_string()
@@ -155,7 +150,6 @@ impl SpanNamespace {
     /// Use `from_str` for fallible construction.
     /// Create a new SpanNamespace.
     ///
-    /// REQ: TYP-171
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  namespace is non-empty
     /// post: returns SpanNamespace
@@ -173,7 +167,6 @@ impl SpanNamespace {
     /// Implements `FromStr` so that `"variety".parse::<SpanNamespace>()` works.
     /// Parse a SpanNamespace from string.
     ///
-    /// REQ: TYP-172
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Some(SpanNamespace) if valid, None otherwise
     pub fn parse(s: &str) -> Option<Self> {
@@ -189,7 +182,6 @@ impl SpanNamespace {
         }
     }
 
-    /// REQ: TYP-204
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid SpanNamespace (canonical)
     /// post: returns the full namespace string (e.g. "cns.tool")
@@ -197,7 +189,6 @@ impl SpanNamespace {
         &self.0
     }
 
-    /// REQ: TYP-205
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid SpanNamespace (canonical, starts with "cns.")
     /// post: returns the short name after the "cns." prefix (e.g. "tool")
@@ -205,7 +196,6 @@ impl SpanNamespace {
         &self.0[4..] // Skip "cns."
     }
 
-    /// REQ: TYP-206
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid SpanNamespace (canonical)
     /// post: returns the SpanCategory for this namespace; unknown prefixes return SpanCategory::Unknown
@@ -257,7 +247,6 @@ pub enum SpanCategory {
 }
 
 impl SpanCategory {
-    /// REQ: TYP-207
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  s is a short_name() string (e.g. "variety", "variety.sensor")
     /// post: returns the matching SpanCategory; unrecognised prefixes return SpanCategory::Unknown
@@ -331,7 +320,6 @@ impl Span {
     /// Example: `Span::new(SpanNamespace::new("cns.tool"), "invoked")`
     /// Create a new Span.
     ///
-    /// REQ: TYP-173
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  namespace is valid, path is non-empty
     /// post: returns Span
@@ -354,7 +342,6 @@ impl Span {
     /// span paths. Each variant maps to a canonical (namespace, path) pair.
     /// Create a Span from a SpanKind.
     ///
-    /// REQ: TYP-174
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  kind is valid
     /// post: returns Span with canonical namespace and path

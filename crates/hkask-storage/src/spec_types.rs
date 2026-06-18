@@ -15,19 +15,19 @@ macro_rules! str_enum {
         impl $enum {
             /// Get string representation.
             ///
-            /// REQ: P8-sto-spec-str-enum-as-str
             /// expect: "Storage types preserve semantic identity across operations" [P8]
             /// \[P8\] Motivating: Semantic Grounding — stable string representation
             /// post: returns lowercase string
+    #[rs::contract(id = "P8-sto-spec-str-enum-as-str", principle = "P8")]
             pub fn as_str(&self) -> &'static str {
                 match self { $($enum::$variant => $s),+ }
             }
             /// Parse from string.
             ///
-            /// REQ: P8-sto-spec-str-enum-parse
             /// expect: "Storage types preserve semantic identity across operations" [P8]
             /// \[P8\] Motivating: Semantic Grounding — parse from string
             /// post: returns Some if valid, None otherwise
+    #[rs::contract(id = "P8-sto-spec-str-enum-parse", principle = "P8")]
             pub fn parse_str(s: &str) -> Option<Self> {
                 match s.to_lowercase().as_str() {
                     $($s => Some($enum::$variant),)+
@@ -42,21 +42,21 @@ pub struct SpecId(pub Uuid);
 impl SpecId {
     /// Create a new SpecId.
     ///
-    /// REQ: P8-sto-spec-id-new
     /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — new SpecId
     /// post: returns new random SpecId
+    #[rs::contract(id = "P8-sto-spec-id-new", principle = "P8")]
     #[rs::contract(id = "P8-sto-spec-id-new", principle = "P8")]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
     /// Create a SpecId from a string.
     ///
-    /// REQ: P8-sto-spec-id-from-str
     /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — SpecId from string
     /// pre:  s is a valid UUID string
     /// post: returns SpecId
+    #[rs::contract(id = "P8-sto-spec-id-from-str", principle = "P8")]
     #[rs::contract(id = "P8-sto-spec-id-from-str", principle = "P8")]
     pub fn from_string(s: &str) -> Result<Self, SpecError> {
         Uuid::parse_str(s)
@@ -94,10 +94,10 @@ pub enum SpecCategory {
 impl SpecCategory {
     /// Get string representation of category.
     ///
-    /// REQ: P8-sto-spec-category-as-str
     /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — category string label
     /// post: returns snake_case string
+    #[rs::contract(id = "P8-sto-spec-category-as-str", principle = "P8")]
     #[rs::contract(id = "P8-sto-spec-category-as-str", principle = "P8")]
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -111,10 +111,10 @@ impl SpecCategory {
     /// Parse a string into a `SpecCategory`, mapping legacy DDMVSS names to
     /// their MDS equivalents.
     ///
-    /// REQ: P8-sto-spec-category-parse
     /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — parse category
     /// post: returns Some(SpecCategory) if valid, None otherwise
+    #[rs::contract(id = "P8-sto-spec-category-parse", principle = "P8")]
     #[rs::contract(id = "P8-sto-spec-category-parse", principle = "P8")]
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {

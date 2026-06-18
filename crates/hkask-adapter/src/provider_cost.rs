@@ -4,12 +4,13 @@
 //! GPU hourly rate, setup time, and teardown grace period. This enables
 //! budget-aware deployment decisions.
 
+use hkask_rsolidity::contract;
+
 use hkask_inference::ProviderId;
 use serde::{Deserialize, Serialize};
 
 /// Cost model for a specific inference provider.
 ///
-/// REQ: P9-adt-provider-cost-model
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P9] Homeostatic Self-Regulation — cost transparency enables budget-aware decisions
 /// pre:  provider is a recognized ProviderId variant
@@ -31,10 +32,10 @@ pub struct CostModel {
 impl CostModel {
     /// Create a new cost model with validation.
     ///
-    /// REQ: P9-adt-provider-cost-model
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  gpu_hourly_rate > 0.0, estimated_setup_minutes > 0
     /// post: returns CostModel for the given provider
+    #[contract(id = "P9-adt-provider-cost-model", principle = "P9")]
     pub fn new(
         provider: ProviderId,
         gpu_hourly_rate: f64,
@@ -58,6 +59,7 @@ impl CostModel {
     }
 
     /// Estimated cost for a given duration in hours.
+    #[contract(id = "P9-adt-provider-cost-model", principle = "P9")]
     pub fn estimated_cost_for_hours(&self, hours: f64) -> f64 {
         self.gpu_hourly_rate * hours
     }
@@ -80,7 +82,6 @@ pub enum CostModelError {
 
 /// Provider capabilities — whether a provider supports LoRA composition.
 ///
-/// REQ: P9-adt-provider-cost-model
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// pre:  provider is a recognized ProviderId variant
 /// post: ProviderCapability indicates whether LoRA composition is supported
@@ -96,6 +97,7 @@ pub struct ProviderCapability {
 
 impl ProviderCapability {
     /// Check if this provider can compose the given adapter + base model combo.
+    #[contract(id = "P9-adt-provider-cost-model", principle = "P9")]
     pub fn can_compose(&self, base_model_family: &str) -> bool {
         self.supports_lora_composition
             && (self.supported_base_model_families.is_empty()

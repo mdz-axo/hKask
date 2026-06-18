@@ -43,7 +43,6 @@ pub struct StorageRequest {
 impl StorageRequest {
     /// Create a new `StorageRequest` with all fields specified.
     ///
-    /// REQ: P3-agt-memory-request-new
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — StorageRequest creates a memory triple
     /// \[P1\] Constraining: User Sovereignty — access.owner_webid carries ownership
@@ -53,6 +52,7 @@ impl StorageRequest {
     /// post: Returns a `StorageRequest` with all fields set to the provided
     ///       values; no validation is performed — the caller is responsible
     ///       for correctness.
+    #[rs::contract(id = "P3-agt-memory-request-new", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-request-new", principle = "P3")]
     pub fn new(
         entity: impl Into<String>,
@@ -74,13 +74,13 @@ impl StorageRequest {
     ///
     /// Convenience constructor that sets `access` to `AccessControl::episodic`.
     ///
-    /// REQ: P3-agt-memory-request-episodic
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — episodic request binds perspective to owner
     /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
     ///       `entity` and `attribute` are non-empty after `.into()`.
     /// post: Returns a `StorageRequest` with `access` set to episodic
     ///       (perspective = owner = `producer_webid`).
+    #[rs::contract(id = "P3-agt-memory-request-episodic", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-request-episodic", principle = "P3")]
     pub fn episodic(
         entity: impl Into<String>,
@@ -102,13 +102,13 @@ impl StorageRequest {
     ///
     /// Convenience constructor that sets `access` to `AccessControl::semantic`.
     ///
-    /// REQ: P3-agt-memory-request-semantic
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — semantic request is perspective-free
     /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
     ///       `entity` and `attribute` are non-empty after `.into()`.
     /// post: Returns a `StorageRequest` with `access` set to semantic
     ///       (no perspective, owner = `producer_webid`).
+    #[rs::contract(id = "P3-agt-memory-request-semantic", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-request-semantic", principle = "P3")]
     pub fn semantic(
         entity: impl Into<String>,
@@ -132,7 +132,6 @@ impl StorageRequest {
     /// - `Success` → 0.9
     /// - `Failure` → 0.3
     ///
-    /// REQ: P3-agt-memory-confidence-map
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P8\] Motivating: Semantic Grounding — classification maps to confidence scalar
     /// pre:  `classification` is a valid `ExperienceClassification` variant;
@@ -140,6 +139,7 @@ impl StorageRequest {
     ///       `producer_webid` is a valid WebID.
     /// post: Returns a `StorageRequest` with episodic access and confidence
     ///       resolved from `classification` (or overridden).
+    #[rs::contract(id = "P3-agt-memory-confidence-map", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-confidence-map", principle = "P3")]
     pub fn classified_episodic(
         entity: impl Into<String>,
@@ -173,13 +173,13 @@ pub struct RecallRequest {
 impl RecallRequest {
     /// Create an episodic recall request (perspective-bound).
     ///
-    /// REQ: P3-agt-memory-recall-episodic
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — episodic recall requires delegation token
     /// \[P4\] Constraining: Clear Boundaries — token proves capability
     /// pre:  `query` is non-empty after `.into()`; `owner` is a valid WebID;
     ///       `token` is a valid `DelegationToken`.
     /// post: Returns a `RecallRequest` with `perspective = Some(owner)`.
+    #[rs::contract(id = "P3-agt-memory-recall-episodic", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-recall-episodic", principle = "P3")]
     pub fn episodic(query: impl Into<String>, owner: WebID, token: DelegationToken) -> Self {
         Self {
@@ -191,13 +191,13 @@ impl RecallRequest {
 
     /// Create a semantic recall request (perspective-free).
     ///
-    /// REQ: P3-agt-memory-recall-semantic
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — semantic recall requires delegation token
     /// \[P4\] Constraining: Clear Boundaries — token proves capability
     /// pre:  `query` is non-empty after `.into()`; `token` is a valid
     ///       `DelegationToken`.
     /// post: Returns a `RecallRequest` with `perspective = None`.
+    #[rs::contract(id = "P3-agt-memory-recall-semantic", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-recall-semantic", principle = "P3")]
     pub fn semantic(query: impl Into<String>, token: DelegationToken) -> Self {
         Self {

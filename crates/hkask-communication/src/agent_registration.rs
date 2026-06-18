@@ -33,7 +33,6 @@ pub struct AgentRegistry {
 impl AgentRegistry {
     /// Create an empty agent registry.
     ///
-    /// REQ: COMM-013
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// post: returns AgentRegistry with empty entries and watchlists
     pub fn new() -> Self {
@@ -46,7 +45,6 @@ impl AgentRegistry {
     /// Does NOT perform Matrix registration — that is done by the CLI
     /// via Conduit's admin API.
     ///
-    /// REQ: COMM-014
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  webid is a valid WebID, user_id is a valid Matrix UserId
     /// post: mapping stored in entries
@@ -66,7 +64,6 @@ impl AgentRegistry {
 
     /// Deregister a replicant.
     ///
-    /// REQ: COMM-015
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  webid is a valid WebID
     /// post: mapping removed from entries if present
@@ -86,7 +83,6 @@ impl AgentRegistry {
 
     /// Resolve a WebID to its Matrix UserId.
     ///
-    /// REQ: COMM-016
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  webid is a valid WebID
     /// post: returns Some(UserId) if mapping exists
@@ -97,7 +93,6 @@ impl AgentRegistry {
 
     /// Add a thread to an agent's watchlist.
     ///
-    /// REQ: COMM-017
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  webid is registered (record_mapping called)
     /// pre:  room_id is a valid RoomId
@@ -132,7 +127,6 @@ impl AgentRegistry {
 
     /// Get agents monitoring a given thread.
     ///
-    /// REQ: COMM-018
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  room_id is a valid RoomId
     /// post: returns Vec of WebID strings watching this thread

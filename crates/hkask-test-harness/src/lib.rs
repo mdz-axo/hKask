@@ -56,7 +56,6 @@ pub struct TestDb {
 }
 
 impl Default for TestDb {
-    /// REQ: HARN-012b
     /// post: returns TestDb with in-memory SQLite connection and full schema initialized
     fn default() -> Self {
         Self::new()
@@ -66,7 +65,6 @@ impl Default for TestDb {
 impl TestDb {
     /// Create a new in-memory test database with full schema.
     ///
-    /// REQ: HARN-012
     /// post: returns TestDb with in-memory SQLite connection and full schema initialized
     pub fn new() -> Self {
         let conn = Connection::open_in_memory().expect("in-memory SQLite should always open");
@@ -79,7 +77,6 @@ impl TestDb {
 
     /// Borrow the underlying SQLite connection (locks the mutex).
     ///
-    /// REQ: HARN-013
     /// post: returns `MutexGuard<Connection>` for direct SQL access
     pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().expect("mutex should not be poisoned")
@@ -87,7 +84,6 @@ impl TestDb {
 
     /// Get the Arc<Mutex<Connection>> for Store constructors.
     ///
-    /// REQ: HARN-014
     /// post: returns `Arc<Mutex<Connection>>` clone for Store::new()
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
@@ -95,7 +91,6 @@ impl TestDb {
 
     /// Execute a batch of SQL statements (for seeding test data).
     ///
-    /// REQ: HARN-015
     /// pre:  sql is valid SQL
     /// post: batch executed on the connection
     pub fn execute_batch(&self, sql: &str) -> Result<(), rusqlite::Error> {
@@ -116,7 +111,6 @@ pub struct TestKeystore {
 }
 
 impl Default for TestKeystore {
-    /// REQ: HARN-016b
     /// post: returns TestKeystore with temp dir, key file written, 32-byte master key
     fn default() -> Self {
         Self::new()
@@ -126,7 +120,6 @@ impl Default for TestKeystore {
 impl TestKeystore {
     /// Create a new test keystore with a randomly generated master key.
     ///
-    /// REQ: HARN-016
     /// post: returns TestKeystore with temp dir, key file written, 32-byte master key
     pub fn new() -> Self {
         let dir = TempDir::new().expect("temp dir creation should succeed");
@@ -142,7 +135,6 @@ impl TestKeystore {
 
     /// Path to the keystore directory.
     ///
-    /// REQ: HARN-017
     /// post: returns &Path to the temp directory
     pub fn path(&self) -> &std::path::Path {
         self.dir.path()
@@ -150,7 +142,6 @@ impl TestKeystore {
 
     /// Path to the master key file.
     ///
-    /// REQ: HARN-018
     /// post: returns &Path to the master.key file
     pub fn key_path(&self) -> &std::path::Path {
         &self.key_path
@@ -158,7 +149,6 @@ impl TestKeystore {
 
     /// The generated master key bytes.
     ///
-    /// REQ: HARN-019
     /// post: returns &[u8; 32] reference to the master key
     pub fn master_key(&self) -> &[u8; 32] {
         &self.master_key
@@ -183,7 +173,6 @@ pub struct TestWebId;
 impl TestWebId {
     /// Deterministic WebID for test user "alice".
     ///
-    /// REQ: HARN-020
     /// post: returns deterministic WebID from persona b"alice"
     pub fn alice() -> WebID {
         WebID::from_persona(b"alice")
@@ -191,7 +180,6 @@ impl TestWebId {
 
     /// Deterministic WebID for test user "bob".
     ///
-    /// REQ: HARN-021
     /// post: returns deterministic WebID from persona b"bob"
     pub fn bob() -> WebID {
         WebID::from_persona(b"bob")
@@ -199,7 +187,6 @@ impl TestWebId {
 
     /// Deterministic WebID for test user "carol".
     ///
-    /// REQ: HARN-022
     /// post: returns deterministic WebID from persona b"carol"
     pub fn carol() -> WebID {
         WebID::from_persona(b"carol")
@@ -207,7 +194,6 @@ impl TestWebId {
 
     /// Generate a new random WebID.
     ///
-    /// REQ: HARN-023
     /// post: returns new random WebID
     pub fn random() -> WebID {
         WebID::new()
@@ -215,7 +201,6 @@ impl TestWebId {
 
     /// Generate a WebID from arbitrary persona bytes.
     ///
-    /// REQ: HARN-024
     /// pre:  bytes is non-empty
     /// post: returns deterministic WebID from persona bytes
     pub fn from_persona(bytes: &[u8]) -> WebID {
@@ -237,7 +222,6 @@ pub struct MockCnsState {
 impl MockCnsState {
     /// Create a homeostatic (healthy) CNS state.
     ///
-    /// REQ: HARN-025
     /// post: returns MockCnsState with homeostatic=true, no throttled tools, empty signals
     pub fn homeostatic() -> Self {
         Self {
@@ -250,7 +234,6 @@ impl MockCnsState {
 
     /// Create a perturbed CNS state with a specific tool throttled.
     ///
-    /// REQ: HARN-026
     /// pre:  throttled_tool is non-empty
     /// post: returns MockCnsState with homeostatic=false, tool throttled
     pub fn perturbed(throttled_tool: &str) -> Self {
@@ -279,7 +262,6 @@ pub enum SignalValence {
 impl MockAlgedonicSignal {
     /// Check if signal has negative valence.
     ///
-    /// REQ: HARN-027
     /// post: returns true iff valence == Negative
     pub fn is_negative_valence(&self) -> bool {
         self.valence == SignalValence::Negative
@@ -287,7 +269,6 @@ impl MockAlgedonicSignal {
 
     /// Check if signal has positive valence.
     ///
-    /// REQ: HARN-028
     /// post: returns true iff valence == Positive
     pub fn is_positive_valence(&self) -> bool {
         self.valence == SignalValence::Positive
@@ -307,7 +288,6 @@ pub struct MockCnsRuntime {
 impl MockCnsRuntime {
     /// Create a new mock CNS runtime with homeostatic state.
     ///
-    /// REQ: HARN-029
     /// post: returns MockCnsRuntime with homeostatic state
     pub fn new() -> Self {
         Self {
@@ -317,7 +297,6 @@ impl MockCnsRuntime {
 
     /// Create a mock CNS with a specific initial state.
     ///
-    /// REQ: HARN-030
     /// pre:  state is a valid MockCnsState
     /// post: returns MockCnsRuntime with the given state
     pub fn with_state(state: MockCnsState) -> Self {
@@ -328,7 +307,6 @@ impl MockCnsRuntime {
 
     /// Inject an event into the CNS (simulates a perturbation).
     ///
-    /// REQ: HARN-031
     /// pre:  event is a valid NuEvent
     /// post: homeostatic set to false, negative signal appended
     pub fn inject(&self, event: NuEvent) {
@@ -345,7 +323,6 @@ impl MockCnsRuntime {
     /// Advance mock time by a duration (simulates feedback processing).
     /// After sufficient time, the CNS may return toward homeostasis.
     ///
-    /// REQ: HARN-032
     /// post: if duration >= 5s, homeostatic restored, throttled tools cleared, positive signal appended
     pub fn advance_time(&self, duration: std::time::Duration) {
         let mut state = self.state.write().unwrap();
@@ -364,7 +341,6 @@ impl MockCnsRuntime {
 
     /// Get recent algedonic signals.
     ///
-    /// REQ: HARN-033
     /// post: returns clone of recent_signals vector
     pub fn recent_signals(&self) -> Vec<MockAlgedonicSignal> {
         self.state.read().unwrap().recent_signals.clone()
@@ -372,7 +348,6 @@ impl MockCnsRuntime {
 
     /// Check if a specific tool is throttled.
     ///
-    /// REQ: HARN-034
     /// pre:  tool_name is non-empty
     /// post: returns Throttled if tool in throttled_tools, Active otherwise
     pub fn tool_state(&self, tool_name: &str) -> MockToolState {
@@ -386,7 +361,6 @@ impl MockCnsRuntime {
 
     /// Check if the CNS is in homeostatic state.
     ///
-    /// REQ: HARN-035
     /// post: returns true iff homeostatic flag is true
     pub fn is_homeostatic(&self) -> bool {
         self.state.read().unwrap().homeostatic
@@ -394,7 +368,6 @@ impl MockCnsRuntime {
 
     /// Record variety for a domain (simulates tool dispatch).
     ///
-    /// REQ: HARN-036
     /// pre:  domain is non-empty
     /// post: variety counter for domain incremented by 1
     pub fn record_variety(&self, domain: &str) {
@@ -407,7 +380,6 @@ impl MockCnsRuntime {
 
     /// Get variety count for a domain.
     ///
-    /// REQ: HARN-037
     /// pre:  domain is non-empty
     /// post: returns variety count for domain, 0 if never recorded
     pub fn variety_for_domain(&self, domain: &str) -> u64 {
@@ -446,7 +418,6 @@ pub enum MockToolState {
 /// // dir and contents deleted when `dir` goes out of scope
 /// ```
 ///
-/// REQ: HARN-038
 /// post: returns TempDir that auto-cleans on drop
 pub fn temp_dir() -> TempDir {
     TempDir::new().expect("temp dir creation should succeed")
@@ -465,7 +436,6 @@ pub fn temp_dir() -> TempDir {
 /// assert!(event.observer_webid.as_uuid().is_set());
 /// ```
 ///
-/// REQ: HARN-039
 /// pre:  span is a valid Span, phase is a valid Phase
 /// post: returns NuEvent with random observer if observer is None, depth=0, test observation
 pub fn test_event(span: Span, phase: Phase, observer: Option<WebID>) -> NuEvent {
@@ -490,7 +460,6 @@ pub fn test_event(span: Span, phase: Phase, observer: Option<WebID>) -> NuEvent 
 /// assert_eq!(triple.entity, "entity:test");
 /// ```
 ///
-/// REQ: HARN-041
 /// pre:  entity and attribute are non-empty, value is valid JSON
 /// post: returns Triple with random owner if owner is None, specified owner otherwise
 pub fn test_triple(entity: &str, attribute: &str, value: Value, owner: Option<WebID>) -> Triple {

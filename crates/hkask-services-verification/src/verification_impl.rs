@@ -5,6 +5,8 @@
 //! principles (User Sovereignty, Affirmative Consent, Generative Space, Clear
 //! Boundaries), dispatches verification methods, and produces structured reports.
 
+use hkask_rsolidity::contract;
+
 use hkask_types::sovereignty::{DataCategory, DataSovereigntyBoundary};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -98,10 +100,10 @@ pub struct VerificationReport {
 pub struct VerificationService;
 
 impl VerificationService {
-    /// REQ: P4-svc-verification-232
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter if Some must be a valid principle name; manifests must be loadable
     /// post: returns VerificationReport with principle results, pass/fail/gap/skip counts, and total assertions
+    #[contract(id = "P4-svc-verification-232", principle = "P4")]
     pub fn verify(filter: Option<&str>) -> VerificationReport {
         // REQ: P9-CNS-SVC-030 pre: valid filter, post: cns.verification span emitted
         // P9: CNS span
@@ -125,10 +127,10 @@ impl VerificationService {
         );
         report
     }
-    /// REQ: P4-svc-verification-233
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter if Some must be a valid principle name
     /// post: returns serde_json::Value with principles array, totals, and escalation_required flag
+    #[contract(id = "P4-svc-verification-233", principle = "P4")]
     pub fn verify_json(filter: Option<&str>) -> serde_json::Value {
         let report = Self::verify(filter);
         serde_json::json!({

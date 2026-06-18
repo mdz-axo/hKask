@@ -1,5 +1,6 @@
 //! User sovereignty routes — call consent manager directly.
 
+use hkask_rsolidity as rs;
 use axum::extract::Extension;
 use axum::{Json, extract::Query, extract::State};
 use hkask_services::ServiceError;
@@ -19,7 +20,6 @@ fn parse_data_category(s: &str) -> hkask_types::sovereignty::DataCategory {
     hkask_types::sovereignty::DataCategory::parse(s)
 }
 
-/// REQ: API-016
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with sovereignty routes registered

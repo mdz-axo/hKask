@@ -40,7 +40,6 @@ pub struct TokenProb {
 
 /// Confidence = avg(prob) × (1 - sqrt(variance)). Higher avg + lower variance = higher confidence.
 ///
-/// REQ: TYP-261
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  probs is a slice of [`TokenProbability`] values; may be empty
 /// post: returns 0.0 if probs is empty; otherwise returns avg(prob) × (1 - √variance),

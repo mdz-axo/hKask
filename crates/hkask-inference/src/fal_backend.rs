@@ -6,6 +6,8 @@
 //! Model listing: fal.ai does not expose a standard `/v1/models` endpoint.
 //! Instead, a static catalog of known vision-capable models is used.
 
+use hkask_rsolidity::contract;
+
 use crate::chat_protocol::{
     build_chat_request, chat_response_to_result, stream_chat_completion, validate_prompt,
 };
@@ -31,11 +33,11 @@ impl FalBackend {
     ///
     /// Returns an error if `fal_api_key` is empty.
     ///
-    /// REQ: P4-inf-fal-backend-new
     /// expect: "The system creates provider membranes requiring valid API keys" [P4]
     /// \[P4\] Motivating: Clear Boundaries — fal.ai provider membrane requires valid API key
     /// pre:  config.fal_api_key is set
     /// post: returns FalBackend with configured HTTP client
+    #[contract(id = "P4-inf-fal-backend-new", principle = "P4")]
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
         if config.fal_api_key.is_empty() {
             return Err(InferenceError::Connection(
@@ -57,7 +59,6 @@ impl FalBackend {
 
     /// Send a chat completion request to fal.ai.
     ///
-    /// REQ: P9-inf-fal-generate
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated text generation
     /// pre:  model is a valid fal.ai model name
@@ -66,6 +67,7 @@ impl FalBackend {
     /// post: returns Ok(InferenceResult) with generated text, model, usage stats
     /// post: if connection fails → Err(InferenceError::Connection)
     /// post: if prompt is empty → Err(InferenceError::Generation)
+    #[contract(id = "P9-inf-fal-generate", principle = "P9")]
     pub async fn generate(
         &self,
         model: &str,
@@ -112,7 +114,6 @@ impl FalBackend {
 
     /// Vision/multimodal inference with base64-encoded images.
     ///
-    /// REQ: P9-inf-fal-generate-vision
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
     /// pre:  model is a valid fal.ai vision-capable model name
@@ -122,6 +123,7 @@ impl FalBackend {
     /// post: returns Ok(InferenceResult) with vision-generated text
     /// post: if images is empty → Err(InferenceError::Generation("No images provided"))
     /// post: if connection fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-generate-vision", principle = "P9")]
     pub async fn generate_vision(
         &self,
         model: &str,
@@ -179,11 +181,11 @@ impl FalBackend {
     /// Stream a chat completion from fal.ai via SSE.
     /// Generate a streaming completion from Fal.
     ///
-    /// REQ: P9-inf-fal-generate-stream
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
     /// pre:  model is a valid Fal model name
     /// post: returns stream of inference chunks
+    #[contract(id = "P9-inf-fal-generate-stream", principle = "P9")]
     pub fn generate_stream(
         &self,
         model: &str,
@@ -213,11 +215,11 @@ impl FalBackend {
     /// Returns a curated list of vision-capable models known to work
     /// with the OpenAI-compatible chat completions endpoint.
     ///
-    /// REQ: P9-inf-fal-list-models
     /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — static model catalog for variety
     /// pre:  none (static catalog, no API call)
     /// post: returns Ok(Vec<FalModelEntry>) with curated model list
+    #[contract(id = "P9-inf-fal-list-models", principle = "P9")]
     pub async fn list_models(&self) -> Result<Vec<FalModelEntry>, InferenceError> {
         // Static catalog of known fal.ai vision models.
         // These are models confirmed to work via the chat completions endpoint.
@@ -381,12 +383,12 @@ impl FalBackend {
     /// Generate an image from a text prompt.
     /// Endpoint: fal-ai/flux/schnell (fast) or fal-ai/flux-pro (quality).
     ///
-    /// REQ: P9-inf-fal-generate-image
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image generation
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated image data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-generate-image", principle = "P9")]
     pub async fn generate_image(
         &self,
         prompt: &str,
@@ -404,13 +406,13 @@ impl FalBackend {
     /// Transform an existing image with a prompt (image-to-image).
     /// Endpoint: fal-ai/flux/dev/image-to-image
     ///
-    /// REQ: P9-inf-fal-image-to-image
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image editing
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  prompt is a non-empty transformation instruction
     /// post: returns Ok(serde_json::Value) with transformed image data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-image-to-image", principle = "P9")]
     pub async fn image_to_image(
         &self,
         image_url: &str,
@@ -431,12 +433,12 @@ impl FalBackend {
     /// Remove background from an image.
     /// Endpoint: fal-ai/birefnet
     ///
-    /// REQ: P9-inf-fal-remove-background
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image transformation
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with background-removed image data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-remove-background", principle = "P9")]
     pub async fn remove_background(
         &self,
         image_url: &str,
@@ -448,12 +450,12 @@ impl FalBackend {
     /// Upscale an image.
     /// Endpoint: fal-ai/seedvr2 (queue)
     ///
-    /// REQ: P9-inf-fal-upscale
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image upscaling
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with upscaled image data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-upscale", principle = "P9")]
     pub async fn upscale(
         &self,
         image_url: &str,
@@ -469,12 +471,12 @@ impl FalBackend {
     /// Generate a video from a text prompt.
     /// Endpoint: fal-ai/minimax/video-01-live (queue)
     ///
-    /// REQ: P9-inf-fal-generate-video
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated video data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-generate-video", principle = "P9")]
     pub async fn generate_video(
         &self,
         prompt: &str,
@@ -491,12 +493,12 @@ impl FalBackend {
     /// Animate a still image into a video.
     /// Endpoint: fal-ai/seedance-2.0/image-to-video (queue)
     ///
-    /// REQ: P9-inf-fal-image-to-video
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with generated video data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-image-to-video", principle = "P9")]
     pub async fn image_to_video(
         &self,
         image_url: &str,
@@ -517,13 +519,13 @@ impl FalBackend {
     /// Segment/extract a specific object from an image.
     /// Endpoint: fal-ai/florence-2-large/referring-expression-segmentation
     ///
-    /// REQ: P9-inf-fal-segment-object
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image segmentation
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  object_description is a non-empty description of the object to segment
     /// post: returns Ok(serde_json::Value) with segmented object data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-segment-object", principle = "P9")]
     pub async fn segment_object(
         &self,
         image_url: &str,
@@ -546,13 +548,13 @@ impl FalBackend {
     /// Callum, River, Liam, Charlotte, Alice, Matilda, Will, Jessica, Eric,
     /// Chris, Brian, Daniel, Lily, Bill. Default: "Rachel".
     ///
-    /// REQ: P9-inf-fal-generate-speech
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech synthesis
     /// pre:  text is non-empty
     /// pre:  voice is a valid voice preset name
     /// post: returns Ok(serde_json::Value) with generated speech audio data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-generate-speech", principle = "P9")]
     pub async fn generate_speech(
         &self,
         text: &str,
@@ -569,12 +571,12 @@ impl FalBackend {
     /// Transcribe speech audio to text using Whisper.
     /// Endpoint: fal-ai/whisper
     ///
-    /// REQ: P9-inf-fal-transcribe
     /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech transcription
     /// pre:  audio_url is a valid, accessible audio file URL
     /// post: returns Ok(serde_json::Value) with transcription data
     /// post: if API call fails → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-fal-transcribe", principle = "P9")]
     pub async fn transcribe(&self, audio_url: &str) -> Result<serde_json::Value, InferenceError> {
         let body = serde_json::json!({"audio_url": audio_url});
         self.fal_sync_post("fal-ai/whisper", body).await
@@ -595,7 +597,6 @@ pub struct FalModelEntry {
 mod tests {
     use super::*;
 
-    /// REQ: P9-inf-test-fal-backend-new-fails — Construction fails without API key
     /// expect: "Inference backend construction fails correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates boundary enforcement without key
     #[test]
@@ -612,7 +613,6 @@ mod tests {
         );
     }
 
-    /// REQ: P9-inf-test-fal-backend-new-succeeds — Construction succeeds with API key
     /// expect: "Inference backend construction succeeds correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates boundary construction with key
     #[test]
@@ -629,7 +629,6 @@ mod tests {
         );
     }
 
-    /// REQ: P9-inf-test-fal-static-catalog — Static catalog returns known vision models
     /// expect: "Inference static catalog lookup works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates model variety catalog
     #[tokio::test]
@@ -653,7 +652,6 @@ mod tests {
         assert!(ids.contains(&"docres"), "catalog should include docres");
     }
 
-    /// REQ: P9-inf-test-fal-vision-support — Vision support heuristic recognizes fal.ai models
     /// expect: "Inference vision support heuristic works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates vision model heuristic
     #[test]

@@ -79,7 +79,6 @@ impl Clone for SovereigntyChecker {
 }
 
 impl SovereigntyChecker {
-    /// REQ: P1-agt-sovereignty-checker-new
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — checker enforces the user-data boundary
     /// \[P2\] Constraining: Affirmative Consent — delegates to consent port
@@ -87,6 +86,7 @@ impl SovereigntyChecker {
     ///       `Arc<dyn SovereigntyConsent>`.
     /// post: Returns a `SovereigntyChecker` with a fresh
     ///       `UserSovereigntyState` and the given owner and consent port.
+    #[rs::contract(id = "P1-agt-sovereignty-checker-new", principle = "P1")]
     #[rs::contract(id = "P1-agt-sovereignty-checker-new", principle = "P1")]
     pub fn new(owner_webid: WebID, consent: Arc<dyn SovereigntyConsent>) -> Self {
         Self {
@@ -101,7 +101,6 @@ impl SovereigntyChecker {
         self.consent.has_consent(&webid.to_string(), category)
     }
 
-    /// REQ: P1-agt-sovereignty-checker-can-access
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — access decision combines consent + ownership
     /// pre:  `data_category` is a valid `DataCategory`; `requester` is a
@@ -109,6 +108,7 @@ impl SovereigntyChecker {
     /// post: Returns `true` iff the requester is permitted to access the
     ///       category: sovereign data requires consent AND requester==owner;
     ///       shared data requires consent; public data is always accessible.
+    #[rs::contract(id = "P1-agt-sovereignty-checker-can-access", principle = "P1")]
     #[rs::contract(id = "P1-agt-sovereignty-checker-can-access", principle = "P1")]
     pub fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
         if self.state.boundary.is_sovereign(data_category) {
@@ -122,7 +122,6 @@ impl SovereigntyChecker {
         self.state.boundary.is_category_public(data_category)
     }
 
-    /// REQ: P1-agt-sovereignty-checker-can-perform
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — action decision combines consent + operation
     /// pre:  `operation` is a non-empty string; `data_category` is a
@@ -130,6 +129,7 @@ impl SovereigntyChecker {
     /// post: For "acquisition", returns `true` iff affirmative consent is
     ///       NOT required. For all other operations, delegates to
     ///       `can_access` with the owner WebID as requester.
+    #[rs::contract(id = "P1-agt-sovereignty-checker-can-perform", principle = "P1")]
     #[rs::contract(id = "P1-agt-sovereignty-checker-can-perform", principle = "P1")]
     pub fn check_operation(&self, operation: &str, data_category: &DataCategory) -> bool {
         if operation == "acquisition" {

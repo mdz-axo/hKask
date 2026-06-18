@@ -71,11 +71,11 @@ impl NuEventStore {
     ///
     /// Replay events with temporal decay weighting.
     ///
-    /// REQ: P3-sto-nu-event-replay
     /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — replay events with temporal decay
     /// pre:  observer is valid, category is valid, lookback_secs > 0
     /// post: returns `Vec<NuEvent>` within lookback window, weighted by recency
+    #[rs::contract(id = "P3-sto-nu-event-replay", principle = "P3")]
     #[rs::contract(id = "P3-sto-nu-event-replay", principle = "P3")]
     pub fn replay_weighted(
         &self,
@@ -107,11 +107,11 @@ impl NuEventStore {
     /// The fallback is explicit at the type level via `SpanCategory::Unknown`.
     /// Get the decay lambda for a span category.
     ///
-    /// REQ: P3-sto-nu-event-decay
     /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — get decay lambda for category
     /// pre:  category is a valid SpanCategory
     /// post: returns decay lambda from config or default
+    #[rs::contract(id = "P3-sto-nu-event-decay", principle = "P3")]
     #[rs::contract(id = "P3-sto-nu-event-decay", principle = "P3")]
     pub fn lambda_for(category: SpanCategory, config: &DecayConfig) -> f64 {
         match category {
@@ -162,11 +162,11 @@ impl NuEventStore {
     /// all historical events after a restart.
     /// Persist a cursor value for event replay.
     ///
-    /// REQ: P3-sto-nu-event-cursor-store
     /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — persist replay cursor
     /// pre:  key is non-empty
     /// post: cursor value stored
+    #[rs::contract(id = "P3-sto-nu-event-cursor-store", principle = "P3")]
     #[rs::contract(id = "P3-sto-nu-event-cursor-store", principle = "P3")]
     pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), InfrastructureError> {
         let conn = self.lock_conn()?;
@@ -182,11 +182,11 @@ impl NuEventStore {
     /// (e.g., first run after schema creation).
     /// Load a persisted cursor value.
     ///
-    /// REQ: P3-sto-nu-event-cursor-load
     /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — load replay cursor
     /// pre:  key is non-empty
     /// post: returns Some(value) if cursor exists, None otherwise
+    #[rs::contract(id = "P3-sto-nu-event-cursor-load", principle = "P3")]
     #[rs::contract(id = "P3-sto-nu-event-cursor-load", principle = "P3")]
     pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError> {
         let conn = self.lock_conn()?;
@@ -199,10 +199,10 @@ impl NuEventStore {
     }
     /// Query algedonic signals from the event store.
     ///
-    /// REQ: P3-sto-nu-event-algedonic-query
     /// expect: "The system provides durable storage for event data" [P3]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — query algedonic signals
     /// post: returns Vec of algedonic signal events
+    #[rs::contract(id = "P3-sto-nu-event-algedonic-query", principle = "P3")]
     #[rs::contract(id = "P3-sto-nu-event-algedonic-query", principle = "P3")]
     pub fn query_algedonic(
         &self,

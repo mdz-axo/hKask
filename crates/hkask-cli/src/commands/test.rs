@@ -5,7 +5,6 @@
 
 use std::time::Duration;
 
-/// REQ: CLI-090
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime
 /// post: runs cargo test on the specified crate or all priority crates,

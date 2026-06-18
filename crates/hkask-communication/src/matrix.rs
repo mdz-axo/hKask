@@ -26,7 +26,6 @@ pub struct RoomId(pub String);
 impl RoomId {
     /// Create a new RoomId from a string.
     ///
-    /// REQ: COMM-022
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  id is a valid Matrix room ID (e.g., "!abc123:localhost")
     /// post: returns RoomId wrapping the string
@@ -36,7 +35,6 @@ impl RoomId {
 
     /// Return the room ID as a string slice.
     ///
-    /// REQ: COMM-023
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// post: returns &str of the inner room ID
     pub fn as_str(&self) -> &str {
@@ -51,7 +49,6 @@ pub struct UserId(pub String);
 impl UserId {
     /// Create a new UserId from a string.
     ///
-    /// REQ: COMM-024
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  id is a valid Matrix user ID (e.g., "@agent:localhost")
     /// post: returns UserId wrapping the string
@@ -61,7 +58,6 @@ impl UserId {
 
     /// Return the user ID as a string slice.
     ///
-    /// REQ: COMM-025
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// post: returns &str of the inner user ID
     pub fn as_str(&self) -> &str {
@@ -135,7 +131,6 @@ impl MatrixTransport {
     ///
     /// Does not connect or authenticate — call `login()` first.
     ///
-    /// REQ: COMM-001
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  homeserver_url is a valid URL string
     /// post: returns MatrixTransport with client=None, homeserver_url set
@@ -150,7 +145,6 @@ impl MatrixTransport {
     ///
     /// Performs `GET /_matrix/client/versions` to verify Conduit is running.
     ///
-    /// REQ: COMM-002
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  homeserver_url is set
     /// post: returns Ok(true) if homeserver responds
@@ -177,7 +171,6 @@ impl MatrixTransport {
     /// Stores the authenticated client for subsequent operations.
     /// Must be called before `send_message()`, `get_messages()`, etc.
     ///
-    /// REQ: COMM-003
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  username and password are non-empty
     /// post: if successful, self.client is set to authenticated client
@@ -214,7 +207,6 @@ impl MatrixTransport {
     /// a continuous sync loop. Call this when the agent is activated to
     /// check for new messages.
     ///
-    /// REQ: COMM-004
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  client is authenticated (login() called)
     /// pre:  room_id is a valid Matrix room ID
@@ -295,7 +287,6 @@ impl MatrixTransport {
     /// message's `org.matrix.custom.html` formatted body for machine
     /// consumption while the plain `body` remains human-readable.
     ///
-    /// REQ: COMM-005
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  client is authenticated (login() called)
     /// pre:  room_id is a valid Matrix room ID
@@ -345,7 +336,6 @@ impl MatrixTransport {
 
     /// Create a new Matrix room.
     ///
-    /// REQ: COMM-006
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  client is authenticated (login() called)
     /// pre:  name is non-empty
@@ -386,7 +376,6 @@ impl MatrixTransport {
 
     /// Invite a user to a room.
     ///
-    /// REQ: COMM-007
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  client is authenticated (login() called)
     /// pre:  room_id is a valid Matrix room ID
@@ -423,7 +412,6 @@ impl MatrixTransport {
 
     /// List joined rooms.
     ///
-    /// REQ: COMM-008
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  client is authenticated (login() called)
     /// post: returns Vec<Thread> with all joined rooms
@@ -461,7 +449,6 @@ impl MatrixTransport {
 
     /// Check whether the client is authenticated.
     ///
-    /// REQ: COMM-009
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// post: returns true iff client is Some (login() succeeded)
     pub fn healthy(&self) -> bool {
@@ -475,7 +462,6 @@ impl MatrixTransport {
     /// Requires `HKASK_MATRIX_AGENT_USERNAME` and `HKASK_MATRIX_AGENT_PASSWORD`
     /// environment variables to be set.
     ///
-    /// REQ: COMM-010
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  HKASK_MATRIX_AGENT_USERNAME and HKASK_MATRIX_AGENT_PASSWORD env vars are set
     /// post: self.client is reset and re-authenticated
@@ -504,7 +490,6 @@ impl MatrixTransport {
     /// responds to a version check. Returns `false` if either fails.
     /// Does not mutate state — safe to call from health probes.
     ///
-    /// REQ: COMM-011
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// post: returns true iff client is authenticated and whoami succeeds
     /// post: does not mutate self
@@ -520,7 +505,6 @@ impl MatrixTransport {
 
     /// Get the current logged-in user ID, if authenticated.
     ///
-    /// REQ: COMM-012
     /// expect: "Agents communicate through user-owned channels" [P1]
     /// post: returns Some(user_id) if authenticated
     /// post: returns None if not authenticated or whoami fails

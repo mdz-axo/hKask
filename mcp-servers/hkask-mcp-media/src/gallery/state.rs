@@ -257,7 +257,6 @@ mod tests {
         (dir, gallery_path)
     }
 
-    /// REQ: media-gallery-init-01 — GalleryState::new creates valid state
     #[test]
     fn gallery_new_creates_state() {
         let state = GalleryState::new(PathBuf::from("/tmp/test"), GalleryMode::ReadOnly);
@@ -268,7 +267,6 @@ mod tests {
         assert!(state.last_scan.is_none());
     }
 
-    /// REQ: media-gallery-init-02 — validate rejects non-existent path
     #[test]
     fn validate_rejects_missing_path() {
         let state = GalleryState::new(
@@ -280,7 +278,6 @@ mod tests {
         assert!(result.unwrap_err().contains("does not exist"));
     }
 
-    /// REQ: media-gallery-init-03 — validate accepts existing directory
     #[test]
     fn validate_accepts_existing_dir() {
         let dir = tempfile::tempdir().unwrap();
@@ -288,7 +285,6 @@ mod tests {
         assert!(state.validate().is_ok());
     }
 
-    /// REQ: media-gallery-init-04 — ensure_meta_dir creates .hkask-gallery
     #[test]
     fn ensure_meta_dir_creates_directory() {
         let dir = tempfile::tempdir().unwrap();
@@ -298,7 +294,6 @@ mod tests {
         assert!(state.meta_dir.is_dir());
     }
 
-    /// REQ: media-gallery-scan-01 — scan finds image files
     #[test]
     fn scan_finds_images() {
         let (_dir, gallery_path) = setup_test_gallery();
@@ -310,7 +305,6 @@ mod tests {
         assert!(state.last_scan.is_some());
     }
 
-    /// REQ: media-gallery-scan-02 — scan respects extension filter
     #[test]
     fn scan_respects_extension_filter() {
         let (_dir, gallery_path) = setup_test_gallery();
@@ -322,7 +316,6 @@ mod tests {
         );
     }
 
-    /// REQ: media-gallery-info-01 — summary returns correct structure
     #[test]
     fn summary_returns_correct_structure() {
         let state = GalleryState::new(PathBuf::from("/tmp/test"), GalleryMode::CopyOnWrite);

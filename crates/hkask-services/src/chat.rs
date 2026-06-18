@@ -6,6 +6,8 @@
 //! CLI and API surfaces delegate to a single implementation rather than
 //! duplicating ~400 lines of business logic.
 
+use hkask_rsolidity::contract;
+
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -43,10 +45,10 @@ pub struct TokenUsage {
 impl TokenUsage {
     /// Total tokens as energy cost. Uses a 1:1 mapping — one gas unit per token.
     ///
-    /// REQ: P3-svc-chat-234
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self.total_tokens must be set
     /// post: returns total_tokens as u64 gas cost
+    #[contract(id = "P3-svc-chat-234", principle = "P3")]
     pub fn gas_cost(&self) -> u64 {
         self.total_tokens as u64
     }
@@ -351,10 +353,10 @@ impl ChatService {
     /// and resolves the inference port. Returns a `PreparedChat`
     /// that the caller can use to stream inference output.
     ///
-    /// REQ: P3-svc-chat-235
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty; agent must be registered
     /// post: returns PreparedChat with prompt, model, agent_webid, capability_token, inference_port, episodic_port, and agent_name; Err(AgentNotFound) if agent not registered
+    #[contract(id = "P3-svc-chat-235", principle = "P3")]
     pub async fn prepare_chat(
         ctx: &AgentService,
         req: &ChatRequest,
@@ -479,10 +481,10 @@ impl ChatService {
     /// For streaming, use `prepare_chat()` + `generate_stream_with_model()`
     /// directly on the inference port.
     ///
-    /// REQ: P3-svc-chat-236
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty
     /// post: returns ChatResponse with text, usage, finish_reason, and tool_calls; CNS spans emitted; episodic trace stored; Err on agent lookup or inference failure
+    #[contract(id = "P3-svc-chat-236", principle = "P3")]
     pub async fn chat(ctx: &AgentService, req: ChatRequest) -> Result<ChatResponse, ServiceError> {
         let prepared = Self::prepare_chat(ctx, &req).await?;
         // Access params_override after prepare_chat returns (prepare_chat only borrows req)
@@ -587,10 +589,10 @@ impl ChatService {
 
     /// Recall semantic memory triples relevant to the input.
     ///
-    /// REQ: P3-svc-chat-237
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  semantic_port must be initialized; input must be non-empty; token must be valid
     /// post: returns Some(String) of concatenated triple values if matches found; None if no matches or recall fails
+    #[contract(id = "P3-svc-chat-237", principle = "P3")]
     pub fn recall_semantic(
         semantic_port: &Arc<dyn SemanticStoragePort>,
         input: &str,
@@ -619,10 +621,10 @@ impl ChatService {
 
     /// Store the chat exchange as an episodic triple.
     ///
-    /// REQ: P3-svc-chat-238
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; input and response must be non-empty; agent_webid must be valid; token must be valid
     /// post: chat exchange is stored as episodic triple with confidence 0.7; failures are logged but not returned (best-effort)
+    #[contract(id = "P3-svc-chat-238", principle = "P3")]
     pub fn store_episodic(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         input: &str,
@@ -666,12 +668,12 @@ impl ChatService {
     /// Each episode stores `user_input` + `agent_response` from `store_episodic()`.
     /// Formatted as "[Previous conversation]\nUser: ...\nAgent: ...\n[/Previous conversation]"
     ///
-    /// REQ: P3-svc-chat-239
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
     /// post: returns Some(String) of formatted recent turns; None if no episodes or recall fails
     /// # REQ: P2-svc-chat-session-history — every history access routes through episodic storage
     /// # REQ: P4-svc-chat-ocap-history — recall requires DelegationToken with Read on Manifest
+    #[contract(id = "P3-svc-chat-239", principle = "P3")]
     pub fn recall_recent_turns(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,
@@ -711,10 +713,10 @@ impl ChatService {
     /// passing to the condenser's `condenser_thread_summary` MCP tool.
     /// Each episode yields one user message and one assistant message.
     ///
-    /// REQ: P3-svc-chat-240
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
     /// post: returns Vec<Value> of {role, content} messages; empty Vec if no episodes or recall fails
+    #[contract(id = "P3-svc-chat-240", principle = "P3")]
     pub fn recall_raw_episodes(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,
@@ -747,10 +749,10 @@ impl ChatService {
     /// definition) that enriches the user input with context before inference.
     /// Returns `None` if the agent has no manifest or execution fails.
     ///
-    /// REQ: P3-svc-chat-241
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  executor must be initialized; manifest must be valid; input and agent_name must be non-empty
     /// post: returns Some(String) of concatenated step outputs if cascade completes; None if no manifest or execution fails
+    #[contract(id = "P3-svc-chat-241", principle = "P3")]
     pub async fn execute_manifest_cascade(
         executor: &hkask_templates::ManifestExecutor,
         manifest: &hkask_templates::BundleManifest,
@@ -804,10 +806,10 @@ impl ChatService {
 
     /// Wrap input with manifest context when a cascade completed successfully.
     ///
-    /// REQ: P3-svc-chat-242
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  input and manifest_context must be non-empty
     /// post: returns formatted string with [Manifest Context] block prepended to input
+    #[contract(id = "P3-svc-chat-242", principle = "P3")]
     pub fn wrap_manifest_input(input: &str, manifest_context: &str) -> String {
         format!(
             "[Manifest Context]\n{}\n[/Manifest Context]\n\n{}",
@@ -817,10 +819,10 @@ impl ChatService {
 
     /// Apply persona constraints to filter forbidden patterns from a response.
     ///
-    /// REQ: P3-svc-chat-243
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  response must be non-empty; constraints if Some must be valid PersonaConstraints
     /// post: returns cleaned response with forbidden patterns stripped; violations logged; returns original if constraints is None
+    #[contract(id = "P3-svc-chat-243", principle = "P3")]
     pub fn apply_persona_filter(
         response: &str,
         constraints: Option<&PersonaConstraints>,
@@ -926,10 +928,10 @@ impl ChatService {
     /// on the next iteration via a new `TurnRequest` (only `input`,
     /// `tool_results`, and iteration counter fields matter for continuations).
     ///
-    /// REQ: P3-svc-chat-244
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty; req.agent_name must be registered
     /// post: returns TurnResult with response text, token usage, tool calls, and iteration count; manifest cascade and history suffix applied; persona filter applied; Err on inference failure
+    #[contract(id = "P3-svc-chat-244", principle = "P3")]
     pub async fn execute_turn(
         ctx: &AgentService,
         req: &TurnRequest,

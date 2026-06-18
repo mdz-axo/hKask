@@ -146,12 +146,12 @@ pub type MemoryLoopAdapter = MemoryLoopForwarder;
 impl MemoryLoopForwarder {
     /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
     ///
-    /// REQ: P3-agt-memory-adapter-new
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — MemoryLoopForwarder wires episodic + semantic
     /// pre:  `episodic` is a valid `EpisodicMemory`; `semantic` is a valid
     ///       `SemanticMemory`.
     /// post: Returns a `MemoryLoopForwarder` holding both memory instances.
+    #[rs::contract(id = "P3-agt-memory-adapter-new", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-adapter-new", principle = "P3")]
     pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
         Self { episodic, semantic }
@@ -159,12 +159,12 @@ impl MemoryLoopForwarder {
 
     /// Create with in-memory storage for testing.
     ///
-    /// REQ: P3-agt-memory-adapter-in-memory
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — in-memory SQLite adapter for tests
     /// pre:  (none).
     /// post: Returns `Ok(Self)` with an in-memory SQLite database;
     ///       returns `Err(MemoryError)` if database creation fails.
+    #[rs::contract(id = "P3-agt-memory-adapter-in-memory", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-adapter-in-memory", principle = "P3")]
     pub fn in_memory() -> Result<Self, MemoryError> {
         let db = Database::in_memory()?;
@@ -177,12 +177,12 @@ impl MemoryLoopForwarder {
     /// \[DECLARATIVE\] failure is always a bug, never a recoverable condition. For recoverable (P5 — Essentialism).
     /// contexts, use `in_memory()` and propagate the error with `?`.
     ///
-    /// REQ: P3-agt-memory-adapter-in-memory-unwrap
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — infallible in-memory constructor for tests
     /// pre:  (none).
     /// post: Returns `Self` with an in-memory database; panics if
     ///       database creation fails (considered a bug).
+    #[rs::contract(id = "P3-agt-memory-adapter-in-memory-unwrap", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-adapter-in-memory-unwrap", principle = "P3")]
     pub fn in_memory_unchecked() -> Self {
         Self::in_memory().expect("In-memory storage initialization should never fail")
@@ -190,7 +190,6 @@ impl MemoryLoopForwarder {
 
     /// Create from database path and passphrase (encrypted).
     ///
-    /// REQ: P3-agt-memory-adapter-encrypted
     /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P1\] Motivating: User Sovereignty — encrypted on-disk memory adapter
     /// \[P4\] Constraining: Clear Boundaries — passphrase protects the store
@@ -198,6 +197,7 @@ impl MemoryLoopForwarder {
     ///       non-empty string.
     /// post: Returns `Ok(Self)` with an encrypted SQLite database at
     ///       `path`; returns `Err(MemoryError)` if opening fails.
+    #[rs::contract(id = "P3-agt-memory-adapter-encrypted", principle = "P3")]
     #[rs::contract(id = "P3-agt-memory-adapter-encrypted", principle = "P3")]
     pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
         let db = Database::open(path, passphrase)?;

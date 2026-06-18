@@ -9,6 +9,8 @@
 //! silently skipped with a warning log. CLI commands never fail because of
 //! memory unavailability.
 
+use hkask_rsolidity::contract;
+
 use hkask_mcp::DaemonClient;
 use hkask_types::time::now_rfc3339;
 use serde_json::json;
@@ -35,10 +37,10 @@ impl CliExperienceRecorder {
     /// Returns a recorder even if the daemon is unreachable — recording
     /// will silently skip in that case.
     ///
-    /// REQ: P3-svc-experience-211
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns CliExperienceRecorder; daemon is Some if socket exists, None otherwise
+    #[contract(id = "P3-svc-experience-211", principle = "P3")]
     pub fn new() -> Self {
         let daemon = DaemonClient::new();
         // Test connectivity — if the socket doesn't exist, mark daemon as None
@@ -65,10 +67,10 @@ impl CliExperienceRecorder {
     /// - `outcome`: "success" or "failure"
     /// - `detail`: structured JSON with command-specific statistics
     ///
-    /// REQ: P3-svc-experience-212
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  replicant, tool, input_summary, outcome must be non-empty; detail must be valid JSON
     /// post: experience is sent to daemon for dual encoding; silently skipped if daemon unavailable
+    #[contract(id = "P3-svc-experience-212", principle = "P3")]
     pub async fn record(
         &self,
         replicant: &str,

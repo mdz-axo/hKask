@@ -431,7 +431,6 @@ mod tests {
     use super::*;
     use std::io::Write;
 
-    /// REQ: training-pipeline-01 — DatasetPipeline ingests and normalizes ChatML JSONL
     #[test]
     fn ingest_chatml_jsonl() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -474,7 +473,6 @@ mod tests {
         }
     }
 
-    /// REQ: training-pipeline-02 — DatasetPipeline caches and returns same result on re-ingest
     #[test]
     fn ingest_caches_result() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -500,7 +498,6 @@ mod tests {
         assert!(first.starts_with(&cache), "output should be in cache dir");
     }
 
-    /// REQ: training-pipeline-03 — empty dataset returns Empty error
     #[test]
     fn ingest_empty_dataset() {
         let dir = tempfile::tempdir().expect("tempdir");

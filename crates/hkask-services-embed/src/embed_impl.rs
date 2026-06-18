@@ -11,6 +11,8 @@
 //! 7. **Store triples** — budget-selected passages get metadata triples
 //! 8. **Centroid** — mean vector over prose passages
 
+use hkask_rsolidity::contract;
+
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_memory::SemanticMemory;
 use hkask_memory::salience::{self, BudgetConfig, DeclaredMethod, EntityTags, MethodSignals};
@@ -60,10 +62,10 @@ pub enum EmbedPhase {
 }
 
 impl EmbedProgress {
-    /// REQ: P7-svc-embed-002
     /// [P7] Motivating: Evolutionary Architecture — display formatting emerges from usage.
     /// pre:  self is a valid EmbedProgress
     /// post: returns formatted "TODO [N pages · X%] ::: DONE [N pages · Y%]" string
+    #[contract(id = "P7-svc-embed-002", principle = "P7")]
     pub fn format_page_progress(&self) -> String {
         let todo = self.total_passages.saturating_sub(self.completed_passages);
         let todo_pct = if self.total_passages > 0 {
@@ -85,10 +87,10 @@ impl EmbedProgress {
         )
     }
 
-    /// REQ: P7-svc-embed-003
     /// [P7] Motivating: Evolutionary Architecture — full status formatting.
     /// pre:  self is a valid EmbedProgress
     /// post: returns formatted "[phase] author — work — page_progress" string
+    #[contract(id = "P7-svc-embed-003", principle = "P7")]
     pub fn format_full(&self) -> String {
         let phase_label = match self.phase {
             EmbedPhase::Parsing => "Parsing",
@@ -1461,10 +1463,10 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
 /// Strip HTML tags from text, decoding common entities and preserving
 /// paragraph breaks from existing newlines in the HTML source.
 ///
-/// REQ: P7-svc-embed-004
 /// [P7] Motivating: Evolutionary Architecture — HTML stripping utility emerged from embedding needs.
 /// pre:  html is a valid HTML string
 /// post: returns plain text with tags removed, common entities decoded, whitespace collapsed
+    #[contract(id = "P7-svc-embed-004", principle = "P7")]
 pub fn strip_html_tags(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;

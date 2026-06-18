@@ -56,13 +56,13 @@ pub const CURATION_TICK_SECS: u64 = 10;
 /// Fallback tick interval for unregistered loops (1s).
 pub const DEFAULT_FALLBACK_TICK_SECS: u64 = 1;
 
-/// REQ: P9-agt-loop-id
 /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P8\] Motivating: Semantic Grounding — LoopId names the regulatory loops
 /// pre:  `loop_id` is one of `Inference`, `Memory`, `Cybernetics`, or
 ///       `Curation`.
 /// post: Returns the default tick `Duration` for the given loop:
 ///       Inference → 500ms, Memory → 5s, Cybernetics → 2s, Curation → 10s.
+    #[rs::contract(id = "P9-agt-loop-id", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-id", principle = "P9")]
 pub fn default_tick_interval(loop_id: LoopId) -> Duration {
     match loop_id {
@@ -102,7 +102,6 @@ pub struct LoopSystem {
 impl LoopSystem {
     /// Create a new LoopSystem.
     ///
-    /// REQ: P9-agt-loop-system-new
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — LoopSystem orchestrates sense-act cycles
     /// \[P5\] Constraining: Essentialism — minimal registry + cancellation token
@@ -110,6 +109,7 @@ impl LoopSystem {
     /// post: Returns a `LoopSystem` with an empty loop registry, a fresh
     ///       cancellation token, and default tick intervals for all four
     ///       loop IDs.
+    #[rs::contract(id = "P9-agt-loop-system-new", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-new", principle = "P9")]
     pub fn new() -> Self {
         Self {
@@ -129,7 +129,6 @@ impl LoopSystem {
 
     /// Customize the tick interval for a specific loop.
     ///
-    /// REQ: P9-agt-loop-system-interval
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — configurable tick interval per loop
     /// \[P7\] Constraining: Evolutionary Architecture — intervals emerge from operational need
@@ -137,6 +136,7 @@ impl LoopSystem {
     ///       `Duration`.
     /// post: Returns `self` with the tick interval for `loop_id` updated
     ///       to `interval`.
+    #[rs::contract(id = "P9-agt-loop-system-interval", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-interval", principle = "P9")]
     pub fn with_tick_interval(mut self, loop_id: LoopId, interval: Duration) -> Self {
         self.tick_intervals.insert(loop_id, interval);
@@ -148,12 +148,12 @@ impl LoopSystem {
     /// Adds the loop to the registry so it can be ticked by `start()` or `tick()`.
     /// Multiple loops may share the same `LoopId`.
     ///
-    /// REQ: P9-agt-loop-system-register
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — register loop instances under LoopId
     /// pre:  `loop_instance` is a valid `Arc<dyn HkaskLoop>`.
     /// post: The loop is added to the registry under its `LoopId`;
     ///       logs the registration at info level.
+    #[rs::contract(id = "P9-agt-loop-system-register", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-register", principle = "P9")]
     pub async fn register_loop(&self, loop_instance: Arc<dyn HkaskLoop>) {
         let id = loop_instance.id();
@@ -169,11 +169,11 @@ impl LoopSystem {
 
     /// Get the cancellation token for external cancellation.
     ///
-    /// REQ: P9-agt-loop-system-cancel-token
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — cancellation token stops all loops
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `CancellationToken`.
+    #[rs::contract(id = "P9-agt-loop-system-cancel-token", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-cancel-token", principle = "P9")]
     pub fn cancel_token(&self) -> CancellationToken {
         self.cancel.clone()
@@ -184,12 +184,12 @@ impl LoopSystem {
     /// Spawns per-loop tick tasks — each registered loop runs its
     /// `sense → compare → compute → act` cycle on a timer.
     ///
-    /// REQ: P9-agt-loop-system-run
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — spawn tokio tasks for each loop
     /// pre:  Loops have been registered via `register_loop`.
     /// post: Spawns a tokio task per loop instance; each task ticks
     ///       at its configured interval until cancelled. Returns `Ok(())`.
+    #[rs::contract(id = "P9-agt-loop-system-run", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-run", principle = "P9")]
     pub async fn start(&self) -> Result<(), hkask_types::InfrastructureError> {
         let cancel = self.cancel.clone();
@@ -244,12 +244,12 @@ impl LoopSystem {
     ///
     /// Authority DAG: Curation → Cybernetics → {Inference, Memory}
     ///
-    /// REQ: P9-agt-loop-system-tick
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — single sense-compare-compute-act tick
     /// pre:  Loops have been registered.
     /// post: Each registered loop is ticked once in authority order;
     ///       unregistered loop IDs are silently skipped.
+    #[rs::contract(id = "P9-agt-loop-system-tick", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-tick", principle = "P9")]
     pub async fn tick(&self) {
         for loop_id in AUTHORITY_ORDER {
@@ -264,12 +264,12 @@ impl LoopSystem {
 
     /// Run multiple regulation cycles.
     ///
-    /// REQ: P9-agt-loop-system-run-ticks
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — run multiple ticks sequentially
     /// pre:  `max_ticks` > 0.
     /// post: Calls `tick()` `max_ticks` times sequentially; logs each
     ///       completed tick at debug level.
+    #[rs::contract(id = "P9-agt-loop-system-run-ticks", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-run-ticks", principle = "P9")]
     pub async fn tick_n(&self, max_ticks: usize) {
         for i in 0..max_ticks {
@@ -285,12 +285,12 @@ impl LoopSystem {
 
     /// Signal all loop tasks to stop.
     ///
-    /// REQ: P9-agt-loop-system-stop
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — idempotent stop signal
     /// pre:  (none — idempotent).
     /// post: The cancellation token is triggered; all spawned tick tasks
     ///       will terminate on their next `select!` iteration.
+    #[rs::contract(id = "P9-agt-loop-system-stop", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-stop", principle = "P9")]
     pub fn shutdown(&self) {
         info!(target: "loop_system", "LoopSystem shutting down");
@@ -299,12 +299,12 @@ impl LoopSystem {
 
     /// Total number of loop instances across all IDs.
     ///
-    /// REQ: P9-agt-loop-system-count
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P8\] Motivating: Semantic Grounding — count of registered loop instances
     /// pre:  (none).
     /// post: Returns the sum of `Vec::len()` across all entries in the
     ///       loop registry.
+    #[rs::contract(id = "P9-agt-loop-system-count", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-count", principle = "P9")]
     pub async fn registered_count(&self) -> usize {
         self.loops.read().await.values().map(|v| v.len()).sum()
@@ -312,12 +312,12 @@ impl LoopSystem {
 
     /// Get the IDs of all registered loops.
     ///
-    /// REQ: P9-agt-loop-system-ids
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P8\] Motivating: Semantic Grounding — list registered loop IDs
     /// pre:  (none).
     /// post: Returns a `Vec<LoopId>` containing all keys currently in
     ///       the loop registry.
+    #[rs::contract(id = "P9-agt-loop-system-ids", principle = "P9")]
     #[rs::contract(id = "P9-agt-loop-system-ids", principle = "P9")]
     pub async fn registered_loop_ids(&self) -> Vec<LoopId> {
         self.loops.read().await.keys().copied().collect()

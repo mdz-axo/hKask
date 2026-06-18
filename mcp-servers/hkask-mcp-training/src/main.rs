@@ -3725,7 +3725,6 @@ async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
 mod tests {
     use super::*;
 
-    /// REQ: training-chunk-01 — split_into_chunks handles text under threshold
     #[test]
     fn chunk_under_threshold_returns_single() {
         let text = "Short skill document.\n\nWith two paragraphs.";
@@ -3735,7 +3734,6 @@ mod tests {
         assert!(chunks[0].contains("With two paragraphs"));
     }
 
-    /// REQ: training-chunk-02 — split_into_chunks splits at paragraph boundaries
     #[test]
     fn chunk_splits_at_paragraphs() {
         let para = "A".repeat(100);
@@ -3747,14 +3745,12 @@ mod tests {
         }
     }
 
-    /// REQ: training-chunk-03 — split_into_chunks handles empty input
     #[test]
     fn chunk_empty_returns_single() {
         let chunks = split_into_chunks("", 100);
         assert_eq!(chunks.len(), 1);
     }
 
-    /// REQ: training-chunk-04 — split_into_chunks preserves content across chunks
     #[test]
     fn chunk_preserves_content() {
         let p1 = "First paragraph about constraints.";

@@ -3,6 +3,7 @@
 //! REQ: DEP-300 — P3 Headless: single static HTML landing page with OAuth sign-in.
 //! expect: "I can access all hKask functionality through the kask CLI" [P3]
 
+use hkask_rsolidity as rs;
 use axum::response::IntoResponse;
 
 /// GET / — landing page with logo and sign-in buttons.

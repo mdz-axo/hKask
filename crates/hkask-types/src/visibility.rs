@@ -39,7 +39,6 @@ pub enum Visibility {
 impl Visibility {
     /// Get string representation of visibility.
     ///
-    /// REQ: TYP-124
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns "private", "shared", or "public"
     pub fn as_str(&self) -> &'static str {
@@ -51,7 +50,6 @@ impl Visibility {
 
     /// Parse visibility from string.
     ///
-    /// REQ: TYP-125
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Some(Visibility) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -92,7 +90,6 @@ impl AccessControl {
     /// Create a default access control: private, no perspective, owned by `owner`.
     /// Create a new AccessControl with owner.
     ///
-    /// REQ: TYP-126
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  owner is valid
     /// post: returns AccessControl with Private visibility, no perspective
@@ -107,7 +104,6 @@ impl AccessControl {
     /// Create an episodic (perspective-bound) access control: private, owned by `owner`.
     /// Create episodic access control.
     ///
-    /// REQ: TYP-127
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  perspective and owner are valid
     /// post: returns AccessControl with Private visibility and perspective
@@ -122,7 +118,6 @@ impl AccessControl {
     /// Create a semantic (public, perspective-free) access control.
     /// Create semantic access control.
     ///
-    /// REQ: TYP-128
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  owner is valid
     /// post: returns AccessControl with Public visibility, no perspective
@@ -137,7 +132,6 @@ impl AccessControl {
     /// Convert to semantic access control: strip perspective, set visibility to Public.
     /// Convert to semantic access (strip perspective, set Public).
     ///
-    /// REQ: TYP-129
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns AccessControl with Public visibility, no perspective
     pub fn to_semantic(&self) -> Self {
@@ -151,7 +145,6 @@ impl AccessControl {
     /// Is this an episodic (perspective-bound) access control?
     /// Check if this is episodic (has perspective).
     ///
-    /// REQ: TYP-130
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true iff perspective is Some
     pub fn is_episodic(&self) -> bool {
@@ -161,7 +154,6 @@ impl AccessControl {
     /// Is this a semantic (public, perspective-free) access control?
     /// Check if this is semantic (Public, no perspective).
     ///
-    /// REQ: TYP-131
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true iff visibility is Public and perspective is None
     pub fn is_semantic(&self) -> bool {
@@ -171,7 +163,6 @@ impl AccessControl {
     #[must_use = "builder methods must be chained or assigned"]
     /// Set perspective (builder).
     ///
-    /// REQ: TYP-132
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with perspective set
     pub fn with_perspective(mut self, perspective: WebID) -> Self {
@@ -189,7 +180,6 @@ impl AccessControl {
     /// episodic triple, call `without_perspective()` first.
     /// Set visibility (builder).
     ///
-    /// REQ: TYP-133
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with visibility set
     pub fn with_visibility(mut self, visibility: Visibility) -> Self {
@@ -227,7 +217,6 @@ impl AccessControl {
     /// perspective-free). It does not change the visibility mode.
     /// Remove perspective (for legitimate sharing).
     ///
-    /// REQ: TYP-134
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with perspective set to None
     pub fn without_perspective(mut self) -> Self {
@@ -249,7 +238,6 @@ impl Confidence {
     /// Create a confidence value, clamping to [0.0, 1.0].
     /// Create a new Confidence value.
     ///
-    /// REQ: TYP-135
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  value in [0.0, 1.0]
     /// post: returns Confidence
@@ -260,7 +248,6 @@ impl Confidence {
     /// Full confidence (1.0) — the default for new triples.
     /// Full confidence (1.0).
     ///
-    /// REQ: TYP-136
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Confidence(1.0)
     pub fn full() -> Self {
@@ -269,7 +256,6 @@ impl Confidence {
 
     /// Get the raw confidence value.
     ///
-    /// REQ: TYP-137
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns f64 value
     pub fn value(&self) -> f64 {
@@ -282,7 +268,6 @@ impl Confidence {
     /// The result is clamped to [0.0, 1.0].
     /// Apply exponential decay: value * e^(-rate * time).
     ///
-    /// REQ: TYP-138
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  rate >= 0, time >= 0
     /// post: returns decayed Confidence
@@ -324,7 +309,6 @@ impl TemporalBounds {
     /// Create temporal bounds starting now with no end (current/active).
     /// Create a TemporalContext with now as valid_from.
     ///
-    /// REQ: TYP-139
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns TemporalContext with valid_from=now, valid_to=None
     pub fn now() -> Self {
@@ -337,7 +321,6 @@ impl TemporalBounds {
     /// Create temporal bounds with explicit start and optional end.
     /// Create a TemporalContext with explicit bounds.
     ///
-    /// REQ: TYP-140
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns TemporalContext
     pub fn new(valid_from: DateTime<Utc>, valid_to: Option<DateTime<Utc>>) -> Self {
@@ -350,7 +333,6 @@ impl TemporalBounds {
     /// Is this triple currently active (no end time)?
     /// Check if this temporal context is currently valid.
     ///
-    /// REQ: TYP-141
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true iff valid_to is None or in the future
     pub fn is_current(&self) -> bool {
@@ -360,7 +342,6 @@ impl TemporalBounds {
     /// Supercede: create new bounds with valid_to set to now.
     /// Mark as superseded (set valid_to to now).
     ///
-    /// REQ: TYP-142
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with valid_to=now
     pub fn superseded(&self) -> Self {

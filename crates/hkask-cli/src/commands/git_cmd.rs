@@ -40,7 +40,6 @@ fn parse_repo_id(repo: &str) -> RepoId {
     }
 }
 
-/// REQ: CLI-075
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; action is a valid GitAction variant
 /// post: dispatches to archive, restore, list, snapshot, or CAS operations (verify, diff, log, snapshot, restore)

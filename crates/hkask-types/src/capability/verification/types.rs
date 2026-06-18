@@ -38,7 +38,6 @@ pub enum VerificationOutcome {
 
 /// Format an "insufficient access" error message.
 ///
-/// REQ: TYP-325
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  resource_id is any &str; action is any &str
 /// post: returns "Token does not authorize access to {resource_id} ({action})"
@@ -48,7 +47,6 @@ pub fn token_err_insufficient_access(resource_id: &str, action: &str) -> String 
 
 /// Format an "insufficient access for tool" error message.
 ///
-/// REQ: TYP-326
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  tool_name is any &str
 /// post: returns "Token does not authorize tool: {tool_name}"

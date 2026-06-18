@@ -46,7 +46,6 @@ impl WalletEnergyEstimator {
     /// `CompositeEnergyEstimator` so per-server cost calibration and gas→rJoule
     /// calibration share the same gas-cost base.
     ///
-    /// REQ: GAS-CALIB-006 — wallet estimator uses calibrated per-server costs
     /// expect: "I can compose a wallet energy estimator from a pre-calibrated composite estimator so gas→rJoule conversion uses live costs" [P9]
     /// pre:  gas_per_rjoule > 0
     /// post: returns WalletEnergyEstimator with the supplied inner estimator
@@ -62,7 +61,6 @@ impl WalletEnergyEstimator {
     /// Calibrate the gas→rJoule conversion rate based on an observed
     /// actual_gas / estimated_gas ratio from a tool settlement.
     ///
-    /// REQ: P9-cns-wallet-est-calibrate
     /// expect: "The wallet estimator self-calibrates from observed actual-vs-estimated gas ratios" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — Good Regulator feedback loop closure
     /// \[P4\] Constraining: Clear Boundaries — threshold tolerance enforces boundary
@@ -78,6 +76,7 @@ impl WalletEnergyEstimator {
     ///
     /// # Returns
     /// `true` if `gas_per_rjoule` was adjusted, `false` if within tolerance.
+    #[rs::contract(id = "P9-cns-wallet-est-calibrate", principle = "P9")]
     #[rs::contract(id = "P9-cns-wallet-est-calibrate", principle = "P9")]
     pub fn calibrate(&mut self, observed_ratio: f64) -> bool {
         // Clamp ratio to reasonable bounds (0.1 to 10.0)

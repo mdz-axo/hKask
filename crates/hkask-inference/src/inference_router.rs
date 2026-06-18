@@ -4,6 +4,8 @@
 //! 2-letter provider prefix in the model name. Unprefixed model names
 //! use the configured default provider.
 
+use hkask_rsolidity::contract;
+
 use crate::RouterModelEntry;
 use crate::chat_protocol::validate_prompt;
 use crate::config::{InferenceConfig, ProviderId};
@@ -38,11 +40,11 @@ impl InferenceRouter {
     /// Constructs backends lazily — a backend is only created if its
     /// configuration is valid (e.g., API key is present for cloud providers).
     ///
-    /// REQ: P4-inf-inference-router-new
     /// expect: "The system creates multi-provider membranes assembled from configured boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — multi-provider membrane assembled from configured boundaries
     /// pre:  config is a valid InferenceConfig
     /// post: returns InferenceRouter with backends for configured providers
+    #[contract(id = "P4-inf-inference-router-new", principle = "P4")]
     pub fn new(config: InferenceConfig) -> Self {
         let deepinfra = DeepInfraBackend::new(&config).ok();
         let fal = FalBackend::new(&config).ok();
@@ -100,7 +102,6 @@ impl InferenceRouter {
 
     /// Dispatch a generate call to the resolved backend.
     ///
-    /// REQ: P9-inf-dispatch-generate
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — shared dispatch for text generation
     /// pre:  provider is a resolved ProviderId with available backend
@@ -154,12 +155,12 @@ impl InferenceRouter {
     /// provider prefixes applied. Graceful degradation: if one
     /// provider fails, results from others are still returned.
     ///
-    /// REQ: P9-inf-router-list-models
     /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregated model variety across providers
     /// pre:  backends are initialized (may be None)
     /// post: returns Vec<RouterModelEntry> with all available models across providers
     /// post: if a backend fails → its models are omitted (graceful degradation)
+    #[contract(id = "P9-inf-router-list-models", principle = "P9")]
     pub async fn list_models(&self) -> Vec<RouterModelEntry> {
         let mut entries = Vec::new();
 
@@ -199,12 +200,12 @@ impl InferenceRouter {
 
     /// Search models by name across all providers (case-insensitive substring).
     ///
-    /// REQ: P9-inf-router-search-models
     /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — searchable model catalog for routing
     /// pre:  query may be empty (returns all models)
     /// post: returns Vec<RouterModelEntry> filtered by case-insensitive substring match
     /// post: if query is empty → returns all models (delegates to list_models)
+    #[contract(id = "P9-inf-router-search-models", principle = "P9")]
     pub async fn search_models(&self, query: &str) -> Vec<RouterModelEntry> {
         let all = self.list_models().await;
         if query.is_empty() {
@@ -221,11 +222,11 @@ impl InferenceRouter {
     /// Convenience filter over `list_models()` using the heuristic
     /// `supports_vision` flag. Useful for OCR model selection.
     ///
-    /// REQ: P9-inf-router-list-vision-models
     /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — vision-capable model discovery
     /// pre:  none (delegates to list_models)
     /// post: returns Vec<RouterModelEntry> filtered to supports_vision == Some(true)
+    #[contract(id = "P9-inf-router-list-vision-models", principle = "P9")]
     pub async fn list_vision_models(&self) -> Vec<RouterModelEntry> {
         self.list_models()
             .await
@@ -236,7 +237,6 @@ impl InferenceRouter {
 
     /// Vision/multimodal inference — dispatch to the appropriate backend with base64 images.
     ///
-    /// REQ: P9-inf-router-generate-vision
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal dispatch
     /// pre:  prompt is non-empty
@@ -246,6 +246,7 @@ impl InferenceRouter {
     /// post: returns Ok(InferenceResult) on success
     /// post: if provider resolution fails → Err(InferenceError)
     /// post: if backend call fails → Err(InferenceError)
+    #[contract(id = "P9-inf-router-generate-vision", principle = "P9")]
     pub async fn generate_vision(
         &self,
         prompt: &str,
@@ -301,12 +302,12 @@ impl InferenceRouter {
     /// Generate an image from a text prompt.
     /// Routes to fal.ai FLUX Schnell (default) or DeepInfra FLUX 2 Klein.
     ///
-    /// REQ: P9-inf-router-generate-image
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image generation dispatch
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated image data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-generate-image", principle = "P9")]
     pub async fn generate_image(
         &self,
         prompt: &str,
@@ -325,13 +326,13 @@ impl InferenceRouter {
     /// Transform an existing image with a prompt (image-to-image).
     /// Routes to fal.ai Flux dev img2img (default) or DeepInfra Qwen Image Edit.
     ///
-    /// REQ: P9-inf-router-image-to-image
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image editing dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  prompt is a non-empty transformation instruction
     /// post: returns Ok(serde_json::Value) with transformed image data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-image-to-image", principle = "P9")]
     pub async fn image_to_image(
         &self,
         image_url: &str,
@@ -347,13 +348,13 @@ impl InferenceRouter {
     /// Remove background from an image.
     /// Routes to DeepInfra Bria RMBG 2.0 (cheapest) with fal.ai Birefnet fallback.
     ///
-    /// REQ: P9-inf-router-remove-background
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated background removal dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// post: tries DeepInfra first, falls back to fal.ai on failure
     /// post: returns Ok(serde_json::Value) with background-removed image data
     /// post: if no backend available → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-remove-background", principle = "P9")]
     pub async fn remove_background(
         &self,
         image_url: &str,
@@ -377,12 +378,12 @@ impl InferenceRouter {
     /// Upscale an image.
     /// Routes to fal.ai SeedVR2 (queue).
     ///
-    /// REQ: P9-inf-router-upscale
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated upscaling dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with upscaled image data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-upscale", principle = "P9")]
     pub async fn upscale(
         &self,
         image_url: &str,
@@ -397,12 +398,12 @@ impl InferenceRouter {
     /// Generate a video from a text prompt.
     /// Routes to fal.ai MiniMax video-01-live (queue).
     ///
-    /// REQ: P9-inf-router-generate-video
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation dispatch
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated video data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-generate-video", principle = "P9")]
     pub async fn generate_video(
         &self,
         prompt: &str,
@@ -419,12 +420,12 @@ impl InferenceRouter {
     /// Animate a still image into a video.
     /// Routes to fal.ai Seedance 2.0 image-to-video (queue).
     ///
-    /// REQ: P9-inf-router-image-to-video
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with generated video data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-image-to-video", principle = "P9")]
     pub async fn image_to_video(
         &self,
         image_url: &str,
@@ -442,7 +443,6 @@ impl InferenceRouter {
     /// Default voice: "Rachel" (ElevenLabs default, available on both providers).
     /// Default model on DeepInfra: hexgrad/Kokoro-82M.
     ///
-    /// REQ: P9-inf-router-generate-speech
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech synthesis dispatch
     /// pre:  text is non-empty
@@ -450,6 +450,7 @@ impl InferenceRouter {
     /// post: tries DeepInfra first, falls back to fal.ai on failure
     /// post: returns Ok(serde_json::Value) with generated speech audio data
     /// post: if no backend available → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-generate-speech", principle = "P9")]
     pub async fn generate_speech(
         &self,
         text: &str,
@@ -474,13 +475,13 @@ impl InferenceRouter {
     /// Segment/extract a specific object from an image.
     /// Routes to fal.ai Florence-2 segmentation.
     ///
-    /// REQ: P9-inf-router-segment-object
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated segmentation dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  object_description is a non-empty description of the object to segment
     /// post: returns Ok(serde_json::Value) with segmented object data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-segment-object", principle = "P9")]
     pub async fn segment_object(
         &self,
         image_url: &str,
@@ -497,13 +498,13 @@ impl InferenceRouter {
     /// Transcribe speech audio to text.
     /// Routes to DeepInfra Whisper (default) with fal.ai Whisper fallback.
     ///
-    /// REQ: P9-inf-router-transcribe
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated transcription dispatch
     /// pre:  audio_url is a valid, accessible audio file URL
     /// post: tries DeepInfra first, falls back to fal.ai on failure
     /// post: returns Ok(serde_json::Value) with transcription data
     /// post: if no backend available → Err(InferenceError::Connection)
+    #[contract(id = "P9-inf-router-transcribe", principle = "P9")]
     pub async fn transcribe(
         &self,
         audio_url: &str,
@@ -739,12 +740,12 @@ impl InferencePort for InferenceRouter {
 impl InferenceRouter {
     /// Generate a text embedding vector via the embedding router.
     ///
-    /// REQ: P9-inf-router-embed-text
     /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated embedding dispatch
     /// pre:  text is a non-empty string
     /// post: delegates to EmbeddingRouter::embed_sentence with resolved model
     /// post: if embedding fails → Err(EmbeddingGenerationError)
+    #[contract(id = "P9-inf-router-embed-text", principle = "P9")]
     pub async fn embed_text(
         &self,
         text: &str,

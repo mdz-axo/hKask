@@ -43,7 +43,6 @@ pub struct MockInferencePort {
 impl MockInferencePort {
     /// Create a new mock with a default response of "Mock response".
     ///
-    /// REQ: HARN-001
     /// post: returns MockInferencePort with empty responses, default="Mock response", model="mock-model"
     pub fn new() -> Self {
         Self {
@@ -57,7 +56,6 @@ impl MockInferencePort {
     /// Register a canned response for prompts starting with `prompt_prefix`.
     /// Later registrations take precedence (insert order).
     ///
-    /// REQ: HARN-002
     /// pre:  prompt_prefix and response are non-empty
     /// post: response registered for prefix matching
     /// post: returns Self for builder chaining
@@ -72,7 +70,6 @@ impl MockInferencePort {
 
     /// Set the default response for unmatched prompts.
     ///
-    /// REQ: HARN-003
     /// pre:  response is non-empty
     /// post: default_response updated
     /// post: returns Self for builder chaining
@@ -84,7 +81,6 @@ impl MockInferencePort {
 
     /// Set the model name reported in results.
     ///
-    /// REQ: HARN-004
     /// pre:  model is non-empty
     /// post: model_name updated
     /// post: returns Self for builder chaining
@@ -97,7 +93,6 @@ impl MockInferencePort {
     /// Inject an error — all subsequent `generate` calls will fail with this error.
     /// Call `clear_error()` to restore normal operation.
     ///
-    /// REQ: HARN-005
     /// post: error_override set — subsequent generate() calls return Err
     pub fn set_error(&self, error: InferenceError) {
         *self.error_override.lock().unwrap() = Some(error);
@@ -105,7 +100,6 @@ impl MockInferencePort {
 
     /// Clear any injected error, restoring normal responses.
     ///
-    /// REQ: HARN-006
     /// post: error_override cleared — subsequent generate() calls return Ok
     pub fn clear_error(&self) {
         *self.error_override.lock().unwrap() = None;
@@ -267,7 +261,6 @@ mod tests {
 /// Returns canned responses for auth queries, assignments, capability checks,
 /// and experience storage. Supports configurable auth state and error injection.
 ///
-/// REQ: HARN-047
 /// pre:  none
 /// post: returns MockDaemonClient with default (authenticated, all capabilities granted)
 pub struct MockDaemonClient {
@@ -284,7 +277,6 @@ pub struct MockDaemonClient {
 }
 
 impl MockDaemonClient {
-    /// REQ: HARN-047
     /// post: returns new MockDaemonClient with default settings (authenticated, all granted)
     pub fn new() -> Self {
         Self {
@@ -304,7 +296,6 @@ impl MockDaemonClient {
 
     /// Set capabilities to denied.
     ///
-    /// REQ: HARN-055
     /// post: returns self with capabilities_granted=false
     pub fn capabilities_denied(mut self) -> Self {
         self.capabilities_granted = false;
@@ -313,7 +304,6 @@ impl MockDaemonClient {
 
     /// Set a canned tool dispatch response.
     ///
-    /// REQ: HARN-056
     /// pre:  response is a valid JSON Value
     /// post: returns self with tool_response set
     pub fn with_tool_response(mut self, response: Value) -> Self {
@@ -323,7 +313,6 @@ impl MockDaemonClient {
 
     /// Get stored experiences (for assertion in tests).
     ///
-    /// REQ: HARN-057
     /// post: returns clone of all stored experience triples
     pub fn stored_experiences(&self) -> Vec<(String, String, Value)> {
         self.stored.lock().unwrap().clone()

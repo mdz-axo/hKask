@@ -7,6 +7,8 @@
 //! continue to use them as the authoritative audit signal during the
 //! strangler-fig migration.
 
+use hkask_rsolidity::contract;
+
 pub use hkask_rsolidity_macros::{contract, ocap};
 
 /// Capability-verification trait for `#[ocap]` gates.
@@ -19,11 +21,11 @@ pub trait Ocap {
     fn verify_ocap(&self, resource: &str, operation: &str) -> Result<(), Self::Error>;
 }
 
-/// REQ: P9-rsolidity-emit-helper
 /// pre:  arguments are valid
 /// post: returns expected result
 /// Private helper used by the `emit!` macro.
 #[doc(hidden)]
+    #[contract(id = "P9-rsolidity-emit-helper", principle = "P9")]
 pub fn __private_emit<S, V, P, T>(span: S, verb: V, phase: P, payload: T)
 where
     S: std::fmt::Display,

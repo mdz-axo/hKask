@@ -783,7 +783,6 @@ mod tests {
         db
     }
 
-    /// REQ: training-store-01 — SqliteAdapterStore stores and retrieves with version + skill_name
     #[tokio::test]
     async fn sqlite_store_version_and_skill_name() {
         let db = setup_db();
@@ -822,7 +821,6 @@ mod tests {
         assert_eq!(retrieved.metrics.unwrap().loss, Some(0.12));
     }
 
-    /// REQ: training-store-02 — SqliteAdapterStore list_all returns multiple adapters
     #[tokio::test]
     async fn sqlite_store_list_all() {
         let db = setup_db();
@@ -850,7 +848,6 @@ mod tests {
         assert_eq!(all[2].version, 1);
     }
 
-    /// REQ: training-store-03 — SqliteAdapterStore delete removes metadata and blob
     #[tokio::test]
     async fn sqlite_store_delete() {
         let db = setup_db();
@@ -883,7 +880,6 @@ mod tests {
         assert!(blob.is_none(), "blob should be deleted");
     }
 
-    /// REQ: training-job-01 — JobStore stores and retrieves jobs
     #[test]
     fn job_store_store_and_get() {
         let db = setup_db();
@@ -908,7 +904,6 @@ mod tests {
         assert_eq!(job.host, "together");
     }
 
-    /// REQ: training-job-02 — JobStore update_status changes job status
     #[test]
     fn job_store_update_status() {
         let db = setup_db();
@@ -933,7 +928,6 @@ mod tests {
         assert_eq!(job.status, "running");
     }
 
-    /// REQ: training-job-03 — JobStore list_all returns jobs in order
     #[test]
     fn job_store_list_all() {
         let db = setup_db();
@@ -953,7 +947,6 @@ mod tests {
         assert_eq!(all[1].id, "j1");
     }
 
-    /// REQ: training-job-04 — JobStore returns None for missing job
     #[test]
     fn job_store_missing_returns_none() {
         let db = setup_db();

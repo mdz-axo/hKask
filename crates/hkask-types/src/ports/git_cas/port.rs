@@ -108,7 +108,6 @@ pub struct MockGitCas {
 impl MockGitCas {
     /// Create a new empty mock.
     ///
-    /// REQ: TYP-262
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  (no inputs)
     /// post: returns a [`MockGitCas`] with empty blob storage and empty snapshot history
@@ -121,7 +120,6 @@ impl MockGitCas {
 
     /// Return the history of snapshot calls as `(repo, message, commit_hash)`.
     ///
-    /// REQ: TYP-263
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`MockGitCas`]
     /// post: returns a [`Vec`] of all snapshots recorded via [`GitCASPort::snapshot`] calls,
@@ -135,7 +133,6 @@ impl MockGitCas {
 
     /// Return the number of blobs stored via `put_blob`.
     ///
-    /// REQ: TYP-264
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`MockGitCas`]
     /// post: returns the count of unique blobs currently stored; never panics

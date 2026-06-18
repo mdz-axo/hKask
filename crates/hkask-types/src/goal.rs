@@ -55,7 +55,6 @@ pub enum GoalState {
 impl GoalState {
     /// Get string representation of state.
     ///
-    /// REQ: TYP-158
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns snake_case state name
     pub fn as_str(&self) -> &'static str {
@@ -70,7 +69,6 @@ impl GoalState {
 
     /// Parse state from string.
     ///
-    /// REQ: TYP-159
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Some(GoalState) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -86,7 +84,6 @@ impl GoalState {
 
     /// Check if this is a terminal state.
     ///
-    /// REQ: TYP-160
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true for Completed, Abandoned, Quarantined
     pub fn is_terminal(&self) -> bool {
@@ -105,7 +102,6 @@ impl GoalState {
     /// \[DECLARATIVE\] no-op and always permitted. (P7 — Evolutionary Architecture).
     /// Check if transition to next state is valid.
     ///
-    /// REQ: TYP-161
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  next is a valid GoalState
     /// post: returns true iff transition is allowed
@@ -140,7 +136,6 @@ pub struct GoalCriterion {
 impl GoalCriterion {
     /// Create a new goal criterion.
     ///
-    /// REQ: TYP-162
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  goal_id is valid, description is non-empty
     /// post: returns GoalCriterion
@@ -156,7 +151,6 @@ impl GoalCriterion {
 
     /// Mark criterion as satisfied.
     ///
-    /// REQ: TYP-163
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: satisfied set to true
     pub fn mark_satisfied(&mut self) {
@@ -177,7 +171,6 @@ pub struct GoalArtifact {
 impl GoalArtifact {
     /// Create a new goal artifact.
     ///
-    /// REQ: TYP-164
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  goal_id is valid, artifact_ref and artifact_type are non-empty
     /// post: returns GoalArtifact
@@ -210,7 +203,6 @@ pub struct Goal {
 impl Goal {
     /// Create a new Goal.
     ///
-    /// REQ: TYP-165
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  webid is valid, text is non-empty
     /// post: returns Goal with Pending state
@@ -231,7 +223,6 @@ impl Goal {
 
     /// Set display name (builder).
     ///
-    /// REQ: TYP-166
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with display_name set
     pub fn with_display_name(mut self, name: impl Into<String>) -> Self {
@@ -241,7 +232,6 @@ impl Goal {
 
     /// Set parent goal (builder).
     ///
-    /// REQ: TYP-167
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Self with parent_goal_id and depth set
     pub fn with_parent(mut self, parent_id: GoalID, parent_depth: u8) -> Self {
@@ -257,7 +247,6 @@ impl Goal {
     /// silent illegal mutations before data reaches the database.
     /// Transition to a new state.
     ///
-    /// REQ: TYP-168
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  transition is valid per can_transition_to
     /// post: state updated, completed_at set if terminal
@@ -280,7 +269,6 @@ impl Goal {
 
     /// Check if this goal can have subgoals.
     ///
-    /// REQ: TYP-169
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true for non-terminal states with depth < 7
     pub fn can_have_subgoals(&self) -> bool {

@@ -7,6 +7,8 @@
 //! ensuring template capability declarations are consistent with the agent's
 //! granted capabilities.
 
+use hkask_rsolidity::contract;
+
 use crate::ports::{Result, TemplateError};
 use hkask_types::capability::{CapabilitySpec, DelegationToken, capabilities_match};
 
@@ -23,11 +25,11 @@ pub struct CapabilityAwareValidator;
 impl CapabilityAwareValidator {
     /// Create a new validator.
     ///
-    /// REQ: P3-tpl-capability-validator-new
 /// expect: "The system validates template capability requirements against held tokens" [P3]
     /// \[P3\] Motivating: Generative Space — registration-time OCAP gate for template capabilities
     /// \[P4\] Constraining: Clear Boundaries — validator establishes capability boundary
     /// post: returns CapabilityAwareValidator
+    #[contract(id = "P3-tpl-capability-validator-new", principle = "P3")]
     pub fn new() -> Self {
         Self
     }
@@ -38,7 +40,6 @@ impl CapabilityAwareValidator {
     /// held token. Returns `Err(TemplateError::CapabilityDenied)` with details about
     /// the first unsatisfied requirement.
     ///
-    /// REQ: P3-tpl-validate-capabilities
 /// expect: "The system validates template capability requirements against held tokens" [P3]
     /// \[P3\] Motivating: Generative Space — checks template capability requirements against held tokens
     /// \[P4\] Constraining: Clear Boundaries — action hierarchy enforcement (Execute ≥ Write ≥ Read)
@@ -46,6 +47,7 @@ impl CapabilityAwareValidator {
     /// post: returns Ok(()) if all required capabilities are satisfied
     /// post: returns Ok(()) if required_capabilities is empty
     /// post: returns Err(CapabilityDenied) for first unsatisfied requirement
+    #[contract(id = "P3-tpl-validate-capabilities", principle = "P3")]
     pub fn validate_capabilities(
         &self,
         template_id: &str,

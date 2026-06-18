@@ -111,7 +111,6 @@ impl TableEnergyEstimator {
 
     /// Create a TableEnergyEstimator with custom per-server costs.
     ///
-    /// REQ: GAS-CALIB-003 — calibrated table replaces hardcoded TableEnergyEstimator costs
     /// pre:  `server_costs` contains the desired server → cost mappings
     /// post: per-tool overrides (e.g. condenser_thread_summary) are still applied
     ///       on top of the provided server costs

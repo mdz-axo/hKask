@@ -65,7 +65,6 @@ impl<'de, T: IdKind> serde::Deserialize<'de> for Id<T> {
 }
 
 impl<T: IdKind> Id<T> {
-    /// REQ: TYP-257
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  (no inputs)
     /// post: returns a unique [`Id<T>`] wrapping a random UUID v4
@@ -76,7 +75,6 @@ impl<T: IdKind> Id<T> {
         }
     }
 
-    /// REQ: TYP-258
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  uuid is any valid [`Uuid`]
     /// post: returns an [`Id<T>`] wrapping the given uuid unchanged
@@ -93,7 +91,6 @@ impl<T: IdKind> Id<T> {
     /// for entities that need to be looked up by name (e.g., wallets
     /// bound to replicant names).
     ///
-    /// REQ: TYP-259
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  name is any non-empty string (empty produces a deterministic but degenerate Id)
     /// post: returns an [`Id<T>`] deterministically derived from name using UUID v5;
@@ -104,7 +101,6 @@ impl<T: IdKind> Id<T> {
         Self::from_uuid(Uuid::new_v5(&namespace, name.as_bytes()))
     }
 
-    /// REQ: TYP-260
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any valid [`Id<T>`]
     /// post: returns the inner [`Uuid`] unchanged

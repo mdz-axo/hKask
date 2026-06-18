@@ -15,6 +15,8 @@
 //! 6. `config` — get current backup configuration
 //! 7. `update_config` — update backup configuration
 
+use hkask_rsolidity::contract;
+
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
@@ -106,10 +108,10 @@ impl BackupService {
     /// If an encryption passphrase is available via the `HKASK_BACKUP_PASSPHRASE`
     /// env var or OS keychain, encryption is enabled automatically.
     ///
-    /// REQ: P7-svc-backup-142
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cas must be a valid GitCASPort
     /// post: returns BackupService with config loaded from disk and encryption key derived if passphrase available
+    #[contract(id = "P7-svc-backup-142", principle = "P7")]
     pub fn new(cas: Arc<dyn GitCASPort>) -> Self {
         let config = crate::config::load_backup_config();
         let encryption_key = Self::derive_key(&config);
@@ -122,10 +124,10 @@ impl BackupService {
 
     /// Create a new backup service with an explicit config (for testing).
     ///
-    /// REQ: P7-svc-backup-143
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cas must be a valid GitCASPort; config must be a valid BackupConfig
     /// post: returns BackupService with explicit config and derived encryption key
+    #[contract(id = "P7-svc-backup-143", principle = "P7")]
     pub fn with_config(cas: Arc<dyn GitCASPort>, config: BackupConfig) -> Self {
         let encryption_key = Self::derive_key(&config);
         Self {
@@ -196,11 +198,11 @@ impl BackupService {
     ///
     /// CNS span: `backup.snapshot` — records artifact_count, repos, duration_ms.
     ///
-    /// REQ: P7-svc-backup-144
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  scope must be a valid BackupScope; artifacts must be non-empty after filtering tracked types
     /// post: returns SnapshotMetadata with commits, artifact_count, trigger=Manual, and timestamp; Err(NoSnapshots) if no artifacts after filtering; Err(Config) if scope types not tracked
     #[instrument(skip(self, artifacts), fields(artifact_count, repo_count))]
+    #[contract(id = "P7-svc-backup-144", principle = "P7")]
     pub async fn snapshot(
         &self,
         scope: BackupScope,
@@ -280,10 +282,10 @@ impl BackupService {
     /// Callers are responsible for writing restored data back to the
     /// appropriate store (registry, memory, etc.).
     ///
-    /// REQ: P7-svc-backup-145
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
     /// post: returns Vec<(ArtifactType, String, Vec<u8>)> of restored artifacts; empty Vec if none match; Err on CAS or deserialization failure
+    #[contract(id = "P7-svc-backup-145", principle = "P7")]
     pub async fn restore(
         &self,
         target: &CommitHash,
@@ -344,10 +346,10 @@ impl BackupService {
     /// Returns snapshots across all tracked repos, filtered by artifact type
     /// and limited by count. Newest first.
     ///
-    /// REQ: P7-svc-backup-146
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  filter.limit defaults to 20 if None
     /// post: returns Vec<SnapshotMetadata> sorted by timestamp descending, truncated to limit; Err(NoSnapshots) if no snapshots found
+    #[contract(id = "P7-svc-backup-146", principle = "P7")]
     pub async fn list(&self, filter: ListFilter) -> Result<Vec<SnapshotMetadata>, BackupError> {
         let repos: Vec<RepoId> = if let Some(ref at) = filter.artifact_type {
             vec![at.repo_id()]
@@ -388,10 +390,10 @@ impl BackupService {
     /// then monthly beyond. In dry-run mode, reports what WOULD be removed.
     /// In execute mode, rewrites git history to remove pruned commits.
     ///
-    /// REQ: P7-svc-backup-147
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  retention policy must be configured; dry_run=true only reports, dry_run=false executes pruning
     /// post: returns PruneReport with evaluated count, removed commits, and retained count; empty report if no retention policy configured
+    #[contract(id = "P7-svc-backup-147", principle = "P7")]
     pub async fn prune(&self, dry_run: bool) -> Result<PruneReport, BackupError> {
         let policy = match &self.config.retention {
             Some(p) => p.clone(),
@@ -496,11 +498,11 @@ impl BackupService {
     /// CNS span: `backup.verify` — records total_blobs, corrupt_count per repo.
     /// CNS alert: `backup.integrity_failure` if any repo has corrupt blobs.
     ///
-    /// REQ: P7-svc-backup-148
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  tracked repos must be accessible via CAS
     /// post: returns Vec<VerificationReport> per repo with total_blobs and corrupt_hashes; empty Vec if no tracked repos
     #[instrument(skip(self), fields(repo_count, total_blobs, corrupt_count))]
+    #[contract(id = "P7-svc-backup-148", principle = "P7")]
     pub async fn verify(
         &self,
     ) -> Result<Vec<hkask_types::ports::git_cas::VerificationReport>, BackupError> {
@@ -551,20 +553,20 @@ impl BackupService {
 
     /// 6. Get current backup configuration.
     ///
-    /// REQ: P7-svc-backup-149
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns reference to current BackupConfig
+    #[contract(id = "P7-svc-backup-149", principle = "P7")]
     pub fn config(&self) -> &BackupConfig {
         &self.config
     }
 
     /// 7. Update backup configuration and persist to disk.
     ///
-    /// REQ: P7-svc-backup-150
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be a valid BackupConfig
     /// post: config is persisted to disk and self.config is updated; encryption key is re-derived; Err(Config) on save failure
+    #[contract(id = "P7-svc-backup-150", principle = "P7")]
     pub fn update_config(&mut self, config: BackupConfig) -> Result<(), BackupError> {
         self.encryption_key = Self::derive_key(&config);
         crate::config::save_backup_config(&config)
@@ -576,10 +578,10 @@ impl BackupService {
     /// Enable encryption with a passphrase.
     /// Generates a random salt, derives the key, and saves the config.
     ///
-    /// REQ: P7-svc-backup-151
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  passphrase must be non-empty
     /// post: encryption is enabled with random salt; config is persisted; encryption_key is derived; Err(Config) on save failure; Err(Encryption) on Argon2 failure
+    #[contract(id = "P7-svc-backup-151", principle = "P7")]
     pub fn enable_encryption(&mut self, passphrase: &str) -> Result<(), BackupError> {
         let mut salt = [0u8; 32];
         rng().fill_bytes(&mut salt);
@@ -605,10 +607,10 @@ impl BackupService {
     /// Run a daily backup snapshot of all tracked artifact types.
     /// Called by the backup scheduler (daemon loop).
     ///
-    /// REQ: P7-svc-backup-152
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  auto_snapshot must be enabled in config
     /// post: returns SnapshotMetadata from full snapshot; Err on snapshot failure
+    #[contract(id = "P7-svc-backup-152", principle = "P7")]
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
         info!(target: "cns.backup", "CNS");
         // Snapshot all tracked types. Artifact data is collected by
@@ -624,10 +626,10 @@ impl BackupService {
     /// - `RestoreScope::ByType`: restore all artifacts of one type (registry-level)
     /// - `RestoreScope::ByIds`: restore specific artifacts by ID (file-level)
     ///
-    /// REQ: P7-svc-backup-153
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
     /// post: returns Vec of restored artifacts matching the scope; delegates to restore()
+    #[contract(id = "P7-svc-backup-153", principle = "P7")]
     pub async fn scoped_restore(
         &self,
         target: &CommitHash,

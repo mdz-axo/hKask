@@ -35,7 +35,6 @@ pub struct BackupMeta {
 }
 /// Receipt returned after a successful migration import.
 ///
-/// REQ: DEP-200 — P1 User Sovereignty: migration receipt for audit trail.
 /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationReceipt {
@@ -46,7 +45,6 @@ pub struct MigrationReceipt {
 }
 /// Receipt returned after replicant merge.
 ///
-/// REQ: DEP-500 — P5 Migration: merge receipt.
 /// expect: "The system provides durable storage for migration data" [P5]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergeReceipt {
@@ -185,7 +183,6 @@ impl BackupArchive {
     }
     /// Import triples from this archive into a target TripleStore.
     ///
-    /// REQ: DEP-201 — idempotent CRDT merge via INSERT OR REPLACE by TripleID.
     /// expect: "The system provides durable storage for archival data" [P3]
     /// pre:  archive is open; target is a live TripleStore; existing_names are current replicant names
     /// post: all triples upserted into target

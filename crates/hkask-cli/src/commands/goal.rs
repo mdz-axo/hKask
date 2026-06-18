@@ -4,7 +4,6 @@ use hkask_services::{CreateGoalRequest, GoalService, ServiceError};
 
 use crate::cli::GoalAction;
 
-/// REQ: CLI-029
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  text is non-empty
 /// pre:  visibility is a valid visibility string
@@ -28,7 +27,6 @@ pub fn create(text: &str, visibility: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// REQ: CLI-030
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  state is an optional state filter string
 /// post: returns Ok(()) and prints goals to stdout
@@ -49,7 +47,6 @@ pub fn list(state: Option<&str>) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// REQ: CLI-031
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  id is a valid goal identifier
 /// pre:  state is a valid state string
@@ -63,7 +60,6 @@ pub fn set_state(id: &str, state: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// REQ: CLI-032
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  action is a valid GoalAction variant
 /// post: dispatches to create/list/set_state based on action variant

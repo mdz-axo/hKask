@@ -64,7 +64,6 @@ impl WalletStore {
     /// significantly improving throughput under multi-agent API key spend loads.
     /// Without WAL, all operations serialize on the connection mutex.
     ///
-    /// REQ: P3-sto-wallet-wal-test — WAL mode for wallet store concurrency
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// post: journal_mode set to WAL
     /// post: synchronous set to NORMAL (balance durability vs performance)
@@ -72,11 +71,11 @@ impl WalletStore {
     /// Call once after store creation, before any wallet operations.
     /// Enable WAL mode for better concurrency.
     ///
-    /// REQ: P3-sto-wallet-wal-mode
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — enable WAL for wallet concurrency
     /// \[P7\] Constraining: Evolutionary Architecture — WAL mode emerged from multi-agent load
     /// post: journal_mode set to WAL, synchronous set to NORMAL
+    #[rs::contract(id = "P3-sto-wallet-wal-mode", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-wal-mode", principle = "P3")]
     pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -93,11 +92,11 @@ impl WalletStore {
     /// Get the current balance for a wallet, or None if the wallet doesn't exist.
     /// Get wallet balance.
     ///
-    /// REQ: P3-sto-wallet-balance-get
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — get wallet balance
     /// pre:  wallet_id is valid
     /// post: returns Some(WalletBalance) if wallet exists, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-balance-get", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-balance-get", principle = "P3")]
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<Option<WalletBalance>, WalletError> {
         let conn = self.lock_conn()?;
@@ -142,11 +141,11 @@ impl WalletStore {
     /// Public version that acquires its own lock.
     /// Ensure a wallet exists (idempotent).
     ///
-    /// REQ: P3-sto-wallet-ensure
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — idempotently ensure wallet row
     /// pre:  wallet_id is valid
     /// post: wallet row exists (created if missing)
+    #[rs::contract(id = "P3-sto-wallet-ensure", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-ensure", principle = "P3")]
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -155,10 +154,10 @@ impl WalletStore {
     /// List all wallet IDs in the system.
     /// List all wallet IDs.
     ///
-    /// REQ: P3-sto-wallet-list-ids
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — list wallet IDs
     /// post: returns Vec of all WalletId
+    #[rs::contract(id = "P3-sto-wallet-list-ids", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-list-ids", principle = "P3")]
     pub fn list_wallet_ids(&self) -> Result<Vec<WalletId>, WalletError> {
         let conn = self.lock_conn()?;
@@ -175,11 +174,11 @@ impl WalletStore {
     /// Creates the wallet row if it doesn't exist.
     /// Credit rJoules to a wallet.
     ///
-    /// REQ: P3-sto-wallet-credit
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — credit rJoules
     /// pre:  wallet_id exists, amount > 0
     /// post: balance increased by amount, transaction recorded
+    #[rs::contract(id = "P3-sto-wallet-credit", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-credit", principle = "P3")]
     pub fn credit_rjoules(
         &self,
@@ -203,12 +202,12 @@ impl WalletStore {
     /// The caller must verify `balance >= amount` before calling.
     /// Debit rJoules from a wallet.
     ///
-    /// REQ: P3-sto-wallet-debit
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — debit rJoules
     /// pre:  wallet_id exists, amount > 0, balance >= amount
     /// post: balance decreased by amount, transaction recorded
     /// post: returns Err if insufficient balance
+    #[rs::contract(id = "P3-sto-wallet-debit", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-debit", principle = "P3")]
     pub fn debit_rjoules(
         &self,
@@ -243,11 +242,11 @@ impl WalletStore {
     /// Record a transaction in the append-only ledger.
     /// Record a wallet transaction.
     ///
-    /// REQ: P3-sto-wallet-tx-record
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — record wallet transaction
     /// pre:  tx has valid wallet_id and rjoules_delta
     /// post: transaction inserted into ledger
+    #[rs::contract(id = "P3-sto-wallet-tx-record", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-tx-record", principle = "P3")]
     pub fn record_transaction(&self, tx: &WalletTransaction) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -273,11 +272,11 @@ impl WalletStore {
     /// Get paginated transaction history for a wallet.
     /// Get transactions for a wallet.
     ///
-    /// REQ: P3-sto-wallet-tx-list
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — list transactions
     /// pre:  wallet_id is valid
     /// post: returns Vec of transactions, optionally limited
+    #[rs::contract(id = "P3-sto-wallet-tx-list", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-tx-list", principle = "P3")]
     pub fn get_transactions(
         &self,
@@ -318,11 +317,11 @@ impl WalletStore {
     /// Used for deposit idempotency — prevents double-crediting on restart.
     /// Check if a transaction hash exists.
     ///
-    /// REQ: P3-sto-wallet-tx-hash-exists
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P4\] Motivating: Clear Boundaries — anti-replay hash check
     /// pre:  tx_hash is non-empty
     /// post: returns true if hash exists (anti-replay)
+    #[rs::contract(id = "P3-sto-wallet-tx-hash-exists", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-tx-hash-exists", principle = "P3")]
     pub fn transaction_exists_by_hash(&self, tx_hash: &str) -> Result<bool, WalletError> {
         let conn = self.lock_conn()?;
@@ -337,11 +336,11 @@ impl WalletStore {
     /// Store a newly issued API key capability.
     /// Store an API key capability.
     ///
-    /// REQ: P3-sto-wallet-api-key-store
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — store API key capability
     /// pre:  capability has valid key_id and wallet_id
     /// post: API key stored
+    #[rs::contract(id = "P3-sto-wallet-api-key-store", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-api-key-store", principle = "P3")]
     pub fn store_api_key(&self, capability: &ApiKeyCapability) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -373,11 +372,11 @@ impl WalletStore {
     /// Look up an API key by its ID.
     /// Get an API key by key ID.
     ///
-    /// REQ: P3-sto-wallet-api-key-get
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — get API key by ID
     /// pre:  key_id is valid
     /// post: returns Some(capability) if found, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-api-key-get", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-api-key-get", principle = "P3")]
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
@@ -412,11 +411,11 @@ impl WalletStore {
     /// Look up an API key by its Ed25519 public key (for Bearer token auth).
     /// Get an API key by public key.
     ///
-    /// REQ: P3-sto-wallet-api-key-by-pubkey
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — get API key by public key
     /// pre:  public_key is valid
     /// post: returns Some(capability) if found, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-api-key-by-pubkey", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-api-key-by-pubkey", principle = "P3")]
     pub fn get_api_key_by_public_key(
         &self,
@@ -454,11 +453,11 @@ impl WalletStore {
     /// List all active (non-revoked) API keys for a wallet.
     /// List API keys for a wallet.
     ///
-    /// REQ: P3-sto-wallet-api-key-list
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — list API keys
     /// pre:  wallet_id is valid
     /// post: returns Vec of API key capabilities
+    #[rs::contract(id = "P3-sto-wallet-api-key-list", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-api-key-list", principle = "P3")]
     pub fn list_api_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
@@ -494,11 +493,11 @@ impl WalletStore {
     /// Idempotent — revoking an already-revoked key is a no-op.
     /// Revoke an API key.
     ///
-    /// REQ: P3-sto-wallet-api-key-revoke
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — revoke API key
     /// pre:  key_id is valid
     /// post: API key revoked, unspent rJ returned to wallet
+    #[rs::contract(id = "P3-sto-wallet-api-key-revoke", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-api-key-revoke", principle = "P3")]
     pub fn revoke_api_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -528,11 +527,11 @@ impl WalletStore {
     /// Update the spent_rj counter on an API key (called after each tool invocation).
     /// Update spent rJoules for an API key.
     ///
-    /// REQ: P3-sto-wallet-spent-rj-update
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — update spent rJ for key
     /// pre:  key_id is valid
     /// post: spent_rj updated
+    #[rs::contract(id = "P3-sto-wallet-spent-rj-update", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-spent-rj-update", principle = "P3")]
     pub fn update_spent_rj(&self, key_id: ApiKeyId, spent: RJoule) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -546,11 +545,11 @@ impl WalletStore {
     /// Store a derived deposit address for a wallet.
     /// Store a deposit address.
     ///
-    /// REQ: P3-sto-wallet-address-store
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — store deposit address
     /// pre:  address has valid wallet_id and chain
     /// post: deposit address stored
+    #[rs::contract(id = "P3-sto-wallet-address-store", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-address-store", principle = "P3")]
     pub fn store_deposit_address(
         &self,
@@ -576,11 +575,11 @@ impl WalletStore {
     /// Get all deposit addresses for a wallet.
     /// Get deposit addresses for a wallet.
     ///
-    /// REQ: P3-sto-wallet-address-list
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — list deposit addresses
     /// pre:  wallet_id is valid
     /// post: returns Vec of deposit addresses
+    #[rs::contract(id = "P3-sto-wallet-address-list", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-address-list", principle = "P3")]
     pub fn get_deposit_addresses(
         &self,
@@ -618,11 +617,11 @@ impl WalletStore {
     /// correct wallet in a multi-wallet setup.
     /// Resolve wallet for a deposit address.
     ///
-    /// REQ: P3-sto-wallet-address-resolve
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — resolve wallet for address
     /// pre:  chain is valid, address is non-empty
     /// post: returns Some(WalletId) if found, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-address-resolve", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-address-resolve", principle = "P3")]
     pub fn resolve_wallet_for_address(
         &self,
@@ -644,11 +643,11 @@ impl WalletStore {
     /// Store a one-time shielded deposit reference.
     /// Store a deposit reference for anti-replay.
     ///
-    /// REQ: P3-sto-wallet-reference-store
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — store deposit reference
     /// pre:  reference has valid fields
     /// post: deposit reference stored
+    #[rs::contract(id = "P3-sto-wallet-reference-store", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-reference-store", principle = "P3")]
     pub fn store_deposit_reference(&self, reference: &DepositReference) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -667,12 +666,12 @@ impl WalletStore {
     /// Returns None if the reference doesn't exist, is already spent, or has expired.
     /// Consume a deposit reference (anti-replay).
     ///
-    /// REQ: P3-sto-wallet-reference-consume
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — consume deposit reference
     /// pre:  reference is valid and not expired
     /// post: reference consumed, wallet credited
     /// post: returns Err if already consumed or expired
+    #[rs::contract(id = "P3-sto-wallet-reference-consume", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-reference-consume", principle = "P3")]
     pub fn consume_deposit_reference(
         &self,
@@ -698,11 +697,11 @@ impl WalletStore {
     /// Purge expired deposit references. Returns count of purged rows.
     /// Purge expired deposit references.
     ///
-    /// REQ: P3-sto-wallet-reference-purge
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — purge expired references
     /// post: expired references deleted
     /// post: returns count of deleted references
+    #[rs::contract(id = "P3-sto-wallet-reference-purge", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-reference-purge", principle = "P3")]
     pub fn purge_expired_references(&self) -> Result<u64, WalletError> {
         let conn = self.lock_conn()?;
@@ -721,11 +720,11 @@ impl WalletStore {
     /// encumbrance or the wallet has insufficient balance.
     /// Encumber rJoules for an API key (lock funds for spending).
     ///
-    /// REQ: P3-sto-wallet-encumber
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — encumber rJoules for key
     /// pre:  wallet_id exists, key_id is valid, amount > 0, balance >= amount
     /// post: rJoules encumbered, balance decreased
+    #[rs::contract(id = "P3-sto-wallet-encumber", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-encumber", principle = "P3")]
     pub fn encumber_rjoules(
         &self,
@@ -775,11 +774,11 @@ impl WalletStore {
     /// is a no-op.
     /// Release an encumbrance (return unspent rJoules to wallet).
     ///
-    /// REQ: P3-sto-wallet-encumbrance-release
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — release encumbrance
     /// pre:  key_id has active encumbrance
     /// post: encumbrance released, unspent rJ returned to wallet
+    #[rs::contract(id = "P3-sto-wallet-encumbrance-release", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-encumbrance-release", principle = "P3")]
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
@@ -818,12 +817,12 @@ impl WalletStore {
     /// If the encumbrance is fully consumed, status transitions to 'consumed'.
     /// Consume from an encumbrance (spend locked rJoules).
     ///
-    /// REQ: P3-sto-wallet-encumbrance-consume
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — consume from encumbrance
     /// pre:  key_id has active encumbrance with sufficient remaining
     /// post: consumed_rj increased, api_keys.spent_rj synced
     /// post: returns Err if insufficient or not active
+    #[rs::contract(id = "P3-sto-wallet-encumbrance-consume", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-encumbrance-consume", principle = "P3")]
     pub fn consume_encumbrance(
         &self,
@@ -884,11 +883,11 @@ impl WalletStore {
     /// Get an encumbrance by key ID.
     /// Get an encumbrance by key ID.
     ///
-    /// REQ: P3-sto-wallet-encumbrance-get
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — get encumbrance
     /// pre:  key_id is valid
     /// post: returns Some(Encumbrance) if found, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-encumbrance-get", principle = "P3")]
     #[rs::contract(id = "P3-sto-wallet-encumbrance-get", principle = "P3")]
     pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
         let conn = self.lock_conn()?;

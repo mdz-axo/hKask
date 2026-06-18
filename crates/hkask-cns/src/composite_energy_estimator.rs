@@ -22,11 +22,11 @@ pub struct CompositeEnergyEstimator {
 impl CompositeEnergyEstimator {
     /// Create a new CompositeEnergyEstimator with default table costs.
     ///
-    /// REQ: P9-cns-est-composite-new
     /// expect: "The system creates a composite estimator that routes inference and table costs" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops
     /// \[P5\] Constraining: Essentialism — minimal constructor, empty estimators
     /// post: returns CompositeEnergyEstimator with empty estimators
+    #[rs::contract(id = "P9-cns-est-composite-new", principle = "P9")]
     #[rs::contract(id = "P9-cns-est-composite-new", principle = "P9")]
     pub fn new() -> Self {
         Self {
@@ -40,7 +40,6 @@ impl CompositeEnergyEstimator {
     /// Non-inference server costs are taken from `table.report_table()`;
     /// inference routing still uses `InferenceEnergyEstimator`.
     ///
-    /// REQ: GAS-CALIB-003 — calibrated table replaces hardcoded TableEnergyEstimator costs
     /// expect: "I can build a calibrated estimator from a dynamic gas table so per-server costs reflect observed usage" [P9]
     /// pre:  table was calibrated (or default) via DynamicGasTable::calibrate()
     /// post: estimate_cost(server, ...) uses table.report_table()\[server\] for non-inference servers

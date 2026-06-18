@@ -3,6 +3,8 @@
 //! Implements CLI display logic for backup operations. All business logic
 //! delegates to `hkask_services::BackupService`.
 
+use hkask_rsolidity::contract;
+
 use std::sync::Arc;
 
 use hkask_services::RetentionPolicy;
@@ -80,12 +82,11 @@ fn parse_restore_scope(s: &str) -> RestoreScope {
 
 /// Run a backup operation.
 ///
-/// REQ: CLI-002
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// REQ: P9-CNS-SURF-002 pre: valid BackupAction post: cns.cli span emitted
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is valid, action is valid
 /// post: backup operation executed
+    #[contract(id = "P9-CNS-SURF-002 pre: valid BackupAction post: cns.cli span emitted", principle = "P9")]
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "backup", action = ?action, "CNS");

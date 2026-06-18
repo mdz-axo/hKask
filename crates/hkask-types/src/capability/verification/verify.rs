@@ -14,7 +14,6 @@ use crate::capability::{DelegationAction, DelegationResource, DelegationToken};
 /// the current UNIX epoch timestamp (seconds). Uses `std::time::SystemTime` so
 /// no external time dependency is required.
 ///
-/// REQ: TYP-308
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  checker is `Option<&CapabilityChecker>`; token is any [`DelegationToken`];
 ///       holder is any [`WebID`]; resource, resource_id, action describe the requested access
@@ -52,7 +51,6 @@ pub fn verify_delegation_token_now(
 ///
 /// When `checker` is `None`, returns `VerificationOutcome::NoChecker`.
 ///
-/// REQ: TYP-309
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  checker is `Option<&CapabilityChecker>`; token is any [`DelegationToken`];
 ///       holder is any [`WebID`]; resource, resource_id, action describe the requested access;
@@ -109,7 +107,6 @@ pub fn verify_delegation_token(
 /// * `Ok(())` — Token grants write access.
 /// * `Err(String)` — Token is read-only; the error message explains which store was denied.
 ///
-/// REQ: TYP-310
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  token is any [`DelegationToken`]; store_type is any non-empty &str
 /// post: returns `Ok(())` if `token.allows_write()` is true;
@@ -133,7 +130,6 @@ pub fn require_write_access(token: &DelegationToken, store_type: &str) -> Result
 /// * `token` — The delegation token to check.
 /// * `store_type` — Human-readable name of the store being accessed.
 ///
-/// REQ: TYP-311
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  token is any [`DelegationToken`]; store_type is any non-empty &str
 /// post: returns `Ok(())` if `token.allows_read()` is true;

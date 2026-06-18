@@ -13,7 +13,6 @@ use std::path::PathBuf;
 
 /// Run the interactive server initialization.
 ///
-/// REQ: DEP-401
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  stdin is a terminal
 /// post: server config, data dir, and keychain entries created

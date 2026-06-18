@@ -11,6 +11,8 @@
 //! - AdapterRegistry → Lifecycle entity: AdapterPublication
 //! - DatasetRegistry → Domain entity: DatasetSource
 
+use hkask_rsolidity::contract;
+
 use std::path::{Path, PathBuf};
 
 // ── HuggingFace error ─────────────────────────────────────────────────────
@@ -37,7 +39,6 @@ pub enum HuggingFaceError {
 /// MDS: Domain entity — `ModelSource` with `hf://` URI scheme.
 /// Composition: `CAN resolve_model_id|download_weights|list_variants ON ModelSource VIA API`
 ///
-/// REQ: P4-trn-hf-model-registry
 /// pre:  HF_TOKEN set for gated models
 /// post: resolved HF model ID or downloaded weight path
 
@@ -73,7 +74,6 @@ pub trait ModelRegistry: Send + Sync {
 /// MDS: Lifecycle entity — `AdapterPublication`.
 /// Composition: `CAN publish_adapter|pull_adapter ON Adapter VIA API`
 ///
-/// REQ: P4-trn-hf-adapter-registry
 /// pre:  adapter weights exist (local or remote)
 /// post: adapter published to / pulled from HF Hub
 
@@ -111,7 +111,6 @@ pub trait AdapterRegistry: Send + Sync {
 /// MDS: Domain entity — `DatasetSource`.
 /// Composition: `CAN resolve_dataset|download_dataset ON DatasetSource VIA API`
 ///
-/// REQ: P4-trn-hf-dataset-registry
 /// pre:  dataset exists on HF Hub
 /// post: resolved dataset URL or downloaded local path
 
@@ -139,6 +138,7 @@ pub trait DatasetRegistry: Send + Sync {
 ///
 /// This is the canonical resolution logic used by BasetenProvider.
 /// Provider prefixes: DI/ (DeepInfra), FA/ (fal.ai), TG/ (Together).
+    #[contract(id = "P4-trn-hf-dataset-registry", principle = "P4")]
 pub fn resolve_model_id(base_model: &str) -> String {
     let known_prefixes = ["DI/", "FA/", "TG/"];
     let mut model = base_model;
@@ -163,6 +163,7 @@ impl HfModelRegistry {
     /// Create a new HuggingFace model registry.
     ///
     /// `api_key` is the HF_TOKEN for gated model access.
+    #[contract(id = "P4-trn-hf-adapter-registry", principle = "P4")]
     pub fn new(api_key: String) -> Self {
         Self {
             client: reqwest::Client::new(),

@@ -8,6 +8,8 @@
 //!
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
+use hkask_rsolidity::contract;
+
 use crate::ports::{Result, TemplateError};
 use hkask_types::ports::{BundleRegistryIndex, RegistryEntry, RegistryIndex, SkillRegistryIndex};
 use hkask_types::template_type::TemplateType;
@@ -37,10 +39,10 @@ pub struct Registry {
 impl Registry {
     /// Create an empty registry.
     ///
-    /// REQ: P3-tpl-registry-new
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — in-memory template registry
     /// post: returns Registry with empty templates, skills, bundles
+    #[contract(id = "P3-tpl-registry-new", principle = "P3")]
     pub fn new() -> Self {
         Self {
             templates: HashMap::new(),
@@ -56,10 +58,10 @@ impl Registry {
 
     /// Reload registry from bootstrap (simulates reload from disk).
     ///
-    /// REQ: P3-tpl-registry-reload
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — refreshes registry from filesystem
     /// post: templates cache cleared and reloaded from bootstrap
+    #[contract(id = "P3-tpl-registry-reload", principle = "P3")]
     pub fn reload(&mut self) {
         self.invalidate_cache();
         let fresh = Self::bootstrap();
@@ -70,13 +72,13 @@ impl Registry {
     ///
     /// Extended checks: component length ≤64 chars, Unicode NFC normalization.
     ///
-    /// REQ: P3-tpl-registry-validate-template-path
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — path safety for template discovery
     /// \[P4\] Constraining: Clear Boundaries — rejects paths outside template root
     /// pre:  template_id is non-empty
     /// post: returns Ok(()) if path is safe (no traversal, null bytes, non-ASCII)
     /// post: returns Err(PathTraversal) for unsafe paths
+    #[contract(id = "P3-tpl-registry-validate-template-path", principle = "P3")]
     pub fn validate_template_path(template_id: &str) -> Result<()> {
         // Reject absolute paths
         if template_id.starts_with('/') || template_id.starts_with('\\') {
@@ -138,11 +140,11 @@ impl Registry {
     /// The registry performs declaration-consistency checks at registration time;
     /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-cns`.
     ///
-    /// REQ: P3-tpl-registry-register
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a template in the registry
     /// pre:  entry.id is non-empty, entry.template_type is valid
     /// post: entry inserted into templates map
+    #[contract(id = "P3-tpl-registry-register", principle = "P3")]
     pub fn register(&mut self, entry: RegistryEntry) {
         // Validate entry consistency
         let warnings = entry.validate();
@@ -161,11 +163,11 @@ impl Registry {
 
     /// Get a template entry by ID.
     ///
-    /// REQ: P3-tpl-registry-get
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves a registered template
     /// pre:  id is non-empty
     /// post: returns Some(&RegistryEntry) if found, None otherwise
+    #[contract(id = "P3-tpl-registry-get", principle = "P3")]
     pub fn get(&self, id: &str) -> Option<&RegistryEntry> {
         self.templates.get(id)
     }
@@ -179,31 +181,31 @@ impl Registry {
 
     /// Count registered templates.
     ///
-    /// REQ: P3-tpl-registry-count
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — reports registry size
     /// post: returns count of templates in registry
+    #[contract(id = "P3-tpl-registry-count", principle = "P3")]
     pub fn count(&self) -> usize {
         self.templates.len()
     }
 
     /// List all skills.
     ///
-    /// REQ: P3-tpl-registry-list-skills
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — lists registered skills
     /// post: returns Vec<Skill> with all registered skills
+    #[contract(id = "P3-tpl-registry-list-skills", principle = "P3")]
     pub fn list_skills(&self) -> Vec<Skill> {
         self.skills.values().cloned().collect()
     }
 
     /// List skills filtered by visibility.
     ///
-    /// REQ: P3-tpl-registry-list-skills-by-visibility
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — visibility-filtered skill listing
     /// pre:  visibility is a valid Visibility variant
     /// post: returns Vec<Skill> filtered by visibility
+    #[contract(id = "P3-tpl-registry-list-skills-by-visibility", principle = "P3")]
     pub fn list_skills_by_visibility(&self, visibility: Visibility) -> Vec<Skill> {
         self.skills
             .values()
@@ -214,44 +216,44 @@ impl Registry {
 
     /// Remove a skill by ID.
     ///
-    /// REQ: P3-tpl-registry-remove-skill
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — removes a skill from registry
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if removed, None if not found
+    #[contract(id = "P3-tpl-registry-remove-skill", principle = "P3")]
     pub fn remove_skill(&mut self, id: &str) -> Option<Skill> {
         self.skills.remove(id)
     }
 
     /// Register a skill.
     ///
-    /// REQ: P3-tpl-registry-register-skill
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a skill with metadata
     /// pre:  skill.id is non-empty
     /// post: skill inserted into skills map
+    #[contract(id = "P3-tpl-registry-register-skill", principle = "P3")]
     pub fn register_skill(&mut self, skill: Skill) {
         self.skills.insert(skill.id.clone(), skill);
     }
 
     /// Get a skill by ID.
     ///
-    /// REQ: P3-tpl-registry-get-skill
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves skill metadata
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if found, None otherwise
+    #[contract(id = "P3-tpl-registry-get-skill", principle = "P3")]
     pub fn get_skill(&self, id: &str) -> Option<Skill> {
         self.skills.get(id).cloned()
     }
 
     /// List skills by domain.
     ///
-    /// REQ: P3-tpl-registry-skills-by-domain
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — domain-filtered skill listing
     /// pre:  domain is a valid TemplateType
     /// post: returns Vec<Skill> filtered by domain
+    #[contract(id = "P3-tpl-registry-skills-by-domain", principle = "P3")]
     pub fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {
         self.skills
             .values()
@@ -262,11 +264,11 @@ impl Registry {
 
     /// Find skills that reference a given template ID.
     ///
-    /// REQ: P3-tpl-registry-skills-referencing-template
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — reverse skill lookup by template
     /// pre:  template_id is non-empty
     /// post: returns Vec<Skill> referencing the given template
+    #[contract(id = "P3-tpl-registry-skills-referencing-template", principle = "P3")]
     pub fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill> {
         self.skills
             .values()
@@ -281,43 +283,43 @@ impl Registry {
 
     /// Register a bundle manifest.
     ///
-    /// REQ: P3-tpl-registry-register-bundle
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a skill bundle
     /// pre:  bundle.id is non-empty
     /// post: bundle inserted into bundles map
+    #[contract(id = "P3-tpl-registry-register-bundle", principle = "P3")]
     pub fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
         self.bundles.insert(bundle.id.clone(), bundle);
     }
 
     /// Retrieve a bundle manifest by ID.
     ///
-    /// REQ: P3-tpl-registry-get-bundle
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves a skill bundle
     /// pre:  id is non-empty
     /// post: returns Some(&BundleManifest) if found, None otherwise
+    #[contract(id = "P3-tpl-registry-get-bundle", principle = "P3")]
     pub fn get_bundle(&self, id: &str) -> Option<&hkask_types::BundleManifest> {
         self.bundles.get(id)
     }
 
     /// List all bundle manifests.
     ///
-    /// REQ: P3-tpl-registry-list-bundles
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — lists registered bundles
     /// post: returns Vec<&BundleManifest> with all registered bundles
+    #[contract(id = "P3-tpl-registry-list-bundles", principle = "P3")]
     pub fn list_bundles(&self) -> Vec<&hkask_types::BundleManifest> {
         self.bundles.values().collect()
     }
 
     /// Remove a bundle manifest by ID.
     ///
-    /// REQ: P3-tpl-registry-remove-bundle
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — removes a bundle
     /// pre:  id is non-empty
     /// post: returns Some(BundleManifest) if removed, None if not found
+    #[contract(id = "P3-tpl-registry-remove-bundle", principle = "P3")]
     pub fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
         self.bundles.remove(id)
     }
@@ -325,12 +327,12 @@ impl Registry {
     /// Find an existing bundle that contains exactly the given set of skills.
     /// Returns the first exact match, if any.
     ///
-    /// REQ: P3-tpl-registry-find-bundle-by-skills
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — finds bundle matching skill set
     /// pre:  skill_ids is non-empty
     /// post: returns Some(&BundleManifest) if exact skill set match found
     /// post: returns None if no exact match
+    #[contract(id = "P3-tpl-registry-find-bundle-by-skills", principle = "P3")]
     pub fn find_bundle_by_skills(
         &self,
         skill_ids: &[String],
@@ -347,11 +349,11 @@ impl Registry {
     /// Bootstrap registry from embedded YAML definitions.
     /// Template definitions live in `registry/templates/bootstrap-registry.yaml`.
     ///
-    /// REQ: P3-tpl-registry-bootstrap
 /// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — seeds registry from workspace templates
     /// post: returns Registry populated from bootstrap-registry.yaml
     /// post: all entries have matroshka_limit set to SYSTEM_MAX_RECURSION
+    #[contract(id = "P3-tpl-registry-bootstrap", principle = "P3")]
     pub fn bootstrap() -> Self {
         let mut registry = Self::new();
         let yaml = include_str!("../../../registry/templates/bootstrap-registry.yaml");

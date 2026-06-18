@@ -1,3 +1,5 @@
+use hkask_rsolidity::contract;
+
 use super::*;
 
 impl KataEngine {
@@ -11,13 +13,13 @@ impl KataEngine {
 
     /// Run a full coaching kata cycle from the given manifest.
     ///
-    /// REQ: P9-svc-kata-coaching-from
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated coaching kata execution
     /// pre:  manifest has at least one question
     /// pre:  state is initialized with learner_bot and gas budget
     /// post: returns KataResult with all questions answered and step experiences recorded
     /// post: if manifest has no questions → Err(KataError::NoSteps)
     /// post: if gas exceeded → Err(KataError::GasExceeded)
+    #[contract(id = "P9-svc-kata-coaching-from", principle = "P9")]
     pub async fn run_coaching_from(
         &self,
         manifest: &KataManifest,

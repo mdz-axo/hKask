@@ -42,7 +42,6 @@ mod withdrawals;
 /// - Holds `wallet_seed` in `Zeroizing` for deposit reference generation
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
 ///
-/// REQ: P9-wallet-mgr-struct
 /// expect: "The system manages rJoule balances, encumbrances, and energy-based payments" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
 /// \[P1\] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
@@ -68,7 +67,6 @@ pub struct WalletManager {
 impl WalletManager {
     /// Build a WalletManager from configuration, store, chain/privacy ports, and price feed.
     ///
-    /// REQ: P9-wallet-mgr-build
     /// expect: "The system manages rJoule balances, encumbrances, and energy-based payments" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
     /// \[P1\] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
@@ -76,6 +74,7 @@ impl WalletManager {
     /// pre:  price_feed is a resolved PriceFeed implementation
     /// post: returns Ok(WalletManager) with resolved wallet_seed
     /// post: returns Err if wallet_seed resolution fails
+    #[rs::contract(id = "P9-wallet-mgr-build", principle = "P9")]
     #[rs::contract(id = "P9-wallet-mgr-build", principle = "P9")]
     pub fn build(
         config: WalletConfig,
@@ -104,6 +103,7 @@ impl WalletManager {
 
     /// Attach a CNS event sink for span emission.
     #[must_use = "builder methods must be chained or assigned"]
+    #[rs::contract(id = "P9-wallet-mgr-struct", principle = "P9")]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
@@ -128,7 +128,6 @@ impl WalletManager {
 
     /// Get the current rJoule balance for a wallet.
     ///
-    /// REQ: P9-wallet-mgr-balance
     /// expect: "I can query my rJoule balance" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state
     /// \[P8\] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically
@@ -136,6 +135,7 @@ impl WalletManager {
     /// post: returns Ok(balance) with rjoules, gas_equivalent, usdc_equivalent_micro
     /// post: gas_equivalent == rjoules * config.gas_per_rjoule
     /// post: balance.rjoules >= 0 (balances are never negative)
+    #[rs::contract(id = "P9-wallet-mgr-balance", principle = "P9")]
     #[rs::contract(id = "P9-wallet-mgr-balance", principle = "P9")]
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, WalletError> {
         let mut balance = self.store.get_balance(wallet_id)?.unwrap_or(WalletBalance {
@@ -153,13 +153,13 @@ impl WalletManager {
     /// Get an API key's capability metadata for CNS health monitoring.
     /// Returns `None` if the key doesn't exist or has been revoked.
     ///
-    /// REQ: P9-wallet-mgr-api-key-get
     /// expect: "The system manages API key issuance with spending limits and expiry" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops
     /// \[P4\] Constraining: Clear Boundaries — revoked keys are excluded
     /// pre:  key_id is a valid ApiKeyId
     /// post: returns Ok(Some(capability)) if key exists and is active
     /// post: returns Ok(None) if key doesn't exist or is revoked
+    #[rs::contract(id = "P9-wallet-mgr-api-key-get", principle = "P9")]
     #[rs::contract(id = "P9-wallet-mgr-api-key-get", principle = "P9")]
     pub fn get_api_key(
         &self,

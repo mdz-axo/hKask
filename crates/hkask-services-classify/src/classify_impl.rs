@@ -6,6 +6,8 @@
 //! Supports DeepInfra (OpenAI-compatible) with concurrent batch requests.
 //! Graceful degradation: no API key → all passages default to fallback category.
 
+use hkask_rsolidity::contract;
+
 use hkask_services_core::ServiceError;
 use reqwest::Client;
 use serde::Deserialize;
@@ -270,10 +272,10 @@ async fn classify_one(
 /// Returns results in the same order as the input texts.
 /// Failed classifications default to "Statement".
 ///
-/// REQ: P8-svc-classify-277
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  texts must be non-empty; config must have valid timeout and concurrency
 /// post: returns Vec<ClassifyResult> in input order; failed classifications fall back to config.fallback_category; all fallback if no API key
+    #[contract(id = "P8-svc-classify-277", principle = "P8")]
 pub async fn classify_batch(
     texts: &[String],
     config: ClassifierConfig,
@@ -357,10 +359,10 @@ pub async fn classify_batch(
 /// Failed extractions default to empty TripleExtraction.
 /// Graceful degradation: no API key → all empty extractions.
 ///
-/// REQ: P8-svc-classify-278
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  texts must be non-empty; config must have valid timeout and concurrency
 /// post: returns Vec<TripleExtraction> in input order; failed extractions fall back to empty; all empty if no API key
+    #[contract(id = "P8-svc-classify-278", principle = "P8")]
 pub async fn extract_triples_batch(
     texts: &[String],
     config: &ClassifierConfig,

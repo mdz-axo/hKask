@@ -1,12 +1,13 @@
 //! Curator commands — delegates to CuratorService.
 
+use hkask_rsolidity::contract;
+
 use hkask_services::{CuratorService, ServiceError};
 use hkask_storage::EscalationEntry;
 
 use crate::block_on;
 use crate::cli::CuratorAction;
 
-/// REQ: CLI-033
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  none
 /// post: returns Ok(Vec<EscalationEntry>) with all pending escalations
@@ -20,7 +21,6 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
     })
 }
 
-/// REQ: CLI-034
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  id is a valid escalation identifier
 /// post: returns Ok(()) if escalation resolved successfully
@@ -30,7 +30,6 @@ pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
     CuratorService::resolve(&ctx, id, "cli-administrator")
 }
 
-/// REQ: CLI-035
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  id is a valid escalation identifier
 /// post: returns Ok(()) if escalation dismissed successfully
@@ -40,7 +39,6 @@ pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
     CuratorService::dismiss(&ctx, id, "cli-administrator")
 }
 
-/// REQ: CLI-036
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  none
 /// post: returns Ok(String) with metacognition report
@@ -50,15 +48,14 @@ pub async fn curator_metacognition() -> Result<String, ServiceError> {
     CuratorService::metacognition(&ctx).await
 }
 
-/// REQ: CLI-037
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
-/// REQ: P9-CNS-SURF-006 pre: valid CuratorAction post: cns.cli span emitted
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio runtime
 /// pre:  registry, runtime, handle are valid
 /// pre:  action is a valid CuratorAction variant
 /// post: dispatches to chat/escalations/resolve/dismiss/metacognition
 /// post: prints result or error to stdout
+    #[contract(id = "P9-CNS-SURF-006 pre: valid CuratorAction post: cns.cli span emitted", principle = "P9")]
 pub fn run_curator(
     rt: &tokio::runtime::Runtime,
     registry: &mut hkask_templates::SqliteRegistry,

@@ -28,7 +28,6 @@ use crate::signing;
 
 /// Issues Ed25519-signed API key capability tokens.
 ///
-/// REQ: P9-wallet-issuer-struct
 /// expect: "The system manages API key issuance with spending limits and expiry" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
 /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
@@ -48,7 +47,6 @@ pub struct ApiKeyIssuer {
 impl ApiKeyIssuer {
     /// Create a new ApiKeyIssuer.
     ///
-    /// REQ: P9-wallet-issuer-new
     /// expect: "The system manages API key issuance with spending limits and expiry" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
@@ -57,6 +55,7 @@ impl ApiKeyIssuer {
     /// pre:  store is initialized
     /// post: returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing
     /// post: returns Err if wallet_seed resolution fails
+    #[rs::contract(id = "P9-wallet-issuer-new", principle = "P9")]
     #[rs::contract(id = "P9-wallet-issuer-new", principle = "P9")]
     pub fn new(store: Arc<WalletStore>) -> Result<Self, WalletError> {
         Ok(ApiKeyIssuer {
@@ -67,6 +66,7 @@ impl ApiKeyIssuer {
 
     /// Attach a CNS event sink for span emission.
     #[must_use = "builder methods must be chained or assigned"]
+    #[rs::contract(id = "P9-wallet-issuer-struct", principle = "P9")]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
@@ -87,7 +87,6 @@ impl ApiKeyIssuer {
 
     /// "Print" a new API key.
     ///
-    /// REQ: P9-wallet-issuer-create-key
     /// expect: "I can create an API key with spending limits and scope" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
@@ -102,6 +101,7 @@ impl ApiKeyIssuer {
     /// with the specified limits, scope, and purpose, stores the public key,
     /// and returns the private key to the user (shown exactly once).
     #[allow(clippy::too_many_arguments)]
+    #[rs::contract(id = "P9-wallet-issuer-create-key", principle = "P9")]
     pub fn create_key(
         &self,
         wallet_id: WalletId,
@@ -173,7 +173,6 @@ impl ApiKeyIssuer {
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     /// Idempotent — revoking an already-revoked key is a no-op.
     ///
-    /// REQ: P9-wallet-issuer-revoke-key
     /// expect: "I can revoke an API key and recover unspent balance" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
@@ -184,6 +183,7 @@ impl ApiKeyIssuer {
     /// post: unspent rJoules returned to wallet
     /// post: idempotent — revoking already-revoked key is no-op
     /// post: emits cns.wallet.key_revoked span
+    #[rs::contract(id = "P9-wallet-issuer-revoke-key", principle = "P9")]
     #[rs::contract(id = "P9-wallet-issuer-revoke-key", principle = "P9")]
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         self.store.revoke_api_key(key_id)?;
@@ -203,7 +203,6 @@ impl ApiKeyIssuer {
 
     /// List active (non-revoked) API keys for a wallet.
     ///
-    /// REQ: P9-wallet-issuer-list-keys
     /// expect: "I can list my active API keys" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
@@ -211,6 +210,7 @@ impl ApiKeyIssuer {
     /// \[P1\] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  wallet_id is a valid WalletId
     /// post: returns Ok(Vec<ApiKeyCapability>) containing only non-revoked keys
+    #[rs::contract(id = "P9-wallet-issuer-list-keys", principle = "P9")]
     #[rs::contract(id = "P9-wallet-issuer-list-keys", principle = "P9")]
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         self.store.list_api_keys(wallet_id)

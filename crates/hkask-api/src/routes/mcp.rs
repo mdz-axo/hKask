@@ -18,6 +18,7 @@
 //! access. Revisit if MCP orchestration logic (e.g., server health monitoring,
 //! tool result caching) grows beyond simple discovery/invocation.
 
+use hkask_rsolidity as rs;
 use axum::extract::Extension;
 use axum::{Json, extract::State};
 use hkask_services::ServiceError;
@@ -32,7 +33,6 @@ use crate::middleware::auth::AuthContext;
 
 /// Create MCP router
 ///
-/// REQ: API-018
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with MCP routes registered

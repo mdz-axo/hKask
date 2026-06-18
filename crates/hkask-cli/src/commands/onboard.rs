@@ -6,7 +6,6 @@
 /// Run the `kask onboard` command synchronously.
 /// Run the onboarding workflow.
 ///
-/// REQ: CLI-001
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio runtime
 /// post: onboarding workflow executed

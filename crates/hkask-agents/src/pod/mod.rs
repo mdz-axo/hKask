@@ -196,7 +196,6 @@ pub type AgentPodResult<T> = Result<T, AgentPodError>;
 impl AgentPod {
     /// Create a new AgentPod.
     ///
-    /// REQ: P1-agt-pod-new
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — AgentPod is the user's agent container
     /// \[P4\] Constraining: Clear Boundaries — OCAP secret + capability token on creation
@@ -206,6 +205,7 @@ impl AgentPod {
     /// post: Returns `Ok(AgentPod)` in `Populated` state with a derived
     ///       OCAP secret, capability token, and sovereignty checker.
     ///       Returns `Err` if template loading or key derivation fails.
+    #[rs::contract(id = "P1-agt-pod-new", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-new", principle = "P1")]
     pub fn new(
         crate_name: &str,
@@ -270,7 +270,6 @@ impl AgentPod {
     /// * `Ok(())` — Registration successful
     /// * `Err(AgentPodError)` — A2A registration failed
     ///
-    /// REQ: P1-agt-pod-register
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — register pod with A2A under its WebID
     /// pre:  `self.state` must be `Populated` (or `Registered` for
@@ -278,6 +277,7 @@ impl AgentPod {
     /// post: On success, `self.state` is `Registered` and
     ///       `self.capability_token` is updated with the A2A-issued token.
     ///       On failure, state is unchanged.
+    #[rs::contract(id = "P1-agt-pod-register", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-register", principle = "P1")]
     pub async fn register(&mut self, a2a: &dyn crate::ports::A2APort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Registered) {
@@ -322,7 +322,6 @@ impl AgentPod {
     /// * `Ok(())` — Activation successful
     /// * `Err(AgentPodError)` — MCP access grant failed
     ///
-    /// REQ: P1-agt-pod-activate
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — activate grants MCP access
     /// \[P4\] Constraining: Clear Boundaries — requires Registered state
@@ -330,6 +329,7 @@ impl AgentPod {
     ///       idempotent re-activation); `mcp` is a valid `MCPRuntimePort`.
     /// post: On success, `self.state` is `Activated` and MCP tool access
     ///       is granted. On failure, state is unchanged.
+    #[rs::contract(id = "P1-agt-pod-activate", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-activate", principle = "P1")]
     pub fn activate(&mut self, mcp: &dyn crate::ports::MCPRuntimePort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Activated) {
@@ -365,12 +365,12 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(())` — Deactivation successful
     ///
-    /// REQ: P1-agt-pod-deactivate
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — deactivate terminates MCP access
     /// pre:  `self.state` must be `Activated` (or `Deactivated` for
     ///       idempotent re-deactivation).
     /// post: `self.state` is `Deactivated`.
+    #[rs::contract(id = "P1-agt-pod-deactivate", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-deactivate", principle = "P1")]
     pub fn deactivate(&mut self) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Deactivated) {
@@ -407,7 +407,6 @@ impl AgentPod {
     /// * `Ok(DelegationToken)` — Attenuated child token
     /// * `Err(AgentPodError)` — Attenuation limit exceeded or keystore error
     ///
-    /// REQ: P1-agt-pod-delegate
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Motivating: Clear Boundaries — delegate capability to another holder with attenuation
     /// \[P7\] Constraining: Evolutionary Architecture — attenuation limit emerged from usage
@@ -416,6 +415,7 @@ impl AgentPod {
     ///       must be < `self.max_attenuation`.
     /// post: Returns `Ok(DelegationToken)` — an attenuated child token —
     ///       or `Err(AttenuationLimitExceeded)`.
+    #[rs::contract(id = "P1-agt-pod-delegate", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-delegate", principle = "P1")]
     pub fn delegate(
         &self,
@@ -441,11 +441,11 @@ impl AgentPod {
 
     /// Check if the pod can perform A2A operations.
     ///
-    /// REQ: P1-agt-pod-is-active
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — state accessor for Activated
     /// pre:  (none).
     /// post: Returns `true` iff `self.state == PodLifecycleState::Activated`.
+    #[rs::contract(id = "P1-agt-pod-is-active", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-is-active", principle = "P1")]
     pub fn is_active(&self) -> bool {
         self.state == PodLifecycleState::Activated
@@ -453,11 +453,11 @@ impl AgentPod {
 
     /// Get the current lifecycle state.
     ///
-    /// REQ: P1-agt-pod-state
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — lifecycle state accessor
     /// pre:  (none — accessor).
     /// post: Returns the current `PodLifecycleState`.
+    #[rs::contract(id = "P1-agt-pod-state", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-state", principle = "P1")]
     pub fn state(&self) -> PodLifecycleState {
         self.state
@@ -475,7 +475,6 @@ impl AgentPod {
     /// Capability verification (P4 Gate 1) is performed by the daemon
     /// at connection time, not here.
     ///
-    /// REQ: P1-agt-pod-enter-server-mode
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — enter server mode to serve MCP role
     /// \[P4\] Constraining: Clear Boundaries — requires Activated + assigned role
@@ -483,6 +482,7 @@ impl AgentPod {
     ///       in `self.assigned_mcp_roles`.
     /// post: `self.mode` is set to `Some(AgentMode::Server)`.
     ///       Returns `Err` if any precondition fails.
+    #[rs::contract(id = "P1-agt-pod-enter-server-mode", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-enter-server-mode", principle = "P1")]
     pub fn enter_server_mode(&mut self, role: &str) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Activated {
@@ -513,13 +513,13 @@ impl AgentPod {
     ///
     /// Requires: Activated state, not already in another mode.
     ///
-    /// REQ: P1-agt-pod-enter-chat-mode
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — enter chat mode for interactive use
     /// \[P4\] Constraining: Clear Boundaries — requires Activated + no other mode
     /// pre:  `self.state == Activated`; `self.mode == None`.
     /// post: `self.mode` is set to `Some(AgentMode::Chat)`.
     ///       Returns `Err` if any precondition fails.
+    #[rs::contract(id = "P1-agt-pod-enter-chat-mode", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-enter-chat-mode", principle = "P1")]
     pub fn enter_chat_mode(&mut self) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Activated {
@@ -541,12 +541,12 @@ impl AgentPod {
 
     /// Exit the current mode, returning the agent to no active mode.
     ///
-    /// REQ: P1-agt-pod-exit-mode
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — exit current mode
     /// pre:  (none — always valid).
     /// post: `self.mode` is set to `None`; the previous mode (if any)
     ///       is logged. Always returns `Ok(())`.
+    #[rs::contract(id = "P1-agt-pod-exit-mode", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-exit-mode", principle = "P1")]
     pub fn exit_mode(&mut self) -> AgentPodResult<()> {
         let previous = self.mode.take();
@@ -565,11 +565,11 @@ impl AgentPod {
 
     /// Check if the agent is currently in server mode.
     ///
-    /// REQ: P1-agt-pod-is-server-mode
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Server)`.
+    #[rs::contract(id = "P1-agt-pod-is-server-mode", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-is-server-mode", principle = "P1")]
     pub fn is_in_server_mode(&self) -> bool {
         self.mode == Some(AgentMode::Server)
@@ -579,11 +579,11 @@ impl AgentPod {
 
     /// Set the agent's voice design for TTS speech generation.
     ///
-    /// REQ: P1-agt-pod-set-voice
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P3\] Motivating: Generative Space — configure voice design
     /// pre:  `voice` is a valid `VoiceDesign`.
     /// post: `self.voice_design` is set to `Some(voice)`; logs the change.
+    #[rs::contract(id = "P1-agt-pod-set-voice", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-set-voice", principle = "P1")]
     pub fn set_voice(&mut self, voice: VoiceDesign) {
         tracing::info!(
@@ -597,11 +597,11 @@ impl AgentPod {
 
     /// Get the agent's voice design, if one has been set.
     ///
-    /// REQ: P1-agt-pod-get-voice
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — voice design accessor
     /// pre:  (none — accessor).
     /// post: Returns `Some(&VoiceDesign)` if set, `None` otherwise.
+    #[rs::contract(id = "P1-agt-pod-get-voice", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-get-voice", principle = "P1")]
     pub fn get_voice(&self) -> Option<&VoiceDesign> {
         self.voice_design.as_ref()
@@ -610,13 +610,13 @@ impl AgentPod {
     /// Get the TTS description for this agent's voice.
     /// Returns the default neutral voice description if no voice is set.
     ///
-    /// REQ: P1-agt-pod-voice-description
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — return TTS description
     /// pre:  (none).
     /// post: Returns the TTS description string for the configured voice,
     ///       or the default `VoiceDesign::default()` description if none
     ///       is set.
+    #[rs::contract(id = "P1-agt-pod-voice-description", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-voice-description", principle = "P1")]
     pub fn voice_description(&self) -> String {
         self.voice_design
@@ -627,11 +627,11 @@ impl AgentPod {
 
     /// Check if the agent is currently in chat mode.
     ///
-    /// REQ: P1-agt-pod-is-chat-mode
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Chat)`.
+    #[rs::contract(id = "P1-agt-pod-is-chat-mode", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-is-chat-mode", principle = "P1")]
     pub fn is_in_chat_mode(&self) -> bool {
         self.mode == Some(AgentMode::Chat)
@@ -652,7 +652,6 @@ impl AgentPod {
     /// * `Ok(false)` — Action denied by sovereignty check
     /// * `Err(AgentPodError)` — Sovereignty check error
     ///
-    /// REQ: P1-agt-pod-check-sovereignty
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — verify action against sovereignty/consent
     /// \[P2\] Constraining: Affirmative Consent — delegates to consent boundary
@@ -661,6 +660,7 @@ impl AgentPod {
     /// post: Returns `Ok(true)` if both `check_operation` and `can_access`
     ///       pass; `Ok(false)` if either fails; `Err` on sovereignty
     ///       checker error.
+    #[rs::contract(id = "P1-agt-pod-check-sovereignty", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-check-sovereignty", principle = "P1")]
     pub fn check_sovereignty(
         &self,

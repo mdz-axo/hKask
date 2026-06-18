@@ -35,7 +35,6 @@ pub struct McpTool {
 impl McpTool {
     /// Validate tool input arguments against the tool's JSON Schema.
     ///
-    /// REQ: MCP-SCHEMA-001
     /// pre:  input is a valid JSON Value
     /// post: returns Ok(()) if input conforms to self.input_schema
     /// post: returns Err with validation errors if input violates schema
@@ -111,7 +110,6 @@ pub struct McpRuntime {
 impl McpRuntime {
     /// Create a new MCP runtime.
     ///
-    /// REQ: MCP-025
     /// post: returns McpRuntime with empty servers, tool_registry, connections
     pub fn new() -> Self {
         Self {

@@ -12,7 +12,6 @@
 /// precision, switching to a different underlying clock) propagates
 /// uniformly across crates.
 ///
-/// REQ: TYP-178
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  (none — always callable, no arguments)
 /// post: returns a valid RFC 3339 timestamp string for the current UTC moment

@@ -23,7 +23,6 @@ impl CapabilityChecker {
     /// Create a new capability checker without a signing key (verify-only).
     /// The `secret` parameter is retained for backward compatibility but unused.
     ///
-    /// REQ: TYP-312
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  _secret is any byte slice (retained for backward compatibility, unused)
     /// post: returns a [`CapabilityChecker`] with no signing key; can verify tokens
@@ -34,7 +33,6 @@ impl CapabilityChecker {
 
     /// Create a capability checker with a signing key for token issuance.
     ///
-    /// REQ: TYP-313
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  signing_key is a valid Ed25519 [`SigningKey`]
     /// post: returns a [`CapabilityChecker`] that can both verify and issue tokens
@@ -46,7 +44,6 @@ impl CapabilityChecker {
 
     /// Verify a capability token's Ed25519 signature.
     ///
-    /// REQ: TYP-314
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`CapabilityChecker`]; token is any [`DelegationToken`]
     /// post: returns the result of [`DelegationToken::verify`] — true if Ed25519 signature is valid
@@ -56,7 +53,6 @@ impl CapabilityChecker {
 
     /// Check if token is valid and not expired
     ///
-    /// REQ: TYP-315
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`CapabilityChecker`]; token is any [`DelegationToken`];
     ///       current_time is any i64 (Unix timestamp)
@@ -68,7 +64,6 @@ impl CapabilityChecker {
 
     /// Check if a holder has capability for a resource/action
     ///
-    /// REQ: TYP-316
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`CapabilityChecker`]; token is any [`DelegationToken`];
     ///       holder is any [`WebID`]; resource, resource_id, action describe the requested access
@@ -90,7 +85,6 @@ impl CapabilityChecker {
 
     /// Check if holder has any capability for a resource type
     ///
-    /// REQ: TYP-317
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`CapabilityChecker`]; token is any [`DelegationToken`];
     ///       holder is any [`WebID`]; resource is any [`DelegationResource`]
@@ -108,7 +102,6 @@ impl CapabilityChecker {
     /// Create a capability token for a tool.
     /// Requires a signing key — panics if constructed via `new()` instead of `with_signing_key()`.
     ///
-    /// REQ: TYP-318
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self was constructed via [`with_signing_key`]; tool_name is any non-empty [`String`];
     ///       from and to are any [`WebID`]
@@ -128,7 +121,6 @@ impl CapabilityChecker {
 
     /// Create a capability token for a template operation
     ///
-    /// REQ: TYP-319
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self was constructed via [`with_signing_key`]; template_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
@@ -157,7 +149,6 @@ impl CapabilityChecker {
 
     /// Create a capability token for a manifest operation
     ///
-    /// REQ: TYP-320
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self was constructed via [`with_signing_key`]; manifest_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
@@ -186,7 +177,6 @@ impl CapabilityChecker {
 
     /// Create a capability token for registry operations
     ///
-    /// REQ: TYP-321
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self was constructed via [`with_signing_key`]; action is any [`DelegationAction`];
     ///       from and to are any [`WebID`]
@@ -214,7 +204,6 @@ impl CapabilityChecker {
 
     /// Create a capability token for cascade operations
     ///
-    /// REQ: TYP-322
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self was constructed via [`with_signing_key`]; cascade_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
@@ -243,7 +232,6 @@ impl CapabilityChecker {
 
     /// Create a capability token for spec operations
     ///
-    /// REQ: TYP-323
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self was constructed via [`with_signing_key`]; spec_id is any non-empty [`String`];
     ///       action is any [`DelegationAction`]; from and to are any [`WebID`]
@@ -265,7 +253,6 @@ impl CapabilityChecker {
 
     /// Create an attenuated token for delegation
     ///
-    /// REQ: TYP-324
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`CapabilityChecker`]; token is any [`DelegationToken`];
     ///       new_to is any [`WebID`]; current_time is any i64

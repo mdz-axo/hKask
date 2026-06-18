@@ -4,6 +4,8 @@
 //! enforcement. Budget regulation is now owned by this loop (Cybernetics
 //! concern), not by domain code in `EpisodicMemory`.
 
+use hkask_rsolidity::contract;
+
 use std::sync::Arc;
 
 use crate::consolidation::ConsolidationBridge;
@@ -41,12 +43,12 @@ impl EpisodicLoop {
     /// The `perspective` identifies which agent's episodic storage to monitor.
     /// The `storage_budget` is the set-point for the regulation signal.
     ///
-    /// REQ: P3-mem-episodic-loop-new
     /// expect: "The system wraps episodic memory in a regulated generative loop" [P3]
     /// \[P3\] Motivating: Generative Space — wraps episodic memory in a regulated generative loop
     /// \[P9\] Constraining: Homeostatic Self-Regulation — storage_budget is the cybernetic set-point
     /// pre:  memory is initialized, perspective is valid, storage_budget > 0
     /// post: returns EpisodicLoop without consolidation bridge
+    #[contract(id = "P3-mem-episodic-loop-new", principle = "P3")]
     pub fn new(memory: Arc<EpisodicMemory>, perspective: WebID, storage_budget: usize) -> Self {
         Self {
             memory,
@@ -63,13 +65,13 @@ impl EpisodicLoop {
     /// to promote episodic triples into semantic memory. The token proves
     /// Curator/Cybernetics authority for the one-way bridge.
     ///
-    /// REQ: P3-mem-episodic-loop-with-consolidation
     /// expect: "The system wraps episodic memory in a regulated generative loop" [P3]
     /// \[P3\] Motivating: Generative Space — enables promotion path when episodic budget is exceeded
     /// \[P9\] Constraining: Homeostatic Self-Regulation — consolidation bridge fires only under token authority
     /// pre:  memory is initialized, perspective is valid, storage_budget > 0
     /// pre:  consolidation_token.issuer() == expected curator
     /// post: returns EpisodicLoop with consolidation bridge and token
+    #[contract(id = "P3-mem-episodic-loop-with-consolidation", principle = "P3")]
     pub fn with_consolidation(
         memory: Arc<EpisodicMemory>,
         perspective: WebID,
@@ -88,11 +90,11 @@ impl EpisodicLoop {
 
     /// Get the configured storage budget (set-point).
     ///
-    /// REQ: P3-mem-episodic-loop-storage-budget
     /// expect: "The system wraps episodic memory in a regulated generative loop" [P3]
     /// \[P3\] Motivating: Generative Space — exposes the generative budget set-point for context assembly
     /// \[P9\] Constraining: Homeostatic Self-Regulation — budget value is immutable after construction
     /// post: returns the storage_budget value set at construction
+    #[contract(id = "P3-mem-episodic-loop-storage-budget", principle = "P3")]
     pub fn storage_budget(&self) -> usize {
         self.storage_budget
     }

@@ -7,6 +7,7 @@
 //! than domain types from `hkask-services` to avoid coupling the API
 //! surface to `utoipa` derives on domain types.
 
+use hkask_rsolidity as rs;
 use axum::extract::Extension;
 use axum::{Json, extract::State};
 use hkask_services::RetentionPolicy;
@@ -205,7 +206,6 @@ pub struct UpdateConfigRequest {
 
 // ── Router ──────────────────────────────────────────────────────────────
 
-/// REQ: API-017
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with backup routes registered

@@ -103,7 +103,6 @@ fn text_from_result(result: &rmcp::model::CallToolResult) -> String {
 
 // ── Tool listing tests (MDS §3: 5 tools) ──────────────────────
 
-/// REQ: MDS-SRV-001 — all 5 MDS §3 tools are listed
 #[tokio::test]
 async fn all_mds_tools_are_listed() {
     let peer = spawn_server().await;
@@ -148,7 +147,6 @@ async fn all_mds_tools_are_listed() {
 
 // ── Capability enforcement tests ───────────────────────────────
 
-/// REQ: MDS-CAP-001 — spec_goal_capture rejects missing capability token
 #[tokio::test]
 async fn capture_rejects_missing_capability_token() {
     let peer = spawn_server().await;
@@ -167,7 +165,6 @@ async fn capture_rejects_missing_capability_token() {
     );
 }
 
-/// REQ: MDS-CAP-002 — spec_graph_query rejects missing capability token
 #[tokio::test]
 async fn graph_query_rejects_missing_capability_token() {
     let peer = spawn_server().await;
@@ -187,7 +184,6 @@ async fn graph_query_rejects_missing_capability_token() {
 
 // ── Happy-path tests ───────────────────────────────────────────
 
-/// REQ: MDS-CAP-003 — spec_goal_capture records a spec with valid token
 #[tokio::test]
 async fn capture_records_spec_with_token() {
     let peer = spawn_server().await;
@@ -213,7 +209,6 @@ async fn capture_records_spec_with_token() {
     );
 }
 
-/// REQ: MDS-CAP-004 — spec_graph_coherence returns coherence score with valid token
 #[tokio::test]
 async fn coherence_returns_score_with_token() {
     let peer = spawn_server().await;
@@ -233,7 +228,6 @@ async fn coherence_returns_score_with_token() {
     );
 }
 
-/// REQ: MDS-CAP-005 — spec_require_writing_quality returns quality assessment
 #[tokio::test]
 async fn writing_quality_assesses_spec_with_token() {
     let peer = spawn_server().await;
@@ -277,7 +271,6 @@ async fn writing_quality_assesses_spec_with_token() {
     );
 }
 
-/// REQ: MDS-REPLICA-001 — spec_require_writing_quality returns dimension_scores
 /// when replica_persona + db_path + db_passphrase are provided.
 #[tokio::test]
 async fn writing_quality_with_replica_returns_dimension_scores() {

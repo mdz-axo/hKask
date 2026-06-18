@@ -58,7 +58,6 @@ pub struct FaceMatchResult {
 /// age_range, gender_presentation, features, position, size).
 /// Falls back to raw text if JSON parsing fails.
 ///
-/// REQ: media-face-detect-01
 pub async fn detect_faces(
     inference: &Arc<InferenceRouter>,
     template_env: &Environment<'static>,
@@ -90,7 +89,6 @@ pub async fn detect_faces(
 /// Sends the image to a vision LLM with the `validate_face_ref` template.
 /// Returns structured pass/fail with specific reasons for rejection.
 ///
-/// REQ: media-face-validate-01
 pub async fn validate_face_reference(
     inference: &Arc<InferenceRouter>,
     template_env: &Environment<'static>,
@@ -130,7 +128,6 @@ pub async fn validate_face_reference(
 /// Sends both images to a vision LLM with the `match_faces` template.
 /// Image 1 is the reference portrait, Image 2 is the query face.
 ///
-/// REQ: media-face-match-01
 pub async fn match_faces(
     inference: &Arc<InferenceRouter>,
     template_env: &Environment<'static>,
@@ -176,7 +173,6 @@ pub async fn match_faces(
 /// Returns a list of object descriptions (JSON objects with name,
 /// location, confidence, description). Falls back to raw text.
 ///
-/// REQ: media-objects-detect-01
 pub async fn detect_objects(
     inference: &Arc<InferenceRouter>,
     template_env: &Environment<'static>,
@@ -207,7 +203,6 @@ pub async fn detect_objects(
 /// Returns a JSON object with colors array, palette_style, temperature,
 /// and saturation. Falls back to raw text.
 ///
-/// REQ: media-colors-analyze-01
 pub async fn analyze_colors(
     inference: &Arc<InferenceRouter>,
     template_env: &Environment<'static>,
@@ -238,7 +233,6 @@ pub async fn analyze_colors(
 /// depth_of_field, perspective, framing, symmetry, negative_space.
 /// Falls back to raw text.
 ///
-/// REQ: media-composition-analyze-01
 pub async fn analyze_composition(
     inference: &Arc<InferenceRouter>,
     template_env: &Environment<'static>,
@@ -266,7 +260,6 @@ pub async fn analyze_composition(
 /// Returns plain text describing the scene (subject, setting, lighting,
 /// colors, composition, mood).
 ///
-/// REQ: media-scene-caption-01
 pub async fn caption_scene(
     inference: &Arc<InferenceRouter>,
     template_env: &Environment<'static>,

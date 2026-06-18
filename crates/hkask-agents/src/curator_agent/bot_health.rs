@@ -132,7 +132,6 @@ mod tests {
     use super::*;
 
     /// Test that classify_health correctly thresholds consumption ratios.
-    /// REQ: P9-agt-bot-health-classify — verify threshold behavior.
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
@@ -163,7 +162,6 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Healthy));
     }
 
-    /// REQ: P9-agt-bot-health-classify — verify threshold behavior at Degraded boundary
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
@@ -194,7 +192,6 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Degraded));
     }
 
-    /// REQ: P9-agt-bot-health-classify — verify threshold behavior at Critical boundary
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
@@ -225,7 +222,6 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Critical));
     }
 
-    /// REQ: P9-agt-bot-health-classify — missing budget defaults to Healthy
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
@@ -245,7 +241,6 @@ mod tests {
         assert_eq!(result, Ok(BotHealthStatus::Healthy));
     }
 
-    /// REQ: P9-agt-bot-health-classify — zero cap budget defaults to Healthy
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status

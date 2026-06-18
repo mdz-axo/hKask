@@ -17,6 +17,7 @@ hkask-memory = { path = "../hkask-memory" }
 hkask-services = { path = "../hkask-services" }
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-wallet = { path = "../hkask-wallet" }
+hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
 ed25519-dalek.workspace = true
 hex.workspace = true
 axum.workspace = true

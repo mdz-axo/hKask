@@ -16,6 +16,7 @@
 //! and extracts its attenuation (spending limit). Downstream handlers use
 //! the attached wallet context for gas→rJoule billing.
 
+use hkask_rsolidity as rs;
 use axum::{
     body::Body,
     extract::State,
@@ -54,7 +55,6 @@ pub struct ApiKeyAuthService {
 impl ApiKeyAuthService {
     /// Create a new API key auth service backed by a WalletStore and WalletService.
     ///
-    /// REQ: API-020
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  wallet_store and wallet_service are valid Arcs
     /// post: returns ApiKeyAuthService ready for middleware use
@@ -67,7 +67,6 @@ impl ApiKeyAuthService {
 
     /// Deterministically derive a per-key budget principal.
     ///
-    /// REQ: wallet-api-budget-001
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  key_id is a valid ApiKeyId
     /// post: returns a deterministic WebID unique to that key_id within this namespace
@@ -277,7 +276,6 @@ impl IntoResponse for ApiKeyAuthError {
 /// in the CNS so that subsequent tool/inference calls consume rJoules from the
 /// key's encumbrance.
 ///
-/// REQ: API-021
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  auth is a valid ApiKeyAuthService
 /// post: if no Bearer header → pass-through (next.run)

@@ -1,5 +1,6 @@
 //! Curator escalation and metacognition routes
 
+use hkask_rsolidity as rs;
 use axum::extract::Extension;
 use axum::{Json, extract::Path, extract::State};
 use serde::{Deserialize, Serialize};
@@ -117,7 +118,6 @@ pub struct MetacognitionStatusResponse {
     pub bot_reports: Vec<BotStatusReportResponse>,
 }
 
-/// REQ: API-013
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with curator routes registered

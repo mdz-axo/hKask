@@ -31,12 +31,12 @@ pub struct Triple {
 impl Triple {
     /// Create a new Triple with required fields.
     ///
-    /// REQ: P3-sto-triple-new
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — create a triple
     /// \[P1\] Constraining: User Sovereignty — owner_webid carries ownership
     /// pre:  entity and attribute are non-empty, owner_webid is valid
     /// post: returns Triple with defaults for temporal, confidence, access
+    #[rs::contract(id = "P3-sto-triple-new", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-new", principle = "P3")]
     pub fn new(entity: &str, attribute: &str, value: Value, owner_webid: WebID) -> Self {
         Self {
@@ -51,10 +51,10 @@ impl Triple {
     }
     /// Set confidence on a Triple.
     ///
-    /// REQ: P3-sto-triple-with-confidence
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set confidence
     /// post: returns Self with confidence set (builder pattern)
+    #[rs::contract(id = "P3-sto-triple-with-confidence", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-with-confidence", principle = "P3")]
     pub fn with_confidence(mut self, c: impl Into<Confidence>) -> Self {
         self.confidence = c.into();
@@ -62,10 +62,10 @@ impl Triple {
     }
     /// Set perspective on a Triple.
     ///
-    /// REQ: P3-sto-triple-with-perspective
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set perspective
     /// post: returns Self with perspective set (builder pattern)
+    #[rs::contract(id = "P3-sto-triple-with-perspective", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-with-perspective", principle = "P3")]
     pub fn with_perspective(mut self, p: WebID) -> Self {
         self.access = self.access.with_perspective(p);
@@ -73,10 +73,10 @@ impl Triple {
     }
     /// Set visibility on a Triple.
     ///
-    /// REQ: P3-sto-triple-with-visibility
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set visibility
     /// post: returns Self with visibility set (builder pattern)
+    #[rs::contract(id = "P3-sto-triple-with-visibility", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-with-visibility", principle = "P3")]
     pub fn with_visibility(mut self, v: Visibility) -> Self {
         self.access = self.access.with_visibility(v);
@@ -84,20 +84,20 @@ impl Triple {
     }
     /// Check if this is an episodic triple (has perspective).
     ///
-    /// REQ: P3-sto-triple-is-episodic
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — predicate for episodic
     /// post: returns true iff perspective is Some
+    #[rs::contract(id = "P3-sto-triple-is-episodic", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-is-episodic", principle = "P3")]
     pub fn is_episodic(&self) -> bool {
         self.access.is_episodic()
     }
     /// Check if this is a semantic triple (public, no perspective).
     ///
-    /// REQ: P3-sto-triple-is-semantic
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — predicate for semantic
     /// post: returns true iff visibility is Public and perspective is None
+    #[rs::contract(id = "P3-sto-triple-is-semantic", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-is-semantic", principle = "P3")]
     pub fn is_semantic(&self) -> bool {
         self.access.is_semantic()
@@ -108,11 +108,11 @@ const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to
 impl TripleStore {
     /// Insert a triple into the store.
     ///
-    /// REQ: P3-sto-triple-insert
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — insert triple into store
     /// pre:  triple has valid entity, attribute, value
     /// post: triple inserted
+    #[rs::contract(id = "P3-sto-triple-insert", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-insert", principle = "P3")]
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
@@ -135,11 +135,11 @@ impl TripleStore {
     }
     /// Query triples by entity.
     ///
-    /// REQ: P3-sto-triple-query-entity
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query by entity
     /// pre:  entity is non-empty
     /// post: returns Vec of triples matching entity
+    #[rs::contract(id = "P3-sto-triple-query-entity", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-query-entity", principle = "P3")]
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
@@ -155,11 +155,11 @@ impl TripleStore {
     }
     /// Query triples by entity and attribute.
     ///
-    /// REQ: P3-sto-triple-query-entity-attribute
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query by entity + attribute
     /// pre:  entity and attribute are non-empty
     /// post: returns Vec of matching triples
+    #[rs::contract(id = "P3-sto-triple-query-entity-attribute", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-query-entity-attribute", principle = "P3")]
     pub fn query_by_entity_attribute(
         &self,
@@ -179,11 +179,11 @@ impl TripleStore {
     }
     /// Query triples by perspective.
     ///
-    /// REQ: P3-sto-triple-query-perspective
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query by perspective
     /// pre:  perspective is valid
     /// post: returns Vec of triples for this perspective
+    #[rs::contract(id = "P3-sto-triple-query-perspective", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-query-perspective", principle = "P3")]
     pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
@@ -200,11 +200,11 @@ impl TripleStore {
     /// Query all triples with a given attribute, regardless of entity.
     /// Query triples by attribute.
     ///
-    /// REQ: P3-sto-triple-query-attribute
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query by attribute
     /// pre:  attribute is non-empty
     /// post: returns Vec of triples matching attribute
+    #[rs::contract(id = "P3-sto-triple-query-attribute", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-query-attribute", principle = "P3")]
     pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
@@ -222,11 +222,11 @@ impl TripleStore {
     /// Wrapped in a transaction for atomicity.
     /// Update a triple's value and confidence.
     ///
-    /// REQ: P3-sto-triple-update
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — update value and confidence
     /// pre:  id is valid
     /// post: triple value and confidence updated
+    #[rs::contract(id = "P3-sto-triple-update", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-update", principle = "P3")]
     pub fn update(
         &self,
@@ -291,11 +291,11 @@ impl TripleStore {
     }
     /// Get a triple by ID.
     ///
-    /// REQ: P3-sto-triple-get-id
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — get triple by ID
     /// pre:  id is valid
     /// post: returns Some(Triple) if found, None otherwise
+    #[rs::contract(id = "P3-sto-triple-get-id", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-get-id", principle = "P3")]
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
         let conn = self.lock_conn()?;
@@ -315,11 +315,11 @@ impl TripleStore {
     /// Semantic triples with lowest confidence, ordered ASC. Used by consolidation.
     /// Query lowest-confidence semantic triples.
     ///
-    /// REQ: P3-sto-triple-low-confidence
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — low-confidence semantic triples
     /// pre:  limit > 0
     /// post: returns up to limit triples ordered by confidence ascending
+    #[rs::contract(id = "P3-sto-triple-low-confidence", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-low-confidence", principle = "P3")]
     pub fn query_semantic_lowest_confidence(
         &self,
@@ -342,11 +342,11 @@ impl TripleStore {
     /// Count semantic triples below confidence threshold. Used by consolidation.
     /// Count semantic triples below a confidence threshold.
     ///
-    /// REQ: P3-sto-triple-count-below
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count below threshold
     /// pre:  threshold in [0.0, 1.0]
     /// post: returns count of triples with confidence ≤ threshold
+    #[rs::contract(id = "P3-sto-triple-count-below", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-count-below", principle = "P3")]
     pub fn count_semantic_below_confidence(&self, threshold: f64) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
@@ -360,11 +360,11 @@ impl TripleStore {
     /// Semantic triples below confidence threshold, ordered ASC. Used by consolidation.
     /// Query semantic triples below a confidence threshold.
     ///
-    /// REQ: P3-sto-triple-query-below
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query below threshold
     /// pre:  threshold in [0.0, 1.0], limit > 0
     /// post: returns up to limit triples with confidence ≤ threshold
+    #[rs::contract(id = "P3-sto-triple-query-below", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-query-below", principle = "P3")]
     pub fn query_semantic_below_confidence(
         &self,
@@ -388,10 +388,10 @@ impl TripleStore {
     /// Count semantic triples (perspective IS NULL, valid_to IS NULL).
     /// Count all semantic triples.
     ///
-    /// REQ: P3-sto-triple-count-semantic
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count semantic triples
     /// post: returns total count of semantic triples
+    #[rs::contract(id = "P3-sto-triple-count-semantic", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-count-semantic", principle = "P3")]
     pub fn count_semantic(&self) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
@@ -405,11 +405,11 @@ impl TripleStore {
     /// Count semantic triples for a given entity.
     /// Count semantic triples for an entity.
     ///
-    /// REQ: P3-sto-triple-count-entity
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count per entity
     /// pre:  entity is non-empty
     /// post: returns count for entity
+    #[rs::contract(id = "P3-sto-triple-count-entity", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-count-entity", principle = "P3")]
     pub fn count_semantic_by_entity(&self, entity: &str) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
@@ -423,11 +423,11 @@ impl TripleStore {
     /// Count triples for a given perspective (episodic).
     /// Count triples by perspective.
     ///
-    /// REQ: P3-sto-triple-count-perspective
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count per perspective
     /// pre:  perspective is valid
     /// post: returns count for perspective
+    #[rs::contract(id = "P3-sto-triple-count-perspective", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-count-perspective", principle = "P3")]
     pub fn count_by_perspective(&self, perspective: &WebID) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
@@ -446,12 +446,12 @@ impl TripleStore {
     /// This ordering enables the condensation loop to identify the best candidate
     /// to keep per entity group (first in each entity group).
     ///
-    /// REQ: P3-sto-triple-older-than
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query old triples for condensation
     /// \[P9\] Constraining: Homeostatic Self-Regulation — enables semantic condensation trigger
     /// pre:  days > 0, limit > 0
     /// post: returns up to limit triples older than cutoff, ordered by entity, confidence DESC, valid_from DESC
+    #[rs::contract(id = "P3-sto-triple-older-than", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-older-than", principle = "P3")]
     pub fn query_semantic_older_than(
         &self,
@@ -477,11 +477,11 @@ impl TripleStore {
     /// Soft-delete: set valid_to to close a triple.
     /// Soft-delete a triple by setting valid_to.
     ///
-    /// REQ: P3-sto-triple-soft-delete
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — soft-delete triple
     /// pre:  id is valid
     /// post: triple's valid_to set to now (soft-delete)
+    #[rs::contract(id = "P3-sto-triple-soft-delete", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-soft-delete", principle = "P3")]
     pub fn close_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
@@ -495,11 +495,11 @@ impl TripleStore {
     /// Hard-delete a triple row entirely.
     /// Hard-delete a triple by ID.
     ///
-    /// REQ: P3-sto-triple-hard-delete
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — hard-delete triple
     /// pre:  id is valid
     /// post: triple permanently deleted
+    #[rs::contract(id = "P3-sto-triple-hard-delete", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-hard-delete", principle = "P3")]
     pub fn delete_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
@@ -510,12 +510,12 @@ impl TripleStore {
     /// Returns the number of rows deleted.
     /// Delete triples by entity prefix.
     ///
-    /// REQ: P3-sto-triple-delete-prefix
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — delete by entity prefix
     /// pre:  prefix is non-empty
     /// post: matching triples deleted
     /// post: returns count of deleted triples
+    #[rs::contract(id = "P3-sto-triple-delete-prefix", principle = "P3")]
     #[rs::contract(id = "P3-sto-triple-delete-prefix", principle = "P3")]
     pub fn delete_by_entity_prefix(&self, prefix: &str) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;

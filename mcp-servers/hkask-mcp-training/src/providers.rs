@@ -8,6 +8,8 @@
 //! Provider selection is driven by `training.provider` in settings.json, routed
 //! through `hkask-services` shared config init.
 
+use hkask_rsolidity::contract;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -545,7 +547,6 @@ impl HarnessCapability {
 /// Each host binds exactly one harness; the harness generates the config
 /// or script that the host dispatches.
 ///
-/// REQ: P7-trn-harness-trait
 /// pre:  job.params carries full expanded TrainingParams
 /// post: returns harness-native config string (YAML, Python script, etc.)
 ///
@@ -1010,6 +1011,7 @@ pub struct UnslothProvider {
 
 impl UnslothProvider {
     /// Create a new unsloth provider with the given harness.
+    #[contract(id = "P7-trn-harness-trait", principle = "P7")]
     pub fn new(python_path: Option<PathBuf>, harness: Box<dyn HarnessAdapter>) -> Self {
         Self {
             python_path,

@@ -7,6 +7,7 @@
 //! and API key Bearer tokens (user auth). The `api_key_auth_middleware` runs
 //! after the global `auth_middleware`, so either auth method works.
 
+use hkask_rsolidity as rs;
 use axum::Extension;
 use axum::Json;
 use axum::body::Body;
@@ -24,7 +25,6 @@ use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletId};
 
 /// Create wallet router.
 ///
-/// REQ: API-019
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with wallet routes registered

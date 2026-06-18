@@ -29,10 +29,10 @@ impl EscalationEntry {
     /// Create a pending escalation entry with auto-generated id, timestamps, and defaults.
     /// Create a pending escalation signal.
     ///
-    /// REQ: P3-sto-escalation-pending
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create pending escalation entry
     /// post: returns EscalationSignal with Pending status
+    #[rs::contract(id = "P3-sto-escalation-pending", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-pending", principle = "P3")]
     pub fn pending(output: String, confidence: f64, error_context: String) -> Self {
         Self {
@@ -81,11 +81,11 @@ impl Store for EscalationQueue {
 impl EscalationQueue {
     /// Create a new escalation queue.
     ///
-    /// REQ: P3-sto-escalation-queue-new
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create escalation queue
     /// pre:  conn is a valid SQLite connection
     /// post: returns EscalationQueue with schema initialized
+    #[rs::contract(id = "P3-sto-escalation-queue-new", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-queue-new", principle = "P3")]
     pub fn new(conn: Arc<std::sync::Mutex<rusqlite::Connection>>) -> Result<Self, EscalationError> {
         let queue = Self { conn };
@@ -113,11 +113,11 @@ impl EscalationQueue {
     }
     /// Add an escalation entry.
     ///
-    /// REQ: P3-sto-escalation-add
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — add escalation entry
     /// pre:  entry has valid domain and output
     /// post: entry inserted into escalations
+    #[rs::contract(id = "P3-sto-escalation-add", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-add", principle = "P3")]
     pub fn add(
         &self,
@@ -148,10 +148,10 @@ impl EscalationQueue {
     }
     /// List pending escalations.
     ///
-    /// REQ: P3-sto-escalation-list-pending
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — list pending escalations
     /// post: returns Vec of pending EscalationEntry
+    #[rs::contract(id = "P3-sto-escalation-list-pending", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-list-pending", principle = "P3")]
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
@@ -190,11 +190,11 @@ impl EscalationQueue {
     }
     /// Get an escalation by ID.
     ///
-    /// REQ: P3-sto-escalation-get
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — get escalation by ID
     /// pre:  id is non-empty
     /// post: returns Some(entry) if found, None otherwise
+    #[rs::contract(id = "P3-sto-escalation-get", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-get", principle = "P3")]
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
@@ -246,11 +246,11 @@ impl EscalationQueue {
     }
     /// Resolve an escalation.
     ///
-    /// REQ: P3-sto-escalation-resolve
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — resolve escalation
     /// pre:  id is non-empty, resolved_by is non-empty
     /// post: escalation status set to Resolved
+    #[rs::contract(id = "P3-sto-escalation-resolve", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-resolve", principle = "P3")]
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = now_rfc3339();
@@ -265,11 +265,11 @@ impl EscalationQueue {
     }
     /// Dismiss an escalation.
     ///
-    /// REQ: P3-sto-escalation-dismiss
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — dismiss escalation
     /// pre:  id is non-empty, resolved_by is non-empty
     /// post: escalation status set to Dismissed
+    #[rs::contract(id = "P3-sto-escalation-dismiss", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-dismiss", principle = "P3")]
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = now_rfc3339();
@@ -284,10 +284,10 @@ impl EscalationQueue {
     }
     /// Get escalation statistics.
     ///
-    /// REQ: P3-sto-escalation-stats
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — escalation statistics
     /// post: returns EscalationStats with counts by status
+    #[rs::contract(id = "P3-sto-escalation-stats", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-stats", principle = "P3")]
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
         let conn = self.lock_conn()?;
@@ -325,11 +325,11 @@ pub struct EscalationBatch {
 impl EscalationBatch {
     /// Create a new escalation summary.
     ///
-    /// REQ: P3-sto-escalation-summary-new
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create escalation summary
     /// pre:  domain is non-empty, threshold > 0
     /// post: returns EscalationSummary
+    #[rs::contract(id = "P3-sto-escalation-summary-new", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-summary-new", principle = "P3")]
     pub fn new(entries: Vec<EscalationEntry>, domain: &str, threshold: usize) -> Self {
         Self {
@@ -342,10 +342,10 @@ impl EscalationBatch {
     }
     /// Generate a human-readable summary.
     ///
-    /// REQ: P3-sto-escalation-summary-text
     /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — generate summary text
     /// post: returns summary string with counts and threshold info
+    #[rs::contract(id = "P3-sto-escalation-summary-text", principle = "P3")]
     #[rs::contract(id = "P3-sto-escalation-summary-text", principle = "P3")]
     pub fn summary(&self) -> String {
         let count = self.entries.len();

@@ -459,33 +459,28 @@ fn levenshtein_similarity(a: &str, b: &str) -> f64 {
 mod levenshtein_tests {
     use super::*;
 
-    /// REQ: media-search-levenshtein-01 — identical strings return 1.0
     #[test]
     fn identical_strings() {
         assert!((levenshtein_similarity("sunset", "sunset") - 1.0).abs() < 0.001);
     }
 
-    /// REQ: media-search-levenshtein-02 — completely different strings return low score
     #[test]
     fn completely_different() {
         let sim = levenshtein_similarity("sunset", "xyzzy");
         assert!(sim < 0.3, "expected low similarity, got {}", sim);
     }
 
-    /// REQ: media-search-levenshtein-03 — case insensitive
     #[test]
     fn case_insensitive() {
         assert!((levenshtein_similarity("Sunset", "sunset") - 1.0).abs() < 0.001);
     }
 
-    /// REQ: media-search-levenshtein-04 — typo-tolerant
     #[test]
     fn typo_tolerant() {
         let sim = levenshtein_similarity("sunset", "sunest");
         assert!(sim > 0.6, "expected high similarity for typo, got {}", sim);
     }
 
-    /// REQ: media-search-levenshtein-05 — empty strings
     #[test]
     fn empty_strings() {
         assert!((levenshtein_similarity("", "") - 1.0).abs() < 0.001);
@@ -4185,7 +4180,6 @@ mod integration_tests {
         img.save(dir.join(name)).expect("save test image");
     }
 
-    /// REQ: media-gallery-lifecycle-01 — full gallery lifecycle from init through search.
     #[test]
     fn gallery_lifecycle_init_to_search() {
         let (store, temp) = setup_store();
@@ -4238,7 +4232,6 @@ mod integration_tests {
         assert!(all_tags.iter().any(|(t, _)| t.value == "sunset"));
     }
 
-    /// REQ: media-collage-compose-01 — grid collage composition from programmatic images.
     #[test]
     fn collage_compose_grid_layout() {
         let temp = TempDir::new().expect("tempdir");
@@ -4302,7 +4295,6 @@ mod integration_tests {
         );
     }
 
-    /// REQ: media-gallery-error-01 — clear errors for invalid lookups.
     #[test]
     fn gallery_store_image_not_found() {
         let (store, temp) = setup_store();
@@ -4321,7 +4313,6 @@ mod integration_tests {
         );
     }
 
-    /// REQ: media-gallery-policy-01 — three gallery modes are distinct.
     #[test]
     fn gallery_three_state_policy() {
         use hkask_storage::GalleryMode;
@@ -4336,7 +4327,6 @@ mod integration_tests {
 
     // ── Face recognition tests ─────────────────────────────────────────────
 
-    /// REQ: media-face-validate-deser-01 — FaceValidationResult deserializes from valid JSON
     #[test]
     fn face_validation_deserialize_pass() {
         let json = r#"{
@@ -4358,7 +4348,6 @@ mod integration_tests {
         assert!(result.issues.is_empty());
     }
 
-    /// REQ: media-face-validate-deser-02 — FaceValidationResult deserializes from reject JSON
     #[test]
     fn face_validation_deserialize_reject() {
         let json = r#"{
@@ -4383,7 +4372,6 @@ mod integration_tests {
         assert!(result.issues[0].contains("Multiple faces"));
     }
 
-    /// REQ: media-face-match-deser-01 — FaceMatchResult deserializes from match JSON
     #[test]
     fn face_match_deserialize_match() {
         let json = r#"{
@@ -4398,7 +4386,6 @@ mod integration_tests {
         assert!(result.reasoning.contains("bone structure"));
     }
 
-    /// REQ: media-face-match-deser-02 — FaceMatchResult deserializes from non-match JSON
     #[test]
     fn face_match_deserialize_no_match() {
         let json = r#"{
@@ -4413,7 +4400,6 @@ mod integration_tests {
         assert!(result.reasoning.contains("Different"));
     }
 
-    /// REQ: media-face-registry-lifecycle-01 — register, list, get, remove a face
     #[test]
     fn face_registry_lifecycle() {
         let (store, _temp) = setup_store();
@@ -4456,7 +4442,6 @@ mod integration_tests {
         assert_eq!(faces.len(), 0);
     }
 
-    /// REQ: media-face-registry-filter-01 — list_faces filters by status
     #[test]
     fn face_registry_status_filter() {
         let (store, _temp) = setup_store();

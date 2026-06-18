@@ -23,13 +23,11 @@ use tracing::{info, warn};
 
 /// Default interval between background wallet-gas calibrations.
 ///
-/// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
 /// expect: "I can configure the default interval for background wallet gas calibration" [P9]
 pub const DEFAULT_WALLET_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 /// Default lookback window for the first calibration pass after construction.
 ///
-/// REQ: GAS-CALIB-005
 pub const DEFAULT_WALLET_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hours(1);
 
 /// Calibrator for the wallet gas→rJoule conversion rate.
@@ -52,7 +50,6 @@ pub struct WalletGasCalibrator {
 impl WalletGasCalibrator {
     /// Create a wallet gas calibrator backed by the given event store and wallet manager.
     ///
-    /// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
     /// expect: "I can create a wallet gas calibrator that self-tunes the gas→rJoule rate from settled events" [P9]
 /// expect: "I can configure the default interval for background wallet gas calibration" [P9]
     /// pre:  store is a valid NuEventStore; wallet_manager is valid
@@ -74,7 +71,6 @@ impl WalletGasCalibrator {
 
     /// Configure how far back the first calibration pass searches for events.
     ///
-    /// REQ: GAS-CALIB-005
     /// expect: "I can configure how far back the gas calibrator searches for events" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — calibrator searches historical events
     /// \[P4\] Constraining: Clear Boundaries — lookback limits calibration scope
@@ -89,7 +85,6 @@ impl WalletGasCalibrator {
 
     /// Attach a CNS event sink for calibration span emission.
     ///
-    /// REQ: GAS-CALIB-005-obs — wallet rate adjustments emit cns.wallet.conversion spans
 /// expect: "I can attach an event sink so wallet conversion rate adjustments emit CNS observability spans" [P9]
     /// pre:  sink is a valid NuEventSink
     /// post: subsequent successful calibrations that adjust the rate emit a span
@@ -106,7 +101,6 @@ impl WalletGasCalibrator {
     /// `WalletEnergyEstimator`, and pushes the resulting `gas_per_rjoule` to the
     /// shared `WalletManager`.
     ///
-    /// REQ: GAS-CALIB-005
     /// expect: "I can run an incremental wallet calibration pass that computes the aggregate actual/estimated ratio and updates the conversion rate" [P9]
     /// pre:  `self.store` is a valid NuEventStore; `self.wallet_manager` is valid
     /// post: if settled events exist and the aggregate ratio exceeds tolerance,
@@ -200,7 +194,6 @@ impl WalletGasCalibrator {
     /// The task runs until the runtime shuts down. Calibration errors are logged
     /// but do not crash the task.
     ///
-    /// REQ: GAS-CALIB-005
     /// expect: "I can spawn a background task that continuously calibrates the wallet gas conversion rate from live event data" [P9]
     /// pre:  interval > 0
     /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`

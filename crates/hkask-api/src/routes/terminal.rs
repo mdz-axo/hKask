@@ -12,6 +12,7 @@
 //! 4. Server spawns `kask repl --webid <webid>` with piped stdio
 //! 5. Keystrokes → WebSocket → stdin; stdout → WebSocket → terminal
 
+use hkask_rsolidity as rs;
 use axum::{
     extract::{
         State,
@@ -30,7 +31,6 @@ use crate::middleware::session::extract_cookie;
 
 /// GET /api/v1/terminal/ws
 ///
-/// REQ: DEP-032 — WebSocket upgrade: verifies session, spawns PTY, pipes I/O.
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  request contains valid `hkask_session` cookie
 /// post: WebSocket upgraded, `kask repl` spawned with user's WebID
@@ -184,7 +184,6 @@ async fn handle_terminal(socket: WebSocket, webid: String, replicant_name: Strin
 
 /// GET /terminal — static HTML page with xterm.js terminal emulator.
 ///
-/// REQ: DEP-033 — zero JavaScript framework, single static HTML page.
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 pub async fn terminal_page() -> impl IntoResponse {
     axum::response::Html(TERMINAL_HTML)
@@ -314,7 +313,6 @@ const TERMINAL_HTML: &str = r###"<!DOCTYPE html>
 
 /// Build the terminal router.
 ///
-/// REQ: DEP-034
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 pub fn terminal_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     use utoipa_axum::router::OpenApiRouter;

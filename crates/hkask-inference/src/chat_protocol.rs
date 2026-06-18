@@ -8,6 +8,8 @@
 //! an abstraction layer. Each backend owns its HTTP client, auth, and
 //! model listing endpoint independently.
 
+use hkask_rsolidity::contract;
+
 use futures_util::StreamExt;
 use hkask_types::ports::{
     InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage, StructuredToolCall,
@@ -68,11 +70,11 @@ pub struct ChatMessage {
 /// `stream: false` is explicit in non-streaming calls to prevent chunked
 /// transfer encoding from confusing JSON parsers.
 ///
-/// REQ: P9-inf-build-chat-request
 /// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload
 /// pre:  model is non-empty, prompt is non-empty
 /// post: returns serde_json::Value with model, messages, and parameters
+    #[contract(id = "P9-inf-build-chat-request", principle = "P9")]
 pub fn build_chat_request(
     model: &str,
     prompt: &str,
@@ -200,11 +202,11 @@ pub struct StreamDelta {
 /// If no `/` separator, server is empty and the full name is the tool.
 /// Map raw tool calls from API response to structured ToolCall format.
 ///
-/// REQ: P9-inf-map-tool-calls
 /// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — structured tool-call results for routing
 /// pre:  calls is a valid slice of RawToolCall
 /// post: returns Vec<StructuredToolCall> with parsed arguments
+    #[contract(id = "P9-inf-map-tool-calls", principle = "P9")]
 pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
     calls
         .iter()
@@ -228,11 +230,11 @@ pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
 /// Convert raw token probabilities to `TokenProbability`.
 /// Map raw token probabilities to structured TokenProbability format.
 ///
-/// REQ: P9-inf-map-token-probs
 /// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — token probability metadata for monitoring
 /// pre:  probs is a valid slice of RawTokenProb
 /// post: returns Vec<TokenProbability> with mapped fields
+    #[contract(id = "P9-inf-map-token-probs", principle = "P9")]
 pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
     probs
         .iter()
@@ -254,12 +256,12 @@ pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
 /// Convert a `ChatResponse` into an `InferenceResult`.
 /// Convert a chat completion response to InferenceResult.
 ///
-/// REQ: P9-inf-chat-response-to-result
 /// expect: "The system normalizes provider responses for monitoring" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — normalizes provider response for monitoring
 /// pre:  response is a valid ChatResponse
 /// post: returns Ok(InferenceResult) with text, usage, finish_reason
 /// post: returns Err if no choices in response
+    #[contract(id = "P9-inf-chat-response-to-result", principle = "P9")]
 pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult, InferenceError> {
     let choice = response
         .choices
@@ -292,11 +294,11 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
 /// Parse SSE stream lines into `InferenceStreamChunk` vec.
 /// Parse an SSE stream into InferenceStreamChunks.
 ///
-/// REQ: P9-inf-parse-sse-stream
 /// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — parses streaming response chunks for regulated output
 /// pre:  stream is a valid SSE byte stream
 /// post: returns stream of InferenceStreamChunk parsed from SSE data lines
+    #[contract(id = "P9-inf-parse-sse-stream", principle = "P9")]
 pub fn parse_sse_stream(
     body: &str,
     model_id: &str,
@@ -358,12 +360,12 @@ pub fn parse_sse_stream(
 
 /// Validate a prompt string.
 ///
-/// REQ: P9-inf-validate-prompt
 /// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — input validation prevents token overconsumption
 /// pre:  prompt is a valid &str
 /// post: returns Err(Generation) if prompt is empty
 /// post: returns Err(Generation) if prompt.len() > 1_000_000
+    #[contract(id = "P9-inf-validate-prompt", principle = "P9")]
 pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
     if prompt.is_empty() {
         return Err(InferenceError::Generation("Prompt is empty".to_string()));
@@ -380,13 +382,13 @@ pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
 /// and SSE parsing. Backends differ only in their Authorization header value
 /// (Bearer vs Key) and base URL.
 ///
-/// REQ: P9-inf-stream-chat-completion
 /// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — shared streaming helper for all providers
 /// pre:  client is a configured reqwest::Client
 /// pre:  base_url and auth_header_value are non-empty
 /// pre:  model and prompt are non-empty
 /// post: returns Pin<Box<Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send>>
+    #[contract(id = "P9-inf-stream-chat-completion", principle = "P9")]
 pub fn stream_chat_completion(
     client: std::sync::Arc<reqwest::Client>,
     base_url: String,
@@ -442,7 +444,6 @@ pub fn stream_chat_completion(
 mod tests {
     use super::*;
 
-    /// REQ: P9-inf-test-chat-response-deserializes — ChatResponse deserializes OpenAI-compatible format
     /// expect: "Inference chat response deserialization works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates response normalization
     #[test]
@@ -480,7 +481,6 @@ mod tests {
         assert_eq!(resp.usage.total_tokens, 16);
     }
 
-    /// REQ: P9-inf-test-build-chat-request-stream-false — build_chat_request produces valid JSON with stream:false
     /// expect: "Inference chat request building works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates non-streaming request payload
     #[test]
@@ -512,7 +512,6 @@ mod tests {
         assert_eq!(json["messages"][0]["content"], "Write a sentence.");
     }
 
-    /// REQ: P9-inf-test-validate-prompt-rejects — validate_prompt rejects empty and overlong prompts
     /// expect: "Inference prompt validation works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates prompt guardrails
     #[test]
@@ -521,7 +520,6 @@ mod tests {
         assert!(validate_prompt("hello").is_ok());
     }
 
-    /// REQ: P9-inf-test-disable-thinking-wire — disable_thinking maps to enable_thinking: false in wire format
     /// expect: "Inference thinking mode wire format works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates reasoning-mode suppression
     #[test]
@@ -544,7 +542,6 @@ mod tests {
         assert_eq!(json["enable_thinking"], serde_json::json!(false));
     }
 
-    /// REQ: P9-inf-test-enable-thinking-omitted — enable_thinking is omitted from JSON when true (default)
     /// expect: "Inference thinking mode omission works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates default reasoning-mode omission
     #[test]

@@ -6,6 +6,7 @@
 //!
 //! The `POST /api/chat/stream` endpoint streams inference output as SSE events.
 
+use hkask_rsolidity as rs;
 use axum::extract::Extension;
 use axum::{
     Json,
@@ -54,7 +55,6 @@ pub struct ChatResponse {
 
 /// Create chat router
 ///
-/// REQ: API-015
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with chat routes registered

@@ -43,7 +43,6 @@ pub struct ContractViolation {
 /// - `crate_name` — the Cargo package name (e.g., "hkask-cns")
 /// - `workspace_root` — path to the workspace root containing `Cargo.toml`
 ///
-/// REQ: HARN-012
 /// pre:  workspace_root exists and contains Cargo.toml
 /// post: returns ContractTestResult with pass/fail counts and REQ-tagged violations
 pub fn run_contract_tests(crate_name: &str, workspace_root: &str) -> Option<ContractTestResult> {
@@ -255,7 +254,6 @@ pub struct ContractAudit {
 ///
 /// Returns `None` if the crate source directory doesn't exist.
 ///
-/// REQ: HARN-043
 /// pre:  workspace_root exists and contains crates/<crate_name>/src/
 /// post: returns ContractAudit with counts and uncontracted function list
 pub fn discover_uncontracted_functions(
@@ -339,7 +337,6 @@ fn walk_rs_files(dir: &std::path::Path, f: &mut dyn FnMut(&std::path::Path)) {
 
 /// Inventory of all REQ-tagged contracts in a crate.
 ///
-/// REQ: HARN-044
 /// pre:  workspace_root exists and contains crates/<crate_name>/src/
 /// post: returns Vec of ContractEntry with REQ tag, pre/post, and quality flags
 pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec<ContractEntry>> {
@@ -548,7 +545,6 @@ mod tests {
     // REQ: harness-trace-008
     #[test]
     fn extract_req_tag_from_doc_comment() {
-        let tag = extract_req_tag("/// REQ: CNS-001  pre: x > 0");
         assert_eq!(tag, Some("CNS-001".to_string()));
     }
 
@@ -624,7 +620,6 @@ mod tests {
         );
         // Only exact REQ: declarations
         assert_eq!(
-            extract_req_tag("/// REQ: HARN-001"),
             Some("HARN-001".to_string())
         );
     }

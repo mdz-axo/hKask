@@ -56,11 +56,11 @@ impl KataHistoryStore {
     ///
     /// Record a kata history entry.
     ///
-    /// REQ: P3-sto-kata-record
     /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — record a kata practice entry
     /// pre:  entry.agent_name is non-empty
     /// post: entry inserted into kata_history
+    #[rs::contract(id = "P3-sto-kata-record", principle = "P3")]
     #[rs::contract(id = "P3-sto-kata-record", principle = "P3")]
     pub fn record(
         &self,
@@ -81,11 +81,11 @@ impl KataHistoryStore {
     /// Retrieve all entries for an agent, ordered by date descending.
     /// Get entries for a specific agent.
     ///
-    /// REQ: P3-sto-kata-list-agent
     /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — list entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of entries for this agent
+    #[rs::contract(id = "P3-sto-kata-list-agent", principle = "P3")]
     #[rs::contract(id = "P3-sto-kata-list-agent", principle = "P3")]
     pub fn entries_for_agent(
         &self,
@@ -129,11 +129,11 @@ impl KataHistoryStore {
     /// Count total entries for an agent. Useful for CNS variety counter aggregation.
     /// Count entries for an agent.
     ///
-    /// REQ: P3-sto-kata-count-agent
     /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns count of entries
+    #[rs::contract(id = "P3-sto-kata-count-agent", principle = "P3")]
     #[rs::contract(id = "P3-sto-kata-count-agent", principle = "P3")]
     pub fn count_entries_for_agent(&self, agent_name: &str) -> Result<usize, KataHistoryError> {
         let conn = self.lock_conn()?;
@@ -147,11 +147,11 @@ impl KataHistoryStore {
     /// Count entries for an agent on a specific date. Returns count > 0 if practiced today.
     /// Count entries on a specific date.
     ///
-    /// REQ: P3-sto-kata-count-date
     /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count entries per date
     /// pre:  agent_name is non-empty, date is valid ISO date
     /// post: returns count of entries on that date
+    #[rs::contract(id = "P3-sto-kata-count-date", principle = "P3")]
     #[rs::contract(id = "P3-sto-kata-count-date", principle = "P3")]
     pub fn count_entries_on(
         &self,
@@ -169,11 +169,11 @@ impl KataHistoryStore {
     /// Get the most recent entry for an agent.
     /// Get the last entry for an agent.
     ///
-    /// REQ: P3-sto-kata-last
     /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — most recent entry for agent
     /// pre:  agent_name is non-empty
     /// post: returns Some(entry) if exists, None otherwise
+    #[rs::contract(id = "P3-sto-kata-last", principle = "P3")]
     #[rs::contract(id = "P3-sto-kata-last", principle = "P3")]
     pub fn last_entry_for_agent(
         &self,
@@ -217,11 +217,11 @@ impl KataHistoryStore {
     /// Get all entries for an agent within a date range (inclusive).
     /// Get entries in a date range.
     ///
-    /// REQ: P3-sto-kata-range
     /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — entries in date range
     /// pre:  agent_name is non-empty, from/to are valid ISO dates
     /// post: returns Vec of entries in range
+    #[rs::contract(id = "P3-sto-kata-range", principle = "P3")]
     #[rs::contract(id = "P3-sto-kata-range", principle = "P3")]
     pub fn entries_in_range(
         &self,
@@ -267,12 +267,12 @@ impl KataHistoryStore {
     /// Delete entries older than a given date. Useful for CNS routine cleanup.
     /// Delete entries before a date.
     ///
-    /// REQ: P3-sto-kata-delete-before
     /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — delete old entries
     /// pre:  before_date is a valid ISO date
     /// post: entries before date deleted
     /// post: returns count of deleted entries
+    #[rs::contract(id = "P3-sto-kata-delete-before", principle = "P3")]
     #[rs::contract(id = "P3-sto-kata-delete-before", principle = "P3")]
     pub fn delete_entries_before(&self, before_date: &str) -> Result<usize, KataHistoryError> {
         let conn = self.lock_conn()?;

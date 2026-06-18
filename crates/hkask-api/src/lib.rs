@@ -97,7 +97,6 @@ impl ApiState {
     /// is responsible for ensuring secrets are available via the keystore.
     /// Run `kask chat` interactively first to complete onboarding and store secrets.
     ///
-    /// REQ: API-027
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  environment variables and keystore are configured
     /// post: if config/secrets available → Ok(ApiState) with full infrastructure
@@ -122,7 +121,6 @@ impl ApiState {
     /// Surface-specific fields (git CAS) are constructed from AgentService
     /// fields or initialized to defaults.
     ///
-    /// REQ: API-028
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  ctx is a fully-built AgentService
     /// post: returns Ok(ApiState) with all shared infra from ctx
@@ -158,7 +156,6 @@ impl ApiState {
 
     /// Set the spec store for MDS specifications
     ///
-    /// REQ: API-029
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  store is a valid Arc<SqliteSpecStore>
     /// post: self.spec_store = Some(store); returns self
@@ -169,7 +166,6 @@ impl ApiState {
 
     /// Attach a wallet service for rJoule payments and API key management.
     ///
-    /// REQ: API-030
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  svc is a valid Arc<WalletService>
     /// post: self.wallet_service = Some(svc); returns self
@@ -183,7 +179,6 @@ impl ApiState {
     /// Call this after the API server starts listening. The loops run in
     /// background tokio tasks until `shutdown_loops()` is called.
     ///
-    /// REQ: API-031
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  self.agent_service.loop_system() is initialized
     /// post: all registered loops begin tick cycles
@@ -200,7 +195,6 @@ impl ApiState {
 
     /// Signal the loop system to shut down.
     ///
-    /// REQ: API-032
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  self.agent_service.loop_system() is initialized
     /// post: loop system shutdown signal sent; background tasks begin winding down
@@ -213,7 +207,6 @@ impl ApiState {
 
 /// Create API router with OpenAPI documentation and authentication
 ///
-/// REQ: API-033
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  state is a valid ApiState
 /// post: returns Ok(OpenApiRouter) with all route modules merged
@@ -298,7 +291,6 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
 /// collect `#[utoipa::path]` metadata from `routes!()` calls, then extracts
 /// the complete OpenAPI specification including paths.
 ///
-/// REQ: API-034
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApi with all route paths documented

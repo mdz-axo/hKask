@@ -65,7 +65,6 @@ impl PodStatus {
 
 impl PodManager {
     #[allow(clippy::too_many_arguments)]
-    /// REQ: P1-agt-pod-manager-new
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — PodManager orchestrates user agent pods
     /// \[P4\] Constraining: Clear Boundaries — default DenyAllConsent
@@ -74,6 +73,7 @@ impl PodManager {
     /// post: Returns a `PodManager` with all ports set (or defaulted),
     ///       `DenyAllConsent` as the default consent policy, and empty
     ///       pod registry and activation hooks.
+    #[rs::contract(id = "P1-agt-pod-manager-new", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-new", principle = "P1")]
     pub fn new(
         git_cas: Option<Arc<GitCasAdapter>>,
@@ -122,11 +122,11 @@ impl PodManager {
         }
     }
 
-    /// REQ: P1-agt-pod-manager-with-consent
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P2\] Constraining: Affirmative Consent — replace default consent policy
     /// pre:  `consent` is a valid `Arc<dyn SovereigntyConsent>`.
     /// post: Returns `self` with `consent` updated.
+    #[rs::contract(id = "P1-agt-pod-manager-with-consent", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-with-consent", principle = "P1")]
     pub fn with_consent_port(mut self, consent: Arc<dyn crate::SovereigntyConsent>) -> Self {
         self.consent = consent;
@@ -139,53 +139,53 @@ impl PodManager {
     /// \[NORMATIVE\] cross-cutting concerns like Matrix registration that should happen (P6 — Space for Replicants).
     /// whenever a pod becomes active.
     ///
-    /// REQ: P1-agt-pod-manager-activation-hook
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P3\] Motivating: Generative Space — hook runs when pod becomes active
     /// pre:  `hook` is a valid boxed closure.
     /// post: The hook is appended to the activation hooks list.
     #[rs::contract(id = "P1-agt-pod-manager-activation-hook", principle = "P1")]
+    #[rs::contract(id = "P1-agt-pod-manager-activation-hook", principle = "P1")]
     pub async fn register_activation_hook(&self, hook: Box<dyn Fn(WebID, String) + Send + Sync>) {
         self.activation_hooks.write().await.push(hook);
     }
-    /// REQ: P1-agt-pod-manager-with-checker
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — set capability checker
     /// pre:  `checker` is a valid `CapabilityChecker`.
     /// post: Returns `self` with `capability_checker` set to
     ///       `Some(Arc::new(checker))`.
     #[rs::contract(id = "P1-agt-pod-manager-with-checker", principle = "P1")]
+    #[rs::contract(id = "P1-agt-pod-manager-with-checker", principle = "P1")]
     pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
         self.capability_checker = Some(Arc::new(checker));
         self
     }
-    /// REQ: P1-agt-pod-manager-with-sink
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — attach CNS event sink
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `nu_event_sink` set to `Some(sink)`.
     #[rs::contract(id = "P1-agt-pod-manager-with-sink", principle = "P1")]
+    #[rs::contract(id = "P1-agt-pod-manager-with-sink", principle = "P1")]
     pub fn with_nu_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.nu_event_sink = Some(sink);
         self
     }
-    /// REQ: P1-agt-pod-manager-with-governed-tool
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — wire governed tool for capability gating
     /// pre:  `tool` is a valid `Arc<GovernedTool<RawMcpToolPort>>`.
     /// post: Returns `self` with `governed_tool` set to `Some(tool)`.
+    #[rs::contract(id = "P1-agt-pod-manager-with-governed-tool", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-with-governed-tool", principle = "P1")]
     pub fn with_governed_tool(mut self, tool: Arc<GovernedTool<RawMcpToolPort>>) -> Self {
         self.governed_tool = Some(tool);
         self
     }
 
-    /// REQ: P1-agt-pod-manager-with-ports
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — configure runtime ports for pods
     /// pre:  All arguments are valid, non-null `Arc`s.
     /// post: Returns a `PodManager` with all ports set (no optional
     ///       defaults), `DenyAllConsent`, and empty pod registry.
+    #[rs::contract(id = "P1-agt-pod-manager-with-ports", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-with-ports", principle = "P1")]
     pub fn with_inference(
         git_cas: Arc<GitCasAdapter>,
@@ -208,22 +208,22 @@ impl PodManager {
         )
     }
 
-    /// REQ: P1-agt-pod-manager-inference-port
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — accessor for inference port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Option<Arc<dyn InferencePort>>`.
     #[rs::contract(id = "P1-agt-pod-manager-inference-port", principle = "P1")]
+    #[rs::contract(id = "P1-agt-pod-manager-inference-port", principle = "P1")]
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
 
-    /// REQ: P1-agt-pod-manager-sovereignty-checker
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — get per-pod sovereignty checker
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Some(Arc<SovereigntyChecker>)` if the pod exists;
     ///       `None` otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-sovereignty-checker", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-sovereignty-checker", principle = "P1")]
     pub async fn sovereignty_checker_for(
         &self,
@@ -241,12 +241,12 @@ impl PodManager {
     /// If `inference_port` is provided, agent pods can perform inference
     /// (e.g., improv interactions). Default: no inference (pods are orchestration-only).
     ///
-    /// REQ: P1-agt-pod-manager-default
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P5\] Motivating: Essentialism — default manager with in-memory mocks
     /// pre:  `inference_port` is `Some` or `None`.
     /// post: Returns a `PodManager` with in-memory storage, a mock A2A
     ///       runtime, and `DenyAllConsent`.
+    #[rs::contract(id = "P1-agt-pod-manager-default", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-default", principle = "P1")]
     pub fn new_mock(inference_port: Option<Arc<dyn InferencePort>>) -> Self {
         const MOCK_A2A_SECRET: &[u8] = b"xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
@@ -270,7 +270,6 @@ impl PodManager {
 }
 
 impl PodManager {
-    /// REQ: P1-agt-pod-manager-create-pod
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — create a new agent pod from template + persona
     /// pre:  `template_name` is a non-empty string; `persona` is a valid
@@ -279,6 +278,7 @@ impl PodManager {
     /// post: Returns `Ok(PodID)` — the new pod's ID — after creating and
     ///       inserting the pod into the registry. Returns `Err` if
     ///       validation or pod creation fails.
+    #[rs::contract(id = "P1-agt-pod-manager-create-pod", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-create-pod", principle = "P1")]
     pub async fn create_pod(
         &self,
@@ -306,13 +306,13 @@ impl PodManager {
         Ok(pod_id)
     }
 
-    /// REQ: P1-agt-pod-manager-activate-pod
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — activate pod (register + grant MCP)
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: If the pod is `Populated`, registers it with A2A, then
     ///       activates it via MCP. Runs activation hooks on success.
     ///       Returns `Ok(())` or `Err` on failure.
+    #[rs::contract(id = "P1-agt-pod-manager-activate-pod", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-activate-pod", principle = "P1")]
     pub async fn activate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
         let registration_data = {
@@ -373,13 +373,13 @@ impl PodManager {
         Ok(())
     }
 
-    /// REQ: P1-agt-pod-manager-deactivate-pod
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — deactivate pod and revoke capabilities
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: Deactivates the pod and attempts to revoke its capability
     ///       token; logs a warning if revocation fails (pod is still
     ///       deactivated). Returns `Ok(())` or `Err` on failure.
+    #[rs::contract(id = "P1-agt-pod-manager-deactivate-pod", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-deactivate-pod", principle = "P1")]
     pub async fn deactivate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
         let mut pods = self.pods.write().await;
@@ -411,12 +411,12 @@ impl PodManager {
         Ok(())
     }
 
-    /// REQ: P1-agt-pod-manager-recall-lifecycle
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P3\] Motivating: Generative Space — recall pod lifecycle episodes
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: Returns `Ok(Vec<RecalledEpisode>)` with lifecycle events
     ///       for the pod; `Err` if the pod is not found or recall fails.
+    #[rs::contract(id = "P1-agt-pod-manager-recall-lifecycle", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-recall-lifecycle", principle = "P1")]
     pub async fn recall_pod_events(&self, pod_id: &PodID) -> AgentPodResult<Vec<RecalledEpisode>> {
         let pods = self.pods.read().await;
@@ -432,12 +432,12 @@ impl PodManager {
             .map_err(AgentPodError::from)
     }
 
-    /// REQ: P1-agt-pod-manager-status
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — get pod status
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Ok(PodStatus)` if the pod exists; `Err(PodNotFound)`
     ///       otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-status", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-status", principle = "P1")]
     pub async fn get_pod_status(&self, pod_id: &PodID) -> AgentPodResult<PodStatus> {
         self.pods
@@ -448,12 +448,12 @@ impl PodManager {
             .ok_or_else(|| AgentPodError::PodNotFound(*pod_id))
     }
 
-    /// REQ: P1-agt-pod-manager-list-status
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — list all pod statuses
     /// pre:  (none).
     /// post: Returns `Ok(Vec<PodStatus>)` with status for all registered
     ///       pods (may be empty).
+    #[rs::contract(id = "P1-agt-pod-manager-list-status", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-list-status", principle = "P1")]
     pub async fn list_pods(&self) -> AgentPodResult<Vec<PodStatus>> {
         Ok(self
@@ -465,11 +465,11 @@ impl PodManager {
             .collect())
     }
 
-    /// REQ: P1-agt-pod-manager-a2a-port
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — accessor for A2A port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Arc<dyn A2APort + Send + Sync>`.
+    #[rs::contract(id = "P1-agt-pod-manager-a2a-port", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-a2a-port", principle = "P1")]
     pub fn a2a_runtime(&self) -> Arc<dyn crate::ports::A2APort + Send + Sync> {
         Arc::clone(&self.a2a_runtime)
@@ -479,12 +479,12 @@ impl PodManager {
 
     /// Find a pod ID by replicant name (matches persona.agent.name).
     ///
-    /// REQ: P1-agt-pod-manager-find-by-name
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — lookup pod by replicant name
     /// pre:  `name` is a non-empty string.
     /// post: Returns `Some(PodID)` if a pod with matching name exists;
     ///       `None` otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-find-by-name", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-find-by-name", principle = "P1")]
     pub async fn find_pod_by_name(&self, name: &str) -> Option<PodID> {
         let pods = self.pods.read().await;
@@ -498,11 +498,11 @@ impl PodManager {
 
     /// Get the WebID for a pod.
     ///
-    /// REQ: P1-agt-pod-manager-webid
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — get pod's WebID
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Some(WebID)` if the pod exists; `None` otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-webid", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-webid", principle = "P1")]
     pub async fn get_pod_webid(&self, pod_id: &PodID) -> Option<WebID> {
         self.pods.read().await.get(pod_id).map(|p| p.webid)
@@ -510,12 +510,12 @@ impl PodManager {
 
     /// Check if a pod is assigned to a specific MCP role.
     ///
-    /// REQ: P1-agt-pod-manager-has-role
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — check MCP role assignment
     /// pre:  `pod_id` is a valid `PodID`; `role` is a non-empty string.
     /// post: Returns `true` if the pod exists and has the role assigned;
     ///       `false` otherwise (including if pod not found).
+    #[rs::contract(id = "P1-agt-pod-manager-has-role", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-has-role", principle = "P1")]
     pub async fn is_assigned_to_role(&self, pod_id: &PodID, role: &str) -> bool {
         self.pods
@@ -529,13 +529,13 @@ impl PodManager {
     /// Check if a pod holds a specific capability.
     /// Capabilities are stored as strings like "web_search:execute" or "web_search".
     ///
-    /// REQ: P1-agt-pod-manager-has-capability
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — check tool capability
     /// pre:  `pod_id` is a valid `PodID`; `tool` is a non-empty string.
     /// post: Returns `true` if the pod exists and has a capability
     ///       matching `tool` (exact or prefix match with `:` separator);
     ///       `false` otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-has-capability", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-has-capability", principle = "P1")]
     pub async fn has_capability(&self, pod_id: &PodID, tool: &str) -> bool {
         self.pods
@@ -553,7 +553,6 @@ impl PodManager {
 
     /// Assign an MCP role to a pod by name.
     ///
-    /// REQ: P1-agt-pod-manager-assign-role
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — assign MCP role to named pod
     /// pre:  `name` is a non-empty string matching an existing pod;
@@ -561,6 +560,7 @@ impl PodManager {
     /// post: If the pod exists and doesn't already have the role, it is
     ///       added to `assigned_mcp_roles`. Returns `Ok(())` or `Err` if
     ///       pod not found.
+    #[rs::contract(id = "P1-agt-pod-manager-assign-role", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-assign-role", principle = "P1")]
     pub async fn assign_role(&self, name: &str, role: &str) -> AgentPodResult<()> {
         let pod_id = self.find_pod_by_name(name).await.ok_or_else(|| {
@@ -580,7 +580,6 @@ impl PodManager {
     /// Set the agent mode for a pod by name.
     /// Mode can be "server" (with role), "chat", or "exit".
     ///
-    /// REQ: P1-agt-pod-manager-set-mode
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — set pod mode (server/chat/exit)
     /// pre:  `name` is a non-empty string matching an existing pod;
@@ -588,6 +587,7 @@ impl PodManager {
     ///       for "server" mode.
     /// post: Transitions the pod to the requested mode. Returns `Ok(())`
     ///       or `Err` if pod not found or mode transition fails.
+    #[rs::contract(id = "P1-agt-pod-manager-set-mode", principle = "P1")]
     #[rs::contract(id = "P1-agt-pod-manager-set-mode", principle = "P1")]
     pub async fn set_mode(&self, name: &str, mode: &str, role: Option<&str>) -> AgentPodResult<()> {
         let pod_id = self.find_pod_by_name(name).await.ok_or_else(|| {

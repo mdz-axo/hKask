@@ -19,7 +19,6 @@ fn project_root() -> PathBuf {
 
 /// Run a skill command.
 ///
-/// REQ: CLI-004
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  action is valid
 /// post: skill command executed
@@ -181,7 +180,6 @@ fn skill_publish(name: &str) {
 
 /// Run the dual-layer skill audit and emit a report.
 ///
-/// REQ: CLI-005
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  fail_below is in [0.0, 1.0]
 /// post: JSON or table report printed; process exits 1 if any score < fail_below

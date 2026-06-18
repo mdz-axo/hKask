@@ -337,7 +337,6 @@ pub(crate) fn speak_response(
 
 #[cfg(test)]
 mod tests {
-    /// REQ: cli-talk-summarize-01 — short text threshold and prompt format
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn summarize_short_text_threshold() {
@@ -359,7 +358,6 @@ mod tests {
         );
     }
 
-    /// REQ: cli-talk-summarize-02 — handler dispatch does not panic
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn handler_dispatch_no_panic() {

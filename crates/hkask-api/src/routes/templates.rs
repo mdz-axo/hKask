@@ -12,6 +12,7 @@
 //! Decision: Guideline — keep direct `service_context.registry()` access.
 //! Revisit if template matching logic grows beyond name/skill/polarity queries.
 
+use hkask_rsolidity as rs;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -55,7 +56,6 @@ pub struct GrantCapabilityRequest {
 
 /// Create templates router
 ///
-/// REQ: API-012
 /// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with template routes registered

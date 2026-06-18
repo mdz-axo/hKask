@@ -1,5 +1,6 @@
 //! API error type with Axum IntoResponse — maps to HTTP status codes per variant.
 
+use hkask_rsolidity as rs;
 use axum::{
     Json,
     http::StatusCode,

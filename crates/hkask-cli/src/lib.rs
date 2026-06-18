@@ -9,7 +9,6 @@ pub mod transcript_viewer;
 /// Extract the ElevenLabs voice preset name from a VoiceDesign JSON string.
 /// Falls back to "Rachel" if parsing fails.
 ///
-/// REQ: CLI-006
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  vd_json is a JSON string (may be invalid)
 /// post: returns voice preset name from JSON fields (elevenlabs_voice, preset, name)

@@ -10,6 +10,8 @@
 //!   kanban:task  → {task_id}  → JSON Task
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
+use hkask_rsolidity::contract;
+
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::{
     Board, BoardId, ColumnDef, Comment, ConsentProof, Phase, PhaseId, Task, TaskFilter, TaskId,
@@ -44,9 +46,9 @@ const BOARD_TASKS_PREFIX: &str = "kanban:board_tasks:";
 impl KanbanService {
     /// Create a KanbanService backed by the given TripleStore.
     ///
-    /// REQ: P3-svc-kanban-001
     /// pre:  store must have the triples table initialized
     /// post: returns a KanbanService ready for use
+    #[contract(id = "P3-svc-kanban-001", principle = "P3")]
     pub fn new(store: TripleStore) -> Self {
         Self {
             store,
@@ -56,10 +58,10 @@ impl KanbanService {
 
     /// Attach a PodManager for live spawn capability.
     ///
-    /// REQ: P3-svc-kanban-001b
     /// pre:  pm is a valid Arc<PodManager>
     /// post: returns Self with pod_manager set to Some(pm)
     #[must_use = "builder methods must be chained or assigned"]
+    #[contract(id = "P3-svc-kanban-001b", principle = "P3")]
     pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::PodManager>) -> Self {
         self.pod_manager = Some(pm);
         self
@@ -69,9 +71,9 @@ impl KanbanService {
 
     /// Create a new kanban board.
     ///
-    /// REQ: P3-svc-kanban-002
     /// pre:  owner is a valid WebID; name is non-empty; columns is non-empty
     /// post: board is persisted as a triple; returns the created Board
+    #[contract(id = "P3-svc-kanban-002", principle = "P3")]
     pub fn board_create(
         &self,
         owner: WebID,
@@ -112,9 +114,9 @@ impl KanbanService {
 
     /// Create a board from a YAML template file.
     ///
-    /// REQ: P3-svc-kanban-002b
     /// pre:  template_path is a valid YAML file with board template schema
     /// post: board is created with template-defined columns, WIP limits, and phases
+    #[contract(id = "P3-svc-kanban-002b", principle = "P3")]
     pub fn board_create_from_template(
         &self,
         owner: WebID,
@@ -166,8 +168,8 @@ impl KanbanService {
 
     /// List all board templates.
     ///
-    /// REQ: P3-svc-kanban-002c
     /// post: returns Vec of known template names
+    #[contract(id = "P3-svc-kanban-002c", principle = "P3")]
     pub fn list_templates() -> Vec<String> {
         vec![
             "software-project".into(),
@@ -179,9 +181,9 @@ impl KanbanService {
 
     /// List all boards for a given owner.
     ///
-    /// REQ: P3-svc-kanban-003
     /// pre:  owner is a valid WebID
     /// post: returns all boards owned by this replicant
+    #[contract(id = "P3-svc-kanban-003", principle = "P3")]
     pub fn board_list(&self, owner: &WebID) -> Result<Vec<Board>, KanbanError> {
         let triples = self
             .store
@@ -203,9 +205,9 @@ impl KanbanService {
 
     /// Get a board by ID.
     ///
-    /// REQ: P3-svc-kanban-004
     /// pre:  board_id is valid
     /// post: returns Some(Board) if found, None otherwise
+    #[contract(id = "P3-svc-kanban-004", principle = "P3")]
     pub fn board_get(&self, board_id: BoardId) -> Result<Option<Board>, KanbanError> {
         let triples = self
             .store
@@ -223,10 +225,10 @@ impl KanbanService {
 
     /// Render a text-based kanban board view.
     ///
-    /// REQ: P3-svc-kanban-004b
     /// pre:  board_id refers to an existing board
     /// post: returns a formatted string showing columns with tasks arranged by status,
     ///       WIP limits, story points, labels, overdue indicators, and verification status
+    #[contract(id = "P3-svc-kanban-004b", principle = "P3")]
     pub fn board_view(
         &self,
         board_id: BoardId,
@@ -317,9 +319,9 @@ impl KanbanService {
 
     /// Create a new task on a board.
     ///
-    /// REQ: P3-svc-kanban-005
     /// pre:  board_id refers to an existing board; spec.title is non-empty; owner is valid
     /// post: task is persisted as a triple; returns the created Task
+    #[contract(id = "P3-svc-kanban-005", principle = "P3")]
     pub fn task_create(
         &self,
         board_id: BoardId,
@@ -412,9 +414,9 @@ impl KanbanService {
 
     /// List tasks on a board, optionally filtered.
     ///
-    /// REQ: P3-svc-kanban-006
     /// pre:  board_id refers to an existing board
     /// post: returns tasks matching the filter; empty Vec if none match
+    #[contract(id = "P3-svc-kanban-006", principle = "P3")]
     pub fn task_list(
         &self,
         board_id: BoardId,
@@ -462,9 +464,9 @@ impl KanbanService {
 
     /// Get a task by ID.
     ///
-    /// REQ: P3-svc-kanban-007
     /// pre:  task_id is valid
     /// post: returns Some(Task) if found, None otherwise
+    #[contract(id = "P3-svc-kanban-007", principle = "P3")]
     pub fn task_get(&self, task_id: TaskId) -> Result<Option<Task>, KanbanError> {
         let triples = self
             .store
@@ -482,10 +484,10 @@ impl KanbanService {
 
     /// Move a task to a new column (state transition).
     ///
-    /// REQ: P3-svc-kanban-008
     /// pre:  task_id refers to an existing task; target is a valid transition from current status
     /// pre:  actor is a valid WebID (P12)
     /// post: task.status is updated; updated_at is refreshed
+    #[contract(id = "P3-svc-kanban-008", principle = "P3")]
     pub fn task_move(
         &self,
         task_id: TaskId,
@@ -558,11 +560,11 @@ impl KanbanService {
 
     /// Assign a task to an agent with consent proof.
     ///
-    /// REQ: P3-svc-kanban-009
     /// pre:  task_id refers to an existing task; consent.agent matches the assignee
     /// pre:  consent.task_id matches task_id
     /// post: task.assignee is set to consent.agent
     /// fails: if consent is invalid → ConsentViolation
+    #[contract(id = "P3-svc-kanban-009", principle = "P3")]
     pub fn task_assign(
         &self,
         task_id: TaskId,
@@ -617,10 +619,10 @@ impl KanbanService {
 
     /// Verify a task's completion against its acceptance criteria.
     ///
-    /// REQ: P3-svc-kanban-010
     /// pre:  task_id refers to an existing task in Review status
     /// pre:  verifier is a valid WebID
     /// post: task.verification is set; task moves to Done if passed
+    #[contract(id = "P3-svc-kanban-010", principle = "P3")]
     pub fn task_verify(
         &self,
         task_id: TaskId,
@@ -704,9 +706,9 @@ impl KanbanService {
 
     /// Delete a task and its board index entry.
     ///
-    /// REQ: P3-svc-kanban-040
     /// pre:  task_id is valid
     /// post: task triple and index triple are soft-deleted
+    #[contract(id = "P3-svc-kanban-040", principle = "P3")]
     pub fn task_delete(&self, task_id: TaskId) -> Result<(), KanbanError> {
         let task = self
             .task_get(task_id)?
@@ -740,9 +742,9 @@ impl KanbanService {
 
     /// Unassign a task — remove the assignee.
     ///
-    /// REQ: P3-svc-kanban-041
     /// pre:  task_id is valid
     /// post: task.assignee is set to None
+    #[contract(id = "P3-svc-kanban-041", principle = "P3")]
     pub fn task_unassign(&self, task_id: TaskId) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -755,9 +757,9 @@ impl KanbanService {
 
     /// Reopen a completed task — move from Done back to InProgress.
     ///
-    /// REQ: P3-svc-kanban-042
     /// pre:  task_id refers to a task in Done status
     /// post: task moves to InProgress, verification cleared
+    #[contract(id = "P3-svc-kanban-042", principle = "P3")]
     pub fn task_reopen(&self, task_id: TaskId) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -780,9 +782,9 @@ impl KanbanService {
 
     /// Delete a board and all its tasks.
     ///
-    /// REQ: P3-svc-kanban-043
     /// pre:  board_id is valid
     /// post: board triple and all associated task/index triples are soft-deleted
+    #[contract(id = "P3-svc-kanban-043", principle = "P3")]
     pub fn board_delete(&self, board_id: BoardId) -> Result<usize, KanbanError> {
         let board = self
             .board_get(board_id)?

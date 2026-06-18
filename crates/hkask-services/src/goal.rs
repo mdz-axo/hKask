@@ -5,6 +5,8 @@
 //! calling `goal_repo()` directly with duplicated visibility parsing and
 //! response mapping logic.
 
+use hkask_rsolidity::contract;
+
 use hkask_types::CurationInput;
 use hkask_types::goal::{Goal, GoalState};
 use hkask_types::id::{GoalID, WebID};
@@ -45,10 +47,10 @@ pub struct GoalService;
 impl GoalService {
     /// Create a new goal for the given owner.
     ///
-    /// REQ: P7-svc-goal-125
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; req.text must be non-empty; req.visibility must be "private" or "public"
     /// post: goal is persisted and returned as GoalResponse; Err(ValidationError) on invalid visibility; Err(GoalRepo) on store failure
+    #[contract(id = "P7-svc-goal-125", principle = "P7")]
     pub fn create_goal(
         ctx: &AgentService,
         req: CreateGoalRequest,
@@ -73,10 +75,10 @@ impl GoalService {
 
     /// List goals for the given owner, optionally filtered by state.
     ///
-    /// REQ: P7-svc-goal-126
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; owner must be a valid WebID; state_filter if Some must be a valid GoalState string
     /// post: returns Vec<GoalResponse> for matching goals; empty Vec if none; Err(ValidationError) on invalid state filter; Err(GoalRepo) on store failure
+    #[contract(id = "P7-svc-goal-126", principle = "P7")]
     pub fn list_goals(
         ctx: &AgentService,
         owner: &WebID,
@@ -104,10 +106,10 @@ impl GoalService {
 
     /// Set the state of an existing goal.
     ///
-    /// REQ: P7-svc-goal-127
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; goal_id_str must be a valid GoalID; new_state_str must be a valid GoalState
     /// post: goal state is updated and returned as GoalResponse; Err(ValidationError) on invalid ID or state; Err(GoalRepo) on store failure; Err(ValidationError) if owner does not match goal's owner
+    #[contract(id = "P7-svc-goal-127", principle = "P7")]
     pub fn set_goal_state(
         ctx: &AgentService,
         goal_id_str: &str,

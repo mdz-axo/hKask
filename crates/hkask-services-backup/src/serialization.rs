@@ -6,6 +6,8 @@
 //! Initial implementation uses JSON for all types — simplest, diffable, human-readable.
 //! Per-type format optimization deferred to F1 resolution.
 
+use hkask_rsolidity::contract;
+
 use serde::Serialize;
 
 use crate::scope::ArtifactType;
@@ -15,10 +17,10 @@ use crate::scope::ArtifactType;
 /// The serialization must be deterministic: same artifact → same bytes → same
 /// BLAKE3 hash → git deduplication works. JSON with sorted keys satisfies this.
 ///
-/// REQ: P7-svc-backup-serialization-svc-159
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty; data must be Serialize
 /// post: returns Vec<u8> of JSON-encoded ArtifactEnvelope; Err on serialization failure
+    #[contract(id = "P7-svc-backup-serialization-svc-159", principle = "P7")]
 pub fn serialize_artifact(
     artifact_type: &ArtifactType,
     artifact_id: &str,
@@ -37,10 +39,10 @@ pub fn serialize_artifact(
 ///
 /// Returns the raw JSON value — callers interpret based on artifact type.
 ///
-/// REQ: P7-svc-backup-serialization-svc-160
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  blob must be valid JSON matching ArtifactEnvelopeValue schema
 /// post: returns ArtifactEnvelopeValue with artifact_type, artifact_id, and payload; Err on invalid JSON
+    #[contract(id = "P7-svc-backup-serialization-svc-160", principle = "P7")]
 pub fn deserialize_artifact(blob: &[u8]) -> Result<ArtifactEnvelopeValue, serde_json::Error> {
     serde_json::from_slice(blob)
 }
@@ -77,10 +79,10 @@ pub struct ArtifactEnvelopeValue {
 /// This organizes blobs hierarchically in the git tree, enabling
 /// scoped list_tree operations (e.g., `prefix = "template/"`).
 ///
-/// REQ: P7-svc-backup-serialization-svc-161
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty
 /// post: returns String path in format "{label}/{id}.json"
+    #[contract(id = "P7-svc-backup-serialization-svc-161", principle = "P7")]
 pub fn artifact_git_path(artifact_type: &ArtifactType, artifact_id: &str) -> String {
     format!("{}/{}.json", artifact_type.label(), artifact_id)
 }

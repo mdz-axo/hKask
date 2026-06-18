@@ -11,7 +11,6 @@ use crate::repl::handlers::ReplSettings;
 use hkask_services::{load_settings, save_settings};
 
 /// CLI handler for `kask settings {show,set,reset}`.
-/// REQ: CLI-072
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  action is a valid SettingsAction variant (Show, Set, Reset)
 /// post: loads/saves REPL settings from ~/.config/hkask/settings.json; prints current values or confirmation

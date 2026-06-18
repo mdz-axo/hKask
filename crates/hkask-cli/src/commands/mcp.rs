@@ -36,7 +36,6 @@ fn build_service_context(
     ctx
 }
 
-/// REQ: CLI-080
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; action is a valid McpAction variant
 /// post: dispatches to list_servers, list_tools, get_tool, or invoke tool operations

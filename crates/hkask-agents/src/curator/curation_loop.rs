@@ -62,7 +62,6 @@ impl CurationLoop {
     /// The `context` provides capability-disciplined access to CNS, dispatch,
     /// and escalation — the Curation Loop's only runtime dependencies.
     ///
-    /// REQ: P9-agt-curator-loop-new
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — Curation Loop is the regulatory sense-act loop
     /// \[P4\] Constraining: Clear Boundaries — single CuratorHandle capability
@@ -70,6 +69,7 @@ impl CurationLoop {
     ///       `context` is a valid `Arc<CuratorContext>`.
     /// post: Returns a `CurationLoop` with no consolidation, no inbox,
     ///       and `last_review_ms` initialized to 0.
+    #[rs::contract(id = "P9-agt-curator-loop-new", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-loop-new", principle = "P9")]
     pub fn new(curator_handle: CuratorHandle, context: Arc<CuratorContext>) -> Self {
         Self {
@@ -81,7 +81,6 @@ impl CurationLoop {
         }
     }
 
-    /// REQ: P9-agt-curator-loop-new-with-consolidation
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — consolidation tunes the loop
     /// \[P7\] Constraining: Evolutionary Architecture — consolidation config emerged from usage
@@ -90,6 +89,7 @@ impl CurationLoop {
     ///       `Arc<ConsolidationBridge>`.
     /// post: Returns a `CurationLoop` with consolidation set, no inbox,
     ///       and `last_review_ms` initialized to 0.
+    #[rs::contract(id = "P9-agt-curator-loop-new-with-consolidation", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-loop-new-with-consolidation", principle = "P9")]
     pub fn with_consolidation(
         curator_handle: CuratorHandle,
@@ -107,12 +107,12 @@ impl CurationLoop {
 
     /// Wire the unified inbox for CurationInput messages.
     ///
-    /// REQ: P9-agt-curator-loop-inbox
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — unified inbox receives CurationInput
     /// pre:  `rx` is a valid `UnboundedReceiver<CurationInput>`.
     /// post: Returns `self` with `inbox` set to `Some(Arc<RwLock<rx>>)`.
     #[must_use = "builder methods must be chained or assigned"]
+    #[rs::contract(id = "P9-agt-curator-loop-inbox", principle = "P9")]
     pub fn with_inbox(mut self, rx: mpsc::UnboundedReceiver<CurationInput>) -> Self {
         self.inbox = Some(Arc::new(RwLock::new(rx)));
         self
@@ -120,11 +120,11 @@ impl CurationLoop {
 
     /// Access the CuratorContext (capability-disciplined runtime references).
     ///
-    /// REQ: P9-agt-curator-loop-context
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — context exposes CNS and escalation
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CuratorContext>`.
+    #[rs::contract(id = "P9-agt-curator-loop-context", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-loop-context", principle = "P9")]
     pub fn context(&self) -> &Arc<CuratorContext> {
         &self.context
@@ -135,11 +135,11 @@ impl CurationLoop {
     /// Per the singleton invariant, this is the single CuratorHandle
     /// for the entire system.
     ///
-    /// REQ: P9-agt-curator-loop-handle
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — handle is the capability to curate
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `CuratorHandle`.
+    #[rs::contract(id = "P9-agt-curator-loop-handle", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-loop-handle", principle = "P9")]
     pub fn curator_handle(&self) -> &CuratorHandle {
         &self.curator_handle
@@ -150,13 +150,13 @@ impl CurationLoop {
     /// Call this after construction and before the first tick to avoid
     /// re-processing all historical algedonic events on restart.
     ///
-    /// REQ: P9-agt-curator-loop-restore-cursor
     /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — cursor restore avoids re-processing history
     /// pre:  `self.context.nu_event_store()` may be `Some` or `None`.
     /// post: If a persisted cursor exists, `last_review_ms` is updated;
     ///       otherwise it remains at 0. Logs the outcome at info/warn level.
     ///       Does not panic on storage errors.
+    #[rs::contract(id = "P9-agt-curator-loop-restore-cursor", principle = "P9")]
     #[rs::contract(id = "P9-agt-curator-loop-restore-cursor", principle = "P9")]
     pub fn restore_cursor(&self) {
         if let Some(store) = self.context.nu_event_store() {

@@ -15,7 +15,6 @@ pub enum AgentKind {
 impl AgentKind {
     /// Get string representation of agent kind.
     ///
-    /// REQ: TYP-117
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns "Bot" or "Replicant"
     pub fn as_str(&self) -> &'static str {
@@ -30,7 +29,6 @@ impl AgentKind {
     /// Maps `Bot` → `"bot"`, `Replicant` → `"replicant"`.
     /// Return the persona kind string.
     ///
-    /// REQ: TYP-118
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns "bot" or "replicant"
     pub fn as_persona_kind(&self) -> &'static str {
@@ -42,7 +40,6 @@ impl AgentKind {
 
     /// Parse agent kind from string.
     ///
-    /// REQ: TYP-119
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Some(AgentKind) if valid, None otherwise
     pub fn parse(s: &str) -> Option<Self> {
@@ -115,7 +112,6 @@ pub struct AgentDefinition {
 impl AgentDefinition {
     /// Get flattened rights strings.
     ///
-    /// REQ: TYP-120
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Vec of display strings for all rights
     pub fn rights_flat(&self) -> Vec<String> {
@@ -124,7 +120,6 @@ impl AgentDefinition {
 
     /// Get flattened responsibilities strings.
     ///
-    /// REQ: TYP-121
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Vec of display strings for all responsibilities
     pub fn responsibilities_flat(&self) -> Vec<String> {
@@ -136,7 +131,6 @@ impl AgentDefinition {
 
     /// Compose a system prompt from the agent definition.
     ///
-    /// REQ: TYP-122
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns formatted system prompt string
     pub fn compose_system_prompt(&self) -> String {
@@ -188,7 +182,6 @@ impl AgentDefinition {
 
     /// Check if the agent has a specific capability.
     ///
-    /// REQ: TYP-123
 /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  cap is non-empty
     /// post: returns true iff capability is in the list

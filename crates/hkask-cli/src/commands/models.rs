@@ -4,7 +4,6 @@
 //! Inference is an internal cognition layer, not an MCP server — the `kask models`
 //! command queries the inference backend directly through the service layer.
 
-/// REQ: CLI-071
 /// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; inference backend must be reachable
 /// post: lists available models grouped by family with name, size, and quantization info

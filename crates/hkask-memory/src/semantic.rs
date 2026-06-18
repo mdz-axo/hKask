@@ -9,6 +9,8 @@
 //! - **Corpus centroid**: Mean embedding vector for style cluster validation.
 //! - **Prefix purge**: Idempotent re-ingest by deleting embeddings matching a prefix.
 
+use hkask_rsolidity::contract;
+
 use crate::recall_dedup;
 use hkask_storage::{
     EmbeddingError, EmbeddingStore, SimilarityResult, Triple, TripleError, TripleStore,
@@ -66,12 +68,12 @@ pub struct SemanticMemory {
 impl SemanticMemory {
     /// Create a new SemanticMemory with triple and embedding stores.
     ///
-    /// REQ: P3-mem-semantic-memory-new
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — creates shared semantic knowledge store
     /// \[P8\] Constraining: Semantic Grounding — unifies triple and embedding stores
     /// pre:  triple_store and embedding_store are initialized
     /// post: returns SemanticMemory wrapping both stores
+    #[contract(id = "P3-mem-semantic-memory-new", principle = "P3")]
     pub fn new(triple_store: TripleStore, embedding_store: EmbeddingStore) -> Self {
         Self {
             triple_store,
@@ -94,12 +96,12 @@ impl SemanticMemory {
     /// duplicates if they share the same entity, attribute, and canonical value —
     /// regardless of timestamps, confidence, or perspective metadata.
     ///
-    /// REQ: P3-mem-semantic-query-deduped
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — recalls deduplicated public semantic triples
     /// \[P4\] Constraining: Clear Boundaries — filters to Public visibility
     /// pre:  entity is non-empty
     /// post: returns `Vec<Triple>` filtered to Public visibility, deduplicated by EAV hash
+    #[contract(id = "P3-mem-semantic-query-deduped", principle = "P3")]
     pub fn query_deduped(&self, entity: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         let triples = self.triple_store.query_by_entity(entity)?;
         let filtered: Vec<Triple> = triples
@@ -111,7 +113,6 @@ impl SemanticMemory {
 
     /// Store a semantic triple (must be Public, no perspective).
     ///
-    /// REQ: P3-mem-semantic-store
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — stores shared semantic triple
     /// \[P4\] Constraining: Clear Boundaries — requires Public visibility and no perspective
@@ -120,6 +121,7 @@ impl SemanticMemory {
     /// post: triple inserted into triple_store
     /// post: returns Err(InvalidVisibility) if not Public
     /// post: returns Err(HasPerspective) if perspective is set
+    #[contract(id = "P3-mem-semantic-store", principle = "P3")]
     pub fn store(&self, triple: Triple) -> Result<(), SemanticMemoryError> {
         if triple.access.visibility != Visibility::Public {
             return Err(SemanticMemoryError::InvalidVisibility(format!(
@@ -168,35 +170,35 @@ impl SemanticMemory {
 
     /// Count all semantic triples.
     ///
-    /// REQ: P3-mem-semantic-triple-count
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — reports total shared knowledge triples
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count feeds storage budget loop
     /// post: returns total count of semantic triples in store
+    #[contract(id = "P3-mem-semantic-triple-count", principle = "P3")]
     pub fn triple_count(&self) -> Result<usize, SemanticMemoryError> {
         Ok(self.triple_store.count_semantic()?)
     }
 
     /// Count semantic triples for a specific entity.
     ///
-    /// REQ: P3-mem-semantic-triple-count-entity
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — reports semantic triples per entity
     /// \[P9\] Constraining: Homeostatic Self-Regulation — per-entity budget monitoring
     /// pre:  entity is non-empty
     /// post: returns count of semantic triples for this entity
+    #[contract(id = "P3-mem-semantic-triple-count-entity", principle = "P3")]
     pub fn triple_count_for_entity(&self, entity: &str) -> Result<usize, SemanticMemoryError> {
         Ok(self.triple_store.count_semantic_by_entity(entity)?)
     }
 
     /// Query all triples with a given attribute.
     ///
-    /// REQ: P3-mem-semantic-query-attribute
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — queries shared triples by attribute
     /// \[P8\] Constraining: Semantic Grounding — attribute-based recall expands context
     /// pre:  attribute is non-empty
     /// post: returns Vec<Triple> with matching attribute
+    #[contract(id = "P3-mem-semantic-query-attribute", principle = "P3")]
     pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         Ok(self.triple_store.query_by_attribute(attribute)?)
     }
@@ -208,13 +210,13 @@ impl SemanticMemory {
     /// The embedding is indexed by the triple's ID (`entity_ref`), enabling
     /// similarity search to find semantically related triples.
     ///
-    /// REQ: P3-mem-semantic-store-embedding
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — indexes embedding vector for similarity retrieval
     /// \[P8\] Constraining: Semantic Grounding — vector indexed by triple entity_ref
     /// pre:  entity_ref is non-empty, vector is non-empty, model is valid
     /// post: embedding stored and indexed by entity_ref
     /// post: returns embedding ID
+    #[contract(id = "P3-mem-semantic-store-embedding", principle = "P3")]
     pub fn store_embedding(
         &self,
         entity_ref: &str,
@@ -231,12 +233,12 @@ impl SemanticMemory {
     /// given a query embedding, find triples that are semantically close even
     /// if their entity keys differ.
     ///
-    /// REQ: P3-mem-semantic-search-similar
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — KNN search augments recall beyond exact matches
     /// \[P8\] Constraining: Semantic Grounding — results ordered by embedding distance
     /// pre:  query_vector is non-empty, limit > 0
     /// post: returns Vec<SimilarityResult> ordered by ascending distance
+    #[contract(id = "P3-mem-semantic-search-similar", principle = "P3")]
     pub fn search_similar(
         &self,
         query_vector: &[f32],
@@ -247,11 +249,11 @@ impl SemanticMemory {
 
     /// Count stored embeddings.
     ///
-    /// REQ: P3-mem-semantic-embedding-count
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — reports indexed embedding count
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count used for embedding budget monitoring
     /// post: returns total count of embeddings in store
+    #[contract(id = "P3-mem-semantic-embedding-count", principle = "P3")]
     pub fn embedding_count(&self) -> Result<usize, SemanticMemoryError> {
         Ok(self.embedding.count()?)
     }
@@ -259,11 +261,11 @@ impl SemanticMemory {
     /// Access the underlying EmbeddingStore for direct operations
     /// (e.g., centroid computation, KNN search).
     ///
-    /// REQ: P3-mem-semantic-embedding-store
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — exposes embedding store for advanced operations
     /// \[P5\] Constraining: Essentialism — direct accessor avoids duplicate wrappers
     /// post: returns reference to the EmbeddingStore
+    #[contract(id = "P3-mem-semantic-embedding-store", principle = "P3")]
     pub fn embedding_store(&self) -> &EmbeddingStore {
         &self.embedding
     }
@@ -291,7 +293,6 @@ impl SemanticMemory {
     /// If `store_as` is provided, the centroid is also stored as an embedding
     /// under that entity_ref, enabling one-step compute+store.
     ///
-    /// REQ: P3-mem-semantic-compute-centroid
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — computes mean style vector for corpus validation
     /// \[P8\] Constraining: Semantic Grounding — arithmetic mean over matching embeddings
@@ -299,6 +300,7 @@ impl SemanticMemory {
     /// post: returns CentroidResult with mean vector and passage count
     /// post: returns Err(NoEmbeddingsForCentroid) if no matching embeddings
     /// post: centroid stored if store_as and model are provided
+    #[contract(id = "P3-mem-semantic-compute-centroid", principle = "P3")]
     pub fn compute_centroid(
         &self,
         prefix: &str,
@@ -379,13 +381,13 @@ impl SemanticMemory {
     /// Used for idempotent re-ingest: purge an author's existing embeddings
     /// before re-downloading and re-embedding their corpus.
     ///
-    /// REQ: P3-mem-semantic-purge-prefix
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — purges embeddings for idempotent re-ingest
     /// \[P5\] Constraining: Essentialism — prefix-based deletion, count of successes returned
     /// pre:  prefix is non-empty
     /// post: all embeddings with matching prefix deleted
     /// post: returns count of deleted embeddings
+    #[contract(id = "P3-mem-semantic-purge-prefix", principle = "P3")]
     pub fn purge_by_prefix(&self, prefix: &str) -> Result<usize, SemanticMemoryError> {
         let to_delete = self.entity_refs_by_prefix(prefix)?;
 
@@ -416,7 +418,6 @@ impl SemanticMemory {
     /// Returns (entity_ref, text) pairs with entity_ref formatted as
     /// `{entity_ref_prefix}:{chunk_index}`.
     ///
-    /// REQ: P3-mem-semantic-chunk-text
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — chunks text into passage-sized units for embedding
     /// \[P5\] Constraining: Essentialism — paragraph/sentence boundary splitting with min/max words
@@ -424,6 +425,7 @@ impl SemanticMemory {
     /// pre:  min_words > 0, max_words >= min_words
     /// post: returns Vec of (entity_ref, text) chunks
     /// post: each chunk has word count between min_words and max_words (best-effort)
+    #[contract(id = "P3-mem-semantic-chunk-text", principle = "P3")]
     pub fn chunk_text(
         text: &str,
         entity_ref_prefix: &str,
@@ -530,13 +532,13 @@ impl SemanticMemory {
     ///
     /// Looks for the standard `*** START OF` / `*** END OF` markers.
     ///
-    /// REQ: P3-mem-semantic-strip-gutenberg
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — removes boilerplate for clean corpus ingestion
     /// \[P5\] Constraining: Essentialism — marker-based trim, no regex
     /// pre:  text is a valid &str
     /// post: returns text between START OF and END OF markers
     /// post: returns full text if markers not found
+    #[contract(id = "P3-mem-semantic-strip-gutenberg", principle = "P3")]
     pub fn strip_gutenberg_headers(text: &str) -> String {
         let start_marker = "*** START OF";
         let end_marker = "*** END OF";
@@ -571,13 +573,13 @@ impl SemanticMemory {
     /// When the semantic storage budget is exceeded or consolidation cleanup
     /// targets low-confidence triples, they are deleted outright.
     ///
-    /// REQ: P3-mem-semantic-delete-triple
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — deletes semantic triple for budget enforcement or cleanup
     /// \[P9\] Constraining: Homeostatic Self-Regulation — used by regulation loops to free space
     /// pre:  id is a valid TripleID
     /// post: triple deleted from store
     /// post: returns Err if triple not found
+    #[contract(id = "P3-mem-semantic-delete-triple", principle = "P3")]
     pub fn delete_triple(&self, id: &hkask_storage::TripleID) -> Result<(), SemanticMemoryError> {
         tracing::info!(
             target: "cns.semantic",
@@ -595,12 +597,12 @@ impl SemanticMemory {
     /// Returns up to `limit` triples with `perspective IS NULL`, ordered by
     /// confidence ascending then `valid_from` ascending (oldest first).
     ///
-    /// REQ: P3-mem-semantic-lowest-confidence
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — identifies lowest-confidence triples for pruning
     /// \[P9\] Constraining: Homeostatic Self-Regulation — ordered by confidence and age
     /// pre:  limit > 0
     /// post: returns up to `limit` triples ordered by confidence ascending
+    #[contract(id = "P3-mem-semantic-lowest-confidence", principle = "P3")]
     pub fn lowest_confidence_triples(
         &self,
         limit: usize,
@@ -613,12 +615,12 @@ impl SemanticMemory {
     /// Used by `SemanticLoop::sense()` and `ConsolidationService`
     /// for the consolidation trigger signal.
     ///
-    /// REQ: P3-mem-semantic-low-confidence-count
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — counts uncertain semantic triples
     /// \[P9\] Constraining: Homeostatic Self-Regulation — threshold-driven count
     /// pre:  threshold in [0.0, 1.0]
     /// post: returns count of triples with confidence ≤ threshold
+    #[contract(id = "P3-mem-semantic-low-confidence-count", principle = "P3")]
     pub fn low_confidence_count(&self, threshold: f64) -> Result<usize, SemanticMemoryError> {
         Ok(self
             .triple_store
@@ -633,12 +635,12 @@ impl SemanticMemory {
     /// Used by `SemanticLoop::act()` and `ConsolidationService`
     /// for the consolidation trigger.
     ///
-    /// REQ: P3-mem-semantic-low-confidence-triples
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves uncertain semantic triples for review
     /// \[P9\] Constraining: Homeostatic Self-Regulation — bounded by threshold and limit
     /// pre:  threshold in [0.0, 1.0], limit > 0
     /// post: returns up to `limit` triples with confidence ≤ threshold
+    #[contract(id = "P3-mem-semantic-low-confidence-triples", principle = "P3")]
     pub fn low_confidence_triples(
         &self,
         threshold: f64,
@@ -653,10 +655,10 @@ impl SemanticMemory {
     ///
     /// Used by condensation to find candidates for merging.
     ///
-    /// REQ: P3-mem-semantic-older-than
     /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// pre:  days > 0, limit > 0
     /// post: returns triples older than cutoff, ordered by entity, confidence DESC, valid_from DESC
+    #[contract(id = "P3-mem-semantic-older-than", principle = "P3")]
     pub fn triples_older_than(
         &self,
         days: u32,
@@ -669,10 +671,10 @@ impl SemanticMemory {
     ///
     /// Used by condensation to close original triples after merging.
     ///
-    /// REQ: P3-mem-semantic-close-triple
     /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// pre:  id is a valid TripleID
     /// post: triple soft-deleted (valid_to set to now)
+    #[contract(id = "P3-mem-semantic-close-triple", principle = "P3")]
     pub fn close_triple(&self, id: &hkask_storage::TripleID) -> Result<(), SemanticMemoryError> {
         self.triple_store.close_by_id(id)?;
         Ok(())

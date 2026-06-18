@@ -57,13 +57,13 @@ impl GovernedInference {
     /// Create a new GovernedInference membrane wrapping an inner InferencePort.
     /// Create a new governed inference wrapper.
     ///
-    /// REQ: P9-cns-gov-inf-new
     /// expect: "The system creates a governed inference membrane that gates LLM calls behind energy budgets" [P9]
     /// [P9] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control
     /// \[P4\] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary
     /// \[P12\] Constraining: Affirmative Consent — agent identity is required for attribution
     /// pre:  inference is valid, cns is valid
     /// post: returns GovernedInference
+    #[rs::contract(id = "P9-cns-gov-inf-new", principle = "P9")]
     #[rs::contract(id = "P9-cns-gov-inf-new", principle = "P9")]
     pub fn new(
         inner: Arc<dyn InferencePort>,
@@ -83,12 +83,12 @@ impl GovernedInference {
     #[must_use = "builder methods must be chained or assigned"]
     /// Set the agent WebID for attribution.
     ///
-    /// REQ: P12-cns-gov-inf-with-agent
     /// expect: "I can bind an agent identity to the inference membrane for attribution" [P12]
     /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call
     /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with agent set (builder pattern)
+    #[rs::contract(id = "P12-cns-gov-inf-with-agent", principle = "P12")]
     #[rs::contract(id = "P12-cns-gov-inf-with-agent", principle = "P12")]
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;

@@ -9,6 +9,7 @@
 //! 1. `GET /api/v1/auth/login?provider=github` → redirect to provider OAuth
 //! 2. `GET /api/v1/auth/callback?provider=github&code=...&state=...` → exchange code, create session, redirect to /terminal
 
+use hkask_rsolidity as rs;
 use axum::{
     Json,
     extract::{Query, State},
@@ -46,7 +47,6 @@ struct OAuthConfig {
 
 impl OAuthConfig {
     /// Load OAuth config from environment variables.
-    /// REQ: DEP-012
     /// expect: "My API access is scoped to my sovereignty boundaries" [P1]
     fn from_env(provider: &OAuthProvider) -> Result<Self, String> {
         match provider {
@@ -133,7 +133,6 @@ struct GitHubEmail {
 /// URL-encode a string (basic implementation — only encodes special chars).
 /// GET /api/v1/auth/login
 ///
-/// REQ: DEP-013 — initiates OAuth flow with CSRF state protection.
 /// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 /// pre:  provider query param is "github" or "google"
 /// post: redirects to provider's OAuth authorize URL
@@ -176,7 +175,6 @@ pub async fn login(
 
 /// GET /api/v1/auth/callback
 ///
-/// REQ: DEP-014 — OAuth callback: exchanges code, creates/finds user, starts session.
 /// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 /// pre:  code is a valid OAuth authorization code; state matches cookie
 /// post: session created, session cookie set, redirected to /terminal
@@ -422,7 +420,6 @@ async fn fetch_github_user(
 
 /// POST /api/v1/auth/logout — destroys the current session.
 ///
-/// REQ: DEP-600
 /// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub async fn logout(
     State(state): State<ApiState>,
@@ -451,7 +448,6 @@ pub async fn logout(
 
 /// GET /api/v1/auth/session — returns current session info.
 ///
-/// REQ: DEP-601
 /// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub async fn session_info(
     State(state): State<ApiState>,
@@ -513,7 +509,6 @@ fn urlencoding(s: &str) -> String {
 
 /// Build the auth router.
 ///
-/// REQ: DEP-015
 /// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub fn auth_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     use utoipa_axum::router::OpenApiRouter;

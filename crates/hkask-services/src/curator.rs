@@ -6,6 +6,8 @@
 //! Both CLI and API surfaces were previously calling
 //! `escalation_queue()` directly with duplicated error mapping.
 
+use hkask_rsolidity::contract;
+
 use std::sync::Arc;
 
 use hkask_agents::curator_agent::CuratorAgent;
@@ -57,12 +59,12 @@ pub struct CuratorService;
 impl CuratorService {
     /// List pending escalations.
     ///
-    /// REQ: P9-svc-curator-213
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() must be initialized
     /// post: returns Vec<EscalationResponse> of pending escalations; empty Vec if none; Err(Escalation) on queue error
     /// # Returns
     /// `ServiceError::Escalation` on queue error.
+    #[contract(id = "P9-svc-curator-213", principle = "P9")]
     pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {
         let queue = ctx.escalation_queue();
         let entries = queue.list_pending().map_err(|e| ServiceError::Escalation {
@@ -73,13 +75,13 @@ impl CuratorService {
 
     /// Resolve an escalation by ID.
     ///
-    /// REQ: P9-svc-curator-214
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() must be initialized; id must be a valid escalation ID; resolved_by must be non-empty
     /// post: escalation is resolved; CNS event emitted; Ok(()) on success; Err(EscalationNotFound) if ID not found; Err(Escalation) on queue error
     /// # Returns
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
+    #[contract(id = "P9-svc-curator-214", principle = "P9")]
     pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
         // CNS observability: record Curator resolution decision
         let span = Span::new(
@@ -113,13 +115,13 @@ impl CuratorService {
 
     /// Dismiss an escalation by ID.
     ///
-    /// REQ: P9-svc-curator-215
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() must be initialized; id must be a valid escalation ID; dismissed_by must be non-empty
     /// post: escalation is dismissed; CNS event emitted; Ok(()) on success; Err(EscalationNotFound) if ID not found; Err(Escalation) on queue error
     /// # Returns
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
+    #[contract(id = "P9-svc-curator-215", principle = "P9")]
     pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
         // CNS observability: record Curator dismissal decision
         let span = Span::new(
@@ -156,13 +158,13 @@ impl CuratorService {
     /// Constructs a `CuratorAgent` from the AgentService's escalation queue
     /// and CNS runtime, runs one metacognition cycle, and generates a summary.
     ///
-    /// REQ: P9-svc-curator-216
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.escalation_queue() and ctx.cns_runtime() must be initialized
     /// post: returns human-readable summary string from metacognition cycle; Err(Metacognition) on cycle failure; Err(Cns) if CNS runtime unavailable
     /// # Returns
     /// `ServiceError::Metacognition` on cycle failure.
     /// `ServiceError::Cns` if CNS runtime is unavailable.
+    #[contract(id = "P9-svc-curator-216", principle = "P9")]
     pub async fn metacognition(ctx: &AgentService) -> Result<String, ServiceError> {
         let queue = ctx.escalation_queue();
         // Use the live CNS runtime (RwLock<CnsRuntime>) — clone the inner
