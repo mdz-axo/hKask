@@ -223,7 +223,7 @@ impl SpecServer {
                     Ok(scores) => Some(scores),
                     Err(e) => {
                         tracing::warn!(
-                            target: "hkask.mcp.spec",
+                            target: "cns.mcp.spec",
                             persona = %persona,
                             error = %e,
                             "Replica comparison failed, using heuristic only"
@@ -377,13 +377,13 @@ impl SpecServer {
                     .await
                 {
                     Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.spec.memory", tool = %tool_name, "Experience stored via daemon");
+                        tracing::debug!(target: "cns.mcp.spec.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.spec.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        tracing::warn!(target: "cns.mcp.spec.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.spec.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        tracing::warn!(target: "cns.mcp.spec.memory", tool = %tool_name, error = %e, "Failed to store experience")
                     }
                 }
             });
@@ -1243,7 +1243,7 @@ async fn main() -> anyhow::Result<()> {
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.spec", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "cns.mcp.spec", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
@@ -1274,7 +1274,7 @@ async fn main() -> anyhow::Result<()> {
                 }
                 None => {
                     tracing::warn!(
-                        target: "hkask.mcp.spec",
+                        target: "cns.mcp.spec",
                         "No persistent DB — spec store in-memory (set HKASK_SPEC_DB_PATH + HKASK_DB_PASSPHRASE for persistence)"
                     );
                     let conn = rusqlite::Connection::open_in_memory()?;
@@ -1323,7 +1323,7 @@ async fn main() -> anyhow::Result<()> {
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let client = hkask_mcp::DaemonClient::new();
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "spec", &[]).await?;
-    tracing::info!(target: "hkask.mcp.spec", replicant = %replicant,
+    tracing::info!(target: "cns.mcp.spec", replicant = %replicant,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }
         else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }

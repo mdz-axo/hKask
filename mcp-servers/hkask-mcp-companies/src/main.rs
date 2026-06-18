@@ -251,13 +251,13 @@ impl CompaniesServer {
                     .await
                 {
                     Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.companies.memory", tool = %tool_name, "Experience stored via daemon");
+                        tracing::debug!(target: "cns.mcp.companies.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.companies.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        tracing::warn!(target: "cns.mcp.companies.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.companies.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        tracing::warn!(target: "cns.mcp.companies.memory", tool = %tool_name, error = %e, "Failed to store experience")
                     }
                 }
             });
@@ -1898,7 +1898,7 @@ async fn main() -> anyhow::Result<()> {
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.companies", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "cns.mcp.companies", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
@@ -1948,7 +1948,7 @@ async fn main() -> anyhow::Result<()> {
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let client = DaemonClient::new();
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "companies", &[]).await?;
-    tracing::info!(target: "hkask.mcp.companies", replicant = %replicant,
+    tracing::info!(target: "cns.mcp.companies", replicant = %replicant,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }
         else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }

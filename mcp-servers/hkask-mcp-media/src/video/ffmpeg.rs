@@ -29,9 +29,9 @@ impl FfmpegRunner {
         let temp_dir = std::env::temp_dir().join("hkask-media");
 
         if available {
-            tracing::info!(target: "hkask.mcp.media.ffmpeg", "ffmpeg detected");
+            tracing::info!(target: "cns.mcp.media.ffmpeg", "ffmpeg detected");
         } else {
-            tracing::warn!(target: "hkask.mcp.media.ffmpeg", "ffmpeg not found — video tools will be unavailable");
+            tracing::warn!(target: "cns.mcp.media.ffmpeg", "ffmpeg not found — video tools will be unavailable");
         }
 
         Self {
@@ -89,7 +89,7 @@ impl FfmpegRunner {
             ));
         }
 
-        tracing::info!(target: "hkask.mcp.media.ffmpeg", input = %input, duration = %duration, output = %output.display(), "Video clipped");
+        tracing::info!(target: "cns.mcp.media.ffmpeg", input = %input, duration = %duration, output = %output.display(), "Video clipped");
         Ok(output)
     }
 
@@ -143,7 +143,7 @@ impl FfmpegRunner {
             ));
         }
 
-        tracing::info!(target: "hkask.mcp.media.ffmpeg", input = %input, duration = %duration_sec, width = %width, fps = %fps, output = %output.display(), "GIF created");
+        tracing::info!(target: "cns.mcp.media.ffmpeg", input = %input, duration = %duration_sec, width = %width, fps = %fps, output = %output.display(), "GIF created");
         Ok(output)
     }
 
@@ -202,7 +202,7 @@ impl FfmpegRunner {
             ));
         }
 
-        tracing::info!(target: "hkask.mcp.media.ffmpeg", input = %input, text = %text, output = %output.display(), "Caption added");
+        tracing::info!(target: "cns.mcp.media.ffmpeg", input = %input, text = %text, output = %output.display(), "Caption added");
         Ok(output)
     }
 
@@ -260,7 +260,7 @@ impl FfmpegRunner {
             ));
         }
 
-        tracing::info!(target: "hkask.mcp.media.ffmpeg", duration = %duration_secs, output = %output.display(), "Audio captured");
+        tracing::info!(target: "cns.mcp.media.ffmpeg", duration = %duration_secs, output = %output.display(), "Audio captured");
         Ok(output)
     }
 
@@ -330,7 +330,7 @@ impl FfmpegRunner {
             ));
         }
 
-        tracing::info!(target: "hkask.mcp.media.ffmpeg", image_count = image_paths.len(), fps = %fps, output = %output.display(), "Video created from images");
+        tracing::info!(target: "cns.mcp.media.ffmpeg", image_count = image_paths.len(), fps = %fps, output = %output.display(), "Video created from images");
         Ok(output)
     }
 
@@ -382,7 +382,7 @@ impl FfmpegRunner {
             ));
         }
 
-        tracing::info!(target: "hkask.mcp.media.ffmpeg", clip_count = video_paths.len(), output = %output.display(), "Videos concatenated");
+        tracing::info!(target: "cns.mcp.media.ffmpeg", clip_count = video_paths.len(), output = %output.display(), "Videos concatenated");
         Ok(output)
     }
 
@@ -432,7 +432,7 @@ impl FfmpegRunner {
             }
         }
 
-        tracing::info!(target: "hkask.mcp.media.ffmpeg", input = %input, frame_count = frames.len(), "Keyframes extracted");
+        tracing::info!(target: "cns.mcp.media.ffmpeg", input = %input, frame_count = frames.len(), "Keyframes extracted");
         Ok(frames)
     }
 }

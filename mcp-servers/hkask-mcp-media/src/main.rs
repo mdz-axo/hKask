@@ -541,13 +541,13 @@ impl MediaServer {
                     .await
                 {
                     Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.media.memory", tool = %tool_name, "Experience stored via daemon");
+                        tracing::debug!(target: "cns.mcp.media.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.media.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        tracing::warn!(target: "cns.mcp.media.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.media.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        tracing::warn!(target: "cns.mcp.media.memory", tool = %tool_name, error = %e, "Failed to store experience")
                     }
                 }
             });
@@ -703,10 +703,10 @@ impl MediaServer {
             .tag_image(image_id, tag_type, value, confidence, model)
         {
             Ok(_) => {
-                tracing::debug!(target: "hkask.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, value = %value, "Tag persisted")
+                tracing::debug!(target: "cns.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, value = %value, "Tag persisted")
             }
             Err(e) => {
-                tracing::warn!(target: "hkask.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, error = %e, "Failed to persist tag")
+                tracing::warn!(target: "cns.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, error = %e, "Failed to persist tag")
             }
         }
     }
@@ -2378,12 +2378,12 @@ impl MediaServer {
                     Ok(img) => match analyzer.analyze(&img) {
                         Ok(faces) => faces.first().map(|f| embedding_to_blob(&f.embedding)),
                         Err(e) => {
-                            tracing::warn!(target: "hkask.mcp.media.face", error = %e, "ONNX face analysis failed during registration");
+                            tracing::warn!(target: "cns.mcp.media.face", error = %e, "ONNX face analysis failed during registration");
                             None
                         }
                     },
                     Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.media.face", error = %e, "Failed to open image for embedding");
+                        tracing::warn!(target: "cns.mcp.media.face", error = %e, "Failed to open image for embedding");
                         None
                     }
                 },
@@ -3373,7 +3373,7 @@ impl MediaServer {
                     image_urls.push(format!("data:image/jpeg;base64,{}", b64));
                 }
                 Err(e) => {
-                    tracing::warn!(target: "hkask.mcp.media", frame = %frame.display(), error = %e, "Failed to read keyframe");
+                    tracing::warn!(target: "cns.mcp.media", frame = %frame.display(), error = %e, "Failed to read keyframe");
                 }
             }
         }
@@ -4082,7 +4082,7 @@ async fn main() -> anyhow::Result<()> {
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.media", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "cns.mcp.media", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
@@ -4107,11 +4107,11 @@ async fn main() -> anyhow::Result<()> {
     // Initialize ONNX face analyzer (downloads ~250MB models on first run)
     let face_analyzer = match FaceAnalyzer::from_hf().build().await {
         Ok(a) => {
-            tracing::info!(target: "hkask.mcp.media", "ONNX face analyzer ready");
+            tracing::info!(target: "cns.mcp.media", "ONNX face analyzer ready");
             Some(Arc::new(a))
         }
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.media", error = %e, "ONNX face analyzer unavailable — face detection will use vision LLM fallback");
+            tracing::warn!(target: "cns.mcp.media", error = %e, "ONNX face analyzer unavailable — face detection will use vision LLM fallback");
             None
         }
     };
@@ -4150,7 +4150,7 @@ async fn main() -> anyhow::Result<()> {
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let client = DaemonClient::new();
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "media", &[]).await?;
-    tracing::info!(target: "hkask.mcp.media", replicant = %replicant,
+    tracing::info!(target: "cns.mcp.media", replicant = %replicant,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }
         else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }

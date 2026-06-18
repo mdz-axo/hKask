@@ -85,13 +85,13 @@ impl ReplicaServer {
                     .await
                 {
                     Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.replica.memory", tool = %tool_name, "Experience stored via daemon");
+                        tracing::debug!(target: "cns.mcp.replica.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.replica.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        tracing::warn!(target: "cns.mcp.replica.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.replica.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        tracing::warn!(target: "cns.mcp.replica.memory", tool = %tool_name, error = %e, "Failed to store experience")
                     }
                 }
             });
@@ -385,6 +385,7 @@ impl ReplicaServer {
 
             let progress = Arc::new(|p: &EmbedProgress| {
                 tracing::info!(
+                    target: "cns.mcp.replica",
                     phase = ?p.phase,
                     author = %p.author,
                     work = %p.current_work,
@@ -1080,7 +1081,7 @@ async fn main() -> anyhow::Result<()> {
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.replica", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "cns.mcp.replica", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
@@ -1118,7 +1119,7 @@ async fn main() -> anyhow::Result<()> {
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let client = hkask_mcp::DaemonClient::new();
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "replica", &[]).await?;
-    tracing::info!(target: "hkask.mcp.replica", replicant = %replicant,
+    tracing::info!(target: "cns.mcp.replica", replicant = %replicant,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }
         else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }

@@ -1,7 +1,6 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
 use crate::repl::handlers::repl_settings::ModelMeta;
-use hkask_inference::ProviderId;
 use hkask_services::{InferenceContext, InferenceService};
 
 pub(crate) fn populate_model_meta(
