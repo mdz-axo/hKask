@@ -133,6 +133,7 @@ const KNOWN_TERMS: &[&str] = &[
 /// Is `term` a known vocabulary term?
 ///
 /// REQ: P3-tpl-vocab-known — checks term membership via binary search
+/// expect: "The system validates template contracts against the lexicon" [P3]
 /// pre:  term may be any string
 /// post: returns true if term is in KNOWN_TERMS
 pub fn is_known(term: &str) -> bool {
@@ -142,6 +143,7 @@ pub fn is_known(term: &str) -> bool {
 /// Returns unknown terms from `terms` that are not in the vocabulary.
 ///
 /// REQ: P3-tpl-vocab-validate — validates terms against known vocabulary
+/// expect: "The system validates template contracts against the lexicon" [P3]
 /// pre:  terms is a slice of declared lexicon terms
 /// post: returns Vec of terms not found in KNOWN_TERMS
 pub fn unrecognized(terms: &[String]) -> Vec<String> {
@@ -152,6 +154,7 @@ pub fn unrecognized(terms: &[String]) -> Vec<String> {
 /// Returns warnings for any unrecognized terms.
 ///
 /// REQ: P3-tpl-vocab-validate-entry — validates entry lexicon_terms
+/// expect: "The system validates template contracts against the lexicon" [P3]
 /// pre:  entry is a valid RegistryEntry
 /// post: returns Vec of warning strings for unrecognized terms
 pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
@@ -171,6 +174,7 @@ mod tests {
     use super::*;
 
     // REQ: tpl-vocab-test-sorted — KNOWN_TERMS list must maintain alphabetical order
+// expect: "Template KNOWN_TERMS list must maintain alphabetical order" [P3]
     #[test]
     fn known_terms_are_sorted() {
         for w in KNOWN_TERMS.windows(2) {
@@ -184,6 +188,7 @@ mod tests {
     }
 
     // REQ: tpl-vocab-test-duplicates — KNOWN_TERMS list must not contain duplicates
+// expect: "Template KNOWN_TERMS list must not contain duplicates" [P3]
     #[test]
     fn known_terms_no_duplicates() {
         for w in KNOWN_TERMS.windows(2) {
@@ -192,6 +197,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-vocab-test-known — validate_terms passes known terms
+// expect: "Template validate_terms passes known terms" [P3]
     #[test]
     fn validate_known_terms_passes() {
         let terms: Vec<String> = vec!["compose", "verify", "classify"]
@@ -207,6 +213,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-vocab-test-unknown — validate_terms flags unknown terms
+// expect: "Template validate_terms flags unknown terms" [P3]
     #[test]
     fn validate_unknown_terms_flags() {
         let terms: Vec<String> = vec![
@@ -219,6 +226,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-vocab-test-all-known — all manifest-derived terms are known
+// expect: "Template all manifest-derived terms are known" [P3]
     #[test]
     fn all_bootstrapped_terms_are_known() {
         for term in KNOWN_TERMS {
@@ -231,6 +239,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-vocab-test-empty — empty terms produce no warnings
+// expect: "Template empty terms produce no warnings" [P3]
     #[test]
     fn empty_terms_no_warnings() {
         let unknown = unrecognized(&[]);

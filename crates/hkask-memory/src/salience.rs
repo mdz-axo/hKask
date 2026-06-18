@@ -559,6 +559,7 @@ impl DeclaredMethod {
     /// Check whether a passage's signals match this method's thresholds.
     ///
     /// REQ: P3-mem-salience-declared-method-matches
+    /// expect: "The system scores passage salience to gate triple storage budget" [P3]
     /// \[P3\] Motivating: Generative Space — matches passage signals against declared method thresholds
     /// \[P8\] Constraining: Semantic Grounding — unconfigured thresholds are always satisfied
     /// pre:  signals is a valid MethodSignals

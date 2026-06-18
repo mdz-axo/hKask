@@ -1,8 +1,8 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-06-17
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -44,7 +44,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-10** | Condenser live integration testing — thinking mode + auto-condense | Dev | Medium | ✅ Complete | **All items verified.** (1) Thinking mode wire format: 2 unit tests pass. (2) Router pass-through: `disable_thinking_flows_to_wire_format` integration test (wiremock) passes. (3) Auto-condense threshold: 87.5% formula verified for all window sizes (2048–131072). (4) Live DeepInfra: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output, no thinking interference. (5) Live Together: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output. (6) Graceful degradation: thinking models (qwen3.5/gemma4/deepseek-r1) return clear error on all backends. (7) Rust live-backend tests written: `crates/hkask-inference/tests/live_backends.rs` — `deepinfra_summarization` + `together_summarization` (gated on API keys, `#[ignore]`). DeepInfra/Together Qwen3 models also exhibit thinking mode. |
 | **P1-11** | Critical audit: energy-use tracking simplification + security hardening | Dev + CNS | High | ⬜ Planned | Perform adversarial review of gas/rJoule accounting paths (`GovernedTool` ↔ `EnergyBudgetManager` ↔ `WalletBackedBudget` ↔ `WalletStore`), remove duplicate accounting surfaces, and prove deterministic/tamper-evident transitions with focused tests. |
 | **P1-12** | Real `provision_endpoint` API integration for Runpod + Baseten | Adapter | High | ✅ Complete | Runpod: GraphQL `saveEndpoint` mutation → returns endpoint ID → constructs OpenAI-compatible URL. Baseten: REST `POST /v1/models` → returns model ID → constructs model-specific URL. Both use real HTTP calls with API keys from env (`RUNPOD_API_KEY`, `BASETEN_API_KEY`). API contracts may need adjustment based on actual provider responses. |
-| **P1-13** | Manual contract-to-spec traceability review | Curator + Human | High | ⬜ TODO | All 1,419 REQ-tagged contracts now have pre/post conditions (0 NO_PRE+NO_POST, 0 NO_POST). Remaining work: (a) verify each REQ tag traces to a real spec document, (b) review 25 duplicate REQ IDs for consolidation, (c) evaluate 250 simple constructors for explicit preconditions, (d) validate contract logic correctness. Tooling: `kask contract review` for inventory, `/improv plussing` for collaborative review, `review-inventory.json` for programmatic analysis. |
+| **P1-13** | Contract-to-spec traceability — CNS `expect:` field completion | Curator | High | ✅ Partial | 115 expect: fields added to CNS crate (14 files). 2,519 total REQ tags. Manual traceability review (P1-13 original scope) still needed. `user_expectation_audit.md` created 2026-06-18. |
 
 ---
 

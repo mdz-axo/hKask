@@ -33,7 +33,21 @@ const API_SERVERS: &[(&str, &str)] = &[
 /// REQ: P9-CNS-SURF-008 pre: valid host/port post: cns.cli span emitted
 /// pre:  port is a valid u16; host is a non-empty bind address string
 /// post: starts the HTTP API server on the given host:port; returns Ok(()) on successful bind or Error on failure
-pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_server(
+    port: u16,
+    host: &str,
+    json_logs: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Configure JSON logging if requested
+    if json_logs {
+        use tracing_subscriber::EnvFilter;
+        let subscriber = tracing_subscriber::fmt()
+            .json()
+            .with_env_filter(EnvFilter::from_default_env())
+            .finish();
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+    }
     // P9: CNS span
     tracing::info!(target: "cns.cli", operation = "serve", host = %host, port = port, "CNS");
     // Resolve configuration from keystore and environment

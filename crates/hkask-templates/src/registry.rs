@@ -38,6 +38,7 @@ impl Registry {
     /// Create an empty registry.
     ///
     /// REQ: P3-tpl-registry-new
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — in-memory template registry
     /// post: returns Registry with empty templates, skills, bundles
     pub fn new() -> Self {
@@ -56,6 +57,7 @@ impl Registry {
     /// Reload registry from bootstrap (simulates reload from disk).
     ///
     /// REQ: P3-tpl-registry-reload
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — refreshes registry from filesystem
     /// post: templates cache cleared and reloaded from bootstrap
     pub fn reload(&mut self) {
@@ -69,6 +71,7 @@ impl Registry {
     /// Extended checks: component length ≤64 chars, Unicode NFC normalization.
     ///
     /// REQ: P3-tpl-registry-validate-template-path
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — path safety for template discovery
     /// \[P4\] Constraining: Clear Boundaries — rejects paths outside template root
     /// pre:  template_id is non-empty
@@ -136,6 +139,7 @@ impl Registry {
     /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-cns`.
     ///
     /// REQ: P3-tpl-registry-register
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a template in the registry
     /// pre:  entry.id is non-empty, entry.template_type is valid
     /// post: entry inserted into templates map
@@ -158,6 +162,7 @@ impl Registry {
     /// Get a template entry by ID.
     ///
     /// REQ: P3-tpl-registry-get
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves a registered template
     /// pre:  id is non-empty
     /// post: returns Some(&RegistryEntry) if found, None otherwise
@@ -175,6 +180,7 @@ impl Registry {
     /// Count registered templates.
     ///
     /// REQ: P3-tpl-registry-count
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — reports registry size
     /// post: returns count of templates in registry
     pub fn count(&self) -> usize {
@@ -184,6 +190,7 @@ impl Registry {
     /// List all skills.
     ///
     /// REQ: P3-tpl-registry-list-skills
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — lists registered skills
     /// post: returns Vec<Skill> with all registered skills
     pub fn list_skills(&self) -> Vec<Skill> {
@@ -193,6 +200,7 @@ impl Registry {
     /// List skills filtered by visibility.
     ///
     /// REQ: P3-tpl-registry-list-skills-by-visibility
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — visibility-filtered skill listing
     /// pre:  visibility is a valid Visibility variant
     /// post: returns Vec<Skill> filtered by visibility
@@ -207,6 +215,7 @@ impl Registry {
     /// Remove a skill by ID.
     ///
     /// REQ: P3-tpl-registry-remove-skill
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — removes a skill from registry
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if removed, None if not found
@@ -217,6 +226,7 @@ impl Registry {
     /// Register a skill.
     ///
     /// REQ: P3-tpl-registry-register-skill
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a skill with metadata
     /// pre:  skill.id is non-empty
     /// post: skill inserted into skills map
@@ -227,6 +237,7 @@ impl Registry {
     /// Get a skill by ID.
     ///
     /// REQ: P3-tpl-registry-get-skill
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves skill metadata
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if found, None otherwise
@@ -237,6 +248,7 @@ impl Registry {
     /// List skills by domain.
     ///
     /// REQ: P3-tpl-registry-skills-by-domain
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — domain-filtered skill listing
     /// pre:  domain is a valid TemplateType
     /// post: returns Vec<Skill> filtered by domain
@@ -251,6 +263,7 @@ impl Registry {
     /// Find skills that reference a given template ID.
     ///
     /// REQ: P3-tpl-registry-skills-referencing-template
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — reverse skill lookup by template
     /// pre:  template_id is non-empty
     /// post: returns Vec<Skill> referencing the given template
@@ -269,6 +282,7 @@ impl Registry {
     /// Register a bundle manifest.
     ///
     /// REQ: P3-tpl-registry-register-bundle
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — registers a skill bundle
     /// pre:  bundle.id is non-empty
     /// post: bundle inserted into bundles map
@@ -279,6 +293,7 @@ impl Registry {
     /// Retrieve a bundle manifest by ID.
     ///
     /// REQ: P3-tpl-registry-get-bundle
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves a skill bundle
     /// pre:  id is non-empty
     /// post: returns Some(&BundleManifest) if found, None otherwise
@@ -289,6 +304,7 @@ impl Registry {
     /// List all bundle manifests.
     ///
     /// REQ: P3-tpl-registry-list-bundles
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — lists registered bundles
     /// post: returns Vec<&BundleManifest> with all registered bundles
     pub fn list_bundles(&self) -> Vec<&hkask_types::BundleManifest> {
@@ -298,6 +314,7 @@ impl Registry {
     /// Remove a bundle manifest by ID.
     ///
     /// REQ: P3-tpl-registry-remove-bundle
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — removes a bundle
     /// pre:  id is non-empty
     /// post: returns Some(BundleManifest) if removed, None if not found
@@ -309,6 +326,7 @@ impl Registry {
     /// Returns the first exact match, if any.
     ///
     /// REQ: P3-tpl-registry-find-bundle-by-skills
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — finds bundle matching skill set
     /// pre:  skill_ids is non-empty
     /// post: returns Some(&BundleManifest) if exact skill set match found
@@ -330,6 +348,7 @@ impl Registry {
     /// Template definitions live in `registry/templates/bootstrap-registry.yaml`.
     ///
     /// REQ: P3-tpl-registry-bootstrap
+/// expect: "The system manages a template registry for skill rendering" [P3]
     /// \[P3\] Motivating: Generative Space — seeds registry from workspace templates
     /// post: returns Registry populated from bootstrap-registry.yaml
     /// post: all entries have matroshka_limit set to SYSTEM_MAX_RECURSION

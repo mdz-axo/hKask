@@ -62,6 +62,7 @@ impl SkillLoader {
     /// Create a new skill loader rooted at `project_root`.
     ///
     /// REQ: P3-tpl-skill-loader-new
+/// expect: "The system loads skills into the template registry" [P3]
     /// \[P3\] Motivating: Generative Space — loader for skill registry entries
     /// pre:  project_root is a valid directory path
     /// post: returns SkillLoader configured for the given root
@@ -74,6 +75,7 @@ impl SkillLoader {
     /// Discover and load skills from both zones, registering them into the registry.
     ///
     /// REQ: P3-tpl-skill-loader-load-into
+/// expect: "The system loads skills into the template registry" [P3]
     /// \[P3\] Motivating: Generative Space — loads skill into registry
     /// pre:  registry is initialized
     /// post: skills from private and public zones loaded and registered
@@ -211,6 +213,7 @@ impl SkillLoader {
     /// is a reasoning companion guide.
     ///
     /// REQ: P3-tpl-skill-loader-infer-domain
+/// expect: "The system loads skills into the template registry" [P3]
     /// \[P3\] Motivating: Generative Space — infers skill domain from registry contents
     /// pre:  id is non-empty
     /// post: returns a TemplateType representing the skill's runtime domain
@@ -259,6 +262,7 @@ impl SkillLoader {
     /// Expects `---\n` delimiters at the start and end of the front matter block.
     ///
     /// REQ: P3-tpl-skill-loader-parse-front-matter
+/// expect: "The system loads skills into the template registry" [P3]
     /// \[P3\] Motivating: Generative Space — parses skill front matter metadata
     /// pre:  content is a valid SKILL.md file content
     /// post: returns SkillFrontMatter parsed from YAML front matter

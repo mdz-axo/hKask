@@ -103,6 +103,7 @@ impl WalletGasCalibrator {
     /// shared `WalletManager`.
     ///
     /// REQ: GAS-CALIB-005
+    /// expect: "I can run an incremental wallet calibration pass that computes the aggregate actual/estimated ratio and updates the conversion rate" [P9]
     /// pre:  `self.store` is a valid NuEventStore; `self.wallet_manager` is valid
     /// post: if settled events exist and the aggregate ratio exceeds tolerance,
     ///       `wallet_manager.gas_per_rjoule()` is updated
@@ -196,6 +197,7 @@ impl WalletGasCalibrator {
     /// but do not crash the task.
     ///
     /// REQ: GAS-CALIB-005
+    /// expect: "I can spawn a background task that continuously calibrates the wallet gas conversion rate from live event data" [P9]
     /// pre:  interval > 0
     /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {

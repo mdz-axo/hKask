@@ -1,8 +1,8 @@
 ---
 title: "CNS Domain Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-16
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "cybernetics"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -10,11 +10,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # CNS Domain Specification
 
-**Purpose:** A formal specification of the 6 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md) and a concrete Rust module. All 44 contracts are implemented and tested.
+**Purpose:** A formal specification of the 8 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md) and a concrete Rust module. All 197 contracts carry `expect:` fields encoding user functional expectations per [`FUNCTIONAL_SPECIFICATION.md` §5](FUNCTIONAL_SPECIFICATION.md).
 
 **MDS Reference:** [`MDS.md`](MDS.md)
 
-**Codebase Reference:** `crates/hkask-cns/src/` — 145 `pub fn`, 173 REQ-tagged contracts (119.3% coverage, including implementation-level contracts outside this spec), all tests pass.
+**Codebase Reference:** `crates/hkask-cns/src/` — 152 `pub fn`, 197 REQ-tagged contracts (129.6% coverage), 115 `expect:` fields encoding user expectations. All tests pass.
 
 ---
 
@@ -48,7 +48,7 @@ Each sub-domain is implemented in a single Rust file (or a tight cluster of file
 
 ### 2.1 Algedonic Domain (`algedonic.rs`)
 
-**Motivating principle:** P9 (Homeostatic Self-Regulation) — algedonic (pain/pleasure) feedback for cybernetic control. When variety deficit exceeds threshold, alerts are escalated to the Curator/human.
+**Goal principle:** P9 (Homeostatic Self-Regulation) — algedonic (pain/pleasure) feedback for cybernetic control. When variety deficit exceeds threshold, alerts are escalated to the Curator/human.
 
 **Source:** `crates/hkask-cns/src/algedonic.rs` (261 lines, 6 tests)
 

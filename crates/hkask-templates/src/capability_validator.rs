@@ -24,6 +24,7 @@ impl CapabilityAwareValidator {
     /// Create a new validator.
     ///
     /// REQ: P3-tpl-capability-validator-new
+/// expect: "The system validates template capability requirements against held tokens" [P3]
     /// \[P3\] Motivating: Generative Space — registration-time OCAP gate for template capabilities
     /// \[P4\] Constraining: Clear Boundaries — validator establishes capability boundary
     /// post: returns CapabilityAwareValidator
@@ -38,6 +39,7 @@ impl CapabilityAwareValidator {
     /// the first unsatisfied requirement.
     ///
     /// REQ: P3-tpl-validate-capabilities
+/// expect: "The system validates template capability requirements against held tokens" [P3]
     /// \[P3\] Motivating: Generative Space — checks template capability requirements against held tokens
     /// \[P4\] Constraining: Clear Boundaries — action hierarchy enforcement (Execute ≥ Write ≥ Read)
     /// pre:  template_id is non-empty
@@ -119,6 +121,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-empty-requirements-pass — empty requirements always pass
+// expect: "Template empty requirements always pass" [P3]
     // [P3] Motivating: Generative Space — validates empty capability requirement set
     #[test]
     fn empty_requirements_always_pass() {
@@ -128,6 +131,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-satisfied-requirement-passes — satisfied requirement passes
+// expect: "Template satisfied requirement passes" [P3]
     // [P3] Motivating: Generative Space — validates held token satisfies requirement
     #[test]
     fn satisfied_requirement_passes() {
@@ -143,6 +147,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-unsatisfied-requirement-fails — unsatisfied requirement fails with details
+// expect: "Template unsatisfied requirement fails with details" [P3]
     // [P3] Motivating: Generative Space — validates insufficient capability is rejected
     #[test]
     fn unsatisfied_requirement_fails() {
@@ -157,6 +162,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-execute-satisfies-read — action hierarchy: Execute token satisfies Read requirement
+// expect: "Template action hierarchy: Execute token satisfies Read requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Execute token satisfies Read requirement
     #[test]
@@ -172,6 +178,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-write-satisfies-read — Write token satisfies Read requirement
+// expect: "Template Write token satisfies Read requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Write token satisfies Read requirement
     #[test]
@@ -183,6 +190,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-read-not-satisfies-write — Read token does NOT satisfy Write requirement
+// expect: "Template Read token does NOT satisfy Write requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Read token does not satisfy Write requirement
     #[test]
@@ -194,6 +202,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-malformed-requirement-error — malformed requirement returns error
+// expect: "Template malformed requirement returns error" [P3]
     // [P3] Motivating: Generative Space — validates malformed capability syntax is rejected
     #[test]
     fn malformed_requirement_returns_error() {
@@ -203,6 +212,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-multiple-requirements — multiple requirements all must be satisfied
+// expect: "Template multiple requirements all must be satisfied" [P3]
     // [P3] Motivating: Generative Space — validates all required capabilities must be held
     #[test]
     fn multiple_requirements_all_must_be_satisfied() {
@@ -229,6 +239,7 @@ mod tests {
     }
 
     // REQ: P3-tpl-test-no-held-tokens-fail — no held tokens with requirements fails
+// expect: "Template no held tokens with requirements fails" [P3]
     // [P3] Motivating: Generative Space — validates missing tokens cause rejection
     #[test]
     fn no_held_tokens_with_requirements_fails() {

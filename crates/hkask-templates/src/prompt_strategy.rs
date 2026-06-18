@@ -23,6 +23,7 @@ impl PromptStrategy {
     /// Analyze input text to determine the best prompt strategy.
     ///
     /// REQ: P3-tpl-prompt-strategy-from-input
+/// expect: "The system constructs prompt strategies from user input" [P3]
     /// \[P3\] Motivating: Generative Space — constructs prompt strategy from user input
     /// pre:  input is non-empty
     /// post: returns Answer for questions, Instruct for creation, Assist otherwise
@@ -39,6 +40,7 @@ impl PromptStrategy {
     /// Apply the strategy to frame a prompt.
     ///
     /// REQ: P3-tpl-prompt-strategy-frame
+/// expect: "The system constructs prompt strategies from user input" [P3]
     /// \[P3\] Motivating: Generative Space — frames prompt for a strategy step
     /// pre:  input is non-empty
     /// post: returns framed prompt string with strategy-specific prefix
@@ -53,6 +55,7 @@ impl PromptStrategy {
     /// Strategy name for tagging/logging.
     ///
     /// REQ: P3-tpl-prompt-strategy-name
+/// expect: "The system constructs prompt strategies from user input" [P3]
     /// \[P3\] Motivating: Generative Space — names the selected strategy
     /// post: returns lowercase strategy name
     pub fn name(&self) -> &'static str {

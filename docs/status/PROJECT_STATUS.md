@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Agentic QA Pipeline — contract quality review instrumented across 1,419 REQ-tagged functions. All contracts have pre/post (0 NO_PRE+NO_POST, 0 NO_POST). P1-13 added: manual contract-to-spec traceability review. (2026-06-17)
+**Current session:** v0.28.0 documentation sweep — goal-principle contract anchoring, deployment domain, ERDs, CNS `expect:` field completion (115 fields), user_expectation audit, KAN-SVC→P3-svc-kanban migration (104 IDs), MDS domain ontology (kanban/kata/adapter). (2026-06-18)
 
 ---
 
@@ -22,10 +22,10 @@ All 25 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (25/25 crates) | 2026-06-17 |
-| ACP crate (`cargo check -p hkask-acp`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-17 |
-| Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication, acp) | ✅ Pass | 2026-06-17 |
-| MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory, kanban) | ✅ Pass | 2026-06-15 |
+| Workspace (`cargo check --workspace`) | ✅ Pass (25/25 crates) | 2026-06-18 |
+| ACP crate (`cargo check -p hkask-acp`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-18 |
+| Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication, acp) | ✅ Pass | 2026-06-18 |
+| MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory, kanban) | ✅ Pass | 2026-06-18 |
 
 ---
 

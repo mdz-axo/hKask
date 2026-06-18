@@ -138,8 +138,12 @@ fn main() {
             commands::web_search::run(&rt, query, max_results)
         }
 
-        Commands::Serve { port, host } => {
-            if let Err(e) = rt.block_on(commands::serve::run_server(port, &host)) {
+        Commands::Serve {
+            port,
+            host,
+            json_logs,
+        } => {
+            if let Err(e) = rt.block_on(commands::serve::run_server(port, &host, json_logs)) {
                 eprintln!("Server error: {}", e);
                 std::process::exit(1);
             }

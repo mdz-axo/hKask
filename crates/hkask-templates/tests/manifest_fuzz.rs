@@ -9,6 +9,7 @@
 use proptest::prelude::*;
 
 // REQ: P3-tpl-test-yaml-parser-never-panics — Manifest parser panic-free (P4)
+// expect: "Template Manifest parser panic-free (P4)" [P3]
 // [P3] Motivating: Generative Space — validates YAML parsing is panic-free
 // [P4] Constraining: Clear Boundaries — arbitrary input must be rejected gracefully
 // Arbitrary input to YAML parser never panics.
@@ -26,6 +27,7 @@ proptest! {
     }
 
     // REQ: P3-tpl-test-yaml-parser-never-panics — yaml parser never panics on arbitrary strings
+// expect: "Template yaml parser never panics on arbitrary strings" [P3]
     // [P3] Motivating: Generative Space — validates YAML parsing is panic-free
     // [P4] Constraining: Clear Boundaries — arbitrary input must be rejected gracefully
     #[test]
