@@ -73,7 +73,7 @@ pub enum TaskStatus {
 }
 
 impl TaskStatus {
-    /// REQ: KAN-001
+    /// REQ: P8-typ-kanban001
     /// pre:  self is any valid TaskStatus
     /// post: returns the string representation (lowercase)
     pub fn as_str(&self) -> &'static str {
@@ -86,7 +86,7 @@ impl TaskStatus {
         }
     }
 
-    /// REQ: KAN-002
+    /// REQ: P8-typ-kanban002
     /// pre:  s is a case-insensitive string
     /// post: returns Some(TaskStatus) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -100,7 +100,7 @@ impl TaskStatus {
         }
     }
 
-    /// REQ: KAN-003
+    /// REQ: P8-typ-kanban003
     /// pre:  self is any valid TaskStatus
     /// post: returns true iff the transition from self to `target` is valid
     ///       (forward one step, or backward one step — no skipping)
@@ -118,7 +118,7 @@ impl TaskStatus {
         )
     }
 
-    /// REQ: KAN-004
+    /// REQ: P8-typ-kanban004
     /// pre:  self is any valid TaskStatus
     /// post: returns the next status in the workflow, or None if already Done
     pub fn next(&self) -> Option<TaskStatus> {
@@ -168,7 +168,7 @@ pub struct ColumnDef {
 }
 
 impl ColumnDef {
-    /// REQ: KAN-005
+    /// REQ: P8-typ-kanban005
     /// pre:  name is non-empty; status is valid; position is >= 0
     /// post: returns a new ColumnDef with a random ColumnId, no WIP limit
     pub fn new(name: String, status: TaskStatus, position: u32) -> Self {
@@ -202,7 +202,7 @@ pub struct VerificationCriterion {
 }
 
 impl VerificationCriterion {
-    /// REQ: KAN-006
+    /// REQ: P8-typ-kanban006
     /// pre:  description is non-empty
     /// post: returns a VerificationCriterion with no LLM prompt
     pub fn new(description: String) -> Self {
@@ -212,7 +212,7 @@ impl VerificationCriterion {
         }
     }
 
-    /// REQ: KAN-007
+    /// REQ: P8-typ-kanban007
     /// pre:  self is valid; llm_prompt is non-empty
     /// post: returns self with llm_prompt set
     #[must_use = "builder methods must be chained or assigned"]
@@ -241,7 +241,7 @@ pub struct Verification {
 }
 
 impl Verification {
-    /// REQ: KAN-008
+    /// REQ: P8-typ-kanban008
     /// pre:  verifier is a valid WebID
     /// post: returns Verification with verified_at=now
     pub fn new(passed: bool, reasoning: String, verifier: WebID) -> Self {
@@ -273,7 +273,7 @@ pub struct Phase {
 }
 
 impl Phase {
-    /// REQ: KAN-040
+    /// REQ: P8-typ-kanban040
     /// pre:  arguments are valid
     /// post: returns new instance with defaults
     /// pre:  name is non-empty, order is a valid u32
@@ -288,7 +288,7 @@ impl Phase {
         }
     }
 
-    /// REQ: KAN-041
+    /// REQ: P8-typ-kanban041
     /// pre:  desc is a non-empty description string
     /// post: returns Self with description set to Some(desc)
     #[must_use = "builder methods must be chained or assigned"]
@@ -322,7 +322,7 @@ pub struct Board {
 }
 
 impl Board {
-    /// REQ: KAN-009
+    /// REQ: P8-typ-kanban009
     /// pre:  name is non-empty; owner is a valid WebID; columns is non-empty
     /// post: returns a new Board with created_at=now and a random BoardId
     pub fn new(name: String, owner: WebID, columns: Vec<ColumnDef>) -> Self {
@@ -336,21 +336,21 @@ impl Board {
         }
     }
 
-    /// REQ: KAN-010
+    /// REQ: P8-typ-kanban010
     /// pre:  self.columns is sorted by position
     /// post: returns the first column (by position) — typically Backlog
     pub fn first_column(&self) -> Option<&ColumnDef> {
         self.columns.first()
     }
 
-    /// REQ: KAN-011
+    /// REQ: P8-typ-kanban011
     /// pre:  self.columns is sorted by position
     /// post: returns the last column (by position) — typically Done
     pub fn last_column(&self) -> Option<&ColumnDef> {
         self.columns.last()
     }
 
-    /// REQ: KAN-012
+    /// REQ: P8-typ-kanban012
     /// pre:  status is a valid TaskStatus
     /// post: returns the ColumnDef matching the given status, if present
     pub fn column_for_status(&self, status: TaskStatus) -> Option<&ColumnDef> {
@@ -384,7 +384,7 @@ pub struct TaskSpec {
 }
 
 impl TaskSpec {
-    /// REQ: KAN-013
+    /// REQ: P8-typ-kanban013
     /// pre:  title is non-empty
     /// post: returns a TaskSpec with no description, criteria, or assignee
     pub fn new(title: String) -> Self {
@@ -401,7 +401,7 @@ impl TaskSpec {
         }
     }
 
-    /// REQ: KAN-014
+    /// REQ: P8-typ-kanban014
     /// pre:  self is valid
     /// post: returns self with description set
     #[must_use = "builder methods must be chained or assigned"]
@@ -410,7 +410,7 @@ impl TaskSpec {
         self
     }
 
-    /// REQ: KAN-015
+    /// REQ: P8-typ-kanban015
     /// pre:  self is valid
     /// post: returns self with criteria set
     #[must_use = "builder methods must be chained or assigned"]
@@ -419,7 +419,7 @@ impl TaskSpec {
         self
     }
 
-    /// REQ: KAN-016
+    /// REQ: P8-typ-kanban016
     /// pre:  value is a valid story points
     /// post: returns Self with story points set
     /// pre:  self is valid; assignee is a valid WebID
@@ -430,7 +430,7 @@ impl TaskSpec {
         self
     }
 
-    /// REQ: KAN-016b
+    /// REQ: P8-typ-kanban016b
     /// pre:  value is a valid estimated hours
     /// post: returns Self with estimated hours set
     /// pre:  points is a valid u32
@@ -441,7 +441,7 @@ impl TaskSpec {
         self
     }
 
-    /// REQ: KAN-016c
+    /// REQ: P8-typ-kanban016c
     /// pre:  value is a valid labels
     /// post: returns Self with labels set
     /// pre:  hours is a non-negative f64
@@ -452,7 +452,7 @@ impl TaskSpec {
         self
     }
 
-    /// REQ: KAN-016d
+    /// REQ: P8-typ-kanban016d
     /// pre:  priority is a valid Priority variant
     /// post: returns self with priority set to Some(priority)
     #[must_use = "builder methods must be chained or assigned"]
@@ -461,7 +461,7 @@ impl TaskSpec {
         self
     }
 
-    /// REQ: KAN-016e
+    /// REQ: P8-typ-kanban016e
     /// pre:  labels is a vector of label strings
     /// post: returns self with labels set
     #[must_use = "builder methods must be chained or assigned"]
@@ -470,7 +470,7 @@ impl TaskSpec {
         self
     }
 
-    /// REQ: KAN-016f
+    /// REQ: P8-typ-kanban016f
     /// pre:  phase_id is a valid PhaseId
     /// post: returns self with phase_id set to Some(phase_id)
     #[must_use = "builder methods must be chained or assigned"]
@@ -525,7 +525,7 @@ pub struct Task {
 }
 
 impl Task {
-    /// REQ: KAN-017
+    /// REQ: P8-typ-kanban017
     /// pre:  board_id is a valid BoardId; spec contains non-empty title; owner is valid
     /// post: returns a new Task with status=Backlog, created_at=now, updated_at=now
     pub fn new(board_id: BoardId, spec: TaskSpec, owner: WebID) -> Self {
@@ -552,7 +552,7 @@ impl Task {
         }
     }
 
-    /// REQ: KAN-018
+    /// REQ: P8-typ-kanban018
     /// pre:  arguments are valid
     /// post: returns new instance with defaults
     /// pre:  target is a valid transition from self.status
@@ -579,7 +579,7 @@ pub struct Comment {
 }
 
 impl Comment {
-    /// REQ: KAN-050
+    /// REQ: P8-typ-kanban050
     /// pre:  arguments are valid
     /// post:      /// post: returns new instance with defaults
     pub fn new(task_id: TaskId, author: WebID, body: String) -> Self {
@@ -609,7 +609,7 @@ pub struct TaskFilter {
 }
 
 impl TaskFilter {
-    /// REQ: KAN-019
+    /// REQ: P8-typ-kanban019
     /// post: returns an empty filter (matches all tasks)
     pub fn all() -> Self {
         Self {
@@ -620,7 +620,7 @@ impl TaskFilter {
         }
     }
 
-    /// REQ: KAN-020
+    /// REQ: P8-typ-kanban020
     /// pre:  arguments are valid
     /// post: returns expected result
     /// pre:  status is a valid TaskStatus
@@ -634,7 +634,7 @@ impl TaskFilter {
         }
     }
 
-    /// REQ: KAN-021
+    /// REQ: P8-typ-kanban021
     /// pre:  assignee is a valid WebID
     /// post: returns a filter matching only tasks assigned to the given agent
     pub fn by_assignee(assignee: WebID) -> Self {
@@ -646,7 +646,7 @@ impl TaskFilter {
         }
     }
 
-    /// REQ: KAN-021b
+    /// REQ: P8-typ-kanban021b
     /// pre:  priority is a valid Priority
     /// post:      /// post: returns tasks sorted by priority
     pub fn by_priority(priority: Priority) -> Self {
@@ -676,7 +676,7 @@ pub struct ConsentProof {
 }
 
 impl ConsentProof {
-    /// REQ: KAN-022
+    /// REQ: P8-typ-kanban022
     /// pre:  agent and task_id are valid
     /// post: returns ConsentProof with consented_at=now
     pub fn new(agent: WebID, task_id: TaskId) -> Self {
@@ -746,7 +746,7 @@ pub enum ContractState {
 }
 
 impl TaskContract {
-    /// REQ: KAN-090
+    /// REQ: P8-typ-kanban090
     /// pre:  arguments are valid
     /// post:      /// post: returns new instance with defaults
     pub fn new(
@@ -779,7 +779,7 @@ impl TaskContract {
         }
     }
 
-    /// REQ: KAN-091 — Activate the contract. Sets state to Active.
+    /// REQ: P8-typ-kanban091 — Activate the contract. Sets state to Active.
     /// pre:  state allows activation
     /// post:      /// post: state transitioned to active
     /// The agent now has authority to work on the task.
@@ -787,7 +787,7 @@ impl TaskContract {
         self.state = ContractState::Active;
     }
 
-    /// REQ: KAN-092 — Check if the contract is complete.
+    /// REQ: P8-typ-kanban092 — Check if the contract is complete.
     /// pre:  criteria are defined
     /// post:      /// post: returns completion status
     ///
@@ -863,7 +863,7 @@ impl TaskContract {
         }
     }
 
-    /// REQ: KAN-093 — Emit the contract as a CNS span.
+    /// REQ: P8-typ-kanban093 — Emit the contract as a CNS span.
     /// pre:  span data is valid
     /// post:      /// post: CNS span emitted to event sink
     pub fn emit_span(&self, verb: &str) -> String {
@@ -937,7 +937,7 @@ pub struct SpawnSpec {
 }
 
 impl SpawnSpec {
-    /// REQ: KAN-030
+    /// REQ: P8-typ-kanban030
     /// pre:  value is a valid skills
     /// post: returns Self with skills set
     /// pre:  task_id is valid
@@ -957,7 +957,7 @@ impl SpawnSpec {
         }
     }
 
-    /// REQ: KAN-031
+    /// REQ: P8-typ-kanban031
     /// pre:  value is a valid timeout
     /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
@@ -966,7 +966,7 @@ impl SpawnSpec {
         self
     }
 
-    /// REQ: KAN-032
+    /// REQ: P8-typ-kanban032
     /// pre:  value is valid for skills
     /// post:      /// post: returns Self with skills set
     #[must_use = "builder methods must be chained or assigned"]
@@ -975,7 +975,7 @@ impl SpawnSpec {
         self
     }
 
-    /// REQ: KAN-033
+    /// REQ: P8-typ-kanban033
     /// pre:  value is valid for memory
     /// post:      /// post: returns Self with memory set
     #[must_use = "builder methods must be chained or assigned"]
@@ -984,7 +984,7 @@ impl SpawnSpec {
         self
     }
 
-    /// REQ: KAN-034
+    /// REQ: P8-typ-kanban034
     /// pre:  value is valid for gas budget
     /// post:      /// post: returns Self with gas budget set
     #[must_use = "builder methods must be chained or assigned"]
@@ -993,7 +993,7 @@ impl SpawnSpec {
         self
     }
 
-    /// REQ: KAN-035
+    /// REQ: P8-typ-kanban035
     /// pre:  value is valid for timeout
     /// post:      /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1002,7 +1002,7 @@ impl SpawnSpec {
         self
     }
 
-    /// REQ: KAN-036
+    /// REQ: P8-typ-kanban036
     /// pre:  value is valid for registries
     /// post:      /// post: returns Self with registries set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1011,7 +1011,7 @@ impl SpawnSpec {
         self
     }
 
-    /// REQ: KAN-037
+    /// REQ: P8-typ-kanban037
     /// pre:  value is valid for artifacts
     /// post:      /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1020,7 +1020,7 @@ impl SpawnSpec {
         self
     }
 
-    /// REQ: KAN-038 — Set OCAP capability token specs.
+    /// REQ: P8-typ-kanban038 — Set OCAP capability token specs.
     /// pre:  value is valid for capability tokens
     /// post:      /// post: returns Self with capability tokens set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1071,7 +1071,7 @@ pub struct CapabilityPackage {
 }
 
 impl CapabilityPackage {
-    /// REQ: KAN-060
+    /// REQ: P8-typ-kanban060
     /// pre:  arguments are valid
     /// post:      /// post: returns new instance with defaults
     pub fn new(name: String, description: String) -> Self {
@@ -1091,7 +1091,7 @@ impl CapabilityPackage {
         }
     }
 
-    /// REQ: KAN-061 — Convert to a SpawnSpec for a specific task.
+    /// REQ: P8-typ-kanban061 — Convert to a SpawnSpec for a specific task.
     /// pre:  value is a valid memory
     /// post: returns Self with memory set
     pub fn to_spawn_spec(&self, task_id: TaskId) -> SpawnSpec {
@@ -1109,7 +1109,7 @@ impl CapabilityPackage {
         }
     }
 
-    /// REQ: KAN-062 — Builder: set delegation level.
+    /// REQ: P8-typ-kanban062 — Builder: set delegation level.
     /// pre:  value is a valid artifacts
     /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1118,7 +1118,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-063
+    /// REQ: P8-typ-kanban063
     /// pre:  value is a valid gas
     /// post: returns Self with gas set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1127,7 +1127,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-064
+    /// REQ: P8-typ-kanban064
     /// pre:  value is a valid timeout
     /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1136,7 +1136,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-065
+    /// REQ: P8-typ-kanban065
     /// pre:  value is valid for tools
     /// post:      /// post: returns Self with tools set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1145,7 +1145,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-066
+    /// REQ: P8-typ-kanban066
     /// pre:  value is valid for registries
     /// post:      /// post: returns Self with registries set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1154,7 +1154,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-067
+    /// REQ: P8-typ-kanban067
     /// pre:  value is valid for artifacts
     /// post:      /// post: returns Self with artifacts set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1163,7 +1163,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-068
+    /// REQ: P8-typ-kanban068
     /// pre:  self is valid
     /// post: returns converted value
     #[must_use = "builder methods must be chained or assigned"]
@@ -1172,7 +1172,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-069
+    /// REQ: P8-typ-kanban069
     /// pre:  value is valid for timeout
     /// post:      /// post: returns Self with timeout set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1181,7 +1181,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-070
+    /// REQ: P8-typ-kanban070
     /// pre:  self is valid
     /// post: returns converted value
     #[must_use = "builder methods must be chained or assigned"]
@@ -1190,7 +1190,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-071 — Set max attenuation (0-7, clamped to SYSTEM_MAX).
+    /// REQ: P8-typ-kanban071 — Set max attenuation (0-7, clamped to SYSTEM_MAX).
     /// pre:  value is valid for max attenuation
     /// post:      /// post: returns Self with max attenuation set
     #[must_use = "builder methods must be chained or assigned"]
@@ -1199,7 +1199,7 @@ impl CapabilityPackage {
         self
     }
 
-    /// REQ: KAN-072 — Derive capability token specs from tool servers.
+    /// REQ: P8-typ-kanban072 — Derive capability token specs from tool servers.
     /// pre:  tools list is non-empty
     /// post:      /// post: returns Vec of derived capability tokens
     /// Converts "hkask-mcp-kanban" → "tool:kanban:execute".
@@ -1213,14 +1213,14 @@ impl CapabilityPackage {
         }
     }
 
-    /// REQ: KAN-073 — Serialize to YAML for saving as a reusable package.
+    /// REQ: P8-typ-kanban073 — Serialize to YAML for saving as a reusable package.
     /// pre:  self is valid
     /// post:      /// post: returns converted representation
     pub fn to_yaml(&self) -> Result<String, String> {
         serde_yaml_neo::to_string(self).map_err(|e| e.to_string())
     }
 
-    /// REQ: KAN-074 — Deserialize from YAML.
+    /// REQ: P8-typ-kanban074 — Deserialize from YAML.
     /// pre:  input is valid
     /// post:      /// post: returns parsed object
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
@@ -1229,7 +1229,7 @@ impl CapabilityPackage {
 
     // ── rSolidity Contract Integration ─────────────────────────────────
 
-    /// REQ: KAN-082 — Express this capability package as an rSolidity
+    /// REQ: P8-typ-kanban082 — Express this capability package as an rSolidity
     /// pre:  self is valid
     /// post:      /// post: returns converted representation
     /// task contract. The contract binds delegator and delegate with
@@ -1274,7 +1274,7 @@ impl CapabilityPackage {
 mod tests {
     use super::*;
 
-    // REQ: KAN-T-001 — TaskStatus transitions follow column ordering
+    // REQ: P8-typ-kanbanT-001 — TaskStatus transitions follow column ordering
     #[test]
     fn task_status_transitions() {
         // Forward transitions
@@ -1303,7 +1303,7 @@ mod tests {
         assert!(!TaskStatus::Review.can_transition_to(TaskStatus::Backlog));
     }
 
-    // REQ: KAN-T-002 — TaskStatus::next() returns correct successor
+    // REQ: P8-typ-kanbanT-002 — TaskStatus::next() returns correct successor
     #[test]
     fn task_status_next() {
         assert_eq!(TaskStatus::Backlog.next(), Some(TaskStatus::Ready));
@@ -1313,7 +1313,7 @@ mod tests {
         assert_eq!(TaskStatus::Done.next(), None);
     }
 
-    // REQ: KAN-T-003 — TaskStatus round-trips through string representation
+    // REQ: P8-typ-kanbanT-003 — TaskStatus round-trips through string representation
     #[test]
     fn task_status_string_roundtrip() {
         for status in &[
@@ -1333,7 +1333,7 @@ mod tests {
         }
     }
 
-    // REQ: KAN-T-004 — TaskStatus parse accepts alternate forms
+    // REQ: P8-typ-kanbanT-004 — TaskStatus parse accepts alternate forms
     #[test]
     fn task_status_parse_aliases() {
         assert_eq!(
@@ -1352,7 +1352,7 @@ mod tests {
         assert_eq!(TaskStatus::parse_str("invalid"), None);
     }
 
-    // REQ: KAN-T-005 — Board::column_for_status finds correct column
+    // REQ: P8-typ-kanbanT-005 — Board::column_for_status finds correct column
     #[test]
     fn board_column_for_status() {
         let columns = vec![
@@ -1374,7 +1374,7 @@ mod tests {
         );
     }
 
-    // REQ: KAN-T-006 — Task is created in Backlog status
+    // REQ: P8-typ-kanbanT-006 — Task is created in Backlog status
     #[test]
     fn task_created_in_backlog() {
         let spec = TaskSpec::new("Test task".into());
@@ -1384,7 +1384,7 @@ mod tests {
         assert!(task.assignee.is_none());
     }
 
-    // REQ: KAN-T-007 — TaskSpec builder pattern
+    // REQ: P8-typ-kanbanT-007 — TaskSpec builder pattern
     #[test]
     fn task_spec_builder() {
         let spec = TaskSpec::new("Build CI".into())
@@ -1396,7 +1396,7 @@ mod tests {
         assert_eq!(spec.criteria.len(), 1);
     }
 
-    // REQ: KAN-T-008 — VerificationCriterion builder
+    // REQ: P8-typ-kanbanT-008 — VerificationCriterion builder
     #[test]
     fn verification_criterion_with_llm() {
         let vc = VerificationCriterion::new("Task must compile".into())
@@ -1406,7 +1406,7 @@ mod tests {
         assert!(vc.llm_prompt.is_some());
     }
 
-    // REQ: KAN-T-009 — TaskFilter construction
+    // REQ: P8-typ-kanbanT-009 — TaskFilter construction
     #[test]
     fn task_filter_by_status() {
         let filter = TaskFilter::by_status(TaskStatus::InProgress);
@@ -1414,7 +1414,7 @@ mod tests {
         assert!(filter.assignee.is_none());
     }
 
-    // REQ: KAN-T-010 — ConsentProof construction
+    // REQ: P8-typ-kanbanT-010 — ConsentProof construction
     #[test]
     fn consent_proof_creation() {
         let agent = WebID::new();

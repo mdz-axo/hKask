@@ -477,7 +477,7 @@ impl WalletService {
             .await
             .map_err(|e| {
                 let msg = e.to_string();
-                // REQ: P9 — emit chain_error span for CNS feedback loop closure
+                // REQ: P9-svc-wallet-chain-error-span — emit chain_error span for CNS feedback loop closure
                 if matches!(
                     e,
                     WalletError::ChainNotEnabled { .. }

@@ -18,7 +18,102 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ---
 
-## 1. Five Categories
+## 1. Domain Ontology
+
+### 1.1 Core Entities
+
+| Entity | Crate | Description | Goal Principle |
+|--------|-------|-------------|---------------|
+| `HumanUser` | `hkask-storage` | Human identity with WebID, role (Admin\|Member), OAuth provider link | P1 |
+| `Replicant` | `hkask-types` | Agent identity with persona, voice, wallet link | P6 |
+| `AgentPod` | `hkask-agents` | Runtime container for a replicant (Inactive\|Active\|ServerMode) | P1 |
+| `Wallet` | `hkask-wallet` | rJoule balance, encumbrance, multi-chain deposits | P9 |
+| `ApiKey` | `hkask-wallet` | Scoped API key with spending limits and expiry | P1 |
+| `Triple` | `hkask-storage` | Entity-Attribute-Value knowledge representation, bitemporal | P3 |
+| `CnsRuntime` | `hkask-cns` | Cybernetic nervous system — variety monitoring, alerts, energy budgets | P9 |
+| `EnergyBudget` | `hkask-cns` | Per-agent gas budget with cap, replenish rate, hold-settle pattern | P9 |
+| `CircuitBreaker` | `hkask-cns` | Failure-gating state machine for external service calls | P9 |
+
+### 1.2 Kanban Domain
+
+**Crate:** `hkask-services-kanban` | **Types crate:** `hkask-types::kanban` | **Goal Principle:** P3 (Generative Space) — agent coordination via headless task boards
+
+| Entity | Description | Key Attributes |
+|--------|-------------|---------------|
+| `Board` | Named task board scoped to owner WebID | `board_id: BoardId`, `name`, `owner: WebID`, `columns: Vec<Column>` |
+| `Column` | Ordered column on a board representing a workflow phase | `column_id: ColumnId`, `name`, `order: u32`, `tasks: Vec<TaskId>` |
+| `Task` | Unit of work with status lifecycle, priority, verification criteria | `task_id: TaskId`, `title`, `status: TaskStatus`, `priority: Priority`, `owner: WebID`, `board_id: BoardId`, `column_id: ColumnId` |
+| `Priority` | Task urgency level | `Low \| Medium \| High \| Critical` |
+| `TaskStatus` | Strict column-ordered lifecycle state | `Backlog → Ready → InProgress → Review → Done` |
+| `VerificationCriteria` | Acceptance spec with optional LLM evaluation prompt | `description: String`, `llm_prompt: Option<String>` |
+| `Comment` | Task discussion thread entry | `comment_id: CommentId`, `task_id: TaskId`, `author: WebID`, `body: String` |
+
+**CNS spans:** `cns.tool.kanban` — TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated
+
+**Key contracts:** 34 `KAN-SVC-*` IDs (migration to `P{N}-svc-kanban-*` in progress)
+
+### 1.3 Kata Domain
+
+**Crate:** `hkask-services-kata` | **Goal Principle:** P3 (Generative Space) — Toyota Kata scientific thinking for agent capability development
+
+| Entity | Description | Key Attributes |
+|--------|-------------|---------------|
+| `KataEngine` | Orchestrates kata cycles (starter, improvement, coaching) | `state: KataState`, `manifest: KataManifest` |
+| `KataState` | Current state of a kata practice cycle | `cycle: CyclePhase`, `observations: Vec<Observation>` |
+| `KataManifest` | Declarative definition of a kata (steps, coaching questions, routines) | `meta: ManifestMeta`, `gas_config: GasConfig`, `steps: Vec<KataStep>`, `routines: Vec<PracticeRoutine>`, `cns: CnsConfig` |
+| `KataStep` | A single step in a kata improvement cycle | `name: String`, `description: String`, `coach_question: CoachQuestion` |
+| `CoachQuestion` | One of the 5 coaching kata questions | `number: u8`, `text: String` |
+| `PracticeRoutine` | Deliberate practice routine (Five Questions Drill, PDCA, Observation) | `name: String`, `duration_minutes: u32`, `outcomes: Vec<StarterOutcome>` |
+| `KataHistory` | Recorded history of practice sessions | `entries: Vec<PracticeEntry>` |
+| `PracticeEntry` | A single practice session record | `routine: String`, `started_at: DateTime<Utc>`, `completed_at: Option<DateTime<Utc>>`, `score: Option<f64>` |
+
+**5 coaching kata questions:** (1) Target condition? (2) Actual condition now? (3) What obstacles? Which ONE? (4) Next step? What do you expect? (5) How quickly can we go and see?
+
+**CNS spans:** `cns.kata` — KataImprovEffectiveness, coaching loop events
+
+**Key contracts:** 27 `P9-svc-kata-*`, `P3-svc-kata-*`, `P7-svc-kata-*` IDs
+
+### 1.4 Adapter Domain
+
+**Crate:** `hkask-adapter` | **Goal Principle:** P3 (Generative Space) — LoRA adapter lifecycle management for agent-specialized inference
+
+| Entity | Description | Key Attributes |
+|--------|-------------|---------------|
+| `TrainedLoRAAdapter` | A trained LoRA adapter with provenance metadata | `adapter_id: String`, `source: AdapterSource`, `checksum: Checksum`, `expertise: Expertise`, `owner: WebID` |
+| `AdapterSource` | Provenance of the adapter | `Local { path } \| Remote { url, sha256 } \| Registry { package_id }` |
+| `AdapterStore` | CRUD store for trained adapters with checksum verification | Store, get_by_id, delete, list by owner |
+| `AdapterRouter` | Routes inference requests to the best-matching adapter | CompositionEstimate, provider selection, endpoint guard |
+| `EndpointLifecycle` | State machine for inference endpoint lifecycle | `EndpointPhase`: `Cold \| Warming \| Active \| Draining \| Removed` |
+| `EndpointPhase` | Lifecycle phase of a deployed inference endpoint | `Cold → Warming → Active → Draining → Removed` |
+| `AdapterConfig` | Configuration for adapter deployment | `model_id`, `base_url`, `timeout_secs`, `max_concurrency` |
+| `Expertise` | Describes the domain expertise of a trained adapter | `domains: Vec<MdsDomain>`, `provenance: TrainingProvenance`, `capabilities: Vec<String>` |
+| `CompositionEstimate` | Cost/time estimate for adapter composition | `estimated_cost_rj: f64`, `estimated_latency_ms: u64` |
+| `ProviderSelection` | Selected inference provider for an adapter endpoint | `provider: String`, `model: String`, `cost_per_token_rj: f64` |
+
+**CNS spans:** `cns.adapter` — AdapterStored, AdapterRetrieved, AdapterDeleted, endpoint lifecycle transitions
+
+**Key contracts:** 80 `P{N}-adapter-*` REQ tags across 44 pub fns (181.8% coverage)
+
+### 1.5 Service Layer Subsystems
+
+**Crate:** `hkask-services` + subcrates | **Goal Principle:** P5 (Essentialism) — thin orchestration layer, delegates to domain crates
+
+| Subcrate | Domain | Contract Prefix | Count | Status |
+|----------|--------|----------------|-------|--------|
+| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, contacts, curator, experience, goals, pods, scheduler, skills, spec | `P{N}-svc-{domain}-*` | 102 | ✅ Realigned |
+| `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | ✅ Realigned |
+| `hkask-services-classify` | Prompt classification | `P{N}-svc-classify-*` | 5 | ✅ Realigned |
+| `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | ✅ Realigned |
+| `hkask-services-daemon` | Daemon lifecycle and health | `P{N}-svc-daemon-*` | 8 | ✅ Realigned |
+| `hkask-services-discover` | Service discovery | `P{N}-svc-discover-*` | 24 | ✅ Realigned |
+| `hkask-services-embed` | Embedding service | `P{N}-svc-embed-*` | 6 | ✅ Realigned |
+| `hkask-services-inference-svc` | Inference orchestration | `P{N}-svc-inference-*` | 7 | ✅ Realigned |
+| `hkask-services-kanban` | Kanban task board coordination | `KAN-SVC-*` (legacy) | 34 | ⚠️ Migration pending |
+| `hkask-services-kata` | Toyota Kata engine | `P{N}-svc-kata-*` | 27 | ✅ Realigned |
+
+---
+
+## 2. Five Categories
 
 | # | Category | Completeness Predicate | Min Artifacts | Cross-References |
 |---|----------|----------------------|---------------|-----------------|
@@ -32,7 +127,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ---
 
-## 2. Completeness Predicate
+## 3. Completeness Predicate
 
 ```
 complete?(G, category) :=
@@ -57,7 +152,7 @@ Curation decisions (Accept/Revise/Reject) are made by the Curator or human — n
 
 ---
 
-## 3. Spec Tool Surface (`hkask-mcp-spec`)
+## 4. Spec Tool Surface (`hkask-mcp-spec`)
 
 Five tools. Implemented in `hkask-mcp-spec` with OCAP governance. Three curation tools (evaluate, reconcile, cultivate) were deleted as agent-hallucinated curation logic. One tool (bind) was deleted because OCAP boundaries are declared inline during goal capture, not attached separately. Curation decisions remain external to the spec server.
 
@@ -112,7 +207,7 @@ The planned `replica_discover` tool would orchestrate this pipeline:
 
 ---
 
-## 4. Capability-Driven Model
+## 5. Capability-Driven Model
 
 MDS is capability-driven, not constraint-driven:
 
@@ -129,7 +224,7 @@ MDS is capability-driven, not constraint-driven:
 
 ---
 
-## 5. MDS Cycle
+## 6. MDS Cycle
 
 ```
 MDS_cycle(S, D) :=
@@ -147,11 +242,11 @@ The spec server handles capture → decompose → quality → coherence. Curatio
 
 ---
 
-## 6. Template Manifests
+## 7. Template Manifests
 
 Each category has a minimal YAML template. All use `schema_version: "0.27.0"`.
 
-### 6.1 Domain Spec Template
+### 7.1 Domain Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -180,7 +275,7 @@ cross_references:
     relation: "Entity state persisted across lifecycle"
 ```
 
-### 6.2 Composition Spec Template
+### 7.2 Composition Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -211,7 +306,7 @@ ocap_policy:
   token_ttl_seconds: 3600
 ```
 
-### 6.3 Trust Spec Template
+### 7.3 Trust Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -237,7 +332,7 @@ keystore:
   storage: OS_keychain + SQLCipher
 ```
 
-### 6.4 Lifecycle Spec Template
+### 7.4 Lifecycle Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -280,7 +375,7 @@ persistence:
       visibility: public
 ```
 
-### 6.5 Curation Spec Template
+### 7.5 Curation Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -306,7 +401,7 @@ coherence_metric:
 
 ---
 
-## 7. Testing Protocol
+## 8. Testing Protocol
 
 ### Principles
 
@@ -329,7 +424,7 @@ coherence_metric:
 
 ---
 
-## 8. References
+## 9. References
 
 [^w3c-rdf]: W3C. (2014). *RDF 1.1 Concepts and Abstract Syntax*. <https://www.w3.org/TR/rdf11-concepts/>.
 [^miller-robust]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.

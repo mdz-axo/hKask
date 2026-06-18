@@ -8,6 +8,7 @@ lexicon_terms:
 - classify
 - trace
 - map
+- expectation
 contract:
   input:
     crate_scope: string
@@ -20,8 +21,10 @@ contract:
     no_todo_stubs: boolean
     behavior_coverage: array
     functional_gaps: array
-    violations: array
-    passed: boolean
+   violations: array
+     contract_expectations_valid: array
+     cns_spans_emitted: array
+     passed: boolean
   energy_cap: 4096
   visibility: Public
 ---
@@ -64,13 +67,22 @@ You are a TDD verification agent. Verify that a TDD cycle is complete, clean, an
 - [ ] Every `// REQ:` tag references a valid contract ID
 - [ ] No specification requirement in scope is missing a tracer bullet
 
-### Contract Quality (4-Layer Architecture)
-- [ ] Each contract has `user_expectation:` — faithful capture of spec requirement in user's voice
-- [ ] Each contract has `[P{N}] Goal:` — exactly one, correctly identifies the justifying principle
-- [ ] Each contract has `[P{N}] Constraining:` — zero to many, all applicable constraints declared
-- [ ] Contract ID `P{N}` prefix matches `[P{N}] Goal:` annotation
-- [ ] `pre:`/`post:` form a complete machine-checkable behavioral specification
-- [ ] No constraining principle is violated by the implementation
+### Contract Structure (v0.28.0 — Extended Syntax per TESTING_DISCIPLINE.md §1.2)
+
+Verify every contract carries the full v0.28.0 structure:
+
+- [ ] **`expect:` field present** — every `/// REQ:` contract has an `expect:` line with natural language in the user's voice
+- [ ] **`[P{N}]` goal principle tag** — every `expect:` line carries a `[P{N}]` tag naming the goal principle (exactly one, from P1-P12)
+- [ ] **`[P{N}] Constraining:` annotations** — at minimum P1-P4 (Magna Carta) are annotated where applicable
+- [ ] **No vacuous `expect:`** — `expect:` field is not "N/A" or vacuously identical to the `post:` condition. An `expect:` that restates the function name is vacuous. An `expect:` that restates the postcondition verbatim is vacuous. The `expect:` must express what the USER needs, not what the function does.
+- [ ] **Goal principle matches MDS category default** — cross-check the contract's `[P{N}]` against the MDS category default goal principle from `tdd-plan.j2` mapping table. Mismatch requires rationale.
+
+**Contract Expectations Semantic Validation**: For each contract, check whether the `expect:` natural language semantically matches the `pre:`/`post:` formal specification:
+- [ ] No ambiguity: the `expect:` phrasing is precise enough to derive the pre/post
+- [ ] No contradiction: `expect:` does not assert something the pre/post denies
+- [ ] Not vacuously equivalent: `expect:` differs meaningfully from the `post:` text
+
+Where contracts lack `expect:`, severity is `critical` with violation type `missing-user-expectation`. Where `[P{N}]` is missing, severity is `critical` with type `missing-goal-principle`. Verification failures must emit `cns.contract.violated` spans via `hkask-cns::contract_discipline::emit_contract_violated()`.
 
 ### Implementation Quality
 - [ ] Code is minimal for the behaviors tested (no speculative features)
@@ -109,11 +121,29 @@ Respond with a JSON object:
   ],
   "violations": [
     {
-      "type": "test-quality|spec-traceability|contract-quality|implementation-quality|build-quality",
+      "type": "test-quality|spec-traceability|contract-quality|implementation-quality|build-quality|missing-user-expectation|missing-goal-principle|missing-constraining-annotation|expectation-postcondition-mismatch",
       "severity": "critical|high|medium|low",
       "description": "What was violated",
       "location": "file:line or test name",
       "correction": "How to fix it"
+    }
+  ],
+  "contract_expectations_valid": [
+    {
+      "contract_id": "P9-cns-energy-budget-can-proceed",
+      "expect_field_present": true,
+      "goal_principle_tag_present": true,
+      "constraining_annotations_present": true,
+      "expect_not_vacuous": true,
+      "goal_matches_mds_default": true,
+      "semantic_match_assessment": "aligned|ambiguous|contradiction|vacuous"
+    }
+  ],
+  "cns_spans_emitted": [
+    {
+      "span_id": "cns.contract.violated:uuid",
+      "violation_type": "missing-user-expectation|missing-goal-principle|missing-constraining-annotation|expectation-postcondition-mismatch",
+      "contract_id": "P9-cns-energy-budget-can-proceed"
     }
   ],
   "passed": true
@@ -130,9 +160,9 @@ Respond with a JSON object:
 - A `todo!()` or `unimplemented!()` is a critical violation.
 - A test without a `// REQ:` tag is a high-severity violation (spec-traceability).
 - A `// REQ:` tag that doesn't use `P{N}-{domain}-{operation}` format is a medium-severity violation (contract-quality).
-- A contract missing `user_expectation:` is a high-severity violation (contract-quality).
-- A contract missing `[P{N}] Goal:` is a critical violation (contract-quality) — without a goal principle, the contract is ungrounded.
-- A contract missing `[P{N}] Constraining:` annotations when principles apply is a medium-severity violation (contract-quality).
+- A contract missing `expect:` is a critical violation (type: `missing-user-expectation`). Emit `cns.contract.violated` span.
+- A contract missing `[P{N}]` on `expect:` is a critical violation (type: `missing-goal-principle`) — without a goal principle, the contract is ungrounded. Emit `cns.contract.violated` span.
+- A contract missing `[P{N}] Constraining:` annotations when Magna Carta principles apply is a high-severity violation (type: `missing-constraining-annotation`).
 - A contract where the `P{N}` prefix doesn't match the `[P{N}] Goal:` is a high-severity violation (contract-quality).
 - A missing tracer bullet for an in-scope requirement is a high-severity violation.
 - Missing test coverage for a declared behavior is a high-severity violation.

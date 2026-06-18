@@ -58,8 +58,8 @@ Every contract is a **smart contract between code and user expectation**, with h
 
 | Layer | Field | Question Answered |
 |-------|-------|-------------------|
-| **Verbal expectation** | `user_expectation:` | What did the user say they want? (in the user's voice) |
-| **Goal principle** | `[P{N}] Goal:` | Which principle justifies this as a user-visible guarantee? |
+| **Verbal expectation** | `expect:` with `[P{N}]` tag | What did the user say they want? (in the user's voice) |
+| **Goal principle** | inline `[P{N}]` on `expect:` | Which principle justifies this as a user-visible guarantee? |
 | **Constraining principles** | `[P{N}] Constraining:` | What can the code *not* do and stay principle-aligned? |
 | **Behavioral specification** | `pre:` / `post:` / `inv:` | What are the caller's obligations and the function's guarantees? |
 
@@ -67,11 +67,10 @@ A complete contract:
 
 ```rust
 /// REQ: P9-cns-energy-budget-can-proceed
-/// user_expectation: "I can check whether an agent has enough gas before executing"
+/// expect: "I can check whether an agent has enough gas before executing" [P9]
 /// pre:  gas is a valid EnergyCost
 /// post: returns true iff budget has >= gas remaining and circuit breaker allows
 /// inv:  does not consume gas (read-only check)
-/// [P9] Goal: Homeostatic Self-Regulation — prevents runaway agent execution
 /// [P4] Constraining: Clear Boundaries — cap enforces resource boundary
 /// [P3] Constraining: Generative Space — cap is user-visible, not hidden
 pub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }
@@ -80,8 +79,8 @@ pub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }
 **Contract ID format** (FUNCTIONAL_SPECIFICATION.md §7): `P{N}-{domain-abbreviation}-{operation-verb-phrase}`. The `P{N}` prefix encodes the goal principle directly in the ID.
 
 The TDD's role is to ensure every tracer bullet produces a contract with all four layers and validates each:
-- Does `user_expectation` faithfully capture the spec requirement in the user's voice?
-- Does `[P{N}] Goal:` correctly identify the principle that makes this a user-visible guarantee?
+- Does `expect:` faithfully capture the spec requirement in the user's voice?
+- Does the `[P{N}]` tag on `expect:` correctly identify the goal principle?
 - Do `[P{N}] Constraining:` annotations correctly express what principles forbid?
 - Do `pre:` / `post:` / `inv:` form a machine-checkable behavioral specification?
 - Does the implementation satisfy the behavioral specification without violating constraining principles?
@@ -176,28 +175,28 @@ Ask: "Which MDS categories does this change touch? What should the public interf
 Write ONE contract and ONE test that confirm ONE thing about the system:
 
 ```
-CONTRACT: Write the full contract on the function signature — user_expectation, pre/post/inv, [P{N}] Goal, [P{N}] Constraining
+CONTRACT: Write the full contract on the function signature — expect:, pre/post/inv, [P{N}] Constraining
 RED:     Write property-based test verifying the behavioral specification → test fails
 GREEN:   Write minimal code to satisfy the contract without violating constraining principles → test passes
 ```
 
 Each contract must include:
 - `/// REQ: P{N}-{domain}-{operation}` — contract ID with goal principle prefix
-- `/// user_expectation:` — the user's functional expectation in their own voice
+- `/// expect:` — the user's functional expectation in their own voice, with inline `[P{N}]` tag naming the goal principle
 - `/// pre:` and `/// post:` — the behavioral specification (Testing Discipline §1.2)
 - `/// inv:` — type invariants where applicable
-- `/// [P{N}] Goal:` — the principle that justifies this as a user-visible guarantee (exactly one)
 - `/// [P{N}] Constraining:` — principles that constrain how the goal is delivered (zero to many)
+
+The goal principle is encoded twice: once in the contract ID `P{N}` prefix, and once as a `[P{N}]` tag on the `expect:` line. They must match. Per PRINCIPLES.md §1.5, the goal principle answers "What does the user get?" — every other principle constrains *how* it's delivered.
 
 For non-deterministic functions (LLM agent behaviors, inference output), add `/// prob: p=X, δ=Y, k=Z` per Testing Discipline §7.6.
 
 ```rust
 /// REQ: P9-cns-energy-budget-can-proceed
-/// user_expectation: "I can check whether an agent has enough gas before executing"
+/// expect: "I can check whether an agent has enough gas before executing" [P9]
 /// pre:  gas is a valid EnergyCost
 /// post: returns true iff budget has >= gas remaining and circuit breaker allows
 /// inv:  does not consume gas (read-only check)
-/// [P9] Goal: Homeostatic Self-Regulation — prevents runaway agent execution
 /// [P4] Constraining: Clear Boundaries — cap enforces resource boundary
 pub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }
 ```
@@ -224,7 +223,7 @@ Rules:
 - Only enough code to satisfy the current contract without violating constraining principles
 - Don't anticipate future contracts
 - Keep contracts focused on observable behavior
-- Each contract includes all 4 layers: user_expectation, goal principle, constraining principles, behavioral specification
+- Each contract includes all 4 layers: expect: with [P{N}] tag, constraining principles, behavioral specification
 - Each contract and test carries its `P{N}-{domain}-{operation}` REQ tag
 
 **Fuzz and system layers** follow the same tracer-bullet pattern when applicable:
@@ -265,8 +264,8 @@ After verification, compare tested behaviors against specification requirements:
 This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage).
 
 **Contract quality sub-check:** For each contract in scope, verify the 4 layers:
-1. **user_expectation** — Does it faithfully capture the verbal expectation from the spec? Is it in the user's voice, not the implementer's?
-2. **Goal principle** — Is `[P{N}] Goal:` the correct principle? Does the principle's guarantee semantically match what the contract promises?
+1. **expect:** — Does it faithfully capture the verbal expectation from the spec? Is it in the user's voice, not the implementer's? Does it carry a `[P{N}]` tag?
+2. **Goal principle** — Does the `[P{N}]` tag on `expect:` correctly identify the principle? Does the principle's guarantee semantically match what the contract promises?
 3. **Constraining principles** — Are all applicable constraints declared? Would relaxing one violate a principle?
 4. **Behavioral specification** — Do `pre:` / `post:` / `inv:` form a complete machine-checkable specification? Can a failing test distinguish a contract violation from a test bug?
 
@@ -288,8 +287,7 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 
 ```
 [ ] Contract written before test with all 4 layers:
-    [ ] user_expectation — faithful to spec, in user's voice
-    [ ] [P{N}] Goal — correct principle, semantically matches contract promise
+    [ ] expect: — faithful to spec, in user's voice, carries [P{N}] tag matching contract ID prefix
     [ ] [P{N}] Constraining — all applicable constraints declared
     [ ] pre:/post:/inv: — complete machine-checkable behavioral specification
 [ ] Contract ID uses P{N}-{domain}-{operation} format (FUNCTIONAL_SPECIFICATION.md §7)
@@ -310,8 +308,8 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 [ ] Every spec requirement in scope has a contract + tracer bullet OR a documented deferral
 [ ] No // REQ: tag references a non-existent contract ID
 [ ] Each MDS category in scope has coverage (Domain, Composition, Trust, Lifecycle, Curation)
-[ ] Every contract's user_expectation faithfully captures the spec's verbal expectation
-[ ] Every contract's [P{N}] Goal correctly identifies the justifying principle
+[ ] Every contract's expect: faithfully captures the spec's verbal expectation and carries a [P{N}] tag
+[ ] Every contract's [P{N}] tag matches the contract ID prefix
 [ ] Every contract's [P{N}] Constraining annotations are complete
 [ ] No implementation violates constraining principles
 [ ] Contract completeness audit shows no regression (Testing Discipline §9.2)

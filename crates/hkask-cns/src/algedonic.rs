@@ -62,7 +62,8 @@ impl RuntimeAlert {
     /// Create an alert using binary thresholds.
     ///
     /// REQ: P9-cns-algedonic-alert-new
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — algedonic feedback loop
+    /// expect: "The system creates algedonic alerts when variety deficit exceeds threshold" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — algedonic feedback loop
     /// \[P4\] Constraining: Clear Boundaries — cap enforcement through binary classification
     /// \[P5\] Constraining: Essentialism — simplest possible threshold model
     /// pre:  domain is non-empty, threshold > 0
@@ -119,7 +120,8 @@ impl RuntimeAlert {
     /// Check if alert should be escalated.
     ///
     /// REQ: P9-cns-algedonic-alert-should-escalate
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — escalation feedback loop
+    /// expect: "I can check whether an alert warrants escalation to the Curator" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — escalation feedback loop
     /// \[P4\] Constraining: Clear Boundaries — binary threshold boundary check
     /// post: returns true iff severity is Critical
     pub fn should_escalate(&self) -> bool {
@@ -140,7 +142,8 @@ impl RuntimeAlert {
     /// Check if alert is critical severity.
     ///
     /// REQ: P9-cns-algedonic-alert-is-critical
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — critical threshold detection
+    /// expect: "I can check whether an alert has reached critical severity" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — critical threshold detection
     /// \[P4\] Constraining: Clear Boundaries — severity boundary check
     /// post: returns true iff severity == Critical
     pub fn is_critical(&self) -> bool {
@@ -161,7 +164,8 @@ impl RuntimeAlert {
     /// Check if alert is warning severity.
     ///
     /// REQ: P9-cns-algedonic-alert-is-warning
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — warning threshold detection
+    /// expect: "I can check whether an alert is at warning severity" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — warning threshold detection
     /// \[P4\] Constraining: Clear Boundaries — mid-range boundary check
     /// post: returns true iff severity == Warning
     pub fn is_warning(&self) -> bool {

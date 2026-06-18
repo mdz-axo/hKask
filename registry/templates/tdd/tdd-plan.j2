@@ -7,6 +7,8 @@ lexicon_terms:
 - specify
 - plan
 - trace
+- anchor
+- principal
 contract:
   input:
     task_description: string
@@ -71,7 +73,7 @@ The following specification requirements were retrieved from the specification s
 {{ spec_source | tojson }}
 ```
 
-For each spec, extract functional requirements from its `goals` and `criteria`. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet. The `spec_id` field is the stable identifier for the `// REQ:` tag in tests.
+For each spec, extract functional requirements from its `goals` and `criteria`. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet. The `spec_id` field is the MDS system identifier — use it to trace requirements back to their source, but the `// REQ:` tag in tests uses the `contract_id` (`P{N}-{domain}-{operation}` format).
 {% else %}
 ## Specification Source
 
@@ -87,7 +89,7 @@ No specification data was provided and no specs were found for the given categor
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
-8. Every test carries a `// REQ: <spec_id> — requirement summary` comment naming the spec requirement it validates. The `spec_id` comes from `spec/goal/capture`.
+8. Every test carries a `// REQ: <contract_id> — requirement summary` comment naming the contract it validates. The `contract_id` uses `P{N}-{domain}-{operation}` format.
 
 ## Planning Requirements
 
@@ -99,23 +101,23 @@ No specification data was provided and no specs were found for the given categor
 2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface AND must reference the `spec_id` from the specification graph. Classify each behavior's test type: `unit` (single function contract), `integration` (cross-module contract chain), `contract` (type invariants across operations), `fuzz` (panic-free on arbitrary input), `system` (cross-crate end-to-end workflow). Per Testing Discipline §2.4, fuzz and system layers follow the same tracer-bullet pattern — one contract, one test, one implementation.
 3. **Public interface**: Describe the interface changes needed.
 4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical (Trust). P1 = correctness (Domain, Composition). P2 = ergonomics (Lifecycle, Curation). Only plan tracer bullets for specs with `Accept` curation decisions (curation is external — Curator or human).
-5. **Assumptions**: List every assumption. For each, state confidence (high/medium/low) and the alternative interpretation.
+5. **Assumptions**: List every assumption. For each, state confidence (high/medium/low) and the alternative interpretation. Also for each assumption about which principle constrains a behavior, annotate the confidence and state the alternative interpretation if the assumption is wrong. A low-confidence assumption about a constraining principle (e.g., "I assume P4 constrains this behavior, but could be P8") is a planning smell — flag it for tracer-bullet verification.
 
 ### MDS Category Test Strategies
 
 Per Testing Discipline §5, each MDS category has a distinct primary seam, key invariant, and anti-pattern. Use these when planning tracer bullets for each category:
 
-| MDS Category | Primary Seam | Test Type | Key Invariant | Anti-Pattern |
-|---|---|---|---|---|
-| Domain (REQ-DOM) | `WebID`, `NuEvent` APIs | Unit: construction, parsing, validation | Lexicon round-trips | Testing internal hashmap structure |
-| Capability (REQ-CAP) | `CapabilitySpec`, `DelegationToken`, capability traits | Integration: attenuation chains | Fail-closed: no checker = denied | Testing HMAC internals |
-| Interface (REQ-IFC) | CLI ↔ API ↔ MCP equivalence | Integration: cross-surface parity | `MCP ≡ CLI ≡ API` for every op | Testing only one surface |
-| Composition (REQ-COM) | `SqliteRegistry`, `TemplateResolver`, `ContractValidator` | Integration: register→resolve→render | Cascade terminates within depth limit | Testing Jinja2 string manipulation |
-| Trust (REQ-TRU) | `GovernedTool`, key derivation, OCAP verification | Unit + integration: deterministic derivation | Boundaries never relaxed by default | Only testing happy path |
-| Observability (REQ-OBS) | `CnsRuntime`, `AlgedonicManager`, `NuEventSink` | Unit: span emission; Integration: feedback loop | Alerts fire at threshold; homeostasis restores | Testing `tracing::info!` format |
-| Persistence (REQ-PER) | Repository traits (`TripleStore`, `SpecStore`, `WalletStore`) | Integration: round-trip via `TestDb` | Bitemporal queries correct; encrypted storage fails without key | Testing SQL query strings |
-| Lifecycle (REQ-LIF) | `main()`, migration functions, bootstrap | Integration: bootstrap, schema migration | Forward-only evolution — no rollbacks | Testing CLI arg parsing in isolation |
-| Curation (REQ-CUR) | `SpecCurator`, `SpecStore`, MCP spec handlers | Integration: capture→evaluate→cultivate | Coherence threshold gates curation | Testing Jaccard similarity in isolation |
+| MDS Category | Default Goal Principle | Primary Seam | Test Type | Key Invariant | Anti-Pattern |
+|---|---|---|---|---|---|
+| Domain (REQ-DOM) | P1 (User Sovereignty) | `WebID`, `NuEvent` APIs | Unit: construction, parsing, validation | Lexicon round-trips | Testing internal hashmap structure |
+| Capability (REQ-CAP) | P4 (Clear Boundaries) | `CapabilitySpec`, `DelegationToken`, capability traits | Integration: attenuation chains | Fail-closed: no checker = denied | Testing HMAC internals |
+| Interface (REQ-IFC) | P3 (Generative Space) | CLI ↔ API ↔ MCP equivalence | Integration: cross-surface parity | `MCP ≡ CLI ≡ API` for every op | Testing only one surface |
+| Composition (REQ-COM) | P7 (Evolutionary Architecture) | `SqliteRegistry`, `TemplateResolver`, `ContractValidator` | Integration: register→resolve→render | Cascade terminates within depth limit | Testing Jinja2 string manipulation |
+| Trust (REQ-TRU) | P4 (Clear Boundaries) + P2 (Affirmative Consent) | `GovernedTool`, key derivation, OCAP verification | Unit + integration: deterministic derivation | Boundaries never relaxed by default | Only testing happy path |
+| Observability (REQ-OBS) | P9 (Homeostatic Self-Regulation) | `CnsRuntime`, `AlgedonicManager`, `NuEventSink` | Unit: span emission; Integration: feedback loop | Alerts fire at threshold; homeostasis restores | Testing `tracing::info!` format |
+| Persistence (REQ-PER) | P8 (Semantic Grounding) | Repository traits (`TripleStore`, `SpecStore`, `WalletStore`) | Integration: round-trip via `TestDb` | Bitemporal queries correct; encrypted storage fails without key | Testing SQL query strings |
+| Lifecycle (REQ-LIF) | P5 (Essentialism) | `main()`, migration functions, bootstrap | Integration: bootstrap, schema migration | Forward-only evolution — no rollbacks | Testing CLI arg parsing in isolation |
+| Curation (REQ-CUR) | P8 (Semantic Grounding) | `SpecCurator`, `SpecStore`, MCP spec handlers | Integration: capture→evaluate→cultivate | Coherence threshold gates curation | Testing Jaccard similarity in isolation |
 
 ## Output Requirements
 
@@ -146,15 +148,22 @@ Respond with a JSON object:
       "curation_decision": "Accept|Revise|Reject"
     }
   ],
-  "behaviors_to_test": [
-    {
-      "behavior": "What the system should do (observable, through public interface)",
-      "spec_id": "UUID from spec/graph/query",
-      "seam": "Which public interface exercises this behavior",
-      "test_type": "unit|integration|contract|fuzz|system",
-      "priority": "P0|P1|P2"
-    }
-  ],
+   "behaviors_to_test": [
+     {
+       "behavior": "What the system should do (observable, through public interface)",
+       "spec_id": "UUID from spec/graph/query",
+       "seam": "Which public interface exercises this behavior",
+       "test_type": "unit|integration|contract|fuzz|system",
+       "priority": "P0|P1|P2",
+       "constraining_principles": [
+         {
+           "principle": "P4",
+           "name": "Clear Boundaries",
+           "constraint": "OCAP boundaries that constrain how this behavior is delivered"
+         }
+       ]
+     }
+   ],
   "public_interface": [
     {
       "item": "Function/trait/type name",

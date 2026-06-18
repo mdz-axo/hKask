@@ -190,6 +190,7 @@ impl VarietyMonitor {
     /// Create a new variety monitor.
     ///
     /// REQ: P9-cns-runtime-variety-monitor-new
+    /// expect: "The system creates variety monitors to track state diversity across domains" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — the monitor enables feedback loops
     /// \[P5\] Constraining: Essentialism — minimal defaults, empty counters
     /// post: returns VarietyMonitor with empty counters
@@ -206,6 +207,7 @@ impl VarietyMonitor {
     /// Get variety count for a domain.
     ///
     /// REQ: P9-cns-runtime-variety-for-domain
+    /// expect: "I can query variety counts for any tracked domain" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// pre:  domain is non-empty
@@ -217,6 +219,7 @@ impl VarietyMonitor {
     /// List all tracked domains.
     ///
     /// REQ: P9-cns-runtime-variety-monitor-domains
+    /// expect: "I can enumerate all tracked domains for loop feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — domain enumeration enables loop feedback
     /// \[P8\] Constraining: Semantic Grounding — pure enumeration, no side effects
     /// post: returns Vec of domain name strings
@@ -276,6 +279,7 @@ impl CnsRuntime {
     /// Create a CNS runtime with a custom threshold.
     ///
     /// REQ: P9-cns-runtime-with-threshold
+    /// expect: "I can create a CNS runtime with a configurable variety threshold" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — runtime creation enables regulation
     /// \[P7\] Constraining: Evolutionary Architecture — threshold config emerged from real usage
     /// pre:  threshold > 0
@@ -292,6 +296,7 @@ impl CnsRuntime {
     /// Get CNS health status.
     ///
     /// REQ: P9-cns-runtime-health
+    /// expect: "I can query the cybernetic health status of the entire CNS" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns CnsHealth with current state
@@ -306,6 +311,7 @@ impl CnsRuntime {
     /// Get all alerts.
     ///
     /// REQ: P9-cns-runtime-alerts
+    /// expect: "I can retrieve all active runtime alerts for loop response" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — alert retrieval enables loop response
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// post: returns Vec of RuntimeAlert
@@ -318,6 +324,7 @@ impl CnsRuntime {
     /// Get the configured default threshold.
     ///
     /// REQ: P9-cns-runtime-default-threshold
+    /// expect: "I can query the default variety threshold for loop tuning" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — threshold config enables loop tuning
     /// \[P7\] Constraining: Evolutionary Architecture — threshold emerged from real usage
     /// post: returns threshold value from algedonic manager
@@ -329,6 +336,7 @@ impl CnsRuntime {
     /// Get critical alerts only.
     ///
     /// REQ: P9-cns-runtime-critical-alerts
+    /// expect: "I can filter alerts to only critical severity for prioritized response" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — critical alert filtering enables prioritised response
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// post: returns Vec of critical RuntimeAlert
@@ -350,6 +358,7 @@ impl CnsRuntime {
     /// Get variety counts across all domains.
     ///
     /// REQ: P9-cns-runtime-variety
+    /// expect: "I can query variety measurements across all span namespaces" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns HashMap of namespace → variety count
@@ -381,6 +390,7 @@ impl CnsRuntime {
     /// Get variety for a specific domain.
     ///
     /// REQ: P9-cns-runtime-variety-for-domain
+    /// expect: "I can query domain-specific variety counts" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — domain-specific variety measurement
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// pre:  domain is non-empty
@@ -396,6 +406,7 @@ impl CnsRuntime {
     /// Get variety for a domain (blocking).
     ///
     /// REQ: P3-cns-runtime-blocking-variety-for-domain
+    /// expect: "I can access CNS observability synchronously — preserving generative capability" [P3]
     /// \[P3\] Motivating: Generative Space — sync access preserves generative capability
     /// \[P7\] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
     /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
@@ -416,6 +427,7 @@ impl CnsRuntime {
     /// Record an outcome (success/failure) for a domain.
     ///
     /// REQ: P9-cns-runtime-record-outcome
+    /// expect: "The system records tool outcomes for quality-based regulation" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation
     /// \[P4\] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
     /// pre:  domain is non-empty
@@ -441,6 +453,7 @@ impl CnsRuntime {
     /// Check outcome health for a domain.
     ///
     /// REQ: P9-cns-runtime-check-outcome
+    /// expect: "I can check outcome quality to drive loop decisions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — outcome check drives loop decisions
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty
@@ -476,6 +489,7 @@ impl CnsRuntime {
     /// Get outcome success rate for a domain.
     ///
     /// REQ: P9-cns-runtime-outcome-success-rate
+    /// expect: "I can query the success rate for a domain as a feedback metric" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — success rate is a feedback metric
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// pre:  domain is non-empty
@@ -491,6 +505,7 @@ impl CnsRuntime {
     /// Increment variety counter for a domain.
     ///
     /// REQ: P9-cns-runtime-increment-variety
+    /// expect: "The system increments variety counters to drive loop closure" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety counter drives loop closure
     /// \[P4\] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
     /// pre:  domain and state_name are non-empty
@@ -531,6 +546,7 @@ impl CnsRuntime {
     /// Check variety health for a domain.
     ///
     /// REQ: P9-cns-runtime-check-variety
+    /// expect: "I can check variety levels to determine if an alert is needed" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety check drives loop closure
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty
@@ -567,6 +583,7 @@ impl CnsRuntime {
     /// Calibrate the variety threshold for a domain.
     ///
     /// REQ: P7-cns-runtime-calibrate-threshold
+    /// expect: "I can calibrate variety thresholds from real usage patterns" [P7]
     /// \[P7\] Motivating: Evolutionary Architecture — threshold parameter emerged from real usage
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty, new_threshold > 0
@@ -589,6 +606,7 @@ impl CnsRuntime {
     /// Calibrate threshold (blocking).
     ///
     /// REQ: P3-cns-runtime-calibrate-threshold-blocking
+    /// expect: "I can access CNS observability synchronously — preserving generative capability" [P3]
     /// \[P3\] Motivating: Generative Space — sync access preserves generative capability
     /// \[P7\] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
     /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
@@ -615,6 +633,7 @@ impl CnsRuntime {
     /// Subscribe an observer to CNS events.
     ///
     /// REQ: P12-cns-runtime-subscribe
+    /// expect: "I can explicitly subscribe an observer to receive CNS events" [P12]
     /// \[P12\] Motivating: Affirmative Consent — observer registration requires explicit subscription
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
@@ -631,6 +650,7 @@ impl CnsRuntime {
     /// Subscribe an observer (async).
     ///
     /// REQ: P12-cns-runtime-subscribe-async
+    /// expect: "I can explicitly subscribe an async observer to receive CNS events" [P12]
     /// \[P12\] Motivating: Affirmative Consent — observer registration requires explicit subscription
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
@@ -647,6 +667,7 @@ impl CnsRuntime {
     /// Emit a backpressure signal.
     ///
     /// REQ: P9-cns-runtime-emit-backpressure
+    /// expect: "The system emits backpressure signals to close the regulation loop" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — backpressure signal closes the regulation loop
     /// \[P4\] Constraining: Clear Boundaries — signal emission gates downstream throttling
     /// pre:  signal is valid
@@ -664,6 +685,7 @@ impl CnsRuntime {
     /// Register an energy budget for an agent.
     ///
     /// REQ: P9-cns-runtime-register-energy-budget
+    /// expect: "I can register an energy budget for an agent to enable tracking" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — budget registration enables energy tracking
     /// \[P4\] Constraining: Clear Boundaries — budget cap enforces resource boundary
     /// pre:  agent is valid, budget is valid
@@ -681,6 +703,7 @@ impl CnsRuntime {
     /// Replenish an agent's energy budget.
     ///
     /// REQ: P9-cns-runtime-replenish-agent-budget
+    /// expect: "The system replenishes agent budgets on the regulation cycle" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — budget replenishment drives energy loop
     /// \[P4\] Constraining: Clear Boundaries — cap enforcement prevents over-replenishment
     /// pre:  agent is registered, amount > 0
@@ -711,6 +734,7 @@ impl CnsRuntime {
     /// Get agent energy status.
     ///
     /// REQ: P9-cns-runtime-agent-gas-status
+    /// expect: "I can query an agent's gas status for energy loop feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — gas status query drives energy loop decisions
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// pre:  agent is valid
@@ -763,6 +787,7 @@ mod tests {
     use super::*;
 
     // REQ: P9-cns-runtime-variety-monitor-test-001
+    // expect: "Variety monitors track distinct states correctly" [P9]
     //
     // TASK 1 cybernetic property: the VarietyMonitor sensor must count
     // distinct tool states per domain for Ashby's Law compliance.
@@ -780,6 +805,7 @@ mod tests {
     }
 
     // REQ: P9-cns-runtime-variety-deficit-test-002
+    // expect: "Variety deficit is calculated from expected vs actual" [P9]
     //
     // When 3 distinct states exist but 10 are expected, deficit must be 7.
     #[test]
@@ -793,6 +819,7 @@ mod tests {
     }
 
     // REQ: P9-cns-runtime-variety-isolation-test-003
+    // expect: "Variety monitors isolate counters across domains" [P9]
     //
     // Two domains must track variety independently.
     #[test]
@@ -811,6 +838,7 @@ mod tests {
     }
 
     // REQ: P9-cns-runtime-outcome-rate-test-004
+    // expect: "Outcome success rate is calculated correctly" [P9]
     //
     // OutcomeTracker must correctly compute success rate from recorded
     // successes and failures.
@@ -830,6 +858,7 @@ mod tests {
     }
 
     // REQ: P9-cns-runtime-outcome-breakdown-test-005
+    // expect: "Outcome error kinds are broken down correctly" [P9]
     //
     // OutcomeTracker must track per-error-kind counts for diagnosis.
     #[test]
@@ -847,6 +876,7 @@ mod tests {
     }
 
     // REQ: P9-cns-runtime-outcome-window-test-006
+    // expect: "Outcome window resets as expected" [P9]
     //
     // OutcomeTracker must reset its window after the configured duration.
     #[test]

@@ -29,8 +29,8 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 1 | Energy Budgeting | `energy` | hkask-cns | 20 | System prevents runaway agent resource consumption | P9 (Homeostatic Self-Regulation) |
 | 2 | Algedonic Signalling | `algedonic` | hkask-cns | 4 | System alerts when regulation thresholds are breached | P9 (Homeostatic Self-Regulation) |
 | 3 | Runtime Observability | `runtime` | hkask-cns | 24 | System provides unified CNS observability and regulation feedback | P9 (Homeostatic Self-Regulation) |
-| 4 | Tool Governance | `gov-tool` | hkask-cns | 3 | System gates tool execution behind OCAP capability checks | P4 (Clear Boundaries) |
-| 5 | Inference Governance | `gov-inf` | hkask-cns | 2 | System gates inference calls behind energy budget checks | P4 (Clear Boundaries) |
+| 4 | Tool Governance | `gov-tool` | hkask-cns | 3 | System gates tool execution behind OCAP capability checks | P9 (Homeostatic Self-Regulation) |
+| 5 | Inference Governance | `gov-inf` | hkask-cns | 2 | System gates inference calls behind energy budget checks | P9 (Homeostatic Self-Regulation) |
 | 6 | Circuit Breaking | `circuit` | hkask-cns | 3 | System prevents cascading failures in external service calls | P9 (Homeostatic Self-Regulation) |
 | 7 | API Metering | `api` | hkask-cns | 8 | System enforces per-key rate limits and gas tracking | P9 (Homeostatic Self-Regulation) |
 | 8 | Energy Estimation | `est` | hkask-cns | 2 | System estimates energy costs for regulated operations | P9 (Homeostatic Self-Regulation) |
@@ -57,8 +57,8 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 
 Each domain's contracts trace upward through constraining principles to a single goal principle, which itself traces to a Magna Carta principle (P1–P4). The user expectation column above captures the OUGHT that drives principle selection per domain. Key anchoring rules:
 
-1. **P9 (Homeostatic Self-Regulation)** owns all CNS regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation
-2. **P4 (Clear Boundaries)** owns all membrane/boundary contracts: governed_tool, governed_inference, deployment perimeter
+1. **P9 (Homeostatic Self-Regulation)** owns all CNS regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation, tool governance, inference governance
+2. **P4 (Clear Boundaries)** is the primary constraining principle on CNS governance contracts — the OCAP membrane that enforces boundaries. It does not serve as a goal principle in CNS.
 3. **P8 (Semantic Grounding)** owns all type-level identity contracts: `EnergyCost`, `EnergyDelta` newtypes
 4. **P12 (Subscriber Consent)** owns all subscriber/consent contracts: `subscribe`, `subscribe_async`
 5. **P3 (Generative Space)** owns all sync/blocking variants and content-domain contracts: blocking accessors, storage, memory, CLI
@@ -353,8 +353,8 @@ erDiagram
 
 ### 2.4 Tool Governance (`gov-tool`)
 
-**Goal Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — OCAP enforcement)
-**Constraining Principle:** P12 (Affirmative Consent — agent identity is the consent anchor)
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — tool execution gated by energy budget and OCAP checks
+**Constraining Principles:** P4 (Clear Boundaries — OCAP membrane enforcement), P12 (Affirmative Consent — agent identity is the consent anchor)
 **Crate:** `hkask-cns` | **Source:** `src/governed_tool.rs`
 
 ```mermaid
@@ -364,7 +364,7 @@ erDiagram
     GovernedTool ||--|| EnergyBudget : "checks"
     GovernedTool ||--|| AgentIdentity : "requires"
     GovernedTool }o--|| P9_Homeostatic : "goal"
-    GovernedTool }o--|| P4_OCAP : "goal"
+    GovernedTool }o--|| P4_OCAP : "constrained by"
     GovernedTool }o--|| P12_Consent : "constrained by"
     GovernedTool {
         string userExpectation "User expects tool execution gated behind OCAP capability checks"
@@ -391,8 +391,8 @@ erDiagram
 
 ### 2.5 Inference Governance (`gov-inf`)
 
-**Goal Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — membrane for inference)
-**Constraining Principle:** P12 (Affirmative Consent — agent identity is required for attribution)
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — inference calls gated by energy budget and provider membrane
+**Constraining Principles:** P4 (Clear Boundaries — provider membrane), P12 (Affirmative Consent — agent identity is required for attribution)
 **Crate:** `hkask-cns` | **Source:** `src/governed_inference.rs`
 
 ```mermaid
@@ -402,7 +402,7 @@ erDiagram
     GovernedInference ||--|| AgentIdentity : "requires"
     GovernedInference ||--|| CompositeEnergyEstimator : "uses"
     GovernedInference }o--|| P9_Homeostatic : "goal"
-    GovernedInference }o--|| P4_OCAP : "goal"
+    GovernedInference }o--|| P4_OCAP : "constrained by"
     GovernedInference {
         string userExpectation "User expects inference calls gated behind energy budget checks"
     }

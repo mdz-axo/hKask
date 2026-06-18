@@ -44,7 +44,7 @@ const BOARD_TASKS_PREFIX: &str = "kanban:board_tasks:";
 impl KanbanService {
     /// Create a KanbanService backed by the given TripleStore.
     ///
-    /// REQ: KAN-SVC-001
+    /// REQ: P3-svc-kanban-001
     /// pre:  store must have the triples table initialized
     /// post: returns a KanbanService ready for use
     pub fn new(store: TripleStore) -> Self {
@@ -56,7 +56,7 @@ impl KanbanService {
 
     /// Attach a PodManager for live spawn capability.
     ///
-    /// REQ: KAN-SVC-001b
+    /// REQ: P3-svc-kanban-001b
     /// pre:  pm is a valid Arc<PodManager>
     /// post: returns Self with pod_manager set to Some(pm)
     #[must_use = "builder methods must be chained or assigned"]
@@ -69,7 +69,7 @@ impl KanbanService {
 
     /// Create a new kanban board.
     ///
-    /// REQ: KAN-SVC-002
+    /// REQ: P3-svc-kanban-002
     /// pre:  owner is a valid WebID; name is non-empty; columns is non-empty
     /// post: board is persisted as a triple; returns the created Board
     pub fn board_create(
@@ -112,7 +112,7 @@ impl KanbanService {
 
     /// Create a board from a YAML template file.
     ///
-    /// REQ: KAN-SVC-002b
+    /// REQ: P3-svc-kanban-002b
     /// pre:  template_path is a valid YAML file with board template schema
     /// post: board is created with template-defined columns, WIP limits, and phases
     pub fn board_create_from_template(
@@ -166,7 +166,7 @@ impl KanbanService {
 
     /// List all board templates.
     ///
-    /// REQ: KAN-SVC-002c
+    /// REQ: P3-svc-kanban-002c
     /// post: returns Vec of known template names
     pub fn list_templates() -> Vec<String> {
         vec![
@@ -179,7 +179,7 @@ impl KanbanService {
 
     /// List all boards for a given owner.
     ///
-    /// REQ: KAN-SVC-003
+    /// REQ: P3-svc-kanban-003
     /// pre:  owner is a valid WebID
     /// post: returns all boards owned by this replicant
     pub fn board_list(&self, owner: &WebID) -> Result<Vec<Board>, KanbanError> {
@@ -203,7 +203,7 @@ impl KanbanService {
 
     /// Get a board by ID.
     ///
-    /// REQ: KAN-SVC-004
+    /// REQ: P3-svc-kanban-004
     /// pre:  board_id is valid
     /// post: returns Some(Board) if found, None otherwise
     pub fn board_get(&self, board_id: BoardId) -> Result<Option<Board>, KanbanError> {
@@ -223,7 +223,7 @@ impl KanbanService {
 
     /// Render a text-based kanban board view.
     ///
-    /// REQ: KAN-SVC-004b
+    /// REQ: P3-svc-kanban-004b
     /// pre:  board_id refers to an existing board
     /// post: returns a formatted string showing columns with tasks arranged by status,
     ///       WIP limits, story points, labels, overdue indicators, and verification status
@@ -317,7 +317,7 @@ impl KanbanService {
 
     /// Create a new task on a board.
     ///
-    /// REQ: KAN-SVC-005
+    /// REQ: P3-svc-kanban-005
     /// pre:  board_id refers to an existing board; spec.title is non-empty; owner is valid
     /// post: task is persisted as a triple; returns the created Task
     pub fn task_create(
@@ -412,7 +412,7 @@ impl KanbanService {
 
     /// List tasks on a board, optionally filtered.
     ///
-    /// REQ: KAN-SVC-006
+    /// REQ: P3-svc-kanban-006
     /// pre:  board_id refers to an existing board
     /// post: returns tasks matching the filter; empty Vec if none match
     pub fn task_list(
@@ -462,7 +462,7 @@ impl KanbanService {
 
     /// Get a task by ID.
     ///
-    /// REQ: KAN-SVC-007
+    /// REQ: P3-svc-kanban-007
     /// pre:  task_id is valid
     /// post: returns Some(Task) if found, None otherwise
     pub fn task_get(&self, task_id: TaskId) -> Result<Option<Task>, KanbanError> {
@@ -482,7 +482,7 @@ impl KanbanService {
 
     /// Move a task to a new column (state transition).
     ///
-    /// REQ: KAN-SVC-008
+    /// REQ: P3-svc-kanban-008
     /// pre:  task_id refers to an existing task; target is a valid transition from current status
     /// pre:  actor is a valid WebID (P12)
     /// post: task.status is updated; updated_at is refreshed
@@ -558,7 +558,7 @@ impl KanbanService {
 
     /// Assign a task to an agent with consent proof.
     ///
-    /// REQ: KAN-SVC-009
+    /// REQ: P3-svc-kanban-009
     /// pre:  task_id refers to an existing task; consent.agent matches the assignee
     /// pre:  consent.task_id matches task_id
     /// post: task.assignee is set to consent.agent
@@ -617,7 +617,7 @@ impl KanbanService {
 
     /// Verify a task's completion against its acceptance criteria.
     ///
-    /// REQ: KAN-SVC-010
+    /// REQ: P3-svc-kanban-010
     /// pre:  task_id refers to an existing task in Review status
     /// pre:  verifier is a valid WebID
     /// post: task.verification is set; task moves to Done if passed
@@ -704,7 +704,7 @@ impl KanbanService {
 
     /// Delete a task and its board index entry.
     ///
-    /// REQ: KAN-SVC-040
+    /// REQ: P3-svc-kanban-040
     /// pre:  task_id is valid
     /// post: task triple and index triple are soft-deleted
     pub fn task_delete(&self, task_id: TaskId) -> Result<(), KanbanError> {
@@ -740,7 +740,7 @@ impl KanbanService {
 
     /// Unassign a task — remove the assignee.
     ///
-    /// REQ: KAN-SVC-041
+    /// REQ: P3-svc-kanban-041
     /// pre:  task_id is valid
     /// post: task.assignee is set to None
     pub fn task_unassign(&self, task_id: TaskId) -> Result<Task, KanbanError> {
@@ -755,7 +755,7 @@ impl KanbanService {
 
     /// Reopen a completed task — move from Done back to InProgress.
     ///
-    /// REQ: KAN-SVC-042
+    /// REQ: P3-svc-kanban-042
     /// pre:  task_id refers to a task in Done status
     /// post: task moves to InProgress, verification cleared
     pub fn task_reopen(&self, task_id: TaskId) -> Result<Task, KanbanError> {
@@ -780,7 +780,7 @@ impl KanbanService {
 
     /// Delete a board and all its tasks.
     ///
-    /// REQ: KAN-SVC-043
+    /// REQ: P3-svc-kanban-043
     /// pre:  board_id is valid
     /// post: board triple and all associated task/index triples are soft-deleted
     pub fn board_delete(&self, board_id: BoardId) -> Result<usize, KanbanError> {
@@ -954,7 +954,7 @@ mod tests {
         (svc, board, owner)
     }
 
-    // REQ: KAN-SVC-T-001
+    // REQ: P3-svc-kanban-T-001
     #[test]
     fn board_create_succeeds() {
         let svc = KanbanService::new(make_store());
@@ -967,7 +967,7 @@ mod tests {
         assert_eq!(board.columns.len(), 5);
     }
 
-    // REQ: KAN-SVC-T-002
+    // REQ: P3-svc-kanban-T-002
     #[test]
     fn board_create_rejects_empty_name() {
         let svc = KanbanService::new(make_store());
@@ -975,7 +975,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: KAN-SVC-T-003
+    // REQ: P3-svc-kanban-T-003
     #[test]
     fn board_create_rejects_empty_columns() {
         let svc = KanbanService::new(make_store());
@@ -983,7 +983,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: KAN-SVC-T-004
+    // REQ: P3-svc-kanban-T-004
     #[test]
     fn board_list_by_owner() {
         let svc = KanbanService::new(make_store());
@@ -1000,7 +1000,7 @@ mod tests {
         assert_eq!(alice_boards[0].name, "Alice's Board");
     }
 
-    // REQ: KAN-SVC-T-005
+    // REQ: P3-svc-kanban-T-005
     #[test]
     fn task_create_defaults_to_backlog() {
         let (svc, board, owner) = make_service_with_board();
@@ -1011,7 +1011,7 @@ mod tests {
         assert_eq!(task.board_id, board.id);
     }
 
-    // REQ: KAN-SVC-T-006
+    // REQ: P3-svc-kanban-T-006
     #[test]
     fn task_create_rejects_unknown_board() {
         let svc = KanbanService::new(make_store());
@@ -1019,7 +1019,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: KAN-SVC-T-007
+    // REQ: P3-svc-kanban-T-007
     #[test]
     fn task_list_unfiltered() {
         let (svc, board, owner) = make_service_with_board();
@@ -1032,7 +1032,7 @@ mod tests {
         assert_eq!(tasks.len(), 2);
     }
 
-    // REQ: KAN-SVC-T-008
+    // REQ: P3-svc-kanban-T-008
     #[test]
     fn task_list_filter_by_status() {
         let (svc, board, owner) = make_service_with_board();
@@ -1056,7 +1056,7 @@ mod tests {
         assert_eq!(in_progress.len(), 1);
     }
 
-    // REQ: KAN-SVC-T-009
+    // REQ: P3-svc-kanban-T-009
     #[test]
     fn task_move_forward() {
         let (svc, board, owner) = make_service_with_board();
@@ -1073,7 +1073,7 @@ mod tests {
         assert_eq!(t.status, TaskStatus::InProgress);
     }
 
-    // REQ: KAN-SVC-T-010
+    // REQ: P3-svc-kanban-T-010
     #[test]
     fn task_move_rejects_skip() {
         let (svc, board, owner) = make_service_with_board();
@@ -1085,7 +1085,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: KAN-SVC-T-011
+    // REQ: P3-svc-kanban-T-011
     #[test]
     fn task_assign_with_consent() {
         let (svc, board, owner) = make_service_with_board();
@@ -1099,7 +1099,7 @@ mod tests {
         assert_eq!(assigned.assignee, Some(agent));
     }
 
-    // REQ: KAN-SVC-T-012
+    // REQ: P3-svc-kanban-T-012
     #[test]
     fn task_assign_rejects_invalid_consent() {
         let (svc, board, owner) = make_service_with_board();
@@ -1114,7 +1114,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: KAN-SVC-T-013
+    // REQ: P3-svc-kanban-T-013
     #[test]
     fn task_verify_pass() {
         let (svc, board, owner) = make_service_with_board();
@@ -1134,7 +1134,7 @@ mod tests {
         assert!(verified.verification.as_ref().unwrap().passed);
     }
 
-    // REQ: KAN-SVC-T-014
+    // REQ: P3-svc-kanban-T-014
     #[test]
     fn task_verify_rejects_non_review() {
         let (svc, board, owner) = make_service_with_board();
@@ -1146,7 +1146,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: KAN-SVC-T-015
+    // REQ: P3-svc-kanban-T-015
     #[test]
     fn board_get_succeeds() {
         let (svc, board, _owner) = make_service_with_board();
@@ -1155,7 +1155,7 @@ mod tests {
         assert_eq!(retrieved.unwrap().name, "Test Board");
     }
 
-    // REQ: KAN-SVC-T-016
+    // REQ: P3-svc-kanban-T-016
     #[test]
     fn board_isolation() {
         let svc = KanbanService::new(make_store());

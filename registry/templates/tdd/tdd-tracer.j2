@@ -7,10 +7,15 @@ lexicon_terms:
 - constrain
 - specify
 - trace
+- expect
+- expectation
 contract:
   input:
     behavior_description: string
-    spec_id: string
+    contract_id: string
+    user_expectation: string
+    goal_principle: object
+    constraining_principles: array
     seam: string
     crate_scope: string
     test_style: string
@@ -47,11 +52,26 @@ You are a TDD tracer bullet agent. Write ONE contract for ONE behavior, then ONE
 
 {{ behavior_description }}
 
-## Requirement
+## Contract ID
 
-{{ spec_id }}
+{{ contract_id }}
 
-Every test must include a `// REQ:` comment that references the spec's `id` field from the specification system. This creates bidirectional traceability: specification ↔ test ↔ implementation. The `spec_id` is the UUID returned by `spec/goal/capture`.
+Every test must include a `// REQ:` comment referencing this `P{N}-{domain}-{operation}` contract ID. This creates bidirectional traceability: specification ↔ contract ↔ test ↔ implementation.
+
+{% if user_expectation %}
+## User Expectation
+
+{{ user_expectation }}
+
+Goal principle: {{ goal_principle | tojson }}
+{% endif %}
+{% if constraining_principles %}
+## Constraining Principles
+
+The implementation must not violate these:
+
+{{ constraining_principles | tojson }}
+{% endif %}
 
 ## Seam
 
@@ -75,29 +95,38 @@ Default: integration test through public API.
 
 ## Rules
 
-1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature with four layers per the Contract Architecture (SKILL.md):
+1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature with all layers per the Contract Architecture (SKILL.md) and the full v0.28.0 contract structure (`TESTING_DISCIPLINE.md` §1.2):
    ```
    /// REQ: P{N}-{domain}-{operation}
-   /// user_expectation: "<user's functional expectation in their own voice>"
+   /// expect: "<user's functional expectation in their own voice>" [P{N}]
    /// pre:  <what must be true before calling>
    /// post: <what the function guarantees after returning>
    /// inv:  <what must always hold across operations> (optional, for types)
-   /// [P{N}] Goal: <principle name> — <why this is a user-visible guarantee>
    /// [P{N}] Constraining: <principle name> — <what the code cannot do>
    /// prob: p=<threshold>, δ=<tolerance>, k=<recovery window> (only for non-deterministic functions per Testing Discipline §7.6)
    ```
    Each layer answers a distinct question:
-   - `user_expectation:` — What did the user say they want? (verbal, user's voice)
-   - `[P{N}] Goal:` — Which principle justifies this? (exactly one, encoded in the contract ID prefix)
-   - `[P{N}] Constraining:` — What can't the code do? (zero to many, from all applicable principles)
+   - `expect:` — What did the user say they want? (verbal, user's voice). This is the structural origin point of the traceability chain. Must carry a `[P{N}]` tag naming the goal principle.
+   - `[P{N}]` on `expect:` — Which principle justifies this contract? (exactly one, also encoded in the contract ID prefix). See selection guideline below.
+   - `[P{N}] Constraining:` — What can't the code do? (zero to many, from all applicable principles). At minimum, every applicable Magna Carta principle (P1-P4) must be annotated.
    - `pre:/post:/inv:` — What are the caller/function obligations? (machine-checkable)
    
-   The contract IS the specification of the test. Without all four layers, the test verifies *something*, but it's not clear that it's the right thing against the right constraints.
+   The contract IS the specification of the test. Without all layers, the test verifies *something*, but it's not clear that it's the right thing against the right constraints.
+
+   **Goal-principle anchoring rule** (`PRINCIPLES.md` §1.6): The `[P{N}]` on `expect:` must name the principle whose user-visible guarantee the contract directly serves. Selection logic:
+   - *"I need to check gas before executing"* → P9 (Homeostatic Self-Regulation)
+   - *"I need to control my data"* → P1 (User Sovereignty)
+   - *"I need to deploy with one binary"* → P5 (Essentialism)
+   - *"I need my agent to respect capability boundaries"* → P4 (Clear Boundaries)
+   - *"I need explicit consent before actions"* → P2 (Affirmative Consent)
+   - If the user expectation expresses multiple principles, select the one whose user-visible guarantee is most directly exercised by this function.
+
+   **Constraining-principle annotation rule** (`PRINCIPLES.md` §1.5): After `pre:` and `post:`, contracts must list `/// [P{N}] Constraining: <rationale>` for each constraining principle that shapes how the goal is delivered. At minimum, every Magna Carta principle (P1-P4) that applies must be annotated. To determine applicability: "Would implementing this contract without respecting this principle violate it?" If yes, the principle must appear as a constraining annotation.
 2. **Write the TEST second.** It must fail — this is RED. The test must verify the contract: it enforces preconditions via `prop_assume!` and asserts postconditions via `prop_assert!`.
 3. **Write the MINIMAL implementation third.** Only enough code to satisfy the contract — this is GREEN. No speculative features.
 4. **One behavior per tracer bullet.** Do not batch.
 5. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
-6. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: <spec_id> — requirement summary`. If a test has no spec_id, it tests implementation detail, not a functional requirement.
+6. **Every test carries a `// REQ:` comment** naming the contract it validates. Format: `// REQ: <contract_id> — requirement summary`. The `contract_id` uses `P{N}-{domain}-{operation}` format. If a test has no contract_id, it tests implementation detail, not a functional requirement.
 
 ## Rust Conventions
 
@@ -122,7 +151,7 @@ Respond with a JSON object:
 ```json
 {
   "contract_id": "P9-cns-energy-budget-can-proceed",
-  "contract_code": "/// REQ: P9-cns-energy-budget-can-proceed\n/// user_expectation: \"...\"\n/// pre:  gas is a valid EnergyCost\n/// post: returns true iff budget has >= gas remaining\n/// inv:  does not consume gas\n/// [P9] Goal: Homeostatic Self-Regulation — prevents runaway agent\n/// [P4] Constraining: Clear Boundaries — cap enforces resource boundary\npub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }",
+  "contract_code": "/// REQ: P9-cns-energy-budget-can-proceed\n/// expect: \"I can check whether an agent has enough gas before executing\" [P9]\n/// pre:  gas is a valid EnergyCost\n/// post: returns true iff budget has >= gas remaining\n/// inv:  does not consume gas\n/// [P4] Constraining: Clear Boundaries — cap enforces resource boundary\npub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }",
   "contract_location": "path/to/implementation/file.rs:LINE",
   "user_expectation": "I can check whether an agent has enough gas before executing",
   "goal_principle": {
@@ -148,7 +177,7 @@ Respond with a JSON object:
 
 `test_passes` starts as `false` (RED). After implementation, verify with `cargo test` and set to `true` (GREEN).
 
-The contract (`contract_code`) MUST be a `///` doc-comment on the function signature with all four layers: `user_expectation:`, `pre:`/`post:`, `[P{N}] Goal:`, and `[P{N}] Constraining:`. It is written before any test code.
+The contract (`contract_code`) MUST be a `///` doc-comment on the function signature with all layers: `expect:` with `[P{N}]` tag, `pre:`/`post:`, and `[P{N}] Constraining:`. It is written before any test code. The `contract_code` output maps to `ContractEntry { req_id, pre, post, flags, expect, goal_principle, constraining_principles }` from `crates/hkask-test-harness/src/test_runner.rs` and must be round-trippable through `inventory_contracts()`.
 
 The `// REQ:` comment in tests MUST be the first line of the test function body or a comment immediately above the `#[test]` attribute, and MUST reference the same `P{N}-{domain}-{operation}` ID as the contract.
 
@@ -156,7 +185,7 @@ The `// REQ:` comment in tests MUST be the first line of the test function body 
 
 - **Contract first, test second, implementation third.** Per Testing Discipline §6.3 and Process Rule P1. The contract is the specification of the test.
 - Exactly ONE contract, ONE test, ONE behavior. Minimal implementation.
-- The contract must include all four layers: `user_expectation:` (verbal, user's voice), `[P{N}] Goal:` (exactly one justifying principle), `[P{N}] Constraining:` (zero to many constraint principles), and `pre:`/`post:` (behavioral specification).
+- The contract must include all layers: `expect:` with `[P{N}]` tag (verbal, user's voice, structural origin point), `[P{N}] Constraining:` (zero to many constraint principles, minimum all applicable P1-P4 Magna Carta), and `pre:`/`post:` (behavioral specification).
 - The `contract_id` must use `P{N}-{domain}-{operation}` format with the goal principle encoded in the `P{N}` prefix.
 - Test must fail before implementation is added.
 - Implementation must be the minimum to satisfy the contract without violating constraining principles.

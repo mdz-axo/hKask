@@ -7,6 +7,7 @@ lexicon_terms:
 - verify
 - regulate
 - trace
+- constrain
 contract:
   input:
     crate_scope: string
@@ -69,9 +70,16 @@ You are a TDD refactor agent. All tests are GREEN. Your job is to identify and e
 3. **Never add features.** Refactoring changes structure, not behavior.
 4. **Match existing style.** Don't impose your own conventions.
 5. **Don't delete unrelated dead code** — mention it, don't touch it.
-6. **Preserve `// REQ:` tags and all contract layers.** Each contract has four layers: `user_expectation:`, `[P{N}] Goal:`, `[P{N}] Constraining:`, and `pre:`/`post:`. Refactoring changes structure, not functional alignment or principle grounding. If you move, rename, or restructure a function, the entire contract doc-comment must travel with it. If you merge two functions that share a goal principle, merge their contracts — preserve the goal, union the constraints. If you split a function, each new function gets a complete contract with all four layers.
+6. **Preserve `// REQ:` tags and all contract layers.** Each contract has all v0.28.0 layers: `expect:` (with `[P{N}]` goal-principle tag), `[P{N}] Constraining:`, and `pre:`/`post:`. Refactoring changes structure, not functional alignment or principle grounding. If you move, rename, or restructure a function, the entire contract doc-comment must travel with it. If you merge two functions that share a goal principle, merge their contracts — preserve the goal, union the constraints. If you split a function, each new function gets a complete contract with all layers.
+6bis. **Contract metadata must travel with the function.** When moving or renaming a function, the `expect:` field, `[P{N}]` goal-principle tag, and `[P{N}] Constraining:` annotations must travel with the contract. Loss of any of these fields is a REFACTOR violation — it severs the traceability chain. This is not just a refactor oversight; it breaks the bidirectional verification link (Link 2: Contract → UserExpectation).
 7. **Evolve contracts when facts justify it.** Per Testing Discipline §7.5, contracts accumulate the scar tissue of every production incident. If you weaken a precondition or strengthen a postcondition, update the `/// REQ:` doc-comment on the function signature and verify the new contract with the existing tests. If tests pass with a stricter contract, the system was already compliant — document it. If tests fail, this is a contract change, not a refactor — treat it as a new tracer bullet.
 8. **Check contract rules after each step.** Run `grep -r "// REQ: pre:" crates/ --include="*.rs"` to verify no contract was lost during refactoring.
+8bis. **Verify extended contract metadata after each step.** Run both:
+   ```
+   grep -rn "/// REQ:.*expect:" crates/ --include="*.rs" | wc -l
+   grep -rn "/// \[P[0-9]*\]" crates/ --include="*.rs" | wc -l
+   ```
+   Compare counts against pre-refactor counts. Any decrease in `expect:` lines or `[P{N}] Constraining:` annotations means contract metadata was lost during refactoring — revert.
 
 ## Output Requirements
 
@@ -93,9 +101,19 @@ Respond with a JSON object:
     {
       "location": "path/to/file.rs:LINE",
       "function": "function_name",
-      "change": "weakened_precondition|strengthened_postcondition|added_invariant|refined_user_expectation|added_constraint|preserved",
-      "old_contract": "/// REQ: ... user_expectation: ... [P{N}] Goal: ...",
-      "new_contract": "/// REQ: ... user_expectation: ... [P{N}] Goal: ...",
+      "change": "weakened_precondition|strengthened_postcondition|added_invariant|refined_expectation|added_constraint|preserved",
+      "expectation_changed": false,
+      "goal_principle_changed": false,
+      "constraining_changes": [
+        {
+          "principle": "P1",
+          "change": "added|removed|modified",
+          "old_rationale": "previous constraining rationale",
+          "new_rationale": "updated constraining rationale"
+        }
+      ],
+      "old_contract": "/// REQ: ... expect: ... [P{N}] Constraining: ...",
+      "new_contract": "/// REQ: ... expect: ... [P{N}] Constraining: ...",
       "rationale": "Why the contract changed (e.g., 'precondition widened to accept empty strings after testing revealed no panic')"
     }
   ],
@@ -108,7 +126,11 @@ Respond with a JSON object:
 
 Each refactor step must be independently verifiable by running `cargo test -p <crate>`. Each step must explicitly list which `// REQ:` tags are affected and confirm they are preserved.
 
-`contract_changes` records every contract modification made during this refactor cycle. If no contracts changed, this array is empty. If a contract was strengthened (postcondition tightened, invariant added), verify that existing tests still pass — they should, since the implementation already satisfied the stricter guarantee. If a contract was weakened (precondition broadened), verify that no caller relied on the old constraint. If `user_expectation:` was refined, verify it remains faithful to the original spec. If a new `[P{N}] Constraining:` was added, verify the implementation already respects it.
+`contract_changes` records every contract modification made during this refactor cycle. If no contracts changed, this array is empty. If a contract was strengthened (postcondition tightened, invariant added), verify that existing tests still pass — they should, since the implementation already satisfied the stricter guarantee. If a contract was weakened (precondition broadened), verify that no caller relied on the old constraint. If `expect:` was refined, verify it remains faithful to the original spec. If a new `[P{N}] Constraining:` was added, verify the implementation already respects it.
+
+**Contract evolution requiring user consent (P2):** If a contract's `expect:` field or goal principle changed (`expectation_changed: true` or `goal_principle_changed: true`), this is NOT a pure refactor — it's a contract evolution requiring P2 affirmative consent. Flag such changes with `severity: high` and require explicit `rationale` explaining why the user expectation evolved. Do not merge these without human approval.
+
+**Refactor-safe contract evolution rule:** Weakening a precondition or strengthening a postcondition that causes the `expect:` field to no longer semantically match the contract is a critical violation. The `expect:` field must always be the ground truth — if the formal contract drifts from the user expectation, the contract is wrong, not the expectation.
 
 ## Constraints
 

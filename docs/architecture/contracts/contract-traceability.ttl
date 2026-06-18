@@ -1,0 +1,193 @@
+@prefix hkask:    <http://hkask.dev/contract-traceability#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc:       <http://purl.org/dc/terms/> .
+@prefix foaf:     <http://xmlns.com/foaf/0.1/> .
+@prefix cns:      <http://hkask.dev/cns-span#> .
+@prefix spec:     <http://hkask.dev/specification#> .
+
+hkask:Contract         rdf:type rdfs:Class ;
+    rdfs:comment "A Design by Contract specification anchoring user expectations to principle guarantees"@en .
+
+hkask:Principle        rdf:type rdfs:Class ;
+    rdfs:comment "One of the 12 architectural principles (P1-P12) from PRINCIPLES.md"@en .
+
+hkask:Test             rdf:type rdfs:Class ;
+    rdfs:comment "A property-based test verifying a contract"@en .
+
+hkask:SpecRequirement  rdf:type rdfs:Class ;
+    rdfs:comment "A specification requirement from spec/goal/capture"@en .
+
+hkask:CnsSpanContract  rdf:type rdfs:Class ;
+    rdfs:comment "A CNS span monitoring contract lifecycle"@en .
+
+hkask:Implementation   rdf:type rdfs:Class ;
+    rdfs:comment "The code that satisfies a contract"@en .
+
+hkask:ContractProposal rdf:type rdfs:Class ;
+    rdfs:comment "A proposed contract awaiting human acceptance per P2"@en .
+
+hkask:Precondition  rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range rdfs:Literal ;
+    rdfs:comment "Caller obligations before invocation"@en .
+
+hkask:Postcondition rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range rdfs:Literal ;
+    rdfs:comment "Function guarantees after return"@en .
+
+hkask:Invariant     rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range rdfs:Literal ;
+    rdfs:comment "Type-level, cross-operation invariant"@en .
+
+hkask:UserExpectation rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range rdfs:Literal ;
+    rdfs:comment "Natural language expectation in user voice, with [P{N}] goal-principle tag"@en .
+
+hkask:hasGoalPrinciple       rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range hkask:Principle ;
+    rdfs:comment "Exactly 1 principle per contract — the goal principle"@en .
+
+hkask:hasConstrainingPrinciple rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range hkask:Principle ;
+    rdfs:comment "1..11 constraining principles per contract"@en .
+
+hkask:hasPrecondition  rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range hkask:Precondition .
+
+hkask:hasPostcondition rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range hkask:Postcondition .
+
+hkask:hasInvariant     rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range hkask:Invariant .
+
+hkask:hasUserExpectation rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range hkask:UserExpectation .
+
+hkask:anchorsSpecRequirement rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range hkask:SpecRequirement ;
+    rdfs:comment "Contract is traceable to a spec requirement via spec_id"@en .
+
+hkask:verifiesContract    rdf:type rdf:Property ;
+    rdfs:domain hkask:Test ;
+    rdfs:range hkask:Contract ;
+    rdfs:comment "Proptest enforcing pre→post"@en .
+
+hkask:satisfiesContract   rdf:type rdf:Property ;
+    rdfs:domain hkask:Implementation ;
+    rdfs:range hkask:Contract ;
+    rdfs:comment "Code under verification"@en .
+
+hkask:monitorsContract    rdf:type rdf:Property ;
+    rdfs:domain hkask:CnsSpanContract ;
+    rdfs:range hkask:Contract ;
+    rdfs:comment "CNS span monitoring contract lifecycle"@en .
+
+hkask:proposedBy   rdf:type rdf:Property ;
+    rdfs:domain hkask:ContractProposal ;
+    rdfs:range foaf:Agent ;
+    rdfs:comment "Replicant or human proposer (P12)"@en .
+
+hkask:acceptedBy   rdf:type rdf:Property ;
+    rdfs:domain hkask:ContractProposal ;
+    rdfs:range foaf:Agent ;
+    rdfs:comment "Affirmative consent acceptor (P2)"@en .
+
+hkask:cnsSpan      rdf:type rdf:Property ;
+    rdfs:domain hkask:CnsSpanContract ;
+    rdfs:range rdfs:Literal ;
+    rdfs:comment "CNS span variant name"@en .
+
+hkask:specId       rdf:type rdf:Property ;
+    rdfs:domain hkask:Contract ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Specification identifier (P{N}-{domain}-{operation})"@en .
+
+hkask:proposed     rdf:type rdf:Property ;
+    rdfs:domain hkask:ContractProposal ;
+    rdfs:range xsd:dateTime ;
+    rdfs:comment "Timestamp of proposal"@en .
+
+hkask:accepted     rdf:type rdf:Property ;
+    rdfs:domain hkask:ContractProposal ;
+    rdfs:range xsd:dateTime ;
+    rdfs:comment "Timestamp of acceptance"@en .
+
+hkask:role         rdf:type rdf:Property ;
+    rdfs:domain hkask:Principle ;
+    rdfs:range xsd:string ;
+    rdfs:comment "goal | constraining (principle role in a contract)"@en .
+
+hkask:principleNumber rdf:type rdf:Property ;
+    rdfs:domain hkask:Principle ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "P{N} number from PRINCIPLES.md"@en .
+
+hkask:principleName rdf:type rdf:Property ;
+    rdfs:domain hkask:Principle ;
+    rdfs:range xsd:string ;
+    rdfs:comment "Human-readable principle name"@en .
+
+hkask:CnsSpanType  rdf:type rdfs:Class .
+
+cns:ContractViolated   rdf:type hkask:CnsSpanType ;
+    rdfs:label "cns.contract.violated" .
+
+cns:ContractCoverage   rdf:type hkask:CnsSpanType ;
+    rdfs:label "cns.contract.coverage" .
+
+cns:ContractProposed   rdf:type hkask:CnsSpanType ;
+    rdfs:label "cns.contract.proposed" .
+
+cns:ContractAccepted   rdf:type hkask:CnsSpanType ;
+    rdfs:label "cns.contract.accepted" .
+
+cns:ContractRejected   rdf:type hkask:CnsSpanType ;
+    rdfs:label "cns.contract.rejected" .
+
+hkask:CnsSpanContract rdfs:subClassOf hkask:CnsSpanType .
+
+hkask:P1  rdf:type hkask:Principle ; hkask:principleNumber 1 ; hkask:principleName "User Sovereignty" .
+hkask:P2  rdf:type hkask:Principle ; hkask:principleNumber 2 ; hkask:principleName "Affirmative Consent" .
+hkask:P3  rdf:type hkask:Principle ; hkask:principleNumber 3 ; hkask:principleName "Generative Space" .
+hkask:P4  rdf:type hkask:Principle ; hkask:principleNumber 4 ; hkask:principleName "Clear Boundaries" .
+hkask:P5  rdf:type hkask:Principle ; hkask:principleNumber 5 ; hkask:principleName "Essentialism" .
+hkask:P6  rdf:type hkask:Principle ; hkask:principleNumber 6 ; hkask:principleName "Space for Replicants" .
+hkask:P7  rdf:type hkask:Principle ; hkask:principleNumber 7 ; hkask:principleName "Evolutionary Architecture" .
+hkask:P8  rdf:type hkask:Principle ; hkask:principleNumber 8 ; hkask:principleName "Semantic Grounding" .
+hkask:P9  rdf:type hkask:Principle ; hkask:principleNumber 9 ; hkask:principleName "Homeostatic Self-Regulation" .
+hkask:P10 rdf:type hkask:Principle ; hkask:principleNumber 10 ; hkask:principleName "Mimetic Propagation" .
+hkask:P11 rdf:type hkask:Principle ; hkask:principleNumber 11 ; hkask:principleName "Digital Public/Private Sphere" .
+hkask:P12 rdf:type hkask:Principle ; hkask:principleNumber 12 ; hkask:principleName "Replicant Host Mandate" .
+
+hkask:MagnaCartaPrinciples rdf:type rdf:Bag ;
+    rdfs:comment "P1-P4 are inviolable Magna Carta principles"@en ;
+    rdf:_1 hkask:P1 ;
+    rdf:_2 hkask:P2 ;
+    rdf:_3 hkask:P3 ;
+    rdf:_4 hkask:P4 .
+
+hkask:OperationalPrinciples rdf:type rdf:Bag ;
+    rdf:_1 hkask:P5 ;
+    rdf:_2 hkask:P6 ;
+    rdf:_3 hkask:P7 .
+
+hkask:RegulatoryPrinciples rdf:type rdf:Bag ;
+    rdf:_1 hkask:P8 ;
+    rdf:_2 hkask:P9 .
+
+hkask:AgentPrinciples rdf:type rdf:Bag ;
+    rdf:_1 hkask:P10 ;
+    rdf:_2 hkask:P11 ;
+    rdf:_3 hkask:P12 .

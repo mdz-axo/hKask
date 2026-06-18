@@ -22,7 +22,8 @@ impl CompositeEnergyEstimator {
     /// Create a new CompositeEnergyEstimator with default table costs.
     ///
     /// REQ: P9-cns-est-composite-new
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops
+    /// expect: "The system creates a composite estimator that routes inference and table costs" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops
     /// \[P5\] Constraining: Essentialism — minimal constructor, empty estimators
     /// post: returns CompositeEnergyEstimator with empty estimators
     pub fn new() -> Self {

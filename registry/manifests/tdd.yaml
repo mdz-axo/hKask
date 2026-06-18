@@ -1,24 +1,28 @@
 # TDD Process Manifest
-# ℏKask v0.23.0 — Spec-anchored test-driven development with functional gap analysis
+# ℏKask v0.28.0 — 4-layer contract-anchored test-driven development
 # Template type: Process (FlowDef) — plan → trace → refactor → verify → gap-check
-# Related: .agents/skills/tdd/SKILL.md, docs/specifications/TESTING_STANDARDS.md
+# Related: .agents/skills/tdd/SKILL.md, docs/architecture/core/TESTING_DISCIPLINE.md, docs/architecture/core/FUNCTIONAL_SPECIFICATION.md
 
 manifest:
   id: tdd
-  name: TDD (Spec-Anchored)
+  name: TDD (Contract-Anchored)
   description: >
-    Test-driven development with red-green-refactor loop, spec-anchored functional
-    testing, and gap analysis. Pipeline:
-    (1) Spec-Anchored Planning — extract functional requirements from specifications,
-        map each REQ-ID to a testable behavior, prioritize by risk,
-    (2) Tracer Bullet — write one failing test for one behavior with // REQ: tag,
-        then minimal implementation to pass,
-    (3) Refactor — while GREEN, extract duplication, deepen modules, preserve // REQ: tags,
-    (4) Verify — all tests pass, clippy clean, spec traceability, functional coverage,
-    (5) Gap Check — compare spec requirements against tested behaviors, identify gaps,
-        produce deferral recommendations for OPEN_QUESTIONS.md.
+    Test-driven development with 4-layer smart contract anchoring (user_expectation,
+    [P{N}] Goal principle, [P{N}] Constraining principles, behavioral specification).
+    Pipeline:
+    (1) Spec-Anchored Planning — extract functional requirements with user expectations
+        and principle mappings from specifications, map each contract to a testable
+        behavior, prioritize by risk,
+    (2) Tracer Bullet — write one full 4-layer contract, then one property-based test
+        verifying it, then minimal implementation respecting constraining principles,
+    (3) Refactor — while GREEN, extract duplication, deepen modules, strengthen contracts,
+        preserve all 4 contract layers,
+    (4) Verify — all tests pass, clippy clean, contract quality checks (user_expectation,
+        goal principle, constraining principles, contract ID format),
+    (5) Gap Check — compare spec requirements against tested behaviors, identify gaps
+        including contract quality gaps, produce deferral recommendations.
   functional_role: knowact
-  version: 0.23.0
+  version: 0.28.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -60,22 +64,33 @@ inputs:
     description: "Proposed diff or implementation to verify"
     required: false
 
-# The five TDD principles as enforceable checks
+# The six TDD principles as enforceable checks
 principles:
   - id: spec-anchored
     name: "Spec-Anchored Testing"
     description: >
       Every tracer bullet starts from a specification requirement, not from intuition.
-      Each test carries a // REQ: tag referencing its source requirement. If no spec
-      exists, create a minimal one before planning.
+      Each test carries a // REQ: P{N}-{domain}-{operation} tag referencing its source
+      contract. If no spec exists, create a minimal one before planning.
     cns_span: "cns.prompt.tdd.spec-anchored"
+    severity: critical
+
+  - id: contract-quality
+    name: "4-Layer Contract Quality"
+    description: >
+      Every contract has four layers: user_expectation (verbal, user's voice),
+      [P{N}] Goal (exactly one justifying principle), [P{N}] Constraining (zero to
+      many constraint principles), and pre:/post:/inv: (machine-checkable behavioral
+      specification). Contract ID uses P{N}-{domain}-{operation} format with the
+      goal principle encoded in the prefix.
+    cns_span: "cns.prompt.tdd.contract-quality"
     severity: critical
 
   - id: vertical-slicing
     name: "Vertical Slicing"
     description: >
-      One test → one implementation → repeat. Never write all tests first, then all
-      code. This is horizontal slicing and produces bad tests.
+      One contract → one test → one implementation → repeat. Never write all tests
+      first, then all code. This is horizontal slicing and produces bad tests.
     cns_span: "cns.prompt.tdd.vertical-slicing"
     severity: critical
 
@@ -90,8 +105,9 @@ principles:
   - id: minimal-implementation
     name: "Minimal Implementation"
     description: >
-      Write only enough code to pass the current test. No speculative features.
-      No todo!() or unimplemented!() stubs.
+      Write only enough code to satisfy the current contract without violating
+      constraining principles. No speculative features. No todo!() or
+      unimplemented!() stubs.
     cns_span: "cns.prompt.tdd.minimal-implementation"
     severity: high
 
@@ -100,7 +116,8 @@ principles:
     description: >
       After verification, compare spec requirements against tested behaviors.
       Every P0 gap must have a tracer bullet. P2+ gaps may be deferred to
-      OPEN_QUESTIONS.md with documented rationale.
+      OPEN_QUESTIONS.md with documented rationale. Includes contract quality
+      gaps (missing user_expectation, wrong goal principle, missing constraints).
     cns_span: "cns.prompt.tdd.gap-closure"
     severity: high
 
@@ -194,19 +211,36 @@ steps:
           items:
             type: object
             properties:
-              req_id: { type: string }
+              contract_id: { type: string }
               category: { type: string }
               requirement: { type: string }
+              user_expectation: { type: string }
+              goal_principle:
+                type: object
+                properties:
+                  principle: { type: string }
+                  name: { type: string }
+                  rationale: { type: string }
+              constraining_principles:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    principle: { type: string }
+                    name: { type: string }
+                    constraint: { type: string }
               seam: { type: string }
               priority: { type: string }
+              curation_decision: { type: string }
         behaviors_to_test:
           type: array
           items:
             type: object
             properties:
               behavior: { type: string }
-              req_id: { type: string }
+              contract_id: { type: string }
               seam: { type: string }
+              test_type: { type: string }
               priority: { type: string }
         public_interface:
           type: array
@@ -232,26 +266,47 @@ steps:
   - ordinal: 2
     action: populate
     description: >
-      Execute a tracer bullet: write ONE failing test for ONE behavior anchored
-      to a spec requirement (// REQ: tag), then write the minimal code to pass.
+      Execute a tracer bullet: write one full 4-layer contract (user_expectation,
+      [P{N}] Goal, [P{N}] Constraining, pre:/post:), then one property-based test
+      verifying it, then the minimal implementation respecting constraining principles.
     renderer: minijinja
     template_ref: tdd/tdd-tracer
     gas_cap: 8192
     timeout_seconds: 120
     input_mapping:
       behavior_description: "{{ item.behavior }}"
-      spec_id: "{{ item.spec_id }}"
+      contract_id: "{{ item.contract_id }}"
+      user_expectation: "{{ item.user_expectation }}"
+      goal_principle: "{{ item.goal_principle | default({}) | tojson }}"
+      constraining_principles: "{{ item.constraining_principles | default([]) | tojson }}"
       seam: "{{ item.seam }}"
       crate_scope: "{{ crate_scope }}"
       test_style: ""
     output_schema:
       type: object
       properties:
+        contract_id: { type: string }
+        contract_code: { type: string }
+        contract_location: { type: string }
+        user_expectation: { type: string }
+        goal_principle:
+          type: object
+          properties:
+            principle: { type: string }
+            name: { type: string }
+            rationale: { type: string }
+        constraining_principles:
+          type: array
+          items:
+            type: object
+            properties:
+              principle: { type: string }
+              name: { type: string }
+              constraint: { type: string }
         test_code: { type: string }
         test_file_path: { type: string }
         implementation_code: { type: string }
         implementation_file_path: { type: string }
-        spec_id: { type: string }
         test_passes: { type: boolean }
         verification_command: { type: string }
     # This step loops over behaviors_to_test from ordinal 1
@@ -259,9 +314,9 @@ steps:
   - ordinal: 3
     action: populate
     description: >
-      Refactor while GREEN: extract duplication, deepen modules, apply SOLID
-      principles. Preserve // REQ: tags during refactoring. One refactor step
-      at a time, verified by tests.
+      Refactor while GREEN: extract duplication, deepen modules, strengthen contracts
+      (weaken preconditions, strengthen postconditions, add invariants). Preserve all
+      4 contract layers during refactoring. One refactor step at a time, verified by tests.
     renderer: minijinja
     template_ref: tdd/tdd-refactor
     gas_cap: 6144
@@ -284,6 +339,17 @@ steps:
               verification: { type: string }
               req_tags_preserved: { type: array }
         each_step_passes: { type: boolean }
+        contract_changes:
+          type: array
+          items:
+            type: object
+            properties:
+              location: { type: string }
+              function: { type: string }
+              change: { type: string }
+              old_contract: { type: string }
+              new_contract: { type: string }
+              rationale: { type: string }
         simplification_notes:
           type: array
           items: { type: string }
@@ -292,7 +358,8 @@ steps:
     action: populate
     description: >
       Verify TDD cycle completion: all tests pass, clippy clean, no todo!/unimplemented!
-      stubs, spec traceability via // REQ: tags, functional coverage gaps identified.
+      stubs, spec traceability, 4-layer contract quality (user_expectation, goal principle,
+      constraining principles, contract ID format), functional coverage gaps identified.
     renderer: minijinja
     template_ref: tdd/tdd-verify
     gas_cap: 4096
@@ -316,13 +383,13 @@ steps:
               behavior: { type: string }
               covered: { type: boolean }
               seam: { type: string }
-              req_id: { type: string }
+              contract_id: { type: string }
         functional_gaps:
           type: array
           items:
             type: object
             properties:
-              req_id: { type: string }
+              contract_id: { type: string }
               requirement: { type: string }
               priority: { type: string }
               recommendation: { type: string }
@@ -342,8 +409,10 @@ steps:
     action: populate
     description: >
       Functional gap analysis: compare specification requirements against tested
-      behaviors. Identify uncovered requirements (gaps) and produce deferral
-      recommendations for OPEN_QUESTIONS.md. P0 gaps MUST have tracer bullets.
+      behaviors. Identify uncovered requirements (gaps), contract quality gaps
+      (missing user_expectation, wrong goal principle, missing constraints, contract
+      ID format violations), and produce deferral recommendations for
+      OPEN_QUESTIONS.md. P0 gaps MUST have tracer bullets.
     renderer: minijinja
     template_ref: tdd/tdd-gap-check
     gas_cap: 4096
@@ -361,27 +430,40 @@ steps:
           items:
             type: object
             properties:
-              req_id: { type: string }
+              contract_id: { type: string }
               requirement: { type: string }
               test_name: { type: string }
               seam: { type: string }
               priority: { type: string }
+              is_complete: { type: boolean }
+              is_probabilistic: { type: boolean }
+              has_prob_contract: { type: boolean, nullable: true }
+              contract_quality:
+                type: object
+                properties:
+                  user_expectation_correct: { type: boolean }
+                  goal_principle_match: { type: boolean }
+                  constraining_principles_complete: { type: boolean }
+                  contract_id_format_valid: { type: boolean }
+                  constraint_enforcement_tested: { type: boolean }
         gaps:
           type: array
           items:
             type: object
             properties:
-              req_id: { type: string }
+              contract_id: { type: string }
               requirement: { type: string }
               priority: { type: string }
               recommendation: { type: string }
               rationale: { type: string }
+              unsatisfied_criteria: { type: array }
+              gap_type: { type: string }
         deferrals:
           type: array
           items:
             type: object
             properties:
-              req_id: { type: string }
+              contract_id: { type: string }
               requirement: { type: string }
               priority: { type: string }
               rationale: { type: string }
@@ -392,7 +474,7 @@ steps:
     action: feedback
     description: >
       Emit CNS feedback for TDD cycle monitoring. Track spec-anchored coverage
-      rates, gap closure rates, and tracer-bullet discipline.
+      rates, contract quality scores, gap closure rates, and tracer-bullet discipline.
     renderer: null
     template_ref: null
     mcp: hkask-mcp-memory # CNS feedback now via memory server
@@ -401,6 +483,7 @@ steps:
     feedback:
       variety_delta: integer
       spec_coverage_percentage: float
+      contract_quality_score: float
       gaps_count: integer
       deferrals_count: integer
       violations_count: integer
@@ -412,9 +495,9 @@ steps:
 
 # Violation severity classification
 violation_severity:
-  critical: "Must fix before proceeding — spec requirement has no tracer bullet, or test probes private methods"
-  high: "Should fix — missing // REQ: tag, missing test coverage for declared behavior, or P0 gap without tracer bullet"
-  medium: "Worth fixing — P2 gap deferred without rationale, or test coupled to implementation"
+  critical: "Must fix before proceeding — missing [P{N}] Goal (contract ungrounded), test probes private methods without TEST-DEBT, or spec requirement has no tracer bullet"
+  high: "Should fix — missing user_expectation, contract ID prefix mismatch, missing // REQ: tag, P0 gap without tracer bullet"
+  medium: "Worth fixing — missing [P{N}] Constraining, contract ID format issues, P2 gap deferred without rationale"
   low: "Nit — style preference, not a principle violation"
 
 # Error Handling

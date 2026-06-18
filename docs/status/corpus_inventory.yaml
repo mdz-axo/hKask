@@ -456,18 +456,15 @@ documents:
   - path: docs/architecture/core/MDS.md
     category: core-spec
     status: Active
-    last_updated: 2026-06-09
-    version: "0.27.0"
+    last_updated: 2026-06-18
+    version: "0.28.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
-    staleness_signal: partial
-    drift_verdict: partial
+    staleness_signal: none
+    drift_verdict: aligned
     code_artifacts:
-      [crates/hkask-types/, crates/hkask-services/, crates/hkask-storage/]
+      [crates/hkask-types/, crates/hkask-services/, crates/hkask-storage/, crates/hkask-adapter/]
     gaps:
-      - "No kanban domain entity in ontology (kanban MCP is a first-class architectural surface)"
-      - "No kata domain entity in ontology (kata engine with 4 skills, 23 templates)"
-      - "No adapter/LoRA domain entity in ontology (hkask-adapter crate, AdapterStore, AdapterRouter, EndpointLifecycle)"
-      - "CNS span registry reference (§7.4) lists example spans but doesn't reference kanban/kata/adapter spans now in cns.rs"
+      - "None — kanban, kata, and adapter domain entities added 2026-06-18 (§1.2-1.5)"
     governing_principles: [P5, P7, P8]
     disposition: keep
 
@@ -842,6 +839,19 @@ documents:
       - "No document describing the red-green-refactor loop within hKask (CNS observes, kata coaches, kanban tracks)"
     governing_principles: [P4, P8, P9]
     disposition: create
+
+  - path: docs/status/user_expectation_audit.md
+    category: status
+    status: Active
+    last_updated: 2026-06-18
+    version: "0.28.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: na
+    notes: "New: audits user_expectation field adoption across 2,519 REQ tags. 25 expect: fields already in CNS crate (1.0%). Migration plan phased P0-P3."
+    code_artifacts: [ALL crates with REQ: tags]
+    governing_principles: [P8, P5]
+    disposition: keep
 
   # ════════════════════════════════════════════════════════════════════════════
   # SPECIFICATIONS
@@ -1418,7 +1428,7 @@ documents:
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 summary:
-  total_documents: 83
+  total_documents: 84
   active_aligned: 63
   active_partial: 4
   stale: 2
@@ -1439,7 +1449,6 @@ summary:
     - "Testing Discipline Narrative (contract-anchored testing architecture)"
   partial_documents:
     - "docs/architecture/hKask-architecture-master.md: missing kata section, LoRA section"
-    - "docs/architecture/core/MDS.md: missing kanban/kata/LoRA domain entities"
     - "docs/guides/kata-user-guide.md: missing kanban integration"
     - "docs/user-guides/kanban-user-guide.md: missing kata integration, CNS spans, error recovery"
   contract_coverage:
@@ -1451,6 +1460,8 @@ summary:
     - "2026-06-18: FUNCTIONAL_SPECIFICATION.md — deployment domain (§3.18), ERDs (§4), goal-principle anchoring (§5), v0.28.0"
     - "2026-06-18: TESTING_DISCIPLINE.md — goal-principle linkage (§2.6), deployment testing (§2.7), user expectation traceability (§6.1), v0.28.0"
     - "2026-06-18: PRINCIPLES.md — goal-vs-constraining principle role (§1.5), v0.28.0"
+    - "2026-06-18: user_expectation_audit.md — field adoption audit (1.0% partial, CNS has 25 expect: fields)"
+    - "2026-06-18: MDS.md — domain ontology with kanban (§1.2), kata (§1.3), adapter (§1.4), service layer subsystems (§1.5), v0.28.0"
     - "2026-06-18: magna-carta.md — version bump to v0.28.0"
   verification:
     contract_audit: "scripts/contract-audit.sh --summary passed"

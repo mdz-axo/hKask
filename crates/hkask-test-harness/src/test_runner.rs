@@ -369,6 +369,9 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                 let mut req_id = String::new();
                 let mut pre = String::new();
                 let mut post = String::new();
+                let mut expect = String::new();
+                let mut goal_principle = String::new();
+                let mut constraining_principles: Vec<String> = Vec::new();
                 let mut flags = Vec::new();
 
                 for j in (i.saturating_sub(20)..i).rev() {
@@ -391,6 +394,24 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                                 if let Some(end) = rest.find('"') {
                                     req_id = rest[..end].to_string();
                                 }
+                            }
+                        }
+                    }
+                    if expect.is_empty() && trimmed.contains("expect:") {
+                        expect = trimmed
+                            .trim_start_matches(['/', '#', ' '])
+                            .trim_start_matches("expect:")
+                            .trim()
+                            .to_string();
+                        // Extract [P{N}] tag from expect: line
+                        if let Some(tag) = extract_principle_tag(&expect) {
+                            goal_principle = tag;
+                        }
+                    }
+                    if trimmed.contains("Constraining:") {
+                        if let Some(principle) = extract_constraining_principle(trimmed) {
+                            if !constraining_principles.contains(&principle) {
+                                constraining_principles.push(principle);
                             }
                         }
                     }
@@ -430,6 +451,9 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                         pre,
                         post,
                         flags: flags.join(" "),
+                        expect,
+                        goal_principle,
+                        constraining_principles,
                     });
                 }
             }
@@ -451,6 +475,9 @@ pub struct ContractEntry {
     pub pre: String,
     pub post: String,
     pub flags: String,
+    pub expect: String,
+    pub goal_principle: String,
+    pub constraining_principles: Vec<String>,
 }
 
 /// Extract the function name from a `pub fn` or `pub async fn` declaration.

@@ -588,7 +588,10 @@ pub async fn plussing_respond(&self, input: &str) -> String {
 | Contract tests | `kask test --format json` | Zero violations |
 | Deployment smoke | `kask init --profile server && kask daemon` | Server starts, health endpoint responds |
 | Deployment sidecar | `kask matrix deploy-sidecar --domain localhost` | Valid docker-compose.yml generated |
-| User expectation audit | `grep -rn "user_expectation" crates/ --include="*.rs"` | Every `pub fn` eventually carries `user_expectation` field |
+| User expectation audit | `bash scripts/ci/contract-audit.sh --expect` | All contracted fns carry `expect:` field; expectation_completeness_pct ≥ 100% |
+| Goal principle audit | `bash scripts/ci/contract-audit.sh --principles` | All `expect:` lines carry valid `[P{N}]` tag (P1-P12); zero `MISSING_GOAL_PRINCIPLE` or `INVALID_PRINCIPLE` |
+| Constraining principle audit | `bash scripts/ci/contract-audit.sh --constraining` | All contracts carry at minimum applicable Magna Carta (P1-P4) `[P{N}] Constraining:` annotations; zero `MISSING_MAGNA_CARTA_CONSTRAINT` |
+| Full contract audit (v0.28.0) | `bash scripts/ci/contract-audit.sh --full` | All v0.28.0 contract checks pass (coverage + expect + principles + constraining) |
 
 ### 9.2 Contract Completeness Audit
 

@@ -31,7 +31,8 @@ impl Default for EndpointWeight {
 /// Get endpoint weight for rate limiting.
 ///
 /// REQ: P9-cns-api-meter-endpoint-weight
-/// \[P9\] Motivating: Homeostatic Self-Regulation — per-request rate limiting for API stability
+/// expect: "The system assigns weight multipliers to API endpoints for rate limiting" [P9]
+/// [P9] Motivating: Homeostatic Self-Regulation — per-request rate limiting for API stability
 /// \[P7\] Constraining: Evolutionary Architecture — hardcoded table to be configurable later
 /// pre:  path is non-empty
 /// post: returns EndpointWeight based on path pattern
@@ -114,7 +115,8 @@ impl RateLimitStatus {
     /// Get string representation of alert type.
     ///
     /// REQ: P9-cns-api-meter-rate-limit-status
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS
+    /// expect: "I can query the rate limit status as a stable string for CNS feedback" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS
     /// \[P8\] Constraining: Semantic Grounding — string representation must be stable across versions
     /// post: returns lowercase alert type string
     pub fn as_str(&self) -> &'static str {
@@ -142,7 +144,8 @@ impl ApiMeter {
     /// Create a new API meter.
     ///
     /// REQ: P9-cns-api-meter-new
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking
+    /// expect: "The system creates an empty API meter for per-key rate tracking" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking
     /// \[P5\] Constraining: Essentialism — minimal constructor with empty buckets map
     /// post: returns ApiMeter with empty buckets
     pub fn new() -> Self {
@@ -165,7 +168,8 @@ impl ApiMeter {
     /// Check rate limit and record request.
     ///
     /// REQ: P9-cns-api-meter-check-and-record
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — rate limit enforcement is the CNS check
+    /// expect: "The system enforces per-key rate limits and records requests atomically" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — rate limit enforcement is the CNS check
     /// \[P4\] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions
     /// pre:  key_id is valid
     /// post: returns Ok if within limit, Err if rate limited
@@ -200,7 +204,8 @@ impl ApiMeter {
     /// Get current RPM for a key.
     ///
     /// REQ: P9-cns-api-meter-current-rpm
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — current rate is the cybernetic state
+    /// expect: "I can query the current requests-per-minute rate for any API key" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — current rate is the cybernetic state
     /// \[P8\] Constraining: Semantic Grounding — RPM count must be stable and accurate
     /// pre:  key_id is valid
     /// post: returns current requests per minute
@@ -243,7 +248,8 @@ impl ApiRequestSpan {
     /// Create a new API request span.
     ///
     /// REQ: P9-cns-api-meter-span-new
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — span creation is the CNS observation layer
+    /// expect: "The system creates CNS observation spans for every metered API request" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — span creation is the CNS observation layer
     /// \[P8\] Constraining: Semantic Grounding — span fields must be traceable to source
     /// pre:  path and method are non-empty
     /// post: returns ApiRequestSpan
@@ -296,7 +302,8 @@ impl ApiMeteringAlert {
     /// Get alert type string.
     ///
     /// REQ: P9-cns-api-meter-alert-type
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification
+    /// expect: "I can query the CNS alert type classification for a metering event" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification
     /// \[P8\] Constraining: Semantic Grounding — alert type labels must be stable across versions
     /// post: returns alert type label
     pub fn alert_type(&self) -> &'static str {
@@ -313,7 +320,8 @@ impl ApiMeteringAlert {
     /// Get severity string.
     ///
     /// REQ: P9-cns-api-meter-alert-severity
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — severity is the algedonic signal
+    /// expect: "I can query the algedonic severity level for a metering alert" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — severity is the algedonic signal
     /// \[P8\] Constraining: Semantic Grounding — severity labels must be stable across versions
     /// post: returns severity label
     pub fn severity(&self) -> &'static str {
@@ -334,6 +342,7 @@ mod tests {
     use super::*;
 
     // REQ: P9-cns-api-meter-endpoint-weight — endpoint_weight_embed_corpus_is_heavy
+    // expect: "Heavy endpoints like embed-corpus get a 5× weight multiplier" [P9]
     #[test]
     fn endpoint_weight_embed_corpus_is_heavy() {
         assert!((endpoint_weight("embed-corpus").0 - 5.0).abs() < f64::EPSILON);
@@ -341,6 +350,7 @@ mod tests {
     }
 
     // REQ: P9-cns-api-meter-endpoint-weight — endpoint_weight_default_is_one
+    // expect: "Unrecognized endpoints default to a 1× weight" [P9]
     #[test]
     fn endpoint_weight_default_is_one() {
         assert!((endpoint_weight("read-specs").0 - 1.0).abs() < f64::EPSILON);
@@ -348,6 +358,7 @@ mod tests {
     }
 
     // REQ: P9-cns-api-meter-check-and-record — rate_limit_bucket_prunes_old_requests
+    // expect: "Rate limit buckets discard requests older than 60 seconds" [P9]
     #[test]
     fn rate_limit_bucket_prunes_old_requests() {
         let mut bucket = RateLimitBucket::new();
@@ -362,6 +373,7 @@ mod tests {
     }
 
     // REQ: P9-cns-api-meter-check-and-record — rate_limit_bucket_enforces_rpm
+    // expect: "The rate limiter rejects requests when per-minute limit is exceeded" [P9]
     #[test]
     fn rate_limit_bucket_enforces_rpm() {
         let mut bucket = RateLimitBucket::new();
@@ -377,6 +389,7 @@ mod tests {
     }
 
     // REQ: P9-cns-api-meter-check-and-record — token_tracking_resets_on_new_day
+    // expect: "Token counts reset at UTC day boundaries" [P9]
     #[test]
     fn token_tracking_resets_on_new_day() {
         let mut bucket = RateLimitBucket::new();
@@ -388,6 +401,7 @@ mod tests {
     }
 
     // REQ: P9-cns-api-meter-check-and-record — api_meter_enforces_limits
+    // expect: "The API meter tracks and reports RPM correctly across multiple requests" [P9]
     #[test]
     fn api_meter_enforces_limits() {
         let mut meter = ApiMeter::new();
@@ -406,6 +420,7 @@ mod tests {
     }
 
     // REQ: P9-cns-api-meter-span-new — api_request_span_serialization
+    // expect: "API request spans serialize correctly with all metering fields" [P9]
     #[test]
     fn api_request_span_serialization() {
         let span = ApiRequestSpan::new(
@@ -423,6 +438,7 @@ mod tests {
     }
 
     // REQ: P9-cns-api-meter-alert-severity — alert_severity_levels
+    // expect: "Alerts are classified as critical or warning based on their severity" [P9]
     #[test]
     fn alert_severity_levels() {
         assert_eq!(
