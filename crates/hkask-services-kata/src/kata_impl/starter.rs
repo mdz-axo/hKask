@@ -1,6 +1,15 @@
 use super::*;
 
 impl KataEngine {
+    /// Run the starter kata practice routine.
+    ///
+    /// REQ: P9-svc-kata-starter
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated starter kata execution
+    /// pre:  manifest has at least one practice routine
+    /// pre:  state is initialized with learner_bot
+    /// post: returns KataResult with all practices executed and status recorded
+    /// post: if manifest has no practices → Err(KataError::NoSteps)
+    /// post: records automaticity and streak data from history if available
     pub async fn run_starter(
         &self,
         manifest: &KataManifest,

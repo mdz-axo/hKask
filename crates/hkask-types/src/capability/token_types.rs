@@ -16,60 +16,6 @@ pub const SYSTEM_MAX_RECURSION: u8 = 7;
 /// Capability-domain alias for SYSTEM_MAX_RECURSION.
 pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
-/// \[NORMATIVE\] Typed attenuation level (0..SYSTEM_MAX_RECURSION). New code should use this over raw `u8`. (P5 — Essentialism).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-#[allow(dead_code)]
-pub(crate) struct AttenuationLevel(u8);
-
-#[allow(dead_code)]
-impl AttenuationLevel {
-    /// REQ: TYP-276
-    /// pre:  level is any u8
-    /// post: if level ≤ [`SYSTEM_MAX_RECURSION`], returns `Ok(AttenuationLevel(level))`;
-    ///       if level > SYSTEM_MAX_RECURSION, returns `Err(AttenuationError::ExceedsSystemMax)`
-    pub fn new(level: u8) -> Result<Self, AttenuationError> {
-        if level > SYSTEM_MAX_RECURSION {
-            Err(AttenuationError::ExceedsSystemMax {
-                level,
-                max: SYSTEM_MAX_RECURSION,
-            })
-        } else {
-            Ok(Self(level))
-        }
-    }
-    /// Unchecked construction — for deserialisation paths that trust the wire format.
-    ///
-    /// REQ: TYP-277
-    /// pre:  level is any u8 (no validation)
-    /// post: returns `AttenuationLevel(level)` unconditionally; caller must ensure level ≤ SYSTEM_MAX_RECURSION
-    pub fn unchecked(level: u8) -> Self {
-        Self(level)
-    }
-    /// REQ: TYP-278
-    /// pre:  self is any [`AttenuationLevel`]
-    /// post: returns the inner u8 value unchanged
-    pub fn as_u8(&self) -> u8 {
-        self.0
-    }
-    pub const fn max() -> u8 {
-        SYSTEM_MAX_RECURSION
-    }
-}
-
-impl std::fmt::Display for AttenuationLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[allow(dead_code)]
-pub(crate) enum AttenuationError {
-    #[error("attenuation level {level} exceeds system maximum {max}")]
-    ExceedsSystemMax { level: u8, max: u8 },
-}
-
 fn b64(data: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(data)
 }

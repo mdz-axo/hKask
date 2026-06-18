@@ -74,7 +74,6 @@ mod tests {
 
     mod proptest_tests {
         use super::*;
-        use crate::capability::token_types::AttenuationLevel;
         use proptest::prelude::*;
 
         // Valid resource names for strategy generation
@@ -240,31 +239,6 @@ mod tests {
                 let parsed = DelegationAction::parse_str(&action).unwrap();
                 // All actions permit read
                 prop_assert!(parsed.permits_read());
-            }
-        }
-
-        // ── AttenuationLevel ────────────────────────────────────────────────
-
-        // REQ: cap-prop-010 — valid attenuation levels (0..max) round-trip
-        proptest! {
-            #[test]
-            fn attenuation_valid_round_trip(
-                level in 0u8..=SYSTEM_MAX_RECURSION
-            ) {
-                let al = AttenuationLevel::new(level);
-                prop_assert!(al.is_ok());
-                prop_assert_eq!(al.unwrap().as_u8(), level);
-            }
-        }
-
-        // REQ: cap-prop-011 — attenuation above max returns error
-        proptest! {
-            #[test]
-            fn attenuation_above_max_is_error(
-                level in (SYSTEM_MAX_RECURSION + 1)..=u8::MAX
-            ) {
-                let al = AttenuationLevel::new(level);
-                prop_assert!(al.is_err());
             }
         }
 

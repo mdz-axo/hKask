@@ -21,10 +21,10 @@ use std::sync::Arc;
 pub(crate) mod kata;
 pub(crate) mod verification;
 pub(crate) mod comments;
-
-mod kata;
-mod verification;
-mod comments;
+pub(crate) mod decompose;
+pub(crate) mod spawn;
+pub(crate) mod phases;
+pub(crate) mod dejam;
 
 /// Core kanban coordination service.
 ///
