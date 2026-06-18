@@ -9,6 +9,7 @@
 //! spec curation is a persona concern (the Curator Agent curates specs),
 //! not a regulatory concern (the Curation Loop regulates).
 
+use hkask_rsolidity as rs;
 use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
 use hkask_types::capability::SYSTEM_MAX_RECURSION;
 use hkask_types::cns::CnsSpan;
@@ -45,6 +46,7 @@ impl DefaultSpecCurator {
     /// post: Returns a `DefaultSpecCurator` with the given coherence
     ///       threshold, drift_threshold=0.5, max_iterations=SYSTEM_MAX_RECURSION,
     ///       and no event sink or spec channel.
+    #[rs::contract(id = "P9-agt-curator-agent-spec-new", principle = "P9")]
     pub fn new(coherence_threshold: f64) -> Self {
         Self {
             coherence_threshold: coherence_threshold.clamp(0.0, 1.0),
@@ -75,6 +77,7 @@ impl DefaultSpecCurator {
     /// pre:  `curation_store` is a valid `SqliteCurationRecordStore`.
     /// post: Returns `Some(f64)` — the 25th-percentile coherence score —
     ///       if ≥10 records exist; `None` otherwise.
+    #[rs::contract(id = "P9-agt-curator-agent-spec-calibrate", principle = "P9")]
     pub fn calibrate_from_history(
         curation_store: &hkask_storage::spec_store::SqliteCurationRecordStore,
     ) -> Option<f64> {
@@ -124,6 +127,7 @@ impl DefaultSpecCurator {
     /// post: Returns a `DefaultSpecCurator` with thresholds from the config,
     ///       max_iterations=SYSTEM_MAX_RECURSION, and no event sink or spec
     ///       channel.
+    #[rs::contract(id = "P9-agt-curator-agent-spec-with-config", principle = "P9")]
     pub fn from_config(config: &CurationThresholdConfig) -> Self {
         tracing::info!(
             target: "cns.spec",
@@ -147,6 +151,7 @@ impl DefaultSpecCurator {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — drift threshold triggers escalation
     /// pre:  `threshold` is in range [0.0, 1.0] (clamped).
     /// post: Returns `self` with `drift_threshold` updated.
+    #[rs::contract(id = "P9-agt-curator-agent-spec-drift-threshold", principle = "P9")]
     pub fn with_drift_threshold(mut self, threshold: f64) -> Self {
         self.drift_threshold = threshold.clamp(0.0, 1.0);
         self
@@ -159,6 +164,7 @@ impl DefaultSpecCurator {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — emit algedonic events on drift escalation
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `event_sink` set to `Some(sink)`.
+    #[rs::contract(id = "P9-agt-curator-agent-spec-with-sink", principle = "P9")]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
@@ -198,6 +204,7 @@ impl DefaultSpecCurator {
     ///       category name strings.
     /// post: If `event_sink` is `Some`, emits a `cns.sovereignty.checked`
     ///       NuEvent; if `None`, this is a silent no-op.
+    #[rs::contract(id = "P9-agt-curator-agent-spec-check", principle = "P9")]
     pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) {
         // Emit a NuEvent whenever a sink is wired. The sink is optional
         // (set via `with_event_sink`), so absent one we silently no-op.

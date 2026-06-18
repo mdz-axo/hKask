@@ -8,6 +8,7 @@
 //! - No ambient authority: capabilities must be explicitly granted
 //! - Attenuation chain: each delegation reduces authority
 
+use hkask_rsolidity as rs;
 use ed25519_dalek::SigningKey;
 use hkask_types::{
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
@@ -45,6 +46,7 @@ impl RootAuthority {
     /// pre:  `root_webid` is a valid `WebID`; `signing_key` is a valid
     ///       Ed25519 `SigningKey`.
     /// post: Returns a `RootAuthority` with token counter initialized to 0.
+    #[rs::contract(id = "P4-agt-acp-root-new", principle = "P4")]
     pub fn new(root_webid: WebID, signing_key: &SigningKey) -> Self {
         Self {
             root_webid,
@@ -68,6 +70,7 @@ impl RootAuthority {
     /// post: Returns `Ok(DelegationToken)` — a signed root token with
     ///       attenuation_level=0, max_attenuation=SYSTEM_MAX_ATTENUATION,
     ///       and a unique context nonce.
+    #[rs::contract(id = "P4-agt-acp-root-token-issue", principle = "P4")]
     pub async fn create_root_token(
         &self,
         resource: DelegationResource,

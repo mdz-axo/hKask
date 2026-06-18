@@ -7,6 +7,7 @@
 //! bot health status is a persona concern (Curator reads bot status for
 //! escalation), not a regulatory concern.
 
+use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 
 /// Bot health status derived from evaluation metrics

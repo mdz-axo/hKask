@@ -9,6 +9,7 @@
 //! - `images`: path, hash, dimensions, gallery_id
 //! - `tags`: image_id, tag_type, value, confidence
 //! - `face_registry`: first_name, last_name, image_id, status, notes
+use hkask_rsolidity as rs;
 use crate::{Store, now_rfc3339};
 use hkask_types::InfrastructureError;
 use rusqlite::{Connection, OptionalExtension};
@@ -58,6 +59,7 @@ impl GalleryMode {
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — stable gallery mode labels
     /// post: returns "active" or "inactive"
+    #[rs::contract(id = "P3-sto-gallery-mode-str", principle = "P3")]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::ReadOnly => "read-only",
@@ -129,6 +131,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — schema for galleries, images, tags, faces
     /// pre:  conn is a valid SQLite connection
     /// post: gallery tables created if not exists
+    #[rs::contract(id = "P3-sto-gallery-schema", principle = "P3")]
     pub fn init_tables(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS galleries (
@@ -197,6 +200,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — create a gallery
     /// pre:  name is non-empty
     /// post: gallery created and returned
+    #[rs::contract(id = "P3-sto-gallery-create", principle = "P3")]
     pub fn create(
         &self,
         root_path: &str,
@@ -243,6 +247,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — add image to gallery
     /// pre:  gallery_id is valid, image data is non-empty
     /// post: image stored in gallery
+    #[rs::contract(id = "P3-sto-gallery-add-image", principle = "P3")]
     pub fn add_image(
         &self,
         gallery_id: &str,
@@ -295,6 +300,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — get image by index or hash
     /// pre:  gallery_id is valid
     /// post: returns GalleryImage if found
+    #[rs::contract(id = "P3-sto-gallery-get-image", principle = "P3")]
     pub fn get_image(
         &self,
         gallery_id: &str,
@@ -347,6 +353,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — tag an image
     /// pre:  gallery_id and image_hash are valid, tag is non-empty
     /// post: tag added to image
+    #[rs::contract(id = "P3-sto-gallery-tag-image", principle = "P3")]
     pub fn tag_image(
         &self,
         image_id: &str,
@@ -390,6 +397,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — get tags for an image
     /// pre:  gallery_id and image_hash are valid
     /// post: returns Vec of tags
+    #[rs::contract(id = "P3-sto-gallery-get-tags", principle = "P3")]
     pub fn get_tags(
         &self,
         image_id: &str,
@@ -413,6 +421,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — get gallery by ID
     /// pre:  gallery_id is valid
     /// post: returns Gallery if found
+    #[rs::contract(id = "P3-sto-gallery-get", principle = "P3")]
     pub fn get_gallery(
         &self,
         gallery_id: &str,
@@ -452,6 +461,7 @@ impl GalleryStore {
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — list all tags across galleries
     /// post: returns Vec of all unique tags
+    #[rs::contract(id = "P3-sto-gallery-all-tags", principle = "P3")]
     pub fn get_all_tags(
         &self,
         gallery_id: &str,
@@ -492,6 +502,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — register a face
     /// pre:  face data is valid
     /// post: face registered and returned
+    #[rs::contract(id = "P3-sto-gallery-face-register", principle = "P3")]
     pub fn register_face(
         &self,
         first_name: &str,
@@ -531,6 +542,7 @@ impl GalleryStore {
     /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — list faces
     /// post: returns Vec of faces, optionally filtered by status
+    #[rs::contract(id = "P3-sto-gallery-face-list", principle = "P3")]
     pub fn list_faces(
         &self,
         status_filter: Option<&str>,
@@ -567,6 +579,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — get face by ID
     /// pre:  face_id is non-empty
     /// post: returns Face if found
+    #[rs::contract(id = "P3-sto-gallery-face-get", principle = "P3")]
     pub fn get_face(
         &self,
         face_id: &str,
@@ -596,6 +609,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — remove face
     /// pre:  face_id is non-empty
     /// post: face deleted
+    #[rs::contract(id = "P3-sto-gallery-face-remove", principle = "P3")]
     pub fn remove_face(&self, face_id: &str) -> std::result::Result<(), GalleryStoreError> {
         let conn = self.lock_conn()?;
         let affected = conn.execute("DELETE FROM face_registry WHERE id = ?1", [face_id])?;
@@ -615,6 +629,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — update face status
     /// pre:  face_id is valid, status is valid
     /// post: face status updated
+    #[rs::contract(id = "P3-sto-gallery-face-update", principle = "P3")]
     pub fn update_face(
         &self,
         face_id: &str,

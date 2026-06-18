@@ -26,6 +26,7 @@
 //! REQ: GAS-CALIB-002 — Tracer bullet: single observation initializes EMA per server.
 //! REQ: GAS-CALIB-003 — Integration: calibrated table replaces hardcoded `TableEnergyEstimator` costs.
 
+use hkask_rsolidity as rs;
 use std::collections::{HashMap, HashSet};
 
 /// Default EMA alpha for calibration smoothing.

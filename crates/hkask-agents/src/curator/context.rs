@@ -1,5 +1,6 @@
 //! CurationContext — Runtime composition of Curator capability handles
 
+use hkask_rsolidity as rs;
 use crate::ports::A2APort;
 use hkask_cns::CnsRuntime;
 use hkask_storage::EscalationQueue;
@@ -35,6 +36,7 @@ impl CuratorContext {
     ///       `escalation_queue` is a valid `Arc<EscalationQueue>`.
     /// post: Returns a `CuratorContext` with no NuEvent store and no A2A
     ///       port.
+    #[rs::contract(id = "P9-agt-curator-context-new", principle = "P9")]
     pub fn new(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -60,6 +62,7 @@ impl CuratorContext {
     ///       a valid `Arc<NuEventStore>`.
     /// post: Returns a `CuratorContext` with `nu_event_store` set and no
     ///       A2A port.
+    #[rs::contract(id = "P9-agt-curator-context-with-store", principle = "P9")]
     pub fn with_nu_event_store(
         handle: CuratorHandle,
         cns: Arc<CnsRuntime>,
@@ -84,6 +87,7 @@ impl CuratorContext {
     /// \[P4\] Motivating: Clear Boundaries — A2A port lets Curator direct bots
     /// pre:  `a2a_port` is a valid `Arc<dyn A2APort>`.
     /// post: Returns `self` with `a2a_port` set to `Some(a2a_port)`.
+    #[rs::contract(id = "P9-agt-curator-context-with-a2a", principle = "P9")]
     pub fn with_a2a(mut self, a2a_port: Arc<dyn A2APort>) -> Self {
         self.a2a_port = Some(a2a_port);
         self
@@ -96,6 +100,7 @@ impl CuratorContext {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — accessor for the Curator capability handle
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `CuratorHandle`.
+    #[rs::contract(id = "P9-agt-curator-context-handle", principle = "P9")]
     pub fn handle(&self) -> &CuratorHandle {
         &self.handle
     }
@@ -139,6 +144,7 @@ impl CuratorContext {
     /// pre:  `directive` is a valid `CuratorDirective`.
     /// post: If `curator_directive_tx` is `Some`, the directive is sent;
     ///       logs a warning if the send fails. If `None`, this is a no-op.
+    #[rs::contract(id = "P9-agt-curator-context-directive", principle = "P9")]
     pub async fn issue_directive(&self, directive: CuratorDirective) {
         if let Some(ref tx) = self.curator_directive_tx
             && let Err(e) = tx.send(directive)

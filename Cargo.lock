@@ -4987,6 +4987,7 @@ dependencies = [
  "hex",
  "hiero-sdk-proto",
  "hkask-keystore",
+ "hkask-rsolidity",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",

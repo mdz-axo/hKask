@@ -21,6 +21,7 @@ use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
 
 use hkask_types::WebID;
 use hkask_types::cns::{CnsHealth, CnsSpan};
+use hkask_rsolidity as rs;
 use hkask_types::event::{NuEvent, NuEventSink, SpanNamespace};
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use parking_lot::RwLock as ParkingRwLock;
@@ -194,6 +195,7 @@ impl VarietyMonitor {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — the monitor enables feedback loops
     /// \[P5\] Constraining: Essentialism — minimal defaults, empty counters
     /// post: returns VarietyMonitor with empty counters
+    #[rs::contract(id = "P9-cns-runtime-variety-monitor-new", principle = "P9")]
     pub fn new() -> Self {
         Self {
             counters: HashMap::new(),
@@ -212,6 +214,7 @@ impl VarietyMonitor {
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// pre:  domain is non-empty
     /// post: returns variety count, 0 if domain not tracked
+    #[rs::contract(id = "P9-cns-runtime-variety-for-domain", principle = "P9")]
     pub fn variety_for_domain(&self, domain: &str) -> u64 {
         self.counters.get(domain).map(|c| c.variety()).unwrap_or(0)
     }
@@ -223,6 +226,7 @@ impl VarietyMonitor {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — domain enumeration enables loop feedback
     /// \[P8\] Constraining: Semantic Grounding — pure enumeration, no side effects
     /// post: returns Vec of domain name strings
+    #[rs::contract(id = "P9-cns-runtime-variety-monitor-domains", principle = "P9")]
     pub fn domains(&self) -> Vec<&str> {
         self.counters.keys().map(|s| s.as_str()).collect()
     }
@@ -284,6 +288,7 @@ impl CnsRuntime {
     /// \[P7\] Constraining: Evolutionary Architecture — threshold config emerged from real usage
     /// pre:  threshold > 0
     /// post: returns CnsRuntime with configured threshold
+    #[rs::contract(id = "P9-cns-runtime-with-threshold", principle = "P9")]
     pub fn with_threshold(threshold: u64) -> Self {
         Self {
             state: Arc::new(RwLock::new(CnsState::new(threshold))),
@@ -300,6 +305,7 @@ impl CnsRuntime {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns CnsHealth with current state
+    #[rs::contract(id = "P9-cns-runtime-health", principle = "P9")]
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
         {
@@ -315,6 +321,7 @@ impl CnsRuntime {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — alert retrieval enables loop response
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// post: returns Vec of RuntimeAlert
+    #[rs::contract(id = "P9-cns-runtime-alerts", principle = "P9")]
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         state.algedonic.read().alerts().to_vec()
@@ -328,6 +335,7 @@ impl CnsRuntime {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — threshold config enables loop tuning
     /// \[P7\] Constraining: Evolutionary Architecture — threshold emerged from real usage
     /// post: returns threshold value from algedonic manager
+    #[rs::contract(id = "P9-cns-runtime-default-threshold", principle = "P9")]
     pub async fn default_threshold(&self) -> u64 {
         let state = self.state.read().await;
         state.algedonic.read().default_threshold()
@@ -340,6 +348,7 @@ impl CnsRuntime {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — critical alert filtering enables prioritised response
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// post: returns Vec of critical RuntimeAlert
+    #[rs::contract(id = "P9-cns-runtime-critical-alerts", principle = "P9")]
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         {
@@ -362,6 +371,7 @@ impl CnsRuntime {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns HashMap of namespace → variety count
+    #[rs::contract(id = "P9-cns-runtime-variety", principle = "P9")]
     pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
         let state = self.state.read().await;
         let domains: Vec<String> = state
@@ -395,6 +405,7 @@ impl CnsRuntime {
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// pre:  domain is non-empty
     /// post: returns variety count for domain
+    #[rs::contract(id = "P9-cns-runtime-variety-for-domain", principle = "P9")]
     pub async fn variety_for_domain(&self, domain: &str) -> u64 {
         let state = self.state.read().await;
         state.tracker.variety_for_domain(domain)
@@ -412,6 +423,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
     /// pre:  domain is non-empty
     /// post: returns variety count
+    #[rs::contract(id = "P3-cns-runtime-blocking-variety-for-domain", principle = "P3")]
     pub fn blocking_variety_for_domain(&self, domain: &str) -> u64 {
         let state = self.state.blocking_read();
         state.tracker.variety_for_domain(domain)
@@ -432,6 +444,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
     /// pre:  domain is non-empty
     /// post: outcome tracked for domain
+    #[rs::contract(id = "P9-cns-runtime-record-outcome", principle = "P9")]
     pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
         {
             let mut state = self.state.write().await;
@@ -458,6 +471,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty
     /// post: returns Some(alert) if success rate below threshold, None if healthy
+    #[rs::contract(id = "P9-cns-runtime-check-outcome", principle = "P9")]
     pub async fn check_outcome(&self, domain: &str) -> Option<RuntimeAlert> {
         let (success_rate, total_ops) = {
             let state = self.state.read().await;
@@ -494,6 +508,7 @@ impl CnsRuntime {
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// pre:  domain is non-empty
     /// post: returns Some(rate) if domain tracked, None otherwise
+    #[rs::contract(id = "P9-cns-runtime-outcome-success-rate", principle = "P9")]
     pub async fn outcome_success_rate(&self, domain: &str) -> Option<f64> {
         let state = self.state.read().await;
         state.outcome.get(domain).map(|t| t.success_rate())
@@ -510,6 +525,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — domain isolation enforces OCAP boundary
     /// pre:  domain and state_name are non-empty
     /// post: variety counter incremented
+    #[rs::contract(id = "P9-cns-runtime-increment-variety", principle = "P9")]
     pub async fn increment_variety(&self, domain: &str, state_name: &str) {
         {
             let mut state = self.state.write().await;
@@ -551,6 +567,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty
     /// post: returns Some(alert) if variety below threshold, None if healthy
+    #[rs::contract(id = "P9-cns-runtime-check-variety", principle = "P9")]
     pub async fn check_variety(&self, domain: &str) -> Option<RuntimeAlert> {
         let counter = {
             let state = self.state.read().await;
@@ -588,6 +605,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — threshold gating enforces boundary
     /// pre:  domain is non-empty, new_threshold > 0
     /// post: threshold updated for domain
+    #[rs::contract(id = "P7-cns-runtime-calibrate-threshold", principle = "P7")]
     pub async fn calibrate_threshold(&self, domain: &str, new_threshold: u64) {
         let state = self.state.write().await;
         {
@@ -612,6 +630,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
     /// pre:  domain is non-empty, new_threshold > 0
     /// post: threshold updated
+    #[rs::contract(id = "P3-cns-runtime-calibrate-threshold-blocking", principle = "P3")]
     pub fn calibrate_threshold_blocking(&self, domain: &str, new_threshold: u64) {
         let state = self.state.blocking_write();
         state
@@ -638,6 +657,7 @@ impl CnsRuntime {
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
     /// post: observer added to subscribers
+    #[rs::contract(id = "P12-cns-runtime-subscribe", principle = "P12")]
     pub fn subscribe(&self, observer: Arc<dyn CnsObserver>) {
         let mut subscribers = self.subscribers.blocking_write();
         subscribers.push(observer);
@@ -655,6 +675,7 @@ impl CnsRuntime {
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
     /// post: observer added to subscribers
+    #[rs::contract(id = "P12-cns-runtime-subscribe-async", principle = "P12")]
     pub async fn subscribe_async(&self, observer: Arc<dyn CnsObserver>) {
         let mut subscribers = self.subscribers.write().await;
         subscribers.push(observer);
@@ -672,6 +693,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — signal emission gates downstream throttling
     /// pre:  signal is valid
     /// post: backpressure signal emitted to subscribers
+    #[rs::contract(id = "P9-cns-runtime-emit-backpressure", principle = "P9")]
     pub async fn emit_backpressure(&self, signal: BackpressureSignal) {
         let subscribers = self.subscribers.read().await;
         for observer in subscribers.iter() {
@@ -690,6 +712,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — budget cap enforces resource boundary
     /// pre:  agent is valid, budget is valid
     /// post: budget registered for agent
+    #[rs::contract(id = "P9-cns-runtime-register-energy-budget", principle = "P9")]
     pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         let state = self.state.read().await;
         let mut budgets = state.energy_budgets.write().await;
@@ -708,6 +731,7 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — cap enforcement prevents over-replenishment
     /// pre:  agent is registered, amount > 0
     /// post: budget replenished, returns actual amount added
+    #[rs::contract(id = "P9-cns-runtime-replenish-agent-budget", principle = "P9")]
     pub async fn replenish_agent_budget(&self, agent: &WebID, amount: EnergyCost) -> EnergyCost {
         let state = self.state.read().await;
         let mut budgets = state.energy_budgets.write().await;
@@ -739,6 +763,7 @@ impl CnsRuntime {
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// pre:  agent is valid
     /// post: returns Some(status) if budget exists, None otherwise
+    #[rs::contract(id = "P9-cns-runtime-agent-gas-status", principle = "P9")]
     pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {
         let state = self.state.read().await;
         let budgets = state.energy_budgets.read().await;

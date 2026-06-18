@@ -10,6 +10,7 @@
 //!   a live `McpRuntime`. Requires `CapabilityChecker`, `McpRuntime`, *and* a tokio
 //!   `Handle` at construction.
 
+use hkask_rsolidity as rs;
 use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
 use hkask_mcp::runtime::McpRuntime;
@@ -84,6 +85,7 @@ impl CapabilityOnlyAdapter {
     /// pre:  `checker` is a valid `Arc<CapabilityChecker>`.
     /// post: Returns a `CapabilityOnlyAdapter` with the given checker;
     ///       tool invocation will always fail with `McpError::NoRuntime`.
+    #[rs::contract(id = "P4-agt-mcp-capability-adapter-new", principle = "P4")]
     pub fn new(checker: Arc<CapabilityChecker>) -> Self {
         Self {
             capability_checker: checker,
@@ -143,6 +145,7 @@ impl FullMcpAdapter {
     ///       a valid `Arc<McpRuntime>`; `handle` is a valid tokio runtime
     ///       handle.
     /// post: Returns a `FullMcpAdapter` with all three components set.
+    #[rs::contract(id = "P4-agt-mcp-full-adapter-new", principle = "P4")]
     pub fn new(
         checker: Arc<CapabilityChecker>,
         runtime: Arc<McpRuntime>,

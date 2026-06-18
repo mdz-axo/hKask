@@ -15,6 +15,7 @@
 //! `CuratorDirective`s; the Curator Agent *consumes* those directives and
 //! formats them for human operators.
 
+use hkask_rsolidity as rs;
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
@@ -69,6 +70,7 @@ impl CurationLoop {
     ///       `context` is a valid `Arc<CuratorContext>`.
     /// post: Returns a `CurationLoop` with no consolidation, no inbox,
     ///       and `last_review_ms` initialized to 0.
+    #[rs::contract(id = "P9-agt-curator-loop-new", principle = "P9")]
     pub fn new(curator_handle: CuratorHandle, context: Arc<CuratorContext>) -> Self {
         Self {
             curator_handle,
@@ -88,6 +90,7 @@ impl CurationLoop {
     ///       `Arc<ConsolidationBridge>`.
     /// post: Returns a `CurationLoop` with consolidation set, no inbox,
     ///       and `last_review_ms` initialized to 0.
+    #[rs::contract(id = "P9-agt-curator-loop-new-with-consolidation", principle = "P9")]
     pub fn with_consolidation(
         curator_handle: CuratorHandle,
         context: Arc<CuratorContext>,
@@ -122,6 +125,7 @@ impl CurationLoop {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — context exposes CNS and escalation
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CuratorContext>`.
+    #[rs::contract(id = "P9-agt-curator-loop-context", principle = "P9")]
     pub fn context(&self) -> &Arc<CuratorContext> {
         &self.context
     }
@@ -136,6 +140,7 @@ impl CurationLoop {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — handle is the capability to curate
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `CuratorHandle`.
+    #[rs::contract(id = "P9-agt-curator-loop-handle", principle = "P9")]
     pub fn curator_handle(&self) -> &CuratorHandle {
         &self.curator_handle
     }
@@ -152,6 +157,7 @@ impl CurationLoop {
     /// post: If a persisted cursor exists, `last_review_ms` is updated;
     ///       otherwise it remains at 0. Logs the outcome at info/warn level.
     ///       Does not panic on storage errors.
+    #[rs::contract(id = "P9-agt-curator-loop-restore-cursor", principle = "P9")]
     pub fn restore_cursor(&self) {
         if let Some(store) = self.context.nu_event_store() {
             match store.load_cursor("curation_last_review_ms") {

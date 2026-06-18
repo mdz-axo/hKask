@@ -31,6 +31,7 @@ pub use audit::AuditEntry;
 pub(crate) use audit::AuditLog;
 pub(crate) use root_authority::RootAuthority;
 
+use hkask_rsolidity as rs;
 use hkask_types::capability::derive_signing_key;
 use hkask_types::{
     AgentKind, AuditOutcome, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
@@ -184,6 +185,7 @@ impl A2AMessage {
     /// post: Calls the appropriate visitor method based on the message
     ///       variant (`on_template_dispatch`, `on_template_response`,
     ///       or `on_memory_artifact`).
+    #[rs::contract(id = "P4-agt-a2a-message-visit", principle = "P4")]
     pub fn visit(&self, visitor: &mut dyn A2AMessageVisitor) {
         match self {
             A2AMessage::TemplateDispatch {
@@ -234,6 +236,7 @@ impl A2AMessage {
     /// pre:  (none).
     /// post: Returns `Some(&WebID)` for variants with a sender field;
     ///       `None` for `TemplateResponse`.
+    #[rs::contract(id = "P4-agt-a2a-message-sender", principle = "P4")]
     pub fn from_webid(&self) -> Option<&WebID> {
         match self {
             A2AMessage::TemplateDispatch { from, .. } => Some(from),
@@ -254,6 +257,7 @@ impl A2AMessage {
     /// pre:  (none).
     /// post: Returns the correlation/artifact ID string for the message
     ///       variant.
+    #[rs::contract(id = "P4-agt-a2a-message-id", principle = "P4")]
     pub fn correlation_id(&self) -> &str {
         match self {
             A2AMessage::TemplateDispatch { correlation_id, .. } => correlation_id,
@@ -270,6 +274,7 @@ impl A2AMessage {
     /// pre:  (none).
     /// post: Returns a `&'static str`: `"template_dispatch"`,
     ///       `"template_response"`, or `"memory_artifact"`.
+    #[rs::contract(id = "P4-agt-a2a-message-type", principle = "P4")]
     pub fn message_type(&self) -> &'static str {
         match self {
             A2AMessage::TemplateDispatch { .. } => "template_dispatch",
@@ -316,6 +321,7 @@ impl A2ARuntime {
     /// pre:  `secret` is a non-empty byte slice (master key material).
     /// post: Returns an `A2ARuntime` with a derived root WebID, signing
     ///       key, empty agent state, and a fresh audit log.
+    #[rs::contract(id = "P4-agt-a2a-runtime-new", principle = "P4")]
     pub fn new(secret: &[u8]) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
         let root_persona = b"hkask-root-authority";
@@ -342,6 +348,7 @@ impl A2ARuntime {
     /// post: Returns an `AgentSecret` derived via HKDF-SHA256 with the
     ///       agent WebID as domain separator; caches the result for
     ///       subsequent calls.
+    #[rs::contract(id = "P4-agt-a2a-secret-derive", principle = "P4")]
     pub async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
         // Check cache first
         {
@@ -380,6 +387,7 @@ impl A2ARuntime {
     ///       for the agent. On failure, returns `Err(A2AError)`:
     ///       `WildcardCapabilityNotAllowed` if any capability is `"*"`;
     ///       `AgentAlreadyRegistered` if the WebID is already registered.
+    #[rs::contract(id = "P4-agt-a2a-token-issue", principle = "P4")]
     pub async fn register_agent(
         &self,
         webid: WebID,
@@ -453,6 +461,7 @@ impl A2ARuntime {
     /// post: If the agent exists, removes it and its capability tokens
     ///       and derived key, returns `Ok(())`. If not found, returns
     ///       `Err(A2AError::AgentNotFound)`.
+    #[rs::contract(id = "P4-agt-a2a-agent-unregister", principle = "P4")]
     pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), A2AError> {
         let mut state = self.state.write().await;
 
@@ -482,6 +491,7 @@ impl A2ARuntime {
     ///       of WebID → `Vec<DelegationToken>`.
     /// post: All agents and tokens are inserted into the runtime state;
     ///       returns `Ok(usize)` with the count of agents restored.
+    #[rs::contract(id = "P4-agt-a2a-agents-restore", principle = "P4")]
     pub async fn restore_from_storage(
         &self,
         agents: Vec<A2AAgent>,
@@ -581,6 +591,7 @@ impl A2ARuntime {
     /// pre:  (none).
     /// post: Returns a `Vec<A2AAgent>` containing clones of all currently
     ///       registered agents.
+    #[rs::contract(id = "P4-agt-a2a-agents-list", principle = "P4")]
     pub async fn list_agents(&self) -> Vec<A2AAgent> {
         let state = self.state.read().await;
         state.agents.values().cloned().collect()

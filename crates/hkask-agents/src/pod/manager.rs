@@ -1,5 +1,6 @@
 //! PodManager, PodStatus — Pod lifecycle management
 
+use hkask_rsolidity as rs;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
 use hkask_types::{CapabilityChecker, InferencePort, NuEventSink, WebID};
@@ -73,6 +74,7 @@ impl PodManager {
     /// post: Returns a `PodManager` with all ports set (or defaulted),
     ///       `DenyAllConsent` as the default consent policy, and empty
     ///       pod registry and activation hooks.
+    #[rs::contract(id = "P1-agt-pod-manager-new", principle = "P1")]
     pub fn new(
         git_cas: Option<Arc<GitCasAdapter>>,
         a2a_runtime: Option<Arc<dyn crate::ports::A2APort + Send + Sync>>,
@@ -125,6 +127,7 @@ impl PodManager {
     /// \[P2\] Constraining: Affirmative Consent — replace default consent policy
     /// pre:  `consent` is a valid `Arc<dyn SovereigntyConsent>`.
     /// post: Returns `self` with `consent` updated.
+    #[rs::contract(id = "P1-agt-pod-manager-with-consent", principle = "P1")]
     pub fn with_consent_port(mut self, consent: Arc<dyn crate::SovereigntyConsent>) -> Self {
         self.consent = consent;
         self
@@ -141,6 +144,7 @@ impl PodManager {
     /// \[P3\] Motivating: Generative Space — hook runs when pod becomes active
     /// pre:  `hook` is a valid boxed closure.
     /// post: The hook is appended to the activation hooks list.
+    #[rs::contract(id = "P1-agt-pod-manager-activation-hook", principle = "P1")]
     pub async fn register_activation_hook(&self, hook: Box<dyn Fn(WebID, String) + Send + Sync>) {
         self.activation_hooks.write().await.push(hook);
     }
@@ -150,6 +154,7 @@ impl PodManager {
     /// pre:  `checker` is a valid `CapabilityChecker`.
     /// post: Returns `self` with `capability_checker` set to
     ///       `Some(Arc::new(checker))`.
+    #[rs::contract(id = "P1-agt-pod-manager-with-checker", principle = "P1")]
     pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
         self.capability_checker = Some(Arc::new(checker));
         self
@@ -159,6 +164,7 @@ impl PodManager {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — attach CNS event sink
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `nu_event_sink` set to `Some(sink)`.
+    #[rs::contract(id = "P1-agt-pod-manager-with-sink", principle = "P1")]
     pub fn with_nu_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.nu_event_sink = Some(sink);
         self
@@ -168,6 +174,7 @@ impl PodManager {
     /// \[P4\] Constraining: Clear Boundaries — wire governed tool for capability gating
     /// pre:  `tool` is a valid `Arc<GovernedTool<RawMcpToolPort>>`.
     /// post: Returns `self` with `governed_tool` set to `Some(tool)`.
+    #[rs::contract(id = "P1-agt-pod-manager-with-governed-tool", principle = "P1")]
     pub fn with_governed_tool(mut self, tool: Arc<GovernedTool<RawMcpToolPort>>) -> Self {
         self.governed_tool = Some(tool);
         self
@@ -179,6 +186,7 @@ impl PodManager {
     /// pre:  All arguments are valid, non-null `Arc`s.
     /// post: Returns a `PodManager` with all ports set (no optional
     ///       defaults), `DenyAllConsent`, and empty pod registry.
+    #[rs::contract(id = "P1-agt-pod-manager-with-ports", principle = "P1")]
     pub fn with_inference(
         git_cas: Arc<GitCasAdapter>,
         a2a_runtime: Arc<dyn crate::ports::A2APort + Send + Sync>,
@@ -205,6 +213,7 @@ impl PodManager {
     /// \[P8\] Motivating: Semantic Grounding — accessor for inference port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Option<Arc<dyn InferencePort>>`.
+    #[rs::contract(id = "P1-agt-pod-manager-inference-port", principle = "P1")]
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
@@ -215,6 +224,7 @@ impl PodManager {
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Some(Arc<SovereigntyChecker>)` if the pod exists;
     ///       `None` otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-sovereignty-checker", principle = "P1")]
     pub async fn sovereignty_checker_for(
         &self,
         pod_id: &PodID,
@@ -237,6 +247,7 @@ impl PodManager {
     /// pre:  `inference_port` is `Some` or `None`.
     /// post: Returns a `PodManager` with in-memory storage, a mock A2A
     ///       runtime, and `DenyAllConsent`.
+    #[rs::contract(id = "P1-agt-pod-manager-default", principle = "P1")]
     pub fn new_mock(inference_port: Option<Arc<dyn InferencePort>>) -> Self {
         const MOCK_A2A_SECRET: &[u8] = b"xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX";
         let adapter = Arc::new(MemoryLoopAdapter::in_memory_unchecked());
@@ -268,6 +279,7 @@ impl PodManager {
     /// post: Returns `Ok(PodID)` — the new pod's ID — after creating and
     ///       inserting the pod into the registry. Returns `Err` if
     ///       validation or pod creation fails.
+    #[rs::contract(id = "P1-agt-pod-manager-create-pod", principle = "P1")]
     pub async fn create_pod(
         &self,
         template_name: &str,
@@ -301,6 +313,7 @@ impl PodManager {
     /// post: If the pod is `Populated`, registers it with A2A, then
     ///       activates it via MCP. Runs activation hooks on success.
     ///       Returns `Ok(())` or `Err` on failure.
+    #[rs::contract(id = "P1-agt-pod-manager-activate-pod", principle = "P1")]
     pub async fn activate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
         let registration_data = {
             let pods = self.pods.read().await;
@@ -367,6 +380,7 @@ impl PodManager {
     /// post: Deactivates the pod and attempts to revoke its capability
     ///       token; logs a warning if revocation fails (pod is still
     ///       deactivated). Returns `Ok(())` or `Err` on failure.
+    #[rs::contract(id = "P1-agt-pod-manager-deactivate-pod", principle = "P1")]
     pub async fn deactivate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
         let mut pods = self.pods.write().await;
         let pod = pods
@@ -403,6 +417,7 @@ impl PodManager {
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: Returns `Ok(Vec<RecalledEpisode>)` with lifecycle events
     ///       for the pod; `Err` if the pod is not found or recall fails.
+    #[rs::contract(id = "P1-agt-pod-manager-recall-lifecycle", principle = "P1")]
     pub async fn recall_pod_events(&self, pod_id: &PodID) -> AgentPodResult<Vec<RecalledEpisode>> {
         let pods = self.pods.read().await;
         let pod = pods
@@ -423,6 +438,7 @@ impl PodManager {
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Ok(PodStatus)` if the pod exists; `Err(PodNotFound)`
     ///       otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-status", principle = "P1")]
     pub async fn get_pod_status(&self, pod_id: &PodID) -> AgentPodResult<PodStatus> {
         self.pods
             .read()
@@ -438,6 +454,7 @@ impl PodManager {
     /// pre:  (none).
     /// post: Returns `Ok(Vec<PodStatus>)` with status for all registered
     ///       pods (may be empty).
+    #[rs::contract(id = "P1-agt-pod-manager-list-status", principle = "P1")]
     pub async fn list_pods(&self) -> AgentPodResult<Vec<PodStatus>> {
         Ok(self
             .pods
@@ -453,6 +470,7 @@ impl PodManager {
     /// \[P4\] Constraining: Clear Boundaries — accessor for A2A port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Arc<dyn A2APort + Send + Sync>`.
+    #[rs::contract(id = "P1-agt-pod-manager-a2a-port", principle = "P1")]
     pub fn a2a_runtime(&self) -> Arc<dyn crate::ports::A2APort + Send + Sync> {
         Arc::clone(&self.a2a_runtime)
     }
@@ -467,6 +485,7 @@ impl PodManager {
     /// pre:  `name` is a non-empty string.
     /// post: Returns `Some(PodID)` if a pod with matching name exists;
     ///       `None` otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-find-by-name", principle = "P1")]
     pub async fn find_pod_by_name(&self, name: &str) -> Option<PodID> {
         let pods = self.pods.read().await;
         for (id, pod) in pods.iter() {
@@ -484,6 +503,7 @@ impl PodManager {
     /// \[P1\] Motivating: User Sovereignty — get pod's WebID
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Some(WebID)` if the pod exists; `None` otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-webid", principle = "P1")]
     pub async fn get_pod_webid(&self, pod_id: &PodID) -> Option<WebID> {
         self.pods.read().await.get(pod_id).map(|p| p.webid)
     }
@@ -496,6 +516,7 @@ impl PodManager {
     /// pre:  `pod_id` is a valid `PodID`; `role` is a non-empty string.
     /// post: Returns `true` if the pod exists and has the role assigned;
     ///       `false` otherwise (including if pod not found).
+    #[rs::contract(id = "P1-agt-pod-manager-has-role", principle = "P1")]
     pub async fn is_assigned_to_role(&self, pod_id: &PodID, role: &str) -> bool {
         self.pods
             .read()
@@ -515,6 +536,7 @@ impl PodManager {
     /// post: Returns `true` if the pod exists and has a capability
     ///       matching `tool` (exact or prefix match with `:` separator);
     ///       `false` otherwise.
+    #[rs::contract(id = "P1-agt-pod-manager-has-capability", principle = "P1")]
     pub async fn has_capability(&self, pod_id: &PodID, tool: &str) -> bool {
         self.pods
             .read()
@@ -539,6 +561,7 @@ impl PodManager {
     /// post: If the pod exists and doesn't already have the role, it is
     ///       added to `assigned_mcp_roles`. Returns `Ok(())` or `Err` if
     ///       pod not found.
+    #[rs::contract(id = "P1-agt-pod-manager-assign-role", principle = "P1")]
     pub async fn assign_role(&self, name: &str, role: &str) -> AgentPodResult<()> {
         let pod_id = self.find_pod_by_name(name).await.ok_or_else(|| {
             AgentPodError::PersonaParseError(format!("No pod found for replicant '{}'", name))
@@ -565,6 +588,7 @@ impl PodManager {
     ///       for "server" mode.
     /// post: Transitions the pod to the requested mode. Returns `Ok(())`
     ///       or `Err` if pod not found or mode transition fails.
+    #[rs::contract(id = "P1-agt-pod-manager-set-mode", principle = "P1")]
     pub async fn set_mode(&self, name: &str, mode: &str, role: Option<&str>) -> AgentPodResult<()> {
         let pod_id = self.find_pod_by_name(name).await.ok_or_else(|| {
             AgentPodError::PersonaParseError(format!("No pod found for replicant '{}'", name))

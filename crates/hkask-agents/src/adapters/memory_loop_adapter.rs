@@ -4,6 +4,7 @@
 //! domain-logic-enriched storage (dedup, Bayesian confidence decay,
 //! temporal attention weighting) through the loop membrane.
 
+use hkask_rsolidity as rs;
 use crate::error::MemoryError;
 use crate::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
@@ -151,6 +152,7 @@ impl MemoryLoopForwarder {
     /// pre:  `episodic` is a valid `EpisodicMemory`; `semantic` is a valid
     ///       `SemanticMemory`.
     /// post: Returns a `MemoryLoopForwarder` holding both memory instances.
+    #[rs::contract(id = "P3-agt-memory-adapter-new", principle = "P3")]
     pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
         Self { episodic, semantic }
     }
@@ -163,6 +165,7 @@ impl MemoryLoopForwarder {
     /// pre:  (none).
     /// post: Returns `Ok(Self)` with an in-memory SQLite database;
     ///       returns `Err(MemoryError)` if database creation fails.
+    #[rs::contract(id = "P3-agt-memory-adapter-in-memory", principle = "P3")]
     pub fn in_memory() -> Result<Self, MemoryError> {
         let db = Database::in_memory()?;
         Self::from_database(db)
@@ -180,6 +183,7 @@ impl MemoryLoopForwarder {
     /// pre:  (none).
     /// post: Returns `Self` with an in-memory database; panics if
     ///       database creation fails (considered a bug).
+    #[rs::contract(id = "P3-agt-memory-adapter-in-memory-unwrap", principle = "P3")]
     pub fn in_memory_unchecked() -> Self {
         Self::in_memory().expect("In-memory storage initialization should never fail")
     }
@@ -194,6 +198,7 @@ impl MemoryLoopForwarder {
     ///       non-empty string.
     /// post: Returns `Ok(Self)` with an encrypted SQLite database at
     ///       `path`; returns `Err(MemoryError)` if opening fails.
+    #[rs::contract(id = "P3-agt-memory-adapter-encrypted", principle = "P3")]
     pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
         let db = Database::open(path, passphrase)?;
         Self::from_database(db)

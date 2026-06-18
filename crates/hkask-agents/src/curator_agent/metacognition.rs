@@ -1,6 +1,7 @@
 //! Curator Agent metacognition: sense→compare→compute→act governance loop.
 //! Moved from `curator::metacognition` — persona concern, not regulatory.
 
+use hkask_rsolidity as rs;
 use crate::a2a::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_health::BotHealthEvaluator;
@@ -122,6 +123,7 @@ impl EscalationPolicy {
     ///       threshold exceeded: VarietyDeficit (Critical if > threshold,
     ///       Warning if > threshold/2), CriticalAlerts (Critical if ≥
     ///       threshold), BotFailures (Critical if ≥ threshold).
+    #[rs::contract(id = "P9-agt-curator-agent-escalation-check", principle = "P9")]
     pub fn check_conditions(
         &self,
         variety_deficit: f64,
@@ -242,6 +244,7 @@ impl MetacognitionLoop {
     /// post: Returns a `MetacognitionLoop` with an `EscalationPolicy`
     ///       derived from `config.thresholds`, empty bot reports, and a
     ///       fresh watch channel for health snapshots.
+    #[rs::contract(id = "P9-agt-curator-agent-meta-new", principle = "P9")]
     pub fn new(context: Arc<CuratorContext>, config: MetacognitionConfig) -> Self {
         let escalation_policy = EscalationPolicy::new(config.thresholds.clone());
         let (last_snapshot_tx, _) = tokio::sync::watch::channel(None);
@@ -268,6 +271,7 @@ impl MetacognitionLoop {
     ///       valid `MetacognitionConfig`; `evaluator` is a valid
     ///       `Arc<BotHealthEvaluator>`.
     /// post: Returns a `MetacognitionLoop` with the evaluator wired in.
+    #[rs::contract(id = "P9-agt-bot-health-classify", principle = "P9")]
     pub fn with_evaluator(
         context: Arc<CuratorContext>,
         config: MetacognitionConfig,
@@ -310,6 +314,7 @@ impl MetacognitionLoop {
     /// post: On success, returns `Ok(HealthSnapshot)` — the latest
     ///       snapshot from the watch channel. If no snapshot has been
     ///       produced yet, returns `Err(MetacognitionError::Core(...))`.
+    #[rs::contract(id = "P9-agt-curator-agent-tick", principle = "P9")]
     pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
         info!(target: MC_TARGET, "Starting metacognition cycle");
         self.tick().await;
@@ -327,6 +332,7 @@ impl MetacognitionLoop {
     /// post: Returns a `String` containing a markdown-formatted summary
     ///       with timestamp, CNS health, critical/total alerts, variety
     ///       counters, and bot status reports.
+    #[rs::contract(id = "P9-agt-curator-agent-summary", principle = "P9")]
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
         use std::fmt::Write;
         let mut s = String::new();
@@ -372,6 +378,7 @@ impl MetacognitionLoop {
     ///       to the bot and returns `Ok(())`. If A2A is not configured,
     ///       logs a warning and returns `Ok(())` (graceful degradation).
     ///       Returns `Err` on A2A send failure.
+    #[rs::contract(id = "P9-agt-curator-agent-direct", principle = "P9")]
     pub async fn direct_bot(&self, bot_name: &str, reason: &str) -> Result<(), MetacognitionError> {
         let a2a = match self.context.a2a() {
             Some(a2a) => a2a,
@@ -418,6 +425,7 @@ impl MetacognitionLoop {
     /// pre:  `directive` is a valid `CuratorDirective`.
     /// post: Delegates to `self.context.issue_directive(directive)`;
     ///       same post-conditions as `CuratorContext::issue_directive`.
+    #[rs::contract(id = "P9-agt-curator-agent-issue-directive", principle = "P9")]
     pub async fn issue_directive(&self, directive: CuratorDirective) {
         self.context.issue_directive(directive).await;
     }

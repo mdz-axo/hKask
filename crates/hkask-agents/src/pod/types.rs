@@ -1,6 +1,7 @@
 //! Pod value types — PodLifecycleState, PodID, persona types, template types
 
 pub use hkask_types::PodID;
+use hkask_rsolidity as rs;
 use hkask_types::{CapabilitySpec, DelegationResource, WebID};
 use serde::{Deserialize, Serialize};
 
@@ -59,6 +60,7 @@ impl PodLifecycleState {
     /// post: Returns `true` if `self == next` (idempotent) or if the
     ///       transition follows the linear progression; `false` for all
     ///       other transitions (including from `Deactivated`).
+    #[rs::contract(id = "P4-agt-pod-lifecycle-can-transition", principle = "P4")]
     pub fn can_transition_to(&self, next: PodLifecycleState) -> bool {
         if *self == next {
             return true;

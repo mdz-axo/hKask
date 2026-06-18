@@ -1,6 +1,7 @@
 //! CompositeEnergyEstimator — Routes inference tools to InferenceEnergyEstimator,
 //! all other tools to TableEnergyEstimator.
 
+use hkask_rsolidity as rs;
 use crate::dynamic_gas_table::DynamicGasTable;
 use crate::governed_tool::EnergyEstimator;
 use crate::inference_estimator::InferenceEnergyEstimator;
@@ -26,6 +27,7 @@ impl CompositeEnergyEstimator {
     /// [P9] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops
     /// \[P5\] Constraining: Essentialism — minimal constructor, empty estimators
     /// post: returns CompositeEnergyEstimator with empty estimators
+    #[rs::contract(id = "P9-cns-est-composite-new", principle = "P9")]
     pub fn new() -> Self {
         Self {
             inference: InferenceEnergyEstimator,

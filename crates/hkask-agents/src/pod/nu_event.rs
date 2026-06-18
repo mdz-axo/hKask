@@ -8,6 +8,7 @@
 //! normal `sense()` cycle. Curation reviews them through the algedonic query
 //! from the NuEvent store.
 
+use hkask_rsolidity as rs;
 use hkask_types::NuEventSink;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};

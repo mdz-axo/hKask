@@ -9,6 +9,7 @@
 //! observed actual_gas / estimated_gas ratios from `GovernedTool` settlements.
 //! This closes the Good Regulator feedback loop (P9).
 
+use hkask_rsolidity as rs;
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
 use crate::governed_tool::EnergyEstimator;
 use serde_json::Value;
@@ -77,6 +78,7 @@ impl WalletEnergyEstimator {
     ///
     /// # Returns
     /// `true` if `gas_per_rjoule` was adjusted, `false` if within tolerance.
+    #[rs::contract(id = "P9-cns-wallet-est-calibrate", principle = "P9")]
     pub fn calibrate(&mut self, observed_ratio: f64) -> bool {
         // Clamp ratio to reasonable bounds (0.1 to 10.0)
         let ratio = observed_ratio.clamp(0.1, 10.0);

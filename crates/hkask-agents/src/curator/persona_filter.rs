@@ -5,6 +5,7 @@
 //! enforced at runtime. This filter checks model output against the constraints
 //! and reports violations.
 
+use hkask_rsolidity as rs;
 use hkask_types::PersonaConstraints;
 
 /// Result of checking model output against persona constraints.
@@ -32,6 +33,7 @@ pub struct PersonaCheckResult {
 ///       forbidden patterns are found (case-insensitive substring match);
 ///       `passed = false` with a list of `(pattern, matched_text)`
 ///       violations otherwise. Does not panic on non-ASCII input.
+    #[rs::contract(id = "P9-agt-curator-persona-check", principle = "P9")]
 pub fn check_persona_constraints(
     output: &str,
     constraints: &PersonaConstraints,
@@ -70,6 +72,7 @@ pub fn check_persona_constraints(
 ///       has all forbidden patterns removed (case-insensitive, first
 ///       occurrence only per pattern) and `violations` lists what was
 ///       stripped. Does not panic on non-ASCII input.
+    #[rs::contract(id = "P9-agt-curator-persona-strip", principle = "P9")]
 pub fn strip_forbidden_patterns(
     output: &str,
     constraints: &PersonaConstraints,

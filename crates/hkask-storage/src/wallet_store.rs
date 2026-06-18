@@ -6,6 +6,7 @@
 //! - `api_keys` — issued Ed25519 capability tokens with spending limits
 //! - `deposit_addresses` — derived deposit addresses per wallet per chain
 //! - `deposit_references` — one-time shielded deposit references (anti-replay)
+use hkask_rsolidity as rs;
 use crate::Store;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{
@@ -76,6 +77,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — enable WAL for wallet concurrency
     /// \[P7\] Constraining: Evolutionary Architecture — WAL mode emerged from multi-agent load
     /// post: journal_mode set to WAL, synchronous set to NORMAL
+    #[rs::contract(id = "P3-sto-wallet-wal-mode", principle = "P3")]
     pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         conn.execute_batch(
@@ -96,6 +98,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — get wallet balance
     /// pre:  wallet_id is valid
     /// post: returns Some(WalletBalance) if wallet exists, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-balance-get", principle = "P3")]
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<Option<WalletBalance>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -144,6 +147,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — idempotently ensure wallet row
     /// pre:  wallet_id is valid
     /// post: wallet row exists (created if missing)
+    #[rs::contract(id = "P3-sto-wallet-ensure", principle = "P3")]
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         self.ensure_wallet_with_conn(&conn, wallet_id)
@@ -155,6 +159,7 @@ impl WalletStore {
     /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — list wallet IDs
     /// post: returns Vec of all WalletId
+    #[rs::contract(id = "P3-sto-wallet-list-ids", principle = "P3")]
     pub fn list_wallet_ids(&self) -> Result<Vec<WalletId>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT wallet_id FROM wallet_balances")?;
@@ -175,6 +180,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — credit rJoules
     /// pre:  wallet_id exists, amount > 0
     /// post: balance increased by amount, transaction recorded
+    #[rs::contract(id = "P3-sto-wallet-credit", principle = "P3")]
     pub fn credit_rjoules(
         &self,
         wallet_id: WalletId,
@@ -203,6 +209,7 @@ impl WalletStore {
     /// pre:  wallet_id exists, amount > 0, balance >= amount
     /// post: balance decreased by amount, transaction recorded
     /// post: returns Err if insufficient balance
+    #[rs::contract(id = "P3-sto-wallet-debit", principle = "P3")]
     pub fn debit_rjoules(
         &self,
         wallet_id: WalletId,
@@ -241,6 +248,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — record wallet transaction
     /// pre:  tx has valid wallet_id and rjoules_delta
     /// post: transaction inserted into ledger
+    #[rs::contract(id = "P3-sto-wallet-tx-record", principle = "P3")]
     pub fn record_transaction(&self, tx: &WalletTransaction) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let (tx_type_str, tx_subtype, chain, tx_hash, key_id, tool_name, gas_units) =
@@ -270,6 +278,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — list transactions
     /// pre:  wallet_id is valid
     /// post: returns Vec of transactions, optionally limited
+    #[rs::contract(id = "P3-sto-wallet-tx-list", principle = "P3")]
     pub fn get_transactions(
         &self,
         wallet_id: WalletId,
@@ -314,6 +323,7 @@ impl WalletStore {
     /// \[P4\] Motivating: Clear Boundaries — anti-replay hash check
     /// pre:  tx_hash is non-empty
     /// post: returns true if hash exists (anti-replay)
+    #[rs::contract(id = "P3-sto-wallet-tx-hash-exists", principle = "P3")]
     pub fn transaction_exists_by_hash(&self, tx_hash: &str) -> Result<bool, WalletError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -332,6 +342,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — store API key capability
     /// pre:  capability has valid key_id and wallet_id
     /// post: API key stored
+    #[rs::contract(id = "P3-sto-wallet-api-key-store", principle = "P3")]
     pub fn store_api_key(&self, capability: &ApiKeyCapability) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let scope_json =
@@ -367,6 +378,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — get API key by ID
     /// pre:  key_id is valid
     /// post: returns Some(capability) if found, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-api-key-get", principle = "P3")]
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -405,6 +417,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — get API key by public key
     /// pre:  public_key is valid
     /// post: returns Some(capability) if found, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-api-key-by-pubkey", principle = "P3")]
     pub fn get_api_key_by_public_key(
         &self,
         public_key: &[u8],
@@ -446,6 +459,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — list API keys
     /// pre:  wallet_id is valid
     /// post: returns Vec of API key capabilities
+    #[rs::contract(id = "P3-sto-wallet-api-key-list", principle = "P3")]
     pub fn list_api_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -485,6 +499,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — revoke API key
     /// pre:  key_id is valid
     /// post: API key revoked, unspent rJ returned to wallet
+    #[rs::contract(id = "P3-sto-wallet-api-key-revoke", principle = "P3")]
     pub fn revoke_api_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -518,6 +533,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — update spent rJ for key
     /// pre:  key_id is valid
     /// post: spent_rj updated
+    #[rs::contract(id = "P3-sto-wallet-spent-rj-update", principle = "P3")]
     pub fn update_spent_rj(&self, key_id: ApiKeyId, spent: RJoule) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -535,6 +551,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — store deposit address
     /// pre:  address has valid wallet_id and chain
     /// post: deposit address stored
+    #[rs::contract(id = "P3-sto-wallet-address-store", principle = "P3")]
     pub fn store_deposit_address(
         &self,
         wallet_id: WalletId,
@@ -564,6 +581,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — list deposit addresses
     /// pre:  wallet_id is valid
     /// post: returns Vec of deposit addresses
+    #[rs::contract(id = "P3-sto-wallet-address-list", principle = "P3")]
     pub fn get_deposit_addresses(
         &self,
         wallet_id: WalletId,
@@ -605,6 +623,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — resolve wallet for address
     /// pre:  chain is valid, address is non-empty
     /// post: returns Some(WalletId) if found, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-address-resolve", principle = "P3")]
     pub fn resolve_wallet_for_address(
         &self,
         address: &str,
@@ -630,6 +649,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — store deposit reference
     /// pre:  reference has valid fields
     /// post: deposit reference stored
+    #[rs::contract(id = "P3-sto-wallet-reference-store", principle = "P3")]
     pub fn store_deposit_reference(&self, reference: &DepositReference) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -653,6 +673,7 @@ impl WalletStore {
     /// pre:  reference is valid and not expired
     /// post: reference consumed, wallet credited
     /// post: returns Err if already consumed or expired
+    #[rs::contract(id = "P3-sto-wallet-reference-consume", principle = "P3")]
     pub fn consume_deposit_reference(
         &self,
         reference: &str,
@@ -682,6 +703,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — purge expired references
     /// post: expired references deleted
     /// post: returns count of deleted references
+    #[rs::contract(id = "P3-sto-wallet-reference-purge", principle = "P3")]
     pub fn purge_expired_references(&self) -> Result<u64, WalletError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -704,6 +726,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — encumber rJoules for key
     /// pre:  wallet_id exists, key_id is valid, amount > 0, balance >= amount
     /// post: rJoules encumbered, balance decreased
+    #[rs::contract(id = "P3-sto-wallet-encumber", principle = "P3")]
     pub fn encumber_rjoules(
         &self,
         wallet_id: WalletId,
@@ -757,6 +780,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — release encumbrance
     /// pre:  key_id has active encumbrance
     /// post: encumbrance released, unspent rJ returned to wallet
+    #[rs::contract(id = "P3-sto-wallet-encumbrance-release", principle = "P3")]
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -800,6 +824,7 @@ impl WalletStore {
     /// pre:  key_id has active encumbrance with sufficient remaining
     /// post: consumed_rj increased, api_keys.spent_rj synced
     /// post: returns Err if insufficient or not active
+    #[rs::contract(id = "P3-sto-wallet-encumbrance-consume", principle = "P3")]
     pub fn consume_encumbrance(
         &self,
         key_id: ApiKeyId,
@@ -864,6 +889,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — get encumbrance
     /// pre:  key_id is valid
     /// post: returns Some(Encumbrance) if found, None otherwise
+    #[rs::contract(id = "P3-sto-wallet-encumbrance-get", principle = "P3")]
     pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
         let conn = self.lock_conn()?;
         let row: Option<(String, i64, i64, String, String, Option<String>)> = conn

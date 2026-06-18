@@ -10,6 +10,7 @@
 //! The helpers below provide a named, self-documenting call site and keep the
 //! `?` ergonomics intact while also supporting explicit `.map_err()` chains
 //! for crate-local error types.
+use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use std::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 /// Acquire a `Mutex` lock, mapping poison to `InfrastructureError::LockPoisoned`.
@@ -30,6 +31,7 @@ use std::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 /// \[P4\] Motivating: Clear Boundaries — lock helper wraps Mutex to provide structured error
 /// post: returns Ok(MutexGuard) if lock acquired
 /// post: returns Err(LockPoisoned) if mutex is poisoned
+    #[rs::contract(id = "P4-sto-lock-mutex", principle = "P4")]
 pub fn lock_mutex<T>(lock: &Mutex<T>) -> Result<MutexGuard<'_, T>, InfrastructureError> {
     lock.lock().map_err(|_| InfrastructureError::LockPoisoned)
 }
@@ -48,6 +50,7 @@ pub fn lock_mutex<T>(lock: &Mutex<T>) -> Result<MutexGuard<'_, T>, Infrastructur
 /// \[P4\] Motivating: Clear Boundaries — lock helper wraps RwLock read guard
 /// post: returns Ok(RwLockReadGuard) if lock acquired
 /// post: returns Err(LockPoisoned) if lock is poisoned
+    #[rs::contract(id = "P4-sto-lock-read", principle = "P4")]
 pub fn read_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockReadGuard<'_, T>, InfrastructureError> {
     lock.read().map_err(|_| InfrastructureError::LockPoisoned)
 }
@@ -66,6 +69,7 @@ pub fn read_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockReadGuard<'_, T>, Infras
 /// \[P4\] Motivating: Clear Boundaries — lock helper wraps RwLock write guard
 /// post: returns Ok(RwLockWriteGuard) if lock acquired
 /// post: returns Err(LockPoisoned) if lock is poisoned
+    #[rs::contract(id = "P4-sto-lock-write", principle = "P4")]
 pub fn write_rwlock<T>(lock: &RwLock<T>) -> Result<RwLockWriteGuard<'_, T>, InfrastructureError> {
     lock.write().map_err(|_| InfrastructureError::LockPoisoned)
 }

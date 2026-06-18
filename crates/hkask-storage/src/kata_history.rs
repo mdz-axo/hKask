@@ -8,6 +8,7 @@
 //! Integrated with the daemon's dual-encoding memory pipeline: the daemon reads
 //! `kata_history` rows to build episodic narratives and feeds CNS counters
 //! for variety and automaticity monitoring.
+use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use crate::Store;
 use crate::define_store;
@@ -60,6 +61,7 @@ impl KataHistoryStore {
     /// \[P3\] Motivating: Generative Space — record a kata practice entry
     /// pre:  entry.agent_name is non-empty
     /// post: entry inserted into kata_history
+    #[rs::contract(id = "P3-sto-kata-record", principle = "P3")]
     pub fn record(
         &self,
         agent_name: &str,
@@ -84,6 +86,7 @@ impl KataHistoryStore {
     /// \[P3\] Motivating: Generative Space — list entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of entries for this agent
+    #[rs::contract(id = "P3-sto-kata-list-agent", principle = "P3")]
     pub fn entries_for_agent(
         &self,
         agent_name: &str,
@@ -131,6 +134,7 @@ impl KataHistoryStore {
     /// \[P8\] Motivating: Semantic Grounding — count entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns count of entries
+    #[rs::contract(id = "P3-sto-kata-count-agent", principle = "P3")]
     pub fn count_entries_for_agent(&self, agent_name: &str) -> Result<usize, KataHistoryError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -148,6 +152,7 @@ impl KataHistoryStore {
     /// \[P8\] Motivating: Semantic Grounding — count entries per date
     /// pre:  agent_name is non-empty, date is valid ISO date
     /// post: returns count of entries on that date
+    #[rs::contract(id = "P3-sto-kata-count-date", principle = "P3")]
     pub fn count_entries_on(
         &self,
         agent_name: &str,
@@ -169,6 +174,7 @@ impl KataHistoryStore {
     /// \[P3\] Motivating: Generative Space — most recent entry for agent
     /// pre:  agent_name is non-empty
     /// post: returns Some(entry) if exists, None otherwise
+    #[rs::contract(id = "P3-sto-kata-last", principle = "P3")]
     pub fn last_entry_for_agent(
         &self,
         agent_name: &str,
@@ -216,6 +222,7 @@ impl KataHistoryStore {
     /// \[P3\] Motivating: Generative Space — entries in date range
     /// pre:  agent_name is non-empty, from/to are valid ISO dates
     /// post: returns Vec of entries in range
+    #[rs::contract(id = "P3-sto-kata-range", principle = "P3")]
     pub fn entries_in_range(
         &self,
         agent_name: &str,
@@ -266,6 +273,7 @@ impl KataHistoryStore {
     /// pre:  before_date is a valid ISO date
     /// post: entries before date deleted
     /// post: returns count of deleted entries
+    #[rs::contract(id = "P3-sto-kata-delete-before", principle = "P3")]
     pub fn delete_entries_before(&self, before_date: &str) -> Result<usize, KataHistoryError> {
         let conn = self.lock_conn()?;
         let count = conn.execute(

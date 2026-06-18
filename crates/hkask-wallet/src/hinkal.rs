@@ -15,6 +15,7 @@
 //! UTXO decryption, zero-knowledge proof generation, and transaction building.
 //! Callers authenticate with wallet-signed messages — no SDK required.
 
+use hkask_rsolidity as rs;
 use async_trait::async_trait;
 use chrono::Utc;
 use hkask_types::WebID;
@@ -189,6 +190,7 @@ impl HinkalPort {
     /// pre:  treasury_pubkey is a non-empty account/public key string
     /// post: HTTP client initialized with rustls TLS
     /// post: circuit breaker initialized with zero failures
+    #[rs::contract(id = "P9-wallet-hinkal-port-new", principle = "P9")]
     pub fn new(api_base_url: &str, treasury_pubkey: &str) -> Result<Self, WalletError> {
         if api_base_url.trim().is_empty() {
             return Err(Self::chain_error("Hinkal API base URL must not be empty"));

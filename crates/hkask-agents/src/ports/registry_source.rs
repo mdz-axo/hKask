@@ -3,6 +3,7 @@
 //! Hexagonal port that decouples the registry loader from filesystem I/O.
 //! The domain layer depends on this trait; adapters provide concrete implementations.
 
+use hkask_rsolidity as rs;
 use crate::error::RegistryError;
 
 /// Port for loading registry content from a source.

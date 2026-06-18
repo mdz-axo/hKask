@@ -4,6 +4,7 @@
 //! This adapter lives behind the hexagonal boundary — the domain layer
 //! never calls `std::fs` directly.
 
+use hkask_rsolidity as rs;
 use crate::error::RegistryError;
 use crate::ports::RegistrySourcePort;
 use std::fs;
@@ -23,6 +24,7 @@ impl FilesystemRegistrySource {
     /// \[P5\] Motivating: Essentialism — filesystem registry source is a unit struct
     /// pre:  (none).
     /// post: Returns a new `FilesystemRegistrySource` (unit struct).
+    #[rs::contract(id = "P3-agt-registry-source-new", principle = "P3")]
     pub fn new() -> Self {
         Self
     }

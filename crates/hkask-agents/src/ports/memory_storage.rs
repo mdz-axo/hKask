@@ -10,6 +10,7 @@
 //!   Any agent with a capability token can read semantic triples.
 //!   Only agents with consolidation capability can store semantic triples.
 
+use hkask_rsolidity as rs;
 use hkask_types::visibility::AccessControl;
 use hkask_types::{Confidence, DelegationToken, ExperienceClassification, Visibility, WebID};
 use serde_json::Value;
@@ -52,6 +53,7 @@ impl StorageRequest {
     /// post: Returns a `StorageRequest` with all fields set to the provided
     ///       values; no validation is performed — the caller is responsible
     ///       for correctness.
+    #[rs::contract(id = "P3-agt-memory-request-new", principle = "P3")]
     pub fn new(
         entity: impl Into<String>,
         attribute: impl Into<String>,
@@ -79,6 +81,7 @@ impl StorageRequest {
     ///       `entity` and `attribute` are non-empty after `.into()`.
     /// post: Returns a `StorageRequest` with `access` set to episodic
     ///       (perspective = owner = `producer_webid`).
+    #[rs::contract(id = "P3-agt-memory-request-episodic", principle = "P3")]
     pub fn episodic(
         entity: impl Into<String>,
         attribute: impl Into<String>,
@@ -106,6 +109,7 @@ impl StorageRequest {
     ///       `entity` and `attribute` are non-empty after `.into()`.
     /// post: Returns a `StorageRequest` with `access` set to semantic
     ///       (no perspective, owner = `producer_webid`).
+    #[rs::contract(id = "P3-agt-memory-request-semantic", principle = "P3")]
     pub fn semantic(
         entity: impl Into<String>,
         attribute: impl Into<String>,
@@ -136,6 +140,7 @@ impl StorageRequest {
     ///       `producer_webid` is a valid WebID.
     /// post: Returns a `StorageRequest` with episodic access and confidence
     ///       resolved from `classification` (or overridden).
+    #[rs::contract(id = "P3-agt-memory-confidence-map", principle = "P3")]
     pub fn classified_episodic(
         entity: impl Into<String>,
         attribute: impl Into<String>,
@@ -175,6 +180,7 @@ impl RecallRequest {
     /// pre:  `query` is non-empty after `.into()`; `owner` is a valid WebID;
     ///       `token` is a valid `DelegationToken`.
     /// post: Returns a `RecallRequest` with `perspective = Some(owner)`.
+    #[rs::contract(id = "P3-agt-memory-recall-episodic", principle = "P3")]
     pub fn episodic(query: impl Into<String>, owner: WebID, token: DelegationToken) -> Self {
         Self {
             query: query.into(),
@@ -192,6 +198,7 @@ impl RecallRequest {
     /// pre:  `query` is non-empty after `.into()`; `token` is a valid
     ///       `DelegationToken`.
     /// post: Returns a `RecallRequest` with `perspective = None`.
+    #[rs::contract(id = "P3-agt-memory-recall-semantic", principle = "P3")]
     pub fn semantic(query: impl Into<String>, token: DelegationToken) -> Self {
         Self {
             query: query.into(),

@@ -11,6 +11,7 @@
 //! `ConsentManager`-backed port so that grants via `kask sovereignty grant`
 //! or `POST /consent/grant` are observed on the next sovereignty check.
 
+use hkask_rsolidity as rs;
 use hkask_types::WebID;
 use hkask_types::sovereignty::{DataCategory, UserSovereigntyState};
 use std::sync::Arc;
@@ -86,6 +87,7 @@ impl SovereigntyChecker {
     ///       `Arc<dyn SovereigntyConsent>`.
     /// post: Returns a `SovereigntyChecker` with a fresh
     ///       `UserSovereigntyState` and the given owner and consent port.
+    #[rs::contract(id = "P1-agt-sovereignty-checker-new", principle = "P1")]
     pub fn new(owner_webid: WebID, consent: Arc<dyn SovereigntyConsent>) -> Self {
         Self {
             state: UserSovereigntyState::new(),
@@ -107,6 +109,7 @@ impl SovereigntyChecker {
     /// post: Returns `true` iff the requester is permitted to access the
     ///       category: sovereign data requires consent AND requester==owner;
     ///       shared data requires consent; public data is always accessible.
+    #[rs::contract(id = "P1-agt-sovereignty-checker-can-access", principle = "P1")]
     pub fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
         if self.state.boundary.is_sovereign(data_category) {
             // Sovereign data: requires explicit consent AND requester == owner.
@@ -127,6 +130,7 @@ impl SovereigntyChecker {
     /// post: For "acquisition", returns `true` iff affirmative consent is
     ///       NOT required. For all other operations, delegates to
     ///       `can_access` with the owner WebID as requester.
+    #[rs::contract(id = "P1-agt-sovereignty-checker-can-perform", principle = "P1")]
     pub fn check_operation(&self, operation: &str, data_category: &DataCategory) -> bool {
         if operation == "acquisition" {
             return !self.state.boundary.requires_affirmative_consent();

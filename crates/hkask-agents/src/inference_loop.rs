@@ -7,6 +7,7 @@
 //! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
 //! the port is passed to this loop.
 
+use hkask_rsolidity as rs;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };

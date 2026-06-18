@@ -23,6 +23,7 @@ pub mod bot_metrics;
 pub mod metacognition;
 pub mod spec_curator;
 
+use hkask_rsolidity as rs;
 use crate::curator::context::CuratorContext;
 use crate::curator::curation_loop::CurationLoop;
 use hkask_memory::ConsolidationBridge;
@@ -64,6 +65,7 @@ impl CuratorAgent {
     /// pre:  `context` is a valid `Arc<CuratorContext>`.
     /// post: Returns a `CuratorAgent` with default `MetacognitionConfig`,
     ///       a new `CurationLoop`, and a default `DefaultSpecCurator`.
+    #[rs::contract(id = "P9-agt-curator-agent-new", principle = "P9")]
     pub fn new(context: Arc<CuratorContext>) -> Self {
         let metacognition = Arc::new(metacognition::MetacognitionLoop::new(
             Arc::clone(&context),
@@ -90,6 +92,7 @@ impl CuratorAgent {
     ///       valid `MetacognitionConfig`.
     /// post: Returns a `CuratorAgent` with the given config, a new
     ///       `CurationLoop`, and a default `DefaultSpecCurator`.
+    #[rs::contract(id = "P9-agt-curator-agent-new-with-config", principle = "P9")]
     pub fn with_config(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
@@ -127,6 +130,7 @@ impl CuratorAgent {
     /// post: Returns a `CuratorAgent` with consolidation wired; if
     ///       `inbox_rx` is `Some`, the curation loop's inbox is set;
     ///       if `inbox_tx` is `Some`, the spec curator's channel is set.
+    #[rs::contract(id = "P9-agt-curator-agent-new-with-consolidation", principle = "P9")]
     pub fn with_consolidation(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
@@ -165,6 +169,7 @@ impl CuratorAgent {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — accessor for the pure regulatory loop
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CurationLoop>`.
+    #[rs::contract(id = "P9-agt-curator-agent-curation-loop", principle = "P9")]
     pub fn curation_loop(&self) -> &Arc<CurationLoop> {
         &self.curation_loop
     }
@@ -176,6 +181,7 @@ impl CuratorAgent {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — accessor for the persona/agent loop
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<MetacognitionLoop>`.
+    #[rs::contract(id = "P9-agt-curator-agent-metacognition-loop", principle = "P9")]
     pub fn metacognition(&self) -> &Arc<metacognition::MetacognitionLoop> {
         &self.metacognition
     }
@@ -187,6 +193,7 @@ impl CuratorAgent {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — accessor for capability-disciplined context
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CuratorContext>`.
+    #[rs::contract(id = "P9-agt-curator-agent-context", principle = "P9")]
     pub fn context(&self) -> &Arc<CuratorContext> {
         &self.context
     }
@@ -201,6 +208,7 @@ impl CuratorAgent {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — DefaultSpecCurator detects specification drift
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `DefaultSpecCurator`.
+    #[rs::contract(id = "P9-agt-curator-agent-spec-curator", principle = "P9")]
     pub fn spec_curator(&self) -> &spec_curator::DefaultSpecCurator {
         &self.spec_curator
     }

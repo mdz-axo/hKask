@@ -4,6 +4,7 @@
 //! Passphrases are derived using Argon2id to produce 256-bit encryption keys.
 //!
 //! **Spec Reference:** architecture v0.21.0 §2.3
+use hkask_rsolidity as rs;
 use hkask_keystore::derive_key;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
@@ -116,6 +117,7 @@ impl Database {
     /// \[P1\] Constraining: User Sovereignty — passphrase protects local data
     /// pre:  path is valid, passphrase is non-empty
     /// post: returns Database with SQLCipher encryption
+    #[rs::contract(id = "P4-sto-database-open", principle = "P4")]
     pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
         Self::open_impl(path, passphrase, None)
     }
@@ -138,6 +140,7 @@ impl Database {
     /// \[P4\] Motivating: Clear Boundaries — open encrypted DB with DDL extensions
     /// pre:  path is valid, passphrase is non-empty, extensions is valid SQL
     /// post: returns Database with extensions applied
+    #[rs::contract(id = "P4-sto-database-open-ext", principle = "P4")]
     pub fn open_with_extensions(
         path: &str,
         passphrase: &str,
@@ -164,6 +167,7 @@ impl Database {
     /// expect: "The system enforces OCAP boundaries on storage access" [P4]
     /// \[P4\] Motivating: Clear Boundaries — open in-memory DB for tests
     /// post: returns in-memory Database
+    #[rs::contract(id = "P4-sto-database-in-memory", principle = "P4")]
     pub fn in_memory() -> Result<Self, DatabaseError> {
         Self::in_memory_impl(None)
     }
@@ -184,6 +188,7 @@ impl Database {
     /// \[P4\] Motivating: Clear Boundaries — open in-memory DB with extensions
     /// pre:  extensions is valid SQL DDL
     /// post: returns in-memory Database with extensions
+    #[rs::contract(id = "P4-sto-database-in-memory-ext", principle = "P4")]
     pub fn in_memory_with_extensions(extensions: &str) -> Result<Self, DatabaseError> {
         Self::in_memory_impl(Some(extensions))
     }
@@ -211,6 +216,7 @@ impl Database {
     /// expect: "The system enforces OCAP boundaries on storage access" [P4]
     /// \[P4\] Motivating: Clear Boundaries — share connection Arc with stores
     /// post: returns Arc<Mutex<Connection>> for Store constructors
+    #[rs::contract(id = "P4-sto-database-conn-arc", principle = "P4")]
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }
@@ -229,6 +235,7 @@ impl Database {
 /// \[P4\] Motivating: Clear Boundaries — infallible encrypted DB open
 /// pre:  path is valid, passphrase is non-empty
 /// post: returns Database (in-memory if path is ":memory:")
+    #[rs::contract(id = "P4-sto-database-open-unwrap", principle = "P4")]
 pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseError> {
     if path == ":memory:" {
         Database::in_memory()
@@ -250,6 +257,7 @@ pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseE
 /// expect: "The system enforces OCAP boundaries on storage access" [P4]
 /// \[P4\] Motivating: Clear Boundaries — infallible in-memory DB open
 /// post: returns in-memory Database (panics on failure)
+    #[rs::contract(id = "P4-sto-database-in-memory-unwrap", principle = "P4")]
 pub fn in_memory_db() -> Database {
     Database::in_memory().expect("in-memory database initialization should never fail")
 }

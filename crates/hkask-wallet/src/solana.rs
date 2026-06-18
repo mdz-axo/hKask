@@ -16,6 +16,7 @@
 //! - HTTP client uses rustls (no openssl)
 //! - Deposit addresses derived deterministically from treasury public key
 
+use hkask_rsolidity as rs;
 use async_trait::async_trait;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;

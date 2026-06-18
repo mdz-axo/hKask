@@ -9,6 +9,7 @@
 //! Consent records are persisted via `ConsentStore` (SQLite-backed),
 //! so they survive restarts — enforcing user sovereignty (Principle 1.3).
 
+use hkask_rsolidity as rs;
 use hkask_storage::{ConsentStore, Store, StoredConsentRecord, read_rwlock, write_rwlock};
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
@@ -52,6 +53,7 @@ impl ConsentRecord {
     /// post: Returns a new `ConsentRecord` with empty granted categories,
     ///       `active = true`, `revoked_at = None`, and `granted_at` set to
     ///       the current UTC timestamp.
+    #[rs::contract(id = "P2-agt-consent-record-new", principle = "P2")]
     pub fn new(webid: &str) -> Self {
         Self {
             webid: webid.to_string(),
@@ -68,6 +70,7 @@ impl ConsentRecord {
     /// pre:  `category` is a non-empty string.
     /// post: `category` is added to `granted_categories`; `active` is set
     ///       to `true`; `revoked_at` is cleared to `None`.
+    #[rs::contract(id = "P2-agt-consent-record-grant", principle = "P2")]
     pub fn grant(&mut self, category: &str) {
         self.granted_categories.insert(category.to_string());
         self.active = true;
@@ -80,6 +83,7 @@ impl ConsentRecord {
     /// pre:  (none — revoke is always valid).
     /// post: `revoked_at` is set to the current UTC timestamp;
     ///       `active` is set to `false`.
+    #[rs::contract(id = "P2-agt-consent-record-revoke", principle = "P2")]
     pub fn revoke(&mut self) {
         self.revoked_at = Some(chrono::Utc::now().timestamp());
         self.active = false;
@@ -90,6 +94,7 @@ impl ConsentRecord {
     /// \[P2\] Motivating: Affirmative Consent — active iff not revoked
     /// pre:  (none).
     /// post: Returns `true` iff `active == true` AND `revoked_at` is `None`.
+    #[rs::contract(id = "P2-agt-consent-record-is-active", principle = "P2")]
     pub fn is_active(&self) -> bool {
         self.active && self.revoked_at.is_none()
     }
@@ -100,6 +105,7 @@ impl ConsentRecord {
     /// pre:  `category` is a non-empty string.
     /// post: Returns `true` iff the record is active AND `category` is
     ///       present in `granted_categories`.
+    #[rs::contract(id = "P2-agt-consent-record-has-category", principle = "P2")]
     pub fn has_category(&self, category: &str) -> bool {
         self.active && self.granted_categories.contains(category)
     }
@@ -158,6 +164,7 @@ impl ConsentManager {
     /// post: Returns a `ConsentManager` with an empty in-memory cache;
     ///       eagerly loads active records from the store into the cache;
     ///       logs a warning if the load fails (cache remains empty).
+    #[rs::contract(id = "P2-agt-consent-manager-new", principle = "P2")]
     pub fn new(store: ConsentStore) -> Self {
         let manager = Self {
             store,
@@ -183,6 +190,7 @@ impl ConsentManager {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — CNS instrumentation for denials (observability only, no feedback)
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `event_sink` set to `Some(sink)`.
+    #[rs::contract(id = "P2-agt-consent-manager-with-sink", principle = "P2")]
     pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
@@ -248,6 +256,7 @@ impl ConsentManager {
     /// post: If a record exists for `webid`, the category is granted and
     ///       persisted; otherwise a new record is created, granted, and
     ///       persisted. Returns `Ok(())` on success.
+    #[rs::contract(id = "P2-agt-consent-manager-grant", principle = "P2")]
     pub fn grant_consent(&self, webid: &str, category: &DataCategory) -> Result<(), ConsentError> {
         let mut cache = write_rwlock(&self.cache)?;
 
@@ -281,6 +290,7 @@ impl ConsentManager {
     /// post: If a record exists for `webid`, it is revoked and persisted;
     ///       returns `Ok(())`. If no record exists, returns
     ///       `Err(ConsentError::ConsentNotFound)`.
+    #[rs::contract(id = "P2-agt-consent-manager-revoke", principle = "P2")]
     pub fn revoke_consent(&self, webid: &str) -> Result<(), ConsentError> {
         let mut cache = write_rwlock(&self.cache)?;
 
@@ -308,6 +318,7 @@ impl ConsentManager {
     /// post: Returns `Ok(true)` if an active record for `webid` has the
     ///       category granted; `Ok(false)` otherwise (including when no
     ///       record exists). Emits a denial ν-event on `false`.
+    #[rs::contract(id = "P2-agt-consent-manager-check", principle = "P2")]
     pub fn has_consent(&self, webid: &str, category: &DataCategory) -> Result<bool, ConsentError> {
         let cache = read_rwlock(&self.cache)?;
 
@@ -361,6 +372,7 @@ impl ConsentManager {
     /// post: Returns `Ok(Vec<String>)` containing all granted category
     ///       names for an active record; returns `Ok(vec![])` if no active
     ///       record exists for `webid`.
+    #[rs::contract(id = "P2-agt-consent-manager-granted-categories", principle = "P2")]
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ConsentError> {
         let cache = read_rwlock(&self.cache)?;
 

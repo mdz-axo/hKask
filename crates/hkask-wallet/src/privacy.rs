@@ -7,6 +7,7 @@
 //! When Hinkal is not deployed on a chain, `available_for_chain()` returns false.
 //! Shielded operations return `PrivacyUnavailable` error. Transparent path works normally.
 
+use hkask_rsolidity as rs;
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
 use hkask_types::wallet::{ChainId, TxHash, WalletError, WalletId};

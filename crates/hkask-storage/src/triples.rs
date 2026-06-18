@@ -1,4 +1,5 @@
 //! Uni-temporal triples — entity/attribute/value with valid_from/valid_to.
+use hkask_rsolidity as rs;
 use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::id::{TripleID, WebID};
@@ -36,6 +37,7 @@ impl Triple {
     /// \[P1\] Constraining: User Sovereignty — owner_webid carries ownership
     /// pre:  entity and attribute are non-empty, owner_webid is valid
     /// post: returns Triple with defaults for temporal, confidence, access
+    #[rs::contract(id = "P3-sto-triple-new", principle = "P3")]
     pub fn new(entity: &str, attribute: &str, value: Value, owner_webid: WebID) -> Self {
         Self {
             id: TripleID::new(),
@@ -53,6 +55,7 @@ impl Triple {
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set confidence
     /// post: returns Self with confidence set (builder pattern)
+    #[rs::contract(id = "P3-sto-triple-with-confidence", principle = "P3")]
     pub fn with_confidence(mut self, c: impl Into<Confidence>) -> Self {
         self.confidence = c.into();
         self
@@ -63,6 +66,7 @@ impl Triple {
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set perspective
     /// post: returns Self with perspective set (builder pattern)
+    #[rs::contract(id = "P3-sto-triple-with-perspective", principle = "P3")]
     pub fn with_perspective(mut self, p: WebID) -> Self {
         self.access = self.access.with_perspective(p);
         self
@@ -73,6 +77,7 @@ impl Triple {
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set visibility
     /// post: returns Self with visibility set (builder pattern)
+    #[rs::contract(id = "P3-sto-triple-with-visibility", principle = "P3")]
     pub fn with_visibility(mut self, v: Visibility) -> Self {
         self.access = self.access.with_visibility(v);
         self
@@ -83,6 +88,7 @@ impl Triple {
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — predicate for episodic
     /// post: returns true iff perspective is Some
+    #[rs::contract(id = "P3-sto-triple-is-episodic", principle = "P3")]
     pub fn is_episodic(&self) -> bool {
         self.access.is_episodic()
     }
@@ -92,6 +98,7 @@ impl Triple {
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — predicate for semantic
     /// post: returns true iff visibility is Public and perspective is None
+    #[rs::contract(id = "P3-sto-triple-is-semantic", principle = "P3")]
     pub fn is_semantic(&self) -> bool {
         self.access.is_semantic()
     }
@@ -106,6 +113,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — insert triple into store
     /// pre:  triple has valid entity, attribute, value
     /// post: triple inserted
+    #[rs::contract(id = "P3-sto-triple-insert", principle = "P3")]
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -132,6 +140,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — query by entity
     /// pre:  entity is non-empty
     /// post: returns Vec of triples matching entity
+    #[rs::contract(id = "P3-sto-triple-query-entity", principle = "P3")]
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -151,6 +160,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — query by entity + attribute
     /// pre:  entity and attribute are non-empty
     /// post: returns Vec of matching triples
+    #[rs::contract(id = "P3-sto-triple-query-entity-attribute", principle = "P3")]
     pub fn query_by_entity_attribute(
         &self,
         entity: &str,
@@ -174,6 +184,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — query by perspective
     /// pre:  perspective is valid
     /// post: returns Vec of triples for this perspective
+    #[rs::contract(id = "P3-sto-triple-query-perspective", principle = "P3")]
     pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -194,6 +205,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — query by attribute
     /// pre:  attribute is non-empty
     /// post: returns Vec of triples matching attribute
+    #[rs::contract(id = "P3-sto-triple-query-attribute", principle = "P3")]
     pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -215,6 +227,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — update value and confidence
     /// pre:  id is valid
     /// post: triple value and confidence updated
+    #[rs::contract(id = "P3-sto-triple-update", principle = "P3")]
     pub fn update(
         &self,
         id: &TripleID,
@@ -283,6 +296,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — get triple by ID
     /// pre:  id is valid
     /// post: returns Some(Triple) if found, None otherwise
+    #[rs::contract(id = "P3-sto-triple-get-id", principle = "P3")]
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -306,6 +320,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — low-confidence semantic triples
     /// pre:  limit > 0
     /// post: returns up to limit triples ordered by confidence ascending
+    #[rs::contract(id = "P3-sto-triple-low-confidence", principle = "P3")]
     pub fn query_semantic_lowest_confidence(
         &self,
         limit: usize,
@@ -332,6 +347,7 @@ impl TripleStore {
     /// \[P8\] Motivating: Semantic Grounding — count below threshold
     /// pre:  threshold in [0.0, 1.0]
     /// post: returns count of triples with confidence ≤ threshold
+    #[rs::contract(id = "P3-sto-triple-count-below", principle = "P3")]
     pub fn count_semantic_below_confidence(&self, threshold: f64) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -349,6 +365,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — query below threshold
     /// pre:  threshold in [0.0, 1.0], limit > 0
     /// post: returns up to limit triples with confidence ≤ threshold
+    #[rs::contract(id = "P3-sto-triple-query-below", principle = "P3")]
     pub fn query_semantic_below_confidence(
         &self,
         threshold: f64,
@@ -375,6 +392,7 @@ impl TripleStore {
     /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count semantic triples
     /// post: returns total count of semantic triples
+    #[rs::contract(id = "P3-sto-triple-count-semantic", principle = "P3")]
     pub fn count_semantic(&self) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -392,6 +410,7 @@ impl TripleStore {
     /// \[P8\] Motivating: Semantic Grounding — count per entity
     /// pre:  entity is non-empty
     /// post: returns count for entity
+    #[rs::contract(id = "P3-sto-triple-count-entity", principle = "P3")]
     pub fn count_semantic_by_entity(&self, entity: &str) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -409,6 +428,7 @@ impl TripleStore {
     /// \[P8\] Motivating: Semantic Grounding — count per perspective
     /// pre:  perspective is valid
     /// post: returns count for perspective
+    #[rs::contract(id = "P3-sto-triple-count-perspective", principle = "P3")]
     pub fn count_by_perspective(&self, perspective: &WebID) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -432,6 +452,7 @@ impl TripleStore {
     /// \[P9\] Constraining: Homeostatic Self-Regulation — enables semantic condensation trigger
     /// pre:  days > 0, limit > 0
     /// post: returns up to limit triples older than cutoff, ordered by entity, confidence DESC, valid_from DESC
+    #[rs::contract(id = "P3-sto-triple-older-than", principle = "P3")]
     pub fn query_semantic_older_than(
         &self,
         days: u32,
@@ -461,6 +482,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — soft-delete triple
     /// pre:  id is valid
     /// post: triple's valid_to set to now (soft-delete)
+    #[rs::contract(id = "P3-sto-triple-soft-delete", principle = "P3")]
     pub fn close_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
@@ -478,6 +500,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — hard-delete triple
     /// pre:  id is valid
     /// post: triple permanently deleted
+    #[rs::contract(id = "P3-sto-triple-hard-delete", principle = "P3")]
     pub fn delete_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self.lock_conn()?;
         conn.execute("DELETE FROM triples WHERE id = ?1", rusqlite::params![id])?;
@@ -493,6 +516,7 @@ impl TripleStore {
     /// pre:  prefix is non-empty
     /// post: matching triples deleted
     /// post: returns count of deleted triples
+    #[rs::contract(id = "P3-sto-triple-delete-prefix", principle = "P3")]
     pub fn delete_by_entity_prefix(&self, prefix: &str) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let pattern = format!("{}%", prefix);

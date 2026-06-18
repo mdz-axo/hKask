@@ -9,6 +9,7 @@
 //! Each key carries embedded attenuation: spending limit, expiry, privacy mode.
 //! The Ed25519 signature proves it was issued by the wallet holder.
 
+use hkask_rsolidity as rs;
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use hkask_storage::WalletStore;
@@ -56,6 +57,7 @@ impl ApiKeyIssuer {
     /// pre:  store is initialized
     /// post: returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing
     /// post: returns Err if wallet_seed resolution fails
+    #[rs::contract(id = "P9-wallet-issuer-new", principle = "P9")]
     pub fn new(store: Arc<WalletStore>) -> Result<Self, WalletError> {
         Ok(ApiKeyIssuer {
             store,
@@ -182,6 +184,7 @@ impl ApiKeyIssuer {
     /// post: unspent rJoules returned to wallet
     /// post: idempotent — revoking already-revoked key is no-op
     /// post: emits cns.wallet.key_revoked span
+    #[rs::contract(id = "P9-wallet-issuer-revoke-key", principle = "P9")]
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         self.store.revoke_api_key(key_id)?;
 
@@ -208,6 +211,7 @@ impl ApiKeyIssuer {
     /// \[P1\] Constraining: User Sovereignty — private keys are returned once and never stored
     /// pre:  wallet_id is a valid WalletId
     /// post: returns Ok(Vec<ApiKeyCapability>) containing only non-revoked keys
+    #[rs::contract(id = "P9-wallet-issuer-list-keys", principle = "P9")]
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         self.store.list_api_keys(wallet_id)
     }

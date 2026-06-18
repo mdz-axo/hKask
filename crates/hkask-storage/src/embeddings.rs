@@ -1,6 +1,7 @@
 //! Embedding store — sqlite-vec backed KNN similarity search.
 //!
 //! Two tables: `embeddings` (metadata) + `vec_embeddings` (vec0 virtual table).
+use hkask_rsolidity as rs;
 use crate::Store;
 use crate::lock_helpers::lock_mutex;
 use hkask_types::InfrastructureError;
@@ -62,6 +63,7 @@ impl EmbeddingStore {
     /// \[P3\] Motivating: Generative Space — create embedding store
     /// pre:  conn is a valid SQLite connection
     /// post: returns EmbeddingStore with default dimension
+    #[rs::contract(id = "P3-sto-embedding-new", principle = "P3")]
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self {
             conn,
@@ -76,6 +78,7 @@ impl EmbeddingStore {
     /// \[P3\] Motivating: Generative Space — create embedding store with dimension
     /// pre:  conn is valid, dim > 0
     /// post: returns EmbeddingStore with specified dimension
+    #[rs::contract(id = "P3-sto-embedding-new-with-dim", principle = "P3")]
     pub fn with_dim(conn: Arc<Mutex<Connection>>, dim: usize) -> Self {
         Self { conn, dim }
     }
@@ -125,6 +128,7 @@ impl EmbeddingStore {
     /// pre:  entity_ref is non-empty, vector matches store dimension, model is non-empty
     /// post: embedding stored and indexed by entity_ref
     /// post: returns embedding ID
+    #[rs::contract(id = "P3-sto-embedding-store", principle = "P3")]
     pub fn store(
         &self,
         entity_ref: &str,
@@ -176,6 +180,7 @@ impl EmbeddingStore {
     /// pre:  entity_ref is non-empty
     /// post: returns StoredEmbedding if found
     /// post: returns Err(NotFound) if not found
+    #[rs::contract(id = "P3-sto-embedding-get", principle = "P3")]
     pub fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         let mut stmt = conn
@@ -212,6 +217,7 @@ impl EmbeddingStore {
     /// \[P3\] Motivating: Generative Space — vector similarity search
     /// pre:  query_vector matches store dimension, limit > 0
     /// post: returns Vec<SimilarityResult> ordered by ascending distance
+    #[rs::contract(id = "P3-sto-embedding-search", principle = "P3")]
     pub fn search(
         &self,
         query_vector: &[f32],
@@ -259,6 +265,7 @@ impl EmbeddingStore {
     /// \[P3\] Motivating: Generative Space — delete embedding
     /// pre:  entity_ref is non-empty
     /// post: embedding deleted if existed
+    #[rs::contract(id = "P3-sto-embedding-delete", principle = "P3")]
     pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         // Look up the embedding ID first
@@ -305,6 +312,7 @@ impl EmbeddingStore {
     /// expect: "The system provides durable storage for embedding data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count embeddings
     /// post: returns total count of embeddings
+    #[rs::contract(id = "P3-sto-embedding-count", principle = "P3")]
     pub fn count(&self) -> Result<usize, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
@@ -318,6 +326,7 @@ impl EmbeddingStore {
     /// \[P3\] Motivating: Generative Space — query entity refs by prefix
     /// pre:  prefix is non-empty
     /// post: returns Vec of entity_refs matching prefix
+    #[rs::contract(id = "P3-sto-embedding-prefix", principle = "P3")]
     pub fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         let pattern = format!("{}%", prefix);

@@ -7,6 +7,7 @@
 // \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
 // verify threshold behavior.
 
+use hkask_rsolidity as rs;
 use chrono::{DateTime, Duration, Utc};
 use hkask_cns::energy::AgentEnergyStatus;
 use hkask_cns::gas_report::{AgentGasSummary, GasReport};

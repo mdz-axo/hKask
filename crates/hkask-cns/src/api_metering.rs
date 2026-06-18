@@ -10,6 +10,7 @@
 //! Every API call with `Authorization: Bearer hk_...` opens a span tracking:
 //! `key_id, endpoint, scope_matched, gas_consumed, allocation_remaining, rate_limit_status`
 
+use hkask_rsolidity as rs;
 use hkask_types::wallet::{ApiKeyId, Encumbrance};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -36,6 +37,7 @@ impl Default for EndpointWeight {
 /// \[P7\] Constraining: Evolutionary Architecture — hardcoded table to be configurable later
 /// pre:  path is non-empty
 /// post: returns EndpointWeight based on path pattern
+    #[rs::contract(id = "P9-cns-api-meter-endpoint-weight", principle = "P9")]
 pub fn endpoint_weight(path: &str) -> EndpointWeight {
     if path.contains("embed-corpus") || path.contains("compose") {
         EndpointWeight(5.0)
@@ -119,6 +121,7 @@ impl RateLimitStatus {
     /// [P9] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS
     /// \[P8\] Constraining: Semantic Grounding — string representation must be stable across versions
     /// post: returns lowercase alert type string
+    #[rs::contract(id = "P9-cns-api-meter-rate-limit-status", principle = "P9")]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Ok => "ok",
@@ -148,6 +151,7 @@ impl ApiMeter {
     /// [P9] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking
     /// \[P5\] Constraining: Essentialism — minimal constructor with empty buckets map
     /// post: returns ApiMeter with empty buckets
+    #[rs::contract(id = "P9-cns-api-meter-new", principle = "P9")]
     pub fn new() -> Self {
         Self {
             buckets: HashMap::new(),
@@ -173,6 +177,7 @@ impl ApiMeter {
     /// \[P4\] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions
     /// pre:  key_id is valid
     /// post: returns Ok if within limit, Err if rate limited
+    #[rs::contract(id = "P9-cns-api-meter-check-and-record", principle = "P9")]
     pub fn check_and_record(
         &mut self,
         key_id: ApiKeyId,
@@ -209,6 +214,7 @@ impl ApiMeter {
     /// \[P8\] Constraining: Semantic Grounding — RPM count must be stable and accurate
     /// pre:  key_id is valid
     /// post: returns current requests per minute
+    #[rs::contract(id = "P9-cns-api-meter-current-rpm", principle = "P9")]
     pub fn current_rpm(&self, key_id: ApiKeyId) -> u32 {
         let now = Instant::now();
         self.buckets
@@ -253,6 +259,7 @@ impl ApiRequestSpan {
     /// \[P8\] Constraining: Semantic Grounding — span fields must be traceable to source
     /// pre:  path and method are non-empty
     /// post: returns ApiRequestSpan
+    #[rs::contract(id = "P9-cns-api-meter-span-new", principle = "P9")]
     pub fn new(
         key_id: &str,
         endpoint: &str,
@@ -306,6 +313,7 @@ impl ApiMeteringAlert {
     /// [P9] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification
     /// \[P8\] Constraining: Semantic Grounding — alert type labels must be stable across versions
     /// post: returns alert type label
+    #[rs::contract(id = "P9-cns-api-meter-alert-type", principle = "P9")]
     pub fn alert_type(&self) -> &'static str {
         match self {
             Self::RateLimitExceeded { .. } => "cns.api.rate_limit_exceeded",
@@ -324,6 +332,7 @@ impl ApiMeteringAlert {
     /// [P9] Motivating: Homeostatic Self-Regulation — severity is the algedonic signal
     /// \[P8\] Constraining: Semantic Grounding — severity labels must be stable across versions
     /// post: returns severity label
+    #[rs::contract(id = "P9-cns-api-meter-alert-severity", principle = "P9")]
     pub fn severity(&self) -> &'static str {
         match self {
             Self::RateLimitExceeded { .. } => "warning",

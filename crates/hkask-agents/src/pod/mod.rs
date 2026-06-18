@@ -64,6 +64,7 @@ mod manager;
 mod nu_event;
 mod types;
 
+use hkask_rsolidity as rs;
 use hkask_types::capability::derive_signing_key;
 use hkask_types::secret::SecretRef;
 use hkask_types::secret::derivation_contexts;
@@ -205,6 +206,7 @@ impl AgentPod {
     /// post: Returns `Ok(AgentPod)` in `Populated` state with a derived
     ///       OCAP secret, capability token, and sovereignty checker.
     ///       Returns `Err` if template loading or key derivation fails.
+    #[rs::contract(id = "P1-agt-pod-new", principle = "P1")]
     pub fn new(
         crate_name: &str,
         persona: &AgentPersona,
@@ -276,6 +278,7 @@ impl AgentPod {
     /// post: On success, `self.state` is `Registered` and
     ///       `self.capability_token` is updated with the A2A-issued token.
     ///       On failure, state is unchanged.
+    #[rs::contract(id = "P1-agt-pod-register", principle = "P1")]
     pub async fn register(&mut self, a2a: &dyn crate::ports::A2APort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Registered) {
             return Err(AgentPodError::InvalidStateTransition(
@@ -327,6 +330,7 @@ impl AgentPod {
     ///       idempotent re-activation); `mcp` is a valid `MCPRuntimePort`.
     /// post: On success, `self.state` is `Activated` and MCP tool access
     ///       is granted. On failure, state is unchanged.
+    #[rs::contract(id = "P1-agt-pod-activate", principle = "P1")]
     pub fn activate(&mut self, mcp: &dyn crate::ports::MCPRuntimePort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Activated) {
             return Err(AgentPodError::InvalidStateTransition(
@@ -367,6 +371,7 @@ impl AgentPod {
     /// pre:  `self.state` must be `Activated` (or `Deactivated` for
     ///       idempotent re-deactivation).
     /// post: `self.state` is `Deactivated`.
+    #[rs::contract(id = "P1-agt-pod-deactivate", principle = "P1")]
     pub fn deactivate(&mut self) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Deactivated) {
             return Err(AgentPodError::InvalidStateTransition(
@@ -411,6 +416,7 @@ impl AgentPod {
     ///       must be < `self.max_attenuation`.
     /// post: Returns `Ok(DelegationToken)` — an attenuated child token —
     ///       or `Err(AttenuationLimitExceeded)`.
+    #[rs::contract(id = "P1-agt-pod-delegate", principle = "P1")]
     pub fn delegate(
         &self,
         new_holder: WebID,
@@ -440,6 +446,7 @@ impl AgentPod {
     /// \[P8\] Motivating: Semantic Grounding — state accessor for Activated
     /// pre:  (none).
     /// post: Returns `true` iff `self.state == PodLifecycleState::Activated`.
+    #[rs::contract(id = "P1-agt-pod-is-active", principle = "P1")]
     pub fn is_active(&self) -> bool {
         self.state == PodLifecycleState::Activated
     }
@@ -451,6 +458,7 @@ impl AgentPod {
     /// \[P8\] Motivating: Semantic Grounding — lifecycle state accessor
     /// pre:  (none — accessor).
     /// post: Returns the current `PodLifecycleState`.
+    #[rs::contract(id = "P1-agt-pod-state", principle = "P1")]
     pub fn state(&self) -> PodLifecycleState {
         self.state
     }
@@ -475,6 +483,7 @@ impl AgentPod {
     ///       in `self.assigned_mcp_roles`.
     /// post: `self.mode` is set to `Some(AgentMode::Server)`.
     ///       Returns `Err` if any precondition fails.
+    #[rs::contract(id = "P1-agt-pod-enter-server-mode", principle = "P1")]
     pub fn enter_server_mode(&mut self, role: &str) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Activated {
             return Err(AgentPodError::ModeRequiresActivation(self.state));
@@ -511,6 +520,7 @@ impl AgentPod {
     /// pre:  `self.state == Activated`; `self.mode == None`.
     /// post: `self.mode` is set to `Some(AgentMode::Chat)`.
     ///       Returns `Err` if any precondition fails.
+    #[rs::contract(id = "P1-agt-pod-enter-chat-mode", principle = "P1")]
     pub fn enter_chat_mode(&mut self) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Activated {
             return Err(AgentPodError::ModeRequiresActivation(self.state));
@@ -537,6 +547,7 @@ impl AgentPod {
     /// pre:  (none — always valid).
     /// post: `self.mode` is set to `None`; the previous mode (if any)
     ///       is logged. Always returns `Ok(())`.
+    #[rs::contract(id = "P1-agt-pod-exit-mode", principle = "P1")]
     pub fn exit_mode(&mut self) -> AgentPodResult<()> {
         let previous = self.mode.take();
         if let Some(mode) = previous {
@@ -559,6 +570,7 @@ impl AgentPod {
     /// \[P8\] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Server)`.
+    #[rs::contract(id = "P1-agt-pod-is-server-mode", principle = "P1")]
     pub fn is_in_server_mode(&self) -> bool {
         self.mode == Some(AgentMode::Server)
     }
@@ -572,6 +584,7 @@ impl AgentPod {
     /// \[P3\] Motivating: Generative Space — configure voice design
     /// pre:  `voice` is a valid `VoiceDesign`.
     /// post: `self.voice_design` is set to `Some(voice)`; logs the change.
+    #[rs::contract(id = "P1-agt-pod-set-voice", principle = "P1")]
     pub fn set_voice(&mut self, voice: VoiceDesign) {
         tracing::info!(
             target: "cns.pod",
@@ -589,6 +602,7 @@ impl AgentPod {
     /// \[P8\] Motivating: Semantic Grounding — voice design accessor
     /// pre:  (none — accessor).
     /// post: Returns `Some(&VoiceDesign)` if set, `None` otherwise.
+    #[rs::contract(id = "P1-agt-pod-get-voice", principle = "P1")]
     pub fn get_voice(&self) -> Option<&VoiceDesign> {
         self.voice_design.as_ref()
     }
@@ -603,6 +617,7 @@ impl AgentPod {
     /// post: Returns the TTS description string for the configured voice,
     ///       or the default `VoiceDesign::default()` description if none
     ///       is set.
+    #[rs::contract(id = "P1-agt-pod-voice-description", principle = "P1")]
     pub fn voice_description(&self) -> String {
         self.voice_design
             .as_ref()
@@ -617,6 +632,7 @@ impl AgentPod {
     /// \[P8\] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Chat)`.
+    #[rs::contract(id = "P1-agt-pod-is-chat-mode", principle = "P1")]
     pub fn is_in_chat_mode(&self) -> bool {
         self.mode == Some(AgentMode::Chat)
     }
@@ -645,6 +661,7 @@ impl AgentPod {
     /// post: Returns `Ok(true)` if both `check_operation` and `can_access`
     ///       pass; `Ok(false)` if either fails; `Err` on sovereignty
     ///       checker error.
+    #[rs::contract(id = "P1-agt-pod-check-sovereignty", principle = "P1")]
     pub fn check_sovereignty(
         &self,
         action: &str,

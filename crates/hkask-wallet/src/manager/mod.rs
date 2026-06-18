@@ -6,6 +6,7 @@
 //! coupled to wallet_seed and WalletStore — a separate module added no behavior
 //! beyond what inline functions provide.
 
+use hkask_rsolidity as rs;
 use chrono::{Duration, Utc};
 use hkask_keystore::keychain::resolve_wallet_seed;
 use hkask_storage::WalletStore;
@@ -75,6 +76,7 @@ impl WalletManager {
     /// pre:  price_feed is a resolved PriceFeed implementation
     /// post: returns Ok(WalletManager) with resolved wallet_seed
     /// post: returns Err if wallet_seed resolution fails
+    #[rs::contract(id = "P9-wallet-mgr-build", principle = "P9")]
     pub fn build(
         config: WalletConfig,
         store: Arc<WalletStore>,
@@ -134,6 +136,7 @@ impl WalletManager {
     /// post: returns Ok(balance) with rjoules, gas_equivalent, usdc_equivalent_micro
     /// post: gas_equivalent == rjoules * config.gas_per_rjoule
     /// post: balance.rjoules >= 0 (balances are never negative)
+    #[rs::contract(id = "P9-wallet-mgr-balance", principle = "P9")]
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, WalletError> {
         let mut balance = self.store.get_balance(wallet_id)?.unwrap_or(WalletBalance {
             wallet_id,
@@ -157,6 +160,7 @@ impl WalletManager {
     /// pre:  key_id is a valid ApiKeyId
     /// post: returns Ok(Some(capability)) if key exists and is active
     /// post: returns Ok(None) if key doesn't exist or is revoked
+    #[rs::contract(id = "P9-wallet-mgr-api-key-get", principle = "P9")]
     pub fn get_api_key(
         &self,
         key_id: hkask_types::wallet::ApiKeyId,

@@ -4,6 +4,7 @@
 //! Uses canonical `AuditEntry` from `hkask-types`.
 
 pub use hkask_types::AuditEntry;
+use hkask_rsolidity as rs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -23,6 +24,7 @@ impl AuditLog {
     /// pre:  (none).
     /// post: Returns an `AuditLog` with an empty entry list and
     ///       `max_entries = 10000`.
+    #[rs::contract(id = "P4-agt-acp-audit-new", principle = "P4")]
     pub fn new() -> Self {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
@@ -38,6 +40,7 @@ impl AuditLog {
     /// post: The entry is appended to the log; if the log exceeds
     ///       `max_entries`, the oldest entries are drained to stay
     ///       within the limit.
+    #[rs::contract(id = "P4-agt-acp-audit-append", principle = "P4")]
     pub async fn log(&self, entry: AuditEntry) {
         let mut entries = self.entries.write().await;
         entries.push(entry);

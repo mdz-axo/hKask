@@ -2,6 +2,7 @@
 //! Relocated from `hkask-types` per P1: consumed primarily by `hkask-storage` and `hkask-mcp-spec`.
 //!
 //! Five categories per MDS §1: Domain, Composition, Trust, Lifecycle, Curation.
+use hkask_rsolidity as rs;
 use chrono::{DateTime, Utc};
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
 use hkask_types::id::{GoalID, WebID};
@@ -45,6 +46,7 @@ impl SpecId {
     /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — new SpecId
     /// post: returns new random SpecId
+    #[rs::contract(id = "P8-sto-spec-id-new", principle = "P8")]
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
@@ -55,6 +57,7 @@ impl SpecId {
     /// \[P8\] Motivating: Semantic Grounding — SpecId from string
     /// pre:  s is a valid UUID string
     /// post: returns SpecId
+    #[rs::contract(id = "P8-sto-spec-id-from-str", principle = "P8")]
     pub fn from_string(s: &str) -> Result<Self, SpecError> {
         Uuid::parse_str(s)
             .map(SpecId)
@@ -95,6 +98,7 @@ impl SpecCategory {
     /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — category string label
     /// post: returns snake_case string
+    #[rs::contract(id = "P8-sto-spec-category-as-str", principle = "P8")]
     pub fn as_str(&self) -> &'static str {
         match self {
             SpecCategory::Domain => "domain",
@@ -111,6 +115,7 @@ impl SpecCategory {
     /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — parse category
     /// post: returns Some(SpecCategory) if valid, None otherwise
+    #[rs::contract(id = "P8-sto-spec-category-parse", principle = "P8")]
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "domain" => Some(SpecCategory::Domain),
@@ -143,6 +148,7 @@ impl SpecCategory {
 /// pre:  arguments are valid
 /// post: returns expected result
 /// \[P8\] Motivating: Semantic Grounding — infer MDS category from context
+    #[rs::contract(id = "P8-sto-spec-infer-category", principle = "P8")]
 pub fn infer_spec_category(context: Option<&str>) -> SpecCategory {
     let ctx = match context {
         Some(c) => c.to_lowercase(),
