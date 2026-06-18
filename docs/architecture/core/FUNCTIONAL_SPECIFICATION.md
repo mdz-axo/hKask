@@ -6,6 +6,7 @@ version: "0.28.0"
 status: "Active"
 domain: "architecture"
 mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
+anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 ---
 
 # hKask Functional Specification
@@ -23,38 +24,38 @@ mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
 
 ### Domain Map
 
-| # | Domain | Short Tag | Crate | Contracts | Goal Principle |
-|---|---------|-----------|-------|-----------|----------------------|
-| 1 | Energy Budgeting | `energy` | hkask-cns | 20 | P9 (Homeostatic Self-Regulation) |
-| 2 | Algedonic Signalling | `algedonic` | hkask-cns | 4 | P9 (Homeostatic Self-Regulation) |
-| 3 | Runtime Observability | `runtime` | hkask-cns | 24 | P9 (Homeostatic Self-Regulation) |
-| 4 | Tool Governance | `gov-tool` | hkask-cns | 3 | P4 (Clear Boundaries) |
-| 5 | Inference Governance | `gov-inf` | hkask-cns | 2 | P4 (Clear Boundaries) |
-| 6 | Circuit Breaking | `circuit` | hkask-cns | 3 | P9 (Homeostatic Self-Regulation) |
-| 7 | API Metering | `api` | hkask-cns | 8 | P9 (Homeostatic Self-Regulation) |
-| 8 | Energy Estimation | `est` | hkask-cns | 2 | P9 (Homeostatic Self-Regulation) |
-| 9 | Cybernetics Loop | `loop` | hkask-cns | 1 | P9 (Homeostatic Self-Regulation) |
-| 10 | Wallet | `wallet` | hkask-wallet | 23 | P9 (Homeostatic Self-Regulation) |
-| 11 | Storage | `storage` | hkask-storage | 168 | P3 (Generative Space) |
-| 12 | Memory | `memory` | hkask-memory | 68 | P3 (Generative Space) |
-| 13 | Inference Engine | `inference` | hkask-inference | 94 | P9 + P4 (Homeostatic + Boundary) |
-| 14 | Template Engine | `templates` | hkask-templates | 53 | P3 (Generative Space) |
-| 15 | MCP Servers | `mcp` | mcp-servers/ | 41 | P5 (Essentialism) |
-| 16 | Service Layer | `services` | hkask-services | 305+ | P5 + P7 (Essentialism + Evolution) |
-| 17 | Agent Runtime | `agents` | hkask-agents | 159 | P1 (User Sovereignty) |
-| 18 | Communication | `comm` | hkask-comm | 6 | P1 (User Sovereignty) |
-| 19 | Keystore | `keystore` | hkask-keystore | 5 | P1 (User Sovereignty) |
-| 20 | Type System | `types` | hkask-types | 40 | P8 (Semantic Grounding) |
-| 21 | API Surface | `api` | hkask-api | 25 | P1 + P4 (Sovereignty + Boundaries) |
-| 22 | CLI Surface | `cli` | kask | 12 | P3 (Generative Space) |
-| 23 | Web Interface | `web` | hkask-api + hkask-web | 19 | P1 (User Sovereignty) + P4 (Clear Boundaries) |
-| 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | P1 (User Sovereignty) + P2 (Affirmative Consent) |
-| 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | P1 (User Sovereignty) + P3 (Generative Space) |
-| 26 | Deployment | `deploy` | hkask-api + hkask-services | 16 | P5 (Essentialism) + P4 (Clear Boundaries) |
+| # | Domain | Short Tag | Crate | Contracts | User Expectation | Goal Principle |
+|---|---------|-----------|-------|-----------|-----------------|----------------------|
+| 1 | Energy Budgeting | `energy` | hkask-cns | 20 | System prevents runaway agent resource consumption | P9 (Homeostatic Self-Regulation) |
+| 2 | Algedonic Signalling | `algedonic` | hkask-cns | 4 | System alerts when regulation thresholds are breached | P9 (Homeostatic Self-Regulation) |
+| 3 | Runtime Observability | `runtime` | hkask-cns | 24 | System provides unified CNS observability and regulation feedback | P9 (Homeostatic Self-Regulation) |
+| 4 | Tool Governance | `gov-tool` | hkask-cns | 3 | System gates tool execution behind OCAP capability checks | P4 (Clear Boundaries) |
+| 5 | Inference Governance | `gov-inf` | hkask-cns | 2 | System gates inference calls behind energy budget checks | P4 (Clear Boundaries) |
+| 6 | Circuit Breaking | `circuit` | hkask-cns | 3 | System prevents cascading failures in external service calls | P9 (Homeostatic Self-Regulation) |
+| 7 | API Metering | `api` | hkask-cns | 8 | System enforces per-key rate limits and gas tracking | P9 (Homeostatic Self-Regulation) |
+| 8 | Energy Estimation | `est` | hkask-cns | 2 | System estimates energy costs for regulated operations | P9 (Homeostatic Self-Regulation) |
+| 9 | Cybernetics Loop | `loop` | hkask-cns | 1 | System maintains homeostatic regulation via feedback loops | P9 (Homeostatic Self-Regulation) |
+| 10 | Wallet | `wallet` | hkask-wallet | 23 | System manages rJoule balances and energy-based payments | P9 (Homeostatic Self-Regulation) |
+| 11 | Storage | `storage` | hkask-storage | 168 | System provides durable triple storage across all domains | P3 (Generative Space) |
+| 12 | Memory | `memory` | hkask-memory | 68 | System stores and retrieves episodic and semantic knowledge | P3 (Generative Space) |
+| 13 | Inference Engine | `inference` | hkask-inference | 94 | System regulates LLM calls across provider boundaries | P9 + P4 (Homeostatic + Boundary) |
+| 14 | Template Engine | `templates` | hkask-templates | 53 | System renders skill templates into executable prompts | P3 (Generative Space) |
+| 15 | MCP Servers | `mcp` | mcp-servers/ | 41 | System provides single-responsibility tool servers | P5 (Essentialism) |
+| 16 | Service Layer | `services` | hkask-services | 305+ | System composes a single service layer shared by CLI and API | P5 + P7 (Essentialism + Evolution) |
+| 17 | Agent Runtime | `agents` | hkask-agents | 159 | User's agents operate within sovereignty boundaries | P1 (User Sovereignty) |
+| 18 | Communication | `comm` | hkask-comm | 6 | Agents communicate through user-owned channels | P1 (User Sovereignty) |
+| 19 | Keystore | `keystore` | hkask-keystore | 5 | User's keys are generated, stored, and rotated securely | P1 (User Sovereignty) |
+| 20 | Type System | `types` | hkask-types | 40 | System types are semantically grounded and provenance-aware | P8 (Semantic Grounding) |
+| 21 | API Surface | `api` | hkask-api | 25 | User accesses all functionality through a REST API with sovereignty enforcement | P1 + P4 (Sovereignty + Boundaries) |
+| 22 | CLI Surface | `cli` | kask | 12 | User accesses all functionality through a single binary CLI | P3 (Generative Space) |
+| 23 | Web Interface | `web` | hkask-api + hkask-web | 19 | User signs in via OAuth and gets a browser terminal | P1 (User Sovereignty) + P4 (Clear Boundaries) |
+| 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | Users share a server with scoped data and admin-managed membership | P1 (User Sovereignty) + P2 (Affirmative Consent) |
+| 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
+| 26 | Deployment | `deploy` | hkask-api + kask | 16 | User deploys hKask with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
 
-### Domain Ownership Rules
+### Domain Anchoring Rules
 
-Each contract carries a **goal principle** in its ID prefix and **constraining principles** in its body annotations. The goal principle is the principle that the contract's functional expectation directly serves — the user-visible behavior the contract guarantees. The constraining principles are the other 11 principles that shape how that behavior is achieved without overriding the goal.
+Each domain's contracts trace upward through constraining principles to a single goal principle, which itself traces to a Magna Carta principle (P1–P4). The user expectation column above captures the OUGHT that drives principle selection per domain. Key anchoring rules:
 
 1. **P9 (Homeostatic Self-Regulation)** owns all CNS regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation
 2. **P4 (Clear Boundaries)** owns all membrane/boundary contracts: governed_tool, governed_inference, deployment perimeter
@@ -63,9 +64,117 @@ Each contract carries a **goal principle** in its ID prefix and **constraining p
 5. **P3 (Generative Space)** owns all sync/blocking variants and content-domain contracts: blocking accessors, storage, memory, CLI
 6. **P7 (Evolutionary Architecture)** owns all configurable-from-real-usage contracts: threshold calibration, replenish rate tuning
 7. **P1 (User Sovereignty) + P2 (Affirmative Consent)** own the web interface, multi-user, and backup domains: OAuth sessions, PTY terminals, role assignment, invitation flow, portable sovereignty archives
-8. **P5 (Essentialism) + P4 (Clear Boundaries)** own the deployment domain: sidecar generation, systemd integration, single-binary packaging
+8. **P5 (Essentialism) + P3 (Generative Space)** own the deployment domain: single-binary packaging, sidecar generation, systemd integration
 
-A contract may have **one motivating principle** and **multiple constraining principles**. The motivating principle determines the ID prefix (`P{N}`). Constraining principles appear as `[P{N}]` annotations in the contract body.
+A contract has **exactly one goal principle** and **1 to 11 constraining principles**. The goal principle determines the ID prefix (`P{N}`). Constraining principles appear as `[P{N}]` annotations in the contract body.
+
+---
+
+## 1.5 Service Layer Architecture
+
+**Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
+
+**Canonical specification:** [`MDS-agent-service.md`](../../specifications/specs/MDS-agent-service.md) — full domain spec, accessor methods, depth test results, and service boundary definitions.
+
+### 1.5.1 AgentService Structure
+
+`AgentService` is the canonical service layer owning all shared infrastructure. All **28 fields** are **private** and exposed through **individual named accessor methods** (replacing the earlier grouped-tuple pattern). `AgentService::build(config)` assembles all shared infrastructure once at startup.
+
+| Method | Returns | Category |
+|--------|---------|----------|
+| `config()` | `&ServiceConfig` | Configuration |
+| `wallet()` | `Option<&Arc<WalletService>>` | Payments |
+| `wallet_store()` | `Option<&Arc<WalletStore>>` | Payments |
+| `memory()` | `(&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>)` | Memory |
+| `registry()` | `&Arc<tokio::sync::Mutex<SqliteRegistry>>` | Storage |
+| `goal_repo()` | `&Arc<SqliteGoalRepository>` | Storage |
+| `cns_runtime()` | `&Arc<RwLock<CnsRuntime>>` | CNS |
+| `cybernetics_loop()` | `&Arc<RwLock<CyberneticsLoop>>` | CNS |
+| `loop_system()` | `&Arc<LoopSystem>` | CNS |
+| `event_sink()` | `&Arc<dyn NuEventSink>` | CNS |
+| `seam_watcher()` | `&Arc<RwLock<Option<SeamWatcher>>>` | CNS |
+| `capability_checker()` | `&Arc<CapabilityChecker>` | Governance |
+| `mcp_dispatcher()` | `&Arc<McpDispatcher>` | Governance |
+| `escalation_queue()` | `&Arc<EscalationQueue>` | Governance |
+| `inference_port()` | `Option<Arc<dyn InferencePort>>` | Coordination |
+| `mcp_runtime()` | `&Arc<McpRuntime>` | Coordination |
+| `pod_manager()` | `&Arc<PodManager>` | Coordination |
+| `identity()` | `(&WebID, &Arc<hkask_agents::A2ARuntime>)` | Identity |
+| `sovereignty()` | `SovereigntyService` | Sovereignty |
+| `curation_inbox_tx()` | `&Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
+| `sovereignty_boundary_store()` | `&SovereigntyBoundaryStore` | Sovereignty |
+| `spec_store()` | `&SqliteSpecStore` | Surface-specific |
+| `agent_registry_store()` | `&hkask_storage::AgentRegistryStore` | Surface-specific |
+| `user_store()` | `&Arc<std::sync::Mutex<UserStore>>` | Surface-specific |
+| `daemon_handler()` | `&Arc<ServiceDaemonHandler>` | Daemon |
+| `matrix_transport()` | `Option<&Arc<tokio::sync::Mutex<MatrixTransport>>>` | Communication |
+
+Both CLI and API surfaces compose `AgentService` and add only presentation-specific fields:
+
+- `ReplState` = `AgentService` + REPL fields (prompt history, input state)
+- `ApiState` = `Arc<AgentService>` + HTTP fields (router, OpenAPI spec) + surface-specific stores
+
+### 1.5.2 Dependency Direction
+
+```mermaid
+graph TD
+    CLI["hkask-cli"]
+    API["hkask-api"]
+    SVC["hkask-services (AgentService)"]
+    CLI --> SVC
+    API --> SVC
+    SVC --> AGENTS[hkask-agents]
+    SVC --> CNS[hkask-cns]
+    SVC --> MEM[hkask-memory]
+    SVC --> TEMPLATES[hkask-templates]
+    SVC --> TYPES[hkask-types]
+    SVC --> STORAGE[hkask-storage]
+```
+
+Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface exception: `hkask-mcp-replica` and `hkask-mcp-spec` import for delegation only.
+
+### 1.5.3 Loop Architecture Membrane
+
+The transport layer uses `tokio::mpsc` channels to route between loops without creating cross-loop authority:
+
+```mermaid
+graph TD
+    subgraph Domain["Domain Loops"]
+        IL[Inference Loop]
+        ML[Memory Loop<br/>Episodic + Semantic]
+    end
+
+    CUL[Curation Loop]
+    CYL[Cybernetics Loop]
+    TR[Transport — tokio::mpsc channels]
+
+    IL -->|"signal: depletion"| CYL
+    ML -->|"signal: depletion"| CYL
+
+    CYL -->|"regulate: energy"| IL
+    CYL -->|"regulate: energy"| ML
+    CYL -->|"signal: algedonic<br/>CurationInput::Alert"| CUL
+
+    CUL -->|"regulate: metacognitive override<br/>CuratorDirective"| CYL
+    CUL -->|"read: set-points, variety"| CYL
+
+    IL -.->|"via transport"| TR
+    ML -.->|"via transport"| TR
+    CUL -.->|"via transport"| TR
+    CYL -.->|"via transport"| TR
+```
+
+**Key rules:** Domain loops signal their governing meta loop but never each other directly. Transport is a dumb pipe, not a regulator. The Curation Loop is the single authority that can override any meta loop's decision.
+
+### 1.5.4 Strangler Fig Extraction Log
+
+The service layer was extracted from duplicated surface logic using the strangler fig pattern:
+
+| Service | Extracted From | When | Constraint |
+|---------|---------------|------|------------|
+| `hkask-services-backup` | `hkask-services` | v0.27.0 | P5 (Essentialism — parallel compilation benefit) |
+| `AgentService` (28-field consolidation) | CLI + API duplicate chains | v0.28.0 | P7 (Evolutionary Architecture — seam emerged from real usage) |
+| Named accessor pattern (individual methods) | 8-group-method tuple pattern | v0.28.0 | P5 (Essentialism — callers typically need one field, not a group) |
 
 ---
 
@@ -76,6 +185,19 @@ A contract may have **one motivating principle** and **multiple constraining pri
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — gas budget enforcement prevents runaway agents
 **Constraining Principle:** P8 (Semantic Grounding) — type-level identity for energy cost types
 **Crate:** `hkask-cns` | **Source:** `src/energy.rs`
+
+```mermaid
+erDiagram
+    EnergyBudget ||--o{ EnergyCost : "consumes in units of"
+    EnergyBudget ||--|| EnergyAccount : "draws from"
+    EnergyBudget ||--o{ DepletionSignal : "emits on exhaustion"
+    EnergyBudget ||--o{ ReplenishmentCycle : "restores via"
+    EnergyBudget }o--|| P9_Homeostatic : "regulated by"
+    EnergyBudget }o--|| P4_OCAP : "bounded by"
+    EnergyBudget {
+        string userExpectation "User expects the system to prevent runaway agent resource consumption"
+    }
+```
 
 #### Production Contracts (16)
 
@@ -117,6 +239,19 @@ A contract may have **one motivating principle** and **multiple constraining pri
 **Constraining Principle:** P4 (Clear Boundaries) — cap enforcement through binary classification
 **Crate:** `hkask-cns` | **Source:** `src/algedonic.rs`
 
+```mermaid
+erDiagram
+    AlgedonicManager ||--o{ RuntimeAlert : "fires"
+    AlgedonicManager ||--o{ VarietyCounter : "monitors"
+    AlgedonicManager ||--o{ CurationLoop : "signals"
+    RuntimeAlert ||--o{ CnsSpan : "emits"
+    AlgedonicManager }o--|| P9_Homeostatic : "goal"
+    RuntimeAlert }o--|| P4_OCAP : "constrained by"
+    AlgedonicManager {
+        string userExpectation "User expects the system to alert when regulation thresholds are breached"
+    }
+```
+
 #### Production Contracts (4)
 
 | FR# | Contract ID | Function | Principle Annotations |
@@ -142,6 +277,22 @@ A contract may have **one motivating principle** and **multiple constraining pri
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — single entry point for CNS observability and regulation
 **Constraining Principles:** P3 (Generative Space — sync variants), P7 (Evolutionary Architecture — calibrate), P12 (Affirmative Consent — subscribe)
 **Crate:** `hkask-cns` | **Source:** `src/runtime.rs`
+
+```mermaid
+erDiagram
+    CnsRuntime ||--o{ VarietyMonitor : "owns"
+    CnsRuntime ||--o{ OutcomeTracker : "owns"
+    CnsRuntime ||--o{ EnergyBudget : "registers"
+    CnsRuntime ||--o{ CnsObserver : "subscribes"
+    VarietyMonitor ||--o{ SpanNamespace : "counters"
+    OutcomeTracker ||--o{ RuntimeAlert : "emits"
+    CnsRuntime }o--|| P9_Homeostatic : "goal"
+    CnsRuntime }o--|| P3_Generative : "constrained by"
+    CnsRuntime }o--|| P12_Consent : "constrained by"
+    CnsRuntime {
+        string userExpectation "User expects unified CNS observability and regulation feedback"
+    }
+```
 
 #### P9 Production Contracts (18)
 
@@ -206,6 +357,20 @@ A contract may have **one motivating principle** and **multiple constraining pri
 **Constraining Principle:** P12 (Affirmative Consent — agent identity is the consent anchor)
 **Crate:** `hkask-cns` | **Source:** `src/governed_tool.rs`
 
+```mermaid
+erDiagram
+    GovernedTool ||--|| McpTool : "wraps"
+    GovernedTool ||--|| CyberneticsLoop : "bound to"
+    GovernedTool ||--|| EnergyBudget : "checks"
+    GovernedTool ||--|| AgentIdentity : "requires"
+    GovernedTool }o--|| P9_Homeostatic : "goal"
+    GovernedTool }o--|| P4_OCAP : "goal"
+    GovernedTool }o--|| P12_Consent : "constrained by"
+    GovernedTool {
+        string userExpectation "User expects tool execution gated behind OCAP capability checks"
+    }
+```
+
 #### Production Contracts (3)
 
 | FR# | Contract ID | Function | Principle Annotations |
@@ -230,6 +395,19 @@ A contract may have **one motivating principle** and **multiple constraining pri
 **Constraining Principle:** P12 (Affirmative Consent — agent identity is required for attribution)
 **Crate:** `hkask-cns` | **Source:** `src/governed_inference.rs`
 
+```mermaid
+erDiagram
+    GovernedInference ||--|| InferencePort : "wraps"
+    GovernedInference ||--|| CyberneticsLoop : "bound to"
+    GovernedInference ||--|| AgentIdentity : "requires"
+    GovernedInference ||--|| CompositeEnergyEstimator : "uses"
+    GovernedInference }o--|| P9_Homeostatic : "goal"
+    GovernedInference }o--|| P4_OCAP : "goal"
+    GovernedInference {
+        string userExpectation "User expects inference calls gated behind energy budget checks"
+    }
+```
+
 #### Production Contracts (2)
 
 | FR# | Contract ID | Function | Principle Annotations |
@@ -251,6 +429,18 @@ A contract may have **one motivating principle** and **multiple constraining pri
 **Constraining Principle:** P4 (Clear Boundaries) — circuit state transitions are boundary conditions
 **Crate:** `hkask-cns` | **Source:** `src/circuit_breaker.rs`
 
+```mermaid
+erDiagram
+    CircuitBreaker ||--o{ FailureCount : "tracks"
+    CircuitBreaker ||--o{ SuccessCount : "tracks"
+    CircuitBreaker ||--o{ HalfOpenProbe : "tests recovery"
+    CircuitBreaker }o--|| P9_Homeostatic : "goal"
+    CircuitBreaker }o--|| P4_OCAP : "constrained by"
+    CircuitBreaker {
+        string userExpectation "User expects system to prevent cascading failures in external service calls"
+    }
+```
+
 #### Production Contracts (3)
 
 | FR# | Contract ID | Function | Principle Annotations |
@@ -265,6 +455,19 @@ A contract may have **one motivating principle** and **multiple constraining pri
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — per-key rate limiting, gas tracking, and CNS spans
 **Constraining Principles:** P7 (Evolutionary Architecture — hardcoded endpoint weight table, configurable later), P4 (Clear Boundaries — rate limit thresholds are boundary conditions)
 **Crate:** `hkask-cns` | **Source:** `src/api_metering.rs`
+
+```mermaid
+erDiagram
+    ApiMeter ||--o{ RateLimitBucket : "per key"
+    ApiMeter ||--o{ ApiRequestSpan : "emits"
+    ApiMeter ||--o{ EndpointWeight : "weights"
+    RateLimitBucket ||--o{ TokenTracker : "daily"
+    ApiMeter }o--|| P9_Homeostatic : "goal"
+    ApiMeter }o--|| P4_OCAP : "constrained by"
+    ApiMeter {
+        string userExpectation "User expects per-key rate limits and gas tracking for API stability"
+    }
+```
 
 #### Production Contracts (8)
 
@@ -297,6 +500,18 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — composite estimator routes inference and table estimation
 **Crate:** `hkask-cns` | **Source:** `src/composite_energy_estimator.rs`, `src/wallet_energy_estimator.rs`
+
+```mermaid
+erDiagram
+    CompositeEnergyEstimator ||--o{ InferenceEstimator : "routes"
+    CompositeEnergyEstimator ||--o{ TableEstimator : "routes"
+    CompositeEnergyEstimator ||--o{ WalletEnergyEstimator : "delegates"
+    WalletEnergyEstimator ||--o{ PriceFeed : "consults"
+    CompositeEnergyEstimator }o--|| P9_Homeostatic : "goal"
+    CompositeEnergyEstimator {
+        string userExpectation "User expects energy costs estimated for regulated operations"
+    }
+```
 
 #### Production Contracts (2)
 
@@ -927,10 +1142,51 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 ### 3.18 Deployment (`deploy`)
 
 **Goal Principle:** P5 (Essentialism) — single binary, zero-config deployment, sidecar generation
-**Constraining Principles:** P4 (Clear Boundaries) — Caddy TLS perimeter, Conduit Matrix boundary; P1 (User Sovereignty) — OAuth sign-in per user
-**Crates:** `hkask-api`, `hkask-services` | **Reference:** `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md`
+**Constraining Principles:** P4 (Clear Boundaries) — Caddy TLS perimeter, Conduit Matrix boundary; P1 (User Sovereignty) — OAuth sign-in per user; P12 (Replicant Host Mandate) — every session has an owner
+**Crates:** `hkask-api`, `kask` (CLI) | **Reference:** `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md`
 
 The deployment domain covers the cloud server provisioning model: one `kask` binary, one server, multi-user access via browser terminal. Sidecar services (Caddy for TLS, Conduit for Matrix) are generated via `kask matrix deploy-sidecar` as Docker Compose configuration — the user owns the Docker runtime. There is no client binary. The browser is the client.
+
+**Deployment topology:**
+
+```mermaid
+erDiagram
+    CloudServer ||--|| Caddy : "TLS + reverse proxy"
+    CloudServer ||--|| Conduit : "Matrix homeserver"
+    CloudServer ||--o{ UserSession : "spawns per user"
+    UserSession ||--|| WebID : "scoped to"
+    UserSession ||--|| PTY : "pipes kask repl"
+    CloudServer ||--o{ TripleStore : "partitions by owner_webid"
+    CloudServer ||--|| Wallet : "cloud-only"
+    UserSession }o--|| P3_Generative : "goal"
+    UserSession }o--|| P1_Sovereignty : "constrains"
+    UserSession }o--|| P2_Consent : "constrains"
+    UserSession }o--|| P12_ReplicantHost : "constrains"
+    CloudServer {
+        string binary "single kask binary"
+        string access "browser xterm.js via WebSocket"
+    }
+    Caddy {
+        int port_80
+        int port_443
+        string tls "auto Let's Encrypt"
+    }
+    Conduit {
+        int port_8008
+        string database "SQLite-backed"
+    }
+    UserSession {
+        string webid FK
+        string provider "GitHub | Google"
+    }
+    TripleStore {
+        string owner_webid PK
+        string encryption "SQLCipher"
+    }
+    Wallet {
+        string location "cloud-only"
+    }
+```
 
 #### Production Contracts (12)
 
@@ -1112,6 +1368,54 @@ erDiagram
 ---
 
 ## 5. Goal-Principle Contract Anchoring
+
+### 5.0 Magna Carta → Principle → Contract Hierarchy
+
+The complete traceability chain from user expectation to behavioral enforcement:
+
+```mermaid
+erDiagram
+    UserFunctionalExpectation ||--o{ GoalPrinciple : "drives"
+    GoalPrinciple ||--o{ ConstrainingPrinciple : "constrained by"
+    ConstrainingPrinciple ||--o{ BehavioralContract : "enforces"
+    BehavioralContract ||--o{ Precondition : "declares"
+    BehavioralContract ||--o{ Postcondition : "guarantees"
+    BehavioralContract ||--o{ Invariant : "preserves"
+    GoalPrinciple ||--|| MagnaCartaPrinciple : "is one of"
+    UserFunctionalExpectation {
+        string id "FR-{N} from FUNCTIONAL_SPECIFICATION.md"
+        string statement "The OUGHT — user's stated functional need"
+    }
+    GoalPrinciple {
+        int id "P1-P12"
+        string role "Goal"
+    }
+    ConstrainingPrinciple {
+        int id "P1-P12 (excluding goal)"
+        string role "Constraining"
+    }
+    BehavioralContract {
+        string contract_id "P{N}-{domain}-{operation}"
+        string expect "User expectation in natural language"
+    }
+    Precondition {
+        string condition "pre:"
+    }
+    Postcondition {
+        string condition "post:"
+    }
+    Invariant {
+        string condition "inv:"
+    }
+    MagnaCartaPrinciple {
+        int id "P1-P4"
+        string name "Sovereignty | Consent | Generative | OCAP"
+    }
+```
+
+**Semantic invariant:** Every `// REQ:` contract traces upward through its constraining principles to a single goal (motivating) principle, which itself traces to a Magna Carta principle. The user's functional expectation — stated as an OUGHT in the spec — drives the goal principle selection. This is the explicit link: the user expectation is not merely "kept in mind" but structurally embedded as the driver of principle assignment.
+
+**Contract-completeness invariant** (`TESTING_DISCIPLINE.md` §1.4 — every `pub fn` carries `// REQ: pre:`): extends to a new completeness predicate: every `// REQ:` carries a referenced user expectation.
 
 ### 5.1 The Contract Architecture
 
@@ -1348,6 +1652,38 @@ Contracts not yet realigned:
 
 ---
 
+---
+
+## Future Work
+
+The following items are identified but deferred. They are documented here to preserve design intent and prevent rediscovery.
+
+### 1. Full `expect:` Field Migration
+
+Establishing the `expect:` field on all 1,419 contracts. The pattern is demonstrated in `TESTING_DISCIPLINE.md` §1.2 (extended syntax) and `FUNCTIONAL_SPECIFICATION.md` §5.2. Full migration is a mechanical transformation suitable for a future script or bulk edit — the semantic work (selecting the right user expectation sentence for each contract) requires domain understanding. Defer until the pattern is validated on the CNS domain contracts.
+
+### 2. Contract → UserExpectation Verification Automation
+
+The `contract-audit.sh` script currently verifies contract coverage (Link 1: Implementation → Contract). Links 2 (Contract → UserExpectation) and 3 (UserExpectation → GoalPrinciple) are manual verification. Automating these requires NLP-level semantic matching between the `expect:` natural language field and the contract's `pre:`/`post:` formal specification — a capability that may be appropriate for the Curator but is not yet specified.
+
+### 3. ER Diagram → Code Synchronization
+
+ER diagrams in `FUNCTIONAL_SPECIFICATION.md` §2–§4 are documentation artifacts; they can drift from the actual type definitions in `hkask-types`. A future `spec/graph/query` tool extension could verify diagram-to-code alignment automatically, similar to how `contract-audit.sh` verifies contract-to-code coverage. This requires the MDS spec server to parse Rust type definitions.
+
+### 4. Deployment Domain Implementation
+
+Domain 26 (Deployment) is documented as a specification (`FUNCTIONAL_SPECIFICATION.md` §3.18) but not implemented. The deployment plan (`docs/plans/deployment-and-backup.md`) is in Draft/Aligned status. Implementation is a separate project phase.
+
+### 5. Principle Conflict Resolution Formalization
+
+When constraining principles conflict (e.g., P1 sovereignty vs P4 OCAP boundary), the resolution rules are implicit in the existing codebase (higher-ranked principle dominates per Optimality Theory ranking). Formalizing this as a decision procedure in `PRINCIPLES.md` is future work — the current "Goal Principle Anchoring" rule (`PRINCIPLES.md` §1.6) covers the uncontested case.
+
+### 6. Domain ER Diagrams — Non-CNS Domains
+
+ER diagrams have been added for all 8 CNS domains (§2) and the deployment domain (§3.18). The remaining 18 non-CNS domains (§3) have entity models described in contract tables but not yet diagrammed. Adding compact ER diagrams for these domains is a deferred documentation task.
+
+---
+
 ## Appendix A: Document Metadata
 
 | Field | Value |
@@ -1361,8 +1697,8 @@ Contracts not yet realigned:
 | rSolidity Status | Macro crate implemented — see `RSOLIDITY_VOCABULARY.md` |
 | Governance | PRINCIPLES.md §0–§1.4 |
 | Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md` |
-| ERDs | §4 — Core domain model, deployment model, contract-anchoring model |
-| Goal-Principle Anchoring | §5 — Every contract has a goal principle (user expectation) + constraining principles |
+| ERDs | §2 — 8 CNS domain ER diagrams; §3.18 — deployment domain ER diagram; §4 — Core domain model, deployment model, contract-anchoring model; §5.0 — Magna Carta hierarchy ER diagram |
+| Goal-Principle Anchoring | §5 — Every contract has a goal principle (user expectation) + constraining principles; §5.0 — Magna Carta → Principle → Contract hierarchy ER diagram |
 
 ## Appendix B: Validation Checklist
 
@@ -1374,8 +1710,17 @@ Contracts not yet realigned:
 - [x] Realignment status table complete
 - [x] Contract ID format specification complete with goal-principle anchoring
 - [x] Non-CNS domain contracts (wallet, storage, memory, inference, templates) — realigned and verified
-- [x] Entity Relationship Diagrams added (§4) — core domain, deployment, contract-anchoring
-- [x] Goal-Principle Contract Anchoring specification complete (§5) — user_expectation field, principle role matrix, traceability chain
+- [x] Magna Carta → Principle → Contract hierarchy ER diagram added (§5.0)
+- [x] User Expectation column added to domain map (§1)
+- [x] Service Layer Architecture section added (§1.5) — AgentService structure, dependency direction, loop membrane, strangler fig log
+- [x] Domain ER diagrams added for 8 CNS domains (§2) + deployment (§3.18)
+- [x] `expect:` syntax documented in TESTING_DISCIPLINE.md §1.2
+- [x] Bidirectional verification path documented in TESTING_DISCIPLINE.md §6.1
+- [x] Goal Principle Anchoring rule added to PRINCIPLES.md §1.6
+- [x] User expectation origin paragraph added to TESTING_NARRATIVE.md §1.1
+- [x] All document metadata updated (version, status, cross-references) across 9 documents
+- [x] Contract audit run (2362 REQ tags, 132.9% coverage) — gaps documented in PROJECT_STATUS.md
+- [x] Future Work section added (§Future Work)
 - [x] Deployment domain specification (§3.18) — 12 production contracts, 4 test contracts
 - [x] Web Interface specification — OAuth, xterm.js terminal, WebSocket PTY (planned — see `docs/plans/deployment-and-backup.md`)
 - [x] Multi-User specification — Admin/Member roles, invite flow, admin-only endpoints (planned)

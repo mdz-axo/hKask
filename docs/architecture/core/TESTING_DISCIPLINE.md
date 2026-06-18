@@ -50,6 +50,24 @@ pub fn verify_sovereignty(webid: &WebID) -> Result<SovereigntyState, Sovereignty
 }
 ```
 
+**Extended syntax with user expectation (v0.28.0):**
+
+```rust
+/// REQ: sovereignty-verify-001
+/// expect: "The user shall be able to verify the sovereignty state of any valid WebID" [P1]
+/// pre:  webid is a valid, non-nil WebID
+/// post: returns Ok(sovereignty_state) where state.webid == webid
+///       OR returns Err(NotFound) if webid has no sovereignty record
+/// inv:  does not modify any stored state (read-only)
+pub fn verify_sovereignty(webid: &WebID) -> Result<SovereigntyState, SovereigntyError> {
+    // ...
+}
+```
+
+The `expect:` field is the user's functional expectation in natural language. The `[P{N}]` tag names the goal principle that this expectation activates. The existing `[P{N}] Constraining:` annotations on the contract body remain unchanged. See `FUNCTIONAL_SPECIFICATION.md` §5.0 for the full hierarchy and `PRINCIPLES.md` §1.6 for Goal Principle Anchoring rules.
+
+### 1.2a Contract Syntax (Original)
+
 For types with cross-operation invariants:
 
 ```rust
@@ -335,6 +353,23 @@ CNS Span ──→ cns.energy.budget_check
 
 Every link is traceable. The `// REQ:` tag on the test references the contract ID. The contract ID embeds the goal principle (P9). The goal principle maps to the functional requirement (FR-E12). The TDD skill's gap-check verifies that every spec criterion has a matching `// REQ:` tag.
 
+**Bidirectional verification path (v0.28.0):**
+
+```
+Forward (implementation direction):
+    Spec → Contract → Test → Implementation
+
+Reverse (verification direction):
+    Implementation ──verify──► Contract    (does the code satisfy the contract?)
+    Contract       ──verify──► UserExpectation   (does the contract encode the user's expectation?)
+    UserExpectation ──verify──► GoalPrinciple    (does the expectation align with the right principle?)
+```
+
+This makes the verification loop explicit:
+- **Link 1** (Implementation → Contract): Verified by `contract-audit.sh` — every `pub fn` carries `/// REQ:` with `pre:`/`post:` conditions.
+- **Link 2** (Contract → UserExpectation): Manual verification — the `expect:` field's natural language statement must semantically match the `pre:`/`post:` formal specification. Future automation may use NLP-level semantic matching (see `FUNCTIONAL_SPECIFICATION.md` §Future Work).
+- **Link 3** (UserExpectation → GoalPrinciple): Manual verification — the `[P{N}]` tag on the `expect:` line must be the principle that the expectation directly expresses. Cross-checked against the domain map in `FUNCTIONAL_SPECIFICATION.md` §1.
+
 ### 6.2 TDD Cycle with Contracts
 
 The TDD skill's RED→GREEN→REFACTOR cycle, augmented with contracts:
@@ -604,4 +639,4 @@ Target: 100% of public functions have contracts. **Achieved 2026-06-17** — 233
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.28.0*

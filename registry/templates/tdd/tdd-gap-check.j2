@@ -74,6 +74,16 @@ These are the behaviors that have tracer bullets (tests) written for them:
 6. **Deferrals go to OPEN_QUESTIONS.md**: Every deferred gap must have a documented rationale.
 7. **Probabilistic contracts**: If a spec requirement governs non-deterministic behavior (LLM agent output, inference validation, improv compliance), verify that the tracer bullet includes a `prob:` field in the contract per Testing Discipline §7.6. A contract without `prob:` for a non-deterministic function is a coverage gap — the test framework cannot distinguish random noise from actual contract violations.
 
+### Contract Quality Analysis
+
+Beyond coverage, verify that each contract's four layers (per Contract Architecture) are correct:
+
+8. **user_expectation quality**: Does the `user_expectation:` faithfully capture the verbal expectation from the spec? Is it in the user's voice ("I can...", "I want..."), not the implementer's voice ("the system shall...")? A misplaced implementer-voice expectation is a gap — rewrite it.
+9. **Goal principle correctness**: Does `[P{N}] Goal:` match the spec's declared goal principle? Does the principle's semantic guarantee actually justify this contract? A mismatch is a gap — correct the principle annotation.
+10. **Constraining principle completeness**: Are all applicable constraining principles declared? To check: for each of P1–P12, ask "would implementing this contract without this principle violate it?" If yes, the principle should appear as `[P{N}] Constraining:`. Missing constraints are coverage gaps.
+11. **Contract ID format**: Does the `REQ:` tag use `P{N}-{domain}-{operation}` format? Does the `P{N}` prefix match the `[P{N}] Goal:` annotation? Format violations and prefix mismatches are gaps — correct the contract ID.
+12. **Constraint violation detection**: For each `[P{N}] Constraining:` annotation, is there a test that verifies the constraint is not violated? If a constraint has no enforcement test, the constraint is declarative only — flag as a coverage gap.
+
 ## MDS Priority Categories
 
 | Priority | MDS Category | Resolution |
@@ -90,24 +100,32 @@ Respond with a JSON object:
 {
   "covered_requirements": [
     {
-      "spec_id": "UUID from spec/goal/capture",
+      "contract_id": "P9-cns-energy-budget-can-proceed",
       "requirement": "Fail-closed capability checker",
       "test_name": "capability_check_denies_when_no_checker",
       "seam": "CapabilityChecker trait",
       "priority": "P0",
       "is_complete": true,
       "is_probabilistic": false,
-      "has_prob_contract": null
+      "has_prob_contract": null,
+      "contract_quality": {
+        "user_expectation_correct": true,
+        "goal_principle_match": true,
+        "constraining_principles_complete": true,
+        "contract_id_format_valid": true,
+        "constraint_enforcement_tested": true
+      }
     }
   ],
   "gaps": [
     {
-      "spec_id": "UUID from spec/goal/capture",
+      "contract_id": "P9-cns-energy-budget-can-proceed",
       "requirement": "Encrypted storage at rest",
       "priority": "P0",
       "recommendation": "tracer-bullet",
       "rationale": "P0 security requirement must have test coverage",
-      "unsatisfied_criteria": ["Criterion descriptions from GoalSpec"]
+      "unsatisfied_criteria": ["Criterion descriptions from GoalSpec"],
+      "gap_type": "missing_coverage|missing_user_expectation|wrong_goal_principle|missing_constraint|contract_id_mismatch|constraint_not_enforced"
     }
   ],
   "deferrals": [

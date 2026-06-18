@@ -52,6 +52,40 @@ pub async fn plussing_respond(&self, input: &str) -> String { ... }
 
 Only apply probabilistic contracts to LLM agent behaviors or other non-deterministic functions. Deterministic functions use standard contracts without `prob:`.
 
+### Contract Architecture — Principles as Terms
+
+Every contract is a **smart contract between code and user expectation**, with hKask's 12 architectural principles as the governing terms (PRINCIPLES.md §1.5). A contract has four layers, each answering a distinct question:
+
+| Layer | Field | Question Answered |
+|-------|-------|-------------------|
+| **Verbal expectation** | `user_expectation:` | What did the user say they want? (in the user's voice) |
+| **Goal principle** | `[P{N}] Goal:` | Which principle justifies this as a user-visible guarantee? |
+| **Constraining principles** | `[P{N}] Constraining:` | What can the code *not* do and stay principle-aligned? |
+| **Behavioral specification** | `pre:` / `post:` / `inv:` | What are the caller's obligations and the function's guarantees? |
+
+A complete contract:
+
+```rust
+/// REQ: P9-cns-energy-budget-can-proceed
+/// user_expectation: "I can check whether an agent has enough gas before executing"
+/// pre:  gas is a valid EnergyCost
+/// post: returns true iff budget has >= gas remaining and circuit breaker allows
+/// inv:  does not consume gas (read-only check)
+/// [P9] Goal: Homeostatic Self-Regulation — prevents runaway agent execution
+/// [P4] Constraining: Clear Boundaries — cap enforces resource boundary
+/// [P3] Constraining: Generative Space — cap is user-visible, not hidden
+pub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }
+```
+
+**Contract ID format** (FUNCTIONAL_SPECIFICATION.md §7): `P{N}-{domain-abbreviation}-{operation-verb-phrase}`. The `P{N}` prefix encodes the goal principle directly in the ID.
+
+The TDD's role is to ensure every tracer bullet produces a contract with all four layers and validates each:
+- Does `user_expectation` faithfully capture the spec requirement in the user's voice?
+- Does `[P{N}] Goal:` correctly identify the principle that makes this a user-visible guarantee?
+- Do `[P{N}] Constraining:` annotations correctly express what principles forbid?
+- Do `pre:` / `post:` / `inv:` form a machine-checkable behavioral specification?
+- Does the implementation satisfy the behavioral specification without violating constraining principles?
+
 ### Spec-Anchored Testing
 
 Every tracer bullet starts from a specification requirement, not from intuition. The specification is the source of truth for *what* to test. Without spec anchoring, tests validate behavior that may not matter and miss behavior that does.
@@ -142,28 +176,38 @@ Ask: "Which MDS categories does this change touch? What should the public interf
 Write ONE contract and ONE test that confirm ONE thing about the system:
 
 ```
-CONTRACT: Write the contract (// REQ: pre: ... post: ...) on the function signature
-RED:     Write property-based test verifying the contract → test fails
-GREEN:   Write minimal code to satisfy the contract → test passes
+CONTRACT: Write the full contract on the function signature — user_expectation, pre/post/inv, [P{N}] Goal, [P{N}] Constraining
+RED:     Write property-based test verifying the behavioral specification → test fails
+GREEN:   Write minimal code to satisfy the contract without violating constraining principles → test passes
 ```
 
-Each contract must include a `// REQ:` tag that references the spec's `id` field from `Spec`. For deterministic functions, the contract has `pre:` and `post:` fields. For non-deterministic functions (LLM agent behaviors, inference output), add a `prob:` field with `p`, `δ`, and `k` parameters per Testing Discipline §7.6.
+Each contract must include:
+- `/// REQ: P{N}-{domain}-{operation}` — contract ID with goal principle prefix
+- `/// user_expectation:` — the user's functional expectation in their own voice
+- `/// pre:` and `/// post:` — the behavioral specification (Testing Discipline §1.2)
+- `/// inv:` — type invariants where applicable
+- `/// [P{N}] Goal:` — the principle that justifies this as a user-visible guarantee (exactly one)
+- `/// [P{N}] Constraining:` — principles that constrain how the goal is delivered (zero to many)
+
+For non-deterministic functions (LLM agent behaviors, inference output), add `/// prob: p=X, δ=Y, k=Z` per Testing Discipline §7.6.
+
 ```rust
-/// REQ: <spec_id>
-/// pre:  webid is a valid, non-nil WebID
-/// post: returns Ok(state) where state.webid == webid
-pub fn verify_sovereignty(webid: &WebID) -> Result<SovereigntyState, SovereigntyError> {
-    // ...
-}
+/// REQ: P9-cns-energy-budget-can-proceed
+/// user_expectation: "I can check whether an agent has enough gas before executing"
+/// pre:  gas is a valid EnergyCost
+/// post: returns true iff budget has >= gas remaining and circuit breaker allows
+/// inv:  does not consume gas (read-only check)
+/// [P9] Goal: Homeostatic Self-Regulation — prevents runaway agent execution
+/// [P4] Constraining: Clear Boundaries — cap enforces resource boundary
+pub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }
 ```
 
-Each test must include a `// REQ:` comment matching the contract's spec_id:
+Each test carries a `// REQ:` comment matching the contract's `P{N}-{domain}-{operation}` ID:
 ```rust
-// REQ: <spec_id> — sovereignty verification returns correct state
+// REQ: P9-cns-energy-budget-can-proceed — energy budget check with resource boundary
 #[test]
-fn sovereignty_verify_returns_correct_state() { ... }
+fn energy_budget_can_proceed_with_circuit_breaker() { ... }
 ```
-The `spec_id` is the UUID returned by `spec/goal/capture`. For human readability, include the MDS category and a brief summary after the em-dash.
 
 ### 3. Incremental Loop
 
@@ -177,10 +221,11 @@ GREEN:   Minimal code to pass → passes
 
 Rules:
 - One contract + one test at a time
-- Only enough code to satisfy the current contract
+- Only enough code to satisfy the current contract without violating constraining principles
 - Don't anticipate future contracts
 - Keep contracts focused on observable behavior
-- Each contract and test carries its `// REQ:` tag
+- Each contract includes all 4 layers: user_expectation, goal principle, constraining principles, behavioral specification
+- Each contract and test carries its `P{N}-{domain}-{operation}` REQ tag
 
 **Fuzz and system layers** follow the same tracer-bullet pattern when applicable:
 - **Fuzz tracer bullet** (Testing Discipline §2.4, T6): For `pub fn` input surfaces that accept arbitrary data from external sources. Contract: precondition = "any input", postcondition = "does not panic". Use `catch_unwind` + proptest with unlimited input generation. Fuzz tests live in `tests/` at crate root.
@@ -219,6 +264,12 @@ After verification, compare tested behaviors against specification requirements:
 
 This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage).
 
+**Contract quality sub-check:** For each contract in scope, verify the 4 layers:
+1. **user_expectation** — Does it faithfully capture the verbal expectation from the spec? Is it in the user's voice, not the implementer's?
+2. **Goal principle** — Is `[P{N}] Goal:` the correct principle? Does the principle's guarantee semantically match what the contract promises?
+3. **Constraining principles** — Are all applicable constraints declared? Would relaxing one violate a principle?
+4. **Behavioral specification** — Do `pre:` / `post:` / `inv:` form a complete machine-checkable specification? Can a failing test distinguish a contract violation from a test bug?
+
 ### 7. CNS Feedback Integration
 
 The TDD cycle is a pre-commit development activity. Post-deployment, the CNS provides runtime contract monitoring per Testing Discipline §7.3. CNS violations feed back into the TDD cycle as triggers for new tracer bullets:
@@ -236,13 +287,17 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 ## Checklist Per Cycle
 
 ```
-[ ] Contract written before test (// REQ: pre: ... post: ...)
-[ ] Contract references a specification requirement (spec_id)
-[ ] Test is property-based (proptest) where applicable, verifying the contract
+[ ] Contract written before test with all 4 layers:
+    [ ] user_expectation — faithful to spec, in user's voice
+    [ ] [P{N}] Goal — correct principle, semantically matches contract promise
+    [ ] [P{N}] Constraining — all applicable constraints declared
+    [ ] pre:/post:/inv: — complete machine-checkable behavioral specification
+[ ] Contract ID uses P{N}-{domain}-{operation} format (FUNCTIONAL_SPECIFICATION.md §7)
+[ ] Test is property-based (proptest) where applicable, verifying the behavioral specification
 [ ] Test uses public interface only (seam, not internals)
 [ ] Test would survive internal refactor
-[ ] Test carries a // REQ: tag matching the contract's spec_id
-[ ] Code is minimal to satisfy the contract
+[ ] Test carries a // REQ: tag matching the contract's P{N}-{domain}-{operation} ID
+[ ] Code is minimal to satisfy the contract without violating constraining principles
 [ ] No speculative features added
 [ ] No todo!() or unimplemented!() stubs
 [ ] cargo test -p <crate> passes
@@ -253,8 +308,12 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 
 ```
 [ ] Every spec requirement in scope has a contract + tracer bullet OR a documented deferral
-[ ] No // REQ: tag references a non-existent spec_id
+[ ] No // REQ: tag references a non-existent contract ID
 [ ] Each MDS category in scope has coverage (Domain, Composition, Trust, Lifecycle, Curation)
+[ ] Every contract's user_expectation faithfully captures the spec's verbal expectation
+[ ] Every contract's [P{N}] Goal correctly identifies the justifying principle
+[ ] Every contract's [P{N}] Constraining annotations are complete
+[ ] No implementation violates constraining principles
 [ ] Contract completeness audit shows no regression (Testing Discipline §9.2)
 [ ] Gaps are recorded in OPEN_QUESTIONS.md with deferral rationale
 ```

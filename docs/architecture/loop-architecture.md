@@ -1,8 +1,8 @@
 ---
 title: "Loop Architecture — Semantic Root-Cause Analysis & Four-Loop Decomposition"
 audience: [architects, developers, agents]
-last_updated: 2026-06-15
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Architecture"
 mds_categories: [domain, composition, lifecycle, curation]
@@ -12,7 +12,9 @@ mds_categories: [domain, composition, lifecycle, curation]
 
 **Purpose:** Establish that rate limiting is a redundant projection of energy tracking, decompose hKask into four semantic loops, map crates to loops, define capability membranes, and document open questions.
 
-**Related:** [`PRINCIPLES.md`](core/PRINCIPLES.md), [`MDS.md`](core/MDS.md), [`magna-carta.md`](core/magna-carta.md)
+**Related:** [`PRINCIPLES.md`](core/PRINCIPLES.md), [`MDS.md`](core/MDS.md), [`magna-carta.md`](core/magna-carta.md), [`FUNCTIONAL_SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md)
+
+**Cross-reference:** `FUNCTIONAL_SPECIFICATION.md` §1.5 — Service Layer Architecture documents the loop membrane diagram and transport rules; §4 — ER diagrams for all 26 domains.
 
 ---
 

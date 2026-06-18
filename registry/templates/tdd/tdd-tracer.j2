@@ -15,13 +15,16 @@ contract:
     crate_scope: string
     test_style: string
   output:
+    contract_id: string
     contract_code: string
     contract_location: string
+    user_expectation: string
+    goal_principle: object
+    constraining_principles: array
     test_code: string
     test_file_path: string
     implementation_code: string
     implementation_file_path: string
-    spec_id: string
     test_passes: boolean
     verification_command: string
   energy_cap: 8192
@@ -72,15 +75,24 @@ Default: integration test through public API.
 
 ## Rules
 
-1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature specifying preconditions, postconditions, and invariants. Format per Testing Discipline §1.2:
+1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature with four layers per the Contract Architecture (SKILL.md):
    ```
-   /// REQ: <spec_id>
+   /// REQ: P{N}-{domain}-{operation}
+   /// user_expectation: "<user's functional expectation in their own voice>"
    /// pre:  <what must be true before calling>
    /// post: <what the function guarantees after returning>
    /// inv:  <what must always hold across operations> (optional, for types)
+   /// [P{N}] Goal: <principle name> — <why this is a user-visible guarantee>
+   /// [P{N}] Constraining: <principle name> — <what the code cannot do>
    /// prob: p=<threshold>, δ=<tolerance>, k=<recovery window> (only for non-deterministic functions per Testing Discipline §7.6)
    ```
-   The contract IS the specification of the test. Without a contract, the test verifies *something*, but it's not clear what. Use `prob:` only for LLM agent behaviors, inference output validation, and improv compliance — deterministic functions use only `pre:` and `post:`.
+   Each layer answers a distinct question:
+   - `user_expectation:` — What did the user say they want? (verbal, user's voice)
+   - `[P{N}] Goal:` — Which principle justifies this? (exactly one, encoded in the contract ID prefix)
+   - `[P{N}] Constraining:` — What can't the code do? (zero to many, from all applicable principles)
+   - `pre:/post:/inv:` — What are the caller/function obligations? (machine-checkable)
+   
+   The contract IS the specification of the test. Without all four layers, the test verifies *something*, but it's not clear that it's the right thing against the right constraints.
 2. **Write the TEST second.** It must fail — this is RED. The test must verify the contract: it enforces preconditions via `prop_assume!` and asserts postconditions via `prop_assert!`.
 3. **Write the MINIMAL implementation third.** Only enough code to satisfy the contract — this is GREEN. No speculative features.
 4. **One behavior per tracer bullet.** Do not batch.
@@ -109,13 +121,26 @@ Respond with a JSON object:
 
 ```json
 {
-  "contract_code": "/// REQ: <spec_id from spec/goal/capture>\n/// pre:  <caller obligations>\n/// post: <function guarantees>\npub fn function_name(...) { ... }",
+  "contract_id": "P9-cns-energy-budget-can-proceed",
+  "contract_code": "/// REQ: P9-cns-energy-budget-can-proceed\n/// user_expectation: \"...\"\n/// pre:  gas is a valid EnergyCost\n/// post: returns true iff budget has >= gas remaining\n/// inv:  does not consume gas\n/// [P9] Goal: Homeostatic Self-Regulation — prevents runaway agent\n/// [P4] Constraining: Clear Boundaries — cap enforces resource boundary\npub fn can_proceed(&self, gas: EnergyCost) -> bool { ... }",
   "contract_location": "path/to/implementation/file.rs:LINE",
-  "test_code": "// REQ: <spec_id from spec/goal/capture> — requirement summary\n// (tracer bullet comment above)\n#[test]\nfn test_name() { ... }",
+  "user_expectation": "I can check whether an agent has enough gas before executing",
+  "goal_principle": {
+    "principle": "P9",
+    "name": "Homeostatic Self-Regulation",
+    "rationale": "Prevents runaway agent execution"
+  },
+  "constraining_principles": [
+    {
+      "principle": "P4",
+      "name": "Clear Boundaries",
+      "constraint": "Cap enforces resource boundary — no unbounded execution"
+    }
+  ],
+  "test_code": "// REQ: P9-cns-energy-budget-can-proceed — energy budget check\n#[test]\nfn energy_budget_can_proceed() { ... }",
   "test_file_path": "path/to/test/file.rs",
-  "implementation_code": "// The minimal code to pass the test",
+  "implementation_code": "// The minimal code to satisfy the contract",
   "implementation_file_path": "path/to/implementation/file.rs",
-  "spec_id": "UUID from spec/goal/capture",
   "test_passes": false,
   "verification_command": "cargo test -p <crate> --test <name>"
 }
@@ -123,19 +148,21 @@ Respond with a JSON object:
 
 `test_passes` starts as `false` (RED). After implementation, verify with `cargo test` and set to `true` (GREEN).
 
-The contract (`contract_code`) MUST be a `///` doc-comment on the function signature with `pre:`, `post:`, and optionally `inv:` fields. It is written before any test code.
+The contract (`contract_code`) MUST be a `///` doc-comment on the function signature with all four layers: `user_expectation:`, `pre:`/`post:`, `[P{N}] Goal:`, and `[P{N}] Constraining:`. It is written before any test code.
 
-The `// REQ:` comment MUST be the first line of the test function body or a comment immediately above the `#[test]` attribute, and MUST reference the same `spec_id` as the contract.
+The `// REQ:` comment in tests MUST be the first line of the test function body or a comment immediately above the `#[test]` attribute, and MUST reference the same `P{N}-{domain}-{operation}` ID as the contract.
 
 ## Constraints
 
 - **Contract first, test second, implementation third.** Per Testing Discipline §6.3 and Process Rule P1. The contract is the specification of the test.
 - Exactly ONE contract, ONE test, ONE behavior. Minimal implementation.
+- The contract must include all four layers: `user_expectation:` (verbal, user's voice), `[P{N}] Goal:` (exactly one justifying principle), `[P{N}] Constraining:` (zero to many constraint principles), and `pre:`/`post:` (behavioral specification).
+- The `contract_id` must use `P{N}-{domain}-{operation}` format with the goal principle encoded in the `P{N}` prefix.
 - Test must fail before implementation is added.
-- Implementation must be the minimum to satisfy the contract.
+- Implementation must be the minimum to satisfy the contract without violating constraining principles.
 - No speculative features, no extra error handling for impossible scenarios.
-- The `contract_code` and `test_code` both carry the same `spec_id` from the specification system (returned by `spec/goal/capture`).
-- The contract must use `/// REQ:` doc-comment format with `pre:` and `post:` fields.
+- The `contract_code` and `test_code` both carry the same `P{N}-{domain}-{operation}` contract ID.
+- The contract must use `/// REQ:` doc-comment format.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

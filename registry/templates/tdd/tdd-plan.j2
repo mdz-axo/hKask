@@ -91,7 +91,11 @@ No specification data was provided and no specs were found for the given categor
 
 ## Planning Requirements
 
-1. **Functional requirements**: Extract every requirement from the specification graph that is in scope for this task. Use the `spec_id` as the stable reference. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet.
+1. **Functional requirements**: Extract every requirement from the specification graph that is in scope for this task. Use the `spec_id` as the stable reference. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet. For each requirement, identify:
+   - **user_expectation**: The verbal description in the user's voice — what they said they want.
+   - **goal_principle**: Which of the 12 principles (P1–P12) motivates this requirement as a user-visible guarantee. Exactly one per requirement.
+   - **constraining_principles**: Which principles constrain *how* this can be delivered. Zero to many. These are what the code cannot do and stay principle-aligned.
+   - **contract_id**: Draft in `P{N}-{domain}-{operation}` format with the goal principle encoded in the `P{N}` prefix.
 2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface AND must reference the `spec_id` from the specification graph. Classify each behavior's test type: `unit` (single function contract), `integration` (cross-module contract chain), `contract` (type invariants across operations), `fuzz` (panic-free on arbitrary input), `system` (cross-crate end-to-end workflow). Per Testing Discipline §2.4, fuzz and system layers follow the same tracer-bullet pattern — one contract, one test, one implementation.
 3. **Public interface**: Describe the interface changes needed.
 4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical (Trust). P1 = correctness (Domain, Composition). P2 = ergonomics (Lifecycle, Curation). Only plan tracer bullets for specs with `Accept` curation decisions (curation is external — Curator or human).
@@ -121,9 +125,22 @@ Respond with a JSON object:
 {
   "functional_requirements": [
     {
-      "spec_id": "UUID from spec/goal/capture",
+      "contract_id": "P9-cns-energy-budget-can-proceed",
       "category": "trust",
       "requirement": "Fail-closed capability checker",
+      "user_expectation": "I can check whether an agent has enough gas before executing",
+      "goal_principle": {
+        "principle": "P9",
+        "name": "Homeostatic Self-Regulation",
+        "rationale": "Prevents runaway agent execution"
+      },
+      "constraining_principles": [
+        {
+          "principle": "P4",
+          "name": "Clear Boundaries",
+          "constraint": "Cap enforces resource boundary"
+        }
+      ],
       "seam": "CapabilityChecker trait",
       "priority": "P0",
       "curation_decision": "Accept|Revise|Reject"

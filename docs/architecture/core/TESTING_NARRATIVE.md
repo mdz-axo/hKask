@@ -1,8 +1,8 @@
 ---
 title: "Testing Discipline — Narrative Companion"
 audience: [developers, agents]
-last_updated: 2026-06-17
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle, curation]
@@ -20,7 +20,9 @@ By the time you finish reading, you should understand the architecture of hKask'
 
 ### 1.1 Where It All Starts: The Functional Spec
 
-Every feature in hKask begins life as a functional specification. These specs follow the **Minimal Domain Specification** (MDS) methodology — a capability-driven framework where specifications are *grants* ("this agent CAN verify sovereignty via this interface"), not *fences* ("MUST NOT do X").
+Every feature in hKask begins life as a functional specification. And every functional specification begins with a **user expectation** — a single sentence stating what the user functionally needs. This is the origin point of the entire traceability chain: the user's need traces through spec → contract → test → code → verified behavior.
+
+These specs follow the **Minimal Domain Specification** (MDS) methodology — a capability-driven framework where specifications are *grants* ("this agent CAN verify sovereignty via this interface"), not *fences* ("MUST NOT do X").
 
 When you run `spec/goal/capture` through the MCP spec server, you get back a goal with a set of criteria. Something like:
 

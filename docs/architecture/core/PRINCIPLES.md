@@ -14,6 +14,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Related:** [`AGENTS.md`](../../../AGENTS.md), [`hKask-architecture-master.md`](../hKask-architecture-master.md), [`FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md), [`TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md)
 
+**Cross-reference:** §1.6 Goal Principle Anchoring — links to `FUNCTIONAL_SPECIFICATION.md` §5.0 hierarchy diagram and `TESTING_DISCIPLINE.md` §1.2 `expect:` syntax.
+
 ---
 
 ## 0. Lazy Grounding: The Principle of Least Action
@@ -133,3 +135,26 @@ Each principle can serve in one of two roles within any given code contract:
 A single contract has exactly one goal principle (the ID prefix) and 1 to 11 constraining principles (body annotations). The goal principle encodes the explicit user functional expectation that the contract's tests verify. The constraining principles ensure the implementation respects all 11 other architectural constraints while achieving the goal.
 
 **The Magna Carta principles (P1–P4) are the most common constraining principles** — most contracts serve goals from P5–P12 while being constrained by sovereignty, consent, generativity, and boundary requirements.
+
+### 1.6 Goal Principle Anchoring (v0.28.0)
+
+**Structural rule:** One of the 12 principles is designated the **goal principle** for a functional expectation; the other 11 may **constrain** it. The goal principle is the one the user's expectation directly expresses — it answers "What does the user functionally need?" The constraining principles answer "What limits how the goal is achieved?"
+
+**Selection logic:**
+- The goal principle is the principle whose user-visible guarantee the contract's tests directly verify.
+- When the user expectation is *"I should be able to check whether an agent has enough gas"* → P9 (Homeostatic Self-Regulation) is the goal — the expectation directly expresses self-regulation.
+- When the user expectation is *"My agents should operate within my sovereignty boundaries"* → P1 (User Sovereignty) is the goal.
+- When the user expectation is *"I should be able to deploy hKask with a single binary"* → P5 (Essentialism) is the goal — the expectation directly expresses minimalism.
+
+**Constraining principle interaction:**
+- P4 OCAP boundaries may constrain P3 generative space: "Yes, the system is generative — but only within your capability tokens."
+- P2 Affirmative Consent may constrain P6 Space for Replicants: "Yes, bots operate — but only with explicit, scoped consent."
+- P9 Homeostatic Self-Regulation may constrain P3 generative expansiveness: "Yes, generate freely — but within your energy budget."
+
+**Principle conflict resolution (implicit):** When constraining principles conflict, the higher-ranked principle dominates per Optimality Theory ranking — Magna Carta principles (P1–P4) outrank operational principles (P5–P7), which outrank regulatory principles (P8–P9), which outrank agent principles (P10–P12). Formalization of this conflict resolution as a decision procedure is deferred to future work (see `FUNCTIONAL_SPECIFICATION.md` §Future Work).
+
+**Traceability:** This rule anchors the chain documented in `FUNCTIONAL_SPECIFICATION.md` §5.0:
+```
+UserFunctionalExpectation → GoalPrinciple → ConstrainingPrinciple → BehavioralContract → Pre/Post/Invariant
+```
+The user expectation (the OUGHT from the functional spec) is the structural origin point — not merely "kept in mind" but encoded as the `expect:` field on every contract and verified by the test suite.

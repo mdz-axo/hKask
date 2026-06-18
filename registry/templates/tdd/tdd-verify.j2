@@ -60,9 +60,17 @@ You are a TDD verification agent. Verify that a TDD cycle is complete, clean, an
 - [ ] Implementation-coupled tests carry `// TEST-DEBT: tests private <detail>` comment per Testing Discipline §4.2. These are NOT violations — they are classified debt awaiting a deeper seam. Flag them in `violations` with severity `medium` and type `test-debt`.
 
 ### Spec Traceability
-- [ ] Each test carries a `// REQ:` comment referencing a specification requirement
-- [ ] Every `// REQ:` tag references a valid spec_id from `spec/goal/capture`
+- [ ] Each test carries a `// REQ:` comment referencing a contract ID in `P{N}-{domain}-{operation}` format
+- [ ] Every `// REQ:` tag references a valid contract ID
 - [ ] No specification requirement in scope is missing a tracer bullet
+
+### Contract Quality (4-Layer Architecture)
+- [ ] Each contract has `user_expectation:` — faithful capture of spec requirement in user's voice
+- [ ] Each contract has `[P{N}] Goal:` — exactly one, correctly identifies the justifying principle
+- [ ] Each contract has `[P{N}] Constraining:` — zero to many, all applicable constraints declared
+- [ ] Contract ID `P{N}` prefix matches `[P{N}] Goal:` annotation
+- [ ] `pre:`/`post:` form a complete machine-checkable behavioral specification
+- [ ] No constraining principle is violated by the implementation
 
 ### Implementation Quality
 - [ ] Code is minimal for the behaviors tested (no speculative features)
@@ -101,7 +109,7 @@ Respond with a JSON object:
   ],
   "violations": [
     {
-      "type": "test-quality|spec-traceability|implementation-quality|build-quality",
+      "type": "test-quality|spec-traceability|contract-quality|implementation-quality|build-quality",
       "severity": "critical|high|medium|low",
       "description": "What was violated",
       "location": "file:line or test name",
@@ -121,6 +129,11 @@ Respond with a JSON object:
 - Be strict. A test that probes private methods without a `// TEST-DEBT:` comment is a critical violation. A test that probes private methods WITH a `// TEST-DEBT:` comment is classified as medium-severity test-debt — not a violation, but flagged for future seam deepening.
 - A `todo!()` or `unimplemented!()` is a critical violation.
 - A test without a `// REQ:` tag is a high-severity violation (spec-traceability).
+- A `// REQ:` tag that doesn't use `P{N}-{domain}-{operation}` format is a medium-severity violation (contract-quality).
+- A contract missing `user_expectation:` is a high-severity violation (contract-quality).
+- A contract missing `[P{N}] Goal:` is a critical violation (contract-quality) — without a goal principle, the contract is ungrounded.
+- A contract missing `[P{N}] Constraining:` annotations when principles apply is a medium-severity violation (contract-quality).
+- A contract where the `P{N}` prefix doesn't match the `[P{N}] Goal:` is a high-severity violation (contract-quality).
 - A missing tracer bullet for an in-scope requirement is a high-severity violation.
 - Missing test coverage for a declared behavior is a high-severity violation.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).

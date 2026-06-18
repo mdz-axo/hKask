@@ -1,8 +1,8 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-17
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle]
@@ -315,7 +315,11 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 |-----|----------|--------|-------------|
 | **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. **Caveat:** exact GraphQL schema fields (`saveEndpoint`, response `data.saveEndpoint.id`) and Baseten REST response shape (`id` field, endpoint URL format `model-{id}.api.baseten.co`) may need adjustment based on actual provider API responses at runtime. |
 | **Manual contract-to-spec review** | High | ⬜ TODO | All 1,419 REQ-tagged contracts have pre/post conditions, but need human verification against the functional specification. Each REQ tag should trace to a real spec document. See `kask contract review` for inventory, `/improv plussing` for collaborative review. 25 duplicate REQ IDs need consolidation analysis. 250 simple constructors may benefit from explicit preconditions. |
+| **Contract ID → Domain Principle Alignment (v0.28.0)** | Medium | ⬜ TODO | `contract-audit.sh` reports 2362 REQ tags across 1776 pub fns (132.9% coverage). Every domain in `FUNCTIONAL_SPECIFICATION.md` §1 has contracts in the corresponding crate — verified. Contract ID prefix (`P{N}`) should match the domain map's goal principle. Not all contracts have been verified for prefix→goal-principle alignment (manual audit required). |
+| **`expect:` field coverage (v0.28.0)** | Medium | ⬜ Pattern Only | The `expect:` syntax is demonstrated as a pattern in `TESTING_DISCIPLINE.md` §1.2 and `FUNCTIONAL_SPECIFICATION.md` §5.2. Not yet present on all 1,419 contracts — full migration is deferred per `FUNCTIONAL_SPECIFICATION.md` §Future Work. |
+| **Deployment domain ER diagram ↔ code sync** | Low | ⬜ TODO | ER diagram in `FUNCTIONAL_SPECIFICATION.md` §3.18 aligned with deployment plan but not verified against actual type definitions in `hkask-api` and `kask` CLI. |
+| **Domain ER diagrams for non-CNS domains** | Low | ⬜ Partial | ER diagrams added for 8 CNS domains (§2) and deployment (§3.18). Remaining 18 non-CNS domains (§3) have entity models described in tables but not yet diagrammed. |
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.28.0*
