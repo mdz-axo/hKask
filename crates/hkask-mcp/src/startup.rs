@@ -105,7 +105,7 @@ pub async fn verify_startup_gates(
 ) -> Result<StartupGateResult, McpError> {
     // ── Gate 1: Authentication ──────────────────────────────────────────
 
-    let auth = client.auth_query(replicant).await?;
+    let auth = client.auth_query(replicant).await.map_err(|e| anyhow::anyhow!("{e}"))?;
     match auth {
         DaemonResponse::AuthResponse {
             authenticated: true,
@@ -132,7 +132,7 @@ pub async fn verify_startup_gates(
 
     // ── Gate 2: Assignment ──────────────────────────────────────────────
 
-    let assignment = client.assignment_query(replicant, role).await?;
+    let assignment = client.assignment_query(replicant, role).await.map_err(|e| anyhow::anyhow!("{e}"))?;
     match assignment {
         DaemonResponse::AssignmentResponse { assigned: true } => {
             // Assigned — proceed to Gate 3.
