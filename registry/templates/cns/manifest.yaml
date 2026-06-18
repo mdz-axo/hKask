@@ -1,0 +1,14 @@
+# Infrastructure config manifest for cns
+# hKask v0.28.0
+# This directory contains CNS span selectors and configuration.
+# Not a skill template crate — no [inference] .j2 templates.
+
+infrastructure:
+  name: cns
+  version: "0.28.0"
+  description: >
+    CNS (Cybernetic Nervous System) selector configuration. Maps CNS span
+    names to routing and alerting behavior.
+  role: config
+  contains:
+    - selectors/

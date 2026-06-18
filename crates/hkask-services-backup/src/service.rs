@@ -258,11 +258,11 @@ impl BackupService {
         tracing::Span::current().record("artifact_count", artifact_count);
         tracing::Span::current().record("repo_count", by_repo.len());
         info!(
-            target: "hkask.backup",
+            target: "cns.backup",
             artifact_count = artifact_count,
             repo_count = by_repo.len(),
             duration_ms = duration_ms,
-            "Snapshot complete"
+            "CNS"
         );
 
         Ok(SnapshotMetadata {
@@ -479,10 +479,10 @@ impl BackupService {
             .await?;
 
         info!(
-            target: "hkask.backup",
+            target: "cns.backup",
             repo = %repo_id.dir_name(),
             new_head = %new_commit,
-            "History pruned — orphan commit starts new chain"
+            "CNS"
         );
 
         Ok(())
@@ -515,11 +515,11 @@ impl BackupService {
             corrupt_count += report.corrupt_hashes.len();
             if !report.corrupt_hashes.is_empty() {
                 warn!(
-                    target: "hkask.backup",
+                    target: "cns.backup",
                     repo = %repo_id.dir_name(),
                     corrupt = report.corrupt_hashes.len(),
                     total = report.total_blobs,
-                    "BACKUP INTEGRITY FAILURE — corrupt blobs detected"
+                    "CNS"
                 );
             }
             reports.push(report);
@@ -531,18 +531,18 @@ impl BackupService {
 
         if corrupt_count > 0 {
             warn!(
-                target: "hkask.backup",
+                target: "cns.backup",
                 repo_count = repos.len(),
                 total_blobs = total_blobs,
                 corrupt_count = corrupt_count,
-                "Backup integrity verification found corruption"
+                "CNS"
             );
         } else {
             info!(
-                target: "hkask.backup",
+                target: "cns.backup",
                 repo_count = repos.len(),
                 total_blobs = total_blobs,
-                "Backup integrity verification passed"
+                "CNS"
             );
         }
 
@@ -610,7 +610,7 @@ impl BackupService {
     /// pre:  auto_snapshot must be enabled in config
     /// post: returns SnapshotMetadata from full snapshot; Err on snapshot failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
-        info!(target: "hkask.backup", "Running daily backup snapshot");
+        info!(target: "cns.backup", "CNS");
         // Snapshot all tracked types. Artifact data is collected by
         // scanning all repos for current state — the caller provides
         // artifacts. For the scheduler, we snapshot whatever is in
@@ -635,13 +635,13 @@ impl BackupService {
     ) -> Result<Vec<(ArtifactType, String, Vec<u8>)>, BackupError> {
         match &scope {
             RestoreScope::Full => {
-                info!(target: "hkask.backup", commit=%target, "System-level restore");
+                info!(target: "cns.backup", commit=%target, "CNS");
             }
             RestoreScope::ByType(at) => {
-                info!(target: "hkask.backup", commit=%target, artifact_type=%at.label(), "Registry-level restore");
+                info!(target: "cns.backup", commit=%target, artifact_type=%at.label(), "CNS");
             }
             RestoreScope::ByIds { artifact_type, ids } => {
-                info!(target: "hkask.backup", commit=%target, artifact_type=%artifact_type.label(), ids=?ids, "File-level restore");
+                info!(target: "cns.backup", commit=%target, artifact_type=%artifact_type.label(), ids=?ids, "CNS");
             }
         }
         self.restore(target, scope).await

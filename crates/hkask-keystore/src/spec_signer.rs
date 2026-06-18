@@ -47,7 +47,10 @@ impl Ed25519SpecSigner {
     /// pre:  canonical_json is non-empty
     /// post: returns 128-char hex-encoded Ed25519 signature
     pub fn sign_spec(&self, canonical_json: &[u8]) -> String {
+        let start = std::time::Instant::now();
         let signature = self.signing_key.sign(canonical_json);
+        // P9: CNS span
+        tracing::info!(target: "cns.keystore", operation = "sign_spec", latency_ms = start.elapsed().as_millis(), "CNS");
         hex::encode(signature.to_bytes())
     }
 
@@ -68,10 +71,13 @@ impl Ed25519SpecSigner {
         let sig_bytes = hex::decode(hex_signature).map_err(|_| SpecSignatureError::InvalidHex)?;
         let signature = Signature::try_from(sig_bytes.as_slice())
             .map_err(|_| SpecSignatureError::InvalidSignatureLength)?;
-        self.signing_key
+        let result = self.signing_key
             .verifying_key()
             .verify(canonical_json, &signature)
-            .map_err(|_| SpecSignatureError::VerificationFailed)
+            .map_err(|_| SpecSignatureError::VerificationFailed);
+        // P9: CNS span
+        tracing::info!(target: "cns.keystore", operation = "verify_spec", valid = result.is_ok(), "CNS");
+        result
     }
 
     /// Return the verifying (public) key for this signer.

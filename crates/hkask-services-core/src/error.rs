@@ -28,23 +28,9 @@
 
 use thiserror::Error;
 
-// ── Domain error imports ──────────────────────────────────────────────────
 use hkask_types::InfrastructureError;
 use hkask_types::McpErrorKind;
-use hkask_agents::a2a::A2AError;
-use hkask_agents::consent::ConsentError;
-use hkask_agents::curator_agent::metacognition::MetacognitionError;
-use hkask_agents::pod::AgentPodError;
-use hkask_agents::registry_loader::RegistryLoaderError;
-use hkask_cns::EnergyError;
-use hkask_memory::{EpisodicMemoryError, SemanticMemoryError};
-use hkask_storage::EscalationError;
-use hkask_storage::{
-    AgentRegistryError, ConsentStoreError, DatabaseError, GoalRepositoryError,
-    SovereigntyStoreError, SpecError, TripleError, UserStoreError,
-};
-use hkask_templates::TemplateError;
-use hkask_types::ports::{EmbeddingGenerationError, InferenceError, RegistryError};
+use hkask_types::ports::{EmbeddingGenerationError, InferenceError};
 
 /// Unified domain error for all service operations.
 ///
@@ -383,65 +369,13 @@ pub enum ServiceError {
     },
 }
 
-// ── From impls (migrated from #[from] to explicit) ────────────────────
+// ── From impls ──────────────────────────────────────────────────────
+//
+// Domain crate error conversions (hkask-agents, hkask-cns, hkask-memory,
+// hkask-storage, hkask-templates, hkask-mcp) have been removed to decouple
+// hkask-services-core from domain crates. Callers use explicit
+// ServiceError::Variant { message: e.to_string() } or .map_err().
 
-impl From<EscalationError> for ServiceError {
-    fn from(e: EscalationError) -> Self { ServiceError::Escalation { message: e.to_string() } }
-}
-impl From<MetacognitionError> for ServiceError {
-    fn from(e: MetacognitionError) -> Self { ServiceError::Metacognition { message: e.to_string() } }
-}
-impl From<A2AError> for ServiceError {
-    fn from(e: A2AError) -> Self { ServiceError::A2A { message: e.to_string() } }
-}
-impl From<RegistryLoaderError> for ServiceError {
-    fn from(e: RegistryLoaderError) -> Self { ServiceError::AgentRegistry { message: e.to_string() } }
-}
-impl From<AgentRegistryError> for ServiceError {
-    fn from(e: AgentRegistryError) -> Self { ServiceError::AgentRegistryStore { message: e.to_string() } }
-}
-impl From<ConsentError> for ServiceError {
-    fn from(e: ConsentError) -> Self { ServiceError::Consent { message: e.to_string() } }
-}
-impl From<DatabaseError> for ServiceError {
-    fn from(e: DatabaseError) -> Self { ServiceError::Storage { message: e.to_string() } }
-}
-impl From<RegistryError> for ServiceError {
-    fn from(e: RegistryError) -> Self { ServiceError::Registry { message: e.to_string() } }
-}
-impl From<TemplateError> for ServiceError {
-    fn from(e: TemplateError) -> Self { ServiceError::Template { message: e.to_string() } }
-}
-impl From<GoalRepositoryError> for ServiceError {
-    fn from(e: GoalRepositoryError) -> Self { ServiceError::GoalRepo { message: e.to_string() } }
-}
-impl From<TripleError> for ServiceError {
-    fn from(e: TripleError) -> Self { ServiceError::Triple { message: e.to_string() } }
-}
-impl From<UserStoreError> for ServiceError {
-    fn from(e: UserStoreError) -> Self { ServiceError::UserStore { message: e.to_string() } }
-}
-impl From<ConsentStoreError> for ServiceError {
-    fn from(e: ConsentStoreError) -> Self { ServiceError::ConsentStore { message: e.to_string() } }
-}
-impl From<SovereigntyStoreError> for ServiceError {
-    fn from(e: SovereigntyStoreError) -> Self { ServiceError::SovereigntyStore { message: e.to_string() } }
-}
-impl From<SpecError> for ServiceError {
-    fn from(e: SpecError) -> Self { ServiceError::Spec { message: e.to_string() } }
-}
-impl From<EpisodicMemoryError> for ServiceError {
-    fn from(e: EpisodicMemoryError) -> Self { ServiceError::EpisodicMemory { message: e.to_string() } }
-}
-impl From<SemanticMemoryError> for ServiceError {
-    fn from(e: SemanticMemoryError) -> Self { ServiceError::SemanticMemory { message: e.to_string() } }
-}
-impl From<EnergyError> for ServiceError {
-    fn from(e: EnergyError) -> Self { ServiceError::Gas { message: e.to_string() } }
-}
-impl From<AgentPodError> for ServiceError {
-    fn from(e: AgentPodError) -> Self { ServiceError::Pod { message: e.to_string() } }
-}
 impl From<InferenceError> for ServiceError {
     fn from(e: InferenceError) -> Self {
         let retryable = matches!(e, InferenceError::Connection(_) | InferenceError::CircuitOpen(_));
@@ -468,17 +402,6 @@ impl From<uuid::Error> for ServiceError {
 impl<T> From<std::sync::PoisonError<T>> for ServiceError {
     fn from(_: std::sync::PoisonError<T>) -> Self {
         ServiceError::Infra(hkask_types::InfrastructureError::LockPoisoned)
-    }
-}
-
-impl From<hkask_mcp::server::McpToolError> for ServiceError {
-    fn from(e: hkask_mcp::server::McpToolError) -> Self {
-        ServiceError::McpTool {
-            kind: e.kind,
-            server: String::new(),
-            tool: String::new(),
-            message: e.message,
-        }
     }
 }
 

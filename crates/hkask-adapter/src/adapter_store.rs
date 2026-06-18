@@ -246,6 +246,8 @@ impl AdapterStore {
                 adapter.created_at,
             ],
         )?;
+        // P9: CNS span
+        tracing::info!(target: "cns.adapter", operation = "store", adapter_id = %adapter.id, expertise = %adapter.expertise.name, "CNS");
         Ok(())
     }
 
@@ -287,7 +289,10 @@ impl AdapterStore {
             }
         );
 
-        Ok(rows.into_iter().next())
+        let result = rows.into_iter().next();
+        // P9: CNS span
+        tracing::info!(target: "cns.adapter", operation = "get_by_id", adapter_id = %id, found = result.is_some(), "CNS");
+        Ok(result)
     }
 
     /// List adapters by expertise name.
@@ -331,6 +336,8 @@ impl AdapterStore {
             }
         );
 
+        // P9: CNS span
+        tracing::info!(target: "cns.adapter", operation = "get_by_expertise", expertise_name = %expertise_name, count = rows.len(), "CNS");
         Ok(rows)
     }
 
@@ -393,6 +400,8 @@ impl AdapterStore {
         if affected == 0 {
             return Err(AdapterStoreError::NotFound(id));
         }
+        // P9: CNS span
+        tracing::info!(target: "cns.adapter", operation = "delete", adapter_id = %id, "CNS");
         Ok(())
     }
 

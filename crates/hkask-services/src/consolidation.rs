@@ -84,7 +84,8 @@ pub fn consolidate(
     db_path: &str,
     request: ConsolidationRequest,
 ) -> Result<ConsolidationOutcome, ServiceError> {
-    let db = Database::open(db_path, db_passphrase)?;
+    let db = Database::open(db_path, db_passphrase)
+        .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
 
     let conn = db.conn_arc();
     let ts1 = TripleStore::new(Arc::clone(&conn));

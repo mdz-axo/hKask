@@ -577,8 +577,10 @@ impl AgentService {
 /// post: returns Arc<EscalationQueue> initialized from DB; Err on DB open or schema init failure
 #[allow(dead_code)]
 pub fn open_escalation_queue(config: &ServiceConfig) -> Result<Arc<EscalationQueue>, ServiceError> {
-    let db = Database::open(&config.db_path, &config.db_passphrase)?;
-    Ok(Arc::new(EscalationQueue::new(db.conn_arc())?))
+    let db = Database::open(&config.db_path, &config.db_passphrase)
+        .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
+    Ok(Arc::new(EscalationQueue::new(db.conn_arc())
+        .map_err(|e| ServiceError::Escalation { message: e.to_string() })?))
 }
 
 /// Open a spec store from config.
@@ -589,7 +591,8 @@ pub fn open_escalation_queue(config: &ServiceConfig) -> Result<Arc<EscalationQue
 /// post: returns SqliteSpecStore with schema initialized; Err on DB open or schema init failure
 #[allow(dead_code)]
 pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, ServiceError> {
-    let db = Database::open(&config.db_path, &config.db_passphrase)?;
+    let db = Database::open(&config.db_path, &config.db_passphrase)
+        .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
     let store = SqliteSpecStore::new(db.conn_arc());
     store.init_schema().map_err(|e| ServiceError::Spec { message: e.to_string() })?;
     Ok(store)
@@ -605,7 +608,8 @@ pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, Servic
 pub fn open_consent_manager(
     config: &ServiceConfig,
 ) -> Result<(Arc<ConsentManager>, SovereigntyBoundaryStore), ServiceError> {
-    let db = Database::open(&config.db_path, &config.db_passphrase)?;
+    let db = Database::open(&config.db_path, &config.db_passphrase)
+        .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
     let conn = db.conn_arc();
     let consent_store = ConsentStore::new(Arc::clone(&conn));
     consent_store
@@ -635,7 +639,8 @@ pub fn open_agent_registry(
     ),
     ServiceError,
 > {
-    let db = Database::open(&config.db_path, &config.db_passphrase)?;
+    let db = Database::open(&config.db_path, &config.db_passphrase)
+        .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
     let conn = db.conn_arc();
     let a2a = Arc::new(hkask_agents::A2ARuntime::new(&config.a2a_secret));
     let store = hkask_storage::AgentRegistryStore::new(conn);
@@ -744,11 +749,11 @@ struct Foundation {
 }
 
 async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
-    // Open ONE database and share the connection across all stores.
     let db = if config.in_memory {
         in_memory_db()
     } else {
-        Database::open(&config.db_path, &config.db_passphrase)?
+        Database::open(&config.db_path, &config.db_passphrase)
+            .map_err(|e| ServiceError::Storage { message: e.to_string() })?
     };
     let shared_conn = db.conn_arc();
 
@@ -770,7 +775,8 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
         .map_err(|e| ServiceError::ConsentStore { message: e.to_string() })?;
     let consent_manager = Arc::new(ConsentManager::new(consent_store));
 
-    let escalation_queue = Arc::new(EscalationQueue::new(escalation_conn)?);
+    let escalation_queue = Arc::new(EscalationQueue::new(escalation_conn)
+        .map_err(|e| ServiceError::Escalation { message: e.to_string() })?);
 
     let goal_sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&goal_conn)));
     let goal_repo = Arc::new(SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
@@ -1093,7 +1099,9 @@ async fn build_loops(
             .memory_passphrase
             .as_deref()
             .unwrap_or(&config.db_passphrase);
-        Database::open(&path, passphrase)?.conn_arc()
+        Database::open(&path, passphrase)
+            .map_err(|e| ServiceError::Storage { message: e.to_string() })?
+            .conn_arc()
     };
     let triple_store = TripleStore::new(Arc::clone(&mem_conn));
     let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));

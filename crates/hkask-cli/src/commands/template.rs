@@ -71,7 +71,8 @@ pub fn register_template(
         matroshka_limit: hkask_types::SYSTEM_MAX_RECURSION as u32,
     };
 
-    registry.register(entry).map_err(ServiceError::from)
+    registry.register(entry)
+        .map_err(|e| ServiceError::Template { message: e.to_string() })
 }
 
 /// Get template command
@@ -82,7 +83,8 @@ pub fn register_template(
 /// post: returns Ok(RegistryEntry) if template found
 /// post: returns Err(ServiceError) if not found
 pub fn get_template(registry: &dyn RegistryIndex, id: &str) -> Result<RegistryEntry, ServiceError> {
-    registry.get(id).map_err(ServiceError::from)
+    registry.get(id)
+        .map_err(|e| ServiceError::Registry { message: e.to_string() })
 }
 
 /// Search templates by lexicon

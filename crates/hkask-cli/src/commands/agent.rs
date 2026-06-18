@@ -25,7 +25,7 @@ pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>,
     let agents = ctx
         .agent_registry_store()
         .list()
-        .map_err(ServiceError::from)?;
+        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
     Ok(match kind_filter.and_then(AgentKind::parse) {
         Some(kind) => agents
             .into_iter()
@@ -42,7 +42,7 @@ pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     ctx.agent_registry_store()
         .get(name)
-        .map_err(ServiceError::from)
+        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
 }
 
 /// REQ: CLI-040
@@ -60,7 +60,9 @@ pub async fn agent_register(
         message: agent_type.to_string(),
     })?;
     let (_, a2a) = ctx.identity();
-    let token = a2a.register_agent(webid, kind, capabilities).await?;
+    let token = a2a.register_agent(webid, kind, capabilities)
+        .await
+        .map_err(|e| ServiceError::A2A { message: e.to_string() })?;
     let def = AgentDefinition {
         name: webid_str.to_string(),
         agent_kind: kind,
@@ -82,7 +84,7 @@ pub async fn agent_register(
     };
     ctx.agent_registry_store()
         .insert(&reg)
-        .map_err(ServiceError::from)?;
+        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
     Ok(AgentReceipt {
         webid: webid_str.to_string(),
         token_hash: hex::encode(token.signature_bytes()),
@@ -97,7 +99,7 @@ pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     ctx.agent_registry_store()
         .remove(name)
-        .map_err(ServiceError::from)
+        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
 }
 
 /// REQ: CLI-042

@@ -8,6 +8,7 @@
 
 use crate::algorithms::{AlgorithmRegistry, classify_tool};
 use crate::types::*;
+use std::time::Instant;
 
 // G4: profile is the single source of truth; stats.current_profile is always derived from it.
 pub struct CondenserEngine {
@@ -53,6 +54,11 @@ impl CondenserEngine {
         let algo = self.registry.select(cat);
         let algorithm_name = algo.name().to_string();
 
+        let start = Instant::now();
+
+        // P9: CNS span
+        tracing::info!(target: "cns.condenser", operation = "compress", algorithm = %algorithm_name, category = %cat.label(), tool_name = %tool_name, "CNS");
+
         let (compressed_content, health_signals) = algo.compress(output, self.profile, cat);
 
         let original_lines = output.lines().count();
@@ -78,6 +84,9 @@ impl CondenserEngine {
         self.stats.total_compressions += 1;
         self.stats.total_original_bytes += original_bytes as u64;
         self.stats.total_compressed_bytes += compressed_bytes as u64;
+
+        // P9: CNS span
+        tracing::info!(target: "cns.condenser", operation = "compression_ratio", algorithm = %algorithm_name, category = %cat.label(), reduction_pct = %format!("{:.1}", reduction_pct), original_bytes = original_bytes, compressed_bytes = compressed_bytes, latency_ms = start.elapsed().as_millis(), "CNS");
 
         CompressedOutput {
             content: compressed_content,
@@ -107,14 +116,13 @@ impl CondenserEngine {
     /// Returns health signals for systemic issues: overall compression ratio
     /// below 2:1 or throughput anomalies. Callers should emit these as
     /// `cns.condenser.degraded` ν-events.
-    pub fn check_global_health(&self) -> Vec<CondenserHealthSignal> {
+pub fn check_global_health(&self) -> Vec<CondenserHealthSignal> {
         let mut signals = Vec::new();
         let stats = &self.stats;
 
         if stats.total_original_bytes > 0 {
             let ratio =
                 stats.total_original_bytes as f64 / stats.total_compressed_bytes.max(1) as f64;
-            // SLA: compression ratio must be ≥ 2:1
             if ratio < 2.0 && stats.total_compressions >= 10 {
                 signals.push(CondenserHealthSignal {
                     algorithm: "global".into(),
@@ -129,6 +137,9 @@ impl CondenserEngine {
                 });
             }
         }
+
+        // P9: CNS span
+        tracing::info!(target: "cns.condenser", operation = "health", total_compressions = stats.total_compressions, health_signal_count = signals.len(), "CNS");
 
         signals
     }

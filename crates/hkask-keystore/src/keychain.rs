@@ -7,7 +7,7 @@ use hkask_types::secret::derivation_contexts;
 use hkask_types::wallet::{ApiKeyCapability, ChainId};
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;
-use tracing::warn;
+use tracing::{info, warn};
 use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
@@ -61,6 +61,8 @@ impl Keychain {
             .set_password(secret)
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "store", "CNS");
         Ok(())
     }
 
@@ -73,7 +75,9 @@ impl Keychain {
         let entry = Entry::new(&self.service_name, &webid.as_uuid().to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        entry.get_password().map_err(KeychainError::from)
+        let result = entry.get_password().map_err(KeychainError::from)?;
+        info!(target: "cns.keystore", operation = "retrieve", "CNS");
+        Ok(result)
     }
 
     /// Delete a secret from the OS keychain by WebID.
@@ -90,6 +94,7 @@ impl Keychain {
             .delete_credential()
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
+        info!(target: "cns.keystore", operation = "delete", "CNS");
         Ok(())
     }
 
@@ -106,6 +111,7 @@ impl Keychain {
             .set_password(secret)
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
+        info!(target: "cns.keystore", operation = "store_by_key", "CNS");
         Ok(())
     }
 
@@ -118,7 +124,9 @@ impl Keychain {
         let entry = Entry::new(&self.service_name, key)
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        entry.get_password().map_err(KeychainError::from)
+        let result = entry.get_password().map_err(KeychainError::from)?;
+        info!(target: "cns.keystore", operation = "retrieve_by_key", "CNS");
+        Ok(result)
     }
 
     /// Delete a secret from the OS keychain by arbitrary key name.
@@ -134,6 +142,7 @@ impl Keychain {
             .delete_credential()
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
+        info!(target: "cns.keystore", operation = "delete_by_key", "CNS");
         Ok(())
     }
 }
@@ -309,7 +318,10 @@ pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> 
     ));
 
     match derived {
-        Ok(key) => Ok(key),
+        Ok(key) => {
+            info!(target: "cns.keystore", operation = "ocap_secret", source = "derived", "CNS");
+            Ok(key)
+        }
         Err(_) => {
             // Fallback to keychain for backward compat
             resolve(&SecretRef::Keychain("hkask-ocap-secret".to_string())).or_else(|_| {
@@ -318,6 +330,7 @@ pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> 
                     "OCAP secret not available via derivation or keychain; \
                      generating random secret. Tokens will not survive restart."
                 );
+                info!(target: "cns.keystore", operation = "ocap_secret", source = "random", "CNS");
                 let secret: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
                 Ok(Zeroizing::new(secret))
             })
@@ -345,10 +358,22 @@ pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> 
 /// post: Generated → random bytes (debug only, not reproducible)
 /// post: all returned secrets wrapped in Zeroizing
 pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    // P9: CNS span
+    let start = std::time::Instant::now();
+    let variant = match secret_ref {
+        SecretRef::Env(_) => "env",
+        SecretRef::Keychain(_) => "keychain",
+        SecretRef::Derived { .. } => "derived",
+        #[cfg(debug_assertions)]
+        SecretRef::Generated(_) => "generated",
+    };
+    info!(target: "cns.keystore", operation = "resolve", variant = variant, "CNS");
+
     match secret_ref {
         SecretRef::Env(var_name) => {
             let value = std::env::var(var_name)
                 .map_err(|_| KeychainError::NotFound(format!("env var {} not set", var_name)))?;
+            info!(target: "cns.keystore", operation = "resolve_env", var_name = %var_name, "CNS");
             Ok(Zeroizing::new(value.into_bytes()))
         }
         SecretRef::Keychain(key_name) => {
@@ -356,12 +381,14 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             let entry = Entry::new(&keychain.service_name, key_name)
                 .map_err(|e| KeychainError::Platform(e.to_string()))?;
             let secret = entry.get_password().map_err(KeychainError::from)?;
+            info!(target: "cns.keystore", operation = "resolve_keychain", key_name = %key_name, "CNS");
             Ok(Zeroizing::new(secret.into_bytes()))
         }
         SecretRef::Derived {
             master_key_env,
             context,
         } => {
+            info!(target: "cns.keystore", operation = "resolve_derived", master_key_env = %master_key_env, context = %context, "CNS");
             // Resolve master key: env var first, then keychain
             let master_key_bytes = resolve(&SecretRef::Env(master_key_env.clone()))
                 .or_else(|_| resolve(&SecretRef::Keychain(master_key_env.clone())))
@@ -375,6 +402,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
 
             // HKDF-SHA256 derive sub-key
             let sub_key = crate::master_key::derive_sub_key(&master_key_bytes, context);
+            info!(target: "cns.keystore", operation = "derive_sub_key", latency_ms = start.elapsed().as_millis(), "CNS");
             Ok(sub_key)
         }
         #[cfg(debug_assertions)]
@@ -382,6 +410,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             let bytes: Vec<u8> = (0..*length as usize)
                 .map(|_| rand::random::<u8>())
                 .collect();
+            warn!(target: "cns.keystore", operation = "resolve_generated", length = *length, "CNS");
             Ok(Zeroizing::new(bytes))
         }
     }

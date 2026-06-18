@@ -105,9 +105,11 @@ impl OnboardingService {
     pub async fn init_registry(config: &ServiceConfig) -> Result<RegistryHandle, ServiceError> {
         let a2a = Arc::new(A2ARuntime::new(&config.a2a_secret));
 
-        let db = Database::open(&config.db_path, &config.db_passphrase)?;
+        let db = Database::open(&config.db_path, &config.db_passphrase)
+            .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
         let store = AgentRegistryStore::new(db.conn_arc());
-        store.initialize_schema()?;
+        store.initialize_schema()
+            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
 
         // A2A state restoration: reload registered agents from the store
         let registered_agents = store.list().map_err(|e| ServiceError::AgentRegistryStore {

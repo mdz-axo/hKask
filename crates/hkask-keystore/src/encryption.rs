@@ -6,6 +6,7 @@ use aes_gcm::{
 };
 use argon2::{Algorithm, Argon2, Params, Version};
 use rand::RngCore;
+use std::time::Instant;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
@@ -114,6 +115,7 @@ impl EncryptionService {
 ///
 /// These parameters follow OWASP recommendations for high-security applications.
 pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, EncryptionError> {
+    let start = Instant::now();
     let mut key = Zeroizing::new([0u8; 32]);
     let params = Params::new(
         ARGON2_MEMORY_COST,
@@ -126,5 +128,7 @@ pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, 
     argon2
         .hash_password_into(passphrase.as_bytes(), salt, &mut *key)
         .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
+    // P9: CNS span
+    tracing::info!(target: "cns.keystore", operation = "derive_key", latency_ms = start.elapsed().as_millis(), "CNS");
     Ok(key)
 }

@@ -34,8 +34,16 @@ pub fn version_file_path() -> PathBuf {
 pub fn read_key_version() -> u32 {
     let path = version_file_path();
     match std::fs::read_to_string(&path) {
-        Ok(contents) => contents.trim().parse().unwrap_or(DEFAULT_KEY_VERSION),
-        Err(_) => DEFAULT_KEY_VERSION,
+        Ok(contents) => {
+            let version = contents.trim().parse().unwrap_or(DEFAULT_KEY_VERSION);
+            // P9: CNS span
+            tracing::info!(target: "cns.keystore", operation = "read_key_version", version = version, "CNS");
+            version
+        }
+        Err(_) => {
+            tracing::info!(target: "cns.keystore", operation = "read_key_version", version = DEFAULT_KEY_VERSION, "CNS");
+            DEFAULT_KEY_VERSION
+        }
     }
 }
 
@@ -51,6 +59,8 @@ pub fn write_key_version(version: u32) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    // P9: CNS span
+    tracing::info!(target: "cns.keystore", operation = "write_key_version", version = version, "CNS");
     std::fs::write(&path, format!("{version}\n"))
 }
 
@@ -65,6 +75,7 @@ pub fn write_key_version(version: u32) -> std::io::Result<()> {
 pub fn increment_key_version() -> std::io::Result<u32> {
     let current = read_key_version();
     let new = current + 1;
+    tracing::info!(target: "cns.keystore", operation = "increment_key_version", old = current, new = new, "CNS");
     write_key_version(new)?;
     Ok(new)
 }

@@ -5,48 +5,78 @@ crate:
   name: curator
   version: "0.28.0"
   description: >
-    Runtime skill — curator.
+    The canonical system persona for hKask. Gathers system state, diagnoses
+    issues, calibrates thresholds, escalates critical alerts, and maintains
+    system homeostasis through metacognitive selection and intervention.
 
 templates:
-  - id: curator/metacognition-calibrate.j2
+  - id: curator/metacognition-calibrate
     path: metacognition-calibrate.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [calibrate, regulate, assess, evaluate, adapt]
     description: >
-      Runtime template for curator — see metacognition-calibrate.j2 for details.
+      Calibrate system thresholds and energy budgets based on observed
+      performance metrics and bot success rates.
 
-  - id: curator/metacognition-diagnose.j2
+  - id: curator/metacognition-diagnose
     path: metacognition-diagnose.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [detect, analyze, evaluate, classify, infer]
     description: >
-      Runtime template for curator — see metacognition-diagnose.j2 for details.
+      Diagnose system issues from bot reports and CNS alerts. Analyze
+      severity, trace to source bots, and propose remediation strategies.
 
-  - id: curator/metacognition-escalate.j2
+  - id: curator/metacognition-escalate
     path: metacognition-escalate.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [escalate, prioritize, rank, evaluate, classify]
     description: >
-      Runtime template for curator — see metacognition-escalate.j2 for details.
+      Escalate critical issues to the Administrator. Prepare structured
+      notification with impact assessment and resolution attempt history.
 
-  - id: curator/metacognition-maintain.j2
+  - id: curator/metacognition-maintain
     path: metacognition-maintain.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [monitor, observe, verify, assess, evaluate]
     description: >
-      Runtime template for curator — see metacognition-maintain.j2 for details.
+      Confirm system is operating normally. Assess health, variety deficit,
+      active alerts, bot success rate, and energy efficiency. No intervention
+      required.
 
-  - id: curator/metacognition-selector.j2
+  - id: curator/metacognition-selector
     path: metacognition-selector.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [select, evaluate, discriminate, orient, classify]
     description: >
-      Runtime template for curator — see metacognition-selector.j2 for details.
+      Select the appropriate metacognitive operation based on current system
+      state: health, variety deficit, active alerts, energy budget, and bot
+      coordination status.
 
-  - id: curator/system_state_gather.j2
+  - id: curator/system_state_gather
     path: system_state_gather.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [synthesize, observe, analyze, assess, orient]
     description: >
-      Runtime template for curator — see system_state_gather.j2 for details.
+      Gather and synthesize current system state from all bot reports and
+      CNS monitoring data. Produce a unified system state assessment.
+
+hlexicon_terms:
+  - calibrate
+  - regulate
+  - assess
+  - evaluate
+  - adapt
+  - detect
+  - analyze
+  - classify
+  - escalate
+  - prioritize
+  - rank
+  - monitor
+  - observe
+  - verify
+  - select
+  - discriminate
+  - orient
+  - synthesize
 

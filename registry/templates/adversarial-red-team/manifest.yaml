@@ -5,34 +5,59 @@ crate:
   name: adversarial-red-team
   version: "0.28.0"
   description: >
-    Runtime skill — adversarial-red-team.
+    Adversarial robustness testing. Select targets, generate adversarial inputs
+    across multiple categories (injection, hijacking, exfiltration, tool misuse),
+    execute multi-turn attack scripts, and evaluate resistance rates against
+    generated adversarial inputs.
 
 templates:
-  - id: adversarial-red-team/generate-adversarial.j2
+  - id: adversarial-red-team/generate-adversarial
     path: generate-adversarial.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [assess, detect, analyze, synthesize, probe, classify]
     description: >
-      Runtime template for adversarial-red-team — see generate-adversarial.j2 for details.
+      Generate adversarial inputs targeting a specific output across multiple
+      vulnerability categories and injection vectors at a given intensity level.
 
-  - id: adversarial-red-team/multi-turn-attack.j2
+  - id: adversarial-red-team/multi-turn-attack
     path: multi-turn-attack.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [sequence, probe, evaluate, classify, detect, escalate]
     description: >
-      Runtime template for adversarial-red-team — see multi-turn-attack.j2 for details.
+      Construct multi-turn attack scripts that probe a target across multiple
+      attack categories, escalating through turn sequences to test defense depth.
 
-  - id: adversarial-red-team/select-target.j2
+  - id: adversarial-red-team/select-target
     path: select-target.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [classify, discriminate, calibrate, assess, orient]
     description: >
-      Runtime template for adversarial-red-team — see select-target.j2 for details.
+      Select the best adversarial target and map its vulnerability surface.
+      Evaluates target domain against adversarial categories and calibrates
+      intensity level.
 
-  - id: adversarial-red-team/test-against-target.j2
+  - id: adversarial-red-team/test-against-target
     path: test-against-target.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [evaluate, verify, audit, score, detect, classify]
     description: >
-      Runtime template for adversarial-red-team — see test-against-target.j2 for details.
+      Test a target output against generated adversarial inputs. Evaluate
+      resistance rate and identify critical failures that bypass defenses.
+
+hlexicon_terms:
+  - assess
+  - detect
+  - analyze
+  - synthesize
+  - probe
+  - classify
+  - sequence
+  - evaluate
+  - escalate
+  - discriminate
+  - calibrate
+  - orient
+  - verify
+  - audit
+  - score
 

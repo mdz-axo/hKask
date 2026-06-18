@@ -148,7 +148,7 @@ impl TogetherAdapterBackend {
                 }
                 _ => {
                     tracing::debug!(
-                        target: "hkask.adapter",
+                        target: "cns.adapter",
                         job_id = %job_id,
                         status = %status,
                         attempt = attempt,
@@ -207,7 +207,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         // Since we use model_name directly for inference, explicit teardown is
         // typically unnecessary. Together AI doesn't charge for idle adapters.
         tracing::debug!(
-            target: "hkask.adapter",
+            target: "cns.adapter",
             endpoint_url = %endpoint_url,
             "Together AI teardown — adapter auto-expires, no explicit deletion needed"
         );
@@ -224,7 +224,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
 
         if self.api_key.is_empty() {
             tracing::warn!(
-                target: "hkask.adapter",
+                target: "cns.adapter",
                 "TOGETHER_API_KEY not set — skipping adapter upload"
             );
             return Ok(format!("adapter-{}", adapter.id));
@@ -255,7 +255,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         };
 
         tracing::info!(
-            target: "hkask.adapter",
+            target: "cns.adapter",
             adapter_id = %adapter.id,
             hf_repo = %hf_repo,
             base_model = %config.base_model_name_or_path,
@@ -293,14 +293,14 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
 
         let model_name = if let Some(jid) = job_id {
             tracing::info!(
-                target: "hkask.adapter",
+                target: "cns.adapter",
                 job_id = %jid,
                 "Together AI upload async — polling for completion"
             );
             // Poll for completion (max 30 attempts, 10s interval = 5 min timeout)
             let model = self.poll_until_complete(jid).await?;
             tracing::info!(
-                target: "hkask.adapter",
+                target: "cns.adapter",
                 job_id = %jid,
                 model_name = %model,
                 "Together AI adapter upload completed"
@@ -315,7 +315,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         };
 
         tracing::info!(
-            target: "hkask.adapter",
+            target: "cns.adapter",
             adapter_id = %adapter.id,
             model_name = %model_name,
             "Adapter uploaded to Together AI"
@@ -376,7 +376,7 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         }
 
         tracing::info!(
-            target: "hkask.adapter",
+            target: "cns.adapter",
             adapter_id = %adapter.id,
             template_id = %template_id,
             "Provisioning Runpod serverless endpoint"
@@ -386,7 +386,7 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         // The endpoint URL is the serverless API endpoint for this template.
         let endpoint_url = format!("https://api.runpod.ai/v2/{}/openai/v1", template_id);
         tracing::info!(
-            target: "hkask.adapter",
+            target: "cns.adapter",
             template_id = %template_id,
             "Runpod serverless endpoint ready"
         );
@@ -428,10 +428,10 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             .await
         {
             Ok(_) => {
-                tracing::info!(target: "hkask.adapter", endpoint_url = %endpoint_url, "Runpod endpoint teardown requested");
+                tracing::info!(target: "cns.adapter", endpoint_url = %endpoint_url, "Runpod endpoint teardown requested");
             }
             Err(e) => {
-                tracing::warn!(target: "hkask.adapter", endpoint_url = %endpoint_url, error = %e, "Runpod teardown failed (may require console deletion)");
+                tracing::warn!(target: "cns.adapter", endpoint_url = %endpoint_url, error = %e, "Runpod teardown failed (may require console deletion)");
             }
         }
         Ok(())
@@ -498,7 +498,7 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
         });
 
         tracing::info!(
-            target: "hkask.adapter",
+            target: "cns.adapter",
             adapter_id = %adapter.id,
             "Provisioning Baseten endpoint"
         );
@@ -530,7 +530,7 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
 
         let endpoint_url = format!("https://model-{}.api.baseten.co/v1", model_id);
         tracing::info!(
-            target: "hkask.adapter",
+            target: "cns.adapter",
             model_id = %model_id,
             "Baseten endpoint provisioned"
         );
@@ -567,7 +567,7 @@ impl AdapterProviderBackend for BasetenAdapterBackend {
             .send()
             .await
             .map_err(|e| AdapterError::Internal(format!("Baseten teardown failed: {e}")))?;
-        tracing::info!(target: "hkask.adapter", endpoint_url = %endpoint_url, "Baseten endpoint torn down");
+        tracing::info!(target: "cns.adapter", endpoint_url = %endpoint_url, "Baseten endpoint torn down");
         Ok(())
     }
 
@@ -700,7 +700,7 @@ impl AdapterRouter {
         // Active inference requires re-creating the endpoint via create_endpoint().
         if let Err(e) = router.log_orphaned_endpoints() {
             tracing::warn!(
-                target: "hkask.adapter",
+                target: "cns.adapter",
                 error = %e,
                 "Failed to read persisted endpoints on startup"
             );
@@ -737,13 +737,13 @@ impl AdapterRouter {
 
         if !rows.is_empty() {
             tracing::warn!(
-                target: "hkask.adapter",
+                target: "cns.adapter",
                 count = rows.len(),
                 "Found orphaned endpoints from previous session — these may still incur provider costs"
             );
             for (id, provider, model, expertise, phase, cost, created) in &rows {
                 tracing::warn!(
-                    target: "hkask.adapter",
+                    target: "cns.adapter",
                     endpoint_id = %id,
                     provider = %provider,
                     model = %model,
@@ -843,7 +843,7 @@ impl AdapterRouter {
         // Note: _owner is reserved for future multi-tenant scoping (P1 — User Sovereignty).
         // When multi-tenant is implemented, this will filter endpoints by owner before draining.
         tracing::debug!(
-            target: "hkask.adapter",
+            target: "cns.adapter",
             "drain_all_owner called — draining all billable endpoints (owner filter not yet active)"
         );
 
@@ -1286,7 +1286,7 @@ impl Drop for EndpointGuard {
                 );
                 if let Err(e) = router.teardown_endpoint(endpoint_id, &token).await {
                     tracing::warn!(
-                        target: "hkask.adapter",
+                        target: "cns.adapter",
                         endpoint_id = %endpoint_id,
                         error = %e,
                         "EndpointGuard: teardown on drop failed"

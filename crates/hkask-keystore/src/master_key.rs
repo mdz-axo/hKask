@@ -109,6 +109,11 @@ pub fn derive_all_internal_secrets_with_version(
     master_passphrase: &str,
     key_version: u32,
 ) -> InternalSecrets {
+    let start = std::time::Instant::now();
+
+    // P9: CNS span
+    tracing::info!(target: "cns.keystore", operation = "derive_internal_secrets", key_version = key_version, "CNS");
+
     // Step 1: Argon2id stretch (slow, ~100ms)
     let master_key = crate::encryption::derive_key(master_passphrase, &MASTER_KEY_SALT)
         .expect("Argon2id derivation cannot fail with valid parameters");
@@ -135,6 +140,9 @@ pub fn derive_all_internal_secrets_with_version(
         derivation_contexts::OCAP_SECRET,
         key_version,
     );
+
+    // P9: CNS span
+    tracing::info!(target: "cns.keystore", operation = "internal_secrets_derived", latency_ms = start.elapsed().as_millis(), "CNS");
 
     InternalSecrets {
         a2a_secret,

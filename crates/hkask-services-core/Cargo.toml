@@ -8,12 +8,6 @@ description = "hKask service-layer foundation — ServiceError, ServiceConfig, H
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
-hkask-agents = { path = "../hkask-agents" }
-hkask-cns = { path = "../hkask-cns" }
-hkask-memory = { path = "../hkask-memory" }
-hkask-storage = { path = "../hkask-storage" }
-hkask-templates = { path = "../hkask-templates" }
-hkask-mcp = { path = "../hkask-mcp" }
 hkask-keystore = { path = "../hkask-keystore" }
 thiserror.workspace = true
 serde.workspace = true

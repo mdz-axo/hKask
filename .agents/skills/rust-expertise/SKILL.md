@@ -237,16 +237,26 @@ Audit existing Rust code for idiomatic compliance:
 5. **Unsafe audit.** Is every `unsafe` block documented with a `# Safety` section? Is the unsafe surface minimised? Are there `unsafe` blocks that could be replaced with safe abstractions?
 6. **Module depth.** Is the public API smaller than the implementation? Are there modules that exist only to re-export? Shallow modules that should be deepened or deleted?
 
-### Phase 6: Refactoring Toward Depth
+### Phase 6: Safety Boundary Design
+
+Design and audit unsafe code boundaries. `unsafe` is not a license to write C in Rust — it is a mechanism for building safe abstractions over unsafe operations.
+
+1. **Minimise the unsafe surface.** Consolidate all unsafe code into a single, documented, auditable module. Scattered unsafe blocks are a design smell.
+2. **Document safety invariants.** Every unsafe function must carry a `# Safety` doc section stating the invariant the caller must uphold and the invariant the implementation guarantees.
+3. **Prefer `unsafe fn` over `unsafe { }` blocks.** The contract lives on the function signature, not scattered across the call site.
+4. **Ensure auditability.** Every unsafe block should be auditable in isolation. If you can't explain *why* it's safe, it's not safe.
+5. **Verify the safe abstraction.** The safe wrapper around unsafe operations must correctly encapsulate all invariants. No safe caller should be able to trigger undefined behavior regardless of inputs.
+6. **Justify every `unsafe` block.** Unsafe is for invariants the compiler can't verify (FFI, raw pointer manipulation, self-referential types), not for premature optimisation. Measure first.
+
+### Phase 7: Refactoring Toward Depth
 
 Refactor toward deeper modules and stronger types:
 
 1. **Extract newtypes.** Every `String` that has validation rules becomes a newtype with a validating constructor.
 2. **Replace booleans with enums.** `bool` carries no meaning. A two-variant enum carries intent.
-3. **Consolidate unsafe.** Move scattered `unsafe` blocks into a single, documented, auditable module.
-4. **Strengthen error types.** Replace `Box<dyn Error>` with typed enums in library code. Replace `.unwrap()` with proper error propagation.
-5. **Simplify ownership.** Remove unnecessary `Rc<T>` and `RefCell<T>`. Find the true owner.
-6. **Deepen shallow modules.** If a module's interface is larger than its implementation, extract a smaller interface or merge the module into its caller.
+3. **Strengthen error types.** Replace `Box<dyn Error>` with typed enums in library code. Replace `.unwrap()` with proper error propagation.
+4. **Simplify ownership.** Remove unnecessary `Rc<T>` and `RefCell<T>`. Find the true owner.
+5. **Deepen shallow modules.** If a module's interface is larger than its implementation, extract a smaller interface or merge the module into its caller.
 
 ## Constraints
 

@@ -142,15 +142,15 @@ impl HkaskLoop for BackupLoop {
             return;
         }
 
-        info!(target: "hkask.backup.loop", "Running scheduled daily backup snapshot");
+        info!(target: "cns.backup", "CNS");
 
         match self.service.run_daily_snapshot().await {
             Ok(metadata) => {
                 info!(
-                    target: "hkask.backup.loop",
+                    target: "cns.backup",
                     artifact_count = metadata.artifact_count,
                     repos = metadata.commits.len(),
-                    "Daily backup snapshot complete"
+                    "CNS"
                 );
                 self.record_snapshot();
 
@@ -162,17 +162,17 @@ impl HkaskLoop for BackupLoop {
                                 reports.iter().map(|r| r.corrupt_hashes.len()).sum();
                             if corrupt > 0 {
                                 warn!(
-                                    target: "hkask.backup.loop",
+                                    target: "cns.backup",
                                     corrupt_blobs = corrupt,
-                                    "Post-snapshot verification found corruption"
+                                    "CNS"
                                 );
                             }
                         }
                         Err(e) => {
                             warn!(
-                                target: "hkask.backup.loop",
+                                target: "cns.backup",
                                 error = %e,
-                                "Post-snapshot verification failed"
+                                "CNS"
                             );
                         }
                     }
@@ -183,19 +183,19 @@ impl HkaskLoop for BackupLoop {
                     match self.service.prune(false).await {
                         Ok(report) => {
                             info!(
-                                target: "hkask.backup.loop",
+                                target: "cns.backup",
                                 evaluated = report.evaluated,
                                 retained = report.retained,
                                 removed = report.removed.len(),
-                                "Post-snapshot prune complete"
+                                "CNS"
                             );
                             self.record_prune();
                         }
                         Err(e) => {
                             warn!(
-                                target: "hkask.backup.loop",
+                                target: "cns.backup",
                                 error = %e,
-                                "Post-snapshot prune failed"
+                                "CNS"
                             );
                         }
                     }
@@ -203,9 +203,9 @@ impl HkaskLoop for BackupLoop {
             }
             Err(e) => {
                 warn!(
-                    target: "hkask.backup.loop",
+                    target: "cns.backup",
                     error = %e,
-                    "Daily backup snapshot failed"
+                    "CNS"
                 );
             }
         }

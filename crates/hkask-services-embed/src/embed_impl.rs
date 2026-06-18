@@ -505,7 +505,8 @@ impl EmbedService {
         };
 
         // ── Open DB ────────────────────────────────────────────────────
-        let db = Database::open(db_path, db_passphrase)?;
+        let db = Database::open(db_path, db_passphrase)
+            .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
         let conn = db.conn_arc();
         let triple_store = TripleStore::new(Arc::clone(&conn));
         let embedding_store = EmbeddingStore::with_dim(Arc::clone(&conn), config.embedding.dim);
@@ -895,7 +896,8 @@ impl EmbedService {
                 })?;
 
             for ((entity_ref, _text), vector) in chunk.iter().zip(vectors.iter()) {
-                semantic.store_embedding(entity_ref, vector, &config.embedding.model)?;
+                semantic.store_embedding(entity_ref, vector, &config.embedding.model)
+                    .map_err(|e| ServiceError::SemanticMemory { message: e.to_string() })?;
             }
             embedded_count += chunk.len();
             {
@@ -958,7 +960,8 @@ impl EmbedService {
                 config.embedding.dim,
                 Some(&centroid_ref),
                 Some(&config.embedding.model),
-            )?;
+            )
+            .map_err(|e| ServiceError::SemanticMemory { message: e.to_string() })?;
 
             {
                 let mut p = shared.lock().unwrap_or_else(|e| e.into_inner());
