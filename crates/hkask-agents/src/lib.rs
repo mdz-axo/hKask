@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 //! hKask Agents — Agent Pod Lifecycle and A2A Integration
 //!
 //! This crate provides:

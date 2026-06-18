@@ -478,6 +478,68 @@ pub async fn session_info(
     })))
 }
 
+/// POST /api/v1/auth/accept-invite
+///
+/// REQ: P2-multi-accept-invite-route
+/// expect: "I can accept an invite code to join a server" [P2]
+/// pre:  code is a valid invite code
+/// post: if not authenticated: redirect to OAuth with invite code in state
+/// post: if authenticated: accept invite, link user, return success
+pub async fn accept_invite(
+    State(state): State<ApiState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<AcceptInviteBody>,
+) -> Result<Response, (StatusCode, String)> {
+    let user_store = state.agent_service.user_store();
+    let user_store = user_store.lock().map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Lock error: {e}"))
+    })?;
+    let _invite = user_store.lookup_invite(&body.code).map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Lookup failed: {e}"))
+    })?.ok_or((StatusCode::NOT_FOUND, "Invite not found or expired".into()))?;
+    let session_cookie = extract_cookie(&headers, "hkask_session");
+    if session_cookie.is_none() {
+        let redirect_url = format!(
+            "/api/v1/auth/login?provider=github&state=invite:{}",
+            body.code
+        );
+        return Ok(Response::builder()
+            .status(StatusCode::FOUND)
+            .header(header::LOCATION, redirect_url)
+            .body(axum::body::Body::empty())
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?);
+    }
+    let session_id = session_cookie.unwrap();
+    let session = user_store.get_session(&session_id).map_err(|e| {
+        (StatusCode::UNAUTHORIZED, format!("Session invalid: {e}"))
+    })?.ok_or((StatusCode::UNAUTHORIZED, "Session expired".into()))?;
+    let now = chrono::Utc::now().timestamp();
+    if session.expires_at <= now {
+        return Err((StatusCode::UNAUTHORIZED, "Session expired".into()));
+    }
+    let replicant = user_store.get_replicant_by_webid(&session.replicant_webid)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
+        .ok_or((StatusCode::UNAUTHORIZED, "Replicant not found".into()))?;
+    user_store.accept_invite(&body.code, &replicant.user_id).map_err(|e| {
+        (StatusCode::BAD_REQUEST, format!("Accept failed: {e}"))
+    })?;
+    let body = serde_json::json!({
+        "status": "accepted",
+        "code": body.code,
+        "replicant": replicant.replicant_name,
+    });
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(axum::body::Body::from(body.to_string()))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
+}
+
+#[derive(Deserialize)]
+pub struct AcceptInviteBody {
+    code: String,
+}
+
 /// URL-encode a string (basic implementation — only encodes special chars).
 fn urlencoding(s: &str) -> String {
     s.chars()
@@ -517,4 +579,5 @@ pub fn auth_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
         .route("/api/v1/auth/callback", axum::routing::get(callback))
         .route("/api/v1/auth/logout", axum::routing::post(logout))
         .route("/api/v1/auth/session", axum::routing::get(session_info))
+        .route("/api/v1/auth/accept-invite", axum::routing::post(accept_invite))
 }

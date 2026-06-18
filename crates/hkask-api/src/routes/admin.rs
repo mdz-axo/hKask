@@ -82,7 +82,7 @@ pub async fn list_sessions(
 /// expect: "As an admin I can view the server configuration" [P1]
     #[contract(id = "P1-multi-admin-config-get", principle = "P1")]
 pub async fn get_config(
-    State(state): State<ApiState>,
+    State(_): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     Ok(Json(serde_json::json!({
@@ -97,11 +97,3 @@ struct InviteResponse {
 }
 
 use axum::routing::{get, post};
-use axum::Router;
-
-pub fn admin_router() -> Router<ApiState> {
-    Router::new()
-        .route("/api/v1/admin/invite", post(create_invite).get(list_invites))
-        .route("/api/v1/admin/sessions", get(list_sessions))
-        .route("/api/v1/admin/config", get(get_config))
-}

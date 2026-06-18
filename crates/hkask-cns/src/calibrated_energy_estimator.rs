@@ -17,6 +17,7 @@
 //!   successful calibration, then rebuilds the `CompositeEnergyEstimator` from the
 //!   updated table.
 
+use hkask_rsolidity as rs;
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
 use crate::dynamic_gas_table::DynamicGasTable;
 use crate::gas_report::GasReport;
@@ -68,7 +69,7 @@ impl CalibratedEnergyEstimator {
     /// post: returns CalibratedEnergyEstimator with default table and no observations
     /// post: first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
     /// post: no event sink attached until `with_event_sink` is called
-    pub fn new(store: Arc<NuEventStore>) -> Self {
+    #[rs::contract(id = "P9-cns-calibrated-energy-estimator-new", principle = "P9")]    pub fn new(store: Arc<NuEventStore>) -> Self {
         let table = DynamicGasTable::new();
         let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
         Self {
@@ -87,7 +88,7 @@ impl CalibratedEnergyEstimator {
     /// pre:  lookback is a positive duration
     /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
+    #[rs::contract(id = "P9-cns-calibrated-energy-estimator-with-initial-lookback", principle = "P9")]    pub fn with_initial_lookback(mut self, lookback: ChronoDuration) -> Self {
         let now = Utc::now();
         // Update last_calibrated_at so the first pass covers [now - lookback, now].
         self.last_calibrated_at = tokio::sync::Mutex::new(now - lookback);
@@ -100,7 +101,7 @@ impl CalibratedEnergyEstimator {
     /// pre:  sink is a valid NuEventSink
     /// post: subsequent successful calibrations that adjust costs emit a span
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    #[rs::contract(id = "P9-cns-calibrated-energy-estimator-with-event-sink", principle = "P9")]    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -113,7 +114,7 @@ impl CalibratedEnergyEstimator {
     /// post: all settled gas events since the last calibration are fed into
     ///       `DynamicGasTable`; `CompositeEnergyEstimator` is rebuilt from the
     ///       updated table; returns the number of servers whose costs changed
-    pub async fn calibrate(&self) -> Result<usize, InfrastructureError> {
+    #[rs::contract(id = "P9-cns-calibrated-energy-estimator-calibrate", principle = "P9")]    pub async fn calibrate(&self) -> Result<usize, InfrastructureError> {
         let until = Utc::now();
         let since = {
             let mut last = self.last_calibrated_at.lock().await;
@@ -195,7 +196,7 @@ impl CalibratedEnergyEstimator {
     /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
     /// pre:  interval > 0
     /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
-    pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
+    #[rs::contract(id = "P9-cns-calibrated-energy-estimator-spawn-calibration", principle = "P9")]    pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(interval).await;
@@ -217,7 +218,7 @@ impl CalibratedEnergyEstimator {
     /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
     /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
     /// post: returns a copy of the internal server_costs map
-    pub fn current_table(&self) -> std::collections::HashMap<String, u64> {
+    #[rs::contract(id = "P9-cns-calibrated-energy-estimator-current-table", principle = "P9")]    pub fn current_table(&self) -> std::collections::HashMap<String, u64> {
         self.table
             .read()
             .map_or_else(|_| std::collections::HashMap::new(), |t| t.report_table())

@@ -1453,22 +1453,12 @@ summary:
     - "docs/user-guides/kanban-user-guide.md: missing kata integration, CNS spans, error recovery"
   contract_coverage:
     total_pub_fns: 1771
-    total_req_tags: 2334
-    coverage_pct: 131.7
-    status: "PASS — all public functions contracted. Coverage > 100% due to multi-contract functions. v0.28.0 adds goal-principle anchoring and deployment contracts."
-  recent_updates:
-    - "2026-06-18: FUNCTIONAL_SPECIFICATION.md — deployment domain (§3.18), ERDs (§4), goal-principle anchoring (§5), v0.28.0"
-    - "2026-06-18: TESTING_DISCIPLINE.md — goal-principle linkage (§2.6), deployment testing (§2.7), user expectation traceability (§6.1), v0.28.0"
-    - "2026-06-18: PRINCIPLES.md — goal-vs-constraining principle role (§1.5), v0.28.0"
-      - "2026-06-18: kata-kanban-integration.md — kata coaching loop → kanban task state transitions with Mermaid sequence diagram"
-    - "2026-06-18: contract_traceability_audit.md — REQ tag traceability audit, P0-P3 phased migration status"
-    - "2026-06-18: energy_accounting_hardening_audit.md — 7 semantic operations across 23 surfaces, tamper-evidence analysis, 3 recommendations"
-    - "2026-06-18: CNS expect: field completion — 115 expect: fields across 15 CNS files, all 197 production contracts"
-    - "2026-06-18: CNS-DOMAIN-SPECIFICATION.md — v0.28.0, goal-principle language"
-    - "2026-06-18: Google OAuth implementation — auth.rs, landing.rs"
-    - "2026-06-18: TODO.md + PROJECT_STATUS.md — v0.28.0 version sync"
-    - "2026-06-18: user_expectation_audit.md — field adoption audit (1.0% partial, CNS has 25 expect: fields)"
+    total_req_tags: 2519
+    coverage_pct: 142.2
+    status: "PASS — all public functions contracted. v0.28.0: workspace 0 errors, 28 warnings (proc-macro dead-code limitation). Phase C multi-user implemented."
   verification:
-    contract_audit: "scripts/contract-audit.sh --summary passed"
-    cns_spans: "crates/hkask-types/src/cns.rs — 90+ variants including kanban (TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated), kata (KataImprovEffectiveness), adapter (AdapterStored, AdapterRetrieved, AdapterDeleted)"
+    build: "cargo check --workspace — 0 errors, 28 warnings"
+    contract_audit: "scripts/contract-audit.sh --summary — all crates >=100%"
+    link_check: "docs/ci/check-links.sh — 284 links, 0 broken"
+    expect_coverage: "CNS: 115/197 (100% production), Wallet: 13/13 (100%), Memory: 55/55 (100%)"
     openapi: "docs/generated/openapi.json — 4454 lines, 497 descriptions, 24 params, 60 responses. Needs quality gate (Task 6)"

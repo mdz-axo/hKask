@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 //! hKask CNS — Cybernetic Nervous System
 //!
 //! Homeostatic self-regulation: variety sensing, algedonic alerts, energy budgets,

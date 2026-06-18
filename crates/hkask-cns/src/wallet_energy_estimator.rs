@@ -49,7 +49,7 @@ impl WalletEnergyEstimator {
     /// expect: "I can compose a wallet energy estimator from a pre-calibrated composite estimator so gas→rJoule conversion uses live costs" [P9]
     /// pre:  gas_per_rjoule > 0
     /// post: returns WalletEnergyEstimator with the supplied inner estimator
-    pub fn with_estimator(gas_per_rjoule: u64, inner: CompositeEnergyEstimator) -> Self {
+    #[rs::contract(id = "P9-cns-wallet-energy-estimator-with-estimator", principle = "P9")]    pub fn with_estimator(gas_per_rjoule: u64, inner: CompositeEnergyEstimator) -> Self {
         Self {
             inner,
             gas_per_rjoule,

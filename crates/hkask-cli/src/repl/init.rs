@@ -123,7 +123,6 @@ pub(super) fn init_repl_state(
     // building AgentService. This populates registry.skills() for bundle
     // composition, skill listing, and process_manifest resolution.
     // # REQ: P11 (Digital Public/Private Sphere) — load skills from both zones
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
     {
         let project_root =
             std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));

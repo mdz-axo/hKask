@@ -24,7 +24,7 @@ const ADMIN_PATH_PREFIXES: &[&str] = &["/api/v1/admin"];
     #[contract(id = "P1-multi-admin-gate", principle = "P1")]
 pub async fn admin_middleware(
     store: Arc<Mutex<UserStore>>,
-    mut req: Request,
+    req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
     let path = req.uri().path();

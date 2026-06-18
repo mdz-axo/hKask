@@ -365,7 +365,7 @@ impl EnergyBudget {
     /// pre:  gas is a valid EnergyCost
     /// post: if hard_limit && gas > available → Err(BudgetExceeded)
     /// post: if Ok → reserved increased by gas, remaining unchanged
-    /// inv:  remaining + reserved ≤ cap (maintained)
+    /// inv:  reserved ≤ remaining (maintained)
     ///
     /// Returns `Ok(reserved)` if gas was reserved, `Err` if insufficient.
     /// Reserved gas is deducted from available but not from remaining until
@@ -384,9 +384,9 @@ impl EnergyBudget {
         }
         self.reserved = EnergyCost(self.reserved.0.saturating_add(gas.0));
         rs::assert!(
-            self.remaining.0 + self.reserved.0 <= self.cap.0,
+            self.reserved.0 <= self.remaining.0,
             "P9-cns-energy-budget-reserve",
-            "invariant: remaining + reserved ≤ cap"
+            "invariant: reserved ≤ remaining"
         );
         Ok(gas)
     }

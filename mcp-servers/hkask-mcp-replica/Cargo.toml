@@ -28,4 +28,5 @@ path = "src/lib.rs"
 [dev-dependencies]
 hkask-test-harness = { path = "../../crates/hkask-test-harness" }
 proptest = "1"
+rand = "0.9"
 tempfile.workspace = true

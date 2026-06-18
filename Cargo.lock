@@ -4389,6 +4389,7 @@ dependencies = [
  "hkask-test-harness",
  "hkask-types",
  "proptest",
+ "rand 0.9.4",
  "rmcp",
  "schemars",
  "serde",

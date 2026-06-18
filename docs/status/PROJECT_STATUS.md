@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.28.0 Phase C — Multi-user foundation: Role enum, Invite system, admin middleware, admin routes (invite/sessions/config), CNS spans (RoleAssigned, InviteSent, InviteAccepted). Google OAuth implementation. rSolidity build regression fixed (circular import + misplaced dependencies in 6 crates). Expect: field audit complete — wallet 100%, memory 100%, CNS 100% (115 fields). All documentation v0.28.0. (2026-06-18)
+**Current session:** v0.28.0 Phase C — Multi-user foundation complete: Role enum, Invite system, admin middleware, admin routes (invite/sessions/config), CNS spans (RoleAssigned, InviteSent, InviteAccepted). Google OAuth. rSolidity build regression fixed (circular import + 6 misplaced deps). Workspace: 0 errors, 28 warnings (proc-macro dead-code analysis limitation). Expect: coverage: CNS 100% (115), Wallet 100% (13), Memory 100% (55). All docs v0.28.0. (2026-06-18)
 
 ---
 
@@ -22,10 +22,11 @@ All 25 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ⚠️ Partial (hkask-templates, hkask-inference pre-existing) | 2026-06-18 |
-| Core crates — types, storage, api, cns, wallet, agents, condenser, improv, communication, services, keystore, mcp, cli, acp | ✅ Pass | 2026-06-18 |
-| rSolidity chain (macros + runtime) | ✅ Pass (fixed circular import 2026-06-18) | 2026-06-18 |
+| Workspace (`cargo check --workspace`) | ✅ Pass (0 errors, 28 warnings) | 2026-06-18 |
+| Core crates (all 25+) | ✅ Pass | 2026-06-18 |
+| rSolidity chain (macros + runtime) | ✅ Pass (circular import fixed) | 2026-06-18 |
 | Multi-user crates (types, storage, api, middleware) | ✅ Pass | 2026-06-18 |
+| Warnings | 28 (all `unused import: hkask_rsolidity as rs` — proc-macro limitation) | 2026-06-18 |
 
 ---
 

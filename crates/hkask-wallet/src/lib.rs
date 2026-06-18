@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 //! hKask Wallet — rJoule payments, self-custody multi-chain deposits, API key issuance.
 //!
 //! # Specialized sub-wallet `[OUGHT-DECL]`
