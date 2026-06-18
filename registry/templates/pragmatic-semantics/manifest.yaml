@@ -3,7 +3,7 @@
 
 crate:
   name: pragmatic-semantics
-  version: "0.23.0"
+  version: "0.28.0"
   description: >
     Epistemic discipline for classifying statements by certainty level
     and constraint force. Distinguish IS from OUGHT, declarative from

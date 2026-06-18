@@ -1,6 +1,6 @@
 crate:
   name: review
-  version: "0.27.0"
+  version: "0.28.0"
   description: >
     Self-critique a reasoning output for contradictions, unsupported claims,
     logical gaps, and confidence calibration. Use before finalizing an answer or

@@ -3,7 +3,7 @@
 
 crate:
   name: condenser-continuation
-  version: "0.27.0"
+  version: "0.28.0"
   description: >
     Continuation skill for resuming hKask condenser implementation work after
     context reset. Restores session state, prioritizes remaining tasks,

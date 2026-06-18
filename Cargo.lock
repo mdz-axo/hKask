@@ -4729,6 +4729,7 @@ dependencies = [
  "serde_yaml_neo",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

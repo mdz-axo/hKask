@@ -3,7 +3,7 @@
 
 crate:
   name: improve-codebase-architecture
-  version: "0.23.0"
+  version: "0.28.0"
   description: >
     Find deepening opportunities in the codebase. Surfaces shallow modules,
     proposes deep modules with small interfaces and large implementations.

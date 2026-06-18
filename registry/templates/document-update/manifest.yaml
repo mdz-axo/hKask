@@ -3,7 +3,7 @@
 
 crate:
   name: document-update
-  version: "0.27.0"
+  version: "0.28.0"
   description: >
     Systematic documentation corpus maintenance workflow. Wraps the
     hkask-mcp-spec server's 5-tool surface into a 7-task document-specific

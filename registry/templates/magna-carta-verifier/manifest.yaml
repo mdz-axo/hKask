@@ -3,7 +3,7 @@
 
 crate:
   name: magna-carta-verifier
-  version: "0.23.0"
+  version: "0.28.0"
   description: >
     Verifies that hKask's four Magna Carta principles (User Sovereignty,
     Affirmative Consent, Generative Space, Clear Boundaries) are correctly

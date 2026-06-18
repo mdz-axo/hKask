@@ -32,6 +32,10 @@ fn main() {
     // create their own runtimes with servers started via start_server().
     let runtime = McpRuntime::new();
 
+    // REQ: P9-CNS-SURF-001 pre: valid command parsed post: cns.cli span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.cli", operation = "command_dispatched", command = ?cli.command, "CNS");
+
     match cli.command {
         Commands::Chat {
             template,

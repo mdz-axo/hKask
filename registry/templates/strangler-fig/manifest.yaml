@@ -3,7 +3,7 @@
 
 crate:
   name: strangler-fig
-  version: "0.27.0"
+  version: "0.28.0"
   description: >
     Incremental architectural migration using Martin Fowler's Strangler Fig
     pattern. Migrate one domain at a time: create new implementation alongside

@@ -3,7 +3,7 @@
 
 crate:
   name: contract-review
-  version: "0.27.0"
+  version: "0.28.0"
   description: >
     Dual-presence Curator+Human contract review workflow. The Curator presents
     proposed behavioral contracts from the review queue, the human evaluates
