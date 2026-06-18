@@ -151,7 +151,7 @@ Respond with a JSON object:
    "behaviors_to_test": [
      {
        "behavior": "What the system should do (observable, through public interface)",
-       "spec_id": "UUID from spec/graph/query",
+        "contract_id": "P9-cns-capability-check-denies-when-no-checker",
        "seam": "Which public interface exercises this behavior",
        "test_type": "unit|integration|contract|fuzz|system",
        "priority": "P0|P1|P2",
@@ -172,8 +172,8 @@ Respond with a JSON object:
     }
   ],
   "priority_order": [
-    "REQ-<spec_id>: capability_check_denies_when_no_checker",
-    "REQ-<spec_id>: capability_check_attenuation_depth_limit"
+    "P9-cns-capability-check-denies-when-no-checker",
+    "P4-cns-capability-check-attenuation-depth-limit"
   ],
   "assumptions": [
     {

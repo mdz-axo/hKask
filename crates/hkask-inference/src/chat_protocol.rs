@@ -69,6 +69,7 @@ pub struct ChatMessage {
 /// transfer encoding from confusing JSON parsers.
 ///
 /// REQ: P9-inf-build-chat-request
+/// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload
 /// pre:  model is non-empty, prompt is non-empty
 /// post: returns serde_json::Value with model, messages, and parameters
@@ -200,6 +201,7 @@ pub struct StreamDelta {
 /// Map raw tool calls from API response to structured ToolCall format.
 ///
 /// REQ: P9-inf-map-tool-calls
+/// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — structured tool-call results for routing
 /// pre:  calls is a valid slice of RawToolCall
 /// post: returns Vec<StructuredToolCall> with parsed arguments
@@ -227,6 +229,7 @@ pub fn map_tool_calls(calls: &[RawToolCall]) -> Vec<StructuredToolCall> {
 /// Map raw token probabilities to structured TokenProbability format.
 ///
 /// REQ: P9-inf-map-token-probs
+/// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — token probability metadata for monitoring
 /// pre:  probs is a valid slice of RawTokenProb
 /// post: returns Vec<TokenProbability> with mapped fields
@@ -252,6 +255,7 @@ pub fn map_token_probs(probs: &[RawTokenProb]) -> Vec<TokenProbability> {
 /// Convert a chat completion response to InferenceResult.
 ///
 /// REQ: P9-inf-chat-response-to-result
+/// expect: "The system normalizes provider responses for monitoring" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — normalizes provider response for monitoring
 /// pre:  response is a valid ChatResponse
 /// post: returns Ok(InferenceResult) with text, usage, finish_reason
@@ -289,6 +293,7 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
 /// Parse an SSE stream into InferenceStreamChunks.
 ///
 /// REQ: P9-inf-parse-sse-stream
+/// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — parses streaming response chunks for regulated output
 /// pre:  stream is a valid SSE byte stream
 /// post: returns stream of InferenceStreamChunk parsed from SSE data lines
@@ -354,6 +359,7 @@ pub fn parse_sse_stream(
 /// Validate a prompt string.
 ///
 /// REQ: P9-inf-validate-prompt
+/// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — input validation prevents token overconsumption
 /// pre:  prompt is a valid &str
 /// post: returns Err(Generation) if prompt is empty
@@ -375,6 +381,7 @@ pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
 /// (Bearer vs Key) and base URL.
 ///
 /// REQ: P9-inf-stream-chat-completion
+/// expect: "The system constructs and validates regulated LLM requests" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — shared streaming helper for all providers
 /// pre:  client is a configured reqwest::Client
 /// pre:  base_url and auth_header_value are non-empty
@@ -436,6 +443,7 @@ mod tests {
     use super::*;
 
     /// REQ: P9-inf-test-chat-response-deserializes — ChatResponse deserializes OpenAI-compatible format
+    /// expect: "Inference chat response deserialization works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates response normalization
     #[test]
     fn chat_response_deserializes_openai_format() {
@@ -473,6 +481,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-build-chat-request-stream-false — build_chat_request produces valid JSON with stream:false
+    /// expect: "Inference chat request building works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates non-streaming request payload
     #[test]
     fn build_chat_request_stream_false() {
@@ -504,6 +513,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-validate-prompt-rejects — validate_prompt rejects empty and overlong prompts
+    /// expect: "Inference prompt validation works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates prompt guardrails
     #[test]
     fn validate_prompt_rejects_invalid() {
@@ -512,6 +522,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-disable-thinking-wire — disable_thinking maps to enable_thinking: false in wire format
+    /// expect: "Inference thinking mode wire format works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates reasoning-mode suppression
     #[test]
     fn disable_thinking_maps_to_wire_format() {
@@ -534,6 +545,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-enable-thinking-omitted — enable_thinking is omitted from JSON when true (default)
+    /// expect: "Inference thinking mode omission works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates default reasoning-mode omission
     #[test]
     fn enable_thinking_omitted_when_true() {

@@ -25,6 +25,7 @@ impl Ed25519SpecSigner {
     /// other keys derived from the same master secret.
     ///
     /// REQ: KEY-020
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  master_secret is non-empty
     /// post: returns Ed25519SpecSigner with derived signing key
     pub fn from_master_secret(master_secret: &[u8]) -> Self {
@@ -44,6 +45,7 @@ impl Ed25519SpecSigner {
     /// whitespace) to ensure deterministic verification.
     ///
     /// REQ: KEY-021
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  canonical_json is non-empty
     /// post: returns 128-char hex-encoded Ed25519 signature
     pub fn sign_spec(&self, canonical_json: &[u8]) -> String {
@@ -61,6 +63,7 @@ impl Ed25519SpecSigner {
     /// the 64-byte Ed25519 signature.
     ///
     /// REQ: KEY-022
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  canonical_json is non-empty, hex_signature is 128 hex chars
     /// post: returns Ok(()) if signature valid, Err otherwise
     pub fn verify_spec(
@@ -87,6 +90,7 @@ impl Ed25519SpecSigner {
     /// consumers who don't have the master secret can still verify.
     ///
     /// REQ: KEY-023
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// post: returns Ed25519 VerifyingKey
     pub fn verifying_key(&self) -> VerifyingKey {
         self.signing_key.verifying_key()
@@ -95,6 +99,7 @@ impl Ed25519SpecSigner {
     /// Return the verifying key bytes (32 bytes) as a hex string.
     ///
     /// REQ: KEY-024
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// post: returns 64-char hex-encoded verifying key
     pub fn verifying_key_hex(&self) -> String {
         hex::encode(self.signing_key.verifying_key().to_bytes())

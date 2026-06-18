@@ -253,6 +253,9 @@ pub enum Commands {
         max_results: usize,
     },
 
+    /// Initialize hKask server configuration (interactive)
+    Init,
+
     /// Start the HTTP API server (shares state with CLI)
     Serve {
         /// Port to listen on

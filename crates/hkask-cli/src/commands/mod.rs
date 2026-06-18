@@ -21,6 +21,7 @@ pub mod embed_corpus;
 pub mod git_cmd;
 pub mod goal;
 pub mod helpers;
+pub mod init;
 pub mod kanban;
 pub mod kata;
 pub mod keystore;

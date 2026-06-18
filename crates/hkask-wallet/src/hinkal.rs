@@ -182,6 +182,7 @@ impl HinkalPort {
     /// Create a new HinkalPort connected to the Hinkal API.
     ///
     /// REQ: P9-wallet-hinkal-port-new
+    /// expect: "The system creates a privacy port for shielded transactions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop
     /// \[P4\] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey
     /// pre:  api_base_url is a valid absolute URL
@@ -1055,6 +1056,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-chain-error-actor-test — chain_error emission uses caller-provided actor identity
+    /// expect: "Wallet hinkal chain error actor test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn emit_chain_error_uses_provided_actor() {
         let actor = WebID::from_persona(b"actor-hinkal-test");
@@ -1079,6 +1081,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-session-read-format-test — session message format matches Hinkal API spec
+    /// expect: "Wallet hinkal session read format test works correctly under test conditions" [P9]
     #[test]
     fn session_message_read_format() {
         let msg = HinkalPort::build_session_message("test-nonce-123", false);
@@ -1088,6 +1091,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-session-write-format-test — write session message includes transaction authorization
+    /// expect: "Wallet hinkal session write format test works correctly under test conditions" [P9]
     #[test]
     fn session_message_write_format() {
         let msg = HinkalPort::build_session_message("test-nonce-456", true);
@@ -1097,6 +1101,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-withdraw-message-format-test — Solana withdraw message format matches Hinkal API spec
+    /// expect: "Wallet hinkal withdraw message format test works correctly under test conditions" [P9]
     #[test]
     fn withdraw_message_format() {
         let msg = HinkalPort::build_withdraw_message(
@@ -1116,6 +1121,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-circuit-breaker-healthy-test — circuit breaker initial state is healthy
+    /// expect: "Wallet hinkal circuit breaker healthy test works correctly under test conditions" [P9]
     #[test]
     fn circuit_breaker_initial_state() {
         let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey").unwrap();
@@ -1124,6 +1130,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-circuit-breaker-chain-test — circuit breaker denies non-Hinkal chains
+    /// expect: "Wallet hinkal circuit breaker chain test works correctly under test conditions" [P9]
     #[test]
     fn available_for_chain_rejects_non_hinkal() {
         let port = HinkalPort::new("https://api.hinkal.io", "test_treasury_pubkey").unwrap();
@@ -1132,6 +1139,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-session-create-test — session bootstrap success path maps request/response correctly
+    /// expect: "Wallet hinkal session create test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn create_session_success() {
         // SAFETY: test-only — sets HKASK_MASTER_KEY env var for test fixture;
@@ -1165,6 +1173,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-session-cache-ttl-test — cached session is reused while unexpired
+    /// expect: "Wallet hinkal session cache ttl test works correctly under test conditions" [P9]
     #[test]
     fn cached_session_reused_within_ttl() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1177,6 +1186,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-session-cache-write-test — write-access lookup does not reuse read-only cached session
+    /// expect: "Wallet hinkal session cache write test works correctly under test conditions" [P9]
     #[test]
     fn cached_read_session_not_reused_for_write() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1191,6 +1201,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-nonce-reuse-test — nonce reuse/server rejection is propagated fail-closed
+    /// expect: "Wallet hinkal nonce reuse test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn create_session_nonce_reuse_propagates_error() {
         // SAFETY: test-only — sets HKASK_MASTER_KEY env var for test fixture;
@@ -1229,6 +1240,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-invalid-balance-test — invalid/partial balance payload fails closed
+    /// expect: "Wallet hinkal invalid balance test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn monitor_shielded_transfers_rejects_invalid_balance_payload() {
         // SAFETY: test-only — sets HKASK_MASTER_KEY env var for test fixture;
@@ -1277,6 +1289,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-unshield-payload-test — build_unshield_tx encodes deterministic request payload fields
+    /// expect: "Wallet hinkal unshield payload test works correctly under test conditions" [P9]
     #[test]
     fn build_unshield_tx_encodes_payload() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1293,6 +1306,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-shielded-withdraw-delta-test — monitor_shielded_transfers emits only positive balance deltas
+    /// expect: "Wallet hinkal shielded withdraw delta test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn monitor_shielded_transfers_emits_balance_deltas() {
         let server = MockServer::start().await;
@@ -1340,6 +1354,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-suppress-nonincreasing-test — monitor_shielded_transfers suppresses non-increasing balances
+    /// expect: "Wallet hinkal suppress nonincreasing test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn monitor_shielded_transfers_suppresses_non_increasing_balances() {
         let server = MockServer::start().await;
@@ -1385,6 +1400,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-shield-message-format-test — shield message format matches Hinkal API spec
+    /// expect: "Wallet hinkal shield message format test works correctly under test conditions" [P9]
     #[test]
     fn shield_message_format() {
         let msg = HinkalPort::build_shield_message(
@@ -1404,6 +1420,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-shield-payload-test — build_shield_tx encodes deterministic payload fields
+    /// expect: "Wallet hinkal shield payload test works correctly under test conditions" [P9]
     #[test]
     fn build_shield_tx_encodes_payload() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1419,6 +1436,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-shield-zero-amount-test — build_shield_tx rejects zero amount
+    /// expect: "Wallet hinkal shield zero amount test works correctly under test conditions" [P9]
     #[test]
     fn build_shield_tx_rejects_zero_amount() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1428,6 +1446,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-shield-unsupported-chain-test — build_shield_tx rejects unsupported chain
+    /// expect: "Wallet hinkal shield unsupported chain test works correctly under test conditions" [P9]
     #[test]
     fn build_shield_tx_rejects_unsupported_chain() {
         let port = HinkalPort::new("https://api.hinkal.io", "treasury_pubkey_test").unwrap();
@@ -1437,6 +1456,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-hinkal-payload-deser-test — HinkalPayload untagged deserialization dispatches correctly
+    /// expect: "Wallet hinkal payload deser test works correctly under test conditions" [P9]
     #[test]
     fn hinkal_payload_deserialization_dispatches() {
         // Withdraw payload (has to_public field)

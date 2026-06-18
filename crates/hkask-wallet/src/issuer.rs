@@ -28,6 +28,7 @@ use crate::signing;
 /// Issues Ed25519-signed API key capability tokens.
 ///
 /// REQ: P9-wallet-issuer-struct
+/// expect: "The system manages API key issuance with spending limits and expiry" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
 /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
 /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -47,6 +48,7 @@ impl ApiKeyIssuer {
     /// Create a new ApiKeyIssuer.
     ///
     /// REQ: P9-wallet-issuer-new
+    /// expect: "The system manages API key issuance with spending limits and expiry" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
     /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -84,6 +86,7 @@ impl ApiKeyIssuer {
     /// "Print" a new API key.
     ///
     /// REQ: P9-wallet-issuer-create-key
+    /// expect: "I can create an API key with spending limits and scope" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
     /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -110,6 +113,7 @@ impl ApiKeyIssuer {
     ) -> Result<ApiKeyMaterial, WalletError> {
         // Generate fresh Ed25519 keypair for this API key
         // REQ: P9-wallet-issuer-zeroize-seed — key generation seed wrapped in Zeroizing for automatic zeroize on drop
+        /// expect: "My private key material is zeroized on drop and redacted from debug output" [P1]
         let mut rng = rand::rng();
         let mut seed = Zeroizing::new([0u8; 32]);
         rng.fill(&mut *seed);
@@ -168,6 +172,7 @@ impl ApiKeyIssuer {
     /// Idempotent — revoking an already-revoked key is a no-op.
     ///
     /// REQ: P9-wallet-issuer-revoke-key
+    /// expect: "I can revoke an API key and recover unspent balance" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
     /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -196,6 +201,7 @@ impl ApiKeyIssuer {
     /// List active (non-revoked) API keys for a wallet.
     ///
     /// REQ: P9-wallet-issuer-list-keys
+    /// expect: "I can list my active API keys" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access
     /// \[P2\] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued
     /// \[P4\] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries
@@ -228,6 +234,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-issuer-create-keypair-test — create_key produces valid Ed25519 keypair
+    /// expect: "Wallet issuer create keypair test works correctly under test conditions" [P9]
     #[test]
     fn create_key_produces_valid_keypair() {
         let issuer = make_issuer();
@@ -255,6 +262,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-issuer-expiry-test — create_key with expiry sets expiry field
+    /// expect: "Wallet issuer expiry test works correctly under test conditions" [P9]
     #[test]
     fn create_key_with_expiry() {
         let issuer = make_issuer();
@@ -278,6 +286,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-issuer-revoke-unspent-test — revoke_key returns unspent rJoules
+    /// expect: "Wallet issuer revoke unspent test works correctly under test conditions" [P9]
     #[test]
     fn revoke_key_returns_unspent_rjoules() {
         let issuer = make_issuer();
@@ -317,6 +326,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-issuer-list-active-test — list_keys returns active keys
+    /// expect: "Wallet issuer list active test works correctly under test conditions" [P9]
     #[test]
     fn list_keys_returns_active_keys() {
         let issuer = make_issuer();

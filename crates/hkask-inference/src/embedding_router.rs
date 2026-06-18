@@ -21,6 +21,7 @@ impl EmbeddingRouter {
     /// Create a new embedding router from an `InferenceConfig`.
     ///
     /// REQ: P4-inf-embedding-router-new
+    /// expect: "The system creates multi-provider membranes assembled from configured boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — embedding provider membrane gated by API key
     /// pre:  config is a valid InferenceConfig
     /// post: returns EmbeddingRouter with configured backends
@@ -35,6 +36,7 @@ impl EmbeddingRouter {
     /// Create an embedding router with a shared HTTP client.
     ///
     /// REQ: P4-inf-embedding-router-with-client
+    /// expect: "The system creates multi-provider membranes assembled from configured boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — embedding provider with shared connection pool
     /// pre:  config is a valid InferenceConfig; client is a configured reqwest::Client
     /// post: returns EmbeddingRouter with DeepInfra client from shared pool
@@ -91,6 +93,7 @@ impl EmbeddingRouter {
     /// One vector per input sentence, same order. Dimension set by model.
     ///
     /// REQ: P9-inf-embed-sentences
+    /// expect: "The system generates regulated embeddings" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated batch embedding generation
     /// pre:  model is a valid provider-prefixed model name
     /// pre:  sentences is non-empty
@@ -162,6 +165,7 @@ impl EmbeddingRouter {
     /// Convenience wrapper around `embed_sentences`.
     ///
     /// REQ: P9-inf-embed-sentence
+    /// expect: "The system generates regulated embeddings" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated single embedding generation
     /// pre:  model is a valid provider-prefixed model name
     /// pre:  sentence is a non-empty string

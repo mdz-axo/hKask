@@ -8,6 +8,7 @@
 //! 2. `GET /api/v1/auth/callback?provider=github&code=...&state=...` → exchange code, create session, redirect to /terminal
 
 use axum::{
+    Json,
     extract::{Query, State},
     http::{StatusCode, header},
     response::Response,
@@ -372,6 +373,66 @@ async fn fetch_github_user(
     Ok((provider_user_id, display_name, email))
 }
 
+/// POST /api/v1/auth/logout — destroys the current session.
+///
+/// REQ: DEP-600
+pub async fn logout(
+    State(state): State<ApiState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Response, (StatusCode, String)> {
+    if let Some(session_id) = extract_cookie(&headers, "hkask_session") {
+        let user_store = state.agent_service.user_store();
+        let store = user_store.lock().map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Lock error: {e}"),
+            )
+        })?;
+        let _ = store.logout(&session_id);
+    }
+    Ok(Response::builder()
+        .status(StatusCode::FOUND)
+        .header(header::LOCATION, "/")
+        .header(
+            header::SET_COOKIE,
+            "hkask_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0",
+        )
+        .body(axum::body::Body::empty())
+        .unwrap())
+}
+
+/// GET /api/v1/auth/session — returns current session info.
+///
+/// REQ: DEP-601
+pub async fn session_info(
+    State(state): State<ApiState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let session_id = extract_cookie(&headers, "hkask_session")
+        .ok_or((StatusCode::UNAUTHORIZED, "No session".to_string()))?;
+    let user_store = state.agent_service.user_store();
+    let store = user_store.lock().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Lock error: {e}"),
+        )
+    })?;
+    let session = store
+        .get_session(&session_id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
+        .ok_or((StatusCode::UNAUTHORIZED, "Invalid session".to_string()))?;
+    let now = chrono::Utc::now().timestamp();
+    if session.is_expired(now) {
+        return Err((StatusCode::UNAUTHORIZED, "Session expired".to_string()));
+    }
+    Ok(Json(serde_json::json!({
+        "replicant_name": session.replicant_name,
+        "webid": session.replicant_webid.to_string(),
+        "expires_at": session.expires_at,
+        "last_active": session.last_active
+    })))
+}
+
 /// URL-encode a string (basic implementation — only encodes special chars).
 fn urlencoding(s: &str) -> String {
     s.chars()
@@ -409,4 +470,6 @@ pub fn auth_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/v1/auth/login", axum::routing::get(login))
         .route("/api/v1/auth/callback", axum::routing::get(callback))
+        .route("/api/v1/auth/logout", axum::routing::post(logout))
+        .route("/api/v1/auth/session", axum::routing::get(session_info))
 }

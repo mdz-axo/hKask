@@ -92,7 +92,8 @@ impl<P: ToolPort> GovernedTool<P> {
     /// Create a new GovernedTool membrane wrapping an inner ToolPort.
     ///
     /// REQ: P9-cns-gov-tool-new
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — tool governance enables feedback loops
+    /// expect: "The system creates a governed tool membrane that gates execution behind energy and OCAP checks" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — tool governance enables feedback loops
     /// \[P4\] Constraining: Clear Boundaries — cybernetics binding enforces OCAP boundary
     /// pre:  inner is valid, cns is valid
     /// post: returns GovernedTool
@@ -121,7 +122,8 @@ impl<P: ToolPort> GovernedTool<P> {
     /// Set the tool consumption channel.
     ///
     /// REQ: P9-cns-gov-tool-consumption-channel
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — consumption channel closes the cybernetic feedback loop
+    /// expect: "The system wires tool consumption events back to the cybernetics loop" [P9]
+    /// [P9] Motivating: Homeostatic Self-Regulation — consumption channel closes the cybernetic feedback loop
     /// \[P4\] Constraining: Clear Boundaries — channel ownership tracks consumer identity
     /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with channel set (builder pattern)
@@ -137,7 +139,8 @@ impl<P: ToolPort> GovernedTool<P> {
     /// Set the agent WebID for attribution.
     ///
     /// REQ: P12-cns-gov-tool-with-agent
-    /// \[P12\] Motivating: Affirmative Consent — agent identity is the consent anchor
+    /// expect: "I can bind an agent identity to the governance membrane for attribution" [P12]
+    /// [P12] Motivating: Affirmative Consent — agent identity is the consent anchor
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per invocation
     /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with agent set (builder pattern)

@@ -31,3 +31,9 @@ path = "src/main.rs"
 
 [dev-dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-services-kanban = { path = "../../crates/hkask-services-kanban" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-test-harness = { path = "../../crates/hkask-test-harness" }
+proptest = "1"
+tempfile.workspace = true
+rusqlite.workspace = true

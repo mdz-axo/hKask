@@ -1,5 +1,6 @@
 //! UserStore — Human user identity, Argon2id auth, encrypted PII, session management.
 
+use crate::archive::MergeReceipt;
 use crate::Store;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
@@ -388,6 +389,30 @@ impl UserStore {
             rusqlite::params![replicant_name],
         )?;
         Ok(())
+    }
+
+    /// Merge triples from a source replicant into a target replicant.
+    /// Updates entity field where it matches the source replicant name.
+    ///
+    /// REQ: DEP-500 — P5 Migration: idempotent replicant merge.
+    /// pre:  source_name and target_name are valid replicant names
+    /// post: all triples with entity = source_name updated to entity = target_name
+    /// post: returns MergeReceipt with triple_count
+    pub fn merge_replicant_triples(
+        &self,
+        source_name: &str,
+        target_name: &str,
+    ) -> UserResult<MergeReceipt> {
+        let conn = self.lock_conn()?;
+        let count = conn.execute(
+            "UPDATE triples SET entity = ?1 WHERE entity = ?2",
+            rusqlite::params![target_name, source_name],
+        )?;
+        Ok(MergeReceipt {
+            triple_count: count as u64,
+            source: source_name.to_string(),
+            target: target_name.to_string(),
+        })
     }
 
     /// Find a replicant by WebID.

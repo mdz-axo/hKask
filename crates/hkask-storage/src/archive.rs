@@ -46,6 +46,16 @@ pub struct MigrationReceipt {
     pub renamed_replicants: Vec<(String, String)>,
 }
 
+/// Receipt returned after replicant merge.
+///
+/// REQ: DEP-500 — P5 Migration: merge receipt.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MergeReceipt {
+    pub triple_count: u64,
+    pub source: String,
+    pub target: String,
+}
+
 pub struct BackupArchive {
     db: Database,
     path: PathBuf,

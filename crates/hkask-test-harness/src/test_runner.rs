@@ -495,6 +495,45 @@ fn extract_function_name(line: &str) -> String {
         .to_string()
 }
 
+/// Extract the [P{N}] principle tag from a text string.
+/// Matches patterns like "[P9]" or "[P12]" and returns the tag.
+fn extract_principle_tag(text: &str) -> Option<String> {
+    let start = text.find("[P")?;
+    let rest = &text[start..];
+    let end = rest.find(']')?;
+    let tag = &rest[..=end];
+    // Validate number is 1-12
+    let num_str = &rest[2..end];
+    let num: u32 = num_str.parse().ok()?;
+    if num >= 1 && num <= 12 {
+        Some(tag.to_string())
+    } else {
+        None
+    }
+}
+
+/// Extract a constraining principle annotation from a doc-comment line.
+/// Matches patterns like "/// [P4] Constraining: Clear Boundaries — ..."
+fn extract_constraining_principle(line: &str) -> Option<String> {
+    if !line.contains("Constraining:") {
+        return None;
+    }
+    let trimmed = line.trim_start_matches(['/', '#', ' ']).trim();
+    if let Some(start) = trimmed.find("[P") {
+        let rest = &trimmed[start..];
+        if let Some(end) = rest.find(']') {
+            let tag = &rest[..=end];
+            let num_str = &rest[2..end];
+            if let Ok(num) = num_str.parse::<u32>() {
+                if num >= 1 && num <= 12 {
+                    return Some(tag.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

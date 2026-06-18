@@ -31,6 +31,7 @@ impl From<KeyringError> for KeychainError {
 /// Keychain service for secure credential storage
 ///
 /// REQ: KEYSTORE-001
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// inv: secrets are stored in OS keychain, never in plaintext files
 pub struct Keychain {
     service_name: String,
@@ -40,6 +41,7 @@ impl Keychain {
     /// Create a new Keychain for the given service name.
     ///
     /// REQ: KEYSTORE-001
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// post: service_name is set
     pub fn new(service_name: &str) -> Self {
         Self {
@@ -50,6 +52,7 @@ impl Keychain {
     /// Store a secret in the OS keychain, keyed by WebID.
     ///
     /// REQ: KEYSTORE-002
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  webid is a valid WebID, secret is non-empty
     /// post: secret stored in OS keychain under service_name + webid.uuid
     /// post: returns Err(Platform) if keychain is unavailable
@@ -69,6 +72,7 @@ impl Keychain {
     /// Retrieve a secret from the OS keychain by WebID.
     ///
     /// REQ: KEYSTORE-002
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  webid is a valid WebID
     /// post: returns Ok(secret) if stored, Err(NotFound) if not
     pub fn retrieve(&self, webid: &WebID) -> Result<String, KeychainError> {
@@ -83,6 +87,7 @@ impl Keychain {
     /// Delete a secret from the OS keychain by WebID.
     ///
     /// REQ: KEYSTORE-002
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  webid is a valid WebID
     /// post: secret removed from OS keychain
     /// post: idempotent — deleting non-existent entry is no-op (platform-dependent)
@@ -101,6 +106,7 @@ impl Keychain {
     /// Store a secret in the OS keychain by arbitrary key name.
     ///
     /// REQ: KEYSTORE-002
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  key is non-empty, secret is non-empty
     /// post: secret stored in OS keychain under service_name + key
     pub fn store_by_key(&self, key: &str, secret: &str) -> Result<(), KeychainError> {
@@ -118,6 +124,7 @@ impl Keychain {
     /// Retrieve a secret from the OS keychain by arbitrary key name.
     ///
     /// REQ: KEYSTORE-002
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  key is non-empty
     /// post: returns Ok(secret) if stored, Err(NotFound) if not
     pub fn retrieve_by_key(&self, key: &str) -> Result<String, KeychainError> {
@@ -132,6 +139,7 @@ impl Keychain {
     /// Delete a secret from the OS keychain by arbitrary key name.
     ///
     /// REQ: KEYSTORE-002
+    /// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     /// pre:  key is non-empty
     /// post: secret removed from OS keychain
     pub fn delete_by_key(&self, key: &str) -> Result<(), KeychainError> {
@@ -173,6 +181,7 @@ impl Default for Keychain {
 /// the appropriate parameters.
 ///
 /// REQ: KEYSTORE-003
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// pre:  derivation_context, env_var, keychain_key are valid
 /// post: tries derivation → env → keychain in order
 /// post: returns Ok(Zeroizing<Vec<u8>>) on first success
@@ -202,6 +211,7 @@ pub fn resolve_secret_chain(
 /// environment variables for backward compatibility.
 ///
 /// REQ: KEY-010
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns Zeroizing<Vec<u8>> from first successful resolution step
 pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
@@ -227,6 +237,7 @@ pub fn resolve_a2a_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// since they share the same authority chain.
 ///
 /// REQ: KEY-011
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns Zeroizing<Vec<u8>> from first successful resolution step
 /// post: falls back to A2A secret if MCP key unavailable
 pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
@@ -249,6 +260,7 @@ pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Chain: master key derivation → env var → OS keychain.
 ///
 /// REQ: KEY-012
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns Zeroizing<Vec<u8>> from first successful resolution step
 pub fn resolve_mcp_security_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
@@ -269,6 +281,7 @@ pub fn resolve_mcp_security_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Chain: master key derivation → env var → OS keychain.
 ///
 /// REQ: KEY-013
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns Zeroizing<Vec<u8>> from first successful resolution step
 pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve_secret_chain(
@@ -295,6 +308,7 @@ pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// the database with a derived key that the user didn't consent to.
 ///
 /// REQ: KEY-014
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns Zeroizing<Vec<u8>> from env var or keychain
 pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     resolve(&SecretRef::env("HKASK_DB_PASSPHRASE"))
@@ -309,6 +323,7 @@ pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// 3. Random generation (last resort — tokens will not survive restart)
 ///
 /// REQ: KEY-015
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns Zeroizing<Vec<u8>> from derivation, keychain, or random generation
 pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     // Prefer deterministic derivation from master key
@@ -351,6 +366,7 @@ pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> 
 /// a deterministic 256-bit sub-key.
 ///
 /// REQ: KEYSTORE-003
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// pre:  secret_ref is a valid SecretRef variant
 /// post: Env → reads from environment variable, Err(NotFound) if unset
 /// post: Keychain → reads from OS keychain, Err(NotFound) if absent
@@ -421,6 +437,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
 /// Derive a chain-specific treasury key seed from the master key.
 ///
 /// REQ: KEYSTORE-004
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// pre:  chain is a valid ChainId (Solana, Hedera, or Hinkal)
 /// post: returns Ok(Zeroizing<Vec<u8>>) — 32-byte HKDF-derived seed
 /// post: same master key → same treasury key for given chain (deterministic)
@@ -451,6 +468,7 @@ pub fn resolve_treasury_key(chain: ChainId) -> Result<Zeroizing<Vec<u8>>, Keycha
 /// Derive the wallet seed for HD derivation, deposit references, and API key signing.
 ///
 /// REQ: KEYSTORE-005
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns Ok(Zeroizing<Vec<u8>>) — 32-byte HKDF-derived seed
 /// post: same master key → same wallet seed (deterministic)
 ///
@@ -473,6 +491,7 @@ pub fn resolve_wallet_seed() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
 /// Sign an `ApiKeyCapability` with the wallet's Ed25519 key.
 ///
 /// REQ: KEYSTORE-006
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// pre:  capability is a valid, fully-populated ApiKeyCapability
 /// post: returns Ok(hex_signature) — 128-char hex-encoded Ed25519 signature
 /// post: wallet seed loaded, used for signing, zeroized within this call
@@ -518,6 +537,7 @@ mod tests {
     }
 
     // REQ: P3-keystore — resolve_treasury_key returns different keys per chain
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn treasury_keys_differ_per_chain() {
         set_test_master_key();
@@ -529,6 +549,7 @@ mod tests {
     }
 
     // REQ: P3-keystore — resolve_treasury_key is deterministic
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn treasury_key_is_deterministic() {
         set_test_master_key();
@@ -538,6 +559,7 @@ mod tests {
     }
 
     // REQ: P3-keystore — resolve_wallet_seed returns 32 bytes
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn wallet_seed_is_32_bytes() {
         set_test_master_key();
@@ -546,6 +568,7 @@ mod tests {
     }
 
     // REQ: P3-keystore — resolve_wallet_seed is deterministic
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn wallet_seed_is_deterministic() {
         set_test_master_key();
@@ -555,6 +578,7 @@ mod tests {
     }
 
     // REQ: P3-keystore — sign_api_key_capability produces verifiable signature
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn sign_api_key_capability_produces_signature() {
         set_test_master_key();
@@ -579,6 +603,7 @@ mod tests {
     }
 
     // REQ: P3-keystore — signature changes when capability is tampered
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn signature_changes_on_tampered_capability() {
         set_test_master_key();

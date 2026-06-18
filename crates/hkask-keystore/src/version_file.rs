@@ -16,6 +16,7 @@ pub const DEFAULT_KEY_VERSION: u32 = 1;
 /// Get the path to the key version file.
 ///
 /// REQ: KEY-016
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns PathBuf to ~/.config/hkask/version
 pub fn version_file_path() -> PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -30,6 +31,7 @@ pub fn version_file_path() -> PathBuf {
 /// (backward compatibility with pre-versioning installs).
 ///
 /// REQ: KEY-017
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: returns u32 version from file, or DEFAULT_KEY_VERSION if missing
 pub fn read_key_version() -> u32 {
     let path = version_file_path();
@@ -52,6 +54,7 @@ pub fn read_key_version() -> u32 {
 /// Creates the parent directory if it doesn't exist.
 ///
 /// REQ: KEY-018
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// pre:  version is a valid u32
 /// post: version written to version file
 pub fn write_key_version(version: u32) -> std::io::Result<()> {
@@ -70,6 +73,7 @@ pub fn write_key_version(version: u32) -> std::io::Result<()> {
 /// Returns the new version number.
 ///
 /// REQ: KEY-019
+/// expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
 /// post: version incremented by 1 and written to disk
 /// post: returns new version number
 pub fn increment_key_version() -> std::io::Result<u32> {
@@ -86,12 +90,14 @@ mod tests {
     use tempfile::TempDir;
 
     // REQ: svc-keystore-version-001 — default_version_is_one
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn default_version_is_one() {
         assert_eq!(DEFAULT_KEY_VERSION, 1);
     }
 
     // REQ: svc-keystore-version-002 — read_returns_default_when_no_file
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn read_returns_default_when_no_file() {
         // In test environment, config dir may not exist — should return default
@@ -100,6 +106,7 @@ mod tests {
     }
 
     // REQ: svc-keystore-version-003 — write_and_read_roundtrip
+    // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn write_and_read_roundtrip() {
         let dir = TempDir::new().unwrap();

@@ -69,9 +69,9 @@ These are the behaviors that have tracer bullets (tests) written for them:
 
 ## Analysis Rules
 
-1. **Match by spec_id**: Each tested behavior should carry a `spec_id` linking it to a specification requirement. If a behavior has no `spec_id`, flag it as unanchored.
-2. **Gap = no tracer bullet for a requirement**: If a spec from the captured goals has no matching tested behavior (no `// REQ:` tag with its `spec_id`), it is a coverage gap.
-3. **Unanchored = no spec_id on a behavior**: If a tested behavior has no `spec_id`, it tests something not in the specification — flag it for review.
+1. **Match by contract_id**: Each tested behavior should carry a `contract_id` linking it to a specification requirement. If a behavior has no `contract_id`, flag it as unanchored.
+2. **Gap = no tracer bullet for a requirement**: If a spec from the captured goals has no matching tested behavior (no `// REQ:` tag with its `contract_id`), it is a coverage gap.
+3. **Unanchored = no contract_id on a behavior**: If a tested behavior has no `contract_id`, it tests something not in the specification — flag it for review.
 4. **Priority is derived from MDS category**: P0 = Trust, P1 = Domain, Composition, P2 = Lifecycle, Curation.
 5. **Incomplete specs**: If `is_complete()` returns false for a spec, its unsatisfied `Criterion` items are additional coverage gaps.
 6. **Deferrals go to OPEN_QUESTIONS.md**: Every deferred gap must have a documented rationale.
@@ -151,11 +151,11 @@ Respond with a JSON object:
   ],
   "deferrals": [
     {
-      "spec_id": "UUID from spec/goal/capture",
+      "contract_id": "P9-cns-alert-threshold-config",
       "requirement": "Algedonic alerting threshold configuration",
       "priority": "P2",
       "rationale": "Deferred: alert thresholds not configurable in current sprint",
-      "open_questions_entry": "spec_id: Algedonic alerting threshold configuration — deferred pending configurable threshold implementation"
+      "open_questions_entry": "contract_id: P9-cns-alert-threshold-config — deferred pending configurable threshold implementation"
     }
   ],
   "coverage_percentage": 85.7,
@@ -194,11 +194,11 @@ Respond with a JSON object:
 
 ## Constraints
 
-- Every spec_id in `spec_requirements` must appear in exactly one of: `covered_requirements`, `gaps`, or `deferrals`.
+- Every contract_id in `spec_requirements` must appear in exactly one of: `covered_requirements`, `gaps`, or `deferrals`.
 - P0 gaps MUST recommend `tracer-bullet` (never `defer`).
 - P1 gaps SHOULD recommend `tracer-bullet`; deferrals require explicit rationale.
 - P2+ gaps MAY recommend `defer-to-OPEN_QUESTIONS`.
-- Unanchored behaviors (no `spec_id`) must be flagged in the analysis.
+- Unanchored behaviors (no `contract_id`) must be flagged in the analysis.
 - Specs where `is_complete()` is false have unsatisfied `Criterion` items that should appear as gaps.
 - Use `spec/graph/coherence` results to check overall collection coherence and missing MDS categories.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).

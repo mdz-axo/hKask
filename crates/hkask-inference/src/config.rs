@@ -58,6 +58,7 @@ impl ProviderId {
     /// Returns `Some((provider, stripped_model))` if a prefix is found.
     ///
     /// REQ: P9-inf-parse-provider-from-model
+    /// expect: "The system normalizes provider responses for monitoring" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model-name routing to provider boundary
     /// pre:  model is non-empty
     /// post: returns Some((ProviderId, stripped_model)) for DI/, FA/, TG/, RP/, BT/ prefixes
@@ -88,6 +89,7 @@ impl ProviderId {
     /// Format a model name with this provider's prefix.
     ///
     /// REQ: P9-inf-prefix-model
+    /// expect: "The system normalizes provider responses for monitoring" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — canonical provider-prefixed model naming
     /// pre:  model is non-empty
     /// post: returns "{prefix}/{model}" string
@@ -98,6 +100,7 @@ impl ProviderId {
     /// Two-letter code for this provider.
     ///
     /// REQ: P9-inf-provider-as-str
+    /// expect: "The system normalizes provider responses for monitoring" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — stable provider code for routing
     /// post: returns "DI", "FA", "TG", "RP", or "BT"
     pub fn as_str(&self) -> &'static str {
@@ -193,6 +196,7 @@ impl InferenceConfig {
     /// as legacy environment variable names.
     ///
     /// REQ: P9-inf-config-from-env
+    /// expect: "The system resolves inference configuration from the environment" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — inference configuration resolved from environment
     /// post: returns InferenceConfig resolved from env vars and keychain
     /// post: defaults to DeepInfra cloud if env vars unset
@@ -240,6 +244,7 @@ impl InferenceConfig {
     /// Build a reqwest HTTP client with the configured timeout and pool settings.
     ///
     /// REQ: P9-inf-build-http-client
+    /// expect: "The system resolves inference configuration from the environment" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — bounded HTTP client for regulated requests
     /// post: returns reqwest::Client with timeout and pool settings from config
     pub fn build_client(&self) -> Result<reqwest::Client, String> {
@@ -314,6 +319,7 @@ mod tests {
     use super::*;
 
     /// REQ: P9-inf-test-parse-provider-prefix — ProviderId::parse_from_model parses all prefixes
+    /// expect: "Inference provider prefix parsing works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates provider routing parser
     #[test]
     fn parse_provider_prefix() {
@@ -336,6 +342,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-unprefixed-model-none — unprefixed model names return None
+    /// expect: "Inference model prefix fallback works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates default-provider fallback
     #[test]
     fn parse_no_prefix_returns_none() {
@@ -344,6 +351,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-empty-model-none — empty model after prefix returns None
+    /// expect: "Inference malformed model rejection works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates malformed model rejection
     #[test]
     fn parse_empty_model_returns_none() {
@@ -352,6 +360,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-too-short-none — too-short strings return None
+    /// expect: "Inference malformed model rejection works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates malformed model rejection
     #[test]
     fn parse_too_short_returns_none() {
@@ -361,6 +370,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-unknown-prefix-none — unknown prefix returns None
+    /// expect: "Inference unknown provider rejection works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates unknown provider rejection
     #[test]
     fn parse_unknown_prefix_returns_none() {
@@ -369,6 +379,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-prefix-model-format — prefix_model formats correctly for all providers
+    /// expect: "Inference model name formatting works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates canonical model naming
     #[test]
     fn prefix_model_format() {
@@ -386,6 +397,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-fal-prefix — FA/ prefix parses correctly
+    /// expect: "Inference fal.ai prefix parsing works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates fal.ai routing
     #[test]
     fn parse_fal_prefix() {
@@ -402,6 +414,7 @@ mod tests {
     // ── parse_provider_code ────────────────────────────────────────────
 
     /// REQ: P9-inf-test-provider-code — parse_provider_code parses all six provider codes
+    /// expect: "Inference provider code parsing works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates provider code parser
     #[test]
     fn parse_provider_code_all_codes() {
@@ -413,6 +426,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-provider-code-default — unknown or empty provider code defaults to DeepInfra
+    /// expect: "Inference provider code default works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates safe default provider
     #[test]
     fn parse_provider_code_unknown_defaults_to_deepinfra() {
@@ -425,6 +439,7 @@ mod tests {
     // ── resolve_api_key ──────────────────────────────────────────────────
 
     /// REQ: P9-inf-test-resolve-api-key-primary — resolve_api_key reads from primary env var
+    /// expect: "Inference API key resolution works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates API key resolution
     #[test]
     fn resolve_api_key_primary_env() {
@@ -439,6 +454,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-resolve-api-key-fallback — resolve_api_key falls back to legacy env var names
+    /// expect: "Inference API key fallback works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates API key fallback
     #[test]
     fn resolve_api_key_fallback_env() {
@@ -453,6 +469,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-resolve-api-key-empty — resolve_api_key returns empty when no key found
+    /// expect: "Inference API key missing handling works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates missing key handling
     #[test]
     fn resolve_api_key_empty_when_missing() {
@@ -468,6 +485,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-resolve-api-key-priority — resolve_api_key prefers primary over fallback
+    /// expect: "Inference API key priority works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates keychain/env priority
     #[test]
     fn resolve_api_key_primary_wins_over_fallback() {

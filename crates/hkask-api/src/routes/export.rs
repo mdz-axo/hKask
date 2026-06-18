@@ -5,7 +5,7 @@
 //! `POST /api/v1/export/create` — generate encrypted sovereignty archive.
 //! `POST /api/v1/export/upload` — upload archive for server migration.
 
-use axum::{Extension, Json, extract::State, http::StatusCode};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::Response};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -192,4 +192,49 @@ pub fn export_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .route("/api/v1/export/create", axum::routing::post(export_create))
         .route("/api/v1/export/upload", axum::routing::post(export_upload))
+        .route(
+            "/api/v1/export/download",
+            axum::routing::get(export_download),
+        )
+}
+
+/// GET /api/v1/export/download — download the latest export archive for the authenticated user.
+///
+/// REQ: DEP-602
+pub async fn export_download(
+    State(_state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+) -> Result<Response, (StatusCode, String)> {
+    let webid = auth.webid;
+    let export_dir = PathBuf::from("/var/lib/hkask/exports").join(webid.to_string());
+
+    // Find the latest archive
+    let mut entries: Vec<_> = std::fs::read_dir(&export_dir)
+        .map_err(|_| (StatusCode::NOT_FOUND, "No exports found".to_string()))?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "db"))
+        .collect();
+    entries.sort_by_key(|e| std::fs::metadata(e.path()).and_then(|m| m.modified()).ok());
+    entries.reverse();
+
+    let latest = entries
+        .first()
+        .ok_or((StatusCode::NOT_FOUND, "No exports found".to_string()))?;
+    let bytes = std::fs::read(latest.path()).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to read archive: {e}"),
+        )
+    })?;
+
+    let filename = latest.file_name().to_string_lossy().to_string();
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "application/octet-stream")
+        .header(
+            "Content-Disposition",
+            format!("attachment; filename=\"{}\"", filename),
+        )
+        .body(axum::body::Body::from(bytes))
+        .unwrap())
 }

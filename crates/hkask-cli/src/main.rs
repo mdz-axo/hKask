@@ -145,6 +145,13 @@ fn main() {
             }
         }
 
+        Commands::Init => {
+            if let Err(e) = commands::init::run_init() {
+                eprintln!("Init error: {}", e);
+                std::process::exit(1);
+            }
+        }
+
         Commands::Wallet { action } => commands::wallet::run(action),
 
         Commands::List {

@@ -33,6 +33,7 @@ impl SevenR7Listener {
     /// Create a new 7R7 listener.
     ///
     /// REQ: COMM-019
+    /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  matrix is a valid MatrixTransport (authenticated)
     /// pre:  poll_interval_secs > 0
     /// post: returns SevenR7Listener with active=false
@@ -52,6 +53,7 @@ impl SevenR7Listener {
     /// action to take.
     ///
     /// REQ: COMM-020
+    /// expect: "Agents communicate through user-owned channels" [P1]
     /// pre:  matrix transport is authenticated
     /// post: background polling task spawned
     /// post: idempotent — calling start() on already-active listener is no-op
@@ -125,6 +127,7 @@ impl SevenR7Listener {
     /// Stop the polling loop.
     ///
     /// REQ: COMM-021
+    /// expect: "Agents communicate through user-owned channels" [P1]
     /// post: active flag set to false
     /// post: idempotent — calling stop() on already-stopped listener is no-op
     pub async fn stop(&self) {
