@@ -3,7 +3,7 @@
 use super::*;
 
 impl KataEngine {
-    fn capture_before_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
+    pub(super) fn capture_before_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
         if manifest.metrics.is_empty() {
             return;
         }
@@ -33,7 +33,7 @@ impl KataEngine {
         }
     }
 
-    fn capture_after_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
+    pub(super) fn capture_after_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
         if manifest.metrics.is_empty() {
             return;
         }
@@ -63,7 +63,7 @@ impl KataEngine {
         }
     }
 
-    fn compute_improvement_signal(&self, state: &KataState) -> Option<ImprovementSignal> {
+    pub(super) fn compute_improvement_signal(&self, state: &KataState) -> Option<ImprovementSignal> {
         let before = state.metric_before.as_ref()?;
         let after = state.metric_after.as_ref()?;
 
@@ -91,13 +91,13 @@ impl KataEngine {
         })
     }
 
-    async fn increment_cns_variety(&self, domain: &str, state_name: &str) {
+    pub(super) async fn increment_cns_variety(&self, domain: &str, state_name: &str) {
         if let Some(ref cns) = self.cns_runtime {
             cns.read().await.increment_variety(domain, state_name).await;
         }
     }
 
-    async fn check_cns_alerts(&self, manifest: &KataManifest, kata_type: &str) {
+    pub(super) async fn check_cns_alerts(&self, manifest: &KataManifest, kata_type: &str) {
         let Some(ref cns) = self.cns_runtime else {
             return;
         };

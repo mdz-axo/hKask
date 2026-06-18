@@ -1,7 +1,7 @@
 use super::*;
 
 impl KataEngine {
-    async fn run_improvement(
+    pub(super) async fn run_improvement(
         &self,
         manifest: &KataManifest,
         state: &mut KataState,

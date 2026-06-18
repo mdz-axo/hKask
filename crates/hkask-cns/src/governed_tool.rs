@@ -202,6 +202,19 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
     ) -> Result<Value, ToolPortError> {
         let estimated_cost = self.estimator.estimate_cost(server, tool, &args);
 
+        // Step 0: Verify cryptographic authenticity of the delegation token
+        if !token.verify() {
+            warn!(
+                target: "cns.tool",
+                agent = ?self.agent,
+                tool = %tool,
+                "Tool invocation rejected — token signature verification failed"
+            );
+            return Err(ToolPortError::CapabilityDenied(
+                "Token failed cryptographic verification".to_string(),
+            ));
+        }
+
         // Step 1: Verify OCAP authority
         // Path 1: Legacy exact-match — ad-hoc invocation tokens minted with tool name
         // Path 2: Domain-based — agent capability tokens use domain shorthand

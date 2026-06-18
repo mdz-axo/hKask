@@ -1,7 +1,7 @@
 use super::*;
 
 impl KataEngine {
-    async fn execute_step(
+    pub(super) async fn execute_step(
         &self,
         _manifest: &KataManifest,
         step: &KataStep,

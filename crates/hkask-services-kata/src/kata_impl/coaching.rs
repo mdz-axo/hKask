@@ -1,7 +1,7 @@
 use super::*;
 
 impl KataEngine {
-    async fn run_coaching(
+    pub(super) async fn run_coaching(
         &self,
         manifest: &KataManifest,
         state: &mut KataState,
