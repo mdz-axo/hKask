@@ -25,6 +25,32 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::time::Instant;
+use thiserror::Error;
+
+/// Unified error type for hkask-mcp library operations.
+///
+/// Replaces `anyhow::Error` in all public APIs. Every variant carries
+/// structured context suitable for CNS spans and operator diagnostics.
+#[derive(Debug, Error)]
+pub enum McpError {
+    #[error("{0} set but HKASK_DB_PASSPHRASE missing")]
+    DatabasePassphrase(String),
+
+    #[error("Replicant '{replicant}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.")]
+    Auth { replicant: String },
+
+    #[error("Replicant '{replicant}' is not assigned to the {role} MCP role. Use 'kask pod assign {replicant} {role}' to grant this role.")]
+    RoleAssignment { replicant: String, role: String },
+
+    #[error("Unexpected {context} response: {detail}")]
+    UnexpectedResponse { context: String, detail: String },
+
+    #[error("Missing required credentials: {missing}. Set them via environment variables or hkask-keystore.")]
+    MissingCredentials { missing: String },
+
+    #[error("{0}")]
+    Other(#[from] anyhow::Error),
+}
 
 /// A credential that an MCP server requires to function.
 ///
@@ -154,12 +180,12 @@ impl ServerContext {
     /// REQ: MCP-030
     /// pre:  db_env_var is set and contains a valid passphrase
     /// post: returns opened Database
-    pub fn open_database(&self, db_env_var: &str) -> anyhow::Result<hkask_storage::Database> {
+pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database, McpError> {
         use hkask_storage::open_database;
         match self.credentials.get(db_env_var) {
             Some(path) => {
                 let passphrase = self.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                    anyhow::anyhow!("{} set but HKASK_DB_PASSPHRASE missing", db_env_var)
+                    McpError::DatabasePassphrase(db_env_var.to_string())
                 })?;
                 Ok(open_database(path, passphrase)?)
             }
@@ -177,11 +203,11 @@ impl ServerContext {
         &self,
         db_env_var: &str,
         extensions: &str,
-    ) -> anyhow::Result<hkask_storage::Database> {
+    ) -> Result<hkask_storage::Database, McpError> {
         match self.credentials.get(db_env_var) {
             Some(path) => {
                 let passphrase = self.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                    anyhow::anyhow!("{} set but HKASK_DB_PASSPHRASE missing", db_env_var)
+                    McpError::DatabasePassphrase(db_env_var.to_string())
                 })?;
                 Ok(hkask_storage::Database::open_with_extensions(
                     path, passphrase, extensions,
@@ -665,10 +691,10 @@ pub async fn run_stdio_server<S, F>(
     version: &str,
     server_factory: F,
     credentials: Vec<CredentialRequirement>,
-) -> anyhow::Result<()>
+) -> Result<(), McpError>
 where
     S: rmcp::ServiceExt<rmcp::RoleServer> + rmcp::Service<rmcp::RoleServer>,
-    F: FnOnce(ServerContext) -> anyhow::Result<S>,
+    F: FnOnce(ServerContext) -> Result<S, McpError>,
 {
     run_stdio_server_impl(server_name, version, server_factory, credentials, None).await
 }
@@ -684,10 +710,10 @@ pub async fn run_stdio_server_with_preloaded<S, F>(
     server_factory: F,
     credentials: Vec<CredentialRequirement>,
     preloaded: HashMap<String, String>,
-) -> anyhow::Result<()>
+) -> Result<(), McpError>
 where
     S: rmcp::ServiceExt<rmcp::RoleServer> + rmcp::Service<rmcp::RoleServer>,
-    F: FnOnce(ServerContext) -> anyhow::Result<S>,
+    F: FnOnce(ServerContext) -> Result<S, McpError>,
 {
     run_stdio_server_impl(
         server_name,
@@ -708,10 +734,10 @@ async fn run_stdio_server_impl<S, F>(
     server_factory: F,
     credentials: Vec<CredentialRequirement>,
     preloaded: Option<HashMap<String, String>>,
-) -> anyhow::Result<()>
+) -> Result<(), McpError>
 where
     S: rmcp::ServiceExt<rmcp::RoleServer> + rmcp::Service<rmcp::RoleServer>,
-    F: FnOnce(ServerContext) -> anyhow::Result<S>,
+    F: FnOnce(ServerContext) -> Result<S, McpError>,
 {
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
@@ -746,10 +772,9 @@ where
         }
     }
     if !missing_required.is_empty() {
-        anyhow::bail!(
-            "Missing required credentials: {}. Set them via environment variables or hkask-keystore.",
-            missing_required.join(", ")
-        );
+        return Err(McpError::MissingCredentials {
+            missing: missing_required.join(", "),
+        });
     }
 
     let webid = if let Some(ref pre) = preloaded {
@@ -792,8 +817,8 @@ where
         version = version,
         "MCP server starting"
     );
-    let running = server.serve(rmcp::transport::stdio()).await?;
-    running.waiting().await?;
+    let running = server.serve(rmcp::transport::stdio()).await.map_err(|e| anyhow::anyhow!("{e}"))?;
+    running.waiting().await.map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
 

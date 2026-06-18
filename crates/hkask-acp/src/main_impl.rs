@@ -31,10 +31,20 @@ use hkask_types::template::LLMParameters;
 use protocol::*;
 use std::collections::HashMap;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
 const ENV_REPLICANT: &str = "HKASK_REPLICANT";
+
+/// Error type for hkask-acp library operations.
+#[derive(Debug, Error)]
+pub enum AcpError {
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+}
 
 pub struct SessionState {
     /// REQ: ACP-001
@@ -381,7 +391,7 @@ fn cns_emit(span: CnsSpan, replicant: &str, detail: &str) {
 /// pre:  HKASK_REPLICANT env var may be set; cargo build must have succeeded
 /// post: ACP JSON-RPC server runs over stdin/stdout until EOF or error
 /// post: emits cns.acp.ide.connection_state span on connect and disconnect
-pub async fn run() -> anyhow::Result<()> {
+pub async fn run() -> Result<(), AcpError> {
     let agent = Arc::new(HkaskAcpAgent::build().await);
     info!(target: "hkask.acp", replicant = %agent.replicant, daemon_ok = agent.daemon_ready(), "ACP replicant starting");
 

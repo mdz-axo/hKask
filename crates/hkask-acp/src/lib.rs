@@ -4,5 +4,6 @@
 
 pub mod main_impl;
 
+pub use main_impl::AcpError;
 pub use main_impl::HkaskAcpAgent;
 pub use main_impl::SessionState;

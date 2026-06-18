@@ -36,6 +36,7 @@
 //! ```
 
 use crate::daemon::{DaemonClient, DaemonResponse};
+use crate::server::McpError;
 
 /// Result of startup gate verification.
 #[derive(Debug, Clone)]
@@ -101,7 +102,7 @@ pub async fn verify_startup_gates(
     replicant: &str,
     role: &str,
     required_tools: &[&str],
-) -> anyhow::Result<StartupGateResult> {
+) -> Result<StartupGateResult, McpError> {
     // ── Gate 1: Authentication ──────────────────────────────────────────
 
     let auth = client.auth_query(replicant).await?;
@@ -117,12 +118,16 @@ pub async fn verify_startup_gates(
             action: Some(ref action),
             ..
         } if action == "prompt_user" => {
-            anyhow::bail!(
-                "Replicant '{}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.",
-                replicant
-            );
+            return Err(McpError::Auth {
+                replicant: replicant.to_string(),
+            });
         }
-        other => anyhow::bail!("Unexpected auth response: {:?}", other),
+        other => {
+            return Err(McpError::UnexpectedResponse {
+                context: "auth".to_string(),
+                detail: format!("{:?}", other),
+            });
+        }
     }
 
     // ── Gate 2: Assignment ──────────────────────────────────────────────
@@ -133,16 +138,17 @@ pub async fn verify_startup_gates(
             // Assigned — proceed to Gate 3.
         }
         DaemonResponse::AssignmentResponse { assigned: false } => {
-            anyhow::bail!(
-                "Replicant '{}' is not assigned to the {} MCP role. \
-                 Use 'kask pod assign {} {}' to grant this role.",
-                replicant,
-                role,
-                replicant,
-                role
-            );
+            return Err(McpError::RoleAssignment {
+                replicant: replicant.to_string(),
+                role: role.to_string(),
+            });
         }
-        other => anyhow::bail!("Unexpected assignment response: {:?}", other),
+        other => {
+            return Err(McpError::UnexpectedResponse {
+                context: "assignment".to_string(),
+                detail: format!("{:?}", other),
+            });
+        }
     }
 
     // ── Gate 3: Capability ──────────────────────────────────────────────
@@ -158,7 +164,10 @@ pub async fn verify_startup_gates(
                 denied_tools.push(tool.to_string());
             }
             other => {
-                anyhow::bail!("Unexpected capability response for '{}': {:?}", tool, other);
+                return Err(McpError::UnexpectedResponse {
+                    context: format!("capability({})", tool),
+                    detail: format!("{:?}", other),
+                });
             }
         }
     }

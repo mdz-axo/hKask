@@ -300,7 +300,7 @@ impl StdioTransport {
     /// pre:  agent is fully built (inference + daemon configured)
     /// post: reads JSON-RPC requests from stdin, writes responses to stdout
     /// post: runs until stdin EOF or unrecoverable error
-    pub async fn serve(&mut self, agent: Arc<HkaskAcpAgent>) -> anyhow::Result<()> {
+    pub async fn serve(&mut self, agent: Arc<HkaskAcpAgent>) -> Result<(), super::AcpError> {
         let stdin = tokio::io::stdin();
         let mut stdout = tokio::io::stdout();
         self.serve_impl(agent, stdin, &mut stdout).await
@@ -317,7 +317,7 @@ impl StdioTransport {
         agent: Arc<HkaskAcpAgent>,
         reader: R,
         writer: &mut (impl tokio::io::AsyncWrite + Unpin),
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), super::AcpError> {
         self.serve_impl(agent, reader, writer).await
     }
 
@@ -326,7 +326,7 @@ impl StdioTransport {
         agent: Arc<HkaskAcpAgent>,
         reader: R,
         writer: &mut (impl tokio::io::AsyncWrite + Unpin),
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), super::AcpError> {
         let buf_reader = BufReader::new(reader);
         let mut lines = buf_reader.lines();
 

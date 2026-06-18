@@ -1,9 +1,9 @@
 //! CNS (Cybernetic Nervous System) types for hKask
-//
+//!
 //! Namespace: cns.* (canonical observability namespace)
-//! Key spans: cns.tool.*, cns.prompt.*, cns.inference.*, cns.agent_pod.*, cns.connector.*, cns.pipeline.*, cns.gas.*, cns.review.*, cns.template.*, cns.curation.*, cns.variety.*, cns.sovereignty.*, cns.goal.*, cns.spec.*
+//! Key spans: cns.tool.*, cns.inference.*, cns.agent_pod.*, cns.gas.*, cns.curation.*, cns.sovereignty.*, cns.spec.*
 
-// G2 Justification: This module exposes 8 public items because it defines CNS types — CnsSpan (51 variants), ToolSubsystem, QueueDepth, CircuitState, CnsHealth, SeamCoverage, SeamInventory, RetryConfig. CnsSpan alone carries 51 canonical namespace variants. Submodule split planned for v0.28.0.
+// G2 Justification: This module exposes 8 public items because it defines CNS types — CnsSpan (28 variants), ToolSubsystem, QueueDepth, CircuitState, CnsHealth, SeamCoverage, SeamInventory, RetryConfig. CnsSpan carries 28 canonical namespace variants with confirmed producers.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -82,53 +82,24 @@ pub struct CnsHealth {
 /// `FromStr` is fallible — only canonical namespaces parse successfully.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CnsSpan {
-    // ── Top-level spans ─────────────────────────────────────────────────
     /// Tool invocation span. Subsystem tracks which MCP server emitted the span.
     Tool { subsystem: ToolSubsystem },
-    /// Prompt construction and framing.
-    Prompt,
     /// LLM inference request/response.
     Inference,
     /// Agent pod lifecycle events.
     AgentPod,
-    /// External connector operations (Matrix, HTTP, etc.).
-    Connector,
-    /// Pipeline execution (multi-step workflows).
-    Pipeline,
     /// Gas (energy) consumption tracking.
     Gas,
-    /// Review and audit operations.
-    Review,
-    /// Template registration and application.
-    Template,
     /// Curation loop operations.
     Curation,
-    /// Variety counter updates.
-    Variety,
     /// Sovereignty boundary checks.
     Sovereignty,
-    /// Goal lifecycle operations.
-    Goal,
     /// Specification operations (MDS).
     Spec,
-    /// Test execution and coverage.
-    Test,
     /// Chat/conversation operations.
     Chat,
-
-    // ── Hierarchical spans (defined in `CnsSpan`) ─────────────────────────
-    /// Cybernetic backpressure signals.
-    CyberneticsBackpressure,
-    /// Cybernetic cadence/timing signals.
-    CyberneticsCadence,
-    /// CNS set point adjustments.
-    SetPoint,
     /// Memory encoding operations.
     MemoryEncode,
-    /// Memory budget tracking.
-    MemoryBudget,
-
-    // ── Wallet spans ────────────────────────────────────────────────────
     /// Wallet balance queries.
     WalletBalance,
     /// Wallet deposit operations.
@@ -147,54 +118,12 @@ pub enum CnsSpan {
     WalletKeyExpired,
     /// API key exhaustion (usage limit reached).
     WalletKeyExhausted,
-    /// Treasury operations.
-    WalletTreasury,
     /// Blockchain chain errors.
     WalletChainError,
-    /// Privacy shield operations.
-    WalletPrivacyShield,
-    /// Privacy unshield operations.
-    WalletPrivacyUnshield,
-    /// Privacy-related errors.
-    WalletPrivacyError,
-
-    // ── Lazy Universe spans (P5 grounding) ──────────────────────────────
-    /// Context condenser compression ratio.
-    CondenserCompressionRatio,
-    /// Evolution energy delta (least-action tracking).
-    EvolutionEnergyDelta,
-    /// Architecture module depth measurement.
-    ArchitectureModuleDepth,
-
-    // ── Architecture health spans ───────────────────────────────────────
     /// Public seam coverage measurement.
     ArchitectureSeamCoverage,
     /// Public seam drift detection.
     ArchitectureSeamDrift,
-
-    // ── Improv spans (composable interaction grammar) ────────────────────
-    /// Active improv mode.
-    ImprovModeActive,
-    /// Plussing ratio in improv interactions.
-    ImprovPlussingRatio,
-    /// Freestyle coherence measurement.
-    ImprovFreestyleCoherence,
-    /// Ensemble coherence measurement.
-    ImprovEnsembleCoherence,
-    /// Kata improv effectiveness.
-    KataImprovEffectiveness,
-    /// Improv cascade depth.
-    ImprovCascadeDepth,
-
-    // ── Outcome quality spans ───────────────────────────────────────────
-    /// Tool outcome tracking (success/failure).
-    OutcomeTool,
-    /// Inference outcome tracking.
-    OutcomeInference,
-    /// Memory outcome tracking.
-    OutcomeMemory,
-
-    // ── Contract discipline spans (Testing Discipline §9.3) ─────────────
     /// Contract violation detected.
     ContractViolated,
     /// Contract coverage measurement.
@@ -205,58 +134,6 @@ pub enum CnsSpan {
     ContractAccepted,
     /// Contract rejected by human (Phase B3 consent gate).
     ContractRejected,
-
-    // ── Training observability spans (Training System §TASK 9) ────────────
-    /// Trace generation completed (perplexity, diversity metrics).
-    TrainingTraceGenerated,
-    /// Adapter evaluation completed (accuracy, exact_match rate).
-    TrainingEvalCompleted,
-    /// Training cost estimated vs. actual.
-    TrainingCostEstimated,
-    /// Harness feature utilization variety counter.
-    TrainingHarnessUtilized,
-    /// Adapter selected for inference routing.
-    TrainingAdapterSelected,
-
-    // ── Adapter lifecycle spans (Adapter System §Task 7) ──────────────
-    /// Adapter stored in AdapterStore.
-    AdapterStored,
-    /// Adapter retrieved from AdapterStore.
-    AdapterRetrieved,
-    /// Adapter deleted from AdapterStore.
-    AdapterDeleted,
-
-    // ── Endpoint lifecycle spans (Adapter System §Task 7) ────────────
-    /// Endpoint creation started.
-    EndpointCreateStarted,
-    /// Endpoint creation confirmed by provider.
-    EndpointCreateConfirmed,
-    /// Endpoint serving an inference request.
-    EndpointInference,
-    /// Endpoint draining (no new requests).
-    EndpointDraining,
-    /// Endpoint fully terminated.
-    EndpointTerminated,
-    /// Endpoint cost accrued update.
-    EndpointCostAccrued,
-    /// Endpoint cost budget warning.
-    EndpointCostBudgetWarning,
-
-    // ── Kanban spans (Agent Coordination) ─────────────────────────────
-    /// Task created on a kanban board.
-    TaskCreated,
-    /// Task moved between columns (state transition).
-    TaskMoved,
-    /// Task assigned to an agent with consent proof.
-    TaskAssigned,
-    /// Task verified against acceptance criteria.
-    TaskVerified,
-    /// Board created.
-    BoardCreated,
-
-    // ── ACP Bridge spans (IDE replicant observability) ──────────────────
-    /// ACP bridge latency measurement.
-    AcpBridgeLatency,
     /// ACP replicant memory size tracking.
     AcpReplicantMemorySize,
     /// ACP IDE connection state change.
@@ -334,26 +211,14 @@ impl CnsSpan {
                 ToolSubsystem::Kanban => "cns.tool.kanban",
                 ToolSubsystem::Other => "cns.tool",
             },
-            CnsSpan::Prompt => "cns.prompt",
             CnsSpan::Inference => "cns.inference",
             CnsSpan::AgentPod => "cns.agent_pod",
-            CnsSpan::Connector => "cns.connector",
-            CnsSpan::Pipeline => "cns.pipeline",
             CnsSpan::Gas => "cns.gas",
-            CnsSpan::Review => "cns.review",
-            CnsSpan::Template => "cns.template",
             CnsSpan::Curation => "cns.curation",
-            CnsSpan::Variety => "cns.variety",
             CnsSpan::Sovereignty => "cns.sovereignty",
-            CnsSpan::Goal => "cns.goal",
             CnsSpan::Spec => "cns.spec",
-            CnsSpan::Test => "cns.test",
             CnsSpan::Chat => "cns.chat",
-            CnsSpan::CyberneticsBackpressure => "cns.cybernetics.backpressure",
-            CnsSpan::CyberneticsCadence => "cns.cybernetics.cadence",
-            CnsSpan::SetPoint => "cns.set_point",
             CnsSpan::MemoryEncode => "cns.memory.encode",
-            CnsSpan::MemoryBudget => "cns.memory.budget",
             CnsSpan::WalletBalance => "cns.wallet.balance",
             CnsSpan::WalletDeposit => "cns.wallet.deposit",
             CnsSpan::WalletDepositShielded => "cns.wallet.deposit_shielded",
@@ -363,51 +228,14 @@ impl CnsSpan {
             CnsSpan::WalletKeyRevoked => "cns.wallet.key_revoked",
             CnsSpan::WalletKeyExpired => "cns.wallet.key_expired",
             CnsSpan::WalletKeyExhausted => "cns.wallet.key_exhausted",
-            CnsSpan::WalletTreasury => "cns.wallet.treasury",
             CnsSpan::WalletChainError => "cns.wallet.chain_error",
-            CnsSpan::WalletPrivacyShield => "cns.wallet.privacy.shield",
-            CnsSpan::WalletPrivacyUnshield => "cns.wallet.privacy.unshield",
-            CnsSpan::WalletPrivacyError => "cns.wallet.privacy_error",
-            CnsSpan::CondenserCompressionRatio => "cns.condenser.compression_ratio",
-            CnsSpan::EvolutionEnergyDelta => "cns.evolution.energy_delta",
-            CnsSpan::ArchitectureModuleDepth => "cns.architecture.module_depth",
             CnsSpan::ArchitectureSeamCoverage => "cns.architecture.seam.coverage",
             CnsSpan::ArchitectureSeamDrift => "cns.architecture.seam.drift",
-            CnsSpan::ImprovModeActive => "cns.improv.mode.active",
-            CnsSpan::ImprovPlussingRatio => "cns.improv.plussing.ratio",
-            CnsSpan::ImprovFreestyleCoherence => "cns.improv.freestyle.coherence",
-            CnsSpan::ImprovEnsembleCoherence => "cns.improv.ensemble.coherence",
-            CnsSpan::KataImprovEffectiveness => "cns.kata.improv.effectiveness",
-            CnsSpan::ImprovCascadeDepth => "cns.improv.cascade.depth",
-            CnsSpan::OutcomeTool => "cns.outcome.tool",
-            CnsSpan::OutcomeInference => "cns.outcome.inference",
-            CnsSpan::OutcomeMemory => "cns.outcome.memory",
             CnsSpan::ContractViolated => "cns.contract.violated",
             CnsSpan::ContractCoverage => "cns.contract.coverage",
             CnsSpan::ContractProposed => "cns.contract.proposed",
             CnsSpan::ContractAccepted => "cns.contract.accepted",
             CnsSpan::ContractRejected => "cns.contract.rejected",
-            CnsSpan::TrainingTraceGenerated => "cns.training.trace.generated",
-            CnsSpan::TrainingEvalCompleted => "cns.training.eval.completed",
-            CnsSpan::TrainingCostEstimated => "cns.training.cost.estimated",
-            CnsSpan::TrainingHarnessUtilized => "cns.training.harness.utilized",
-            CnsSpan::TrainingAdapterSelected => "cns.training.adapter.selected",
-            CnsSpan::AdapterStored => "cns.adapter.stored",
-            CnsSpan::AdapterRetrieved => "cns.adapter.retrieved",
-            CnsSpan::AdapterDeleted => "cns.adapter.deleted",
-            CnsSpan::EndpointCreateStarted => "cns.endpoint.create.started",
-            CnsSpan::EndpointCreateConfirmed => "cns.endpoint.create.confirmed",
-            CnsSpan::EndpointInference => "cns.endpoint.inference",
-            CnsSpan::EndpointDraining => "cns.endpoint.draining",
-            CnsSpan::EndpointTerminated => "cns.endpoint.terminated",
-            CnsSpan::EndpointCostAccrued => "cns.endpoint.cost.accrued",
-            CnsSpan::EndpointCostBudgetWarning => "cns.endpoint.cost.budget_warning",
-            CnsSpan::TaskCreated => "cns.kanban.task_created",
-            CnsSpan::TaskMoved => "cns.kanban.task_moved",
-            CnsSpan::TaskAssigned => "cns.kanban.task_assigned",
-            CnsSpan::TaskVerified => "cns.kanban.task_verified",
-            CnsSpan::BoardCreated => "cns.kanban.board_created",
-            CnsSpan::AcpBridgeLatency => "cns.acp.bridge.latency",
             CnsSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
             CnsSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
         }
@@ -467,26 +295,14 @@ impl std::str::FromStr for CnsSpan {
             "cns.tool.media" => Ok(CnsSpan::Tool {
                 subsystem: ToolSubsystem::Media,
             }),
-            "cns.prompt" => Ok(CnsSpan::Prompt),
             "cns.inference" => Ok(CnsSpan::Inference),
             "cns.agent_pod" => Ok(CnsSpan::AgentPod),
-            "cns.connector" => Ok(CnsSpan::Connector),
-            "cns.pipeline" => Ok(CnsSpan::Pipeline),
             "cns.gas" => Ok(CnsSpan::Gas),
-            "cns.review" => Ok(CnsSpan::Review),
-            "cns.template" => Ok(CnsSpan::Template),
             "cns.curation" => Ok(CnsSpan::Curation),
-            "cns.variety" => Ok(CnsSpan::Variety),
             "cns.sovereignty" => Ok(CnsSpan::Sovereignty),
-            "cns.goal" => Ok(CnsSpan::Goal),
             "cns.spec" => Ok(CnsSpan::Spec),
-            "cns.test" => Ok(CnsSpan::Test),
             "cns.chat" => Ok(CnsSpan::Chat),
-            "cns.cybernetics.backpressure" => Ok(CnsSpan::CyberneticsBackpressure),
-            "cns.cybernetics.cadence" => Ok(CnsSpan::CyberneticsCadence),
-            "cns.set_point" => Ok(CnsSpan::SetPoint),
             "cns.memory.encode" => Ok(CnsSpan::MemoryEncode),
-            "cns.memory.budget" => Ok(CnsSpan::MemoryBudget),
             "cns.wallet.balance" => Ok(CnsSpan::WalletBalance),
             "cns.wallet.deposit" => Ok(CnsSpan::WalletDeposit),
             "cns.wallet.deposit_shielded" => Ok(CnsSpan::WalletDepositShielded),
@@ -496,51 +312,14 @@ impl std::str::FromStr for CnsSpan {
             "cns.wallet.key_revoked" => Ok(CnsSpan::WalletKeyRevoked),
             "cns.wallet.key_expired" => Ok(CnsSpan::WalletKeyExpired),
             "cns.wallet.key_exhausted" => Ok(CnsSpan::WalletKeyExhausted),
-            "cns.wallet.treasury" => Ok(CnsSpan::WalletTreasury),
             "cns.wallet.chain_error" => Ok(CnsSpan::WalletChainError),
-            "cns.wallet.privacy.shield" => Ok(CnsSpan::WalletPrivacyShield),
-            "cns.wallet.privacy.unshield" => Ok(CnsSpan::WalletPrivacyUnshield),
-            "cns.wallet.privacy_error" => Ok(CnsSpan::WalletPrivacyError),
-            "cns.condenser.compression_ratio" => Ok(CnsSpan::CondenserCompressionRatio),
-            "cns.evolution.energy_delta" => Ok(CnsSpan::EvolutionEnergyDelta),
-            "cns.architecture.module_depth" => Ok(CnsSpan::ArchitectureModuleDepth),
             "cns.architecture.seam.coverage" => Ok(CnsSpan::ArchitectureSeamCoverage),
             "cns.architecture.seam.drift" => Ok(CnsSpan::ArchitectureSeamDrift),
-            "cns.improv.mode.active" => Ok(CnsSpan::ImprovModeActive),
-            "cns.improv.plussing.ratio" => Ok(CnsSpan::ImprovPlussingRatio),
-            "cns.improv.freestyle.coherence" => Ok(CnsSpan::ImprovFreestyleCoherence),
-            "cns.improv.ensemble.coherence" => Ok(CnsSpan::ImprovEnsembleCoherence),
-            "cns.kata.improv.effectiveness" => Ok(CnsSpan::KataImprovEffectiveness),
-            "cns.improv.cascade.depth" => Ok(CnsSpan::ImprovCascadeDepth),
-            "cns.outcome.tool" => Ok(CnsSpan::OutcomeTool),
-            "cns.outcome.inference" => Ok(CnsSpan::OutcomeInference),
-            "cns.outcome.memory" => Ok(CnsSpan::OutcomeMemory),
             "cns.contract.violated" => Ok(CnsSpan::ContractViolated),
             "cns.contract.coverage" => Ok(CnsSpan::ContractCoverage),
             "cns.contract.proposed" => Ok(CnsSpan::ContractProposed),
             "cns.contract.accepted" => Ok(CnsSpan::ContractAccepted),
             "cns.contract.rejected" => Ok(CnsSpan::ContractRejected),
-            "cns.training.trace.generated" => Ok(CnsSpan::TrainingTraceGenerated),
-            "cns.training.eval.completed" => Ok(CnsSpan::TrainingEvalCompleted),
-            "cns.training.cost.estimated" => Ok(CnsSpan::TrainingCostEstimated),
-            "cns.training.harness.utilized" => Ok(CnsSpan::TrainingHarnessUtilized),
-            "cns.training.adapter.selected" => Ok(CnsSpan::TrainingAdapterSelected),
-            "cns.adapter.stored" => Ok(CnsSpan::AdapterStored),
-            "cns.adapter.retrieved" => Ok(CnsSpan::AdapterRetrieved),
-            "cns.adapter.deleted" => Ok(CnsSpan::AdapterDeleted),
-            "cns.endpoint.create.started" => Ok(CnsSpan::EndpointCreateStarted),
-            "cns.endpoint.create.confirmed" => Ok(CnsSpan::EndpointCreateConfirmed),
-            "cns.endpoint.inference" => Ok(CnsSpan::EndpointInference),
-            "cns.endpoint.draining" => Ok(CnsSpan::EndpointDraining),
-            "cns.endpoint.terminated" => Ok(CnsSpan::EndpointTerminated),
-            "cns.endpoint.cost.accrued" => Ok(CnsSpan::EndpointCostAccrued),
-            "cns.endpoint.cost.budget_warning" => Ok(CnsSpan::EndpointCostBudgetWarning),
-            "cns.kanban.task_created" => Ok(CnsSpan::TaskCreated),
-            "cns.kanban.task_moved" => Ok(CnsSpan::TaskMoved),
-            "cns.kanban.task_assigned" => Ok(CnsSpan::TaskAssigned),
-            "cns.kanban.task_verified" => Ok(CnsSpan::TaskVerified),
-            "cns.kanban.board_created" => Ok(CnsSpan::BoardCreated),
-            "cns.acp.bridge.latency" => Ok(CnsSpan::AcpBridgeLatency),
             "cns.acp.replicant.memory_size" => Ok(CnsSpan::AcpReplicantMemorySize),
             "cns.acp.ide.connection_state" => Ok(CnsSpan::AcpIdeConnectionState),
             _ => Err(()),
@@ -563,12 +342,7 @@ mod cns_span_tests {
             .to_string(),
             "cns.tool"
         );
-        assert_eq!(CnsSpan::Prompt.to_string(), "cns.prompt");
         assert_eq!(CnsSpan::Inference.to_string(), "cns.inference");
-        assert_eq!(
-            CnsSpan::CyberneticsBackpressure.to_string(),
-            "cns.cybernetics.backpressure"
-        );
         assert_eq!(CnsSpan::WalletBalance.to_string(), "cns.wallet.balance");
         assert_eq!(
             CnsSpan::ContractViolated.to_string(),
@@ -590,14 +364,10 @@ mod cns_span_tests {
     fn cnsspan_from_str_round_trips() {
         let variants = vec![
             "cns.tool",
-            "cns.prompt",
             "cns.inference",
             "cns.agent_pod",
-            "cns.variety",
             "cns.sovereignty",
-            "cns.cybernetics.backpressure",
             "cns.wallet.balance",
-            "cns.condenser.compression_ratio",
             "cns.contract.violated",
         ];
         for s in variants {
@@ -635,31 +405,18 @@ mod cns_span_tests {
     // REQ: cns-span-005 — CnsSpan exhaustive match covers all canonical namespaces
     #[test]
     fn cnsspan_exhaustive_match_covers_all_canonical() {
-        // Every variant must produce a non-empty Display string
         let all_variants = vec![
             CnsSpan::Tool {
                 subsystem: ToolSubsystem::Other,
             },
-            CnsSpan::Prompt,
             CnsSpan::Inference,
             CnsSpan::AgentPod,
-            CnsSpan::Connector,
-            CnsSpan::Pipeline,
             CnsSpan::Gas,
-            CnsSpan::Review,
-            CnsSpan::Template,
             CnsSpan::Curation,
-            CnsSpan::Variety,
             CnsSpan::Sovereignty,
-            CnsSpan::Goal,
             CnsSpan::Spec,
-            CnsSpan::Test,
             CnsSpan::Chat,
-            CnsSpan::CyberneticsBackpressure,
-            CnsSpan::CyberneticsCadence,
-            CnsSpan::SetPoint,
             CnsSpan::MemoryEncode,
-            CnsSpan::MemoryBudget,
             CnsSpan::WalletBalance,
             CnsSpan::WalletDeposit,
             CnsSpan::WalletDepositShielded,
@@ -669,51 +426,14 @@ mod cns_span_tests {
             CnsSpan::WalletKeyRevoked,
             CnsSpan::WalletKeyExpired,
             CnsSpan::WalletKeyExhausted,
-            CnsSpan::WalletTreasury,
             CnsSpan::WalletChainError,
-            CnsSpan::WalletPrivacyShield,
-            CnsSpan::WalletPrivacyUnshield,
-            CnsSpan::WalletPrivacyError,
-            CnsSpan::CondenserCompressionRatio,
-            CnsSpan::EvolutionEnergyDelta,
-            CnsSpan::ArchitectureModuleDepth,
             CnsSpan::ArchitectureSeamCoverage,
             CnsSpan::ArchitectureSeamDrift,
-            CnsSpan::ImprovModeActive,
-            CnsSpan::ImprovPlussingRatio,
-            CnsSpan::ImprovFreestyleCoherence,
-            CnsSpan::ImprovEnsembleCoherence,
-            CnsSpan::KataImprovEffectiveness,
-            CnsSpan::ImprovCascadeDepth,
-            CnsSpan::OutcomeTool,
-            CnsSpan::OutcomeInference,
-            CnsSpan::OutcomeMemory,
             CnsSpan::ContractViolated,
             CnsSpan::ContractCoverage,
             CnsSpan::ContractProposed,
             CnsSpan::ContractAccepted,
             CnsSpan::ContractRejected,
-            CnsSpan::TrainingTraceGenerated,
-            CnsSpan::TrainingEvalCompleted,
-            CnsSpan::TrainingCostEstimated,
-            CnsSpan::TrainingHarnessUtilized,
-            CnsSpan::TrainingAdapterSelected,
-            CnsSpan::AdapterStored,
-            CnsSpan::AdapterRetrieved,
-            CnsSpan::AdapterDeleted,
-            CnsSpan::EndpointCreateStarted,
-            CnsSpan::EndpointCreateConfirmed,
-            CnsSpan::EndpointInference,
-            CnsSpan::EndpointDraining,
-            CnsSpan::EndpointTerminated,
-            CnsSpan::EndpointCostAccrued,
-            CnsSpan::EndpointCostBudgetWarning,
-            CnsSpan::TaskCreated,
-            CnsSpan::TaskMoved,
-            CnsSpan::TaskAssigned,
-            CnsSpan::TaskVerified,
-            CnsSpan::BoardCreated,
-            CnsSpan::AcpBridgeLatency,
             CnsSpan::AcpReplicantMemorySize,
             CnsSpan::AcpIdeConnectionState,
         ];
@@ -730,9 +450,7 @@ mod cns_span_tests {
                 variant
             );
         }
-        // Verify count matches CANONICAL_NAMESPACES (excluding tool subsystem variants)
-        // 77 variants total (74 previous + 3 contract lifecycle)
-        assert_eq!(all_variants.len(), 77);
+        assert_eq!(all_variants.len(), 28);
     }
 
     // REQ: cns-span-006 — ToolSubsystem Display produces valid subsystem suffix

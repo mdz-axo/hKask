@@ -6,5 +6,5 @@ use hkask_acp::main_impl;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    main_impl::run().await
+    Ok(main_impl::run().await?)
 }

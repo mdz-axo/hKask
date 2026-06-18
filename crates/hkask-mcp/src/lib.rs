@@ -24,7 +24,7 @@ pub use git_cas::{GitCasAdapter, GixCasAdapter};
 pub use hkask_types::ports::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{
-    CapabilityTier, CredentialRequirement, ServerContext, api_get, api_put, load_dotenv,
+    CapabilityTier, CredentialRequirement, McpError, ServerContext, api_get, api_put, load_dotenv,
     resolve_credential, run_stdio_server, run_stdio_server_with_preloaded, tool_internal_error,
     validate_identifier,
 };
@@ -39,11 +39,11 @@ pub async fn run_server<S, F>(
     version: &str,
     factory: F,
     credentials: Vec<CredentialRequirement>,
-) -> anyhow::Result<()>
+) -> Result<(), McpError>
 where
     S: rmcp::ServiceExt<rmcp::RoleServer>,
     S: rmcp::Service<rmcp::RoleServer>,
-    F: FnOnce(ServerContext) -> anyhow::Result<S>,
+    F: FnOnce(ServerContext) -> Result<S, McpError>,
 {
     run_stdio_server(name, version, factory, credentials).await
 }
@@ -55,11 +55,11 @@ pub async fn run_server_with_preloaded<S, F>(
     factory: F,
     credentials: Vec<CredentialRequirement>,
     preloaded: std::collections::HashMap<String, String>,
-) -> anyhow::Result<()>
+) -> Result<(), McpError>
 where
     S: rmcp::ServiceExt<rmcp::RoleServer>,
     S: rmcp::Service<rmcp::RoleServer>,
-    F: FnOnce(ServerContext) -> anyhow::Result<S>,
+    F: FnOnce(ServerContext) -> Result<S, McpError>,
 {
     run_stdio_server_with_preloaded(name, version, factory, credentials, preloaded).await
 }
