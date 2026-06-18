@@ -31,8 +31,8 @@ fn build_service_context(
 pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
     use hkask_templates::McpPort;
     let ctx = build_service_context(rt, &[("research", "hkask-mcp-research")]);
-    let from = hkask_types::WebID::new();
-    let to = hkask_types::WebID::new();
+    let from = super::helpers::resolve_user_webid();
+    let to = super::helpers::resolve_user_webid();
     let token = ctx
         .mcp_dispatcher()
         .issue_capability("tools".to_string(), from, to);

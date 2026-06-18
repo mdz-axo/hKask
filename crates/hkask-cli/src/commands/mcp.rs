@@ -96,8 +96,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             let input_value: serde_json::Value =
                 super::helpers::or_exit(serde_json::from_str(&input), "parse JSON input");
             let ctx = build_service_context(rt, BUILTIN_SERVERS);
-            let from = hkask_types::WebID::new();
-            let to = hkask_types::WebID::new();
+            let from = super::helpers::resolve_user_webid();
+            let to = super::helpers::resolve_user_webid();
             let token = ctx
                 .mcp_dispatcher()
                 .issue_capability("tools".to_string(), from, to);

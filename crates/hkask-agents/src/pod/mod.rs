@@ -230,7 +230,7 @@ impl AgentPod {
             spec.resource,
             spec.resource_id,
             spec.action,
-            WebID::new(),
+            WebID::from_persona(b"system-pod-creator"),
             persona.webid(),
             &derive_signing_key(ocap_secret.as_bytes()),
         );

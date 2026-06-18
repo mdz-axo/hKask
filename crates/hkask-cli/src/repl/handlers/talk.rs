@@ -111,7 +111,7 @@ pub(crate) fn handle_talk(
                 DelegationResource::Tool,
                 "voice_design".to_string(),
                 DelegationAction::Execute,
-                WebID::new(),
+                crate::commands::helpers::resolve_user_webid(),
                 state.agent_webid,
                 &derive_signing_key(a2a_secret),
             );
@@ -235,7 +235,7 @@ pub(crate) fn speak_response(
         DelegationResource::Tool,
         "generate_speech".to_string(),
         DelegationAction::Execute,
-        WebID::new(),
+        crate::commands::helpers::resolve_user_webid(),
         state.agent_webid,
         &derive_signing_key(a2a_secret),
     );

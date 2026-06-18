@@ -63,8 +63,8 @@ pub fn run(
     }
 
     let mcp = ctx.mcp_dispatcher().clone() as std::sync::Arc<dyn McpPort>;
-    let from = hkask_types::WebID::new();
-    let to = hkask_types::WebID::new();
+    let from = super::helpers::resolve_user_webid();
+    let to = super::helpers::resolve_user_webid();
     let token = ctx
         .mcp_dispatcher()
         .issue_capability("web_search".to_string(), from, to);

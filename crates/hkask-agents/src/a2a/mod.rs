@@ -523,7 +523,7 @@ impl A2ARuntime {
 
         // Log audit entry
         let mut audit_entry = AuditEntry::new(
-            from.unwrap_or(WebID::new()),
+            from.unwrap_or(WebID::from_persona(b"unknown")),
             "sent".to_string(),
             message_type.clone(),
             AuditOutcome::Success,

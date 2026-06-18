@@ -192,7 +192,7 @@ pub async fn invoke_tool_call(
         DelegationResource::Tool,
         call.tool.clone(),
         DelegationAction::Execute,
-        WebID::new(),
+        crate::commands::helpers::resolve_user_webid(),
         *agent_webid,
         &derive_signing_key(a2a_secret),
     );

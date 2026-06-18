@@ -72,7 +72,7 @@ fn handle_start(duration_arg: &str, state: &mut ReplState, rt: &tokio::runtime::
         DelegationResource::Tool,
         "listen".to_string(),
         DelegationAction::Execute,
-        WebID::new(),
+        crate::commands::helpers::resolve_user_webid(),
         state.agent_webid,
         &derive_signing_key(a2a_secret),
     );

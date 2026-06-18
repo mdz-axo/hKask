@@ -134,7 +134,7 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
             }
         }
         crate::cli::SovereigntyAction::Grant { category } => {
-            let webid = hkask_types::WebID::new();
+            let webid = super::helpers::resolve_user_webid();
             let (_svc, cm) = build_consent();
             let cat = parse_data_category(&category);
             match cm.grant_consent(&webid.to_string(), &cat) {
@@ -149,7 +149,7 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
             }
         }
         crate::cli::SovereigntyAction::Revoke { category: _ } => {
-            let webid = hkask_types::WebID::new();
+            let webid = super::helpers::resolve_user_webid();
             let (_svc, cm) = build_consent();
             match cm.revoke_consent(&webid.to_string()) {
                 Ok(()) => {

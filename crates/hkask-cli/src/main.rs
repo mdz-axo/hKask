@@ -95,7 +95,7 @@ fn main() {
         Commands::Style { action } => commands::style::run(&rt, action),
 
         Commands::Kanban { action } => {
-            let webid = hkask_types::WebID::new(); // P12: every action has author
+            let webid = crate::commands::helpers::resolve_user_webid(); // P12: every action has author: every action has author
             commands::kanban::run_cli(action, webid, None);
         }
         Commands::Adapter { action } => commands::adapter::run(action),

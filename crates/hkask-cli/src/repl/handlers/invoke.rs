@@ -74,7 +74,7 @@ pub(crate) fn handle_invoke(
         }
     };
 
-    let from_webid = WebID::new(); // system
+    let from_webid = crate::commands::helpers::resolve_user_webid(); // system
     let to_webid = state.agent_webid;
     let token = DelegationToken::new(
         DelegationResource::Tool,
