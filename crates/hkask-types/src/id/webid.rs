@@ -84,8 +84,7 @@ impl WebID {
         let full = self.0.to_string();
         format!("{}...", &full[..8])
     }
-
-    }
+}
 
 impl std::str::FromStr for WebID {
     type Err = uuid::Error;

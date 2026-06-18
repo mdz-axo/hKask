@@ -4,7 +4,7 @@
 //! Magna Carta, episodic memory / personal context / capability tokens /
 //! OCAP boundaries are sovereign and require explicit consent; semantic
 //! memory and template invocations are shared and require consent; the
-    //! lexicon and template registry are public.
+//! lexicon and template registry are public.
 //!
 //! Consent is resolved through a `SovereigntyConsent` port, decoupling the
 //! checker from the concrete `ConsentManager`. Production wiring uses a

@@ -212,7 +212,7 @@ async fn classify_one(
         .map_err(|e| {
             let msg = format!("Classifier HTTP error: {e}");
             ServiceError::Embed {
-            source: None,
+                source: None,
                 message: msg,
             }
         })?;
@@ -299,7 +299,7 @@ pub async fn classify_batch(
         .map_err(|e| {
             let msg = format!("Classifier client build error: {e}");
             ServiceError::Embed {
-            source: None,
+                source: None,
                 message: msg,
             }
         })?;
@@ -380,7 +380,7 @@ pub async fn extract_triples_batch(
         .map_err(|e| {
             let msg = format!("Triple extractor client build error: {e}");
             ServiceError::Embed {
-            source: None,
+                source: None,
                 message: msg,
             }
         })?;
@@ -447,7 +447,7 @@ async fn extract_triples_one(
         .map_err(|e| {
             let msg = format!("Triple extractor HTTP error: {e}");
             ServiceError::Embed {
-            source: None,
+                source: None,
                 message: msg,
             }
         })?;

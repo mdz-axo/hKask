@@ -143,9 +143,11 @@ impl ServiceConfig {
             .to_vec();
 
         let db_passphrase_bytes =
-            hkask_keystore::keychain::resolve_db_passphrase().map_err(|e| ServiceError::Keystore {
-                source: Some(Box::new(e)),
-                message: "Failed to resolve DB passphrase".into(),
+            hkask_keystore::keychain::resolve_db_passphrase().map_err(|e| {
+                ServiceError::Keystore {
+                    source: Some(Box::new(e)),
+                    message: "Failed to resolve DB passphrase".into(),
+                }
             })?;
         let db_passphrase = String::from_utf8_lossy(db_passphrase_bytes.as_ref()).into_owned();
 

@@ -188,24 +188,24 @@ pub enum TrainingMode {
 ///
 /// Each skill document produces traces of one (or more) of these types.
 /// The auto-detector counts vocabulary terms per category — highest density wins.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-    #[serde(rename_all = "snake_case")]
-    pub enum TraceType {
-        /// Persona calibration — "how to sound".
-        /// Structure: {context, persona_constraints, target_utterance, calibration_notes}
-        WordAct,
-        /// Procedural decomposition — "how to think".
-        /// Structure: {situation, decomposition_sequence, synthesis, verification}
-        FlowDef,
-        /// Pattern recognition — "how to classify".
-        /// Structure: {pattern_exemplar, positive_cases[], negative_cases[], decision_boundary}
-        KnowAct,
-        /// Alternating WordAct/FlowDef segments for skills that require both.
-        Composite,
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TraceType {
+    /// Persona calibration — "how to sound".
+    /// Structure: {context, persona_constraints, target_utterance, calibration_notes}
+    WordAct,
+    /// Procedural decomposition — "how to think".
+    /// Structure: {situation, decomposition_sequence, synthesis, verification}
+    FlowDef,
+    /// Pattern recognition — "how to classify".
+    /// Structure: {pattern_exemplar, positive_cases[], negative_cases[], decision_boundary}
+    KnowAct,
+    /// Alternating WordAct/FlowDef segments for skills that require both.
+    Composite,
+}
 
-    impl TraceType {
-        /// Auto-detect trace type from skill document text by counting vocabulary terms.
+impl TraceType {
+    /// Auto-detect trace type from skill document text by counting vocabulary terms.
     pub fn detect(skill_text: &str) -> Self {
         let text_lower = skill_text.to_lowercase();
 
@@ -3625,72 +3625,75 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             Ok((|| -> anyhow::Result<TrainingServer> {
-            let (semantic, adapter_store, job_store, adapter_router) = match ctx
-                .credentials
-                .get("HKASK_MEMORY_DB")
-            {
-                Some(path) => {
-                    let passphrase =
-                        ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                            anyhow::anyhow!("HKASK_MEMORY_DB set but HKASK_DB_PASSPHRASE missing")
+                let (semantic, adapter_store, job_store, adapter_router) = match ctx
+                    .credentials
+                    .get("HKASK_MEMORY_DB")
+                {
+                    Some(path) => {
+                        let passphrase =
+                            ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "HKASK_MEMORY_DB set but HKASK_DB_PASSPHRASE missing"
+                                )
+                            })?;
+                        let db = hkask_storage::Database::open(path, passphrase).map_err(|e| {
+                            anyhow::anyhow!("Failed to open memory database: {}", e)
                         })?;
-                    let db = hkask_storage::Database::open(path, passphrase)
-                        .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
-                    let conn = db.conn_arc();
-                    let job_store = Some(JobStore::new(Arc::clone(&conn)));
-                    let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
-                    let embedding_store = hkask_storage::EmbeddingStore::new(Arc::clone(&conn));
-                    let semantic = Some(hkask_memory::SemanticMemory::new(
-                        triple_store,
-                        embedding_store,
-                    ));
-                    let store = SqliteAdapterStore::new(db);
-                    store
-                        .migrate()
-                        .map_err(|e| anyhow::anyhow!("Failed to migrate adapter store: {}", e))?;
+                        let conn = db.conn_arc();
+                        let job_store = Some(JobStore::new(Arc::clone(&conn)));
+                        let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
+                        let embedding_store = hkask_storage::EmbeddingStore::new(Arc::clone(&conn));
+                        let semantic = Some(hkask_memory::SemanticMemory::new(
+                            triple_store,
+                            embedding_store,
+                        ));
+                        let store = SqliteAdapterStore::new(db);
+                        store.migrate().map_err(|e| {
+                            anyhow::anyhow!("Failed to migrate adapter store: {}", e)
+                        })?;
 
-                    // Build the canonical adapter store + router for deployment
-                    let canonical_store = hkask_adapter::AdapterStore::new(Arc::clone(&conn));
-                    canonical_store.migrate().map_err(|e| {
-                        anyhow::anyhow!("Failed to migrate canonical adapter store: {}", e)
-                    })?;
-                    let router = AdapterRouter::new(std::sync::Arc::new(canonical_store));
-                    let adapter_router = Some(std::sync::Arc::new(router));
+                        // Build the canonical adapter store + router for deployment
+                        let canonical_store = hkask_adapter::AdapterStore::new(Arc::clone(&conn));
+                        canonical_store.migrate().map_err(|e| {
+                            anyhow::anyhow!("Failed to migrate canonical adapter store: {}", e)
+                        })?;
+                        let router = AdapterRouter::new(std::sync::Arc::new(canonical_store));
+                        let adapter_router = Some(std::sync::Arc::new(router));
 
-                    (
-                        semantic,
-                        Arc::new(store) as Arc<dyn AdapterStore>,
-                        job_store,
-                        adapter_router,
-                    )
-                }
-                None => (
-                    None,
-                    Arc::new(InMemoryAdapterStore::new()) as Arc<dyn AdapterStore>,
-                    None,
-                    None,
-                ),
-            };
+                        (
+                            semantic,
+                            Arc::new(store) as Arc<dyn AdapterStore>,
+                            job_store,
+                            adapter_router,
+                        )
+                    }
+                    None => (
+                        None,
+                        Arc::new(InMemoryAdapterStore::new()) as Arc<dyn AdapterStore>,
+                        None,
+                        None,
+                    ),
+                };
 
-            let host = create_host(&host_config)
-                .map_err(|e| anyhow::anyhow!("Failed to create training host: {}", e))?;
+                let host = create_host(&host_config)
+                    .map_err(|e| anyhow::anyhow!("Failed to create training host: {}", e))?;
 
-            let inference_config = InferenceConfig::from_env();
+                let inference_config = InferenceConfig::from_env();
 
-            Ok(TrainingServer::new(
-                ctx.webid,
-                replicant.clone(),
-                daemon_client.clone(),
-                semantic,
-                host,
-                host_config.host,
-                host_config.harness,
-                pipeline.clone(),
-                adapter_store,
-                job_store,
-                adapter_router,
-                inference_config,
-            ))
+                Ok(TrainingServer::new(
+                    ctx.webid,
+                    replicant.clone(),
+                    daemon_client.clone(),
+                    semantic,
+                    host,
+                    host_config.host,
+                    host_config.harness,
+                    pipeline.clone(),
+                    adapter_store,
+                    job_store,
+                    adapter_router,
+                    inference_config,
+                ))
             })()?)
         },
         vec![

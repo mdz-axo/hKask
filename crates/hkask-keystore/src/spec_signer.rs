@@ -71,7 +71,8 @@ impl Ed25519SpecSigner {
         let sig_bytes = hex::decode(hex_signature).map_err(|_| SpecSignatureError::InvalidHex)?;
         let signature = Signature::try_from(sig_bytes.as_slice())
             .map_err(|_| SpecSignatureError::InvalidSignatureLength)?;
-        let result = self.signing_key
+        let result = self
+            .signing_key
             .verifying_key()
             .verify(canonical_json, &signature)
             .map_err(|_| SpecSignatureError::VerificationFailed);

@@ -36,16 +36,22 @@ pub enum McpError {
     #[error("{0} set but HKASK_DB_PASSPHRASE missing")]
     DatabasePassphrase(String),
 
-    #[error("Replicant '{replicant}' is not authenticated. Enter the replicant's passphrase in the hKask terminal.")]
+    #[error(
+        "Replicant '{replicant}' is not authenticated. Enter the replicant's passphrase in the hKask terminal."
+    )]
     Auth { replicant: String },
 
-    #[error("Replicant '{replicant}' is not assigned to the {role} MCP role. Use 'kask pod assign {replicant} {role}' to grant this role.")]
+    #[error(
+        "Replicant '{replicant}' is not assigned to the {role} MCP role. Use 'kask pod assign {replicant} {role}' to grant this role."
+    )]
     RoleAssignment { replicant: String, role: String },
 
     #[error("Unexpected {context} response: {detail}")]
     UnexpectedResponse { context: String, detail: String },
 
-    #[error("Missing required credentials: {missing}. Set them via environment variables or hkask-keystore.")]
+    #[error(
+        "Missing required credentials: {missing}. Set them via environment variables or hkask-keystore."
+    )]
     MissingCredentials { missing: String },
 
     #[error("{0}")]
@@ -180,13 +186,14 @@ impl ServerContext {
     /// REQ: MCP-030
     /// pre:  db_env_var is set and contains a valid passphrase
     /// post: returns opened Database
-pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database, McpError> {
+    pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database, McpError> {
         use hkask_storage::open_database;
         match self.credentials.get(db_env_var) {
             Some(path) => {
-                let passphrase = self.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                    McpError::DatabasePassphrase(db_env_var.to_string())
-                })?;
+                let passphrase = self
+                    .credentials
+                    .get("HKASK_DB_PASSPHRASE")
+                    .ok_or_else(|| McpError::DatabasePassphrase(db_env_var.to_string()))?;
                 Ok(open_database(path, passphrase).map_err(|e| anyhow::anyhow!("{e}"))?)
             }
             None => Ok(hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?),
@@ -206,16 +213,19 @@ pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database,
     ) -> Result<hkask_storage::Database, McpError> {
         match self.credentials.get(db_env_var) {
             Some(path) => {
-                let passphrase = self.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                    McpError::DatabasePassphrase(db_env_var.to_string())
-                })?;
-                Ok(hkask_storage::Database::open_with_extensions(
-                    path, passphrase, extensions,
-                ).map_err(|e| anyhow::anyhow!("{e}"))?)
+                let passphrase = self
+                    .credentials
+                    .get("HKASK_DB_PASSPHRASE")
+                    .ok_or_else(|| McpError::DatabasePassphrase(db_env_var.to_string()))?;
+                Ok(
+                    hkask_storage::Database::open_with_extensions(path, passphrase, extensions)
+                        .map_err(|e| anyhow::anyhow!("{e}"))?,
+                )
             }
-            None => Ok(hkask_storage::Database::in_memory_with_extensions(
-                extensions,
-            ).map_err(|e| anyhow::anyhow!("{e}"))?),
+            None => Ok(
+                hkask_storage::Database::in_memory_with_extensions(extensions)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?,
+            ),
         }
     }
 }
@@ -780,12 +790,16 @@ where
     let webid = if let Some(ref pre) = preloaded {
         if let Some(uuid_str) = pre.get("HKASK_WEBID") {
             hkask_types::WebID::from_str(uuid_str).unwrap_or_else(|_| {
-                tracing::warn!("HKASK_WEBID set but invalid format — falling back to anonymous identity");
+                tracing::warn!(
+                    "HKASK_WEBID set but invalid format — falling back to anonymous identity"
+                );
                 hkask_types::WebID::from_persona(b"anonymous")
             })
         } else if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
             hkask_types::WebID::from_str(&uuid_str).unwrap_or_else(|_| {
-                tracing::warn!("HKASK_WEBID set but invalid format — falling back to anonymous identity");
+                tracing::warn!(
+                    "HKASK_WEBID set but invalid format — falling back to anonymous identity"
+                );
                 hkask_types::WebID::from_persona(b"anonymous")
             })
         } else if let Some(persona) = pre.get("HKASK_AGENT_PERSONA") {
@@ -793,18 +807,24 @@ where
         } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
             hkask_types::WebID::from_persona(persona.as_bytes())
         } else {
-            tracing::warn!("No HKASK_WEBID or HKASK_AGENT_PERSONA set — MCP server starting with anonymous identity. Set HKASK_WEBID for P12-compliant attribution.");
+            tracing::warn!(
+                "No HKASK_WEBID or HKASK_AGENT_PERSONA set — MCP server starting with anonymous identity. Set HKASK_WEBID for P12-compliant attribution."
+            );
             hkask_types::WebID::from_persona(b"anonymous")
         }
     } else if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
         hkask_types::WebID::from_str(&uuid_str).unwrap_or_else(|_| {
-            tracing::warn!("HKASK_WEBID set but invalid format — falling back to anonymous identity");
+            tracing::warn!(
+                "HKASK_WEBID set but invalid format — falling back to anonymous identity"
+            );
             hkask_types::WebID::from_persona(b"anonymous")
         })
     } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
         hkask_types::WebID::from_persona(persona.as_bytes())
     } else {
-        tracing::warn!("No HKASK_WEBID or HKASK_AGENT_PERSONA set — MCP server starting with anonymous identity. Set HKASK_WEBID for P12-compliant attribution.");
+        tracing::warn!(
+            "No HKASK_WEBID or HKASK_AGENT_PERSONA set — MCP server starting with anonymous identity. Set HKASK_WEBID for P12-compliant attribution."
+        );
         hkask_types::WebID::from_persona(b"anonymous")
     };
 
@@ -828,8 +848,14 @@ where
         version = version,
         "MCP server starting"
     );
-    let running = server.serve(rmcp::transport::stdio()).await.map_err(|e| anyhow::anyhow!("{e}"))?;
-    running.waiting().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+    let running = server
+        .serve(rmcp::transport::stdio())
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    running
+        .waiting()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
 

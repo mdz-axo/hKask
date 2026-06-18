@@ -637,7 +637,7 @@ impl PortfolioManager {
         Ok(symbols)
     }
 
-/// Get cached prices for a symbol in a date range.
+    /// Get cached prices for a symbol in a date range.
     pub fn get_prices(
         &self,
         name: &str,

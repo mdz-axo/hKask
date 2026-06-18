@@ -216,7 +216,7 @@ impl WalletManager {
         })
     }
 
-// ── Gas ↔ rJoule conversion ──────────────────────────────────────────────
+    // ── Gas ↔ rJoule conversion ──────────────────────────────────────────────
 
     // Moved to budget.rs — impl blocks loaded via `mod budget;`.
 

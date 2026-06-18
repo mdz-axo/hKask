@@ -176,10 +176,7 @@ impl InferenceRouter {
             && let Ok(models) = backend.list_models().await
         {
             for m in models {
-                entries.push(RouterModelEntry::from_model_entry(
-                    ProviderId::Fal,
-                    &m.id,
-                ));
+                entries.push(RouterModelEntry::from_model_entry(ProviderId::Fal, &m.id));
             }
         }
 
@@ -193,7 +190,6 @@ impl InferenceRouter {
                 ));
             }
         }
-
 
         entries
     }
@@ -539,7 +535,8 @@ impl InferencePort for InferenceRouter {
             let parameters = parameters.clone();
             return Box::pin(async move {
                 validate_prompt(&prompt)?;
-                self.dispatch_generate(provider, &model, &prompt, &parameters).await
+                self.dispatch_generate(provider, &model, &prompt, &parameters)
+                    .await
             });
         }
 
@@ -616,7 +613,8 @@ impl InferencePort for InferenceRouter {
 
         Box::pin(async move {
             validate_prompt(&prompt)?;
-            self.dispatch_generate(provider, &model, &prompt, &parameters).await
+            self.dispatch_generate(provider, &model, &prompt, &parameters)
+                .await
         })
     }
 

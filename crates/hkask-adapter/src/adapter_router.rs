@@ -1503,7 +1503,8 @@ mod tests {
         let token = test_token();
 
         // DeepInfra is not registered as an adapter backend
-        let result = block_on(router.estimate_composition(adapter.id, ProviderId::DeepInfra, &token));
+        let result =
+            block_on(router.estimate_composition(adapter.id, ProviderId::DeepInfra, &token));
         assert!(result.is_err());
         match result {
             Err(AdapterError::ProviderUnavailable(_)) => {} // expected

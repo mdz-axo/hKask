@@ -18,13 +18,13 @@ use hkask_types::{
 use serde_json::Value;
 use std::sync::Arc;
 
-pub(crate) mod kata;
-pub(crate) mod verification;
 pub(crate) mod comments;
 pub(crate) mod decompose;
-pub(crate) mod spawn;
-pub(crate) mod phases;
 pub(crate) mod dejam;
+pub(crate) mod kata;
+pub(crate) mod phases;
+pub(crate) mod spawn;
+pub(crate) mod verification;
 
 /// Core kanban coordination service.
 ///

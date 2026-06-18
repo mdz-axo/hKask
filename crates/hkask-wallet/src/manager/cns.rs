@@ -24,7 +24,13 @@ impl WalletManager {
         }
     }
 
-    pub(super) fn emit_span(&self, span: CnsSpan, verb: &str, phase: Phase, obs: serde_json::Value) {
+    pub(super) fn emit_span(
+        &self,
+        span: CnsSpan,
+        verb: &str,
+        phase: Phase,
+        obs: serde_json::Value,
+    ) {
         let actor = Self::default_actor();
         self.emit_span_with_actor(&actor, span, verb, phase, obs);
     }

@@ -205,8 +205,8 @@ impl InferenceConfig {
         let fal_base_url =
             std::env::var("FA_BASE_URL").unwrap_or_else(|_| "https://api.fal.ai".to_string());
 
-        let fal_media_base_url = std::env::var("FA_MEDIA_BASE_URL")
-            .unwrap_or_else(|_| "https://fal.run".to_string());
+        let fal_media_base_url =
+            std::env::var("FA_MEDIA_BASE_URL").unwrap_or_else(|_| "https://fal.run".to_string());
 
         let fal_queue_base_url = std::env::var("FA_QUEUE_BASE_URL")
             .unwrap_or_else(|_| "https://queue.fal.run".to_string());

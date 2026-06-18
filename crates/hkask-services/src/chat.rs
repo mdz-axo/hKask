@@ -368,7 +368,12 @@ impl ChatService {
             ctx.agent_registry_store().clone(),
             Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
         );
-        let agents = loader.boot().await.map_err(|e| ServiceError::AgentRegistry { message: e.to_string() })?;
+        let agents = loader
+            .boot()
+            .await
+            .map_err(|e| ServiceError::AgentRegistry {
+                message: e.to_string(),
+            })?;
         let agent = agents.iter().find(|a| a.definition.name == name);
 
         // Compose system prompt from agent definition
@@ -518,7 +523,10 @@ impl ChatService {
             .inference_port
             .generate_with_model(&prepared.prompt, &params, Some(&prepared.model))
             .await
-            .map_err(|e| ServiceError::InferencePort { message: e.to_string(), retryable: false })?;
+            .map_err(|e| ServiceError::InferencePort {
+                message: e.to_string(),
+                retryable: false,
+            })?;
 
         // REQ: P9 (Homeostatic) — CNS span after inference
         let response_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "response");

@@ -4,8 +4,8 @@ use crate::cli::TemplateAction;
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_services::ServiceError;
 use hkask_templates::SqliteRegistry;
-use hkask_types::template_type::TemplateType;
 use hkask_types::ports::{RegistryEntry, RegistryIndex};
+use hkask_types::template_type::TemplateType;
 use serde_json::Value;
 
 /// Template list command
@@ -71,8 +71,11 @@ pub fn register_template(
         matroshka_limit: hkask_types::SYSTEM_MAX_RECURSION as u32,
     };
 
-    registry.register(entry)
-        .map_err(|e| ServiceError::Template { message: e.to_string() })
+    registry
+        .register(entry)
+        .map_err(|e| ServiceError::Template {
+            message: e.to_string(),
+        })
 }
 
 /// Get template command
@@ -83,8 +86,9 @@ pub fn register_template(
 /// post: returns Ok(RegistryEntry) if template found
 /// post: returns Err(ServiceError) if not found
 pub fn get_template(registry: &dyn RegistryIndex, id: &str) -> Result<RegistryEntry, ServiceError> {
-    registry.get(id)
-        .map_err(|e| ServiceError::Registry { message: e.to_string() })
+    registry.get(id).map_err(|e| ServiceError::Registry {
+        message: e.to_string(),
+    })
 }
 
 /// Search templates by lexicon
@@ -98,8 +102,11 @@ pub fn search_templates(
     registry: &SqliteRegistry,
     term: &str,
 ) -> Result<Vec<RegistryEntry>, ServiceError> {
-    registry.search_by_lexicon(term)
-        .map_err(|e| ServiceError::Template { message: e.to_string() })
+    registry
+        .search_by_lexicon(term)
+        .map_err(|e| ServiceError::Template {
+            message: e.to_string(),
+        })
 }
 
 /// List MCP servers

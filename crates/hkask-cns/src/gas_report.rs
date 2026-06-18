@@ -131,9 +131,7 @@ impl GasReport {
     /// # Arguments
     /// * `store` — An `Arc<NuEventStore>` providing access to raw CNS events.
     pub fn new(store: Arc<NuEventStore>) -> Self {
-        Self {
-            store,
-        }
+        Self { store }
     }
 
     /// Query gas events for a single agent within a time window.

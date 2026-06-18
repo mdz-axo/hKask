@@ -63,9 +63,11 @@ impl GoalService {
             }
         })?;
         let repo = ctx.goal_repo();
-        let goal = repo
-            .create_goal(&req.owner, &req.text, vis)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
+        let goal =
+            repo.create_goal(&req.owner, &req.text, vis)
+                .map_err(|e| ServiceError::GoalRepo {
+                    message: e.to_string(),
+                })?;
         Ok(GoalResponse::from(goal))
     }
 
@@ -94,7 +96,9 @@ impl GoalService {
         let repo = ctx.goal_repo();
         let goals = repo
             .list_goals(owner, filter)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
+            .map_err(|e| ServiceError::GoalRepo {
+                message: e.to_string(),
+            })?;
         Ok(goals.into_iter().map(GoalResponse::from).collect())
     }
 
@@ -103,7 +107,7 @@ impl GoalService {
     /// REQ: P7-svc-goal-127
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.goal_repo() must be initialized; goal_id_str must be a valid GoalID; new_state_str must be a valid GoalState
-/// post: goal state is updated and returned as GoalResponse; Err(ValidationError) on invalid ID or state; Err(GoalRepo) on store failure; Err(ValidationError) if owner does not match goal's owner
+    /// post: goal state is updated and returned as GoalResponse; Err(ValidationError) on invalid ID or state; Err(GoalRepo) on store failure; Err(ValidationError) if owner does not match goal's owner
     pub fn set_goal_state(
         ctx: &AgentService,
         goal_id_str: &str,
@@ -125,7 +129,9 @@ impl GoalService {
 
         let goal = repo
             .get_goal(goal_id)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?
+            .map_err(|e| ServiceError::GoalRepo {
+                message: e.to_string(),
+            })?
             .ok_or_else(|| ServiceError::ValidationError {
                 source: None,
                 message: format!("Goal not found: {}", goal_id_str),
@@ -140,7 +146,9 @@ impl GoalService {
 
         let goal = repo
             .get_goal(goal_id)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?
+            .map_err(|e| ServiceError::GoalRepo {
+                message: e.to_string(),
+            })?
             .ok_or_else(|| ServiceError::ValidationError {
                 source: None,
                 message: format!("Goal not found: {}", goal_id),
@@ -148,7 +156,9 @@ impl GoalService {
         let from_state = goal.state.as_str().to_string();
 
         repo.update_goal_state(goal_id, new_state)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
+            .map_err(|e| ServiceError::GoalRepo {
+                message: e.to_string(),
+            })?;
 
         if let Some(tx) = ctx.curation_inbox_tx() {
             let event = CurationInput::GoalTransition(hkask_types::loops::GoalTransitionEvent {
@@ -196,7 +206,11 @@ mod tests {
     // REQ: P7-svc-goal-003 — Goal::into() → GoalResponse preserves all fields
     #[test]
     fn goal_to_response_maps_all_fields() {
-        let goal = Goal::new(WebID::from_persona(b"goal-service"), "Test goal", Visibility::Private);
+        let goal = Goal::new(
+            WebID::from_persona(b"goal-service"),
+            "Test goal",
+            Visibility::Private,
+        );
         let resp = GoalResponse::from(goal);
         assert!(!resp.id.is_empty(), "ID must be non-empty");
         assert_eq!(resp.text, "Test goal");

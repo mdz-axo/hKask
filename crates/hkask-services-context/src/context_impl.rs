@@ -68,8 +68,8 @@ use hkask_services_sovereignty::SovereigntyService;
 use hkask_services_wallet::WalletService;
 
 mod contract_monitor;
-mod seam_monitor;
 mod matrix;
+mod seam_monitor;
 
 /// Agent operational context — canonical composition root for hKask.
 ///
@@ -680,8 +680,11 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let db = if config.in_memory {
         in_memory_db()
     } else {
-        Database::open(&config.db_path, &config.db_passphrase)
-            .map_err(|e| ServiceError::Storage { message: e.to_string() })?
+        Database::open(&config.db_path, &config.db_passphrase).map_err(|e| {
+            ServiceError::Storage {
+                message: e.to_string(),
+            }
+        })?
     };
     let shared_conn = db.conn_arc();
 
@@ -700,11 +703,17 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let consent_store = ConsentStore::new(consent_conn);
     consent_store
         .initialize_schema()
-        .map_err(|e| ServiceError::ConsentStore { message: e.to_string() })?;
+        .map_err(|e| ServiceError::ConsentStore {
+            message: e.to_string(),
+        })?;
     let consent_manager = Arc::new(ConsentManager::new(consent_store));
 
-    let escalation_queue = Arc::new(EscalationQueue::new(escalation_conn)
-        .map_err(|e| ServiceError::Escalation { message: e.to_string() })?);
+    let escalation_queue =
+        Arc::new(
+            EscalationQueue::new(escalation_conn).map_err(|e| ServiceError::Escalation {
+                message: e.to_string(),
+            })?,
+        );
 
     let goal_sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&goal_conn)));
     let goal_repo = Arc::new(SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
@@ -712,17 +721,25 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let sovereignty_boundary_store = SovereigntyBoundaryStore::new(sovereignty_conn);
     sovereignty_boundary_store
         .initialize_schema()
-        .map_err(|e| ServiceError::SovereigntyStore { message: e.to_string() })?;
+        .map_err(|e| ServiceError::SovereigntyStore {
+            message: e.to_string(),
+        })?;
 
     let spec_store = SqliteSpecStore::new(spec_conn);
-    spec_store.init_schema().map_err(|e| ServiceError::Spec { message: e.to_string() })?;
+    spec_store.init_schema().map_err(|e| ServiceError::Spec {
+        message: e.to_string(),
+    })?;
 
     let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
     {
-        let guard = user_store.lock().map_err(|_| {
-            ServiceError::UserStore { message: hkask_types::InfrastructureError::LockPoisoned.to_string() }
+        let guard = user_store.lock().map_err(|_| ServiceError::UserStore {
+            message: hkask_types::InfrastructureError::LockPoisoned.to_string(),
         })?;
-        guard.initialize_schema().map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
+        guard
+            .initialize_schema()
+            .map_err(|e| ServiceError::UserStore {
+                message: e.to_string(),
+            })?;
     }
 
     // CNS runtime
@@ -881,7 +898,9 @@ async fn build_loops(
             .as_deref()
             .unwrap_or(&config.db_passphrase);
         Database::open(&path, passphrase)
-            .map_err(|e| ServiceError::Storage { message: e.to_string() })?
+            .map_err(|e| ServiceError::Storage {
+                message: e.to_string(),
+            })?
             .conn_arc()
     };
     let triple_store = TripleStore::new(Arc::clone(&mem_conn));
@@ -1112,19 +1131,28 @@ fn build_registry_and_wallet(
 ) -> Result<RegWallet, ServiceError> {
     // Registry
     let registry = Arc::new(tokio::sync::Mutex::new(
-        SqliteRegistry::new_with_conn(f.primary_conn.clone()).map_err(|e| ServiceError::Template { message: e.to_string() })?,
+        SqliteRegistry::new_with_conn(f.primary_conn.clone()).map_err(|e| {
+            ServiceError::Template {
+                message: e.to_string(),
+            }
+        })?,
     ));
 
     // Agent registry store
     let agent_registry_store = hkask_storage::AgentRegistryStore::new(f.primary_conn.clone());
     agent_registry_store
         .initialize_schema()
-        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
+        .map_err(|e| ServiceError::AgentRegistryStore {
+            message: e.to_string(),
+        })?;
 
     // Restore A2A state from persistent storage
-    let registered_agents = agent_registry_store
-        .list()
-        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
+    let registered_agents =
+        agent_registry_store
+            .list()
+            .map_err(|e| ServiceError::AgentRegistryStore {
+                message: e.to_string(),
+            })?;
     if !registered_agents.is_empty() {
         use std::str::FromStr;
         let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
@@ -1147,7 +1175,9 @@ fn build_registry_and_wallet(
         let handle = tokio::runtime::Handle::current();
         handle
             .block_on(l.a2a_runtime.restore_from_storage(agents, tokens))
-            .map_err(|e| ServiceError::A2A { message: e.to_string() })?;
+            .map_err(|e| ServiceError::A2A {
+                message: e.to_string(),
+            })?;
     }
 
     // Wallet — non-fatal if config or build fails (daemon can run without wallet)
@@ -1207,14 +1237,17 @@ fn build_wallet(
 
     // Bind wallets to replicants
     {
-        let user_guard = f.user_store.lock().map_err(|_| {
-            ServiceError::UserStore { message: hkask_types::InfrastructureError::LockPoisoned.to_string() }
+        let user_guard = f.user_store.lock().map_err(|_| ServiceError::UserStore {
+            message: hkask_types::InfrastructureError::LockPoisoned.to_string(),
         })?;
         if let Ok(Some(system_identity)) = user_guard.get_replicant(&config.agent_name) {
             let user_id = system_identity.user_id;
-            let replicants = user_guard
-                .list_replicants(&user_id)
-                .map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
+            let replicants =
+                user_guard
+                    .list_replicants(&user_id)
+                    .map_err(|e| ServiceError::UserStore {
+                        message: e.to_string(),
+                    })?;
             for identity in &replicants {
                 if identity.wallet_id.is_some() {
                     continue;

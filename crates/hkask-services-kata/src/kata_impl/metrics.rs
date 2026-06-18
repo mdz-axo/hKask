@@ -3,7 +3,12 @@
 use super::*;
 
 impl KataEngine {
-    pub(super) fn capture_before_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
+    pub(super) fn capture_before_metrics(
+        &self,
+        manifest: &KataManifest,
+        agent: &str,
+        state: &mut KataState,
+    ) {
         if manifest.metrics.is_empty() {
             return;
         }
@@ -33,7 +38,12 @@ impl KataEngine {
         }
     }
 
-    pub(super) fn capture_after_metrics(&self, manifest: &KataManifest, agent: &str, state: &mut KataState) {
+    pub(super) fn capture_after_metrics(
+        &self,
+        manifest: &KataManifest,
+        agent: &str,
+        state: &mut KataState,
+    ) {
         if manifest.metrics.is_empty() {
             return;
         }
@@ -63,7 +73,10 @@ impl KataEngine {
         }
     }
 
-    pub(super) fn compute_improvement_signal(&self, state: &KataState) -> Option<ImprovementSignal> {
+    pub(super) fn compute_improvement_signal(
+        &self,
+        state: &KataState,
+    ) -> Option<ImprovementSignal> {
         let before = state.metric_before.as_ref()?;
         let after = state.metric_after.as_ref()?;
 

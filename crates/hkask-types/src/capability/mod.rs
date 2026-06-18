@@ -24,8 +24,7 @@ pub use resources::{
     capability_from_server_id,
 };
 pub use token_types::{
-    DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION,
-    SYSTEM_MAX_RECURSION,
+    DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
 
 #[cfg(test)]

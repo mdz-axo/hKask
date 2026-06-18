@@ -239,13 +239,14 @@ pub(crate) async fn sovereignty_check_access(
     };
 
     if !has_consent && classification != "PUBLIC" {
-        return Err(
-            ServiceError::A2A { message: hkask_agents::a2a::A2AError::CapabilityDenied(
+        return Err(ServiceError::A2A {
+            message: hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 format!("No consent for category '{cat_name}' (class {classification})"),
-            ).to_string() }
-            .into(),
-        );
+            )
+            .to_string(),
+        }
+        .into());
     }
     Ok(Json(AccessCheckResponse {
         category: cat_name.to_string(),

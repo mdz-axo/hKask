@@ -347,7 +347,10 @@ impl FalBackend {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         }
 
-        let result_url = format!("{}/{}/requests/{}", self.queue_base_url, endpoint, request_id);
+        let result_url = format!(
+            "{}/{}/requests/{}",
+            self.queue_base_url, endpoint, request_id
+        );
         let resp = self
             .client
             .get(&result_url)

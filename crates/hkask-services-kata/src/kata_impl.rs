@@ -26,15 +26,15 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-pub(crate) mod manifest;
-pub(crate) mod error;
-pub(crate) mod history;
-pub(crate) mod state;
-pub(crate) mod metrics;
-pub(crate) mod improvement;
 pub(crate) mod coaching;
-pub(crate) mod starter;
+pub(crate) mod error;
 pub(crate) mod execution;
+pub(crate) mod history;
+pub(crate) mod improvement;
+pub(crate) mod manifest;
+pub(crate) mod metrics;
+pub(crate) mod starter;
+pub(crate) mod state;
 
 #[allow(unused_imports)]
 pub use error::KataError;

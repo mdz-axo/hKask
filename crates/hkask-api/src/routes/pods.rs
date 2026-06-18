@@ -130,15 +130,18 @@ async fn create_pod(
         DelegationResource::Tool,
     );
     if !has {
-        return Err(
-            ServiceError::A2A { message: hkask_agents::a2a::A2AError::CapabilityDenied(
+        return Err(ServiceError::A2A {
+            message: hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 "Insufficient capability to create pods".into(),
-            ).to_string() }
-            .into(),
-        );
+            )
+            .to_string(),
+        }
+        .into());
     }
-    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| ServiceError::Pod { message: e.to_string() })?;
+    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| ServiceError::Pod {
+        message: e.to_string(),
+    })?;
     let pm = state.agent_service.pod_manager();
     let pod_id = pm.create_pod(&req.template, &persona, req.name).await?;
     Ok(Json(CreatePodResponse {

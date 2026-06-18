@@ -5,22 +5,129 @@ use hkask_types::ports::registry::RegistryEntry;
 /// Terms are sorted alphabetically for binary-search lookup.
 /// New terms should be added in sorted order.
 const KNOWN_TERMS: &[&str] = &[
-    "abduct", "accept", "acknowledge", "adapt", "affirm", "aggregate", "align", "amplify",
-    "analogy", "analyze", "apply", "assert", "assess", "audit", "calibrate", "calibration",
-    "catalog", "challenge", "clarify", "classify", "command", "compact", "compare", "compose",
-    "compress", "confidence", "consent", "constrain", "contextualise", "contradiction",
-    "converge", "create", "critique", "crystallize", "cultivate", "curate", "decide", "declare",
-    "decompose", "deduce", "deepen", "deprecate", "design", "detect", "discriminate", "distill",
-    "document", "elicit", "enforce", "escalate", "evaluate", "execute", "exercise", "explore",
-    "extract", "fix", "flag", "gap", "ground", "improvise", "infer", "install", "instrument",
-    "integrate", "inventory", "isolate", "iterate", "iteration", "map", "match", "measure",
-    "migrate", "monitor", "observe", "orient", "parse", "plan", "predict", "prioritize", "probe",
-    "prompt", "propose", "query", "rank", "recognize", "recommend", "reconcile", "redact",
-    "reduce", "reference", "reflect", "regulate", "reject", "report", "reproduce", "request",
-    "require", "resolve", "restore", "review", "revise", "route", "score", "search", "select",
-    "sequence", "simplify", "specify", "structure", "suggest", "summarize", "synthesize",
-    "target", "trace", "transform", "translate", "undertake", "update", "validate", "verify",
-    "walk", "wire", "write",
+    "abduct",
+    "accept",
+    "acknowledge",
+    "adapt",
+    "affirm",
+    "aggregate",
+    "align",
+    "amplify",
+    "analogy",
+    "analyze",
+    "apply",
+    "assert",
+    "assess",
+    "audit",
+    "calibrate",
+    "calibration",
+    "catalog",
+    "challenge",
+    "clarify",
+    "classify",
+    "command",
+    "compact",
+    "compare",
+    "compose",
+    "compress",
+    "confidence",
+    "consent",
+    "constrain",
+    "contextualise",
+    "contradiction",
+    "converge",
+    "create",
+    "critique",
+    "crystallize",
+    "cultivate",
+    "curate",
+    "decide",
+    "declare",
+    "decompose",
+    "deduce",
+    "deepen",
+    "deprecate",
+    "design",
+    "detect",
+    "discriminate",
+    "distill",
+    "document",
+    "elicit",
+    "enforce",
+    "escalate",
+    "evaluate",
+    "execute",
+    "exercise",
+    "explore",
+    "extract",
+    "fix",
+    "flag",
+    "gap",
+    "ground",
+    "improvise",
+    "infer",
+    "install",
+    "instrument",
+    "integrate",
+    "inventory",
+    "isolate",
+    "iterate",
+    "iteration",
+    "map",
+    "match",
+    "measure",
+    "migrate",
+    "monitor",
+    "observe",
+    "orient",
+    "parse",
+    "plan",
+    "predict",
+    "prioritize",
+    "probe",
+    "prompt",
+    "propose",
+    "query",
+    "rank",
+    "recognize",
+    "recommend",
+    "reconcile",
+    "redact",
+    "reduce",
+    "reference",
+    "reflect",
+    "regulate",
+    "reject",
+    "report",
+    "reproduce",
+    "request",
+    "require",
+    "resolve",
+    "restore",
+    "review",
+    "revise",
+    "route",
+    "score",
+    "search",
+    "select",
+    "sequence",
+    "simplify",
+    "specify",
+    "structure",
+    "suggest",
+    "summarize",
+    "synthesize",
+    "target",
+    "trace",
+    "transform",
+    "translate",
+    "undertake",
+    "update",
+    "validate",
+    "verify",
+    "walk",
+    "wire",
+    "write",
 ];
 
 /// Is `term` a known vocabulary term?
@@ -38,11 +145,7 @@ pub fn is_known(term: &str) -> bool {
 /// pre:  terms is a slice of declared lexicon terms
 /// post: returns Vec of terms not found in KNOWN_TERMS
 pub fn unrecognized(terms: &[String]) -> Vec<String> {
-    terms
-        .iter()
-        .filter(|t| !is_known(t))
-        .cloned()
-        .collect()
+    terms.iter().filter(|t| !is_known(t)).cloned().collect()
 }
 
 /// Validate an entry's `lexicon_terms` against the known vocabulary.
@@ -70,7 +173,12 @@ mod tests {
     #[test]
     fn known_terms_are_sorted() {
         for w in KNOWN_TERMS.windows(2) {
-            assert!(w[0] < w[1], "KNOWN_TERMS not sorted: '{}' >= '{}'", w[0], w[1]);
+            assert!(
+                w[0] < w[1],
+                "KNOWN_TERMS not sorted: '{}' >= '{}'",
+                w[0],
+                w[1]
+            );
         }
     }
 
@@ -89,7 +197,11 @@ mod tests {
             .map(String::from)
             .collect();
         let unknown = unrecognized(&terms);
-        assert!(unknown.is_empty(), "Known terms should not be flagged: {:?}", unknown);
+        assert!(
+            unknown.is_empty(),
+            "Known terms should not be flagged: {:?}",
+            unknown
+        );
     }
 
     // REQ: P3-tpl-vocab-test-unknown — validate_terms flags unknown terms
@@ -108,7 +220,11 @@ mod tests {
     #[test]
     fn all_bootstrapped_terms_are_known() {
         for term in KNOWN_TERMS {
-            assert!(is_known(term), "Bootstrapped term '{}' not recognized", term);
+            assert!(
+                is_known(term),
+                "Bootstrapped term '{}' not recognized",
+                term
+            );
         }
     }
 

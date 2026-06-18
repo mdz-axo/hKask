@@ -731,25 +731,25 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             Ok((|| -> anyhow::Result<MemoryServer> {
-            let db = ctx.open_database("HKASK_MEMORY_DB")?;
-            let conn = db.conn_arc();
-            let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
-            let episodic = hkask_memory::EpisodicMemory::new(triple_store);
-            let conn2 = db.conn_arc();
-            let triple_store2 = hkask_storage::TripleStore::new(Arc::clone(&conn2));
-            let embedding_store = hkask_storage::EmbeddingStore::new(conn2);
-            let semantic = Arc::new(hkask_memory::SemanticMemory::new(
-                triple_store2,
-                embedding_store,
-            ));
-            Ok(MemoryServer::new(
-                episodic,
-                semantic,
-                Some(db.conn_arc()),
-                ctx.webid,
-                replicant.clone(),
-                daemon_client.clone(),
-            ))
+                let db = ctx.open_database("HKASK_MEMORY_DB")?;
+                let conn = db.conn_arc();
+                let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
+                let episodic = hkask_memory::EpisodicMemory::new(triple_store);
+                let conn2 = db.conn_arc();
+                let triple_store2 = hkask_storage::TripleStore::new(Arc::clone(&conn2));
+                let embedding_store = hkask_storage::EmbeddingStore::new(conn2);
+                let semantic = Arc::new(hkask_memory::SemanticMemory::new(
+                    triple_store2,
+                    embedding_store,
+                ));
+                Ok(MemoryServer::new(
+                    episodic,
+                    semantic,
+                    Some(db.conn_arc()),
+                    ctx.webid,
+                    replicant.clone(),
+                    daemon_client.clone(),
+                ))
             })()?)
         },
         vec![

@@ -6,10 +6,10 @@
 
 use crate::ports::{Result, TemplateError};
 use hkask_types::bundle::SkillPolarity;
-use hkask_types::template_type::TemplateType;
 use hkask_types::ports::{
     BundleRegistryIndex, RegistryEntry, RegistryIndex, SkillRegistryIndex, SkillZone,
 };
+use hkask_types::template_type::TemplateType;
 use hkask_types::{BundleManifest, InfrastructureError, Skill, Visibility};
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
@@ -98,9 +98,7 @@ impl SqliteRegistry {
     /// pre:  conn is a valid SQLite connection
     /// post: returns SqliteRegistry with schema initialized on the given connection
     pub fn new_with_conn(conn: Arc<Mutex<Connection>>) -> Result<Self> {
-        let mut registry = Self {
-            conn,
-        };
+        let mut registry = Self { conn };
         registry.init_schema()?;
         Ok(registry)
     }

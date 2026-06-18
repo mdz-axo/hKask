@@ -14,8 +14,9 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
     let ctx = crate::commands::helpers::build_service_context();
     // Use the escalation queue via AgentService for raw EscalationEntry access.
     let queue = ctx.escalation_queue();
-    queue.list_pending()
-        .map_err(|e| ServiceError::Escalation { message: e.to_string() })
+    queue.list_pending().map_err(|e| ServiceError::Escalation {
+        message: e.to_string(),
+    })
 }
 
 /// REQ: CLI-034

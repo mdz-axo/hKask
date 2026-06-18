@@ -165,7 +165,9 @@ impl ComposeService {
     pub async fn compose(request: ComposeRequest) -> Result<ComposeResult, ServiceError> {
         // 1. Open DB + construct memory infrastructure
         let db = Database::open(&request.db_path.to_string_lossy(), &request.db_passphrase)
-            .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
+            .map_err(|e| ServiceError::Storage {
+                message: e.to_string(),
+            })?;
         let conn = db.conn_arc();
         let triple_store = TripleStore::new(Arc::clone(&conn));
         let embedding_store =
@@ -182,9 +184,11 @@ impl ComposeService {
             .await?;
 
         // 3. KNN search for exemplar passages
-        let results =
-            semantic.search_similar(&prompt_vector, request.cognition.embedding.retrieval.k_max)
-                .map_err(|e| ServiceError::SemanticMemory { message: e.to_string() })?;
+        let results = semantic
+            .search_similar(&prompt_vector, request.cognition.embedding.retrieval.k_max)
+            .map_err(|e| ServiceError::SemanticMemory {
+                message: e.to_string(),
+            })?;
 
         // Debug: log top-5 distances regardless of threshold to diagnose retrieval gaps
         if !results.is_empty() {

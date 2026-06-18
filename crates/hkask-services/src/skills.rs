@@ -10,8 +10,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use hkask_templates::SkillLoader;
-use hkask_types::template_type::TemplateType;
 use hkask_types::ports::{RegistryIndex, SkillRegistryIndex};
+use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 

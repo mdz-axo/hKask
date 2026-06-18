@@ -59,10 +59,11 @@ pub fn db_path_for_agent(webid: &WebID) -> String {
 /// pre:  passphrase must be non-empty; server passphrase must be configured in keystore
 /// post: returns the expected passphrase string on match; Err(Keystore) if not configured; Err(InvalidPassphrase) if mismatch
 pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
-    let expected = hkask_keystore::keychain::resolve_db_passphrase().map_err(|_| ServiceError::Keystore {
-        source: None,
-        message: "Server passphrase not configured".into(),
-    })?;
+    let expected =
+        hkask_keystore::keychain::resolve_db_passphrase().map_err(|_| ServiceError::Keystore {
+            source: None,
+            message: "Server passphrase not configured".into(),
+        })?;
     let expected_str = String::from_utf8_lossy(&expected).to_string();
     let secrets = hkask_keystore::master_key::derive_all_internal_secrets(passphrase);
     if secrets.capability_key != expected_str {
@@ -84,8 +85,9 @@ pub fn consolidate(
     db_path: &str,
     request: ConsolidationRequest,
 ) -> Result<ConsolidationOutcome, ServiceError> {
-    let db = Database::open(db_path, db_passphrase)
-        .map_err(|e| ServiceError::Storage { message: e.to_string() })?;
+    let db = Database::open(db_path, db_passphrase).map_err(|e| ServiceError::Storage {
+        message: e.to_string(),
+    })?;
 
     let conn = db.conn_arc();
     let ts1 = TripleStore::new(Arc::clone(&conn));

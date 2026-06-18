@@ -8,12 +8,12 @@
 //! an abstraction layer. Each backend owns its HTTP client, auth, and
 //! model listing endpoint independently.
 
+use futures_util::StreamExt;
 use hkask_types::ports::{
     InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage, StructuredToolCall,
     TokenProb, TokenProbability,
 };
 use hkask_types::template::LLMParameters;
-use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]

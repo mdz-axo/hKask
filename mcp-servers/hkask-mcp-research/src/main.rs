@@ -1137,25 +1137,25 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         SERVER_VERSION,
         |ctx: ServerContext| {
             Ok((|| -> anyhow::Result<ResearchServer> {
-            let parse_env = |k: &str| ctx.credentials.get(k).cloned();
-            let parse_env_u64 =
-                |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<u64>().ok());
-            let parse_env_usize =
-                |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<usize>().ok());
+                let parse_env = |k: &str| ctx.credentials.get(k).cloned();
+                let parse_env_u64 =
+                    |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<u64>().ok());
+                let parse_env_usize =
+                    |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<usize>().ok());
 
-            Ok(ResearchServer::new(
-                &ctx,
-                replicant.clone(),
-                daemon_client.clone(),
-                parse_env("HKASK_BRAVE_API_KEY"),
-                parse_env("HKASK_FIRECRAWL_API_KEY"),
-                parse_env("HKASK_TAVILY_API_KEY"),
-                parse_env("HKASK_SERPAPI_API_KEY"),
-                parse_env("HKASK_EXA_API_KEY"),
-                parse_env("HKASK_BROWSERBASE_API_KEY"),
-                parse_env_u64("HKASK_WEB_CACHE_TTL_SECS"),
-                parse_env_usize("HKASK_WEB_CACHE_MAX_ENTRIES"),
-            )?)
+                Ok(ResearchServer::new(
+                    &ctx,
+                    replicant.clone(),
+                    daemon_client.clone(),
+                    parse_env("HKASK_BRAVE_API_KEY"),
+                    parse_env("HKASK_FIRECRAWL_API_KEY"),
+                    parse_env("HKASK_TAVILY_API_KEY"),
+                    parse_env("HKASK_SERPAPI_API_KEY"),
+                    parse_env("HKASK_EXA_API_KEY"),
+                    parse_env("HKASK_BROWSERBASE_API_KEY"),
+                    parse_env_u64("HKASK_WEB_CACHE_TTL_SECS"),
+                    parse_env_usize("HKASK_WEB_CACHE_MAX_ENTRIES"),
+                )?)
             })()?)
         },
         credential_requirements(),

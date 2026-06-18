@@ -65,7 +65,9 @@ impl CuratorService {
     /// `ServiceError::Escalation` on queue error.
     pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {
         let queue = ctx.escalation_queue();
-        let entries = queue.list_pending().map_err(|e| ServiceError::Escalation { message: e.to_string() })?;
+        let entries = queue.list_pending().map_err(|e| ServiceError::Escalation {
+            message: e.to_string(),
+        })?;
         Ok(entries.into_iter().map(EscalationResponse::from).collect())
     }
 
@@ -103,7 +105,9 @@ impl CuratorService {
                     source: None,
                     message: id,
                 },
-                other => ServiceError::Escalation { message: other.to_string() },
+                other => ServiceError::Escalation {
+                    message: other.to_string(),
+                },
             })
     }
 
@@ -141,7 +145,9 @@ impl CuratorService {
                     source: None,
                     message: id,
                 },
-                other => ServiceError::Escalation { message: other.to_string() },
+                other => ServiceError::Escalation {
+                    message: other.to_string(),
+                },
             })
     }
 
@@ -171,11 +177,14 @@ impl CuratorService {
             queue.clone(),
         ));
         let agent = CuratorAgent::new(agents_ctx);
-        let snapshot = agent
-            .metacognition()
-            .run_cycle()
-            .await
-            .map_err(|e| ServiceError::Metacognition { message: e.to_string() })?;
+        let snapshot =
+            agent
+                .metacognition()
+                .run_cycle()
+                .await
+                .map_err(|e| ServiceError::Metacognition {
+                    message: e.to_string(),
+                })?;
         Ok(agent.metacognition().generate_summary(&snapshot))
     }
 }

@@ -9,8 +9,8 @@
 //! `SkillRegistryIndex`. Zone-vs-visibility mismatches emit a warning but
 //! do not block registration — the `visibility` field in SKILL.md wins.
 
-use hkask_types::template_type::TemplateType;
 use hkask_types::ports::{Skill, SkillRegistryIndex, SkillZone};
+use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
 use serde::Deserialize;
 use std::collections::HashMap;

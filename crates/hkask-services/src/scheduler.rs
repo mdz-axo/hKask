@@ -34,7 +34,9 @@ impl SchedulerService {
         };
         store
             .add_scheduled_task(&task)
-            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
+            .map_err(|e| ServiceError::AgentRegistryStore {
+                message: e.to_string(),
+            })
     }
 
     /// List all scheduled tasks for an agent.
@@ -49,7 +51,9 @@ impl SchedulerService {
     ) -> Result<Vec<ScheduledTask>, ServiceError> {
         store
             .list_scheduled_tasks(agent_name)
-            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
+            .map_err(|e| ServiceError::AgentRegistryStore {
+                message: e.to_string(),
+            })
     }
 
     /// Get all due tasks across all agents (for the curation loop).
@@ -64,7 +68,9 @@ impl SchedulerService {
     ) -> Result<Vec<ScheduledTask>, ServiceError> {
         store
             .list_due_tasks(now)
-            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
+            .map_err(|e| ServiceError::AgentRegistryStore {
+                message: e.to_string(),
+            })
     }
 
     /// Update a task's next run time after it fires.
@@ -81,6 +87,8 @@ impl SchedulerService {
     ) -> Result<(), ServiceError> {
         store
             .update_next_run(agent_name, trigger, new_next_run)
-            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
+            .map_err(|e| ServiceError::AgentRegistryStore {
+                message: e.to_string(),
+            })
     }
 }

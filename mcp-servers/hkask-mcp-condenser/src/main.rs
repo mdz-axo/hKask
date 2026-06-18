@@ -441,48 +441,50 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             Ok((|| -> anyhow::Result<CondenserServer> {
-            let episodic = {
-                let db_path = ctx
-                    .credentials
-                    .get("HKASK_DB_PATH")
-                    .cloned()
-                    .or_else(|| std::env::var("HKASK_DB_PATH").ok());
-                match db_path {
-                    Some(path) => {
-                        let passphrase = ctx
-                            .credentials
-                            .get("HKASK_DB_PASSPHRASE")
-                            .cloned()
-                            .or_else(|| std::env::var("HKASK_DB_PASSPHRASE").ok())
-                            .ok_or_else(|| {
-                                anyhow::anyhow!("HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing")
+                let episodic = {
+                    let db_path = ctx
+                        .credentials
+                        .get("HKASK_DB_PATH")
+                        .cloned()
+                        .or_else(|| std::env::var("HKASK_DB_PATH").ok());
+                    match db_path {
+                        Some(path) => {
+                            let passphrase = ctx
+                                .credentials
+                                .get("HKASK_DB_PASSPHRASE")
+                                .cloned()
+                                .or_else(|| std::env::var("HKASK_DB_PASSPHRASE").ok())
+                                .ok_or_else(|| {
+                                    anyhow::anyhow!(
+                                        "HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing"
+                                    )
+                                })?;
+                            let db = Database::open(&path, &passphrase).map_err(|e| {
+                                anyhow::anyhow!("Failed to open condenser database: {}", e)
                             })?;
-                        let db = Database::open(&path, &passphrase).map_err(|e| {
-                            anyhow::anyhow!("Failed to open condenser database: {}", e)
-                        })?;
-                        let triple_store = hkask_storage::TripleStore::new(db.conn_arc());
-                        Some(hkask_memory::EpisodicMemory::new(triple_store))
+                            let triple_store = hkask_storage::TripleStore::new(db.conn_arc());
+                            Some(hkask_memory::EpisodicMemory::new(triple_store))
+                        }
+                        None => None,
                     }
-                    None => None,
-                }
-            };
+                };
 
-            let default_model = ctx
-                .credentials
-                .get("INFERENCE_MODEL")
-                .cloned()
-                .or_else(|| std::env::var("INFERENCE_MODEL").ok())
-                .unwrap_or_else(|| "google/gemma-4-26B-A4B-it".to_string());
+                let default_model = ctx
+                    .credentials
+                    .get("INFERENCE_MODEL")
+                    .cloned()
+                    .or_else(|| std::env::var("INFERENCE_MODEL").ok())
+                    .unwrap_or_else(|| "google/gemma-4-26B-A4B-it".to_string());
 
-            Ok(CondenserServer::new(
-                ctx.webid,
-                replicant.clone(),
-                daemon_client.clone(),
-                episodic,
-                Arc::clone(&inference_port),
-                default_model,
-                ctx.capability_tier,
-            ))
+                Ok(CondenserServer::new(
+                    ctx.webid,
+                    replicant.clone(),
+                    daemon_client.clone(),
+                    episodic,
+                    Arc::clone(&inference_port),
+                    default_model,
+                    ctx.capability_tier,
+                ))
             })()?)
         },
         credential_requirements(),

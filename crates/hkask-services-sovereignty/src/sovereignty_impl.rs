@@ -34,7 +34,9 @@ impl SovereigntyService {
     pub fn grant_consent(&self, webid: &str, category: &DataCategory) -> Result<(), ServiceError> {
         self.consent
             .grant_consent(webid, category)
-            .map_err(|e| ServiceError::Consent { message: e.to_string() })
+            .map_err(|e| ServiceError::Consent {
+                message: e.to_string(),
+            })
             .inspect(|_| {
                 // REQ: P9-CNS-SVC-010 pre: valid consent grant, post: cns.sovereignty span emitted
                 // P9: CNS span
@@ -52,7 +54,9 @@ impl SovereigntyService {
     pub fn revoke_consent(&self, webid: &str) -> Result<(), ServiceError> {
         self.consent
             .revoke_consent(webid)
-            .map_err(|e| ServiceError::Consent { message: e.to_string() })
+            .map_err(|e| ServiceError::Consent {
+                message: e.to_string(),
+            })
             .inspect(|_| {
                 // REQ: P9-CNS-SVC-011 pre: valid consent revocation, post: cns.sovereignty span emitted
                 // P9: CNS span
@@ -84,7 +88,9 @@ impl SovereigntyService {
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ServiceError> {
         self.consent
             .get_granted_categories(webid)
-            .map_err(|e| ServiceError::Consent { message: e.to_string() })
+            .map_err(|e| ServiceError::Consent {
+                message: e.to_string(),
+            })
     }
 }
 

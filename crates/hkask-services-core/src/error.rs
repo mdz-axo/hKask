@@ -378,14 +378,26 @@ pub enum ServiceError {
 
 impl From<InferenceError> for ServiceError {
     fn from(e: InferenceError) -> Self {
-        let retryable = matches!(e, InferenceError::Connection(_) | InferenceError::CircuitOpen(_));
-        ServiceError::InferencePort { message: e.to_string(), retryable }
+        let retryable = matches!(
+            e,
+            InferenceError::Connection(_) | InferenceError::CircuitOpen(_)
+        );
+        ServiceError::InferencePort {
+            message: e.to_string(),
+            retryable,
+        }
     }
 }
 impl From<EmbeddingGenerationError> for ServiceError {
     fn from(e: EmbeddingGenerationError) -> Self {
-        let retryable = matches!(e, EmbeddingGenerationError::Connection(_) | EmbeddingGenerationError::Api(..));
-        ServiceError::Embedding { message: e.to_string(), retryable }
+        let retryable = matches!(
+            e,
+            EmbeddingGenerationError::Connection(_) | EmbeddingGenerationError::Api(..)
+        );
+        ServiceError::Embedding {
+            message: e.to_string(),
+            retryable,
+        }
     }
 }
 

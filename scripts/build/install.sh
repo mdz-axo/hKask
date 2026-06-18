@@ -9,8 +9,8 @@
 # and manages account creation, deletion, and moderation on the server.
 # Skip with --skip-conduit.
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
-# Or: wget -O - https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/build/install.sh | bash
+# Or: wget -O - https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/build/install.sh | bash
 
 set -euo pipefail
 
@@ -18,7 +18,7 @@ set -euo pipefail
 # Configuration
 # ============================================================================
 
-HKASK_VERSION="${HKASK_VERSION:-0.27.0}"
+HKASK_VERSION="${HKASK_VERSION:-0.28.0}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local}"
 BIN_DIR="${INSTALL_DIR}/bin"
 SYSTEM_BIN="/usr/local/bin"
@@ -617,7 +617,7 @@ Environment Variables:
 
 Examples:
     # Install hKask
-    curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/build/install.sh | bash
 
     # Install with custom directory
     INSTALL_DIR=/opt/hkask bash install.sh
