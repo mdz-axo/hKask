@@ -12,6 +12,7 @@ use crate::triples::TripleStore;
 use chrono::Utc;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -32,6 +33,17 @@ pub struct BackupMeta {
     pub exported_at: String,
     pub triple_count: i64,
     pub schema_version: u32,
+}
+
+/// Receipt returned after a successful migration import.
+///
+/// REQ: DEP-200 — P1 User Sovereignty: migration receipt for audit trail.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrationReceipt {
+    /// Number of triples imported (or already present).
+    pub triple_count: i64,
+    /// Replicant names that were auto-renamed to avoid collision.
+    pub renamed_replicants: Vec<(String, String)>,
 }
 
 pub struct BackupArchive {
@@ -174,6 +186,96 @@ impl BackupArchive {
             .query_row("SELECT COUNT(*) FROM triples", [], |row| row.get(0))
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         Ok(count)
+    }
+
+    /// Import triples from this archive into a target TripleStore.
+    ///
+    /// REQ: DEP-201 — idempotent CRDT merge via INSERT OR REPLACE by TripleID.
+    /// pre:  archive is open; target is a live TripleStore; existing_names are current replicant names
+    /// post: all triples upserted into target
+    /// post: auto-renamed entities where collision with existing replicant names
+    /// post: returns MigrationReceipt with triple_count and renamed_replicants
+    pub fn import_into(
+        &self,
+        target: &TripleStore,
+        owner_webid: &WebID,
+        existing_replicant_names: &HashSet<String>,
+    ) -> Result<MigrationReceipt, ArchiveError> {
+        let rows = self.read_triples()?;
+        let total = rows.len() as i64;
+        let mut renamed: Vec<(String, String)> = Vec::new();
+        let date_suffix = Utc::now().format("%Y%m%d").to_string();
+
+        let conn = target
+            .lock_conn()
+            .map_err(|e| ArchiveError::Database(e.to_string()))?;
+
+        for mut row in rows {
+            // Auto-rename entity if it collides with an existing replicant name
+            if existing_replicant_names.contains(&row.entity) {
+                let new_name = format!("{}-migrated-{}", row.entity, date_suffix);
+                renamed.push((row.entity.clone(), new_name.clone()));
+                row.entity = new_name;
+            }
+
+            // Update owner_webid to target user
+            row.owner_webid = owner_webid.to_string();
+
+            // Idempotent upsert by TripleID
+            conn.execute(
+                "INSERT OR REPLACE INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                rusqlite::params![
+                    row.id,
+                    row.entity,
+                    row.attribute,
+                    row.value,
+                    row.valid_from,
+                    row.valid_to,
+                    row.confidence,
+                    row.perspective,
+                    row.visibility,
+                    row.owner_webid,
+                ],
+            )
+            .map_err(|e| ArchiveError::Database(e.to_string()))?;
+        }
+
+        Ok(MigrationReceipt {
+            triple_count: total,
+            renamed_replicants: renamed,
+        })
+    }
+
+    /// Read all triples from this archive.
+    fn read_triples(&self) -> Result<Vec<TripleRow>, ArchiveError> {
+        let conn_arc = self.db.conn_arc();
+        let conn = conn_arc
+            .lock()
+            .map_err(|e| ArchiveError::Database(e.to_string()))?;
+
+        let mut stmt = conn.prepare(
+            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid FROM triples",
+        )
+        .map_err(|e| ArchiveError::Database(e.to_string()))?;
+
+        stmt.query_map([], |row| {
+            Ok(TripleRow {
+                id: row.get(0)?,
+                entity: row.get(1)?,
+                attribute: row.get(2)?,
+                value: row.get(3)?,
+                valid_from: row.get(4)?,
+                valid_to: row.get(5)?,
+                confidence: row.get(6)?,
+                perspective: row.get(7)?,
+                visibility: row.get(8)?,
+                owner_webid: row.get(9)?,
+            })
+        })
+        .map_err(|e| ArchiveError::Database(e.to_string()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| ArchiveError::Database(e.to_string()))
     }
 
     fn copy_triples(

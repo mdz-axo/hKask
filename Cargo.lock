@@ -3976,6 +3976,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum 0.8.9",
+ "base64 0.22.1",
  "chrono",
  "ed25519-dalek 2.2.0",
  "futures-util",

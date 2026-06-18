@@ -322,6 +322,60 @@ impl UserStore {
         Ok(session)
     }
 
+    /// List all replicant names across all users (for collision detection during migration).
+    ///
+    /// REQ: DEP-210
+    /// pre:  none
+    /// post: returns Vec of all replicant_name values
+    pub fn list_all_replicant_names(&self) -> UserResult<Vec<String>> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare("SELECT replicant_name FROM replicant_identities")?;
+        let names: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(UserStoreError::from)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(UserStoreError::from)?;
+        Ok(names)
+    }
+
+    /// Rename a replicant (used after migration when auto-rename occurred).
+    ///
+    /// REQ: DEP-211
+    /// pre:  from_name exists; to_name does not exist
+    /// post: replicant_identities.replicant_name updated
+    pub fn rename_replicant(&self, from_name: &str, to_name: &str) -> UserResult<()> {
+        let conn = self.lock_conn()?;
+        let rows = conn.execute(
+            "UPDATE replicant_identities SET replicant_name = ?1 WHERE replicant_name = ?2",
+            rusqlite::params![to_name, from_name],
+        )?;
+        if rows == 0 {
+            return Err(UserStoreError::NotFound(from_name.into()));
+        }
+        Ok(())
+    }
+
+    /// Delete a replicant and all its associated data.
+    ///
+    /// REQ: DEP-212
+    /// pre:  replicant_name exists
+    /// post: replicant_identities row deleted; sessions deleted
+    pub fn delete_replicant(&self, replicant_name: &str) -> UserResult<()> {
+        let conn = self.lock_conn()?;
+        let rows = conn.execute(
+            "DELETE FROM replicant_identities WHERE replicant_name = ?1",
+            rusqlite::params![replicant_name],
+        )?;
+        if rows == 0 {
+            return Err(UserStoreError::NotFound(replicant_name.into()));
+        }
+        conn.execute(
+            "DELETE FROM user_sessions WHERE replicant_name = ?1",
+            rusqlite::params![replicant_name],
+        )?;
+        Ok(())
+    }
+
     /// Login a replicant with passphrase.
     ///
     /// REQ: P1-sto-user-login

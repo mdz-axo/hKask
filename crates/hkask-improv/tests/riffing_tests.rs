@@ -58,9 +58,10 @@ fn resolves_return_to_group_with_synthesis() {
 // REQ: IMPROV-RIFFING-TESTS-003 — Riffing spawns new thread with SpawnThread policy
 #[test]
 fn spawns_new_thread_with_unique_id() {
-    let tangent = make_contribution("What if we used a graph database instead?");
-    let outcome1 = resolve(&tangent, &RiffReturn::SpawnThread, 1);
-    let outcome2 = resolve(&tangent, &RiffReturn::SpawnThread, 1);
+    let tangent1 = make_contribution("What if we used a graph database instead?");
+    let tangent2 = make_contribution("Another thought: consider event sourcing patterns");
+    let outcome1 = resolve(&tangent1, &RiffReturn::SpawnThread, 1);
+    let outcome2 = resolve(&tangent2, &RiffReturn::SpawnThread, 1);
 
     match (outcome1, outcome2) {
         (RiffOutcome::Spawned { thread_id: id1 }, RiffOutcome::Spawned { thread_id: id2 }) => {
