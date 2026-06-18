@@ -402,7 +402,7 @@ mod tests {
     fn parse_provider_code_unknown_defaults_to_deepinfra() {
         assert_eq!(parse_provider_code("XX"), ProviderId::DeepInfra);
         assert_eq!(parse_provider_code(""), ProviderId::DeepInfra);
-        assert_eq!(parse_provider_code("ollama"), ProviderId::DeepInfra);
+        assert_eq!(parse_provider_code("unknown"), ProviderId::DeepInfra);
         assert_eq!(parse_provider_code("om"), ProviderId::DeepInfra);
     }
 

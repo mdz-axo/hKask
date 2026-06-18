@@ -23,7 +23,7 @@ A skill is complete when its registry crate exists. The SKILL.md is optional for
 |---------|-------|----------|-------------------|
 | Task pattern has no matching registry crate | Registry | Coverage gap | Scan `registry/templates/` manifest `type` fields |
 | No WordAct/KnowAct/FlowDef template for a task pattern | Registry | Template coverage gap | Scan manifests for template_type coverage |
-| Template uses hLexicon terms not in workspace registry | Registry | hLexicon gap | Cross-reference `lexicon_terms` against workspace |
+| Template uses vocabulary terms not in known vocabulary | Registry | Vocabulary gap | Cross-reference `lexicon_terms` against vocabulary |
 | Registry crate exists but no SKILL.md companion | Companion | Documentation gap | Pair-check: `registry/templates/<name>/` exists but `.agents/skills/<name>/` absent |
 | Too few .j2 templates for cascade to select from | Registry | Cascade gap | Count `.j2` files per skill; flag <2 templates |
 | User says "I wish the agent could do X" | Either | Feature gap | Is X within hKask scope? |
@@ -81,8 +81,8 @@ If no hKask-specific skill exists, search for the underlying capability, then ad
 - .j2 frontmatter: contract has structured input and output
 - .j2 frontmatter: energy_cap in [2048, 8192]
 - .j2 frontmatter: visibility in {Private, Public, Shared}
-- hlexicon_terms in manifest all exist in workspace hLexicon
-- lexicon_terms in each .j2 frontmatter exist in workspace registry
+- lexicon_terms in manifest all exist in known vocabulary
+- lexicon_terms in each .j2 frontmatter exist in known vocabulary
 ```
 
 ### SKILL.md Companion Validation (optional)
@@ -124,7 +124,7 @@ If no hKask-specific skill exists, search for the underlying capability, then ad
 |------|--------|
 | Vague descriptions ("Helps with code") | Reject, request specificity |
 | Invalid template_type | Reject, require WordAct/KnowAct/FlowDef |
-| hLexicon terms not in workspace | Reject until terms are registered or replaced |
+| Vocabulary terms not in known vocabulary | Reject until terms are registered or replaced |
 | External dependencies not in workspace | Flag for review |
 | Network calls without documentation | Flag |
 | Instructions that assume a specific model or persona | Needs adaptation |
@@ -136,7 +136,7 @@ If no hKask-specific skill exists, search for the underlying capability, then ad
 ### Full install (registry crate)
 
 1. Copy `manifest.yaml` + `*.j2` to `registry/templates/<name>/`
-2. Verify registry: manifest structure, .j2 frontmatter, hLexicon terms exist
+2. Verify registry: manifest structure, .j2 frontmatter, vocabulary terms exist
 3. Generate SKILL.md companion (if needed for Zed agent)
 4. Verify SKILL.md: frontmatter validates, matches registry
 
@@ -159,7 +159,7 @@ Use `skill-translator` to convert, then install registry crate.
 ### Verify after installation
 
 1. **Registry format check**: manifest.yaml structure, .j2 frontmatter, template_type validity
-2. **hLexicon check**: All declared terms exist in workspace registry
+2. **Vocabulary check**: All declared terms exist in known vocabulary
 3. **Content check**: Instructions concrete and actionable
 4. **Safety check**: No Magna Carta violations, no headless constraint violations
 5. **CNS check**: Any `cns.*` span references are valid
@@ -169,7 +169,7 @@ Failure modes:
 | Failure | Fix |
 |---------|-----|
 | Registry format fails | Fix manifest structure or .j2 frontmatter |
-| hLexicon fails | Register missing terms or replace with existing terms |
+| Vocabulary check fails | Register missing terms or replace with existing terms |
 | Content fails | Rewrite vague instructions |
 | Safety fails | Report violation, refuse installation |
 | CNS fails | Update span references |
@@ -201,7 +201,7 @@ templates:
     description: >
       [What this template produces at inference time]
 
-hlexicon_terms:
+vocabulary_terms:
   - term1
   - term2
   - term3
@@ -255,7 +255,7 @@ Use `skill-translator` reverse translation to generate a SKILL.md for the Zed co
 - Architecture changes make references stale
 - New Magna Carta principles or constraints added
 - .j2 contract no longer matches actual inputs/outputs
-- hLexicon terms deprecated or renamed
+- Vocabulary terms deprecated or renamed
 
 ### When to retire a skill
 
@@ -274,7 +274,7 @@ Retirement: delete `registry/templates/<name>/` (canonical). Also delete `./agen
 | "Can I use this skill from [other project]?" | Evaluate format compatibility, translate if needed |
 | Recurring manual patterns | Suggest codifying into registry crate |
 | After installing a skill | Verify registry crate loaded and valid |
-| "Audit skill coverage" | Run template-type and hLexicon coverage audit |
+| "Audit skill coverage" | Run template-type and vocabulary coverage audit |
 
 ## Registry Templates
 

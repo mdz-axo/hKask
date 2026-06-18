@@ -35,7 +35,7 @@ active → stale_warning → deprecated → retired
 | manifest.yaml version stale | Version doesn't match workspace version | Medium |
 | .j2 contract drift — input/output fields no longer match runtime types | Compare contract against actual struct fields in crate code | High |
 | `template_type: Cognition` — invalid | Must be `WordAct`, `KnowAct`, or `FlowDef` | High |
-| hLexicon terms not in workspace registry | Compare against workspace hLexicon | Medium |
+| vocabulary terms not in known vocabulary | Compare against known vocabulary | Medium |
 | `energy_cap` out of range | Must be 2048–8192 | Medium |
 | `visibility` value invalid | Must be `Private`, `Public`, or `Shared` | High |
 | manifest `templates` entry references .j2 that doesn't exist | Check `path` against filesystem | High |
@@ -64,7 +64,7 @@ active → stale_warning → deprecated → retired
 
 For each skill name present in the registry:
 
-1. **Check registry**: manifest structure, each .j2 frontmatter vs manifest, contract validity, template_type validity, hLexicon coverage, energy_cap range, visibility values
+1. **Check registry**: manifest structure, each .j2 frontmatter vs manifest, contract validity, template_type validity, vocabulary coverage, energy_cap range, visibility values
 2. **Check SKILL.md** (if present): frontmatter format, references, consistency, drift from registry
 3. **Check cross-artifact**: registry exists (required), SKILL.md aligns with registry when present
 4. **Score**: compute health score with registry as primary
@@ -79,7 +79,7 @@ Registry deductions (canonical):
   -0.15 per invalid template_type (e.g. Cognition → must be KnowAct)
   -0.10 per contract drift (input/output mismatch)
   -0.10 per manifest/.j2 path reference broken
-  -0.05 per hLexicon term not in workspace
+  -0.05 per vocabulary term not in known vocabulary
   -0.05 per energy_cap out of 2048–8192 range
   -0.10 per invalid visibility value
 
@@ -116,7 +116,7 @@ Skill Audit — [date]:
 |----------|---------------|
 | **Task pattern → registry crate** | Does a registry crate cover each common hKask task pattern? |
 | **template_type distribution** | Are `WordAct`, `KnowAct`, `FlowDef` all represented? Over-concentration signals gap. |
-| **hLexicon term coverage** | Do template `lexicon_terms` cover the workspace lexicon? Missing terms = blind spots. |
+| **Vocabulary term coverage** | Do template `lexicon_terms` cover the known vocabulary? Missing terms = blind spots. |
 | **Cascade depth** | Do FlowDef templates exist for multi-step workflows? Missing FlowDef = no cascade wiring. |
 
 ### Gap Report Format
@@ -125,7 +125,7 @@ Skill Audit — [date]:
 Coverage Gaps:
   Registry:
     [template_type] — [N]% concentration, [missing_type] absent
-    hLexicon: [term] not covered by any template
+    vocabulary: [term] not covered by any template
     Cascade: no FlowDef for [workflow]
   Companion:
     [name] — registry crate present, SKILL.md absent (info only)

@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Principles"
 audience: [architects, developers, agents]
-last_updated: 2026-06-17
+last_updated: 2026-06-18
 version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -74,6 +74,39 @@ System claims must be grounded in traceable, provenance-aware representations.
 
 #### P9 — Homeostatic Self-Regulation
 The system must remain observable and self-correcting through cybernetic feedback loops.
+
+**§9.1 — CNS Span Coverage (v0.28.0)**
+
+CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation.
+
+| Domain | Target | Spans | Status |
+|--------|--------|-------|--------|
+| Tool dispatch (all MCP servers) | `cns.tool.*` | ~170 | ✅ `ToolSpanGuard` per-tool |
+| Inference (4 backends) | `cns.inference` | 18 | ✅ generate/generate_vision |
+| Keystore | `cns.keystore` | 25 | ✅ resolve, store, derive, sign |
+| Adapter (LoRA) | `cns.adapter` | 23 | ✅ store/get_by_id/delete + router |
+| Backup | `cns.backup` | 20 | ✅ snapshot/restore/verify/prune |
+| Condenser | `cns.condenser` | 3 | ✅ compression ratio + health |
+| MCP server infra | `cns.mcp.*` | 47 | ✅ startup gates + daemon flow |
+| CLI command dispatch | `cns.cli` | 2 | ✅ command_invoked/completed |
+| API middleware | `cns.api` | 2 | ✅ per-request CNS span |
+| Kata coaching | `cns.kata` | 20 | ✅ pre-existing |
+| Agent pod | `cns.agent_pod` | — | ✅ pre-existing |
+| Wallet | `cns.wallet.*` | — | ✅ pre-existing |
+| Memory | `cns.memory.*` | — | ✅ pre-existing |
+| Curation | `cns.curation` | — | ✅ pre-existing |
+
+**§9.2 — Span Emission Pattern**
+
+```rust
+// REQ: P9-CNS-NNN pre: {precondition} post: cns.{domain} span emitted
+tracing::info!(target: "cns.{domain}", operation = "{verb}", {key} = %{value}, ..., "CNS");
+```
+
+- Target: `"cns.{canonical_domain}"` — must match a `CnsSpan` variant in `hkask-types::cns`
+- Message: Must be `"CNS"` — enables ν-event filtering
+- Latency: Use `std::time::Instant`, emit as `latency_ms`
+- Authority: Every span carries a `replicant` or `owner` WebID
 
 ---
 

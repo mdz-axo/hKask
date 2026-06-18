@@ -38,7 +38,7 @@ templates:
     type: KnowAct | WordAct | FlowDef
     lexicon_terms: [term, ...]
     description: <one-line>
-hlexicon_terms: [term, ...]
+vocabulary_terms: [term, ...]
 ```
 
 ### .j2 template shape
@@ -113,13 +113,13 @@ Before translating, characterize the source on these dimensions:
 2. **Classify** — Walk each section/step. Classify as cognitive, workflow, or guardrail. Determine template_type.
 3. **Map** — For each element, identify the registry target (manifest field or .j2 template).
 4. **Draft** — Produce:
-   - (a) `manifest.yaml` — crate metadata, template entries, hlexicon terms
+   - (a) `manifest.yaml` — crate metadata, template entries, vocabulary terms
    - (b) `.j2` template files — one per classified step, with valid `[inference]` frontmatter
 5. **Validate** — Check ALL of the following:
    - `template_type` is WordAct, KnowAct, or FlowDef (never Cognition/Prompt/Process)
    - `visibility` is Private, Public, or Shared
    - `energy_cap` is in 2048–8192 range
-   - `lexicon_terms` exist in hLexicon or are explicitly proposed as new terms
+   - `lexicon_terms` exist in known vocabulary or are explicitly proposed as new terms
    - `contract.input` and `contract.output` are structured JSON types
    - Every source step appears in at least one registry element
 6. **Generate SKILL.md** — From the completed registry crate:

@@ -2,7 +2,7 @@
 title: "MDS — Minimal Domain Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-06-09
-version: "0.27.0"
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -325,7 +325,7 @@ coherence_metric:
 | Lifecycle | Bootstrap + evolution + deprecation + CNS span emission |
 | Curation | Coherence scoring + decision rationale documentation |
 
-[^principles-p8]: hKask Team. (2026). *Architecture Principles — P8.* `docs/architecture/PRINCIPLES.md` §2.8 — Every `#[test]` verifies a stated behavioral property of a public seam.
+[^principles-p8]: hKask Team. (2026). *Architecture Principles — P8.* `docs/architecture/core/PRINCIPLES.md` (P8) — Every `#[test]` verifies a stated behavioral property of a public seam.
 
 ---
 
@@ -339,4 +339,4 @@ coherence_metric:
 
 ---
 
-*MDS v0.27.0 — supersedes previous MDS. Five categories, five tools, one predicate.*
+*MDS v0.28.0 — supersedes previous MDS. Five categories, five tools, one predicate.*

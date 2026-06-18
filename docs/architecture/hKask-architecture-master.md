@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.27.0
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.28.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -81,7 +81,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
 - **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `CnsRuntime::calibrate_threshold()`.
-- **40+ canonical CNS span namespaces.** Every dimension observable: tools, prompts, inference, agent pods, connectors, pipelines, gas, reviews, templates, curation, variety, sovereignty, goals, specs, tests, set points, backpressure, cadence, memory, condenser, evolution, architecture, improv, kata, wallet, outcome, contract.
+- **28 canonical CNS span namespaces.** Every dimension observable: tools (11 MCP subsystems), inference, agent pods, gas, curation, sovereignty, specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (proposed/accepted/rejected/violated/coverage), ACP (replicant memory, IDE connection).
 - **Good Regulator contract enforced.** CNS variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 
 **Crates:** `hkask-cns`, `hkask-types` (CNS types, SpanNamespace)
@@ -147,7 +147,7 @@ graph TD
     end
 
     subgraph CNS["Pattern B: CNS Feedback Loop"]
-        CN["Variety → Algedonic → Backpressure\n40+ canonical span namespaces"]
+        CN["Variety → Algedonic → Backpressure\n28 canonical span namespaces"]
     end
 
     subgraph Curator["Pattern C: Agentic AI Mediation"]
@@ -426,15 +426,7 @@ graph TD
 
 `hkask-mcp-kanban` depends on `hkask-services` — permitted as a tri-surface for KanbanService.
 
-### CNS Spans
-
-| Span | Namespace |
-|------|-----------|
-| `TaskCreated` | `cns.kanban.task_created` |
-| `TaskMoved` | `cns.kanban.task_moved` |
-| `TaskAssigned` | `cns.kanban.task_assigned` |
-| `TaskVerified` | `cns.kanban.task_verified` |
-| `BoardCreated` | `cns.kanban.board_created` |
+Kanban operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Kanban }`.
 
 See also: `docs/user-guides/kanban-user-guide.md`
 
@@ -505,20 +497,7 @@ sequenceDiagram
     end
 ```
 
-### CNS Spans
-
-| Span | Namespace | Trigger |
-|------|-----------|---------|
-| `KataImprovEffectiveness` | `cns.kata.improv_effectiveness` | After each improvement cycle |
-| `kata.cycle.start` | `hkask.kata.cycle.start` | Cycle begins |
-| `kata.step.start` | `hkask.kata.step.start` | Each PDCA step begins |
-| `kata.step.checked` | `hkask.kata.step.checked` | PDCA Check phase |
-| `kata.step.complete` | `hkask.kata.step.complete` | Each step completes |
-| `kata.coaching.question` | `hkask.kata.coaching.question` | Each coaching question |
-| `kata.starter.practice` | `hkask.kata.starter.practice` | Each starter practice |
-| `kata.starter.habit_check` | `hkask.kata.starter.habit_check` | Before starter cycle |
-| `kata.cycle.complete` | `hkask.kata.cycle.complete` | Cycle completes |
-| `kata.algedonic` | `hkask.kata.algedonic` | Variety deficit detected |
+Kata operations emit observability through `CnsSpan::Curation` and `CnsSpan::Gas`.
 
 ### Coaching 5 Questions → Kanban Task Mapping
 
@@ -540,7 +519,7 @@ See also: `docs/guides/kata-user-guide.md`
 
 **MCP surface:** Training via `hkask-mcp-training` (17 tools, 5 providers)
 
-**Status:** Active — 48 tests, 10 CNS span namespaces, 45 public functions (17 exposed in lib.rs)
+**Status:** Active — 48 tests, 45 public functions (17 exposed in lib.rs)
 
 ### Summary
 
@@ -572,14 +551,14 @@ stateDiagram-v2
     note right of Active
         Cost accrual (P9)
         Budget enforcement
-        CNS: EndpointInference
-        CNS: EndpointCostAccrued
+        CNS: Inference
+        CNS: Gas
     end note
 
     note right of Draining
         No new requests accepted
         In-flight requests complete
-        CNS: EndpointDraining
+        CNS: Inference
     end note
 ```
 
@@ -602,20 +581,7 @@ graph TD
     ADAPTER --> INFERENCE["hkask-inference (provider routing)"]
 ```
 
-### CNS Spans
-
-| Span | Namespace | Trigger |
-|------|-----------|---------|
-| `AdapterStored` | `cns.adapter.stored` | Adapter saved to AdapterStore |
-| `AdapterRetrieved` | `cns.adapter.retrieved` | Adapter loaded from AdapterStore |
-| `AdapterDeleted` | `cns.adapter.deleted` | Adapter removed from AdapterStore |
-| `EndpointCreateStarted` | `cns.endpoint.create_started` | Endpoint provisioning begins |
-| `EndpointCreateConfirmed` | `cns.endpoint.create_confirmed` | Provider confirms deployment |
-| `EndpointInference` | `cns.endpoint.inference` | Each inference request |
-| `EndpointDraining` | `cns.endpoint.draining` | Draining phase begins |
-| `EndpointTerminated` | `cns.endpoint.terminated` | Endpoint fully terminated |
-| `EndpointCostAccrued` | `cns.endpoint.cost_accrued` | Cost tracked per invocation |
-| `EndpointCostBudgetWarning` | `cns.endpoint.cost_budget_warning` | Budget threshold exceeded |
+Adapter and endpoint operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Training }`, `CnsSpan::Inference`, and `CnsSpan::Gas`.
 
 See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-training-guide.md`, `docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md`
 
@@ -917,4 +883,4 @@ docs/architecture/
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.28.0*

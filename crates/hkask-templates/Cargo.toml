@@ -3,7 +3,7 @@ name = "hkask-templates"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Registry, hLexicon, and template execution for hKask"
+description = "Registry, vocabulary, and template execution for hKask"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }

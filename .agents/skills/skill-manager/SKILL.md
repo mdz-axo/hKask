@@ -59,7 +59,7 @@ Check registry first (authoritative), then SKILL.md (companion).
 | R8 | energy_cap in range | Each `.j2` `energy_cap` is an integer in [1024, 16384] |
 | R9 | .j2 file exists | Each template entry's `path` resolves to an actual `.j2` file |
 | R10 | [inference] frontmatter valid | Each `.j2` starts with `[inference]` block |
-| R11 | hLexicon terms exist | All `lexicon_terms` reference terms in workspace hLexicon |
+| R11 | vocabulary terms exist | All `lexicon_terms` reference terms in known vocabulary |
 | R12 | Jinja2 body present | Each `.j2` has template body after `---` separator |
 
 **SKILL.md layer (generated companion):**
@@ -85,7 +85,7 @@ Check registry first (authoritative), then SKILL.md (companion).
 | X3 | No orphan SKILL.md | SKILL.md without registry → incomplete | High |
 | X4 | No drift | SKILL.md does not claim behaviors registry templates do not support | Medium |
 
-Severity levels: **Critical** (registry missing, invalid template_type), **High** (orphan SKILL.md, contract invalidity), **Medium** (drift, name mismatch, hLexicon gaps), **Info** (missing SKILL.md, description brevity).
+Severity levels: **Critical** (registry missing, invalid template_type), **High** (orphan SKILL.md, contract invalidity), **Medium** (drift, name mismatch, vocabulary gaps), **Info** (missing SKILL.md, description brevity).
 
 ### Build a Skill
 
@@ -111,7 +111,7 @@ Build the registry crate first (canonical), then generate SKILL.md from it.
          description: >
            <what this template produces>
 
-     hlexicon_terms:
+     vocabulary_terms:
        - <term1>
        - <term2>
        ...
@@ -161,7 +161,7 @@ Report skill corpus statistics:
 | Orphan SKILL.md | SKILL.md files with no registry crate |
 | Template type distribution | Count of WordAct / KnowAct / FlowDef .j2 templates |
 | Visibility distribution | Private / Public / Shared across .j2 templates |
-| hLexicon coverage | Unique terms used vs total workspace terms |
+| Vocabulary coverage | Unique terms used vs total known terms |
 | Staleness | Broken references, missing .j2 files, invalid template_types |
 
 ## Decision Guide

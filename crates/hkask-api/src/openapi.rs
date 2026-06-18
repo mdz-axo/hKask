@@ -64,7 +64,7 @@ use crate::routes::cns::CnsSubscribeParams;
 /// ## Vocabulary
 ///
 /// All domain terms used in request/response schemas are grounded in the
-/// canonical WordAct / FlowDef / KnowAct taxonomy (see docs/architecture/reference/hKask-hLexicon.md).
+/// canonical WordAct / FlowDef / KnowAct taxonomy.
 #[derive(OpenApi)]
 #[openapi(
     components(schemas(

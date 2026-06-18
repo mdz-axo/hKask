@@ -98,7 +98,7 @@ improv
 | **Filters** | Silently omits components that don't work — criticism through absence |
 | **Anti-pattern** | "Yes, but..." — masked negation. "That's wrong because..." — direct negation. |
 
-**hLexicon terms:** `affirm`, `extend`, `propose`
+**Vocabulary terms:** `affirm`, `extend`, `propose`
 
 #### 2. Freestyling
 
@@ -110,7 +110,7 @@ improv
 | **Duration** | Time-boxed (e.g., 3 minutes or N responses) |
 | **Anti-pattern** | Self-censoring during the flow. Evaluating quality mid-stream. |
 
-**hLexicon terms:** `improvise`, `explore`, `generate`, `riff`
+**Vocabulary terms:** `improvise`, `explore`, `generate`, `riff`
 
 #### 3. Riffing
 
@@ -122,7 +122,7 @@ improv
 | **Duration** | One turn — riff, then return |
 | **Anti-pattern** | Never returning. Riffing that doesn't reconnect to the group conversation. |
 
-**hLexicon terms:** `diverge`, `explore`, `develop`, `return`
+**Vocabulary terms:** `diverge`, `explore`, `develop`, `return`
 
 #### 4. Yes-And
 
@@ -134,7 +134,7 @@ improv
 | **Duration** | Continuous — the default collaborative mode |
 | **Anti-pattern** | "Yes, but..." — masked negation. Ignoring the previous contribution. Steamrolling with own idea. |
 
-**hLexicon terms:** `accept`, `build`, `extend`
+**Vocabulary terms:** `accept`, `build`, `extend`
 
 ---
 
