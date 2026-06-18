@@ -87,6 +87,7 @@ impl RepoSnapshotPolicy {
     /// Create a policy for a repo with default retention.
     ///
     /// REQ: TYP-272
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  repo is any [`RepoId`] variant
     /// post: returns a [`RepoSnapshotPolicy`] with `enabled: true` and `policy: None`
     ///       (falls back to global default retention)
@@ -101,6 +102,7 @@ impl RepoSnapshotPolicy {
     /// Create a policy for a repo with custom retention.
     ///
     /// REQ: TYP-273
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  repo is any [`RepoId`] variant; policy is any [`RetentionPolicy`]
     /// post: returns a [`RepoSnapshotPolicy`] with `enabled: true` and the given custom policy
     pub fn with_policy(repo: RepoId, policy: RetentionPolicy) -> Self {
@@ -114,6 +116,7 @@ impl RepoSnapshotPolicy {
     /// Create a disabled policy for a repo that shouldn't be snapshotted.
     ///
     /// REQ: TYP-274
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  repo is any [`RepoId`] variant
     /// post: returns a [`RepoSnapshotPolicy`] with `enabled: false` and `policy: None`
     pub fn disabled(repo: RepoId) -> Self {
@@ -127,6 +130,7 @@ impl RepoSnapshotPolicy {
     /// Get the effective retention policy, falling back to default.
     ///
     /// REQ: TYP-275
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is any [`RepoSnapshotPolicy`]
     /// post: returns the custom [`RetentionPolicy`] if `policy` is `Some`;
     ///       otherwise returns the global default [`RetentionPolicy`]; never panics

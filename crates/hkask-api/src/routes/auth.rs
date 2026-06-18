@@ -159,7 +159,7 @@ pub async fn login(
 
     // Generate CSRF state
     let csrf_state = uuid::Uuid::new_v4().to_string();
-    let authorize_url = config.authorize_url(&csrf_state);
+    let authorize_url = config.authorize_url(&provider, &csrf_state);
 
     tracing::info!(
         target = "hkask.api.oauth",
@@ -218,9 +218,10 @@ pub async fn callback(
     // Exchange code for access token
     let token_response = exchange_code(&config, code, &provider).await?;
 
-    // Fetch user info from provider
-    let (provider_user_id, display_name, email) =
-        fetch_github_user(&token_response.access_token).await?;
+    let (provider_user_id, display_name, email) = match provider {
+        OAuthProvider::GitHub => fetch_github_user(&token_response.access_token).await?,
+        OAuthProvider::Google => fetch_google_user(&token_response.access_token).await?,
+    };
 
     // Find or create user
     let user_store = state.agent_service.user_store();
@@ -290,28 +291,36 @@ async fn exchange_code(
     code: &str,
     provider: &OAuthProvider,
 ) -> Result<GitHubTokenResponse, (StatusCode, String)> {
-    let token_url = match provider {
-        OAuthProvider::GitHub => "https://github.com/login/oauth/access_token",
-        OAuthProvider::Google => {
-            return Err((
-                StatusCode::NOT_IMPLEMENTED,
-                "Google OAuth not yet supported".to_string(),
-            ));
-        }
-    };
-
     let client = reqwest::Client::new();
-    let resp = client
-        .post(token_url)
-        .header("Accept", "application/json")
-        .form(&[
-            ("client_id", config.client_id.as_str()),
-            ("client_secret", config.client_secret.as_str()),
-            ("code", code),
-            ("redirect_uri", config.redirect_uri.as_str()),
-        ])
-        .send()
-        .await
+    let resp = match provider {
+        OAuthProvider::GitHub => {
+            client
+                .post("https://github.com/login/oauth/access_token")
+                .header("Accept", "application/json")
+                .json(&serde_json::json!({
+                    "client_id": config.client_id,
+                    "client_secret": config.client_secret,
+                    "code": code,
+                    "redirect_uri": config.redirect_uri,
+                }))
+                .send()
+                .await
+        }
+        OAuthProvider::Google => {
+            client
+                .post("https://oauth2.googleapis.com/token")
+                .header("Accept", "application/json")
+                .form(&[
+                    ("client_id", config.client_id.as_str()),
+                    ("client_secret", config.client_secret.as_str()),
+                    ("code", code),
+                    ("grant_type", "authorization_code"),
+                    ("redirect_uri", config.redirect_uri.as_str()),
+                ])
+                .send()
+                .await
+        }
+    }
         .map_err(|e| {
             tracing::error!(target: "hkask.api.oauth", error = %e, "Token exchange request failed");
             (

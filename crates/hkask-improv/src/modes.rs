@@ -163,6 +163,7 @@ mod tests {
     }
 
     // REQ: IMPROV-MODES-001 — Plussing produces a PlussedResponse variant
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn plussing_mode_produces_plussed_response() {
         let mode = ImprovMode::Plussing;
@@ -173,6 +174,7 @@ mod tests {
     }
 
     // REQ: IMPROV-MODES-002 — YesAnd produces Extended variant with accepted base preserved
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn yes_and_preserves_accepted_base() {
         let mode = ImprovMode::YesAnd;
@@ -191,6 +193,7 @@ mod tests {
     }
 
     // REQ: IMPROV-MODES-003 — YesBut produces Constrained variant with accepted base preserved
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn yes_but_preserves_accepted_base() {
         let mode = ImprovMode::YesBut;
@@ -209,6 +212,7 @@ mod tests {
     }
 
     // REQ: IMPROV-MODES-004 — Freestyling produces FreestyleTurn with time_remaining
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn freestyling_includes_time_bound() {
         let bound = Duration::from_secs(300);
@@ -228,6 +232,7 @@ mod tests {
     }
 
     // REQ: IMPROV-MODES-005 — Riffing produces Riff variant with return_policy
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn riffing_includes_return_policy() {
         let policy = RiffReturn::ReturnToGroup;
@@ -249,6 +254,7 @@ mod tests {
     }
 
     // REQ: IMPROV-MODES-006 — Mode labels are stable and human-readable
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn mode_labels_are_stable() {
         assert_eq!(ImprovMode::Plussing.label(), "plussing");

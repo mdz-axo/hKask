@@ -145,6 +145,7 @@ mod tests {
     }
 
     // REQ: IMPROV-CASCADE-001 — Cascade composes modes sequentially — output of step N feeds step N+1
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn cascade_composes_modes_sequentially() {
         let cascade =
@@ -172,6 +173,7 @@ mod tests {
     }
 
     // REQ: IMPROV-CASCADE-002 — Cascade enforces matryoshka limit (max 7 total applications)
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn enforces_matryoshka_limit() {
         // 8 simple modes — exceeds limit.
@@ -186,6 +188,7 @@ mod tests {
     }
 
     // REQ: IMPROV-CASCADE-003 — Cascade rejects empty mode list
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn rejects_empty_cascade() {
         assert!(matches!(
@@ -195,6 +198,7 @@ mod tests {
     }
 
     // REQ: IMPROV-CASCADE-004 — Cascade with nested Cascade tracks total applications correctly
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn tracks_nested_applications() {
         let inner =
@@ -214,6 +218,7 @@ mod tests {
     }
 
     // REQ: IMPROV-CASCADE-005 — Cascade execution with nested cascade descends context
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn nested_cascade_descends_context() {
         let inner =
@@ -230,6 +235,7 @@ mod tests {
     }
 
     // REQ: IMPROV-CASCADE-006 — Deeply nested cascade exceeding matryoshka limit is rejected
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn rejects_deep_nesting() {
         // Build a cascade of 7 total applications (at the limit).
@@ -249,6 +255,7 @@ mod tests {
     }
 
     // REQ: IMPROV-CASCADE-007 — Cascade execution with exceeded recursion depth at runtime is caught
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn catches_runtime_recursion_exceeded() {
         let cascade = ImprovCascade::new(vec![ImprovMode::Plussing]).expect("valid");

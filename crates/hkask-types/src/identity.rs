@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// OAuth identity provider for human user sign-in.
 ///
 /// REQ: DEP-001 — P1 User Sovereignty: OAuth sign-in preserves user control via WebID scoping.
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OAuthProvider {
@@ -53,12 +54,15 @@ pub struct HumanUser {
     pub passphrase_set_at: Option<i64>,
     /// OAuth provider used for sign-in (None = passphrase-only registration).
     /// REQ: DEP-001
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_provider: Option<OAuthProvider>,
     /// External user ID from the OAuth provider (e.g., GitHub user ID).
     /// REQ: DEP-001
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_provider_user_id: Option<String>,
     /// Display name from the OAuth provider (e.g., GitHub username).
     /// REQ: DEP-001
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_display_name: Option<String>,
 }
 
@@ -107,6 +111,7 @@ pub struct ReplicantIdentity {
 
 impl ReplicantIdentity {
     /// REQ: TYP-188
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  replicant_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
     /// post: returns a deterministic WebID with the "replicant" namespace;
     ///       same replicant_name always produces the same WebID
@@ -115,6 +120,7 @@ impl ReplicantIdentity {
     }
 
     /// REQ: TYP-189
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  replicant_name is non-empty; user_id is a valid UserID;
     ///       first_name_enc and last_name_enc are encrypted byte vectors
     /// post: returns a ReplicantIdentity with derived webid, wallet_id=None,
@@ -157,6 +163,7 @@ pub struct UserSession {
 
 impl UserSession {
     /// REQ: TYP-190
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  now is a Unix timestamp (i64); self.expires_at is a valid
     ///       expiry timestamp set at session creation
     /// post: returns true if now > self.expires_at (session has expired);

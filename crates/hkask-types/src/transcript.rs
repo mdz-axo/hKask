@@ -75,6 +75,7 @@ impl TranscriptBundle {
     /// Create a new bundle with format marker.
     ///
     /// REQ: TYP-179
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  audio_path is a non-empty file path string; audio_duration_secs >= 0.0;
     ///       full_text is a valid transcript string (may be empty)
     /// post: returns a TranscriptBundle with format "hkask-transcript-v1",
@@ -95,6 +96,7 @@ impl TranscriptBundle {
     /// Total word count.
     ///
     /// REQ: TYP-180
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid TranscriptBundle
     /// post: returns the number of TimedWord entries in self.words (usize)
     pub fn word_count(&self) -> usize {
@@ -104,6 +106,7 @@ impl TranscriptBundle {
     /// Find the word at a given millisecond position.
     ///
     /// REQ: TYP-181
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  ms is any u64 millisecond offset
     /// post: returns Some(&TimedWord) if a word spans ms (start_ms <= ms < end_ms);
     ///       returns None if no word covers that position
@@ -116,6 +119,7 @@ impl TranscriptBundle {
     /// Get the segment containing a given millisecond position.
     ///
     /// REQ: TYP-182
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  ms is any u64 millisecond offset
     /// post: returns Some(&TranscriptSegment) if a segment spans ms
     ///       (start_ms <= ms < end_ms); returns None otherwise
@@ -131,6 +135,7 @@ mod tests {
     use super::*;
 
     // REQ: types-transcript-001 — TranscriptBundle carries hkask-transcript-v1 format marker
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn bundle_has_format_marker() {
         let bundle = TranscriptBundle::new(
@@ -142,6 +147,7 @@ mod tests {
     }
 
     // REQ: types-transcript-002 — word_at_ms binary search finds correct timed word at millisecond position
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn word_at_ms_finds_correct_word() {
         let bundle = TranscriptBundle {

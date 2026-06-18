@@ -83,7 +83,45 @@ The implementation must not violate these:
 **{{ crate_scope }}**
 {% endif %}
 
-{% if test_style %}
+{% if test_style == "fuzz" %}
+## Test Style: Fuzz
+
+For `pub fn` input surfaces accepting arbitrary data from external sources (Testing Discipline §2.4, T6).
+
+Contract preconditions: implicit precondition = "any input" — no `prop_assume!` filtering.
+Contract postcondition: "does not panic" — verify via `catch_unwind` + proptest with unlimited input generation.
+
+```rust
+// REQ: P{N}-{domain}-{operation} — panic-free input surface
+#[test]
+fn fuzz_input_surface_does_not_panic() {
+    proptest!(|(input in any::<Vec<u8>>())| {
+        let result = std::panic::catch_unwind(|| target_function(&input));
+        prop_assert!(result.is_ok(), "function panicked on input: {:?}", input);
+    });
+}
+```
+
+Fuzz tests live in `tests/` directory at crate root. No `prop_assume!` — accept all inputs.
+
+{% elif test_style == "system" %}
+## Test Style: System (E2E)
+
+For cross-crate end-to-end workflows spanning multiple `pub fn` boundaries (Testing Discipline §2.4).
+
+Write a single integration test in `tests/` that exercises the full vertical slice. Contracts chain through the call stack — testing `f` transitively verifies `g`'s contracts.
+
+```rust
+// REQ: P{N}-{domain}-{operation} — end-to-end workflow
+#[tokio::test]
+async fn system_end_to_end_workflow() {
+    // Bootstrap dependencies, exercise full vertical slice, verify side effects
+}
+```
+
+System tests use `hkask-test-harness` for database/filesystem fixtures. The test verifies observable outcomes at the system boundary, not internal intermediate states.
+
+{% elif test_style %}
 ## Test Style
 
 {{ test_style }}

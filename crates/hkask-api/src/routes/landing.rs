@@ -77,6 +77,7 @@ const LANDING_HTML: &str = r###"<!DOCTYPE html>
   <h1>hKask</h1>
   <p class="subtitle">A Minimal Viable Container for Agents.<br>Sign in to access your terminal and sovereign agent workspace.</p>
   <a href="/api/v1/auth/login?provider=github" class="btn btn-github">Sign in with GitHub</a>
+  <a href="/api/v1/auth/login?provider=google" class="btn btn-google">Sign in with Google</a>
   <p class="footer">No client install required. Just a browser.<br><a href="https://github.com/mdz-axo/hKask">github.com/mdz-axo/hKask</a></p>
 </div>
 </body>

@@ -7,6 +7,7 @@
 /// passes `docs/ci/check-metadata.sh` without hand-editing.
 ///
 /// REQ: CLI-010
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  none
 /// post: returns a String containing full CLI markdown documentation with metadata header
 pub fn generate_cli_markdown() -> String {

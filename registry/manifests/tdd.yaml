@@ -130,7 +130,11 @@ steps:
       Retrieve structured Spec objects with GoalSpec trees and Criterion lists.
       Determine which specs are ready for testing (Merge curation decision)
       and which need revision. If no specs exist for the categories, flag that
-      spec/goal/capture must be called first.
+      spec/goal/capture must be called first. The MCP server should populate
+      `suggested_contract_id` in P{N}-{domain}-{operation} format and
+      `suggested_goal_principle` (P1–P12) based on the spec category:
+      domain→P8, capability→P4, interface→P7, composition→P5, trust→P9,
+      observability→P9, persistence→P7, lifecycle→P7, curation→P2.
     renderer: null
     template_ref: null
     mcp: hkask-mcp-spec
@@ -161,6 +165,8 @@ steps:
               spec_id: { type: string }
               name: { type: string }
               category: { type: string }
+              suggested_contract_id: { type: string }
+              suggested_goal_principle: { type: string }
               complete: { type: boolean }
               goals:
                 type: array

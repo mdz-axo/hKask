@@ -111,7 +111,9 @@ mod tests {
     use super::*;
 
     // REQ: IMPROV-PROTOCOL-001 — Contribution carries source, content, and turn_index
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     // REQ: IMPROV-PROTOCOL-002 — ImprovResponse variants are constructable
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn contribution_and_response_fields() {
         let source = WebID::new();

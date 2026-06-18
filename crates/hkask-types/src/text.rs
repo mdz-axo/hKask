@@ -11,6 +11,7 @@
 /// BLAKE3 is cryptographically secure and extremely fast.
 ///
 /// REQ: TYP-183
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  data is any byte slice, including empty
 /// post: returns a deterministic 32-byte BLAKE3 hash; same input always
 ///       produces the same output

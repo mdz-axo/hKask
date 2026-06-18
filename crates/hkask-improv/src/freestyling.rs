@@ -133,6 +133,7 @@ mod tests {
     use std::thread;
 
     // REQ: IMPROV-FREESTYLING-001 — FreestyleSession is time-bounded — expires after time_bound
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn session_expires_after_time_bound() {
         let agent = WebID::new();
@@ -143,6 +144,7 @@ mod tests {
     }
 
     // REQ: IMPROV-FREESTYLING-002 — FreestyleSession supports multiple participants
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn supports_multiple_participants() {
         let a1 = WebID::new();
@@ -153,6 +155,7 @@ mod tests {
     }
 
     // REQ: IMPROV-FREESTYLING-003 — FreestyleSession cycles through participants round-robin
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn cycles_participants_round_robin() {
         let a1 = WebID::new();
@@ -170,6 +173,7 @@ mod tests {
     }
 
     // REQ: IMPROV-FREESTYLING-004 — FreestyleSession records turns and increments count
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn records_turns_and_increments_count() {
         let a1 = WebID::new();
@@ -187,6 +191,7 @@ mod tests {
     }
 
     // REQ: IMPROV-FREESTYLING-005 — FreestyleSession cycle returns None when expired
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn cycle_returns_none_when_expired() {
         let a1 = WebID::new();
@@ -197,6 +202,7 @@ mod tests {
     }
 
     // REQ: IMPROV-FREESTYLING-006 — FreestyleSession panics on empty participants
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     #[should_panic(expected = "requires at least one participant")]
     fn panics_on_empty_participants() {
@@ -204,6 +210,7 @@ mod tests {
     }
 
     // REQ: IMPROV-FREESTYLING-007 — FreestyleSession time_remaining decreases over time
+/// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn time_remaining_decreases() {
         let a1 = WebID::new();

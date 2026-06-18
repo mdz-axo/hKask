@@ -406,6 +406,7 @@ mod tests {
 
     // ── ReplSettings::default() ──────────────────────────────────────
     // REQ: CLI-REPL-SETTINGS-001 — All 13 defaults match the spec in AGENTS.md § /repl
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn repl_settings_defaults_match_spec() {
@@ -433,6 +434,7 @@ mod tests {
 
     // ── to_llm_params() ──────────────────────────────────────────────
     // REQ: CLI-REPL-SETTINGS-002 — Correct mapping of all fields from ReplSettings to LLMParameters
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn to_llm_params_maps_all_fields_correctly() {
@@ -472,6 +474,7 @@ mod tests {
     }
 
     // REQ: CLI-REPL-SETTINGS-003 — Correct — to llm params handles none seed
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn to_llm_params_handles_none_seed() {
         let s = ReplSettings::default();
@@ -481,6 +484,7 @@ mod tests {
 
     // ── ReplSettings round-trip via settings.json ────────────────────
     // REQ: CLI-REPL-SETTINGS-004 — Serialize → write → read → deserialize preserves all fields
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn repl_settings_json_round_trip_preserves_all_fields() {
@@ -543,6 +547,7 @@ mod tests {
 
     // ── handle_repl_set() invalid args ───────────────────────────────
     // REQ: Invalid values are rejected; valid values are accepted.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
     // These tests verify through the CLI's apply_setting function
     // (commands/settings.rs) which has identical validation logic.
     // handle_repl_set itself requires a fully-wired ReplState and is
