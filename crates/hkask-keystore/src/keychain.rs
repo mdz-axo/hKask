@@ -1,6 +1,5 @@
 //! OS keychain integration
 
-use hkask_rsolidity as rs;
 use ed25519_dalek::Signer;
 use hkask_types::WebID;
 use hkask_types::secret::SecretRef;

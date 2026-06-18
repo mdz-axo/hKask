@@ -1,6 +1,5 @@
 //! Budget — gas↔rJoule conversion and affordability checks.
 
-use hkask_rsolidity as rs;
 use super::*;
 use crate::price_feed::estimate_withdrawal_fee;
 

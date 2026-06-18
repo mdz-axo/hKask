@@ -21,7 +21,6 @@
 //! {"type":"capability_response","granted":true}
 //! ```
 
-use hkask_rsolidity as rs;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;

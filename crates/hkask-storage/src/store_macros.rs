@@ -4,7 +4,6 @@
 //! over `Arc<Mutex<Connection>>`. Every store struct implements this trait.
 //! `define_store!` generates the struct + `Store` impl for each store.
 //! `impl_from_rusqlite!` generates the canonical `From<rusqlite::Error>` impl.
-use hkask_rsolidity as rs;
 use hkask_types::InfrastructureError;
 use std::sync::{Arc, Mutex, MutexGuard};
 // P4.3: `now_rfc3339` lives in `hkask-types` (the foundation crate) so

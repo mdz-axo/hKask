@@ -35,7 +35,6 @@
 //! }
 //! ```
 
-use hkask_rsolidity as rs;
 use crate::daemon::{DaemonClient, DaemonResponse};
 use crate::server::McpError;
 use anyhow;

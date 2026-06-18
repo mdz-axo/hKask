@@ -10,7 +10,6 @@
 //! - `episodic_storage` — private, agent-scoped memory (EpisodicStoragePort)
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
-use hkask_rsolidity as rs;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
 use hkask_types::ports::ToolPort;

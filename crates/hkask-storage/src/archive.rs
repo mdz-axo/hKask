@@ -6,7 +6,6 @@
 //! Creates a single SQLCipher-encrypted SQLite file containing:
 //! 1. A `backup_meta` table with export metadata
 //! 2. The user's full live triple set from the source TripleStore
-use hkask_rsolidity as rs;
 use crate::Store;
 use crate::database::Database;
 use crate::triples::TripleStore;

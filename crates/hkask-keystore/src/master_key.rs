@@ -21,7 +21,6 @@
 //! - Compromising one sub-key does not compromise the master key or other sub-keys
 //! - Passphrase rotation preserves access to old-version data
 
-use hkask_rsolidity as rs;
 use hkask_types::secret::derivation_contexts;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;

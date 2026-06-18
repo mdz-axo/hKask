@@ -19,7 +19,6 @@
 //! }
 //! ```
 
-use hkask_rsolidity as rs;
 use hkask_types::McpErrorKind;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

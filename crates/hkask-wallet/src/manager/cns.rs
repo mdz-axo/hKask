@@ -1,6 +1,5 @@
 //! CNS event emission — spans, algedonic alerts, chain error signals.
 
-use hkask_rsolidity as rs;
 use super::*;
 
 impl WalletManager {

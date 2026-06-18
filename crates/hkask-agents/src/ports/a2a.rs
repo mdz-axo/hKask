@@ -3,7 +3,6 @@
 //! Defines the interface for agent registration, A2A messaging,
 //! and capability management.
 
-use hkask_rsolidity as rs;
 use hkask_types::{AgentKind, DelegationToken, WebID};
 
 use crate::a2a::{A2AError, A2AMessage};

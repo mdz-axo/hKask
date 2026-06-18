@@ -17,7 +17,6 @@
 //!   successful calibration, then rebuilds the `CompositeEnergyEstimator` from the
 //!   updated table.
 
-use hkask_rsolidity as rs;
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
 use crate::dynamic_gas_table::DynamicGasTable;
 use crate::gas_report::GasReport;

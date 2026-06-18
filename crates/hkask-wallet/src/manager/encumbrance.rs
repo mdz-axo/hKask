@@ -1,6 +1,5 @@
 //! Encumbrance — rJoule lock/release/consume for API key allocation.
 
-use hkask_rsolidity as rs;
 use super::*;
 
 impl WalletManager {

@@ -8,7 +8,6 @@
 //! with the new version. Old-version secrets remain derivable by
 //! specifying the old version number.
 
-use hkask_rsolidity as rs;
 use std::path::PathBuf;
 
 /// Default key version if no version file exists (backward compat).

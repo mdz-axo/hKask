@@ -1,6 +1,5 @@
 //! Deposit monitoring — background polling for transparent and shielded deposits.
 
-use hkask_rsolidity as rs;
 use super::*;
 
 impl WalletManager {

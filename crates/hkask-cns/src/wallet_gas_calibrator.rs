@@ -8,7 +8,6 @@
 //! This closes the wallet-energy feedback loop (P9): the system's estimate of
 //! how much gas a rJoule buys is continuously validated against real settlements.
 
-use hkask_rsolidity as rs;
 use crate::gas_report::GasReport;
 use crate::wallet_energy_estimator::WalletEnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};

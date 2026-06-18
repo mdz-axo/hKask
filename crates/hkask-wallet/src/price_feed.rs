@@ -16,7 +16,6 @@
 //! is a standalone struct. The `WalletManager` uses it for fee estimation
 //! during withdrawals.
 
-use hkask_rsolidity as rs;
 use async_trait::async_trait;
 use hkask_types::wallet::{ChainId, PriceFeedConfig, WalletError};
 use std::collections::HashMap;

@@ -1,6 +1,5 @@
 //! Withdrawal pipeline and shield operations.
 
-use hkask_rsolidity as rs;
 use super::*;
 use crate::signing;
 

@@ -3,7 +3,6 @@
 //! Each port has its own error type to provide specific error information
 //! and enable proper error handling at call sites.
 
-use hkask_rsolidity as rs;
 use thiserror::Error;
 
 /// MCP runtime errors
