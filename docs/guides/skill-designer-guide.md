@@ -1,8 +1,8 @@
 ---
 title: "hKask Skill Designer Guide — Creating and Maintaining Agent Skills"
 audience: [developers, architects, agents]
-last_updated: 2026-06-16
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, lifecycle, curation]
@@ -135,11 +135,11 @@ registry/templates/<skill-name>/
 
 ```yaml
 # Template crate manifest for <skill-name>
-# ℏKask v0.27.0
+# ℏKask v0.28.0
 
 crate:
   name: <skill-name>
-  version: "0.27.0"
+  version: "0.28.0"
   description: >
     Skill purpose. What it does, when it activates, what principles it enforces.
 
@@ -180,7 +180,7 @@ visibility: Public
 ---
 {# Template: <skill-name>/<template-id>.j2 #}
 {# WordAct — Description of what this template does #}
-{# ℏKask v0.27.0 #}
+{# ℏKask v0.28.0 #}
 
 You are...
 ```

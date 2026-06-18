@@ -15,9 +15,9 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 **Created:** 2026-06-16
 **Status:** Active — anchor for the Testing Discipline and rSolidity (formally adopted as the contracting language)  
 **Last Updated:** 2026-06-18  
-**Decision:** 2026-06-18 — rSolidity is formally adopted as the contracting language for hKask. All contracts use `/// REQ:` as the specification anchor and `rSolidity` macros (`require!`, `assert!`, `revert!`, `emit!`, `#[contract]`, `#[ocap]`) as the runtime enforcement layer. See `RSOLIDITY_VOCABULARY.md` for the complete vocabulary and migration pattern.
+**Decision:** 2026-06-18 — rSolidity is formally adopted as the contracting language for hKask. The contract standard is defined in [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md). `#[contract(id=..., principle=...)]` is the target contract identity marker; `/// REQ:` is the transitional convention.
 
-> This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the 11 other principles that constrain how the goal is achieved). This document is the specification anchor for the Testing Discipline (§6) — the functional expectation on every contract is the user's expectation, and the test suite verifies it holds for all inputs.
+> This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
 
 ---
 

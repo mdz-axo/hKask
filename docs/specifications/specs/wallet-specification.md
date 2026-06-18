@@ -1,8 +1,8 @@
 ---
 title: "hKask Wallet Crate — Architectural Specification"
 audience: [architects, developers]
-last_updated: 2026-06-12
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Application"
 mds_categories: [domain, composition, trust, lifecycle]
@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 # hKask Wallet Crate — Architectural Specification
 
 **Date:** 2026-06-12
-**Project:** hKask v0.27.0
+**Project:** hKask v0.28.0
 **Status:** Phases 1–8 complete ✅ — Full wallet subsystem (types, storage, keystore, wallet crate, CNS, services, CLI, API) built and tested
 **Skills applied:** rust-expertise, essentialist, pragmatic-semantics, pragmatic-cybernetics, coding-guidelines
 
@@ -542,4 +542,4 @@ grep -r "\.unwrap()" crates/hkask-wallet/src/ && echo "VIOLATION: unwrap in libr
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0 — Wallet Specification 2026-06-12*
+*ℏKask - A Minimal Viable Container for Agents — v0.28.0 — Wallet Specification 2026-06-12*

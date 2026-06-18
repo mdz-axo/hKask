@@ -37,36 +37,31 @@ A precondition violation is a **bug in the caller**. A postcondition violation i
 
 ### 1.2 Contract Syntax in hKask Rust
 
-Contracts are expressed as `// REQ:` doc-comments on public functions:
+Contracts are expressed as doc-comments on public functions. The definitive contract standard is [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md). Two forms coexist:
+
+**Target format (rSolidity, v0.28.0):**
 
 ```rust
-/// REQ: sovereignty-verify-001
+/// expect: "The user shall be able to verify the sovereignty state of any valid WebID" [P1]
 /// pre:  webid is a valid, non-nil WebID
 /// post: returns Ok(sovereignty_state) where state.webid == webid
-///       OR returns Err(NotFound) if webid has no sovereignty record
-/// inv:  does not modify any stored state (read-only)
+#[contract(id = "P1-sovereignty-verify-001", principle = "P1")]
 pub fn verify_sovereignty(webid: &WebID) -> Result<SovereigntyState, SovereigntyError> {
-    // ...
-}
 ```
 
-**Extended syntax with user expectation (v0.28.0):**
+**Transitional format (pre-rSolidity):**
 
 ```rust
 /// REQ: sovereignty-verify-001
 /// expect: "The user shall be able to verify the sovereignty state of any valid WebID" [P1]
 /// pre:  webid is a valid, non-nil WebID
 /// post: returns Ok(sovereignty_state) where state.webid == webid
-///       OR returns Err(NotFound) if webid has no sovereignty record
-/// inv:  does not modify any stored state (read-only)
 pub fn verify_sovereignty(webid: &WebID) -> Result<SovereigntyState, SovereigntyError> {
-    // ...
-}
 ```
 
-The `expect:` field is the user's functional expectation in natural language. The `[P{N}]` tag names the goal principle that this expectation activates. The existing `[P{N}] Constraining:` annotations on the contract body remain unchanged. See `FUNCTIONAL_SPECIFICATION.md` §5.0 for the full hierarchy and `PRINCIPLES.md` §1.6 for Goal Principle Anchoring rules.
+The `expect:` field is the user's functional expectation. The `[P{N}]` tag names the goal principle. See [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md) for the full standard.
 
-### 1.2a Contract Syntax (Original)
+### 1.2a Contract Syntax (Invariants)
 
 For types with cross-operation invariants:
 
@@ -152,7 +147,7 @@ The established combination (Hillel Wayne, 2017; `icontract-hypothesis`, 2020; G
 
 The contract chain (§2.3, item 4) requires contracts on ALL called functions to propagate. If a function in the call stack lacks a contract, the chain breaks silently — `f`'s PBT will not verify `g`'s behavior.
 
-- **Status: 100% coverage achieved (2026-06-16).** Every `pub fn` across all 17 crates carries `/// REQ:` with `pre:`/`post:` conditions (1915 REQ tags total).
+- **Status: Coverage tracked by `contract-audit.sh --summary`.** See [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md) §4 for the current dashboard.
 - The contract completeness audit (§9.2) confirms zero contract debt.
 - New code must not introduce contract debt; every new `pub fn` must carry a contract.
 - When a bug is found, the fix must include adding or refining the contract.
@@ -163,9 +158,18 @@ The contract system is anchored on the functional specification via the **goal-p
 
 1. **Every contract has one goal principle** — the principle whose user-visible guarantee the contract directly serves. The goal principle answers: "What does the user get from this function?"
 2. **Every contract has 1 to 11 constraining principles** — the principles that shape how the goal is delivered. Constraining principles answer: "What guardrails apply?"
-3. **Every contract carries an explicit user functional expectation** — a `user_expectation` field stating in the user's voice what behavior is guaranteed.
-4. **The test verifies the user expectation** — the proptest generates inputs matching the precondition and asserts the postcondition as the user would perceive it.
+3. **Every contract carries an explicit user functional expectation** — an `expect:` field stating in the user's voice what behavior is guaranteed.
+4. **Every contract is anchored to a goal principle** — the `[P{N}]` tag on `expect:` maps to one of the 12 Magna Carta principles (see [`PRINCIPLES.md`](PRINCIPLES.md) §1.5).
+5. **Every constraining principle is acknowledged** — `[P{N}] Constraining:` annotations document constraints.
 
+```
+Goal Principle (P9)
+    │
+    ▼
+expect: "I can check whether an agent has enough gas to proceed" [P9]
+    │
+    ▼
+pre:/post: conditions → Implementation → Property-Based Test
 ```
 Goal Principle (P9: Homeostatic Self-Regulation)
     └── user_expectation: "I can check whether an agent has enough gas"
@@ -353,22 +357,22 @@ CNS Span ──→ cns.energy.budget_check
 
 Every link is traceable. The `// REQ:` tag on the test references the contract ID. The contract ID embeds the goal principle (P9). The goal principle maps to the functional requirement (FR-E12). The TDD skill's gap-check verifies that every spec criterion has a matching `// REQ:` tag.
 
-**Bidirectional verification path (v0.28.0):**
+**Bidirectional verification path (v0.28.0, see [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md)):**
 
 ```
 Forward (implementation direction):
-    Spec → Contract → Test → Implementation
+    Spec → expect: → pre:/post: → Test → Implementation
 
 Reverse (verification direction):
     Implementation ──verify──► Contract    (does the code satisfy the contract?)
-    Contract       ──verify──► UserExpectation   (does the contract encode the user's expectation?)
-    UserExpectation ──verify──► GoalPrinciple    (does the expectation align with the right principle?)
+    Contract       ──verify──► expect:     (does the contract encode the user's expectation?)
+    expect:        ──verify──► [P{N}]      (does the expectation align with the right principle?)
 ```
 
 This makes the verification loop explicit:
-- **Link 1** (Implementation → Contract): Verified by `contract-audit.sh` — every `pub fn` carries `/// REQ:` with `pre:`/`post:` conditions.
-- **Link 2** (Contract → UserExpectation): Manual verification — the `expect:` field's natural language statement must semantically match the `pre:`/`post:` formal specification. Future automation may use NLP-level semantic matching (see `FUNCTIONAL_SPECIFICATION.md` §Future Work).
-- **Link 3** (UserExpectation → GoalPrinciple): Manual verification — the `[P{N}]` tag on the `expect:` line must be the principle that the expectation directly expresses. Cross-checked against the domain map in `FUNCTIONAL_SPECIFICATION.md` §1.
+- **Link 1** (Implementation → Contract): Verified by `contract-audit.sh` — every `pub fn` carries `pre:`/`post:` conditions.
+- **Link 2** (Contract → expect:): The `expect:` field's natural language statement must semantically match the `pre:`/`post:` formal specification.
+- **Link 3** (expect: → GoalPrinciple): Verified by `contract-audit.sh --principles` — the `[P{N}]` tag on the `expect:` line must be the principle that the expectation directly expresses. Cross-checked against the domain map in `FUNCTIONAL_SPECIFICATION.md` §1.
 
 ### 6.2 TDD Cycle with Contracts
 

@@ -1,14 +1,14 @@
 ---
 title: "Passage Salience Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-12
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Application"
 mds_categories: [domain, composition]
 ---
 
-# Passage Salience Specification — hKask v0.27.0
+# Passage Salience Specification — hKask v0.28.0
 
 **MDS Category:** specification/algorithm
 **Status:** Active

@@ -1,8 +1,8 @@
 ---
 title: "hKask CLI Reference (auto-generated)"
 audience: [CLI operators, developers, agents]
-last_updated: 2026-06-12
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [composition]
@@ -195,4 +195,4 @@ kask docs all -o docs/
 
 ---
 
-*ℏKask v0.27.0 - A Minimal Viable Container for Agents*
+*ℏKask v0.28.0 - A Minimal Viable Container for Agents*

@@ -1,8 +1,8 @@
 ---
 title: "Kata User Guide — Toyota Kata for Agent Capability Development"
 audience: [developers, operators, curators]
-last_updated: 2026-06-14
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [composition, lifecycle]
@@ -415,4 +415,4 @@ The bundle's `kata-selector.j2` routes agents based on context:
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — Kata User Guide — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — Kata User Guide — v0.28.0*

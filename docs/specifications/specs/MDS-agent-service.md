@@ -1,8 +1,8 @@
 ---
 title: "MDS — AgentService Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-15
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Composition"
 mds_categories: [domain, composition, trust, lifecycle]
@@ -363,4 +363,4 @@ coherence = |declared ∩ registered| / |declared ∪ registered|
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.28.0*

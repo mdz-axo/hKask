@@ -142,21 +142,21 @@ A single contract has exactly one goal principle (the ID prefix) and 1 to 11 con
 
 **Selection logic:**
 - The goal principle is the principle whose user-visible guarantee the contract's tests directly verify.
-- When the user expectation is *"I should be able to check whether an agent has enough gas"* → P9 (Homeostatic Self-Regulation) is the goal — the expectation directly expresses self-regulation.
+- When the user expectation is *"I should be able to check whether an agent has enough gas"* → P9 (Homeostatic Self-Regulation) is the goal.
 - When the user expectation is *"My agents should operate within my sovereignty boundaries"* → P1 (User Sovereignty) is the goal.
-- When the user expectation is *"I should be able to deploy hKask with a single binary"* → P5 (Essentialism) is the goal — the expectation directly expresses minimalism.
+- When the user expectation is *"I should be able to deploy hKask with a single binary"* → P5 (Essentialism) is the goal.
 
 **Constraining principle interaction:**
 - P4 OCAP boundaries may constrain P3 generative space: "Yes, the system is generative — but only within your capability tokens."
 - P2 Affirmative Consent may constrain P6 Space for Replicants: "Yes, bots operate — but only with explicit, scoped consent."
 - P9 Homeostatic Self-Regulation may constrain P3 generative expansiveness: "Yes, generate freely — but within your energy budget."
 
-**Principle conflict resolution (implicit):** When constraining principles conflict, the higher-ranked principle dominates per Optimality Theory ranking — Magna Carta principles (P1–P4) outrank operational principles (P5–P7), which outrank regulatory principles (P8–P9), which outrank agent principles (P10–P12). Formalization of this conflict resolution as a decision procedure is deferred to future work (see `FUNCTIONAL_SPECIFICATION.md` §Future Work).
+**Principle conflict resolution (implicit):** When constraining principles conflict, the higher-ranked principle dominates per Optimality Theory ranking — Magna Carta principles (P1–P4) outrank operational principles (P5–P7), which outrank regulatory principles (P8–P9), which outrank agent principles (P10–P12). Formalization of this conflict resolution as a decision procedure is deferred to future work.
 
-**Traceability:** This rule anchors the chain documented in `FUNCTIONAL_SPECIFICATION.md` §5.0:
+**Traceability:** This rule anchors the chain defined in [`CONTRACT_SPECIFICATION.md`](CONTRACT_SPECIFICATION.md):
 ```
-UserFunctionalExpectation → GoalPrinciple → ConstrainingPrinciple → BehavioralContract → Pre/Post/Invariant
+expect: "[P{N}]" → pre:/post: → Code → Test
 ```
-The user expectation (the OUGHT from the functional spec) is the structural origin point — not merely "kept in mind" but encoded as the `expect:` field on every contract and verified by the test suite.
+The goal principle (`[P{N}]` on `expect:`) is the structural origin point. The user expectation (the OUGHT from the functional spec) is encoded as the `expect:` field on every contract and verified by the test suite. The `#[contract(id=..., principle=...)]` attribute carries the same information as structured metadata.
 
 **rSolidity enforcement:** The behavioral contract (pre/post/invariant) is made executable via rSolidity macros (`require!`, `assert!`, `revert!`, `#[contract]`, `#[ocap]`) per `RSOLIDITY_VOCABULARY.md`. rSolidity was formally adopted as the contracting language on 2026-06-18. The contract `/// REQ:` doc-comment remains the authoritative specification; rSolidity macros provide runtime enforcement with CNS span emission for violations.

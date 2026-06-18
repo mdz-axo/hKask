@@ -1,8 +1,8 @@
 ---
 title: "hKask REPL Specification"
 audience: [architects, developers, users]
-last_updated: 2026-06-17
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Surface"
 mds_categories: [domain, composition, lifecycle, curation]
@@ -617,7 +617,7 @@ The REPL displays an animated Kask amphora logo on startup:
  \__/           |    |    KASK   |    |
                 |    |           |    |
                  \__/~~~~~~~~~~~\__/
-  shadow           hKask v0.27.0
+  shadow           hKask v0.28.0
 
      A Minimal Viable Container for Agents
 ```

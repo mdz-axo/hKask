@@ -1,8 +1,8 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-17
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 # hKask Documentation Portal
 
 **Purpose:** Single entry point indexing every active document in `docs/`, tagged
-by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.27.0.
+by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.28.0.
 
 > **Lifecycle:** Retired documents are removed via `git rm`. The gitignored
 > `docs/archive/` holds date-stamped snapshots for reference.
@@ -173,4 +173,4 @@ bash docs/ci/check-metadata.sh   # mandatory metadata headers
 bash scripts/contract-audit.sh   # contract coverage (128.1%, 2274 REQ: tags)
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.27.0 — 59 active documents*
+*ℏKask — A Minimal Viable Container for Agents — v0.28.0 — 59 active documents*

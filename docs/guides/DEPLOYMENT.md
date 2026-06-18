@@ -1,8 +1,8 @@
 ---
 title: "hKask Deployment Guide"
 audience: [DevOps engineers, system administrators, deployment teams]
-last_updated: 2026-06-17
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Technology"
 mds_categories: [lifecycle]
@@ -692,6 +692,6 @@ curl -s https://hkask.your-domain.com/api/openapi.json -o openapi.json
 
 ---
 
-*This deployment guide is part of hKask v0.27.0 documentation. For architecture details, see `docs/architecture/hKask-architecture-master.md`. For step-by-step server setup, see [Admin Install Guide](admin-install-guide.md).*
+*This deployment guide is part of hKask v0.28.0 documentation. For architecture details, see `docs/architecture/hKask-architecture-master.md`. For step-by-step server setup, see [Admin Install Guide](admin-install-guide.md).*
 
 **ℏKask - A Minimal Viable Container for Agents**

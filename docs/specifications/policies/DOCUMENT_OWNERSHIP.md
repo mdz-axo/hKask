@@ -1,8 +1,8 @@
 ---
 title: "Document Category Ownership"
 audience: [project maintainers, documentation stewards]
-last_updated: 2026-06-14
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [lifecycle, curation]
@@ -141,4 +141,4 @@ All auto-generated documents MUST include a header comment noting their generati
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.28.0*

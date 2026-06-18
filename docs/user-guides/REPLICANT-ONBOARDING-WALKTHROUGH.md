@@ -1,8 +1,8 @@
 ---
 title: "Replicant Onboarding Walkthrough"
 audience: [new users, replicant owners, project maintainers]
-last_updated: 2026-06-15
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Draft"
 domain: "Cross-cutting"
 mds_categories: [domain, lifecycle]
@@ -99,7 +99,7 @@ You're already in the terminal after sign-in — no need to start anything. Just
 ### 5.1 What You'll See
 
 ```
-ℏKask v0.27.0 — chat session
+ℏKask v0.28.0 — chat session
 Replicant: alice-smith
 Type /help for commands, /exit to end session.
 
@@ -200,4 +200,4 @@ If your terminal disconnects, refresh the page. Your session state is preserved 
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.28.0*

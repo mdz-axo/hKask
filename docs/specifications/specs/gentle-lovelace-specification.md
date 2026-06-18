@@ -1,8 +1,8 @@
 ---
 title: "Gentle Lovelace — Document Excellence Replica Specification"
 audience: [architects, documentation maintainers, agents]
-last_updated: 2026-06-12
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, curation]
@@ -340,4 +340,4 @@ Should Gentle Lovelace be registered as a formal persona in the replica registry
 
 [^matc-women]: Bogue, M. (2025). Women Who Shaped Technical Writing. MATC Group. https://www.matcgroup.com/technical-writing/women-who-shaped-technical-writing-a-history-of-progress-struggles-and-successes/
 
-*ℏKask - A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.28.0*

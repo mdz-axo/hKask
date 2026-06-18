@@ -553,4 +553,4 @@ Write the contract. Verify with proptest. Let CNS watch. Repeat.
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.27.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.28.0*

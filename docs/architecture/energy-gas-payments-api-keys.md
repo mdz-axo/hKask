@@ -1,8 +1,8 @@
 ---
 title: "Energy, Gas, Payments & API Key System"
 audience: [architects, developers, agents]
-last_updated: 2026-06-15
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Trust"
 mds_categories: [domain, trust, lifecycle, curation]
@@ -102,7 +102,7 @@ key_allocation_remaining = initial_allocation - gas_consumed_by_key
 
 When `key_allocation_remaining ≤ 0`, requests return `402 Payment Required`. The funding replicant can replenish via `kask wallet encumber --key-id <id> --amount <rj>`.
 
-**Implementation status (v0.27.0):** Fully implemented. The `ApiKeyAuthService` middleware registers a `WalletBackedBudget` with the key's encumbrance after Bearer token authentication. `GovernedTool` and `GovernedInference` membranes check wallet budgets before gas budgets, and debit from encumbrance on settle. CNS spans `cns.gas.reserved`, `cns.gas.settled`, `cns.gas.depleted` provide observability.
+**Implementation status (v0.28.0):** Fully implemented. The `ApiKeyAuthService` middleware registers a `WalletBackedBudget` with the key's encumbrance after Bearer token authentication. `GovernedTool` and `GovernedInference` membranes check wallet budgets before gas budgets, and debit from encumbrance on settle. CNS spans `cns.gas.reserved`, `cns.gas.settled`, `cns.gas.depleted` provide observability.
 
 ---
 
@@ -250,7 +250,7 @@ Authorization: Bearer hk_...
 → Returns response (or 402/403 on failure)
 ```
 
-**Scope enforcement (v0.27.0):** If the key's `scope` field is non-empty, the request URI path must start with one of the declared scope prefixes. Keys scoped to `["read-specs"]` cannot access `/api/chat`. Returns `403 Forbidden` with `ScopeViolation` error.
+**Scope enforcement (v0.28.0):** If the key's `scope` field is non-empty, the request URI path must start with one of the declared scope prefixes. Keys scoped to `["read-specs"]` cannot access `/api/chat`. Returns `403 Forbidden` with `ScopeViolation` error.
 
 ### 5.3 Replenishment
 
