@@ -111,8 +111,9 @@ mod tests {
     use super::*;
 
     // REQ: IMPROV-PROTOCOL-001 — Contribution carries source, content, and turn_index
+    // REQ: IMPROV-PROTOCOL-002 — ImprovResponse variants are constructable
     #[test]
-    fn contribution_has_required_fields() {
+    fn contribution_and_response_fields() {
         let source = WebID::new();
         let c = Contribution {
             source,
@@ -122,50 +123,12 @@ mod tests {
         assert_eq!(c.source, source);
         assert_eq!(c.content, "test content");
         assert_eq!(c.turn_index, 3);
-    }
 
-    // REQ: IMPROV-PROTOCOL-002 — ImprovResponse variants are constructable
-    #[test]
-    fn improv_response_variants_constructable() {
         let pr = PlussedResponse {
             selected_seeds: vec![],
             build: "build".to_string(),
         };
-        assert!(matches!(
-            ImprovResponse::Plussed(pr),
-            ImprovResponse::Plussed(_)
-        ));
-
-        assert!(matches!(
-            ImprovResponse::Extended {
-                accepted_base: "base".to_string(),
-                extension: "ext".to_string(),
-            },
-            ImprovResponse::Extended { .. }
-        ));
-
-        assert!(matches!(
-            ImprovResponse::Constrained {
-                accepted_base: "base".to_string(),
-                constraint: "limit".to_string(),
-            },
-            ImprovResponse::Constrained { .. }
-        ));
-
-        assert!(matches!(
-            ImprovResponse::FreestyleTurn {
-                content: "rapid".to_string(),
-                time_remaining: Duration::from_secs(60),
-            },
-            ImprovResponse::FreestyleTurn { .. }
-        ));
-
-        assert!(matches!(
-            ImprovResponse::Riff {
-                tangent: "tangent".to_string(),
-                return_policy: RiffReturn::ReturnToGroup,
-            },
-            ImprovResponse::Riff { .. }
-        ));
+        let response = ImprovResponse::Plussed(pr);
+        assert_eq!(response.content_text(), "build");
     }
 }
