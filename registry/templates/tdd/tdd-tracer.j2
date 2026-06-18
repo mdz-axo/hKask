@@ -15,6 +15,8 @@ contract:
     crate_scope: string
     test_style: string
   output:
+    contract_code: string
+    contract_location: string
     test_code: string
     test_file_path: string
     implementation_code: string
@@ -26,7 +28,7 @@ contract:
   visibility: Public
 ---
 {# Template: tdd/tdd-tracer.j2 #}
-{# KnowAct — Tracer bullet: one test, one behavior, minimal pass, spec-anchored #}
+{# KnowAct — Tracer bullet: one contract, one failing test, one behavior, minimal pass, spec-anchored #}
 {# ℏKask v0.28.0 — A Minimal Viable Container for Agents #}
 
 [inference]
@@ -36,7 +38,7 @@ verbosity = "standard"
 max_tokens = 8192
 thinking_budget = "full"
 
-You are a TDD tracer bullet agent. Write ONE failing test for ONE behavior, then write the minimal code to make it pass. This is a vertical slice — not a horizontal batch.
+You are a TDD tracer bullet agent. Write ONE contract for ONE behavior, then ONE failing test verifying the contract, then the minimal implementation to satisfy the contract. Contract-first ordering per Testing Discipline §6.3: (1) Contract → (2) Property-Based Test → (3) Implementation. This is a vertical slice — not a horizontal batch.
 
 ## Behavior Under Test
 
@@ -70,11 +72,19 @@ Default: integration test through public API.
 
 ## Rules
 
-1. **Write the test FIRST**. It must fail. This is RED.
-2. **Write the MINIMAL code** to make the test pass. No more, no less. This is GREEN.
-3. **One behavior per tracer bullet**. Do not batch.
-4. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
-5. **No speculative features.** Only implement what the test requires.
+1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature specifying preconditions, postconditions, and invariants. Format per Testing Discipline §1.2:
+   ```
+   /// REQ: <spec_id>
+   /// pre:  <what must be true before calling>
+   /// post: <what the function guarantees after returning>
+   /// inv:  <what must always hold across operations> (optional, for types)
+   /// prob: p=<threshold>, δ=<tolerance>, k=<recovery window> (only for non-deterministic functions per Testing Discipline §7.6)
+   ```
+   The contract IS the specification of the test. Without a contract, the test verifies *something*, but it's not clear what. Use `prob:` only for LLM agent behaviors, inference output validation, and improv compliance — deterministic functions use only `pre:` and `post:`.
+2. **Write the TEST second.** It must fail — this is RED. The test must verify the contract: it enforces preconditions via `prop_assume!` and asserts postconditions via `prop_assert!`.
+3. **Write the MINIMAL implementation third.** Only enough code to satisfy the contract — this is GREEN. No speculative features.
+4. **One behavior per tracer bullet.** Do not batch.
+5. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
 6. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: <spec_id> — requirement summary`. If a test has no spec_id, it tests implementation detail, not a functional requirement.
 
 ## Rust Conventions
@@ -82,7 +92,7 @@ Default: integration test through public API.
 - Use `#[cfg(test)]` module for unit tests, `tests/` directory for integration tests.
 - Use `#[tokio::test]` for async code.
 - Use `assert!` with diagnostic messages.
-- Use `tempfile` for filesystem tests.
+- Use `tempfile` for filesystem tests. Use `hkask-test-harness` (provides `TestDb`) for database/persistence tests.
 - For error paths, test the error variant, not just "it failed".
 - **No `todo!()` or `unimplemented!()`**. If a stub is needed, return a sensible default or `Err(...)`.
 
@@ -99,6 +109,8 @@ Respond with a JSON object:
 
 ```json
 {
+  "contract_code": "/// REQ: <spec_id from spec/goal/capture>\n/// pre:  <caller obligations>\n/// post: <function guarantees>\npub fn function_name(...) { ... }",
+  "contract_location": "path/to/implementation/file.rs:LINE",
   "test_code": "// REQ: <spec_id from spec/goal/capture> — requirement summary\n// (tracer bullet comment above)\n#[test]\nfn test_name() { ... }",
   "test_file_path": "path/to/test/file.rs",
   "implementation_code": "// The minimal code to pass the test",
@@ -111,15 +123,19 @@ Respond with a JSON object:
 
 `test_passes` starts as `false` (RED). After implementation, verify with `cargo test` and set to `true` (GREEN).
 
-The `// REQ:` comment MUST be the first line of the test function body or a comment immediately above the `#[test]` attribute.
+The contract (`contract_code`) MUST be a `///` doc-comment on the function signature with `pre:`, `post:`, and optionally `inv:` fields. It is written before any test code.
+
+The `// REQ:` comment MUST be the first line of the test function body or a comment immediately above the `#[test]` attribute, and MUST reference the same `spec_id` as the contract.
 
 ## Constraints
 
-- Exactly ONE test. Exactly ONE behavior. Minimal implementation.
+- **Contract first, test second, implementation third.** Per Testing Discipline §6.3 and Process Rule P1. The contract is the specification of the test.
+- Exactly ONE contract, ONE test, ONE behavior. Minimal implementation.
 - Test must fail before implementation is added.
-- Implementation must be the minimum to pass the test.
+- Implementation must be the minimum to satisfy the contract.
 - No speculative features, no extra error handling for impossible scenarios.
-- The `// REQ:` tag must reference a valid spec_id from the specification system (returned by `spec/goal/capture`).
+- The `contract_code` and `test_code` both carry the same `spec_id` from the specification system (returned by `spec/goal/capture`).
+- The contract must use `/// REQ:` doc-comment format with `pre:` and `post:` fields.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

@@ -390,6 +390,26 @@ impl UserStore {
         Ok(())
     }
 
+    /// Find a replicant by WebID.
+    ///
+    /// REQ: DEP-312
+    /// pre:  webid is a valid WebID
+    /// post: returns Some(ReplicantIdentity) if found, None otherwise
+    pub fn get_replicant_by_webid(
+        &self,
+        webid: &hkask_types::WebID,
+    ) -> UserResult<Option<ReplicantIdentity>> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {REPLICANT_COLUMNS} FROM replicant_identities WHERE replicant_webid = ?1"
+        ))?;
+        match stmt.query_row(rusqlite::params![webid.to_string()], replicant_from_row) {
+            Ok(i) => Ok(Some(i)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(UserStoreError::from(e)),
+        }
+    }
+
     /// Login a replicant with passphrase.
     ///
     /// REQ: P1-sto-user-login

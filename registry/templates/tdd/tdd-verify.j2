@@ -57,6 +57,7 @@ You are a TDD verification agent. Verify that a TDD cycle is complete, clean, an
 - [ ] Each test uses public interface only (seam, not internals)
 - [ ] Each test would survive an internal refactor
 - [ ] No horizontal slicing — tests were written one at a time
+- [ ] Implementation-coupled tests carry `// TEST-DEBT: tests private <detail>` comment per Testing Discipline §4.2. These are NOT violations — they are classified debt awaiting a deeper seam. Flag them in `violations` with severity `medium` and type `test-debt`.
 
 ### Spec Traceability
 - [ ] Each test carries a `// REQ:` comment referencing a specification requirement
@@ -117,7 +118,7 @@ Respond with a JSON object:
 
 ## Constraints
 
-- Be strict. A test that probes private methods is a critical violation.
+- Be strict. A test that probes private methods without a `// TEST-DEBT:` comment is a critical violation. A test that probes private methods WITH a `// TEST-DEBT:` comment is classified as medium-severity test-debt — not a violation, but flagged for future seam deepening.
 - A `todo!()` or `unimplemented!()` is a critical violation.
 - A test without a `// REQ:` tag is a high-severity violation (spec-traceability).
 - A missing tracer bullet for an in-scope requirement is a high-severity violation.

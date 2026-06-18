@@ -1,8 +1,8 @@
 ---
 title: "hKask Functional Specification"
 audience: "hKask developers and architects"
-last_updated: "2026-06-17"
-version: "0.27.0"
+last_updated: "2026-06-18"
+version: "0.28.0"
 status: "Active"
 domain: "architecture"
 mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
@@ -10,12 +10,12 @@ mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
 
 # hKask Functional Specification
 
-**Version:** v0.27.0
+**Version:** v0.28.0
 **Created:** 2026-06-16
-**Status:** Active — anchor for the rSolidity contract vocabulary
-**Last Updated:** 2026-06-17
+**Status:** Active — anchor for the rSolidity contract vocabulary and the Testing Discipline
+**Last Updated:** 2026-06-18
 
-> This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. It serves as the specification anchor from which the rSolidity contract vocabulary will be derived.
+> This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the 11 other principles that constrain how the goal is achieved). This document is the specification anchor for the Testing Discipline (§6) — the functional expectation on every contract is the user's expectation, and the test suite verifies it holds for all inputs.
 
 ---
 
@@ -23,7 +23,7 @@ mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
 
 ### Domain Map
 
-| # | Domain | Short Tag | Crate | Contracts | Motivating Principle |
+| # | Domain | Short Tag | Crate | Contracts | Goal Principle |
 |---|---------|-----------|-------|-----------|----------------------|
 | 1 | Energy Budgeting | `energy` | hkask-cns | 20 | P9 (Homeostatic Self-Regulation) |
 | 2 | Algedonic Signalling | `algedonic` | hkask-cns | 4 | P9 (Homeostatic Self-Regulation) |
@@ -50,18 +50,20 @@ mds_categories: ["domain", "composition", "trust", "lifecycle", "curation"]
 | 23 | Web Interface | `web` | hkask-api + hkask-web | 19 | P1 (User Sovereignty) + P4 (Clear Boundaries) |
 | 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | P1 (User Sovereignty) + P2 (Affirmative Consent) |
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | P1 (User Sovereignty) + P3 (Generative Space) |
+| 26 | Deployment | `deploy` | hkask-api + hkask-services | 16 | P5 (Essentialism) + P4 (Clear Boundaries) |
 
 ### Domain Ownership Rules
 
-Each contract carries a **motivating principle** in its ID prefix and **constraining principles** in its body annotations.
+Each contract carries a **goal principle** in its ID prefix and **constraining principles** in its body annotations. The goal principle is the principle that the contract's functional expectation directly serves — the user-visible behavior the contract guarantees. The constraining principles are the other 11 principles that shape how that behavior is achieved without overriding the goal.
 
 1. **P9 (Homeostatic Self-Regulation)** owns all CNS regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation
-2. **P4 (Clear Boundaries)** owns all membrane/boundary contracts: governed_tool, governed_inference
+2. **P4 (Clear Boundaries)** owns all membrane/boundary contracts: governed_tool, governed_inference, deployment perimeter
 3. **P8 (Semantic Grounding)** owns all type-level identity contracts: `EnergyCost`, `EnergyDelta` newtypes
 4. **P12 (Subscriber Consent)** owns all subscriber/consent contracts: `subscribe`, `subscribe_async`
 5. **P3 (Generative Space)** owns all sync/blocking variants and content-domain contracts: blocking accessors, storage, memory, CLI
 6. **P7 (Evolutionary Architecture)** owns all configurable-from-real-usage contracts: threshold calibration, replenish rate tuning
 7. **P1 (User Sovereignty) + P2 (Affirmative Consent)** own the web interface, multi-user, and backup domains: OAuth sessions, PTY terminals, role assignment, invitation flow, portable sovereignty archives
+8. **P5 (Essentialism) + P4 (Clear Boundaries)** own the deployment domain: sidecar generation, systemd integration, single-binary packaging
 
 A contract may have **one motivating principle** and **multiple constraining principles**. The motivating principle determines the ID prefix (`P{N}`). Constraining principles appear as `[P{N}]` annotations in the contract body.
 
@@ -71,7 +73,7 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 ### 2.1 Energy Budgeting (`energy`)
 
-**Motivating Principle:** P9 (Homeostatic Self-Regulation) — gas budget enforcement prevents runaway agents
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — gas budget enforcement prevents runaway agents
 **Constraining Principle:** P8 (Semantic Grounding) — type-level identity for energy cost types
 **Crate:** `hkask-cns` | **Source:** `src/energy.rs`
 
@@ -79,25 +81,25 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-E1 | `P8-cns-energy-cost-from-raw` | `EnergyCost::from_raw(u64) -> Self` | [P8] Motivating: Semantic Grounding — type-level identity preservation; [P5] Constraining: Essentialism |
-| FR-E2 | `P8-cns-energy-cost-as-raw` | `EnergyCost::as_raw() -> u64` | [P8] Motivating: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
-| FR-E3 | `P8-cns-energy-delta-from-raw` | `EnergyDelta::from_raw(f64) -> Self` | [P8] Motivating: Semantic Grounding — type-level identity for f64 newtype; [P5] Constraining: Essentialism |
-| FR-E4 | `P8-cns-energy-delta-as-raw` | `EnergyDelta::as_raw() -> f64` | [P8] Motivating: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
-| FR-E5 | `P9-cns-energy-delta-descending` | `EnergyDelta::is_descending() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — lazy universe compliance detection; [P8] Constraining: Semantic Grounding |
-| FR-E6 | `P9-cns-energy-delta-ascending` | `EnergyDelta::is_ascending() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — anti-lazy detection triggers alert; [P8] Constraining: Semantic Grounding |
-| FR-E7 | `P9-cns-energy-budget-new` | `EnergyBudget::new(cap) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — budget creation enables regulation; [P4] Constraining: Clear Boundaries — cap enforces OCAP boundary |
-| FR-E8 | `P9-cns-energy-budget-unlimited` | `EnergyBudget::unlimited() -> Self` | [P9] Motivating: Homeostatic Self-Regulation — observability without throttling; [P4] Constraining: Clear Boundaries |
-| FR-E9 | `P9-cns-energy-budget-with-replenish-rate` | `EnergyBudget::with_replenish_rate(rate) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — configurable replenishment knob; [P7] Constraining: Evolutionary Architecture — emerged from real usage |
-| FR-E10 | `P9-cns-energy-budget-with-alert-threshold` | `EnergyBudget::with_alert_threshold(threshold) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — configurable alert threshold; [P7] Constraining: Evolutionary Architecture |
-| FR-E11 | `P9-cns-energy-budget-with-hard-limit` | `EnergyBudget::with_hard_limit(hard) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — boundary enforcement toggle; [P4] Constraining: Clear Boundaries |
-| FR-E12 | `P9-cns-energy-budget-can-proceed` | `EnergyBudget::can_proceed(gas) -> bool` | [P9] Motivating: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries |
-| FR-E13 | `P9-cns-energy-budget-available` | `EnergyBudget::available() -> EnergyCost` | [P9] Motivating: Homeostatic Self-Regulation — visible state for feedback loops; [P4] Constraining: Clear Boundaries |
-| FR-E14 | `P9-cns-energy-budget-reserve` | `EnergyBudget::reserve(gas) -> Result` | [P9] Motivating: Homeostatic Self-Regulation — hold-settle pattern; [P4] Constraining: Clear Boundaries |
-| FR-E15 | `P9-cns-energy-budget-settle` | `EnergyBudget::settle(reserved, actual) -> Result` | [P9] Motivating: Homeostatic Self-Regulation — completes hold-settle cycle; [P4] Constraining: Clear Boundaries |
-| FR-E16 | `P9-cns-energy-budget-consume` | `EnergyBudget::consume(gas) -> Result` | [P9] Motivating: Homeostatic Self-Regulation — immediate deduction path; [P4] Constraining: Clear Boundaries |
-| FR-E17 | `P9-cns-energy-budget-replenish` | `EnergyBudget::replenish()` | [P9] Motivating: Homeostatic Self-Regulation — regulation cycle; [P4] Constraining: Clear Boundaries |
-| FR-E18 | `P9-cns-energy-budget-replenish-by` | `EnergyBudget::replenish_by(amount)` | [P9] Motivating: Homeostatic Self-Regulation — targeted curation replenishment; [P4] Constraining: Clear Boundaries |
-| FR-E19 | `P9-cns-energy-budget-replenish-by-weighted` | `EnergyBudget::replenish_by_weighted(amount, prio) -> EnergyCost` | [P9] Motivating: Homeostatic Self-Regulation — priority-weighted replenishment; [P4] + [P7] Constraining |
+| FR-E1 | `P8-cns-energy-cost-from-raw` | `EnergyCost::from_raw(u64) -> Self` | [P8] Goal: Semantic Grounding — type-level identity preservation; [P5] Constraining: Essentialism |
+| FR-E2 | `P8-cns-energy-cost-as-raw` | `EnergyCost::as_raw() -> u64` | [P8] Goal: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
+| FR-E3 | `P8-cns-energy-delta-from-raw` | `EnergyDelta::from_raw(f64) -> Self` | [P8] Goal: Semantic Grounding — type-level identity for f64 newtype; [P5] Constraining: Essentialism |
+| FR-E4 | `P8-cns-energy-delta-as-raw` | `EnergyDelta::as_raw() -> f64` | [P8] Goal: Semantic Grounding — symmetric type-level identity; [P5] Constraining: Essentialism |
+| FR-E5 | `P9-cns-energy-delta-descending` | `EnergyDelta::is_descending() -> bool` | [P9] Goal: Homeostatic Self-Regulation — lazy universe compliance detection; [P8] Constraining: Semantic Grounding |
+| FR-E6 | `P9-cns-energy-delta-ascending` | `EnergyDelta::is_ascending() -> bool` | [P9] Goal: Homeostatic Self-Regulation — anti-lazy detection triggers alert; [P8] Constraining: Semantic Grounding |
+| FR-E7 | `P9-cns-energy-budget-new` | `EnergyBudget::new(cap) -> Self` | [P9] Goal: Homeostatic Self-Regulation — budget creation enables regulation; [P4] Constraining: Clear Boundaries — cap enforces OCAP boundary |
+| FR-E8 | `P9-cns-energy-budget-unlimited` | `EnergyBudget::unlimited() -> Self` | [P9] Goal: Homeostatic Self-Regulation — observability without throttling; [P4] Constraining: Clear Boundaries |
+| FR-E9 | `P9-cns-energy-budget-with-replenish-rate` | `EnergyBudget::with_replenish_rate(rate) -> Self` | [P9] Goal: Homeostatic Self-Regulation — configurable replenishment knob; [P7] Constraining: Evolutionary Architecture — emerged from real usage |
+| FR-E10 | `P9-cns-energy-budget-with-alert-threshold` | `EnergyBudget::with_alert_threshold(threshold) -> Self` | [P9] Goal: Homeostatic Self-Regulation — configurable alert threshold; [P7] Constraining: Evolutionary Architecture |
+| FR-E11 | `P9-cns-energy-budget-with-hard-limit` | `EnergyBudget::with_hard_limit(hard) -> Self` | [P9] Goal: Homeostatic Self-Regulation — boundary enforcement toggle; [P4] Constraining: Clear Boundaries |
+| FR-E12 | `P9-cns-energy-budget-can-proceed` | `EnergyBudget::can_proceed(gas) -> bool` | [P9] Goal: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries |
+| FR-E13 | `P9-cns-energy-budget-available` | `EnergyBudget::available() -> EnergyCost` | [P9] Goal: Homeostatic Self-Regulation — visible state for feedback loops; [P4] Constraining: Clear Boundaries |
+| FR-E14 | `P9-cns-energy-budget-reserve` | `EnergyBudget::reserve(gas) -> Result` | [P9] Goal: Homeostatic Self-Regulation — hold-settle pattern; [P4] Constraining: Clear Boundaries |
+| FR-E15 | `P9-cns-energy-budget-settle` | `EnergyBudget::settle(reserved, actual) -> Result` | [P9] Goal: Homeostatic Self-Regulation — completes hold-settle cycle; [P4] Constraining: Clear Boundaries |
+| FR-E16 | `P9-cns-energy-budget-consume` | `EnergyBudget::consume(gas) -> Result` | [P9] Goal: Homeostatic Self-Regulation — immediate deduction path; [P4] Constraining: Clear Boundaries |
+| FR-E17 | `P9-cns-energy-budget-replenish` | `EnergyBudget::replenish()` | [P9] Goal: Homeostatic Self-Regulation — regulation cycle; [P4] Constraining: Clear Boundaries |
+| FR-E18 | `P9-cns-energy-budget-replenish-by` | `EnergyBudget::replenish_by(amount)` | [P9] Goal: Homeostatic Self-Regulation — targeted curation replenishment; [P4] Constraining: Clear Boundaries |
+| FR-E19 | `P9-cns-energy-budget-replenish-by-weighted` | `EnergyBudget::replenish_by_weighted(amount, prio) -> EnergyCost` | [P9] Goal: Homeostatic Self-Regulation — priority-weighted replenishment; [P4] + [P7] Constraining |
 
 #### Test Contracts (4)
 
@@ -111,7 +113,7 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 ### 2.2 Algedonic Signalling (`algedonic`)
 
-**Motivating Principle:** P9 (Homeostatic Self-Regulation) — algedonic feedback loop for variety deficit escalation
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — algedonic feedback loop for variety deficit escalation
 **Constraining Principle:** P4 (Clear Boundaries) — cap enforcement through binary classification
 **Crate:** `hkask-cns` | **Source:** `src/algedonic.rs`
 
@@ -119,10 +121,10 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-A1 | `P9-cns-algedonic-alert-new` | `RuntimeAlert::new(domain, deficit, threshold) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — alert construction for feedback; [P4] Constraining: Clear Boundaries |
-| FR-A2 | `P9-cns-algedonic-alert-should-escalate` | `RuntimeAlert::should_escalate() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — escalation feedback loop; [P4] Constraining: Clear Boundaries |
-| FR-A3 | `P9-cns-algedonic-alert-is-critical` | `RuntimeAlert::is_critical() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — critical threshold detection; [P4] Constraining: Clear Boundaries |
-| FR-A4 | `P9-cns-algedonic-alert-is-warning` | `RuntimeAlert::is_warning() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — warning threshold detection; [P4] Constraining: Clear Boundaries |
+| FR-A1 | `P9-cns-algedonic-alert-new` | `RuntimeAlert::new(domain, deficit, threshold) -> Self` | [P9] Goal: Homeostatic Self-Regulation — alert construction for feedback; [P4] Constraining: Clear Boundaries |
+| FR-A2 | `P9-cns-algedonic-alert-should-escalate` | `RuntimeAlert::should_escalate() -> bool` | [P9] Goal: Homeostatic Self-Regulation — escalation feedback loop; [P4] Constraining: Clear Boundaries |
+| FR-A3 | `P9-cns-algedonic-alert-is-critical` | `RuntimeAlert::is_critical() -> bool` | [P9] Goal: Homeostatic Self-Regulation — critical threshold detection; [P4] Constraining: Clear Boundaries |
+| FR-A4 | `P9-cns-algedonic-alert-is-warning` | `RuntimeAlert::is_warning() -> bool` | [P9] Goal: Homeostatic Self-Regulation — warning threshold detection; [P4] Constraining: Clear Boundaries |
 
 #### Test Contracts (5)
 
@@ -137,7 +139,7 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 ### 2.3 Runtime Observability (`runtime`)
 
-**Motivating Principle:** P9 (Homeostatic Self-Regulation) — single entry point for CNS observability and regulation
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — single entry point for CNS observability and regulation
 **Constraining Principles:** P3 (Generative Space — sync variants), P7 (Evolutionary Architecture — calibrate), P12 (Affirmative Consent — subscribe)
 **Crate:** `hkask-cns` | **Source:** `src/runtime.rs`
 
@@ -145,46 +147,46 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-R1 | `P9-cns-runtime-variety-monitor-new` | `VarietyMonitor::new() -> Self` | [P9] Motivating: Homeostatic Self-Regulation — monitor enables feedback loops; [P5] Constraining: Essentialism |
-| FR-R2 | `P9-cns-runtime-variety-for-domain` | `VarietyMonitor::variety_for_domain(domain) -> u64` | [P9] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
-| FR-R3 | `P9-cns-runtime-variety-monitor-domains` | `VarietyMonitor::domains() -> Vec<&str>` | [P9] Motivating: Homeostatic Self-Regulation — domain enumeration enables loop feedback; [P8] Constraining: Semantic Grounding |
-| FR-R4 | `P9-cns-runtime-with-threshold` | `CnsRuntime::with_threshold(threshold) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — runtime creation enables regulation; [P7] Constraining: Evolutionary Architecture |
-| FR-R5 | `P9-cns-runtime-health` | `CnsRuntime::health() -> CnsHealth` | [P9] Motivating: Homeostatic Self-Regulation — health query drives loop decisions; [P8] Constraining: Semantic Grounding |
-| FR-R6 | `P9-cns-runtime-alerts` | `CnsRuntime::alerts() -> Vec<RuntimeAlert>` | [P9] Motivating: Homeostatic Self-Regulation — alert retrieval enables loop response; [P8] Constraining: Semantic Grounding |
-| FR-R7 | `P9-cns-runtime-default-threshold` | `CnsRuntime::default_threshold() -> u64` | [P9] Motivating: Homeostatic Self-Regulation — threshold config enables loop tuning; [P7] Constraining: Evolutionary Architecture |
-| FR-R8 | `P9-cns-runtime-critical-alerts` | `CnsRuntime::critical_alerts() -> Vec<RuntimeAlert>` | [P9] Motivating: Homeostatic Self-Regulation — critical alert filtering enables prioritised response; [P8] Constraining: Semantic Grounding |
-| FR-R9 | `P9-cns-runtime-variety` | `CnsRuntime::variety() -> HashMap<SpanNamespace, u64>` | [P9] Motivating: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
-| FR-R10 | `P9-cns-runtime-variety-for-domain` | `CnsRuntime::variety_for_domain(domain) -> u64` | [P9] Motivating: Homeostatic Self-Regulation — domain-specific variety; [P8] Constraining: Semantic Grounding |
-| FR-R11 | `P9-cns-runtime-record-outcome` | `CnsRuntime::record_outcome(domain, success, err) -> ()` | [P9] Motivating: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation; [P4] Constraining: Clear Boundaries |
-| FR-R12 | `P9-cns-runtime-check-outcome` | `CnsRuntime::check_outcome(domain) -> Option<RuntimeAlert>` | [P9] Motivating: Homeostatic Self-Regulation — outcome check drives loop decisions; [P4] Constraining: Clear Boundaries |
-| FR-R13 | `P9-cns-runtime-outcome-success-rate` | `CnsRuntime::outcome_success_rate(domain) -> Option<f64>` | [P9] Motivating: Homeostatic Self-Regulation — success rate is a feedback metric; [P8] Constraining: Semantic Grounding |
-| FR-R14 | `P9-cns-runtime-increment-variety` | `CnsRuntime::increment_variety(domain, state_name)` | [P9] Motivating: Homeostatic Self-Regulation — variety counter drives loop closure; [P4] Constraining: Clear Boundaries |
-| FR-R15 | `P9-cns-runtime-check-variety` | `CnsRuntime::check_variety(domain) -> Option<RuntimeAlert>` | [P9] Motivating: Homeostatic Self-Regulation — variety check drives loop closure; [P4] Constraining: Clear Boundaries |
-| FR-R16 | `P9-cns-runtime-register-energy-budget` | `CnsRuntime::register_energy_budget(agent, budget)` | [P9] Motivating: Homeostatic Self-Regulation — budget registration enables energy tracking; [P4] Constraining: Clear Boundaries |
-| FR-R17 | `P9-cns-runtime-replenish-agent-budget` | `CnsRuntime::replenish_agent_budget(agent, amount) -> EnergyCost` | [P9] Motivating: Homeostatic Self-Regulation — budget replenishment drives energy loop; [P4] Constraining: Clear Boundaries |
-| FR-R18 | `P9-cns-runtime-agent-gas-status` | `CnsRuntime::agent_gas_status(agent) -> Option<AgentEnergyStatus>` | [P9] Motivating: Homeostatic Self-Regulation — gas status query drives energy loop; [P8] Constraining: Semantic Grounding |
+| FR-R1 | `P9-cns-runtime-variety-monitor-new` | `VarietyMonitor::new() -> Self` | [P9] Goal: Homeostatic Self-Regulation — monitor enables feedback loops; [P5] Constraining: Essentialism |
+| FR-R2 | `P9-cns-runtime-variety-for-domain` | `VarietyMonitor::variety_for_domain(domain) -> u64` | [P9] Goal: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
+| FR-R3 | `P9-cns-runtime-variety-monitor-domains` | `VarietyMonitor::domains() -> Vec<&str>` | [P9] Goal: Homeostatic Self-Regulation — domain enumeration enables loop feedback; [P8] Constraining: Semantic Grounding |
+| FR-R4 | `P9-cns-runtime-with-threshold` | `CnsRuntime::with_threshold(threshold) -> Self` | [P9] Goal: Homeostatic Self-Regulation — runtime creation enables regulation; [P7] Constraining: Evolutionary Architecture |
+| FR-R5 | `P9-cns-runtime-health` | `CnsRuntime::health() -> CnsHealth` | [P9] Goal: Homeostatic Self-Regulation — health query drives loop decisions; [P8] Constraining: Semantic Grounding |
+| FR-R6 | `P9-cns-runtime-alerts` | `CnsRuntime::alerts() -> Vec<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — alert retrieval enables loop response; [P8] Constraining: Semantic Grounding |
+| FR-R7 | `P9-cns-runtime-default-threshold` | `CnsRuntime::default_threshold() -> u64` | [P9] Goal: Homeostatic Self-Regulation — threshold config enables loop tuning; [P7] Constraining: Evolutionary Architecture |
+| FR-R8 | `P9-cns-runtime-critical-alerts` | `CnsRuntime::critical_alerts() -> Vec<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — critical alert filtering enables prioritised response; [P8] Constraining: Semantic Grounding |
+| FR-R9 | `P9-cns-runtime-variety` | `CnsRuntime::variety() -> HashMap<SpanNamespace, u64>` | [P9] Goal: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
+| FR-R10 | `P9-cns-runtime-variety-for-domain` | `CnsRuntime::variety_for_domain(domain) -> u64` | [P9] Goal: Homeostatic Self-Regulation — domain-specific variety; [P8] Constraining: Semantic Grounding |
+| FR-R11 | `P9-cns-runtime-record-outcome` | `CnsRuntime::record_outcome(domain, success, err) -> ()` | [P9] Goal: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation; [P4] Constraining: Clear Boundaries |
+| FR-R12 | `P9-cns-runtime-check-outcome` | `CnsRuntime::check_outcome(domain) -> Option<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — outcome check drives loop decisions; [P4] Constraining: Clear Boundaries |
+| FR-R13 | `P9-cns-runtime-outcome-success-rate` | `CnsRuntime::outcome_success_rate(domain) -> Option<f64>` | [P9] Goal: Homeostatic Self-Regulation — success rate is a feedback metric; [P8] Constraining: Semantic Grounding |
+| FR-R14 | `P9-cns-runtime-increment-variety` | `CnsRuntime::increment_variety(domain, state_name)` | [P9] Goal: Homeostatic Self-Regulation — variety counter drives loop closure; [P4] Constraining: Clear Boundaries |
+| FR-R15 | `P9-cns-runtime-check-variety` | `CnsRuntime::check_variety(domain) -> Option<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — variety check drives loop closure; [P4] Constraining: Clear Boundaries |
+| FR-R16 | `P9-cns-runtime-register-energy-budget` | `CnsRuntime::register_energy_budget(agent, budget)` | [P9] Goal: Homeostatic Self-Regulation — budget registration enables energy tracking; [P4] Constraining: Clear Boundaries |
+| FR-R17 | `P9-cns-runtime-replenish-agent-budget` | `CnsRuntime::replenish_agent_budget(agent, amount) -> EnergyCost` | [P9] Goal: Homeostatic Self-Regulation — budget replenishment drives energy loop; [P4] Constraining: Clear Boundaries |
+| FR-R18 | `P9-cns-runtime-agent-gas-status` | `CnsRuntime::agent_gas_status(agent) -> Option<AgentEnergyStatus>` | [P9] Goal: Homeostatic Self-Regulation — gas status query drives energy loop; [P8] Constraining: Semantic Grounding |
 
 #### P3 Blocking Variants (1)
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-R19 | `P3-cns-runtime-blocking-variety-for-domain` | `CnsRuntime::blocking_variety_for_domain(domain) -> u64` | [P3] Motivating: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries — must not be called from async context |
+| FR-R19 | `P3-cns-runtime-blocking-variety-for-domain` | `CnsRuntime::blocking_variety_for_domain(domain) -> u64` | [P3] Goal: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries — must not be called from async context |
 
 
 #### P7 Calibrate & P3 Blocking Variants (2)
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-R20 | `P7-cns-runtime-calibrate-threshold` | `CnsRuntime::calibrate_threshold(domain, new_threshold)` | [P7] Motivating: Evolutionary Architecture — threshold parameter emerged from real usage; [P4] Constraining: Clear Boundaries |
-| FR-R21 | `P3-cns-runtime-calibrate-threshold-blocking` | `CnsRuntime::calibrate_threshold_blocking(domain, new_threshold)` | [P3] Motivating: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries |
+| FR-R20 | `P7-cns-runtime-calibrate-threshold` | `CnsRuntime::calibrate_threshold(domain, new_threshold)` | [P7] Goal: Evolutionary Architecture — threshold parameter emerged from real usage; [P4] Constraining: Clear Boundaries |
+| FR-R21 | `P3-cns-runtime-calibrate-threshold-blocking` | `CnsRuntime::calibrate_threshold_blocking(domain, new_threshold)` | [P3] Goal: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries |
 
 #### P12 Subscriber Contracts (3)
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-R22 | `P12-cns-runtime-subscribe` | `CnsRuntime::subscribe(observer: Arc<dyn CnsObserver>)` | [P12] Motivating: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
-| FR-R23 | `P12-cns-runtime-subscribe-async` | `CnsRuntime::subscribe_async(observer: Arc<dyn CnsObserver>)` | [P12] Motivating: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
-| FR-R24 | `P9-cns-runtime-emit-backpressure` | `CnsRuntime::emit_backpressure(signal: BackpressureSignal)` | [P9] Motivating: Homeostatic Self-Regulation — backpressure signal closes the regulation loop; [P4] Constraining: Clear Boundaries |
+| FR-R22 | `P12-cns-runtime-subscribe` | `CnsRuntime::subscribe(observer: Arc<dyn CnsObserver>)` | [P12] Goal: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
+| FR-R23 | `P12-cns-runtime-subscribe-async` | `CnsRuntime::subscribe_async(observer: Arc<dyn CnsObserver>)` | [P12] Goal: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
+| FR-R24 | `P9-cns-runtime-emit-backpressure` | `CnsRuntime::emit_backpressure(signal: BackpressureSignal)` | [P9] Goal: Homeostatic Self-Regulation — backpressure signal closes the regulation loop; [P4] Constraining: Clear Boundaries |
 
 #### Test Contracts (6)
 
@@ -200,7 +202,7 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 ### 2.4 Tool Governance (`gov-tool`)
 
-**Motivating Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — OCAP enforcement)
+**Goal Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — OCAP enforcement)
 **Constraining Principle:** P12 (Affirmative Consent — agent identity is the consent anchor)
 **Crate:** `hkask-cns` | **Source:** `src/governed_tool.rs`
 
@@ -208,9 +210,9 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-GT1 | `P9-cns-gov-tool-new` | `GovernedTool::new(inner, cybernetics, sink, est, agent) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — tool governance enables feedback loops; [P4] Constraining: Clear Boundaries — cybernetics binding enforces OCAP boundary |
-| FR-GT2 | `P9-cns-gov-tool-consumption-channel` | `GovernedTool::with_tool_consumption_channel(tx) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — consumption channel closes cybernetic feedback loop; [P4] Constraining: Clear Boundaries — channel ownership tracks consumer identity |
-| FR-GT3 | `P12-cns-gov-tool-with-agent` | `GovernedTool::with_agent(agent) -> Self` | [P12] Motivating: Affirmative Consent — agent identity is the consent anchor; [P4] Constraining: Clear Boundaries — OCAP gate enforces boundary per invocation |
+| FR-GT1 | `P9-cns-gov-tool-new` | `GovernedTool::new(inner, cybernetics, sink, est, agent) -> Self` | [P9] Goal: Homeostatic Self-Regulation — tool governance enables feedback loops; [P4] Constraining: Clear Boundaries — cybernetics binding enforces OCAP boundary |
+| FR-GT2 | `P9-cns-gov-tool-consumption-channel` | `GovernedTool::with_tool_consumption_channel(tx) -> Self` | [P9] Goal: Homeostatic Self-Regulation — consumption channel closes cybernetic feedback loop; [P4] Constraining: Clear Boundaries — channel ownership tracks consumer identity |
+| FR-GT3 | `P12-cns-gov-tool-with-agent` | `GovernedTool::with_agent(agent) -> Self` | [P12] Goal: Affirmative Consent — agent identity is the consent anchor; [P4] Constraining: Clear Boundaries — OCAP gate enforces boundary per invocation |
 
 #### Test Contracts (4)
 
@@ -224,7 +226,7 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 ### 2.5 Inference Governance (`gov-inf`)
 
-**Motivating Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — membrane for inference)
+**Goal Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — membrane for inference)
 **Constraining Principle:** P12 (Affirmative Consent — agent identity is required for attribution)
 **Crate:** `hkask-cns` | **Source:** `src/governed_inference.rs`
 
@@ -232,8 +234,8 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-GI1 | `P9-cns-gov-inf-new` | `GovernedInference::new(inner, cybernetics, sink, agent) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — inference governance enables cybernetic control; [P4] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary; [P12] Constraining: Affirmative Consent |
-| FR-GI2 | `P12-cns-gov-inf-with-agent` | `GovernedInference::with_agent(agent) -> Self` | [P12] Motivating: Affirmative Consent — agent identity is the consent anchor; [P4] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call |
+| FR-GI1 | `P9-cns-gov-inf-new` | `GovernedInference::new(inner, cybernetics, sink, agent) -> Self` | [P9] Goal: Homeostatic Self-Regulation — inference governance enables cybernetic control; [P4] Constraining: Clear Boundaries — membrane wraps inner InferencePort at OCAP boundary; [P12] Constraining: Affirmative Consent |
+| FR-GI2 | `P12-cns-gov-inf-with-agent` | `GovernedInference::with_agent(agent) -> Self` | [P12] Goal: Affirmative Consent — agent identity is the consent anchor; [P4] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call |
 
 #### Test Contracts (2)
 
@@ -245,7 +247,7 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 ### 2.6 Circuit Breaker (`circuit`)
 
-**Motivating Principle:** P9 (Homeostatic Self-Regulation) — CNS regulation loop enforces homeostasis over external service calls
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — CNS regulation loop enforces homeostasis over external service calls
 **Constraining Principle:** P4 (Clear Boundaries) — circuit state transitions are boundary conditions
 **Crate:** `hkask-cns` | **Source:** `src/circuit_breaker.rs`
 
@@ -253,14 +255,14 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-CB1 | `P9-cns-circuit-default-for-inference` | `CircuitBreaker::default_for_inference(name) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — CNS regulation loop enforces boundary; [P4] Constraining: Clear Boundaries — default thresholds establish failure boundary |
-| FR-CB2 | `P9-cns-circuit-allow-request` | `CircuitBreaker::allow_request() -> bool` | [P9] Motivating: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries — state-driven gating enforces the boundary |
-| FR-CB3 | `P9-cns-circuit-record-success` | `CircuitBreaker::record_success()` | [P9] Motivating: Homeostatic Self-Regulation — success count drives loop closure; [P4] Constraining: Clear Boundaries — threshold-based state transition enforces boundary |
+| FR-CB1 | `P9-cns-circuit-default-for-inference` | `CircuitBreaker::default_for_inference(name) -> Self` | [P9] Goal: Homeostatic Self-Regulation — CNS regulation loop enforces boundary; [P4] Constraining: Clear Boundaries — default thresholds establish failure boundary |
+| FR-CB2 | `P9-cns-circuit-allow-request` | `CircuitBreaker::allow_request() -> bool` | [P9] Goal: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries — state-driven gating enforces the boundary |
+| FR-CB3 | `P9-cns-circuit-record-success` | `CircuitBreaker::record_success()` | [P9] Goal: Homeostatic Self-Regulation — success count drives loop closure; [P4] Constraining: Clear Boundaries — threshold-based state transition enforces boundary |
 
 
 ### 2.7 API Metering (`api`)
 
-**Motivating Principle:** P9 (Homeostatic Self-Regulation) — per-key rate limiting, gas tracking, and CNS spans
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — per-key rate limiting, gas tracking, and CNS spans
 **Constraining Principles:** P7 (Evolutionary Architecture — hardcoded endpoint weight table, configurable later), P4 (Clear Boundaries — rate limit thresholds are boundary conditions)
 **Crate:** `hkask-cns` | **Source:** `src/api_metering.rs`
 
@@ -268,14 +270,14 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-AM1 | `P9-cns-api-meter-endpoint-weight` | `endpoint_weight(path) -> EndpointWeight` | [P9] Motivating: Homeostatic Self-Regulation — per-request rate limiting for API stability; [P7] Constraining: Evolutionary Architecture — hardcoded table to be configurable later |
-| FR-AM2 | `P9-cns-api-meter-rate-limit-status` | `RateLimitStatus::as_str() -> &'static str` | [P9] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS; [P8] Constraining: Semantic Grounding — string representation must be stable across versions |
-| FR-AM3 | `P9-cns-api-meter-new` | `ApiMeter::new() -> Self` | [P9] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking; [P5] Constraining: Essentialism — minimal constructor with empty buckets map |
-| FR-AM4 | `P9-cns-api-meter-check-and-record` | `ApiMeter::check_and_record(key_id, max_rpm, max_tokens, tokens) -> RateLimitStatus` | [P9] Motivating: Homeostatic Self-Regulation — rate limit enforcement is the CNS check; [P4] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions |
-| FR-AM5 | `P9-cns-api-meter-current-rpm` | `ApiMeter::current_rpm(key_id) -> u32` | [P9] Motivating: Homeostatic Self-Regulation — current rate is the cybernetic state; [P8] Constraining: Semantic Grounding — RPM count must be stable and accurate |
-| FR-AM6 | `P9-cns-api-meter-span-new` | `ApiRequestSpan::new(key_id, endpoint, matched, gas, enc, status) -> Self` | [P9] Motivating: Homeostatic Self-Regulation — span creation is the CNS observation layer; [P8] Constraining: Semantic Grounding — span fields must be traceable to source |
-| FR-AM7 | `P9-cns-api-meter-alert-type` | `ApiMeteringAlert::alert_type() -> &'static str` | [P9] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification; [P8] Constraining: Semantic Grounding — alert type labels must be stable across versions |
-| FR-AM8 | `P9-cns-api-meter-alert-severity` | `ApiMeteringAlert::severity() -> &'static str` | [P9] Motivating: Homeostatic Self-Regulation — severity is the algedonic signal; [P8] Constraining: Semantic Grounding — severity labels must be stable across versions |
+| FR-AM1 | `P9-cns-api-meter-endpoint-weight` | `endpoint_weight(path) -> EndpointWeight` | [P9] Goal: Homeostatic Self-Regulation — per-request rate limiting for API stability; [P7] Constraining: Evolutionary Architecture — hardcoded table to be configurable later |
+| FR-AM2 | `P9-cns-api-meter-rate-limit-status` | `RateLimitStatus::as_str() -> &'static str` | [P9] Goal: Homeostatic Self-Regulation — rate limit status feedback for CNS; [P8] Constraining: Semantic Grounding — string representation must be stable across versions |
+| FR-AM3 | `P9-cns-api-meter-new` | `ApiMeter::new() -> Self` | [P9] Goal: Homeostatic Self-Regulation — empty meter ready for per-key tracking; [P5] Constraining: Essentialism — minimal constructor with empty buckets map |
+| FR-AM4 | `P9-cns-api-meter-check-and-record` | `ApiMeter::check_and_record(key_id, max_rpm, max_tokens, tokens) -> RateLimitStatus` | [P9] Goal: Homeostatic Self-Regulation — rate limit enforcement is the CNS check; [P4] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions |
+| FR-AM5 | `P9-cns-api-meter-current-rpm` | `ApiMeter::current_rpm(key_id) -> u32` | [P9] Goal: Homeostatic Self-Regulation — current rate is the cybernetic state; [P8] Constraining: Semantic Grounding — RPM count must be stable and accurate |
+| FR-AM6 | `P9-cns-api-meter-span-new` | `ApiRequestSpan::new(key_id, endpoint, matched, gas, enc, status) -> Self` | [P9] Goal: Homeostatic Self-Regulation — span creation is the CNS observation layer; [P8] Constraining: Semantic Grounding — span fields must be traceable to source |
+| FR-AM7 | `P9-cns-api-meter-alert-type` | `ApiMeteringAlert::alert_type() -> &'static str` | [P9] Goal: Homeostatic Self-Regulation — alert type is the CNS classification; [P8] Constraining: Semantic Grounding — alert type labels must be stable across versions |
+| FR-AM8 | `P9-cns-api-meter-alert-severity` | `ApiMeteringAlert::severity() -> &'static str` | [P9] Goal: Homeostatic Self-Regulation — severity is the algedonic signal; [P8] Constraining: Semantic Grounding — severity labels must be stable across versions |
 
 #### Test Contracts (8)
 
@@ -293,15 +295,15 @@ A contract may have **one motivating principle** and **multiple constraining pri
 
 ### 2.8 Energy Estimation (`est`)
 
-**Motivating Principle:** P9 (Homeostatic Self-Regulation) — composite estimator routes inference and table estimation
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — composite estimator routes inference and table estimation
 **Crate:** `hkask-cns` | **Source:** `src/composite_energy_estimator.rs`, `src/wallet_energy_estimator.rs`
 
 #### Production Contracts (2)
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-EE1 | `P9-cns-est-composite-new` | `CompositeEnergyEstimator::new() -> Self` | [P9] Motivating: Homeostatic Self-Regulation — composite estimator enables feedback loops; [P5] Constraining: Essentialism — minimal constructor, empty estimators |
-| FR-EE2 | `P9-cns-wallet-est-calibrate` | `WalletEnergyEstimator::calibrate(observed_ratio) -> bool` | [P9] Motivating: Homeostatic Self-Regulation — Good Regulator feedback loop closure; [P4] Constraining: Clear Boundaries — threshold tolerance enforces boundary; [P7] Constraining: Evolutionary Architecture — EMA parameters emerged from real usage |
+| FR-EE1 | `P9-cns-est-composite-new` | `CompositeEnergyEstimator::new() -> Self` | [P9] Goal: Homeostatic Self-Regulation — composite estimator enables feedback loops; [P5] Constraining: Essentialism — minimal constructor, empty estimators |
+| FR-EE2 | `P9-cns-wallet-est-calibrate` | `WalletEnergyEstimator::calibrate(observed_ratio) -> bool` | [P9] Goal: Homeostatic Self-Regulation — Good Regulator feedback loop closure; [P4] Constraining: Clear Boundaries — threshold tolerance enforces boundary; [P7] Constraining: Evolutionary Architecture — EMA parameters emerged from real usage |
 
 #### Test Contracts (5)
 
@@ -321,7 +323,7 @@ These domains are documented here for completeness. Most contracts are already r
 
 ### 3.1 Wallet (`hkask-wallet`)
 
-**Motivating Principle:** P9 (Homeostatic Self-Regulation) — rJoule balance, encumbrance, and fee estimation form the wallet's energy regulation loop
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — rJoule balance, encumbrance, and fee estimation form the wallet's energy regulation loop
 **Constraining Principles:** P1 (User Sovereignty), P2 (Affirmative Consent), P4 (Clear Boundaries), P8 (Semantic Grounding)
 **Crate:** `hkask-wallet`
 **Sources:** `src/manager.rs`, `src/issuer.rs`, `src/signing.rs`, `src/hinkal.rs`, `src/price_feed.rs`, `src/hedera.rs`, `src/solana.rs`, `tests/hinkal_adapter.rs`
@@ -330,33 +332,33 @@ These domains are documented here for completeness. Most contracts are already r
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-W1 | `P9-wallet-mgr-struct` | `WalletManager` struct | [P9] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor; [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized |
-| FR-W2 | `P9-wallet-mgr-build` | `WalletManager::build(...)` | [P9] Motivating: Homeostatic Self-Regulation — wallet construction; [P1] Constraining: User Sovereignty — wallet_seed resolved and zeroized |
-| FR-W3 | `P9-wallet-mgr-balance` | `WalletManager::get_balance(wallet_id)` | [P9] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state; [P8] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically |
-| FR-W4 | `P9-wallet-mgr-api-key-get` | `WalletManager::get_api_key(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops; [P4] Constraining: Clear Boundaries — revoked keys are excluded |
-| FR-W5 | `P9-wallet-mgr-chain-error-span` | `WalletManager::emit_chain_error_for_actor` | [P9] Motivating: Homeostatic Self-Regulation — chain errors feed the CNS sense loop; [P12] Constraining: Subscriber Consent — actor identity is recorded |
-| FR-W6 | `P9-wallet-mgr-can-afford` | `WalletManager::can_afford(wallet_id, cost_rj)` | [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
-| FR-W7 | `P9-wallet-mgr-reserve` | `WalletManager::reserve_rjoules(wallet_id, amount)` | [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
-| FR-W8 | `P9-wallet-mgr-settle` | `WalletManager::settle_rjoules(wallet_id, reserved, actual)` | [P9] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
-| FR-W9 | `P9-wallet-mgr-encumber` | `WalletManager::encumber(wallet_id, key_id, amount)` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
-| FR-W10 | `P9-wallet-mgr-release-encumbrance` | `WalletManager::release_encumbrance(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
-| FR-W11 | `P9-wallet-mgr-consume` | `WalletManager::consume(key_id, gas_rj)` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
-| FR-W12 | `P9-wallet-mgr-get-encumbrance` | `WalletManager::get_encumbrance(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
-| FR-W13 | `P9-wallet-mgr-fee-estimate` | `WalletManager::estimate_withdrawal_fee` | [P9] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal; [P8] Constraining: Semantic Grounding — derived from live/native USD rate |
-| FR-W14 | `P9-wallet-mgr-key-alert-span` | `WalletManager::emit_key_alert` | [P9] Motivating: Homeostatic Self-Regulation — algedonic feedback closure for API key lifecycle; [P12] Constraining: Subscriber Consent — emits span only if sink subscribed |
-| FR-W15 | `P9-wallet-mgr-deposit-ref-nonce` | `WalletManager::generate_deposit_reference` HKDF context | [P9] Motivating: Homeostatic Self-Regulation — deposit attribution supports energy inflow; [P4] Constraining: Clear Boundaries — nonce binds reference to specific invocation |
-| FR-W16 | `P9-wallet-issuer-struct` | `ApiKeyIssuer` struct | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued; [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries; [P1] Constraining: User Sovereignty — private keys are returned once and never stored |
-| FR-W17 | `P9-wallet-issuer-new` | `ApiKeyIssuer::new(store)` | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P1] Constraining: User Sovereignty — wallet_seed resolved and zeroized |
-| FR-W18 | `P9-wallet-issuer-create-key` | `ApiKeyIssuer::create_key(...)` | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued; [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries; [P1] Constraining: User Sovereignty — private keys are returned once and never stored |
-| FR-W19 | `P9-wallet-issuer-revoke-key` | `ApiKeyIssuer::revoke_key(key_id)` | [P9] Motivating: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — revocable capabilities; [P1] Constraining: User Sovereignty — unspent balance returned |
-| FR-W20 | `P9-wallet-issuer-list-keys` | `ApiKeyIssuer::list_keys(wallet_id)` | [P9] Motivating: Homeostatic Self-Regulation — API key inventory for feedback loops; [P4] Constraining: Clear Boundaries — only active keys returned |
+| FR-W1 | `P9-wallet-mgr-struct` | `WalletManager` struct | [P9] Goal: Homeostatic Self-Regulation — wallet is the energy regulation anchor; [P1] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized |
+| FR-W2 | `P9-wallet-mgr-build` | `WalletManager::build(...)` | [P9] Goal: Homeostatic Self-Regulation — wallet construction; [P1] Constraining: User Sovereignty — wallet_seed resolved and zeroized |
+| FR-W3 | `P9-wallet-mgr-balance` | `WalletManager::get_balance(wallet_id)` | [P9] Goal: Homeostatic Self-Regulation — balance is the cybernetic state; [P8] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically |
+| FR-W4 | `P9-wallet-mgr-api-key-get` | `WalletManager::get_api_key(key_id)` | [P9] Goal: Homeostatic Self-Regulation — API key health state for feedback loops; [P4] Constraining: Clear Boundaries — revoked keys are excluded |
+| FR-W5 | `P9-wallet-mgr-chain-error-span` | `WalletManager::emit_chain_error_for_actor` | [P9] Goal: Homeostatic Self-Regulation — chain errors feed the CNS sense loop; [P12] Constraining: Subscriber Consent — actor identity is recorded |
+| FR-W6 | `P9-wallet-mgr-can-afford` | `WalletManager::can_afford(wallet_id, cost_rj)` | [P9] Goal: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
+| FR-W7 | `P9-wallet-mgr-reserve` | `WalletManager::reserve_rjoules(wallet_id, amount)` | [P9] Goal: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
+| FR-W8 | `P9-wallet-mgr-settle` | `WalletManager::settle_rjoules(wallet_id, reserved, actual)` | [P9] Goal: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
+| FR-W9 | `P9-wallet-mgr-encumber` | `WalletManager::encumber(wallet_id, key_id, amount)` | [P9] Goal: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W10 | `P9-wallet-mgr-release-encumbrance` | `WalletManager::release_encumbrance(key_id)` | [P9] Goal: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W11 | `P9-wallet-mgr-consume` | `WalletManager::consume(key_id, gas_rj)` | [P9] Goal: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W12 | `P9-wallet-mgr-get-encumbrance` | `WalletManager::get_encumbrance(key_id)` | [P9] Goal: Homeostatic Self-Regulation — encumbrance locks energy for API keys; [P4] Constraining: Clear Boundaries — only the entitled key can consume; [P8] Constraining: Semantic Grounding — atomic consume/release preserves balance |
+| FR-W13 | `P9-wallet-mgr-fee-estimate` | `WalletManager::estimate_withdrawal_fee` | [P9] Goal: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal; [P8] Constraining: Semantic Grounding — derived from live/native USD rate |
+| FR-W14 | `P9-wallet-mgr-key-alert-span` | `WalletManager::emit_key_alert` | [P9] Goal: Homeostatic Self-Regulation — algedonic feedback closure for API key lifecycle; [P12] Constraining: Subscriber Consent — emits span only if sink subscribed |
+| FR-W15 | `P9-wallet-mgr-deposit-ref-nonce` | `WalletManager::generate_deposit_reference` HKDF context | [P9] Goal: Homeostatic Self-Regulation — deposit attribution supports energy inflow; [P4] Constraining: Clear Boundaries — nonce binds reference to specific invocation |
+| FR-W16 | `P9-wallet-issuer-struct` | `ApiKeyIssuer` struct | [P9] Goal: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued; [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries; [P1] Constraining: User Sovereignty — private keys are returned once and never stored |
+| FR-W17 | `P9-wallet-issuer-new` | `ApiKeyIssuer::new(store)` | [P9] Goal: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P1] Constraining: User Sovereignty — wallet_seed resolved and zeroized |
+| FR-W18 | `P9-wallet-issuer-create-key` | `ApiKeyIssuer::create_key(...)` | [P9] Goal: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — keys are explicitly scoped, revocable, and user-issued; [P4] Constraining: Clear Boundaries — spending limits and expiry enforce capability boundaries; [P1] Constraining: User Sovereignty — private keys are returned once and never stored |
+| FR-W19 | `P9-wallet-issuer-revoke-key` | `ApiKeyIssuer::revoke_key(key_id)` | [P9] Goal: Homeostatic Self-Regulation — API keys scope and limit agent energy access; [P2] Constraining: Affirmative Consent — revocable capabilities; [P1] Constraining: User Sovereignty — unspent balance returned |
+| FR-W20 | `P9-wallet-issuer-list-keys` | `ApiKeyIssuer::list_keys(wallet_id)` | [P9] Goal: Homeostatic Self-Regulation — API key inventory for feedback loops; [P4] Constraining: Clear Boundaries — only active keys returned |
 | FR-W21 | `P9-wallet-issuer-zeroize-seed` | `ApiKeyIssuer::create_key` key generation | [P1] Constraining: User Sovereignty — Ed25519 seed wrapped in Zeroizing for automatic zeroize on drop |
-| FR-W22 | `P9-wallet-sign-withdrawal` | `sign_withdrawal(chain, tx_bytes)` | [P9] Motivating: Homeostatic Self-Regulation — signing authorizes energy outflow; [P1] Constraining: User Sovereignty — treasury key derived from user master key; [P4] Constraining: Clear Boundaries — key material never leaves this module |
-| FR-W23 | `P9-wallet-sign-hinkal-message` | `sign_message(message)` | [P9] Motivating: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow; [P4] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin |
-| FR-W24 | `P9-wallet-sign-capability` | `sign_capability(capability)` | [P9] Motivating: Homeostatic Self-Regulation — signing authorizes API key capability; [P1] Constraining: User Sovereignty — treasury key derived from user master key; [P4] Constraining: Clear Boundaries — key material never leaves this module |
+| FR-W22 | `P9-wallet-sign-withdrawal` | `sign_withdrawal(chain, tx_bytes)` | [P9] Goal: Homeostatic Self-Regulation — signing authorizes energy outflow; [P1] Constraining: User Sovereignty — treasury key derived from user master key; [P4] Constraining: Clear Boundaries — key material never leaves this module |
+| FR-W23 | `P9-wallet-sign-hinkal-message` | `sign_message(message)` | [P9] Goal: Homeostatic Self-Regulation — Hinkal session signing authorizes privacy-layer flow; [P4] Constraining: Clear Boundaries — message is opaque bytes; signature proves treasury origin |
+| FR-W24 | `P9-wallet-sign-capability` | `sign_capability(capability)` | [P9] Goal: Homeostatic Self-Regulation — signing authorizes API key capability; [P1] Constraining: User Sovereignty — treasury key derived from user master key; [P4] Constraining: Clear Boundaries — key material never leaves this module |
 | FR-W25 | `P2-wallet-signing-debug-redact` | `LoadedKey` Debug impl | [P2] Constraining: Affirmative Consent — key material redacted from debug output |
 | FR-W26 | `P2-wallet-signing-key-boundary` | `LoadedKey` never leaves `signing.rs` | [P2] Constraining: Affirmative Consent — no un-zeroized key material crosses module boundary |
-| FR-W27 | `P9-wallet-hinkal-port-new` | `HinkalPort::new` | [P9] Motivating: Homeostatic Self-Regulation — privacy port is part of the energy loop; [P4] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey |
+| FR-W27 | `P9-wallet-hinkal-port-new` | `HinkalPort::new` | [P9] Goal: Homeostatic Self-Regulation — privacy port is part of the energy loop; [P4] Constraining: Clear Boundaries — HTTPS-only and non-empty treasury pubkey |
 
 #### Test Contracts (36)
 
@@ -448,58 +450,58 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-M001 | `P3-mem-consolidation-bridge-new` | `new()` | [P3] Motivating: Generative Space — bridges episodic experience into shared semantic memory; [P4] Constraining: Clear Boundaries — links stores without bypassing their membranes |
-| FR-M002 | `P3-mem-consolidation-bridge-consolidate` | `consolidate()` | [P3] Motivating: Generative Space — promotes sovereign episodic triples to shared knowledge; [P1] Constraining: User Sovereignty — strips perspective only under Curator authority; [P4] Constraining: Clear Boundaries — requires ConsolidationToken from expected curator |
-| FR-M003 | `P3-mem-consolidation-candidate-count` | `consolidation_candidate_count()` | [P3] Motivating: Generative Space — surfaces how much episodic content is ready for promotion; [P9] Constraining: Homeostatic Self-Regulation — count-only query avoids loading full store |
-| FR-M004 | `P3-mem-consolidation-service-new` | `new()` | [P3] Motivating: Generative Space — user-facing entry point for memory consolidation and cleanup; [P4] Constraining: Clear Boundaries — requires Curator-issued ConsolidationToken |
-| FR-M005 | `P3-mem-consolidation-service-consolidate` | `consolidate()` | [P3] Motivating: Generative Space — combines episodic promotion with semantic cleanup; [P9] Constraining: Homeostatic Self-Regulation — enforces confidence floor and max triple limits; [P4] Constraining: Clear Boundaries — delegates to token-gated bridge |
-| FR-M006 | `P3-mem-consolidation-service-candidate-count` | `consolidation_candidate_count()` | [P3] Motivating: Generative Space — reports how many episodic triples can be promoted; [P9] Constraining: Homeostatic Self-Regulation — count-only, graceful degradation on error |
-| FR-M007 | `P3-mem-consolidation-service-low-confidence-count` | `semantic_low_confidence_count()` | [P3] Motivating: Generative Space — reports low-confidence semantic triples for cleanup; [P9] Constraining: Homeostatic Self-Regulation — threshold-driven pruning signal |
-| FR-M008 | `P3-mem-consolidation-service-triple-count` | `semantic_triple_count()` | [P3] Motivating: Generative Space — reports total semantic memory size; [P9] Constraining: Homeostatic Self-Regulation — count used for budget monitoring |
-| FR-M009 | `P3-mem-episodic-memory-new` | `new()` | [P3] Motivating: Generative Space — creates a sovereign first-person experience store; [P9] Constraining: Homeostatic Self-Regulation — default decay and budget are regulation defaults |
-| FR-M010 | `P3-mem-episodic-store` | `store()` | [P3] Motivating: Generative Space — stores a first-person experience triple; [P1] Constraining: User Sovereignty — rejects Public visibility (episodic is sovereign); [P4] Constraining: Clear Boundaries — requires perspective owner |
-| FR-M011 | `P3-mem-episodic-query-deduped` | `query_for_deduped()` | [P3] Motivating: Generative Space — recalls deduplicated episodic triples for an entity; [P9] Constraining: Homeostatic Self-Regulation — applies confidence decay and temporal attention at recall |
-| FR-M012 | `P3-mem-episodic-storage-usage` | `storage_usage()` | [P3] Motivating: Generative Space — reports episodic storage usage per perspective; [P9] Constraining: Homeostatic Self-Regulation — COUNT query avoids loading full store |
-| FR-M013 | `P3-mem-episodic-storage-budget` | `storage_budget()` | [P3] Motivating: Generative Space — exposes the episodic storage set-point; [P9] Constraining: Homeostatic Self-Regulation — budget bounds per-agent experience growth |
-| FR-M014 | `P3-mem-episodic-candidate-count` | `consolidation_candidate_count()` | [P3] Motivating: Generative Space — reports how many episodic triples are eligible for consolidation; [P9] Constraining: Homeostatic Self-Regulation — uses decayed confidence for prioritization |
-| FR-M015 | `P3-mem-episodic-loop-new` | `new()` | [P3] Motivating: Generative Space — wraps episodic memory in a regulated generative loop; [P9] Constraining: Homeostatic Self-Regulation — storage_budget is the cybernetic set-point |
-| FR-M016 | `P3-mem-episodic-loop-with-consolidation` | `with_consolidation()` | [P3] Motivating: Generative Space — enables promotion path when episodic budget is exceeded; [P9] Constraining: Homeostatic Self-Regulation — consolidation bridge fires only under token authority |
-| FR-M017 | `P3-mem-episodic-loop-storage-budget` | `storage_budget()` | [P3] Motivating: Generative Space — exposes the generative budget set-point for context assembly; [P9] Constraining: Homeostatic Self-Regulation — budget value is immutable after construction |
-| FR-M018 | `P3-mem-ranking-rrf-score` | `rrf_score()` | [P3] Motivating: Generative Space — fuses rank positions for context retrieval; [P8] Constraining: Semantic Grounding — reciprocal rank fusion is a standard ranking signal |
-| FR-M019 | `P3-mem-ranking-parse-age` | `parse_age_to_days()` | [P3] Motivating: Generative Space — converts human-readable age strings into comparable temporal signals; [P5] Constraining: Essentialism — returns -1.0 for unparseable input, no exceptions |
-| FR-M020 | `P3-mem-ranking-normalize-date-bucket` | `normalize_date_bucket()` | [P3] Motivating: Generative Space — buckets parsed age into human-readable recency labels; [P8] Constraining: Semantic Grounding — five fixed buckets preserve stable ordering |
-| FR-M021 | `P3-mem-recall-eav-hash` | `eav_hash()` | [P3] Motivating: Generative Space — canonical recall dedup enables reuse of factual content across memory; [P8] Constraining: Semantic Grounding — deterministic BLAKE3 hash over canonical EAV content |
-| FR-M022 | `P3-mem-recall-dedup-triples` | `dedup_triples()` | [P3] Motivating: Generative Space — deduplication preserves generative storage budget; [P5] Constraining: Essentialism — first-seen wins, no speculative retention policy |
-| FR-M023 | `P3-mem-salience-method-signals` | `compute_method_signals()` | [P3] Motivating: Generative Space — extracts cheap stylometric signals for method-aware retrieval; [P8] Constraining: Semantic Grounding — signals are deterministic heuristics over raw text |
-| FR-M024 | `P3-mem-salience-declared-method-matches` | `matches()` | [P3] Motivating: Generative Space — matches passage signals against declared method thresholds; [P8] Constraining: Semantic Grounding — unconfigured thresholds are always satisfied |
-| FR-M025 | `P3-mem-salience-tag-entities` | `tag_entities()` | [P3] Motivating: Generative Space — tags passages with declared entities for the salience graph; [P8] Constraining: Semantic Grounding — case-insensitive substring matching |
-| FR-M026 | `P3-mem-salience-all-tags` | `all_tags()` | [P3] Motivating: Generative Space — flattens entity categories for graph construction; [P5] Constraining: Essentialism — minimal iterator over existing vectors |
-| FR-M027 | `P3-mem-salience-tag-count` | `tag_count()` | [P3] Motivating: Generative Space — counts distinct tags across all categories; [P5] Constraining: Essentialism — simple sum of category lengths |
-| FR-M028 | `P3-mem-salience-compute-batch` | `compute_salience_batch()` | [P3] Motivating: Generative Space — scores passage salience to gate triple storage budget; [P9] Constraining: Homeostatic Self-Regulation — graph centrality bounded by neighbor sampling |
-| FR-M029 | `P3-mem-salience-budget-resolve` | `resolve()` | [P3] Motivating: Generative Space — resolves passage count into absolute triple budget; [P9] Constraining: Homeostatic Self-Regulation — budget caps generative storage growth |
-| FR-M030 | `P3-mem-semantic-memory-new` | `new()` | [P3] Motivating: Generative Space — creates shared semantic knowledge store; [P8] Constraining: Semantic Grounding — unifies triple and embedding stores |
-| FR-M031 | `P3-mem-semantic-query-deduped` | `query_deduped()` | [P3] Motivating: Generative Space — recalls deduplicated public semantic triples; [P4] Constraining: Clear Boundaries — filters to Public visibility |
-| FR-M032 | `P3-mem-semantic-store` | `store()` | [P3] Motivating: Generative Space — stores shared semantic triple; [P4] Constraining: Clear Boundaries — requires Public visibility and no perspective |
-| FR-M033 | `P3-mem-semantic-triple-count` | `triple_count()` | [P3] Motivating: Generative Space — reports total shared knowledge triples; [P9] Constraining: Homeostatic Self-Regulation — count feeds storage budget loop |
-| FR-M034 | `P3-mem-semantic-triple-count-entity` | `triple_count_for_entity()` | [P3] Motivating: Generative Space — reports semantic triples per entity; [P9] Constraining: Homeostatic Self-Regulation — per-entity budget monitoring |
-| FR-M035 | `P3-mem-semantic-query-attribute` | `query_by_attribute()` | [P3] Motivating: Generative Space — queries shared triples by attribute; [P8] Constraining: Semantic Grounding — attribute-based recall expands context |
-| FR-M036 | `P3-mem-semantic-store-embedding` | `store_embedding()` | [P3] Motivating: Generative Space — indexes embedding vector for similarity retrieval; [P8] Constraining: Semantic Grounding — vector indexed by triple entity_ref |
-| FR-M037 | `P3-mem-semantic-search-similar` | `search_similar()` | [P3] Motivating: Generative Space — KNN search augments recall beyond exact matches; [P8] Constraining: Semantic Grounding — results ordered by embedding distance |
-| FR-M038 | `P3-mem-semantic-embedding-count` | `embedding_count()` | [P3] Motivating: Generative Space — reports indexed embedding count; [P9] Constraining: Homeostatic Self-Regulation — count used for embedding budget monitoring |
-| FR-M039 | `P3-mem-semantic-embedding-store` | `embedding_store()` | [P3] Motivating: Generative Space — exposes embedding store for advanced operations; [P5] Constraining: Essentialism — direct accessor avoids duplicate wrappers |
-| FR-M040 | `P3-mem-semantic-compute-centroid` | `compute_centroid()` | [P3] Motivating: Generative Space — computes mean style vector for corpus validation; [P8] Constraining: Semantic Grounding — arithmetic mean over matching embeddings |
-| FR-M041 | `P3-mem-semantic-purge-prefix` | `purge_by_prefix()` | [P3] Motivating: Generative Space — purges embeddings for idempotent re-ingest; [P5] Constraining: Essentialism — prefix-based deletion, count of successes returned |
-| FR-M042 | `P3-mem-semantic-chunk-text` | `chunk_text()` | [P3] Motivating: Generative Space — chunks text into passage-sized units for embedding; [P5] Constraining: Essentialism — paragraph/sentence boundary splitting with min/max words |
-| FR-M043 | `P3-mem-semantic-strip-gutenberg` | `strip_gutenberg_headers()` | [P3] Motivating: Generative Space — removes boilerplate for clean corpus ingestion; [P5] Constraining: Essentialism — marker-based trim, no regex |
-| FR-M044 | `P3-mem-semantic-delete-triple` | `delete_triple()` | [P3] Motivating: Generative Space — deletes semantic triple for budget enforcement or cleanup; [P9] Constraining: Homeostatic Self-Regulation — used by regulation loops to free space |
-| FR-M045 | `P3-mem-semantic-lowest-confidence` | `lowest_confidence_triples()` | [P3] Motivating: Generative Space — identifies lowest-confidence triples for pruning; [P9] Constraining: Homeostatic Self-Regulation — ordered by confidence and age |
-| FR-M046 | `P3-mem-semantic-low-confidence-count` | `low_confidence_count()` | [P3] Motivating: Generative Space — counts uncertain semantic triples; [P9] Constraining: Homeostatic Self-Regulation — threshold-driven count |
-| FR-M047 | `P3-mem-semantic-low-confidence-triples` | `low_confidence_triples()` | [P3] Motivating: Generative Space — retrieves uncertain semantic triples for review; [P9] Constraining: Homeostatic Self-Regulation — bounded by threshold and limit |
-| FR-M048 | `P3-mem-semantic-loop-new` | `new()` | [P3] Motivating: Generative Space — wraps semantic memory in a regulated knowledge loop; [P9] Constraining: Homeostatic Self-Regulation — default budget and low-confidence threshold are set-points |
-| FR-M049 | `P3-mem-semantic-loop-with-budget` | `with_budget()` | [P3] Motivating: Generative Space — customizes storage budget per user or agent; [P9] Constraining: Homeostatic Self-Regulation — configurable set-point for memory homeostasis |
-| FR-M050 | `P3-mem-semantic-loop-with-budget-threshold` | `with_budget_and_threshold()` | [P3] Motivating: Generative Space — customizes both budget and cleanup threshold; [P7] Constraining: Evolutionary Architecture — thresholds emerge from usage patterns |
-| FR-M051 | `P3-mem-semantic-loop-storage-budget` | `storage_budget()` | [P3] Motivating: Generative Space — exposes the semantic storage set-point; [P9] Constraining: Homeostatic Self-Regulation — immutable budget reference for regulation |
-| FR-M052 | `P3-mem-semantic-loop-low-confidence-threshold` | `low_confidence_threshold()` | [P3] Motivating: Generative Space — exposes the low-confidence cleanup set-point; [P9] Constraining: Homeostatic Self-Regulation — threshold triggers pruning of uncertain knowledge |
+| FR-M001 | `P3-mem-consolidation-bridge-new` | `new()` | [P3] Goal: Generative Space — bridges episodic experience into shared semantic memory; [P4] Constraining: Clear Boundaries — links stores without bypassing their membranes |
+| FR-M002 | `P3-mem-consolidation-bridge-consolidate` | `consolidate()` | [P3] Goal: Generative Space — promotes sovereign episodic triples to shared knowledge; [P1] Constraining: User Sovereignty — strips perspective only under Curator authority; [P4] Constraining: Clear Boundaries — requires ConsolidationToken from expected curator |
+| FR-M003 | `P3-mem-consolidation-candidate-count` | `consolidation_candidate_count()` | [P3] Goal: Generative Space — surfaces how much episodic content is ready for promotion; [P9] Constraining: Homeostatic Self-Regulation — count-only query avoids loading full store |
+| FR-M004 | `P3-mem-consolidation-service-new` | `new()` | [P3] Goal: Generative Space — user-facing entry point for memory consolidation and cleanup; [P4] Constraining: Clear Boundaries — requires Curator-issued ConsolidationToken |
+| FR-M005 | `P3-mem-consolidation-service-consolidate` | `consolidate()` | [P3] Goal: Generative Space — combines episodic promotion with semantic cleanup; [P9] Constraining: Homeostatic Self-Regulation — enforces confidence floor and max triple limits; [P4] Constraining: Clear Boundaries — delegates to token-gated bridge |
+| FR-M006 | `P3-mem-consolidation-service-candidate-count` | `consolidation_candidate_count()` | [P3] Goal: Generative Space — reports how many episodic triples can be promoted; [P9] Constraining: Homeostatic Self-Regulation — count-only, graceful degradation on error |
+| FR-M007 | `P3-mem-consolidation-service-low-confidence-count` | `semantic_low_confidence_count()` | [P3] Goal: Generative Space — reports low-confidence semantic triples for cleanup; [P9] Constraining: Homeostatic Self-Regulation — threshold-driven pruning signal |
+| FR-M008 | `P3-mem-consolidation-service-triple-count` | `semantic_triple_count()` | [P3] Goal: Generative Space — reports total semantic memory size; [P9] Constraining: Homeostatic Self-Regulation — count used for budget monitoring |
+| FR-M009 | `P3-mem-episodic-memory-new` | `new()` | [P3] Goal: Generative Space — creates a sovereign first-person experience store; [P9] Constraining: Homeostatic Self-Regulation — default decay and budget are regulation defaults |
+| FR-M010 | `P3-mem-episodic-store` | `store()` | [P3] Goal: Generative Space — stores a first-person experience triple; [P1] Constraining: User Sovereignty — rejects Public visibility (episodic is sovereign); [P4] Constraining: Clear Boundaries — requires perspective owner |
+| FR-M011 | `P3-mem-episodic-query-deduped` | `query_for_deduped()` | [P3] Goal: Generative Space — recalls deduplicated episodic triples for an entity; [P9] Constraining: Homeostatic Self-Regulation — applies confidence decay and temporal attention at recall |
+| FR-M012 | `P3-mem-episodic-storage-usage` | `storage_usage()` | [P3] Goal: Generative Space — reports episodic storage usage per perspective; [P9] Constraining: Homeostatic Self-Regulation — COUNT query avoids loading full store |
+| FR-M013 | `P3-mem-episodic-storage-budget` | `storage_budget()` | [P3] Goal: Generative Space — exposes the episodic storage set-point; [P9] Constraining: Homeostatic Self-Regulation — budget bounds per-agent experience growth |
+| FR-M014 | `P3-mem-episodic-candidate-count` | `consolidation_candidate_count()` | [P3] Goal: Generative Space — reports how many episodic triples are eligible for consolidation; [P9] Constraining: Homeostatic Self-Regulation — uses decayed confidence for prioritization |
+| FR-M015 | `P3-mem-episodic-loop-new` | `new()` | [P3] Goal: Generative Space — wraps episodic memory in a regulated generative loop; [P9] Constraining: Homeostatic Self-Regulation — storage_budget is the cybernetic set-point |
+| FR-M016 | `P3-mem-episodic-loop-with-consolidation` | `with_consolidation()` | [P3] Goal: Generative Space — enables promotion path when episodic budget is exceeded; [P9] Constraining: Homeostatic Self-Regulation — consolidation bridge fires only under token authority |
+| FR-M017 | `P3-mem-episodic-loop-storage-budget` | `storage_budget()` | [P3] Goal: Generative Space — exposes the generative budget set-point for context assembly; [P9] Constraining: Homeostatic Self-Regulation — budget value is immutable after construction |
+| FR-M018 | `P3-mem-ranking-rrf-score` | `rrf_score()` | [P3] Goal: Generative Space — fuses rank positions for context retrieval; [P8] Constraining: Semantic Grounding — reciprocal rank fusion is a standard ranking signal |
+| FR-M019 | `P3-mem-ranking-parse-age` | `parse_age_to_days()` | [P3] Goal: Generative Space — converts human-readable age strings into comparable temporal signals; [P5] Constraining: Essentialism — returns -1.0 for unparseable input, no exceptions |
+| FR-M020 | `P3-mem-ranking-normalize-date-bucket` | `normalize_date_bucket()` | [P3] Goal: Generative Space — buckets parsed age into human-readable recency labels; [P8] Constraining: Semantic Grounding — five fixed buckets preserve stable ordering |
+| FR-M021 | `P3-mem-recall-eav-hash` | `eav_hash()` | [P3] Goal: Generative Space — canonical recall dedup enables reuse of factual content across memory; [P8] Constraining: Semantic Grounding — deterministic BLAKE3 hash over canonical EAV content |
+| FR-M022 | `P3-mem-recall-dedup-triples` | `dedup_triples()` | [P3] Goal: Generative Space — deduplication preserves generative storage budget; [P5] Constraining: Essentialism — first-seen wins, no speculative retention policy |
+| FR-M023 | `P3-mem-salience-method-signals` | `compute_method_signals()` | [P3] Goal: Generative Space — extracts cheap stylometric signals for method-aware retrieval; [P8] Constraining: Semantic Grounding — signals are deterministic heuristics over raw text |
+| FR-M024 | `P3-mem-salience-declared-method-matches` | `matches()` | [P3] Goal: Generative Space — matches passage signals against declared method thresholds; [P8] Constraining: Semantic Grounding — unconfigured thresholds are always satisfied |
+| FR-M025 | `P3-mem-salience-tag-entities` | `tag_entities()` | [P3] Goal: Generative Space — tags passages with declared entities for the salience graph; [P8] Constraining: Semantic Grounding — case-insensitive substring matching |
+| FR-M026 | `P3-mem-salience-all-tags` | `all_tags()` | [P3] Goal: Generative Space — flattens entity categories for graph construction; [P5] Constraining: Essentialism — minimal iterator over existing vectors |
+| FR-M027 | `P3-mem-salience-tag-count` | `tag_count()` | [P3] Goal: Generative Space — counts distinct tags across all categories; [P5] Constraining: Essentialism — simple sum of category lengths |
+| FR-M028 | `P3-mem-salience-compute-batch` | `compute_salience_batch()` | [P3] Goal: Generative Space — scores passage salience to gate triple storage budget; [P9] Constraining: Homeostatic Self-Regulation — graph centrality bounded by neighbor sampling |
+| FR-M029 | `P3-mem-salience-budget-resolve` | `resolve()` | [P3] Goal: Generative Space — resolves passage count into absolute triple budget; [P9] Constraining: Homeostatic Self-Regulation — budget caps generative storage growth |
+| FR-M030 | `P3-mem-semantic-memory-new` | `new()` | [P3] Goal: Generative Space — creates shared semantic knowledge store; [P8] Constraining: Semantic Grounding — unifies triple and embedding stores |
+| FR-M031 | `P3-mem-semantic-query-deduped` | `query_deduped()` | [P3] Goal: Generative Space — recalls deduplicated public semantic triples; [P4] Constraining: Clear Boundaries — filters to Public visibility |
+| FR-M032 | `P3-mem-semantic-store` | `store()` | [P3] Goal: Generative Space — stores shared semantic triple; [P4] Constraining: Clear Boundaries — requires Public visibility and no perspective |
+| FR-M033 | `P3-mem-semantic-triple-count` | `triple_count()` | [P3] Goal: Generative Space — reports total shared knowledge triples; [P9] Constraining: Homeostatic Self-Regulation — count feeds storage budget loop |
+| FR-M034 | `P3-mem-semantic-triple-count-entity` | `triple_count_for_entity()` | [P3] Goal: Generative Space — reports semantic triples per entity; [P9] Constraining: Homeostatic Self-Regulation — per-entity budget monitoring |
+| FR-M035 | `P3-mem-semantic-query-attribute` | `query_by_attribute()` | [P3] Goal: Generative Space — queries shared triples by attribute; [P8] Constraining: Semantic Grounding — attribute-based recall expands context |
+| FR-M036 | `P3-mem-semantic-store-embedding` | `store_embedding()` | [P3] Goal: Generative Space — indexes embedding vector for similarity retrieval; [P8] Constraining: Semantic Grounding — vector indexed by triple entity_ref |
+| FR-M037 | `P3-mem-semantic-search-similar` | `search_similar()` | [P3] Goal: Generative Space — KNN search augments recall beyond exact matches; [P8] Constraining: Semantic Grounding — results ordered by embedding distance |
+| FR-M038 | `P3-mem-semantic-embedding-count` | `embedding_count()` | [P3] Goal: Generative Space — reports indexed embedding count; [P9] Constraining: Homeostatic Self-Regulation — count used for embedding budget monitoring |
+| FR-M039 | `P3-mem-semantic-embedding-store` | `embedding_store()` | [P3] Goal: Generative Space — exposes embedding store for advanced operations; [P5] Constraining: Essentialism — direct accessor avoids duplicate wrappers |
+| FR-M040 | `P3-mem-semantic-compute-centroid` | `compute_centroid()` | [P3] Goal: Generative Space — computes mean style vector for corpus validation; [P8] Constraining: Semantic Grounding — arithmetic mean over matching embeddings |
+| FR-M041 | `P3-mem-semantic-purge-prefix` | `purge_by_prefix()` | [P3] Goal: Generative Space — purges embeddings for idempotent re-ingest; [P5] Constraining: Essentialism — prefix-based deletion, count of successes returned |
+| FR-M042 | `P3-mem-semantic-chunk-text` | `chunk_text()` | [P3] Goal: Generative Space — chunks text into passage-sized units for embedding; [P5] Constraining: Essentialism — paragraph/sentence boundary splitting with min/max words |
+| FR-M043 | `P3-mem-semantic-strip-gutenberg` | `strip_gutenberg_headers()` | [P3] Goal: Generative Space — removes boilerplate for clean corpus ingestion; [P5] Constraining: Essentialism — marker-based trim, no regex |
+| FR-M044 | `P3-mem-semantic-delete-triple` | `delete_triple()` | [P3] Goal: Generative Space — deletes semantic triple for budget enforcement or cleanup; [P9] Constraining: Homeostatic Self-Regulation — used by regulation loops to free space |
+| FR-M045 | `P3-mem-semantic-lowest-confidence` | `lowest_confidence_triples()` | [P3] Goal: Generative Space — identifies lowest-confidence triples for pruning; [P9] Constraining: Homeostatic Self-Regulation — ordered by confidence and age |
+| FR-M046 | `P3-mem-semantic-low-confidence-count` | `low_confidence_count()` | [P3] Goal: Generative Space — counts uncertain semantic triples; [P9] Constraining: Homeostatic Self-Regulation — threshold-driven count |
+| FR-M047 | `P3-mem-semantic-low-confidence-triples` | `low_confidence_triples()` | [P3] Goal: Generative Space — retrieves uncertain semantic triples for review; [P9] Constraining: Homeostatic Self-Regulation — bounded by threshold and limit |
+| FR-M048 | `P3-mem-semantic-loop-new` | `new()` | [P3] Goal: Generative Space — wraps semantic memory in a regulated knowledge loop; [P9] Constraining: Homeostatic Self-Regulation — default budget and low-confidence threshold are set-points |
+| FR-M049 | `P3-mem-semantic-loop-with-budget` | `with_budget()` | [P3] Goal: Generative Space — customizes storage budget per user or agent; [P9] Constraining: Homeostatic Self-Regulation — configurable set-point for memory homeostasis |
+| FR-M050 | `P3-mem-semantic-loop-with-budget-threshold` | `with_budget_and_threshold()` | [P3] Goal: Generative Space — customizes both budget and cleanup threshold; [P7] Constraining: Evolutionary Architecture — thresholds emerge from usage patterns |
+| FR-M051 | `P3-mem-semantic-loop-storage-budget` | `storage_budget()` | [P3] Goal: Generative Space — exposes the semantic storage set-point; [P9] Constraining: Homeostatic Self-Regulation — immutable budget reference for regulation |
+| FR-M052 | `P3-mem-semantic-loop-low-confidence-threshold` | `low_confidence_threshold()` | [P3] Goal: Generative Space — exposes the low-confidence cleanup set-point; [P9] Constraining: Homeostatic Self-Regulation — threshold triggers pruning of uncertain knowledge |
 
 #### Test Contracts (16 unique IDs)
 
@@ -526,7 +528,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 ### 3.4 Inference (`hkask-inference`)
 
-**Motivating Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — provider membrane)
+**Goal Principles:** P9 (Homeostatic Self-Regulation) + P4 (Clear Boundaries — provider membrane)
 **Crate:** `hkask-inference` | **Sources:** `src/*.rs`, `tests/*.rs`
 
 **63 production contracts** + **31 test contracts**.
@@ -535,64 +537,64 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-I001 | `P9-inf-build-chat-request` | `build_chat_request()` | [P9] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload |
-| FR-I002 | `P9-inf-map-tool-calls` | `map_tool_calls()` | [P9] Motivating: Homeostatic Self-Regulation — structured tool-call results for routing |
-| FR-I003 | `P9-inf-map-token-probs` | `map_token_probs()` | [P9] Motivating: Homeostatic Self-Regulation — token probability metadata for monitoring |
-| FR-I004 | `P9-inf-chat-response-to-result` | `chat_response_to_result()` | [P9] Motivating: Homeostatic Self-Regulation — normalizes provider response for monitoring |
-| FR-I005 | `P9-inf-parse-sse-stream` | `parse_sse_stream()` | [P9] Motivating: Homeostatic Self-Regulation — parses streaming response chunks for regulated output |
-| FR-I006 | `P9-inf-validate-prompt` | `validate_prompt()` | [P9] Motivating: Homeostatic Self-Regulation — input validation prevents token overconsumption |
-| FR-I007 | `P9-inf-parse-provider-from-model` | `parse_from_model()` | [P9] Motivating: Homeostatic Self-Regulation — model-name routing to provider boundary |
-| FR-I008 | `P9-inf-prefix-model` | `prefix_model()` | [P9] Motivating: Homeostatic Self-Regulation — canonical provider-prefixed model naming |
-| FR-I009 | `P9-inf-provider-as-str` | `as_str()` | [P9] Motivating: Homeostatic Self-Regulation — stable provider code for routing |
-| FR-I010 | `P9-inf-config-from-env` | `from_env()` | [P9] Motivating: Homeostatic Self-Regulation — inference configuration resolved from environment |
-| FR-I011 | `P9-inf-build-http-client` | `build_client()` | [P9] Motivating: Homeostatic Self-Regulation — bounded HTTP client for regulated requests |
-| FR-I012 | `P4-inf-deepinfra-backend-new` | `new()` | [P4] Motivating: Clear Boundaries — DeepInfra provider membrane requires valid API key |
-| FR-I013 | `P9-inf-deepinfra-generate` | `generate()` | [P9] Motivating: Homeostatic Self-Regulation — regulated text generation |
-| FR-I014 | `P9-inf-deepinfra-generate-vision` | `generate_vision()` | [P9] Motivating: Homeostatic Self-Regulation — regulated multimodal generation |
-| FR-I015 | `P9-inf-deepinfra-generate-stream` | `generate_stream()` | [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation |
-| FR-I016 | `P9-inf-deepinfra-list-models` | `list_models()` | [P9] Motivating: Homeostatic Self-Regulation — model variety discovery with freshness filter |
-| FR-I017 | `P9-inf-deepinfra-remove-background` | `remove_background()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image transformation |
-| FR-I018 | `P9-inf-deepinfra-generate-image` | `generate_image()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image generation |
-| FR-I019 | `P9-inf-deepinfra-image-to-image` | `image_to_image()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image editing |
-| FR-I020 | `P9-inf-deepinfra-generate-speech` | `generate_speech()` | [P9] Motivating: Homeostatic Self-Regulation — regulated speech synthesis |
-| FR-I021 | `P9-inf-deepinfra-transcribe` | `transcribe()` | [P9] Motivating: Homeostatic Self-Regulation — regulated speech transcription |
-| FR-I022 | `P4-inf-embedding-router-new` | `new()` | [P4] Motivating: Clear Boundaries — embedding provider membrane gated by API key |
-| FR-I023 | `P9-inf-embed-sentences` | `embed_sentences()` | [P9] Motivating: Homeostatic Self-Regulation — regulated batch embedding generation |
-| FR-I024 | `P9-inf-embed-sentence` | `embed_sentence()` | [P9] Motivating: Homeostatic Self-Regulation — regulated single embedding generation |
-| FR-I025 | `P4-inf-fal-backend-new` | `new()` | [P4] Motivating: Clear Boundaries — fal.ai provider membrane requires valid API key |
-| FR-I026 | `P9-inf-fal-generate` | `generate()` | [P9] Motivating: Homeostatic Self-Regulation — regulated text generation |
-| FR-I027 | `P9-inf-fal-generate-vision` | `generate_vision()` | [P9] Motivating: Homeostatic Self-Regulation — regulated multimodal generation |
-| FR-I028 | `P9-inf-fal-generate-stream` | `generate_stream()` | [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation |
-| FR-I029 | `P9-inf-fal-list-models` | `list_models()` | [P9] Motivating: Homeostatic Self-Regulation — static model catalog for variety |
-| FR-I030 | `P9-inf-fal-generate-image` | `generate_image()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image generation |
-| FR-I031 | `P9-inf-fal-image-to-image` | `image_to_image()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image editing |
-| FR-I032 | `P9-inf-fal-remove-background` | `remove_background()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image transformation |
-| FR-I033 | `P9-inf-fal-upscale` | `upscale()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image upscaling |
-| FR-I034 | `P9-inf-fal-generate-video` | `generate_video()` | [P9] Motivating: Homeostatic Self-Regulation — regulated video generation |
-| FR-I035 | `P9-inf-fal-image-to-video` | `image_to_video()` | [P9] Motivating: Homeostatic Self-Regulation — regulated video generation |
-| FR-I036 | `P9-inf-fal-segment-object` | `segment_object()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image segmentation |
-| FR-I037 | `P9-inf-fal-generate-speech` | `generate_speech()` | [P9] Motivating: Homeostatic Self-Regulation — regulated speech synthesis |
-| FR-I038 | `P9-inf-fal-transcribe` | `transcribe()` | [P9] Motivating: Homeostatic Self-Regulation — regulated speech transcription |
-| FR-I039 | `P4-inf-inference-router-new` | `new()` | [P4] Motivating: Clear Boundaries — multi-provider membrane assembled from configured boundaries |
-| FR-I040 | `P9-inf-router-list-models` | `list_models()` | [P9] Motivating: Homeostatic Self-Regulation — aggregated model variety across providers |
-| FR-I041 | `P9-inf-router-search-models` | `search_models()` | [P9] Motivating: Homeostatic Self-Regulation — searchable model catalog for routing |
-| FR-I042 | `P9-inf-router-list-vision-models` | `list_vision_models()` | [P9] Motivating: Homeostatic Self-Regulation — vision-capable model discovery |
-| FR-I043 | `P9-inf-router-generate-vision` | `generate_vision()` | [P9] Motivating: Homeostatic Self-Regulation — regulated multimodal dispatch |
-| FR-I044 | `P9-inf-router-generate-image` | `generate_image()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image generation dispatch |
-| FR-I045 | `P9-inf-router-image-to-image` | `image_to_image()` | [P9] Motivating: Homeostatic Self-Regulation — regulated image editing dispatch |
-| FR-I046 | `P9-inf-router-remove-background` | `remove_background()` | [P9] Motivating: Homeostatic Self-Regulation — regulated background removal dispatch |
-| FR-I047 | `P9-inf-router-upscale` | `upscale()` | [P9] Motivating: Homeostatic Self-Regulation — regulated upscaling dispatch |
-| FR-I048 | `P9-inf-router-generate-video` | `generate_video()` | [P9] Motivating: Homeostatic Self-Regulation — regulated video generation dispatch |
-| FR-I049 | `P9-inf-router-image-to-video` | `image_to_video()` | [P9] Motivating: Homeostatic Self-Regulation — regulated video generation dispatch |
-| FR-I050 | `P9-inf-router-generate-speech` | `generate_speech()` | [P9] Motivating: Homeostatic Self-Regulation — regulated speech synthesis dispatch |
-| FR-I051 | `P9-inf-router-segment-object` | `segment_object()` | [P9] Motivating: Homeostatic Self-Regulation — regulated segmentation dispatch |
-| FR-I052 | `P9-inf-router-transcribe` | `transcribe()` | [P9] Motivating: Homeostatic Self-Regulation — regulated transcription dispatch |
-| FR-I053 | `P9-inf-router-embed-text` | `embed_text()` | [P9] Motivating: Homeostatic Self-Regulation — placeholder for regulated embedding dispatch |
-| FR-I054 | `P9-inf-infer-vision-support` | `infer_vision_support()` | [P9] Motivating: Homeostatic Self-Regulation — heuristic routing for multimodal models |
-| FR-I055 | `P4-inf-together-backend-new` | `new()` | [P4] Motivating: Clear Boundaries — Together AI provider membrane requires valid API key |
-| FR-I056 | `P9-inf-together-generate` | `generate()` | [P9] Motivating: Homeostatic Self-Regulation — regulated text generation |
-| FR-I057 | `P9-inf-together-generate-stream` | `generate_stream()` | [P9] Motivating: Homeostatic Self-Regulation — regulated streaming text generation |
-| FR-I058 | `P9-inf-together-list-models` | `list_models()` | [P9] Motivating: Homeostatic Self-Regulation — model variety discovery |
+| FR-I001 | `P9-inf-build-chat-request` | `build_chat_request()` | [P9] Goal: Homeostatic Self-Regulation — constructs regulated LLM request payload |
+| FR-I002 | `P9-inf-map-tool-calls` | `map_tool_calls()` | [P9] Goal: Homeostatic Self-Regulation — structured tool-call results for routing |
+| FR-I003 | `P9-inf-map-token-probs` | `map_token_probs()` | [P9] Goal: Homeostatic Self-Regulation — token probability metadata for monitoring |
+| FR-I004 | `P9-inf-chat-response-to-result` | `chat_response_to_result()` | [P9] Goal: Homeostatic Self-Regulation — normalizes provider response for monitoring |
+| FR-I005 | `P9-inf-parse-sse-stream` | `parse_sse_stream()` | [P9] Goal: Homeostatic Self-Regulation — parses streaming response chunks for regulated output |
+| FR-I006 | `P9-inf-validate-prompt` | `validate_prompt()` | [P9] Goal: Homeostatic Self-Regulation — input validation prevents token overconsumption |
+| FR-I007 | `P9-inf-parse-provider-from-model` | `parse_from_model()` | [P9] Goal: Homeostatic Self-Regulation — model-name routing to provider boundary |
+| FR-I008 | `P9-inf-prefix-model` | `prefix_model()` | [P9] Goal: Homeostatic Self-Regulation — canonical provider-prefixed model naming |
+| FR-I009 | `P9-inf-provider-as-str` | `as_str()` | [P9] Goal: Homeostatic Self-Regulation — stable provider code for routing |
+| FR-I010 | `P9-inf-config-from-env` | `from_env()` | [P9] Goal: Homeostatic Self-Regulation — inference configuration resolved from environment |
+| FR-I011 | `P9-inf-build-http-client` | `build_client()` | [P9] Goal: Homeostatic Self-Regulation — bounded HTTP client for regulated requests |
+| FR-I012 | `P4-inf-deepinfra-backend-new` | `new()` | [P4] Goal: Clear Boundaries — DeepInfra provider membrane requires valid API key |
+| FR-I013 | `P9-inf-deepinfra-generate` | `generate()` | [P9] Goal: Homeostatic Self-Regulation — regulated text generation |
+| FR-I014 | `P9-inf-deepinfra-generate-vision` | `generate_vision()` | [P9] Goal: Homeostatic Self-Regulation — regulated multimodal generation |
+| FR-I015 | `P9-inf-deepinfra-generate-stream` | `generate_stream()` | [P9] Goal: Homeostatic Self-Regulation — regulated streaming text generation |
+| FR-I016 | `P9-inf-deepinfra-list-models` | `list_models()` | [P9] Goal: Homeostatic Self-Regulation — model variety discovery with freshness filter |
+| FR-I017 | `P9-inf-deepinfra-remove-background` | `remove_background()` | [P9] Goal: Homeostatic Self-Regulation — regulated image transformation |
+| FR-I018 | `P9-inf-deepinfra-generate-image` | `generate_image()` | [P9] Goal: Homeostatic Self-Regulation — regulated image generation |
+| FR-I019 | `P9-inf-deepinfra-image-to-image` | `image_to_image()` | [P9] Goal: Homeostatic Self-Regulation — regulated image editing |
+| FR-I020 | `P9-inf-deepinfra-generate-speech` | `generate_speech()` | [P9] Goal: Homeostatic Self-Regulation — regulated speech synthesis |
+| FR-I021 | `P9-inf-deepinfra-transcribe` | `transcribe()` | [P9] Goal: Homeostatic Self-Regulation — regulated speech transcription |
+| FR-I022 | `P4-inf-embedding-router-new` | `new()` | [P4] Goal: Clear Boundaries — embedding provider membrane gated by API key |
+| FR-I023 | `P9-inf-embed-sentences` | `embed_sentences()` | [P9] Goal: Homeostatic Self-Regulation — regulated batch embedding generation |
+| FR-I024 | `P9-inf-embed-sentence` | `embed_sentence()` | [P9] Goal: Homeostatic Self-Regulation — regulated single embedding generation |
+| FR-I025 | `P4-inf-fal-backend-new` | `new()` | [P4] Goal: Clear Boundaries — fal.ai provider membrane requires valid API key |
+| FR-I026 | `P9-inf-fal-generate` | `generate()` | [P9] Goal: Homeostatic Self-Regulation — regulated text generation |
+| FR-I027 | `P9-inf-fal-generate-vision` | `generate_vision()` | [P9] Goal: Homeostatic Self-Regulation — regulated multimodal generation |
+| FR-I028 | `P9-inf-fal-generate-stream` | `generate_stream()` | [P9] Goal: Homeostatic Self-Regulation — regulated streaming text generation |
+| FR-I029 | `P9-inf-fal-list-models` | `list_models()` | [P9] Goal: Homeostatic Self-Regulation — static model catalog for variety |
+| FR-I030 | `P9-inf-fal-generate-image` | `generate_image()` | [P9] Goal: Homeostatic Self-Regulation — regulated image generation |
+| FR-I031 | `P9-inf-fal-image-to-image` | `image_to_image()` | [P9] Goal: Homeostatic Self-Regulation — regulated image editing |
+| FR-I032 | `P9-inf-fal-remove-background` | `remove_background()` | [P9] Goal: Homeostatic Self-Regulation — regulated image transformation |
+| FR-I033 | `P9-inf-fal-upscale` | `upscale()` | [P9] Goal: Homeostatic Self-Regulation — regulated image upscaling |
+| FR-I034 | `P9-inf-fal-generate-video` | `generate_video()` | [P9] Goal: Homeostatic Self-Regulation — regulated video generation |
+| FR-I035 | `P9-inf-fal-image-to-video` | `image_to_video()` | [P9] Goal: Homeostatic Self-Regulation — regulated video generation |
+| FR-I036 | `P9-inf-fal-segment-object` | `segment_object()` | [P9] Goal: Homeostatic Self-Regulation — regulated image segmentation |
+| FR-I037 | `P9-inf-fal-generate-speech` | `generate_speech()` | [P9] Goal: Homeostatic Self-Regulation — regulated speech synthesis |
+| FR-I038 | `P9-inf-fal-transcribe` | `transcribe()` | [P9] Goal: Homeostatic Self-Regulation — regulated speech transcription |
+| FR-I039 | `P4-inf-inference-router-new` | `new()` | [P4] Goal: Clear Boundaries — multi-provider membrane assembled from configured boundaries |
+| FR-I040 | `P9-inf-router-list-models` | `list_models()` | [P9] Goal: Homeostatic Self-Regulation — aggregated model variety across providers |
+| FR-I041 | `P9-inf-router-search-models` | `search_models()` | [P9] Goal: Homeostatic Self-Regulation — searchable model catalog for routing |
+| FR-I042 | `P9-inf-router-list-vision-models` | `list_vision_models()` | [P9] Goal: Homeostatic Self-Regulation — vision-capable model discovery |
+| FR-I043 | `P9-inf-router-generate-vision` | `generate_vision()` | [P9] Goal: Homeostatic Self-Regulation — regulated multimodal dispatch |
+| FR-I044 | `P9-inf-router-generate-image` | `generate_image()` | [P9] Goal: Homeostatic Self-Regulation — regulated image generation dispatch |
+| FR-I045 | `P9-inf-router-image-to-image` | `image_to_image()` | [P9] Goal: Homeostatic Self-Regulation — regulated image editing dispatch |
+| FR-I046 | `P9-inf-router-remove-background` | `remove_background()` | [P9] Goal: Homeostatic Self-Regulation — regulated background removal dispatch |
+| FR-I047 | `P9-inf-router-upscale` | `upscale()` | [P9] Goal: Homeostatic Self-Regulation — regulated upscaling dispatch |
+| FR-I048 | `P9-inf-router-generate-video` | `generate_video()` | [P9] Goal: Homeostatic Self-Regulation — regulated video generation dispatch |
+| FR-I049 | `P9-inf-router-image-to-video` | `image_to_video()` | [P9] Goal: Homeostatic Self-Regulation — regulated video generation dispatch |
+| FR-I050 | `P9-inf-router-generate-speech` | `generate_speech()` | [P9] Goal: Homeostatic Self-Regulation — regulated speech synthesis dispatch |
+| FR-I051 | `P9-inf-router-segment-object` | `segment_object()` | [P9] Goal: Homeostatic Self-Regulation — regulated segmentation dispatch |
+| FR-I052 | `P9-inf-router-transcribe` | `transcribe()` | [P9] Goal: Homeostatic Self-Regulation — regulated transcription dispatch |
+| FR-I053 | `P9-inf-router-embed-text` | `embed_text()` | [P9] Goal: Homeostatic Self-Regulation — placeholder for regulated embedding dispatch |
+| FR-I054 | `P9-inf-infer-vision-support` | `infer_vision_support()` | [P9] Goal: Homeostatic Self-Regulation — heuristic routing for multimodal models |
+| FR-I055 | `P4-inf-together-backend-new` | `new()` | [P4] Goal: Clear Boundaries — Together AI provider membrane requires valid API key |
+| FR-I056 | `P9-inf-together-generate` | `generate()` | [P9] Goal: Homeostatic Self-Regulation — regulated text generation |
+| FR-I057 | `P9-inf-together-generate-stream` | `generate_stream()` | [P9] Goal: Homeostatic Self-Regulation — regulated streaming text generation |
+| FR-I058 | `P9-inf-together-list-models` | `list_models()` | [P9] Goal: Homeostatic Self-Regulation — model variety discovery |
 
 #### Test Contracts
 
@@ -633,7 +635,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 ### 3.5 Templates (`hkask-templates`)
 
-**Motivating Principle:** P3 (Generative Space) — template registry, vocabulary, and execution substrate
+**Goal Principle:** P3 (Generative Space) — template registry, vocabulary, and execution substrate
 **Crate:** `hkask-templates` | **Sources:** `src/*.rs`, `tests/*.rs`
 
 **53 production contracts** + **25 test contracts**.
@@ -642,50 +644,50 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-T001 | `P3-tpl-capability-validator-new` | `new()` | [P3] Motivating: Generative Space — registration-time OCAP gate for template capabilities; [P4] Constraining: Clear Boundaries — validator establishes capability boundary |
-| FR-T002 | `P3-tpl-validate-capabilities` | `validate_capabilities()` | [P3] Motivating: Generative Space — checks template capability requirements against held tokens; [P4] Constraining: Clear Boundaries — action hierarchy enforcement (Execute ≥ Write ≥ Read) |
-| FR-T003 | `P3-tpl-contract-validator-new` | `new()` | [P3] Motivating: Generative Space — passthrough validator for unconstrained registration; [P4] Constraining: Clear Boundaries — default Warn mode allows registration |
-    | FR-T004 | `P3-tpl-contract-validator-with-mode` | `with_mode()` | [P3] Motivating: Generative Space — configures validation strictness |
-    | FR-T005 | `P3-tpl-contract-validator-validate-terms` | `validate_terms()` | [P3] Motivating: Generative Space — declaration consistency passthrough |
-| FR-T007 | `P3-tpl-manifest-executor-new` | `new()` | [P3] Motivating: Generative Space — executor for template manifest cascades; [P4] Constraining: Clear Boundaries — requires ACP secret for delegation |
-| FR-T006 | `P3-tpl-resolve-manifest` | `resolve_manifest()` | [P3] Motivating: Generative Space — resolves template manifest references; [P8] Constraining: Semantic Grounding — manifest terms validated against lexicon |
-| FR-T015 | `P3-tpl-prompt-strategy-from-input` | `from_input()` | [P3] Motivating: Generative Space — constructs prompt strategy from user input |
-| FR-T016 | `P3-tpl-prompt-strategy-frame` | `frame()` | [P3] Motivating: Generative Space — frames prompt for a strategy step |
-| FR-T017 | `P3-tpl-prompt-strategy-name` | `name()` | [P3] Motivating: Generative Space — names the selected strategy |
-| FR-T018 | `P3-tpl-registry-new` | `new()` | [P3] Motivating: Generative Space — in-memory template registry |
-| FR-T013 | `P3-tpl-registry-reload` | `reload()` | [P3] Motivating: Generative Space — refreshes registry from filesystem |
-| FR-T021 | `P3-tpl-registry-validate-template-path` | `validate_template_path()` | [P3] Motivating: Generative Space — path safety for template discovery; [P4] Constraining: Clear Boundaries — rejects paths outside template root |
-| FR-T022 | `P3-tpl-registry-register` | `register()` | [P3] Motivating: Generative Space — registers a template in the registry |
-| FR-T023 | `P3-tpl-registry-get` | `get()` | [P3] Motivating: Generative Space — retrieves a registered template |
-| FR-T024 | `P3-tpl-registry-count` | `count()` | [P3] Motivating: Generative Space — reports registry size |
-| FR-T025 | `P3-tpl-registry-list-skills` | `list_skills()` | [P3] Motivating: Generative Space — lists registered skills |
-| FR-T026 | `P3-tpl-registry-list-skills-by-visibility` | `list_skills_by_visibility()` | [P3] Motivating: Generative Space — visibility-filtered skill listing |
-| FR-T027 | `P3-tpl-registry-remove-skill` | `remove_skill()` | [P3] Motivating: Generative Space — removes a skill from registry |
-| FR-T028 | `P3-tpl-registry-register-skill` | `register_skill()` | [P3] Motivating: Generative Space — registers a skill with metadata |
-| FR-T029 | `P3-tpl-registry-get-skill` | `get_skill()` | [P3] Motivating: Generative Space — retrieves skill metadata |
-| FR-T030 | `P3-tpl-registry-skills-by-domain` | `skills_by_domain()` | [P3] Motivating: Generative Space — domain-filtered skill listing |
-| FR-T031 | `P3-tpl-registry-skills-referencing-template` | `skills_referencing_template()` | [P3] Motivating: Generative Space — reverse skill lookup by template |
-| FR-T032 | `P3-tpl-registry-register-bundle` | `register_bundle()` | [P3] Motivating: Generative Space — registers a skill bundle |
-| FR-T033 | `P3-tpl-registry-get-bundle` | `get_bundle()` | [P3] Motivating: Generative Space — retrieves a skill bundle |
-| FR-T034 | `P3-tpl-registry-list-bundles` | `list_bundles()` | [P3] Motivating: Generative Space — lists registered bundles |
-| FR-T035 | `P3-tpl-registry-remove-bundle` | `remove_bundle()` | [P3] Motivating: Generative Space — removes a bundle |
-| FR-T036 | `P3-tpl-registry-find-bundle-by-skills` | `find_bundle_by_skills()` | [P3] Motivating: Generative Space — finds bundle matching skill set |
-| FR-T037 | `P3-tpl-registry-bootstrap` | `bootstrap()` | [P3] Motivating: Generative Space — seeds registry from workspace templates |
-| FR-T038 | `P3-tpl-registry-sqlite-new` | `new()` | [P3] Motivating: Generative Space — SQLite-backed template registry |
-| FR-T039 | `P3-tpl-registry-sqlite-new-with-conn` | `new_with_conn()` | [P3] Motivating: Generative Space — SQLite registry from existing connection |
-| FR-T040 | `P3-tpl-registry-sqlite-register` | `register()` | [P3] Motivating: Generative Space — persists template registration |
-| FR-T042 | `P3-tpl-registry-sqlite-get-entry` | `get_entry()` | [P3] Motivating: Generative Space — retrieves persisted template entry |
-| FR-T043 | `P3-tpl-registry-sqlite-delete-entry` | `delete_entry()` | [P3] Motivating: Generative Space — removes persisted template entry |
-| FR-T034 | `P3-tpl-registry-sqlite-search-by-lexicon` | `search_by_lexicon()` | [P3] Motivating: Generative Space — vocabulary-aware template search; [P8] Constraining: Semantic Grounding — search uses lexicon terms |
-| FR-T045 | `P3-tpl-registry-sqlite-count` | `count()` | [P3] Motivating: Generative Space — reports persisted registry size |
-| FR-T046 | `P3-tpl-registry-sqlite-get-skill-owned` | `get_skill_owned()` | [P3] Motivating: Generative Space — retrieves owned skill record |
-| FR-T047 | `P3-tpl-registry-sqlite-list-skills-owned` | `list_skills_owned()` | [P3] Motivating: Generative Space — lists owned skill records |
-| FR-T048 | `P3-tpl-registry-sqlite-skills-by-domain-owned` | `skills_by_domain_owned()` | [P3] Motivating: Generative Space — domain-filtered owned skill listing |
-| FR-T049 | `P3-tpl-registry-sqlite-skills-referencing-template-owned` | `skills_referencing_template_owned()` | [P3] Motivating: Generative Space — reverse owned skill lookup |
-| FR-T050 | `P3-tpl-skill-loader-new` | `new()` | [P3] Motivating: Generative Space — loader for skill registry entries |
-| FR-T051 | `P3-tpl-skill-loader-load-into` | `load_into()` | [P3] Motivating: Generative Space — loads skill into registry |
-| FR-T052 | `P3-tpl-skill-loader-infer-domain` | `infer_domain_from_registry()` | [P3] Motivating: Generative Space — infers skill domain from registry contents |
-| FR-T053 | `P3-tpl-skill-loader-parse-front-matter` | `parse_front_matter()` | [P3] Motivating: Generative Space — parses skill front matter metadata |
+| FR-T001 | `P3-tpl-capability-validator-new` | `new()` | [P3] Goal: Generative Space — registration-time OCAP gate for template capabilities; [P4] Constraining: Clear Boundaries — validator establishes capability boundary |
+| FR-T002 | `P3-tpl-validate-capabilities` | `validate_capabilities()` | [P3] Goal: Generative Space — checks template capability requirements against held tokens; [P4] Constraining: Clear Boundaries — action hierarchy enforcement (Execute ≥ Write ≥ Read) |
+| FR-T003 | `P3-tpl-contract-validator-new` | `new()` | [P3] Goal: Generative Space — passthrough validator for unconstrained registration; [P4] Constraining: Clear Boundaries — default Warn mode allows registration |
+    | FR-T004 | `P3-tpl-contract-validator-with-mode` | `with_mode()` | [P3] Goal: Generative Space — configures validation strictness |
+    | FR-T005 | `P3-tpl-contract-validator-validate-terms` | `validate_terms()` | [P3] Goal: Generative Space — declaration consistency passthrough |
+| FR-T007 | `P3-tpl-manifest-executor-new` | `new()` | [P3] Goal: Generative Space — executor for template manifest cascades; [P4] Constraining: Clear Boundaries — requires ACP secret for delegation |
+| FR-T006 | `P3-tpl-resolve-manifest` | `resolve_manifest()` | [P3] Goal: Generative Space — resolves template manifest references; [P8] Constraining: Semantic Grounding — manifest terms validated against lexicon |
+| FR-T015 | `P3-tpl-prompt-strategy-from-input` | `from_input()` | [P3] Goal: Generative Space — constructs prompt strategy from user input |
+| FR-T016 | `P3-tpl-prompt-strategy-frame` | `frame()` | [P3] Goal: Generative Space — frames prompt for a strategy step |
+| FR-T017 | `P3-tpl-prompt-strategy-name` | `name()` | [P3] Goal: Generative Space — names the selected strategy |
+| FR-T018 | `P3-tpl-registry-new` | `new()` | [P3] Goal: Generative Space — in-memory template registry |
+| FR-T013 | `P3-tpl-registry-reload` | `reload()` | [P3] Goal: Generative Space — refreshes registry from filesystem |
+| FR-T021 | `P3-tpl-registry-validate-template-path` | `validate_template_path()` | [P3] Goal: Generative Space — path safety for template discovery; [P4] Constraining: Clear Boundaries — rejects paths outside template root |
+| FR-T022 | `P3-tpl-registry-register` | `register()` | [P3] Goal: Generative Space — registers a template in the registry |
+| FR-T023 | `P3-tpl-registry-get` | `get()` | [P3] Goal: Generative Space — retrieves a registered template |
+| FR-T024 | `P3-tpl-registry-count` | `count()` | [P3] Goal: Generative Space — reports registry size |
+| FR-T025 | `P3-tpl-registry-list-skills` | `list_skills()` | [P3] Goal: Generative Space — lists registered skills |
+| FR-T026 | `P3-tpl-registry-list-skills-by-visibility` | `list_skills_by_visibility()` | [P3] Goal: Generative Space — visibility-filtered skill listing |
+| FR-T027 | `P3-tpl-registry-remove-skill` | `remove_skill()` | [P3] Goal: Generative Space — removes a skill from registry |
+| FR-T028 | `P3-tpl-registry-register-skill` | `register_skill()` | [P3] Goal: Generative Space — registers a skill with metadata |
+| FR-T029 | `P3-tpl-registry-get-skill` | `get_skill()` | [P3] Goal: Generative Space — retrieves skill metadata |
+| FR-T030 | `P3-tpl-registry-skills-by-domain` | `skills_by_domain()` | [P3] Goal: Generative Space — domain-filtered skill listing |
+| FR-T031 | `P3-tpl-registry-skills-referencing-template` | `skills_referencing_template()` | [P3] Goal: Generative Space — reverse skill lookup by template |
+| FR-T032 | `P3-tpl-registry-register-bundle` | `register_bundle()` | [P3] Goal: Generative Space — registers a skill bundle |
+| FR-T033 | `P3-tpl-registry-get-bundle` | `get_bundle()` | [P3] Goal: Generative Space — retrieves a skill bundle |
+| FR-T034 | `P3-tpl-registry-list-bundles` | `list_bundles()` | [P3] Goal: Generative Space — lists registered bundles |
+| FR-T035 | `P3-tpl-registry-remove-bundle` | `remove_bundle()` | [P3] Goal: Generative Space — removes a bundle |
+| FR-T036 | `P3-tpl-registry-find-bundle-by-skills` | `find_bundle_by_skills()` | [P3] Goal: Generative Space — finds bundle matching skill set |
+| FR-T037 | `P3-tpl-registry-bootstrap` | `bootstrap()` | [P3] Goal: Generative Space — seeds registry from workspace templates |
+| FR-T038 | `P3-tpl-registry-sqlite-new` | `new()` | [P3] Goal: Generative Space — SQLite-backed template registry |
+| FR-T039 | `P3-tpl-registry-sqlite-new-with-conn` | `new_with_conn()` | [P3] Goal: Generative Space — SQLite registry from existing connection |
+| FR-T040 | `P3-tpl-registry-sqlite-register` | `register()` | [P3] Goal: Generative Space — persists template registration |
+| FR-T042 | `P3-tpl-registry-sqlite-get-entry` | `get_entry()` | [P3] Goal: Generative Space — retrieves persisted template entry |
+| FR-T043 | `P3-tpl-registry-sqlite-delete-entry` | `delete_entry()` | [P3] Goal: Generative Space — removes persisted template entry |
+| FR-T034 | `P3-tpl-registry-sqlite-search-by-lexicon` | `search_by_lexicon()` | [P3] Goal: Generative Space — vocabulary-aware template search; [P8] Constraining: Semantic Grounding — search uses lexicon terms |
+| FR-T045 | `P3-tpl-registry-sqlite-count` | `count()` | [P3] Goal: Generative Space — reports persisted registry size |
+| FR-T046 | `P3-tpl-registry-sqlite-get-skill-owned` | `get_skill_owned()` | [P3] Goal: Generative Space — retrieves owned skill record |
+| FR-T047 | `P3-tpl-registry-sqlite-list-skills-owned` | `list_skills_owned()` | [P3] Goal: Generative Space — lists owned skill records |
+| FR-T048 | `P3-tpl-registry-sqlite-skills-by-domain-owned` | `skills_by_domain_owned()` | [P3] Goal: Generative Space — domain-filtered owned skill listing |
+| FR-T049 | `P3-tpl-registry-sqlite-skills-referencing-template-owned` | `skills_referencing_template_owned()` | [P3] Goal: Generative Space — reverse owned skill lookup |
+| FR-T050 | `P3-tpl-skill-loader-new` | `new()` | [P3] Goal: Generative Space — loader for skill registry entries |
+| FR-T051 | `P3-tpl-skill-loader-load-into` | `load_into()` | [P3] Goal: Generative Space — loads skill into registry |
+| FR-T052 | `P3-tpl-skill-loader-infer-domain` | `infer_domain_from_registry()` | [P3] Goal: Generative Space — infers skill domain from registry contents |
+| FR-T053 | `P3-tpl-skill-loader-parse-front-matter` | `parse_front_matter()` | [P3] Goal: Generative Space — parses skill front matter metadata |
 
 #### Test Contracts
 
@@ -814,7 +816,7 @@ Representative domains:
 
 ### 3.15 Web Interface (`hkask-api` + `hkask-web`)
 
-**Motivating Principles:** P1 (User Sovereignty) + P4 (Clear Boundaries) — browser-based terminal access via OAuth sessions scoped to user WebID
+**Goal Principles:** P1 (User Sovereignty) + P4 (Clear Boundaries) — browser-based terminal access via OAuth sessions scoped to user WebID
 **Constraining Principles:** P2 (Affirmative Consent) — OAuth flow requires explicit user authorization; P12 (Subscriber Consent) — terminal sessions emit CNS observability
 **Crates:** `hkask-api`, `hkask-web` | **Reference:** `docs/plans/deployment-and-backup.md`
 
@@ -824,18 +826,18 @@ The web interface is the primary deployment surface: users visit a URL, sign in 
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-WEB1 | `P1-web-oauth-provider-enum` | `OAuthProvider` enum (`GitHub`, `Google`) | [P1] Motivating: User Sovereignty — user chooses identity provider; [P4] Constraining: Clear Boundaries — provider scope is fixed |
-| FR-WEB2 | `P4-web-oauth-config-new` | `OAuthConfig::new(client_id, client_secret, redirect_uri)` | [P4] Motivating: Clear Boundaries — provider membrane established from admin configuration; [P1] Constraining: User Sovereignty — secrets stored in OS keychain only |
-| FR-WEB3 | `P1-web-oauth-login` | `GET /api/v1/auth/login?provider={github\|google}` | [P1] Motivating: User Sovereignty — initiates OAuth flow; user redirects to provider; [P2] Constraining: Affirmative Consent — provider scopes explicitly requested |
-| FR-WEB4 | `P1-web-oauth-callback` | `GET /api/v1/auth/callback?provider={github\|google}&code=...` | [P1] Motivating: User Sovereignty — OAuth callback creates/loads HumanUser, provisions WebID + default replicant + wallet on first sign-in; [P2] Constraining: Affirmative Consent — session cookie set only after verified callback |
-| FR-WEB5 | `P1-web-session-create` | Session cookie set after OAuth callback | [P1] Motivating: User Sovereignty — cookie scoped to user's WebID; [P4] Constraining: Clear Boundaries — `HttpOnly`, `Secure`, `SameSite=Strict` |
-| FR-WEB6 | `P1-web-session-get` | `GET /api/v1/auth/session` | [P1] Motivating: User Sovereignty — returns current session info (WebID, provider, session expiry) |
-| FR-WEB7 | `P1-web-session-destroy` | `POST /api/v1/auth/logout` | [P1] Motivating: User Sovereignty — destroys session; [P12] Constraining: Subscriber Consent — emits `SessionClose` CNS span |
-| FR-WEB8 | `P1-web-terminal-ws` | `GET /api/v1/terminal/ws` (WebSocket upgrade) | [P1] Motivating: User Sovereignty — verifies session cookie, extracts WebID, spawns PTY; [P4] Constraining: Clear Boundaries — WebSocket scoped to authenticated WebID |
-| FR-WEB9 | `P1-web-terminal-pty-spawn` | PTY spawn: `kask repl --webid <webid>` | [P1] Motivating: User Sovereignty — each user gets a process scoped to their WebID; [P4] Constraining: Clear Boundaries — PTY I/O piped over WebSocket, no filesystem access beyond user scope |
-| FR-WEB10 | `P4-web-terminal-xtermjs` | Static `/terminal` page serving xterm.js | [P4] Motivating: Clear Boundaries — single static HTML file (~50 lines), no JavaScript framework; [P5] Constraining: Essentialism — xterm.js loaded from CDN or bundled as static asset |
-| FR-WEB11 | `P1-web-session-cns-span` | `CnsSpan::SessionOpen { user_id, provider }` | [P1] Motivating: User Sovereignty — every session open is observable; [P12] Constraining: Subscriber Consent — emitted only if CNS sink subscribed |
-| FR-WEB12 | `P1-web-terminal-scoping` | All TripleStore queries scoped `WHERE owner_webid = ?` | [P1] Motivating: User Sovereignty — users only access own triples, pods, wallet; [P4] Constraining: Clear Boundaries — per-user resource isolation |
+| FR-WEB1 | `P1-web-oauth-provider-enum` | `OAuthProvider` enum (`GitHub`, `Google`) | [P1] Goal: User Sovereignty — user chooses identity provider; [P4] Constraining: Clear Boundaries — provider scope is fixed |
+| FR-WEB2 | `P4-web-oauth-config-new` | `OAuthConfig::new(client_id, client_secret, redirect_uri)` | [P4] Goal: Clear Boundaries — provider membrane established from admin configuration; [P1] Constraining: User Sovereignty — secrets stored in OS keychain only |
+| FR-WEB3 | `P1-web-oauth-login` | `GET /api/v1/auth/login?provider={github\|google}` | [P1] Goal: User Sovereignty — initiates OAuth flow; user redirects to provider; [P2] Constraining: Affirmative Consent — provider scopes explicitly requested |
+| FR-WEB4 | `P1-web-oauth-callback` | `GET /api/v1/auth/callback?provider={github\|google}&code=...` | [P1] Goal: User Sovereignty — OAuth callback creates/loads HumanUser, provisions WebID + default replicant + wallet on first sign-in; [P2] Constraining: Affirmative Consent — session cookie set only after verified callback |
+| FR-WEB5 | `P1-web-session-create` | Session cookie set after OAuth callback | [P1] Goal: User Sovereignty — cookie scoped to user's WebID; [P4] Constraining: Clear Boundaries — `HttpOnly`, `Secure`, `SameSite=Strict` |
+| FR-WEB6 | `P1-web-session-get` | `GET /api/v1/auth/session` | [P1] Goal: User Sovereignty — returns current session info (WebID, provider, session expiry) |
+| FR-WEB7 | `P1-web-session-destroy` | `POST /api/v1/auth/logout` | [P1] Goal: User Sovereignty — destroys session; [P12] Constraining: Subscriber Consent — emits `SessionClose` CNS span |
+| FR-WEB8 | `P1-web-terminal-ws` | `GET /api/v1/terminal/ws` (WebSocket upgrade) | [P1] Goal: User Sovereignty — verifies session cookie, extracts WebID, spawns PTY; [P4] Constraining: Clear Boundaries — WebSocket scoped to authenticated WebID |
+| FR-WEB9 | `P1-web-terminal-pty-spawn` | PTY spawn: `kask repl --webid <webid>` | [P1] Goal: User Sovereignty — each user gets a process scoped to their WebID; [P4] Constraining: Clear Boundaries — PTY I/O piped over WebSocket, no filesystem access beyond user scope |
+| FR-WEB10 | `P4-web-terminal-xtermjs` | Static `/terminal` page serving xterm.js | [P4] Goal: Clear Boundaries — single static HTML file (~50 lines), no JavaScript framework; [P5] Constraining: Essentialism — xterm.js loaded from CDN or bundled as static asset |
+| FR-WEB11 | `P1-web-session-cns-span` | `CnsSpan::SessionOpen { user_id, provider }` | [P1] Goal: User Sovereignty — every session open is observable; [P12] Constraining: Subscriber Consent — emitted only if CNS sink subscribed |
+| FR-WEB12 | `P1-web-terminal-scoping` | All TripleStore queries scoped `WHERE owner_webid = ?` | [P1] Goal: User Sovereignty — users only access own triples, pods, wallet; [P4] Constraining: Clear Boundaries — per-user resource isolation |
 | FR-WEB13 | `P1-web-terminal-layout` | Tiled/tabbed terminal layout: 1/2/4 tiles, up to 6 tabs per tile, max 24 terminals | [P1] User Sovereignty — user controls workspace; [P5] Essentialism — client-side DOM, no server multiplexing |
 | FR-WEB14 | `P1-web-terminal-tab-spawn` | Each new tab opens WebSocket to `/api/v1/terminal/ws` with existing session cookie | [P1] User Sovereignty — auto-authenticated; [P4] Clear Boundaries — each tab is independent PTY process |
 | FR-WEB15 | `P1-web-terminal-layout-persist` | Layout preference persisted in browser localStorage, restored on next visit | [P1] User Sovereignty — user workspace preference; [P5] Essentialism — no server-side layout state |
@@ -851,7 +853,7 @@ The web interface is the primary deployment surface: users visit a URL, sign in 
 
 ### 3.16 Multi-User (`hkask-api` + `hkask-storage`)
 
-**Motivating Principles:** P1 (User Sovereignty) + P2 (Affirmative Consent) — two-role authorization model with admin-managed membership
+**Goal Principles:** P1 (User Sovereignty) + P2 (Affirmative Consent) — two-role authorization model with admin-managed membership
 **Constraining Principles:** P4 (Clear Boundaries) — admin endpoints gated by role check; P12 (Subscriber Consent) — invitation lifecycle emits CNS observability
 **Crates:** `hkask-api`, `hkask-storage` | **Reference:** `docs/plans/deployment-and-backup.md`
 
@@ -861,16 +863,16 @@ hKask supports exactly two roles: **Admin** and **Member**. Admin is the user wh
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-MU1 | `P1-multi-role-enum` | `HumanUser.role` field (`Admin` \| `Member`) | [P1] Motivating: User Sovereignty — role is an identity attribute; [P4] Constraining: Clear Boundaries — role stored in HumanUser record |
-| FR-MU2 | `P1-multi-role-assign` | Role assigned at `kask init --profile server` (Admin) / first OAuth sign-in (Member) | [P1] Motivating: User Sovereignty — role determined by provisioning path; [P12] Constraining: Subscriber Consent — emits `RoleAssigned` CNS span |
-| FR-MU3 | `P1-multi-admin-config-get` | `GET /api/v1/admin/config` (Admin-only) | [P1] Motivating: User Sovereignty — admin can view server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
-| FR-MU4 | `P1-multi-admin-config-patch` | `PATCH /api/v1/admin/config` (Admin-only) | [P1] Motivating: User Sovereignty — admin can modify server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
-| FR-MU5 | `P2-multi-admin-invite` | `POST /api/v1/admin/invite` — `kask invite <email>` (Admin-only) | [P2] Motivating: Affirmative Consent — admin explicitly invites new members; [P12] Constraining: Subscriber Consent — emits `InviteSent` CNS span |
-| FR-MU6 | `P2-multi-invite-accept` | Invitee clicks link, signs in via OAuth, account linked | [P2] Motivating: Affirmative Consent — invitee explicitly accepts; [P12] Constraining: Subscriber Consent — emits `InviteAccepted` CNS span |
-| FR-MU7 | `P1-multi-admin-sessions` | `GET /api/v1/admin/sessions` (Admin-only) | [P1] Motivating: User Sovereignty — admin can view all active sessions; [P4] Constraining: Clear Boundaries — Member cannot access this endpoint |
-| FR-MU8 | `P1-multi-member-settings` | `GET/PATCH /api/v1/user/settings` (Member: own settings only) | [P1] Motivating: User Sovereignty — user controls own settings; [P4] Constraining: Clear Boundaries — WebID-scoped, cannot modify other users |
-| FR-MU9 | `P1-multi-cns-role-assigned` | `CnsSpan::RoleAssigned { webid, role }` | [P1] Motivating: User Sovereignty — role assignment is observable; [P12] Constraining: Subscriber Consent — emitted at provisioning time |
-| FR-MU10 | `P1-multi-cns-invite-lifecycle` | `CnsSpan::InviteSent { email, invited_by }`, `CnsSpan::InviteAccepted { email, webid }` | [P1] Motivating: User Sovereignty — invitation lifecycle is observable; [P12] Constraining: Subscriber Consent — both spans emitted only if CNS sink subscribed |
+| FR-MU1 | `P1-multi-role-enum` | `HumanUser.role` field (`Admin` \| `Member`) | [P1] Goal: User Sovereignty — role is an identity attribute; [P4] Constraining: Clear Boundaries — role stored in HumanUser record |
+| FR-MU2 | `P1-multi-role-assign` | Role assigned at `kask init --profile server` (Admin) / first OAuth sign-in (Member) | [P1] Goal: User Sovereignty — role determined by provisioning path; [P12] Constraining: Subscriber Consent — emits `RoleAssigned` CNS span |
+| FR-MU3 | `P1-multi-admin-config-get` | `GET /api/v1/admin/config` (Admin-only) | [P1] Goal: User Sovereignty — admin can view server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
+| FR-MU4 | `P1-multi-admin-config-patch` | `PATCH /api/v1/admin/config` (Admin-only) | [P1] Goal: User Sovereignty — admin can modify server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
+| FR-MU5 | `P2-multi-admin-invite` | `POST /api/v1/admin/invite` — `kask invite <email>` (Admin-only) | [P2] Goal: Affirmative Consent — admin explicitly invites new members; [P12] Constraining: Subscriber Consent — emits `InviteSent` CNS span |
+| FR-MU6 | `P2-multi-invite-accept` | Invitee clicks link, signs in via OAuth, account linked | [P2] Goal: Affirmative Consent — invitee explicitly accepts; [P12] Constraining: Subscriber Consent — emits `InviteAccepted` CNS span |
+| FR-MU7 | `P1-multi-admin-sessions` | `GET /api/v1/admin/sessions` (Admin-only) | [P1] Goal: User Sovereignty — admin can view all active sessions; [P4] Constraining: Clear Boundaries — Member cannot access this endpoint |
+| FR-MU8 | `P1-multi-member-settings` | `GET/PATCH /api/v1/user/settings` (Member: own settings only) | [P1] Goal: User Sovereignty — user controls own settings; [P4] Constraining: Clear Boundaries — WebID-scoped, cannot modify other users |
+| FR-MU9 | `P1-multi-cns-role-assigned` | `CnsSpan::RoleAssigned { webid, role }` | [P1] Goal: User Sovereignty — role assignment is observable; [P12] Constraining: Subscriber Consent — emitted at provisioning time |
+| FR-MU10 | `P1-multi-cns-invite-lifecycle` | `CnsSpan::InviteSent { email, invited_by }`, `CnsSpan::InviteAccepted { email, webid }` | [P1] Goal: User Sovereignty — invitation lifecycle is observable; [P12] Constraining: Subscriber Consent — both spans emitted only if CNS sink subscribed |
 
 #### Test Contracts (2)
 
@@ -881,7 +883,7 @@ hKask supports exactly two roles: **Admin** and **Member**. Admin is the user wh
 
 ### 3.17 Backup & Migration (`hkask-storage` + `hkask-api`)
 
-**Motivating Principles:** P1 (User Sovereignty) + P3 (Generative Space) — portable sovereignty archive enables user-mediated server migration
+**Goal Principles:** P1 (User Sovereignty) + P3 (Generative Space) — portable sovereignty archive enables user-mediated server migration
 **Constraining Principles:** P2 (Affirmative Consent) — backup export requires explicit user passphrase; P4 (Clear Boundaries) — archive scoped to authenticated WebID
 **Crates:** `hkask-storage`, `hkask-api` | **Reference:** `docs/plans/deployment-and-backup.md`
 
@@ -891,17 +893,17 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 
 | FR# | Contract ID | Function | Principle Annotations |
 |-----|------------|----------|---------------------|
-| FR-BK1 | `P1-backup-archive-struct` | `BackupArchive` — wraps SQLCipher `Database` | [P1] Motivating: User Sovereignty — archive is user-owned and encrypted with user-provided passphrase; [P4] Constraining: Clear Boundaries — server never stores passphrase |
-| FR-BK2 | `P3-backup-archive-create` | `BackupArchive::create(user_passphrase, triples)` | [P3] Motivating: Generative Space — writes snapshot of user's live triple set; [P2] Constraining: Affirmative Consent — export requires explicit passphrase entry |
-| FR-BK3 | `P3-backup-archive-open` | `BackupArchive::open(user_passphrase) -> Result<Self>` | [P3] Motivating: Generative Space — decrypts archive for migration; [P4] Constraining: Clear Boundaries — wrong passphrase returns error |
-| FR-BK4 | `P1-backup-export` | `kask backup export --passphrase <p>` / `POST /api/v1/backup/export` | [P1] Motivating: User Sovereignty — user downloads their own data; [P4] Constraining: Clear Boundaries — `SELECT ... WHERE owner_webid = ? AND tombstone = false` |
-| FR-BK5 | `P1-backup-download` | `GET /api/v1/backup/download` | [P1] Motivating: User Sovereignty — download latest backup archive; [P4] Constraining: Clear Boundaries — scoped to authenticated WebID |
-| FR-BK6 | `P1-backup-upload` | `kask backup upload --server <url>` / `POST /api/v1/backup/upload` | [P1] Motivating: User Sovereignty — user mediates server migration; [P3] Constraining: Generative Space — idempotent `INSERT OR REPLACE` merge |
-| FR-BK7 | `P1-backup-auto-export` | `kask config set backup.auto-export.frequency <daily\|weekly>` | [P1] Motivating: User Sovereignty — scheduled exports for convenience; [P4] Constraining: Clear Boundaries — archives stored server-side, encrypted |
-| FR-BK8 | `P3-backup-replicant-rename` | `kask replicate rename <from> <to>` / `POST /api/v1/replicants/rename` | [P3] Motivating: Generative Space — user renames replicant entity; [P1] Constraining: User Sovereignty — only own replicants |
-| FR-BK9 | `P3-backup-replicant-merge` | `kask replicate merge --from <source> --into <target>` / `POST /api/v1/replicants/merge` | [P3] Motivating: Generative Space — idempotent upsert of all triples from source into target; [P1] Constraining: User Sovereignty — source unchanged after merge |
-| FR-BK10 | `P3-backup-replicant-delete` | `kask replicate delete <name>` / `DELETE /api/v1/replicants/{name}` | [P3] Motivating: Generative Space — user removes replicant and all its triples; [P1] Constraining: User Sovereignty — only own replicants |
-| FR-BK11 | `P3-backup-auto-rename` | Auto-rename on replicant collision: `"ada" → "ada-migrated-20260617"` | [P3] Motivating: Generative Space — prevents data loss on migration; [P1] Constraining: User Sovereignty — returns `MigrationReceipt { renamed_replicants }` |
+| FR-BK1 | `P1-backup-archive-struct` | `BackupArchive` — wraps SQLCipher `Database` | [P1] Goal: User Sovereignty — archive is user-owned and encrypted with user-provided passphrase; [P4] Constraining: Clear Boundaries — server never stores passphrase |
+| FR-BK2 | `P3-backup-archive-create` | `BackupArchive::create(user_passphrase, triples)` | [P3] Goal: Generative Space — writes snapshot of user's live triple set; [P2] Constraining: Affirmative Consent — export requires explicit passphrase entry |
+| FR-BK3 | `P3-backup-archive-open` | `BackupArchive::open(user_passphrase) -> Result<Self>` | [P3] Goal: Generative Space — decrypts archive for migration; [P4] Constraining: Clear Boundaries — wrong passphrase returns error |
+| FR-BK4 | `P1-backup-export` | `kask backup export --passphrase <p>` / `POST /api/v1/backup/export` | [P1] Goal: User Sovereignty — user downloads their own data; [P4] Constraining: Clear Boundaries — `SELECT ... WHERE owner_webid = ? AND tombstone = false` |
+| FR-BK5 | `P1-backup-download` | `GET /api/v1/backup/download` | [P1] Goal: User Sovereignty — download latest backup archive; [P4] Constraining: Clear Boundaries — scoped to authenticated WebID |
+| FR-BK6 | `P1-backup-upload` | `kask backup upload --server <url>` / `POST /api/v1/backup/upload` | [P1] Goal: User Sovereignty — user mediates server migration; [P3] Constraining: Generative Space — idempotent `INSERT OR REPLACE` merge |
+| FR-BK7 | `P1-backup-auto-export` | `kask config set backup.auto-export.frequency <daily\|weekly>` | [P1] Goal: User Sovereignty — scheduled exports for convenience; [P4] Constraining: Clear Boundaries — archives stored server-side, encrypted |
+| FR-BK8 | `P3-backup-replicant-rename` | `kask replicate rename <from> <to>` / `POST /api/v1/replicants/rename` | [P3] Goal: Generative Space — user renames replicant entity; [P1] Constraining: User Sovereignty — only own replicants |
+| FR-BK9 | `P3-backup-replicant-merge` | `kask replicate merge --from <source> --into <target>` / `POST /api/v1/replicants/merge` | [P3] Goal: Generative Space — idempotent upsert of all triples from source into target; [P1] Constraining: User Sovereignty — source unchanged after merge |
+| FR-BK10 | `P3-backup-replicant-delete` | `kask replicate delete <name>` / `DELETE /api/v1/replicants/{name}` | [P3] Goal: Generative Space — user removes replicant and all its triples; [P1] Constraining: User Sovereignty — only own replicants |
+| FR-BK11 | `P3-backup-auto-rename` | Auto-rename on replicant collision: `"ada" → "ada-migrated-20260617"` | [P3] Goal: Generative Space — prevents data loss on migration; [P1] Constraining: User Sovereignty — returns `MigrationReceipt { renamed_replicants }` |
 
 #### CNS Span Contracts (4)
 
@@ -922,9 +924,276 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 
 ---
 
-## 4. Realignment Status
+### 3.18 Deployment (`deploy`)
 
-### 4.1 Contract ID Migration Summary
+**Goal Principle:** P5 (Essentialism) — single binary, zero-config deployment, sidecar generation
+**Constraining Principles:** P4 (Clear Boundaries) — Caddy TLS perimeter, Conduit Matrix boundary; P1 (User Sovereignty) — OAuth sign-in per user
+**Crates:** `hkask-api`, `hkask-services` | **Reference:** `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md`
+
+The deployment domain covers the cloud server provisioning model: one `kask` binary, one server, multi-user access via browser terminal. Sidecar services (Caddy for TLS, Conduit for Matrix) are generated via `kask matrix deploy-sidecar` as Docker Compose configuration — the user owns the Docker runtime. There is no client binary. The browser is the client.
+
+#### Production Contracts (12)
+
+| FR# | Contract ID | Function | Principle Annotations |
+|-----|------------|----------|---------------------|
+| FR-DP1 | `P5-deploy-single-binary` | Single `kask` binary contains daemon + API + MCP servers + agents | [P5] Goal: Essentialism — single binary eliminates multi-component deployment complexity; [P4] Constraining: Clear Boundaries — features enabled by runtime mode, not compile flags |
+| FR-DP2 | `P4-deploy-init-server` | `kask init --profile server` provisions server config, master passphrase, OAuth providers | [P4] Goal: Clear Boundaries — server profile establishes OCAP perimeter; [P1] Constraining: User Sovereignty — admin is the first human user |
+| FR-DP3 | `P5-deploy-sidecar-generate` | `kask matrix deploy-sidecar --domain <domain>` generates `docker-compose.yml` + Caddy/Conduit config | [P5] Goal: Essentialism — generated config, not checked-in IaC; [P4] Constraining: Clear Boundaries — Caddy TLS + reverse proxy perimeter |
+| FR-DP4 | `P4-deploy-sidecar-compose` | Generated `docker-compose.yml`: Caddy (ports 80/443) + Conduit (port 8008) | [P4] Goal: Clear Boundaries — containerized sidecar perimeter; [P5] Constraining: Essentialism — Docker Compose, not Kubernetes |
+| FR-DP5 | `P5-deploy-caddy-config` | Generated `Caddyfile`: auto Let's Encrypt TLS, reverse proxy to `kask daemon` | [P5] Goal: Essentialism — zero-config TLS; [P4] Constraining: Clear Boundaries — HTTPS-only external surface |
+| FR-DP6 | `P5-deploy-conduit-config` | Generated `conduit.toml`: SQLite-backed Matrix homeserver, localhost-only | [P5] Goal: Essentialism — Rust-native Matrix, no Synapse dependency; [P4] Constraining: Clear Boundaries — internal-only Matrix transport |
+| FR-DP7 | `P4-deploy-systemd-unit` | systemd service unit: `Type=simple`, `Restart=on-failure`, `User=hkask` | [P4] Goal: Clear Boundaries — process lifecycle gated by systemd; [P5] Constraining: Essentialism — single service, no orchestration |
+| FR-DP8 | `P5-deploy-dockerfile` | Multi-stage Docker build: `rust:1.91-slim` builder → `debian:bookworm-slim` runtime | [P5] Goal: Essentialism — single Dockerfile for reproducible builds; [P4] Constraining: Clear Boundaries — non-root user, minimal attack surface |
+| FR-DP9 | `P1-deploy-oauth-providers` | OAuth config (GitHub + Google client ID/secret) stored in OS keychain | [P1] Goal: User Sovereignty — OAuth credentials user-owned, not in config files; [P4] Constraining: Clear Boundaries — secrets gated by OS keychain |
+| FR-DP10 | `P1-deploy-oauth-callback` | OAuth callback provisions `HumanUser` record, default replicant, wallet on first sign-in | [P1] Goal: User Sovereignty — auto-provisioning from verified identity; [P2] Constraining: Affirmative Consent — user explicitly clicks "Sign in with GitHub" |
+| FR-DP11 | `P4-deploy-health-endpoint` | `GET /api/cns/health` returns `{ overall_deficit, critical_count, warning_count, healthy }` | [P4] Goal: Clear Boundaries — health check is the deployment liveness probe; [P9] Constraining: Homeostatic Self-Regulation — CNS drives health signal |
+| FR-DP12 | `P5-deploy-no-client` | Zero client-side install: browser terminal via xterm.js + WebSocket | [P5] Goal: Essentialism — no client binary, no SSH setup required; [P3] Constraining: Generative Space — user gets full `kask repl` via browser |
+
+#### Test Contracts (4)
+
+| FR# | Contract ID | Test Name |
+|-----|------------|-----------|
+| FR-DP-T1 | `P4-deploy-test-init-server` | `init_server_creates_config_and_keychain_entries` |
+| FR-DP-T2 | `P5-deploy-test-sidecar-generate` | `deploy_sidecar_generates_valid_docker_compose` |
+| FR-DP-T3 | `P1-deploy-test-oauth-callback` | `oauth_callback_provisions_human_user_and_session` |
+| FR-DP-T4 | `P4-deploy-test-health-endpoint` | `health_endpoint_returns_cns_status` |
+
+---
+
+## 4. Entity Relationship Diagrams
+
+### 4.1 Core Domain Entity Model
+
+```mermaid
+erDiagram
+    HumanUser ||--o{ Replicant : provisions
+    HumanUser ||--|| Wallet : owns
+    HumanUser ||--o{ UserSession : creates
+    HumanUser {
+        string webid PK
+        string role "Admin | Member"
+        string provider "GitHub | Google"
+        string display_name
+    }
+    Replicant {
+        string webid PK
+        string name
+        string persona
+        string wallet_id FK
+    }
+    Wallet {
+        string wallet_id PK
+        u64 balance_rj
+        string treasury_pubkey
+    }
+    Wallet ||--o{ ApiKey : issues
+    ApiKey {
+        string key_id PK
+        u64 spending_limit
+        u64 spent_rj
+        u64 encumbered_rj
+        datetime expires_at
+    }
+    Replicant ||--o{ AgentPod : activates
+    AgentPod {
+        string pod_id PK
+        string webid FK
+        string state "Inactive | Active | ServerMode"
+    }
+    AgentPod ||--o{ Triple : produces
+    Triple {
+        string triple_id PK
+        string owner_webid FK
+        string entity_ref
+        string attribute
+        string value
+        float confidence
+        string visibility "Public | Sovereign"
+        bool tombstone
+    }
+    AgentPod ||--|| EnergyBudget : regulated_by
+    EnergyBudget {
+        string agent_id FK
+        u64 remaining
+        u64 reserved
+        u64 cap
+        float replenish_rate
+    }
+    CnsRuntime ||--o{ RuntimeAlert : fires
+    CnsRuntime {
+        u64 variety_threshold
+    }
+    RuntimeAlert {
+        string domain
+        u64 deficit
+        bool is_critical
+    }
+```
+
+### 4.2 Deployment Domain Entity Model
+
+```mermaid
+erDiagram
+    KaskBinary ||--|| ServerProfile : init_server
+    KaskBinary {
+        string version
+        string arch
+    }
+    ServerProfile {
+        string domain
+        string data_dir
+        string master_passphrase_hash
+    }
+    ServerProfile ||--o{ OAuthProvider : configures
+    OAuthProvider {
+        string provider "GitHub | Google"
+        string client_id
+        string redirect_uri
+    }
+    ServerProfile ||--|| DockerCompose : generates
+    DockerCompose {
+        string domain
+        string caddy_version
+        string conduit_version
+    }
+    DockerCompose ||--|| CaddySidecar : contains
+    DockerCompose ||--|| ConduitSidecar : contains
+    CaddySidecar {
+        int port_80
+        int port_443
+        string tls_email
+    }
+    ConduitSidecar {
+        int port_8008
+        string database_path
+    }
+    CaddySidecar ||--|| KaskDaemon : reverse_proxy
+    KaskDaemon {
+        int port_8080
+        string host
+    }
+```
+
+### 4.3 Contract-Anchoring ERD
+
+```mermaid
+erDiagram
+    Principle ||--o{ Contract : "goal principle for"
+    Principle {
+        int id PK "P1-P12"
+        string name
+        string role "Goal | Constraining"
+    }
+    Contract {
+        string contract_id PK "P{N}-{domain}-{operation}"
+        string pre_condition
+        string post_condition
+        string user_expectation "the explicit functional guarantee"
+    }
+    Contract ||--|| Function : "annotated on"
+    Function {
+        string fn_name
+        string crate
+        string source_file
+    }
+    Contract ||--|| Test : "verified by"
+    Test {
+        string test_name
+        string test_type "property | integration | fuzz"
+    }
+    Function ||--o{ CnsSpan : "emits"
+    CnsSpan {
+        string span_name "cns.{domain}.{operation}"
+        string target
+        string message "CNS"
+    }
+```
+
+---
+
+## 5. Goal-Principle Contract Anchoring
+
+### 5.1 The Contract Architecture
+
+Every code contract has exactly **one goal principle** and **1 to 11 constraining principles**:
+
+```
+Goal Principle (drives the functional expectation)
+    │
+    ├── Constraining Principle 1
+    ├── Constraining Principle 2
+    ├── ...
+    └── Constraining Principle N
+```
+
+The **goal principle** is the principle whose user-visible guarantee the contract directly implements. It answers: "What does the user get from this function?" The **constraining principles** answer: "What constraints shape how this is delivered?"
+
+### 5.2 Explicit User Functional Expectation
+
+Every contract must carry an explicit user functional expectation in its annotation:
+
+```rust
+/// REQ: P9-cns-energy-budget-can-proceed
+/// pre:  gas is a valid EnergyCost
+/// post: returns true iff budget has >= gas remaining and circuit breaker allows
+///       user_expectation: "I can check whether an agent has enough gas before executing"
+/// inv:  does not consume gas (read-only check)
+/// [P9] Goal: Homeostatic Self-Regulation — prevents runaway agent execution
+/// [P4] Constraining: Clear Boundaries — cap enforces resource boundary
+pub fn can_proceed(&self, gas: EnergyCost) -> bool
+```
+
+The `user_expectation` field is the contract's functional specification in the user's voice. It is what the test verifies and what the code must implement. This is the bridge between the functional specification (this document) and the Testing Discipline.
+
+### 5.3 Principle Role Matrix
+
+| # | Principle | Common Goal Domain | Common Constraining Role |
+|---|-----------|-------------------|------------------------|
+| P1 | User Sovereignty | Agent pods, web sessions, backup, multi-user | Wallet ops, keystore, memory, API surface |
+| P2 | Affirmative Consent | Multi-user invites, consent management | Wallet API keys, web sessions, backup export |
+| P3 | Generative Space | Storage CRUD, memory, templates, CLI | CNS sync variants, backup merge |
+| P4 | Clear Boundaries | CNS membranes, ACP, OAuth perimeters, deployment | Energy budgets, circuit breakers, API metering |
+| P5 | Essentialism | MCP servers, deployment packaging, service layer | Runtime construction, salience, chunking |
+| P6 | Space for Replicants | Replicant identity, agent personality | (rarely constraining) |
+| P7 | Evolutionary Architecture | Threshold calibration, replenish rate tuning | Budget config, backend timeouts |
+| P8 | Semantic Grounding | Type-level newtypes, CNS span registry, spec types | Energy cost types, ranking signals, salience |
+| P9 | Homeostatic Self-Regulation | Energy budgets, algedonic alerts, variety monitors, circuit breakers | Memory loops, salience budgets, semantic pruning |
+| P10 | Bot/Replicant Taxonomy | Bot health classification | (rarely constraining) |
+| P11 | Digital Public/Private Sphere | Visibility governance | (not yet assigned to CNS contracts) |
+| P12 | Subscriber Consent | CNS subscriptions, observer registration | Session CNS spans, wallet key alerts |
+
+### 5.4 Traceability: Functional Spec → Contract → Test
+
+```
+FUNCTIONAL_SPECIFICATION.md (this document)
+    │  FR-E12: User shall be able to check remaining gas before execution
+    │
+    ▼
+Contract (// REQ: in source code)
+    │  P9-cns-energy-budget-can-proceed
+    │  user_expectation: "I can check whether an agent has enough gas"
+    │
+    ▼
+Property-Based Test (proptest)
+    │  P9-cns-energy-budget-proptest-001
+    │  Generates random EnergyBudget states, verifies can_proceed invariants
+    │
+    ▼
+Implementation (pub fn)
+    │  EnergyBudget::can_proceed(&self, gas: EnergyCost) -> bool
+    │
+    ▼
+CNS Span
+       cns.energy.budget_check — emitted on every can_proceed call
+```
+
+This traceability chain is the verification that the user's functional expectation is actually enforced by the code. The functional spec says what the user wants. The contract says what the code guarantees. The test verifies it. The CNS span proves it happened.
+
+---
+
+## 6. Realignment Status
+
+### 6.1 Contract ID Migration Summary
 
 | Domain | Source File | Old Format | New Format | Contracts |
 |--------|-----------|-----------|-----------|-----------|
@@ -980,6 +1249,7 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 | Web Interface | (new) | (new) | `P1-web-*`, `P4-web-*` | 19 |
 | Multi-User | (new) | (new) | `P1-multi-*`, `P2-multi-*` | 12 |
 | Backup & Migration | (new) | (new) | `P1-backup-*`, `P3-backup-*` | 18 |
+| Deployment | (new) | (new) | `P5-deploy-*`, `P4-deploy-*`, `P1-deploy-*` | 16 |
 
 **Total CNS contracts:** 99 (across all 9 source files).
 **Total wallet contracts:** 23 production occurrences (11 unique IDs).
@@ -991,21 +1261,22 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 **Total web contracts:** 15 (12 production + 3 test, new — not yet implemented).
 **Total multi-user contracts:** 12 (10 production + 2 test, new — not yet implemented).
 **Total backup contracts:** 18 (11 production + 4 CNS span + 3 test, new — not yet implemented).
-**Build status:** `cargo check -p hkask-cns`, `cargo check -p hkask-wallet`, `cargo check -p hkask-agents`, `cargo check -p hkask-storage`, `cargo check -p hkask-memory`, `cargo check -p hkask-inference`, and `cargo check -p hkask-templates` pass clean.
+**Total deployment contracts:** 16 (12 production + 4 test, new — not yet implemented).
+**Build status:** `cargo check --workspace` passes clean.
 
-### 4.2 Idempotent Migration
+### 6.2 Idempotent Migration
 
 The contract ID migration is **idempotent** — the same source file can be reread at any time and the same contract IDs will be extracted. There is no stateful migration step. The contract IDs exist in the source code, not in a database.
 
-### 4.3 Cross-Crate Dependencies
+### 6.3 Cross-Crate Dependencies
 
 All hKask crates depend on `hkask-types` for the canonical `CnsSpan` registry, `WebID` identity type, and port definitions. The CNS contracts are **leaf nodes** — they do not depend on any other crates. Realignment does not change any downstream crate's behavior.
 
 ---
 
-## 5. Contract ID Format Appendix
+## 7. Contract ID Format Appendix
 
-### 5.1 Formal Specification
+### 7.1 Formal Specification
 
 Every contract ID follows the pattern:
 
@@ -1014,39 +1285,39 @@ P{N} - {domain-short} - {operation}
 ```
 
 Where:
-- **P{N}** — The motivating principle (1–12). This determines which principle **owns** the contract and appears in the ID prefix.
-- **{domain-short}** — Abbreviated domain name (e.g., `energy`, `algedonic`, `runtime`, `gov-tool`, `gov-inf`, `circuit`, `api`, `est`).
+- **P{N}** — The goal principle (1–12). This determines which principle **owns** the contract and appears in the ID prefix.
+- **{domain-short}** — Abbreviated domain name (e.g., `energy`, `algedonic`, `runtime`, `gov-tool`, `gov-inf`, `circuit`, `api`, `est`, `deploy`).
 - **{operation}** — Verb phrase describing what the contract does (e.g., `new`, `can-proceed`, `settle`, `calibrate`).
 
 Constraining principles appear in the contract body as `[P{N}] Constraining: ...` annotations. A contract may have:
-- **One motivating principle** (the ID prefix)
-- **Multiple constraining principles** (body annotations)
+- **One goal principle** (the ID prefix)
+- **Multiple constraining principles** (body annotations). The goal principle encodes the explicit user functional expectation.
 
-### 5.2 Principle Legend
+### 7.2 Principle Legend
 
-| # | Principle | Role in CNS |
-|---|----------|------------|
-| P1 | User Sovereignty | User owns their data, decisions, and identity |
-| P2 | Affirmative Consent | Every action requires explicit user consent |
-| P3 | Generative Space | The system can create, modify, and destroy state |
-| P4 | Clear Boundaries | Modules own their domains; boundaries are enforced |
-| P5 | Essentialism | Remove everything that does not earn its existence |
-| P6 | (Reserved) | Not yet assigned to CNS contracts |
-| P7 | Evolutionary Architecture | Parameters emerge from real usage, not speculation |
-| P8 | Semantic Grounding | Types carry meaning; newtypes prevent confusion |
-| P9 | Homeostatic Self-Regulation | Feedback loops maintain system stability |
-| P10 | (Reserved) | Not yet assigned to CNS contracts |
-| P11 | (Reserved) | Not yet assigned to CNS contracts |
-| P12 | Subscriber Consent | Observers register through explicit subscription |
+| # | Principle | Goal Role | Constraining Role |
+|---|----------|-----------|-------------------|
+| P1 | User Sovereignty | User owns their data, decisions, and identity | Wallet ops, keystore, web sessions |
+| P2 | Affirmative Consent | Every action requires explicit user consent | Backup export, API key scope |
+| P3 | Generative Space | The system can create, modify, and destroy state | CNS sync access, backup merge |
+| P4 | Clear Boundaries | Modules own their domains; boundaries are enforced | Energy caps, circuit thresholds |
+| P5 | Essentialism | Remove everything not earning existence | Runtime construction, chunking |
+| P6 | Space for Replicants | Agents have identity and personality space | (rarely constraining in CNS) |
+| P7 | Evolutionary Architecture | Parameters emerge from real usage | Budget config, backend timeouts |
+| P8 | Semantic Grounding | Types carry meaning; newtypes prevent confusion | Energy cost types, ranking signals |
+| P9 | Homeostatic Self-Regulation | Feedback loops maintain system stability | Memory loops, salience budgets |
+| P10 | Bot/Replicant Taxonomy | Bot and replicant roles are distinct | (rarely constraining in CNS) |
+| P11 | Digital Public/Private Sphere | Visibility governance | (not yet assigned to CNS contracts) |
+| P12 | Subscriber Consent | Observers register through explicit subscription | Session spans, key alerts |
 
-### 5.3 Validation Rules
+### 7.3 Validation Rules
 
 1. **Unique contract IDs** — No two contracts share the same ID.
 2. **Idempotent** — Reading the same source file twice produces the same IDs.
 3. **Stable** — Contract IDs persist across code changes unless the contract's purpose changes.
 4. **Derivable** — IDs can be derived from `grep "REQ:" crates/hkask-cns/src/*.rs`.
 
-### 5.4 Notational Conventions
+### 7.4 Notational Conventions
 
 - **Production contracts** are labeled `P{N}-{domain}-{operation}` in the contract body (e.g., `P9-cns-energy-budget-new`, `P9-wallet-mgr-build`).
 - **Test contracts** are labeled `P{N}-{domain}-{operation}-test` or have a `-T{N}` suffix.
@@ -1054,32 +1325,26 @@ Constraining principles appear in the contract body as `[P{N}] Constraining: ...
 - **Calibrate contracts** use the P7 prefix: `P7-cns-{domain}-calibrate-{operation}`.
 - **Subscriber contracts** use the P12 prefix: `P12-cns-{domain}-subscribe-{operation}`.
 
-### 5.5 Future Domains
+### 7.5 Domain Realignment Status
 
-The following domains are **not yet realigned** and will use their own principle prefixes:
-- `hkask-storage` (P3): `P3-storage-*`
-- `hkask-memory` (P3): `P3-memory-*`
-- `hkask-agents` (P1): `P1-agents-*`
-- `hkask-inference` (P9+P4): `P9/P4-inference-*`
-- `hkask-templates` (P3): `P3-templates-*`
-- `hkask-services` (P5+P7): `P5/P7-services-*`
-- `hkask-api` (P1+P4): `P1/P4-api-*`
-- `hkask-comm` (P1): `P1-comm-*`
-- `hkask-keystore` (P1): `P1-keystore-*`
-- `kask` CLI (P3): `P3-cli-*`
-- `mcp-servers/` (P5): `P5-mcp-*`
+Realigned domains (complete, code and contracts verified):
 
-The following domains are **new — not yet implemented**:
-- Web Interface (P1+P4): `P1-web-*`, `P4-web-*`
-- Multi-User (P1+P2): `P1-multi-*`, `P2-multi-*`
-- Backup & Migration (P1+P3): `P1-backup-*`, `P3-backup-*`
+| Domain | Crate | Contract Prefix | Status |
+|--------|-------|-----------------|--------|
+| CNS (all 9 sub-domains) | `hkask-cns` | `P{N}-cns-*` | ✅ Complete |
+| Wallet | `hkask-wallet` | `P9-wallet-*` | ✅ Complete |
+| Agents | `hkask-agents` | `P1/P2/P3/P4/P9-agt-*` | ✅ Complete |
+| Storage | `hkask-storage` | `P1/P2/P3/P4/P8-sto-*` | ✅ Complete |
+| Memory | `hkask-memory` | `P3-mem-*` | ✅ Complete |
+| Inference | `hkask-inference` | `P9-inf-*`, `P4-inf-*` | ✅ Complete (cloud-only) |
+| Templates | `hkask-templates` | `P3-tpl-*` | ✅ Complete |
+| Web Interface | `hkask-api` | `P1-web-*`, `P4-web-*` | 📋 Planned (spec written) |
+| Multi-User | `hkask-api` + `hkask-storage` | `P1-multi-*`, `P2-multi-*` | 📋 Planned (spec written) |
+| Backup & Migration | `hkask-storage` + `hkask-api` | `P1-backup-*`, `P3-backup-*` | 📋 Planned (spec written) |
+| Deployment | `hkask-api` + `hkask-services` | `P5-deploy-*`, `P4-deploy-*` | 📋 Planned (spec written) |
 
-- `hkask-wallet` is **complete** as of this revision: `P9-wallet-*`.
-- `hkask-agents` is **complete** as of this revision: `P1-agt-*`, `P2-agt-*`, `P3-agt-*`, `P4-agt-*`, `P9-agt-*`.
-- `hkask-storage` is **complete** as of this revision: `P1-sto-*`, `P2-sto-*`, `P3-sto-*`, `P4-sto-*`, `P8-sto-*`.
-- `hkask-memory` is **complete** as of this revision: `P3-mem-*`.
-- `hkask-inference` is **complete** as of this revision: `P9-inf-*`, `P4-inf-*`. Cloud-only.
-- `hkask-services` is **not yet realigned**: still contains `SVC-*`, `svc-*`, `MUST-*`, `MDS-*`, `BACKUP-*`, `lifecycle-*`, `services-settings-*`, and bare `P9`/`P3` IDs.
+Contracts not yet realigned:
+- `hkask-services` — contains legacy `SVC-*`, `svc-*`, `MUST-*`, `MDS-*`, `BACKUP-*`, `lifecycle-*`, `services-settings-*`, bare `P9`/`P3` IDs. This is the largest remaining realignment target.
 
 ---
 
@@ -1087,30 +1352,31 @@ The following domains are **new — not yet implemented**:
 
 | Field | Value |
 |-------|-------|
-| Version | v0.27.0 |
+| Version | v0.28.0 |
 | Created | 2026-06-16 |
-| Status | Active — anchor for the rSolidity contract vocabulary |
-| Last Updated | 2026-06-17 |
-| Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates + 45 new (web 15 + multi-user 12 + backup 18, planned) |
-| Build Status | `cargo check -p hkask-cns -p hkask-wallet -p hkask-agents -p hkask-storage -p hkask-memory -p hkask-inference -p hkask-templates` — PASS |
-| rSolidity Status | Macro crate implemented — first migration (`hkask-cns` energy budget) complete — see `RSOLIDITY_VOCABULARY.md` |
-| Governance | PRINCIPLES.md §1–§5 |
-| Deployment Reference | [deployment-and-backup.md](../../plans/deployment-and-backup.md) — planning phase, not yet implemented |
+| Status | Active — anchor for the rSolidity contract vocabulary and the Testing Discipline |
+| Last Updated | 2026-06-18 |
+| Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + 61 new (web 19 + multi-user 12 + backup 18 + deployment 16, spec written) |
+| Build Status | `cargo check` workspace — PASS |
+| rSolidity Status | Macro crate implemented — see `RSOLIDITY_VOCABULARY.md` |
+| Governance | PRINCIPLES.md §0–§1.4 |
+| Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md` |
+| ERDs | §4 — Core domain model, deployment model, contract-anchoring model |
+| Goal-Principle Anchoring | §5 — Every contract has a goal principle (user expectation) + constraining principles |
 
 ## Appendix B: Validation Checklist
 
 - [x] All 99 CNS contracts carry principle annotations
-- [x] Build passes clean: `cargo check -p hkask-cns`
+- [x] Build passes clean: `cargo check --workspace`
 - [x] All test IDs updated to new format
-- [x] Domain map complete (25 domains — 22 existing + 3 new: web, multi-user, backup)
-- [x] FR tables complete (all 8 CNS domains)
+- [x] Domain map complete (26 domains — 22 existing + 4 new: web, multi-user, backup, deployment)
+- [x] FR tables complete (all 8 CNS domains + 10 non-CNS domains)
 - [x] Realignment status table complete
-- [x] Contract ID format specification complete
-- [x] Non-CNS domain contracts (wallet) — realigned to `P9-wallet-*`
-- [x] Non-CNS domain contracts (memory) — realigned to `P3-mem-*`
-- [x] Non-CNS domain contracts (inference) — realigned to `P9-inf-*` / `P4-inf-*`, cloud-only
-- [x] Non-CNS domain contracts (templates) — realigned to `P3-tpl-*`
-- [x] rSolidity contract vocabulary derivation and macro crate — see `RSOLIDITY_VOCABULARY.md`
+- [x] Contract ID format specification complete with goal-principle anchoring
+- [x] Non-CNS domain contracts (wallet, storage, memory, inference, templates) — realigned and verified
+- [x] Entity Relationship Diagrams added (§4) — core domain, deployment, contract-anchoring
+- [x] Goal-Principle Contract Anchoring specification complete (§5) — user_expectation field, principle role matrix, traceability chain
+- [x] Deployment domain specification (§3.18) — 12 production contracts, 4 test contracts
 - [x] Web Interface specification — OAuth, xterm.js terminal, WebSocket PTY (planned — see `docs/plans/deployment-and-backup.md`)
 - [x] Multi-User specification — Admin/Member roles, invite flow, admin-only endpoints (planned)
 - [x] Backup & Migration specification — SQLCipher archive, export/upload, replicant operations (planned)

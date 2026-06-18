@@ -10,9 +10,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Architecture Principles
 
-**Purpose:** Twelve principles governing hKask architecture, grounded in the Principle of Least Action (§0). The first four principles are the Magna Carta principles; all remaining principles flow from them.
+**Purpose:** Twelve principles governing hKask architecture, grounded in the Principle of Least Action (§0). The first four principles are the Magna Carta principles; all remaining principles flow from them. In the contract system (`FUNCTIONAL_SPECIFICATION.md` §5), each principle can serve as a **goal principle** (driving the explicit user functional expectation of a contract) or a **constraining principle** (shaping how the goal is delivered without overriding it).
 
-**Related:** [`AGENTS.md`](../../../AGENTS.md), [`hKask-architecture-master.md`](../hKask-architecture-master.md)
+**Related:** [`AGENTS.md`](../../../AGENTS.md), [`hKask-architecture-master.md`](../hKask-architecture-master.md), [`FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md), [`TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md)
 
 ---
 
@@ -120,3 +120,16 @@ Agents and users can explicitly control what is private versus shared; visibilit
 
 #### P12 — Replicant Host Mandate
 Every action has an accountable host identity. No anonymous agency.
+
+### 1.5 Principle Roles in the Contract System
+
+Each principle can serve in one of two roles within any given code contract:
+
+| Role | Definition | Example |
+|------|-----------|---------|
+| **Goal Principle** | The principle whose user-visible guarantee the contract directly implements. Encoded in the contract ID prefix (`P{N}`). Answers "What does the user get?" | `P9-cns-energy-budget-can-proceed` — user gets a gas check that prevents runaway agents |
+| **Constraining Principle** | A principle that shapes how the goal is delivered. Appears as `[P{N}] Constraining:` annotations in the contract body. Answers "What guardrails apply?" | `[P4]` on an energy budget contract — the cap enforces an OCAP boundary |
+
+A single contract has exactly one goal principle (the ID prefix) and 1 to 11 constraining principles (body annotations). The goal principle encodes the explicit user functional expectation that the contract's tests verify. The constraining principles ensure the implementation respects all 11 other architectural constraints while achieving the goal.
+
+**The Magna Carta principles (P1–P4) are the most common constraining principles** — most contracts serve goals from P5–P12 while being constrained by sovereignty, consent, generativity, and boundary requirements.

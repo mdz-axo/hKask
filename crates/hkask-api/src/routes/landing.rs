@@ -9,7 +9,7 @@ pub async fn landing_page() -> impl IntoResponse {
     axum::response::Html(LANDING_HTML)
 }
 
-const LANDING_HTML: &str = r#"<!DOCTYPE html>
+const LANDING_HTML: &str = r###"<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -80,4 +80,4 @@ const LANDING_HTML: &str = r#"<!DOCTYPE html>
   <p class="footer">No client install required. Just a browser.<br><a href="https://github.com/mdz-axo/hKask">github.com/mdz-axo/hKask</a></p>
 </div>
 </body>
-</html>"#;
+</html>"###;

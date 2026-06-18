@@ -36,6 +36,22 @@ The SKILL.md (this file) teaches the Zed coding agent the TDD methodology. The .
 
 **Bad tests** are example-based and coupled to implementation. They test specific input-output pairs rather than invariants. They mock internal collaborators, test private methods, or verify through external means. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
 
+**Probabilistic contracts** extend Design by Contract for non-deterministic functions — e.g., LLM agent behaviors, inference output validation, improv mode compliance. Per Testing Discipline §7.6, these use `(p, δ, k)`-satisfaction:
+- `p`: Probability threshold (e.g., 0.95 = contract must hold in 95% of executions)
+- `δ`: Tolerance bound (how far from the postcondition is acceptable)
+- `k`: Recovery window (how many steps the agent has to self-correct before violation is reported)
+
+Probabilistic contracts use the same `/// REQ:` doc-comment format with an additional `prob:` field:
+```rust
+/// REQ: improv-plussing-001
+/// pre:  mode is Plussing, context is non-empty
+/// post: response builds on input (yes-and pattern) with prob ≥ 0.90
+/// prob: p=0.90, δ=semantic_similarity≥0.7, k=3
+pub async fn plussing_respond(&self, input: &str) -> String { ... }
+```
+
+Only apply probabilistic contracts to LLM agent behaviors or other non-deterministic functions. Deterministic functions use standard contracts without `prob:`.
+
 ### Spec-Anchored Testing
 
 Every tracer bullet starts from a specification requirement, not from intuition. The specification is the source of truth for *what* to test. Without spec anchoring, tests validate behavior that may not matter and miss behavior that does.
@@ -83,7 +99,7 @@ RIGHT (vertical):
 1. Use `#[cfg(test)]` module for unit tests alongside the code they test.
 2. Use `tests/` directory for integration tests that exercise crate public APIs.
 3. Use `#[tokio::test]` for async tests.
-4. Use `tempfile` for tests needing filesystem — never write to the project tree.
+4. Use `tempfile` for tests needing filesystem — never write to the project tree. Use `hkask-test-harness` (provides `TestDb` and other test fixtures) for database and persistence tests per Testing Discipline §8.3 T9.
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
@@ -131,7 +147,7 @@ RED:     Write property-based test verifying the contract → test fails
 GREEN:   Write minimal code to satisfy the contract → test passes
 ```
 
-Each contract must include a `// REQ:` tag that references the spec's `id` field from `Spec`:
+Each contract must include a `// REQ:` tag that references the spec's `id` field from `Spec`. For deterministic functions, the contract has `pre:` and `post:` fields. For non-deterministic functions (LLM agent behaviors, inference output), add a `prob:` field with `p`, `δ`, and `k` parameters per Testing Discipline §7.6.
 ```rust
 /// REQ: <spec_id>
 /// pre:  webid is a valid, non-nil WebID
@@ -166,6 +182,10 @@ Rules:
 - Keep contracts focused on observable behavior
 - Each contract and test carries its `// REQ:` tag
 
+**Fuzz and system layers** follow the same tracer-bullet pattern when applicable:
+- **Fuzz tracer bullet** (Testing Discipline §2.4, T6): For `pub fn` input surfaces that accept arbitrary data from external sources. Contract: precondition = "any input", postcondition = "does not panic". Use `catch_unwind` + proptest with unlimited input generation. Fuzz tests live in `tests/` at crate root.
+- **System tracer bullet** (Testing Discipline §2.4): For cross-crate end-to-end workflows that span multiple `pub fn` boundaries. Write a single integration test in `tests/` that exercises the full vertical slice. Contracts chain through the call stack — `f`'s system test transitively verifies `g`'s contracts if `f` calls `g`.
+
 ### 4. Refactor
 
 After all tests pass, look for refactor candidates:
@@ -198,6 +218,20 @@ After verification, compare tested behaviors against specification requirements:
 4. **Call `spec/graph/coherence`** to check overall collection coherence and identify missing MDS categories
 
 This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage).
+
+### 7. CNS Feedback Integration
+
+The TDD cycle is a pre-commit development activity. Post-deployment, the CNS provides runtime contract monitoring per Testing Discipline §7.3. CNS violations feed back into the TDD cycle as triggers for new tracer bullets:
+
+1. **Contract violations** (`cns.contract.violated`) — A runtime contract assertion failed in production. This is a bug where the implementation violated a correct contract, or the contract was too weak to catch the violation. Open a tracer bullet to strengthen the contract to exclude the violation scenario, then fix the implementation. Per Testing Discipline §7.5, the contract now permanently guards against that class of bug.
+
+2. **Coverage drops** (`cns.contract.coverage`) — Variety per domain fell below threshold. The seam watcher (`SeamWatcher::check_drift`) detected that tested behaviors no longer cover what the system actually does. Open a tracer bullet to restore coverage and ensure the contract is still the behavioral specification.
+
+3. **Mutation escapes** — `cargo-mutants` (Testing Discipline §8.5 Q1) detected mutants the test suite didn't catch. Open a tracer bullet with a strengthened contract that excludes the mutation path.
+
+**Principle:** Every CNS contract alert is a candidate tracer bullet. The loop: CNS detects a violation → TDD writes a contract + test that excludes it → implementation fixes it → CNS monitors the new contract.
+
+**Check before closing a CNS alert:** Does the fix have a contract? Does the contract have a test? Is the test traceable to a spec requirement? If any answer is no, the fix is incomplete — the bug will recur.
 
 ## Checklist Per Cycle
 

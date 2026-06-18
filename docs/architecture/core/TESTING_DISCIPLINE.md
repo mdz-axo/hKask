@@ -1,8 +1,8 @@
 ---
 title: "hKask Testing Discipline"
 audience: [engineers, agents, replicants]
-last_updated: 2026-06-17
-version: "0.27.0"
+last_updated: 2026-06-18
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -12,7 +12,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **External anchor:** Design by Contract (Meyer, 1986), verified through Property-Based Testing (QuickCheck, Claessen & Hughes, 2000).  
 **Internal bridge:** TDD skill (`.agents/skills/tdd/SKILL.md`) — the process for writing contract-verified tests.  
-**Governing principles:** P4 (Clear Boundaries), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation).
+**Governing principles:** P4 (Clear Boundaries), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation).  
+**Specification anchor:** `FUNCTIONAL_SPECIFICATION.md` §5 — every contract carries a goal principle encoding the user's explicit functional expectation.
 
 **Supersedes:** `docs/specifications/specs/test-program.md` (archived 2026-06-15), `docs/specifications/standards/TESTING_STANDARDS.md` (archived 2026-06-15). This document is the single authoritative reference for all hKask testing practices, standards, and philosophy.
 
@@ -137,6 +138,40 @@ The contract chain (§2.3, item 4) requires contracts on ALL called functions to
 - The contract completeness audit (§9.2) confirms zero contract debt.
 - New code must not introduce contract debt; every new `pub fn` must carry a contract.
 - When a bug is found, the fix must include adding or refining the contract.
+
+### 2.6 Contracts as Anchored User Expectations
+
+The contract system is anchored on the functional specification via the **goal-principle contract model** (`FUNCTIONAL_SPECIFICATION.md` §5):
+
+1. **Every contract has one goal principle** — the principle whose user-visible guarantee the contract directly serves. The goal principle answers: "What does the user get from this function?"
+2. **Every contract has 1 to 11 constraining principles** — the principles that shape how the goal is delivered. Constraining principles answer: "What guardrails apply?"
+3. **Every contract carries an explicit user functional expectation** — a `user_expectation` field stating in the user's voice what behavior is guaranteed.
+4. **The test verifies the user expectation** — the proptest generates inputs matching the precondition and asserts the postcondition as the user would perceive it.
+
+```
+Goal Principle (P9: Homeostatic Self-Regulation)
+    └── user_expectation: "I can check whether an agent has enough gas"
+        └── Contract: EnergyBudget::can_proceed pre/post/inv
+            └── Test: proptest verifying the contract
+                └── Constraining: [P4] cap is bound, [P8] EnergyCost is typed
+```
+
+This is a strengthening of standard DbC: not only do we specify preconditions and postconditions, but we explicitly link each contract to the specific user functional expectation it serves. The test must verify both the contract's formal conditions and that the user expectation is actually met.
+
+### 2.7 Deployment Contract Testing
+
+Deployment contracts (§FUNCTIONAL_SPECIFICATION.md §3.18) test the provisioning surface — the operations that initialize and configure a running hKask server:
+
+| Contract Domain | Test Type | Example |
+|----------------|-----------|---------|
+| Server init | Integration | `init_server_creates_config_and_keychain_entries` — verifies `kask init --profile server` produces correct config files and keychain entries |
+| Sidecar generation | Integration | `deploy_sidecar_generates_valid_docker_compose` — verifies generated `docker-compose.yml` is syntactically valid |
+| OAuth callback | Integration | `oauth_callback_provisions_human_user_and_session` — verifies first sign-in creates `HumanUser`, replicant, wallet, and session cookie |
+| Health endpoint | Unit | `health_endpoint_returns_cns_status` — verifies `GET /api/cns/health` returns valid CNS health JSON |
+| Single binary | Smoke | `single_binary_contains_all_components` — verifies `kask --help` shows daemon, repl, matrix, wallet, cns subcommands |
+| Docker build | CI | `docker_build_produces_working_image` — verifies Dockerfile builds and `kask daemon` starts |
+
+Deployment contracts use P5 (Essentialism) as their primary goal principle — the single-binary, zero-config, browser-only deployment model is itself a functional expectation: "I should be able to deploy hKask with one binary and one command."
 
 ---
 
@@ -278,22 +313,27 @@ The TDD skill (`.agents/skills/tdd/SKILL.md`) defines the *process* for writing 
 ### 6.1 The Traceability Chain
 
 ```
-Specification (spec/goal/capture)
+Specification (FUNCTIONAL_SPECIFICATION.md)
+    │  FR-E12: "User shall be able to check remaining gas before execution"
     │
     ▼
-GoalSpec.criteria ──→ "The system shall verify sovereignty for any valid WebID"
+Goal Principle ──→ P9 (Homeostatic Self-Regulation)
+    │  user_expectation: "I can check whether an agent has enough gas"
     │
     ▼
-Contract (// REQ: pre/post/inv) ──→ "pre: valid WebID; post: returns state or NotFound"
+Contract (// REQ: pre/post/inv) ──→ "pre: valid EnergyCost; post: returns true iff sufficient gas"
     │
     ▼
-Property-Based Test ──→ proptest!(|webid in any_webid()| { ... })
+Property-Based Test ──→ proptest!(|budget, gas| verify can_proceed invariant)
     │
     ▼
-Implementation ──→ pub fn verify_sovereignty(...)
+Implementation ──→ pub fn can_proceed(...)
+    │
+    ▼
+CNS Span ──→ cns.energy.budget_check
 ```
 
-Every link is traceable. The `// REQ:` tag on the test references the spec_id. The contract on the function references the same spec_id. The TDD skill's gap-check verifies that every spec criterion has a matching `// REQ:` tag.
+Every link is traceable. The `// REQ:` tag on the test references the contract ID. The contract ID embeds the goal principle (P9). The goal principle maps to the functional requirement (FR-E12). The TDD skill's gap-check verifies that every spec criterion has a matching `// REQ:` tag.
 
 ### 6.2 TDD Cycle with Contracts
 
@@ -368,9 +408,9 @@ Contract tests at crate boundaries detect **semantic drift** — when a type cha
 
 ### 7.2 P8 — Semantic Grounding
 
-**Every contract is an IS statement about behavior.** Preconditions, postconditions, and invariants are declarative claims about what the system does. They are not OUGHT statements ("the system should...") — they are IS statements ("the system, when called with X, returns Y"). The proptest verifies the IS claim against reality.
+**Every contract carries a user expectation — the IS claim about what behavior is guaranteed.** Preconditions, postconditions, and invariants are declarative claims about what the system does. The `user_expectation` field states it in the user's voice. The proptest verifies the IS claim against reality.
 
-The `// REQ:` tag traces the contract to a specification requirement. The specification is the OUGHT. The contract is the IS. The test verifies that IS matches OUGHT.
+The `// REQ:` tag traces the contract to a specification requirement. The specification stores the OUGHT (what the user wants). The contract is the IS (what the code actually guarantees). The test verifies IS matches OUGHT. The CNS span proves the verification occurred.
 
 ### 7.3 P9 — Homeostatic Self-Regulation
 
@@ -507,9 +547,13 @@ pub async fn plussing_respond(&self, input: &str) -> String {
 | Prohibitions | `grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"` | Zero |
 | Headless | `grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"` | Zero |
 | Contract coverage | `bash scripts/contract-audit.sh --summary` | All crates ≥100% |
+| Contract completeness | `bash scripts/ci/contract-audit.sh --summary` | 2334 REQ tags across 1771 pub fns (131.7%) |
 | Schema drift | `bash scripts/check-schema-drift.sh` | Pass |
 | CNS daemon | `kask daemon start` (smoke test) | Binds socket, loops active |
 | Contract tests | `kask test --format json` | Zero violations |
+| Deployment smoke | `kask init --profile server && kask daemon` | Server starts, health endpoint responds |
+| Deployment sidecar | `kask matrix deploy-sidecar --domain localhost` | Valid docker-compose.yml generated |
+| User expectation audit | `grep -rn "user_expectation" crates/ --include="*.rs"` | Every `pub fn` eventually carries `user_expectation` field |
 
 ### 9.2 Contract Completeness Audit
 

@@ -72,6 +72,7 @@ These are the behaviors that have tracer bullets (tests) written for them:
 4. **Priority is derived from MDS category**: P0 = Trust, P1 = Domain, Composition, P2 = Lifecycle, Curation.
 5. **Incomplete specs**: If `is_complete()` returns false for a spec, its unsatisfied `Criterion` items are additional coverage gaps.
 6. **Deferrals go to OPEN_QUESTIONS.md**: Every deferred gap must have a documented rationale.
+7. **Probabilistic contracts**: If a spec requirement governs non-deterministic behavior (LLM agent output, inference validation, improv compliance), verify that the tracer bullet includes a `prob:` field in the contract per Testing Discipline §7.6. A contract without `prob:` for a non-deterministic function is a coverage gap — the test framework cannot distinguish random noise from actual contract violations.
 
 ## MDS Priority Categories
 
@@ -94,7 +95,9 @@ Respond with a JSON object:
       "test_name": "capability_check_denies_when_no_checker",
       "seam": "CapabilityChecker trait",
       "priority": "P0",
-      "is_complete": true
+      "is_complete": true,
+      "is_probabilistic": false,
+      "has_prob_contract": null
     }
   ],
   "gaps": [

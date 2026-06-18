@@ -1,6 +1,6 @@
 # ── hKask Document Corpus Inventory ───────────────────────────────────────────
-# Generated: 2026-06-17
-# Version: 0.27.0
+# Generated: 2026-06-18
+# Version: 0.28.0
 # Purpose: Map every document to the code it describes, classify staleness,
 #          produce drift verdicts per document.
 #
@@ -430,12 +430,12 @@ documents:
   - path: docs/architecture/core/PRINCIPLES.md
     category: core-spec
     status: Active
-    last_updated: 2026-06-15
-    version: "0.27.0"
+    last_updated: 2026-06-18
+    version: "0.28.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    notes: "Locked — do not modify. Add forward references only."
+    notes: "Locked — do not modify. Updated 2026-06-18 with goal-principle vs constraining-principle role distinction (§1.5)."
     code_artifacts: [ALL]
     governing_principles: [P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12]
     disposition: keep
@@ -474,12 +474,12 @@ documents:
   - path: docs/architecture/core/TESTING_DISCIPLINE.md
     category: core-spec
     status: Active
-    last_updated: 2026-06-17
-    version: "0.27.0"
+    last_updated: 2026-06-18
+    version: "0.28.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    notes: "Comprehensive but dense — task 3 adds narrative companion."
+    notes: "Updated 2026-06-18 with goal-principle anchoring (§2.6), deployment contract testing (§2.7), user expectation traceability chain (§6.1)."
     code_artifacts: [crates/hkask-test-harness/, scripts/contract-audit.sh]
     governing_principles: [P4, P8, P9]
     disposition: keep
@@ -499,13 +499,14 @@ documents:
   - path: docs/architecture/core/FUNCTIONAL_SPECIFICATION.md
     category: core-spec
     status: Active
-    last_updated: 2026-06-15
-    version: "0.27.0"
-    mds_categories: [domain, composition]
+    last_updated: 2026-06-18
+    version: "0.28.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-services/, crates/hkask-api/]
-    governing_principles: [P3]
+    code_artifacts: [crates/hkask-services/, crates/hkask-api/, crates/hkask-cns/]
+    governing_principles: [P3, P4, P5, P9]
+    notes: "Updated 2026-06-18 with deployment domain (§3.18), ERDs (§4), goal-principle contract anchoring (§5), principle role matrix, v0.28.0."
     disposition: keep
 
   - path: docs/architecture/core/FUNCTIONAL_SPECIFICATION_APPENDIX.md
@@ -1442,10 +1443,15 @@ summary:
     - "docs/guides/kata-user-guide.md: missing kanban integration"
     - "docs/user-guides/kanban-user-guide.md: missing kata integration, CNS spans, error recovery"
   contract_coverage:
-    total_pub_fns: 1775
-    total_req_tags: 2274
-    coverage_pct: 128.1
-    status: "PASS — all public functions contracted. Coverage > 100% due to multi-contract functions."
+    total_pub_fns: 1771
+    total_req_tags: 2334
+    coverage_pct: 131.7
+    status: "PASS — all public functions contracted. Coverage > 100% due to multi-contract functions. v0.28.0 adds goal-principle anchoring and deployment contracts."
+  recent_updates:
+    - "2026-06-18: FUNCTIONAL_SPECIFICATION.md — deployment domain (§3.18), ERDs (§4), goal-principle anchoring (§5), v0.28.0"
+    - "2026-06-18: TESTING_DISCIPLINE.md — goal-principle linkage (§2.6), deployment testing (§2.7), user expectation traceability (§6.1), v0.28.0"
+    - "2026-06-18: PRINCIPLES.md — goal-vs-constraining principle role (§1.5), v0.28.0"
+    - "2026-06-18: magna-carta.md — version bump to v0.28.0"
   verification:
     contract_audit: "scripts/contract-audit.sh --summary passed"
     cns_spans: "crates/hkask-types/src/cns.rs — 90+ variants including kanban (TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated), kata (KataImprovEffectiveness), adapter (AdapterStored, AdapterRetrieved, AdapterDeleted)"

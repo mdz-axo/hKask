@@ -83,7 +83,7 @@ No specification data was provided and no specs were found for the given categor
 1. Use `#[cfg(test)]` module for unit tests alongside the code they test.
 2. Use `tests/` directory for integration tests that exercise crate public APIs.
 3. Use `#[tokio::test]` for async tests.
-4. Use `tempfile` for tests needing filesystem — never write to the project tree.
+4. Use `tempfile` for tests needing filesystem — never write to the project tree. Use `hkask-test-harness` (provides `TestDb`) for database and persistence tests.
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
@@ -92,10 +92,26 @@ No specification data was provided and no specs were found for the given categor
 ## Planning Requirements
 
 1. **Functional requirements**: Extract every requirement from the specification graph that is in scope for this task. Use the `spec_id` as the stable reference. Each criterion that is not yet `satisfied` is a candidate for a tracer bullet.
-2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface AND must reference the `spec_id` from the specification graph.
+2. **Behaviors to test**: List the specific observable behaviors this task requires. Each behavior must be testable through a public interface AND must reference the `spec_id` from the specification graph. Classify each behavior's test type: `unit` (single function contract), `integration` (cross-module contract chain), `contract` (type invariants across operations), `fuzz` (panic-free on arbitrary input), `system` (cross-crate end-to-end workflow). Per Testing Discipline §2.4, fuzz and system layers follow the same tracer-bullet pattern — one contract, one test, one implementation.
 3. **Public interface**: Describe the interface changes needed.
 4. **Priority order**: Rank behaviors by risk. P0 = security/correctness-critical (Trust). P1 = correctness (Domain, Composition). P2 = ergonomics (Lifecycle, Curation). Only plan tracer bullets for specs with `Accept` curation decisions (curation is external — Curator or human).
 5. **Assumptions**: List every assumption. For each, state confidence (high/medium/low) and the alternative interpretation.
+
+### MDS Category Test Strategies
+
+Per Testing Discipline §5, each MDS category has a distinct primary seam, key invariant, and anti-pattern. Use these when planning tracer bullets for each category:
+
+| MDS Category | Primary Seam | Test Type | Key Invariant | Anti-Pattern |
+|---|---|---|---|---|
+| Domain (REQ-DOM) | `WebID`, `NuEvent` APIs | Unit: construction, parsing, validation | Lexicon round-trips | Testing internal hashmap structure |
+| Capability (REQ-CAP) | `CapabilitySpec`, `DelegationToken`, capability traits | Integration: attenuation chains | Fail-closed: no checker = denied | Testing HMAC internals |
+| Interface (REQ-IFC) | CLI ↔ API ↔ MCP equivalence | Integration: cross-surface parity | `MCP ≡ CLI ≡ API` for every op | Testing only one surface |
+| Composition (REQ-COM) | `SqliteRegistry`, `TemplateResolver`, `ContractValidator` | Integration: register→resolve→render | Cascade terminates within depth limit | Testing Jinja2 string manipulation |
+| Trust (REQ-TRU) | `GovernedTool`, key derivation, OCAP verification | Unit + integration: deterministic derivation | Boundaries never relaxed by default | Only testing happy path |
+| Observability (REQ-OBS) | `CnsRuntime`, `AlgedonicManager`, `NuEventSink` | Unit: span emission; Integration: feedback loop | Alerts fire at threshold; homeostasis restores | Testing `tracing::info!` format |
+| Persistence (REQ-PER) | Repository traits (`TripleStore`, `SpecStore`, `WalletStore`) | Integration: round-trip via `TestDb` | Bitemporal queries correct; encrypted storage fails without key | Testing SQL query strings |
+| Lifecycle (REQ-LIF) | `main()`, migration functions, bootstrap | Integration: bootstrap, schema migration | Forward-only evolution — no rollbacks | Testing CLI arg parsing in isolation |
+| Curation (REQ-CUR) | `SpecCurator`, `SpecStore`, MCP spec handlers | Integration: capture→evaluate→cultivate | Coherence threshold gates curation | Testing Jaccard similarity in isolation |
 
 ## Output Requirements
 
@@ -118,6 +134,7 @@ Respond with a JSON object:
       "behavior": "What the system should do (observable, through public interface)",
       "spec_id": "UUID from spec/graph/query",
       "seam": "Which public interface exercises this behavior",
+      "test_type": "unit|integration|contract|fuzz|system",
       "priority": "P0|P1|P2"
     }
   ],
