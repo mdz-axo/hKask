@@ -62,7 +62,6 @@ pub struct ResearchServer {
 
 impl ResearchServer {
     #[allow(clippy::too_many_arguments)]
-    #[allow(dead_code)]
     fn new(
         ctx: &ServerContext,
         replicant: String,

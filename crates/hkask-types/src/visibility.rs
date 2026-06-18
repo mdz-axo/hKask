@@ -254,19 +254,6 @@ impl Confidence {
         Self(1.0)
     }
 
-    /// Zero confidence (0.0).
-    #[allow(dead_code)] // reserved for future crate-internal use
-    pub(crate) fn zero() -> Self {
-        Self(0.0)
-    }
-
-    /// Get the raw f64 value.
-    #[allow(dead_code)] // reserved for future crate-internal use
-    pub(crate) fn into_inner(self) -> f64 {
-        self.0
-    }
-
-    /// Get the raw f64 value by reference.
     /// Get the raw confidence value.
     ///
     /// REQ: TYP-137

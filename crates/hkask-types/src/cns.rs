@@ -129,14 +129,6 @@ pub enum CnsSpan {
     AcpReplicantMemorySize,
     /// ACP IDE connection state change.
     AcpIdeConnectionState,
-    /// Keystore operations (keychain, encryption, derivation, signing).
-    Keystore,
-    /// Adapter (LoRA) lifecycle operations.
-    Adapter,
-    /// Backup snapshot/restore/verify operations.
-    Backup,
-    /// Condenser compression ratio and health checks.
-    CondenserCompression,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -231,10 +223,6 @@ impl CnsSpan {
             CnsSpan::ContractRejected => "cns.contract.rejected",
             CnsSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
             CnsSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
-            CnsSpan::Keystore => "cns.keystore",
-            CnsSpan::Adapter => "cns.adapter",
-            CnsSpan::Backup => "cns.backup",
-            CnsSpan::CondenserCompression => "cns.condenser",
         }
     }
 }
@@ -319,10 +307,6 @@ impl std::str::FromStr for CnsSpan {
             "cns.contract.rejected" => Ok(CnsSpan::ContractRejected),
             "cns.acp.replicant.memory_size" => Ok(CnsSpan::AcpReplicantMemorySize),
             "cns.acp.ide.connection_state" => Ok(CnsSpan::AcpIdeConnectionState),
-            "cns.keystore" => Ok(CnsSpan::Keystore),
-            "cns.adapter" => Ok(CnsSpan::Adapter),
-            "cns.backup" => Ok(CnsSpan::Backup),
-            "cns.condenser" => Ok(CnsSpan::CondenserCompression),
             _ => Err(()),
         }
     }

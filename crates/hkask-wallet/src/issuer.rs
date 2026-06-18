@@ -11,7 +11,6 @@
 
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
-use hkask_keystore::keychain::resolve_wallet_seed;
 use hkask_storage::WalletStore;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
@@ -41,11 +40,6 @@ use crate::signing;
 /// - Wallet seed is held in `Zeroizing` for capability signing
 pub struct ApiKeyIssuer {
     store: Arc<WalletStore>,
-    /// Held for capability signing via the isolated signing boundary.
-    /// Not directly read by issuer methods — signing delegates to `signing.rs`.
-    #[allow(dead_code)]
-    wallet_seed: Zeroizing<[u8; 32]>,
-    /// Optional CNS event sink for span emission (Phase 5).
     event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
@@ -61,14 +55,8 @@ impl ApiKeyIssuer {
     /// post: returns Ok(ApiKeyIssuer) with resolved wallet_seed in Zeroizing
     /// post: returns Err if wallet_seed resolution fails
     pub fn new(store: Arc<WalletStore>) -> Result<Self, WalletError> {
-        let seed_bytes = resolve_wallet_seed().map_err(|e| {
-            WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
-        })?;
-        let mut seed_arr = [0u8; 32];
-        seed_arr.copy_from_slice(&seed_bytes[..32]);
         Ok(ApiKeyIssuer {
             store,
-            wallet_seed: Zeroizing::new(seed_arr),
             event_sink: None,
         })
     }

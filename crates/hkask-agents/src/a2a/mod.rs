@@ -174,36 +174,6 @@ const _: fn() = || {
     fn assert_obj_safe(_: &dyn A2AMessageVisitor) {}
 };
 
-/// Internal visitor: extracts the four routing fields `send_message` needs
-/// (`from`, `to`, `correlation_id` with the artifact: prefix, message_type)
-/// in a single dispatch. Replaces four separate match-on-variant blocks.
-#[allow(dead_code)] // used only in the test module — pub(super) trips dead_code analysis
-pub(super) struct RouteFields<'a> {
-    pub(super) from: Option<WebID>,
-    pub(super) to: Option<WebID>,
-    pub(super) correlation_id: String,
-    pub(super) message_type: &'static str,
-    _phantom: std::marker::PhantomData<&'a ()>,
-}
-
-impl A2AMessageVisitor for RouteFields<'_> {
-    fn on_template_dispatch(&mut self, msg: TemplateDispatch<'_>) {
-        self.from = Some(*msg.from);
-        self.to = msg.to;
-        self.correlation_id = msg.correlation_id.to_string();
-        self.message_type = "template_dispatch";
-    }
-    fn on_template_response(&mut self, msg: TemplateResponse<'_>) {
-        self.correlation_id = msg.correlation_id.to_string();
-        self.message_type = "template_response";
-    }
-    fn on_memory_artifact(&mut self, msg: MemoryArtifact<'_>) {
-        self.from = Some(*msg.producer);
-        self.correlation_id = format!("artifact:{}", msg.artifact_id);
-        self.message_type = "memory_artifact";
-    }
-}
-
 impl A2AMessage {
     /// Dispatch a visitor over the variant. Single match site in the codebase.
     ///

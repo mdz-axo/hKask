@@ -33,7 +33,7 @@ fn err(span: ToolSpanGuard, msg: &str) -> String {
 
 // ── Server ──────────────────────────────────────────────────────────────────
 
-#[allow(dead_code)]
+#[allow(dead_code)] // fields read by future CNS/daemon integration
 pub struct KanbanServer {
     service: KanbanService,
     webid: WebID,

@@ -51,9 +51,8 @@ fn span_strategy() -> BoxedStrategy<Span> {
         "cns.curation",
         "cns.variety",
         "cns.sovereignty",
-        "cns.goal",
+        "cns.spec",
         "cns.chat",
-        "cns.test",
     ];
     const PATHS: &[&str] = &["invoked", "completed", "error", "sensed", "compared"];
 

@@ -85,13 +85,7 @@ impl WebID {
         format!("{}...", &full[..8])
     }
 
-    /// Full display format — shows complete UUID.
-    /// Use only at TRACE level with HKASK_TRACE_WEBIDS=1.
-    #[allow(dead_code)] // reserved for future trace-level diagnostics
-    pub(crate) fn full_display(&self) -> String {
-        self.0.to_string()
     }
-}
 
 impl std::str::FromStr for WebID {
     type Err = uuid::Error;

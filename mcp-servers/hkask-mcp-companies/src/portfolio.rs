@@ -281,7 +281,7 @@ impl PortfolioManager {
         Ok(())
     }
 
-    #[allow(dead_code)] // kept for internal/future use
+    #[allow(dead_code)] // exercised by the test suite only
     pub fn add_transaction(&self, name: &str, tx: &Transaction) -> Result<(), String> {
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
@@ -637,134 +637,7 @@ impl PortfolioManager {
         Ok(symbols)
     }
 
-    /// Resolve a ledger symbol to its data provider symbol.
-    #[allow(dead_code)] // kept for internal/future use
-    pub fn resolve_symbol(&self, name: &str, ledger_symbol: &str) -> Result<String, String> {
-        let conn = self.open()?;
-        match conn.query_row(
-            "SELECT data_symbol FROM security_links WHERE portfolio_name = ?1 AND ledger_symbol = ?2",
-            params![name, ledger_symbol],
-            |row| row.get::<_, String>(0),
-        ) {
-            Ok(data_symbol) => Ok(data_symbol),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(ledger_symbol.to_string()),
-            Err(e) => Err(format!("lookup: {e}")),
-        }
-    }
-
-    /// Link a ledger symbol to a specific data provider symbol.
-    #[allow(dead_code)] // kept for internal/future use
-    pub fn link_security(
-        &self,
-        name: &str,
-        ledger_symbol: &str,
-        data_symbol: &str,
-    ) -> Result<(), String> {
-        let conn = self.open()?;
-        self.check_exists(&conn, name)?;
-        conn.execute(
-            "INSERT OR REPLACE INTO security_links (portfolio_name, ledger_symbol, data_symbol) VALUES (?1, ?2, ?3)",
-            params![name, ledger_symbol, data_symbol],
-        )
-        .map_err(|e| format!("insert: {e}"))?;
-        Ok(())
-    }
-
-    /// Get the date range of transactions for a symbol (or all symbols) in a portfolio.
-    #[allow(dead_code)] // kept for internal/future use
-    pub fn get_date_range(
-        &self,
-        name: &str,
-        symbol: Option<&str>,
-    ) -> Result<(String, String), String> {
-        let conn = self.open()?;
-        self.check_exists(&conn, name)?;
-        let (sql, params): (String, Vec<Box<dyn rusqlite::types::ToSql>>) = if let Some(sym) =
-            symbol
-        {
-            (
-                "SELECT MIN(date), MAX(date) FROM transactions WHERE portfolio_name = ?1 AND symbol = ?2 AND symbol IS NOT NULL".into(),
-                vec![Box::new(name.to_string()), Box::new(sym.to_string())],
-            )
-        } else {
-            (
-                "SELECT MIN(date), MAX(date) FROM transactions WHERE portfolio_name = ?1".into(),
-                vec![Box::new(name.to_string())],
-            )
-        };
-        let param_refs: Vec<&dyn rusqlite::types::ToSql> =
-            params.iter().map(|b| b.as_ref()).collect();
-        let result = conn.query_row(&sql, param_refs.as_slice(), |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        });
-        match result {
-            Ok((min, max)) => Ok((min, max)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Err("no transactions".into()),
-            Err(e) => Err(format!("query: {e}")),
-        }
-    }
-
-    /// Find dates in [from, to] missing from price_cache for a symbol in a portfolio.
-    #[allow(dead_code)] // kept for internal/future use
-    pub fn get_missing_price_dates(
-        &self,
-        name: &str,
-        symbol: &str,
-        from: &str,
-        to: &str,
-    ) -> Result<Vec<String>, String> {
-        let conn = self.open()?;
-        let mut stmt = conn
-            .prepare(
-                "SELECT date FROM price_cache WHERE portfolio_name = ?1 AND symbol = ?2 AND date >= ?3 AND date <= ?4 ORDER BY date",
-            )
-            .map_err(|e| format!("query: {e}"))?;
-        let cached: Vec<String> = stmt
-            .query_map(params![name, symbol, from, to], |row| {
-                row.get::<_, String>(0)
-            })
-            .map_err(|e| format!("query: {e}"))?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        let from_date = chrono::NaiveDate::parse_from_str(from, "%Y-%m-%d")
-            .map_err(|e| format!("invalid from date '{from}': {e}"))?;
-        let to_date = chrono::NaiveDate::parse_from_str(to, "%Y-%m-%d")
-            .map_err(|e| format!("invalid to date '{to}': {e}"))?;
-
-        let mut missing = Vec::new();
-        let mut current = from_date;
-        while current <= to_date {
-            let date_str = current.format("%Y-%m-%d").to_string();
-            if !cached.contains(&date_str) {
-                missing.push(date_str);
-            }
-            current += chrono::Duration::days(1);
-        }
-        Ok(missing)
-    }
-
-    /// Store a closing price in the cache.
-    #[allow(dead_code)] // kept for internal/future use
-    pub fn store_price(
-        &self,
-        name: &str,
-        symbol: &str,
-        date: &str,
-        close: f64,
-        source: &str,
-    ) -> Result<(), String> {
-        let conn = self.open()?;
-        conn.execute(
-            "INSERT OR REPLACE INTO price_cache (portfolio_name, symbol, date, close, source, fetched_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![name, symbol, date, close, source, now_rfc3339()],
-        )
-        .map_err(|e| format!("insert: {e}"))?;
-        Ok(())
-    }
-
-    /// Get cached prices for a symbol in a date range.
-    #[allow(dead_code)] // used in Phase 4 analysis
+/// Get cached prices for a symbol in a date range.
     pub fn get_prices(
         &self,
         name: &str,
