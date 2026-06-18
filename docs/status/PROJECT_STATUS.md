@@ -12,17 +12,17 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Agentic QA Pipeline — contract quality review instrumented across 1,419 REQ-tagged functions. All contracts have pre/post (0 NO_PRE+NO_POST, 0 NO_POST). P1-13 added: manual contract-to-spec traceability review. (2026-06-17)
+**Current session:** Agentic QA Pipeline — contract quality review instrumented across 1,804 public functions with 2,343 REQ tags. All contracts have pre/post (0 NO_PRE+NO_POST, 0 NO_POST). P1-13 added: manual contract-to-spec traceability review. (2026-06-17)
 
 ---
 
 ## Build
 
-All 25 workspace members.
+All 48 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (25/25 crates) | 2026-06-17 |
+| Workspace (`cargo check --workspace`) | ✅ Pass (48/48 crates) | 2026-06-17 |
 | ACP crate (`cargo check -p hkask-acp`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-17 |
 | Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication, acp) | ✅ Pass | 2026-06-17 |
 | MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory, kanban) | ✅ Pass | 2026-06-15 |
@@ -31,7 +31,7 @@ All 25 workspace members.
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — ~570 tests across 16 crates, 0 failures. 2334 `/// REQ:` tags (workspace-wide including MCP servers). 100% behavioral contract coverage — every `pub fn` carries `pre:`/`post:` conditions.
+`cargo test --workspace` result: ✅ Pass — ~575 tests across 18 crates, 0 failures. 2,343 REQ tags (contract-audit.sh: workspace-wide including MCP servers). 100% behavioral contract coverage — every `pub fn` carries `pre:`/`post:` conditions.
 
 ### Test Distribution
 
@@ -56,8 +56,8 @@ All 25 workspace members.
 | hkask-acp | 4 | — |
 | hkask-adapter | 51 | 58 |
 | **Crate subtotal** | **~575** | **1860** |
-| MCP servers (10) | — | ~55 |
-| **Workspace total** | **~571** | **~1915** |
+| MCP servers (11) | — | ~55 |
+| **Workspace total** | **~575** | **2343** |
 
 ---
 
@@ -77,7 +77,7 @@ All 25 workspace members.
 | Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `a2a/mod.rs:171` | 2026-06-10 |
 | Deployment model locked in | Single cloud server, browser terminal, no client binary. See deployment-and-backup.md | 2026-06-17 |
 | Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-15 |
-| REQ tag coverage | ✅ 2334 REQ tags (100% coverage — every `pub fn` contracted) | 2026-06-17 |
+| REQ tag coverage | ✅ 2,343 REQ tags across 1,804 public functions (129.8% density per contract-audit.sh) | 2026-06-17 |
 | Schema drift check | ✅ `scripts/ci/check-schema-drift.sh` passes (37 tables/indexes) | 2026-06-17 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
 | Runtime `.unwrap()` in targeted crates | ✅ Zero violations (Wave 2 denylist) | 2026-06-15 |
@@ -91,14 +91,14 @@ All 25 workspace members.
 
 | Metric | Value |
 |--------|-------|
-| Source files (crates) | 324 |
-| Source files (MCP servers) | 70 |
-| Source files (total) | 394 |
-| Workspace members | 26 |
-| Skills | 28 |
+| Source files (crates) | 438 |
+| Source files (MCP servers) | 74 |
+| Source files (total) | 512 |
+| Workspace members | 48 |
+| Skills | 33 |
 | MCP servers | 11 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
-| CNS spans | 84 (10 adapter/endpoint lifecycle spans added) |
+| CNS spans | 77 (CnsSpan enum variants in cns.rs) |
 
 ---
 
@@ -272,7 +272,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 | Priority | Task |
 |----------|------|
 | LOW | Citation compliance: 23 files have fewer footnote citations than `##` sections (PS-07 gap). Audit complete 2026-06-11 — see §Citation Audit below. |
-| NOT YET DONE | End-to-end onboarding smoke test (needs live Okapi) |
+| LOW | End-to-end onboarding smoke test (needs live inference provider) |
 
 ### Communication Server — Remaining Items
 

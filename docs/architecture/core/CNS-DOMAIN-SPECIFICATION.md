@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # CNS Domain Specification
 
-**Purpose:** A formal specification of the 6 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md) and a concrete Rust module. All 44 contracts are implemented and tested.
+**Purpose:** A formal specification of the 8 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md) and a concrete Rust module. All 44 contracts are implemented and tested.
 
 **MDS Reference:** [`MDS.md`](MDS.md)
 

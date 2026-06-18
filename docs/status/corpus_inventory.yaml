@@ -339,6 +339,18 @@ documents:
     governing_principles: [P5]
     disposition: keep
 
+  - path: docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md
+    category: architecture/reference
+    status: Active
+    last_updated: 2026-06-15
+    version: "0.27.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-*/]
+    governing_principles: [P5, P7]
+    disposition: keep
+
   # ── Architecture Reference ─────────────────────────────────────────────────
   - path: docs/architecture/reference/hKask-hLexicon.md
     category: reference
@@ -1444,11 +1456,11 @@ summary:
     - "docs/guides/kata-user-guide.md: missing kanban integration"
     - "docs/user-guides/kanban-user-guide.md: missing kata integration, CNS spans, error recovery"
   contract_coverage:
-    total_pub_fns: 1775
-    total_req_tags: 2274
-    coverage_pct: 128.1
+    total_pub_fns: 1804
+    total_req_tags: 2343
+    coverage_pct: 129.8
     status: "PASS — all public functions contracted. Coverage > 100% due to multi-contract functions."
   verification:
-    contract_audit: "scripts/contract-audit.sh --summary passed"
-    cns_spans: "crates/hkask-types/src/cns.rs — 90+ variants including kanban (TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated), kata (KataImprovEffectiveness), adapter (AdapterStored, AdapterRetrieved, AdapterDeleted)"
+    contract_audit: "scripts/ci/contract-audit.sh --summary passed"
+    cns_spans: "crates/hkask-types/src/cns.rs — 77 CnsSpan variants including kanban (TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated), kata (KataImprovEffectiveness), adapter (AdapterStored, AdapterRetrieved, AdapterDeleted)"
     openapi: "docs/generated/openapi.json — 4454 lines, 497 descriptions, 24 params, 60 responses. Needs quality gate (Task 6)"

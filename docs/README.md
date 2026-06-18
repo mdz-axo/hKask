@@ -171,7 +171,7 @@ by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.27.
 ```bash
 bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/check-metadata.sh   # mandatory metadata headers
-bash scripts/contract-audit.sh   # contract coverage (128.1%, 2274 REQ: tags)
+bash scripts/ci/contract-audit.sh   # contract coverage (1,804 pub fns, 2,343 REQ tags, 129.8%)
 ```
 
 *ℏKask — A Minimal Viable Container for Agents — v0.27.0 — 59 active documents*

@@ -6,7 +6,9 @@ use aes_gcm::{
 };
 use argon2::{Algorithm, Argon2, Params, Version};
 use rand::RngCore;
+use std::time::Instant;
 use thiserror::Error;
+use tracing::info;
 use zeroize::Zeroizing;
 
 /// Salt size for Argon2 (16 bytes = 128 bits)
@@ -67,7 +69,11 @@ impl EncryptionService {
     }
 
     /// Encrypt plaintext data
+    ///
+    // REQ: P9-CNS-KS-001 pre: operation valid, post: cns.keystore span emitted
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "encrypt", plaintext_len = plaintext.len(), status = "started", "CNS");
         let mut nonce_bytes = [0u8; NONCE_SIZE];
         rand::rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
@@ -81,6 +87,8 @@ impl EncryptionService {
         let mut result = nonce_bytes.to_vec();
         result.extend_from_slice(&ciphertext);
 
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "encrypt", plaintext_len = plaintext.len(), status = "completed", "CNS");
         Ok(result)
     }
 
@@ -114,6 +122,9 @@ impl EncryptionService {
 ///
 /// These parameters follow OWASP recommendations for high-security applications.
 pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, EncryptionError> {
+    // P9: CNS span
+    let start = Instant::now();
+    info!(target: "cns.keystore", operation = "derive_key", status = "started", "CNS");
     let mut key = Zeroizing::new([0u8; 32]);
     let params = Params::new(
         ARGON2_MEMORY_COST,
@@ -126,5 +137,8 @@ pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, 
     argon2
         .hash_password_into(passphrase.as_bytes(), salt, &mut *key)
         .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
+    // P9: CNS span
+    let latency_ms = start.elapsed().as_millis() as u64;
+    info!(target: "cns.keystore", operation = "derive_key", status = "completed", latency_ms = latency_ms, "CNS");
     Ok(key)
 }

@@ -8,6 +8,7 @@ use crate::config::{InferenceConfig, ProviderId};
 use hkask_types::ports::EmbeddingGenerationError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 use tracing::{info, warn};
 
 /// Multi-provider embedding router.
@@ -184,6 +185,11 @@ impl EmbeddingRouter {
             input: texts.to_vec(),
         };
 
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "OM", action = "embedding_invoked", "CNS");
+
         let response = client
             .post(format!("{}/api/embed", self.config.ollama_base_url))
             .json(&request)
@@ -205,6 +211,10 @@ impl EmbeddingRouter {
             return Err(EmbeddingGenerationError::EmptyResponse);
         }
 
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %model, provider = "OM", action = "embedding_completed", latency_ms = %latency_ms, "CNS");
+
         Ok(embed_response.embeddings)
     }
 
@@ -221,6 +231,11 @@ impl EmbeddingRouter {
             model: model.to_string(),
             input: texts.to_vec(),
         };
+
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "embedding_invoked", "CNS");
 
         let response = client
             .post(format!("{}/v1/embeddings", base_url))
@@ -249,6 +264,10 @@ impl EmbeddingRouter {
         if embeddings.is_empty() {
             return Err(EmbeddingGenerationError::EmptyResponse);
         }
+
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %model, provider = "DI", action = "embedding_completed", latency_ms = %latency_ms, "CNS");
 
         Ok(embeddings)
     }

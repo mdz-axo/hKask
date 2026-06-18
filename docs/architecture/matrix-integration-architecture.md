@@ -1311,7 +1311,7 @@ The spec says `kask matrix listen --agent Alice-Smith`. If the install has 5 age
 
 **Q7: What's the Conduit version compatibility guarantee?**
 
-The docker-compose uses `registry.gitlab.com/famedly/conduit:latest`. If a new Conduit version changes the admin API, `kask matrix register` breaks.
+The docker-compose uses `registry.gitlab.com/famedly/conduit:0.9.0` (pinned). If a new Conduit version changes the admin API, `kask matrix register` breaks — the version should be upgraded via `kask matrix upgrade-sidecar` which runs a compatibility smoke test first.
 
 **Force: Guardrail.** Dependency on an external project's API without version pinning is fragile.
 
