@@ -68,11 +68,13 @@ impl OnboardingService {
             keychain
                 .store_by_key("a2a-secret", &secrets.a2a_secret)
                 .map_err(|e| ServiceError::Keystore {
+            source: None,
                     message: "Failed to store a2a-secret".into(),
                 })?;
             keychain
                 .store_by_key("hkask-db-passphrase", &secrets.capability_key)
                 .map_err(|e| ServiceError::Keystore {
+            source: None,
                     message: "Failed to store hkask-db-passphrase".into(),
                 })?;
         }
@@ -100,7 +102,7 @@ impl OnboardingService {
         store.initialize_schema()?;
 
         // A2A state restoration: reload registered agents from the store
-        let registered_agents = store.list().map_err(ServiceError::AgentRegistryStore)?;
+        let registered_agents = store.list().map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
         if !registered_agents.is_empty() {
             let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
                 .iter()
@@ -120,7 +122,7 @@ impl OnboardingService {
             let tokens = std::collections::HashMap::new();
             a2a.restore_from_storage(agents, tokens)
                 .await
-                .map_err(ServiceError::A2A)?;
+                .map_err(|e| ServiceError::A2A { message: e.to_string() })?;
         }
 
         Ok(RegistryHandle { a2a, store })
@@ -165,7 +167,7 @@ impl OnboardingService {
         let token = a2a
             .register_agent(webid, AgentKind::Replicant, default_capabilities.clone())
             .await
-            .map_err(ServiceError::A2A)?;
+            .map_err(|e| ServiceError::A2A { message: e.to_string() })?;
 
         let definition = AgentDefinition {
             name: display_name,
@@ -194,7 +196,7 @@ impl OnboardingService {
 
         store
             .insert(&registered)
-            .map_err(ServiceError::AgentRegistryStore)?;
+            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
 
         Ok(())
     }
@@ -211,7 +213,7 @@ impl OnboardingService {
     ) -> Result<(), ServiceError> {
         store
             .store_user_profile(profile)
-            .map_err(ServiceError::AgentRegistryStore)
+            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
     }
 
     /// Retrieve the human user's profile from the registry.
@@ -225,7 +227,7 @@ impl OnboardingService {
     ) -> Result<Option<UserProfile>, ServiceError> {
         store
             .get_user_profile()
-            .map_err(ServiceError::AgentRegistryStore)
+            .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })
     }
 
     /// Verify sign-in: initialize the registry with the given config and
@@ -258,11 +260,13 @@ impl OnboardingService {
         keychain
             .store_by_key("a2a-secret", &resolved_secrets.a2a_secret)
             .map_err(|e| ServiceError::Keystore {
+            source: None,
                 message: "Failed to store a2a-secret".into(),
             })?;
         keychain
             .store_by_key("hkask-db-passphrase", &resolved_secrets.db_passphrase)
             .map_err(|e| ServiceError::Keystore {
+            source: None,
                 message: "Failed to store hkask-db-passphrase".into(),
             })?;
 
@@ -437,21 +441,25 @@ impl OnboardingService {
         keychain
             .store_by_key("matrix-human-username", &human_id)
             .map_err(|e| ServiceError::Keystore {
+            source: None,
                 message: "Failed to store matrix-human-username".into(),
             })?;
         keychain
             .store_by_key("matrix-human-password", passphrase)
             .map_err(|e| ServiceError::Keystore {
+            source: None,
                 message: "Failed to store matrix-human-password".into(),
             })?;
         keychain
             .store_by_key("matrix-replicant-username", &replicant_id)
             .map_err(|e| ServiceError::Keystore {
+            source: None,
                 message: "Failed to store matrix-replicant-username".into(),
             })?;
         keychain
             .store_by_key("matrix-replicant-password", passphrase)
             .map_err(|e| ServiceError::Keystore {
+            source: None,
                 message: "Failed to store matrix-replicant-password".into(),
             })?;
 
@@ -506,6 +514,7 @@ impl OnboardingService {
                     keychain
                         .store_by_key(&format!("matrix-bot-{}", bot_name), &password)
                         .map_err(|e| ServiceError::Keystore {
+            source: None,
                             message: format!("Failed to store matrix-bot-{}", bot_name),
                         })?;
                     tracing::info!(

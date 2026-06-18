@@ -125,6 +125,7 @@ pub fn load_classifier_config(
             config_path.display()
         );
         ServiceError::Embed {
+            source: None,
             message: msg,
         }
     })?;
@@ -134,6 +135,7 @@ pub fn load_classifier_config(
             config_path.display()
         );
         ServiceError::Embed {
+            source: None,
             message: msg,
         }
     })?;
@@ -206,6 +208,7 @@ async fn classify_one(
         .map_err(|e| {
             let msg = format!("Classifier HTTP error: {e}");
             ServiceError::Embed {
+            source: None,
                 message: msg,
             }
         })?;
@@ -214,6 +217,7 @@ async fn classify_one(
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
         return Err(ServiceError::Embed {
+            source: None,
             message: format!(
                 "Classifier error {status}: {}",
                 body.chars().take(200).collect::<String>()
@@ -224,6 +228,7 @@ async fn classify_one(
     let chat: ChatResponse = resp.json().await.map_err(|e| {
         let msg = format!("Classifier JSON parse error: {e}");
         ServiceError::Embed {
+            source: None,
             message: msg,
         }
     })?;
@@ -286,6 +291,7 @@ pub async fn classify_batch(
         .map_err(|e| {
             let msg = format!("Classifier client build error: {e}");
             ServiceError::Embed {
+            source: None,
                 message: msg,
             }
         })?;
@@ -362,6 +368,7 @@ pub async fn extract_triples_batch(
         .map_err(|e| {
             let msg = format!("Triple extractor client build error: {e}");
             ServiceError::Embed {
+            source: None,
                 message: msg,
             }
         })?;
@@ -428,6 +435,7 @@ async fn extract_triples_one(
         .map_err(|e| {
             let msg = format!("Triple extractor HTTP error: {e}");
             ServiceError::Embed {
+            source: None,
                 message: msg,
             }
         })?;
@@ -436,6 +444,7 @@ async fn extract_triples_one(
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
         return Err(ServiceError::Embed {
+            source: None,
             message: format!(
                 "Triple extractor error {status}: {}",
                 body.chars().take(200).collect::<String>()
@@ -446,6 +455,7 @@ async fn extract_triples_one(
     let chat: ChatResponse = resp.json().await.map_err(|e| {
         let msg = format!("Triple extractor JSON parse error: {e}");
         ServiceError::Embed {
+            source: None,
             message: msg,
         }
     })?;
@@ -479,6 +489,7 @@ fn parse_triple_extraction(content: &str) -> Result<TripleExtraction, ServiceErr
             &json_str[..json_str.len().min(200)]
         );
         ServiceError::Embed {
+            source: None,
             message: msg,
         }
     })?;

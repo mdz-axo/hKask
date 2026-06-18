@@ -40,7 +40,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 - Caddy (Docker sidecar) — TLS termination, reverse proxy
 - Conduit (Docker sidecar) — Matrix homeserver for agent communication
 - SQLCipher-encrypted SQLite — Persistent storage for all user data
-- Inference Router — Multi-provider cloud LLM inference (DeepInfra, Fireworks.ai, fal.ai)
+- Inference Router — Multi-provider cloud LLM inference (DeepInfra, Together AI, fal.ai, RunPod, Baseten)
 
 **Key Features:**
 - Browser terminal (xterm.js + WebSocket) — primary user access via OAuth sign-in
@@ -70,7 +70,6 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 | Dependency | Purpose | Required | Default |
 |------------|---------|----------|---------|
-| **Fireworks.ai** | Cloud LLM inference | Optional (requires API key) | `https://api.fireworks.ai/inference` |
 | **DeepInfra** | Cloud LLM inference | Optional (requires API key) | `https://api.deepinfra.com/v1/openai` |
 | **SQLite** | Database engine | Bundled (rusqlite) | — |
 | **Git** | Template loading (optional) | Optional | — |
@@ -79,13 +78,11 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 hKask uses a multi-provider cloud inference router.
 
-**Option A: Fireworks.ai**
 ```bash
-# Configure Fireworks.ai API key
 export FIREWORKS_API_KEY="your-api-key-here"
 
 # Optional: override default base URL
-export FIREWORKS_BASE_URL="https://api.fireworks.ai/inference"
+
 ```
 
 **Option B: DeepInfra**
@@ -182,8 +179,6 @@ kask matrix status-sidecar
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `FW_BASE_URL` | Fireworks API endpoint | `https://api.fireworks.ai/inference` | No |
-| `FW_API_KEY` | Fireworks API key (also `FIREWORKS_API_KEY`) | — | For FW provider |
 | `DI_BASE_URL` | DeepInfra base URL | `https://api.deepinfra.com` | No |
 | `DI_API_KEY` | DeepInfra API key (also `DEEPINFRA_API_KEY`) | — | For DI provider |
 | `FA_API_KEY` | fal.ai API key | — | For fal.ai provider |
@@ -198,7 +193,6 @@ kask matrix status-sidecar
 
 Model names use 2-letter provider prefixes for routing:
 - `DI/` → DeepInfra (cloud) — requires `DI_API_KEY`
-- `FW/` → Fireworks.ai (cloud) — requires `FW_API_KEY`
 - `FA/` → fal.ai (cloud) — requires `FA_API_KEY`
 - No prefix → defaults to DeepInfra
 
@@ -226,7 +220,6 @@ To customize chat behavior, modify the source code in:
 ```bash
 # Production environment
 export DI_API_KEY="your-deepinfra-key"
-export FW_API_KEY="your-fireworks-key"
 export HKASK_DATABASE_URL="/var/lib/hkask/hkask.db"
 export HKASK_LOG_LEVEL="warn"
 export RUST_LOG="hkask=info,hyper=warn"
@@ -520,7 +513,6 @@ chmod 600 /var/lib/hkask/hkask.db
 
 | Issue | Cause | Resolution |
 |-------|-------|------------|
-| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `FW_API_KEY` in env or `providers.env` file |
 | `Inference error: error sending request` | Provider unreachable | Verify provider URL and network connectivity |
 | `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
 | `Template not found` | Registry empty | Register templates with `kask template register` |

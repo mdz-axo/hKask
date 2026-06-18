@@ -22,3 +22,14 @@ pub use episodic::{EpisodicMemory, EpisodicMemoryError};
 pub use episodic_loop::EpisodicLoop;
 pub use semantic::{SemanticMemory, SemanticMemoryError};
 pub use semantic_loop::SemanticLoop;
+
+impl From<EpisodicMemoryError> for hkask_services_core::ServiceError {
+    fn from(e: EpisodicMemoryError) -> Self {
+        hkask_services_core::ServiceError::EpisodicMemory { message: e.to_string() }
+    }
+}
+impl From<SemanticMemoryError> for hkask_services_core::ServiceError {
+    fn from(e: SemanticMemoryError) -> Self {
+        hkask_services_core::ServiceError::SemanticMemory { message: e.to_string() }
+    }
+}

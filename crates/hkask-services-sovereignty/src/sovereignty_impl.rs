@@ -29,14 +29,14 @@ impl SovereigntyService {
     pub fn grant_consent(&self, webid: &str, category: &DataCategory) -> Result<(), ServiceError> {
         self.consent
             .grant_consent(webid, category)
-            .map_err(ServiceError::Consent)
+            .map_err(|e| ServiceError::Consent { message: e.to_string() })
     }
 
     /// Revoke all consent for the given WebID.
     pub fn revoke_consent(&self, webid: &str) -> Result<(), ServiceError> {
         self.consent
             .revoke_consent(webid)
-            .map_err(ServiceError::Consent)
+            .map_err(|e| ServiceError::Consent { message: e.to_string() })
     }
 
     /// Check if the given WebID has consent for a data category.
@@ -48,7 +48,7 @@ impl SovereigntyService {
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ServiceError> {
         self.consent
             .get_granted_categories(webid)
-            .map_err(ServiceError::Consent)
+            .map_err(|e| ServiceError::Consent { message: e.to_string() })
     }
 }
 
@@ -103,7 +103,7 @@ mod tests {
             svc.grant_consent("user", &DataCategory::EpisodicMemory);
         // Revoke on a non-existent webid returns ConsentNotFound, wrapped as ServiceError
         let result: Result<(), hkask_services_core::ServiceError> = svc.revoke_consent("user");
-        // Either Ok or Err(ServiceError::Consent(ConsentNotFound)) — both are ServiceError
+        // Either Ok or Err(ServiceError::Consent { message: ConsentNotFound.to_string() }) — both are ServiceError
         assert!(
             result.is_err() || result.is_ok(),
             "must return ServiceError, not ConsentError directly"

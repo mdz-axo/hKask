@@ -68,3 +68,9 @@ pub use set_points::{
     load_set_points,
 };
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
+
+impl From<EnergyError> for hkask_services_core::ServiceError {
+    fn from(e: EnergyError) -> Self {
+        hkask_services_core::ServiceError::Gas { message: e.to_string() }
+    }
+}

@@ -6,6 +6,7 @@ license.workspace = true
 description = "Semantic and episodic memory pipelines for hKask"
 
 [dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
 async-trait.workspace = true
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }

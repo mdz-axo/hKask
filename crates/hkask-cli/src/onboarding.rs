@@ -629,6 +629,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             keychain.store_by_key(key_name, api_key).map_err(|e| {
                 eprintln!("  \x1b[31m✗\x1b[0m Failed to store key: {}", e);
                 OnboardingError::Service(ServiceError::Keystore {
+            source: None,
                     message: format!("Failed to store {}", key_name),
                 })
             })?;

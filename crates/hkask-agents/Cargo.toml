@@ -6,6 +6,7 @@ license.workspace = true
 description = "Agent pods, ACP, and bot/replicant management for hKask"
 
 [dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
 hkask-types = { path = "../hkask-types" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }

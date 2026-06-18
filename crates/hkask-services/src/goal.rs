@@ -64,7 +64,7 @@ impl GoalService {
         let repo = ctx.goal_repo();
         let goal = repo
             .create_goal(&req.owner, &req.text, vis)
-            .map_err(ServiceError::GoalRepo)?;
+            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
         Ok(GoalResponse::from(goal))
     }
 
@@ -92,7 +92,7 @@ impl GoalService {
         let repo = ctx.goal_repo();
         let goals = repo
             .list_goals(owner, filter)
-            .map_err(ServiceError::GoalRepo)?;
+            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
         Ok(goals.into_iter().map(GoalResponse::from).collect())
     }
 
@@ -120,14 +120,14 @@ impl GoalService {
 
         let goal = repo
             .get_goal(goal_id)
-            .map_err(ServiceError::GoalRepo)?
+            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?
             .ok_or_else(|| ServiceError::ValidationError {
                 message: format!("Goal not found: {}", goal_id),
             })?;
         let from_state = goal.state.as_str().to_string();
 
         repo.update_goal_state(goal_id, new_state)
-            .map_err(ServiceError::GoalRepo)?;
+            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
 
         if let Some(tx) = ctx.curation_inbox_tx() {
             let event = CurationInput::GoalTransition(hkask_types::loops::GoalTransitionEvent {

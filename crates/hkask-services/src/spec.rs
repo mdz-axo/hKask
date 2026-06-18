@@ -141,7 +141,7 @@ impl SpecService {
         let spec = Spec::new(&req.name_or_description, cat, anchor).with_goal(goal);
         let is_complete = spec.is_complete();
         let store = ctx.spec_store();
-        store.save(&spec).map_err(ServiceError::Spec)?;
+        store.save(&spec).map_err(|e| ServiceError::Spec { message: e.to_string() })?;
 
         Ok(SpecCaptureResponse {
             spec_id: spec.id.to_string(),
@@ -173,9 +173,9 @@ impl SpecService {
                         ),
                     }
                 })?;
-                store.list_by_category(cat).map_err(ServiceError::Spec)?
+                store.list_by_category(cat).map_err(|e| ServiceError::Spec { message: e.to_string() })?
             }
-            None => store.list_all().map_err(ServiceError::Spec)?,
+            None => store.list_all().map_err(|e| ServiceError::Spec { message: e.to_string() })?,
         };
         Ok(specs.into_iter().map(SpecListEntry::from).collect())
     }
@@ -189,7 +189,7 @@ impl SpecService {
     pub fn get_full(ctx: &AgentService, spec_id_str: &str) -> Result<Spec, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();
-        store.load(id).map_err(ServiceError::Spec)
+        store.load(id).map_err(|e| ServiceError::Spec { message: e.to_string() })
     }
 
     /// Get a single spec by ID (summary detail).
@@ -201,7 +201,7 @@ impl SpecService {
     pub fn get_by_id(ctx: &AgentService, spec_id_str: &str) -> Result<SpecDetail, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();
-        let spec = store.load(id).map_err(ServiceError::Spec)?;
+        let spec = store.load(id).map_err(|e| ServiceError::Spec { message: e.to_string() })?;
         let requirements: Vec<String> = spec
             .goals
             .iter()
@@ -227,7 +227,7 @@ impl SpecService {
     /// post: returns CoherenceResult with coherence_score (0.0–1.0), missing category violations, and suggestions; score=0.0 when store is empty
     pub fn category_coverage(ctx: &AgentService) -> Result<CoherenceResult, ServiceError> {
         let store = ctx.spec_store();
-        let specs = store.list_all().map_err(ServiceError::Spec)?;
+        let specs = store.list_all().map_err(|e| ServiceError::Spec { message: e.to_string() })?;
 
         if specs.is_empty() {
             return Ok(CoherenceResult {
@@ -277,7 +277,7 @@ impl SpecService {
     ) -> Result<WritingQualityResult, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();
-        let spec = store.load(id).map_err(ServiceError::Spec)?;
+        let spec = store.load(id).map_err(|e| ServiceError::Spec { message: e.to_string() })?;
 
         let dimensions = [
             ("has_name", !spec.name.is_empty()),
@@ -312,9 +312,9 @@ impl SpecService {
     ) -> Result<SpecCurationRecord, ServiceError> {
         let id = parse_spec_id(spec_id_str)?;
         let store = ctx.spec_store();
-        let spec = store.load(id).map_err(ServiceError::Spec)?;
+        let spec = store.load(id).map_err(|e| ServiceError::Spec { message: e.to_string() })?;
         let curator = DefaultSpecCurator::default();
-        curator.evaluate(&spec, &[]).map_err(ServiceError::Spec)
+        curator.evaluate(&spec, &[]).map_err(|e| ServiceError::Spec { message: e.to_string() })
     }
 }
 

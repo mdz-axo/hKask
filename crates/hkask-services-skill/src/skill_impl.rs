@@ -54,6 +54,7 @@ pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> 
     let entries = fs::read_dir(zone_dir).map_err(|e| {
         let msg = format!("Error scanning {}: {e}", zone_dir.display());
         ServiceError::Skill {
+            source: None,
             message: msg,
         }
     })?;
@@ -62,6 +63,7 @@ pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> 
         let entry = entry.map_err(|e| {
             let msg = format!("Error reading directory: {e}");
             ServiceError::Skill {
+            source: None,
                 message: msg,
             }
         })?;
@@ -189,6 +191,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
 
     if !private_dir.exists() {
         return Err(ServiceError::Skill {
+            source: None,
             message: format!("Skill '{name}' not found in private zone"),
         });
     }
@@ -208,6 +211,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
                 public_zone.display()
             );
             ServiceError::Skill {
+            source: None,
                 message: msg,
             }
         })?;
@@ -221,6 +225,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
                 public_dir.display()
             );
             ServiceError::Skill {
+            source: None,
                 message: msg,
             }
         })?;
@@ -230,6 +235,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
     copy_dir_recursive(&private_dir, &public_dir).map_err(|e| {
         let msg = format!("Failed to copy skill to public zone: {e}");
         ServiceError::Skill {
+            source: None,
             message: msg,
         }
     })?;

@@ -772,7 +772,7 @@ The production deployment is a headless Ubuntu cloud server:
 
 1. **Single binary.** All crates compiled. No Cargo features for client/server.
 2. **Browser-first interaction.** Primary interface is xterm.js terminal via browser. Secondary: SSH (`kask repl`). MCP servers (for IDE integration) connect via the REST API or SSH-tunneled socket.
-3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Fireworks, fal.ai).
+3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Together AI, fal.ai, RunPod, Baseten).
 4. **API keys in OS keychain.** Provider API keys are stored in the OS keychain (Linux Secret Service or flat-file fallback), not in environment variables or plaintext files.
 5. **Encrypted database at rest.** All persistent state uses SQLCipher with a passphrase-derived key.
 6. **Multi-tenant.** Multiple users per server. Data scoped by `owner_webid`. OAuth (GitHub/Google) sign-in.
@@ -792,7 +792,7 @@ Provider selection via `HKASK_DEFAULT_PROVIDER`:
 | Value | Provider | Use Case |
 |-------|----------|----------|
 | `DI` | DeepInfra | Primary cloud provider |
-| `FW` | Fireworks.ai | Fast serverless inference, fallback |
+| `TG` | Together AI | Cloud inference + fine-tuning |
 | `FA` | fal.ai | Specialized vision/OCR/media models |
 
 ### Setup Flow
@@ -828,7 +828,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
-| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (Ollama, Fireworks, DeepInfra) |
+| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (DeepInfra, Together AI, fal.ai, RunPod, Baseten, Ollama) |
 | [`PUBLIC_SURFACE_JUSTIFICATIONS.md`](PUBLIC_SURFACE_JUSTIFICATIONS.md) | Deep-module audit — 16-crate public surface justifications (consolidated) |
 
 

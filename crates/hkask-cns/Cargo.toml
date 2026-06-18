@@ -6,6 +6,7 @@ license.workspace = true
 description = "Cybernetic Nervous System for hKask"
 
 [dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 hkask-wallet = { path = "../hkask-wallet" }

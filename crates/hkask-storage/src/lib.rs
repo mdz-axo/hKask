@@ -53,3 +53,15 @@ pub use spec_types::{
 pub use triples::{Triple, TripleError, TripleStore};
 pub use user_store::UserStoreError;
 pub use wallet_store::WalletStore;
+
+// ── From impls for ServiceError ──────────────────────────────────────
+impl From<DatabaseError> for hkask_services_core::ServiceError {
+    fn from(e: DatabaseError) -> Self {
+        hkask_services_core::ServiceError::Storage { message: e.to_string() }
+    }
+}
+impl From<TripleError> for hkask_services_core::ServiceError {
+    fn from(e: TripleError) -> Self {
+        hkask_services_core::ServiceError::Triple { message: e.to_string() }
+    }
+}

@@ -173,8 +173,11 @@ Edit `providers.env` and fill in your keys:
 ```bash
 # ── Inference Providers (at least one required) ───────────────────
 DI_API_KEY=sk-...                 # DeepInfra
-# FW_API_KEY=...                  # Fireworks.ai (optional)
+TOGETHER_API_KEY=...               # Together AI
+
 # FA_API_KEY=...                  # fal.ai (optional)
+# RUNPOD_API_KEY=...             # RunPod (optional)
+# BASETEN_API_KEY=...            # Baseten (optional)
 
 # ── OAuth Providers (at least one required) ───────────────────────
 OAUTH_GITHUB_CLIENT_ID=Iv23li...

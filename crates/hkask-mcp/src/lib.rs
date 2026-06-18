@@ -85,3 +85,14 @@ macro_rules! validate_field {
         }
     };
 }
+
+impl From<server::McpToolError> for hkask_services_core::ServiceError {
+    fn from(e: server::McpToolError) -> Self {
+        hkask_services_core::ServiceError::McpTool {
+            kind: e.kind,
+            server: String::new(),
+            tool: String::new(),
+            message: e.message,
+        }
+    }
+}

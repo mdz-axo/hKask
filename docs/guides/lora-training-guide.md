@@ -263,7 +263,7 @@ use hkask_mcp_training::huggingface::resolve_model_id;
 assert_eq!(resolve_model_id("OM/qwen3:8b"), "qwen3:8b");
 assert_eq!(resolve_model_id("TG/llama-3.3-70b"), "llama-3.3-70b");
 
-// Known prefixes: OM/ (Ollama), DI/ (DeepInfra), FA/ (Fireworks), TG/ (Together)
+// Known prefixes: OM/ (Ollama), DI/ (DeepInfra), FA/ (fal.ai), TG/ (Together), RP/ (RunPod), BT/ (Baseten)
 ```
 
 ### 3.2 Adapter Registry — Publishing Adapters

@@ -12,6 +12,7 @@ use hkask_types::ports::{InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 use tracing::info;
 
 /// Together AI backend for chat completions and model listing.
@@ -81,6 +82,11 @@ impl TogetherBackend {
         validate_prompt(prompt)?;
         let request = build_chat_request(model, prompt, None, params, Some(false), Some(5));
 
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "TG", action = "invoked", "CNS");
+
         let response = self
             .client
             .post(format!("{}/v1/chat/completions", self.base_url))
@@ -107,6 +113,9 @@ impl TogetherBackend {
             .map_err(|e| InferenceError::Json(format!("Together AI JSON parse: {}", e)))?;
 
         let result = chat_response_to_result(chat_response)?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %result.model, provider = "TG", action = "completed", latency_ms = %latency_ms, "CNS");
         info!(
             target: "hkask.inference",
             provider = "TG",
@@ -148,6 +157,11 @@ impl TogetherBackend {
             futures_util::stream::once(async move {
                 let request = build_chat_request(&model, &prompt, None, &params, Some(true), None);
 
+                // P9: CNS span
+                // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+                let started = Instant::now();
+                info!(target: "cns.inference", model = %model, provider = "TG", action = "stream_started", "CNS");
+
                 let response = match client
                     .post(format!("{}/v1/chat/completions", base_url))
                     .header("Authorization", format!("Bearer {}", api_key))
@@ -177,6 +191,10 @@ impl TogetherBackend {
                     Ok(b) => b,
                     Err(e) => return vec![Err(e)],
                 };
+
+                // P9: CNS span
+                let latency_ms = started.elapsed().as_millis();
+                info!(target: "cns.inference", model = %model, provider = "TG", action = "stream_completed", latency_ms = %latency_ms, "CNS");
 
                 parse_sse_stream(&body, &model)
             })
@@ -212,6 +230,11 @@ impl TogetherBackend {
             Some(5),
         );
 
+        // P9: CNS span
+        // REQ: P9-CNS-001 pre: model_name valid, post: cns.inference span emitted
+        let started = Instant::now();
+        info!(target: "cns.inference", model = %model, provider = "TG", action = "invoked", "CNS");
+
         let response = self
             .client
             .post(format!("{}/v1/chat/completions", self.base_url))
@@ -237,7 +260,11 @@ impl TogetherBackend {
             .await
             .map_err(|e| InferenceError::Json(format!("Together AI vision JSON parse: {}", e)))?;
 
-        chat_response_to_result(chat_response)
+        let result = chat_response_to_result(chat_response)?;
+        // P9: CNS span
+        let latency_ms = started.elapsed().as_millis();
+        info!(target: "cns.inference", model = %result.model, provider = "TG", action = "completed", latency_ms = %latency_ms, "CNS");
+        Ok(result)
     }
 
     /// List available models from Together AI.
