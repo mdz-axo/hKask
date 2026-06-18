@@ -7,7 +7,9 @@ use hkask_types::identity::{HumanUser, ReplicantIdentity, UserSession};
 use hkask_types::wallet::WalletId;
 use hkask_types::{InfrastructureError, UserID};
 use rand::RngCore;
+use rusqlite::OptionalExtension;
 use rusqlite::params;
+use std::str::FromStr;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
@@ -88,6 +90,13 @@ impl UserStore {
         // Migration: add wallet_id if not present (multi-wallet support)
         conn.execute_batch("ALTER TABLE replicant_identities ADD COLUMN wallet_id TEXT;")
             .ok(); // ignore error if column already exists
+        // Migration: add OAuth provider columns (DEP-001)
+        conn.execute_batch("ALTER TABLE human_users ADD COLUMN oauth_provider TEXT;")
+            .ok();
+        conn.execute_batch("ALTER TABLE human_users ADD COLUMN oauth_provider_user_id TEXT;")
+            .ok();
+        conn.execute_batch("ALTER TABLE human_users ADD COLUMN oauth_display_name TEXT;")
+            .ok();
         Ok(())
     }
 
@@ -163,6 +172,154 @@ impl UserStore {
 
         tx.commit()?;
         Ok(identity)
+    }
+
+    /// Find or create a human user via OAuth sign-in.
+    ///
+    /// REQ: DEP-002 — P1 User Sovereignty: OAuth user lookup/creation preserves WebID ownership.
+    /// pre:  provider is a valid OAuthProvider; provider_user_id is the external ID from the provider
+    /// post: if user exists with matching provider + provider_user_id → returns existing (user, replicant)
+    /// post: if user does not exist → creates new HumanUser + primary ReplicantIdentity + returns both
+    pub fn find_or_create_oauth_user(
+        &self,
+        provider: &hkask_types::identity::OAuthProvider,
+        provider_user_id: &str,
+        email: &str,
+        display_name: &str,
+    ) -> UserResult<(HumanUser, ReplicantIdentity)> {
+        // Try to find existing user by OAuth identity
+        if let Some((user, replicant)) = self.find_user_by_oauth(provider, provider_user_id)? {
+            // Update last_active and display_name
+            let now = chrono::Utc::now().timestamp();
+            let conn = self.lock_conn()?;
+            conn.execute(
+                "UPDATE human_users SET last_active = ?1, oauth_display_name = ?2 WHERE user_id = ?3",
+                params![now, display_name, user.user_id],
+            )?;
+            conn.execute(
+                "UPDATE replicant_identities SET last_login = ?1 WHERE replicant_name = ?2",
+                params![now, replicant.replicant_name],
+            )?;
+            return Ok((user, replicant));
+        }
+
+        // Create new user — OAuth users get a generated passphrase (never used directly)
+        let generated_passphrase = uuid::Uuid::new_v4().to_string();
+        let user_id = UserID::new();
+        let salt = Self::generate_salt();
+        let master_salt = Self::generate_salt();
+        let passphrase_hash = Self::hash_passphrase(&generated_passphrase, &salt)?;
+        let pii_key = Self::derive_pii_key(&generated_passphrase, &master_salt)?;
+
+        let email_enc = Self::encrypt_pii(email.as_bytes(), &pii_key)?;
+
+        // Derive replicant name from display name
+        let replicant_name = sanitize_replicant_name(display_name);
+        let first_name_enc = Self::encrypt_pii(display_name.as_bytes(), &pii_key)?;
+        let last_name_enc = Self::encrypt_pii(b"", &pii_key)?;
+
+        let provider_str = provider.to_string();
+        let now = chrono::Utc::now().timestamp();
+
+        let mut conn = self.lock_conn()?;
+        let tx = conn.transaction()?;
+
+        tx.execute(
+            "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, passphrase_set_at, oauth_provider, oauth_provider_user_id, oauth_display_name)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                user_id,
+                email_enc,
+                Option::<Vec<u8>>::None, // no phone for OAuth users
+                passphrase_hash,
+                salt,
+                master_salt,
+                now,
+                now,
+                provider_str,
+                provider_user_id,
+                display_name,
+            ],
+        )?;
+
+        let identity = ReplicantIdentity::new(
+            replicant_name.clone(),
+            user_id,
+            first_name_enc,
+            last_name_enc,
+            true,
+        );
+
+        tx.execute(
+            "INSERT INTO replicant_identities
+             (replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc, is_primary, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                identity.replicant_name,
+                identity.user_id,
+                identity.replicant_webid,
+                identity.first_name_enc,
+                identity.last_name_enc,
+                1,
+                now
+            ],
+        )?;
+
+        tx.commit()?;
+
+        let user = self.get_user(&user_id)?;
+        Ok((user, identity))
+    }
+
+    /// Find a human user by OAuth provider identity.
+    ///
+    /// REQ: DEP-003
+    /// pre:  provider is a valid OAuthProvider; provider_user_id is non-empty
+    /// post: returns Some((user, primary_replicant)) if found; None if not found
+    fn find_user_by_oauth(
+        &self,
+        provider: &hkask_types::identity::OAuthProvider,
+        provider_user_id: &str,
+    ) -> UserResult<Option<(HumanUser, ReplicantIdentity)>> {
+        let provider_str = provider.to_string();
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT user_id FROM human_users WHERE oauth_provider = ?1 AND oauth_provider_user_id = ?2",
+        )?;
+
+        let user_id: Option<String> = stmt
+            .query_row(params![provider_str, provider_user_id], |row| row.get(0))
+            .optional()
+            .map_err(UserStoreError::from)?;
+
+        match user_id {
+            Some(uid_str) => {
+                let uid = UserID::from_str(&uid_str).map_err(|e| {
+                    UserStoreError::Infra(hkask_types::InfrastructureError::Database(format!(
+                        "Invalid user_id: {e}"
+                    )))
+                })?;
+                let user = self.get_user(&uid)?;
+                let replicants = self.list_replicants(&uid)?;
+                let primary = replicants
+                    .into_iter()
+                    .find(|r| r.is_primary)
+                    .ok_or_else(|| UserStoreError::NotFound("primary replicant".into()))?;
+                Ok(Some((user, primary)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Create a session and return it (used by OAuth flow and login).
+    ///
+    /// REQ: DEP-004
+    /// pre:  identity is a valid ReplicantIdentity
+    /// post: returns a new UserSession with 7-day expiry
+    pub fn create_oauth_session(&self, identity: &ReplicantIdentity) -> UserResult<UserSession> {
+        let session = self.create_session(identity)?;
+        self.update_last_login(&identity.replicant_name)?;
+        Ok(session)
     }
 
     /// Login a replicant with passphrase.
@@ -357,7 +514,8 @@ impl UserStore {
     pub fn get_user(&self, user_id: &UserID) -> UserResult<HumanUser> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
-            "SELECT user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, last_active, passphrase_set_at
+            "SELECT user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, last_active, passphrase_set_at,
+                    oauth_provider, oauth_provider_user_id, oauth_display_name
              FROM human_users WHERE user_id = ?1",
         )?;
 
@@ -372,6 +530,11 @@ impl UserStore {
                 created_at: row.get(6)?,
                 last_active: row.get(7)?,
                 passphrase_set_at: row.get(8)?,
+                oauth_provider: row
+                    .get::<_, Option<String>>(9)?
+                    .and_then(|s| s.parse().ok()),
+                oauth_provider_user_id: row.get(10)?,
+                oauth_display_name: row.get(11)?,
             })
         })
         .map_err(|e| match e {
@@ -540,5 +703,33 @@ impl UserStore {
         let mut result = nonce_bytes.to_vec();
         result.extend_from_slice(&ciphertext);
         Ok(result)
+    }
+}
+
+/// Sanitize a display name into a valid replicant name.
+///
+/// Replicant names must be 1-64 alphanumeric characters with hyphens/underscores.
+/// This converts spaces to underscores and strips invalid characters.
+/// REQ: DEP-005
+fn sanitize_replicant_name(display_name: &str) -> String {
+    let sanitized: String = display_name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else if c.is_whitespace() {
+                '_'
+            } else {
+                '-' // Replace other special chars with hyphen
+            }
+        })
+        .collect();
+    // Trim leading/trailing hyphens and underscores
+    let trimmed = sanitized.trim_matches(|c: char| c == '-' || c == '_');
+    if trimmed.is_empty() {
+        format!("user-{}", &uuid::Uuid::new_v4().to_string()[..8])
+    } else {
+        // Truncate to 64 chars
+        trimmed.chars().take(64).collect()
     }
 }

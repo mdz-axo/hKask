@@ -3983,6 +3983,7 @@ dependencies = [
  "hkask-types",
  "hkask-wallet",
  "proptest",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_yaml_neo",

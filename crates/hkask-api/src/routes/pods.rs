@@ -124,8 +124,11 @@ async fn create_pod(
     // REQ: P9-CNS-SURF-031 pre: valid request post: cns.api span emitted
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_create", "CNS");
+    let token = auth.token.as_ref().ok_or_else(|| ServiceError::A2A {
+        message: "Session auth not supported for pod creation".to_string(),
+    })?;
     let has = state.agent_service.capability_checker().check_resource(
-        &auth.token,
+        token,
         &auth.webid,
         DelegationResource::Tool,
     );

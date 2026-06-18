@@ -20,7 +20,12 @@ use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 
 /// Routes that bypass authentication (health checks, model listing).
-const PUBLIC_PATHS: &[&str] = &["/api/cns/health", "/api/models", "/api/models/search"];
+const PUBLIC_PATHS: &[&str] = &[
+    "/api/cns/health",
+    "/api/models",
+    "/api/models/search",
+    "/api/v1/auth",
+];
 
 /// Service for capability token verification and revocation tracking.
 #[derive(Debug, Clone)]
@@ -163,6 +168,12 @@ pub async fn auth_middleware(
         return next.run(req).await;
     }
 
+    // If session middleware already injected AuthContext, skip capability token check
+    // REQ: DEP-020 — session cookie auth coexists with capability token auth
+    if req.extensions().get::<AuthContext>().is_some() {
+        return next.run(req).await;
+    }
+
     // Extract Authorization header
     let auth_header = req
         .headers()
@@ -205,7 +216,8 @@ pub async fn auth_middleware(
 
             // Attach auth context to request extensions
             let mut req = req;
-            req.extensions_mut().insert(AuthContext { token, webid });
+            req.extensions_mut()
+                .insert(AuthContext::from_token(token, webid));
 
             next.run(req).await
         }

@@ -141,7 +141,14 @@ pub(crate) async fn store_episode(
         .agent_service
         .memory()
         .0
-        .store_episodic(request, &auth.token)
+        .store_episodic(
+            request,
+            auth.token.as_ref().ok_or_else(|| {
+                ServiceError::Infra(hkask_types::InfrastructureError::Database(
+                    "Session auth not supported for episodic storage".to_string(),
+                ))
+            })?,
+        )
         .map_err(|e| {
             ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
         })?;
@@ -192,7 +199,10 @@ pub(crate) async fn query_episodes(
         .into());
     }
 
-    let request = RecallRequest::episodic(&params.entity, auth.webid, auth.token);
+    let token = auth
+        .token
+        .ok_or_else(|| ServiceError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
+    let request = RecallRequest::episodic(&params.entity, auth.webid, token);
     let results = state
         .agent_service
         .memory()

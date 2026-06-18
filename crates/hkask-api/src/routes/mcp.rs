@@ -145,7 +145,13 @@ pub(crate) async fn mcp_invoke(
     let result = state
         .agent_service
         .mcp_dispatcher()
-        .invoke(&req.tool, input, &auth.token)
+        .invoke(
+            &req.tool,
+            input,
+            auth.token.as_ref().ok_or_else(|| ServiceError::Template {
+                message: "Session auth not supported for MCP invoke".to_string(),
+            })?,
+        )
         .await
         .map_err(|e| ServiceError::Template {
             message: e.to_string(),

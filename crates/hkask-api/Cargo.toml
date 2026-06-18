@@ -20,6 +20,7 @@ hkask-wallet = { path = "../hkask-wallet" }
 ed25519-dalek.workspace = true
 hex.workspace = true
 axum.workspace = true
+reqwest = { workspace = true, features = ["json"] }
 utoipa.workspace = true
 utoipa-axum.workspace = true
 serde.workspace = true

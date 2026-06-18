@@ -48,6 +48,9 @@ pub use routes::{
     WithdrawalFeeEstimateResponse,
 };
 
+use axum::body::Body;
+use axum::http::Request;
+use axum::middleware::Next;
 use std::sync::Arc;
 
 use hkask_services::AgentService;
@@ -215,6 +218,7 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
     ));
 
     let mut router = utoipa_axum::router::OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(routes::auth_router())
         .merge(routes::templates_router())
         .merge(routes::bots_router())
         .merge(routes::pods_router())
@@ -236,6 +240,17 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         .merge(routes::wallet_router())
         // P9: CNS span — outermost layer captures all requests before auth
         .layer(axum::middleware::from_fn(middleware::cns_middleware))
+        // Session cookie middleware — runs before capability token auth (DEP-020)
+        .layer({
+            let store = state.agent_service.user_store().clone();
+            axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
+                let store = store.clone();
+                async move {
+                    use middleware::session_middleware_impl;
+                    session_middleware_impl(&store, req, next).await
+                }
+            })
+        })
         .layer(axum::middleware::from_fn_with_state(
             auth_service,
             middleware::auth_middleware,
@@ -265,6 +280,7 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
     use utoipa_axum::router::OpenApiRouter;
 
     let router: OpenApiRouter<ApiState> = OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(routes::auth_router())
         .merge(routes::templates_router())
         .merge(routes::bots_router())
         .merge(routes::pods_router())

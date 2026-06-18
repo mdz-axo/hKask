@@ -8,10 +8,28 @@ use super::token_types::DelegationToken;
 
 /// Verified authentication context — caller's identity and capability token.
 /// Both API (middleware verification) and CLI (keystore resolution) produce this type.
+///
+/// `token` is `Some` for capability-token auth; `None` for session-cookie auth (DEP-020).
 #[derive(Debug, Clone)]
 pub struct AuthContext {
-    pub token: DelegationToken,
+    pub token: Option<DelegationToken>,
     pub webid: WebID,
+}
+
+impl AuthContext {
+    /// Create an AuthContext from a session (no DelegationToken).
+    /// REQ: DEP-020
+    pub fn from_session(webid: WebID) -> Self {
+        Self { token: None, webid }
+    }
+
+    /// Create an AuthContext from a verified DelegationToken.
+    pub fn from_token(token: DelegationToken, webid: WebID) -> Self {
+        Self {
+            token: Some(token),
+            webid,
+        }
+    }
 }
 
 /// Derive an Ed25519 signing key from arbitrary secret bytes.
