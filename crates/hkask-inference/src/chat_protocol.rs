@@ -13,6 +13,7 @@ use hkask_types::ports::{
     TokenProb, TokenProbability,
 };
 use hkask_types::template::LLMParameters;
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
@@ -365,6 +366,69 @@ pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
         return Err(InferenceError::Generation("Prompt too long".to_string()));
     }
     Ok(())
+}
+
+/// Stream a chat completion from an OpenAI-compatible endpoint via SSE.
+///
+/// Shared helper used by all backends. Manages HTTP request, status handling,
+/// and SSE parsing. Backends differ only in their Authorization header value
+/// (Bearer vs Key) and base URL.
+///
+/// REQ: P9-inf-stream-chat-completion
+/// \[P9\] Motivating: Homeostatic Self-Regulation — shared streaming helper for all providers
+/// pre:  client is a configured reqwest::Client
+/// pre:  base_url and auth_header_value are non-empty
+/// pre:  model and prompt are non-empty
+/// post: returns Pin<Box<Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send>>
+pub fn stream_chat_completion(
+    client: std::sync::Arc<reqwest::Client>,
+    base_url: String,
+    auth_header_value: String,
+    model: String,
+    prompt: String,
+    params: LLMParameters,
+) -> std::pin::Pin<
+    Box<dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send>,
+> {
+    Box::pin(
+        futures_util::stream::once(async move {
+            let request = build_chat_request(&model, &prompt, None, &params, Some(true), None);
+
+            let response = match client
+                .post(format!("{}/v1/chat/completions", base_url))
+                .header("Authorization", &auth_header_value)
+                .json(&request)
+                .send()
+                .await
+                .map_err(|e| InferenceError::Connection(e.to_string()))
+            {
+                Ok(r) => r,
+                Err(e) => return vec![Err(e)],
+            };
+
+            let status = response.status();
+            if !status.is_success() {
+                let error_text = response.text().await.unwrap_or_default();
+                return vec![Err(InferenceError::Connection(format!(
+                    "streaming status {}: {}",
+                    status, error_text
+                )))];
+            }
+
+            let body = match response
+                .text()
+                .await
+                .map_err(|e| InferenceError::Connection(e.to_string()))
+            {
+                Ok(b) => b,
+                Err(e) => return vec![Err(e)],
+            };
+
+            parse_sse_stream(&body, &model)
+        })
+        .map(futures_util::stream::iter)
+        .flatten(),
+    )
 }
 
 #[cfg(test)]

@@ -8,10 +8,9 @@
 //! lowest per-token pricing among GPU cloud providers.
 
 use crate::chat_protocol::{
-    build_chat_request, chat_response_to_result, parse_sse_stream, validate_prompt,
+    build_chat_request, chat_response_to_result, stream_chat_completion, validate_prompt,
 };
 use crate::config::InferenceConfig;
-use futures_util::StreamExt;
 use hkask_types::ports::{InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
@@ -189,51 +188,14 @@ impl DeepInfraBackend {
                 + '_,
         >,
     > {
-        let model = model.to_string();
-        let prompt = prompt.to_string();
-        let params = params.clone();
-        let client = Arc::clone(&self.client);
-        let base_url = self.base_url.clone();
-        let api_key = self.api_key.clone();
-
-        Box::pin(
-            futures_util::stream::once(async move {
-                let request = build_chat_request(&model, &prompt, None, &params, Some(true), None);
-
-                let response = match client
-                    .post(format!("{}/v1/chat/completions", base_url))
-                    .header("Authorization", format!("Bearer {}", api_key))
-                    .json(&request)
-                    .send()
-                    .await
-                    .map_err(|e| InferenceError::Connection(e.to_string()))
-                {
-                    Ok(r) => r,
-                    Err(e) => return vec![Err(e)],
-                };
-
-                let status = response.status();
-                if !status.is_success() {
-                    let error_text = response.text().await.unwrap_or_default();
-                    return vec![Err(InferenceError::Connection(format!(
-                        "DeepInfra streaming status {}: {}",
-                        status, error_text
-                    )))];
-                }
-
-                let body = match response
-                    .text()
-                    .await
-                    .map_err(|e| InferenceError::Connection(e.to_string()))
-                {
-                    Ok(b) => b,
-                    Err(e) => return vec![Err(e)],
-                };
-
-                parse_sse_stream(&body, &model)
-            })
-            .map(futures_util::stream::iter)
-            .flatten(),
+        let auth = format!("Bearer {}", self.api_key);
+        stream_chat_completion(
+            Arc::clone(&self.client),
+            self.base_url.clone(),
+            auth,
+            model.to_string(),
+            prompt.to_string(),
+            params.clone(),
         )
     }
 

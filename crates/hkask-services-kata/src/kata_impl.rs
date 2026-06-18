@@ -30,6 +30,11 @@ pub(crate) mod manifest;
 pub(crate) mod error;
 pub(crate) mod history;
 pub(crate) mod state;
+pub(crate) mod metrics;
+pub(crate) mod improvement;
+pub(crate) mod coaching;
+pub(crate) mod starter;
+pub(crate) mod execution;
 
 #[allow(unused_imports)]
 pub use error::KataError;

@@ -25,27 +25,43 @@ impl EmbeddingRouter {
     /// pre:  config is a valid InferenceConfig
     /// post: returns EmbeddingRouter with configured backends
     pub fn new(config: InferenceConfig) -> Self {
-        let build_client = || {
-            config
-                .build_client()
-                .map(Arc::new)
-                .map_err(
-                    |e| warn!(target: "cns.inference", "Embedding client build failed: {}", e),
-                )
-                .ok()
-        };
-
-        let deepinfra_client = if config.deepinfra_api_key.is_empty() {
-            warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
-            None
-        } else {
-            build_client()
-        };
-
+        let deepinfra_client = Self::build_deepinfra_client(&config);
         Self {
             config,
             deepinfra_client,
         }
+    }
+
+    /// Create an embedding router with a shared HTTP client.
+    ///
+    /// REQ: P4-inf-embedding-router-with-client
+    /// \[P4\] Motivating: Clear Boundaries — embedding provider with shared connection pool
+    /// pre:  config is a valid InferenceConfig; client is a configured reqwest::Client
+    /// post: returns EmbeddingRouter with DeepInfra client from shared pool
+    pub fn with_client(config: &InferenceConfig, client: Arc<reqwest::Client>) -> Self {
+        let deepinfra_client = if config.deepinfra_api_key.is_empty() {
+            warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
+            None
+        } else {
+            Some(client)
+        };
+
+        Self {
+            config: config.clone(),
+            deepinfra_client,
+        }
+    }
+
+    fn build_deepinfra_client(config: &InferenceConfig) -> Option<Arc<reqwest::Client>> {
+        if config.deepinfra_api_key.is_empty() {
+            warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
+            return None;
+        }
+        config
+            .build_client()
+            .map(Arc::new)
+            .map_err(|e| warn!(target: "cns.inference", "Embedding client build failed: {}", e))
+            .ok()
     }
 
     /// Resolve provider and stripped model name from a model identifier.

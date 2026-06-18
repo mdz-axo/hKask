@@ -14,6 +14,7 @@ use crate::together_backend::TogetherBackend;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use std::pin::Pin;
+use std::sync::Arc;
 use tracing::warn;
 
 /// Multi-provider inference router implementing `InferencePort`.
@@ -56,12 +57,18 @@ impl InferenceRouter {
             warn!(target: "cns.inference", "Together AI backend unavailable (no API key)");
         }
 
+        let shared_client = config.build_client().map(Arc::new).ok();
+        let embedding = shared_client
+            .as_ref()
+            .map(|c| EmbeddingRouter::with_client(&config, Arc::clone(c)))
+            .unwrap_or_else(|| EmbeddingRouter::new(config.clone()));
+
         Self {
             config: config.clone(),
             deepinfra,
             fal,
             together,
-            embedding: EmbeddingRouter::new(config),
+            embedding,
         }
     }
 
@@ -90,6 +97,55 @@ impl InferenceRouter {
         Ok((provider, stripped_model))
     }
 
+    /// Dispatch a generate call to the resolved backend.
+    ///
+    /// REQ: P9-inf-dispatch-generate
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — shared dispatch for text generation
+    /// pre:  provider is a resolved ProviderId with available backend
+    /// pre:  model, prompt, params are validated and cloned
+    /// post: returns Ok(InferenceResult) on success
+    /// post: returns Err(Connection) if backend is None or provider is unsupported
+    async fn dispatch_generate(
+        &self,
+        provider: ProviderId,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+    ) -> Result<InferenceResult, InferenceError> {
+        match provider {
+            ProviderId::DeepInfra => {
+                self.deepinfra
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("DeepInfra backend unavailable".to_string())
+                    })?
+                    .generate(model, prompt, params)
+                    .await
+            }
+            ProviderId::Fal => {
+                self.fal
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("fal.ai backend unavailable".to_string())
+                    })?
+                    .generate(model, prompt, params)
+                    .await
+            }
+            ProviderId::Together => {
+                self.together
+                    .as_ref()
+                    .ok_or_else(|| {
+                        InferenceError::Connection("Together backend unavailable".to_string())
+                    })?
+                    .generate(model, prompt, params)
+                    .await
+            }
+            ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
+                "Runpod/Baseten are adapter providers".to_string(),
+            )),
+        }
+    }
+
     /// List all available models across all configured providers.
     ///
     /// Queries each backend concurrently and merges results with
@@ -109,54 +165,35 @@ impl InferenceRouter {
             && let Ok(models) = backend.list_models().await
         {
             for m in models {
-                entries.push(RouterModelEntry {
-                    prefixed_name: ProviderId::DeepInfra.prefix_model(&m.id),
-                    provider: ProviderId::DeepInfra,
-                    model: m.id.clone(),
-                    supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
-                    family: None,
-                    parameter_size: None,
-                    quantization_level: None,
-                    size_bytes: None,
-                });
+                entries.push(RouterModelEntry::from_model_entry(
+                    ProviderId::DeepInfra,
+                    &m.id,
+                ));
             }
         }
 
-        // fal.ai models (static catalog)
         if let Some(ref backend) = self.fal
             && let Ok(models) = backend.list_models().await
         {
             for m in models {
-                entries.push(RouterModelEntry {
-                    prefixed_name: ProviderId::Fal.prefix_model(&m.id),
-                    provider: ProviderId::Fal,
-                    model: m.id.clone(),
-                    supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
-                    family: None,
-                    parameter_size: None,
-                    quantization_level: None,
-                    size_bytes: None,
-                });
+                entries.push(RouterModelEntry::from_model_entry(
+                    ProviderId::Fal,
+                    &m.id,
+                ));
             }
         }
 
-        // Together AI models
         if let Some(ref backend) = self.together
             && let Ok(models) = backend.list_models().await
         {
             for m in models {
-                entries.push(RouterModelEntry {
-                    prefixed_name: ProviderId::Together.prefix_model(&m.id),
-                    provider: ProviderId::Together,
-                    model: m.id.clone(),
-                    supports_vision: RouterModelEntry::infer_vision_support(&m.id, None),
-                    family: None,
-                    parameter_size: None,
-                    quantization_level: None,
-                    size_bytes: None,
-                });
+                entries.push(RouterModelEntry::from_model_entry(
+                    ProviderId::Together,
+                    &m.id,
+                ));
             }
         }
+
 
         entries
     }
@@ -502,42 +539,7 @@ impl InferencePort for InferenceRouter {
             let parameters = parameters.clone();
             return Box::pin(async move {
                 validate_prompt(&prompt)?;
-                match provider {
-                    ProviderId::DeepInfra => {
-                        self.deepinfra
-                            .as_ref()
-                            .ok_or_else(|| {
-                                InferenceError::Connection(
-                                    "DeepInfra backend unavailable".to_string(),
-                                )
-                            })?
-                            .generate(&model, &prompt, &parameters)
-                            .await
-                    }
-                    ProviderId::Fal => {
-                        self.fal
-                            .as_ref()
-                            .ok_or_else(|| {
-                                InferenceError::Connection("fal.ai backend unavailable".to_string())
-                            })?
-                            .generate(&model, &prompt, &parameters)
-                            .await
-                    }
-                    ProviderId::Together => {
-                        self.together
-                            .as_ref()
-                            .ok_or_else(|| {
-                                InferenceError::Connection(
-                                    "Together backend unavailable".to_string(),
-                                )
-                            })?
-                            .generate(&model, &prompt, &parameters)
-                            .await
-                    }
-                    ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
-                        "Runpod/Baseten are adapter providers".to_string(),
-                    )),
-                }
+                self.dispatch_generate(provider, &model, &prompt, &parameters).await
             });
         }
 
@@ -614,38 +616,7 @@ impl InferencePort for InferenceRouter {
 
         Box::pin(async move {
             validate_prompt(&prompt)?;
-            match provider {
-                ProviderId::DeepInfra => {
-                    self.deepinfra
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("DeepInfra backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
-                ProviderId::Fal => {
-                    self.fal
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("fal.ai backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
-                ProviderId::Together => {
-                    self.together
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("Together backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
-                ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
-                    "Runpod/Baseten are adapter providers".to_string(),
-                )),
-            }
+            self.dispatch_generate(provider, &model, &prompt, &parameters).await
         })
     }
 

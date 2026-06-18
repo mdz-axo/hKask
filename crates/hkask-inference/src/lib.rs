@@ -63,6 +63,25 @@ pub struct RouterModelEntry {
 }
 
 impl RouterModelEntry {
+    /// Construct a RouterModelEntry from a provider and model id.
+    ///
+    /// REQ: P9-inf-router-model-entry-from
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — canonical model entry construction
+    /// pre:  model_id is non-empty
+    /// post: returns RouterModelEntry with prefixed name, provider, and inferred vision support
+    fn from_model_entry(provider: ProviderId, model_id: &str) -> Self {
+        Self {
+            prefixed_name: provider.prefix_model(model_id),
+            provider,
+            model: model_id.to_string(),
+            supports_vision: Self::infer_vision_support(model_id, None),
+            family: None,
+            parameter_size: None,
+            quantization_level: None,
+            size_bytes: None,
+        }
+    }
+
     /// Heuristic: known vision-capable model families.
     ///
     /// Checks model name and family against a static allowlist.
