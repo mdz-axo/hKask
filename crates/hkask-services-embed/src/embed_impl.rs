@@ -442,6 +442,10 @@ impl EmbedService {
         cache_dir: Option<&Path>,
         progress: Option<ProgressFn>,
     ) -> Result<EmbedResult, ServiceError> {
+        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.embed span emitted
+        // P9: CNS span
+        tracing::info!(target: "cns.embed", operation = "embed_corpus", config = %config_path.display(), "CNS");
+
         let started = Instant::now();
 
         // ── Phase 1: Parse config ──────────────────────────────────────
