@@ -118,6 +118,10 @@ pub fn load_classifier_config(
     name: &str,
     registry_dir: &Path,
 ) -> Result<ClassifierDef, ServiceError> {
+    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.classify span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.classify", operation = "load_config", classifier = %name, "CNS");
+
     let config_path = registry_dir.join("classify").join(format!("{name}.yaml"));
     let yaml_str = std::fs::read_to_string(&config_path).map_err(|e| {
         let msg = format!(
@@ -125,7 +129,7 @@ pub fn load_classifier_config(
             config_path.display()
         );
         ServiceError::Embed {
-            source: Some(Box::new(e)),
+            source: None,
             message: msg,
         }
     })?;
@@ -135,7 +139,7 @@ pub fn load_classifier_config(
             config_path.display()
         );
         ServiceError::Embed {
-            source: Some(Box::new(e)),
+            source: None,
             message: msg,
         }
     })?;
@@ -208,7 +212,7 @@ async fn classify_one(
         .map_err(|e| {
             let msg = format!("Classifier HTTP error: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
+            source: None,
                 message: msg,
             }
         })?;
@@ -228,7 +232,7 @@ async fn classify_one(
     let chat: ChatResponse = resp.json().await.map_err(|e| {
         let msg = format!("Classifier JSON parse error: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
+            source: None,
             message: msg,
         }
     })?;
@@ -274,6 +278,10 @@ pub async fn classify_batch(
     texts: &[String],
     config: ClassifierConfig,
 ) -> Result<Vec<ClassifyResult>, ServiceError> {
+    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.classify span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.classify", operation = "classify_batch", item_count = texts.len(), "CNS");
+
     if config.api_key.is_empty() {
         // No API key — return all fallback category (skip classification)
         let fallback = &config.fallback_category;
@@ -291,7 +299,7 @@ pub async fn classify_batch(
         .map_err(|e| {
             let msg = format!("Classifier client build error: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
+            source: None,
                 message: msg,
             }
         })?;
@@ -357,6 +365,10 @@ pub async fn extract_triples_batch(
     texts: &[String],
     config: &ClassifierConfig,
 ) -> Result<Vec<TripleExtraction>, ServiceError> {
+    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.classify span emitted
+    // P9: CNS span
+    tracing::info!(target: "cns.classify", operation = "extract_triples_batch", item_count = texts.len(), "CNS");
+
     if config.api_key.is_empty() {
         tracing::info!("No API key for triple extraction — returning empty extractions");
         return Ok(texts.iter().map(|_| TripleExtraction::default()).collect());
@@ -368,7 +380,7 @@ pub async fn extract_triples_batch(
         .map_err(|e| {
             let msg = format!("Triple extractor client build error: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
+            source: None,
                 message: msg,
             }
         })?;
@@ -435,7 +447,7 @@ async fn extract_triples_one(
         .map_err(|e| {
             let msg = format!("Triple extractor HTTP error: {e}");
             ServiceError::Embed {
-                source: Some(Box::new(e)),
+            source: None,
                 message: msg,
             }
         })?;
@@ -455,7 +467,7 @@ async fn extract_triples_one(
     let chat: ChatResponse = resp.json().await.map_err(|e| {
         let msg = format!("Triple extractor JSON parse error: {e}");
         ServiceError::Embed {
-            source: Some(Box::new(e)),
+            source: None,
             message: msg,
         }
     })?;
@@ -489,7 +501,7 @@ fn parse_triple_extraction(content: &str) -> Result<TripleExtraction, ServiceErr
             &json_str[..json_str.len().min(200)]
         );
         ServiceError::Embed {
-            source: Some(Box::new(e)),
+            source: None,
             message: msg,
         }
     })?;
