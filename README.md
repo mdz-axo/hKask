@@ -49,11 +49,11 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 ## Crate Structure
 
 ### Core (11 crates)
-- `hkask-types` — ID types, ν-event, hLexicon, visibility
+- `hkask-types` — ID types, nu-event, vocabulary, visibility
 - `hkask-storage` — SQLite + SQLCipher, triples, embeddings, blobs, Git CAS
 - `hkask-memory` — Semantic/episodic pipelines (memory consolidation: episodic → semantic)
 - `hkask-cns` — Cybernetic Nervous System
-- `hkask-templates` — Registry, hLexicon, cascade, resolver
+- `hkask-templates` — Registry, vocabulary, cascade, resolver
 - `hkask-agents` — Pods, ACP, bot/replicant, Curator
 - `hkask-ensemble` — Multi-agent chat
 - `hkask-keystore` — OS keychain, AES-256-GCM
@@ -101,7 +101,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ### Phase 1: Security Foundation ✓
 - [x] `hkask-keystore` — encrypted KV, interactive passphrase
-- [x] `hkask-types` — ID types, ν-event, hLexicon enum
+- [x] `hkask-types` — ID types, nu-event, vocabulary enum
 - [x] `hkask-storage` — SQLite + SQLCipher + sqlite-vec + BLAKE3 + gix
 - [x] `hkask-memory` — semantic/episodic pipelines
 
@@ -110,7 +110,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - [x] `hkask-keystore` — OS keychain, AES-256-GCM
 
 ### Phase 3: Templates & Registry ✓
-- [x] `hkask-templates` — registry, hLexicon, minijinja, cascade
+- [x] `hkask-templates` — registry, vocabulary, minijinja, cascade
 
 ### Phase 4: Security Hardening & Testing ✓
 - [x] Comprehensive security hardening (ADR-022)

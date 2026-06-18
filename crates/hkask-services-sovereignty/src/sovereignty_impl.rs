@@ -21,6 +21,11 @@ pub struct SovereigntyService {
 
 impl SovereigntyService {
     /// Create from the shared consent manager.
+    ///
+    /// REQ: P4-svc-sov-001
+    /// [P4] Motivating: Clear Boundaries — consent manager is shared, not copied.
+    /// pre:  consent is a valid Arc<ConsentManager>
+    /// post: returns SovereigntyService wrapping the shared consent manager
     pub fn new(consent: Arc<ConsentManager>) -> Self {
         Self { consent }
     }
@@ -61,11 +66,21 @@ impl SovereigntyService {
     }
 
     /// Check if the given WebID has consent for a data category.
+    ///
+    /// REQ: P4-svc-sov-002
+    /// [P4] Motivating: Clear Boundaries — consent check through membrane.
+    /// pre:  self must be created; webid is non-empty; category is a valid DataCategory
+    /// post: returns true iff consent exists for this WebID and category
     pub fn has_consent(&self, webid: &str, category: &DataCategory) -> bool {
         self.consent.has_consent(webid, category).unwrap_or(false)
     }
 
     /// Get all categories the given WebID has granted consent for.
+    ///
+    /// REQ: P4-svc-sov-003
+    /// [P4] Motivating: Clear Boundaries — consent query through membrane.
+    /// pre:  self must be created; webid is non-empty
+    /// post: returns Ok(Vec<String>) listing granted category names, or Err if consent store unavailable
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ServiceError> {
         self.consent
             .get_granted_categories(webid)

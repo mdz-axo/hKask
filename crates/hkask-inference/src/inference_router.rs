@@ -579,7 +579,7 @@ impl InferencePort for InferenceRouter {
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
-ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
+                ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
                     "Runpod/Baseten are adapter providers".to_string(),
                 )),
             }

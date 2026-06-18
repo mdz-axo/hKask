@@ -438,6 +438,11 @@ impl AgentService {
     // === Category 4: Internal implementation (crate-visible only) ===
 
     /// Access A2A runtime for agent registration and capability management.
+    ///
+    /// REQ: P3-svc-context-277
+    /// [P3] Motivating: Generative Space — A2A runtime access without ambient authority.
+    /// pre:  self must be fully built
+    /// post: returns &Arc<A2ARuntime> reference
     pub fn a2a_runtime(&self) -> &Arc<hkask_agents::A2ARuntime> {
         &self.a2a_runtime
     }

@@ -71,9 +71,9 @@ Health signals are returned in `CompressedOutput::health_signals` and can be emi
 
 **Status:** MOOT — type migrations were rejected. No template path changes needed.
 
-### 5.2 hLexicon Mapping to MDS Categories
+### 5.2 Vocabulary Mapping to MDS Categories
 
-**Status:** ✅ DONE. Added `MdsCategory` enum (Domain, Composition, Trust, Lifecycle, Curation) to `hkask-types::lexicon`. `LexiconTerm` now has an `mds_category: Option<MdsCategory>` field with `with_mds_category()` builder. Exported as `hkask_types::MdsCategory`. Enables formal verification of all 87 hLexicon terms against the 5 MDS categories via `spec/graph/coherence`.
+**Status:** ✅ DONE. Vocabulary terms are embedded in `crates/hkask-templates/src/vocabulary.rs` as the `KNOWN_TERMS` sorted array. Validation is performed at registration time by `vocabulary::validate_entry()`. The 120-term vocabulary bootstraps from existing manifest `lexicon_terms` across the skill corpus.
 
 ---
 
