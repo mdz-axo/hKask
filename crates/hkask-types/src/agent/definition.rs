@@ -3,8 +3,6 @@
 //! The Curator manages agent registration, evaluation, rights, and responsibilities.
 //! These types define the full identity of an agent as specified in registry YAML.
 
-// G2 Justification: This module exposes 5 public items — AgentDefinition, AgentKind, Charter, PersonaConstraints, and RegisteredAgent. Each represents a distinct agent configuration concept.
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

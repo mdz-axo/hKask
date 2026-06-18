@@ -1,5 +1,3 @@
-// G2 Justification: 7 public items — inference data types (error, usage, token probabilities, confidence, tool calls, result). These are the value objects that flow through the InferencePort boundary. Co-located because they share serde derives and compose into InferenceResult. ≤7 cap met.
-
 use serde::{Deserialize, Serialize};
 
 /// Inference error types

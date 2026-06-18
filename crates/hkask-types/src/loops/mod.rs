@@ -1,12 +1,12 @@
-//! hKask 6-Loop Architecture
+//! hKask 4-Loop Architecture
 //!
-//! Six cybernetic feedback loops following Beer's Viable System Model.
+//! Four cybernetic feedback loops following Beer's Viable System Model.
 //! Each loop implements sense → compare → compute → act.
 //!
 //! **Loop Numbering (VSM correspondence):**
 //!
 //! The numbering follows Stafford Beer's VSM. Loop 3 (Control) is absorbed
-//! into Loop 6 (Cybernetics) — the homeostatic regulator IS the controller.
+//! into Cybernetics — the homeostatic regulator IS the controller.
 //! There is no Loop 3; this is intentional, not a gap.
 //!
 //! | Loop | Name | VSM Role | Category |
@@ -14,7 +14,6 @@
 //! | 1 | Inference | Implementation | Domain |
 //! | 2a | Episodic Memory | Coordination (private) | Domain |
 //! | 2b | Semantic Memory | Coordination (shared) | Domain |
-//! | 4 | Communication | Channel (dumb pipe) | Meta |
 //! | 5 | Curation | Metasystem (observer) | Meta |
 //! | 6 | Cybernetics | Homeostatic regulation | Meta |
 //! | 6b | Snapshot | Scheduled CAS snapshots | Meta |
@@ -22,10 +21,8 @@
 //! **Bridge:**
 //! - 2a→2b: Consolidation — episodic → strip perspective → store semantic (one-way)
 //!
-//! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic, Communication}
+//! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic}
 //! No sideways edges. Authority flows downward.
-
-// G2 Justification: This module exposes 16 public items because it defines loop system types — LoopId, LoopPhase, LoopPayload, CurationInput, SpecEvent, and related types. Each is a distinct cybernetic loop concept.
 
 pub mod actions;
 pub mod channels;

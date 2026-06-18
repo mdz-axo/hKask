@@ -1,8 +1,6 @@
 //! hKask Types — Foundation types for the hKask agent platform
 //!
-//! G2 Justification: Re-export facade for the most-used types across the workspace.
-//! Each re-export maps to a type used by ≥3 downstream crates. Less-commonly-used
-//! types are accessed via their submodule paths (e.g., `hkask_types::sovereignty::DataCategory`).
+
 
 pub mod agent;
 pub mod audit;

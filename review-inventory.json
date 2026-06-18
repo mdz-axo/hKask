@@ -5446,7 +5446,7 @@
     "line": 76,
     "req_id": "P3-tpl-contract-validator-validate-terms",
     "pre": "template_id is non-empty",
-    "post": "returns (Ok(()), vec![]) if no lexicon configured",
+    "post": "returns Ok(()) always (passthrough validator)",
     "flags": ""
   },
   {
@@ -5521,22 +5521,12 @@
   },
   {
     "crate_name": "hkask-templates",
-    "function": "set_lexicon",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/registry_sqlite.rs",
-    "line": 143,
-    "req_id": "P3-tpl-registry-sqlite-set-lexicon",
-    "pre": "lexicon is a valid HLexicon",
-    "post": "hlexicon set — subsequent register() calls validate terms",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-templates",
     "function": "register",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/registry_sqlite.rs",
     "line": 155,
     "req_id": "P3-tpl-registry-sqlite-register",
     "pre": "entry.id is non-empty, entry.template_type is valid",
-    "post": "validates terms against hlexicon if set",
+    "post": "entry inserted into templates map (passthrough validation)",
     "flags": ""
   },
   {
@@ -5628,16 +5618,6 @@
     "pre": "",
     "post": "returns Registry with empty templates, skills, bundles, no lexicon",
     "flags": "NO_PRE"
-  },
-  {
-    "crate_name": "hkask-templates",
-    "function": "set_lexicon",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/registry.rs",
-    "line": 62,
-    "req_id": "P3-tpl-registry-set-lexicon",
-    "pre": "lexicon is a valid HLexicon",
-    "post": "hlexicon set — subsequent register() calls validate terms",
-    "flags": ""
   },
   {
     "crate_name": "hkask-templates",

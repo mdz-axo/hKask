@@ -13,8 +13,6 @@
 //! (VerificationReport, reportsTo, CnsSpan)
 //! ```
 
-// G2 Justification: This module exposes 5 public items — ComplexityTier, ComplexityScore, OcrBackend, ThresholdConfig, and DEFAULT_LLM_OCR_MODEL. Each represents a distinct configuration concept.
-
 use serde::{Deserialize, Serialize};
 
 // ── Complexity Tiers ──────────────────────────────────────────────────────

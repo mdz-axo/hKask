@@ -26,7 +26,7 @@ use utoipa::ToSchema;
 /// Template response — a registered skill template in the WordAct / FlowDef / KnowAct taxonomy (Pattern A).
 ///
 /// `template_type` is one of: WordAct, FlowDef, KnowAct.
-/// `lexicon_terms` maps the template to canonical hLexicon vocabulary terms.
+/// `lexicon_terms` maps the template to canonical vocabulary terms.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct TemplateResponse {
     /// Unique template identifier
@@ -39,7 +39,7 @@ pub struct TemplateResponse {
     pub description: String,
     /// Source file path within the registry
     pub source_path: String,
-    /// Canonical hLexicon terms this template implements
+    /// Canonical vocabulary terms this template implements
     pub lexicon_terms: Vec<String>,
 }
 

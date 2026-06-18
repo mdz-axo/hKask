@@ -4,8 +4,6 @@
 //! rather than concrete implementations. Per the Authority DAG,
 //! domain crates depend on these port traits (not on each other).
 
-// G2 Justification: This module now re-exports 26 public items from 6 domain-grouped sub-files (each ≤7 items). The split satisfies deep-module discipline: each sub-file earns existence by the deletion test — deleting any sub-file would scatter its domain's types across unrelated modules.
-
 pub mod git_cas;
 
 pub mod cns;

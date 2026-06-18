@@ -1,5 +1,3 @@
-// G2 Justification: 3 public items — tool governance boundary (error, port trait, info struct). ToolPort is the OCAP-gated membrane for MCP tool invocation; ToolInfo carries canonical metadata for capability matching. ≤7 cap met.
-
 use crate::capability::DelegationToken;
 
 /// Governance membrane error types.

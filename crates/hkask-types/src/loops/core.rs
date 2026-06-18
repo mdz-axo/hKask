@@ -3,7 +3,7 @@
 use super::actions::LoopAction;
 use super::signals::{Deviation, DeviationDirection, Signal};
 
-/// Loop identifiers for the 6-loop model.
+/// Loop identifiers for the 4-loop model.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]

@@ -1,9 +1,5 @@
 //! Core ID system — generic UUID-based identifiers with phantom type parameters.
 //!
-//! G2 Justification: 7 public items (IdKind, Id, 5 kind types). The generic `Id<T>`
-//! struct and its kind types are a single cohesive abstraction — splitting them
-//! would break the phantom-type pattern that prevents accidental ID confusion.
-
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use uuid::Uuid;

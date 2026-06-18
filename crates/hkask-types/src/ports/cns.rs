@@ -1,5 +1,3 @@
-// G2 Justification: 6 public items — CNS boundary ports (circuit breaker, consolidation, depletion, backpressure, observer). Each is a distinct architectural seam; merging would violate interface segregation. ≤7 cap met.
-
 use crate::cns::CircuitState;
 use crate::event::{NuEvent, SpanNamespace};
 use crate::id::WebID;

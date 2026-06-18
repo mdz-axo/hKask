@@ -1,14 +1,14 @@
-//! R7 Bot Identity — Loop 4 (Communication): standing session coordination
+//! R7 Bot Identity — standing session coordinators, governed by Cybernetics Loop.
 //!
 //! The R7 bots participate in standing sessions coordinated by
-//! the Communication loop. Energy budgets are governed by Cybernetics;
-//! the roster itself is Communication infrastructure.
+//! the Cybernetics loop. Energy budgets are governed by Cybernetics;
+//! the roster itself is Cybernetics infrastructure.
 
 use crate::{Visibility, WebID};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
-/// Loop: Communication
+/// Loop: Cybernetics
 /// An R7 bot identity — one of the seven "c" curators
 ///
 /// \[DECLARATIVE\] Invariant: `webid` is always `WebID::from_persona(id.as_bytes())`. (P8 — Semantic Grounding).

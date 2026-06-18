@@ -1,5 +1,3 @@
-// G2 Justification: 7 public items — registry domain (entry, zone, skill, error, three index traits). These form the template/skill registry boundary. Co-located because Skill, SkillZone, and RegistryEntry compose together; the three index traits share the same error type. ≤7 cap met.
-
 use crate::BundleManifest;
 use crate::bundle::SkillPolarity;
 use crate::template_type::TemplateType;

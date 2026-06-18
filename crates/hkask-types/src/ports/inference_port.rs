@@ -1,5 +1,3 @@
-// G2 Justification: 2 public items — InferencePort trait + InferenceStreamChunk. The trait is the primary architectural boundary for LLM invocation; the chunk is its streaming counterpart. Together they form a complete abstraction with blanket impl for Arc<dyn InferencePort>. ≤7 cap met.
-
 use super::inference_types::{InferenceError, InferenceResult, InferenceUsage, StructuredToolCall};
 use crate::template::LLMParameters;
 use futures_util::Stream;

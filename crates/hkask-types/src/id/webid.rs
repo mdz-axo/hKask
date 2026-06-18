@@ -1,9 +1,4 @@
 //! WebID — Unique identifier for agents (bots and replicants).
-//!
-//! G2 Justification: 1 public item. WebID is the most-used type in the system
-//! (referenced by 100+ files). It lives in its own file because it has a distinct
-//! identity concern (persona-based derivation, redacted display) separate from
-//! the generic `Id<T>` system.
 
 use uuid::Uuid;
 

@@ -3,11 +3,8 @@
 //! Namespace: cns.* (canonical observability namespace)
 //! Key spans: cns.tool.*, cns.inference.*, cns.agent_pod.*, cns.gas.*, cns.curation.*, cns.sovereignty.*, cns.spec.*
 
-// G2 Justification: This module exposes 8 public items because it defines CNS types — CnsSpan (28 variants), ToolSubsystem, QueueDepth, CircuitState, CnsHealth, SeamCoverage, SeamInventory, RetryConfig. CnsSpan carries 28 canonical namespace variants with confirmed producers.
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt;
 
 // ── Domain newtypes (P2.3) ──────────────────────────────────────────────────
 
@@ -34,12 +31,6 @@ impl QueueDepth {
     /// Return the raw `f64` value.
     pub fn as_raw(self) -> f64 {
         self.0
-    }
-}
-
-impl fmt::Display for QueueDepth {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "depth={:.0}", self.0)
     }
 }
 
@@ -74,10 +65,10 @@ pub struct CnsHealth {
 
 /// Typed CNS span identifiers — the authoritative CNS span registry.
 ///
-/// \[NORMATIVE\] Replaces stringly-typed `&str` constants. Invalid span values
+/// Replaces stringly-typed `&str` constants. Invalid span values
 /// are unrepresentable — the type system enforces validity at compile time (P8 — Semantic Grounding).
 ///
-/// \[DECLARATIVE\] `Display` produces the canonical namespace string (e.g., `"cns.tool"`),
+/// `Display` produces the canonical namespace string (e.g., `"cns.tool"`),
 /// preserving backward compatibility with existing tracing targets and ν-event serialization.
 /// `FromStr` is fallible — only canonical namespaces parse successfully.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -142,7 +133,7 @@ pub enum CnsSpan {
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
 ///
-/// \[DECLARATIVE\] Derived from the `hkask-mcp-*` server naming convention.
+/// Derived from the `hkask-mcp-*` server naming convention.
 /// Unknown or future servers use `Other`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ToolSubsystem {
@@ -181,18 +172,12 @@ impl ToolSubsystem {
     }
 }
 
-impl std::fmt::Display for ToolSubsystem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
 impl CnsSpan {
     /// REQ: TYP-208
     /// pre:  self is a valid CnsSpan variant
     /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
-    /// \[NORMATIVE\] This output must match the existing `CANONICAL_NAMESPACES` strings
+    /// This output must match the existing `CANONICAL_NAMESPACES` strings
     /// byte-for-byte to preserve backward compatibility with ν-event serialization
     /// and tracing targets (P8 — Semantic Grounding).
     pub fn as_str(&self) -> &'static str {
@@ -255,7 +240,7 @@ impl std::str::FromStr for CnsSpan {
     /// pre:  s is a string matching a canonical CnsSpan namespace
     /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
     ///
-    /// \[NORMATIVE\] Only strings matching canonical `CnsSpan` namespaces parse
+    /// Only strings matching canonical `CnsSpan` namespaces parse
     /// successfully. Unknown strings return `Err(())`.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -453,12 +438,12 @@ mod cns_span_tests {
         assert_eq!(all_variants.len(), 28);
     }
 
-    // REQ: cns-span-006 — ToolSubsystem Display produces valid subsystem suffix
+    // REQ: cns-span-006 — ToolSubsystem as_str produces valid subsystem suffix
     #[test]
     fn tool_subsystem_display_produces_valid_suffix() {
-        assert_eq!(ToolSubsystem::WebSearch.to_string(), "web_search");
-        assert_eq!(ToolSubsystem::SpecServer.to_string(), "spec_server");
-        assert_eq!(ToolSubsystem::Other.to_string(), "other");
+        assert_eq!(ToolSubsystem::WebSearch.as_str(), "web_search");
+        assert_eq!(ToolSubsystem::SpecServer.as_str(), "spec_server");
+        assert_eq!(ToolSubsystem::Other.as_str(), "other");
     }
 }
 
