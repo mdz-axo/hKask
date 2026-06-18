@@ -91,7 +91,6 @@ struct TogetherAdapterBackend {
     cost_model: CostModel,
     capability: ProviderCapability,
     api_key: String,
-    #[allow(dead_code)]
     client: reqwest::Client,
 }
 

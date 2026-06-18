@@ -91,7 +91,10 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ServiceError> {
     })
 }
 
-async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
+async fn list_pods(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> Json<ListPodsResponse> {
     // REQ: P9-CNS-SURF-030 pre: valid request post: cns.api span emitted
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_list", "CNS");

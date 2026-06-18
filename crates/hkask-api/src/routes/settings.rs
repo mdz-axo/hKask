@@ -4,7 +4,11 @@
 //! Persisted to ~/.config/hkask/settings.json. Magna Carta P3 (Generative
 //! Space): all settings exposed equally across every surface.
 
-use axum::{Json, extract::State, routing::get};
+use axum::Json;
+use axum::extract::{Extension, State};
+use axum::routing::get;
+
+use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
 use utoipa_axum::router::OpenApiRouter;
 
@@ -88,15 +92,20 @@ pub fn settings_router() -> OpenApiRouter<ApiState> {
 }
 
 /// GET /api/settings — return current settings.
-async fn get_settings(State(_state): State<ApiState>) -> Json<SettingsResponse> {
+async fn get_settings(
+    State(_state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> Json<SettingsResponse> {
     Json(load_settings())
 }
 
 /// PUT /api/settings — update settings, merge with current values.
 async fn update_settings(
     State(_state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<UpdateSettingsRequest>,
 ) -> Json<SettingsResponse> {
+    let _ = auth;
     let mut settings = load_settings();
 
     if let Some(v) = req.tool_loop_limit

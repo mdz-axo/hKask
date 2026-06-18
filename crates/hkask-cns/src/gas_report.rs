@@ -122,11 +122,7 @@ enum GasEventKind {
 /// by agent, by time window, and aggregating into reports.
 #[derive(Clone)]
 pub struct GasReport {
-    /// The underlying event store for querying raw gas events.
     store: Arc<NuEventStore>,
-    /// Timestamp of the last report generated (for incremental reporting).
-    #[allow(dead_code)]
-    last_report_at: Option<DateTime<Utc>>,
 }
 
 impl GasReport {
@@ -137,7 +133,6 @@ impl GasReport {
     pub fn new(store: Arc<NuEventStore>) -> Self {
         Self {
             store,
-            last_report_at: None,
         }
     }
 
