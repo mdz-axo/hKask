@@ -11,7 +11,7 @@ pub use actions::*;
 pub use helpers::{init_logging, parse_data_category, parse_template_type};
 pub use markdown::generate_cli_markdown;
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(name = "kask")]
 #[command(author = "hKask Team")]
 #[command(version)]
@@ -29,7 +29,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Curator chat interface (interactive by default)
     Chat {

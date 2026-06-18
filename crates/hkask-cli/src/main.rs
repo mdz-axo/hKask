@@ -8,6 +8,7 @@ use hkask_cli::cli::Commands;
 use hkask_cli::commands;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::SqliteRegistry;
+use std::time::Instant;
 
 fn main() {
     // Load .env from current directory (silently skip if absent)
@@ -32,8 +33,10 @@ fn main() {
     // create their own runtimes with servers started via start_server().
     let runtime = McpRuntime::new();
 
-    // REQ: P9-CNS-SURF-001 pre: valid command parsed post: cns.cli span emitted
+    // REQ: P9-CNS-SRF-001 pre: valid command parsed post: cns.cli span emitted
     // P9: CNS span
+    let cns_start = Instant::now();
+    tracing::info!(target: "cns.cli", operation = "command_invoked", command = ?cli.command, "CNS");
     tracing::info!(target: "cns.cli", operation = "command_dispatched", command = ?cli.command, "CNS");
 
     match cli.command {
@@ -168,4 +171,7 @@ fn main() {
 
         Commands::Matrix { action } => commands::matrix::run(action),
     }
+
+    // P9: CNS span
+    tracing::info!(target: "cns.cli", operation = "command_completed", latency_ms = cns_start.elapsed().as_millis(), "CNS");
 }

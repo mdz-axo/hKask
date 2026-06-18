@@ -234,6 +234,8 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         .merge(routes::goal_router())
         .merge(routes::settings_router())
         .merge(routes::wallet_router())
+        // P9: CNS span — outermost layer captures all requests before auth
+        .layer(axum::middleware::from_fn(middleware::cns_middleware))
         .layer(axum::middleware::from_fn_with_state(
             auth_service,
             middleware::auth_middleware,
