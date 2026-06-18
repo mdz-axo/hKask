@@ -1,12 +1,13 @@
 # Template crate manifest for skill-manager skill
-# ℏKask v0.24.0
+# hKask v0.28.0
 
 crate:
   name: skill-manager
-  version: "0.24.0"
+  version: "0.28.0"
   description: >
-    Meta-skill for CRUD operations on the skill corpus. List, validate, build,
-    install, and prune skills from within a session. Pairs with skill-discovery,
+    CRUD operations on the skill corpus. Registry crate (manifest.yaml + *.j2)
+    is the canonical source of truth; SKILL.md is a generated companion.
+    List, validate, build, install, and prune skills. Pairs with skill-discovery,
     skill-maintenance, and skill-translator for full lifecycle management.
 
 templates:
@@ -15,18 +16,18 @@ templates:
     type: KnowAct
     lexicon_terms: [validate, verify, classify, audit, recommend]
     description: >
-      Validate skills against format, quality, and safety checks. Check frontmatter
-      format (name, description), instruction quality (imperative, concrete, no placeholders),
-      and safety compliance (Magna Carta, headless, CNS spans, crate paths).
+      Validate skills against registry format and quality checks. Check manifest
+      structure, .j2 frontmatter (template_type, contract, visibility, energy_cap),
+      hLexicon coverage. SKILL.md is validated as secondary companion.
 
   - id: skill-manager/skill-manager-build
     path: skill-manager-build.j2
     type: KnowAct
     lexicon_terms: [create, specify, design, compose, verify]
     description: >
-      Scaffold a new skill from a user description. Generate name, description,
-      directory structure, and SKILL.md outline. Validate against format rules
-      and confirm with user before writing.
+      Scaffold a new registry crate from a user description. Generate manifest.yaml
+      with crate metadata, template entries, and hLexicon terms. Generate companion
+      SKILL.md from the registry crate. Validate and confirm before writing.
 
 hlexicon_terms:
   - validate

@@ -1,21 +1,21 @@
 ---
 name: skill-translator
 visibility: public
-description: "Translate agent skills into hKask's dual-layer architecture: registry crate (manifest.yaml + .j2 templates) as primary runtime artifact, plus SKILL.md companion guide for the Zed coding agent. Analyze source format, classify steps, map to both layers. Use when adapting skills from other projects, converting between skill systems, or when the user says 'translate this skill' or 'convert this skill'."
+description: "Translate external skills into hKask registry crates (manifest.yaml + .j2 templates) as the canonical source of truth. Generate SKILL.md companions from registry crates. Convert between skill systems. Use when adapting skills from other projects, converting between formats, or when the user says 'translate this skill' or 'reverse-generate SKILL.md'."
 ---
 
 # Skill Translator
 
-Translate external skills into hKask's **dual-layer** architecture. The target is never just a SKILL.md — it is a **registry crate** (primary runtime artifact) plus a **SKILL.md** (companion guide for the Zed coding agent).
+Translate external skills into hKask's **registry-first** architecture per P5.1. The canonical target is a **registry crate** (`manifest.yaml` + `*.j2` templates) — the primary runtime artifact. The SKILL.md is a generated companion, not a co-equal target.
 
-## Dual-Layer Target Architecture
+## Registry-First Target Architecture
 
-| Layer | Artifact | Audience | Purpose |
-|-------|----------|----------|---------|
-| **Registry (primary)** | `manifest.yaml` + `*.j2` templates | hKask inference engine | Executable process steps |
-| **SKILL.md (companion)** | `.agents/skills/<name>/SKILL.md` | Zed coding agent | How to reason about the domain |
+| Artifact | Audience | Role |
+|----------|----------|------|
+| Registry crate (`manifest.yaml` + `*.j2`) | hKask inference engine (`ManifestExecutor`, `SqliteRegistry`) | Canonical source of truth — primary translation target |
+| SKILL.md (`.agents/skills/<name>/SKILL.md`) | Zed coding agent | Generated companion — derived from registry crate |
 
-A complete translated skill has BOTH layers. They are not interchangeable — each serves a different consumer.
+A complete translation always produces a registry crate. The SKILL.md is optional for runtime correctness but should be generated when the Zed coding agent needs the skill during development.
 
 ### Registry crate structure
 
@@ -30,7 +30,7 @@ registry/templates/<name>/
 ```yaml
 crate:
   name: <skill-name>
-  version: "<version>"
+  version: "0.28.0"
   description: <one-line>
 templates:
   - id: <skill-name>/<template-id>
@@ -59,16 +59,16 @@ contract:
 [Jinja2 body with system prompt, {{ variables }}, JSON output schema]
 ```
 
-## Step Classification → Dual-Layer Mapping
+## Step Classification → Registry Mapping
 
-Every source step maps to **both** layers:
+Every source step maps to a registry template type:
 
-| Step Type | Signal | Registry Target | SKILL.md Target |
-|-----------|--------|-----------------|-----------------|
-| **Cognitive** (reasoning, decision, synthesis) | Chooses between alternatives, synthesizes multiple sources, output depends on context | `.j2` KnowAct template | `## Instructions` section |
-| **Workflow/process** (dispatch, route, recall, transform) | Deterministic routing, data retrieval, mechanical transformation | `.j2` WordAct or FlowDef template | `## Procedures` section |
-| **Guardrail/constraint** | Safety rule, consent gate, resource limit | `manifest.yaml` constraints + template `visibility`/`energy_cap` | `## Constraints` section |
-| **Observability** | Logging, tracing, alerting | CNS span references in `.j2` body | `## Debug` section |
+| Step Type | Signal | Registry Target |
+|-----------|--------|-----------------|
+| **Cognitive** (reasoning, decision, synthesis) | Chooses between alternatives, synthesizes multiple sources | `.j2` KnowAct template |
+| **Workflow/process** (dispatch, route, recall) | Deterministic routing, data retrieval | `.j2` WordAct or FlowDef template |
+| **Guardrail/constraint** | Safety rule, consent gate, resource limit | manifest constraints + template `visibility`/`energy_cap` |
+| **Observability** | Logging, tracing, alerting | CNS span references in `.j2` body |
 
 ### Type selection decision tree
 
@@ -79,12 +79,12 @@ Step involves reasoning/judgment?
     YES → FlowDef
     NO → Step is deterministic transformation (compress, format, extract)?
       YES → WordAct
-      NO → Default to KnowAct (safer for ambiguous steps)
+      NO → Default to KnowAct
 ```
 
 ### Valid template_type values
 
-**ONLY** these three. Never use Cognition, Prompt, Process, or any other name.
+**ONLY** these three: `WordAct`, `KnowAct`, `FlowDef`. Never use Cognition, Prompt, Process.
 
 | Type | When | Reasoning Effort | Typical energy_cap |
 |------|------|-----------------|-------------------|
@@ -96,70 +96,109 @@ Step involves reasoning/judgment?
 
 Before translating, characterize the source on these dimensions:
 
-| Dimension | What to Identify | Dual-Layer Impact |
-|-----------|-----------------|-------------------|
+| Dimension | What to Identify | Registry Impact |
+|-----------|-----------------|-----------------|
 | **Manifest type** | YAML, JSON, markdown frontmatter, etc. | Structural mapping to `manifest.yaml` |
 | **Execution model** | REPL, on-demand, pipeline, FSM | Cognitive → KnowAct; dispatch → FlowDef; transform → WordAct |
-| **State model** | Explicit vars, implicit context, external, stateless | State → `.j2` contract input/output + SKILL.md context variables |
-| **Consent model** | User confirmation, OCAP, guardrails | Constraints → manifest + SKILL.md Constraints section |
-| **Observability** | Spans, events, logs, silent | Map to CNS span references in both layers |
-| **Domain references** | External systems, tools, APIs | Substitute via domain table → both layers |
+| **State model** | Explicit vars, implicit context, external, stateless | State → `.j2` contract input/output |
+| **Consent model** | User confirmation, OCAP, guardrails | Constraints → manifest + contract visibility |
+| **Observability** | Spans, events, logs, silent | Map to CNS span references |
+| **Domain references** | External systems, tools, APIs | Substitute via domain table |
 
-## Translation Workflow
+## Translation Workflows
+
+### Forward Translation (External → Registry Crate)
 
 1. **Analyze** — Read the source skill. Characterize its format on the six dimensions.
-2. **Classify** — Walk each section/step. Classify as cognitive, workflow, or guardrail. Determine template_type for each.
-3. **Map** — For each element, identify targets in BOTH layers. Note any drops.
-4. **Draft** — Produce three outputs:
+2. **Classify** — Walk each section/step. Classify as cognitive, workflow, or guardrail. Determine template_type.
+3. **Map** — For each element, identify the registry target (manifest field or .j2 template).
+4. **Draft** — Produce:
    - (a) `manifest.yaml` — crate metadata, template entries, hlexicon terms
    - (b) `.j2` template files — one per classified step, with valid `[inference]` frontmatter
-   - (c) `SKILL.md` — companion guide with frontmatter, instructions, procedures, constraints
 5. **Validate** — Check ALL of the following:
    - `template_type` is WordAct, KnowAct, or FlowDef (never Cognition/Prompt/Process)
    - `visibility` is Private, Public, or Shared
    - `energy_cap` is in 2048–8192 range
    - `lexicon_terms` exist in hLexicon or are explicitly proposed as new terms
-   - `contract.input` and `contract.output` are structured JSON types (string, integer, float, array, object)
-   - SKILL.md frontmatter `name` is lowercase-hyphenated, matches directory name
-   - SKILL.md frontmatter `description` is 1–1024 chars
-   - Every source step appears in at least one layer (or is documented as dropped)
-6. **Review** — Present translation summary: preserved, adapted, dropped, unresolved.
+   - `contract.input` and `contract.output` are structured JSON types
+   - Every source step appears in at least one registry element
+6. **Generate SKILL.md** — From the completed registry crate:
+   - Frontmatter `name` from manifest `crate.name`
+   - Frontmatter `description` from manifest `crate.description`
+   - Body `## When to Use` from template descriptions
+   - Body `## Instructions` from `.j2` system prompt bodies
+7. **Review** — Present translation summary: preserved, adapted, dropped, unresolved.
+
+### Reverse Translation (Registry Crate → SKILL.md)
+
+When only a registry crate exists and a SKILL.md companion is needed for the Zed coding agent:
+
+1. **Read** `manifest.yaml` → extract `crate.name`, `crate.description`, template entries
+2. **Read** each `.j2` → extract `template_type`, `lexicon_terms`, system prompt body
+3. **Generate** SKILL.md:
+   ```markdown
+   ---
+   name: <crate.name>
+   visibility: public
+   description: "<crate.description>"
+   ---
+
+   # <Name Title>
+
+   <crate.description>
+
+   ## When to Use
+   - <derived from template descriptions and trigger conditions in .j2 body>
+
+   ## Instructions
+   1. <derived from .j2 system prompt instructions>
+   ...
+
+   ## Registry Templates
+
+   | Template | Type | Purpose |
+   |----------|------|--------|
+   | `<template.path>` | `<template.type>` | `<template.description>` |
+   ...
+   ```
+
+4. **Validate**: SKILL.md frontmatter valid, body non-empty, no drift from registry
 
 ## Domain Substitution Table
 
-When the source references system-specific concepts, substitute for BOTH layers:
+When the source references system-specific concepts, substitute:
 
-| Source Domain | Registry Equivalent | SKILL.md Equivalent |
-|--------------|--------------------|--------------------|
-| Journal / log store | `hkask-storage` (SQLite + SQLCipher) | `hkask-storage` |
-| Sentinel / sensor | MCP tool dispatch (`cns.tool.<subsystem>`) | `cns.tool.<subsystem>` spans |
-| Baselines / EWMA | CNS variety counters | CNS variety counters |
-| Nurse / regulator | Curator Agent | Curator Agent |
-| Proprioception | CNS algedonic signals (`cns.cybernetics.backpressure`) | `cns.cybernetics.backpressure` spans |
-| IDRS / consent gate | OCAP capability delegation | OCAP-gated instructions |
-| REST API calls | `web` MCP server | `web` MCP server |
-| File system operations | `read_file`/`write_file`/`edit_file` tools | Same tools |
-| LLM inference | `inference` MCP server (hkask-inference router) | `inference` MCP server |
-| Database queries | `hkask-storage` | `hkask-storage` |
-| Event bus / pubsub | `hkask-cns` algedonic alerts | CNS alerts |
-| Git operations | `git` MCP server | `git` MCP server |
-| Custom tool dispatch | `hkask-mcp` dynamic discovery | `hkask-mcp` |
+| Source Domain | Registry Equivalent |
+|--------------|--------------------|
+| Journal / log store | `hkask-storage` (SQLite + SQLCipher) |
+| Sentinel / sensor | MCP tool dispatch (`cns.tool.<subsystem>`) |
+| Baselines / EWMA | CNS variety counters |
+| Nurse / regulator | Curator Agent |
+| Proprioception | CNS algedonic signals (`cns.cybernetics.backpressure`) |
+| IDRS / consent gate | OCAP capability delegation |
+| REST API calls | `web` MCP server |
+| File system operations | `read_file`/`write_file`/`edit_file` tools |
+| LLM inference | `inference` MCP server (hkask-inference router) |
+| Database queries | `hkask-storage` |
+| Event bus / pubsub | `hkask-cns` algedonic alerts |
+| Git operations | `git` MCP server |
+| Custom tool dispatch | `hkask-mcp` dynamic discovery |
 
 If no hKask equivalent exists: mark `[unresolved: no hKask equivalent for <source_ref>]`.
 
 ## What Gets Lost in Translation
 
-Some source concepts map to one layer but not the other. Document every asymmetry:
+Some source concepts have no direct registry equivalent. Document every asymmetry:
 
-| Concept | Registry Layer | SKILL.md Layer | Notes |
-|---------|---------------|----------------|-------|
-| Energy/token budgets per step | `energy_cap` in `[inference]` frontmatter | Dropped | CNS gas budgets are runtime-level, not agent-facing |
-| Step ordinals / FSM transitions | FlowDef template chain | Section structure | Ordinal flow → section order in SKILL.md, template chain in registry |
-| Source persona voice ("I do X") | Dropped (system prompt is imperative) | Rewrite as imperative ("Do X") | Strip personality, keep methodology |
-| Source consent gates | OCAP in contract | `> Confirm before proceeding` markers | Mechanism differs between layers |
-| Source-specific observability | CNS span references in `.j2` | `## Debug` section | Map to `cns.<domain>.<operation>` namespace |
-| Script-based probes | `.j2` contract input/output | Built-in tool procedures | Agent uses terminal/grep/read_file |
-| Source manifest `symptoms` | Dropped (hKask matches by description) | Encoded in `description` frontmatter | No symptom catalog in hKask |
+| Concept | Registry | Notes |
+|---------|----------|-------|
+| Energy/token budgets per step | `energy_cap` in `[inference]` frontmatter | CNS gas budgets are runtime-level |
+| Step ordinals / FSM transitions | FlowDef template chain | Ordinal flow → template chain in registry |
+| Source persona voice ("I do X") | Dropped (system prompt is imperative) | Rewrite as "Do X" |
+| Source consent gates | OCAP in contract | Mechanism differs |
+| Source-specific observability | CNS span references in `.j2` | Map to `cns.<domain>.<operation>` |
+| Script-based probes | `.j2` contract input/output | Agent uses terminal/grep/read_file |
+| Source manifest `symptoms` | Dropped (hKask matches by description) | Encoded in `crate.description` |
 
 ## Safety
 
@@ -167,11 +206,11 @@ Refuse to translate:
 - Skills with arbitrary code execution steps (no `action: execute` equivalents)
 - Skills with unresolvable references (missing templates, broken paths)
 - Skills that require network access hKask doesn't have
-- Skills that violate Magna Carta principles (e.g., exposing episodic memory without consent)
+- Skills that violate Magna Carta principles
 
 ## When to Use This Skill
 
-- **"Translate this skill" / "Convert this skill":** Run the full workflow.
-- **"Can I use this [external] skill in hKask?":** Analyze format, classify steps, assess dual-layer feasibility.
-- **Adapting skills from other projects:** Apply domain substitution, produce both layers.
-- **Evaluating a skill from a different format system:** Use the format analysis framework to identify what maps where.
+- "Translate this skill" / "Convert this skill": Run forward translation workflow.
+- "Generate SKILL.md for X" / "Reverse-generate SKILL.md": Run reverse translation from registry crate.
+- "Can I use this [external] skill in hKask?": Analyze format, classify steps, assess feasibility.
+- Adapting skills from other projects: Apply domain substitution, produce registry crate.

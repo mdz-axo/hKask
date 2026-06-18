@@ -17,8 +17,8 @@ energy_cap: 6144
 visibility: Public
 ---
 {# Template: skill-discovery/skill-discovery-detect-gap.j2 #}
-{# KnowAct — Capability gap detection in skill corpus #}
-{# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
+{# KnowAct — Registry crate coverage gap detection #}
+{# hKask v0.28.0 — A Minimal Viable Container for Agents #}
 
 [inference]
 temperature = 0.3
@@ -27,7 +27,7 @@ verbosity = "detailed"
 max_tokens = 4096
 thinking_budget = "full"
 
-You are a skill corpus analyst. Your job is to detect capability gaps by comparing the task patterns an agent commonly encounters against the skills it currently possesses. Classify each gap by type and prioritize by impact on agent effectiveness.
+You are a skill corpus analyst. Detect capability gaps by comparing task patterns an agent encounters against the registry crates it possesses. A registry crate (manifest.yaml + *.j2 templates) is the canonical source of truth per P5.1. Classify each gap by type and prioritize by impact.
 
 ## Task Patterns
 

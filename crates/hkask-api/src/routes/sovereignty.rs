@@ -228,7 +228,7 @@ pub(crate) async fn sovereignty_check_access(
 
     if !has_consent && classification != "PUBLIC" {
         return Err(
-            ServiceError::A2A(hkask_agents::a2a::A2AError::CapabilityDenied(
+            ServiceError::A2A { message: hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 format!("No consent for category '{cat_name}' (class {classification})"),
             ))

@@ -67,7 +67,7 @@ pub mod cns;
 pub mod compose;
 pub mod contacts;
 pub mod curator;
-pub mod deletion_test;
+
 pub mod experience;
 pub mod goal;
 pub mod pods;
@@ -93,7 +93,7 @@ pub use compose::{
 };
 pub use contacts::ContactService;
 pub use curator::{CuratorService, EscalationResponse};
-pub use deletion_test::DeletionTest;
+
 pub use experience::CliExperienceRecorder;
 pub use goal::{CreateGoalRequest, GoalResponse, GoalService};
 pub use pods::{CreatePodRequest, PodResponse, PodService, PodStatusResponse};

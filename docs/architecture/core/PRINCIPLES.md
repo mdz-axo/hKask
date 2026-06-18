@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Principles"
 audience: [architects, developers, agents]
-last_updated: 2026-06-15
-version: "0.27.0"
+last_updated: 2026-06-17
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -56,6 +56,8 @@ P1–P3 are enforced through explicit capability boundaries. No ambient authorit
 
 #### P5 — Essentialism & Minimalism
 Remove before adding. Every module must earn existence by reducing total system action.
+
+**P5.1 — Single Source of Truth for Skills:** Every skill has exactly one canonical source: its registry crate (`manifest.yaml` + `*.j2` templates). The SKILL.md file is a generated companion for development tooling, derived from the registry — not independently authored. Maintaining parallel representations of the same skill semantics across two formats is a P5 violation. When registry and SKILL.md disagree, the registry is authoritative.
 
 #### P6 — Space for Replicants & Bots
 hKask exists as a generative container for bot and replicant agency under sovereignty and capability constraints.

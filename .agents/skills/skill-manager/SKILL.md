@@ -1,19 +1,19 @@
 ---
 name: skill-manager
 visibility: public
-description: "Dual-layer CRUD for the skill corpus. List, validate, build, install, and prune skills across both Zed agent layer (SKILL.md) and registry template layer (manifest.yaml + *.j2). Pairs with skill-discovery, skill-maintenance, and skill-translator."
+description: "CRUD for the skill corpus. Registry crate (manifest.yaml + *.j2) is the canonical source of truth; SKILL.md is a generated companion. List, validate, build, install, and prune skills."
 ---
 
 # Skill Manager
 
-Manage hKask's dual-layer skill architecture. Every skill has two artifacts that must stay consistent:
+Manage hKask's skill architecture per **P5.1 — Single Source of Truth for Skills** (see `docs/architecture/core/PRINCIPLES.md`). Every skill has one canonical source: its **registry crate**. The SKILL.md is a generated companion, not a co-equal artifact.
 
-| Layer | Location | Purpose | Loaded By |
-|-------|----------|---------|-----------|
-| **Zed Agent** | `.agents/skills/<name>/SKILL.md` | Agent companion guide | `SkillLoader` → `SkillRegistryIndex` |
-| **Registry Template** | `registry/templates/<name>/manifest.yaml` + `*.j2` | Primary runtime artifact | `SqliteRegistry` |
+| Artifact | Location | Role | Authoritative? |
+|----------|----------|------|---------------|
+| Registry crate | `registry/templates/<name>/manifest.yaml` + `*.j2` | Canonical source of truth — what `ManifestExecutor` drives | **Yes** |
+| SKILL.md | `.agents/skills/<name>/SKILL.md` | Generated companion for Zed coding agent during development | **No** — derived from registry |
 
-A skill is **complete** when both layers exist and are consistent. A skill with only one layer is **incomplete** — flag it.
+A skill is **complete** when its registry crate exists and is valid. The SKILL.md is optional for runtime correctness. A skill with only a SKILL.md (no registry) is **incomplete** — it cannot execute in the cascade.
 
 **Skill struct** (`hkask-types/src/ports/mod.rs`): `id`, `domain` (TemplateType), `word_act`, `flow_def`, `know_act`, `polarity`, `content_hash`, `visibility` (Private/Public/Shared), `zone` (Private/Public), `namespace`.
 
@@ -27,41 +27,25 @@ A skill is **complete** when both layers exist and are consistent. A skill with 
 
 ### List Skills
 
-Scan both layers. For each skill name, report:
+Scan the registry (canonical source). For each skill name, report:
 
 ```
-Skills (N total, C complete, I incomplete):
-  [name]  [SKILL.md]  [Registry]  [status]  [description excerpt]
+Skills (N total, R with registry, G with generated SKILL.md):
+  [name]  [Registry]  [SKILL.md]  [status]  [description excerpt]
   ...
 ```
 
 Steps:
-1. Scan `.agents/skills/*/SKILL.md` → collect Zed layer names
-2. Scan `registry/templates/*/manifest.yaml` → collect registry layer names
-3. Union both sets → complete list
-4. For each name: mark SKILL.md ✓/✗, registry ✓/✗, status = `complete` / `incomplete`
-5. Flag skills with invalid frontmatter or missing manifest
+1. Scan `registry/templates/*/manifest.yaml` → collect canonical skill names
+2. Scan `.agents/skills/*/SKILL.md` → collect companion names
+3. For each registry skill: mark registry ✓, SKILL.md ✓/✗, status = `complete` (registry exists)
+4. Flag skills with SKILL.md but no registry as `incomplete — needs registry crate`
 
 ### Validate Skills
 
-Check both layers per skill. Three validation categories:
+Check registry first (authoritative), then SKILL.md (companion).
 
-**Zed Agent layer (SKILL.md):**
-
-| ID | Check | Pass Criteria |
-|----|-------|---------------|
-| Z1 | SKILL.md exists | File present in skill directory |
-| Z2 | Frontmatter valid | `---` delimiters with `name` and `description` fields |
-| Z3 | Name matches directory | `name` field == directory basename, lowercase-hyphenated `^[a-z0-9]+(-[a-z0-9]+)*$` |
-| Z4 | Description valid | Present, 1–1024 chars, specific and actionable |
-| Z5 | Body non-empty | Instructional content present |
-| Z6 | Imperative voice | Steps are commands, not passive descriptions |
-| Z7 | No placeholders | No `TODO`, `FIXME`, `<insert>`, `TBD` |
-| Z8 | No Magna Carta violations | Skill does not act without user direction; dangerous actions gated |
-| Z9 | Headless compliance | No visual UI, Grafana, dashboards, web frontends |
-| Z10 | No deprecated markers | No `todo!`, `unimplemented!`, `#[deprecated]` |
-
-**Registry layer (manifest.yaml + *.j2):**
+**Registry layer (canonical — manifest.yaml + *.j2):**
 
 | ID | Check | Pass Criteria |
 |----|-------|---------------|
@@ -69,69 +53,55 @@ Check both layers per skill. Three validation categories:
 | R2 | Crate metadata valid | `crate.name`, `crate.version`, `crate.description` all present |
 | R3 | Templates list non-empty | At least one entry in `templates` array |
 | R4 | Template entry valid | Each entry has `id`, `path`, `type`, `description` |
-| R5 | template_type is valid | Each `.j2` frontmatter `template_type` ∈ {`WordAct`, `KnowAct`, `FlowDef`} — **reject** `Cognition`, `Prompt`, `Process` |
-| R6 | Visibility is valid | Each `.j2` frontmatter `visibility` ∈ {`Private`, `Public`, `Shared`} |
+| R5 | template_type is valid | Each `.j2` frontmatter `template_type` in {WordAct, KnowAct, FlowDef} |
+| R6 | Visibility is valid | Each `.j2` frontmatter `visibility` in {Private, Public, Shared} |
 | R7 | Contract valid | Each `.j2` has `contract.input` and `contract.output` with typed fields |
 | R8 | energy_cap in range | Each `.j2` `energy_cap` is an integer in [1024, 16384] |
 | R9 | .j2 file exists | Each template entry's `path` resolves to an actual `.j2` file |
-| R10 | [inference] frontmatter valid | Each `.j2` starts with `[inference]` block containing `template_type`, `lexicon_terms`, `contract` |
-| R11 | hLexicon terms exist | `hlexicon_terms` in manifest + `lexicon_terms` in each .j2 reference terms in `registry/hlexicon/hlexicon-workspace.yaml` |
+| R10 | [inference] frontmatter valid | Each `.j2` starts with `[inference]` block |
+| R11 | hLexicon terms exist | All `lexicon_terms` reference terms in workspace hLexicon |
 | R12 | Jinja2 body present | Each `.j2` has template body after `---` separator |
 
-**Cross-layer consistency:**
+**SKILL.md layer (generated companion):**
 
 | ID | Check | Pass Criteria |
 |----|-------|---------------|
-| X1 | Name consistency | SKILL.md `name` == manifest.yaml `crate.name` == directory name |
-| X2 | Description aligns | SKILL.md `description` and manifest `crate.description` describe the same capability |
-| X3 | No orphan Zed layer | SKILL.md exists without registry → incomplete (flag, don't fail) |
-| X4 | No orphan registry layer | Registry exists without SKILL.md → incomplete (flag, don't fail) |
-| X5 | Template type coverage | Manifest's `templates` include at least one `KnowAct` .j2 (agent companion skills always reason) |
+| Z1 | SKILL.md exists | File present in `.agents/skills/<name>/` — informational |
+| Z2 | Frontmatter valid | `---` delimiters with `name` and `description` fields |
+| Z3 | Name matches directory | `name` field == directory basename, lowercase-hyphenated |
+| Z4 | Description valid | Present, 1–1024 chars |
+| Z5 | Body non-empty | Instructional content present |
+| Z6 | No Magna Carta violations | No instructions that bypass user sovereignty or consent |
+| Z7 | Headless compliance | No visual UI, Grafana, dashboards |
+| Z8 | No deprecated markers | No `todo!`, `unimplemented!`, `#[deprecated]` |
+| Z9 | Derived from registry | SKILL.md methodology aligns with registry templates; registry is authoritative when they disagree |
 
-Report: total skills, complete/incomplete counts, pass/fail per check category, specific failures with fix suggestions. Safety check failures (Z8, Z9, Z10) are always `critical` priority. R5 (invalid template_type) is `high` priority.
+**Cross-artifact consistency:**
+
+| ID | Check | Pass Criteria | Severity |
+|----|-------|---------------|----------|
+| X1 | Registry exists | manifest.yaml present | **Critical** — cannot execute without registry |
+| X2 | Name consistency | SKILL.md name == manifest crate.name == directory name | Medium |
+| X3 | No orphan SKILL.md | SKILL.md without registry → incomplete | High |
+| X4 | No drift | SKILL.md does not claim behaviors registry templates do not support | Medium |
+
+Severity levels: **Critical** (registry missing, invalid template_type), **High** (orphan SKILL.md, contract invalidity), **Medium** (drift, name mismatch, hLexicon gaps), **Info** (missing SKILL.md, description brevity).
 
 ### Build a Skill
 
-Scaffold both layers from a user description:
+Build the registry crate first (canonical), then generate SKILL.md from it.
 
 1. **Confirm scope**: Project-local (default) or global
-2. **Choose name**: User confirms. Lowercase-hyphenated, 2–40 chars, verb-noun or noun-noun pattern. No `hkask-`, `cns-`, `mcp-` prefixes.
+2. **Choose name**: User confirms. Lowercase-hyphenated, 2–40 chars. No `hkask-`, `cns-`, `mcp-` prefixes.
 3. **Derive hLexicon terms**: From description, pick 3–8 terms from `registry/hlexicon/hlexicon-workspace.yaml`
-4. **Create Zed layer** — `.agents/skills/<name>/SKILL.md`:
-   ```
-   ---
-   name: <name>
-   visibility: public
-   description: "<specific, actionable, 1–1024 chars>"
-   ---
-
-   # <Name Title>
-
-   <2–3 sentence description. Imperative voice.>
-
-   ## When to Use
-   <Specific trigger conditions — at least 2>
-
-   ## Instructions
-   1. <Step one — imperative, concrete>
-   2. <Step two>
-   ...
-
-   ## Constraints
-   - <What the skill must NOT do>
-   ...
-
-   ## Related Skills
-   - <Optional: pairing skills>
-   ```
-5. **Create registry layer** — `registry/templates/<name>/`:
+4. **Create registry crate** — `registry/templates/<name>/`:
    - `manifest.yaml`:
      ```yaml
      crate:
        name: <name>
-       version: "0.24.0"
+       version: "0.28.0"
        description: >
-         <one-paragraph description aligned with SKILL.md>
+         <one-paragraph description of what this skill does at runtime>
 
      templates:
        - id: <name>/<name>-<verb>
@@ -146,94 +116,49 @@ Scaffold both layers from a user description:
        - <term2>
        ...
      ```
-   - At least one `.j2` template:
-     ```
-     [inference]
-     template_type: KnowAct
-     lexicon_terms: [<term1>, <term2>]
-     contract:
-       input:
-         <field>: <type>
-       output:
-         <field>: <type>
-       energy_cap: 4096
-       visibility: Shared
-
-     ---
-     {# Template: <name>/<name>-<verb>.j2 #}
-     {# KnowAct — <one-line purpose> #}
-     {# ℏKask v0.27.0 — A Minimal Viable Container for Agents #}
-
-     [inference]
-     temperature = 0.2
-     reasoning_effort = "high"
-     verbosity = "standard"
-     max_tokens = 4096
-     thinking_budget = "full"
-
-     You are a <role>. Your job is to <task>. <Instructions in imperative voice.>
-
-     ## Input
-
-     {{ <input_field> }}
-
-     ## Output Requirements
-
-     Respond with a JSON object:
-
-     ```json
-     {
-       "<output_field>": "<type and description>"
-     }
-     ```
-
-     ## Constraints
-
-     - <Constraint 1>
-     - <Constraint 2>
-     - Do not execute arbitrary Python code in Jinja2 expressions.
-     - Handle missing variables gracefully.
-     ```
-6. **Validate**: Run full validation (Z1–Z10, R1–R12, X1–X5)
-7. **Confirm**: Show both layers to user for review
+   - At least one `.j2` template with valid `[inference]` frontmatter and contract.
+5. **Generate SKILL.md** — `.agents/skills/<name>/SKILL.md`:
+   - Derived from `manifest.yaml` (`crate.description`, template entries) and `.j2` body content
+   - Frontmatter: `name` from manifest `crate.name`, `description` from manifest `crate.description`
+   - Body: `## When to Use` from template descriptions, `## Instructions` from `.j2` system prompt body
+6. **Validate**: Run full validation (R1–R12, Z1–Z9, X1–X4)
+7. **Confirm**: Show registry crate to user for review; note that SKILL.md is generated
 
 ### Install a Skill
 
-Install both layers from an external source:
+Install from an external source:
 
-1. **Source is hKask dual-layer format**: Copy both `.agents/skills/<name>/` and `registry/templates/<name>/`, then validate
-2. **Source has only one layer**: Use `skill-translator` to generate the missing layer, then install both
-3. **Source is different format**: Use `skill-translator` to convert to dual-layer, then install
-4. **Validate** after installation (Z1–Z10, R1–R12, X1–X5)
-5. **Verify**: Skill is discoverable by description matching in both layers
+1. **Source is a registry crate**: Copy `registry/templates/<name>/`, then generate SKILL.md from it
+2. **Source is dual-layer (old format)**: Copy both, treat registry as authoritative, regenerate SKILL.md to eliminate drift
+3. **Source is SKILL.md only**: Use `skill-translator` to create registry crate, then install
+4. **Validate** after installation (R1–R12, X1–X4)
+5. **Verify**: Skill is discoverable via registry index
 
 ### Prune a Skill
 
 **Soft prune** (deprecate without deleting):
 
-| Layer | Action |
-|-------|--------|
-| Zed Agent | Add `disable-model-invocation: true` to SKILL.md frontmatter |
-| Registry | Set `visibility: Private` on all .j2 templates; add `deprecated: true` to manifest.yaml `crate` section |
-
-Skill remains on disk but is not auto-loaded or rendered.
+| Artifact | Action |
+|----------|--------|
+| Registry | Set `visibility: Private` on all .j2 templates; add `deprecated: true` to manifest.yaml |
+| SKILL.md | Add `disable-model-invocation: true` to frontmatter; add deprecation notice |
 
 **Hard prune** (delete):
 
 1. Confirm with user — **irreversible**
-2. Delete `.agents/skills/<name>/` (entire directory)
-3. Delete `registry/templates/<name>/` (entire directory)
-4. If version-controlled, recovery via git is possible
+2. Delete `registry/templates/<name>/` (canonical source)
+3. Delete `.agents/skills/<name>/` (generated companion)
+4. Recovery via git is possible if version-controlled
 
 ### Stats
 
-Report dual-layer corpus statistics:
+Report skill corpus statistics:
 
 | Metric | What to Report |
 |--------|---------------|
-| Total skills | Count across both layers |
-| Complete skills | Both layers present |
-| Incomplete skills | Only one layer — break down: Zed-only vs registry-only |
+| Total skills | Count of registry crates (canonical count) |
+| SKILL.md coverage | Registry skills with / without generated SKILL.md |
+| Orphan SKILL.md | SKILL.md files with no registry crate |
 | Template type distribution | Count of WordAct / KnowAct / FlowDef .j2 templates |
 | Visibility distribution | Private / Public / Shared across .j2 templates |
 | hLexicon coverage | Unique terms used vs total workspace terms |
@@ -250,6 +175,7 @@ Report dual-layer corpus statistics:
 | "Remove a skill" / "Delete a skill" | Hard prune (confirm) |
 | "Deprecate a skill" | Soft prune |
 | "Skill stats" / "How many skills" | Stats |
+| "Generate SKILL.md for X" | Reverse-translate registry → SKILL.md |
 | "Find a skill for X" | Delegate to `skill-discovery` |
 | "Is this skill stale?" | Delegate to `skill-maintenance` |
 | "Translate this skill" | Delegate to `skill-translator` |
@@ -258,16 +184,16 @@ Report dual-layer corpus statistics:
 ## Safety
 
 - **Never** delete a skill without user confirmation
-- **Never** modify a skill's instructions without telling the user what changed
+- **Never** modify a skill's registry crate without telling the user what changed
 - **Always** validate after build or install
-- **Always** ensure both layers are consistent before declaring a skill complete
+- **Registry is authoritative** — when registry and SKILL.md disagree, fix SKILL.md to match registry
 - **Always** back up (git tracks changes — commit before major modifications)
 
 ## When to Use This Skill
 
-- **"List skills" / "Show skills"**: Report the dual-layer skill corpus
-- **"Validate skills"**: Check format, quality, and safety across both layers
-- **"Create a skill"**: Scaffold both SKILL.md and registry templates
-- **"Install a skill"**: Add an external skill to both layers
-- **"Remove a skill"**: Prune or deprecate across both layers
-- **"Skill stats"**: Dual-layer corpus health overview
+- "List skills" / "Show skills": Report the skill corpus from the registry
+- "Validate skills": Check registry format, quality, and safety; SKILL.md is secondary
+- "Create a skill": Scaffold registry crate first, generate SKILL.md from it
+- "Install a skill": Add registry crate to the project, generate companion SKILL.md
+- "Remove a skill": Prune or deprecate registry crate and generated SKILL.md
+- "Skill stats": Registry-first corpus health overview

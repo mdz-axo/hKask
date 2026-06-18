@@ -1,13 +1,14 @@
 # Template crate manifest for skill-maintenance skill
-# ℏKask v0.24.0
+# hKask v0.28.0
 
 crate:
   name: skill-maintenance
-  version: "0.24.0"
+  version: "0.28.0"
   description: >
-    Audit skill corpus for staleness, coverage gaps, and quality degradation. Detect
-    skills with broken references, outdated architecture, or contradictory instructions.
-    Score skills and recommend retirement. Full lifecycle management from active to retired.
+    Audit the skill corpus for staleness, coverage gaps, and quality degradation.
+    Registry crate (manifest.yaml + *.j2) is the canonical source of truth.
+    Detect broken references, contract drift, invalid template types. Score skills
+    and recommend retirement. Full lifecycle from active to retired.
 
 templates:
   - id: skill-maintenance/skill-maintenance-audit
@@ -15,18 +16,18 @@ templates:
     type: KnowAct
     lexicon_terms: [audit, detect, score, classify, recommend]
     description: >
-      Audit skills for staleness signals: broken references, outdated architecture,
-      vague descriptions, Magna Carta violations, missing supporting files.
-      Produce health scores and deprecation recommendations.
+      Audit a registry crate for staleness: manifest version freshness, .j2 contract
+      drift, template_type validity, hLexicon coverage, energy_cap range, visibility
+      values. Produce health scores and deprecation recommendations.
 
   - id: skill-maintenance/skill-maintenance-coverage
     path: skill-maintenance-coverage.j2
     type: KnowAct
     lexicon_terms: [map, trace, gap, classify, prioritize]
     description: >
-      Analyze coverage gaps across the skill corpus. Map common task patterns
-      to existing skills, identify uncovered patterns, and produce recommendations
-      for skill creation or discovery.
+      Analyze coverage gaps across the registry corpus. Map common task patterns
+      to existing registry crates, identify uncovered patterns, check template_type
+      and hLexicon distribution. Produce recommendations for skill creation or discovery.
 
 hlexicon_terms:
   - audit

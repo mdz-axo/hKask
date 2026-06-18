@@ -2,7 +2,7 @@
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
 last_updated: 2026-06-17
-version: "0.27.0"
+version: "0.28.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -43,6 +43,28 @@ hKask's architecture is governed by **four irreducible patterns** that compose i
 **Crates:** `hkask-templates`, `hkask-types` (lexicon, BundleManifest)
 
 **If removed:** System becomes a tool executor with monitoring — can do things but can't compose behavior, select strategies, or render personas. P3 and P8 violated.
+
+#### Skill Artifact Model: Single Source of Truth
+
+The canonical source of truth for every skill is its **registry crate** (`registry/templates/<name>/manifest.yaml` + `*.j2` templates). This is the **primary runtime artifact** — it is what `ManifestExecutor` drives, what `SqliteRegistry` indexes, and what the cascade dispatches at inference time.
+
+The **SKILL.md** file (`.agents/skills/<name>/SKILL.md`) is a **generated companion** — a markdown rendering of the registry's structure and intent, produced for the Zed coding agent during development. It is not a co-equal source of truth.
+
+**Derivation rule:** SKILL.md is derived from `manifest.yaml` + `*.j2` templates, not independently authored. The derivation path is:
+
+```
+manifest.yaml + *.j2  ──[skill-translator reverse]──▶  SKILL.md
+       ↑                                                    │
+       └──────────── source of truth ──────────────────────┘
+```
+
+**Consequences:**
+- A skill with only a registry crate is **complete** — the cascade can execute it. No SKILL.md is required for runtime correctness.
+- A skill with only a SKILL.md is **incomplete** — it cannot execute in the cascade. The registry crate must be created.
+- When both exist, the registry is authoritative. Any drift between SKILL.md and registry is a defect in SKILL.md, not in the registry.
+- The skill health score no longer deducts for missing SKILL.md. It deducts for missing registry (critical: −0.50) and for content drift between layers (medium: −0.10).
+
+**Motivation:** This decision eliminates the cross-layer consistency maintenance burden. Prior to v0.28.0, SKILL.md was treated as a co-equal artifact, requiring manual synchronization. The dual-source model violated P5 (Essentialism) by duplicating skill semantics across two independently-authored formats. The unified model aligns with P3 (Generative Space): selection intelligence lives in Jinja2/LLM, not in markdown instructions.
 
 ### Pattern B: The CNS Feedback Loop — Cybernetic Self-Regulation
 

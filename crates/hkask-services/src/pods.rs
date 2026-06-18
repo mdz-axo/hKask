@@ -75,7 +75,7 @@ impl PodService {
         let pod_id = pm
             .create_pod(&req.template, &persona, req.name)
             .await
-            .map_err(ServiceError::Pod)?;
+            .map_err(|e| ServiceError::Pod { message: e.to_string() })?;
         Ok(PodResponse {
             pod_id: pod_id.to_string(),
         })
@@ -89,7 +89,7 @@ impl PodService {
     /// post: returns Vec<PodStatusResponse> for all pods; empty Vec if none; Err(Pod) on upstream error
     pub async fn list_pods(ctx: &AgentService) -> Result<Vec<PodStatusResponse>, ServiceError> {
         let pm = ctx.pod_manager();
-        let pods = pm.list_pods().await.map_err(ServiceError::Pod)?;
+        let pods = pm.list_pods().await.map_err(|e| ServiceError::Pod { message: e.to_string() })?;
         Ok(pods.into_iter().map(PodStatusResponse::from).collect())
     }
 
@@ -104,7 +104,7 @@ impl PodService {
         ctx.pod_manager()
             .activate_pod(&pid)
             .await
-            .map_err(ServiceError::Pod)?;
+            .map_err(|e| ServiceError::Pod { message: e.to_string() })?;
         Ok(())
     }
 
@@ -119,7 +119,7 @@ impl PodService {
         ctx.pod_manager()
             .deactivate_pod(&pid)
             .await
-            .map_err(ServiceError::Pod)?;
+            .map_err(|e| ServiceError::Pod { message: e.to_string() })?;
         Ok(())
     }
 
@@ -138,7 +138,7 @@ impl PodService {
             .pod_manager()
             .get_pod_status(&pid)
             .await
-            .map_err(ServiceError::Pod)?;
+            .map_err(|e| ServiceError::Pod { message: e.to_string() })?;
         Ok(PodStatusResponse::from(status))
     }
 
@@ -167,7 +167,7 @@ impl PodService {
         ctx.pod_manager()
             .assign_role(name, role)
             .await
-            .map_err(ServiceError::Pod)
+            .map_err(|e| ServiceError::Pod { message: e.to_string() })
     }
 
     /// Set the agent mode for a replicant by name.
@@ -186,7 +186,7 @@ impl PodService {
         ctx.pod_manager()
             .set_mode(name, mode, role)
             .await
-            .map_err(ServiceError::Pod)
+            .map_err(|e| ServiceError::Pod { message: e.to_string() })
     }
 }
 

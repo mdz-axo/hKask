@@ -1,14 +1,14 @@
 # Template crate manifest for skill-translator skill
-# ℏKask v0.24.0
+# hKask v0.28.0
 
 crate:
   name: skill-translator
-  version: "0.24.0"
+  version: "0.28.0"
   description: >
-    Translate agent skills into hKask's dual-layer architecture: registry crate
-    (manifest.yaml + .j2 templates) as primary runtime artifact, plus SKILL.md
-    companion guide. Analyze source format, classify steps by type, map to
-    both layers.
+    Translate external skills into hKask registry crates (manifest.yaml + .j2
+    templates) as the canonical source of truth. Forward translation (external →
+    registry crate) and reverse translation (registry crate → SKILL.md companion).
+    Analyze source format, classify steps by type, map to registry elements.
 
 templates:
   - id: skill-translator/skill-translator-analyze
@@ -19,17 +19,24 @@ templates:
       Analyze a source skill's format on six dimensions (manifest type, execution model,
       state model, consent model, observability, domain references). Classify each step
       as cognitive, workflow, or guardrail. Determine template_type per step.
-      Assess dual-layer translation feasibility.
 
   - id: skill-translator/skill-translator-translate
     path: skill-translator-translate.j2
     type: KnowAct
     lexicon_terms: [translate, adapt, extract, compose, verify]
     description: >
-      Translate a classified skill from source format to hKask dual-layer format
-        (registry crate + SKILL.md companion).
-      Map source elements to hKask equivalents, drop concepts with no equivalent,
-      produce validated output with translation summary.
+      Forward translation: convert a classified source skill into a hKask registry crate
+      (manifest.yaml + *.j2 templates). Map source elements to hKask equivalents,
+      drop concepts with no equivalent, produce validated output with translation summary.
+
+  - id: skill-translator/skill-translator-reverse
+    path: skill-translator-reverse.j2
+    type: KnowAct
+    lexicon_terms: [translate, extract, compose, generate, verify]
+    description: >
+      Reverse translation: generate a SKILL.md companion from a registry crate.
+      Read manifest.yaml for crate metadata, read .j2 templates for methodology,
+      produce a markdown companion suitable for the Zed coding agent.
 
 hlexicon_terms:
   - detect
@@ -44,3 +51,4 @@ hlexicon_terms:
   - verify
   - map
   - substitute
+  - generate
