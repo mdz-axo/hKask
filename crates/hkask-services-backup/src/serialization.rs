@@ -7,6 +7,7 @@
 //! Per-type format optimization deferred to F1 resolution.
 
 use serde::Serialize;
+use tracing::info;
 
 use crate::scope::ArtifactType;
 
@@ -17,6 +18,7 @@ use crate::scope::ArtifactType;
 ///
 /// REQ: P7-svc-backup-serialization-svc-159
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// REQ: P9-CNS-BK-012 pre: valid artifact, post: cns.backup span emitted
 /// pre:  artifact_type must be a valid ArtifactType; artifact_id must be non-empty; data must be Serialize
 /// post: returns Vec<u8> of JSON-encoded ArtifactEnvelope; Err on serialization failure
 pub fn serialize_artifact(
@@ -30,7 +32,13 @@ pub fn serialize_artifact(
         artifact_id: artifact_id.to_string(),
         payload: data,
     };
-    serde_json::to_vec(&envelope)
+    let bytes = serde_json::to_vec(&envelope)?;
+
+    // P9: CNS span
+    // REQ: P9-CNS-BK-012 pre: valid state, post: cns.backup span emitted
+    info!(target: "cns.backup", operation = "serialize_artifact", artifact_type = %artifact_type.label(), artifact_id = %artifact_id, byte_len = bytes.len(), "CNS");
+
+    Ok(bytes)
 }
 
 /// Deserialize an artifact blob back to its JSON value.
@@ -39,10 +47,17 @@ pub fn serialize_artifact(
 ///
 /// REQ: P7-svc-backup-serialization-svc-160
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// REQ: P9-CNS-BK-013 pre: valid blob, post: cns.backup span emitted
 /// pre:  blob must be valid JSON matching ArtifactEnvelopeValue schema
 /// post: returns ArtifactEnvelopeValue with artifact_type, artifact_id, and payload; Err on invalid JSON
 pub fn deserialize_artifact(blob: &[u8]) -> Result<ArtifactEnvelopeValue, serde_json::Error> {
-    serde_json::from_slice(blob)
+    let envelope: ArtifactEnvelopeValue = serde_json::from_slice(blob)?;
+
+    // P9: CNS span
+    // REQ: P9-CNS-BK-013 pre: valid state, post: cns.backup span emitted
+    info!(target: "cns.backup", operation = "deserialize_artifact", artifact_type = %envelope.artifact_type, artifact_id = %envelope.artifact_id, byte_len = blob.len(), "CNS");
+
+    Ok(envelope)
 }
 
 /// Envelope wrapping an artifact for git blob storage.

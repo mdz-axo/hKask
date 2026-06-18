@@ -42,6 +42,8 @@ The hKask wallet is a **specialized sub-wallet** — one of several crypto walle
 - Process withdrawals (rJoules → USDC) back to user's primary wallet
 - Support optional shielded deposits/withdrawals via Hinkal privacy protocol
 
+**Deployment note:** The wallet subsystem is deployed exclusively on the cloud server per the deployment model (see `docs/plans/deployment-and-backup.md`).
+
 ### 1.2 What hKask Wallet Is NOT `[OUGHT-DECL]`
 
 - NOT a general-purpose crypto wallet — user's primary wallet (Phantom, HashPack, MetaMask) handles key storage, multi-chain asset management, DeFi

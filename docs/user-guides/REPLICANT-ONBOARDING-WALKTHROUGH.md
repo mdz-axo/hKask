@@ -20,7 +20,7 @@ mds_categories: [domain, lifecycle]
 
 - **A modern web browser** (Chrome, Firefox, Safari, or Edge).
 - **A GitHub or Google account** for sign-in.
-- That's it. No local installation, no command-line tools, no API keys.
+- That's it. No local installation (for end users — server admins see the Admin Install Guide), no command-line tools, no API keys.
 
 ---
 
@@ -48,7 +48,7 @@ On your very first sign-in, hKask provisions your account automatically. You don
 
 2. **WebID provisioned.** A WebID is derived from your OAuth identity (e.g., `webid://alice-smith`). This is your permanent identifier in the hKask sovereign namespace.
 
-3. **Default replicant created.** A replicant is automatically created for you with a default name derived from your account. You don't choose a name during onboarding — one is assigned. You can customize it later (see §6.3).
+A replicant is automatically created for you with a default name derived from your account. The default replicant name is derived from your OAuth display name (e.g., GitHub username or Google account name). You don't choose a name during onboarding — one is assigned. You can customize it later (see §6.3).
 
 4. **Wallet assigned.** A sovereign wallet is generated for your replicant, holding capability tokens and consent grants.
 

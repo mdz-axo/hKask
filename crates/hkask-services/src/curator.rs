@@ -102,7 +102,7 @@ impl CuratorService {
                 hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
                     message: id,
                 },
-                other => ServiceError::Escalation(other),
+                other => ServiceError::Escalation { message: other.to_string() },
             })
     }
 
@@ -139,7 +139,7 @@ impl CuratorService {
                 hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
                     message: id,
                 },
-                other => ServiceError::Escalation(other),
+                other => ServiceError::Escalation { message: other.to_string() },
             })
     }
 

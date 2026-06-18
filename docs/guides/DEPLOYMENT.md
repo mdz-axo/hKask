@@ -60,10 +60,10 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 | Requirement | Minimum | Recommended |
 |-------------|---------|-------------|
-| **OS** | Linux (kernel 5.4+), macOS 12+, Windows 10+ | Linux (Ubuntu 22.04+, RHEL 9+) |
+| **OS** | Linux (kernel 5.4+) | Linux (Ubuntu 22.04+, RHEL 9+) |
 | **CPU** | 2 cores | 4+ cores |
-| **RAM** | 4 GB | 8+ GB |
-| **Disk** | 2 GB | 10+ GB SSD |
+| **RAM** | 2 GB | 4+ GB |
+| **Disk** | 20 GB | 20+ GB SSD |
 | **Rust** | 1.91+ | Latest stable |
 
 ### 2.2 External Dependencies
@@ -71,6 +71,10 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 | Dependency | Purpose | Required | Default |
 |------------|---------|----------|---------|
 | **DeepInfra** | Cloud LLM inference | Optional (requires API key) | `https://api.deepinfra.com/v1/openai` |
+| **Together AI** | Cloud LLM inference | Optional (requires API key) | `https://api.together.xyz/v1` |
+| **fal.ai** | Cloud LLM inference | Optional (requires API key) | `https://fal.ai/api` |
+| **RunPod** | Cloud LLM inference | Optional (requires API key) | `https://api.runpod.io/v2` |
+| **Baseten** | Cloud LLM inference | Optional (requires API key) | `https://api.baseten.co/v1` |
 | **SQLite** | Database engine | Bundled (rusqlite) | — |
 | **Git** | Template loading (optional) | Optional | — |
 
@@ -92,24 +96,14 @@ export DEEPINFRA_BASE_URL="https://api.deepinfra.com/v1/openai"
 
 ### 3.1 Admin Setup
 
-For a full step-by-step server deployment including OAuth, Caddy + Conduit sidecars, DNS, and first sign-in, see:
+For a full step-by-step server deployment including OAuth, Caddy + Conduit sidecars, DNS, and first sign-in, see the **[Admin Install Guide](admin-install-guide.md)**.
 
-→ **[Admin Install Guide](admin-install-guide.md)**
-
-Quick summary:
+Quick start (development only):
 ```bash
-# Clone and build
 cargo build --release --bin kask
 cp target/release/kask /usr/local/bin/kask
-
-# Initialize server (prompts for domain, passphrase, OAuth providers)
-kask init --profile server
-
-# Deploy Caddy (TLS) + Conduit (Matrix) sidecars
-kask matrix deploy-sidecar --domain hkask.your-domain.com
-cd ~/.config/hkask/sidecar && docker compose up -d
-
-# Users visit https://hkask.your-domain.com, sign in via OAuth, get a browser terminal
+kask init --profile dev
+kask daemon start
 ```
 
 ### 3.2 Browser Terminal (Primary Access)
@@ -298,15 +292,18 @@ docker build -t hkask:latest .
 docker run -d -p 8080:8080 --name hkask hkask:latest
 ```
 
-### 5.3 Kubernetes Deployment
+### 5.3 Kubernetes Deployment — Future (not supported in v0.27.0)
+
+> **Note:** Kubernetes multi-replica deployment is not supported in v0.27.0. hKask uses SQLCipher (single-writer SQLite) which cannot support multi-replica deployments. The single-server model described in §5.1 (systemd) and §5.2 (Docker) is the only supported production path. The Kubernetes manifest below is a placeholder for a future version with a distributed storage backend.
 
 ```yaml
+# FUTURE — not supported in v0.27.0
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: hkask-api
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: hkask-api

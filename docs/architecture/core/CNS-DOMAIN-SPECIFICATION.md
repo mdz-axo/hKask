@@ -119,7 +119,8 @@ Each sub-domain is implemented in a single Rust file (or a tight cluster of file
 
 ### 2.5 Circuit Breaker Domain (`circuit_breaker.rs`)
 
-**Motivating principle:** P4 (Clear Boundaries) — circuit breaking is a CNS regulation mechanism enforcing homeostatic control over external service calls.
+**Motivating principle:** P9 (Homeostatic Self-Regulation) — CNS regulation loop enforces homeostasis over external service calls
+**Constraining principle:** P4 (Clear Boundaries) — circuit state transitions are boundary conditions
 
 **Source:** `crates/hkask-cns/src/circuit_breaker.rs` (208 lines, 3 contracts)
 

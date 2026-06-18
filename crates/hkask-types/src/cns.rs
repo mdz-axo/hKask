@@ -261,6 +261,14 @@ pub enum CnsSpan {
     AcpReplicantMemorySize,
     /// ACP IDE connection state change.
     AcpIdeConnectionState,
+
+    // ── Service spans (P9-CNS-SVC-001) ────────────────────────────────────
+    /// Classification service operations (classify_batch, extract_triples_batch, load_config).
+    Classify,
+    /// Embedding pipeline operations (embed_corpus, parse_config, ocr_pdf_bytes, strip_html_tags).
+    Embed,
+    /// Discovery pipeline operations (discover, download_and_cache, generate_corpus_yaml, slugify).
+    Discover,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -410,6 +418,9 @@ impl CnsSpan {
             CnsSpan::AcpBridgeLatency => "cns.acp.bridge.latency",
             CnsSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
             CnsSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
+            CnsSpan::Classify => "cns.classify",
+            CnsSpan::Embed => "cns.embed",
+            CnsSpan::Discover => "cns.discover",
         }
     }
 }
@@ -543,6 +554,9 @@ impl std::str::FromStr for CnsSpan {
             "cns.acp.bridge.latency" => Ok(CnsSpan::AcpBridgeLatency),
             "cns.acp.replicant.memory_size" => Ok(CnsSpan::AcpReplicantMemorySize),
             "cns.acp.ide.connection_state" => Ok(CnsSpan::AcpIdeConnectionState),
+            "cns.classify" => Ok(CnsSpan::Classify),
+            "cns.embed" => Ok(CnsSpan::Embed),
+            "cns.discover" => Ok(CnsSpan::Discover),
             _ => Err(()),
         }
     }
@@ -716,6 +730,9 @@ mod cns_span_tests {
             CnsSpan::AcpBridgeLatency,
             CnsSpan::AcpReplicantMemorySize,
             CnsSpan::AcpIdeConnectionState,
+            CnsSpan::Classify,
+            CnsSpan::Embed,
+            CnsSpan::Discover,
         ];
         for variant in &all_variants {
             let s = variant.to_string();

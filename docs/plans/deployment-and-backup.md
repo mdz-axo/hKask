@@ -267,7 +267,7 @@ kask config set backup.auto-export.frequency daily
 kask config set backup.auto-export.retention 7  # keep last 7 exports
 ```
 
-Archives are stored in `/var/lib/hkask/exports/{webid}/` and available for download via the API. Each archive is encrypted with a key derived from the user's session — the user provides their passphrase at download time to decrypt.
+Archives are stored in `/var/lib/hkask/exports/{webid}/` and available for download via the API. Each archive is encrypted with the passphrase the user provided at export time — the user provides the same passphrase at import time to decrypt.
 
 **CNS span:** `BackupAutoExport { webid, triple_count, bytes, duration_ms }`
 

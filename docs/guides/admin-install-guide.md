@@ -135,13 +135,14 @@ docker compose version
 ### Option A: Download from GitHub Releases (recommended)
 
 ```bash
-# Replace with actual release URL once published
-curl -fsSL https://github.com/org/hkask/releases/latest/download/kask-linux-x86_64 \
-  -o /usr/local/bin/kask
-chmod +x /usr/local/bin/kask
-
+# Planned feature — pre-built binaries are not yet published.
+# Use Option B (Build from Source) below as the current installation path.
+# curl -fsSL https://github.com/org/hkask/releases/latest/download/kask-linux-x86_64 \
+#   -o /usr/local/bin/kask
+# chmod +x /usr/local/bin/kask
+#
 # Verify
-kask --version
+# kask --version
 ```
 
 ### Option B: Build from Source
@@ -276,6 +277,20 @@ Sign in with GitHub or Google.
 You are the first admin.
 
 Invite members: kask invite <email>
+```
+
+### Start the Daemon
+
+After init, start the background daemon:
+
+```bash
+kask daemon start
+```
+
+Verify it's running:
+
+```bash
+kask daemon status
 ```
 
 ---

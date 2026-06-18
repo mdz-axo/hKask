@@ -154,7 +154,7 @@ pub enum ServiceError {
 
     // ── Backup domain ──────────────────────────────────────────────────
     #[error("Backup failed: {message}")]
-    Backup { message: String },
+    Backup { message: String, source: Option<Box<dyn std::error::Error + Send + Sync>> },
 
     // ── Rate limiting ──────────────────────────────────────────────────────
     #[error("{message}")]

@@ -1,0 +1,357 @@
+# Writing Quality Gate — Audit Report
+# Generated: 2026-06-17
+# Task 3 of document-update skill workflow
+# Assessed against WRITING_EXCELLENCE.md §3 four-dimension rubric
+#
+# Score meanings:
+#   Strong   — Dimension is well-served; document meets or exceeds standard
+#   Aligned  — Dimension is acceptable; minor gaps noted
+#   Divergent — Dimension needs revision; substantive issues found
+#
+# Publication standard: ≥3/4 dimensions Strong or Aligned
+
+documents:
+  - path: docs/architecture/core/FUNCTIONAL_SPECIFICATION.md
+    scores:
+      Gentle: Strong
+      Schriver: Aligned
+      Hopper: Aligned
+      Lovelace: Strong
+    weakest_dimension: Schriver
+    meets_publication_standard: true
+    findings:
+      - dimension: Gentle
+        assessment: >
+          Contract IDs are uniquely specified with principle annotations, function
+          signatures, and source file paths. An agent could derive implementation
+          requirements directly. Domain map (§1) and FR tables (§2) provide complete
+          coverage.
+      - dimension: Schriver
+        assessment: >
+          Well-structured with hierarchical headings and the domain map table.
+          However, at 1140 lines, a reader seeking a specific contract ID must
+          know the domain tag. No per-section navigation table. The document
+          would benefit from a "jump to domain" index after §1.
+      - dimension: Hopper
+        assessment: >
+          Most prose is clear technical writing in active voice. Tables dominate
+          over paragraphs, which aids scanning. No sentences over 35 words found
+          in sampled sections. Acceptable.
+      - dimension: Lovelace
+        assessment: >
+          Contract IDs, function names, source file paths, and principle annotations
+          make every claim independently verifiable. Build status (`cargo check`)
+          is documented. Test contracts listed alongside production contracts.
+    passages_needing_rewrite: []
+    citation_gaps:
+      - "§1 Domain Breakdown lacks external citation. Architecture doc requires ≥1 per ## section (WRITING_EXCELLENCE.md §2.4). Recommend citing Beer's Viable System Model for domain decomposition rationale."
+      - "§2 Functional Requirements by Domain subsections use code-path verification (source file references) as evidence. This satisfies the specification-level citation floor. No external citations present — acceptable per §2.4 (specifications: code-path OR external)."
+      - "§3 Non-CNS Domain Stubs is almost entirely reference tables. No citations. Acceptable as reference material."
+    structural_gaps:
+      - "§3.2–3.17 (Non-CNS Domain Stubs) lack Statement→Evidence→Diagram→Implications structure. These are reference tables with no diagrams and no implications sections. This is acceptable for a specification appendix but limits standalone comprehension."
+      - "Duplicate heading: §3.2 'Storage (hkask-storage)' appears at lines 404 and 785. This is a structural defect."
+
+  - path: docs/architecture/loop-architecture.md
+    scores:
+      Gentle: Strong
+      Schriver: Strong
+      Hopper: Aligned
+      Lovelace: Strong
+    weakest_dimension: Hopper
+    meets_publication_standard: true
+    findings:
+      - dimension: Gentle
+        assessment: >
+          ERDs define relationships precisely. Crate-to-loop mapping table (§3.1)
+          enables routing decisions. Open questions (§5) present tensions with
+          resolution status. An agent would navigate architecture correctly.
+      - dimension: Schriver
+        assessment: >
+          Five clear top-level sections with informative headings. Navigation is
+          fast. ERDs are annotated with verification metadata (DIAG-LOOP-001,
+          DIAG-LOOP-002). A reader can find specific loop concerns in <30s.
+      - dimension: Hopper
+        assessment: >
+          Mostly clear prose but dense paragraphs in §1.1 (the "deeper reason"
+          blockquote paragraph spans multiple complex sentences). The paragraph
+          beginning "Energy tracking is not merely a richer resource model" contains
+          ~115 words across 6 sentences — while individual sentences are under 35
+          words, the paragraph density is high. Active voice predominates.
+      - dimension: Lovelace
+        assessment: >
+          Five external citations (Beer, Ashby, Miller, Wiener, Coopersmith) with
+          specific claims. ERDs verified against source code. Capability membrane
+          graph (§4.4) is cycle-freedom verified (§4.5). Gas cost semantics (§5.8)
+          are specific and tiered.
+    passages_needing_rewrite:
+      - dimension: Hopper
+        passage: |
+          §1.1, lines 35-36 (single paragraph with ~115 words across 6 sentences):
+          "Energy tracking is not merely a richer resource model — it is the
+          computational expression of the least action principle... Rate limiting
+          was a lossy projection of action tracking — energy tracking is the
+          direct measurement."
+        issue: "Paragraph density exceeds one-claim-per-paragraph standard. Break into 3–4 paragraphs, each making a single claim."
+    citation_gaps: []
+    structural_gaps:
+      - "§5 Open Questions (5.1–5.8) lack diagrams. Each open question section would benefit from a decision-flow diagram showing the resolution path."
+
+  - path: docs/specifications/specs/REPL-specification.md
+    scores:
+      Gentle: Strong
+      Schriver: Strong
+      Hopper: Aligned
+      Lovelace: Strong
+    weakest_dimension: Hopper
+    meets_publication_standard: true
+    findings:
+      - dimension: Gentle
+        assessment: >
+          Crate layout (§3.1) is a complete file tree. ReplState (§3.2) is a full
+          Rust struct with field documentation. Slash command registry (§5) is a
+          complete command reference. An agent could implement the REPL from this
+          specification alone.
+      - dimension: Schriver
+        assessment: >
+          22 well-labeled sections with clear hierarchy. Command tables with
+          columns (Command, Aliases, Args, Description) enable fast lookup.
+          Pipeline diagram (§6.1) is clear ASCII art. A reader finds any command
+          or architectural concern quickly.
+      - dimension: Hopper
+        assessment: >
+          Mostly active-voice, clear prose. However, §1 sentence 2 ("The hKask
+          server spawns...") is 46 words — exceeds the 35-word limit. §5.4
+          ensemble section uses strikethrough extensively, which degrades
+          readability. Otherwise strong.
+      - dimension: Lovelace
+        assessment: >
+          Specific: exact crate paths, function signatures, struct fields with
+          types, command tables with args. Future features (§20) cite Zed's REPL
+          crate and Jupyter protocol. CNS spans listed explicitly. Constraint
+          compliance checklist (§21) is verifiable.
+    passages_needing_rewrite:
+      - dimension: Hopper
+        passage: |
+          §1, lines 15-16 (46 words, exceeds 35-word limit):
+          "The hKask server spawns `kask repl --webid <user>` on a PTY per
+          authenticated user session, providing a terminal-based conversational
+          interface to agents, models, tools, and pods — all governed by the
+          Magna Carta's four principles of User Sovereignty, Affirmative Consent,
+          Generative Space, and Clear Boundaries (OCAP)."
+        issue: "Split into two sentences. Suggested: 'The hKask server spawns `kask repl --webid <user>` on a PTY per authenticated user session. This provides a terminal-based conversational interface to agents, models, tools, and pods. All interactions are governed by the Magna Carta's four principles: User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP).'"
+      - dimension: Hopper
+        passage: |
+          §5.4, lines 202-230 (deferred ensemble section):
+          Extensive use of strikethrough (~~...~~) across 28 lines.
+        issue: "Strikethrough text is difficult to read and semantically ambiguous. Move deferred content to an appendix or collapse into a single note: 'Ensemble commands deferred (2026-06-14). See §7 for forward-looking design.'"
+    citation_gaps:
+      - "§5 Slash Command Registry: Most command specifications lack code-path verification or external citations. Specification doc requires ≥1 per ## section (WRITING_EXCELLENCE.md §2.4). Acceptable since commands are self-verifying (Ops category), but edge case for spec classification."
+    structural_gaps:
+      - "§5.4 deferred ensemble content with strikethrough violates findability (Schriver). Strikethrough is not semantically clear — is it removed or just deferred?"
+
+  - path: docs/specifications/specs/MDS-agent-service.md
+    scores:
+      Gentle: Strong
+      Schriver: Strong
+      Hopper: Strong
+      Lovelace: Aligned
+    weakest_dimension: Lovelace
+    meets_publication_standard: true
+    findings:
+      - dimension: Gentle
+        assessment: >
+          Complete API surface with method signatures, return types, and design
+          rationale. Bootstrap sequence (§4.1) is step-by-step. Field inventory
+          (§2.2) lists all 28 private fields. An agent could implement
+          AgentService correctly.
+      - dimension: Schriver
+        assessment: >
+          Seven well-labeled sections. Method table (§1.2) is a comprehensive
+          index. Fast navigation to any accessor method or architectural concern.
+      - dimension: Hopper
+        assessment: >
+          Clear, concise prose. Active voice throughout. Sentences are short and
+          direct. "AgentService is the single source of truth for all shared
+          infrastructure in hKask" — direct and unambiguous. Strongest Hopper
+          score in corpus.
+      - dimension: Lovelace
+        assessment: >
+          Method signatures are specific. Bootstrap sequence is explicit. However,
+          §2.1 shows 26 accessor methods but no code-path verification (e.g.,
+          "verify: crates/hkask-services/src/agent_service.rs:NN"). §3 Trust Spec
+          has threat model but no external security citation. §5 Coherence metric
+          uses Jaccard similarity — specific metric, but no verification command.
+    passages_needing_rewrite: []
+    citation_gaps:
+      - "§3 Trust Spec (OCAP Boundaries): No external citation. Architecture doc requires ≥1 per ## section. Recommend citing Miller (2006) on OCAP discipline or the Magna Carta document."
+      - "§5 Curation Spec: Coherence metric is specified but lacks a verification command (e.g., 'verify: cargo test -p hkask-services -- coherence')."
+    structural_gaps:
+      - "§2 Composition Spec has code block (§2.1) but no diagram. Would benefit from a sequence diagram showing an accessor call chain."
+      - "§3 Trust Spec has no diagram. Threat model is described in prose only."
+
+  - path: docs/specifications/specs/wallet-specification.md
+    scores:
+      Gentle: Strong
+      Schriver: Strong
+      Hopper: Strong
+      Lovelace: Strong
+    weakest_dimension: null
+    meets_publication_standard: true
+    findings:
+      - dimension: Gentle
+        assessment: >
+          Epistemic frame (§0) classifies every statement. Complete type system
+          (§3), security architecture (§4) with 11 MUST invariants and 7 SHOULD
+          invariants. Module dependency graph (§2.2) with mermaid diagram. An
+          agent would implement correctly.
+      - dimension: Schriver
+        assessment: >
+          Ten well-labeled sections. Crate map (§2.1) is a file tree. Security
+          invariant checklist (§4.4) is structured as tables with status columns.
+          Mermaid diagrams for dependency graph and security boundary. Fast
+          navigation.
+      - dimension: Hopper
+        assessment: >
+          Epistemic tags (`[IS-DECL]`, `[OUGHT-DECL]`, etc.) make certainty
+          explicit. Clear active voice. Sentences are concise. "The hKask wallet
+          is a specialized sub-wallet — one of several crypto wallets the user
+          holds." Direct and unambiguous.
+      - dimension: Lovelace
+        assessment: >
+          Every security invariant has a verifiable status (✅/🔶). Dependencies
+          table (§4.5) with justification and risk assessment. Key material
+          lifecycle (§4.2) is a sequence diagram with specific types
+          (Zeroizing<Vec<u8>>, Signature 64 bytes). Verification commands (§10)
+          are explicit shell commands. Exemplary precision.
+    passages_needing_rewrite: []
+    citation_gaps:
+      - "§4 Security Architecture: No external security sources cited. Architecture doc requires ≥1 per ## section. Recommend citing ed25519-dalek documentation or a cryptographic best-practices reference."
+      - "§5 Hinkal Integration: No citation for Hinkal protocol specification."
+    structural_gaps: []
+    notes:
+      - "This document is the reference exemplar for the corpus. All 4 dimensions score Strong. Use as a model for other specification documents."
+
+  - path: docs/plans/deployment-and-backup.md
+    scores:
+      Gentle: Aligned
+      Schriver: Strong
+      Hopper: Strong
+      Lovelace: Aligned
+    weakest_dimension: Gentle
+    meets_publication_standard: true
+    findings:
+      - dimension: Gentle
+        assessment: >
+          Architecture is clear with ASCII diagrams and flow descriptions. However,
+          as a plan document (status: Draft, no implementation), an agent would
+          encounter gaps — placeholder URLs ("Replace with actual release URL
+          once published"), unspecified endpoints, and lack of concrete type
+          definitions for "new types" (§8.1). Acceptable for a plan but
+          insufficient for implementation.
+      - dimension: Schriver
+        assessment: >
+          13 well-labeled sections. ASCII architecture diagrams throughout.
+          Flow descriptions in step-by-step format. Tables for new types and
+          CNS spans. Fast navigation to any deployment concern.
+      - dimension: Hopper
+        assessment: >
+          Clear, active-voice prose. "Users visit a website, sign in with GitHub
+          or Google, and get a terminal." Direct and imperative. Short sentences.
+          Good readability.
+      - dimension: Lovelace
+        assessment: >
+          Specific enough for a plan: concrete diagram with labeled components,
+          type summaries with field descriptions, CNS span names. However, several
+          new endpoints (§8.3) list routes without request/response schemas.
+          Acceptable for plan phase.
+    passages_needing_rewrite:
+      - dimension: Gentle
+        passage: |
+          §5.1 (Option A for kask binary install):
+          "# Replace with actual release URL once published"
+        issue: "Placeholder URL is a dead link for an agent. Mark with `// TODO(v0.28.0):` or provide a FIXME annotation."
+    citation_gaps:
+      - "None required — Plans have 0 citation requirement per WRITING_EXCELLENCE.md §2.4."
+    structural_gaps:
+      - "§8.1 New Types — listed as Rust struct definitions but no source file paths. Acceptable for plan phase."
+      - "§8.3 API Endpoints — route + method listed but no request/response schema. Acceptable for plan phase."
+
+  - path: docs/guides/admin-install-guide.md
+    scores:
+      Gentle: Aligned
+      Schriver: Strong
+      Hopper: Strong
+      Lovelace: Aligned
+    weakest_dimension: Gentle
+    meets_publication_standard: true
+    findings:
+      - dimension: Gentle
+        assessment: >
+          Step-by-step instructions are executable — a human admin can follow
+          them. However, an AI agent would encounter two blockers: (1) the
+          placeholder download URL in §5 Option A, (2) the `providers.env.example`
+          file reference with no content specification. The document is
+          human-executable but not agent-executable.
+      - dimension: Schriver
+        assessment: >
+          Clear numbering (1–11). Prerequisites table (§2) with minimum specs.
+          One-page overview diagram (§1). Troubleshooting table (§11) with
+          symptom→check mapping. Fast lookup for any install step.
+      - dimension: Hopper
+        assessment: >
+          Imperative mood throughout ("Edit providers.env", "Click Register
+          application"). Short sentences. Code blocks for every command. Active
+          voice. Exemplary operator-guide prose.
+      - dimension: Lovelace
+        assessment: >
+          Specific: exact commands, file paths, DNS record format, OAuth
+          configuration table with field/value. Placeholder URL reduces precision.
+          Acceptable overall for an ops guide.
+    passages_needing_rewrite:
+      - dimension: Gentle
+        passage: |
+          §5 Option A, line 139:
+          "# Replace with actual release URL once published"
+        issue: "Dead instruction for an agent. Either provide the actual URL or mark as deferred with a version gate."
+      - dimension: Lovelace
+        passage: |
+          §6, lines 167-168:
+          "After loading them into the OS keychain, the file is shredded."
+        issue: "Passive voice ('the file is shredded') where active would be clearer. Suggested: 'kask keystore load --shred destroys the file after loading keys into the OS keychain.'"
+    citation_gaps:
+      - "None required — Operations documents have 0 citation requirement per WRITING_EXCELLENCE.md §2.4."
+    structural_gaps: []
+
+# ── Corpus Summary ──
+corpus_summary:
+  total_documents: 7
+  meet_publication_standard: 7
+  fail_publication_standard: 0
+  strongest_document: docs/specifications/specs/wallet-specification.md
+  strongest_document_note: "All 4 dimensions Strong. Reference exemplar."
+  dimensions_at_risk:
+    Hopper: 2 # REPL-spec, loop-architecture have sentence/passage density issues
+    Gentle: 2 # deployment-and-backup, admin-install-guide have placeholders
+    Lovelace: 1 # MDS-agent-service lacks citations in §3, §5
+    Schriver: 1 # FUNCTIONAL_SPECIFICATION is large; minor findability concern
+  common_issues:
+    - "Placeholder URLs in draft documents (deployment-and-backup §5.1, admin-install-guide §5 Option A)"
+    - "Missing external citations in architecture documents (FUNCTIONAL_SPECIFICATION §1, wallet-spec §4, MDS-agent-service §3, §5)"
+    - "Strikethrough text in REPL-spec §5.4 degrades readability"
+    - "Duplicate heading in FUNCTIONAL_SPECIFICATION §3.2 (appears at lines 404 and 785)"
+  revision_priority:
+    - priority: P1
+      action: "Fix placeholder URLs in admin-install-guide.md and deployment-and-backup.md"
+      rationale: "Placeholders would cause agent failure"
+    - priority: P2
+      action: "Split 46-word sentence in REPL-specification.md §1"
+      rationale: "Exceeds 35-word Hopper limit"
+    - priority: P3
+      action: "Move REPL-spec §5.4 strikethrough content to appendix"
+      rationale: "Readability degradation"
+    - priority: P4
+      action: "Add external citations to FUNCTIONAL_SPECIFICATION §1, wallet-spec §4, MDS-agent-service §3/§5"
+      rationale: "Citation density requirement per WRITING_EXCELLENCE.md §2.4"
+    - priority: P5
+      action: "Fix duplicate heading in FUNCTIONAL_SPECIFICATION §3.2"
+      rationale: "Structural defect"
