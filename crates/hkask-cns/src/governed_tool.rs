@@ -302,7 +302,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         // Step 3: Emit invoked span
         let invoked_span = Span::new(
             SpanNamespace::from(CnsSpan::Tool {
-                subsystem: hkask_types::cns::ToolSubsystem::Other,
+                subsystem: hkask_types::cns::ToolSubsystem::from_server_name(server),
             }),
             "invoked",
         );
@@ -433,7 +433,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         };
         let completed_span = Span::new(
             SpanNamespace::from(CnsSpan::Tool {
-                subsystem: hkask_types::cns::ToolSubsystem::Other,
+                subsystem: hkask_types::cns::ToolSubsystem::from_server_name(server),
             }),
             "completed",
         );

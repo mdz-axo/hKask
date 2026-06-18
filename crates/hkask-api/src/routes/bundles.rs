@@ -1,6 +1,7 @@
 //! Bundle management routes
 //!
 //! # REQ: P11 (Digital Public/Private Sphere) — API surface for bundle management
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 //!
 //! Delegates to `BundleService` for all business logic. The `compose` and
 //! `evolve` endpoints now use inference-driven composition via the shared
@@ -102,6 +103,7 @@ pub struct DeactivateBundleResponse {
 /// Create bundles router
 ///
 /// REQ: API-008
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with bundle routes registered
 pub fn bundles_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {

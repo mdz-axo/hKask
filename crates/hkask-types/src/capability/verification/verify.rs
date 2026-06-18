@@ -15,6 +15,7 @@ use crate::capability::{DelegationAction, DelegationResource, DelegationToken};
 /// no external time dependency is required.
 ///
 /// REQ: TYP-308
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  checker is `Option<&CapabilityChecker>`; token is any [`DelegationToken`];
 ///       holder is any [`WebID`]; resource, resource_id, action describe the requested access
 /// post: returns a [`VerificationOutcome`] using the current system time as the expiry reference;
@@ -52,6 +53,7 @@ pub fn verify_delegation_token_now(
 /// When `checker` is `None`, returns `VerificationOutcome::NoChecker`.
 ///
 /// REQ: TYP-309
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  checker is `Option<&CapabilityChecker>`; token is any [`DelegationToken`];
 ///       holder is any [`WebID`]; resource, resource_id, action describe the requested access;
 ///       current_time is any i64 (Unix timestamp)
@@ -108,6 +110,7 @@ pub fn verify_delegation_token(
 /// * `Err(String)` — Token is read-only; the error message explains which store was denied.
 ///
 /// REQ: TYP-310
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  token is any [`DelegationToken`]; store_type is any non-empty &str
 /// post: returns `Ok(())` if `token.allows_write()` is true;
 ///       returns `Err("read-only token cannot write to {store_type} storage")` otherwise
@@ -131,6 +134,7 @@ pub fn require_write_access(token: &DelegationToken, store_type: &str) -> Result
 /// * `store_type` — Human-readable name of the store being accessed.
 ///
 /// REQ: TYP-311
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 /// pre:  token is any [`DelegationToken`]; store_type is any non-empty &str
 /// post: returns `Ok(())` if `token.allows_read()` is true;
 ///       returns `Err("token does not grant read access for {store_type} recall")` otherwise
@@ -152,6 +156,7 @@ mod tests {
     use ed25519_dalek::SigningKey;
 
     // REQ: types-cap-verify-002 — verify_delegation_token returns NoChecker when checker is None
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verify_delegation_token_returns_no_checker_when_none() {
         let from = WebID::from_persona(b"issuer");
@@ -178,6 +183,7 @@ mod tests {
     }
 
     // REQ: types-cap-verify-003 — require_write_access returns Ok for write tokens
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn require_write_access_accepts_write_token() {
         let from = WebID::from_persona(b"issuer");
@@ -195,6 +201,7 @@ mod tests {
     }
 
     // REQ: types-cap-verify-004 — require_write_access returns Err for read-only tokens
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn require_write_access_rejects_read_only_token() {
         let from = WebID::from_persona(b"issuer");

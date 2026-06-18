@@ -20,6 +20,7 @@ use uuid::Uuid;
 /// The core trait for trained adapter lifecycle operations.
 ///
 /// REQ: P4-adt-adapter-router-compose
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P4] Clear Boundaries — composition is explicit, OCAP-gated, and provider-validated
 /// [P7] Evolutionary Architecture — the trait is the seam for provider backends
 ///
@@ -162,6 +163,7 @@ pub struct EndpointStatus {
 /// Result of provider selection — returned by `AdapterRouter::select_provider()`.
 ///
 /// REQ: P2-adt-provider-selection
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P2] Affirmative Consent — the caller must present this to the user and obtain explicit consent
 #[derive(Debug, Clone)]
 pub struct ProviderSelection {
@@ -230,6 +232,7 @@ mod tests {
     use crate::provider_cost::CostModel;
 
     // REQ: P4-adt-adapter-router-compose — handle reflects lifecycle
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_phase_reflects_lifecycle() {
         let cost = CostModel::together();
@@ -252,6 +255,7 @@ mod tests {
     }
 
     // REQ: P4-adt-adapter-router-compose — handle is_billable delegates
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_is_billable_delegates() {
         let cost = CostModel::together();
@@ -272,6 +276,7 @@ mod tests {
     }
 
     // REQ: P4-adt-adapter-router-compose — AdapterError display is readable
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn adapter_error_display() {
         let err = AdapterError::NotFound(Uuid::nil());

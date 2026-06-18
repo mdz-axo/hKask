@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 /// Cost model for a specific inference provider.
 ///
 /// REQ: P9-adt-provider-cost-model
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P9] Homeostatic Self-Regulation — cost transparency enables budget-aware decisions
 /// pre:  provider is a recognized ProviderId variant
 /// post: CostModel returns honest estimates: gpu_hourly_rate, setup_minutes, teardown_grace
@@ -31,6 +32,7 @@ impl CostModel {
     /// Create a new cost model with validation.
     ///
     /// REQ: P9-adt-provider-cost-model
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  gpu_hourly_rate > 0.0, estimated_setup_minutes > 0
     /// post: returns CostModel for the given provider
     pub fn new(
@@ -79,6 +81,7 @@ pub enum CostModelError {
 /// Provider capabilities — whether a provider supports LoRA composition.
 ///
 /// REQ: P9-adt-provider-cost-model
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// pre:  provider is a recognized ProviderId variant
 /// post: ProviderCapability indicates whether LoRA composition is supported
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,6 +207,7 @@ mod tests {
     use super::*;
 
     // REQ: P9-adt-provider-cost-model — valid cost model creation
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn cost_model_new_valid() {
         let cm = CostModel::new(ProviderId::Runpod, 0.79, 5, 30, "USD").expect("valid cost model");
@@ -213,6 +217,7 @@ mod tests {
     }
 
     // REQ: P9-adt-provider-cost-model — invalid hourly rate rejected
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn cost_model_new_invalid_rate() {
         let result = CostModel::new(ProviderId::Runpod, 0.0, 5, 30, "USD");
@@ -220,6 +225,7 @@ mod tests {
     }
 
     // REQ: P9-adt-provider-cost-model — zero setup time rejected
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn cost_model_new_zero_setup() {
         let result = CostModel::new(ProviderId::Runpod, 1.0, 0, 30, "USD");
@@ -227,6 +233,7 @@ mod tests {
     }
 
     // REQ: P9-adt-provider-cost-model — estimated cost computation
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn estimated_cost_for_hours() {
         let cm = CostModel::together();
@@ -236,6 +243,7 @@ mod tests {
     }
 
     // REQ: P9-adt-provider-cost-model — setup cost fraction
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn estimated_setup_cost() {
         let cm = CostModel::together(); // 3 min setup at $1.10/hr
@@ -244,6 +252,7 @@ mod tests {
     }
 
     // REQ: P9-adt-provider-cost-model — provider capability checks
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn provider_capability_can_compose() {
         let tg = ProviderCapability::together();
@@ -253,6 +262,7 @@ mod tests {
     }
 
     // REQ: P9-adt-provider-cost-model — no-compose providers reject everything
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn no_compose_providers_reject_all() {
         let deepinfra = ProviderCapability::deepinfra();
@@ -261,6 +271,7 @@ mod tests {
     }
 
     // REQ: P9-adt-provider-cost-model — static models are consistent
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn static_models_integrity() {
         let tg = CostModel::together();

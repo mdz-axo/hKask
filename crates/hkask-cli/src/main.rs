@@ -34,6 +34,7 @@ fn main() {
     let runtime = McpRuntime::new();
 
     // REQ: P9-CNS-SRF-001 pre: valid command parsed post: cns.cli span emitted
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     // P9: CNS span
     let cns_start = Instant::now();
     tracing::info!(target: "cns.cli", operation = "command_invoked", command = ?cli.command, "CNS");

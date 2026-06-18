@@ -21,6 +21,7 @@ fn manifests_dir() -> PathBuf {
 }
 
 /// REQ: CLI-066
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  action is a valid KataAction variant; registry is a valid SqliteRegistry
 /// post: dispatches to list_manifests, show_manifest, or start_kata based on action variant
 pub fn run(action: KataAction, registry: &SqliteRegistry) {

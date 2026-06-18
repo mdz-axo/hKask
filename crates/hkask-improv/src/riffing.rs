@@ -110,7 +110,7 @@ mod tests {
     }
 
     // REQ: IMPROV-RIFFING-001 — Riffing diverges from a seed into a solo tangent
-/// expect: "The system supports structured improvisational agent interaction" [P3]
+// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn diverges_from_seed() {
         let seed = make_contribution("We should use a microservice architecture");
@@ -120,7 +120,7 @@ mod tests {
     }
 
     // REQ: IMPROV-RIFFING-002 — Riffing resolves with ReturnToGroup policy
-/// expect: "The system supports structured improvisational agent interaction" [P3]
+// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn resolves_return_to_group() {
         let tangent = make_contribution("Monoliths might actually be simpler for our scale");
@@ -135,7 +135,7 @@ mod tests {
     }
 
     // REQ: IMPROV-RIFFING-003 — Riffing spawns a new thread with SpawnThread policy
-/// expect: "The system supports structured improvisational agent interaction" [P3]
+// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn spawns_new_thread() {
         let tangent = make_contribution("What about event sourcing?");
@@ -149,7 +149,7 @@ mod tests {
     }
 
     // REQ: IMPROV-RIFFING-004 — Riffing respects ReturnAfterSteps boundary
-/// expect: "The system supports structured improvisational agent interaction" [P3]
+// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn respects_return_after_steps() {
         let tangent = make_contribution("Exploring CQRS patterns");
@@ -175,7 +175,7 @@ mod tests {
     }
 
     // REQ: IMPROV-RIFFING-005 — RiffReturn default is ReturnToGroup
-/// expect: "The system supports structured improvisational agent interaction" [P3]
+// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn default_return_is_return_to_group() {
         assert_eq!(RiffReturn::default(), RiffReturn::ReturnToGroup);

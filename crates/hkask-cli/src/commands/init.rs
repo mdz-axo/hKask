@@ -1,6 +1,7 @@
 //! `kask init` — Initialize hKask server configuration.
 //!
 //! REQ: DEP-400 — P3 Headless: server bootstrap via interactive CLI prompts.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 //!
 //! Creates:
 //! - ~/.config/hkask/config.json (server config)
@@ -13,6 +14,7 @@ use std::path::PathBuf;
 /// Run the interactive server initialization.
 ///
 /// REQ: DEP-401
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  stdin is a terminal
 /// post: server config, data dir, and keychain entries created
 pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {

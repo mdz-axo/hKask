@@ -223,6 +223,7 @@ fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, Onboarding
 }
 
 /// REQ: CLI-ONBOARDING-002
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  user must not cancel at any interactive prompt
 /// post: returns OnboardingOutcome with signed_in_agent, resolved_secrets, selected_model, is_first_run=true; all secrets derived and stored in keychain; replicant registered in A2A; user profile stored; matrix registration attempted (non-blocking)
 /// inv:  does not modify any external state before derive_secrets; cancellation at any prompt returns OnboardingError::Cancelled with zero side effects
@@ -927,6 +928,7 @@ mod tests {
     use super::passphrase_strength;
 
     // REQ: CLI-ONBOARDING-001 — Passphrases shorter than 8 characters are classified "weak"
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     // regardless of character variety.
     #[test]
     fn passphrase_strength_weak_below_8() {
@@ -936,6 +938,7 @@ mod tests {
     }
 
     // REQ: CLI-ONBOARDING-002 — An 8-character passphrase with only one character class (lowercase
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     // letters) is classified "fair" — meets the minimum length but lacks variety.
     #[test]
     fn passphrase_strength_fair_at_8_single_variety() {
@@ -946,6 +949,7 @@ mod tests {
     }
 
     // REQ: CLI-ONBOARDING-003 — A 16-character passphrase with at least 3 character classes is
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     // classified "strong".
     #[test]
     fn passphrase_strength_strong_at_16_high_variety() {

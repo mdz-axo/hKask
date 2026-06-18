@@ -150,11 +150,39 @@ pub enum ToolSubsystem {
     Wallet,
     Media,
     Kanban,
+    Memory,
+    Companies,
+    Docproc,
     /// Catch-all for unknown or future MCP servers.
     Other,
 }
 
 impl ToolSubsystem {
+    /// Map an MCP server name (e.g., "memory", "hkask-mcp-spec") to a ToolSubsystem.
+    ///
+    /// REQ: CNS-001 — P9 Homeostatic Self-Regulation: identify which MCP server emitted a tool span.
+    /// pre:  server_name is a non-empty string
+    /// post: returns the corresponding ToolSubsystem variant; Other if unknown
+    pub fn from_server_name(server_name: &str) -> Self {
+        let name = server_name
+            .strip_prefix("hkask-mcp-")
+            .unwrap_or(server_name);
+        match name {
+            "memory" => ToolSubsystem::Memory,
+            "condenser" => ToolSubsystem::Condenser,
+            "spec" => ToolSubsystem::SpecServer,
+            "research" => ToolSubsystem::Research,
+            "companies" => ToolSubsystem::Companies,
+            "communication" => ToolSubsystem::Communication,
+            "fal" | "media" => ToolSubsystem::Media,
+            "docproc" => ToolSubsystem::Docproc,
+            "training" => ToolSubsystem::Training,
+            "replica" => ToolSubsystem::Replica,
+            "kanban" => ToolSubsystem::Kanban,
+            _ => ToolSubsystem::Other,
+        }
+    }
+
     /// Canonical string suffix for the subsystem (e.g., `"web_search"`).
     pub fn as_str(self) -> &'static str {
         match self {
@@ -169,6 +197,9 @@ impl ToolSubsystem {
             ToolSubsystem::Wallet => "wallet",
             ToolSubsystem::Media => "media",
             ToolSubsystem::Kanban => "kanban",
+            ToolSubsystem::Memory => "memory",
+            ToolSubsystem::Companies => "companies",
+            ToolSubsystem::Docproc => "docproc",
             ToolSubsystem::Other => "other",
         }
     }
@@ -196,6 +227,9 @@ impl CnsSpan {
                 ToolSubsystem::Wallet => "cns.tool.wallet",
                 ToolSubsystem::Media => "cns.tool.media",
                 ToolSubsystem::Kanban => "cns.tool.kanban",
+                ToolSubsystem::Memory => "cns.tool.memory",
+                ToolSubsystem::Companies => "cns.tool.companies",
+                ToolSubsystem::Docproc => "cns.tool.docproc",
                 ToolSubsystem::Other => "cns.tool",
             },
             CnsSpan::Inference => "cns.inference",

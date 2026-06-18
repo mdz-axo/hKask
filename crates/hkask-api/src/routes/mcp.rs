@@ -33,6 +33,7 @@ use crate::middleware::auth::AuthContext;
 /// Create MCP router
 ///
 /// REQ: API-018
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with MCP routes registered
 pub fn mcp_router() -> OpenApiRouter<ApiState> {
@@ -54,6 +55,7 @@ pub fn mcp_router() -> OpenApiRouter<ApiState> {
 )]
 pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
     // REQ: P9-CNS-SURF-050 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "mcp_servers", "CNS");
     let servers = state.agent_service.mcp_runtime().list_servers().await;
@@ -75,6 +77,7 @@ pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<Stri
 )]
 pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
     // REQ: P9-CNS-SURF-051 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "mcp_tools", "CNS");
     let tools = state.agent_service.mcp_runtime().discover_tools().await;
@@ -133,6 +136,7 @@ pub(crate) async fn mcp_invoke(
     Json(req): Json<McpInvokeRequest>,
 ) -> Result<Json<McpInvokeResponse>, ServiceErrorResponse> {
     // REQ: P9-CNS-SURF-052 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "mcp_invoke", tool = %req.tool, "CNS");
     let input = if req.input.is_null() {

@@ -17,6 +17,7 @@ use std::sync::Arc;
 /// - `templates` — lists all registered templates
 ///
 /// REQ: CLI-085
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; template_registry is a valid SqliteRegistry; registry is "styles" or "templates"
 /// post: lists artifacts in the specified registry; prints results or error for unknown registries
 pub fn run_list(
@@ -40,6 +41,7 @@ pub fn run_list(
 /// Format: `<registry>-<artifact>` (hyphen-separated).
 /// Example: `styles-hemingway` removes the Hemingway style corpus.
 /// REQ: CLI-086
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; template_registry is a mutable SqliteRegistry; target is "registry-artifact" format
 /// post: removes the specified artifact from the registry; purges embeddings, triples, and disk artifacts
 pub fn run_rm(

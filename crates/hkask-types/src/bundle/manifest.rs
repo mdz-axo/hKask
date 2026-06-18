@@ -46,6 +46,7 @@ pub enum SkillPolarity {
 }
 
 // REQ: TYP-229 (as_str), TYP-230 (parse_str)
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid SkillPolarity variant
 // as_str post: returns PascalCase string ("Generative", "Evaluative", "Regulative", "Procedural")
 // parse_str pre:  s is PascalCase or snake_case (e.g. "Generative"/"generative")
@@ -58,12 +59,14 @@ enum_str_ops!(SkillPolarity, {
 });
 impl SkillPolarity {
     /// REQ: TYP-231
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid SkillPolarity variant
     /// post: returns true if self is Generative (divergent/creative role); false otherwise
     pub fn is_divergent(&self) -> bool {
         matches!(self, Self::Generative)
     }
     /// REQ: TYP-232
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid SkillPolarity variant
     /// post: returns true if self is Evaluative (convergent/critical role); false otherwise
     pub fn is_convergent(&self) -> bool {
@@ -102,6 +105,7 @@ pub struct BundleManifestStep {
 
 impl BundleManifestStep {
     /// REQ: TYP-233
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self.phase is a valid CascadePhase variant
     /// post: returns the PascalCase string representation of the cascade phase
     pub fn phase_str(&self) -> &'static str {
@@ -138,6 +142,7 @@ pub struct BundleManifest {
 
 impl BundleManifest {
     /// REQ: TYP-234
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a fully constructed BundleManifest
     /// post: returns ValidationResult with errors for hard violations (skill count, cascade depth, P1 polarity, etc.) and warnings for soft recommendations
     pub fn validate(&self) -> ValidationResult {
@@ -256,12 +261,14 @@ impl BundleManifest {
         ValidationResult { errors, warnings }
     }
     /// REQ: TYP-235
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self.steps is populated with valid BundleManifestStep entries
     /// post: returns the sum of all step gas_cap values
     pub fn total_step_gas(&self) -> u32 {
         self.steps.iter().map(|s| s.gas_cap).sum()
     }
     /// REQ: TYP-236
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  phase is a valid CascadePhase variant
     /// post: returns Vec of &BundleSkill references for skills whose step description contains their id and whose phase matches
     pub fn skills_in_phase(&self, phase: CascadePhase) -> Vec<&BundleSkill> {
@@ -276,6 +283,7 @@ impl BundleManifest {
             .collect()
     }
     /// REQ: TYP-237
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Vec<String> of all skill ids in the bundle
     pub fn skill_ids(&self) -> Vec<String> {
         self.skills.iter().map(|s| s.id.clone()).collect()
@@ -291,11 +299,13 @@ pub struct ValidationResult {
 
 impl ValidationResult {
     /// REQ: TYP-238
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true if errors is empty (no hard violations); false otherwise
     pub fn is_valid(&self) -> bool {
         self.errors.is_empty()
     }
     /// REQ: TYP-239
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true if warnings is non-empty; false otherwise
     pub fn has_warnings(&self) -> bool {
         !self.warnings.is_empty()

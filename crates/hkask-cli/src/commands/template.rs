@@ -11,6 +11,7 @@ use serde_json::Value;
 /// Template list command
 ///
 /// REQ: CLI-019
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  registry is a valid RegistryIndex
 /// post: returns Vec<RegistryEntry> filtered by optional template_type
 /// post: delegates to registry.list()
@@ -24,6 +25,7 @@ pub fn list_templates(
 /// Template list command (local in-memory, for REPL use)
 ///
 /// REQ: CLI-020
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  none
 /// post: returns Vec<RegistryEntry> from in-memory SqliteRegistry
 /// post: if registry creation fails twice → returns empty Vec (graceful degradation)
@@ -47,6 +49,7 @@ pub fn list_templates_local() -> Vec<RegistryEntry> {
 /// Register template command
 ///
 /// REQ: CLI-021
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  registry is a mutable SqliteRegistry
 /// pre:  id, template_type, source_path, description are valid
 /// post: returns Ok(()) if template registered successfully
@@ -81,6 +84,7 @@ pub fn register_template(
 /// Get template command
 ///
 /// REQ: CLI-022
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  registry is a valid RegistryIndex
 /// pre:  id is a valid template identifier
 /// post: returns Ok(RegistryEntry) if template found
@@ -94,6 +98,7 @@ pub fn get_template(registry: &dyn RegistryIndex, id: &str) -> Result<RegistryEn
 /// Search templates by lexicon
 ///
 /// REQ: CLI-023
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  registry is a valid SqliteRegistry
 /// pre:  term is a non-empty search string
 /// post: returns Ok(Vec<RegistryEntry>) with matching templates
@@ -112,6 +117,7 @@ pub fn search_templates(
 /// List MCP servers
 ///
 /// REQ: CLI-024
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  runtime is a valid McpRuntime
 /// post: returns Vec<McpServer> with all registered servers
 /// post: delegates to runtime.list_servers()
@@ -122,6 +128,7 @@ pub async fn list_mcp_servers(runtime: &McpRuntime) -> Vec<McpServer> {
 /// List MCP tools
 ///
 /// REQ: CLI-025
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  runtime is a valid McpRuntime
 /// post: returns Vec<String> with all discovered tool names
 /// post: delegates to runtime.discover_tools()
@@ -132,6 +139,7 @@ pub async fn list_mcp_tools(runtime: &McpRuntime) -> Vec<String> {
 /// Get MCP tool definition
 ///
 /// REQ: CLI-026
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  runtime is a valid McpRuntime
 /// pre:  name is a valid tool name
 /// post: returns Some(Value) with tool metadata if found
@@ -150,6 +158,7 @@ pub async fn get_mcp_tool(runtime: &McpRuntime, name: &str) -> Option<Value> {
 /// Register MCP server
 ///
 /// REQ: CLI-027
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  runtime is a valid McpRuntime
 /// pre:  id, name, tools are valid
 /// post: server is registered with the runtime
@@ -167,6 +176,7 @@ pub async fn register_mcp_server(
 /// CLI handler for `kask template` subcommand
 ///
 /// REQ: CLI-028
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  registry is a mutable SqliteRegistry
 /// pre:  action is a valid TemplateAction variant
 /// post: dispatches to the appropriate template command handler

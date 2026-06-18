@@ -81,6 +81,7 @@ pub struct AgentListResponse {
 /// Create A2A router
 ///
 /// REQ: API-014
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with A2A routes registered
 pub fn a2a_router() -> OpenApiRouter<ApiState> {

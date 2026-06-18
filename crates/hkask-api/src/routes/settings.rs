@@ -85,6 +85,7 @@ pub struct UpdateSettingsRequest {
 }
 
 /// REQ: API-011
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with settings route registered
 pub fn settings_router() -> OpenApiRouter<ApiState> {
@@ -172,6 +173,7 @@ mod tests {
     use super::*;
 
     // REQ: Merge-update preserves unspecified fields — only the fields
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // in the request are changed; all others keep their current values.
 
     #[test]
@@ -211,6 +213,7 @@ mod tests {
     }
 
     // REQ: Merge-update — update settings out of range is ignored
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn update_settings_out_of_range_is_ignored() {
         let mut settings = SettingsResponse::default();
@@ -238,6 +241,7 @@ mod tests {
     }
 
     // REQ: api-settings-003 — seed field merge: Some(Some(v)) sets seed, Some(None) means random
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn update_settings_seed_merge() {
         let mut settings = SettingsResponse::default();
@@ -446,6 +450,7 @@ mod tests {
         }
 
         // REQ: api-settings-prop-001 — merge is idempotent
+// expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn merge_idempotent(
@@ -467,6 +472,7 @@ mod tests {
         }
 
         // REQ: api-settings-prop-002 — unspecified fields are preserved
+// expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn unspecified_fields_preserved(
@@ -517,6 +523,7 @@ mod tests {
         }
 
         // REQ: api-settings-prop-003 — out-of-range values are silently ignored
+// expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
             fn out_of_range_values_ignored(

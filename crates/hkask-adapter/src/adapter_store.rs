@@ -95,6 +95,7 @@ impl std::fmt::Display for Checksum {
 /// A trained LoRA adapter — content-addressed, owner-scoped artifact.
 ///
 /// REQ: P8-adt-trained-adapter-store
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P8] Semantic Grounding — adapter is content-addressed and provenance-chained
 /// pre:  adapter weights pass checksum validation
 /// post: adapter is stored with owner WebID, expertise link, and base model family
@@ -163,6 +164,7 @@ impl AdapterStore {
     /// Run schema migrations — create tables if they don't exist.
     ///
     /// REQ: P8-adt-trained-adapter-store
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// post: trained_adapters table exists
     pub fn migrate(&self) -> Result<(), AdapterStoreError> {
         let conn = self.lock_conn()?;
@@ -210,6 +212,7 @@ impl AdapterStore {
     /// Store a trained adapter.
     ///
     /// REQ: P8-adt-trained-adapter-store
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  adapter has a valid expertise, checksum, owner, and storage_path
     /// post: adapter is persisted to SQLite
     pub fn store(&self, adapter: &TrainedLoRAAdapter) -> Result<(), AdapterStoreError> {
@@ -254,6 +257,7 @@ impl AdapterStore {
     /// Retrieve an adapter by its UUID.
     ///
     /// REQ: P8-adt-trained-adapter-store
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  id is a valid Uuid
     /// post: returns Some(TrainedLoRAAdapter) if found, None otherwise
     pub fn get_by_id(&self, id: Uuid) -> Result<Option<TrainedLoRAAdapter>, AdapterStoreError> {
@@ -298,6 +302,7 @@ impl AdapterStore {
     /// List adapters by expertise name.
     ///
     /// REQ: P8-adt-trained-adapter-store
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  expertise_name is non-empty
     /// post: returns Vec of adapters matching the expertise name
     pub fn get_by_expertise(
@@ -344,6 +349,7 @@ impl AdapterStore {
     /// List adapters owned by a specific WebID.
     ///
     /// REQ: P8-adt-trained-adapter-store
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  owner is a valid WebID
     /// post: returns Vec of adapters owned by the given WebID
     pub fn list_owner(&self, owner: WebID) -> Result<Vec<TrainedLoRAAdapter>, AdapterStoreError> {
@@ -389,6 +395,7 @@ impl AdapterStore {
     /// token verification happens at the `AdapterPort` boundary (Task 5).
     ///
     /// REQ: P8-adt-trained-adapter-store — delete with ownership verification
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  adapter exists
     /// post: adapter row is removed
     pub fn delete(&self, id: Uuid) -> Result<(), AdapterStoreError> {
@@ -507,6 +514,7 @@ mod tests {
     }
 
     // REQ: P8-adt-trained-adapter-store — store and retrieve by ID
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn store_and_retrieve_by_id() {
         let db = hkask_storage::in_memory_db();
@@ -527,6 +535,7 @@ mod tests {
     }
 
     // REQ: P8-adt-trained-adapter-store — retrieve by expertise
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn retrieve_by_expertise() {
         let db = hkask_storage::in_memory_db();
@@ -549,6 +558,7 @@ mod tests {
     }
 
     // REQ: P8-adt-trained-adapter-store — list by owner
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn list_by_owner() {
         let db = hkask_storage::in_memory_db();
@@ -569,6 +579,7 @@ mod tests {
     }
 
     // REQ: P8-adt-trained-adapter-store — delete adapter
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn delete_adapter() {
         let db = hkask_storage::in_memory_db();
@@ -584,6 +595,7 @@ mod tests {
     }
 
     // REQ: P8-adt-trained-adapter-store — delete non-existent returns error
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn delete_non_existent_returns_error() {
         let db = hkask_storage::in_memory_db();

@@ -288,6 +288,7 @@ pub struct StdioTransport {}
 
 impl StdioTransport {
     /// REQ: ACP-006
+/// expect: "The ACP replicant provides IDE agent presence" [P4]
     /// post: returns empty StdioTransport ready for serve()
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -297,6 +298,7 @@ impl StdioTransport {
     /// Serve ACP JSON-RPC 2.0 over stdin/stdout.
     ///
     /// REQ: ACP-007
+/// expect: "The ACP replicant provides IDE agent presence" [P4]
     /// pre:  agent is fully built (inference + daemon configured)
     /// post: reads JSON-RPC requests from stdin, writes responses to stdout
     /// post: runs until stdin EOF or unrecoverable error
@@ -309,6 +311,7 @@ impl StdioTransport {
     /// Test entry point — serves ACP over arbitrary reader/writer.
     ///
     /// REQ: ACP-008
+/// expect: "The ACP replicant provides IDE agent presence" [P4]
     /// pre:  agent is fully built; reader implements AsyncRead; writer implements AsyncWrite
     /// post: reads JSON-RPC requests from reader, writes responses to writer
     /// post: runs until reader EOF or unrecoverable error

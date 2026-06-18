@@ -50,6 +50,7 @@ mod tests {
     use super::*;
 
     // REQ: types-cap-token-001 — ConsolidationToken::verify_issuer() accepts expected issuer
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn consolidation_token_verify_issuer_accepts_expected() {
         let token = ConsolidationToken::new(ConsolidationToken::expected_issuer());
@@ -57,6 +58,7 @@ mod tests {
     }
 
     // REQ: types-cap-token-002 — ConsolidationToken::verify_issuer() rejects wrong issuer
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn consolidation_token_verify_issuer_rejects_wrong() {
         let wrong_issuer = WebID::from_persona(b"not-curator");

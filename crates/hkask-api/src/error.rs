@@ -236,6 +236,7 @@ mod tests {
     use axum::response::IntoResponse;
 
     // REQ: api-error-001 — ApiError maps to correct HTTP status codes
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_maps_to_correct_status_codes() {
         let (status, _) = ApiError::NotFound {
@@ -271,6 +272,7 @@ mod tests {
     }
 
     // REQ: api-error-002 — ApiError Display impls are human-readable
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_display_is_readable() {
         let err = ApiError::NotFound {
@@ -291,6 +293,7 @@ mod tests {
     }
 
     // REQ: api-error-003 — ApiError IntoResponse produces correct HTTP status
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_into_response_produces_correct_status() {
         let err = ApiError::NotFound {

@@ -25,6 +25,7 @@ use hkask_types::wallet::{ChainId, PrivacyMode, RJoule, WalletId};
 /// Create wallet router.
 ///
 /// REQ: API-019
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with wallet routes registered
 pub fn wallet_router() -> OpenApiRouter<ApiState> {
@@ -814,6 +815,7 @@ mod tests {
     }
 
     // REQ: wallet-api-auth-001 — authenticated wallet routes must not allow cross-wallet override
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn resolve_wallet_id_rejects_mismatched_wallet_for_authenticated_request() {
         let authed_wallet = WalletId::new();
@@ -825,6 +827,7 @@ mod tests {
     }
 
     // REQ: wallet-api-auth-002 — authenticated wallet routes accept matching wallet_id override
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn resolve_wallet_id_accepts_matching_wallet_for_authenticated_request() {
         let authed_wallet = WalletId::new();
@@ -835,6 +838,7 @@ mod tests {
     }
 
     // REQ: wallet-api-auth-003 — authenticated key operations require same-wallet key ownership
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn key_belongs_to_authenticated_wallet_rejects_mismatched_wallet() {
         let authed_wallet = WalletId::new();
@@ -845,6 +849,7 @@ mod tests {
     }
 
     // REQ: wallet-api-auth-004 — authenticated key operations accept same-wallet key ownership
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn key_belongs_to_authenticated_wallet_accepts_matching_wallet() {
         let authed_wallet = WalletId::new();
@@ -854,6 +859,7 @@ mod tests {
     }
 
     // REQ: wallet-api-parse-001 — invalid chain values are rejected (fail-closed)
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn parse_chain_rejects_invalid_value() {
         let result = parse_chain(Some("bitcoin"));
@@ -861,6 +867,7 @@ mod tests {
     }
 
     // REQ: wallet-api-parse-002 — chain defaults to Hinkal when omitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn parse_chain_defaults_to_hinkal() {
         let result = parse_chain(None).unwrap();
@@ -868,6 +875,7 @@ mod tests {
     }
 
     // REQ: wallet-api-parse-003 — explicit Hinkal chain is accepted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn parse_chain_accepts_hinkal() {
         let result = parse_chain(Some("hinkal")).unwrap();
@@ -875,12 +883,14 @@ mod tests {
     }
 
     // REQ: wallet-api-privacy-001 — privacy defaults to shielded when omitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn resolve_privacy_mode_defaults_to_shielded() {
         assert_eq!(resolve_privacy_mode(None), PrivacyMode::Shielded);
     }
 
     // REQ: wallet-api-privacy-002 — explicit private=false opts into transparent mode
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn resolve_privacy_mode_allows_explicit_transparent_opt_out() {
         assert_eq!(resolve_privacy_mode(Some(false)), PrivacyMode::Transparent);

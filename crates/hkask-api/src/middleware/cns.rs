@@ -9,6 +9,7 @@ use std::time::Instant;
 /// CNS middleware — emits `request` and `response` spans for every HTTP request.
 ///
 /// REQ: P9-CNS-SRF-001
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  req is an incoming HTTP request
 /// post: cns.api request span emitted with method + path
 /// post: cns.api response span emitted with status + latency_ms

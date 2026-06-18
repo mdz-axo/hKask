@@ -20,6 +20,7 @@ use hkask_types::Confidence;
 /// Create episodic memory router
 ///
 /// REQ: API-007
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with episodic routes registered
 pub fn episodic_router() -> OpenApiRouter<ApiState> {

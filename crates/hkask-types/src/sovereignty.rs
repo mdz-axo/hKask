@@ -42,6 +42,7 @@ impl DataCategory {
     /// Get string representation of category.
     ///
     /// REQ: TYP-143
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns category name as &str
     pub fn as_str(&self) -> &str {
         match self {
@@ -64,6 +65,7 @@ impl DataCategory {
     /// Parse a DataCategory from string.
     ///
     /// REQ: TYP-144
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns DataCategory (defaults to Episodic for unknown)
     pub fn parse(s: &str) -> Self {
         match s {
@@ -82,6 +84,7 @@ impl DataCategory {
     /// Check if this category is typically sovereign.
     ///
     /// REQ: TYP-145
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true for Episodic, Goals, Wallet, Identity
     pub fn is_typically_sovereign(&self) -> bool {
         matches!(
@@ -113,6 +116,7 @@ impl DataCategory {
     /// Get default visibility for this category.
     ///
     /// REQ: TYP-146
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Private for sovereign, Public for shared categories
     pub fn default_visibility(&self) -> Visibility {
         match self {
@@ -158,6 +162,7 @@ impl BoundaryClassification {
     /// Get human-readable label.
     ///
     /// REQ: TYP-147
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns label string
     pub fn label(&self) -> &'static str {
         match self {
@@ -172,6 +177,7 @@ impl BoundaryClassification {
     /// Get access level required.
     ///
     /// REQ: TYP-148
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns "sovereign", "shared", or "public"
     pub fn access_required(&self) -> &'static str {
         match self {
@@ -203,6 +209,7 @@ impl DataSovereigntyBoundary {
     /// Create hKask default sovereignty state.
     ///
     /// REQ: TYP-149
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns UserSovereigntyState with all categories sovereign
     pub fn hkask_default() -> Self {
         let mut sovereign_data = HashSet::new();
@@ -231,6 +238,7 @@ impl DataSovereigntyBoundary {
     /// Check if a category is sovereign.
     ///
     /// REQ: TYP-150
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  category is valid
     /// post: returns true iff category is in sovereign set
     pub fn is_sovereign(&self, category: &DataCategory) -> bool {
@@ -246,6 +254,7 @@ impl DataSovereigntyBoundary {
     /// Check if a category is shared.
     ///
     /// REQ: TYP-151
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  category is valid
     /// post: returns true iff category is in shared set
     pub fn is_category_shared(&self, category: &DataCategory) -> bool {
@@ -258,6 +267,7 @@ impl DataSovereigntyBoundary {
     /// Check if a category is public.
     ///
     /// REQ: TYP-152
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  category is valid
     /// post: returns true iff category is in public set
     pub fn is_category_public(&self, category: &DataCategory) -> bool {
@@ -268,6 +278,7 @@ impl DataSovereigntyBoundary {
     /// Check if affirmative consent is required.
     ///
     /// REQ: TYP-153
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns true (always required under Magna Carta)
     pub fn requires_affirmative_consent(&self) -> bool {
         self.requires_affirmative_consent
@@ -280,6 +291,7 @@ impl DataSovereigntyBoundary {
     /// Classify a category's boundary.
     ///
     /// REQ: TYP-154
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  category is valid
     /// post: returns BoundaryClassification (Sovereign, Shared, or Public)
     pub fn classify(&self, category: &DataCategory) -> BoundaryClassification {
@@ -314,6 +326,7 @@ impl UserSovereigntyState {
     /// Create a new consent state.
     ///
     /// REQ: TYP-155
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns ConsentState with consent=false
     pub fn new() -> Self {
         Self {
@@ -327,6 +340,7 @@ impl UserSovereigntyState {
     /// Grant consent.
     ///
     /// REQ: TYP-156
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: consent set to true
     pub fn grant_consent(&mut self) {
         self.explicit_consent = true;
@@ -336,6 +350,7 @@ impl UserSovereigntyState {
     /// Revoke consent.
     ///
     /// REQ: TYP-157
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: consent set to false
     pub fn revoke_consent(&mut self) {
         self.explicit_consent = false;

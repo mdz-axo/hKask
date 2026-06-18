@@ -6,6 +6,7 @@ use crate::cli::SovereigntyAction;
 use hkask_services::VerificationService;
 
 /// REQ: CLI-095
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  action is SovereigntyAction::Verify with optional principle filter and json flag
 /// post: runs Magna Carta verification; prints pass/fail/gap report with findings and recommendations
 pub fn run(action: SovereigntyAction) {

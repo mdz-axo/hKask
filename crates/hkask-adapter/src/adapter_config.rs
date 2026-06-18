@@ -40,6 +40,7 @@ impl AdapterConfig {
     /// Parse adapter_config.json from raw bytes.
     ///
     /// REQ: P8-adt-adapter-config-parse
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// [P8] Semantic Grounding — adapter config carries training provenance
     /// pre:  bytes is valid JSON matching the PEFT adapter_config.json schema
     /// post: returns AdapterConfig with base_model_name_or_path populated
@@ -50,6 +51,7 @@ impl AdapterConfig {
     /// Read adapter_config.json from a directory path.
     ///
     /// REQ: P8-adt-adapter-config-parse
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  storage_path is a readable directory containing adapter_config.json
     /// post: returns AdapterConfig parsed from adapter_config.json
     pub fn from_dir(storage_path: &str) -> Result<Self, AdapterConfigError> {
@@ -64,6 +66,7 @@ impl AdapterConfig {
     /// Validate that this adapter config is compatible with the expected base model.
     ///
     /// REQ: P8-adt-adapter-config-parse
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  expected_family is non-empty
     /// post: returns Ok if base_model_name_or_path contains expected_family, Err otherwise
     pub fn validate_base_model(&self, expected_family: &str) -> Result<(), AdapterConfigError> {
@@ -101,6 +104,7 @@ mod tests {
     use super::*;
 
     // REQ: P8-adt-adapter-config-parse — parse valid PEFT config
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn parse_valid_adapter_config() {
         let json = r#"{
@@ -126,6 +130,7 @@ mod tests {
     }
 
     // REQ: P8-adt-adapter-config-parse — reject invalid JSON
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn parse_invalid_json_returns_error() {
         let result = AdapterConfig::from_bytes(b"not json");
@@ -133,6 +138,7 @@ mod tests {
     }
 
     // REQ: P8-adt-adapter-config-parse — validate base model match
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn validate_base_model_match() {
         let config = AdapterConfig {

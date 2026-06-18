@@ -9,6 +9,7 @@ mod tests {
     use super::*;
 
     // REQ:ocr-type-01 — PipelineOutcome is constructible and serializable
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn pipeline_outcome_roundtrip() {
         let outcome = PipelineOutcome {
@@ -31,6 +32,7 @@ mod tests {
     }
 
     // REQ:ocr-type-02 — VerificationReport::passed is derived, not settable
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verification_report_passed_is_computed() {
         let report = VerificationReport::new(false, 0.0, vec![], 0, vec![]);
@@ -50,6 +52,7 @@ mod tests {
     }
 
     // REQ:ocr-type-03 — ComplexityTier ordering
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn complexity_tier_ordering() {
         assert!(ComplexityTier::Simple < ComplexityTier::Moderate);
@@ -57,6 +60,7 @@ mod tests {
     }
 
     // REQ:ocr-type-04 — OcrBackend labels are stable
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn ocr_backend_labels() {
         assert_eq!(OcrBackend::Tesseract.label(), "tesseract");
@@ -65,6 +69,7 @@ mod tests {
     }
 
     // REQ:ocr-type-05 — PipelineError Display is meaningful
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn pipeline_error_display() {
         let err = PipelineError::OcrFailed {
@@ -78,6 +83,7 @@ mod tests {
     }
 
     // REQ:ocr-type-06 — CrossValidation is serializable
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn cross_validation_roundtrip() {
         let cv = CrossValidation {

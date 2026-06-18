@@ -48,6 +48,7 @@ mod tests {
     use super::*;
 
     // REQ: types-loop-quality-001 — LoopQuality::default() has zero values
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn loop_quality_default_is_zero() {
         let q = LoopQuality::default();
@@ -57,6 +58,7 @@ mod tests {
     }
 
     // REQ: types-loop-quality-002 — from_cycle computes gain correctly
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_cycle_computes_gain() {
         let sig = Signal::new(LoopId::Cybernetics, SignalMetric::VarietyDeficit, 0.9, 0.5);
@@ -73,6 +75,7 @@ mod tests {
     }
 
     // REQ: types-loop-quality-003 — from_cycle with no deviations has zero gain
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_cycle_no_deviations_zero_gain() {
         let q = LoopQuality::from_cycle(50, &[], &[]);
@@ -82,6 +85,7 @@ mod tests {
     }
 
     // REQ: types-loop-quality-004 — unmatched deviation reduces fidelity
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn unmatched_deviation_reduces_fidelity() {
         let sig = Signal::new(LoopId::Cybernetics, SignalMetric::ErrorRate, 0.3, 0.1);

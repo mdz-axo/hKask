@@ -135,7 +135,7 @@ mod tests {
     use super::*;
 
     // REQ: types-transcript-001 — TranscriptBundle carries hkask-transcript-v1 format marker
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn bundle_has_format_marker() {
         let bundle = TranscriptBundle::new(
@@ -147,7 +147,7 @@ mod tests {
     }
 
     // REQ: types-transcript-002 — word_at_ms binary search finds correct timed word at millisecond position
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn word_at_ms_finds_correct_word() {
         let bundle = TranscriptBundle {

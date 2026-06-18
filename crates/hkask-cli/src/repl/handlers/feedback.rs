@@ -110,7 +110,7 @@ mod tests {
     }
 
     // REQ: CLI-FEEDBACK-001 — First call to append_feedback creates the file and writes the
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     // standard header ("# hKask Feedback Ledger") before the first entry.
     #[test]
     fn append_feedback_creates_file_with_header_on_first_write() {
@@ -128,7 +128,7 @@ mod tests {
     }
 
     // REQ: CLI-FEEDBACK-002 — Subsequent calls to append_feedback do NOT re-emit the header;
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     // the header appears exactly once even after multiple writes.
     #[test]
     fn append_feedback_omits_header_on_subsequent_writes() {
@@ -146,7 +146,7 @@ mod tests {
     }
 
     // REQ: CLI-FEEDBACK-003 — Each entry written by append_feedback contains the replicant name
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     // and the verbatim comment text in Markdown blockquote form.
     #[test]
     fn append_feedback_entry_contains_replicant_and_comment() {

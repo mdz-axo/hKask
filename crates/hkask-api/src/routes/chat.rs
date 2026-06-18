@@ -55,6 +55,7 @@ pub struct ChatResponse {
 /// Create chat router
 ///
 /// REQ: API-015
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with chat routes registered
 pub fn chat_router() -> OpenApiRouter<ApiState> {
@@ -88,6 +89,7 @@ pub(crate) async fn chat(
     Json(req): Json<ChatRequest>,
 ) -> Json<ChatResponse> {
     // REQ: P9-CNS-SURF-020 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat", "CNS");
     let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());
@@ -160,6 +162,7 @@ pub(crate) async fn chat_stream(
     Json(req): Json<ChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     // REQ: P9-CNS-SURF-021 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat_stream", "CNS");
     let model_str = req.model.clone().unwrap_or_else(|| "qwen3:8b".to_string());

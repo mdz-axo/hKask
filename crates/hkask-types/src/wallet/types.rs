@@ -234,6 +234,7 @@ mod tests {
     use crate::wallet::keys::ApiKeyCapability;
 
     // REQ: P1-wallet-types — RJoule newtype prevents accidental mixing with gas units
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn rjoule_newtype_prevents_gas_confusion() {
         let rj = RJoule::new(100);
@@ -244,6 +245,7 @@ mod tests {
     }
 
     // REQ: P1-wallet-types — RJoule saturating_sub floors at zero
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn rjoule_saturating_sub_floors_at_zero() {
         let a = RJoule::new(10);
@@ -252,6 +254,7 @@ mod tests {
     }
 
     // REQ: P1-wallet-types — ChainId FromStr is case-insensitive
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn chain_id_from_str_case_insensitive() {
         assert_eq!("solana".parse::<ChainId>().unwrap(), ChainId::Solana);
@@ -261,6 +264,7 @@ mod tests {
     }
 
     // REQ: P1-wallet-types — PrivacyMode is an enum, not a bool
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn privacy_mode_is_exhaustive_enum() {
         let modes = [PrivacyMode::Transparent, PrivacyMode::Shielded];
@@ -273,6 +277,7 @@ mod tests {
     }
 
     // REQ: P1-wallet-types — WalletId and ApiKeyId are distinct types
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn wallet_id_and_api_key_id_are_distinct() {
         let wallet = WalletId::new();
@@ -284,6 +289,7 @@ mod tests {
     }
 
     // REQ: P1-wallet-types — ApiKeyCapability tracks remaining budget
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn api_key_capability_remaining_budget() {
         let cap = ApiKeyCapability {
@@ -304,6 +310,7 @@ mod tests {
     }
 
     // REQ: P1-wallet-types — WalletConfig has sensible defaults
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn wallet_config_defaults() {
         let cfg = WalletConfig::default();
@@ -317,6 +324,7 @@ mod tests {
     }
 
     // REQ: P1-wallet-types — WalletError Display impls are human-readable
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn wallet_error_display_is_readable() {
         let err = WalletError::InsufficientBalance {

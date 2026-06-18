@@ -22,6 +22,7 @@ pub enum TemplateType {
 
 impl TemplateType {
     /// REQ: TYP-212
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid TemplateType variant
     /// post: returns the canonical PascalCase string ("WordAct", "KnowAct", "FlowDef")
     pub fn as_str(&self) -> &'static str {
@@ -33,6 +34,7 @@ impl TemplateType {
     }
 
     /// REQ: TYP-213
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  s is a string in PascalCase or lowercase ("WordAct"/"wordact", "KnowAct"/"knowact", "FlowDef"/"flowdef")
     /// post: returns Some(TemplateType) if s matches a known variant; None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -45,6 +47,7 @@ impl TemplateType {
     }
 
     /// REQ: TYP-214
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid TemplateType variant
     /// post: returns the file extension: "j2" for all runtime template types
     pub fn file_extension(&self) -> &'static str {
@@ -56,6 +59,7 @@ impl TemplateType {
     }
 
     /// REQ: TYP-215
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid TemplateType variant
     /// post: returns the MDS specification name: WordAct→"Prompt", KnowAct→"Cognition", FlowDef→"Process"
     pub fn as_spec_name(&self) -> &'static str {

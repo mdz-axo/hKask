@@ -70,6 +70,7 @@ impl VoiceDesign {
     /// Render this voice design as a compact prose description for TTS model input.
     ///
     /// REQ: TYP-184
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid VoiceDesign with all fields populated
     /// post: returns a prose string describing the voice's gender, age, timbre,
     ///       accent, pace, and emotion range, ending with "."
@@ -114,6 +115,7 @@ impl VoiceDesign {
     /// Daniel (measured masculine), Lily (soft feminine), Bill (older masculine).
     ///
     /// REQ: TYP-185
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid VoiceDesign with gender_presentation, age_range,
     ///       timbre, and pitch fields set
     /// post: returns a &'static str naming one of the known ElevenLabs voice
@@ -163,6 +165,7 @@ mod tests {
     use super::*;
 
     // REQ: types-voice-001 — VoiceDesign default is neutral with medium pitch
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn default_voice_is_neutral() {
         let v = VoiceDesign::default();
@@ -171,6 +174,7 @@ mod tests {
     }
 
     // REQ: types-voice-002 — to_tts_description renders all voice dimensions as descriptive prose
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn tts_description_renders_prose() {
         let v = VoiceDesign {

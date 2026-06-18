@@ -20,6 +20,7 @@ use crate::ApiState;
 /// Create models router
 ///
 /// REQ: API-010
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with model routes registered
 pub fn models_router() -> OpenApiRouter<ApiState> {

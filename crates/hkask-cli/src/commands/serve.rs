@@ -30,7 +30,9 @@ const API_SERVERS: &[(&str, &str)] = &[
 /// `AgentService` with all shared infrastructure, starts API MCP servers
 /// on the AgentService's runtime, and creates an `ApiState` from it.
 /// REQ: CLI-087
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// REQ: P9-CNS-SURF-008 pre: valid host/port post: cns.cli span emitted
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  port is a valid u16; host is a non-empty bind address string
 /// post: starts the HTTP API server on the given host:port; returns Ok(()) on successful bind or Error on failure
 pub async fn run_server(

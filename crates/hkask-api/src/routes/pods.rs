@@ -66,6 +66,7 @@ pub struct ListPodsResponse {
 }
 
 /// REQ: API-004
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with pod routes registered
 pub fn pods_router() -> OpenApiRouter<ApiState> {
@@ -96,6 +97,7 @@ async fn list_pods(
     Extension(_auth): Extension<AuthContext>,
 ) -> Json<ListPodsResponse> {
     // REQ: P9-CNS-SURF-030 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_list", "CNS");
     let pod_statuses = hkask_services::PodService::list_pods(&state.agent_service)
@@ -122,6 +124,7 @@ async fn create_pod(
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ServiceErrorResponse> {
     // REQ: P9-CNS-SURF-031 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_create", "CNS");
     let token = auth.token.as_ref().ok_or_else(|| ServiceError::A2A {
@@ -158,6 +161,7 @@ async fn activate_pod(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
     // REQ: P9-CNS-SURF-032 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_activate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
@@ -171,6 +175,7 @@ async fn deactivate_pod(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
     // REQ: P9-CNS-SURF-033 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_deactivate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
@@ -188,6 +193,7 @@ async fn pod_status(
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ServiceErrorResponse> {
     // REQ: P9-CNS-SURF-034 pre: valid request post: cns.api span emitted
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_status", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;

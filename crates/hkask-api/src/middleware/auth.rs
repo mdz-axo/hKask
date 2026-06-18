@@ -41,6 +41,7 @@ impl AuthService {
     /// Create an `AuthService` from a ServiceConfig.
     ///
     /// REQ: API-022
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  _config is a valid ServiceConfig (currently unused, reserved for future)
     /// post: returns AuthService with empty revocation set
     pub fn from_config(_config: &hkask_services::ServiceConfig) -> Self {
@@ -52,6 +53,7 @@ impl AuthService {
     /// Revoke a capability token by its ID.
     ///
     /// REQ: API-023
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  token_id is a valid token identifier string
     /// post: token_id is added to the revocation set (best-effort, RwLock write may fail silently)
     pub fn revoke_token(&self, token_id: String) {
@@ -63,6 +65,7 @@ impl AuthService {
     /// Check whether a capability token has been revoked.
     ///
     /// REQ: API-024
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  token_id is a valid token identifier string
     /// post: returns true iff token_id is in the revocation set
     /// post: returns false if RwLock read fails (conservative: assume not revoked)
@@ -76,6 +79,7 @@ impl AuthService {
     /// Verify a capability token cryptographically and check expiry.
     ///
     /// REQ: API-025
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
     /// pre:  token is a valid DelegationToken
     /// post: returns TokenVerification::Invalid if signature or attenuation chain fails
     /// post: returns TokenVerification::Expired if token is past its expiry
@@ -154,6 +158,7 @@ fn build_response(status: StatusCode, body: Body) -> Response {
 /// - Passes through for routes listed in `PUBLIC_PATHS`
 ///
 /// REQ: API-026
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  service is a valid AuthService
 /// post: if path in PUBLIC_PATHS → pass-through (next.run)
 /// post: if missing Authorization header → 401
@@ -173,6 +178,7 @@ pub async fn auth_middleware(
 
     // If session middleware already injected AuthContext, skip capability token check
     // REQ: DEP-020 — session cookie auth coexists with capability token auth
+// expect: "API endpoints enforce OCAP boundaries" [P4]
     if req.extensions().get::<AuthContext>().is_some() {
         return next.run(req).await;
     }

@@ -26,6 +26,7 @@ fn build_service_context(
 }
 
 /// REQ: CLI-088
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio Runtime; query is a non-empty search string; max_results > 0
 /// post: performs MCP web search; prints results with title, URL, and snippet; exits on failure
 pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {

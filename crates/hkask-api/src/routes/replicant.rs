@@ -1,6 +1,7 @@
 //! Replicant API — list, rename, merge, and delete replicants.
 //!
 //! REQ: DEP-310 — P1 User Sovereignty: user manages their replicants.
+/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use serde::{Deserialize, Serialize};

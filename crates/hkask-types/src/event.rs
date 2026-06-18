@@ -31,6 +31,7 @@ impl NuEvent {
     /// Create a new NuEvent.
     ///
     /// REQ: TYP-170
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  observer is valid, span is valid, phase is valid
     /// post: returns NuEvent
     pub fn new(
@@ -56,6 +57,7 @@ impl NuEvent {
     }
 
     /// REQ: TYP-200
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  outcome is a valid serde_json::Value
     /// post: returns self with outcome set to Some(outcome)
     #[must_use = "builder methods must be chained or assigned"]
@@ -65,6 +67,7 @@ impl NuEvent {
     }
 
     /// REQ: TYP-201
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  regulation is a valid serde_json::Value
     /// post: returns self with regulation set to Some(regulation)
     #[must_use = "builder methods must be chained or assigned"]
@@ -74,6 +77,7 @@ impl NuEvent {
     }
 
     /// REQ: TYP-202
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  parent is a valid EventID
     /// post: returns self with parent_event set to Some(parent)
     #[must_use = "builder methods must be chained or assigned"]
@@ -83,6 +87,7 @@ impl NuEvent {
     }
 
     /// REQ: TYP-203
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  visibility is a non-empty string (e.g. "private", "public")
     /// post: returns self with visibility set to visibility.to_string()
     #[must_use = "builder methods must be chained or assigned"]
@@ -151,6 +156,7 @@ impl SpanNamespace {
     /// Create a new SpanNamespace.
     ///
     /// REQ: TYP-171
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  namespace is non-empty
     /// post: returns SpanNamespace
     pub fn new(namespace: &str) -> Self {
@@ -168,6 +174,7 @@ impl SpanNamespace {
     /// Parse a SpanNamespace from string.
     ///
     /// REQ: TYP-172
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// post: returns Some(SpanNamespace) if valid, None otherwise
     pub fn parse(s: &str) -> Option<Self> {
         let full = if s.starts_with("cns.") {
@@ -183,6 +190,7 @@ impl SpanNamespace {
     }
 
     /// REQ: TYP-204
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid SpanNamespace (canonical)
     /// post: returns the full namespace string (e.g. "cns.tool")
     pub fn as_str(&self) -> &str {
@@ -190,6 +198,7 @@ impl SpanNamespace {
     }
 
     /// REQ: TYP-205
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid SpanNamespace (canonical, starts with "cns.")
     /// post: returns the short name after the "cns." prefix (e.g. "tool")
     pub fn short_name(&self) -> &str {
@@ -197,6 +206,7 @@ impl SpanNamespace {
     }
 
     /// REQ: TYP-206
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid SpanNamespace (canonical)
     /// post: returns the SpanCategory for this namespace; unknown prefixes return SpanCategory::Unknown
     ///
@@ -248,6 +258,7 @@ pub enum SpanCategory {
 
 impl SpanCategory {
     /// REQ: TYP-207
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  s is a short_name() string (e.g. "variety", "variety.sensor")
     /// post: returns the matching SpanCategory; unrecognised prefixes return SpanCategory::Unknown
     pub fn from_short_name(s: &str) -> Self {
@@ -321,6 +332,7 @@ impl Span {
     /// Create a new Span.
     ///
     /// REQ: TYP-173
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  namespace is valid, path is non-empty
     /// post: returns Span
     pub fn new(namespace: SpanNamespace, path: &str) -> Self {
@@ -343,6 +355,7 @@ impl Span {
     /// Create a Span from a SpanKind.
     ///
     /// REQ: TYP-174
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  kind is valid
     /// post: returns Span with canonical namespace and path
     pub fn from_kind(kind: SpanKind) -> Self {
@@ -464,6 +477,7 @@ mod tests {
     use crate::id::WebID;
 
     // REQ: types-event-001 — NuEvent::new() sets correct defaults
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn nuevent_new_sets_correct_defaults() {
         let webid = WebID::from_persona(b"test-agent");
@@ -483,6 +497,7 @@ mod tests {
     }
 
     // REQ: types-event-002 — NuEvent builder chain produces correct fields
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn nuevent_builder_chain_sets_fields() {
         let webid = WebID::from_persona(b"test-agent");
@@ -502,6 +517,7 @@ mod tests {
     }
 
     // REQ: types-event-003 — SpanNamespace::parse() accepts short and full forms
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn spannamespace_parse_accepts_short_and_full_forms() {
         let full = SpanNamespace::parse("cns.tool");
@@ -514,6 +530,7 @@ mod tests {
     }
 
     // REQ: types-event-004 — SpanNamespace::parse() rejects invalid namespaces
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn spannamespace_parse_rejects_invalid() {
         assert!(SpanNamespace::parse("cns.nonexistent").is_none());
@@ -522,6 +539,7 @@ mod tests {
     }
 
     // REQ: types-event-005 — SpanNamespace::category() classifies correctly
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn spannamespace_category_classifies_correctly() {
         assert_eq!(
@@ -551,6 +569,7 @@ mod tests {
     }
 
     // REQ: types-event-006 — SpanCategory::from_short_name() parses correctly
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn spancategory_from_short_name_parses_correctly() {
         assert_eq!(
@@ -576,6 +595,7 @@ mod tests {
     }
 
     // REQ: types-event-007 — Phase::from_str() backward-compatible parsing
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn phase_from_str_backward_compatible() {
         // New names
@@ -592,6 +612,7 @@ mod tests {
     }
 
     // REQ: types-event-008 — Span::new() constructs correct full path
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn span_new_constructs_full_path() {
         let ns = SpanNamespace::new("cns.tool");
@@ -600,6 +621,7 @@ mod tests {
     }
 
     // REQ: types-event-009 — Span::from_kind() produces correct paths for all variants
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn span_from_kind_produces_correct_paths() {
         assert_eq!(
@@ -643,6 +665,7 @@ mod tests {
         }
 
         // REQ: span-prop-001 — all CANONICAL_NAMESPACES entries parse successfully
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn all_canonical_namespaces_parse(
@@ -656,6 +679,7 @@ mod tests {
         }
 
         // REQ: span-prop-002 — short form round-trip
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         // e.g., "tool" → parse() → as_str() == "cns.tool"
         proptest! {
             #[test]
@@ -671,6 +695,7 @@ mod tests {
         }
 
         // REQ: span-prop-003 — non-canonical names return None, never panic
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn non_canonical_returns_none(
@@ -686,6 +711,7 @@ mod tests {
         }
 
         // REQ: span-prop-004 — SpanCategory::from_short_name() handles prefix patterns
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn from_short_name_known_prefixes(
@@ -704,6 +730,7 @@ mod tests {
 
         proptest! {
             // REQ: span-prop-004 — from short name unknown prefix
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
             #[test]
             fn from_short_name_unknown_prefix(
                 prefix in "[a-z][a-z0-9_]*"
@@ -719,6 +746,7 @@ mod tests {
         }
 
         // REQ: span-prop-005 — every canonical namespace maps to expected category
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn namespace_category_invariant(

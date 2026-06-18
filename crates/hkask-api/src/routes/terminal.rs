@@ -1,7 +1,9 @@
 //! Terminal WebSocket route — browser-based terminal for hKask cloud deployment.
 //!
 //! # REQ: DEP-030 — P3 Headless: browser terminal via xterm.js over WebSocket.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 //! # REQ: DEP-031 — P12 Anonymous Agency: terminal session scoped to authenticated WebID.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 //!
 //! Flow:
 //! 1. Browser loads `/terminal` → static HTML page with xterm.js
@@ -29,6 +31,7 @@ use crate::middleware::session::extract_cookie;
 /// GET /api/v1/terminal/ws
 ///
 /// REQ: DEP-032 — WebSocket upgrade: verifies session, spawns PTY, pipes I/O.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  request contains valid `hkask_session` cookie
 /// post: WebSocket upgraded, `kask repl` spawned with user's WebID
 /// post: bidirectional byte stream between WebSocket and process stdio
@@ -182,6 +185,7 @@ async fn handle_terminal(socket: WebSocket, webid: String, replicant_name: Strin
 /// GET /terminal — static HTML page with xterm.js terminal emulator.
 ///
 /// REQ: DEP-033 — zero JavaScript framework, single static HTML page.
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 pub async fn terminal_page() -> impl IntoResponse {
     axum::response::Html(TERMINAL_HTML)
 }
@@ -311,6 +315,7 @@ const TERMINAL_HTML: &str = r###"<!DOCTYPE html>
 /// Build the terminal router.
 ///
 /// REQ: DEP-034
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 pub fn terminal_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     use utoipa_axum::router::OpenApiRouter;
     OpenApiRouter::new()

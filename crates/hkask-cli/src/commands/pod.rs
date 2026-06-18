@@ -5,6 +5,7 @@ use hkask_services::{PodService, PodStatusResponse, ServiceError};
 use crate::cli::PodAction;
 
 /// REQ: CLI-011
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  pod_id is a valid pod identifier
 /// post: returns Ok(PodStatusResponse) with pod status
 /// post: delegates to PodService::get_pod_status
@@ -14,6 +15,7 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusResponse, ServiceEr
 }
 
 /// REQ: CLI-012
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  none
 /// post: returns Ok(Vec<PodStatusResponse>) with all pod statuses
 /// post: delegates to PodService::list_pods
@@ -23,6 +25,7 @@ pub async fn list_pods() -> Result<Vec<PodStatusResponse>, ServiceError> {
 }
 
 /// REQ: CLI-013
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  template is a valid template ID
 /// pre:  persona_path points to a readable YAML file
 /// post: returns Ok(String) with the created pod ID
@@ -49,6 +52,7 @@ pub async fn create_pod(
 }
 
 /// REQ: CLI-014
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  pod_id is a valid pod identifier
 /// post: returns Ok(()) on successful activation
 /// post: delegates to PodService::activate_pod
@@ -58,6 +62,7 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), ServiceError> {
 }
 
 /// REQ: CLI-015
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  pod_id is a valid pod identifier
 /// post: returns Ok(()) on successful deactivation
 /// post: delegates to PodService::deactivate_pod
@@ -67,6 +72,7 @@ pub async fn deactivate_pod(pod_id: &str) -> Result<(), ServiceError> {
 }
 
 /// REQ: CLI-016
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  name is a valid pod name
 /// pre:  role is a valid role identifier
 /// post: returns Ok(()) on successful role assignment
@@ -77,6 +83,7 @@ pub async fn assign_role(name: &str, role: &str) -> Result<(), ServiceError> {
 }
 
 /// REQ: CLI-017
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  name is a valid pod name
 /// pre:  mode is a valid mode identifier
 /// post: returns Ok(()) on successful mode change
@@ -87,6 +94,7 @@ pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), 
 }
 
 /// REQ: CLI-018
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio runtime
 /// pre:  action is a valid PodAction variant
 /// post: dispatches to the appropriate pod command handler

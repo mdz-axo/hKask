@@ -12,6 +12,7 @@ use hkask_services::{load_settings, save_settings};
 
 /// CLI handler for `kask settings {show,set,reset}`.
 /// REQ: CLI-072
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  action is a valid SettingsAction variant (Show, Set, Reset)
 /// post: loads/saves REPL settings from ~/.config/hkask/settings.json; prints current values or confirmation
 pub fn run(action: SettingsAction) {
@@ -320,6 +321,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-001 — Invalid values are rejected (function returns false, value unchanged)
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn apply_setting_rejects_zero_loop_limit() {
@@ -329,6 +331,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-002 — Invalid — apply setting rejects negative loop limit
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_negative_loop_limit() {
         let mut s = default_settings();
@@ -337,6 +340,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-003 — Invalid — apply setting rejects temperature oor
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_temperature_oor() {
         let mut s = default_settings();
@@ -345,6 +349,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-004 — Invalid — apply setting rejects top p oor
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_top_p_oor() {
         let mut s = default_settings();
@@ -353,6 +358,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-005 — Invalid — apply setting rejects top k zero
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_top_k_zero() {
         let mut s = default_settings();
@@ -361,6 +367,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-006 — Invalid — apply setting rejects garbage value
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_garbage_value() {
         let mut s = default_settings();
@@ -369,6 +376,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-007 — Valid values are accepted (function returns true, value updated)
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
     fn apply_setting_accepts_valid_temperature() {
@@ -378,6 +386,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-008 — Valid — apply setting accepts valid loop limit
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_valid_loop_limit() {
         let mut s = default_settings();
@@ -386,6 +395,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-009 — Valid — apply setting accepts auto condense off
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_auto_condense_off() {
         let mut s = default_settings();
@@ -394,6 +404,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-010 — Valid — apply setting accepts auto condense on
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_auto_condense_on() {
         let mut s = default_settings();
@@ -403,6 +414,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-011 — Valid — apply setting accepts seed value
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_seed_value() {
         let mut s = default_settings();
@@ -411,6 +423,7 @@ mod tests {
     }
 
     // REQ: CLI-SETTINGS-012 — Valid — apply setting accepts seed off
+// expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_seed_off() {
         let mut s = default_settings();

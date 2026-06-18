@@ -7,6 +7,7 @@ use crate::block_on;
 use crate::cli::CuratorAction;
 
 /// REQ: CLI-033
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  none
 /// post: returns Ok(Vec<EscalationEntry>) with all pending escalations
 /// post: delegates to escalation_queue.list_pending()
@@ -20,6 +21,7 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
 }
 
 /// REQ: CLI-034
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  id is a valid escalation identifier
 /// post: returns Ok(()) if escalation resolved successfully
 /// post: delegates to CuratorService::resolve
@@ -29,6 +31,7 @@ pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
 }
 
 /// REQ: CLI-035
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  id is a valid escalation identifier
 /// post: returns Ok(()) if escalation dismissed successfully
 /// post: delegates to CuratorService::dismiss
@@ -38,6 +41,7 @@ pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
 }
 
 /// REQ: CLI-036
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  none
 /// post: returns Ok(String) with metacognition report
 /// post: delegates to CuratorService::metacognition
@@ -47,7 +51,9 @@ pub async fn curator_metacognition() -> Result<String, ServiceError> {
 }
 
 /// REQ: CLI-037
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// REQ: P9-CNS-SURF-006 pre: valid CuratorAction post: cns.cli span emitted
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is a valid tokio runtime
 /// pre:  registry, runtime, handle are valid
 /// pre:  action is a valid CuratorAction variant

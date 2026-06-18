@@ -89,7 +89,7 @@ mod tests {
     use super::*;
 
     // REQ: IMPROV-KATA-001 — Each kata phase maps to the correct improv mode
-/// expect: "The system supports structured improvisational agent interaction" [P3]
+// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn kata_phases_map_to_correct_modes() {
         assert!(matches!(
@@ -115,7 +115,7 @@ mod tests {
     }
 
     // REQ: IMPROV-KATA-002 — KataImprovResult alerts on negative delta, not on zero or positive
-/// expect: "The system supports structured improvisational agent interaction" [P3]
+// expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn kata_improv_result_delta_detection() {
         // Positive delta — no alert.

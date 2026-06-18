@@ -52,6 +52,7 @@ pub struct ResolveShaResponse {
 /// Create git router
 ///
 /// REQ: API-002
+/// expect: "API endpoints enforce OCAP boundaries" [P4]
 /// pre:  none
 /// post: returns OpenApiRouter<ApiState> with git routes registered
 pub fn git_router() -> OpenApiRouter<ApiState> {

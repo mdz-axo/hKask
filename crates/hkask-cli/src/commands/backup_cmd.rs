@@ -81,7 +81,9 @@ fn parse_restore_scope(s: &str) -> RestoreScope {
 /// Run a backup operation.
 ///
 /// REQ: CLI-002
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// REQ: P9-CNS-SURF-002 pre: valid BackupAction post: cns.cli span emitted
+/// expect: "I can access all hKask functionality through the kask CLI" [P3]
 /// pre:  rt is valid, action is valid
 /// post: backup operation executed
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {

@@ -34,6 +34,7 @@ mod tests {
     use ed25519_dalek::SigningKey;
 
     // REQ: capability-parse-001 — canonical default capability always parses
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     //
     // The pod constructor uses `CapabilitySpec::parse("tool:execute")` as the
     // infallible default. This test ensures that never fails.
@@ -43,6 +44,7 @@ mod tests {
     }
 
     // REQ: capability-parse-002 — malformed user-supplied capability does not panic
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     //
     // Before fix, `AgentPod::new` called `.expect()` on the user-supplied first
     // capability, causing a panic for any malformed input. The fallback is now
@@ -56,6 +58,7 @@ mod tests {
     }
 
     // REQ: capability-parse-003 — fallback logic mirrors pod constructor
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn malformed_capability_falls_back_to_default() {
         let default = "tool:execute".to_string();
@@ -97,6 +100,7 @@ mod tests {
         // ── CapabilitySpec::parse ──────────────────────────────────────────
 
         // REQ: cap-prop-001 — valid 2-part capabilities parse without error
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn parse_2part_always_succeeds(
@@ -113,6 +117,7 @@ mod tests {
         }
 
         // REQ: cap-prop-002 — valid 3-part capabilities parse correctly
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn parse_3part_has_correct_resource_id(
@@ -130,6 +135,7 @@ mod tests {
         }
 
         // REQ: cap-prop-003 — parse never panics on arbitrary input
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn parse_never_panics(input in "\\PC*") {
@@ -138,6 +144,7 @@ mod tests {
         }
 
         // REQ: cap-prop-004 — single-part input or 4+ parts returns error
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn malformed_part_count_returns_err(
@@ -152,6 +159,7 @@ mod tests {
         }
 
         // REQ: cap-prop-005 — 4+ colon-separated parts returns error
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn four_plus_parts_returns_err(
@@ -163,6 +171,7 @@ mod tests {
         }
 
         // REQ: cap-prop-006 — unknown action falls back to Execute
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn unknown_action_uses_execute(
@@ -183,6 +192,7 @@ mod tests {
         // ── DelegationResource::parse_str / as_str round-trip ──────────────
 
         // REQ: cap-prop-007 — resource parse/as_str round-trip for all variants
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn resource_parse_as_str_round_trip(
@@ -203,6 +213,7 @@ mod tests {
         // ── DelegationAction::parse_str / as_str round-trip ────────────────
 
         // REQ: cap-prop-008 — action parse/as_str round-trip for all variants
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn action_parse_as_str_round_trip(
@@ -215,6 +226,7 @@ mod tests {
         }
 
         // REQ: cap-prop-009 — action hierarchy: Execute ≥ Write ≥ Read
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn action_hierarchy_permits_write(
@@ -231,6 +243,7 @@ mod tests {
 
         proptest! {
             // REQ: cap-prop-009 — action hierarchy permits read
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
             #[test]
             fn action_hierarchy_permits_read(
                 action in valid_action_str()
@@ -244,6 +257,7 @@ mod tests {
         // ── capabilities_match ──────────────────────────────────────────────
 
         // REQ: cap-prop-012 — a capability always matches itself (reflexive)
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn capabilities_match_is_reflexive(
@@ -257,6 +271,7 @@ mod tests {
         }
 
         // REQ: cap-prop-013 — action hierarchy: execute covers write covers read
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         // Uses 3-part capabilities with shared domain so resource_id matches.
         // 2-part capabilities have resource_id = full input, so different
         // actions produce different resource_ids and never match.
@@ -282,6 +297,7 @@ mod tests {
         }
 
         // REQ: cap-prop-014 — different resources never match
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn different_resources_never_match(
@@ -302,6 +318,7 @@ mod tests {
         // ── capability_from_server_id ───────────────────────────────────────
 
         // REQ: cap-prop-015 — server_id with hkask-mcp- prefix produces capability
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
             fn server_id_to_capability_format(
@@ -316,6 +333,7 @@ mod tests {
 
         proptest! {
         // REQ: cap-prop-015 — non prefixed server id returns none
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
         #[test]
         fn non_prefixed_server_id_returns_none(
             server_id in "[a-z][a-z0-9_-]*"
@@ -339,6 +357,7 @@ mod tests {
     }
 
     // REQ: token-verify-001 — DelegationToken verifies with correct public key
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_verifies_with_correct_key() {
         let sk = test_signing_key();
@@ -354,6 +373,7 @@ mod tests {
     }
 
     // REQ: token-verify-002 — DelegationToken rejects wrong public key
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_rejects_wrong_key() {
         let sk = test_signing_key();
@@ -383,6 +403,7 @@ mod tests {
     }
 
     // REQ: token-verify-003 — DelegationToken rejects tampered signature
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_rejects_tampered_signature() {
         let sk = test_signing_key();
@@ -400,6 +421,7 @@ mod tests {
     }
 
     // REQ: token-attenuation-001 — DelegationToken can_attenuate when below max
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_can_attenuate_when_below_max() {
         let sk = test_signing_key();
@@ -415,6 +437,7 @@ mod tests {
     }
 
     // REQ: token-attenuation-002 — DelegationToken attenuation enforced at max
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_attenuation_enforced_at_max() {
         let sk = test_signing_key();
@@ -446,6 +469,7 @@ mod tests {
     }
 
     // REQ: token-attenuation-003 — DelegationToken attenuation preserves signature validity
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_attenuation_preserves_signature_validity() {
         let sk = test_signing_key();
@@ -469,6 +493,7 @@ mod tests {
     }
 
     // REQ: token-attenuation-004 — DelegationToken verify_attenuation_chain
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_verify_attenuation_chain() {
         let sk = test_signing_key();
@@ -494,6 +519,7 @@ mod tests {
     }
 
     // REQ: token-expiry-001 — DelegationToken is_expired when past expiry
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_is_expired_when_past_expiry() {
         let sk = test_signing_key();
@@ -511,6 +537,7 @@ mod tests {
     }
 
     // REQ: token-expiry-002 — DelegationToken without expiry never expires
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_without_expiry_never_expires() {
         let sk = test_signing_key();
@@ -526,6 +553,7 @@ mod tests {
     }
 
     // REQ: token-serialization-001 — DelegationToken base64 round-trip
+// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_base64_round_trip() {
         let sk = test_signing_key();

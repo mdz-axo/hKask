@@ -256,6 +256,7 @@ mod tests {
     use super::*;
 
     // REQ: CNS-CONDENSER-PROFILE — Profile must parse from lowercase strings with known retention percentages
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_parsing_known_values() {
         assert_eq!("heavy".parse::<Profile>().unwrap(), Profile::Heavy);
@@ -265,6 +266,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-PROFILE — Profile parsing is case-insensitive
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_parsing_case_insensitive() {
         assert_eq!("HEAVY".parse::<Profile>().unwrap(), Profile::Heavy);
@@ -273,6 +275,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-PROFILE — Unknown profile strings produce an error
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_parsing_unknown_is_error() {
         assert!("extreme".parse::<Profile>().is_err());
@@ -281,6 +284,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-PROFILE — Each profile has expected retention percentage
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_retention_pct_bounds() {
         assert!((Profile::Heavy.retention_pct() - 0.10).abs() < 0.001);
@@ -302,6 +306,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-PROFILE — Profile max_lines returns expected caps
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_max_lines() {
         assert_eq!(Profile::Heavy.max_lines(), Some(30));
@@ -311,6 +316,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-PROFILE — Profile Display round-trips through FromStr
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn profile_display_roundtrip() {
         for original in &[
@@ -326,6 +332,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-LAZY-UNIVERSE — action_threshold maps profiles to lazy universe tuning
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     //
     // TASK 4.4: Each profile carries an action_threshold that controls how
     // aggressively the compressor seeks minimal representation. Heavy = most
@@ -360,6 +367,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-LAZY-UNIVERSE — action_threshold is user-tunable per P3
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     //
     // The user controls how "lazy" their system is by selecting a profile.
     // Light profile = user sovereignty overrides lazy tendency (P1 + P3).
@@ -376,6 +384,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-CTX — ContextCategory parses from snake_case labels
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn context_category_parsing() {
         assert_eq!(
@@ -409,6 +418,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-CTX — Unknown category strings default to Unknown (not error)
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn context_category_unknown_fallback() {
         assert_eq!(
@@ -422,6 +432,7 @@ mod tests {
     }
 
     // REQ: CNS-CONDENSER-CTX — ContextCategory labels round-trip through FromStr
+// expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn context_category_label_roundtrip() {
         let all = [

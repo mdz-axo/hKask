@@ -9,6 +9,7 @@ use std::fmt;
 /// Endpoint lifecycle phases.
 ///
 /// REQ: P9-adt-endpoint-lifecycle
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P9] Homeostatic Self-Regulation — endpoint phases are observable and transition-constrained
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EndpointPhase {
@@ -77,6 +78,7 @@ pub enum EndpointPhaseError {
 /// the duration spent in billable phases.
 ///
 /// REQ: P9-adt-endpoint-lifecycle
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
 /// [P9] Homeostatic Self-Regulation — endpoint phases are observable and transition-constrained
 /// pre:  current phase allows the requested transition
 /// post: phase is updated with timestamp, cost_accrued is accurate
@@ -98,6 +100,7 @@ impl EndpointLifecycle {
     /// Create a new lifecycle starting in Provisioning phase.
     ///
     /// REQ: P9-adt-endpoint-lifecycle
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  hourly_rate > 0.0
     /// post: returns EndpointLifecycle in Provisioning phase with zero accrued cost
     pub fn new(hourly_rate: f64) -> Result<Self, EndpointPhaseError> {
@@ -123,6 +126,7 @@ impl EndpointLifecycle {
     /// spent in the current billable phase, and updates the phase timestamp.
     ///
     /// REQ: P9-adt-endpoint-lifecycle
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  new_phase is a valid transition from self.phase
     /// post: phase is updated, cost_accrued updated if previous phase was billable
     /// post: returns Ok(()) on success
@@ -154,6 +158,7 @@ impl EndpointLifecycle {
     /// Accrue cost for a specific duration.
     ///
     /// REQ: P9-adt-endpoint-lifecycle
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  duration_seconds >= 0.0
     /// post: cost_accrued increased by (duration_seconds / 3600) * hourly_rate
     pub fn accrue_cost(&mut self, duration_seconds: f64) {
@@ -175,6 +180,7 @@ impl EndpointLifecycle {
     /// Check whether the accrued cost exceeds a budget limit.
     ///
     /// REQ: P9-adt-endpoint-lifecycle — budget cap enforcement
+/// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     /// pre:  budget_limit >= 0.0
     /// post: returns true if cost_accrued > budget_limit
     pub fn is_over_budget(&self, budget_limit: f64) -> bool {
@@ -200,6 +206,7 @@ mod tests {
     use super::*;
 
     // REQ: P9-adt-endpoint-lifecycle — valid phase transitions succeed
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn valid_phase_transitions() {
         let mut lc = EndpointLifecycle::new(1.0).expect("creation should succeed");
@@ -223,6 +230,7 @@ mod tests {
     }
 
     // REQ: P9-adt-endpoint-lifecycle — invalid transitions return error
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn invalid_transition_returns_error() {
         let mut lc = EndpointLifecycle::new(1.0).expect("creation should succeed");
@@ -234,6 +242,7 @@ mod tests {
     }
 
     // REQ: P9-adt-endpoint-lifecycle — terminated cannot transition further
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn terminated_cannot_transition() {
         let mut lc = EndpointLifecycle::new(1.0).expect("creation should succeed");
@@ -247,6 +256,7 @@ mod tests {
     }
 
     // REQ: P9-adt-endpoint-lifecycle — ready can go to draining (direct teardown before active)
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn ready_can_go_to_draining() {
         let mut lc = EndpointLifecycle::new(1.0).expect("creation should succeed");
@@ -257,6 +267,7 @@ mod tests {
     }
 
     // REQ: P9-adt-endpoint-lifecycle — billable phases tracked correctly
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn billable_phases() {
         assert!(EndpointPhase::Provisioning.is_billable());
@@ -267,6 +278,7 @@ mod tests {
     }
 
     // REQ: P9-adt-endpoint-lifecycle — cost accrual through transitions
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn cost_accrual_on_transition() {
         let mut lc = EndpointLifecycle::new(10.0).expect("creation should succeed");
@@ -281,6 +293,7 @@ mod tests {
     }
 
     // REQ: P9-adt-endpoint-lifecycle — zero or negative duration does nothing
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn zero_duration_accrues_nothing() {
         let mut lc = EndpointLifecycle::new(10.0).expect("creation should succeed");
@@ -292,6 +305,7 @@ mod tests {
     }
 
     // REQ: P9-adt-endpoint-lifecycle — budget enforcement
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn is_over_budget() {
         let mut lc = EndpointLifecycle::new(10.0).expect("creation");
@@ -305,6 +319,7 @@ mod tests {
     }
 
     // REQ: P9-adt-endpoint-lifecycle — time until budget exceeded
+// expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn time_until_budget_exceeded() {
         let lc = EndpointLifecycle::new(10.0).expect("creation");
