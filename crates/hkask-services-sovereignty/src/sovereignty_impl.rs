@@ -41,6 +41,7 @@ impl SovereigntyService {
             })
             .inspect(|_| {
                 // REQ: P9-CNS-SVC-010 pre: valid consent grant, post: cns.sovereignty span emitted
+                // expect: "The service layer provides CNS health and regulation queries" [P9]
                 // P9: CNS span
                 tracing::info!(
                     target: "cns.sovereignty",
@@ -61,6 +62,7 @@ impl SovereigntyService {
             })
             .inspect(|_| {
                 // REQ: P9-CNS-SVC-011 pre: valid consent revocation, post: cns.sovereignty span emitted
+                // expect: "The service layer provides CNS health and regulation queries" [P9]
                 // P9: CNS span
                 tracing::info!(
                     target: "cns.sovereignty",
@@ -105,6 +107,7 @@ mod tests {
     use hkask_storage::{ConsentStore, Database};
 
     // REQ: P1-svc-sovereignty-001 — service delegates to ConsentManager
+    // expect: "Service delegates to ConsentManager works correctly under test conditions" [P1]
     //
     // A fresh SovereigntyService wrapping an empty ConsentManager should
     // report no consent and return zero granted categories.
@@ -129,6 +132,7 @@ mod tests {
     }
 
     // REQ: P1-svc-sovereignty-002 — grant and revoke return ServiceError, not ConsentError
+    // expect: "Service grant_revoke works correctly under test conditions" [P1]
     //
     // Before fix, grant_consent/revoke_consent returned ConsentError, leaking
     // domain internals through the service layer boundary.

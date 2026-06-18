@@ -244,6 +244,7 @@ mod tests {
     use super::*;
 
     // REQ: P3-svc-settings-001 — load_settings returns default when file missing
+    // expect: "Service load_settings works correctly under test conditions" [P3]
     #[test]
     fn load_settings_returns_default_when_file_missing() {
         // Use a non-existent path by temporarily overriding — just test the fallback
@@ -253,6 +254,7 @@ mod tests {
     }
 
     // REQ: P3-svc-settings-002 — save_settings and load_settings round-trip
+    // expect: "Service load_settings works correctly under test conditions" [P3]
     #[test]
     fn save_and_load_roundtrip() {
         let original = HkaskSettings::default();

@@ -64,6 +64,7 @@ impl ServiceDaemonHandler {
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
         // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "new_handler", has_inference = inference_port.is_some(), "CNS");
 
@@ -80,6 +81,7 @@ impl ServiceDaemonHandler {
 impl DaemonHandler for ServiceDaemonHandler {
     async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
         // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "check_auth", replicant = %replicant, "CNS");
 
@@ -116,6 +118,7 @@ impl DaemonHandler for ServiceDaemonHandler {
 
     async fn check_assignment(&self, replicant: &str, role: &str) -> bool {
         // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "check_assignment", replicant = %replicant, role = %role, "CNS");
 
@@ -134,6 +137,7 @@ impl DaemonHandler for ServiceDaemonHandler {
 
     async fn check_capability(&self, replicant: &str, tool: &str) -> bool {
         // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "check_capability", replicant = %replicant, tool = %tool, "CNS");
 
@@ -156,6 +160,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         confidence: Option<f64>,
     ) -> (bool, Option<String>, Option<String>) {
         // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "store_experience", replicant = %replicant, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
 
@@ -244,6 +249,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>) {
         // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.daemon", operation = "dispatch_tool", replicant = %replicant, tool = %tool, "CNS");
 
@@ -280,6 +286,7 @@ async fn generate_narrative(
     replicant: &str,
 ) {
     // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.daemon span emitted
+    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.daemon", operation = "generate_narrative", replicant = %replicant, "CNS");
 

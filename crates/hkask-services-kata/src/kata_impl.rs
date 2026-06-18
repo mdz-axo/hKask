@@ -543,6 +543,7 @@ mod tests {
     use super::*;
 
     // REQ: P9-svc-kata-kata-template-001 — templates render with standard context
+    // expect: "Service kata templates work correctly under test conditions" [P9]
     //
     // All 23 kata templates must render without errors when given
     // a typical KataState with learner_bot, context, and previous_steps.
@@ -598,6 +599,7 @@ mod tests {
     }
 
     // REQ: P9-svc-kata-kata-template-002 — templates contain learner_bot reference
+    // expect: "Service kata templates work correctly under test conditions" [P9]
     //
     // Every kata template must reference the learner's identity so the
     // LLM knows who it's acting as. Missing {{ learner_bot }} means the

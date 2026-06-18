@@ -99,6 +99,7 @@ impl KanbanService {
             .map_err(|e| KanbanError::Internal(format!("triple insert failed: {e}")))?;
 
         // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.kanban span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -368,6 +369,7 @@ impl KanbanService {
             .map_err(|e| KanbanError::Internal(format!("index triple insert failed: {e}")))?;
 
         // REQ: P9-CNS-SVC-002 pre: valid input, post: cns.kanban span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -544,6 +546,7 @@ impl KanbanService {
         }
 
         // REQ: P9-CNS-SVC-003 pre: valid transition, post: cns.kanban span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -605,6 +608,7 @@ impl KanbanService {
         }
 
         // REQ: P9-CNS-SVC-004 pre: valid consent, post: cns.kanban span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -673,6 +677,7 @@ impl KanbanService {
         }
 
         // REQ: P9-CNS-SVC-005 pre: valid review, post: cns.kanban span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.kanban",
@@ -957,6 +962,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-001
+    // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_succeeds() {
         let svc = KanbanService::new(make_store());
@@ -970,6 +976,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-002
+    // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_rejects_empty_name() {
         let svc = KanbanService::new(make_store());
@@ -978,6 +985,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-003
+    // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_rejects_empty_columns() {
         let svc = KanbanService::new(make_store());
@@ -986,6 +994,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-004
+    // expect: "Service board_list works correctly under test conditions" [P3]
     #[test]
     fn board_list_by_owner() {
         let svc = KanbanService::new(make_store());
@@ -1003,6 +1012,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-005
+    // expect: "Service task_create works correctly under test conditions" [P3]
     #[test]
     fn task_create_defaults_to_backlog() {
         let (svc, board, owner) = make_service_with_board();
@@ -1014,6 +1024,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-006
+    // expect: "Service task_create works correctly under test conditions" [P3]
     #[test]
     fn task_create_rejects_unknown_board() {
         let svc = KanbanService::new(make_store());
@@ -1022,6 +1033,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-007
+    // expect: "Service task_list works correctly under test conditions" [P3]
     #[test]
     fn task_list_unfiltered() {
         let (svc, board, owner) = make_service_with_board();
@@ -1035,6 +1047,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-008
+    // expect: "Service task_list works correctly under test conditions" [P3]
     #[test]
     fn task_list_filter_by_status() {
         let (svc, board, owner) = make_service_with_board();
@@ -1059,6 +1072,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-009
+    // expect: "Service task_move works correctly under test conditions" [P3]
     #[test]
     fn task_move_forward() {
         let (svc, board, owner) = make_service_with_board();
@@ -1076,6 +1090,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-010
+    // expect: "Service task_move works correctly under test conditions" [P3]
     #[test]
     fn task_move_rejects_skip() {
         let (svc, board, owner) = make_service_with_board();
@@ -1088,6 +1103,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-011
+    // expect: "Service task_assign works correctly under test conditions" [P3]
     #[test]
     fn task_assign_with_consent() {
         let (svc, board, owner) = make_service_with_board();
@@ -1102,6 +1118,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-012
+    // expect: "Service task_assign works correctly under test conditions" [P3]
     #[test]
     fn task_assign_rejects_invalid_consent() {
         let (svc, board, owner) = make_service_with_board();
@@ -1117,6 +1134,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-013
+    // expect: "Service task_verify works correctly under test conditions" [P3]
     #[test]
     fn task_verify_pass() {
         let (svc, board, owner) = make_service_with_board();
@@ -1137,6 +1155,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-014
+    // expect: "Service task_verify works correctly under test conditions" [P3]
     #[test]
     fn task_verify_rejects_non_review() {
         let (svc, board, owner) = make_service_with_board();
@@ -1149,6 +1168,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-015
+    // expect: "Service board_get works correctly under test conditions" [P3]
     #[test]
     fn board_get_succeeds() {
         let (svc, board, _owner) = make_service_with_board();
@@ -1158,6 +1178,7 @@ mod tests {
     }
 
     // REQ: P3-svc-kanban-T-016
+    // expect: "Service board_isolation works correctly under test conditions" [P3]
     #[test]
     fn board_isolation() {
         let svc = KanbanService::new(make_store());

@@ -6,6 +6,7 @@ license.workspace = true
 description = "Shared service layer for hKask surfaces (CLI, API)"
 
 [dependencies]
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-backup = { path = "../hkask-services-backup" }
 hkask-services-kata = { path = "../hkask-services-kata" }
@@ -67,7 +68,6 @@ hkask-test-harness = { path = "../hkask-test-harness" }
 [[test]]
 name = "cli_to_storage_integration"
 path = "tests/cli_to_storage_integration.rs"
-hkask-rsolidity = { path = "../hkask-rsolidity" }
 
 [features]
 # Pass-through to hkask-wallet for chain port selection

@@ -1,5 +1,6 @@
 //! Unified domain error hierarchy for hKask service operations.
 //! # REQ: P8 (Semantic Grounding) — every error variant is a distinct semantic state.
+//! # expect: "Service types preserve semantic identity" [P8]
 //!
 //! `ServiceError` composes from all domain crate errors. Surface layers
 //! (CLI, API) use `ServiceError` directly — CLI commands return

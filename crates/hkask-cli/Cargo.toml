@@ -10,6 +10,7 @@ name = "kask"
 path = "src/main.rs"
 
 [dependencies]
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 hkask-types = { path = "../hkask-types" }
 hkask-agents = { path = "../hkask-agents" }
 hkask-templates = { path = "../hkask-templates" }
@@ -59,4 +60,3 @@ proptest = "1"
 [[test]]
 name = "cli_fuzz"
 path = "tests/cli_fuzz.rs"
-hkask-rsolidity = { path = "../hkask-rsolidity" }

@@ -1,6 +1,8 @@
 //! BackupService — policy layer on top of GitCASPort.
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked.
+//! # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
 //! # REQ: P4 (Clear Boundaries) — delegates to hexagonal GitCASPort, never raw git.
+//! # expect: "Service boundaries enforce OCAP membranes" [P4]
 //!
 //! The backup service adds backup-specific semantics (scoped snapshot/restore,
 //! retention pruning, CNS alerting) on top of the content-addressed git storage
@@ -758,6 +760,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-backup-snapshot-001 — Snapshot of tracked type produces commits
+    // expect: "Service snapshot works correctly under test conditions" [P7]
     #[tokio::test]
     async fn snapshot_tracked_type_produces_commits() {
         let svc = test_service();
@@ -775,6 +778,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-backup-snapshot-002 — Snapshot of untracked type is rejected
+    // expect: "Service snapshot works correctly under test conditions" [P7]
     #[tokio::test]
     async fn snapshot_untracked_type_rejected() {
         let svc = test_service();
@@ -790,6 +794,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-backup-snapshot-003 — Full snapshot with no tracked types errors
+    // expect: "Service snapshot works correctly under test conditions" [P7]
     #[tokio::test]
     async fn full_snapshot_no_tracked_types_errors() {
         let mock = Arc::new(MockGitCas::new());
@@ -799,6 +804,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-backup-restore-001 — Restore reproduces artifact state
+    // expect: "Service restore works correctly under test conditions" [P7]
     #[tokio::test]
     async fn restore_reproduces_state() {
         let mock = Arc::new(MockGitCas::new());
@@ -825,6 +831,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-backup-list-001 — List returns snapshots for tracked repos
+    // expect: "Service list works correctly under test conditions" [P7]
     #[tokio::test]
     async fn list_returns_snapshots() {
         let svc = test_service();
@@ -842,6 +849,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-backup-prune-001 — Prune with retention removes old snapshots
+    // expect: "Service prune works correctly under test conditions" [P7]
     #[tokio::test]
     async fn prune_with_retention_identifies_expired() {
         let mock = Arc::new(MockGitCas::new());
@@ -875,6 +883,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-backup-verify-001 — Verify returns reports for tracked repos
+    // expect: "Service verify works correctly under test conditions" [P7]
     #[tokio::test]
     async fn verify_returns_reports() {
         let svc = test_service();
@@ -884,6 +893,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-backup-config-004 — Update config persists and reflects changes
+    // expect: "Service update_config works correctly under test conditions" [P7]
     #[tokio::test]
     async fn update_config_persists_and_reflects() {
         let mut svc = test_service();

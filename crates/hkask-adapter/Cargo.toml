@@ -6,6 +6,7 @@ license.workspace = true
 description = "Trained adapter lifecycle — adapter store, expertise, endpoint lifecycle, provider cost model"
 
 [dependencies]
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-inference = { path = "../hkask-inference" }
@@ -26,4 +27,3 @@ tempfile.workspace = true
 [[test]]
 name = "live_adapter"
 path = "tests/live_adapter.rs"
-hkask-rsolidity = { path = "../hkask-rsolidity" }

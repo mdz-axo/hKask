@@ -1,5 +1,6 @@
 //! Onboarding — secret derivation, keychain, registry init, sign-in.
 //! # REQ: P1 (User Sovereignty) — keychain secrets, passphrase-derived keys.
+//! # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
 
 use hkask_rsolidity::contract;
 
@@ -81,6 +82,7 @@ impl OnboardingService {
                 })?;
         }
         // REQ: P9-CNS-SVC-040 pre: valid passphrase, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.onboarding",
@@ -148,6 +150,7 @@ impl OnboardingService {
         }
 
         // REQ: P9-CNS-SVC-041 pre: valid config, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.onboarding",
@@ -234,6 +237,7 @@ impl OnboardingService {
             })?;
 
         // REQ: P9-CNS-SVC-042 pre: valid registration, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.onboarding",
@@ -257,6 +261,7 @@ impl OnboardingService {
         profile: &UserProfile,
     ) -> Result<(), ServiceError> {
         // REQ: P9-CNS-SVC-043 pre: valid store and profile, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "store_user_profile", "CNS");
         store
@@ -276,6 +281,7 @@ impl OnboardingService {
         store: &AgentRegistryStore,
     ) -> Result<Option<UserProfile>, ServiceError> {
         // REQ: P9-CNS-SVC-044 pre: valid store, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "get_user_profile", "CNS");
         store
@@ -301,6 +307,7 @@ impl OnboardingService {
         resolved_secrets: &ResolvedSecrets,
     ) -> Result<SignInOutcome, ServiceError> {
         // REQ: P9-CNS-SVC-045 pre: valid config and agent_name, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "try_sign_in", agent = %agent_name, "CNS");
         let handle = Self::init_registry(config).await?;
@@ -346,6 +353,7 @@ impl OnboardingService {
     #[contract(id = "P1-svc-onboarding-194", principle = "P1")]
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
         // REQ: P9-CNS-SVC-046 pre: valid config, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "try_list_existing_replicants", "CNS");
         let db_path = &config.db_path;
@@ -385,6 +393,7 @@ impl OnboardingService {
     #[contract(id = "P1-svc-onboarding-195", principle = "P1")]
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
         // REQ: P9-CNS-SVC-047 pre: valid config, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "remove_orphaned_db", "CNS");
         let db_path = &config.db_path;
@@ -435,6 +444,7 @@ impl OnboardingService {
     #[contract(id = "P1-svc-onboarding-196", principle = "P1")]
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
         // REQ: P9-CNS-SVC-048 pre: valid config, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "cleanup_failed_onboarding", "CNS");
         let keychain = Keychain::default();
@@ -480,6 +490,7 @@ impl OnboardingService {
         homeserver_url: &str,
     ) -> Result<MatrixRegistrationResult, ServiceError> {
         // REQ: P9-CNS-SVC-049 pre: valid profile and homeserver, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "register_matrix_accounts", replicant = %replicant_display_name, "CNS");
         let human_username = matrix_username_from_human(user_profile);
@@ -565,6 +576,7 @@ impl OnboardingService {
         homeserver_url: &str,
     ) -> Result<std::collections::HashMap<String, String>, ServiceError> {
         // REQ: P9-CNS-SVC-050 pre: valid homeserver_url, post: cns.onboarding span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "register_system_accounts", "CNS");
         let system_bots = [
@@ -731,9 +743,10 @@ async fn register_on_conduit(
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  homeserver_url must be a valid HTTP URL
 /// post: returns true if server responds with 2xx; false on connection error or non-2xx status
-    #[contract(id = "P1-svc-onboarding-199", principle = "P1")]
+#[contract(id = "P1-svc-onboarding-199", principle = "P1")]
 pub async fn conduit_health_check(homeserver_url: &str) -> bool {
     // REQ: P9-CNS-SVC-051 pre: valid URL, post: cns.onboarding span emitted
+    // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.onboarding", operation = "conduit_health_check", url = %homeserver_url, "CNS");
     let url = format!(

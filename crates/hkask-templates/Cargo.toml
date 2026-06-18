@@ -6,6 +6,7 @@ license.workspace = true
 description = "Registry, vocabulary, and template execution for hKask"
 
 [dependencies]
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
 minijinja.workspace = true
@@ -36,4 +37,3 @@ path = "tests/yaml_schema_validation.rs"
 [[test]]
 name = "template_rendering"
 path = "tests/template_rendering.rs"
-hkask-rsolidity = { path = "../hkask-rsolidity" }

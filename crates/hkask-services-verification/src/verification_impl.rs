@@ -1,5 +1,6 @@
 //! VerificationService — Magna Carta sovereignty verification.
 //! # REQ: P4 (Clear Boundaries) — verifies P1-P4 are enforced through OCAP gates.
+//! # expect: "Service boundaries enforce OCAP membranes" [P4]
 //!
 //! Loads YAML manifests defining assertions against hKask's four Magna Carta
 //! principles (User Sovereignty, Affirmative Consent, Generative Space, Clear
@@ -106,6 +107,7 @@ impl VerificationService {
     #[contract(id = "P4-svc-verification-232", principle = "P4")]
     pub fn verify(filter: Option<&str>) -> VerificationReport {
         // REQ: P9-CNS-SVC-030 pre: valid filter, post: cns.verification span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.verification",
@@ -115,6 +117,7 @@ impl VerificationService {
         );
         let report = build_report(&load_manifests(), filter);
         // REQ: P9-CNS-SVC-031 pre: valid report, post: cns.verification span emitted
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
             target: "cns.verification",

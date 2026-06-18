@@ -1,5 +1,6 @@
 //! Backup configuration — what to track, retention policy, auto-snapshot behavior.
 //! # REQ: P1 (User Sovereignty) — user controls what is tracked and for how long.
+//! # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
 
 use hkask_rsolidity::contract;
 
@@ -176,7 +177,7 @@ fn split_duration(s: &str) -> Result<(u64, &str), String> {
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  none (always succeeds)
 /// post: returns ~/.config/hkask/backup.json path; falls back to ./hkask/backup.json if config dir unavailable
-    #[contract(id = "P7-svc-backup-config-svc-156", principle = "P7")]
+#[contract(id = "P7-svc-backup-config-svc-156", principle = "P7")]
 pub fn backup_config_path() -> std::path::PathBuf {
     let base = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     base.join("hkask").join("backup.json")
@@ -188,7 +189,7 @@ pub fn backup_config_path() -> std::path::PathBuf {
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  none (always succeeds)
 /// post: returns BackupConfig from disk; BackupConfig::default() if file missing or unparseable
-    #[contract(id = "P7-svc-backup-config-svc-157", principle = "P7")]
+#[contract(id = "P7-svc-backup-config-svc-157", principle = "P7")]
 pub fn load_backup_config() -> BackupConfig {
     let path = backup_config_path();
     match std::fs::read_to_string(&path) {
@@ -202,7 +203,7 @@ pub fn load_backup_config() -> BackupConfig {
 /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  config must be a valid BackupConfig
 /// post: config is written as pretty JSON to backup_config_path(); parent directories created if needed; Err on I/O or serialization failure
-    #[contract(id = "P7-svc-backup-config-svc-158", principle = "P7")]
+#[contract(id = "P7-svc-backup-config-svc-158", principle = "P7")]
 pub fn save_backup_config(config: &BackupConfig) -> Result<(), std::io::Error> {
     let path = backup_config_path();
     if let Some(parent) = path.parent() {
@@ -219,6 +220,7 @@ mod tests {
     use super::*;
 
     // REQ: P7-svc-backup-config-backup-config-001 — Default config tracks nothing, keeps forever
+    // expect: "Service backup config works correctly under test conditions" [P7]
     #[test]
     fn default_config_tracks_nothing() {
         let config = BackupConfig::default();
@@ -230,6 +232,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-config-backup-config-002 — RetentionPolicy defaults are correct
+    // expect: "Service RetentionPolicy works correctly under test conditions" [P7]
     #[test]
     fn retention_policy_defaults() {
         let p = RetentionPolicy::default();
@@ -238,6 +241,7 @@ mod tests {
     }
 
     // REQ: P7-svc-backup-config-backup-config-003 — RetentionPolicy keeps recent snapshots
+    // expect: "Service RetentionPolicy works correctly under test conditions" [P7]
     #[test]
     fn retention_policy_keeps_recent() {
         let p = RetentionPolicy::default();

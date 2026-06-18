@@ -1,5 +1,6 @@
 //! BackupLoop — Cybernetic loop for scheduled backup snapshots.
 //! # REQ: P7-svc-backup-loop-f4 — daily automatic snapshots via the daemon loop system.
+//! # expect: "The service interface emerged from real usage patterns" [P7]
 //!
 //! Implements `HkaskLoop` (sense → compare → compute → act) to run
 //! daily backup snapshots through `BackupService`. Respects the

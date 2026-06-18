@@ -12,7 +12,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.28.0 documentation sweep — goal-principle contract anchoring, deployment domain, ERDs, CNS `expect:` field completion (115 fields), user_expectation audit, KAN-SVC→P3-svc-kanban migration (104 IDs), MDS domain ontology (kanban/kata/adapter). (2026-06-18)
+**Current session:** v0.28.0 Phase C — Multi-user foundation: Role enum, Invite system, admin middleware, admin routes (invite/sessions/config), CNS spans (RoleAssigned, InviteSent, InviteAccepted). Google OAuth implementation. rSolidity build regression fixed (circular import + misplaced dependencies in 6 crates). Expect: field audit complete — wallet 100%, memory 100%, CNS 100% (115 fields). All documentation v0.28.0. (2026-06-18)
 
 ---
 
@@ -22,10 +22,10 @@ All 25 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (25/25 crates) | 2026-06-18 |
-| ACP crate (`cargo check -p hkask-acp`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-18 |
-| Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication, acp) | ✅ Pass | 2026-06-18 |
-| MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory, kanban) | ✅ Pass | 2026-06-18 |
+| Workspace (`cargo check --workspace`) | ⚠️ Partial (hkask-templates, hkask-inference pre-existing) | 2026-06-18 |
+| Core crates — types, storage, api, cns, wallet, agents, condenser, improv, communication, services, keystore, mcp, cli, acp | ✅ Pass | 2026-06-18 |
+| rSolidity chain (macros + runtime) | ✅ Pass (fixed circular import 2026-06-18) | 2026-06-18 |
+| Multi-user crates (types, storage, api, middleware) | ✅ Pass | 2026-06-18 |
 
 ---
 
@@ -73,11 +73,10 @@ All 25 workspace members.
 
 | Check | Result | Date |
 |-------|--------|------|
-| `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-15 |
-| Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `a2a/mod.rs:171` | 2026-06-10 |
-| Deployment model locked in | Single cloud server, browser terminal, no client binary. See deployment-and-backup.md | 2026-06-17 |
-| Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-15 |
-| REQ tag coverage | ✅ 2334 REQ tags (100% coverage — every `pub fn` contracted) | 2026-06-17 |
+| `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-18 |
+| Multi-user access control | ✅ Implemented: Role enum, admin middleware, invite CRUD, CNS spans | 2026-06-18 |
+| OAuth providers | ✅ GitHub + Google (Google OAuth implemented 2026-06-18) | 2026-06-18 |
+| Expect: field coverage | ✅ CNS 100% (115 fields), Wallet 100% (13), Memory 100% (55) | 2026-06-18 |
 | Schema drift check | ✅ `scripts/ci/check-schema-drift.sh` passes (37 tables/indexes) | 2026-06-17 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
 | Runtime `.unwrap()` in targeted crates | ✅ Zero violations (Wave 2 denylist) | 2026-06-15 |

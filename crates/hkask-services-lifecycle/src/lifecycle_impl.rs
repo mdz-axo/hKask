@@ -238,6 +238,7 @@ mod tests {
     }
 
     // REQ: P7-svc-lifecycle-001 — init_succeeds_with_valid_config
+    // expect: "Service init works correctly under test conditions" [P7]
     #[tokio::test]
     async fn init_succeeds_with_valid_config() {
         let config = ServerLifecycleConfig {
@@ -256,6 +257,7 @@ mod tests {
     }
 
     // REQ: P7-svc-lifecycle-002 — health_reports_correct_status
+    // expect: "Service health works correctly under test conditions" [P7]
     #[tokio::test]
     async fn health_reports_correct_status() {
         let _config = ServerLifecycleConfig {
@@ -280,6 +282,7 @@ mod tests {
     }
 
     // REQ: P7-svc-lifecycle-003 — run_lifecycle_emits_cns_spans
+    // expect: "Service run_lifecycle works correctly under test conditions" [P7]
     #[tokio::test]
     async fn run_lifecycle_emits_cns_spans() {
         let config = ServerLifecycleConfig {

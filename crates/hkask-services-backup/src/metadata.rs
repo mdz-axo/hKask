@@ -1,5 +1,6 @@
 //! Backup metadata types — snapshot results, prune reports.
 //! # REQ: P8 (Semantic Grounding) — every type encodes a distinct domain concept.
+//! # expect: "Service types preserve semantic identity" [P8]
 
 use chrono::{DateTime, Utc};
 use hkask_types::ports::git_cas::{CommitHash, RepoId};

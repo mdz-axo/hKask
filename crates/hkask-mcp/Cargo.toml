@@ -42,4 +42,3 @@ path = "tests/tool_input_fuzz.rs"
 [[test]]
 name = "mcp_lifecycle_integration"
 path = "tests/mcp_lifecycle_integration.rs"
-hkask-rsolidity = { path = "../hkask-rsolidity" }

@@ -264,6 +264,7 @@ impl AgentService {
 
     // === Named accessors (replaces positional tuple group methods) ===
     // # REQ: P4 (Clear Boundaries)
+    // # expect: "Service boundaries enforce OCAP membranes" [P4]
 
     // --- Memory ---
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -362,6 +363,7 @@ impl AgentService {
     /// pre:  self must be fully built
     /// post: returns &Arc<CapabilityChecker>
     /// # REQ: P4 (OCAP), P1 (User Sovereignty)
+    /// # expect: "Service boundaries enforce OCAP membranes" [P4]
     #[contract(id = "P3-svc-context-256", principle = "P3")]
     pub fn capability_checker(&self) -> &Arc<CapabilityChecker> {
         &self.capability_checker
@@ -432,6 +434,7 @@ impl AgentService {
     /// pre:  self must be fully built
     /// post: returns SovereigntyService wrapping the consent manager
     /// # REQ: P1 (User Sovereignty), P2 (Affirmative Consent)
+    /// # expect: "My service operations flow through sovereignty-verifying boundaries" [P1]
     #[contract(id = "P3-svc-context-263", principle = "P3")]
     pub fn sovereignty(&self) -> SovereigntyService {
         SovereigntyService::new(self.consent_manager.clone())

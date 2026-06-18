@@ -1,5 +1,6 @@
 //! Backup scope types — what to snapshot, restore, or list.
 //! # REQ: P8 (Semantic Grounding) — every type encodes a distinct domain concept.
+//! # expect: "Service types preserve semantic identity" [P8]
 
 use hkask_rsolidity::contract;
 
