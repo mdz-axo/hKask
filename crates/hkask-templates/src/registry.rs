@@ -32,9 +32,6 @@ pub struct Registry {
     skills: HashMap<String, Skill>,
     /// Bundle manifests — composed skill bundles
     bundles: HashMap<String, hkask_types::BundleManifest>,
-    /// Optional hLexicon for validating lexicon_terms during registration.
-    /// When set, `register()` logs warnings for terms not in the canonical vocabulary.
-    hlexicon: Option<HLexicon>,
 }
 
 impl Registry {
@@ -42,25 +39,13 @@ impl Registry {
     ///
     /// REQ: P3-tpl-registry-new
     /// \[P3\] Motivating: Generative Space — in-memory template registry
-    /// post: returns Registry with empty templates, skills, bundles, no lexicon
+    /// post: returns Registry with empty templates, skills, bundles
     pub fn new() -> Self {
         Self {
             templates: HashMap::new(),
             skills: HashMap::new(),
             bundles: HashMap::new(),
-            hlexicon: None,
         }
-    }
-
-    /// Set the hLexicon for validating terms during registration.
-    ///
-    /// REQ: P3-tpl-registry-set-lexicon
-    /// \[P3\] Motivating: Generative Space — binds vocabulary to registry
-    /// \[P8\] Constraining: Semantic Grounding — hLexicon constrains registered terms
-    /// pre:  lexicon is a valid HLexicon
-    /// post: hlexicon set — subsequent register() calls validate terms
-    pub fn set_lexicon(&mut self, lexicon: HLexicon) {
-        self.hlexicon = Some(lexicon);
     }
 
     /// Invalidate the registry cache (for hot-reload)
@@ -154,25 +139,11 @@ impl Registry {
     /// \[P3\] Motivating: Generative Space — registers a template in the registry
     /// pre:  entry.id is non-empty, entry.template_type is valid
     /// post: entry inserted into templates map
-    /// post: validates terms against hlexicon if set (warnings logged)
     pub fn register(&mut self, entry: RegistryEntry) {
         // Validate entry consistency
         let warnings = entry.validate();
         for warning in &warnings {
             tracing::warn!(target: "hkask.templates", "Registration warning: {}", warning);
-        }
-
-        // Delegate term validation to ContractValidator (FA-C1)
-        if let Some(ref lexicon) = self.hlexicon {
-            let unknown = lexicon.validate(&entry.lexicon_terms);
-            if !unknown.is_empty() {
-                tracing::warn!(
-                    target: "hkask.templates",
-                    template_id = %entry.id,
-                    unknown_terms = ?unknown,
-                    "Lexicon terms not in canonical vocabulary"
-                );
-            }
         }
 
         self.templates.insert(entry.id.clone(), entry);

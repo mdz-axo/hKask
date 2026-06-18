@@ -1,15 +1,14 @@
-//! Inference configuration — multi-provider routing for Ollama, DeepInfra, fal.ai, and Together AI.
+//! Inference configuration — multi-provider routing for DeepInfra, fal.ai, and Together AI.
 //!
 //! # Environment Variables
 //!
-//! - `OM_BASE_URL` — Ollama base URL (default: <http://127.0.0.1:11434>)
 //! - `DI_BASE_URL` — DeepInfra base URL (default: <https://api.deepinfra.com>)
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
 //! - `FA_BASE_URL` — fal.ai base URL (default: <https://api.fal.ai>)
 //! - `FA_API_KEY` — fal.ai API key (required for FA provider)
 //! - `TG_BASE_URL` — Together AI base URL (default: <https://api.together.xyz>)
 //! - `TOGETHER_API_KEY` — Together AI API key (required for TG provider)
-//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (OM, DI, FA, TG; default: OM)
+//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (DI, FA, TG; default: DI)
 //!
 //! # API Key Resolution
 //!
@@ -23,11 +22,10 @@
 //! # Model Naming Convention
 //!
 //! Models use a 2-letter provider prefix:
-//! - `OM/qwen3:8b` → Ollama (local)
 //! - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra (cloud)
 //! - `FA/paddleocr` → fal.ai (cloud)
 //! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI (cloud)
-//! - No prefix → default provider (configurable, default: Ollama)
+//! - No prefix → default provider (configurable, default: DeepInfra)
 
 use serde::{Deserialize, Serialize};
 
@@ -36,9 +34,6 @@ use hkask_types::secret::SecretRef;
 /// Two-letter provider identifier for inference routing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProviderId {
-    /// Ollama (local) — prefix `OM/`
-    #[serde(rename = "OM")]
-    Ollama,
     /// DeepInfra (cloud) — prefix `DI/`
     #[serde(rename = "DI")]
     DeepInfra,
@@ -65,7 +60,7 @@ impl ProviderId {
     /// REQ: P9-inf-parse-provider-from-model
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model-name routing to provider boundary
     /// pre:  model is non-empty
-    /// post: returns Some((ProviderId, stripped_model)) for OM/, DI/, FA/, TG/, RP/, BT/ prefixes
+    /// post: returns Some((ProviderId, stripped_model)) for DI/, FA/, TG/, RP/, BT/ prefixes
     /// post: returns None for unrecognized or missing prefix
     pub fn parse_from_model(model: &str) -> Option<(Self, &str)> {
         if model.len() < 4 {
@@ -81,7 +76,6 @@ impl ProviderId {
             return None;
         }
         match prefix {
-            "OM" => Some((ProviderId::Ollama, rest)),
             "DI" => Some((ProviderId::DeepInfra, rest)),
             "FA" => Some((ProviderId::Fal, rest)),
             "TG" => Some((ProviderId::Together, rest)),
@@ -105,10 +99,9 @@ impl ProviderId {
     ///
     /// REQ: P9-inf-provider-as-str
     /// \[P9\] Motivating: Homeostatic Self-Regulation — stable provider code for routing
-    /// post: returns "OM", "DI", "FA", "TG", "RP", or "BT"
+    /// post: returns "DI", "FA", "TG", "RP", or "BT"
     pub fn as_str(&self) -> &'static str {
         match self {
-            ProviderId::Ollama => "OM",
             ProviderId::DeepInfra => "DI",
             ProviderId::Fal => "FA",
             ProviderId::Together => "TG",
@@ -120,20 +113,17 @@ impl ProviderId {
 
 /// Configuration for the inference router.
 ///
-/// Holds connection settings for Ollama (local),
-/// DeepInfra (cloud), fal.ai (cloud), and Together AI (cloud).
+/// Holds connection settings for DeepInfra (cloud),
+/// fal.ai (cloud), and Together AI (cloud).
 /// The router uses this config to construct backends and decide
 /// the default provider for unprefixed model names.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceConfig {
     /// Default provider for model names without a prefix.
-    /// Default: Ollama (local-first). Override with `HKASK_DEFAULT_PROVIDER` env var
+    /// Default: DeepInfra (cloud-first). Override with `HKASK_DEFAULT_PROVIDER` env var
     /// or store in OS keychain under key `HKASK_DEFAULT_PROVIDER`.
-    /// Accepted values: OM, DI, FA, TG.
+    /// Accepted values: DI, FA, TG.
     pub default_provider: ProviderId,
-
-    /// Base URL for the Ollama inference server.
-    pub ollama_base_url: String,
 
     /// Base URL for the DeepInfra inference API (OpenAI-compatible endpoint).
     pub deepinfra_base_url: String,
@@ -173,8 +163,7 @@ pub struct InferenceConfig {
 impl Default for InferenceConfig {
     fn default() -> Self {
         Self {
-            default_provider: ProviderId::Ollama,
-            ollama_base_url: "http://127.0.0.1:11434".to_string(),
+            default_provider: ProviderId::DeepInfra,
             deepinfra_base_url: "https://api.deepinfra.com".to_string(),
             deepinfra_api_key: String::new(),
             fal_base_url: "https://api.fal.ai".to_string(),
@@ -198,11 +187,8 @@ impl InferenceConfig {
     /// REQ: P9-inf-config-from-env
     /// \[P9\] Motivating: Homeostatic Self-Regulation — inference configuration resolved from environment
     /// post: returns InferenceConfig resolved from env vars and keychain
-    /// post: defaults to Ollama localhost if env vars unset
+    /// post: defaults to DeepInfra cloud if env vars unset
     pub fn from_env() -> Self {
-        let ollama_base_url =
-            std::env::var("OM_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
-
         let deepinfra_base_url = std::env::var("DI_BASE_URL")
             .unwrap_or_else(|_| "https://api.deepinfra.com".to_string());
 
@@ -222,7 +208,6 @@ impl InferenceConfig {
 
         Self {
             default_provider,
-            ollama_base_url,
             deepinfra_base_url,
             deepinfra_api_key,
             fal_base_url,
@@ -288,7 +273,7 @@ fn resolve_api_key(primary_env: &str, fallback_envs: &[&str]) -> String {
 /// Resolve the default provider from env var or keychain.
 ///
 /// Reads `HKASK_DEFAULT_PROVIDER` from OS keychain first, then environment
-/// variable. Accepted values: OM, FW, DI, FA. Defaults to Ollama.
+/// variable. Accepted values: DI, FA, TG. Defaults to DeepInfra.
 fn resolve_default_provider() -> ProviderId {
     let raw = resolve_api_key("HKASK_DEFAULT_PROVIDER", &[]);
     parse_provider_code(&raw)
@@ -296,16 +281,15 @@ fn resolve_default_provider() -> ProviderId {
 
 /// Parse a provider code string to a ProviderId.
 ///
-/// Accepted values: OM, DI, FA, TG, RP, BT. Anything else (including empty) → Ollama.
+/// Accepted values: DI, FA, TG, RP, BT. Anything else (including empty) → DeepInfra.
 fn parse_provider_code(raw: &str) -> ProviderId {
     match raw {
-        "OM" => ProviderId::Ollama,
         "DI" => ProviderId::DeepInfra,
         "FA" => ProviderId::Fal,
         "TG" => ProviderId::Together,
         "RP" => ProviderId::Runpod,
         "BT" => ProviderId::Baseten,
-        _ => ProviderId::Ollama,
+        _ => ProviderId::DeepInfra,
     }
 }
 
@@ -317,10 +301,6 @@ mod tests {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates provider routing parser
     #[test]
     fn parse_provider_prefix() {
-        assert_eq!(
-            ProviderId::parse_from_model("OM/qwen3:8b"),
-            Some((ProviderId::Ollama, "qwen3:8b"))
-        );
         assert_eq!(
             ProviderId::parse_from_model("TG/Qwen/Qwen2.5-7B-Instruct-Turbo"),
             Some((ProviderId::Together, "Qwen/Qwen2.5-7B-Instruct-Turbo"))
@@ -351,17 +331,16 @@ mod tests {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates malformed model rejection
     #[test]
     fn parse_empty_model_returns_none() {
-        assert_eq!(ProviderId::parse_from_model("OM/"), None);
-        assert_eq!(ProviderId::parse_from_model("FW/"), None);
         assert_eq!(ProviderId::parse_from_model("DI/"), None);
+        assert_eq!(ProviderId::parse_from_model("FA/"), None);
     }
 
     /// REQ: P9-inf-test-too-short-none — too-short strings return None
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates malformed model rejection
     #[test]
     fn parse_too_short_returns_none() {
-        assert_eq!(ProviderId::parse_from_model("OM"), None);
         assert_eq!(ProviderId::parse_from_model("DI"), None);
+        assert_eq!(ProviderId::parse_from_model("FA"), None);
         assert_eq!(ProviderId::parse_from_model("X"), None);
     }
 
@@ -377,7 +356,6 @@ mod tests {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates canonical model naming
     #[test]
     fn prefix_model_format() {
-        assert_eq!(ProviderId::Ollama.prefix_model("qwen3:8b"), "OM/qwen3:8b");
         assert_eq!(
             ProviderId::Together.prefix_model("Qwen/Qwen2.5-7B"),
             "TG/Qwen/Qwen2.5-7B"

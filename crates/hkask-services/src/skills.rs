@@ -27,7 +27,6 @@ pub struct SkillAuditor<'a> {
     registry: &'a dyn RegistryIndex,
     skill_index: &'a dyn SkillRegistryIndex,
     project_root: PathBuf,
-    hlexicon: HLexicon,
 }
 
 impl<'a> SkillAuditor<'a> {
@@ -36,15 +35,12 @@ impl<'a> SkillAuditor<'a> {
         registry: &'a dyn RegistryIndex,
         skill_index: &'a dyn SkillRegistryIndex,
         project_root: impl Into<PathBuf>,
-    ) -> Result<Self, SkillAuditError> {
-        let project_root = project_root.into();
-        let hlexicon = load_workspace_hlexicon(&project_root)?;
-        Ok(Self {
+    ) -> Self {
+        Self {
             registry,
             skill_index,
-            project_root,
-            hlexicon,
-        })
+            project_root: project_root.into(),
+        }
     }
 
     /// Audit every skill name found in either layer.
@@ -282,20 +278,6 @@ impl<'a> SkillAuditor<'a> {
                     score -= 0.10;
                     defects.push(format!("{}: missing/empty contract", j2.filename));
                 }
-                if !j2.hlexicon_valid {
-                    let max_shown = 3;
-                    let shown: Vec<String> = j2
-                        .unknown_hlexicon_terms
-                        .iter()
-                        .take(max_shown)
-                        .cloned()
-                        .collect();
-                    score -= 0.03_f64 * j2.unknown_hlexicon_terms.len() as f64;
-                    defects.push(format!(
-                        "{}: unknown hlexicon terms {:?}",
-                        j2.filename, shown
-                    ));
-                }
                 if !j2.energy_cap_valid {
                     score -= 0.05;
                     defects.push(format!(
@@ -443,19 +425,6 @@ impl<'a> SkillAuditor<'a> {
 
         if let Some(ec) = front.energy_cap {
             info.energy_cap_valid = (1024..=16384).contains(&ec);
-        }
-
-        let unknown: Vec<String> = front
-            .lexicon_terms
-            .iter()
-            .filter(|t| !self.hlexicon.contains(t))
-            .cloned()
-            .collect();
-        if !unknown.is_empty() {
-            info.hlexicon_valid = false;
-            info.unknown_hlexicon_terms = unknown;
-        } else {
-            info.hlexicon_valid = true;
         }
 
         Ok(info)

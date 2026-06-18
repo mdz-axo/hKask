@@ -14,7 +14,7 @@ templates:
   - id: spec/constraint-bind
     path: constraint-bind.j2
     type: KnowAct
-    lexicon_terms: [constrain, require]
+    lexicon_terms: [constrain, require, specify]
     description: >
       Attach OCAP capability boundaries to a goal. Binds resource, action,
       attenuation, and TTL constraints to produce a formal constraint spec.
@@ -22,7 +22,7 @@ templates:
   - id: spec/contextualise
     path: contextualise.j2
     type: KnowAct
-    lexicon_terms: [contextualise]
+    lexicon_terms: [contextualise, assess, evaluate]
     description: >
       Situate an artifact within its meaningful environment: domain anchor,
       related specs, and hLexicon term overlap with the collection.
@@ -46,7 +46,7 @@ templates:
   - id: spec/reconcile-conflicts
     path: reconcile-conflicts.j2
     type: KnowAct
-    lexicon_terms: [reconcile]
+    lexicon_terms: [reconcile, resolve, evaluate]
     description: >
       Resolve tensions between competing goals without collapsing them.
       Preserves goal diversity while documenting resolution strategies.
@@ -62,13 +62,15 @@ templates:
 hlexicon_terms:
   - constrain
   - require
+  - specify
   - contextualise
+  - assess
+  - evaluate
   - curate
   - cultivate
-  - evaluate
-  - specify
   - elicit
   - reconcile
+  - resolve
   - recognize
   - match
   - select

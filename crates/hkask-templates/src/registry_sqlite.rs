@@ -64,7 +64,6 @@ fn query_column(conn: &Connection, sql: &str, id: &str) -> Result<Vec<String>> {
 #[derive(Clone)]
 pub struct SqliteRegistry {
     conn: Arc<Mutex<Connection>>,
-    hlexicon: Option<HLexicon>,
 }
 
 impl SqliteRegistry {
@@ -87,7 +86,6 @@ impl SqliteRegistry {
         };
         let mut registry = Self {
             conn: Arc::new(Mutex::new(conn)),
-            hlexicon: None,
         };
         registry.init_schema()?;
         Ok(registry)
@@ -102,7 +100,6 @@ impl SqliteRegistry {
     pub fn new_with_conn(conn: Arc<Mutex<Connection>>) -> Result<Self> {
         let mut registry = Self {
             conn,
-            hlexicon: None,
         };
         registry.init_schema()?;
         Ok(registry)
@@ -133,17 +130,6 @@ impl SqliteRegistry {
         Ok(())
     }
 
-    /// Set the hLexicon for term validation during registration.
-    ///
-    /// REQ: P3-tpl-registry-sqlite-set-lexicon
-    /// \[P3\] Motivating: Generative Space — binds vocabulary to SQLite registry
-    /// \[P8\] Constraining: Semantic Grounding — hLexicon constrains persisted terms
-    /// pre:  lexicon is a valid HLexicon
-    /// post: hlexicon set — subsequent register() calls validate terms
-    pub fn set_lexicon(&mut self, lexicon: HLexicon) {
-        self.hlexicon = Some(lexicon);
-    }
-
     /// Register a template entry in the registry.
     ///
     /// REQ: P3-tpl-registry-sqlite-register
@@ -151,22 +137,9 @@ impl SqliteRegistry {
     /// pre:  entry.id is non-empty, entry.template_type is valid
     /// post: entry inserted or replaced in templates table
     /// post: lexicon_terms and capabilities synced
-    /// post: validates terms against hlexicon if set
     pub fn register(&mut self, entry: RegistryEntry) -> Result<()> {
         for warning in &entry.validate() {
             tracing::warn!(target: "hkask.templates", "{}", warning);
-        }
-        // Validate terms against canonical hLexicon vocabulary
-        if let Some(ref lexicon) = self.hlexicon {
-            let unknown = lexicon.validate(&entry.lexicon_terms);
-            if !unknown.is_empty() {
-                tracing::warn!(
-                    target: "hkask.templates",
-                    template_id = %entry.id,
-                    unknown_terms = ?unknown,
-                    "Lexicon terms not in canonical vocabulary"
-                );
-            }
         }
         let mut conn = self
             .conn

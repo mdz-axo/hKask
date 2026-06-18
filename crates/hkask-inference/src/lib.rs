@@ -1,29 +1,26 @@
 //! hKask Inference — multi-provider inference router
 //!
-//! Routes LLM requests to Ollama (local), DeepInfra (cloud),
-//! fal.ai (cloud), or Together AI (cloud) based on a 2-letter provider prefix in the model name.
+//! Routes LLM requests to DeepInfra (cloud), fal.ai (cloud),
+//! or Together AI (cloud) based on a 2-letter provider prefix in the model name.
 //!
 //! # Architecture
 //!
 //! ```text
 //! InferenceRouter (implements InferencePort)
-//!   ├── OllamaBackend    — OM/ prefix → localhost:11434
 //!   ├── DeepInfraBackend — DI/ prefix → api.deepinfra.com
 //!   ├── FalBackend       — FA/ prefix → api.fal.ai
 //!   └── TogetherBackend  — TG/ prefix → api.together.xyz
 //!
 //! EmbeddingRouter
-//!   ├── OllamaEmbedding    — OM/ prefix → /api/embed
 //!   └── DeepInfraEmbedding — DI/ prefix → /v1/embeddings
 //! ```
 //!
 //! # Model Naming
 //!
-//! - `OM/qwen3:8b` → Ollama
 //! - `DI/meta-llama/Llama-3.3-70B-Instruct` → DeepInfra
 //! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI
 //! - `FA/paddleocr` → fal.ai
-//! - No prefix → default provider (configurable, default: Ollama)
+//! - No prefix → default provider (configurable, default: DeepInfra)
 
 pub mod chat_protocol;
 pub mod config;

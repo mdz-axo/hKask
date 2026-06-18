@@ -29,7 +29,7 @@ templates:
   - id: goal/judge_command
     path: judge_command.j2
     type: KnowAct
-    lexicon_terms: [assert, command]
+    lexicon_terms: [assert, command, verify]
     description: >
       Verify goal completion via executed command results against acceptance
       criteria. Produces a done/continue/blocked verdict with reasoning.
@@ -37,7 +37,7 @@ templates:
   - id: goal/judge_simple
     path: judge_simple.j2
     type: KnowAct
-    lexicon_terms: [assert, acknowledge]
+    lexicon_terms: [assert, acknowledge, evaluate]
     description: >
       Fallback goal verification with minimal evaluation. Produces a
       continue verdict and default confidence for lightweight judgment.

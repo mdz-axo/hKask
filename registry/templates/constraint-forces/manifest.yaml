@@ -1,5 +1,5 @@
 # Template crate manifest for constraint-forces skill
-# ℏKask v0.23.0
+# hKask v0.28.0
 
 crate:
   name: constraint-forces

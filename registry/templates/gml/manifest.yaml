@@ -49,7 +49,7 @@ templates:
   - id: gml/error-generic
     path: error-generic.j2
     type: KnowAct
-    lexicon_terms: [detect, handoff]
+    lexicon_terms: [detect, handoff, escalate]
     description: >
       Display any GML error with code, message, and context, and provide
       suggested corrective actions based on the error type.
@@ -57,7 +57,7 @@ templates:
   - id: gml/error-validation
     path: error-validation.j2
     type: KnowAct
-    lexicon_terms: [validate]
+    lexicon_terms: [validate, detect, handoff]
     description: >
       Display field-level GML validation errors with valid parameter ranges
       and corrective suggestions for each validation failure.
@@ -65,7 +65,7 @@ templates:
   - id: gml/macros
     path: macros.j2
     type: KnowAct
-    lexicon_terms: [analyze, compose]
+    lexicon_terms: [analyze, compose, structure]
     description: >
       Shared macro library for GML templates. Provides the MWC state function,
       Hill coefficient, and partition function computations.
@@ -81,7 +81,7 @@ templates:
   - id: gml/reframe-concept
     path: reframe-concept.j2
     type: KnowAct
-    lexicon_terms: [synthesize, abduct]
+    lexicon_terms: [synthesize, abduct, explore]
     description: >
       Generate alternative interpretation frames for a concept based on
       its coherence analysis. Synthesize new perspectives that might
@@ -90,7 +90,7 @@ templates:
   - id: gml/validate-inputs
     path: validate-inputs.j2
     type: KnowAct
-    lexicon_terms: [validate]
+    lexicon_terms: [validate, detect, enforce]
     description: >
       Validate GML concept and effector inputs against type, shape, and range
       constraints before template processing.
@@ -110,9 +110,13 @@ hlexicon_terms:
   - compare
   - detect
   - handoff
+  - escalate
   - validate
+  - enforce
   - recognize
   - discriminate
   - parse
   - synthesize
   - compose
+  - structure
+  - explore
