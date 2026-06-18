@@ -256,154 +256,6 @@ list_missing_magna_carta() {
         done || true
 }
 
-# ── Main ─────────────────────────────────────────────────────────────────────
-
-# Route to appropriate handler
-if [ "$FULL_MODE" = true ]; then
-    run_full_mode "${TARGET:-ALL}"
-    exit 0
-fi
-
-case "$MODE" in
-    expect)
-        TARGET="${TARGET:-ALL}"
-        if [ "$TARGET" = "ALL" ]; then
-            for crate_dir in crates/*/; do
-                c=$(basename "$crate_dir")
-                [ -d "crates/${c}/src" ] || continue
-                run_expect_mode "$c"
-            done
-        else
-            run_expect_mode "$TARGET"
-        fi
-        exit 0
-        ;;
-    principles)
-        TARGET="${TARGET:-ALL}"
-        if [ "$TARGET" = "ALL" ]; then
-            for crate_dir in crates/*/; do
-                c=$(basename "$crate_dir")
-                [ -d "crates/${c}/src" ] || continue
-                run_principles_mode "$c"
-            done
-        else
-            run_principles_mode "$TARGET"
-        fi
-        exit 0
-        ;;
-    constraining)
-        TARGET="${TARGET:-ALL}"
-        if [ "$TARGET" = "ALL" ]; then
-            for crate_dir in crates/*/; do
-                c=$(basename "$crate_dir")
-                [ -d "crates/${c}/src" ] || continue
-                run_constraining_mode "$c"
-            done
-        else
-            run_constraining_mode "$TARGET"
-        fi
-        exit 0
-        ;;
-    contract-quality)
-        TARGET="${TARGET:-ALL}"
-        if [ "$TARGET" = "ALL" ]; then
-            for crate_dir in crates/*/; do
-                c=$(basename "$crate_dir")
-                [ -d "crates/${c}/src" ] || continue
-                run_contract_quality_mode "$c"
-            done
-        else
-            run_contract_quality_mode "$TARGET"
-        fi
-        exit 0
-        ;;
-esac
-
-# ── Coverage mode (existing detailed/summary/json/csv) ───────────────────────
-
-if [ "$MODE" = "json" ]; then
-    echo "{"
-    echo "  \"baseline\": {"
-    echo "    \"total_pub_fns\": $(count_pub_fns "crates/"),"
-    echo "    \"total_contracted\": $(count_contracted "crates/")"
-    echo "  },"
-    echo "  \"crates\": ["
-    first=true
-    for crate_dir in crates/*/; do
-        crate=$(basename "$crate_dir")
-        src="${crate_dir}src"
-        [ -d "$src" ] || continue
-        pub_count=$(count_pub_fns "$src")
-        contracted_count=$(count_contracted "$src")
-        coverage_pct="0.0"
-        if [ "$pub_count" -gt 0 ]; then
-            coverage_pct=$(echo "scale=1; $contracted_count * 100 / $pub_count" | bc 2>/dev/null || echo "0.0")
-        fi
-        if [ "$first" = true ]; then first=false; else echo ","; fi
-        echo "    {"
-        echo "      \"crate\": \"$crate\","
-        echo "      \"pub_fns\": $pub_count,"
-        echo "      \"contracted\": $contracted_count,"
-        echo "      \"coverage_pct\": $coverage_pct"
-        echo -n "    }"
-    done
-    echo ""
-    echo "  ]"
-    echo "}"
-    exit 0
-fi
-
-if [ "$MODE" = "csv" ]; then
-    echo "crate,pub_fns,contracted,coverage_pct"
-    for crate_dir in crates/*/; do
-        crate=$(basename "$crate_dir")
-        src="${crate_dir}src"
-        [ -d "$src" ] || continue
-        pub_count=$(count_pub_fns "$src")
-        contracted_count=$(count_contracted "$src")
-        coverage_pct="0.0"
-        if [ "$pub_count" -gt 0 ]; then
-            coverage_pct=$(echo "scale=1; $contracted_count * 100 / $pub_count" | bc 2>/dev/null || echo "0.0")
-        fi
-        echo "$crate,$pub_count,$contracted_count,$coverage_pct"
-    done
-    exit 0
-fi
-
-if [ "$MODE" = "summary" ]; then
-    echo "=== Contract Coverage Summary ==="
-    echo ""
-    printf "%-30s %8s %10s %10s\n" "Crate" "Pub Fns" "Contracted" "Coverage %"
-    printf "%-30s %8s %10s %10s\n" "------------------------------" "--------" "----------" "----------"
-    total_pub=0
-    total_con=0
-    for crate_dir in crates/*/; do
-        crate=$(basename "$crate_dir")
-        src="${crate_dir}src"
-        [ -d "$src" ] || continue
-        pub_count=$(count_pub_fns "$src")
-        contracted_count=$(count_contracted "$src")
-        coverage_pct="0.0"
-        if [ "$pub_count" -gt 0 ]; then
-            coverage_pct=$(echo "scale=1; $contracted_count * 100 / $pub_count" | bc 2>/dev/null || echo "0.0")
-        fi
-        total_pub=$((total_pub + pub_count))
-        total_con=$((total_con + contracted_count))
-        printf "%-30s %8d %10d %9s%%\n" "$crate" "$pub_count" "$contracted_count" "$coverage_pct"
-    done
-    echo ""
-    total_cov="0.0"
-    if [ "$total_pub" -gt 0 ]; then
-        total_cov=$(echo "scale=1; $total_con * 100 / $total_pub" | bc 2>/dev/null || echo "0.0")
-    fi
-    printf "%-30s %8d %10d %9s%%\n" "TOTAL" "$total_pub" "$total_con" "$total_cov"
-    echo ""
-    echo "PASS: Contract coverage audit complete (trend monitor, not a hard gate)."
-    exit 0
-fi
-
-# ── Detailed mode (default) and extended mode definitions ────────────────────
-
 run_expect_mode() {
     crate="$1"
     src="crates/${crate}/src"
@@ -673,6 +525,154 @@ run_full_mode() {
     uncontracted_count=$((pub_count - contracted_count))
     echo "Uncontracted: $uncontracted_count — candidates for replicant contract proposals."
 }
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+# Route to appropriate handler
+if [ "$FULL_MODE" = true ]; then
+    run_full_mode "${TARGET:-ALL}"
+    exit 0
+fi
+
+case "$MODE" in
+    expect)
+        TARGET="${TARGET:-ALL}"
+        if [ "$TARGET" = "ALL" ]; then
+            for crate_dir in crates/*/; do
+                c=$(basename "$crate_dir")
+                [ -d "crates/${c}/src" ] || continue
+                run_expect_mode "$c"
+            done
+        else
+            run_expect_mode "$TARGET"
+        fi
+        exit 0
+        ;;
+    principles)
+        TARGET="${TARGET:-ALL}"
+        if [ "$TARGET" = "ALL" ]; then
+            for crate_dir in crates/*/; do
+                c=$(basename "$crate_dir")
+                [ -d "crates/${c}/src" ] || continue
+                run_principles_mode "$c"
+            done
+        else
+            run_principles_mode "$TARGET"
+        fi
+        exit 0
+        ;;
+    constraining)
+        TARGET="${TARGET:-ALL}"
+        if [ "$TARGET" = "ALL" ]; then
+            for crate_dir in crates/*/; do
+                c=$(basename "$crate_dir")
+                [ -d "crates/${c}/src" ] || continue
+                run_constraining_mode "$c"
+            done
+        else
+            run_constraining_mode "$TARGET"
+        fi
+        exit 0
+        ;;
+    contract-quality)
+        TARGET="${TARGET:-ALL}"
+        if [ "$TARGET" = "ALL" ]; then
+            for crate_dir in crates/*/; do
+                c=$(basename "$crate_dir")
+                [ -d "crates/${c}/src" ] || continue
+                run_contract_quality_mode "$c"
+            done
+        else
+            run_contract_quality_mode "$TARGET"
+        fi
+        exit 0
+        ;;
+esac
+
+# ── Coverage mode (existing detailed/summary/json/csv) ───────────────────────
+
+if [ "$MODE" = "json" ]; then
+    echo "{"
+    echo "  \"baseline\": {"
+    echo "    \"total_pub_fns\": $(count_pub_fns "crates/"),"
+    echo "    \"total_contracted\": $(count_contracted "crates/")"
+    echo "  },"
+    echo "  \"crates\": ["
+    first=true
+    for crate_dir in crates/*/; do
+        crate=$(basename "$crate_dir")
+        src="${crate_dir}src"
+        [ -d "$src" ] || continue
+        pub_count=$(count_pub_fns "$src")
+        contracted_count=$(count_contracted "$src")
+        coverage_pct="0.0"
+        if [ "$pub_count" -gt 0 ]; then
+            coverage_pct=$(echo "scale=1; $contracted_count * 100 / $pub_count" | bc 2>/dev/null || echo "0.0")
+        fi
+        if [ "$first" = true ]; then first=false; else echo ","; fi
+        echo "    {"
+        echo "      \"crate\": \"$crate\","
+        echo "      \"pub_fns\": $pub_count,"
+        echo "      \"contracted\": $contracted_count,"
+        echo "      \"coverage_pct\": $coverage_pct"
+        echo -n "    }"
+    done
+    echo ""
+    echo "  ]"
+    echo "}"
+    exit 0
+fi
+
+if [ "$MODE" = "csv" ]; then
+    echo "crate,pub_fns,contracted,coverage_pct"
+    for crate_dir in crates/*/; do
+        crate=$(basename "$crate_dir")
+        src="${crate_dir}src"
+        [ -d "$src" ] || continue
+        pub_count=$(count_pub_fns "$src")
+        contracted_count=$(count_contracted "$src")
+        coverage_pct="0.0"
+        if [ "$pub_count" -gt 0 ]; then
+            coverage_pct=$(echo "scale=1; $contracted_count * 100 / $pub_count" | bc 2>/dev/null || echo "0.0")
+        fi
+        echo "$crate,$pub_count,$contracted_count,$coverage_pct"
+    done
+    exit 0
+fi
+
+if [ "$MODE" = "summary" ]; then
+    echo "=== Contract Coverage Summary ==="
+    echo ""
+    printf "%-30s %8s %10s %10s\n" "Crate" "Pub Fns" "Contracted" "Coverage %"
+    printf "%-30s %8s %10s %10s\n" "------------------------------" "--------" "----------" "----------"
+    total_pub=0
+    total_con=0
+    for crate_dir in crates/*/; do
+        crate=$(basename "$crate_dir")
+        src="${crate_dir}src"
+        [ -d "$src" ] || continue
+        pub_count=$(count_pub_fns "$src")
+        contracted_count=$(count_contracted "$src")
+        coverage_pct="0.0"
+        if [ "$pub_count" -gt 0 ]; then
+            coverage_pct=$(echo "scale=1; $contracted_count * 100 / $pub_count" | bc 2>/dev/null || echo "0.0")
+        fi
+        total_pub=$((total_pub + pub_count))
+        total_con=$((total_con + contracted_count))
+        printf "%-30s %8d %10d %9s%%\n" "$crate" "$pub_count" "$contracted_count" "$coverage_pct"
+    done
+    echo ""
+    total_cov="0.0"
+    if [ "$total_pub" -gt 0 ]; then
+        total_cov=$(echo "scale=1; $total_con * 100 / $total_pub" | bc 2>/dev/null || echo "0.0")
+    fi
+    printf "%-30s %8d %10d %9s%%\n" "TOTAL" "$total_pub" "$total_con" "$total_cov"
+    echo ""
+    echo "PASS: Contract coverage audit complete (trend monitor, not a hard gate)."
+    exit 0
+fi
+
+# ── Detailed mode (default) and extended mode definitions ────────────────────
+
 
 # ── Detailed mode (default coverage audit) ───────────────────────────────────
 

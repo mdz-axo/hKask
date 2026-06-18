@@ -1,9 +1,9 @@
 //! OAuth authentication routes — GitHub/Google sign-in for hKask cloud deployment.
 //!
 //! # REQ: DEP-010 — P1 User Sovereignty: OAuth sign-in with session cookie.
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+//! expect: "My API access is scoped to my sovereignty boundaries" [P1]
 //! # REQ: DEP-011 — P12 Anonymous Agency: every action tied to authenticated WebID.
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+//! expect: "My API access is scoped to my sovereignty boundaries" [P1]
 //!
 //! Flow:
 //! 1. `GET /api/v1/auth/login?provider=github` → redirect to provider OAuth
@@ -47,7 +47,7 @@ struct OAuthConfig {
 impl OAuthConfig {
     /// Load OAuth config from environment variables.
     /// REQ: DEP-012
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+    /// expect: "My API access is scoped to my sovereignty boundaries" [P1]
     fn from_env(provider: &OAuthProvider) -> Result<Self, String> {
         match provider {
             OAuthProvider::GitHub => {
@@ -130,22 +130,11 @@ struct GitHubEmail {
     verified: bool,
 }
 
-/// Google OIDC userinfo response.
-#[derive(Debug, Deserialize)]
-struct GoogleUser {
-    sub: String,
-    #[serde(default)]
-    email: Option<String>,
-    #[serde(default)]
-    name: Option<String>,
-    #[serde(default)]
-    email_verified: Option<bool>,
-}
-
+/// URL-encode a string (basic implementation — only encodes special chars).
 /// GET /api/v1/auth/login
 ///
 /// REQ: DEP-013 — initiates OAuth flow with CSRF state protection.
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 /// pre:  provider query param is "github" or "google"
 /// post: redirects to provider's OAuth authorize URL
 /// post: sets state cookie for CSRF verification
@@ -188,7 +177,7 @@ pub async fn login(
 /// GET /api/v1/auth/callback
 ///
 /// REQ: DEP-014 — OAuth callback: exchanges code, creates/finds user, starts session.
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 /// pre:  code is a valid OAuth authorization code; state matches cookie
 /// post: session created, session cookie set, redirected to /terminal
 /// post: new HumanUser + ReplicantIdentity created on first sign-in
@@ -225,7 +214,12 @@ pub async fn callback(
 
     let (provider_user_id, display_name, email) = match provider {
         OAuthProvider::GitHub => fetch_github_user(&token_response.access_token).await?,
-        OAuthProvider::Google => fetch_google_user(&token_response.access_token).await?,
+        OAuthProvider::Google => {
+            return Err((
+                StatusCode::NOT_IMPLEMENTED,
+                "Google OAuth not yet supported".to_string(),
+            ));
+        }
     };
 
     // Find or create user
@@ -326,13 +320,13 @@ async fn exchange_code(
                 .await
         }
     }
-        .map_err(|e| {
-            tracing::error!(target: "hkask.api.oauth", error = %e, "Token exchange request failed");
-            (
-                StatusCode::BAD_GATEWAY,
-                format!("Token exchange failed: {e}"),
-            )
-        })?;
+    .map_err(|e| {
+        tracing::error!(target: "hkask.api.oauth", error = %e, "Token exchange request failed");
+        (
+            StatusCode::BAD_GATEWAY,
+            format!("Token exchange failed: {e}"),
+        )
+    })?;
 
     if !resp.status().is_success() {
         let body = resp.text().await.unwrap_or_default();
@@ -429,7 +423,7 @@ async fn fetch_github_user(
 /// POST /api/v1/auth/logout — destroys the current session.
 ///
 /// REQ: DEP-600
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub async fn logout(
     State(state): State<ApiState>,
     headers: axum::http::HeaderMap,
@@ -458,7 +452,7 @@ pub async fn logout(
 /// GET /api/v1/auth/session — returns current session info.
 ///
 /// REQ: DEP-601
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub async fn session_info(
     State(state): State<ApiState>,
     headers: axum::http::HeaderMap,
@@ -520,7 +514,7 @@ fn urlencoding(s: &str) -> String {
 /// Build the auth router.
 ///
 /// REQ: DEP-015
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
 pub fn auth_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     use utoipa_axum::router::OpenApiRouter;
     OpenApiRouter::new()

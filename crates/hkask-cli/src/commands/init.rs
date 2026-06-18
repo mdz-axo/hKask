@@ -1,7 +1,7 @@
 //! `kask init` — Initialize hKask server configuration.
 //!
 //! REQ: DEP-400 — P3 Headless: server bootstrap via interactive CLI prompts.
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+//! expect: "I can access all hKask functionality through the kask CLI" [P3]
 //!
 //! Creates:
 //! - ~/.config/hkask/config.json (server config)

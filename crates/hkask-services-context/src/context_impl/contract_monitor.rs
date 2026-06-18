@@ -37,6 +37,7 @@ pub(crate) fn spawn_contract_test_loop(
         "hkask-services",
         "hkask-mcp",
         "hkask-mcp-kanban",
+        "hkask-mcp-replica",
     ];
 
     tokio::spawn(async move {

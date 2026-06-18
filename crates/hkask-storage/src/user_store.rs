@@ -1,9 +1,9 @@
 //! UserStore — Human user identity, Argon2id auth, encrypted PII, session management.
-use crate::archive::MergeReceipt;
 use crate::Store;
+use crate::archive::MergeReceipt;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
-use hkask_types::identity::{HumanUser, ReplicantIdentity, UserSession};
+use hkask_types::identity::{HumanUser, Invite, InviteStatus, ReplicantIdentity, UserSession};
 use hkask_types::wallet::WalletId;
 use hkask_types::{InfrastructureError, UserID};
 use rand::RngCore;
@@ -89,6 +89,11 @@ impl UserStore {
             .ok();
         conn.execute_batch("ALTER TABLE human_users ADD COLUMN oauth_display_name TEXT;")
             .ok();
+        // Migration: add role column (multi-user, P1)
+        conn.execute_batch(
+            "ALTER TABLE human_users ADD COLUMN role TEXT NOT NULL DEFAULT 'member';",
+        )
+        .ok();
         Ok(())
     }
     /// Register a new replicant.
@@ -588,7 +593,7 @@ impl UserStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, last_active, passphrase_set_at,
-                    oauth_provider, oauth_provider_user_id, oauth_display_name
+                    oauth_provider, oauth_provider_user_id, oauth_display_name, role
              FROM human_users WHERE user_id = ?1",
         )?;
         stmt.query_row(params![user_id], |row| {
@@ -607,6 +612,11 @@ impl UserStore {
                     .and_then(|s| s.parse().ok()),
                 oauth_provider_user_id: row.get(10)?,
                 oauth_display_name: row.get(11)?,
+                role: row
+                    .get::<_, String>(12)
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(hkask_types::identity::Role::Member),
             })
         })
         .map_err(|e| match e {
@@ -615,6 +625,157 @@ impl UserStore {
             }
             other => UserStoreError::from(other),
         })
+    }
+    /// Create an invite code for a new member.
+    ///
+    /// REQ: P2-multi-invite-create
+    /// expect: "I can send an invite to bring a new user onto my server" [P2]
+    /// [P2] Goal: Affirmative Consent — admin explicitly invites each member
+    /// [P1] Constraining: User Sovereignty — invite expires and is revocable
+    /// pre:  created_by is a valid UserID with Admin role
+    /// post: invite row created with status Pending, 7-day expiry
+    pub fn create_invite(&self, created_by: &UserID) -> UserResult<Invite> {
+        let conn = self.lock_conn()?;
+        let invite_id = uuid::Uuid::new_v4().to_string();
+        let code = uuid::Uuid::new_v4().to_string().replace('-', "")[..12].to_string();
+        let now = chrono::Utc::now().timestamp();
+        let expires_at = now + 7 * 24 * 3600;
+        conn.execute(
+            "INSERT INTO invites (invite_id, created_by, code, status, created_at, expires_at)
+             VALUES (?1, ?2, ?3, 'pending', ?4, ?5)",
+            params![invite_id, created_by, code, now, expires_at],
+        )?;
+        Ok(Invite {
+            invite_id,
+            created_by: *created_by,
+            code,
+            status: InviteStatus::Pending,
+            created_at: now,
+            expires_at,
+            accepted_at: None,
+            accepted_user_id: None,
+        })
+    }
+    /// Look up an invite by code.
+    ///
+    /// REQ: P2-multi-invite-lookup
+    /// expect: "I can look up an invite code to see if it's still valid" [P2]
+    /// pre:  code is a valid invite code
+    /// post: returns Some(Invite) if found and not expired, None otherwise
+    pub fn lookup_invite(&self, code: &str) -> UserResult<Option<Invite>> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT invite_id, created_by, code, status, created_at, expires_at, accepted_at, accepted_user_id
+             FROM invites WHERE code = ?1",
+        )?;
+        let result = stmt.query_row(params![code], |row| {
+            Ok(Invite {
+                invite_id: row.get(0)?,
+                created_by: row.get(1)?,
+                code: row.get(2)?,
+                status: row.get::<_, String>(3)?.parse().unwrap_or(InviteStatus::Pending),
+                created_at: row.get(4)?,
+                expires_at: row.get(5)?,
+                accepted_at: row.get(6)?,
+                accepted_user_id: row.get(7)?,
+            })
+        }).optional()?;
+        Ok(result)
+    }
+    /// Accept an invite, linking the accepting user to the invite.
+    ///
+    /// REQ: P2-multi-invite-accept
+    /// expect: "I can accept an invite to join a server" [P2]
+    /// pre:  code is valid, invite is Pending and not expired
+    /// post: invite status updated to Accepted, accepted_user_id set
+    pub fn accept_invite(&self, code: &str, accepted_user_id: &UserID) -> UserResult<Invite> {
+        let conn = self.lock_conn()?;
+        let now = chrono::Utc::now().timestamp();
+        let rows = conn.execute(
+            "UPDATE invites SET status = 'accepted', accepted_at = ?1, accepted_user_id = ?2
+             WHERE code = ?3 AND status = 'pending' AND expires_at > ?4",
+            params![now, accepted_user_id, code, now],
+        )?;
+        if rows == 0 {
+            return Err(UserStoreError::NotFound("Invite not found or expired".into()));
+        }
+        self.lookup_invite(code)?
+            .ok_or_else(|| UserStoreError::NotFound("Invite not found after accept".into()))
+    }
+    /// List all invites created by a user.
+    ///
+    /// REQ: P2-multi-invite-list
+    /// expect: "I can see all the invites I've sent and their status" [P2]
+    /// pre:  created_by is a valid UserID
+    /// post: returns list of Invite records ordered by creation time (newest first)
+    pub fn list_invites(&self, created_by: &UserID) -> UserResult<Vec<Invite>> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT invite_id, created_by, code, status, created_at, expires_at, accepted_at, accepted_user_id
+             FROM invites WHERE created_by = ?1 ORDER BY created_at DESC",
+        )?;
+        let invites: Vec<Invite> = stmt
+            .query_map(params![created_by], |row| {
+                Ok(Invite {
+                    invite_id: row.get(0)?,
+                    created_by: row.get(1)?,
+                    code: row.get(2)?,
+                    status: row.get::<_, String>(3)?.parse().unwrap_or(InviteStatus::Pending),
+                    created_at: row.get(4)?,
+                    expires_at: row.get(5)?,
+                    accepted_at: row.get(6)?,
+                    accepted_user_id: row.get(7)?,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(invites)
+    }
+    /// List all active sessions across all users (admin-only).
+    ///
+    /// REQ: P1-multi-sessions-list
+    /// expect: "As an admin I can see all active sessions on my server" [P1]
+    /// pre:  caller must have Admin role (checked at middleware layer)
+    /// post: returns list of UserSession records with active (non-expired) sessions
+    pub fn list_all_sessions(&self) -> UserResult<Vec<UserSession>> {
+        let conn = self.lock_conn()?;
+        let now = chrono::Utc::now().timestamp();
+        let mut stmt = conn.prepare(
+            "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
+             FROM user_sessions WHERE expires_at > ?1 ORDER BY last_active DESC",
+        )?;
+        let sessions: Vec<UserSession> = stmt
+            .query_map(params![now], |row| {
+                Ok(UserSession {
+                    session_id: row.get(0)?,
+                    replicant_name: row.get(1)?,
+                    replicant_webid: row.get(2)?,
+                    user_id: row.get(3)?,
+                    session_key_salt: row.get(4)?,
+                    expires_at: row.get(5)?,
+                    last_active: row.get(6)?,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(sessions)
+    }
+    /// Set the role of a user (admin-only).
+    ///
+    /// REQ: P1-multi-role-assign
+    /// expect: "As an admin I can promote a user to admin or demote to member" [P1]
+    /// pre:  caller must have Admin role (checked at middleware layer)
+    /// post: user's role updated in database
+    pub fn set_user_role(&self, user_id: &UserID, role: hkask_types::identity::Role) -> UserResult<()> {
+        let conn = self.lock_conn()?;
+        let rows = conn.execute(
+            "UPDATE human_users SET role = ?1 WHERE user_id = ?2",
+            params![role.to_string(), user_id],
+        )?;
+        if rows == 0 {
+            return Err(UserStoreError::NotFound(user_id.as_uuid().to_string()));
+        }
+        Ok(())
     }
     /// List replicants for a user.
     ///

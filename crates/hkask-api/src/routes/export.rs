@@ -1,7 +1,7 @@
 //! Export routes — sovereignty archive creation and migration for P1 data portability.
 //!
 //! # REQ: DEP-100 — P1 User Sovereignty: export/upload encrypted triple archive.
-/// expect: "My API access is scoped to my sovereignty boundaries" [P1]
+//! expect: "My API access is scoped to my sovereignty boundaries" [P1]
 //!
 //! `POST /api/v1/export/create` — generate encrypted sovereignty archive.
 //! `POST /api/v1/export/upload` — upload archive for server migration.

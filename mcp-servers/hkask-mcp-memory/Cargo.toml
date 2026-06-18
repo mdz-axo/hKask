@@ -20,3 +20,15 @@ anyhow.workspace = true
 tracing.workspace = true
 chrono.workspace = true
 dotenvy.workspace = true
+
+[lib]
+name = "hkask_mcp_memory"
+path = "src/lib.rs"
+
+[dev-dependencies]
+hkask-test-harness = { path = "../../crates/hkask-test-harness" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-memory = { path = "../../crates/hkask-memory" }
+proptest = "1"
+tempfile.workspace = true
+rusqlite.workspace = true

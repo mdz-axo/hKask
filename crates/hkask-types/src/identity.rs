@@ -8,6 +8,47 @@ use crate::id::UserID;
 use crate::wallet::WalletId;
 use serde::{Deserialize, Serialize};
 
+/// User role for multi-user access control.
+///
+/// REQ: P1-multi-role-type
+/// expect: "I can assign roles to users to control what they can access" [P1]
+/// [P1] Goal: User Sovereignty — roles enforce who can manage the server
+/// [P2] Constraining: Affirmative Consent — admin role is explicitly granted, never default
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Role {
+    /// Full administrative access: invite, sessions, config, all realms.
+    Admin,
+    /// Standard user access: own replicants, own sessions, own resources.
+    Member,
+}
+
+impl Default for Role {
+    fn default() -> Self {
+        Role::Member
+    }
+}
+
+impl std::fmt::Display for Role {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Role::Admin => f.write_str("admin"),
+            Role::Member => f.write_str("member"),
+        }
+    }
+}
+
+impl std::str::FromStr for Role {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "admin" => Ok(Role::Admin),
+            "member" => Ok(Role::Member),
+            other => Err(format!("Unknown role: {other}")),
+        }
+    }
+}
+
 /// OAuth identity provider for human user sign-in.
 ///
 /// REQ: DEP-001 — P1 User Sovereignty: OAuth sign-in preserves user control via WebID scoping.
@@ -52,17 +93,21 @@ pub struct HumanUser {
     pub created_at: i64,
     pub last_active: Option<i64>,
     pub passphrase_set_at: Option<i64>,
+    /// User role for access control (defaults to Member).
+    /// REQ: P1-multi-role-field
+    /// expect: "Every user has a role that controls their access level" [P1]
+    pub role: Role,
     /// OAuth provider used for sign-in (None = passphrase-only registration).
     /// REQ: DEP-001
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_provider: Option<OAuthProvider>,
     /// External user ID from the OAuth provider (e.g., GitHub user ID).
     /// REQ: DEP-001
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_provider_user_id: Option<String>,
     /// Display name from the OAuth provider (e.g., GitHub username).
     /// REQ: DEP-001
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     pub oauth_display_name: Option<String>,
 }
 
@@ -87,6 +132,7 @@ impl HumanUser {
             oauth_provider: None,
             oauth_provider_user_id: None,
             oauth_display_name: None,
+            role: Role::Member,
         }
     }
 }
@@ -111,7 +157,7 @@ pub struct ReplicantIdentity {
 
 impl ReplicantIdentity {
     /// REQ: TYP-188
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  replicant_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
     /// post: returns a deterministic WebID with the "replicant" namespace;
     ///       same replicant_name always produces the same WebID
@@ -120,7 +166,7 @@ impl ReplicantIdentity {
     }
 
     /// REQ: TYP-189
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  replicant_name is non-empty; user_id is a valid UserID;
     ///       first_name_enc and last_name_enc are encrypted byte vectors
     /// post: returns a ReplicantIdentity with derived webid, wallet_id=None,
@@ -163,7 +209,7 @@ pub struct UserSession {
 
 impl UserSession {
     /// REQ: TYP-190
-/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
+    /// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  now is a Unix timestamp (i64); self.expires_at is a valid
     ///       expiry timestamp set at session creation
     /// post: returns true if now > self.expires_at (session has expired);
@@ -171,6 +217,61 @@ impl UserSession {
     pub fn is_expired(&self, now: i64) -> bool {
         now > self.expires_at
     }
+}
+
+/// Invite status for multi-user onboarding.
+///
+/// REQ: P2-multi-invite-type
+/// expect: "I can send invites to bring other users onto my server" [P2]
+/// [P2] Goal: Affirmative Consent — invite requires explicit admin action
+/// [P1] Constraining: User Sovereignty — invite is scoped to a specific server
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InviteStatus {
+    Pending,
+    Accepted,
+    Revoked,
+    Expired,
+}
+
+impl std::fmt::Display for InviteStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InviteStatus::Pending => f.write_str("pending"),
+            InviteStatus::Accepted => f.write_str("accepted"),
+            InviteStatus::Revoked => f.write_str("revoked"),
+            InviteStatus::Expired => f.write_str("expired"),
+        }
+    }
+}
+
+impl std::str::FromStr for InviteStatus {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "pending" => Ok(InviteStatus::Pending),
+            "accepted" => Ok(InviteStatus::Accepted),
+            "revoked" => Ok(InviteStatus::Revoked),
+            "expired" => Ok(InviteStatus::Expired),
+            other => Err(format!("Unknown invite status: {other}")),
+        }
+    }
+}
+
+/// Multi-user invitation record.
+///
+/// REQ: P2-multi-invite-struct
+/// expect: "I can track who was invited and whether they've joined" [P2]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Invite {
+    pub invite_id: String,
+    pub created_by: UserID,
+    pub code: String,
+    pub status: InviteStatus,
+    pub created_at: i64,
+    pub expires_at: i64,
+    pub accepted_at: Option<i64>,
+    pub accepted_user_id: Option<UserID>,
 }
 
 /// Loop: Cybernetics

@@ -10,6 +10,7 @@
 //! - `test_event()` / `test_triple()` — factories for well-formed test entities
 //! - `strategies` — proptest strategy functions for core types
 //! - `test_runner` — cargo test invocation and REQ-tagged failure parsing
+//! - `ProbContractRunner` — (p, δ, k)-satisfaction for non-deterministic contracts
 //!
 //! # Principle grounding
 //! - P5 (Essentialism): each public item does one thing well
@@ -18,10 +19,12 @@
 
 pub mod fuzz;
 pub mod mocks;
+pub mod prob_contract;
 mod schema;
 pub mod strategies;
 pub mod test_runner;
 
+pub use prob_contract::{ProbContractResult, ProbContractRunner};
 pub use schema::SCHEMA_SQL;
 
 use chrono::Utc;

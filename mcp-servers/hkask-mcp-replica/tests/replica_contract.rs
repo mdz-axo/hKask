@@ -5,7 +5,7 @@
 //!
 //! Tested seam: `cosine_distance` (pure function from hkask-services).
 
-use hkask_mcp_replica::cosine_distance;
+use hkask_services::cosine_distance;
 use hkask_test_harness::ProbContractRunner;
 use proptest::prelude::*;
 

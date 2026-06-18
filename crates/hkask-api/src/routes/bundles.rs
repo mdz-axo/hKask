@@ -1,7 +1,7 @@
 //! Bundle management routes
 //!
 //! # REQ: P11 (Digital Public/Private Sphere) — API surface for bundle management
-/// expect: "API endpoints enforce OCAP boundaries" [P4]
+//! expect: "API endpoints enforce OCAP boundaries" [P4]
 //!
 //! Delegates to `BundleService` for all business logic. The `compose` and
 //! `evolve` endpoints now use inference-driven composition via the shared

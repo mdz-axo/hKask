@@ -131,6 +131,12 @@ pub enum CnsSpan {
     AcpReplicantMemorySize,
     /// ACP IDE connection state change.
     AcpIdeConnectionState,
+    /// Multi-user role assignment (admin promotes/demotes).
+    RoleAssigned,
+    /// Multi-user invite sent.
+    InviteSent,
+    /// Multi-user invite accepted.
+    InviteAccepted,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -161,6 +167,7 @@ impl ToolSubsystem {
     /// Map an MCP server name (e.g., "memory", "hkask-mcp-spec") to a ToolSubsystem.
     ///
     /// REQ: CNS-001 — P9 Homeostatic Self-Regulation: identify which MCP server emitted a tool span.
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  server_name is a non-empty string
     /// post: returns the corresponding ToolSubsystem variant; Other if unknown
     pub fn from_server_name(server_name: &str) -> Self {
@@ -207,6 +214,7 @@ impl ToolSubsystem {
 
 impl CnsSpan {
     /// REQ: TYP-208
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  self is a valid CnsSpan variant
     /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
@@ -260,6 +268,9 @@ impl CnsSpan {
             CnsSpan::ContractQualityViolated => "cns.contract.quality.violated",
             CnsSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
             CnsSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
+            CnsSpan::RoleAssigned => "cns.multi.role.assigned",
+            CnsSpan::InviteSent => "cns.multi.invite.sent",
+            CnsSpan::InviteAccepted => "cns.multi.invite.accepted",
         }
     }
 }
@@ -274,6 +285,7 @@ impl std::str::FromStr for CnsSpan {
     type Err = ();
 
     /// REQ: TYP-209
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  s is a string matching a canonical CnsSpan namespace
     /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
     ///
@@ -345,6 +357,9 @@ impl std::str::FromStr for CnsSpan {
             "cns.contract.quality.violated" => Ok(CnsSpan::ContractQualityViolated),
             "cns.acp.replicant.memory_size" => Ok(CnsSpan::AcpReplicantMemorySize),
             "cns.acp.ide.connection_state" => Ok(CnsSpan::AcpIdeConnectionState),
+            "cns.multi.role.assigned" => Ok(CnsSpan::RoleAssigned),
+            "cns.multi.invite.sent" => Ok(CnsSpan::InviteSent),
+            "cns.multi.invite.accepted" => Ok(CnsSpan::InviteAccepted),
             _ => Err(()),
         }
     }
@@ -356,6 +371,7 @@ mod cns_span_tests {
     use std::str::FromStr;
 
     // REQ: cns-span-001 — CnsSpan Display produces canonical namespace strings
+// expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_display_produces_canonical_strings() {
         assert_eq!(
@@ -374,6 +390,7 @@ mod cns_span_tests {
     }
 
     // REQ: cns-span-002 — CnsSpan FromStr rejects invalid span identifiers
+// expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_from_str_rejects_invalid() {
         assert!(CnsSpan::from_str("cns.nonexistent").is_err());
@@ -383,6 +400,7 @@ mod cns_span_tests {
     }
 
     // REQ: cns-span-003 — CnsSpan FromStr round-trips through Display
+// expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_from_str_round_trips() {
         let variants = vec![
@@ -400,6 +418,7 @@ mod cns_span_tests {
     }
 
     // REQ: cns-span-004 — CnsSpan Tool with subsystem produces correct string
+// expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_tool_subsystem_produces_correct_string() {
         assert_eq!(
@@ -426,6 +445,7 @@ mod cns_span_tests {
     }
 
     // REQ: cns-span-005 — CnsSpan exhaustive match covers all canonical namespaces
+// expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_exhaustive_match_covers_all_canonical() {
         let all_variants = vec![
@@ -459,6 +479,9 @@ mod cns_span_tests {
             CnsSpan::ContractRejected,
             CnsSpan::AcpReplicantMemorySize,
             CnsSpan::AcpIdeConnectionState,
+            CnsSpan::RoleAssigned,
+            CnsSpan::InviteSent,
+            CnsSpan::InviteAccepted,
         ];
         for variant in &all_variants {
             let s = variant.to_string();
@@ -481,6 +504,7 @@ mod cns_span_tests {
     }
 
     // REQ: cns-span-006 — ToolSubsystem as_str produces valid subsystem suffix
+// expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn tool_subsystem_display_produces_valid_suffix() {
         assert_eq!(ToolSubsystem::WebSearch.as_str(), "web_search");
@@ -555,6 +579,7 @@ fn default_multiplier() -> f64 {
 
 impl RetryConfig {
     /// REQ: TYP-210
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  attempt >= 0; self.initial_delay_ms, self.multiplier, self.max_delay_ms are valid
     /// post: returns the exponential backoff delay in ms, capped at self.max_delay_ms
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
@@ -563,6 +588,7 @@ impl RetryConfig {
     }
 
     /// REQ: TYP-211
+/// expect: "System types preserve semantic identity and are provenance-aware" [P8]
     /// pre:  status is a valid HTTP status code (u16)
     /// post: returns true if status is in the retryable_status list
     pub fn is_retryable_status(&self, status: u16) -> bool {

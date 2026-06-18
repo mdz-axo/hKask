@@ -9,7 +9,7 @@
 //! exactly once. No Drop fallback, no release-build gas leaks.
 //!
 //! # REQ: P9-gas-settle — EnergyGuard guarantees settle() is called exactly once
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+//! expect: "I can access all hKask functionality through the kask CLI" [P3]
 
 use hkask_agents::InferenceLoop;
 use hkask_cns::{CyberneticsLoop, EnergyCost};

@@ -1,0 +1,1 @@
+//! hkask-mcp-condenser — library target for integration tests.

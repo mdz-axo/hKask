@@ -6,7 +6,7 @@
 //! the REPL only reads alerts, never mutates CNS state directly.
 //!
 //! # REQ: P4-cns-access — REPL only reads CNS alerts (read-only), never mutates CNS state
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+//! expect: "I can access all hKask functionality through the kask CLI" [P3]
 
 use super::ReplState;
 

@@ -14,7 +14,13 @@ CREATE TABLE IF NOT EXISTS human_users (
     -- Metadata
     created_at INTEGER NOT NULL,
     last_active INTEGER,
-    passphrase_set_at INTEGER
+    passphrase_set_at INTEGER,
+    -- Multi-user role (defaults to Member)
+    role TEXT NOT NULL DEFAULT 'member',
+    -- OAuth identity provider
+    oauth_provider TEXT,
+    oauth_provider_user_id TEXT,
+    oauth_display_name TEXT
 );
 
 -- Replicant identities (user logs in AS a replicant)
@@ -52,3 +58,20 @@ CREATE INDEX IF NOT EXISTS idx_replicant_identities_webid ON replicant_identitie
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_replicant ON user_sessions(replicant_name);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at);
+
+-- Multi-user invitations
+CREATE TABLE IF NOT EXISTS invites (
+    invite_id TEXT PRIMARY KEY,
+    created_by TEXT NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    accepted_at INTEGER,
+    accepted_user_id TEXT,
+    FOREIGN KEY (created_by) REFERENCES human_users(user_id),
+    FOREIGN KEY (accepted_user_id) REFERENCES human_users(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_invites_code ON invites(code);
+CREATE INDEX IF NOT EXISTS idx_invites_created_by ON invites(created_by);

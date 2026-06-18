@@ -1,7 +1,7 @@
 //! Bundle command handlers for `kask bundle`
 //!
 //! # REQ: P11 (Digital Public/Private Sphere) — CLI surface for bundle management
-/// expect: "I can access all hKask functionality through the kask CLI" [P3]
+//! expect: "I can access all hKask functionality through the kask CLI" [P3]
 //!
 //! Delegates to `BundleService` for all business logic. Formatting and
 //! terminal output are CLI-only concerns; composition, listing, and evolution
