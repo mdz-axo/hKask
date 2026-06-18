@@ -1,6 +1,6 @@
 # Public Seam Priority List
 
-**Generated:** 2026-06-18T08:08:56Z
+**Generated:** 2026-06-18T09:10:40Z
 **Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
 
@@ -51,8 +51,8 @@ risk and typically covered by struct-level or integration tests.
 | 31 | hkask-agents | fn | `activate` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:327 | Core Logic |
 | 32 | hkask-agents | fn | `calibrate_from_history` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:76 | Core Logic |
 | 33 | hkask-agents | fn | `can_access` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:108 | Core Logic |
-| 34 | hkask-agents | fn | `cancel_token` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:167 | Core Logic |
-| 35 | hkask-agents | fn | `can_transition_to` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:61 | Core Logic |
+| 34 | hkask-agents | fn | `can_transition_to` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:61 | Core Logic |
+| 35 | hkask-agents | fn | `cancel_token` | hkask-agents::loop_system | crates/hkask-agents/src/loop_system.rs:167 | Core Logic |
 | 36 | hkask-agents | fn | `capability_resources` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:170 | Core Logic |
 | 37 | hkask-agents | fn | `check_conditions` | hkask-agents::curator_agent::metacognition | crates/hkask-agents/src/curator_agent/metacognition.rs:124 | Core Logic |
 | 38 | hkask-agents | fn | `check_operation` | hkask-agents::sovereignty | crates/hkask-agents/src/sovereignty.rs:127 | Core Logic |
@@ -86,10 +86,10 @@ risk and typically covered by struct-level or integration tests.
 | 66 | hkask-agents | fn | `grant` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:69 | Core Logic |
 | 67 | hkask-agents | fn | `grant_consent` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:243 | Core Logic |
 | 68 | hkask-agents | fn | `handle` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:95 | Core Logic |
-| 69 | hkask-agents | fn | `inference_port` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:152 | Core Logic |
-| 70 | hkask-agents | fn | `inference_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:200 | Core Logic |
-| 71 | hkask-agents | fn | `in_memory` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:164 | Core Logic |
-| 72 | hkask-agents | fn | `in_memory_unchecked` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:180 | Core Logic |
+| 69 | hkask-agents | fn | `in_memory` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:164 | Core Logic |
+| 70 | hkask-agents | fn | `in_memory_unchecked` | hkask-agents::adapters::memory_loop_adapter | crates/hkask-agents/src/adapters/memory_loop_adapter.rs:180 | Core Logic |
+| 71 | hkask-agents | fn | `inference_port` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:152 | Core Logic |
+| 72 | hkask-agents | fn | `inference_port` | hkask-agents::pod::manager | crates/hkask-agents/src/pod/manager.rs:200 | Core Logic |
 | 73 | hkask-agents | fn | `invoke_tool` | hkask-agents::pod::context | crates/hkask-agents/src/pod/context.rs:334 | Core Logic |
 | 74 | hkask-agents | fn | `message_type` | hkask-agents::a2a::mod | crates/hkask-agents/src/a2a/mod.rs:269 | Core Logic |
 | 75 | hkask-agents | fn | `metacognition` | hkask-agents::curator_agent::mod | crates/hkask-agents/src/curator_agent/mod.rs:174 | Core Logic |

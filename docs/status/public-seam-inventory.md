@@ -1,6 +1,6 @@
 # Public Seam Inventory
 
-**Generated:** 2026-06-18T08:05:04Z
+**Generated:** 2026-06-18T08:43:47Z
 **Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** P8 traceability — maps public API items to REQ-tagged test coverage.
 
@@ -152,6 +152,21 @@ Each public item is classified:
 | fn | `revoke` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:80 | 🔴 Core Logic | 🟢 |
 | fn | `with_event_sink` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:179 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `ConsentManager` | hkask-agents::consent | crates/hkask-agents/src/consent.rs:136 | 🟡 Type Declaration | 🟢 |
+| fn | `handle` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:95 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:37 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_a2a` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:84 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_nu_event_store` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:61 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `CuratorContext` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:13 | 🟡 Type Declaration | 🟢 |
+| fn | `context` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:121 | 🔴 Core Logic | 🟢 |
+| fn | `curator_handle` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:134 | 🔴 Core Logic | 🟢 |
+| fn | `new` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:71 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `restore_cursor` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:149 | 🔴 Core Logic | 🟢 |
+| fn | `with_consolidation` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:89 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `with_inbox` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:110 | 🟢 Accessor/Constructor | 🟢 |
+| struct | `CurationLoop` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:45 | 🟡 Type Declaration | 🟢 |
+| fn | `check_persona_constraints` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:34 | 🔴 Core Logic | 🟢 |
+| fn | `strip_forbidden_patterns` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:71 | 🔴 Core Logic | 🟢 |
+| struct | `PersonaCheckResult` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:12 | 🟡 Type Declaration | 🟢 |
 | fn | `new` | hkask-agents::curator_agent::bot_health | crates/hkask-agents/src/curator_agent/bot_health.rs:43 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `BotHealthEvaluator` | hkask-agents::curator_agent::bot_health | crates/hkask-agents/src/curator_agent/bot_health.rs:36 | 🟡 Type Declaration | 🟢 |
 | struct | `HealthThresholds` | hkask-agents::curator_agent::bot_health | crates/hkask-agents/src/curator_agent/bot_health.rs:22 | 🟡 Type Declaration | 🟢 |
@@ -184,21 +199,6 @@ Each public item is classified:
 | fn | `with_event_sink` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:157 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `with_spec_channel` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:169 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `DefaultSpecCurator` | hkask-agents::curator_agent::spec_curator | crates/hkask-agents/src/curator_agent/spec_curator.rs:30 | 🟡 Type Declaration | 🟢 |
-| fn | `handle` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:95 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:37 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_a2a` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:84 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_nu_event_store` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:61 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `CuratorContext` | hkask-agents::curator::context | crates/hkask-agents/src/curator/context.rs:13 | 🟡 Type Declaration | 🟢 |
-| fn | `context` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:121 | 🔴 Core Logic | 🟢 |
-| fn | `curator_handle` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:134 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:71 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `restore_cursor` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:149 | 🔴 Core Logic | 🟢 |
-| fn | `with_consolidation` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:89 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `with_inbox` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:110 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `CurationLoop` | hkask-agents::curator::curation_loop | crates/hkask-agents/src/curator/curation_loop.rs:45 | 🟡 Type Declaration | 🟢 |
-| fn | `check_persona_constraints` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:34 | 🔴 Core Logic | 🟢 |
-| fn | `strip_forbidden_patterns` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:71 | 🔴 Core Logic | 🟢 |
-| struct | `PersonaCheckResult` | hkask-agents::curator::persona_filter | crates/hkask-agents/src/curator/persona_filter.rs:12 | 🟡 Type Declaration | 🟢 |
 | enum | `CoreError` | hkask-agents::error | crates/hkask-agents/src/error.rs:33 | 🟡 Type Declaration | 🔴 |
 | enum | `McpError` | hkask-agents::error | crates/hkask-agents/src/error.rs:10 | 🟡 Type Declaration | 🔴 |
 | enum | `MemoryError` | hkask-agents::error | crates/hkask-agents/src/error.rs:61 | 🟡 Type Declaration | 🔴 |
@@ -2552,10 +2552,6 @@ Each public item is classified:
 | fn | `permits_read` | hkask-types::capability::resources | crates/hkask-types/src/capability/resources.rs:107 | 🔴 Core Logic | 🟢 |
 | fn | `permits_write` | hkask-types::capability::resources | crates/hkask-types/src/capability/resources.rs:103 | 🔴 Core Logic | 🟢 |
 | struct | `CapabilitySpec` | hkask-types::capability::resources | crates/hkask-types/src/capability/resources.rs:8 | 🟡 Type Declaration | 🔴 |
-| fn | `expected_issuer` | hkask-types::capability::tokens | crates/hkask-types/src/capability/tokens.rs:33 | 🔴 Core Logic | 🟢 |
-| fn | `issuer` | hkask-types::capability::tokens | crates/hkask-types/src/capability/tokens.rs:43 | 🔴 Core Logic | 🟢 |
-| fn | `verify_issuer` | hkask-types::capability::tokens | crates/hkask-types/src/capability/tokens.rs:38 | 🔴 Core Logic | 🟢 |
-| struct | `ConsolidationToken` | hkask-types::capability::tokens | crates/hkask-types/src/capability/tokens.rs:22 | 🟡 Type Declaration | 🟢 |
 | fn | `allows_read` | hkask-types::capability::token_types | crates/hkask-types/src/capability/token_types.rs:522 | 🔴 Core Logic | 🟢 |
 | fn | `allows_write` | hkask-types::capability::token_types | crates/hkask-types/src/capability/token_types.rs:515 | 🔴 Core Logic | 🟢 |
 | fn | `attenuate_with_expiry` | hkask-types::capability::token_types | crates/hkask-types/src/capability/token_types.rs:364 | 🔴 Core Logic | 🟢 |
@@ -2588,6 +2584,10 @@ Each public item is classified:
 | struct | `DelegationTokenBuilder` | hkask-types::capability::token_types | crates/hkask-types/src/capability/token_types.rs:83 | 🟡 Type Declaration | 🟢 |
 | struct | `DelegationToken` | hkask-types::capability::token_types | crates/hkask-types/src/capability/token_types.rs:51 | 🟡 Type Declaration | 🟢 |
 | struct | `TokenSignature` | hkask-types::capability::token_types | crates/hkask-types/src/capability/token_types.rs:43 | 🟡 Type Declaration | 🟢 |
+| fn | `expected_issuer` | hkask-types::capability::tokens | crates/hkask-types/src/capability/tokens.rs:33 | 🔴 Core Logic | 🟢 |
+| fn | `issuer` | hkask-types::capability::tokens | crates/hkask-types/src/capability/tokens.rs:43 | 🔴 Core Logic | 🟢 |
+| fn | `verify_issuer` | hkask-types::capability::tokens | crates/hkask-types/src/capability/tokens.rs:38 | 🔴 Core Logic | 🟢 |
+| struct | `ConsolidationToken` | hkask-types::capability::tokens | crates/hkask-types/src/capability/tokens.rs:22 | 🟡 Type Declaration | 🟢 |
 | fn | `attenuate` | hkask-types::capability::verification::checker | crates/hkask-types/src/capability/verification/checker.rs:261 | 🔴 Core Logic | 🟢 |
 | fn | `check_resource` | hkask-types::capability::verification::checker | crates/hkask-types/src/capability/verification/checker.rs:93 | 🔴 Core Logic | 🟢 |
 | fn | `check` | hkask-types::capability::verification::checker | crates/hkask-types/src/capability/verification/checker.rs:73 | 🔴 Core Logic | 🟢 |
@@ -2717,6 +2717,13 @@ Each public item is classified:
 | type | `TripleID` | hkask-types::id::core | crates/hkask-types/src/id/core.rs:205 | 🟡 Type Declaration | 🟢 |
 | type | `UserID` | hkask-types::id::core | crates/hkask-types/src/id/core.rs:209 | 🟡 Type Declaration | 🟢 |
 | type | `WalletId` | hkask-types::id::core | crates/hkask-types/src/id/core.rs:212 | 🟡 Type Declaration | 🟢 |
+| fn | `as_uuid` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:29 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `from_persona_with_namespace` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:61 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `from_persona` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:45 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `from_uuid` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:22 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `new` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:15 | 🟢 Accessor/Constructor | 🟢 |
+| fn | `redacted_display` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:83 | 🔴 Core Logic | 🟢 |
+| struct | `WebID` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:9 | 🟡 Type Declaration | 🟢 |
 | enum | `RegistrationError` | hkask-types::identity | crates/hkask-types/src/identity.rs:147 | 🟡 Type Declaration | 🟢 |
 | fn | `derive_webid` | hkask-types::identity | crates/hkask-types/src/identity.rs:71 | 🔴 Core Logic | 🟢 |
 | fn | `is_expired` | hkask-types::identity | crates/hkask-types/src/identity.rs:122 | 🟢 Accessor/Constructor | 🟢 |
@@ -2726,13 +2733,6 @@ Each public item is classified:
 | struct | `RegistrationRequest` | hkask-types::identity | crates/hkask-types/src/identity.rs:130 | 🟡 Type Declaration | 🟢 |
 | struct | `ReplicantIdentity` | hkask-types::identity | crates/hkask-types/src/identity.rs:51 | 🟡 Type Declaration | 🟢 |
 | struct | `UserSession` | hkask-types::identity | crates/hkask-types/src/identity.rs:106 | 🟡 Type Declaration | 🟢 |
-| fn | `as_uuid` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:29 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `from_persona_with_namespace` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:61 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `from_persona` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:45 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `from_uuid` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:22 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `new` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:15 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `redacted_display` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:83 | 🔴 Core Logic | 🟢 |
-| struct | `WebID` | hkask-types::id::webid | crates/hkask-types/src/id/webid.rs:9 | 🟡 Type Declaration | 🟢 |
 | enum | `ContractState` | hkask-types::kanban | crates/hkask-types/src/kanban.rs:737 | 🟡 Type Declaration | 🟢 |
 | enum | `Priority` | hkask-types::kanban | crates/hkask-types/src/kanban.rs:16 | 🟡 Type Declaration | 🟢 |
 | enum | `TaskStatus` | hkask-types::kanban | crates/hkask-types/src/kanban.rs:62 | 🟡 Type Declaration | 🟢 |
