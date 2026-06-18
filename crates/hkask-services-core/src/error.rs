@@ -71,8 +71,8 @@ pub enum ServiceError {
     Escalation(#[from] EscalationError),
 
     /// Upstream metacognition-loop error.
-    #[error(transparent)]
-    Metacognition(#[from] MetacognitionError),
+    #[error("Metacognition error: {message}")]
+    Metacognition { message: String },
 
     // ── Agent / A2A domain ───────────────────────────────────────────────
     /// Agent not found by name.
@@ -495,7 +495,7 @@ impl ServiceError {
             // Domain errors may have their own retryability semantics.
             // Default conservative: non-retryable unless proven otherwise.
             ServiceError::Escalation(_)
-            | ServiceError::Metacognition(_)
+            | ServiceError::Metacognition { .. }
             | ServiceError::AgentRegistry(_)
             | ServiceError::AgentRegistryStore(_)
             | ServiceError::Registry(_)
