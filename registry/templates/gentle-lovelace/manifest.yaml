@@ -5,13 +5,24 @@ crate:
   name: gentle-lovelace
   version: "0.28.0"
   description: >
-    Runtime skill — gentle-lovelace.
+    Four-dimensional technical documentation quality evaluator. Scores writing
+    on accessibility (Hopper), precision (Lovelace), findability (Schriver), and
+    agent-correctness (Gentle) against embedded exemplar centroids.
 
 templates:
-  - id: gentle-lovelace/replica-report.j2
+  - id: gentle-lovelace/replica-report
     path: replica-report.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [evaluate, score, assess, recommend, analyze, compare]
     description: >
-      Runtime template for gentle-lovelace — see replica-report.j2 for details.
+      Produce a structured diagnostic report from per-dimension cosine distance
+      scores, with a diagnostic summary and actionable recommendations for
+      improving the weakest writing dimensions.
 
+hlexicon_terms:
+  - evaluate
+  - score
+  - assess
+  - recommend
+  - analyze
+  - compare

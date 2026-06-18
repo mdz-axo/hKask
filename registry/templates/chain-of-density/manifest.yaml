@@ -5,20 +5,36 @@ crate:
   name: chain-of-density
   version: "0.28.0"
   description: >
-    Runtime skill — chain-of-density.
+    Chain-of-Density iterative text summarization (Gao et al. 2024). Generates
+    increasingly dense summaries by merging missing entities into summaries while
+    maintaining fixed-length constraints across multiple density passes.
 
 templates:
-  - id: chain-of-density/density-pass.j2
+  - id: chain-of-density/density-pass
     path: density-pass.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [compress, converge, synthesize, revise, evaluate]
     description: >
-      Runtime template for chain-of-density — see density-pass.j2 for details.
+      Iterative density-increase pass that weaves missing entities into the
+      prior summary, removes redundant language, and maintains the target length.
 
-  - id: chain-of-density/initial-summary.j2
+  - id: chain-of-density/initial-summary
     path: initial-summary.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [summarize, distill, extract, analyze, classify]
     description: >
-      Runtime template for chain-of-density — see initial-summary.j2 for details.
+      Generate an initial summary with entity identification. Extracts named
+      entities and key concepts, produces a baseline summary, and computes
+      entity density as the starting point for density passes.
 
+hlexicon_terms:
+  - compress
+  - converge
+  - synthesize
+  - revise
+  - evaluate
+  - summarize
+  - distill
+  - extract
+  - analyze
+  - classify

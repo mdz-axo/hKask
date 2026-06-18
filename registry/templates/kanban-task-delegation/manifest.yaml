@@ -5,13 +5,21 @@ crate:
   name: kanban-task-delegation
   version: "0.28.0"
   description: >
-    Runtime skill — kanban-task-delegation.
+    Task delegation completion verification. Evaluates delivered artifacts
+    and evidence against acceptance criteria to determine pass/fail with
+    detailed reasoning per criterion.
 
 templates:
-  - id: kanban-task-delegation/verify-completion.j2
+  - id: kanban-task-delegation/verify-completion
     path: verify-completion.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [verify, evaluate, assess]
     description: >
-      Runtime template for kanban-task-delegation — see verify-completion.j2 for details.
+      Verify a delegated task's completion by evaluating each acceptance
+      criterion against delivered artifacts and provided evidence.
+      Produces a pass/fail verdict with per-criterion results.
 
+hlexicon_terms:
+  - verify
+  - evaluate
+  - assess

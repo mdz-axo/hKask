@@ -98,7 +98,8 @@ pub fn search_templates(
     registry: &SqliteRegistry,
     term: &str,
 ) -> Result<Vec<RegistryEntry>, ServiceError> {
-    registry.search_by_lexicon(term).map_err(ServiceError::from)
+    registry.search_by_lexicon(term)
+        .map_err(|e| ServiceError::Template { message: e.to_string() })
 }
 
 /// List MCP servers

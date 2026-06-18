@@ -8,7 +8,6 @@
 use hkask_types::sovereignty::{DataCategory, DataSovereigntyBoundary};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use tracing;
 
 // ── Domain types ─────────────────────────────────────────────────────────
 

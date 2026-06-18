@@ -5,20 +5,31 @@ crate:
   name: kanban-task-management
   version: "0.28.0"
   description: >
-    Runtime skill — kanban-task-management.
+    Kanban board monitoring and task verification. Monitors board state with
+    summary statistics and verifies individual task completion against
+    acceptance criteria.
 
 templates:
-  - id: kanban-task-management/monitor-board.j2
+  - id: kanban-task-management/monitor-board
     path: monitor-board.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [monitor, assess, detect]
     description: >
-      Runtime template for kanban-task-management — see monitor-board.j2 for details.
+      Monitor kanban board state across all columns. Produces summary counts,
+      identifies stuck or blocked tasks, and flags issues requiring attention.
 
-  - id: kanban-task-management/verify-completion.j2
+  - id: kanban-task-management/verify-completion
     path: verify-completion.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [verify, evaluate, assess]
     description: >
-      Runtime template for kanban-task-management — see verify-completion.j2 for details.
+      Verify a task's completion by evaluating each acceptance criterion
+      against deliverables and evidence. Produces pass/fail with
+      per-criterion results and detailed reasoning.
 
+hlexicon_terms:
+  - monitor
+  - assess
+  - detect
+  - verify
+  - evaluate

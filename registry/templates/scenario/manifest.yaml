@@ -5,41 +5,66 @@ crate:
   name: scenario
   version: "0.28.0"
   description: >
-    Runtime skill — scenario.
+    Scenario planning methodology following Schoemaker's framework. Refines
+    focal questions, maps key forces and macro-level driving forces, generates
+    divergent 2x2 scenario narratives, and derives implications with
+    early-warning indicators.
 
 templates:
-  - id: scenario/axes-and-narratives.j2
+  - id: scenario/axes-and-narratives
     path: axes-and-narratives.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [synthesize, explore, structure]
     description: >
-      Runtime template for scenario — see axes-and-narratives.j2 for details.
+      Generate divergent scenario narratives by selecting two critical
+      uncertainty axes from identified driving forces. Produces four
+      quadrant scenarios with internally consistent narratives.
 
-  - id: scenario/driving-forces.j2
+  - id: scenario/driving-forces
     path: driving-forces.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [analyze, classify, rank]
     description: >
-      Runtime template for scenario — see driving-forces.j2 for details.
+      Map macro-level driving forces (STEEP: society, technology, economy,
+      environment, politics) against an importance-uncertainty matrix to
+      identify critical uncertainties.
 
-  - id: scenario/focal-question.j2
+  - id: scenario/focal-question
     path: focal-question.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [specify, plan, structure]
     description: >
-      Runtime template for scenario — see focal-question.j2 for details.
+      Refine and bound the focal question with decision relevance, time
+      horizon, and scope boundaries. Produces a current state summary.
 
-  - id: scenario/implications-indicators.j2
+  - id: scenario/implications-indicators
     path: implications-indicators.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [monitor, recommend, predict]
     description: >
-      Runtime template for scenario — see implications-indicators.j2 for details.
+      Derive per-scenario implications and identify early-warning indicators.
+      Produces robust strategies (for all scenarios) and contingent
+      strategies (for specific unfoldings).
 
-  - id: scenario/key-forces.j2
+  - id: scenario/key-forces
     path: key-forces.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [analyze, elicit, classify]
     description: >
-      Runtime template for scenario — see key-forces.j2 for details.
+      Identify micro-level forces: proximate factors, market dynamics,
+      competitor actions, demand shifts, and regulatory changes. Clusters
+      identified forces into thematic groups.
 
+hlexicon_terms:
+  - synthesize
+  - explore
+  - structure
+  - analyze
+  - classify
+  - rank
+  - specify
+  - plan
+  - monitor
+  - recommend
+  - predict
+  - elicit

@@ -95,7 +95,7 @@ impl DeepInfraBackend {
 
         let result = chat_response_to_result(chat_response)?;
         info!(
-            target: "hkask.inference",
+            target: "cns.inference",
             provider = "DI",
             model = %result.model,
             tokens = result.usage.total_tokens,
@@ -161,7 +161,7 @@ impl DeepInfraBackend {
 
         let result = chat_response_to_result(chat_response)?;
         info!(
-            target: "hkask.inference",
+            target: "cns.inference",
             provider = "DI",
             model = %result.model,
             tokens = result.usage.total_tokens,

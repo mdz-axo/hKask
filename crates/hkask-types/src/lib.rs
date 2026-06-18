@@ -18,13 +18,13 @@ pub mod identity;
 pub mod kanban;
 pub mod ocr;
 
-pub mod lexicon;
 pub mod loops;
 pub mod ports;
 pub mod r7;
 pub mod secret;
 pub mod sovereignty;
 pub mod template;
+pub mod template_type;
 pub mod text;
 pub mod time;
 pub mod visibility;

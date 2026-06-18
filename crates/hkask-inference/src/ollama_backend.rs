@@ -82,7 +82,7 @@ impl OllamaBackend {
 
         let result = chat_response_to_result(chat_response)?;
         info!(
-            target: "hkask.inference",
+            target: "cns.inference",
             provider = "OM",
             model = %result.model,
             tokens = result.usage.total_tokens,
@@ -147,7 +147,7 @@ impl OllamaBackend {
 
         let result = chat_response_to_result(chat_response)?;
         info!(
-            target: "hkask.inference",
+            target: "cns.inference",
             provider = "OM",
             model = %result.model,
             tokens = result.usage.total_tokens,

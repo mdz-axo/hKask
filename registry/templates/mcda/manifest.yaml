@@ -5,34 +5,53 @@ crate:
   name: mcda
   version: "0.28.0"
   description: >
-    Runtime skill — mcda.
+    Multi-Criteria Decision Analysis. Identifies decision criteria, weights
+    and scores alternatives, ranks options with compensation masking detection,
+    and performs sensitivity analysis to assess decision robustness.
 
 templates:
-  - id: mcda/identify-criteria.j2
+  - id: mcda/identify-criteria
     path: identify-criteria.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [classify, analyze, structure]
     description: >
-      Runtime template for mcda — see identify-criteria.j2 for details.
+      Identify and classify decision criteria as benefit or cost dimensions.
+      Validates criteria independence and produces a structured criterion set.
 
-  - id: mcda/rank-alternatives.j2
+  - id: mcda/rank-alternatives
     path: rank-alternatives.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [rank, evaluate, select, resolve]
     description: >
-      Runtime template for mcda — see rank-alternatives.j2 for details.
+      Rank alternatives by composite scores with compensation masking
+      detection. Produces a top choice recommendation with warnings for
+      cases where strong performance on one criterion masks poor performance.
 
-  - id: mcda/sensitivity-analysis.j2
+  - id: mcda/sensitivity-analysis
     path: sensitivity-analysis.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [evaluate, analyze, verify]
     description: >
-      Runtime template for mcda — see sensitivity-analysis.j2 for details.
+      Perform sensitivity analysis on decision rankings by perturbing
+      weights. Identifies rank reversals, critical weights, and classifies
+      overall decision robustness.
 
-  - id: mcda/weight-and-score.j2
+  - id: mcda/weight-and-score
     path: weight-and-score.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [score, rank, evaluate]
     description: >
-      Runtime template for mcda — see weight-and-score.j2 for details.
+      Weight criteria and score alternatives using the specified weighting
+      method (direct or swing). Produces normalized scores and composite
+      rankings for each alternative.
 
+hlexicon_terms:
+  - classify
+  - analyze
+  - structure
+  - rank
+  - evaluate
+  - select
+  - resolve
+  - verify
+  - score

@@ -116,7 +116,7 @@ pub fn register_replicant_with_passphrase(
             request.last_name,
             request.passphrase,
         )
-        .map_err(Into::into)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })
 }
 
 /// REQ: CLI-052
@@ -147,7 +147,8 @@ pub fn get_replicant(
     store
         .lock()
         .expect("CLI operation")
-        .get_replicant(replicant_name)?
+        .get_replicant(replicant_name)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })?
         .ok_or_else(|| ServiceError::UserNotFound {
             source: None,
             message: format!("Replicant '{}'", replicant_name),
@@ -165,7 +166,7 @@ pub fn get_replicants(
         .lock()
         .expect("CLI operation")
         .list_replicants(user_id)
-        .map_err(Into::into)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })
 }
 
 /// REQ: CLI-055
@@ -176,7 +177,7 @@ pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSessi
         .lock()
         .expect("CLI operation")
         .list_sessions(replicant_name)
-        .map_err(Into::into)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })
 }
 
 /// REQ: CLI-056
@@ -186,7 +187,8 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
     let session = store
         .lock()
         .expect("CLI operation")
-        .get_session(session_id)?
+        .get_session(session_id)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })?
         .ok_or_else(|| ServiceError::UserNotFound {
             source: None,
             message: format!("Session '{}'", session_id),
@@ -194,7 +196,8 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
     store
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .logout(session_id)?;
+        .logout(session_id)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
     Ok(session)
 }
 
@@ -304,7 +307,8 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), Service
     let identity = store
         .lock()
         .expect("CLI operation")
-        .get_replicant(replicant_name)?
+        .get_replicant(replicant_name)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })?
         .ok_or_else(|| ServiceError::UserNotFound {
             source: None,
             message: format!("Replicant '{}'", replicant_name),
@@ -327,7 +331,7 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
         .lock()
         .expect("CLI operation")
         .list_replicants(&user_id)
-        .map_err(ServiceError::from)?;
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
     if replicants.is_empty() {
         println!("No replicants registered.");
         return Ok(());
@@ -352,7 +356,8 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
     let session = store
         .lock()
         .expect("CLI operation")
-        .get_session(session_id)?
+        .get_session(session_id)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })?
         .ok_or_else(|| ServiceError::UserNotFound {
             source: None,
             message: format!("Session '{}'", session_id),
@@ -360,7 +365,8 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
     store
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .logout(session_id)?;
+        .logout(session_id)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
     println!("Session revoked: {}", session.session_id);
     Ok(())
 }
@@ -372,7 +378,8 @@ pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceE
     let sessions = store
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .list_sessions(replicant_name)?;
+        .list_sessions(replicant_name)
+        .map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
     if sessions.is_empty() {
         println!("No active sessions.");
         return Ok(());

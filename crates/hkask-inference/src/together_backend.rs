@@ -108,7 +108,7 @@ impl TogetherBackend {
 
         let result = chat_response_to_result(chat_response)?;
         info!(
-            target: "hkask.inference",
+            target: "cns.inference",
             provider = "TG",
             model = %result.model,
             tokens = result.usage.total_tokens,

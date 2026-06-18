@@ -5,20 +5,33 @@ crate:
   name: dct-pipeline
   version: "0.28.0"
   description: >
-    Runtime skill — dct-pipeline.
+    Declarative-Constraint-Task pipeline that decomposes user queries into
+    atomic subject-verb-object sentences and classifies them into goal,
+    constraint, and task categories with ontological and epistemic modes.
 
 templates:
-  - id: dct-pipeline/classification.j2
+  - id: dct-pipeline/classification
     path: classification.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [classify, discriminate, contextualise]
     description: >
-      Runtime template for dct-pipeline — see classification.j2 for details.
+      Classify decimated atomic sentences into goal, constraint, or task
+      categories with parent-child hierarchy, ontological mode (descriptive/
+      prescriptive), and epistemic mode (declarative/subjunctive/probabilistic).
 
-  - id: dct-pipeline/decimation.j2
+  - id: dct-pipeline/decimation
     path: decimation.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [decompose, analyze, structure]
     description: >
-      Runtime template for dct-pipeline — see decimation.j2 for details.
+      Decompose text into atomic subject-verb-object simple sentences and
+      record semantic relationships (causal, conditional, contrastive, etc.)
+      between them.
 
+hlexicon_terms:
+  - classify
+  - discriminate
+  - contextualise
+  - decompose
+  - analyze
+  - structure

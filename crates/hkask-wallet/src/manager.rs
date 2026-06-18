@@ -661,6 +661,7 @@ impl WalletManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn record_withdrawal_tx(
         &self,
         wallet_id: WalletId,

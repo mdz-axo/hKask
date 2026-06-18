@@ -5,34 +5,52 @@ crate:
   name: media
   version: "0.28.0"
   description: >
-    Runtime skill — media.
+    Vision LLM-powered media analysis. Classifies photographic style, genre,
+    and era; generates scene descriptions in multiple modes (descriptive,
+    artistic, technical, alt-text); and analyzes color palettes and
+    photographic composition.
 
 templates:
-  - id: media/classify_style.j2
+  - id: media/classify_style
     path: classify_style.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [classify, discriminate, analyze]
     description: >
-      Runtime template for media — see classify_style.j2 for details.
+      Classify an image's photographic style, genre, and era using a
+      vision LLM. Evaluates across genre, era/style, and technique dimensions.
 
-  - id: media/describe_scene.j2
+  - id: media/describe_scene
     path: describe_scene.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [observe, analyze, document]
     description: >
-      Runtime template for media — see describe_scene.j2 for details.
+      Generate a detailed scene description in one of four modes:
+      descriptive, artistic, technical, or accessibility alt-text.
 
-  - id: media/tag_colors.j2
+  - id: media/tag_colors
     path: tag_colors.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [analyze, classify, detect]
     description: >
-      Runtime template for media — see tag_colors.j2 for details.
+      Analyze an image's color palette: dominant colors with hex codes,
+      approximate area coverage, compositional role, palette style,
+      temperature, and saturation level.
 
-  - id: media/tag_composition.j2
+  - id: media/tag_composition
     path: tag_composition.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [analyze, evaluate, structure]
     description: >
-      Runtime template for media — see tag_composition.j2 for details.
+      Analyze an image's photographic composition: focal point, rule of
+      thirds, leading lines, depth of field, perspective, framing,
+      symmetry, and negative space.
 
+hlexicon_terms:
+  - classify
+  - discriminate
+  - analyze
+  - observe
+  - document
+  - evaluate
+  - structure
+  - detect

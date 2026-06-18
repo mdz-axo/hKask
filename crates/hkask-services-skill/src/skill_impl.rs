@@ -11,7 +11,6 @@
 use hkask_templates::SkillLoader;
 use hkask_types::ports::{Skill, SkillZone};
 use hkask_types::visibility::Visibility;
-use tracing;
 
 use std::fs;
 use std::path::{Path, PathBuf};

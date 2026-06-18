@@ -17,7 +17,6 @@ use hkask_types::{
 };
 use serde_json::Value;
 use std::sync::Arc;
-use tracing;
 
 /// Core kanban coordination service.
 ///

@@ -33,14 +33,14 @@ impl EmbeddingRouter {
                 .build_client()
                 .map(Arc::new)
                 .map_err(
-                    |e| warn!(target: "hkask.inference", "Embedding client build failed: {}", e),
+                    |e| warn!(target: "cns.inference", "Embedding client build failed: {}", e),
                 )
                 .ok()
         };
 
         let ollama_client = build_client();
         let deepinfra_client = if config.deepinfra_api_key.is_empty() {
-            warn!(target: "hkask.inference", "DeepInfra embeddings unavailable (no API key)");
+            warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
             None
         } else {
             build_client()
@@ -139,7 +139,7 @@ impl EmbeddingRouter {
         }
 
         info!(
-            target: "hkask.inference",
+            target: "cns.inference",
             provider = %provider.as_str(),
             model = %model,
             count = sentences.len(),

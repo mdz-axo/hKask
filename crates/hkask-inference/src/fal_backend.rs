@@ -95,7 +95,7 @@ impl FalBackend {
 
         let result = chat_response_to_result(chat_response)?;
         info!(
-            target: "hkask.inference",
+            target: "cns.inference",
             provider = "FA",
             model = %result.model,
             tokens = result.usage.total_tokens,
@@ -161,7 +161,7 @@ impl FalBackend {
 
         let result = chat_response_to_result(chat_response)?;
         info!(
-            target: "hkask.inference",
+            target: "cns.inference",
             provider = "FA",
             model = %result.model,
             tokens = result.usage.total_tokens,

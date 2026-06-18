@@ -5,41 +5,59 @@ crate:
   name: mcp
   version: "0.28.0"
   description: >
-    Runtime skill — mcp.
+    Model Context Protocol integration templates. Condenses long session
+    transcripts, extracts structured content from documents, performs
+    LLM inference calls, searches academic research, and scrapes web content.
 
 templates:
-  - id: mcp/condense_session.j2
+  - id: mcp/condense_session
     path: condense_session.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [compact, compress, distill]
     description: >
-      Runtime template for mcp — see condense_session.j2 for details.
+      Condense long MCP session transcripts into compact summaries.
+      Extract key decisions, action items, and compute compression ratio.
 
-  - id: mcp/doc_extract.j2
+  - id: mcp/doc_extract
     path: doc_extract.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [extract, parse, structure]
     description: >
-      Runtime template for mcp — see doc_extract.j2 for details.
+      Extract structured content and metadata from documents against an
+      optional extraction schema with confidence scoring.
 
-  - id: mcp/inference_call.j2
+  - id: mcp/inference_call
     path: inference_call.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [prompt, request, query]
     description: >
-      Runtime template for mcp — see inference_call.j2 for details.
+      Execute a single LLM inference call with configurable temperature,
+      max tokens, and stop sequences. Produces completion text.
 
-  - id: mcp/scholar_extract.j2
+  - id: mcp/scholar_extract
     path: scholar_extract.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [search, extract, query]
     description: >
-      Runtime template for mcp — see scholar_extract.j2 for details.
+      Search academic databases for research papers matching a query,
+      with configurable year range, database selection, and abstract inclusion.
 
-  - id: mcp/web_extract.j2
+  - id: mcp/web_extract
     path: web_extract.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [search, extract, query]
     description: >
-      Runtime template for mcp — see web_extract.j2 for details.
+      Search the web and extract content from results with configurable
+      source filtering, freshness constraints, and snippet inclusion.
 
+hlexicon_terms:
+  - compact
+  - compress
+  - distill
+  - extract
+  - parse
+  - structure
+  - prompt
+  - request
+  - query
+  - search

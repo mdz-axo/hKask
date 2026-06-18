@@ -5,27 +5,44 @@ crate:
   name: rag
   version: "0.28.0"
   description: >
-    Runtime skill — rag.
+    Retrieval-Augmented Generation pipeline. Reformulates queries for improved
+    retrieval, synthesizes grounded answers with inline citations, and verifies
+    citation accuracy against source documents.
 
 templates:
-  - id: rag/reformulate-query.j2
+  - id: rag/reformulate-query
     path: reformulate-query.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [decompose, analyze, suggest]
     description: >
-      Runtime template for rag — see reformulate-query.j2 for details.
+      Reformulate a query for improved retrieval by expanding terms,
+      decomposing into sub-questions, and identifying query intent
+      and expansion terms.
 
-  - id: rag/synthesize-grounded.j2
+  - id: rag/synthesize-grounded
     path: synthesize-grounded.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [synthesize, ground, distill, reference]
     description: >
-      Runtime template for rag — see synthesize-grounded.j2 for details.
+      Synthesize a grounded answer from memory and web context with inline
+      citations. Identifies unsupported claims and assigns confidence.
 
-  - id: rag/verify-citations.j2
+  - id: rag/verify-citations
     path: verify-citations.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [verify, analyze, detect]
     description: >
-      Runtime template for rag — see verify-citations.j2 for details.
+      Verify citations in a synthesized answer against source contexts.
+      Flags unsupported claims and hallucinated content, computes overall
+      citation coverage and reliability.
 
+hlexicon_terms:
+  - decompose
+  - analyze
+  - suggest
+  - synthesize
+  - ground
+  - distill
+  - reference
+  - verify
+  - detect

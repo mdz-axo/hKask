@@ -52,16 +52,16 @@ impl InferenceRouter {
         let together = TogetherBackend::new(&config).ok();
 
         if ollama.is_none() {
-            warn!(target: "hkask.inference", "Ollama backend unavailable");
+            warn!(target: "cns.inference", "Ollama backend unavailable");
         }
         if deepinfra.is_none() {
-            warn!(target: "hkask.inference", "DeepInfra backend unavailable (no API key)");
+            warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)");
         }
         if fal.is_none() {
-            warn!(target: "hkask.inference", "fal.ai backend unavailable (no API key)");
+            warn!(target: "cns.inference", "fal.ai backend unavailable (no API key)");
         }
         if together.is_none() {
-            warn!(target: "hkask.inference", "Together AI backend unavailable (no API key)");
+            warn!(target: "cns.inference", "Together AI backend unavailable (no API key)");
         }
 
         Self {
@@ -365,7 +365,7 @@ impl InferenceRouter {
             match di.remove_background(image_url).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    tracing::warn!(target: "hkask.inference", error = %e, "DeepInfra background removal failed, falling back to fal.ai");
+                    tracing::warn!(target: "cns.inference", error = %e, "DeepInfra background removal failed, falling back to fal.ai");
                 }
             }
         }
@@ -458,7 +458,7 @@ impl InferenceRouter {
             match di.generate_speech(text, voice, None).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    tracing::warn!(target: "hkask.inference", error = %e, "DeepInfra TTS failed, falling back to fal.ai");
+                    tracing::warn!(target: "cns.inference", error = %e, "DeepInfra TTS failed, falling back to fal.ai");
                 }
             }
         }
@@ -510,7 +510,7 @@ impl InferenceRouter {
             match di.transcribe(audio_url, language).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    tracing::warn!(target: "hkask.inference", error = %e, "DeepInfra STT failed, falling back to fal.ai");
+                    tracing::warn!(target: "cns.inference", error = %e, "DeepInfra STT failed, falling back to fal.ai");
                 }
             }
         }

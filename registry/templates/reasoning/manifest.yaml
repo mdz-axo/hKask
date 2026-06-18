@@ -5,20 +5,34 @@ crate:
   name: reasoning
   version: "0.28.0"
   description: >
-    Runtime skill — reasoning.
+    Reasoning templates for atomic fact extraction and tool-augmented
+    inference. Extracts atomic facts with confidence scores from evidence
+    and performs constraint-guided convergent reasoning.
 
 templates:
-  - id: reasoning/reason_constrained.j2
+  - id: reasoning/reason_constrained
     path: reason_constrained.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [infer, converge, verify, constrain]
     description: >
-      Runtime template for reasoning — see reason_constrained.j2 for details.
+      Perform constraint-guided convergent reasoning with evidence and
+      tool augmentation. Iterates toward conclusions bounded by
+      project constraints and available evidence.
 
-  - id: reasoning/reasoning.j2
+  - id: reasoning/reasoning
     path: reasoning.j2
     type: WordAct
-    lexicon_terms: []
+    lexicon_terms: [deduce, infer, analyze, ground]
     description: >
-      Runtime template for reasoning — see reasoning.j2 for details.
+      Extract atomic facts from evidence with confidence scores.
+      Derives logical conclusions anchored in provided evidence
+      and constraints.
 
+hlexicon_terms:
+  - infer
+  - converge
+  - verify
+  - constrain
+  - deduce
+  - analyze
+  - ground

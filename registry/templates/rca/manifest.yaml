@@ -5,34 +5,53 @@ crate:
   name: rca
   version: "0.28.0"
   description: >
-    Runtime skill — rca.
+    Root Cause Analysis toolkit. Defines precise problem statements, performs
+    Ishikawa fishbone and 5-Whys causal chain analysis, and produces
+    corrective action plans with verification steps.
 
 templates:
-  - id: rca/corrective-action.j2
+  - id: rca/corrective-action
     path: corrective-action.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [fix, plan, recommend, verify]
     description: >
-      Runtime template for rca — see corrective-action.j2 for details.
+      Define corrective actions for validated root causes. Produces
+      action items with owners, deadlines, systemic improvements,
+      and a verification plan.
 
-  - id: rca/define-problem.j2
+  - id: rca/define-problem
     path: define-problem.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [analyze, specify, isolate]
     description: >
-      Runtime template for rca — see define-problem.j2 for details.
+      Define and scope a problem with precise, measurable specification.
+      Distinguishes symptoms from potential causes and assigns severity.
 
-  - id: rca/five-whys-chain.j2
+  - id: rca/five-whys-chain
     path: five-whys-chain.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [trace, analyze, verify]
     description: >
-      Runtime template for rca — see five-whys-chain.j2 for details.
+      Build 5-Whys causal chains from prioritized causes to validated root
+      causes. Cross-references chain outputs for consistency.
 
-  - id: rca/ishikawa-6m.j2
+  - id: rca/ishikawa-6m
     path: ishikawa-6m.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [analyze, classify, decompose]
     description: >
-      Runtime template for rca — see ishikawa-6m.j2 for details.
+      Perform Ishikawa fishbone analysis across the 6M categories:
+      Machine, Method, Material, Measurement, Man, and Environment.
+      Produces prioritized potential causes.
 
+hlexicon_terms:
+  - fix
+  - plan
+  - recommend
+  - verify
+  - analyze
+  - specify
+  - isolate
+  - trace
+  - classify
+  - decompose

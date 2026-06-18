@@ -5,41 +5,63 @@ crate:
   name: knowact
   version: "0.28.0"
   description: >
-    Runtime skill — knowact.
+    Core cognitive operations for agent self-awareness and adaptation. Detects
+    behavioral drift from baselines, recalibrates agent profiles, analyzes
+    gaps and omissions via ellipsis analysis, generates perspective variants,
+    and reflects on outcomes to improve.
 
 templates:
-  - id: knowact/calibrate.j2
+  - id: knowact/calibrate
     path: calibrate.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [calibrate, adapt, regulate]
     description: >
-      Runtime template for knowact — see calibrate.j2 for details.
+      Recalibrate an agent's behavioral baseline after drift is detected.
+      Produces adjustment recommendations and a new reference baseline.
 
-  - id: knowact/detect.j2
+  - id: knowact/detect
     path: detect.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [detect, monitor, assess]
     description: >
-      Runtime template for knowact — see detect.j2 for details.
+      Detect behavioral drift by comparing current agent behavior against
+      its baseline profile across multiple cognitive dimensions.
 
-  - id: knowact/ellipsis-analysis.j2
+  - id: knowact/ellipsis-analysis
     path: ellipsis-analysis.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [detect, analyze, classify, calibrate]
     description: >
-      Runtime template for knowact — see ellipsis-analysis.j2 for details.
+      Bloom-inspired cognition method for detecting meaning in gaps and
+      omissions. Analyzes what is not said against expectations, biases,
+      and assumptions.
 
-  - id: knowact/falstaffian-perspective.j2
+  - id: knowact/falstaffian-perspective
     path: falstaffian-perspective.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [calibrate, reflect, evaluate]
     description: >
-      Runtime template for knowact — see falstaffian-perspective.j2 for details.
+      Generate multiple perspective variants from a given input using the
+      Falstaffian perspective engine. Produces diverse viewpoints with
+      variance reporting for controlled exploration.
 
-  - id: knowact/reflect.j2
+  - id: knowact/reflect
     path: reflect.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [reflect, evaluate, adapt, revise]
     description: >
-      Runtime template for knowact — see reflect.j2 for details.
+      Reflect on completed cycle outcomes against the strategy used.
+      Produces insights and recommended adaptations for future cycles.
 
+hlexicon_terms:
+  - calibrate
+  - adapt
+  - regulate
+  - detect
+  - monitor
+  - assess
+  - analyze
+  - classify
+  - reflect
+  - evaluate
+  - revise

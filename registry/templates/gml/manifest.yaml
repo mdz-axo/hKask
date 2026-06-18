@@ -5,76 +5,114 @@ crate:
   name: gml
   version: "0.28.0"
   description: >
-    Runtime skill — gml.
+    The Generative Meaning Layer — a Monod-Wyman-Changeux allosteric model for
+    concept interpretation. Models conceptual flexibility as equilibrium between
+    progressive (R-state) and conservative (T-state) interpretations, with
+    effector binding, coherence assessment, and network homeostasis.
 
 templates:
-  - id: gml/assess-coherence.j2
+  - id: gml/assess-coherence
     path: assess-coherence.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [evaluate, reflect, calibrate, assess]
     description: >
-      Runtime template for gml — see assess-coherence.j2 for details.
+      Evaluate concept coherence and network homeostasis. Compare interpretive
+      equilibrium before and after effector binding, detect stability states.
 
-  - id: gml/bind-effector.j2
+  - id: gml/bind-effector
     path: bind-effector.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [infer, analogy, abduct]
     description: >
-      Runtime template for gml — see bind-effector.j2 for details.
+      Apply an effector to a concept's allosteric ports, compute the resulting
+      equilibrium shift via the MWC state function, and generate a binding
+      analogy interpreting the directional effect.
 
-  - id: gml/cns-instrument.j2
+  - id: gml/cns-instrument
     path: cns-instrument.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [instrument, monitor, observe]
     description: >
-      Runtime template for gml — see cns-instrument.j2 for details.
+      CNS instrumentation macros. Emit span events for monitoring, record
+      errors, trigger algedonic alerts on variety deficits, and produce
+      audit logs for every GML operation.
 
-  - id: gml/compute-equilibrium.j2
+  - id: gml/compute-equilibrium
     path: compute-equilibrium.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [analyze, compare, evaluate]
     description: >
-      Runtime template for gml — see compute-equilibrium.j2 for details.
+      Compute the MWC equilibrium before and after effector binding including
+      Hill coefficient analysis, cooperativity assessment, and partition
+      function comparison for accessible microstate count.
 
-  - id: gml/error-generic.j2
+  - id: gml/error-generic
     path: error-generic.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [detect, handoff]
     description: >
-      Runtime template for gml — see error-generic.j2 for details.
+      Display any GML error with code, message, and context, and provide
+      suggested corrective actions based on the error type.
 
-  - id: gml/error-validation.j2
+  - id: gml/error-validation
     path: error-validation.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [validate]
     description: >
-      Runtime template for gml — see error-validation.j2 for details.
+      Display field-level GML validation errors with valid parameter ranges
+      and corrective suggestions for each validation failure.
 
-  - id: gml/macros.j2
+  - id: gml/macros
     path: macros.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [analyze, compose]
     description: >
-      Runtime template for gml — see macros.j2 for details.
+      Shared macro library for GML templates. Provides the MWC state function,
+      Hill coefficient, and partition function computations.
 
-  - id: gml/recognize-ensemble.j2
+  - id: gml/recognize-ensemble
     path: recognize-ensemble.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [recognize, discriminate, parse]
     description: >
-      Runtime template for gml — see recognize-ensemble.j2 for details.
+      Parse a concept into its R-state and T-state ensemble components.
+      Identify allosteric ports from possible effector shapes.
 
-  - id: gml/reframe-concept.j2
+  - id: gml/reframe-concept
     path: reframe-concept.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [synthesize, abduct]
     description: >
-      Runtime template for gml — see reframe-concept.j2 for details.
+      Generate alternative interpretation frames for a concept based on
+      its coherence analysis. Synthesize new perspectives that might
+      resolve interpretive instability.
 
-  - id: gml/validate-inputs.j2
+  - id: gml/validate-inputs
     path: validate-inputs.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [validate]
     description: >
-      Runtime template for gml — see validate-inputs.j2 for details.
+      Validate GML concept and effector inputs against type, shape, and range
+      constraints before template processing.
 
+hlexicon_terms:
+  - evaluate
+  - reflect
+  - calibrate
+  - assess
+  - infer
+  - analogy
+  - abduct
+  - instrument
+  - monitor
+  - observe
+  - analyze
+  - compare
+  - detect
+  - handoff
+  - validate
+  - recognize
+  - discriminate
+  - parse
+  - synthesize
+  - compose

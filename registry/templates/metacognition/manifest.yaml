@@ -5,13 +5,22 @@ crate:
   name: metacognition
   version: "0.28.0"
   description: >
-    Runtime skill — metacognition.
+    Metacognitive goal decomposition. Breaks complex goals into dependency-ordered
+    sub-goals with strategy selection, effort estimation, and calibration based
+    on session history and prior outcomes.
 
 templates:
-  - id: metacognition/meta_decompose.j2
+  - id: metacognition/meta_decompose
     path: meta_decompose.j2
     type: KnowAct
-    lexicon_terms: []
+    lexicon_terms: [decompose, plan, calibrate, assess]
     description: >
-      Runtime template for metacognition — see meta_decompose.j2 for details.
+      Decompose a high-level goal into a tree of sub-goals with dependencies,
+      select a decomposition strategy, and estimate effort required based on
+      prior outcomes and available tools.
 
+hlexicon_terms:
+  - decompose
+  - plan
+  - calibrate
+  - assess
