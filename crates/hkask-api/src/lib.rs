@@ -240,9 +240,14 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         .merge(routes::goal_router())
         .merge(routes::settings_router())
         .merge(routes::wallet_router())
-        // P9: CNS span — outermost layer captures all requests before auth
-        .layer(axum::middleware::from_fn(middleware::cns_middleware))
-        // Session cookie middleware — runs before capability token auth (DEP-020)
+        // Middleware (outermost = last .layer() = runs first):
+        // 1. CNS span — captures all requests
+        // 2. Session cookie — injects AuthContext if valid session (DEP-020)
+        // 3. Capability token — requires Bearer token if no AuthContext
+        .layer(axum::middleware::from_fn_with_state(
+            auth_service,
+            middleware::auth_middleware,
+        ))
         .layer({
             let store = state.agent_service.user_store().clone();
             axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
@@ -253,10 +258,7 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
                 }
             })
         })
-        .layer(axum::middleware::from_fn_with_state(
-            auth_service,
-            middleware::auth_middleware,
-        ));
+        .layer(axum::middleware::from_fn(middleware::cns_middleware));
 
     // Apply API key auth middleware if available (allows Bearer token auth on wallet routes)
     if let Some(api_key_auth) = &state.api_key_auth_service {

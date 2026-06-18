@@ -127,9 +127,9 @@ pub async fn login(
         "Initiating OAuth flow"
     );
 
-    // Build response with state cookie (5-minute expiry, HttpOnly, SameSite=Lax)
+    // Build response with state cookie (5-minute expiry, HttpOnly, SameSite=Lax, Secure)
     let state_cookie = format!(
-        "hkask_oauth_state={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=300",
+        "hkask_oauth_state={}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=300",
         csrf_state
     );
 
@@ -216,9 +216,9 @@ pub async fn callback(
     );
 
     // Clear state cookie and set session cookie
-    let clear_state = "hkask_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
+    let clear_state = "hkask_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0";
     let session_cookie = format!(
-        "hkask_session={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
+        "hkask_session={}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age={}",
         session.session_id,
         86400 * 7 // 7 days
     );

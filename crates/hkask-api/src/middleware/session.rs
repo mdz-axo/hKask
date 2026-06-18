@@ -9,7 +9,7 @@
 use crate::middleware::auth::AuthContext;
 use axum::{
     body::Body,
-    http::{Request, header},
+    http::{Request, StatusCode, header},
     middleware::Next,
     response::Response,
 };
@@ -34,14 +34,15 @@ pub(crate) fn extract_cookie(headers: &axum::http::HeaderMap, name: &str) -> Opt
 ///
 /// REQ: DEP-020
 /// pre:  user_store is a valid Arc<Mutex<UserStore>>
-/// post: if valid session cookie → AuthContext injected into req, next.run called
-/// post: if invalid/expired/missing cookie → pass through
+/// post: if valid session cookie → AuthContext injected, next.run called
+/// post: if expired session cookie → 401 with clear error
+/// post: if missing cookie → pass through (capability token path may handle it)
 pub async fn session_middleware_impl(
     user_store: &Arc<Mutex<UserStore>>,
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
-    // Check for session cookie
+    // Check for session cookie — if absent, pass through to capability token auth
     let session_id = match extract_cookie(req.headers(), "hkask_session") {
         Some(id) => id,
         None => return next.run(req).await,
@@ -59,19 +60,35 @@ pub async fn session_middleware_impl(
     }; // MutexGuard dropped here
 
     let session = match session_result {
-        Ok(Some(s)) => Some(s),
-        _ => None,
+        Ok(Some(s)) => s,
+        _ => {
+            // Invalid or missing session — return 401 with clear message
+            return Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .header(
+                    header::SET_COOKIE,
+                    "hkask_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0",
+                )
+                .body(Body::from(
+                    "Session invalid or expired. Please sign in again.",
+                ))
+                .unwrap();
+        }
     };
 
-    let session = match session {
-        Some(s) => s,
-        None => return next.run(req).await,
-    };
-
-    // Check expiry
+    // Check expiry — clear expired session cookie and return 401
     let now = chrono::Utc::now().timestamp();
     if session.is_expired(now) {
-        return next.run(req).await;
+        return Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .header(
+                header::SET_COOKIE,
+                "hkask_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0",
+            )
+            .body(Body::from(
+                "Session invalid or expired. Please sign in again.",
+            ))
+            .unwrap();
     }
 
     // Inject AuthContext

@@ -213,8 +213,22 @@ impl UserStore {
 
         let email_enc = Self::encrypt_pii(email.as_bytes(), &pii_key)?;
 
-        // Derive replicant name from display name
-        let replicant_name = sanitize_replicant_name(display_name);
+        // Derive replicant name from display name, with dedup on collision
+        let mut replicant_name = sanitize_replicant_name(display_name);
+        let mut suffix: u32 = 1;
+        while self.get_replicant(&replicant_name)?.is_some() {
+            suffix += 1;
+            replicant_name = format!("{}_{}", sanitize_replicant_name(display_name), suffix);
+            if suffix > 100 {
+                // Fallback: use UUID suffix to guarantee uniqueness
+                replicant_name = format!(
+                    "{}_{}",
+                    sanitize_replicant_name(display_name),
+                    &uuid::Uuid::new_v4().to_string()[..8]
+                );
+                break;
+            }
+        }
         let first_name_enc = Self::encrypt_pii(display_name.as_bytes(), &pii_key)?;
         let last_name_enc = Self::encrypt_pii(b"", &pii_key)?;
 

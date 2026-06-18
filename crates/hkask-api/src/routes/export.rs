@@ -72,11 +72,13 @@ pub async fn export_create(
         &domain,
     )
     .map_err(|e| {
-        tracing::error!(target: "hkask.api.export", error = %e, "Failed to create archive");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Archive creation failed: {e}"),
-        )
+        let status = if matches!(e, hkask_storage::ArchiveError::Empty) {
+            StatusCode::BAD_REQUEST
+        } else {
+            tracing::error!(target: "hkask.api.export", error = %e, "Failed to create archive");
+            StatusCode::INTERNAL_SERVER_ERROR
+        };
+        (status, format!("Archive creation failed: {e}"))
     })?;
     let triple_count = archive
         .triple_count()
@@ -131,10 +133,14 @@ pub async fn export_upload(
     })?;
     let archive = BackupArchive::open(tmp_path.clone(), &req.passphrase).map_err(|e| {
         let _ = std::fs::remove_file(&tmp_path);
-        (
-            StatusCode::BAD_REQUEST,
-            format!("Failed to open archive: {e}"),
-        )
+        let msg = if e.to_string().to_lowercase().contains("sqlite")
+            || e.to_string().contains("not a database")
+        {
+            "Wrong passphrase or corrupted archive file".to_string()
+        } else {
+            format!("Failed to open archive: {e}")
+        };
+        (StatusCode::BAD_REQUEST, msg)
     })?;
     let user_store = state.agent_service.user_store();
     let existing_names: HashSet<String> = {
