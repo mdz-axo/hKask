@@ -189,15 +189,6 @@ impl ProviderCapability {
         }
     }
 
-    /// Ollama — local provider, no LoRA composition in cloud sense.
-    pub fn ollama() -> Self {
-        Self {
-            supports_lora_composition: false,
-            max_adapter_size_mb: None,
-            supported_base_model_families: vec![],
-        }
-    }
-
     /// DeepInfra — cloud provider, no LoRA composition.
     pub fn deepinfra() -> Self {
         Self {
@@ -264,9 +255,9 @@ mod tests {
     // REQ: P9-adt-provider-cost-model — no-compose providers reject everything
     #[test]
     fn no_compose_providers_reject_all() {
-        let ollama = ProviderCapability::ollama();
-        assert!(!ollama.supports_lora_composition);
-        assert!(!ollama.can_compose("llama-3.3-70b"));
+        let deepinfra = ProviderCapability::deepinfra();
+        assert!(!deepinfra.supports_lora_composition);
+        assert!(!deepinfra.can_compose("llama-3.3-70b"));
     }
 
     // REQ: P9-adt-provider-cost-model — static models are consistent

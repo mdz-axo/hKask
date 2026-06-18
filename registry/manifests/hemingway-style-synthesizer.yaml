@@ -34,10 +34,6 @@ inputs:
     type: string
     description: "Path to hKask semantic database (for exemplar retrieval and centroid validation)"
     required: true
-  - name: ollama_url
-    type: string
-    description: "Ollama embedding API base URL (default: http://127.0.0.1:11434)"
-    required: false
 
 # Process Steps
 steps:

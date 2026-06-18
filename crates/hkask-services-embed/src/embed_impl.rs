@@ -1381,7 +1381,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
                 "PDF text extraction returned near-empty result — attempting OCR fallback"
             );
 
-            // Attempt OCR via Ollama with LightOnOCR model
+            // Attempt OCR via the configured LLM OCR model
             match ocr_pdf_bytes(&bytes, url).await {
                 Ok(ocr_text) => {
                     let ocr_words = ocr_text.split_whitespace().count();
@@ -1579,8 +1579,8 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
                 Err(ServiceError::Embed {
                     source: None,
                     message: format!(
-                        "OCR model '{}' is not available. Download it from: https://ollama.com/maternion/LightOnOCR-2:1b\nThen run: ollama pull {}\n\nOriginal PDF '{}' could not be text-extracted (likely scanned). Set HKASK_OCR_MODEL to override the default model.",
-                        ocr_model, ocr_model, url
+                        "OCR model '{}' is not available. Ensure it is configured with a cloud provider prefix (e.g., DI/).\n\nOriginal PDF '{}' (source: {}) could not be text-extracted (likely scanned). Set HKASK_OCR_MODEL to override the default model.",
+                        ocr_model, url, ocr_model
                     ),
                 })
             } else {

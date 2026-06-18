@@ -1,8 +1,7 @@
 //! Embedding router — multi-provider embedding generation.
 //!
-//! Routes embedding requests to Ollama or DeepInfra based on
-//! the 2-letter provider prefix. Ollama uses its native `/api/embed`
-//! endpoint; DeepInfra uses OpenAI-compatible `/v1/embeddings`.
+//! Routes embedding requests to DeepInfra based on
+//! the 2-letter provider prefix. DeepInfra uses OpenAI-compatible `/v1/embeddings`.
 
 use crate::config::{InferenceConfig, ProviderId};
 use hkask_types::ports::EmbeddingGenerationError;
@@ -12,11 +11,9 @@ use tracing::{info, warn};
 
 /// Multi-provider embedding router.
 ///
-/// Each provider has its own embedding endpoint and wire format.
-/// Ollama uses `/api/embed` (native), cloud providers use `/v1/embeddings` (OpenAI).
+/// DeepInfra uses `/v1/embeddings` (OpenAI).
 pub struct EmbeddingRouter {
     config: InferenceConfig,
-    ollama_client: Option<Arc<reqwest::Client>>,
     deepinfra_client: Option<Arc<reqwest::Client>>,
 }
 
@@ -38,7 +35,6 @@ impl EmbeddingRouter {
                 .ok()
         };
 
-        let ollama_client = build_client();
         let deepinfra_client = if config.deepinfra_api_key.is_empty() {
             warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
             None
@@ -48,7 +44,6 @@ impl EmbeddingRouter {
 
         Self {
             config,
-            ollama_client,
             deepinfra_client,
         }
     }
@@ -59,11 +54,10 @@ impl EmbeddingRouter {
             ProviderId::parse_from_model(model).unwrap_or((self.config.default_provider, model));
 
         let available = match provider {
-            ProviderId::Ollama => self.ollama_client.is_some(),
             ProviderId::DeepInfra => self.deepinfra_client.is_some(),
-            ProviderId::Fal => false, // fal.ai does not expose embedding endpoints
-            ProviderId::Together => false, // Together AI embedding client not yet implemented
-            ProviderId::Runpod | ProviderId::Baseten => false, // adapter-composition providers
+            ProviderId::Fal => false,
+            ProviderId::Together => false,
+            ProviderId::Runpod | ProviderId::Baseten => false,
         };
 
         if !available {
@@ -100,7 +94,6 @@ impl EmbeddingRouter {
         let texts: Vec<String> = sentences.iter().map(|s| s.to_string()).collect();
 
         let result = match provider {
-            ProviderId::Ollama => self.embed_ollama(&model, &texts).await?,
             ProviderId::DeepInfra => {
                 let client = self.deepinfra_client.as_ref().ok_or_else(|| {
                     EmbeddingGenerationError::Connection("DeepInfra client not initialized".into())
@@ -170,45 +163,7 @@ impl EmbeddingRouter {
             .ok_or(EmbeddingGenerationError::EmptyResponse)
     }
 
-    /// Ollama native embedding via `/api/embed`.
-    async fn embed_ollama(
-        &self,
-        model: &str,
-        texts: &[String],
-    ) -> Result<Vec<Vec<f32>>, EmbeddingGenerationError> {
-        let client = self.ollama_client.as_ref().ok_or_else(|| {
-            EmbeddingGenerationError::Connection("Ollama client not initialized".into())
-        })?;
-        let request = OllamaEmbedRequest {
-            model: model.to_string(),
-            input: texts.to_vec(),
-        };
-
-        let response = client
-            .post(format!("{}/api/embed", self.config.ollama_base_url))
-            .json(&request)
-            .send()
-            .await
-            .map_err(|e| EmbeddingGenerationError::Connection(e.to_string()))?;
-
-        let status = response.status();
-        if !status.is_success() {
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(EmbeddingGenerationError::Api(status.as_u16(), error_text));
-        }
-
-        let embed_response: EmbedResponse = response.json().await.map_err(|e| {
-            EmbeddingGenerationError::Json(format!("Ollama embed JSON parse: {}", e))
-        })?;
-
-        if embed_response.embeddings.is_empty() {
-            return Err(EmbeddingGenerationError::EmptyResponse);
-        }
-
-        Ok(embed_response.embeddings)
-    }
-
-    /// OpenAI-compatible embedding via `/v1/embeddings` (Fireworks, DeepInfra).
+    /// OpenAI-compatible embedding via `/v1/embeddings` (DeepInfra).
     async fn embed_openai(
         &self,
         client: &reqwest::Client,
@@ -256,24 +211,11 @@ impl EmbeddingRouter {
 
 // ── Wire format types ────────────────────────────────────────────────────────
 
-/// Ollama native embed request.
-#[derive(Debug, Clone, Serialize)]
-struct OllamaEmbedRequest {
-    model: String,
-    input: Vec<String>,
-}
-
 /// OpenAI-compatible embed request.
 #[derive(Debug, Clone, Serialize)]
 struct OpenAiEmbedRequest {
     model: String,
     input: Vec<String>,
-}
-
-/// Shared embed response (both Ollama and OpenAI use this shape).
-#[derive(Debug, Deserialize)]
-struct EmbedResponse {
-    embeddings: Vec<Vec<f32>>,
 }
 
 /// OpenAI embed response wraps embeddings in a `data` array.

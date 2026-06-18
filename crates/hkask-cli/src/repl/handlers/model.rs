@@ -1,97 +1,18 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
 use crate::repl::handlers::repl_settings::ModelMeta;
-use hkask_inference::{InferenceConfig, ProviderId};
+use hkask_inference::ProviderId;
 use hkask_services::{InferenceContext, InferenceService};
 
 pub(crate) fn populate_model_meta(
     state: &mut super::super::ReplState,
-    rt: &tokio::runtime::Handle,
+    _rt: &tokio::runtime::Handle,
 ) {
-    let config = state.service_context.config().inference_config.clone();
-    let model = state.current_model.clone();
-    if let Some(show) = rt.block_on(fetch_model_show(&config, &model)) {
-        let context_length = show.context_length().unwrap_or(4096);
-        let supports_thinking = show.supports_thinking();
-        let capabilities = show.capabilities.unwrap_or_default();
-        state.repl_settings.model_meta = Some(ModelMeta {
-            context_length,
-            supports_thinking,
-            capabilities,
-        });
-        let thinking_str = if supports_thinking {
-            "thinking ✓"
-        } else {
-            ""
-        };
-        println!("  Window: {} tokens  {}", context_length, thinking_str);
-    }
-}
-
-/// Fetch per-model detail from Ollama's `/api/show` endpoint.
-///
-/// Only works for Ollama models (OM/ prefix or unprefixed with default
-/// provider = Ollama). Returns `None` for DeepInfra/Together AI models or
-/// if the endpoint is unreachable.
-async fn fetch_model_show(config: &InferenceConfig, model: &str) -> Option<ModelShowInfo> {
-    // Resolve the raw Ollama model name, stripping any provider prefix.
-    let ollama_model = match ProviderId::parse_from_model(model) {
-        Some((ProviderId::Ollama, stripped)) => stripped.to_string(),
-        Some((_, _)) => return None, // FW/DI: no /api/show equivalent
-        None => {
-            if config.default_provider == ProviderId::Ollama {
-                model.to_string()
-            } else {
-                return None;
-            }
-        }
-    };
-
-    let client = config.build_client().ok()?;
-    let request = client
-        .get(format!("{}/api/show", config.ollama_base_url))
-        .query(&[("name", &ollama_model)]);
-    match request.send().await {
-        Ok(resp) => resp.json::<ModelShowInfo>().await.ok(),
-        Err(_) => None,
-    }
-}
-
-/// Per-model detail from Ollama's `/api/show` endpoint.
-#[derive(Debug, Clone, serde::Deserialize)]
-struct ModelShowInfo {
-    #[serde(default)]
-    pub model_info: Option<std::collections::HashMap<String, serde_json::Value>>,
-    #[serde(default)]
-    pub capabilities: Option<Vec<String>>,
-}
-
-impl ModelShowInfo {
-    fn context_length(&self) -> Option<u32> {
-        self.model_info.as_ref()?.iter().find_map(|(k, v)| {
-            if k.ends_with(".context_length") {
-                v.as_u64().map(|n| n as u32)
-            } else {
-                None
-            }
-        })
-    }
-
-    fn supports_thinking(&self) -> bool {
-        if let Some(ref caps) = self.capabilities
-            && caps.iter().any(|c| c == "reasoning" || c == "thinking")
-        {
-            return true;
-        }
-        if let Some(ref info) = self.model_info
-            && info.iter().any(|(k, v)| {
-                (k.contains("reasoning") || k.contains("thinking")) && v.as_bool().unwrap_or(false)
-            })
-        {
-            return true;
-        }
-        false
-    }
+    state.repl_settings.model_meta = Some(ModelMeta {
+        context_length: 16384,
+        supports_thinking: false,
+        capabilities: Vec::new(),
+    });
 }
 
 pub(crate) fn handle_model(

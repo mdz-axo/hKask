@@ -27,7 +27,6 @@ assertions:
         module: config
         methods:
           - InferenceConfig
-          - ollama_base_url
           - deepinfra_base_url
           - fal_base_url
           - together_base_url
@@ -69,7 +68,6 @@ assertions:
         module: config
         methods:
           - InferenceConfig
-          - ollama_base_url
           - deepinfra_base_url
           - fal_base_url
           - together_base_url

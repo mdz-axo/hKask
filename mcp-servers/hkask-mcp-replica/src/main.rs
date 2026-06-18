@@ -1110,10 +1110,6 @@ async fn main() -> anyhow::Result<()> {
                 "HKASK_REPLICA_MODEL",
                 "Generation model for prose composition (default: deepseek-v4-flash:cloud)",
             ),
-            hkask_mcp::CredentialRequirement::optional(
-                "OM_BASE_URL",
-                "Ollama base URL for embedding and inference (default: http://127.0.0.1:11434)",
-            ),
         ],
     )
     .await

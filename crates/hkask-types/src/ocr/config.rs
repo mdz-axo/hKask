@@ -80,8 +80,7 @@ impl std::fmt::Display for OcrBackend {
 // ── Thresholds Module ─────────────────────────────────────────────────────
 
 /// Default vision LLM model for OCR.
-/// Primary: olmOCR-2 on DeepInfra (cloud, fast GPUs, 82.4 on OlmOCR-Bench).
-/// Local fallback: LightOnOCR-2:1b on Ollama (83.2 on OlmOCR-Bench, 1B params).
+/// Uses olmOCR-2 on DeepInfra (cloud, fast GPUs, 82.4 on OlmOCR-Bench).
 /// Override via `HKASK_OCR_MODEL` env var or `llm_model` pipeline parameter.
 pub const DEFAULT_LLM_OCR_MODEL: &str = "DI/allenai/olmOCR-2-7B-1025";
 

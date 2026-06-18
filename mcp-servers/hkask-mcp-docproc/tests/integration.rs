@@ -4,8 +4,7 @@
 //! Run with: `cargo test --package hkask-mcp-docproc --test integration -- --ignored`
 //!
 //! Prerequisites:
-//! - Ollama running at http://127.0.0.1:11434
-//! - A vision-capable model pulled (e.g., `ollama pull minicpm-v:8b`)
+//! - DeepInfra API key set via `DI_API_KEY` environment variable
 //! - `pdftoppm` from poppler-utils installed (for PDF decimation tests)
 //! - `tesseract` installed (for native Tesseract tests)
 use async_trait::async_trait;
@@ -16,22 +15,11 @@ use hkask_mcp_docproc::ocr::pipeline::{self, OcrExecutor};
 use hkask_types::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use image::DynamicImage;
 
-fn ollama_available() -> bool {
-    std::process::Command::new("curl")
-        .args([
-            "-s",
-            "-o",
-            "/dev/null",
-            "-w",
-            "%{http_code}",
-            "http://127.0.0.1:11434/api/tags",
-        ])
-        .output()
-        .map(|o| {
-            let code = String::from_utf8_lossy(&o.stdout);
-            code.trim() == "200"
-        })
-        .unwrap_or(false)
+fn inference_available() -> bool {
+    !std::env::var("DI_API_KEY")
+        .or_else(|_| std::env::var("DEEPINFRA_API_KEY"))
+        .unwrap_or_default()
+        .is_empty()
 }
 
 fn pdftoppm_available() -> bool {
@@ -217,13 +205,13 @@ fn minimal_pdf() -> Vec<u8> {
 // REQ:ocr-integration-01 — Pipeline with real LLM OCR
 #[tokio::test]
 async fn test_pipeline_with_llm_ocr() {
-    if !ollama_available() {
-        eprintln!("SKIP: Ollama not reachable");
+    if !inference_available() {
+        eprintln!("SKIP: inference backend not available (set DI_API_KEY)");
         return;
     }
 
     let config = InferenceConfig::from_env();
-    let executor = RealExecutor::new(config.clone(), Some("maternion/LightOnOCR-2:1b".into()));
+    let executor = RealExecutor::new(config.clone(), Some("DI/allenai/olmOCR-2-7B-1025".into()));
     let thresholds = ThresholdConfig::default();
     let embedding_router = EmbeddingRouter::new(config);
 
@@ -232,7 +220,7 @@ async fn test_pipeline_with_llm_ocr() {
         1,
         &executor,
         &thresholds,
-        Some("maternion/LightOnOCR-2:1b"),
+        Some("DI/allenai/olmOCR-2-7B-1025"),
         Some((&embedding_router, "DI/Qwen/Qwen3-Embedding-0.6B")),
     )
     .await;
@@ -286,8 +274,8 @@ async fn test_pipeline_with_tesseract() {
 // REQ:ocr-integration-03 — PDF decimation + pipeline
 #[tokio::test]
 async fn test_pdf_pipeline() {
-    if !ollama_available() || !pdftoppm_available() {
-        eprintln!("SKIP: Ollama or pdftoppm not available");
+    if !inference_available() || !pdftoppm_available() {
+        eprintln!("SKIP: inference backend or pdftoppm not available");
         return;
     }
 
@@ -309,7 +297,7 @@ async fn test_pdf_pipeline() {
         1,
         &executor,
         &thresholds,
-        Some("maternion/LightOnOCR-2:1b"),
+        Some("DI/allenai/olmOCR-2-7B-1025"),
         None,
     )
     .await;

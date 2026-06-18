@@ -3,14 +3,14 @@
 //! Verifies provider-prefix routing, unavailable-backend errors,
 //! default-provider fallback, model-override routing, and graceful
 //! degradation during model listing. Uses `wiremock` to simulate
-//! Ollama and DeepInfra HTTP backends without real network calls.
+//! DeepInfra and Together AI HTTP backends without real network calls.
 //!
 //! # Architecture under test
 //!
 //! ```text
 //! InferenceRouter
-//!   ├── OllamaBackend    — OM/ prefix → POST /v1/chat/completions
-//!   └── DeepInfraBackend — DI/ prefix → POST /v1/chat/completions
+//!   ├── DeepInfraBackend — DI/ prefix → POST /v1/chat/completions
+//!   └── TogetherBackend  — TG/ prefix → POST /v1/chat/completions
 //! ```
 //!
 //! # REQ tags
@@ -46,9 +46,9 @@ fn mock_chat_response(model: &str, content: &str) -> serde_json::Value {
     })
 }
 
-/// Build a mock Ollama `/api/tags` response.
-fn mock_ollama_tags(models: &[serde_json::Value]) -> serde_json::Value {
-    json!({ "models": models })
+/// Build a mock DeepInfra `/v1/models` response.
+fn mock_deepinfra_models(models: &[serde_json::Value]) -> serde_json::Value {
+    json!({ "data": models })
 }
 
 /// Default LLMParameters for tests (minimal, non-streaming).
@@ -73,25 +73,13 @@ fn default_params() -> LLMParameters {
 /// REQ: P9-inf-test-routing-by-provider-prefix — Provider-prefix routing
 /// \[P9\] Motivating: Homeostatic Self-Regulation — end-to-end provider routing
 ///
-/// The router dispatches OM/-prefixed models to the Ollama backend
-/// and DI/-prefixed models to the DeepInfra backend.
+/// The router dispatches DI/-prefixed models to the DeepInfra backend
+/// and TG/-prefixed models to the Together AI backend.
 #[tokio::test]
 async fn routing_by_provider_prefix() {
-    // Stand up two mock servers
-    let ollama_mock = MockServer::start().await;
     let deepinfra_mock = MockServer::start().await;
+    let together_mock = MockServer::start().await;
 
-    // Ollama mock: responds to /v1/chat/completions
-    Mock::given(method("POST"))
-        .and(path("/v1/chat/completions"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(mock_chat_response("qwen3:8b", "Response from Ollama")),
-        )
-        .mount(&ollama_mock)
-        .await;
-
-    // DeepInfra mock: responds to /v1/chat/completions
     Mock::given(method("POST"))
         .and(path("/v1/chat/completions"))
         .respond_with(ResponseTemplate::new(200).set_body_json(mock_chat_response(
@@ -101,25 +89,25 @@ async fn routing_by_provider_prefix() {
         .mount(&deepinfra_mock)
         .await;
 
-    // Configure router pointing at mock servers
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(mock_chat_response(
+            "Qwen/Qwen2.5-7B-Instruct-Turbo",
+            "Response from Together",
+        )))
+        .mount(&together_mock)
+        .await;
+
     let config = InferenceConfig {
-        default_provider: ProviderId::Ollama,
-        ollama_base_url: ollama_mock.uri(),
+        default_provider: ProviderId::DeepInfra,
         deepinfra_base_url: deepinfra_mock.uri(),
-        deepinfra_api_key: "test-key".to_string(), // needed for DI backend to exist
+        deepinfra_api_key: "test-key".to_string(),
+        together_base_url: together_mock.uri(),
+        together_api_key: "test-key".to_string(),
         ..Default::default()
     };
     let router = InferenceRouter::new(config);
 
-    // OM/ prefix → Ollama
-    let result = router
-        .generate_with_model("Hello", &default_params(), Some("OM/qwen3:8b"))
-        .await
-        .expect("OM/ routing should succeed");
-    assert_eq!(result.text, "Response from Ollama");
-    assert_eq!(result.model, "qwen3:8b");
-
-    // DI/ prefix → DeepInfra
     let result = router
         .generate_with_model(
             "Hello",
@@ -130,6 +118,17 @@ async fn routing_by_provider_prefix() {
         .expect("DI/ routing should succeed");
     assert_eq!(result.text, "Response from DeepInfra");
     assert_eq!(result.model, "meta-llama/Llama-3.3-70B-Instruct");
+
+    let result = router
+        .generate_with_model(
+            "Hello",
+            &default_params(),
+            Some("TG/Qwen/Qwen2.5-7B-Instruct-Turbo"),
+        )
+        .await
+        .expect("TG/ routing should succeed");
+    assert_eq!(result.text, "Response from Together");
+    assert_eq!(result.model, "Qwen/Qwen2.5-7B-Instruct-Turbo");
 }
 
 /// REQ: P9-inf-test-unavailable-backend-error — Unavailable backend error
@@ -139,46 +138,48 @@ async fn routing_by_provider_prefix() {
 /// requests with that provider's prefix return an error.
 #[tokio::test]
 async fn unavailable_backend_returns_error() {
-    let ollama_mock = MockServer::start().await;
+    let deepinfra_mock = MockServer::start().await;
 
     Mock::given(method("POST"))
         .and(path("/v1/chat/completions"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(mock_chat_response("qwen3:8b", "Ollama response")),
-        )
-        .mount(&ollama_mock)
+        .respond_with(ResponseTemplate::new(200).set_body_json(mock_chat_response(
+            "meta-llama/Llama-3.3-70B-Instruct",
+            "DeepInfra response",
+        )))
+        .mount(&deepinfra_mock)
         .await;
 
-    // Configure router with Ollama only (no DeepInfra API key → DI unavailable)
     let config = InferenceConfig {
-        default_provider: ProviderId::Ollama,
-        ollama_base_url: ollama_mock.uri(),
-        deepinfra_api_key: String::new(), // empty → DI backend not created
+        default_provider: ProviderId::DeepInfra,
+        deepinfra_base_url: deepinfra_mock.uri(),
+        deepinfra_api_key: "test-key".to_string(),
+        together_api_key: String::new(), // empty → TG backend not created
         ..Default::default()
     };
     let router = InferenceRouter::new(config);
 
-    // OM/ prefix → works
     let result = router
-        .generate_with_model("Hello", &default_params(), Some("OM/qwen3:8b"))
+        .generate_with_model(
+            "Hello",
+            &default_params(),
+            Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+        )
         .await;
     assert!(
         result.is_ok(),
-        "OM/ should succeed when Ollama is available"
+        "DI/ should succeed when DeepInfra is available"
     );
 
-    // DI/ prefix → error (backend unavailable)
     let result = router
-        .generate_with_model("Hello", &default_params(), Some("DI/some-model"))
+        .generate_with_model("Hello", &default_params(), Some("TG/some-model"))
         .await;
     assert!(
         result.is_err(),
-        "DI/ should fail when DeepInfra is unavailable"
+        "TG/ should fail when Together AI is unavailable"
     );
     let err = result.unwrap_err().to_string();
     assert!(
-        err.contains("not available") || err.contains("DeepInfra"),
+        err.contains("not available") || err.contains("Together"),
         "Error should mention unavailable provider, got: {}",
         err
     );
@@ -190,7 +191,7 @@ async fn unavailable_backend_returns_error() {
 /// Unprefixed model names use the configured default provider.
 #[tokio::test]
 async fn default_provider_routing() {
-    let ollama_mock = MockServer::start().await;
+    let deepinfra_mock = MockServer::start().await;
 
     Mock::given(method("POST"))
         .and(path("/v1/chat/completions"))
@@ -198,19 +199,18 @@ async fn default_provider_routing() {
             "deepseek-v4-pro",
             "Default provider response",
         )))
-        .mount(&ollama_mock)
+        .mount(&deepinfra_mock)
         .await;
 
-    // Default provider = Ollama, default model = "deepseek-v4-pro"
     let config = InferenceConfig {
-        default_provider: ProviderId::Ollama,
-        ollama_base_url: ollama_mock.uri(),
+        default_provider: ProviderId::DeepInfra,
+        deepinfra_base_url: deepinfra_mock.uri(),
+        deepinfra_api_key: "test-key".to_string(),
         default_model: "deepseek-v4-pro".to_string(),
         ..Default::default()
     };
     let router = InferenceRouter::new(config);
 
-    // generate() uses default_model (unprefixed → Ollama)
     let result = router
         .generate("Hello", &default_params())
         .await
@@ -226,17 +226,8 @@ async fn default_provider_routing() {
 /// the correct backend regardless of the default model.
 #[tokio::test]
 async fn model_override_routing() {
-    let ollama_mock = MockServer::start().await;
     let deepinfra_mock = MockServer::start().await;
-
-    Mock::given(method("POST"))
-        .and(path("/v1/chat/completions"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(mock_chat_response("qwen3:8b", "Override Ollama")),
-        )
-        .mount(&ollama_mock)
-        .await;
+    let together_mock = MockServer::start().await;
 
     Mock::given(method("POST"))
         .and(path("/v1/chat/completions"))
@@ -247,17 +238,36 @@ async fn model_override_routing() {
         .mount(&deepinfra_mock)
         .await;
 
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(mock_chat_response(
+            "Qwen/Qwen2.5-7B-Instruct-Turbo",
+            "Override Together",
+        )))
+        .mount(&together_mock)
+        .await;
+
     let config = InferenceConfig {
-        default_provider: ProviderId::Ollama,
-        ollama_base_url: ollama_mock.uri(),
+        default_provider: ProviderId::DeepInfra,
         deepinfra_base_url: deepinfra_mock.uri(),
         deepinfra_api_key: "test-key".to_string(),
-        default_model: "OM/qwen3:8b".to_string(),
+        together_base_url: together_mock.uri(),
+        together_api_key: "test-key".to_string(),
+        default_model: "DI/meta-llama/Llama-3.3-70B-Instruct".to_string(),
         ..Default::default()
     };
     let router = InferenceRouter::new(config);
 
-    // Override to DI/ model even though default is OM/
+    let result = router
+        .generate_with_model(
+            "Hello",
+            &default_params(),
+            Some("TG/Qwen/Qwen2.5-7B-Instruct-Turbo"),
+        )
+        .await
+        .expect("Model override should succeed");
+    assert_eq!(result.text, "Override Together");
+
     let result = router
         .generate_with_model(
             "Hello",
@@ -267,13 +277,6 @@ async fn model_override_routing() {
         .await
         .expect("Model override should succeed");
     assert_eq!(result.text, "Override DeepInfra");
-
-    // Override to OM/ model
-    let result = router
-        .generate_with_model("Hello", &default_params(), Some("OM/qwen3:8b"))
-        .await
-        .expect("Model override should succeed");
-    assert_eq!(result.text, "Override Ollama");
 }
 
 /// REQ: P9-inf-test-list-models-degradation — Graceful degradation in list_models
@@ -283,36 +286,23 @@ async fn model_override_routing() {
 /// `list_models()` still returns results from reachable providers.
 #[tokio::test]
 async fn list_models_graceful_degradation() {
-    let ollama_mock = MockServer::start().await;
-    // DeepInfra mock: we intentionally do NOT mount a /v1/models mock,
-    // so the request will fail (connection refused or 404).
-
-    // Ollama mock: responds to /api/tags with models
-    Mock::given(method("GET"))
-        .and(path("/api/tags"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(mock_ollama_tags(&[json!({
-                "name": "qwen3:8b",
-                "size": 5_000_000_000_u64,
-                "details": {
-                    "family": "qwen2",
-                    "parameter_size": "8B",
-                    "quantization_level": "Q4_0"
-                }
-            })])),
-        )
-        .mount(&ollama_mock)
-        .await;
-
-    // DeepInfra mock: stand up a server but do NOT mount /v1/models.
-    // The GET will hit wiremock's default 404 → list_models treats as
-    // graceful degradation (returns empty vec for that provider).
     let deepinfra_mock = MockServer::start().await;
 
-    // Configure router with both providers.
+    Mock::given(method("GET"))
+        .and(path("/v1/models"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(mock_deepinfra_models(&[json!({
+                "id": "meta-llama/Llama-3.3-70B-Instruct",
+                "object": "model",
+                "created": 1700000000,
+                "owned_by": "deepinfra"
+            })])),
+        )
+        .mount(&deepinfra_mock)
+        .await;
+
     let config = InferenceConfig {
-        default_provider: ProviderId::Ollama,
-        ollama_base_url: ollama_mock.uri(),
+        default_provider: ProviderId::DeepInfra,
         deepinfra_base_url: deepinfra_mock.uri(),
         deepinfra_api_key: "test-key".to_string(),
         ..Default::default()
@@ -321,20 +311,20 @@ async fn list_models_graceful_degradation() {
 
     let models = router.list_models().await;
 
-    // Should have at least the Ollama model
     assert!(
         !models.is_empty(),
         "list_models should return results from reachable providers"
     );
 
-    // The Ollama model should be present with OM/ prefix
-    let ollama_model = models.iter().find(|m| m.prefixed_name == "OM/qwen3:8b");
+    let deepinfra_model = models
+        .iter()
+        .find(|m| m.prefixed_name == "DI/meta-llama/Llama-3.3-70B-Instruct");
     assert!(
-        ollama_model.is_some(),
-        "Ollama model should be present with OM/ prefix. Got models: {:?}",
+        deepinfra_model.is_some(),
+        "DeepInfra model should be present with DI/ prefix. Got models: {:?}",
         models.iter().map(|m| &m.prefixed_name).collect::<Vec<_>>()
     );
-    assert_eq!(ollama_model.unwrap().provider, ProviderId::Ollama);
+    assert_eq!(deepinfra_model.unwrap().provider, ProviderId::DeepInfra);
 }
 
 /// REQ: P9-inf-test-thinking-disable-flow — Thinking mode disable flows through router to wire format
@@ -349,20 +339,17 @@ async fn disable_thinking_flows_to_wire_format() {
 
     Mock::given(method("POST"))
         .and(path("/v1/chat/completions"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(mock_chat_response("qwen3:8b", "Summary text")),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(mock_chat_response(
+            "meta-llama/Llama-3.3-70B-Instruct",
+            "Summary text",
+        )))
         .mount(&mock)
         .await;
 
-    // We can't easily capture the body with wiremock's high-level API,
-    // so we verify the end-to-end behavior: the request succeeds and
-    // the response is correct. The wire-format mapping is tested in
-    // chat_protocol::tests::disable_thinking_maps_to_wire_format.
     let config = InferenceConfig {
-        default_provider: ProviderId::Ollama,
-        ollama_base_url: mock.uri(),
+        default_provider: ProviderId::DeepInfra,
+        deepinfra_base_url: mock.uri(),
+        deepinfra_api_key: "test-key".to_string(),
         ..Default::default()
     };
     let router = InferenceRouter::new(config);
@@ -382,16 +369,16 @@ async fn disable_thinking_flows_to_wire_format() {
     };
 
     let result = router
-        .generate_with_model("Summarize this.", &params, Some("OM/qwen3:8b"))
+        .generate_with_model(
+            "Summarize this.",
+            &params,
+            Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+        )
         .await
         .expect("Request with disable_thinking should succeed");
 
     assert_eq!(result.text, "Summary text");
-    assert_eq!(result.model, "qwen3:8b");
-    // The wire-format mapping (disable_thinking → enable_thinking: false)
-    // is verified by chat_protocol::tests::disable_thinking_maps_to_wire_format.
-    // This integration test confirms the router passes LLMParameters through
-    // to the backend without interference.
+    assert_eq!(result.model, "meta-llama/Llama-3.3-70B-Instruct");
 }
 
 /// REQ: P9-inf-test-generate-unavailable-backend — generate() with unavailable default provider
@@ -401,10 +388,9 @@ async fn disable_thinking_flows_to_wire_format() {
 /// `generate()` returns Err(Connection).
 #[tokio::test]
 async fn generate_unavailable_backend_returns_error() {
-    // Configure router with NO backends at all
     let config = InferenceConfig {
         default_provider: ProviderId::DeepInfra,
-        deepinfra_api_key: String::new(), // empty → DI backend not created
+        deepinfra_api_key: String::new(),
         ..Default::default()
     };
     let router = InferenceRouter::new(config);
@@ -459,38 +445,40 @@ async fn generate_stream_unavailable_backend_returns_error() {
 async fn generate_stream_with_model_unavailable_backend_returns_error() {
     use futures_util::StreamExt;
 
-    let ollama_mock = MockServer::start().await;
+    let deepinfra_mock = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/v1/chat/completions"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(mock_chat_response("qwen3:8b", "Ollama response")),
-        )
-        .mount(&ollama_mock)
+        .respond_with(ResponseTemplate::new(200).set_body_json(mock_chat_response(
+            "meta-llama/Llama-3.3-70B-Instruct",
+            "DeepInfra response",
+        )))
+        .mount(&deepinfra_mock)
         .await;
 
     let config = InferenceConfig {
-        default_provider: ProviderId::Ollama,
-        ollama_base_url: ollama_mock.uri(),
-        deepinfra_api_key: String::new(),
+        default_provider: ProviderId::DeepInfra,
+        deepinfra_base_url: deepinfra_mock.uri(),
+        deepinfra_api_key: "test-key".to_string(),
+        together_api_key: String::new(),
         ..Default::default()
     };
     let router = InferenceRouter::new(config);
 
-    // OM/ prefix → stream should work
-    let mut stream =
-        router.generate_stream_with_model("Hello", &default_params(), Some("OM/qwen3:8b"));
+    let mut stream = router.generate_stream_with_model(
+        "Hello",
+        &default_params(),
+        Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+    );
     let first = stream.next().await;
-    assert!(first.is_some(), "OM/ stream should yield items");
-    assert!(first.unwrap().is_ok(), "OM/ stream should succeed");
+    assert!(first.is_some(), "DI/ stream should yield items");
+    assert!(first.unwrap().is_ok(), "DI/ stream should succeed");
 
-    // DI/ prefix → stream should yield error
     let mut stream =
-        router.generate_stream_with_model("Hello", &default_params(), Some("DI/some-model"));
+        router.generate_stream_with_model("Hello", &default_params(), Some("TG/some-model"));
     let first = stream.next().await;
-    assert!(first.is_some(), "DI/ stream should yield at least one item");
+    assert!(first.is_some(), "TG/ stream should yield at least one item");
     assert!(
         first.unwrap().is_err(),
-        "DI/ stream first item should be Err when backend unavailable"
+        "TG/ stream first item should be Err when backend unavailable"
     );
 }

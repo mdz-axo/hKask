@@ -17,7 +17,7 @@
 //! The `condenser_thread_summary` tool uses the centralized `InferencePort`
 //! (hkask-inference router) for LLM-powered summarization. No standalone
 //! HTTP client or inference URL configuration is needed — the router handles
-//! provider dispatch (Ollama, Fireworks, DeepInfra) automatically.
+//! provider dispatch (DeepInfra, Together AI) automatically.
 
 use hkask_condenser::engine::CondenserEngine;
 use hkask_condenser::inference;

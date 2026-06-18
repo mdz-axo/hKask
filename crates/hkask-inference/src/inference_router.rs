@@ -580,7 +580,7 @@ impl InferencePort for InferenceRouter {
                         .generate(&model, &prompt, &parameters)
                         .await
                 }
-                ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
+ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
                     "Runpod/Baseten are adapter providers".to_string(),
                 )),
             }
@@ -698,14 +698,6 @@ impl InferencePort for InferenceRouter {
         let parameters = parameters.clone();
 
         match provider {
-            ProviderId::Ollama => {
-                match self.ollama.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("Ollama backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &parameters),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
             ProviderId::DeepInfra => {
                 match self.deepinfra.as_ref().ok_or_else(|| {
                     InferenceError::Connection("DeepInfra backend unavailable".to_string())

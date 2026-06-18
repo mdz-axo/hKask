@@ -50,37 +50,13 @@ impl ContractValidator {
     /// pre:  template_id is non-empty
     /// post: returns (Ok(()), vec![]) in Warn mode
     /// post: returns (Ok(()), vec![]) in Reject mode if terms valid
+    #[allow(dead_code)]
     pub fn validate_terms(
         &self,
         _template_id: &str,
-        template_terms: &[String],
+        _template_terms: &[String],
     ) -> (Result<(), TemplateError>, Vec<String>) {
-        let unknown = Vec::new();
-
-        if unknown.is_empty() {
-            return (Ok(()), vec![]);
-        }
-
-        match self.mode {
-            ValidationMode::Warn => {
-                tracing::warn!(
-                    target: "hkask.templates",
-                    template_id = %_template_id,
-                    unknown_terms = ?unknown,
-                    "Template terms flagged"
-                );
-                (Ok(()), unknown)
-            }
-            ValidationMode::Reject => {
-                let msg = format!(
-                    "Template '{}' declares {} invalid terms: {}",
-                    _template_id,
-                    unknown.len(),
-                    unknown.join(", ")
-                );
-                (Err(TemplateError::Validation(msg)), unknown)
-            }
-        }
+        (Ok(()), vec![])
     }
 }
 

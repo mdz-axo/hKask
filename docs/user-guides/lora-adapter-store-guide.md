@@ -387,7 +387,7 @@ Runpod and Baseten backends follow the `AdapterProviderBackend` trait interface 
 
 ### 7.5 Non-LoRA Providers
 
-Some providers (`Ollama`, `DeepInfra`) do not support LoRA composition. Their `ProviderCapability::supports_lora_composition` is `false`, and `can_compose()` returns `false` for all base models. The `select_provider()` method filters them out automatically.
+Some providers (`DeepInfra`) do not support LoRA composition. Their `ProviderCapability::supports_lora_composition` is `false`, and `can_compose()` returns `false` for all base models. The `select_provider()` method filters them out automatically.
 
 ---
 

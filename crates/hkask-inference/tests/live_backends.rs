@@ -50,11 +50,6 @@ fn condenser_params() -> LLMParameters {
 fn make_config(provider: ProviderId, base_url: &str, api_key: &str) -> InferenceConfig {
     InferenceConfig {
         default_provider: provider,
-        ollama_base_url: if matches!(provider, ProviderId::Ollama) {
-            base_url.to_string()
-        } else {
-            String::new()
-        },
         deepinfra_base_url: if matches!(provider, ProviderId::DeepInfra) {
             base_url.to_string()
         } else {

@@ -11,18 +11,13 @@ manifest:
   visibility: Public
 
 providers:
-  - id: ollama-local
-    prefix: OM
-    endpoint: http://127.0.0.1:11434
-    capabilities: [inference, embedding]
-    priority: 1
   - id: fireworks-cloud
     prefix: FW
     endpoint: https://api.fireworks.ai/inference
     capabilities: [inference, embedding]
-    priority: 2
+    priority: 1
   - id: deepinfra-cloud
     prefix: DI
     endpoint: https://api.deepinfra.com/v1/openai
     capabilities: [inference, embedding]
-    priority: 3
+    priority: 2

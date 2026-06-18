@@ -138,9 +138,9 @@ pub trait DatasetRegistry: Send + Sync {
 /// Strip known provider prefixes to extract the raw HuggingFace model ID.
 ///
 /// This is the canonical resolution logic used by BasetenProvider.
-/// Provider prefixes: OM/ (Ollama), DI/ (DeepInfra), FA/ (Fireworks AI), TG/ (Together).
+/// Provider prefixes: DI/ (DeepInfra), FA/ (fal.ai), TG/ (Together).
 pub fn resolve_model_id(base_model: &str) -> String {
-    let known_prefixes = ["OM/", "DI/", "FA/", "TG/"];
+    let known_prefixes = ["DI/", "FA/", "TG/"];
     let mut model = base_model;
     for prefix in &known_prefixes {
         if model.starts_with(prefix) {
@@ -227,10 +227,10 @@ impl ModelRegistry for HfModelRegistry {
 mod tests {
     use super::*;
 
-    // REQ: P8-trn-hf-resolve-ollama-prefix — resolve_model_id strips OM/ prefix
+    // REQ: P8-trn-hf-resolve-provider-prefix — resolve_model_id strips known prefixes
     #[test]
-    fn resolve_ollama_prefix() {
-        assert_eq!(resolve_model_id("OM/qwen3:8b"), "qwen3:8b");
+    fn resolve_provider_prefix() {
+        assert_eq!(resolve_model_id("DI/some-model"), "some-model");
     }
 
     // REQ: P8-trn-hf-resolve-together-prefix — resolve_model_id strips TG/ prefix

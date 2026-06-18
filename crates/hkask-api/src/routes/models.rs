@@ -2,7 +2,7 @@
 //!
 //! Two endpoints for discovering and switching LLM models across providers:
 //!
-//! - `GET /api/models` — List all available models (Ollama, DeepInfra, fal.ai, Together AI)
+//! - `GET /api/models` — List all available models (DeepInfra, fal.ai, Together AI)
 //! - `GET /api/models/search?q=...` — Fuzzy search models by name
 //!
 //! Model names use a 2-letter provider prefix (OM/, DI/, FA/, TG/).
@@ -72,7 +72,7 @@ pub struct ModelSearchQuery {
 
 /// List all available models from all configured providers.
 ///
-/// Queries Ollama, DeepInfra, fal.ai, and Together AI and returns metadata for each
+/// Queries DeepInfra, fal.ai, and Together AI and returns metadata for each
 /// available model with provider prefix applied. Returns an empty list if
 /// no providers are reachable (graceful degradation).
 #[utoipa::path(

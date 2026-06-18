@@ -325,7 +325,7 @@ pub(crate) struct ReplSettings {
     pub ocr_sample_rate: f32,
 }
 
-/// Model metadata fetched from Ollama's /api/show endpoint.
+/// Model metadata — populated from provider when the model changes.
 /// Read-only — populated automatically when the model changes.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ModelMeta {

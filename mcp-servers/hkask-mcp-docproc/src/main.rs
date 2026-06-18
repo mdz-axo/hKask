@@ -16,7 +16,6 @@
 //! - `HKASK_OCR_MODEL` — Vision model for OCR (must be available in inference catalog).
 //!   Use `inference_models` to discover available models. No default — must be set
 //!   for OCR functionality. If unset, OCR requests return an error with guidance.
-//! - `OM_BASE_URL` — Ollama base URL (default: "http://127.0.0.1:11434")
 
 use hkask_inference::{EmbeddingRouter, InferenceConfig};
 use hkask_mcp_docproc::server::DocProcServer;
@@ -88,10 +87,6 @@ async fn main() -> anyhow::Result<()> {
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_OCR_MODEL",
                 "Vision model for OCR (must exist in inference catalog). Required for OCR functionality.",
-            ),
-            hkask_mcp::CredentialRequirement::optional(
-                "OM_BASE_URL",
-                "Ollama base URL (default: http://127.0.0.1:11434).",
             ),
         ],
     )

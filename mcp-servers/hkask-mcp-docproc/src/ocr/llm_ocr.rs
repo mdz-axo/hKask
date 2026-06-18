@@ -21,7 +21,7 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 ///
 /// Encodes page images as base64 PNG and dispatches to vision-capable
 /// models via `generate_vision`. Supports all inference backends
-/// (Ollama, Fireworks, DeepInfra) through provider-prefixed model names.
+/// (DeepInfra, Together AI) through provider-prefixed model names.
 pub struct LlmOcrExecutor {
     /// Inference configuration for router construction.
     config: InferenceConfig,

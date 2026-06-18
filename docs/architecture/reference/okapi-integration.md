@@ -20,7 +20,7 @@ mds_categories: [domain]
 
 ## Overview
 
-hKask uses a multi-provider inference router (`hkask-inference` crate) that dispatches LLM requests to Ollama (local), Fireworks.ai (cloud), or DeepInfra (cloud) based on a 2-letter provider prefix in the model name. All three providers speak OpenAI-compatible `/v1/chat/completions`, enabling a single wire format across backends.
+hKask uses a multi-provider inference router (`hkask-inference` crate) that dispatches LLM requests to Fireworks.ai (cloud) or DeepInfra (cloud) based on a 2-letter provider prefix in the model name. Both providers speak OpenAI-compatible `/v1/chat/completions`, enabling a single wire format across backends.
 
 **Source:** `crates/hkask-inference/src/`
 **Config:** `crates/hkask-inference/src/config.rs` (`InferenceConfig`)
@@ -29,10 +29,8 @@ hKask uses a multi-provider inference router (`hkask-inference` crate) that disp
 
 | Prefix | Provider | Type | Base URL |
 |--------|----------|------|----------|
-| `OM/` | Ollama | Local | `http://127.0.0.1:11434` (configurable) |
 | `FW/` | Fireworks.ai | Cloud | `https://api.fireworks.ai/inference` |
 | `DI/` | DeepInfra | Cloud | `https://api.deepinfra.com/v1/openai` |
-| (none) | Default (OM) | Configurable | — |
 
 ---
 
@@ -43,7 +41,6 @@ hKask uses a multi-provider inference router (`hkask-inference` crate) that disp
 All three providers use the OpenAI-compatible chat completions endpoint. The router constructs identical requests regardless of backend.
 
 **Base URLs:**
-- Ollama: `{OM_BASE_URL}/v1/chat/completions`
 - Fireworks: `{FW_BASE_URL}/v1/chat/completions`
 - DeepInfra: `{DI_BASE_URL}/v1/chat/completions`
 
@@ -118,7 +115,6 @@ All three providers use the OpenAI-compatible chat completions endpoint. The rou
 
 #### Authentication
 
-- **Ollama:** No authentication (local instance)
 - **Fireworks:** `Authorization: Bearer {FW_API_KEY}`
 - **DeepInfra:** `Authorization: Bearer {DI_API_KEY}`
 
@@ -144,8 +140,6 @@ All three providers use the OpenAI-compatible chat completions endpoint. The rou
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `default_provider` | ProviderId | `OM` | Default provider for unprefixed models |
-| `ollama_base_url` | String | `http://127.0.0.1:11434` | Ollama API endpoint |
 | `fireworks_base_url` | String | `https://api.fireworks.ai/inference` | Fireworks API endpoint |
 | `fireworks_api_key` | String | (empty) | Fireworks Bearer token |
 | `deepinfra_base_url` | String | `https://api.deepinfra.com/v1/openai` | DeepInfra API endpoint |
@@ -157,7 +151,6 @@ All three providers use the OpenAI-compatible chat completions endpoint. The rou
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OM_BASE_URL` | `http://127.0.0.1:11434` | Ollama base URL |
 | `FW_BASE_URL` | `https://api.fireworks.ai/inference` | Fireworks base URL |
 | `FW_API_KEY` | (none) | Fireworks API key |
 | `DI_BASE_URL` | `https://api.deepinfra.com/v1/openai` | DeepInfra base URL |
@@ -173,7 +166,6 @@ Models are discovered from each provider's native listing endpoint:
 
 | Provider | Endpoint | Filter |
 |----------|----------|--------|
-| Ollama | `GET /api/tags` | All local models |
 | Fireworks | `GET /v1/models` | Updated ≤ 6 months ago |
 | DeepInfra | `GET /v1/models` | Updated ≤ 6 months ago |
 
@@ -243,7 +235,6 @@ Generates embedding vectors for semantic search and style composition. Routes to
 
 | Provider | Endpoint | Wire Format |
 |----------|----------|-------------|
-| Ollama | `POST /api/embed` | `{model, input: [...]}` |
 | Fireworks | `POST /v1/embeddings` | `{model, input: [...]}` (OpenAI) |
 | DeepInfra | `POST /v1/embeddings` | `{model, input: [...]}` (OpenAI) |
 
@@ -254,7 +245,7 @@ Generates embedding vectors for semantic search and style composition. Routes to
 ## Architecture Notes
 
 - `InferencePort` is the single async inference trait in `hkask-types`; `InferenceRouter` is its primary implementation.
-- `EmbeddingRouter` provides embedding generation across all three providers.
+- `EmbeddingRouter` provides embedding generation across providers.
 - Each backend owns its own HTTP client, auth, and model listing endpoint — no shared abstraction.
 - Shared chat protocol types and helpers live in `chat_protocol.rs` as free functions.
 - The router is a pure dispatcher — no response transformation, no automatic failover between providers.
@@ -263,7 +254,6 @@ Generates embedding vectors for semantic search and style composition. Routes to
 
 ## References
 
-[^ollama-api]: Ollama Contributors. (2024). *Ollama REST API*. https://github.com/ollama/ollama/blob/main/docs/api.md
 [^openai-chat-api]: OpenAI. (2024). *Chat Completions API Reference*. https://platform.openai.com/docs/api-reference/chat
 [^nygard-release]: Nygard, M. T. (2018). *Release It!: Design and Deploy Production-Ready Software* (2nd ed.). Pragmatic Bookshelf.
 

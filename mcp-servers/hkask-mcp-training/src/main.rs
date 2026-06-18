@@ -475,7 +475,7 @@ pub struct TrainRecommendModelRequest {
     /// License requirement: "apache2", "mit", "open", or "any".
     #[serde(default)]
     pub license: Option<String>,
-    /// Preferred provider: "together", "fireworks", "deepinfra", "ollama", or "any".
+    /// Preferred provider: "together", "fireworks", "deepinfra", or "any".
     #[serde(default)]
     pub provider: Option<String>,
 }

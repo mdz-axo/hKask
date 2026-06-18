@@ -72,7 +72,7 @@ For models with reasoning/thinking mode (e.g., qwen3, gemma4, deepseek-r1), `con
 
 The `enable_thinking` field is only serialized when `false` — backends that don't support it are unaffected.
 
-**Known limitation (2026-06-15):** Ollama 0.30.8 does not honor `enable_thinking: false` for qwen3.5, gemma4, or deepseek-r1 models — they always use thinking mode regardless of the parameter. The condenser gracefully degrades: when a thinking model returns an empty summary, the tool responds with `"Inference engine returned an empty summary"`. **Workaround:** use a non-thinking model for summarization. The default condenser model is `google/gemma-4-26B-A4B-it` (hKask's classifier model), which produces clean structured summaries without thinking interference. A future Ollama version may add support for this parameter.
+**Known behavior:** Some backends may not honor `enable_thinking: false` for reasoning-mode models (qwen3.5, gemma4, deepseek-r1). The condenser gracefully degrades: when a thinking model returns an empty summary, the tool responds with `"Inference engine returned an empty summary"`. **Workaround:** use a non-thinking model for summarization. The default condenser model is `google/gemma-4-26B-A4B-it` (hKask's classifier model), which produces clean structured summaries without thinking interference.
 
 ## Running
 

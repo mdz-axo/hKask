@@ -1,6 +1,6 @@
-//! End-to-end test with real inference (Ollama).
+//! End-to-end test with real inference (DeepInfra).
 //!
-//! Requires: running Ollama.
+//! Requires: running DeepInfra with API key.
 //! Run with: cargo test -p hkask-acp --test e2e_inference -- --ignored --nocapture
 
 use hkask_acp::HkaskAcpAgent;
@@ -41,7 +41,7 @@ async fn read_responses<R: AsyncRead + Unpin>(
 
 // REQ: acp-e2e-002
 #[tokio::test]
-#[ignore = "requires running Ollama"]
+#[ignore = "requires running DeepInfra"]
 async fn e2e_real_inference_streaming() {
     let config = InferenceConfig::from_env();
     let router = Arc::new(InferenceRouter::new(config));

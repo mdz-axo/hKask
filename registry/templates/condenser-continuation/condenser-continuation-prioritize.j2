@@ -57,12 +57,12 @@ You are a task prioritizer for the hKask condenser. Given what has been accompli
 
 These are the typical remaining tasks for condenser implementation. Not all may apply — select only those relevant to the current state.
 
-1. **Verify disable_thinking flows through thread_summary** — `condenser_thread_summary` already sets `disable_thinking: true` in `LLMParameters`. Confirm the flag reaches the wire format and is honored by the target backend. Ollama 0.30.8 is known to ignore it for qwen3.5, gemma4, and deepseek-r1 (see README 'Thinking Mode').
+1. **Verify disable_thinking flows through thread_summary** — `condenser_thread_summary` already sets `disable_thinking: true` in `LLMParameters`. Confirm the flag reaches the wire format and is honored by the target backend.
 2. **End-to-end integration test of thread_summary** — Verify the tool works with a live inference endpoint. Test: valid summary, key decisions preserved, stats tracked, error handling.
 3. **MCP runtime configuration** — Register inference endpoint environment variables in the MCP runtime config (not in any editor-specific settings file).
 4. **Agent usage instructions** — Document when the agent should call each condenser tool (compress after large outputs, set_profile heavy near context limits, thread_summary when context >70% full).
 5. **Update design documentation** — Reflect the unified MCP server architecture in existing design docs.
-6. **Inference-agnostic validation** — Ensure the condenser works with multiple backends (Ollama, Fireworks, DeepInfra, other) and gracefully degrades when no endpoint is available.
+6. **Inference-agnostic validation** — Ensure the condenser works with multiple backends (Fireworks, DeepInfra, other) and gracefully degrades when no endpoint is available.
 
 ## Prioritization Rules
 

@@ -1496,15 +1496,15 @@ mod tests {
         store.migrate().expect("migration");
 
         // This adapter uses llama-3.3-70b, which is compatible with all backends.
-        // Test that Ollama (not in backends) returns ProviderUnavailable
+        // Test that DeepInfra (not registered as adapter backend) returns ProviderUnavailable
         let adapter = make_test_adapter("solidity-audit");
         store.store(&adapter).expect("store");
 
         let router = AdapterRouter::new(store);
         let token = test_token();
 
-        // Ollama is not registered as an adapter backend
-        let result = block_on(router.estimate_composition(adapter.id, ProviderId::Ollama, &token));
+        // DeepInfra is not registered as an adapter backend
+        let result = block_on(router.estimate_composition(adapter.id, ProviderId::DeepInfra, &token));
         assert!(result.is_err());
         match result {
             Err(AdapterError::ProviderUnavailable(_)) => {} // expected

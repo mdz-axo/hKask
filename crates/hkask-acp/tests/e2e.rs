@@ -1,6 +1,6 @@
 //! End-to-end test: spawn hkask-acp binary, send real JSON-RPC, verify.
 //!
-//! Requires: running daemon, running Ollama, built hkask-acp binary.
+//! Requires: running daemon, running DeepInfra backend, built hkask-acp binary.
 //! Run with: cargo test -p hkask-acp --test e2e -- --ignored --nocapture
 //! or:       cargo test -p hkask-acp --test e2e -- --include-ignored
 
@@ -30,7 +30,7 @@ async fn read_line_timeout<R: tokio::io::AsyncRead + Unpin>(
 
 // REQ: acp-e2e-001
 #[tokio::test]
-#[ignore = "requires running daemon and Ollama"]
+#[ignore = "requires running daemon and DeepInfra"]
 async fn e2e_initialize_and_prompt() {
     // Verify binary exists
     assert!(

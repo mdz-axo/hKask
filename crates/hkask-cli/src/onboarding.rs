@@ -422,7 +422,7 @@ async fn select_model() -> Result<String, OnboardingError> {
 ///
 /// Checks if a provider API key is already configured (env var or keychain).
 /// If not, prompts the user to load from a providers.env file, enter a key
-/// directly, or skip (Ollama-only, with a warning).
+/// directly, or skip (with a warning).
 async fn setup_provider() -> Result<(), OnboardingError> {
     let config = hkask_inference::InferenceConfig::from_env();
 
@@ -466,7 +466,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     println!("  How would you like to configure?");
     println!("    1. Load from providers.env file");
     println!("    2. Enter API key directly (input is hidden)");
-    println!("    3. Skip for now (requires Ollama running locally)");
+    println!("    3. Skip for now");
     println!();
 
     let choice = prompt_choice("  Choice (1-3):", 1..=3)?;
@@ -644,8 +644,8 @@ async fn setup_provider() -> Result<(), OnboardingError> {
         3 => {
             println!();
             println!("  \x1b[33m⚠\x1b[0m  Skipping cloud provider setup.");
-            println!("  hKask will use Ollama (local inference).");
-            println!("  Make sure Ollama is running at http://127.0.0.1:11434");
+            println!("  hKask requires a cloud inference provider to generate responses.");
+            println!("  Without one, your replicant cannot reply to you.");
             println!();
             println!("  To add a cloud provider later:");
             println!("    \x1b[36mkask keystore load --path providers.env --shred\x1b[0m");

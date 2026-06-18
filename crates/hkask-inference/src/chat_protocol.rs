@@ -1,6 +1,6 @@
 //! Shared OpenAI-compatible chat completion protocol types and helpers.
 //!
-//! All backends (Ollama, DeepInfra, Together AI) speak the same
+//! All backends (DeepInfra, Together AI, fal.ai) speak the same
 //! `/v1/chat/completions` wire format. This module provides the shared
 //! request/response types and helper functions used by all backends.
 //!
@@ -44,7 +44,7 @@ pub struct ChatRequest {
     pub n_probs: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
-    /// Enable thinking/reasoning mode (Ollama-specific).
+    /// Enable thinking/reasoning mode.
     /// Default true. Set to false for condenser/summarization tasks to prevent
     /// the model from spending output tokens on internal reasoning.
     /// Skipped from serialization when true (most models don't need it).
@@ -381,7 +381,7 @@ mod tests {
             "object": "chat.completion",
             "created": 1781219013,
             "model": "qwen3:4b",
-            "system_fingerprint": "fp_ollama",
+            "system_fingerprint": "fp_deepinfra",
             "choices": [{
                 "index": 0,
                 "message": {

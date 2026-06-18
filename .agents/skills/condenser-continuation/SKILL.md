@@ -1,7 +1,7 @@
 ---
 name: condenser-continuation
 visibility: public
-description: "Continuation skill for resuming hKask condenser implementation work after context reset. Restores session state, prioritizes remaining tasks, verifies build status, and composes a structured continuation plan. Works with any hKask-supported inference engine (Ollama, Fireworks, DeepInfra, etc.)."
+description: "Continuation skill for resuming hKask condenser implementation work after context reset. Restores session state, prioritizes remaining tasks, verifies build status, and composes a structured continuation plan. Works with any hKask-supported inference engine (Fireworks, DeepInfra, etc.)."
 ---
 
 # Condenser Continuation Skill
@@ -37,11 +37,11 @@ The hKask condenser is a single MCP server (`hkask-mcp-condenser`) with 7 tools:
 
 ### Thread Summary via Centralized Inference Router
 
-The `condenser_thread_summary` tool uses the centralized hKask inference router (`InferencePort` trait, implemented by `InferenceRouter`). The router dispatches to Ollama, Fireworks, or DeepInfra based on the model name's provider prefix (OM/, FW/, DI/). No standalone HTTP client or per-tool inference URL configuration — the router is built once at startup from standard hKask environment variables (`OM_BASE_URL`, `FW_API_KEY`, `DI_API_KEY`).
+The `condenser_thread_summary` tool uses the centralized hKask inference router (`InferencePort` trait, implemented by `InferenceRouter`). The router dispatches to Fireworks or DeepInfra based on the model name's provider prefix (FW/, DI/). No standalone HTTP client or per-tool inference URL configuration — the router is built once at startup from standard hKask environment variables (`FW_API_KEY`, `DI_API_KEY`).
 
 **Graceful degradation:** If no inference backends are reachable, `thread_summary` returns an error. All other tools continue working.
 
-**Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3, gemma4, deepseek-r1), `condenser_thread_summary` sets `disable_thinking: true` in `LLMParameters` before calling the centralized inference router. The router passes the flag through to the backend (e.g., as `enable_thinking: false` in OpenAI-compatible chat requests), preventing reasoning-mode models from spending all `max_tokens` on internal reasoning. Some backends ignore the flag — notably Ollama 0.30.8 for qwen3.5/gemma4/deepseek-r1 — in which case the tool degrades gracefully with an empty-summary error.
+**Key implementation detail:** For models with thinking/reasoning mode (e.g., qwen3, gemma4, deepseek-r1), `condenser_thread_summary` sets `disable_thinking: true` in `LLMParameters` before calling the centralized inference router. The router passes the flag through to the backend (e.g., as `enable_thinking: false` in OpenAI-compatible chat requests), preventing reasoning-mode models from spending all `max_tokens` on internal reasoning. If a backend ignores the flag, the tool degrades gracefully with an empty-summary error.
 
 ### MCP Server Configuration
 

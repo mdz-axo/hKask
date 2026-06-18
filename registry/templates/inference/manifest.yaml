@@ -8,7 +8,7 @@ infrastructure:
   version: "0.28.0"
   description: >
     Inference engine selector configuration. Routes inference requests to the
-    appropriate engine (Ollama, Fireworks, DeepInfra, etc.) based on model
+    appropriate engine (Fireworks, DeepInfra, etc.) based on model
     constraints and energy budgets.
   role: config
   contains:

@@ -778,7 +778,7 @@ impl MediaServer {
     }
 
     /// Resolve the best available vision model with fallback chain.
-    /// Tries: DeepInfra → Together AI → Ollama (local).
+    /// Tries: DeepInfra → Together AI.
     /// Returns the model name and a label for recording.
     async fn resolve_vision_model(&self) -> (&'static str, &'static str) {
         let models = self.inference.list_vision_models().await;
@@ -794,7 +794,6 @@ impl MediaServer {
                 hkask_inference::ProviderId::Together => {
                     return ("TG/Qwen/Qwen2.5-VL-72B-Instruct", "qwen-vl");
                 }
-                hkask_inference::ProviderId::Ollama => return ("OM/llava:13b", "llava"),
                 _ => continue,
             }
         }
@@ -1552,7 +1551,7 @@ impl MediaServer {
                     return span.error(
                         McpErrorKind::Unavailable,
                         McpToolError::unavailable(format!(
-                            "Embedding model unavailable: {}. Install nomic-embed-text via Ollama or configure a cloud provider.",
+                            "Embedding model unavailable: {}. Configure a cloud provider.",
                             e
                         ))
                         .to_json_string(),
