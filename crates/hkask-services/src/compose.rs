@@ -160,9 +160,13 @@ impl ComposeService {
     /// pre:  request.db_path must point to a valid database; request.prompt must be non-empty; request.cognition must have valid embedding config
     /// post: returns ComposeResult with generated_prose, exemplar_count, and optional CentroidValidation; Err on DB open failure, embedding failure, or inference failure
     /// # REQ: P3-svc-compose-001 — compose returns generated prose with exemplar retrieval
+    /// # expect: "The service layer enables generative access to domain capabilities" [P3]
     /// # REQ: P3-svc-compose-002 — compose validates centroid distance when no_validate is false
+    /// # expect: "The service layer enables generative access to domain capabilities" [P3]
     /// # REQ: P3-svc-compose-003 — compose returns validation=None when no_validate is true
+    /// # expect: "The service layer enables generative access to domain capabilities" [P3]
     /// # REQ: P3-svc-compose-004 — compose uses Jinja2 template from cognition config
+    /// # expect: "The service layer enables generative access to domain capabilities" [P3]
     #[contract(id = "P3-svc-compose-095", principle = "P3")]
     pub async fn compose(request: ComposeRequest) -> Result<ComposeResult, ServiceError> {
         // 1. Open DB + construct memory infrastructure

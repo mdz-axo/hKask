@@ -19,5 +19,5 @@ serde_yaml_neo.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 hkask-inference = { path = "../hkask-inference" }
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 minijinja.workspace = true

@@ -203,6 +203,7 @@ mod tests {
     const FIXED_UUID_2: &str = "00000000-0000-0000-0000-000000000002";
 
     // REQ: P9-svc-curator-001 — EscalationEntry → EscalationResponse maps all fields
+    // expect: "Service EscalationEntry works correctly under test conditions" [P9]
     #[test]
     fn escalation_entry_to_response_maps_fields() {
         let entry = EscalationEntry {
@@ -228,6 +229,7 @@ mod tests {
     }
 
     // REQ: P9-svc-curator-002 — resolved escalation has resolution fields populated
+    // expect: "Service escalation resolution works correctly under test conditions" [P9]
     #[test]
     fn escalation_entry_resolved_maps_resolution_fields() {
         let now = chrono::Utc::now();

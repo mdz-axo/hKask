@@ -26,4 +26,4 @@ tempfile.workspace = true
 [[test]]
 name = "live_adapter"
 path = "tests/live_adapter.rs"
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }

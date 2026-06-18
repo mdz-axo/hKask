@@ -26,4 +26,4 @@ hkask-test-harness = { path = "../hkask-test-harness" }
 [[test]]
 name = "inference_routing_integration"
 path = "tests/inference_routing_integration.rs"
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }

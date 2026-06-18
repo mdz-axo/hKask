@@ -9,7 +9,7 @@ description = "Shared test fixtures and harness for hKask — temp DBs, keystore
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-cns = { path = "../hkask-cns" }
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 rusqlite.workspace = true
 tempfile.workspace = true
 chrono.workspace = true

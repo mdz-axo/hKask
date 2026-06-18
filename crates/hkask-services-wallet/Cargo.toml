@@ -17,7 +17,7 @@ hkask-cns = { path = "../hkask-cns" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 hkask-wallet = { path = "../hkask-wallet" }
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 tokio.workspace = true
 tracing.workspace = true
 serde.workspace = true

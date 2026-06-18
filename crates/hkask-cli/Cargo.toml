@@ -59,4 +59,4 @@ proptest = "1"
 [[test]]
 name = "cli_fuzz"
 path = "tests/cli_fuzz.rs"
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }

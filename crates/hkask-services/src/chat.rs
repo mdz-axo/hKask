@@ -64,6 +64,7 @@ mod tests {
     use hkask_types::loops::episodic::ExperienceClassification;
 
     // REQ: P3-svc-chat-gas-001 — Token usage maps to gas cost at 1:1 ratio
+    // expect: "Service gas_cost works correctly under test conditions" [P3]
     #[test]
     fn token_usage_gas_cost_one_to_one() {
         let usage = TokenUsage {
@@ -75,6 +76,7 @@ mod tests {
     }
 
     // REQ: P3-svc-chat-gas-002 — Gas cost of zero tokens is zero
+    // expect: "Service gas_cost works correctly under test conditions" [P3]
     #[test]
     fn token_usage_zero_tokens_zero_gas() {
         let usage = TokenUsage {
@@ -86,6 +88,7 @@ mod tests {
     }
 
     // REQ: P3-svc-chat-gas-003 — Gas cost derived from total_tokens
+    // expect: "Service gas_cost works correctly under test conditions" [P3]
     #[test]
     fn token_usage_gas_uses_total_not_sum_of_parts() {
         let usage = TokenUsage {
@@ -173,6 +176,7 @@ mod tests {
     }
 
     // REQ: P3-svc-chat-memory-001 — recall_semantic returns None when no triples match
+    // expect: "Service recall_semantic works correctly under test conditions" [P3]
     #[test]
     fn recall_semantic_empty_returns_none() {
         let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort { triples: vec![] });
@@ -183,6 +187,7 @@ mod tests {
     }
 
     // REQ: P3-svc-chat-memory-002 — recall_semantic joins string values with newlines
+    // expect: "Service recall_semantic works correctly under test conditions" [P3]
     #[test]
     fn recall_semantic_joins_values_with_newlines() {
         let t = |s: &str| RecalledSemantic {
@@ -204,6 +209,7 @@ mod tests {
     }
 
     // REQ: P3-svc-chat-memory-003 — recall_semantic filters non-string values
+    // expect: "Service recall_semantic works correctly under test conditions" [P3]
     #[test]
     fn recall_semantic_filters_non_string_values() {
         let t1 = RecalledSemantic {
@@ -234,6 +240,7 @@ mod tests {
     }
 
     // REQ: P3-svc-chat-episodic-001 — store_episodic stores input+response as JSON
+    // expect: "Service store_episodic works correctly under test conditions" [P3]
     #[test]
     fn store_episodic_records_chat_exchange() {
         let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
@@ -251,6 +258,7 @@ mod tests {
     }
 
     // REQ: P3-svc-chat-episodic-002 — store_episodic confidence 0.7
+    // expect: "Service store_episodic works correctly under test conditions" [P3]
     #[test]
     fn store_episodic_uses_fixed_confidence() {
         let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
@@ -264,6 +272,7 @@ mod tests {
     }
 
     // REQ: P3-svc-chat-episodic-003 — store_episodic never panics
+    // expect: "Service store_episodic works correctly under test conditions" [P3]
     #[test]
     fn store_episodic_never_panics() {
         let mock: Arc<MockEpisodicPort> = Arc::new(MockEpisodicPort {
@@ -492,6 +501,7 @@ impl ChatService {
 
         // Resolve LLM parameters: caller override > agent-kind defaults
         // REQ: P3 (Generative Space) — all parameters are user-exposed, none hidden.
+        // expect: "The service layer enables generative access to domain capabilities" [P3]
         let params = params_override.unwrap_or(LLMParameters {
             temperature: 0.7,
             top_p: 0.9,
@@ -507,6 +517,7 @@ impl ChatService {
         });
 
         // REQ: P9 (Homeostatic) — CNS span before inference (NuEvent, not just tracing)
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         let request_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "request");
         let request_event = NuEvent::new(
             prepared.agent_webid,
@@ -531,6 +542,7 @@ impl ChatService {
             })?;
 
         // REQ: P9 (Homeostatic) — CNS span after inference
+        // expect: "The service layer provides CNS health and regulation queries" [P9]
         let response_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "response");
         let response_event = NuEvent::new(
             prepared.agent_webid,
@@ -672,7 +684,9 @@ impl ChatService {
     /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
     /// post: returns Some(String) of formatted recent turns; None if no episodes or recall fails
     /// # REQ: P2-svc-chat-session-history — every history access routes through episodic storage
+    /// # expect: "Service operations require explicit, scoped consent" [P2]
     /// # REQ: P4-svc-chat-ocap-history — recall requires DelegationToken with Read on Manifest
+    /// # expect: "Service boundaries enforce OCAP membranes" [P4]
     #[contract(id = "P3-svc-chat-239", principle = "P3")]
     pub fn recall_recent_turns(
         episodic_port: &Arc<dyn EpisodicStoragePort>,

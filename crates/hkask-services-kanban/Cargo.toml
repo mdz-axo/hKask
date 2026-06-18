@@ -17,7 +17,7 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 hkask-agents = { path = "../hkask-agents" }
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }
 
 [dev-dependencies]
 rusqlite = { workspace = true, features = ["bundled-sqlcipher"] }

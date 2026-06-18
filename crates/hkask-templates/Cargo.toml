@@ -36,4 +36,4 @@ path = "tests/yaml_schema_validation.rs"
 [[test]]
 name = "template_rendering"
 path = "tests/template_rendering.rs"
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }

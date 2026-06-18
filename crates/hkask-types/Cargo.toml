@@ -36,4 +36,4 @@ sql = ["dep:rusqlite"]
 [[test]]
 name = "types_contract"
 path = "tests/contract/types_contract.rs"
-hkask-rsolidity = { path = "../../crates/hkask-rsolidity" }
+hkask-rsolidity = { path = "../hkask-rsolidity" }

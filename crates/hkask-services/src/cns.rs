@@ -99,6 +99,7 @@ mod tests {
     use hkask_cns::DEFAULT_THRESHOLD;
 
     // REQ: P9-svc-cns-001 — health_returns_defaults_for_empty_runtime
+    // expect: "Service health works correctly under test conditions" [P9]
     //
     // A freshly constructed CnsRuntime should report healthy status
     // with zero alerts and zero deficits. This is the baseline —
@@ -116,6 +117,7 @@ mod tests {
     }
 
     // REQ: P9-svc-cns-002 — alerts_returns_empty_for_fresh_runtime
+    // expect: "Service alerts works correctly under test conditions" [P9]
     #[tokio::test]
     async fn alerts_returns_empty_for_fresh_runtime() {
         let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));
@@ -126,6 +128,7 @@ mod tests {
     }
 
     // REQ: P9-svc-cns-003 — variety_returns_empty_for_fresh_runtime
+    // expect: "Service variety works correctly under test conditions" [P9]
     #[tokio::test]
     async fn variety_returns_empty_for_fresh_runtime() {
         let runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(DEFAULT_THRESHOLD)));

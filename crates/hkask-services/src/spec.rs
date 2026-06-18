@@ -363,6 +363,7 @@ mod tests {
     use super::*;
 
     // REQ: P8-svc-spec-001 — infer_spec_category maps context keywords to MDS categories
+    // expect: "Service infer_spec_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_maps_trust_context() {
         assert_eq!(infer_spec_category(Some("trust")), SpecCategory::Trust);
@@ -377,6 +378,7 @@ mod tests {
     }
 
     // REQ: P8-svc-spec-001-1 — infer category maps composition context
+    // expect: "Service infer_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_maps_composition_context() {
         assert_eq!(
@@ -390,6 +392,7 @@ mod tests {
     }
 
     // REQ: P8-svc-spec-001-2 — infer category maps lifecycle context
+    // expect: "Service infer_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_maps_lifecycle_context() {
         assert_eq!(
@@ -403,6 +406,7 @@ mod tests {
     }
 
     // REQ: P8-svc-spec-001-3 — infer category maps curation context
+    // expect: "Service infer_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_maps_curation_context() {
         assert_eq!(
@@ -416,6 +420,7 @@ mod tests {
     }
 
     // REQ: P8-svc-spec-001-4 — infer category defaults to domain
+    // expect: "Service infer_category works correctly under test conditions" [P8]
     #[test]
     fn infer_category_defaults_to_domain() {
         assert_eq!(infer_spec_category(None), SpecCategory::Domain);
@@ -426,6 +431,7 @@ mod tests {
     }
 
     // REQ: P8-svc-spec-002 — parse_spec_id validates UUID format
+    // expect: "Service parse_spec_id works correctly under test conditions" [P8]
     #[test]
     fn parse_spec_id_rejects_invalid() {
         assert!(parse_spec_id("not-a-uuid").is_err());

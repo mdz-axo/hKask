@@ -213,6 +213,7 @@ mod tests {
     use super::*;
 
     // REQ: P1-svc-pods-001 — parse_pod_id validates UUID format
+    // expect: "Service parse_pod_id works correctly under test conditions" [P1]
     #[test]
     fn parse_pod_id_rejects_invalid_uuid() {
         let result = PodService::parse_pod_id("not-a-uuid");
@@ -226,6 +227,7 @@ mod tests {
     }
 
     // REQ: P1-svc-pods-002 — parse_pod_id accepts valid UUID
+    // expect: "Service parse_pod_id works correctly under test conditions" [P1]
     #[test]
     fn parse_pod_id_accepts_valid_uuid() {
         let valid = uuid::Uuid::new_v4().to_string();
@@ -234,6 +236,7 @@ mod tests {
     }
 
     // REQ: P1-svc-pods-003 — PodStatus → PodStatusResponse preserves all fields
+    // expect: "Service PodStatus works correctly under test conditions" [P1]
     #[test]
     fn pod_status_to_response_maps_fields() {
         let status = PodStatus {

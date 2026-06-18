@@ -190,6 +190,7 @@ mod tests {
     use super::*;
 
     // REQ: P7-svc-goal-001 — create_goal delegates to GoalRepository and produces GoalResponse
+    // expect: "Service create_goal works correctly under test conditions" [P7]
     #[test]
     fn create_goal_converts_visibility_and_returns_response() {
         let err = Visibility::parse_str("bogus");
@@ -197,6 +198,7 @@ mod tests {
     }
 
     // REQ: P7-svc-goal-002 — list_goals respects optional state filter
+    // expect: "Service list_goals works correctly under test conditions" [P7]
     #[test]
     fn list_goals_parses_state_filter() {
         assert!(GoalState::parse_str("pending").is_some());
@@ -206,6 +208,7 @@ mod tests {
     }
 
     // REQ: P7-svc-goal-003 — Goal::into() → GoalResponse preserves all fields
+    // expect: "Service Goal::into works correctly under test conditions" [P7]
     #[test]
     fn goal_to_response_maps_all_fields() {
         let goal = Goal::new(

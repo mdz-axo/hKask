@@ -1,5 +1,6 @@
 //! ArchivalService — GitHub REST API for registry archival.
 //! # REQ: P4 (Clear Boundaries) — GitHub operations via adapter, not raw HTTP.
+//! # expect: "Service boundaries enforce OCAP membranes" [P4]
 
 use hkask_rsolidity::contract;
 

@@ -4,6 +4,7 @@
 //! (`registry/templates/*/manifest.yaml` + `*.j2`) and produces a health report.
 //!
 //! REQ: P5-svc-skills-095 — Implement dual-layer skill audit as a reusable service.
+//! expect: "The service layer exposes minimal, essential interfaces shared by all surfaces" [P5]
 
 use hkask_rsolidity::contract;
 
@@ -643,6 +644,7 @@ mod tests {
     /// Property-based skeleton: once proptest is wired, assert that any skill
     /// with both layers present and all .j2 files valid scores >= 0.8.
     // REQ: P9-services-skill-health-threshold — complete skills score ≥ 0.8
+    // expect: "The service layer provides CNS health and regulation queries" [P9]
     #[test]
     #[ignore = "requires proptest fixture for arbitrary complete skills"]
     fn complete_skill_scores_above_threshold() {
