@@ -213,7 +213,7 @@ pub fn create_contract_violation_task(
 ) -> Result<String, ContractBridgeError> {
     ensure_violations_board(store, owner)?;
 
-    let task_id = WebID::from_persona(b"contract-task").to_string();
+    let task_id = WebID::from_persona(format!("contract-task:{function_name}").as_bytes()).to_string();
     let now = chrono::Utc::now().to_rfc3339();
     let title = format!("CV: {contract_id} — {function_name}");
     let description = format!(

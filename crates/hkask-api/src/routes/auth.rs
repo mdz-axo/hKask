@@ -17,6 +17,7 @@ use serde::Deserialize;
 use tracing;
 
 use crate::ApiState;
+use crate::middleware::session::extract_cookie;
 
 /// Query parameters for OAuth login initiation.
 #[derive(Debug, Deserialize)]
@@ -369,20 +370,6 @@ async fn fetch_github_user(
     };
 
     Ok((provider_user_id, display_name, email))
-}
-
-/// Extract a cookie value by name from request headers.
-fn extract_cookie(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
-    let cookie_header = headers.get(header::COOKIE)?.to_str().ok()?;
-    for part in cookie_header.split(';') {
-        let trimmed = part.trim();
-        if let Some((key, value)) = trimmed.split_once('=') {
-            if key.trim() == name {
-                return Some(value.trim().to_string());
-            }
-        }
-    }
-    None
 }
 
 /// URL-encode a string (basic implementation — only encodes special chars).

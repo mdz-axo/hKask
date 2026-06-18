@@ -9,6 +9,7 @@ pub use store_macros::Store;
 pub use store_macros::now_rfc3339;
 
 pub mod agent_registry;
+pub mod archive;
 pub mod consent_store;
 pub mod database;
 pub mod embeddings;
@@ -26,6 +27,7 @@ pub mod user_store;
 pub mod wallet_store;
 
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
+pub use archive::{ArchiveError, BackupArchive, BackupMeta};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
 pub use database::{Database, DatabaseError, in_memory_db, open_database};
 pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmbedding};

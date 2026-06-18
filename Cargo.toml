@@ -65,7 +65,7 @@ tokio = { version = "1.51", features = ["full"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 
 # HTTP / API
-axum = "0.8"
+axum = { version = "0.8", features = ["ws"] }
 utoipa = { version = "5.5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-axum = "0.2"
 

@@ -25,6 +25,8 @@ const PUBLIC_PATHS: &[&str] = &[
     "/api/models",
     "/api/models/search",
     "/api/v1/auth",
+    "/api/v1/terminal",
+    "/terminal",
 ];
 
 /// Service for capability token verification and revocation tracking.

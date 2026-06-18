@@ -129,6 +129,8 @@ pub enum CnsSpan {
     AcpReplicantMemorySize,
     /// ACP IDE connection state change.
     AcpIdeConnectionState,
+    /// Backup/sovereignty archive export (DEP-100).
+    BackupExport,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -223,6 +225,7 @@ impl CnsSpan {
             CnsSpan::ContractRejected => "cns.contract.rejected",
             CnsSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
             CnsSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
+            CnsSpan::BackupExport => "cns.backup.export",
         }
     }
 }
@@ -307,6 +310,7 @@ impl std::str::FromStr for CnsSpan {
             "cns.contract.rejected" => Ok(CnsSpan::ContractRejected),
             "cns.acp.replicant.memory_size" => Ok(CnsSpan::AcpReplicantMemorySize),
             "cns.acp.ide.connection_state" => Ok(CnsSpan::AcpIdeConnectionState),
+            "cns.backup.export" => Ok(CnsSpan::BackupExport),
             _ => Err(()),
         }
     }
@@ -421,6 +425,7 @@ mod cns_span_tests {
             CnsSpan::ContractRejected,
             CnsSpan::AcpReplicantMemorySize,
             CnsSpan::AcpIdeConnectionState,
+            CnsSpan::BackupExport,
         ];
         for variant in &all_variants {
             let s = variant.to_string();

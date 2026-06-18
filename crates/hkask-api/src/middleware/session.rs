@@ -17,7 +17,7 @@ use hkask_storage::user_store::UserStore;
 use std::sync::{Arc, Mutex};
 
 /// Extract a cookie value by name from request headers.
-fn get_cookie(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
+pub(crate) fn extract_cookie(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
     let cookie_header = headers.get(header::COOKIE)?.to_str().ok()?;
     for part in cookie_header.split(';') {
         let trimmed = part.trim();
@@ -42,7 +42,7 @@ pub async fn session_middleware_impl(
     next: Next,
 ) -> Response {
     // Check for session cookie
-    let session_id = match get_cookie(req.headers(), "hkask_session") {
+    let session_id = match extract_cookie(req.headers(), "hkask_session") {
         Some(id) => id,
         None => return next.run(req).await,
     };

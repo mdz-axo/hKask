@@ -10,6 +10,7 @@ pub(crate) mod cns;
 pub(crate) mod consolidation;
 pub(crate) mod curator;
 pub(crate) mod episodic;
+pub(crate) mod export;
 pub(crate) mod git;
 pub(crate) mod goal;
 pub(crate) mod mcp;
@@ -19,6 +20,7 @@ pub(crate) mod settings;
 pub(crate) mod sovereignty;
 pub(crate) mod spec;
 pub(crate) mod templates;
+pub(crate) mod terminal;
 pub(crate) mod wallet;
 
 // Re-export router functions
@@ -32,6 +34,7 @@ pub use cns::cns_router;
 pub use consolidation::consolidation_router;
 pub use curator::curator_router;
 pub use episodic::episodic_router;
+pub use export::export_router;
 pub use git::git_router;
 pub use goal::goal_router;
 pub use mcp::mcp_router;
@@ -41,6 +44,7 @@ pub use settings::settings_router;
 pub use sovereignty::sovereignty_router;
 pub use spec::spec_router;
 pub use templates::templates_router;
+pub use terminal::terminal_router;
 pub use wallet::wallet_router;
 
 // Re-export domain-local types that may be used externally
