@@ -5,7 +5,7 @@
 
 use hkask_types::capability::derive_signing_key;
 use hkask_types::ports::ToolPort;
-use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
+use hkask_types::{DelegationAction, DelegationResource, DelegationToken};
 
 /// Handle `/invoke <tool> [args]` or `/invoke <server>/<tool> [args]`.
 ///

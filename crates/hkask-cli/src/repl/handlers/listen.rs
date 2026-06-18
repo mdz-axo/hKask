@@ -15,7 +15,6 @@ use hkask_types::DelegationAction;
 use hkask_types::DelegationResource;
 use hkask_types::DelegationToken;
 use hkask_types::ToolPort;
-use hkask_types::WebID;
 use hkask_types::capability::derive_signing_key;
 use std::path::PathBuf;
 
