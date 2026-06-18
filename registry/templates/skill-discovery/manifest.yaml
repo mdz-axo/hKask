@@ -26,5 +26,5 @@ templates:
     lexicon_terms: [evaluate, validate, verify, classify, discriminate]
     description: >
       Evaluate a candidate registry crate against format, quality, and safety criteria.
-      Check manifest structure, .j2 frontmatter validity, hLexicon coverage, Magna Carta
+      Check manifest structure, .j2 frontmatter validity, Magna Carta
       compliance, and CNS span validity. Produce scored recommendation.

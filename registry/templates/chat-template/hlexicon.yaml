@@ -1,9 +1,0 @@
-# hLexicon — Chat Template Crate
-#
-# Core vocabulary terms for chat sessions.
-
-- chat.prompt
-- chat.turn
-- chat.context
-- episodic.trace
-- semantic.recall

@@ -8,6 +8,7 @@ use crate::RouterModelEntry;
 use crate::chat_protocol::validate_prompt;
 use crate::config::{InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
+use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
@@ -25,6 +26,7 @@ pub struct InferenceRouter {
     deepinfra: Option<DeepInfraBackend>,
     fal: Option<FalBackend>,
     together: Option<TogetherBackend>,
+    embedding: EmbeddingRouter,
 }
 
 impl InferenceRouter {
@@ -55,10 +57,11 @@ impl InferenceRouter {
         }
 
         Self {
-            config,
+            config: config.clone(),
             deepinfra,
             fal,
             together,
+            embedding: EmbeddingRouter::new(config),
         }
     }
 
@@ -750,19 +753,19 @@ ProviderId::Runpod | ProviderId::Baseten => Err(InferenceError::Connection(
 
 // Non-trait methods (not part of InferencePort)
 impl InferenceRouter {
-    /// Generate a text embedding vector — not yet implemented.
+    /// Generate a text embedding vector via the embedding router.
     ///
     /// REQ: P9-inf-router-embed-text
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — placeholder for regulated embedding dispatch
-    /// pre:  _text may be any string (currently ignored)
-    /// post: always returns Err(EmbeddingGenerationError::Connection) — not yet implemented
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated embedding dispatch
+    /// pre:  text is a non-empty string
+    /// post: delegates to EmbeddingRouter::embed_sentence with resolved model
+    /// post: if embedding fails → Err(EmbeddingGenerationError)
     pub async fn embed_text(
         &self,
-        _text: &str,
-        _model_override: Option<&str>,
+        text: &str,
+        model_override: Option<&str>,
     ) -> Result<Vec<f32>, hkask_types::ports::EmbeddingGenerationError> {
-        Err(hkask_types::ports::EmbeddingGenerationError::Connection(
-            "Embedding router not yet implemented".into(),
-        ))
+        let model = model_override.unwrap_or(&self.config.default_model);
+        self.embedding.embed_sentence(model, text).await
     }
 }

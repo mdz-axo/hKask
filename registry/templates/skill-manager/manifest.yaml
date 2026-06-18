@@ -17,8 +17,8 @@ templates:
     lexicon_terms: [validate, verify, classify, audit, recommend]
     description: >
       Validate skills against registry format and quality checks. Check manifest
-      structure, .j2 frontmatter (template_type, contract, visibility, energy_cap),
-      hLexicon coverage. SKILL.md is validated as secondary companion.
+      structure, .j2 frontmatter (template_type, contract, visibility, energy_cap).
+      SKILL.md is validated as secondary companion.
 
   - id: skill-manager/skill-manager-build
     path: skill-manager-build.j2
@@ -26,5 +26,5 @@ templates:
     lexicon_terms: [create, specify, design, compose, verify]
     description: >
       Scaffold a new registry crate from a user description. Generate manifest.yaml
-      with crate metadata, template entries, and hLexicon terms. Generate companion
+      with crate metadata, template entries, and lexicon_terms. Generate companion
       SKILL.md from the registry crate. Validate and confirm before writing.

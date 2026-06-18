@@ -17,7 +17,7 @@ templates:
     lexicon_terms: [audit, detect, score, classify, recommend]
     description: >
       Audit a registry crate for staleness: manifest version freshness, .j2 contract
-      drift, template_type validity, hLexicon coverage, energy_cap range, visibility
+      drift, template_type validity, energy_cap range, visibility
       values. Produce health scores and deprecation recommendations.
 
   - id: skill-maintenance/skill-maintenance-coverage
@@ -27,4 +27,4 @@ templates:
     description: >
       Analyze coverage gaps across the registry corpus. Map common task patterns
       to existing registry crates, identify uncovered patterns, check template_type
-      and hLexicon distribution. Produce recommendations for skill creation or discovery.
+      distribution. Produce recommendations for skill creation or discovery.

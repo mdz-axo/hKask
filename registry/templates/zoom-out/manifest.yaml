@@ -6,8 +6,8 @@ crate:
   version: "0.28.0"
   description: >
     Context expansion skill. Zooms out to provide broader architectural context,
-    module maps, caller graphs, data flows, and boundary summaries using hLexicon
-    vocabulary. Use when lost in implementation details or unfamiliar with a
+    module maps, caller graphs, data flows, and boundary summaries.
+    Use when lost in implementation details or unfamiliar with a
     section of the codebase.
 
 templates:

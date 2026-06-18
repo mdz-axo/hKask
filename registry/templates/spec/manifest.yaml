@@ -6,7 +6,7 @@ crate:
   version: "0.28.0"
   description: >
     Specification system for binding user intent to formal requirements.
-    Captures goals with hLexicon grounding, binds OCAP constraints,
+    Captures goals with lexicon grounding, binds OCAP constraints,
     contextualises artifacts within collections, reconciles goal tensions,
     and curates specification collections for coherence.
 
@@ -25,7 +25,7 @@ templates:
     lexicon_terms: [contextualise, assess, evaluate]
     description: >
       Situate an artifact within its meaningful environment: domain anchor,
-      related specs, and hLexicon term overlap with the collection.
+      related specs, and term overlap with the collection.
 
   - id: spec/curate-collection
     path: curate-collection.j2
@@ -41,7 +41,7 @@ templates:
     lexicon_terms: [specify, require, elicit]
     description: >
       Elicit user intent as a binding goal requirement with situation,
-      motivation, and outcome criteria grounded in hLexicon terms.
+      motivation, and outcome criteria grounded in lexicon terms.
 
   - id: spec/reconcile-conflicts
     path: reconcile-conflicts.j2

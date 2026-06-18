@@ -7,8 +7,7 @@ crate:
   description: >
     Find deepening opportunities in the codebase. Surfaces shallow modules,
     proposes deep modules with small interfaces and large implementations.
-    Informed by hLexicon domain vocabulary and architecture docs. Aligned with
-    hKask's cybernetic design: crate boundaries as first-class seams.
+    Aligned with hKask's cybernetic design: crate boundaries as first-class seams.
 
 templates:
   - id: improve-codebase-architecture/arch-explore
