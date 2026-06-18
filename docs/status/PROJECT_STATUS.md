@@ -106,14 +106,14 @@ All 48 workspace members.
 
 | Check | Script | Result | Date |
 |-------|--------|--------|------|
-| Public Surface Governance | `scripts/check-public-surface.sh` | ✅ Pass (16/16 crates) | 2026-06-15 |
-| Unsafe Documentation Policy | `scripts/check-unsafe-safety.sh` | ✅ Pass (all blocks documented) | 2026-06-15 |
-| Runtime `.unwrap()` Denylist | `scripts/check-unwrap-denylist.sh` | ✅ Pass (0 violations) | 2026-06-15 |
-| MCP Gate-3 Consistency | `scripts/check-mcp-gate3.sh` | ✅ Pass (10/10 servers) | 2026-06-15 |
-| REQ Traceability Trend | `scripts/check-req-traceability.sh` | ✅ Pass (100% coverage) | 2026-06-16 |
+| Public Surface Governance | `scripts/ci/check-public-surface.sh` | ✅ Pass (16/16 crates) | 2026-06-15 |
+| Unsafe Documentation Policy | `scripts/ci/check-unsafe-safety.sh` | ✅ Pass (all blocks documented) | 2026-06-15 |
+| Runtime `.unwrap()` Denylist | `scripts/ci/check-unwrap.sh` | ✅ Pass (0 violations) | 2026-06-15 |
+| MCP Gate-3 Consistency | `scripts/ci/check-mcp-gate3.sh` | ✅ Pass (10/10 servers) | 2026-06-15 |
+| REQ Traceability Trend | `scripts/ci/check-req-traceability.sh` | ✅ Pass (100% coverage) | 2026-06-16 |
 | Schema Drift (harness vs storage) | `scripts/ci/check-schema-drift.sh` | ✅ Pass (37 tables/indexes) | 2026-06-17 |
 | Contract Quality Review | `kask contract review` | ✅ Pass (0 NO_PRE+NO_POST, 0 NO_POST) | 2026-06-17 |
-| **Master** | `scripts/ci-quality-gates.sh` | ✅ ALL CHECKS PASSED | 2026-06-15 |
+| **Master** | `scripts/ci/ci-quality-gates.sh` | ✅ ALL CHECKS PASSED | 2026-06-15 |
 
 All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, running on every PR and push to main. Release builds depend on quality gates passing.
 
@@ -123,7 +123,7 @@ All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, 
 
 | Check | Script | Result | Date |
 |-------|--------|--------|------|
-| Link checker | `docs/ci/check-links.sh` | ✅ Pass (266 links, 0 broken) | 2026-06-14 |
+| Link checker | `docs/ci/check-links.sh` | ✅ Pass (265 links, 0 broken) | 2026-06-14 |
 | Metadata checker | `docs/ci/check-metadata.sh` | ✅ Pass (56 docs, 0 missing, 2 warnings) | 2026-06-14 |
 | Version sync | `docs/ci/sync-versions.sh --dry-run` | ✅ Pass (0 pending updates, 11 excluded) | 2026-06-14 |
 

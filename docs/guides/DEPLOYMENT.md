@@ -76,7 +76,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 ### 2.3 Inference Provider Setup
 
-hKask uses a multi-provider cloud inference router. Supported providers: Ollama (OM), DeepInfra (DI), Together AI (TG), fal.ai (FA), RunPod (RP), Baseten (BT).
+hKask uses a multi-provider cloud inference router. Supported providers: DeepInfra (DI), Together AI (TG), fal.ai (FA), RunPod (RP), Baseten (BT).
 
 ```bash
 # Configure DeepInfra API key

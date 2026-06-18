@@ -30,7 +30,6 @@ hKask uses a multi-provider inference router that dispatches LLM requests based 
 | `FA/` | fal.ai | Cloud | `FA_API_KEY` |
 | `RP/` | RunPod | Cloud | `RUNPOD_API_KEY` |
 | `BT/` | Baseten | Cloud | `BASETEN_API_KEY` |
-| `OM/` | Ollama | Local | (none — local instance) |
 | (none) | Default (DI) | Configurable | `HKASK_DEFAULT_PROVIDER` |
 
 ---
@@ -47,7 +46,6 @@ All providers use the OpenAI-compatible chat completions endpoint. The router co
 - fal.ai: `https://api.fal.ai/v1/chat/completions`
 - RunPod: `https://api.runpod.io/v1/chat/completions`
 - Baseten: `https://api.baseten.co/v1/chat/completions`
-- Ollama: `http://127.0.0.1:11434/v1/chat/completions`
 
 #### Request Schema
 
@@ -70,10 +68,9 @@ All providers use the OpenAI-compatible chat completions endpoint. The router co
 
 #### Authentication
 
-All cloud providers use Bearer token authentication:
+All providers use Bearer token authentication:
 `Authorization: Bearer {API_KEY}`
 
-Ollama (local) requires no authentication.
 
 ---
 
@@ -90,7 +87,6 @@ Ollama (local) requires no authentication.
 | `together_api_key` | String | (empty) | Together AI Bearer token |
 | `fal_base_url` | String | `https://api.fal.ai` | fal.ai API endpoint |
 | `fal_api_key` | String | (empty) | fal.ai Bearer token |
-| `ollama_base_url` | String | `http://127.0.0.1:11434` | Ollama API endpoint |
 | `timeout_secs` | u64 | `120` | HTTP request timeout |
 | `pool_max_idle` | usize | `5` | Max idle connections per host |
 
@@ -103,7 +99,6 @@ Ollama (local) requires no authentication.
 | `FA_API_KEY` | (none) | fal.ai API key |
 | `RUNPOD_API_KEY` | (none) | RunPod API key |
 | `BASETEN_API_KEY` | (none) | Baseten API key |
-| `OM_BASE_URL` | `http://127.0.0.1:11434` | Ollama base URL |
 | `DI_BASE_URL` | `https://api.deepinfra.com` | DeepInfra base URL |
 | `TG_BASE_URL` | `https://api.together.xyz` | Together AI base URL |
 | `FA_BASE_URL` | `https://api.fal.ai` | fal.ai base URL |
@@ -119,7 +114,6 @@ Models are discovered from each provider's native listing endpoint:
 
 | Provider | Endpoint | Notes |
 |----------|----------|-------|
-| Ollama | `GET /api/tags` | All local models |
 | DeepInfra | `GET /v1/models` | Cloud models |
 | Together AI | `GET /v1/models` | Cloud models |
 | fal.ai | `GET /v1/models` | Cloud models |
@@ -140,11 +134,10 @@ Models are discovered from each provider's native listing endpoint:
 
 ### `EmbeddingRouter`
 
-Generates embedding vectors for semantic search and memory operations. Currently supports Ollama and DeepInfra.
+Generates embedding vectors for semantic search and memory operations. Currently supports DeepInfra.
 
 | Provider | Supported | Endpoint | Wire Format |
 |----------|-----------|----------|-------------|
-| Ollama | ✅ | `POST /api/embed` | `{model, input: [...]}` |
 | DeepInfra | ✅ | `POST /v1/embeddings` | `{model, input: [...]}` (OpenAI) |
 | Together AI | ❌ (not yet implemented) | — | — |
 | fal.ai | ❌ (no embedding endpoint) | — | — |
@@ -158,7 +151,7 @@ Generates embedding vectors for semantic search and memory operations. Currently
 ## Architecture Notes
 
 - `InferencePort` is the single async inference trait in `hkask-types`; `InferenceRouter` is its primary implementation.
-- `EmbeddingRouter` provides embedding generation across supported providers (Ollama, DeepInfra).
+- `EmbeddingRouter` provides embedding generation across supported providers (DeepInfra).
 - Each backend owns its own HTTP client, auth, and model listing endpoint — no shared abstraction.
 - Shared chat protocol types and helpers live in `chat_protocol.rs` as free functions.
 - The router is a pure dispatcher — no response transformation, no automatic failover between providers.
@@ -167,5 +160,4 @@ Generates embedding vectors for semantic search and memory operations. Currently
 
 ## References
 
-[^ollama-api]: Ollama Contributors. (2024). *Ollama REST API*. https://github.com/ollama/ollama/blob/main/docs/api.md
 [^openai-chat-api]: OpenAI. (2024). *Chat Completions API Reference*. https://platform.openai.com/docs/api-reference/chat

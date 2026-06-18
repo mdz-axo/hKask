@@ -792,7 +792,7 @@ Agent writes code → executes → sees error traceback → rewrites → re-exec
 | Feature | Source | Description |
 |---------|--------|-------------|
 | Thinking mode toggle | Zed, Claude | `/thinking on/off` to show/hide model reasoning chains |
-| JSON mode enforcement | OpenAI, Ollama | `/json on` to enforce structured JSON output |
+| JSON mode enforcement | OpenAI (and compatible providers) | `/json on` to enforce structured JSON output |
 | Prompt diffing | Aider | Show what changed in the system prompt between turns |
 | Multi-model responses | ChatGPT, Claude | `/compare` to run same prompt against multiple models |
 | Session export/import | All leading REPLs | Save/load conversation to file (Markdown, JSON, or hKask format) |

@@ -258,7 +258,7 @@ The interactive REPL (`kask chat`) implements four features that govern inferenc
 
 ### Context Injection
 
-Conversation history is appended as a **suffix** (after the cache breakpoint) so the KV cache prefix — system prompt + template — remains identical across turns. Models that cache KV state across requests (e.g., Ollama with `keep_alive`) see prefix cache hits on every turn, reducing per-turn inference latency. Controlled by `ReplSettings.context_turns` (default 3, 0 = no history).
+Conversation history is appended as a **suffix** (after the cache breakpoint) so the KV cache prefix — system prompt + template — remains identical across turns. Models that cache KV state across requests (where supported by the provider) see prefix cache hits on every turn, reducing per-turn inference latency. Controlled by `ReplSettings.context_turns` (default 3, 0 = no history).
 
 ### Unbounded Tool-Use Loop
 
@@ -270,7 +270,7 @@ At 87.5% of the model's context window, old session history is condensed via the
 
 ### Model Awareness
 
-On model switch (`/model`), the REPL fetches metadata from Ollama's `/api/show` endpoint:
+On model switch (`/model`), the REPL fetches metadata from the provider model listing endpoint:
 - `context_length` — the model's native context window size (used by auto-condense)
 - `supports_thinking` — whether the model supports thinking/reasoning tokens
 - `capabilities` — model feature list (vision, tools, etc.)
@@ -828,7 +828,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
-| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (DeepInfra, Together AI, fal.ai, RunPod, Baseten, Ollama) |
+| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (DeepInfra, Together AI, fal.ai, RunPod, Baseten) |
 | [`PUBLIC_SURFACE_JUSTIFICATIONS.md`](PUBLIC_SURFACE_JUSTIFICATIONS.md) | Deep-module audit — 16-crate public surface justifications (consolidated) |
 
 

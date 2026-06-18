@@ -24,6 +24,8 @@
 use hkask_types::secret::derivation_contexts;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
+use std::time::Instant;
+use tracing::info;
 use zeroize::Zeroizing;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -109,6 +111,9 @@ pub fn derive_all_internal_secrets_with_version(
     master_passphrase: &str,
     key_version: u32,
 ) -> InternalSecrets {
+    // P9: CNS span
+    let start = Instant::now();
+    info!(target: "cns.keystore", operation = "derive_all_internal_secrets", key_version = key_version, status = "started", "CNS");
     // Step 1: Argon2id stretch (slow, ~100ms)
     let master_key = crate::encryption::derive_key(master_passphrase, &MASTER_KEY_SALT)
         .expect("Argon2id derivation cannot fail with valid parameters");
@@ -136,6 +141,9 @@ pub fn derive_all_internal_secrets_with_version(
         key_version,
     );
 
+    // P9: CNS span
+    let latency_ms = start.elapsed().as_millis() as u64;
+    info!(target: "cns.keystore", operation = "derive_all_internal_secrets", key_version = key_version, status = "completed", latency_ms = latency_ms, "CNS");
     InternalSecrets {
         a2a_secret,
         capability_key,

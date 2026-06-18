@@ -738,7 +738,7 @@ docs/                                Exemplary corpus
 
 **Open design questions:**
 - Should the exemplary corpus be static (curated once) or dynamic (updated as new exemplars are discovered)?
-- What embedding model? The existing `EmbeddingRouter` supports Ollama and DeepInfra — either could generate documentation-aware embeddings.
+- What embedding model? The existing `EmbeddingRouter` supports DeepInfra — either could generate documentation-aware embeddings.
 - Should the semantic score be a separate dimension (5th dimension alongside Hopper/Lovelace/Schriver/Gentle) or folded into the Gentle (agent-correctness) dimension?
 - What's the minimum viable exemplary corpus size? 50 documents? 500? The EmbedService budget gate could help here.
 

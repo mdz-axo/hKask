@@ -138,6 +138,6 @@ The daemon socket is unreachable or the replicant lacks capability tokens. Check
 
 ### No inference output
 
-- Verify the model is available: `kask model list` (for Ollama) or check provider API keys
+- Verify the model is available: `kask model list` or check provider API keys
 - Check `RUST_LOG=hkask.acp=debug` for inference router logs
 - The replicant connects to the same inference infrastructure as `kask chat`

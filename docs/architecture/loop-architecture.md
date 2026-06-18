@@ -236,7 +236,7 @@ This pathway is **unidirectional**: Cybernetics signals Curation, but Curation d
 | `hkask-cli` / `hkask-api` | Surface (presentation) | `execute(command) → Result<Output>` |
 | `hkask-services` | Service layer | `ChatService`, `InferenceService`, domain operations |
 | `hkask-types` | Shared substrate | Type definitions only — no behavior |
-| Inference Router (hkask-inference) | Inference (via MCP) | `complete(prompt, budget) → Completion` — Multi-provider routing (OM/DI/FA/TG/RP/BT) |
+| Inference Router (hkask-inference) | Inference (via MCP) | `complete(prompt, budget) → Completion` — Multi-provider routing (DI/FA/TG/RP/BT) |
 
 ### 3.2 Interface Discipline
 

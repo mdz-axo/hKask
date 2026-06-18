@@ -180,7 +180,7 @@ use hkask_mcp_training::providers::{
 
 let job = TrainingJob::new(
     PathBuf::from("/data/traces/constraint-forces.jsonl"),
-    "OM/qwen3:8b".into(),              // Base model (provider-prefixed)
+    "DI/meta-llama/Llama-3.3-70B-Instruct".into(),              // Base model (provider-prefixed)
     training_params,
     TrainingHostId::Together,           // Where to run
     TrainingHarnessId::Axolotl,         // Which framework
@@ -227,7 +227,7 @@ The training MCP wraps these in a `LoRAAdapter` metadata struct:
 pub struct LoRAAdapter {
     pub id: String,             // UUIDv4
     pub name: String,           // Human-readable
-    pub base_model: String,     // Provider-prefixed (e.g. "OM/qwen3:8b")
+    pub base_model: String,     // Provider-prefixed (e.g. "DI/meta-llama/Llama-3.3-70B-Instruct")
     pub dataset_hash: String,   // Content hash of training data
     pub training_job_id: String, // Links back to the TrainingJob
     pub skill_name: String,     // e.g. "constraint-forces"
@@ -254,16 +254,16 @@ Trained adapters are published to HuggingFace Hub for distribution to inference 
 
 ### 3.1 Model Registry — Resolving Base Models
 
-Base models are identified with provider prefixes (`OM/qwen3:8b`, `TG/llama-3.3-70b`). The `ModelRegistry` trait strips these to raw HF model IDs:
+Base models are identified with provider prefixes (`DI/meta-llama/Llama-3.3-70B-Instruct`, `TG/llama-3.3-70b`). The `ModelRegistry` trait strips these to raw HF model IDs:
 
 ```rust
 use hkask_mcp_training::huggingface::resolve_model_id;
 
 // Provider-prefixed → raw HF ID
-assert_eq!(resolve_model_id("OM/qwen3:8b"), "qwen3:8b");
+assert_eq!(resolve_model_id("DI/meta-llama/Llama-3.3-70B-Instruct"), "qwen3:8b");
 assert_eq!(resolve_model_id("TG/llama-3.3-70b"), "llama-3.3-70b");
 
-// Known prefixes: OM/ (Ollama), DI/ (DeepInfra), FA/ (fal.ai), TG/ (Together), RP/ (RunPod), BT/ (Baseten)
+// Known prefixes: DI/ (DeepInfra), FA/ (fal.ai), TG/ (Together), RP/ (RunPod), BT/ (Baseten)
 ```
 
 ### 3.2 Adapter Registry — Publishing Adapters

@@ -93,7 +93,11 @@ impl EncryptionService {
     }
 
     /// Decrypt ciphertext data
+    ///
+    // REQ: P9-CNS-KS-001 pre: operation valid, post: cns.keystore span emitted
     pub fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "decrypt", ciphertext_len = ciphertext.len(), status = "started", "CNS");
         if ciphertext.len() < NONCE_SIZE {
             return Err(EncryptionError::Decryption(
                 "Ciphertext too short".to_string(),
@@ -105,9 +109,13 @@ impl EncryptionService {
 
         let nonce = Nonce::from_slice(nonce_bytes);
 
-        self.cipher
+        let result = self
+            .cipher
             .decrypt(nonce, data)
-            .map_err(|e| EncryptionError::Decryption(e.to_string()))
+            .map_err(|e| EncryptionError::Decryption(e.to_string()))?;
+        // P9: CNS span
+        info!(target: "cns.keystore", operation = "decrypt", ciphertext_len = ciphertext.len(), status = "completed", "CNS");
+        Ok(result)
     }
 }
 
