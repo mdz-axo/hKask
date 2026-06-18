@@ -22,7 +22,7 @@ use hkask_mcp_docproc::server::DocProcServer;
 use hkask_types::ocr::ThresholdConfig;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
     let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 
@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
             // Build embedding router for semantic cross-validation
             let embedding_router = EmbeddingRouter::new(inference_config.clone());
 
-            DocProcServer::new(
+            Ok(DocProcServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
@@ -81,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
                 inference_config,
                 ocr_thresholds,
                 Some(embedding_router),
-            )
+            )?)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

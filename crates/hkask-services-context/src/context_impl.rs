@@ -35,7 +35,7 @@ use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
-    SeamWatcher, SnapshotLoop, emit_contract_violated_with_task, load_set_points,
+    SeamWatcher, SnapshotLoop, load_set_points,
 };
 use hkask_mcp::McpDispatcher;
 use hkask_mcp::RawMcpToolPort;
@@ -66,6 +66,10 @@ use hkask_services_core::ServiceConfig;
 use hkask_services_core::ServiceError;
 use hkask_services_sovereignty::SovereigntyService;
 use hkask_services_wallet::WalletService;
+
+mod contract_monitor;
+mod seam_monitor;
+mod matrix;
 
 /// Agent operational context — canonical composition root for hKask.
 ///
@@ -865,61 +869,7 @@ fn spawn_seam_drift_check(
     cns_runtime: &Arc<RwLock<CnsRuntime>>,
     event_sink: &Arc<dyn NuEventSink>,
 ) {
-    let watcher_lock = Arc::clone(seam_watcher);
-    let cns = Arc::clone(cns_runtime);
-    let sink = Arc::clone(event_sink);
-
-    let interval_secs: u64 = std::env::var("HKASK_SEAM_CHECK_INTERVAL_SECS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(1800);
-
-    tokio::spawn(async move {
-        tracing::info!(
-            target: "cns.architecture.seam",
-            interval_secs = %interval_secs,
-            "Seam periodic drift check started — R7.3 watching every {}s",
-            interval_secs
-        );
-        // Initial check
-        {
-            let cns_rt = cns.read().await;
-            let mut guard = watcher_lock.write().await;
-            if let Some(ref mut watcher) = *guard {
-                let drifts = watcher.check_drift(&cns_rt, &*sink).await;
-                if !drifts.is_empty() {
-                    tracing::info!(
-                        target: "cns.architecture.seam",
-                        drift_count = %drifts.len(),
-                        "Initial seam drift check complete"
-                    );
-                }
-            }
-        }
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
-        loop {
-            interval.tick().await;
-            let cns_rt = cns.read().await;
-            let mut guard = watcher_lock.write().await;
-            if let Some(ref mut watcher) = *guard {
-                let _ = watcher.refresh();
-                let drifts = watcher.check_drift(&cns_rt, &*sink).await;
-                if !drifts.is_empty() {
-                    let degradations: Vec<_> =
-                        drifts.iter().filter(|d| d.delta_pct < 0.0).collect();
-                    let improvements: Vec<_> =
-                        drifts.iter().filter(|d| d.delta_pct > 0.0).collect();
-                    tracing::info!(
-                        target: "cns.architecture.seam",
-                        total_drifts = %drifts.len(),
-                        degradations = %degradations.len(),
-                        improvements = %improvements.len(),
-                        "Periodic seam drift check complete"
-                    );
-                }
-            }
-        }
-    });
+    self::seam_monitor::spawn_seam_drift_check(seam_watcher, cns_runtime, event_sink)
 }
 
 /// Spawn a background task that periodically runs `cargo test` on priority
@@ -936,100 +886,7 @@ fn spawn_contract_test_loop(
     triple_store: &Arc<TripleStore>,
     workspace_root: &str,
 ) {
-    let interval_secs: u64 = std::env::var("HKASK_CONTRACT_TEST_INTERVAL_SECS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(3600);
-
-    if interval_secs == 0 {
-        tracing::info!(
-            target: "cns.contract",
-            "Contract test loop disabled (HKASK_CONTRACT_TEST_INTERVAL_SECS=0)"
-        );
-        return;
-    }
-
-    let sink = Arc::clone(event_sink);
-    let store = Arc::clone(triple_store);
-    let root = workspace_root.to_string();
-
-    // Priority crates — correctness-critical and high risk.
-    let priority_crates: &[&str] = &[
-        "hkask-cns",
-        "hkask-wallet",
-        "hkask-keystore",
-        "hkask-condenser",
-        "hkask-storage",
-        "hkask-services",
-        "hkask-mcp",
-    ];
-
-    tokio::spawn(async move {
-        tracing::info!(
-            target: "cns.contract",
-            interval_secs = %interval_secs,
-            crates = ?priority_crates,
-            "Contract test monitor started — running cargo test on priority crates every {}s",
-            interval_secs
-        );
-
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
-        loop {
-            interval.tick().await;
-
-            for crate_name in priority_crates {
-                let result = run_contract_tests_for_crate(crate_name, &root);
-                match result {
-                    Some(r) if r.failed > 0 => {
-                        tracing::warn!(
-                            target: "cns.contract",
-                            crate_name = %r.crate_name,
-                            failed = %r.failed,
-                            passed = %r.passed,
-                            violations = %r.violations.len(),
-                            "Contract tests failed — emitting CNS spans"
-                        );
-                        for violation in &r.violations {
-                            let _ = emit_contract_violated_with_task(
-                                &*sink,
-                                &store,
-                                &violation.test_name,
-                                &violation.contract_id,
-                                &violation.failure_reason,
-                                None,
-                            );
-                        }
-                    }
-                    Some(r) => {
-                        tracing::debug!(
-                            target: "cns.contract",
-                            crate_name = %r.crate_name,
-                            passed = %r.passed,
-                            "Contract tests passed"
-                        );
-                    }
-                    None => {
-                        tracing::debug!(
-                            target: "cns.contract",
-                            crate_name = %crate_name,
-                            "Contract test runner unavailable — cargo not found"
-                        );
-                    }
-                }
-            }
-        }
-    });
-}
-
-/// Run contract tests via the shared harness and emit violations.
-///
-/// Delegates to `hkask-test-harness::test_runner::run_contract_tests()`.
-/// Returns `None` if cargo is unavailable (non-fatal — the monitor skips).
-fn run_contract_tests_for_crate(
-    crate_name: &str,
-    workspace_root: &str,
-) -> Option<hkask_test_harness::test_runner::ContractTestResult> {
-    hkask_test_harness::test_runner::run_contract_tests(crate_name, workspace_root)
+    self::contract_monitor::spawn_contract_test_loop(event_sink, triple_store, workspace_root)
 }
 
 /// Loops: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
@@ -1311,64 +1168,7 @@ async fn build_mcp_and_pods(
 /// Matrix transport + 7R7 listener. Non-blocking: returns None if Conduit unreachable.
 async fn build_matrix()
 -> Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
-    let homeserver_url =
-        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
-    let keychain = hkask_keystore::Keychain::default();
-
-    let credentials = {
-        if let Ok(password) = keychain.retrieve_by_key("matrix-bot-curator") {
-            Some(("@hkask-curator:localhost".to_string(), password))
-        } else if let (Ok(username), Ok(password)) = (
-            keychain.retrieve_by_key("matrix-replicant-username"),
-            keychain.retrieve_by_key("matrix-replicant-password"),
-        ) {
-            Some((username, password))
-        } else if let (Ok(username), Ok(password)) = (
-            std::env::var("HKASK_MATRIX_AGENT_USERNAME"),
-            std::env::var("HKASK_MATRIX_AGENT_PASSWORD"),
-        ) {
-            Some((username, password))
-        } else {
-            None
-        }
-    };
-
-    match credentials {
-        Some((username, password)) => {
-            let mut transport = hkask_communication::matrix::MatrixTransport::new(&homeserver_url);
-            match transport.login(&username, &password).await {
-                Ok(()) => {
-                    let transport = Arc::new(tokio::sync::Mutex::new(transport));
-                    let listener =
-                        hkask_communication::listener::SevenR7Listener::new(transport.clone(), 30);
-                    listener.start().await;
-                    tracing::info!(
-                        target: "cns.communication.matrix.daemon",
-                        username = %username,
-                        homeserver = %homeserver_url,
-                        "Matrix transport connected and 7R7 listener started"
-                    );
-                    Some(transport)
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "cns.communication.matrix.daemon",
-                        username = %username,
-                        error = %e,
-                        "Matrix login failed — Conduit may not be running. Continuing without Matrix."
-                    );
-                    None
-                }
-            }
-        }
-        None => {
-            tracing::info!(
-                target: "cns.communication.matrix.daemon",
-                "No Matrix credentials found in keychain or environment. Continuing without Matrix."
-            );
-            None
-        }
-    }
+    self::matrix::build_matrix().await
 }
 
 /// Registry + wallet: agent records, A2A restore, rJoule payments.
@@ -1568,60 +1368,6 @@ fn build_wallet(
 ///
 /// Called from the pod activation hook. Uses MatrixTransport from the
 /// core communication crate for registration.
-async fn register_pod_on_matrix(homeserver_url: &str, _webid: &hkask_types::WebID, pod_name: &str) {
-    let localpart = pod_name.to_lowercase().replace(' ', "-");
-    let username = format!("{}-bot", localpart);
-    let password = uuid::Uuid::new_v4().to_string();
-
-    let _transport = hkask_communication::matrix::MatrixTransport::new(homeserver_url);
-
-    // Register directly on Conduit — MatrixTransport doesn't have a register
-    // method (it uses login), so we use the same HTTP approach as onboarding.
-    let url = format!(
-        "{}/_matrix/client/v3/register",
-        homeserver_url.trim_end_matches('/')
-    );
-
-    let body = serde_json::json!({
-        "username": &username,
-        "password": &password,
-        "initial_device_display_name": format!("hKask Pod: {}", pod_name),
-        "auth": {"type": "m.login.dummy"}
-    });
-
-    match reqwest::Client::new()
-        .post(&url)
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-    {
-        Ok(response) if response.status().is_success() => {
-            let full_id = format!("@{}:localhost", username);
-            let keychain = hkask_keystore::Keychain::default();
-            let _ = keychain.store_by_key(&format!("matrix-pod-{}", pod_name), &password);
-            tracing::info!(
-                target: "cns.communication.matrix.pod_registered",
-                pod = %pod_name,
-                matrix_id = %full_id,
-                "Pod replicant registered on Matrix"
-            );
-        }
-        Ok(response) => {
-            tracing::warn!(
-                target: "cns.communication.matrix.pod_registered",
-                pod = %pod_name,
-                status = %response.status().as_u16(),
-                "Matrix registration for pod failed — Conduit may not be running"
-            );
-        }
-        Err(e) => {
-            tracing::warn!(
-                target: "cns.communication.matrix.pod_registered",
-                pod = %pod_name,
-                error = %e,
-                "Matrix registration for pod failed — Conduit unreachable"
-            );
-        }
-    }
+async fn register_pod_on_matrix(homeserver_url: &str, webid: &hkask_types::WebID, pod_name: &str) {
+    self::matrix::register_pod_on_matrix(homeserver_url, webid, pod_name).await
 }

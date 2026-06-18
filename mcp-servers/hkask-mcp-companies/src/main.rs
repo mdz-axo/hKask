@@ -1891,7 +1891,7 @@ fn cagr_from_series(yoy_growths: &[f64]) -> f64 {
 // ── Main ───────────────────────────────────────────────────────────
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
     let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 
@@ -1923,13 +1923,13 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_EODHD_API_KEY")
                 .expect("required credential checked by run_stdio_server")
                 .clone();
-            CompaniesServer::new(
+            Ok(CompaniesServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
                 fmp_api_key,
                 eodhd_api_key,
-            )
+            )?)
         },
         vec![
             hkask_mcp::CredentialRequirement::required(

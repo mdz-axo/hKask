@@ -187,9 +187,9 @@ pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database,
                 let passphrase = self.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
                     McpError::DatabasePassphrase(db_env_var.to_string())
                 })?;
-                Ok(open_database(path, passphrase)?)
+                Ok(open_database(path, passphrase).map_err(|e| anyhow::anyhow!("{e}"))?)
             }
-            None => Ok(hkask_storage::Database::in_memory()?),
+            None => Ok(hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?),
         }
     }
 
@@ -211,11 +211,11 @@ pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database,
                 })?;
                 Ok(hkask_storage::Database::open_with_extensions(
                     path, passphrase, extensions,
-                )?)
+                ).map_err(|e| anyhow::anyhow!("{e}"))?)
             }
             None => Ok(hkask_storage::Database::in_memory_with_extensions(
                 extensions,
-            )?),
+            ).map_err(|e| anyhow::anyhow!("{e}"))?),
         }
     }
 }

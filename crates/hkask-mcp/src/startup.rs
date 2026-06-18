@@ -37,6 +37,7 @@
 
 use crate::daemon::{DaemonClient, DaemonResponse};
 use crate::server::McpError;
+use anyhow;
 
 /// Result of startup gate verification.
 #[derive(Debug, Clone)]
@@ -155,7 +156,7 @@ pub async fn verify_startup_gates(
 
     let mut denied_tools = Vec::new();
     for tool in required_tools {
-        let cap = client.capability_query(replicant, tool).await?;
+        let cap = client.capability_query(replicant, tool).await.map_err(|e| anyhow::anyhow!("{e}"))?;
         match cap {
             DaemonResponse::CapabilityResponse { granted: true } => {
                 // Tool capability granted.

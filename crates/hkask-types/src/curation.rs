@@ -64,8 +64,6 @@ impl TryFrom<&str> for CurationDecision {
 pub enum OcapTokenKind {
     /// Curation authority — ConsolidationToken
     Curation,
-    /// Cybernetics authority — CyberneticsToken
-    Cybernetics,
     /// Spec curation authority
     SpecCurate,
 }
@@ -74,7 +72,6 @@ impl std::fmt::Display for OcapTokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
             OcapTokenKind::Curation => "curation",
-            OcapTokenKind::Cybernetics => "cybernetics",
             OcapTokenKind::SpecCurate => "spec_curate",
         };
         f.write_str(s)
@@ -89,7 +86,6 @@ impl std::fmt::Display for OcapTokenKind {
 pub fn parse_ocap_token_kind(s: &str) -> Option<OcapTokenKind> {
     match s {
         "curation" => Some(OcapTokenKind::Curation),
-        "cybernetics" => Some(OcapTokenKind::Cybernetics),
         "spec_curate" => Some(OcapTokenKind::SpecCurate),
         _ => None,
     }

@@ -1236,7 +1236,7 @@ impl SpecServer {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
     let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 

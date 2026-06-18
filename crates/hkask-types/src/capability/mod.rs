@@ -26,7 +26,7 @@ pub use resources::{
     capability_from_server_id,
 };
 pub use token_types::{
-    CapabilityToken, DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION,
+    DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION,
     SYSTEM_MAX_RECURSION,
 };
 

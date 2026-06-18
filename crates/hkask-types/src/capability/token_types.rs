@@ -587,6 +587,3 @@ impl DelegationToken {
             && self.delegated_to == other.delegated_to
     }
 }
-
-/// Type alias for spec-code alignment (`CapabilityToken`). Prefer `DelegationToken` directly.
-pub type CapabilityToken = DelegationToken;

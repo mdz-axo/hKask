@@ -5431,16 +5431,6 @@
   },
   {
     "crate_name": "hkask-templates",
-    "function": "with_lexicon",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/contract_validator.rs",
-    "line": 50,
-    "req_id": "P3-tpl-contract-validator-with-lexicon",
-    "pre": "hlexicon is a valid HLexicon",
-    "post": "returns ContractValidator with lexicon, Warn mode",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-templates",
     "function": "with_mode",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/contract_validator.rs",
     "line": 62,
@@ -12997,56 +12987,6 @@
     "req_id": "P9-inf-validate-prompt",
     "pre": "prompt is a valid &str",
     "post": "returns Err(Generation) if prompt.len() > 1_000_000",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-inference",
-    "function": "new",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-inference/src/ollama_backend.rs",
-    "line": 31,
-    "req_id": "P4-inf-ollama-backend-new",
-    "pre": "config.ollama_base_url is set",
-    "post": "returns OllamaBackend with configured HTTP client",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-inference",
-    "function": "generate",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-inference/src/ollama_backend.rs",
-    "line": 52,
-    "req_id": "P9-inf-ollama-generate",
-    "pre": "params is a valid LLMParameters",
-    "post": "if prompt is empty → Err(InferenceError::Generation)",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-inference",
-    "function": "generate_vision",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-inference/src/ollama_backend.rs",
-    "line": 106,
-    "req_id": "P9-inf-ollama-generate-vision",
-    "pre": "params is a valid LLMParameters",
-    "post": "if connection fails → Err(InferenceError::Connection)",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-inference",
-    "function": "generate_stream",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-inference/src/ollama_backend.rs",
-    "line": 166,
-    "req_id": "P9-inf-ollama-generate-stream",
-    "pre": "model is a valid Ollama model name",
-    "post": "returns stream of inference chunks",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-inference",
-    "function": "list_models",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-inference/src/ollama_backend.rs",
-    "line": 232,
-    "req_id": "P9-inf-ollama-list-models",
-    "pre": "self.client and self.base_url are initialized",
-    "post": "if connection fails → Err(InferenceError::Connection)",
     "flags": ""
   },
   {

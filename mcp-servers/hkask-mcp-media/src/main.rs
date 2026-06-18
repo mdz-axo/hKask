@@ -4070,7 +4070,7 @@ impl MediaServer {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
     let replicant = std::env::var("HKASK_REPLICANT").unwrap_or_else(|_| "anonymous".to_string());
 
@@ -4120,14 +4120,14 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-media",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            MediaServer::new(
+            Ok(MediaServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
                 inference.clone(),
                 gallery_store.clone(),
                 face_analyzer.clone(),
-            )
+            )?)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(
