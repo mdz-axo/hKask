@@ -328,7 +328,7 @@ impl CyberneticsLoop {
     fn persist_directive_acknowledgment(&self, directive_type: &str) {
         if let Some(ref sink) = self.event_sink {
             let ack = NuEvent::new(
-                WebID::new(),
+                WebID::from_persona(b"cns"),
                 Span::from_kind(SpanKind::CurationDirectiveAcknowledged),
                 Phase::Act,
                 serde_json::json!({
@@ -611,7 +611,7 @@ impl HkaskLoop for CyberneticsLoop {
                 if !sent_live {
                     if let Some(ref sink) = self.event_sink {
                         let event = NuEvent::new(
-                            WebID::new(),
+                            WebID::from_persona(b"cns"),
                             Span::from_kind(SpanKind::VarietyAlgedonicAlert),
                             Phase::Act,
                             serde_json::json!({

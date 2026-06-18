@@ -198,7 +198,7 @@ impl DefaultSpecCurator {
             return;
         };
         let event = NuEvent::new(
-            WebID::new(),
+            WebID::from_persona(b"spec-curator"),
             Span::new(SpanNamespace::from(CnsSpan::Sovereignty), "checked"),
             Phase::Compare,
             serde_json::json!({
@@ -291,7 +291,7 @@ impl SpecCurator for DefaultSpecCurator {
             // Emit algedonic NuEvent so Curation Loop can sense it
             if let Some(ref sink) = self.event_sink {
                 let event = NuEvent::new(
-                    WebID::new(),
+                    WebID::from_persona(b"spec-curator"),
                     Span::new(SpanNamespace::from(CnsSpan::Spec), "drift_exceeded"),
                     Phase::Compare,
                     serde_json::json!({

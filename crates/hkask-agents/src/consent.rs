@@ -321,7 +321,7 @@ impl ConsentManager {
     fn emit_consent_denied(&self, webid: &str, category: &DataCategory) {
         if let Some(ref sink) = self.event_sink {
             let event = NuEvent::new(
-                WebID::new(),
+                WebID::from_persona(b"consent"),
                 Span::new(SpanNamespace::new("cns.consent"), "denied"),
                 Phase::Compare,
                 serde_json::json!({

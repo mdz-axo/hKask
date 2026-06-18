@@ -155,7 +155,7 @@ impl GoalService {
                 goal_id: goal_id.to_string(),
                 from_state,
                 to_state: new_state.as_str().to_string(),
-                agent: WebID::new(),
+                agent: WebID::from_persona(b"goal-service"),
             });
             let _ = tx.send(event);
         }
@@ -196,7 +196,7 @@ mod tests {
     // REQ: P7-svc-goal-003 — Goal::into() → GoalResponse preserves all fields
     #[test]
     fn goal_to_response_maps_all_fields() {
-        let goal = Goal::new(WebID::new(), "Test goal", Visibility::Private);
+        let goal = Goal::new(WebID::from_persona(b"goal-service"), "Test goal", Visibility::Private);
         let resp = GoalResponse::from(goal);
         assert!(!resp.id.is_empty(), "ID must be non-empty");
         assert_eq!(resp.text, "Test goal");

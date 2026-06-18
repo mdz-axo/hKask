@@ -70,7 +70,7 @@ pub fn emit_contract_violated(
 ) {
     let span = Span::new(SpanNamespace::from(CnsSpan::ContractViolated), "violated");
     let event = NuEvent::new(
-        WebID::new(),
+        WebID::from_persona(b"contract-discipline"),
         span,
         Phase::Compare,
         json!({
@@ -115,7 +115,7 @@ pub fn emit_contract_coverage(
 ) {
     let span = Span::new(SpanNamespace::from(CnsSpan::ContractCoverage), "measured");
     let event = NuEvent::new(
-        WebID::new(),
+        WebID::from_persona(b"contract-discipline"),
         span,
         Phase::Sense,
         json!({
@@ -213,7 +213,7 @@ pub fn create_contract_violation_task(
 ) -> Result<String, ContractBridgeError> {
     ensure_violations_board(store, owner)?;
 
-    let task_id = WebID::new().to_string();
+    let task_id = WebID::from_persona(b"contract-task").to_string();
     let now = chrono::Utc::now().to_rfc3339();
     let title = format!("CV: {contract_id} — {function_name}");
     let description = format!(

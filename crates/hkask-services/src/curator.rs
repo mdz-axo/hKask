@@ -85,7 +85,7 @@ impl CuratorService {
             "escalation_resolved",
         );
         let event = NuEvent::new(
-            WebID::new(),
+            WebID::from_persona(b"curator"),
             span,
             Phase::Act,
             serde_json::json!({
@@ -123,7 +123,7 @@ impl CuratorService {
             "escalation_dismissed",
         );
         let event = NuEvent::new(
-            WebID::new(),
+            WebID::from_persona(b"curator"),
             span,
             Phase::Act,
             serde_json::json!({
