@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # E2E test: hkask-acp binary with real daemon and inference.
-# Requires: running daemon, running Ollama, built hkask-acp and kask binaries.
 set -euo pipefail
 
 BINARY="./target/debug/hkask-acp"

@@ -3,11 +3,39 @@
 //! `Contribution` is the input type (a turn in conversation).
 //! `ImprovResponse` is the unified output enum covering all five modes.
 
-use crate::ConversationContext;
 use crate::plussing::PlussedResponse;
 use crate::riffing::RiffReturn;
 use hkask_types::id::WebID;
 use std::time::Duration;
+
+/// Conversation context — agent, participants, turn count, recursion depth.
+#[derive(Debug, Clone)]
+pub struct ConversationContext {
+    pub agent_id: WebID,
+    pub participants: Vec<WebID>,
+    pub turn_count: usize,
+    pub recursion_depth: u8,
+}
+
+impl ConversationContext {
+    pub fn new(agent_id: WebID) -> Self {
+        Self {
+            agent_id,
+            participants: vec![agent_id],
+            turn_count: 0,
+            recursion_depth: 0,
+        }
+    }
+
+    pub fn descend(&self) -> Self {
+        Self {
+            agent_id: self.agent_id,
+            participants: self.participants.clone(),
+            turn_count: self.turn_count,
+            recursion_depth: self.recursion_depth.saturating_add(1),
+        }
+    }
+}
 
 /// Protocol trait for improv modes — each mode implements respond().
 pub trait ImprovProtocol {

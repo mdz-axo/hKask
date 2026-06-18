@@ -319,20 +319,6 @@ EOF
 
 echo -e "${GREEN}✓ Created templates/prompts/prompt_render.j2${NC}"
 
-# Generate hlexicon.yaml
-cat > "$CRATE_NAME/hlexicon.yaml" << EOF
-# hLexicon terms for $AGENT_NAME
-# Domain-specific vocabulary for template matching
-
-- recognize
-- classify
-- match
-- discriminate
-- $AGENT_NAME
-EOF
-
-echo -e "${GREEN}✓ Created hlexicon.yaml${NC}"
-
 # Create README.md
 cat > "$CRATE_NAME/README.md" << EOF
 # $AGENT_NAME
@@ -350,7 +336,6 @@ $CRATE_NAME/
 ├── Cargo.toml              # Rust crate metadata
 ├── agent_persona.yaml      # Agent identity and capabilities
 ├── dispatch_manifest.yaml  # Dispatch workflow
-├── hlexicon.yaml          # Domain terms
 └── templates/
     ├── selectors/         # Template selectors
     ├── prompts/           # Prompt templates

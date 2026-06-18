@@ -27,13 +27,10 @@ pub mod plussing;
 pub mod protocol;
 pub mod riffing;
 
-pub use cascade::{ImprovCascade, ImprovError, MATRYOSHKA_LIMIT};
+pub use cascade::ImprovCascade;
 pub use freestyling::FreestyleSession;
-pub use kata::{KataImprovResult, KataPhase};
 pub use modes::ImprovMode;
-pub use plussing::{AgreeableComponent, PlussedResponse};
-pub use protocol::{Contribution, ImprovResponse};
-pub use riffing::{RiffOutcome, RiffReturn};
+pub use protocol::{Contribution, ConversationContext, ImprovResponse};
 
 use hkask_types::id::WebID;
 
@@ -53,37 +50,6 @@ impl ImprovSkill {
         match mode {
             ImprovMode::Cascade(cascade) => cascade.execute(contribution, context),
             other => Ok(other.respond(contribution, context)),
-        }
-    }
-}
-
-/// Conversation context — agent, participants, turn count, recursion depth.
-#[derive(Debug, Clone)]
-pub struct ConversationContext {
-    pub agent_id: WebID,
-    pub participants: Vec<WebID>,
-    pub turn_count: usize,
-    /// Current recursion depth in the improv cascade (0 = top-level).
-    pub recursion_depth: u8,
-}
-
-impl ConversationContext {
-    pub fn new(agent_id: WebID) -> Self {
-        Self {
-            agent_id,
-            participants: vec![agent_id],
-            turn_count: 0,
-            recursion_depth: 0,
-        }
-    }
-
-    /// Create a child context for one level deeper in the cascade.
-    pub fn descend(&self) -> Self {
-        Self {
-            agent_id: self.agent_id,
-            participants: self.participants.clone(),
-            turn_count: self.turn_count,
-            recursion_depth: self.recursion_depth.saturating_add(1),
         }
     }
 }

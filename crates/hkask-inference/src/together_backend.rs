@@ -187,8 +187,8 @@ impl TogetherBackend {
 
     /// Vision/multimodal inference with base64-encoded images.
     ///
-    /// REQ: P9-inf-together-generate-stream
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
+    /// REQ: P9-inf-together-generate-vision
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
     /// pre:  model is a valid Together AI vision-capable model name
     /// pre:  prompt is non-empty
     /// pre:  images is non-empty (at least one base64-encoded image)
