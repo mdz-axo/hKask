@@ -124,8 +124,6 @@ pub struct TemplateCrate {
     pub dispatch_manifest_yaml: String,
     /// Template files (path -> content)
     pub templates: Vec<TemplateFile>,
-    /// hLexicon terms used
-    pub hlexicon_terms: Vec<String>,
 }
 
 /// Template invocation record — tracks template rendering events.

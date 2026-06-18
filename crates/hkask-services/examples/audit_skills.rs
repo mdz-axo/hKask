@@ -15,8 +15,7 @@ fn main() {
     let loader = hkask_templates::SkillLoader::new(project_root);
     loader.load_into(&mut skill_index);
 
-    let auditor = hkask_services::SkillAuditor::new(&registry, &skill_index, project_root)
-        .expect("build auditor");
+    let auditor = hkask_services::SkillAuditor::new(&registry, &skill_index, project_root);
     let report = auditor.audit_all().expect("audit all skills");
 
     let json = report.to_json().expect("serialize report");

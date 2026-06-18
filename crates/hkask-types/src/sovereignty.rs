@@ -31,8 +31,6 @@ pub enum DataCategory {
     OcapBoundaries,
     /// Template invocations (prompt/render history)
     TemplateInvocations,
-    /// hLexicon terms (canonical vocabulary)
-    HLexiconTerms,
     /// Template registry (public template metadata)
     TemplateRegistry,
     /// Custom category (application-specific)
@@ -53,7 +51,6 @@ impl DataCategory {
             DataCategory::CapabilityTokens => "capability_tokens",
             DataCategory::OcapBoundaries => "ocap_boundaries",
             DataCategory::TemplateInvocations => "template_invocations",
-            DataCategory::HLexiconTerms => "hlexicon_terms",
             DataCategory::TemplateRegistry => "template_registry",
             DataCategory::Custom(s) => s.as_str(),
         }
@@ -76,7 +73,6 @@ impl DataCategory {
             "capability_tokens" => DataCategory::CapabilityTokens,
             "ocap_boundaries" => DataCategory::OcapBoundaries,
             "template_invocations" => DataCategory::TemplateInvocations,
-            "hlexicon_terms" => DataCategory::HLexiconTerms,
             "template_registry" => DataCategory::TemplateRegistry,
             _ => DataCategory::Custom(s.to_string()),
         }
@@ -125,7 +121,7 @@ impl DataCategory {
             | Self::CapabilityTokens
             | Self::OcapBoundaries => Visibility::Private,
             Self::SemanticMemory | Self::TemplateInvocations => Visibility::Public,
-            Self::HLexiconTerms | Self::TemplateRegistry => Visibility::Public,
+            Self::TemplateRegistry => Visibility::Public,
             Self::Custom(_) => Visibility::Private, // conservative default
         }
     }
@@ -220,7 +216,6 @@ impl DataSovereigntyBoundary {
         shared_data.insert(DataCategory::TemplateInvocations);
 
         let mut public_data = HashSet::new();
-        public_data.insert(DataCategory::HLexiconTerms);
         public_data.insert(DataCategory::TemplateRegistry);
 
         Self {

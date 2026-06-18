@@ -118,15 +118,6 @@ impl GitCasAdapter {
             }
         }
 
-        let hlexicon_path = full_path.join("hlexicon.yaml");
-        let hlexicon_terms = if hlexicon_path.exists() {
-            let content = std::fs::read_to_string(&hlexicon_path)
-                .map_err(|e| InfrastructureError::Io(format!("Failed to read hlexicon: {}", e)))?;
-            parse_hlexicon_terms(&content)
-        } else {
-            Vec::new()
-        };
-
         let git_sha = self.resolve_sha(crate_name)?;
 
         Ok(TemplateCrate {
@@ -135,7 +126,6 @@ impl GitCasAdapter {
             persona_yaml,
             dispatch_manifest_yaml,
             templates,
-            hlexicon_terms,
         })
     }
 
@@ -160,26 +150,4 @@ impl GitCasAdapter {
             Err(_) => Ok("0000000000000000000000000000000000000000".to_string()),
         }
     }
-}
-
-fn parse_hlexicon_terms(content: &str) -> Vec<String> {
-    let mut terms = Vec::new();
-
-    if let Ok(value) = serde_yaml_neo::from_str::<serde_yaml_neo::Value>(content) {
-        match value {
-            serde_yaml_neo::Value::Sequence(seq) => {
-                for item in seq {
-                    if let serde_yaml_neo::Value::String(term) = item {
-                        terms.push(term);
-                    }
-                }
-            }
-            serde_yaml_neo::Value::String(term) => {
-                terms.push(term);
-            }
-            _ => {}
-        }
-    }
-
-    terms
 }

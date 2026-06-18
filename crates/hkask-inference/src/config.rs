@@ -389,7 +389,6 @@ mod tests {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates provider code parser
     #[test]
     fn parse_provider_code_all_codes() {
-        assert_eq!(parse_provider_code("OM"), ProviderId::Ollama);
         assert_eq!(parse_provider_code("DI"), ProviderId::DeepInfra);
         assert_eq!(parse_provider_code("FA"), ProviderId::Fal);
         assert_eq!(parse_provider_code("TG"), ProviderId::Together);
@@ -397,14 +396,14 @@ mod tests {
         assert_eq!(parse_provider_code("BT"), ProviderId::Baseten);
     }
 
-    /// REQ: P9-inf-test-provider-code-default — unknown or empty provider code defaults to Ollama
+    /// REQ: P9-inf-test-provider-code-default — unknown or empty provider code defaults to DeepInfra
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates safe default provider
     #[test]
-    fn parse_provider_code_unknown_defaults_to_ollama() {
-        assert_eq!(parse_provider_code("XX"), ProviderId::Ollama);
-        assert_eq!(parse_provider_code(""), ProviderId::Ollama);
-        assert_eq!(parse_provider_code("ollama"), ProviderId::Ollama);
-        assert_eq!(parse_provider_code("om"), ProviderId::Ollama); // case-sensitive
+    fn parse_provider_code_unknown_defaults_to_deepinfra() {
+        assert_eq!(parse_provider_code("XX"), ProviderId::DeepInfra);
+        assert_eq!(parse_provider_code(""), ProviderId::DeepInfra);
+        assert_eq!(parse_provider_code("ollama"), ProviderId::DeepInfra);
+        assert_eq!(parse_provider_code("om"), ProviderId::DeepInfra);
     }
 
     // ── resolve_api_key ──────────────────────────────────────────────────

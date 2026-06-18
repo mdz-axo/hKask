@@ -65,7 +65,6 @@ fn run_sovereignty_ops(action: crate::cli::SovereigntyAction) {
                 ("capability_tokens", &DataCategory::CapabilityTokens),
                 ("ocap_boundaries", &DataCategory::OcapBoundaries),
                 ("template_invocations", &DataCategory::TemplateInvocations),
-                ("hlexicon_terms", &DataCategory::HLexiconTerms),
                 ("template_registry", &DataCategory::TemplateRegistry),
             ];
             for (label, cat) in &categories {

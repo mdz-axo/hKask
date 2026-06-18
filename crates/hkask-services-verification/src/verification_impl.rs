@@ -338,7 +338,6 @@ fn verify_resource_verification(assertion: &Assertion) -> AssertionResult {
         DataCategory::CapabilityTokens,
         DataCategory::OcapBoundaries,
         DataCategory::TemplateInvocations,
-        DataCategory::HLexiconTerms,
         DataCategory::TemplateRegistry,
     ];
     for cat in &categories {

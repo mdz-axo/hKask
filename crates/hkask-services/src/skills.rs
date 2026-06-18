@@ -464,8 +464,6 @@ struct J2FileInfo {
     energy_cap: Option<i64>,
     energy_cap_valid: bool,
     contract_valid: bool,
-    hlexicon_valid: bool,
-    unknown_hlexicon_terms: Vec<String>,
 }
 
 #[derive(Debug, Default)]
@@ -482,17 +480,6 @@ struct J2FrontMatter {
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const WORKSPACE_VERSION: &str = "0.27.0";
-
-fn status_from_score(score: f64) -> SkillStatus {
-    if score >= 0.8 {
-        SkillStatus::Active
-    } else if score >= 0.5 {
-        SkillStatus::StaleWarning
-    } else if score >= 0.2 {
-        SkillStatus::Critical
-    } else {
-        SkillStatus::RecommendDeprecation
-    }
 }
 
 fn load_workspace_hlexicon(project_root: &Path) -> Result<HLexicon, SkillAuditError> {
@@ -627,15 +614,6 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let root = tmp.path();
 
-        // Minimal hLexicon
-        let hlex_dir = root.join("registry").join("hlexicon");
-        fs::create_dir_all(&hlex_dir).unwrap();
-        fs::write(
-            hlex_dir.join("hlexicon-workspace.yaml"),
-            "hlexicon:\n  knowact:\n    - term: classify\n      definition: Categorize\n",
-        )
-        .unwrap();
-
         // Zed layer
         let zed_dir = root.join(".agents").join("skills").join("test-skill");
         fs::create_dir_all(&zed_dir).unwrap();
@@ -679,8 +657,7 @@ mod tests {
         let auditor = SkillAuditor::new(
             &registry, &registry, // Registry implements both traits
             root,
-        )
-        .expect("auditor");
+        );
 
         let score = auditor.audit_skill("test-skill").expect("audit");
         assert!(

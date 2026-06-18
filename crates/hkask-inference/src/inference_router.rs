@@ -1,6 +1,6 @@
 //! Inference router — multi-provider `InferencePort` implementation.
 //!
-//! Routes requests to Ollama, Fireworks, DeepInfra, or fal.ai based on the
+//! Routes requests to DeepInfra, fal.ai, or Together AI based on the
 //! 2-letter provider prefix in the model name. Unprefixed model names
 //! use the configured default provider.
 
@@ -10,7 +10,6 @@ use crate::config::{InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
 use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
-use crate::ollama_backend::OllamaBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
@@ -24,7 +23,6 @@ use tracing::warn;
 /// and model listing endpoint.
 pub struct InferenceRouter {
     config: InferenceConfig,
-    ollama: Option<OllamaBackend>,
     deepinfra: Option<DeepInfraBackend>,
     fal: Option<FalBackend>,
     together: Option<TogetherBackend>,
@@ -39,21 +37,16 @@ impl InferenceRouter {
     ///
     /// Constructs backends lazily — a backend is only created if its
     /// configuration is valid (e.g., API key is present for cloud providers).
-    /// Ollama is always attempted since it requires no auth.
     ///
     /// REQ: P4-inf-inference-router-new
     /// \[P4\] Motivating: Clear Boundaries — multi-provider membrane assembled from configured boundaries
     /// pre:  config is a valid InferenceConfig
     /// post: returns InferenceRouter with backends for configured providers
     pub fn new(config: InferenceConfig) -> Self {
-        let ollama = OllamaBackend::new(&config).ok();
         let deepinfra = DeepInfraBackend::new(&config).ok();
         let fal = FalBackend::new(&config).ok();
         let together = TogetherBackend::new(&config).ok();
 
-        if ollama.is_none() {
-            warn!(target: "cns.inference", "Ollama backend unavailable");
-        }
         if deepinfra.is_none() {
             warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)");
         }
@@ -66,7 +59,6 @@ impl InferenceRouter {
 
         Self {
             config,
-            ollama,
             deepinfra,
             fal,
             together,
@@ -83,11 +75,9 @@ impl InferenceRouter {
             ProviderId::parse_from_model(model).unwrap_or((self.config.default_provider, model));
 
         let available = match provider {
-            ProviderId::Ollama => self.ollama.is_some(),
             ProviderId::DeepInfra => self.deepinfra.is_some(),
             ProviderId::Fal => self.fal.is_some(),
             ProviderId::Together => self.together.is_some(),
-            // Runpod and Baseten are adapter-composition providers — not direct inference backends
             ProviderId::Runpod | ProviderId::Baseten => false,
         };
 
@@ -114,30 +104,6 @@ impl InferenceRouter {
     /// post: if a backend fails → its models are omitted (graceful degradation)
     pub async fn list_models(&self) -> Vec<RouterModelEntry> {
         let mut entries = Vec::new();
-
-        // Ollama models
-        if let Some(ref backend) = self.ollama
-            && let Ok(models) = backend.list_models().await
-        {
-            for m in models {
-                entries.push(RouterModelEntry {
-                    prefixed_name: ProviderId::Ollama.prefix_model(&m.name),
-                    provider: ProviderId::Ollama,
-                    model: m.name.clone(),
-                    supports_vision: RouterModelEntry::infer_vision_support(
-                        &m.name,
-                        m.details.as_ref().and_then(|d| d.family.as_deref()),
-                    ),
-                    family: m.details.as_ref().and_then(|d| d.family.clone()),
-                    parameter_size: m.details.as_ref().and_then(|d| d.parameter_size.clone()),
-                    quantization_level: m
-                        .details
-                        .as_ref()
-                        .and_then(|d| d.quantization_level.clone()),
-                    size_bytes: m.size,
-                });
-            }
-        }
 
         // DeepInfra models
         if let Some(ref backend) = self.deepinfra
@@ -259,15 +225,6 @@ impl InferenceRouter {
         let images = images.to_vec();
 
         match provider {
-            ProviderId::Ollama => {
-                self.ollama
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("Ollama backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
             ProviderId::DeepInfra => {
                 self.deepinfra
                     .as_ref()
@@ -547,15 +504,6 @@ impl InferencePort for InferenceRouter {
             return Box::pin(async move {
                 validate_prompt(&prompt)?;
                 match provider {
-                    ProviderId::Ollama => {
-                        self.ollama
-                            .as_ref()
-                            .ok_or_else(|| {
-                                InferenceError::Connection("Ollama backend unavailable".to_string())
-                            })?
-                            .generate(&model, &prompt, &parameters)
-                            .await
-                    }
                     ProviderId::DeepInfra => {
                         self.deepinfra
                             .as_ref()
@@ -605,15 +553,6 @@ impl InferencePort for InferenceRouter {
         Box::pin(async move {
             validate_prompt(&prompt)?;
             match provider {
-                ProviderId::Ollama => {
-                    self.ollama
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("Ollama backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
                 ProviderId::DeepInfra => {
                     self.deepinfra
                         .as_ref()
@@ -677,15 +616,6 @@ impl InferencePort for InferenceRouter {
         Box::pin(async move {
             validate_prompt(&prompt)?;
             match provider {
-                ProviderId::Ollama => {
-                    self.ollama
-                        .as_ref()
-                        .ok_or_else(|| {
-                            InferenceError::Connection("Ollama backend unavailable".to_string())
-                        })?
-                        .generate(&model, &prompt, &parameters)
-                        .await
-                }
                 ProviderId::DeepInfra => {
                     self.deepinfra
                         .as_ref()

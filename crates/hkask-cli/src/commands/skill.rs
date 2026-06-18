@@ -189,13 +189,7 @@ fn skill_audit(fail_below: f64, json: bool) {
     let loader = SkillLoader::new(&root);
     let _load_result = loader.load_into(&mut registry);
 
-    let auditor = match SkillAuditor::new(&registry, &registry, &root) {
-        Ok(a) => a,
-        Err(e) => {
-            eprintln!("Audit initialization failed: {e}");
-            std::process::exit(1);
-        }
-    };
+    let auditor = SkillAuditor::new(&registry, &registry, &root);
 
     let report = match auditor.audit_all() {
         Ok(r) => r,
