@@ -61,10 +61,10 @@ use crate::routes::cns::CnsSubscribeParams;
 /// DelegationToken — an unforgeable, attenuating OCAP capability token
 /// carrying the authenticated WebID and scoped permissions.
 ///
-/// ## hLexicon
+/// ## Vocabulary
 ///
 /// All domain terms used in request/response schemas are grounded in the
-/// canonical hLexicon vocabulary (see docs/architecture/reference/hKask-hLexicon.md).
+/// canonical WordAct / FlowDef / KnowAct taxonomy (see docs/architecture/reference/hKask-hLexicon.md).
 #[derive(OpenApi)]
 #[openapi(
     components(schemas(
@@ -104,7 +104,7 @@ use crate::routes::cns::CnsSubscribeParams;
     )),
     modifiers(&SecurityAddon),
     tags(
-        (name = "templates", description = "Template registry — WordAct / FlowDef / KnowAct skills in the hLexicon taxonomy (Pattern A)"),
+        (name = "templates", description = "Template registry — WordAct / FlowDef / KnowAct skills (Pattern A)"),
         (name = "bots", description = "Bot capability management — OCAP-gated capability grants to bot agents (P4, P10)"),
         (name = "mcp", description = "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"),
         (name = "cns", description = "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"),

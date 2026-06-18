@@ -166,7 +166,7 @@ pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, Mani
 ///
 /// REQ: P3-tpl-resolve-manifest
 /// \[P3\] Motivating: Generative Space — resolves template manifest references
-/// \[P8\] Constraining: Semantic Grounding — manifest terms validated against hLexicon
+/// \[P8\] Constraining: Semantic Grounding — manifest terms validated against lexicon
 /// pre:  reference is non-empty, registry is initialized
 /// post: returns Some(BundleManifest) if found via registry or file path
 /// post: returns None if not found (graceful degradation)

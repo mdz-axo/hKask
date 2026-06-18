@@ -889,11 +889,7 @@ Each public item is classified:
 | struct | `FalModelEntry` | hkask-inference::fal_backend | crates/hkask-inference/src/fal_backend.rs:605 | 🟡 Type Declaration | 🟢 |
 | fn | `new` | hkask-inference::inference_router | crates/hkask-inference/src/inference_router.rs:48 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `InferenceRouter` | hkask-inference::inference_router | crates/hkask-inference/src/inference_router.rs:25 | 🟡 Type Declaration | 🟢 |
-| fn | `generate_stream` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:166 | 🔴 Core Logic | 🟢 |
-| fn | `new` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:31 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `OllamaBackend` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:19 | 🟡 Type Declaration | 🟢 |
-| struct | `OllamaModelDetails` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:267 | 🟡 Type Declaration | 🟢 |
-| struct | `OllamaModelEntry` | hkask-inference::ollama_backend | crates/hkask-inference/src/ollama_backend.rs:257 | 🟡 Type Declaration | 🟢 |
+
 | fn | `generate_stream` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:128 | 🔴 Core Logic | 🟢 |
 | fn | `new` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:48 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `TogetherBackend` | hkask-inference::together_backend | crates/hkask-inference/src/together_backend.rs:18 | 🟡 Type Declaration | 🟢 |
@@ -2367,17 +2363,12 @@ Each public item is classified:
 | enum | `ValidationMode` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:16 | 🟡 Type Declaration | 🟢 |
 | fn | `new` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:36 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `validate_terms` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:76 | 🔴 Core Logic | 🟢 |
-| fn | `with_lexicon` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:50 | 🟢 Accessor/Constructor | 🟢 |
+
 | fn | `with_mode` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:62 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `ContractValidator` | hkask-templates::contract_validator | crates/hkask-templates/src/contract_validator.rs:24 | 🟡 Type Declaration | 🟢 |
 | fn | `new` | hkask-templates::executor | crates/hkask-templates/src/executor.rs:77 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `ManifestExecutor` | hkask-templates::executor | crates/hkask-templates/src/executor.rs:54 | 🟡 Type Declaration | 🟢 |
-| fn | `load_hlexicon_default` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:99 | 🔴 Core Logic | 🟢 |
-| fn | `load_hlexicon_from_file` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:85 | 🔴 Core Logic | 🟢 |
-| fn | `load_hlexicon_from_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:56 | 🔴 Core Logic | 🟢 |
-| fn | `parse_markdown_catalog` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:125 | 🔴 Core Logic | 🟢 |
-| fn | `regenerate_workspace_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:256 | 🔴 Core Logic | 🟢 |
-| fn | `render_workspace_yaml` | hkask-templates::lexicon | crates/hkask-templates/src/lexicon.rs:195 | 🔴 Core Logic | 🟢 |
+
 | fn | `resolve_manifest` | hkask-templates::manifest_loader | crates/hkask-templates/src/manifest_loader.rs:173 | 🔴 Core Logic | 🟢 |
 | enum | `TemplateError` | hkask-templates::ports | crates/hkask-templates/src/ports.rs:16 | 🟡 Type Declaration | 🔴 |
 | trait | `McpPort` | hkask-templates::ports | crates/hkask-templates/src/ports.rs:54 | 🟡 Type Declaration | 🔴 |

@@ -187,25 +187,25 @@ pub enum TrainingMode {
 /// Skill decomposition trace type.
 ///
 /// Each skill document produces traces of one (or more) of these types.
-/// The auto-detector counts hLexicon terms per category — highest density wins.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum TraceType {
-    /// Persona calibration — "how to sound".
-    /// Structure: {context, persona_constraints, target_utterance, calibration_notes}
-    WordAct,
-    /// Procedural decomposition — "how to think".
-    /// Structure: {situation, decomposition_sequence, synthesis, verification}
-    FlowDef,
-    /// Pattern recognition — "how to classify".
-    /// Structure: {pattern_exemplar, positive_cases[], negative_cases[], decision_boundary}
-    KnowAct,
-    /// Alternating WordAct/FlowDef segments for skills that require both.
-    Composite,
-}
+/// The auto-detector counts vocabulary terms per category — highest density wins.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum TraceType {
+        /// Persona calibration — "how to sound".
+        /// Structure: {context, persona_constraints, target_utterance, calibration_notes}
+        WordAct,
+        /// Procedural decomposition — "how to think".
+        /// Structure: {situation, decomposition_sequence, synthesis, verification}
+        FlowDef,
+        /// Pattern recognition — "how to classify".
+        /// Structure: {pattern_exemplar, positive_cases[], negative_cases[], decision_boundary}
+        KnowAct,
+        /// Alternating WordAct/FlowDef segments for skills that require both.
+        Composite,
+    }
 
-impl TraceType {
-    /// Auto-detect trace type from skill document text by counting hLexicon terms.
+    impl TraceType {
+        /// Auto-detect trace type from skill document text by counting vocabulary terms.
     pub fn detect(skill_text: &str) -> Self {
         let text_lower = skill_text.to_lowercase();
 
@@ -3624,6 +3624,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         "hkask-mcp-training",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
+            Ok((|| -> anyhow::Result<TrainingServer> {
             let (semantic, adapter_store, job_store, adapter_router) = match ctx
                 .credentials
                 .get("HKASK_MEMORY_DB")
@@ -3690,6 +3691,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
                 adapter_router,
                 inference_config,
             ))
+            })()?)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

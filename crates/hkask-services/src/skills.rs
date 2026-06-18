@@ -599,7 +599,7 @@ mod tests {
         fs::create_dir_all(&reg_dir).unwrap();
         fs::write(
             reg_dir.join("manifest.yaml"),
-            "crate:\n  name: test-skill\n  version: 0.28.0\n  description: Minimal test skill.\n\ntemplates:\n  - id: test-skill/test\n    path: test.j2\n    type: KnowAct\n    lexicon_terms: [classify]\n    description: Minimal cognition template.\n\nhlexicon_terms:\n  - classify\n",
+            "crate:\n  name: test-skill\n  version: 0.28.0\n  description: Minimal test skill.\n\ntemplates:\n  - id: test-skill/test\n    path: test.j2\n    type: KnowAct\n    lexicon_terms: [classify]\n    description: Minimal cognition template.\n\nlexicon_terms:\n  - classify\n",
         )
         .unwrap();
         fs::write(

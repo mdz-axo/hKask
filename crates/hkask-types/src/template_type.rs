@@ -65,14 +65,6 @@ impl TemplateType {
             TemplateType::FlowDef => "Process",
         }
     }
-
-    /// REQ: TYP-216
-    /// pre:  ext is a file extension string (e.g. "j2", "yaml", "yml")
-    /// post: returns None because a file extension alone cannot distinguish the three runtime template types; `.j2` may be WordAct, KnowAct, or FlowDef
-    pub fn infer_from_extension(ext: &str) -> Option<Self> {
-        let _ = ext;
-        None
-    }
 }
 
 impl std::fmt::Display for TemplateType {

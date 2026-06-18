@@ -730,6 +730,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         "hkask-mcp-memory",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
+            Ok((|| -> anyhow::Result<MemoryServer> {
             let db = ctx.open_database("HKASK_MEMORY_DB")?;
             let conn = db.conn_arc();
             let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
@@ -749,6 +750,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
                 replicant.clone(),
                 daemon_client.clone(),
             ))
+            })()?)
         },
         vec![
             hkask_mcp::CredentialRequirement::required(

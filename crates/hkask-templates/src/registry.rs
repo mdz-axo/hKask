@@ -129,10 +129,10 @@ impl Registry {
         Ok(())
     }
 
-    /// Register a template entry, validating against the hLexicon via ContractValidator.
+    /// Register a template entry. ContractValidator performs passthrough validation.
     ///
-    /// When an hLexicon is set, unknown terms are logged as warnings (Warn mode).
-    /// The contract validator performs lexicon-term enforcement at registration time;
+    /// Unknown terms are logged as warnings (Warn mode).
+    /// The registry performs declaration-consistency checks at registration time;
     /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-cns`.
     ///
     /// REQ: P3-tpl-registry-register

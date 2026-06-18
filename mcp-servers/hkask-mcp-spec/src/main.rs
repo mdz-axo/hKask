@@ -1258,6 +1258,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         "hkask-mcp-spec",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
+            Ok((|| -> anyhow::Result<SpecServer> {
             let conn = match ctx.credentials.get("HKASK_SPEC_DB_PATH") {
                 Some(path) => {
                     let passphrase =
@@ -1301,6 +1302,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
                 .map_err(|e| anyhow::anyhow!("HKASK_OCAP_SECRET must be hex-encoded: {e}"))?;
             let checker = CapabilityChecker::new(&secret);
             Ok(SpecServer::new(store, ctx.webid, checker, replicant.clone(), daemon_client.clone(), event_sink, triple_store))
+            })()?)
         },
         vec![
             hkask_mcp::CredentialRequirement::required(

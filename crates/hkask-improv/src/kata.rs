@@ -12,8 +12,10 @@
 //! CNS span: `cns.kata.improv.effectiveness` — tracks automaticity score delta
 //! when improv modes are active vs. baseline kata performance.
 
-use crate::cns::KATA_IMPROV_EFFECTIVENESS_ALERT;
 use crate::modes::ImprovMode;
+
+/// Alert threshold: alert if automaticity delta is negative (improv degraded kata).
+const KATA_IMPROV_EFFECTIVENESS_ALERT: f64 = 0.0;
 
 /// Kata phase — which phase of which kata is active.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -34,7 +34,7 @@ risk and typically covered by struct-level or integration tests.
 | 14 | hkask-adapter | fn | `estimated_setup_cost` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:64 | Core Logic |
 | 15 | hkask-adapter | fn | `list_owner` | hkask-adapter::adapter_store | crates/hkask-adapter/src/adapter_store.rs:342 | Core Logic |
 | 16 | hkask-adapter | fn | `migrate` | hkask-adapter::adapter_store | crates/hkask-adapter/src/adapter_store.rs:167 | Core Logic |
-| 17 | hkask-adapter | fn | `ollama` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:193 | Core Logic |
+
 | 18 | hkask-adapter | fn | `parse` | hkask-adapter::expertise | crates/hkask-adapter/src/expertise.rs:50 | Core Logic |
 | 19 | hkask-adapter | fn | `phase` | hkask-adapter::adapter_port | crates/hkask-adapter/src/adapter_port.rs:126 | Core Logic |
 | 20 | hkask-adapter | fn | `repository_id` | hkask-adapter::adapter_store | crates/hkask-adapter/src/adapter_store.rs:39 | Core Logic |

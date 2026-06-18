@@ -440,6 +440,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         "hkask-mcp-condenser",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
+            Ok((|| -> anyhow::Result<CondenserServer> {
             let episodic = {
                 let db_path = ctx
                     .credentials
@@ -482,6 +483,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
                 default_model,
                 ctx.capability_tier,
             ))
+            })()?)
         },
         credential_requirements(),
     )

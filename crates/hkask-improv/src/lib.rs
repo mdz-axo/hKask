@@ -20,7 +20,6 @@
 //! 7. `ImprovSkill::register_with_cns()` — CNS integration
 
 pub mod cascade;
-pub mod cns;
 pub mod freestyling;
 pub mod kata;
 pub mod modes;
@@ -29,7 +28,6 @@ pub mod protocol;
 pub mod riffing;
 
 pub use cascade::{ImprovCascade, ImprovError, MATRYOSHKA_LIMIT};
-pub use cns::{ImprovCns, TracingImprovCns};
 pub use freestyling::FreestyleSession;
 pub use kata::{KataImprovResult, KataPhase};
 pub use modes::ImprovMode;
@@ -56,11 +54,6 @@ impl ImprovSkill {
             ImprovMode::Cascade(cascade) => cascade.execute(contribution, context),
             other => Ok(other.respond(contribution, context)),
         }
-    }
-
-    /// Register CNS spans for improv monitoring.
-    pub fn register_with_cns(cns: &mut dyn ImprovCns) {
-        cns.register_improv_spans();
     }
 }
 

@@ -267,7 +267,7 @@ impl SqliteRegistry {
     ///
     /// REQ: P3-tpl-registry-sqlite-search-by-lexicon
     /// \[P3\] Motivating: Generative Space — vocabulary-aware template search
-    /// \[P8\] Constraining: Semantic Grounding — search uses hLexicon terms
+    /// \[P8\] Constraining: Semantic Grounding — search uses lexicon terms
     /// pre:  term is non-empty
     /// post: returns Vec<RegistryEntry> for templates declaring this term
     pub fn search_by_lexicon(&self, term: &str) -> Result<Vec<RegistryEntry>> {

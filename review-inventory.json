@@ -5491,66 +5491,6 @@
   },
   {
     "crate_name": "hkask-templates",
-    "function": "load_hlexicon_from_yaml",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/lexicon.rs",
-    "line": 56,
-    "req_id": "P3-tpl-load-hlexicon-yaml",
-    "pre": "content is valid YAML in hlexicon-workspace format",
-    "post": "returns HLexicon populated with WordAct, FlowDef, KnowAct terms",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-templates",
-    "function": "load_hlexicon_from_file",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/lexicon.rs",
-    "line": 85,
-    "req_id": "P3-tpl-load-hlexicon-file",
-    "pre": "path points to a valid hlexicon-workspace YAML file",
-    "post": "returns HLexicon parsed from file contents",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-templates",
-    "function": "load_hlexicon_default",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/lexicon.rs",
-    "line": 99,
-    "req_id": "P3-tpl-load-hlexicon-default",
-    "pre": "",
-    "post": "respects HKASK_TEMPLATES_PATH env var for path resolution",
-    "flags": "NO_PRE"
-  },
-  {
-    "crate_name": "hkask-templates",
-    "function": "parse_markdown_catalog",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/lexicon.rs",
-    "line": 125,
-    "req_id": "P3-tpl-parse-markdown-catalog",
-    "pre": "markdown is valid hLexicon markdown content",
-    "post": "returns Vec of (term, definition, TemplateType) tuples",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-templates",
-    "function": "render_workspace_yaml",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/lexicon.rs",
-    "line": 195,
-    "req_id": "P3-tpl-render-workspace-yaml",
-    "pre": "terms is a valid catalog from parse_markdown_catalog",
-    "post": "terms sorted alphabetically within each domain",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-templates",
-    "function": "regenerate_workspace_yaml",
-    "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/lexicon.rs",
-    "line": 256,
-    "req_id": "P3-tpl-regenerate-workspace-yaml",
-    "pre": "markdown is valid hLexicon markdown content",
-    "post": "returns YAML string ready to write to hlexicon-workspace.yaml",
-    "flags": ""
-  },
-  {
-    "crate_name": "hkask-templates",
     "function": "resolve_manifest",
     "file": "/home/mdz-axolotl/Clones/hKask/crates/hkask-templates/src/manifest_loader.rs",
     "line": 173,

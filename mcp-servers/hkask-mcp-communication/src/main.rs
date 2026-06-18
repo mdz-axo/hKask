@@ -405,13 +405,13 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
 
     let mut transport = MatrixTransport::new(&homeserver_url);
-    transport.health_check().await?;
+    transport.health_check().await.map_err(|e| anyhow::anyhow!("{e}"))?;
 
     if let (Ok(username), Ok(password)) = (
         std::env::var("HKASK_MATRIX_AGENT_USERNAME"),
         std::env::var("HKASK_MATRIX_AGENT_PASSWORD"),
     ) {
-        transport.login(&username, &password).await?;
+        transport.login(&username, &password).await.map_err(|e| anyhow::anyhow!("{e}"))?;
     }
 
     let matrix = Arc::new(transport);
