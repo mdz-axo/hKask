@@ -2,7 +2,7 @@
 title: "hKask Deployment & Multi-User Plan"
 audience: [architects, developers]
 last_updated: 2026-06-17
-version: "0.27.0"
+version: "0.28.0"
 status: "Draft — Planning Phase"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle]
@@ -233,7 +233,7 @@ CREATE TABLE backup_meta (
 ### 4.3 Export (Download)
 
 ```
-User runs: kask backup export
+User runs: kask export create
   │
   ▼
 Server: SELECT * FROM triples
@@ -247,7 +247,7 @@ Server writes to SQLCipher database, encrypted with user-provided passphrase
 Server writes backup_meta, returns file path
   │
   ▼
-User downloads via: scp, kask backup download, or GET /api/v1/backup/export
+User downloads via: scp, browser download (`GET /api/v1/export/download`), or direct file access
   │
   ▼
 CnsSpan::BackupExport { triple_count, bytes, duration_ms }
@@ -279,6 +279,17 @@ Archives are stored in `/var/lib/hkask/exports/{webid}/` and available for downl
 | `BackupAutoExport` | `triple_count`, `bytes`, `duration_ms`, `webid` | Failure alert if scheduled export fails |
 | `BackupUpload` | `triple_count`, `bytes_sent`, `duration_ms` (migration) | Informational |
 
+### 4.6 Relationship to Operational Backup
+
+hKask maintains **two independent backup systems** with distinct purposes:
+
+| System | Storage | Encryption | Purpose | CLI Namespace |
+|--------|---------|-----------|---------|---------------|
+| **Sovereignty Export** (this plan) | SQLCipher SQLite file | User passphrase at export time | P1 data portability — download and migrate to another server | `kask export` |
+| **Operational Backup** (existing) | GitCAS (content-addressed git) | Server-side AES-256-GCM | Server disaster recovery — artifact versioning, retention, integrity verification | `kask backup` |
+
+The operational backup is implemented in `hkask-services-backup` (`BackupService`, `BackupLoop`, `RetentionPolicy`). It runs automatically via the CNS cybernetic loop system and is *not* user-exportable. The sovereignty export is the user-facing P1 artifact — a downloadable, passphrase-encrypted archive that the user controls end-to-end.
+
 ---
 
 ## 5. Server Migration
@@ -288,7 +299,7 @@ Archives are stored in `/var/lib/hkask/exports/{webid}/` and available for downl
 ```
 User has: backup archive downloaded from old server
 
-kask backup upload --server https://new-server.hkask.example
+kask export upload --server https://new-server.hkask.example
   │
   ▼
 User authenticates to new server (OAuth sign-in — creates account if new)
@@ -331,8 +342,8 @@ User sees: "Archive imported. X triples.
 
 The CRDT merge (`INSERT OR REPLACE` by TripleID) is associative, commutative, and idempotent. Export and upload are resumable by retry:
 
-- **Interrupted export:** Re-run `kask backup export`. Fresh snapshot.
-- **Interrupted upload:** Re-run `kask backup upload`. 73% of triples already merged (no-ops), 27% fill in. Converged.
+- **Interrupted export:** Re-run `kask export create`. Fresh snapshot.
+- **Interrupted upload:** Re-run `kask export upload`. 73% of triples already merged (no-ops), 27% fill in. Converged.
 
 No progress tracking. No chunking protocol. The merge is the fault tolerance.
 
@@ -355,6 +366,7 @@ Servers never communicate. Migration is user-mediated: download archive from old
 
 - **TripleStore:** SQLCipher-encrypted, key derived from server master passphrase (Argon2id → AES-256).
 - **Git backup:** Already implemented — AES-256-GCM encrypted blobs before CAS storage.
+- **Archive SQLCipher:** Key derived via Argon2id from user-provided passphrase → AES-256. Reuses `Database::open_impl` encryption path from `hkask-storage` (v0.28.0). Does NOT use server master passphrase — the user's key is independent.
 - **PII:** Encrypted in `UserStore` with per-user PII key.
 
 ### 6.3 Key Rotation
@@ -375,23 +387,19 @@ kask matrix deploy-sidecar --domain <domain> [--with-web-client]
 kask matrix status-sidecar
     Health check Caddy, Conduit, and Hydrogen containers.
 
-kask backup export [--passphrase <passphrase>]
-    Export encrypted backup archive for the authenticated user.
+kask export create [--passphrase <passphrase>]
+    Generate encrypted sovereignty archive for the authenticated user.
 
-kask backup download [--path <path>]
-    Download the latest backup archive (API endpoint wrapper).
-
-kask backup upload --server <url> [--archive <path>]
-    Upload backup archive to a new server for migration.
-
-kask backup auto-export --frequency <daily|weekly> --retention <days>
-    Configure scheduled server-side backup archive generation.
+kask export upload --server <url> [--archive <path>]
+    Upload sovereignty archive to a new server for migration.
 
 kask replicate rename <from> <to>
 kask replicate merge --from <source> --into <target>
 kask replicate delete <name>
     Manage replicants after migration.
 ```
+
+**Note:** `kask backup` commands (snapshot, restore, list, prune, verify, config) remain for operational backup — see §4.6. The `download` operation is API-only (`GET /api/v1/export/download`) since the CLI runs on the server and the file is local. Scheduled auto-export is deferred to Phase 6 (§13).
 
 ---
 
@@ -427,12 +435,14 @@ CnsSpan::ReplicantMerge,   // { source, target, triple_count, duration }
 | `GET` | `/api/v1/auth/callback?provider=github&code=...` | OAuth callback |
 | `GET` | `/api/v1/auth/session` | Return current session info |
 | `POST` | `/api/v1/auth/logout` | Destroy session |
-| `POST` | `/api/v1/backup/export` | Generate and return encrypted backup archive |
-| `GET` | `/api/v1/backup/download` | Download latest backup archive |
-| `POST` | `/api/v1/backup/upload` | Upload backup archive for migration |
+| `POST` | `/api/v1/export/create` | Generate and return encrypted sovereignty archive |
+| `GET` | `/api/v1/export/download` | Download latest sovereignty archive (browser) |
+| `POST` | `/api/v1/export/upload` | Upload sovereignty archive for migration |
 | `POST` | `/api/v1/replicants/merge` | Merge two replicants |
 | `POST` | `/api/v1/replicants/rename` | Rename a replicant |
 | `DELETE` | `/api/v1/replicants/{name}` | Delete a replicant |
+
+**Note:** Existing `/api/v1/backup/*` routes (operational GitCAS backup) remain unchanged in the `backup_router`. The export routes use `/api/v1/export/*` to avoid namespace collision.
 
 ---
 
@@ -468,7 +478,7 @@ Explicit exclusions — considered and rejected:
 - **No client-side encryption key management.** User provides passphrase at export time. Server never stores it.
 - **No server-to-server protocol.** Migration is user-mediated via downloadable archive.
 - **No conflict resolution UI.** Replicant merge is user-initiated, idempotent upsert.
-- **No backup pruning code.** Server's memory pipeline handles pruning.
+- **No backup archive export pruning code.** The archive is a single snapshot — no versioned history to prune. Operational backup pruning (`BackupService::prune` with `RetentionPolicy`, via `BackupLoop`) is a separate system for git-based artifact versioning and is already implemented. The memory pipeline (consolidation, salience, condensation) handles live triple pruning independently of both.
 - **No artifact replication (LORA, research files).** Out of scope. Backup covers triples only.
 - **No SSH key setup required.** Browser terminal is the default. SSH is an optional power-user feature.
 - **No terminal app to install.** Alacritty, WezTerm, etc. are user preference — hKask doesn't ship one.
@@ -487,11 +497,11 @@ Explicit exclusions — considered and rejected:
              -> redirected to /terminal, xterm.js loads
              -> WebSocket connects, kask repl prompt appears
 
-3. [Export]  kask backup export --passphrase "user-chosen"
+3. [Export]  kask export create --passphrase "user-chosen"
              -> archive.db created, encrypted with passphrase
              -> CnsSpan::BackupExport emitted
 
-4. [Migrate] kask backup upload --server https://new-server.example
+4. [Migrate] kask export upload --server https://new-server.example
              -> MigrationReceipt.triple_count matches archive count
              -> replicants renamed on collision
 
@@ -512,7 +522,7 @@ Explicit exclusions — considered and rejected:
 
 | # | Question | Why Deferred |
 |---|----------|-------------|
-| Q1 | Should auto-export archives be encrypted with the user's session key (server-side) or require a passphrase at download time? | Session-key encryption is more convenient but means the server briefly holds the key. Passphrase-at-download is more secure. |
+| Q1 | ~~Should auto-export archives be encrypted with the user's session key (server-side) or require a passphrase at download time?~~ **Resolved:** Passphrase-at-download only. Session-key encryption would mean the server holds the key, contradicting §4.3 ("server never stores the user's backup password") and §6.1 ("Storage: User-provided passphrase at export time"). Auto-export archives are encrypted at rest with a key derived from the user's passphrase, provided at download time. The server stores only the encrypted blob. | Resolved per P1 consistency. |
 | Q2 | OAuth provider scope: GitHub only? GitHub + Google? | Start with GitHub (developer audience). Add Google if demand exists. |
 | Q3 | Should the backup include artifacts (LORA, research files, skill bundles) organized by registry in a zip? | Extends the backup format. Needs artifact store maturity first. |
 
@@ -524,7 +534,7 @@ Explicit exclusions — considered and rejected:
 |-------|-------|-----------|
 | **Phase 1 — OAuth** | `OAuthProvider`, OAuth config, `/auth/login` + `/auth/callback`, session cookie, `HumanUser.provider` fields | — |
 | **Phase 2 — Terminal** | `/api/v1/terminal/ws` WebSocket endpoint, PTY spawn + I/O pipe, static `/terminal` page with xterm.js | Phase 1 |
-| **Phase 3 — Backup** | `BackupArchive` type, `kask backup export`, auto-export scheduler, CNS spans | Phase 1 |
-| **Phase 4 — Migration** | `kask backup upload`, replicant rename/merge/delete, `MigrationReceipt`, auto-rename on collision | Phase 3 |
+| **Phase 3 — Export** | `BackupArchive` type, `kask export create`, CNS spans | Phase 1 |
+| **Phase 4 — Migration** | `kask export upload`, replicant rename/merge/delete, `MigrationReceipt`, auto-rename on collision | Phase 3 |
 | **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload to second server → merge → verify | Phase 4 |
 | **Phase 6 — Harden** | Interruption testing, multi-user isolation, backup auto-export tuning | Phase 5 | |
