@@ -33,9 +33,3 @@ pub use prompt_strategy::PromptStrategy;
 pub use registry::Registry;
 pub use registry_sqlite::SqliteRegistry;
 pub use skill_loader::{SkillFrontMatter, SkillLoadResult, SkillLoader};
-
-impl From<TemplateError> for hkask_services_core::ServiceError {
-    fn from(e: TemplateError) -> Self {
-        hkask_services_core::ServiceError::Template { message: e.to_string() }
-    }
-}

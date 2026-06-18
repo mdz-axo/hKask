@@ -24,8 +24,6 @@
 use hkask_types::secret::derivation_contexts;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
-use std::time::Instant;
-use tracing::info;
 use zeroize::Zeroizing;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -111,9 +109,6 @@ pub fn derive_all_internal_secrets_with_version(
     master_passphrase: &str,
     key_version: u32,
 ) -> InternalSecrets {
-    // P9: CNS span
-    let start = Instant::now();
-    info!(target: "cns.keystore", operation = "derive_all_internal_secrets", key_version = key_version, status = "started", "CNS");
     // Step 1: Argon2id stretch (slow, ~100ms)
     let master_key = crate::encryption::derive_key(master_passphrase, &MASTER_KEY_SALT)
         .expect("Argon2id derivation cannot fail with valid parameters");
@@ -141,9 +136,6 @@ pub fn derive_all_internal_secrets_with_version(
         key_version,
     );
 
-    // P9: CNS span
-    let latency_ms = start.elapsed().as_millis() as u64;
-    info!(target: "cns.keystore", operation = "derive_all_internal_secrets", key_version = key_version, status = "completed", latency_ms = latency_ms, "CNS");
     InternalSecrets {
         a2a_secret,
         capability_key,
@@ -172,8 +164,6 @@ pub fn derive_all_internal_secrets_with_version(
 ///
 /// 32-byte derived sub-key, wrapped in `Zeroizing` for secure memory handling.
 pub fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
-    // P9: CNS span
-    info!(target: "cns.keystore", operation = "derive_sub_key", context = %context, status = "started", "CNS");
     // HKDF-Extract: PRK = HMAC-SHA256(salt, IKM)
     let mut extract_mac =
         HmacSha256::new_from_slice(HKDF_SALT).expect("HMAC-SHA256 accepts any key length");
@@ -188,8 +178,6 @@ pub fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
     expand_mac.update(&[0x01]); // HKDF block counter
     let okm = expand_mac.finalize().into_bytes();
 
-    // P9: CNS span
-    info!(target: "cns.keystore", operation = "derive_sub_key", context = %context, status = "completed", "CNS");
     Zeroizing::new(okm[..SUB_KEY_LEN].to_vec())
 }
 

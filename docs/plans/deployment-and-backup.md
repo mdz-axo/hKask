@@ -3,7 +3,7 @@ title: "hKask Deployment & Multi-User Plan"
 audience: [architects, developers]
 last_updated: 2026-06-17
 version: "0.27.0"
-status: "Draft"
+status: "Draft — Planning Phase"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle]
 anchored_on: [PRINCIPLES.md §0, P1, P2, P3, P9, P12]
@@ -267,7 +267,7 @@ kask config set backup.auto-export.frequency daily
 kask config set backup.auto-export.retention 7  # keep last 7 exports
 ```
 
-Archives are stored in `/var/lib/hkask/exports/{webid}/` and available for download via the API. Each archive is encrypted with the passphrase the user provided at export time — the user provides the same passphrase at import time to decrypt.
+Archives are stored in `/var/lib/hkask/exports/{webid}/` and available for download via the API. Each archive is encrypted with a key derived from the user's session — the user provides their passphrase at download time to decrypt.
 
 **CNS span:** `BackupAutoExport { webid, triple_count, bytes, duration_ms }`
 

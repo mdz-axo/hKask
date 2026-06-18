@@ -12,7 +12,7 @@ mds_categories: [domain, composition, lifecycle, curation]
 
 ## 1. Purpose and Scope
 
-This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop). The REPL is accessed through a browser terminal (xterm.js + WebSocket) or optionally via SSH. The hKask server spawns `kask repl --webid <user>` on a PTY per authenticated user session. This provides a terminal-based conversational interface to agents, models, tools, and pods — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). The project defers multi-agent ensemble sessions (2026-06-14) as a future mode evolving from the dual-presence pattern.
+This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop). The REPL is accessed through a browser terminal (xterm.js + WebSocket) or optionally via SSH. The hKask server spawns `kask repl --webid <user>` on a PTY per authenticated user session, providing a terminal-based conversational interface to agents, models, tools, and pods — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). The project defers multi-agent ensemble sessions (2026-06-14) as a future mode evolving from the dual-presence pattern.
 
 **Audience:** Architects, developers, users, and agents interacting with hKask.
 
@@ -121,7 +121,7 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 6. Initialize shared `InferencePort` for selected model + wrap in `InferenceLoop`
 7. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
 8. Register inference loop on loop system
-9. Start auto-started MCP servers (10 servers)
+9. Start built-in MCP servers (10 servers)
 10. Build `GovernedTool` membrane wrapped around MCP runtime
 11. Register agent energy budget with `CyberneticsLoop`
 12. Open per-agent SQLCipher-encrypted memory database (keyed by WebID)
@@ -555,9 +555,9 @@ You have access to MCP tools. When you need to invoke a tool, use:
 You may include multiple tool calls in a single response.
 ```
 
-### 12.2 Auto-started MCP Servers (10)
+### 12.2 Built-in MCP Servers (10)
 
-Started automatically at REPL boot via `builtin_servers::start_builtin_servers()`. These are the 10 auto-started servers — additional MCP servers are available but not started automatically:
+Started automatically at REPL boot via `builtin_servers::start_builtin_servers()`:
 
 | Server ID | Binary | Purpose |
 |-----------|--------|---------|
@@ -792,7 +792,7 @@ Agent writes code → executes → sees error traceback → rewrites → re-exec
 | Feature | Source | Description |
 |---------|--------|-------------|
 | Thinking mode toggle | Zed, Claude | `/thinking on/off` to show/hide model reasoning chains |
-| JSON mode enforcement | OpenAI (and compatible providers) | `/json on` to enforce structured JSON output |
+| JSON mode enforcement | OpenAI, Ollama | `/json on` to enforce structured JSON output |
 | Prompt diffing | Aider | Show what changed in the system prompt between turns |
 | Multi-model responses | ChatGPT, Claude | `/compare` to run same prompt against multiple models |
 | Session export/import | All leading REPLs | Save/load conversation to file (Markdown, JSON, or hKask format) |

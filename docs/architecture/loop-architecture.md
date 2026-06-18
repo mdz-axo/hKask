@@ -112,7 +112,7 @@ hKask decomposes into four loops:
 
 | Loop | Owns | Transforms | Least Action Role |
 |------|------|------------|-------------------|
-| **Inference Loop** | LLM call budget, token flow, energy budgets (rJoules) | Prompts → Completions | Action tracking per inference operation — each token has an action cost |
+| **Inference Loop** | LLM call budget, token flow, energy budgets (hJoules) | Prompts → Completions | Action tracking per inference operation — each token has an action cost |
 | **Memory Loop** | Episodic + Semantic memory, embedding indices, SQLCipher storage, consolidation bridge | Experiences → Episodic records → Semantic facts | Pragmatic compression over time — consolidation discards redundant episodes, preserves semantic essence |
 
 **Meta Loops** — governing:
@@ -120,7 +120,7 @@ hKask decomposes into four loops:
 | Loop | Owns | Regulates | Least Action Role |
 |------|------|-----------|-------------------|
 | **Curation Loop** | Curator persona, prompt validation, reflective self-assessment | Which goals are pursued, whether behavior is coherent | Selection mechanism — chooses which paths the system pursues (the "which path" of δS = 0) |
-| **Cybernetics Loop** | Observability, governance, energy accounting (rJoules), homeostatic regulation | Health, stability, resource equilibrium of the entire system | Action tracking and boundary enforcement — measures action consumption, asserts backpressure at budget limits, senses anti-lazy drift via `EnergyDelta` |
+| **Cybernetics Loop** | Observability, governance, energy accounting (hJoules), homeostatic regulation | Health, stability, resource equilibrium of the entire system | Action tracking and boundary enforcement — measures action consumption, asserts backpressure at budget limits, senses anti-lazy drift via `EnergyDelta` |
 
 **Communication** functions as transport infrastructure, not a loop — `tokio::mpsc` channels handle inter-loop messaging. Communication does not own resources, does not regulate, and does not transform. It operates as a dumb pipe.
 
@@ -173,8 +173,6 @@ verified_against: PRINCIPLES.md §2; MDS.md; crates/hkask-cns/src/runtime.rs; cr
 status: UPDATED — 6 loops reduced to 4
 -->
 
-> **Legacy numbering note:** The code in `crates/hkask-cns/src/lib.rs` retains `// Loop 6` comments from a prior 6-loop decomposition (v0.24 era). These will be updated to use loop names instead of numbers (Cybernetics, Inference, Memory, Curation) to prevent future numbering drift.
-
 ### 2.3 CNS Span Subsumption into Cybernetics Loop
 
 The existing `cns.*` span namespaces are not removed — they are **absorbed** into the Cybernetics Loop as its observability substrate:
@@ -215,7 +213,7 @@ Cybernetics Loop (variety deficit > threshold)
   → Curator assesses and intervenes (or escalates to human)
 ```
 
-This pathway is **bidirectional**: Cybernetics signals Curation via algedonic alerts (`CurationInput::Alert`); Curation regulates Cybernetics via metacognitive override directives (`CuratorDirective::CalibrateThreshold` via `mpsc` channel) (see §4).
+This pathway is **unidirectional**: Cybernetics signals Curation, but Curation does not signal Cybernetics — it *regulates* Cybernetics through metacognitive override (see §4).
 
 ---
 
@@ -238,7 +236,7 @@ This pathway is **bidirectional**: Cybernetics signals Curation via algedonic al
 | `hkask-cli` / `hkask-api` | Surface (presentation) | `execute(command) → Result<Output>` |
 | `hkask-services` | Service layer | `ChatService`, `InferenceService`, domain operations |
 | `hkask-types` | Shared substrate | Type definitions only — no behavior |
-| Inference Router (hkask-inference) | Inference (via MCP) | `complete(prompt, budget) → Completion` — Multi-provider routing (DI/FA/TG/RP/BT) |
+| Inference Router (hkask-inference) | Inference (via MCP) | `complete(prompt, budget) → Completion` — Multi-provider routing (OM/FW/DI) |
 
 ### 3.2 Interface Discipline
 

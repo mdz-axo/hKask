@@ -40,7 +40,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 - Caddy (Docker sidecar) — TLS termination, reverse proxy
 - Conduit (Docker sidecar) — Matrix homeserver for agent communication
 - SQLCipher-encrypted SQLite — Persistent storage for all user data
-- Inference Router — Multi-provider cloud LLM inference (DeepInfra, Together AI, fal.ai, RunPod, Baseten)
+- Inference Router — Multi-provider cloud LLM inference (DeepInfra, Fireworks.ai, fal.ai)
 
 **Key Features:**
 - Browser terminal (xterm.js + WebSocket) — primary user access via OAuth sign-in
@@ -60,28 +60,35 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 
 | Requirement | Minimum | Recommended |
 |-------------|---------|-------------|
-| **OS** | Linux (kernel 5.4+) | Linux (Ubuntu 22.04+, RHEL 9+) |
+| **OS** | Linux (kernel 5.4+), macOS 12+, Windows 10+ | Linux (Ubuntu 22.04+, RHEL 9+) |
 | **CPU** | 2 cores | 4+ cores |
-| **RAM** | 2 GB | 4+ GB |
-| **Disk** | 20 GB | 20+ GB SSD |
+| **RAM** | 4 GB | 8+ GB |
+| **Disk** | 2 GB | 10+ GB SSD |
 | **Rust** | 1.91+ | Latest stable |
 
 ### 2.2 External Dependencies
 
 | Dependency | Purpose | Required | Default |
 |------------|---------|----------|---------|
+| **Fireworks.ai** | Cloud LLM inference | Optional (requires API key) | `https://api.fireworks.ai/inference` |
 | **DeepInfra** | Cloud LLM inference | Optional (requires API key) | `https://api.deepinfra.com/v1/openai` |
-| **Together AI** | Cloud LLM inference | Optional (requires API key) | `https://api.together.xyz/v1` |
-| **fal.ai** | Cloud LLM inference | Optional (requires API key) | `https://fal.ai/api` |
-| **RunPod** | Cloud LLM inference | Optional (requires API key) | `https://api.runpod.io/v2` |
-| **Baseten** | Cloud LLM inference | Optional (requires API key) | `https://api.baseten.co/v1` |
 | **SQLite** | Database engine | Bundled (rusqlite) | — |
 | **Git** | Template loading (optional) | Optional | — |
 
 ### 2.3 Inference Provider Setup
 
-hKask uses a multi-provider cloud inference router. Supported providers: DeepInfra (DI), Together AI (TG), fal.ai (FA), RunPod (RP), Baseten (BT).
+hKask uses a multi-provider cloud inference router.
 
+**Option A: Fireworks.ai**
+```bash
+# Configure Fireworks.ai API key
+export FIREWORKS_API_KEY="your-api-key-here"
+
+# Optional: override default base URL
+export FIREWORKS_BASE_URL="https://api.fireworks.ai/inference"
+```
+
+**Option B: DeepInfra**
 ```bash
 # Configure DeepInfra API key
 export DEEPINFRA_API_KEY="your-api-key-here"
@@ -96,14 +103,24 @@ export DEEPINFRA_BASE_URL="https://api.deepinfra.com/v1/openai"
 
 ### 3.1 Admin Setup
 
-For a full step-by-step server deployment including OAuth, Caddy + Conduit sidecars, DNS, and first sign-in, see the **[Admin Install Guide](admin-install-guide.md)**.
+For a full step-by-step server deployment including OAuth, Caddy + Conduit sidecars, DNS, and first sign-in, see:
 
-Quick start (development only):
+→ **[Admin Install Guide](admin-install-guide.md)**
+
+Quick summary:
 ```bash
+# Clone and build
 cargo build --release --bin kask
 cp target/release/kask /usr/local/bin/kask
-kask init --profile dev
-kask daemon start
+
+# Initialize server (prompts for domain, passphrase, OAuth providers)
+kask init --profile server
+
+# Deploy Caddy (TLS) + Conduit (Matrix) sidecars
+kask matrix deploy-sidecar --domain hkask.your-domain.com
+cd ~/.config/hkask/sidecar && docker compose up -d
+
+# Users visit https://hkask.your-domain.com, sign in via OAuth, get a browser terminal
 ```
 
 ### 3.2 Browser Terminal (Primary Access)
@@ -165,6 +182,8 @@ kask matrix status-sidecar
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
+| `FW_BASE_URL` | Fireworks API endpoint | `https://api.fireworks.ai/inference` | No |
+| `FW_API_KEY` | Fireworks API key (also `FIREWORKS_API_KEY`) | — | For FW provider |
 | `DI_BASE_URL` | DeepInfra base URL | `https://api.deepinfra.com` | No |
 | `DI_API_KEY` | DeepInfra API key (also `DEEPINFRA_API_KEY`) | — | For DI provider |
 | `FA_API_KEY` | fal.ai API key | — | For fal.ai provider |
@@ -179,6 +198,7 @@ kask matrix status-sidecar
 
 Model names use 2-letter provider prefixes for routing:
 - `DI/` → DeepInfra (cloud) — requires `DI_API_KEY`
+- `FW/` → Fireworks.ai (cloud) — requires `FW_API_KEY`
 - `FA/` → fal.ai (cloud) — requires `FA_API_KEY`
 - No prefix → defaults to DeepInfra
 
@@ -206,6 +226,7 @@ To customize chat behavior, modify the source code in:
 ```bash
 # Production environment
 export DI_API_KEY="your-deepinfra-key"
+export FW_API_KEY="your-fireworks-key"
 export HKASK_DATABASE_URL="/var/lib/hkask/hkask.db"
 export HKASK_LOG_LEVEL="warn"
 export RUST_LOG="hkask=info,hyper=warn"
@@ -292,18 +313,15 @@ docker build -t hkask:latest .
 docker run -d -p 8080:8080 --name hkask hkask:latest
 ```
 
-### 5.3 Kubernetes Deployment — Future (not supported in v0.27.0)
-
-> **Note:** Kubernetes multi-replica deployment is not supported in v0.27.0. hKask uses SQLCipher (single-writer SQLite) which cannot support multi-replica deployments. The single-server model described in §5.1 (systemd) and §5.2 (Docker) is the only supported production path. The Kubernetes manifest below is a placeholder for a future version with a distributed storage backend.
+### 5.3 Kubernetes Deployment
 
 ```yaml
-# FUTURE — not supported in v0.27.0
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: hkask-api
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: hkask-api
@@ -502,6 +520,7 @@ chmod 600 /var/lib/hkask/hkask.db
 
 | Issue | Cause | Resolution |
 |-------|-------|------------|
+| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `FW_API_KEY` in env or `providers.env` file |
 | `Inference error: error sending request` | Provider unreachable | Verify provider URL and network connectivity |
 | `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
 | `Template not found` | Registry empty | Register templates with `kask template register` |

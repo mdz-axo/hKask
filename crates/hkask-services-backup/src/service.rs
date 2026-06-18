@@ -198,7 +198,6 @@ impl BackupService {
     ///
     /// REQ: P7-svc-backup-144
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// REQ: P9-CNS-BK-001 pre: valid state, post: cns.backup span emitted
     /// pre:  scope must be a valid BackupScope; artifacts must be non-empty after filtering tracked types
     /// post: returns SnapshotMetadata with commits, artifact_count, trigger=Manual, and timestamp; Err(NoSnapshots) if no artifacts after filtering; Err(Config) if scope types not tracked
     #[instrument(skip(self, artifacts), fields(artifact_count, repo_count))]
@@ -266,10 +265,6 @@ impl BackupService {
             "Snapshot complete"
         );
 
-        // P9: CNS span
-        // REQ: P9-CNS-BK-001 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "snapshot", scope = %scope.description(), artifact_count = artifact_count, repo_count = by_repo.len(), duration_ms = duration_ms, "CNS");
-
         Ok(SnapshotMetadata {
             commits,
             artifact_count,
@@ -287,7 +282,6 @@ impl BackupService {
     ///
     /// REQ: P7-svc-backup-145
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// REQ: P9-CNS-BK-002 pre: valid target and scope, post: cns.backup span emitted
     /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
     /// post: returns Vec<(ArtifactType, String, Vec<u8>)> of restored artifacts; empty Vec if none match; Err on CAS or deserialization failure
     pub async fn restore(
@@ -342,10 +336,6 @@ impl BackupService {
             }
         }
 
-        // P9: CNS span
-        // REQ: P9-CNS-BK-002 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "restore", target_commit = %target, restored_count = restored.len(), "CNS");
-
         Ok(restored)
     }
 
@@ -356,7 +346,6 @@ impl BackupService {
     ///
     /// REQ: P7-svc-backup-146
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// REQ: P9-CNS-BK-003 pre: valid filter, post: cns.backup span emitted
     /// pre:  filter.limit defaults to 20 if None
     /// post: returns Vec<SnapshotMetadata> sorted by timestamp descending, truncated to limit; Err(NoSnapshots) if no snapshots found
     pub async fn list(&self, filter: ListFilter) -> Result<Vec<SnapshotMetadata>, BackupError> {
@@ -390,10 +379,6 @@ impl BackupService {
         snapshots.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
         snapshots.truncate(limit);
 
-        // P9: CNS span
-        // REQ: P9-CNS-BK-003 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "list", snapshot_count = snapshots.len(), "CNS");
-
         Ok(snapshots)
     }
 
@@ -405,7 +390,6 @@ impl BackupService {
     ///
     /// REQ: P7-svc-backup-147
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// REQ: P9-CNS-BK-004 pre: valid retention policy, post: cns.backup span emitted
     /// pre:  retention policy must be configured; dry_run=true only reports, dry_run=false executes pruning
     /// post: returns PruneReport with evaluated count, removed commits, and retained count; empty report if no retention policy configured
     pub async fn prune(&self, dry_run: bool) -> Result<PruneReport, BackupError> {
@@ -451,10 +435,6 @@ impl BackupService {
                     .await?;
             }
         }
-
-        // P9: CNS span
-        // REQ: P9-CNS-BK-004 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "prune", dry_run = dry_run, evaluated = total_evaluated, removed = total_removed.len(), retained = total_retained, "CNS");
 
         Ok(PruneReport {
             dry_run,
@@ -518,7 +498,6 @@ impl BackupService {
     ///
     /// REQ: P7-svc-backup-148
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// REQ: P9-CNS-BK-005 pre: tracked repos accessible, post: cns.backup span emitted
     /// pre:  tracked repos must be accessible via CAS
     /// post: returns Vec<VerificationReport> per repo with total_blobs and corrupt_hashes; empty Vec if no tracked repos
     #[instrument(skip(self), fields(repo_count, total_blobs, corrupt_count))]
@@ -558,9 +537,6 @@ impl BackupService {
                 corrupt_count = corrupt_count,
                 "Backup integrity verification found corruption"
             );
-            // P9: CNS span — alert on integrity failure
-            // REQ: P9-CNS-BK-005 pre: valid state, post: cns.backup span emitted
-            info!(target: "cns.backup", operation = "verify", status = "corrupt", total_blobs = total_blobs, corrupt_count = corrupt_count, repo_count = repos.len(), "CNS");
         } else {
             info!(
                 target: "hkask.backup",
@@ -568,9 +544,6 @@ impl BackupService {
                 total_blobs = total_blobs,
                 "Backup integrity verification passed"
             );
-            // P9: CNS span
-            // REQ: P9-CNS-BK-005 pre: valid state, post: cns.backup span emitted
-            info!(target: "cns.backup", operation = "verify", status = "ok", total_blobs = total_blobs, repo_count = repos.len(), "CNS");
         }
 
         Ok(reports)
@@ -634,14 +607,10 @@ impl BackupService {
     ///
     /// REQ: P7-svc-backup-152
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// REQ: P9-CNS-BK-006 pre: auto_snapshot enabled, post: cns.backup span emitted
     /// pre:  auto_snapshot must be enabled in config
     /// post: returns SnapshotMetadata from full snapshot; Err on snapshot failure
     pub async fn run_daily_snapshot(&self) -> Result<SnapshotMetadata, BackupError> {
         info!(target: "hkask.backup", "Running daily backup snapshot");
-        // P9: CNS span
-        // REQ: P9-CNS-BK-006 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "daily_snapshot", triggered_by = "scheduler", "CNS");
         // Snapshot all tracked types. Artifact data is collected by
         // scanning all repos for current state — the caller provides
         // artifacts. For the scheduler, we snapshot whatever is in
@@ -657,7 +626,6 @@ impl BackupService {
     ///
     /// REQ: P7-svc-backup-153
     /// [P5] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// REQ: P9-CNS-BK-007 pre: valid target and scope, post: cns.backup span emitted
     /// pre:  target must be a valid CommitHash; scope must be a valid RestoreScope
     /// post: returns Vec of restored artifacts matching the scope; delegates to restore()
     pub async fn scoped_restore(
@@ -668,21 +636,12 @@ impl BackupService {
         match &scope {
             RestoreScope::Full => {
                 info!(target: "hkask.backup", commit=%target, "System-level restore");
-                // P9: CNS span
-                // REQ: P9-CNS-BK-007 pre: valid state, post: cns.backup span emitted
-                info!(target: "cns.backup", operation = "scoped_restore", scope = "full", target_commit = %target, "CNS");
             }
             RestoreScope::ByType(at) => {
                 info!(target: "hkask.backup", commit=%target, artifact_type=%at.label(), "Registry-level restore");
-                // P9: CNS span
-                // REQ: P9-CNS-BK-007 pre: valid state, post: cns.backup span emitted
-                info!(target: "cns.backup", operation = "scoped_restore", scope = %at.label(), target_commit = %target, "CNS");
             }
             RestoreScope::ByIds { artifact_type, ids } => {
                 info!(target: "hkask.backup", commit=%target, artifact_type=%artifact_type.label(), ids=?ids, "File-level restore");
-                // P9: CNS span
-                // REQ: P9-CNS-BK-007 pre: valid state, post: cns.backup span emitted
-                info!(target: "cns.backup", operation = "scoped_restore", scope = "by_ids", artifact_type = %artifact_type.label(), id_count = ids.len(), target_commit = %target, "CNS");
             }
         }
         self.restore(target, scope).await

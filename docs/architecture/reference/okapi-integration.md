@@ -2,7 +2,7 @@
 title: "Inference Router — API Contract"
 version: "0.27.0"
 status: "Active"
-last_updated: 2026-06-17
+last_updated: 2026-06-15
 audience: [architects, developers]
 domain: "Application"
 mds_categories: [domain]
@@ -10,27 +10,29 @@ mds_categories: [domain]
 
 # Inference Router — API Contract
 
-> **Note:** This reference document provides implementation detail supplementary to the authoritative specification in [`MDS.md`](../core/MDS.md).
+> **Note:** This reference document provides implementation detail supplementary to the authoritative specification in [`MDS.md`](../core/MDS.md) §7 §2.5.
 
-**Source:** `crates/hkask-inference/src/`
-**Config:** `crates/hkask-inference/src/config.rs` (`InferenceConfig`)
+**Version:** 0.28.0
+**Last Updated:** 2026-06-11
+**Status:** Active
 
 ---
 
 ## Overview
 
-hKask uses a multi-provider inference router that dispatches LLM requests based on a 2-letter provider prefix in the model name. All providers speak OpenAI-compatible `/v1/chat/completions`, enabling a single wire format across backends.
+hKask uses a multi-provider inference router (`hkask-inference` crate) that dispatches LLM requests to Ollama (local), Fireworks.ai (cloud), or DeepInfra (cloud) based on a 2-letter provider prefix in the model name. All three providers speak OpenAI-compatible `/v1/chat/completions`, enabling a single wire format across backends.
+
+**Source:** `crates/hkask-inference/src/`
+**Config:** `crates/hkask-inference/src/config.rs` (`InferenceConfig`)
 
 ### Provider Map
 
-| Prefix | Provider | Type | API Key Env |
-|--------|----------|------|-------------|
-| `DI/` | DeepInfra | Cloud | `DI_API_KEY` |
-| `TG/` | Together AI | Cloud | `TOGETHER_API_KEY` |
-| `FA/` | fal.ai | Cloud | `FA_API_KEY` |
-| `RP/` | RunPod | Cloud | `RUNPOD_API_KEY` |
-| `BT/` | Baseten | Cloud | `BASETEN_API_KEY` |
-| (none) | Default (DI) | Configurable | `HKASK_DEFAULT_PROVIDER` |
+| Prefix | Provider | Type | Base URL |
+|--------|----------|------|----------|
+| `OM/` | Ollama | Local | `http://127.0.0.1:11434` (configurable) |
+| `FW/` | Fireworks.ai | Cloud | `https://api.fireworks.ai/inference` |
+| `DI/` | DeepInfra | Cloud | `https://api.deepinfra.com/v1/openai` |
+| (none) | Default (OM) | Configurable | — |
 
 ---
 
@@ -38,20 +40,18 @@ hKask uses a multi-provider inference router that dispatches LLM requests based 
 
 ### POST /v1/chat/completions
 
-All providers use the OpenAI-compatible chat completions endpoint. The router constructs identical requests regardless of backend.
+All three providers use the OpenAI-compatible chat completions endpoint. The router constructs identical requests regardless of backend.
 
-**Base URLs (from config defaults):**
-- DeepInfra: `https://api.deepinfra.com/v1/chat/completions`
-- Together AI: `https://api.together.xyz/v1/chat/completions`
-- fal.ai: `https://api.fal.ai/v1/chat/completions`
-- RunPod: `https://api.runpod.io/v1/chat/completions`
-- Baseten: `https://api.baseten.co/v1/chat/completions`
+**Base URLs:**
+- Ollama: `{OM_BASE_URL}/v1/chat/completions`
+- Fireworks: `{FW_BASE_URL}/v1/chat/completions`
+- DeepInfra: `{DI_BASE_URL}/v1/chat/completions`
 
 #### Request Schema
 
 ```json
 {
-  "model": "string — Model identifier (provider prefix stripped before dispatch)",
+  "model": "string (required) — Model identifier (provider prefix stripped before dispatch)",
   "messages": [
     {
       "role": "string — 'user' | 'system' | 'assistant'",
@@ -61,16 +61,80 @@ All providers use the OpenAI-compatible chat completions endpoint. The router co
   ],
   "temperature": "float32 — Sampling temperature (0.0–2.0)",
   "top_p": "float32 — Nucleus sampling threshold (0.0–1.0)",
+  "top_k": "int32 — Top-k sampling parameter",
+  "min_p": "float32 — Min-p threshold (0.0–1.0)",
+  "typical_p": "float32 — Locally typical sampling (0.0–1.0)",
+  "frequency_penalty": "float32 — Frequency penalty (0.0–2.0)",
+  "presence_penalty": "float32 — Presence penalty (0.0–2.0)",
   "max_tokens": "int32 — Maximum tokens to generate",
+  "seed": "uint64|null — Deterministic seed for reproducibility",
+  "n_probs": "int32|null — Number of top token probabilities to return (default: 5)",
   "stream": "bool|null — Enable SSE streaming"
+}
+```
+
+#### Response Schema
+
+```json
+{
+  "model": "string — Model used for generation",
+  "choices": [
+    {
+      "message": {
+        "role": "string",
+        "content": "string — Generated text"
+      },
+      "finish_reason": "string — 'stop' | 'length' | 'content_filter' | 'tool_calls'",
+      "token_probs": [
+        {
+          "token": "string",
+          "prob": "float64",
+          "top_k": [
+            {
+              "token": "string",
+              "prob": "float64"
+            }
+          ]
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "string",
+          "function": {
+            "name": "string — server/tool convention",
+            "arguments": "object"
+          }
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "prompt_tokens": "uint32",
+    "completion_tokens": "uint32",
+    "total_tokens": "uint32"
+  }
 }
 ```
 
 #### Authentication
 
-All providers use Bearer token authentication:
-`Authorization: Bearer {API_KEY}`
+- **Ollama:** No authentication (local instance)
+- **Fireworks:** `Authorization: Bearer {FW_API_KEY}`
+- **DeepInfra:** `Authorization: Bearer {DI_API_KEY}`
 
+---
+
+## Error Handling
+
+### Error Types (InferenceError)
+
+| Variant | Description |
+|---------|-------------|
+| `Connection` | Network/connection failure, provider unavailable |
+| `Model` | Invalid model identifier |
+| `Generation` | Empty response, prompt validation failure |
+| `Json` | Response parse error |
+| `CircuitOpen` | Circuit breaker tripped |
 
 ---
 
@@ -80,13 +144,12 @@ All providers use Bearer token authentication:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `default_provider` | ProviderId | `DI` | Default provider for unprefixed models |
-| `deepinfra_base_url` | String | `https://api.deepinfra.com` | DeepInfra API endpoint |
+| `default_provider` | ProviderId | `OM` | Default provider for unprefixed models |
+| `ollama_base_url` | String | `http://127.0.0.1:11434` | Ollama API endpoint |
+| `fireworks_base_url` | String | `https://api.fireworks.ai/inference` | Fireworks API endpoint |
+| `fireworks_api_key` | String | (empty) | Fireworks Bearer token |
+| `deepinfra_base_url` | String | `https://api.deepinfra.com/v1/openai` | DeepInfra API endpoint |
 | `deepinfra_api_key` | String | (empty) | DeepInfra Bearer token |
-| `together_base_url` | String | `https://api.together.xyz` | Together AI API endpoint |
-| `together_api_key` | String | (empty) | Together AI Bearer token |
-| `fal_base_url` | String | `https://api.fal.ai` | fal.ai API endpoint |
-| `fal_api_key` | String | (empty) | fal.ai Bearer token |
 | `timeout_secs` | u64 | `120` | HTTP request timeout |
 | `pool_max_idle` | usize | `5` | Max idle connections per host |
 
@@ -94,15 +157,11 @@ All providers use Bearer token authentication:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `OM_BASE_URL` | `http://127.0.0.1:11434` | Ollama base URL |
+| `FW_BASE_URL` | `https://api.fireworks.ai/inference` | Fireworks base URL |
+| `FW_API_KEY` | (none) | Fireworks API key |
+| `DI_BASE_URL` | `https://api.deepinfra.com/v1/openai` | DeepInfra base URL |
 | `DI_API_KEY` | (none) | DeepInfra API key |
-| `TOGETHER_API_KEY` | (none) | Together AI API key |
-| `FA_API_KEY` | (none) | fal.ai API key |
-| `RUNPOD_API_KEY` | (none) | RunPod API key |
-| `BASETEN_API_KEY` | (none) | Baseten API key |
-| `DI_BASE_URL` | `https://api.deepinfra.com` | DeepInfra base URL |
-| `TG_BASE_URL` | `https://api.together.xyz` | Together AI base URL |
-| `FA_BASE_URL` | `https://api.fal.ai` | fal.ai base URL |
-| `HKASK_DEFAULT_PROVIDER` | `DI` | Default provider for unprefixed models |
 
 ---
 
@@ -112,21 +171,67 @@ All providers use Bearer token authentication:
 
 Models are discovered from each provider's native listing endpoint:
 
-| Provider | Endpoint | Notes |
-|----------|----------|-------|
-| DeepInfra | `GET /v1/models` | Cloud models |
-| Together AI | `GET /v1/models` | Cloud models |
-| fal.ai | `GET /v1/models` | Cloud models |
-| RunPod | `GET /v1/models` | Cloud models |
-| Baseten | `GET /v1/models` | Cloud models |
+| Provider | Endpoint | Filter |
+|----------|----------|--------|
+| Ollama | `GET /api/tags` | All local models |
+| Fireworks | `GET /v1/models` | Updated ≤ 6 months ago |
+| DeepInfra | `GET /v1/models` | Updated ≤ 6 months ago |
+
+Results are merged and returned with provider prefixes applied.
+
+- **CLI:** `/model` shows the current model; `/model <query>` performs fuzzy search across all providers
+- **API:** `GET /api/models` lists all available models; `GET /api/models/search?q=<query>` performs fuzzy search
+- **Source:** `crates/hkask-inference/src/inference_router.rs` (`list_models`, `search_models`)
 
 ### Switching Models
 
 | Interface | How |
 |-----------|-----|
-| REPL slash | `/model DI/meta-llama/Llama-3.3-70B-Instruct` inside the terminal |
+| CLI flag | `kask chat -m OM/qwen3:8b` |
+| CLI slash | `/model FW/llama-v3p1-70b-instruct` inside `kask chat` |
 | API request | `{ "input": "...", "model": "DI/meta-llama/Llama-3.3-70B-Instruct" }` in `POST /api/chat` |
 | API search | `GET /api/models/search?q=llama` to find matching models across providers |
+
+---
+
+## Prompt Validation
+
+Prompts are validated before API calls:
+- Must be non-empty
+- Must not exceed 1,000,000 characters
+
+---
+
+## Vision Inference
+
+### `InferenceRouter::generate_vision()`
+
+Sends base64-encoded images along with a text prompt to a vision-capable model. Dispatches to the appropriate backend based on the model's provider prefix. All three providers support vision models.
+
+**Source:** `crates/hkask-inference/src/inference_router.rs`
+
+#### Method Signature
+
+```rust
+pub async fn generate_vision(
+    &self,
+    prompt: &str,
+    images: &[String],          // base64-encoded
+    params: &LLMParameters,
+    model_override: Option<&str>,
+) -> Result<InferenceResult, InferenceError>
+```
+
+#### Usage: OCR Pipeline
+
+The `hkask-mcp-markitdown` server uses `generate_vision` for OCR fallback:
+
+1. `markitdown_convert` extracts text from PDF/MD/HTML/TXT
+2. If text extraction yields < 50 words (likely a scanned PDF), falls back to OCR
+3. OCR sends the file bytes (base64) to a vision model via `generate_vision`
+4. Vision model returns extracted text
+
+**Environment variable:** `HKASK_OCR_MODEL` — must be set to a vision-capable model.
 
 ---
 
@@ -134,15 +239,13 @@ Models are discovered from each provider's native listing endpoint:
 
 ### `EmbeddingRouter`
 
-Generates embedding vectors for semantic search and memory operations. Currently supports DeepInfra.
+Generates embedding vectors for semantic search and style composition. Routes to the appropriate provider based on model prefix.
 
-| Provider | Supported | Endpoint | Wire Format |
-|----------|-----------|----------|-------------|
-| DeepInfra | ✅ | `POST /v1/embeddings` | `{model, input: [...]}` (OpenAI) |
-| Together AI | ❌ (not yet implemented) | — | — |
-| fal.ai | ❌ (no embedding endpoint) | — | — |
-| RunPod | ❌ (adapter-composition only) | — | — |
-| Baseten | ❌ (adapter-composition only) | — | — |
+| Provider | Endpoint | Wire Format |
+|----------|----------|-------------|
+| Ollama | `POST /api/embed` | `{model, input: [...]}` |
+| Fireworks | `POST /v1/embeddings` | `{model, input: [...]}` (OpenAI) |
+| DeepInfra | `POST /v1/embeddings` | `{model, input: [...]}` (OpenAI) |
 
 **Source:** `crates/hkask-inference/src/embedding_router.rs`
 
@@ -151,7 +254,7 @@ Generates embedding vectors for semantic search and memory operations. Currently
 ## Architecture Notes
 
 - `InferencePort` is the single async inference trait in `hkask-types`; `InferenceRouter` is its primary implementation.
-- `EmbeddingRouter` provides embedding generation across supported providers (DeepInfra).
+- `EmbeddingRouter` provides embedding generation across all three providers.
 - Each backend owns its own HTTP client, auth, and model listing endpoint — no shared abstraction.
 - Shared chat protocol types and helpers live in `chat_protocol.rs` as free functions.
 - The router is a pure dispatcher — no response transformation, no automatic failover between providers.
@@ -160,4 +263,10 @@ Generates embedding vectors for semantic search and memory operations. Currently
 
 ## References
 
+[^ollama-api]: Ollama Contributors. (2024). *Ollama REST API*. https://github.com/ollama/ollama/blob/main/docs/api.md
 [^openai-chat-api]: OpenAI. (2024). *Chat Completions API Reference*. https://platform.openai.com/docs/api-reference/chat
+[^nygard-release]: Nygard, M. T. (2018). *Release It!: Design and Deploy Production-Ready Software* (2nd ed.). Pragmatic Bookshelf.
+
+---
+
+*ℏKask - A Minimal Viable Container for Agents — v0.28.0*

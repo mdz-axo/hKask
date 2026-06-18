@@ -247,7 +247,7 @@ loop-architecture.md  ←  4-loop decomposition, RateLimiting→EnergyBudget
 | [`loop-architecture.md`](loop-architecture.md) | 4-loop architecture — RateLimiting→EnergyBudget subsumption, crate↔loop mapping |
 | [`mandates/P12-replicant-host-mandate.md`](mandates/P12-replicant-host-mandate.md) | Replicant Host Mandate — every interaction has an author, no unsupervised agency |
 | [`energy-gas-payments-api-keys.md`](energy-gas-payments-api-keys.md) | Energy, Gas, Payments & API Key System — economic layer, rJoules, wallets, key lifecycle |
-| [`core/CNS-DOMAIN-SPECIFICATION.md`](core/CNS-DOMAIN-SPECIFICATION.md) | CNS Domain Specification — 8 sub-domains, 44 contracts, P4/P9/P12 governed membranes |
+| [`core/CNS-DOMAIN-SPECIFICATION.md`](core/CNS-DOMAIN-SPECIFICATION.md) | CNS Domain Specification — 6 sub-domains, 44 contracts, P4/P9/P12 governed membranes |
 
 | [`../plans/deployment-and-backup.md`](../plans/deployment-and-backup.md) | Deployment & Multi-User Plan |
 ---
@@ -258,7 +258,7 @@ The interactive REPL (`kask chat`) implements four features that govern inferenc
 
 ### Context Injection
 
-Conversation history is appended as a **suffix** (after the cache breakpoint) so the KV cache prefix — system prompt + template — remains identical across turns. Models that cache KV state across requests (where supported by the provider) see prefix cache hits on every turn, reducing per-turn inference latency. Controlled by `ReplSettings.context_turns` (default 3, 0 = no history).
+Conversation history is appended as a **suffix** (after the cache breakpoint) so the KV cache prefix — system prompt + template — remains identical across turns. Models that cache KV state across requests (e.g., Ollama with `keep_alive`) see prefix cache hits on every turn, reducing per-turn inference latency. Controlled by `ReplSettings.context_turns` (default 3, 0 = no history).
 
 ### Unbounded Tool-Use Loop
 
@@ -270,7 +270,7 @@ At 87.5% of the model's context window, old session history is condensed via the
 
 ### Model Awareness
 
-On model switch (`/model`), the REPL fetches metadata from the provider model listing endpoint:
+On model switch (`/model`), the REPL fetches metadata from Ollama's `/api/show` endpoint:
 - `context_length` — the model's native context window size (used by auto-condense)
 - `supports_thinking` — whether the model supports thinking/reasoning tokens
 - `capabilities` — model feature list (vision, tools, etc.)
@@ -772,7 +772,7 @@ The production deployment is a headless Ubuntu cloud server:
 
 1. **Single binary.** All crates compiled. No Cargo features for client/server.
 2. **Browser-first interaction.** Primary interface is xterm.js terminal via browser. Secondary: SSH (`kask repl`). MCP servers (for IDE integration) connect via the REST API or SSH-tunneled socket.
-3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Together AI, fal.ai, RunPod, Baseten).
+3. **No local GPU inference.** The inference router (`hkask-inference`) routes all requests to cloud providers (DeepInfra, Fireworks, fal.ai).
 4. **API keys in OS keychain.** Provider API keys are stored in the OS keychain (Linux Secret Service or flat-file fallback), not in environment variables or plaintext files.
 5. **Encrypted database at rest.** All persistent state uses SQLCipher with a passphrase-derived key.
 6. **Multi-tenant.** Multiple users per server. Data scoped by `owner_webid`. OAuth (GitHub/Google) sign-in.
@@ -792,7 +792,7 @@ Provider selection via `HKASK_DEFAULT_PROVIDER`:
 | Value | Provider | Use Case |
 |-------|----------|----------|
 | `DI` | DeepInfra | Primary cloud provider |
-| `TG` | Together AI | Cloud inference + fine-tuning |
+| `FW` | Fireworks.ai | Fast serverless inference, fallback |
 | `FA` | fal.ai | Specialized vision/OCR/media models |
 
 ### Setup Flow
@@ -828,7 +828,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
-| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (DeepInfra, Together AI, fal.ai, RunPod, Baseten) |
+| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Inference Router API contract (Ollama, Fireworks, DeepInfra) |
 | [`PUBLIC_SURFACE_JUSTIFICATIONS.md`](PUBLIC_SURFACE_JUSTIFICATIONS.md) | Deep-module audit — 16-crate public surface justifications (consolidated) |
 
 

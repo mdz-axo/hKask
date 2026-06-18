@@ -85,6 +85,7 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ServiceError> {
     Uuid::parse_str(id).map(PodID::from_uuid).map_err(|e| {
         let msg = format!("Invalid pod ID: {e}");
         ServiceError::ValidationError {
+            source: Some(Box::new(e)),
             message: msg,
         }
     })
@@ -128,7 +129,7 @@ async fn create_pod(
             .into(),
         );
     }
-    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| ServiceError::Pod { message: e.to_string() })?;
+    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(ServiceError::Pod)?;
     let pm = state.agent_service.pod_manager();
     let pod_id = pm.create_pod(&req.template, &persona, req.name).await?;
     Ok(Json(CreatePodResponse {

@@ -38,7 +38,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-IC-003 | Unified Registry with template_type discriminator | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
 | DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
-| DIAG-IC-006 | LLM Routing and Failover (Inference Router — DI/FA/TG/RP/BT) | [MDS.md](architecture/core/MDS.md) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
+| DIAG-IC-006 | LLM Routing and Failover (Inference Router — OM/FW/DI) | [MDS.md](architecture/core/MDS.md) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 
 ## 3. Trust & Observability Diagrams
 
@@ -66,9 +66,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-FW-001 | MDS RDF/Turtle Semantic Graph | [`MDS.md`](architecture/core/MDS.md) §1.1 | `docs/architecture/core/MDS.md` | ✅ VERIFIED |
-| DIAG-FW-002 | MDS Entity Relationship Diagram (Spec ↔ Goal ↔ Curation) | [`MDS.md`](architecture/core/MDS.md) §1.2 | `docs/architecture/core/MDS.md` | ✅ VERIFIED |
-| DIAG-FW-003 | MVSDD Cycle Sequence Diagram (Specify → Grant → Compose → Curate → Reflect) | [`MDS.md`](architecture/core/MDS.md) §4.3 | `docs/architecture/core/MDS.md` | ✅ VERIFIED |
+| DIAG-FW-001 | MDS RDF/Turtle Semantic Graph | [`MDS.md`](architecture/core/MDS.md) §1.1 | `docs/architecture/MDS.md` | ✅ VERIFIED |
+| DIAG-FW-002 | MDS Entity Relationship Diagram (Spec ↔ Goal ↔ Curation) | [`MDS.md`](architecture/core/MDS.md) §1.2 | `docs/architecture/MDS.md` | ✅ VERIFIED |
+| DIAG-FW-003 | MVSDD Cycle Sequence Diagram (Specify → Grant → Compose → Curate → Reflect) | [`MDS.md`](architecture/core/MDS.md) §4.3 | `docs/architecture/MDS.md` | ✅ VERIFIED |
 | DIAG-FW-004 | Hexagonal Component Diagram (HKaskHexagon) | [`MDS.md`](architecture/core/MDS.md) §6.1 | `docs/architecture/reference/ports-inventory.md` | ✅ VERIFIED |
 
 ## 6. Reference Diagrams

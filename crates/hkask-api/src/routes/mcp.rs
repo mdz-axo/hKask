@@ -138,7 +138,7 @@ pub(crate) async fn mcp_invoke(
         .mcp_dispatcher()
         .invoke(&req.tool, input, &auth.token)
         .await
-        .map_err(|e| ServiceError::Template { message: e.to_string() })?;
+        .map_err(ServiceError::Template)?;
 
     // Resolve server_id from the runtime's tool registry
     let server_id = state

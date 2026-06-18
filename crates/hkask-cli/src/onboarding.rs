@@ -96,6 +96,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         eprintln!("  Run \x1b[36mkask chat\x1b[0m first to complete initial setup, then use");
         eprintln!("  \x1b[36mkask onboard\x1b[0m to add additional replicants.");
         OnboardingError::Service(ServiceError::Config {
+            source: None,
             message: "No keychain secrets — run `kask chat` first".into(),
         })
     })?;
@@ -629,7 +630,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             keychain.store_by_key(key_name, api_key).map_err(|e| {
                 eprintln!("  \x1b[31m✗\x1b[0m Failed to store key: {}", e);
                 OnboardingError::Service(ServiceError::Keystore {
-            source: None,
+                    source: Some(Box::new(e)),
                     message: format!("Failed to store {}", key_name),
                 })
             })?;

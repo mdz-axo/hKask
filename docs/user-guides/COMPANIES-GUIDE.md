@@ -251,5 +251,5 @@ Keys are resolved from the OS keychain (`kask keystore`) first, then environment
 
 | Document | Relevance |
 |----------|-----------|
-| [`docs/status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Tool catalog across all 11 MCP servers |
+| [`docs/status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Tool catalog across all 12 MCP servers |
 | [`docs/architecture/core/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) | Architecture principles (P8) |

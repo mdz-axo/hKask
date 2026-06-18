@@ -254,6 +254,7 @@ impl WalletService {
         // ── Resolve price feed from user config ──────────────────────────
         let price_feed =
             resolve_price_feed(&config.price_feed).map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: "Failed to resolve price feed".into(),
             })?;
 
@@ -267,6 +268,7 @@ impl WalletService {
                 price_feed,
             )
             .map_err(|e| ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: "Failed to build WalletManager".into(),
             })?
             .with_event_sink(Arc::clone(&event_sink)),
@@ -276,6 +278,7 @@ impl WalletService {
         let issuer = Arc::new(
             ApiKeyIssuer::new(Arc::clone(&store))
                 .map_err(|e| ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: "Failed to build ApiKeyIssuer".into(),
                 })?
                 .with_event_sink(Arc::clone(&event_sink)),
@@ -298,6 +301,7 @@ impl WalletService {
         self.manager.get_balance(wallet_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -313,6 +317,7 @@ impl WalletService {
         self.manager.can_afford(wallet_id, cost_rj).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -328,6 +333,7 @@ impl WalletService {
         self.manager.ensure_wallet(wallet_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -352,6 +358,7 @@ impl WalletService {
             .map_err(|e| {
                 let msg = e.to_string();
                 ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })
@@ -375,6 +382,7 @@ impl WalletService {
             .map_err(|e| {
                 let msg = e.to_string();
                 ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })
@@ -397,6 +405,7 @@ impl WalletService {
             .map_err(|e| {
                 let msg = e.to_string();
                 ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })
@@ -458,6 +467,7 @@ impl WalletService {
                         .emit_chain_error_for_actor(webid, chain, "withdraw", &msg);
                 }
                 ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })
@@ -480,6 +490,7 @@ impl WalletService {
             .map_err(|e| {
                 let msg = e.to_string();
                 ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })
@@ -506,6 +517,7 @@ impl WalletService {
                 let msg = e.to_string();
                 self.manager.emit_chain_error(chain, "shield_assets", &msg);
                 ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })
@@ -545,6 +557,7 @@ impl WalletService {
             .map_err(|e| {
                 let msg = e.to_string();
                 ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })
@@ -560,6 +573,7 @@ impl WalletService {
         self.issuer.revoke_key(key_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -575,6 +589,7 @@ impl WalletService {
         self.issuer.list_keys(wallet_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -590,6 +605,7 @@ impl WalletService {
         self.manager.get_api_key(key_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -638,6 +654,7 @@ impl WalletService {
             .cybernetics
             .as_ref()
             .ok_or_else(|| ServiceError::Wallet {
+                source: None,
                 message: "CyberneticsLoop not attached to WalletService — call with_cybernetics() during construction".into(),
             })?;
         let budget = hkask_cns::WalletBackedBudget::new(wallet_id, Arc::clone(&self.manager));
@@ -670,6 +687,7 @@ impl WalletService {
             .cybernetics
             .as_ref()
             .ok_or_else(|| ServiceError::Wallet {
+                source: None,
                 message: "CyberneticsLoop not attached to WalletService — call with_cybernetics() during construction".into(),
             })?;
         let budget = hkask_cns::WalletBackedBudget::new(wallet_id, Arc::clone(&self.manager))
@@ -701,6 +719,7 @@ impl WalletService {
             .map_err(|e| {
                 let msg = e.to_string();
                 ServiceError::Wallet {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })
@@ -716,6 +735,7 @@ impl WalletService {
         self.manager.release_encumbrance(key_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -731,6 +751,7 @@ impl WalletService {
         self.manager.consume(key_id, gas_rj).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -749,6 +770,7 @@ impl WalletService {
         self.manager.get_encumbrance(key_id).map_err(|e| {
             let msg = e.to_string();
             ServiceError::Wallet {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })

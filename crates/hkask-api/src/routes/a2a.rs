@@ -31,6 +31,7 @@ fn parse_webid(raw: &str) -> Result<WebID, ServiceError> {
     uuid::Uuid::parse_str(raw)
         .map(WebID::from_uuid)
         .map_err(|_| ServiceError::ValidationError {
+            source: None,
             message: format!("Invalid WebID format: {}", raw),
         })
 }
@@ -99,6 +100,7 @@ async fn a2a_register(
 
     let agent_kind = hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| {
         ServiceError::InvalidAgentType {
+            source: None,
             message: format!(
                 "Agent type must be 'Bot' or 'Replicant', got: {}",
                 req.agent_type
@@ -108,6 +110,7 @@ async fn a2a_register(
 
     if req.capabilities.is_empty() {
         return Err(ServiceError::ValidationError {
+            source: None,
             message: "At least one capability is required".to_string(),
         }
         .into());

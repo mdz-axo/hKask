@@ -46,9 +46,3 @@ pub use ports::{
 pub use prompt_analysis::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
 pub use registry_loader::AgentRegistryLoader;
 pub use sovereignty::{AllowAllConsent, DenyAllConsent, SovereigntyChecker, SovereigntyConsent};
-
-impl From<a2a::A2AError> for hkask_services_core::ServiceError {
-    fn from(e: a2a::A2AError) -> Self {
-        hkask_services_core::ServiceError::A2A { message: e.to_string() }
-    }
-}

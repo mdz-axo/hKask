@@ -88,7 +88,6 @@ impl HkaskLoop for BackupLoop {
     }
 
     /// Sense: measure time since last snapshot.
-    /// REQ: P9-CNS-BK-008 pre: valid state, post: cns.backup span emitted
     async fn sense(&self) -> Vec<Signal> {
         if !self.auto_snapshot_enabled() {
             return Vec::new();
@@ -100,10 +99,6 @@ impl HkaskLoop for BackupLoop {
             .map(|i| i.elapsed().as_secs())
             .unwrap_or(u64::MAX);
 
-        // P9: CNS span
-        // REQ: P9-CNS-BK-008 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "backup_loop_sense", elapsed_secs = elapsed_secs, set_point_secs = 86400u64, "CNS");
-
         vec![Signal::new(
             LoopId::Cybernetics,
             SignalMetric::SnapshotInterval,
@@ -113,9 +108,8 @@ impl HkaskLoop for BackupLoop {
     }
 
     /// Compare: detect if snapshot is overdue.
-    /// REQ: P9-CNS-BK-009 pre: valid signals, post: cns.backup span emitted
     async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
-        let deviations: Vec<Deviation> = signals
+        signals
             .iter()
             .filter(|s| {
                 s.metric == SignalMetric::SnapshotInterval
@@ -123,26 +117,14 @@ impl HkaskLoop for BackupLoop {
                     && s.set_point > 0.0
             })
             .filter_map(Deviation::from_signal)
-            .collect();
-
-        // P9: CNS span
-        // REQ: P9-CNS-BK-009 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "backup_loop_compare", signal_count = signals.len(), deviation_count = deviations.len(), "CNS");
-
-        deviations
+            .collect()
     }
 
     /// Compute: produce snapshot + optional prune actions.
-    /// REQ: P9-CNS-BK-010 pre: valid deviations, post: cns.backup span emitted
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         if deviations.is_empty() {
             return Vec::new();
         }
-
-        // P9: CNS span
-        // REQ: P9-CNS-BK-010 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "backup_loop_compute", deviation_count = deviations.len(), "CNS");
-
         vec![LoopAction::new(
             LoopId::Cybernetics,
             ActionType::Calibrate,
@@ -151,7 +133,6 @@ impl HkaskLoop for BackupLoop {
     }
 
     /// Act: run daily snapshot, then optionally verify and prune.
-    /// REQ: P9-CNS-BK-011 pre: valid actions, post: cns.backup span emitted
     async fn act(&self, actions: &[LoopAction]) {
         if actions.is_empty() || !self.auto_snapshot_enabled() {
             return;
@@ -160,10 +141,6 @@ impl HkaskLoop for BackupLoop {
         if !self.is_snapshot_due() {
             return;
         }
-
-        // P9: CNS span
-        // REQ: P9-CNS-BK-011 pre: valid state, post: cns.backup span emitted
-        info!(target: "cns.backup", operation = "backup_loop_act", action_count = actions.len(), "CNS");
 
         info!(target: "hkask.backup.loop", "Running scheduled daily backup snapshot");
 
@@ -179,9 +156,6 @@ impl HkaskLoop for BackupLoop {
 
                 // Optionally verify integrity after snapshot.
                 if self.service.config().verify_after_snapshot {
-                    // P9: CNS span
-                    // REQ: P9-CNS-BK-011 pre: valid state, post: cns.backup span emitted
-                    info!(target: "cns.backup", operation = "backup_loop_verify", artifact_count = metadata.artifact_count, "CNS");
                     match self.service.verify().await {
                         Ok(reports) => {
                             let corrupt: usize =
@@ -206,9 +180,6 @@ impl HkaskLoop for BackupLoop {
 
                 // Run prune if retention is configured.
                 if self.service.config().retention.is_some() {
-                    // P9: CNS span
-                    // REQ: P9-CNS-BK-011 pre: valid state, post: cns.backup span emitted
-                    info!(target: "cns.backup", operation = "backup_loop_prune", "CNS");
                     match self.service.prune(false).await {
                         Ok(report) => {
                             info!(

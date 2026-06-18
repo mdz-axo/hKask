@@ -451,14 +451,14 @@ impl EmbedService {
                 config_path.display()
             );
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
         let config: CorpusConfig = serde_yaml_neo::from_str(&config_str).map_err(|e| {
             let msg = format!("Failed to parse corpus config YAML: {e}");
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -511,7 +511,7 @@ impl EmbedService {
         let purged = semantic.purge_by_prefix(&author_prefix).map_err(|e| {
             let msg = format!("Failed to purge embeddings: {e}");
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -558,7 +558,7 @@ impl EmbedService {
                         let msg =
                             format!("Failed to read local file {}: {e}", local_path.display());
                         ServiceError::Embed {
-            source: None,
+                            source: Some(Box::new(e)),
                             message: msg,
                         }
                     })?
@@ -569,7 +569,7 @@ impl EmbedService {
                         std::fs::read_to_string(&cache_path).map_err(|e| {
                             let msg = format!("Failed to read cache {}: {e}", cache_path.display());
                             ServiceError::Embed {
-            source: None,
+                                source: Some(Box::new(e)),
                                 message: msg,
                             }
                         })?
@@ -591,7 +591,7 @@ impl EmbedService {
                 std::fs::read_to_string(&cache_path).map_err(|e| {
                     let msg = format!("Failed to read cache {}: {e}", cache_path.display());
                     ServiceError::Embed {
-            source: None,
+                        source: Some(Box::new(e)),
                         message: msg,
                     }
                 })?
@@ -885,7 +885,7 @@ impl EmbedService {
                 .map_err(|e| {
                     let msg = format!("Failed to embed batch: {e}");
                     ServiceError::Embed {
-            source: None,
+                        source: Some(Box::new(e)),
                         message: msg,
                     }
                 })?;
@@ -1052,7 +1052,7 @@ impl EmbedService {
                 .map_err(|e| {
                     let msg = format!("Failed to store dimension centroid: {e}");
                     ServiceError::Embed {
-            source: None,
+                        source: Some(Box::new(e)),
                         message: msg,
                     }
                 })?;
@@ -1094,7 +1094,7 @@ impl EmbedService {
                     .map_err(|e| {
                         let msg = format!("Failed to store composite centroid: {e}");
                         ServiceError::Embed {
-            source: None,
+                            source: Some(Box::new(e)),
                             message: msg,
                         }
                     })?;
@@ -1155,14 +1155,14 @@ impl EmbedService {
         let config_str = std::fs::read_to_string(path).map_err(|e| {
             let msg = format!("Failed to read corpus config {}: {e}", path.display());
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
         serde_yaml_neo::from_str(&config_str).map_err(|e| {
             let msg = format!("Failed to parse corpus config YAML: {e}");
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -1182,7 +1182,7 @@ fn store_passage_triples(
         semantic.store(triple).map_err(|e| {
             let msg = format!("Failed to store triple ({entity}, {attr}): {e}");
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })
@@ -1297,7 +1297,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
         .map_err(|e| {
             let msg = format!("Failed to build HTTP client: {e}");
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?
@@ -1307,7 +1307,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
         .map_err(|e| {
             let msg = format!("HTTP request failed: {e}");
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -1329,7 +1329,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
     let bytes = resp.bytes().await.map_err(|e| {
         let msg = format!("Failed to read response: {e}");
         ServiceError::Embed {
-            source: None,
+            source: Some(Box::new(e)),
             message: msg,
         }
     })?;
@@ -1346,7 +1346,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
         std::fs::write(&tmp_path, &bytes).map_err(|e| {
             let msg = format!("Failed to write temp PDF: {e}");
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -1354,7 +1354,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
         let text = pdf_extract::extract_text(&tmp_path).map_err(|e| {
             let msg = format!("Failed to extract text from PDF '{}': {e}", url);
             ServiceError::Embed {
-            source: None,
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -1562,7 +1562,7 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
             let err_msg = e.to_string();
             if err_msg.contains("not found") {
                 Err(ServiceError::Embed {
-            source: None,
+                    source: None,
                     message: format!(
                         "OCR model '{}' is not available. Download it from: https://ollama.com/maternion/LightOnOCR-2:1b\nThen run: ollama pull {}\n\nOriginal PDF '{}' could not be text-extracted (likely scanned). Set HKASK_OCR_MODEL to override the default model.",
                         ocr_model, ocr_model, url
@@ -1570,7 +1570,7 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
                 })
             } else {
                 Err(ServiceError::Embed {
-            source: None,
+                    source: None,
                     message: format!("OCR inference failed for '{}': {}", url, err_msg),
                 })
             }

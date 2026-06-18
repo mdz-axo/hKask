@@ -154,7 +154,7 @@ Within boundaries, hKask is maximally generative. This is not a ban on constrain
 
 ### Settings Exposure
 
-Inference and tooling must expose all probabilistic/generative settings to users — temperature, top-k, top-p, repeat penalty, and any other parameters the underlying model or tool supports. No settings are hidden or admin-gated. This is why hKask uses an inference router supporting DeepInfra, Together AI, fal.ai, RunPod, Baseten.
+Inference and tooling must expose all probabilistic/generative settings to users — temperature, top-k, top-p, repeat penalty, and any other parameters the underlying model or tool supports. No settings are hidden or admin-gated. This is why hKask uses an inference router supporting Ollama, Fireworks.ai, and DeepInfra.
 
 ### No Privileged Engineer Access
 

@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # CNS Domain Specification
 
-**Purpose:** A formal specification of the 8 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md) and a concrete Rust module. All 44 contracts are implemented and tested.
+**Purpose:** A formal specification of the 6 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md) and a concrete Rust module. All 44 contracts are implemented and tested.
 
 **MDS Reference:** [`MDS.md`](MDS.md)
 
@@ -119,8 +119,7 @@ Each sub-domain is implemented in a single Rust file (or a tight cluster of file
 
 ### 2.5 Circuit Breaker Domain (`circuit_breaker.rs`)
 
-**Motivating principle:** P9 (Homeostatic Self-Regulation) — CNS regulation loop enforces homeostasis over external service calls
-**Constraining principle:** P4 (Clear Boundaries) — circuit state transitions are boundary conditions
+**Motivating principle:** P4 (Clear Boundaries) — circuit breaking is a CNS regulation mechanism enforcing homeostatic control over external service calls.
 
 **Source:** `crates/hkask-cns/src/circuit_breaker.rs` (208 lines, 3 contracts)
 

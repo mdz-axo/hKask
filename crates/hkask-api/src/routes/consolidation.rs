@@ -87,6 +87,7 @@ pub(crate) async fn consolidate(
         .agent_webid
         .parse()
         .map_err(|_| ServiceError::ValidationError {
+            source: None,
             message: "Invalid agent_webid: must be a valid UUID".to_string(),
         })?;
 

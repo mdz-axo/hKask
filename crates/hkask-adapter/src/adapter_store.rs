@@ -13,7 +13,6 @@ use hkask_storage::define_store;
 use hkask_types::InfrastructureError;
 use hkask_types::id::WebID;
 use serde::{Deserialize, Serialize};
-use tracing;
 use uuid::Uuid;
 
 // ── Adapter distribution source ────────────────────────────────────────────
@@ -211,13 +210,9 @@ impl AdapterStore {
     /// Store a trained adapter.
     ///
     /// REQ: P8-adt-trained-adapter-store
-    /// REQ: P9-CNS-AD-001 pre: operation valid, post: cns.adapter span emitted
     /// pre:  adapter has a valid expertise, checksum, owner, and storage_path
     /// post: adapter is persisted to SQLite
     pub fn store(&self, adapter: &TrainedLoRAAdapter) -> Result<(), AdapterStoreError> {
-        // P9: CNS span
-        tracing::info!(target: "cns.adapter", operation = "store", adapter_id = %adapter.id, "CNS");
-
         let conn = self.lock_conn()?;
         let metrics_json =
             serde_json::to_string(&adapter.expertise.training_source.training_metrics)?;
@@ -257,13 +252,9 @@ impl AdapterStore {
     /// Retrieve an adapter by its UUID.
     ///
     /// REQ: P8-adt-trained-adapter-store
-    /// REQ: P9-CNS-AD-001 pre: operation valid, post: cns.adapter span emitted
     /// pre:  id is a valid Uuid
     /// post: returns Some(TrainedLoRAAdapter) if found, None otherwise
     pub fn get_by_id(&self, id: Uuid) -> Result<Option<TrainedLoRAAdapter>, AdapterStoreError> {
-        // P9: CNS span
-        tracing::info!(target: "cns.adapter", operation = "retrieve", adapter_id = %id, "CNS");
-
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("{} WHERE adapter_id = ?1", ADAPTER_SELECT))?;
 
@@ -302,16 +293,12 @@ impl AdapterStore {
     /// List adapters by expertise name.
     ///
     /// REQ: P8-adt-trained-adapter-store
-    /// REQ: P9-CNS-AD-001 pre: operation valid, post: cns.adapter span emitted
     /// pre:  expertise_name is non-empty
     /// post: returns Vec of adapters matching the expertise name
     pub fn get_by_expertise(
         &self,
         expertise_name: &str,
     ) -> Result<Vec<TrainedLoRAAdapter>, AdapterStoreError> {
-        // P9: CNS span
-        tracing::info!(target: "cns.adapter", operation = "retrieve", expertise = %expertise_name, "CNS");
-
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("{} WHERE expertise_name = ?1", ADAPTER_SELECT))?;
 
@@ -395,13 +382,9 @@ impl AdapterStore {
     /// token verification happens at the `AdapterPort` boundary (Task 5).
     ///
     /// REQ: P8-adt-trained-adapter-store — delete with ownership verification
-    /// REQ: P9-CNS-AD-001 pre: operation valid, post: cns.adapter span emitted
     /// pre:  adapter exists
     /// post: adapter row is removed
     pub fn delete(&self, id: Uuid) -> Result<(), AdapterStoreError> {
-        // P9: CNS span
-        tracing::info!(target: "cns.adapter", operation = "delete", adapter_id = %id, "CNS");
-
         let conn = self.lock_conn()?;
         let affected = conn.execute(
             "DELETE FROM trained_adapters WHERE adapter_id = ?1",

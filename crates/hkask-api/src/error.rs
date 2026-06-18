@@ -113,7 +113,7 @@ impl IntoResponse for ServiceErrorResponse {
 
 impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
     fn from(e: hkask_agents::a2a::A2AError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::A2A { message: e.to_string() })
+        ServiceErrorResponse(hkask_services::ServiceError::A2A(e))
     }
 }
 
@@ -127,6 +127,7 @@ impl From<uuid::Error> for ServiceErrorResponse {
     fn from(e: uuid::Error) -> Self {
         let msg = e.to_string();
         ServiceErrorResponse(hkask_services::ServiceError::InvalidWebID {
+            source: Some(e),
             message: msg,
         })
     }
@@ -140,13 +141,13 @@ impl From<hkask_storage::AgentRegistryError> for ServiceErrorResponse {
 
 impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
     fn from(e: hkask_agents::pod::AgentPodError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::Pod { message: e.to_string() })
+        ServiceErrorResponse(hkask_services::ServiceError::Pod(e))
     }
 }
 
 impl From<hkask_types::ports::RegistryError> for ServiceErrorResponse {
     fn from(e: hkask_types::ports::RegistryError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::Registry { message: e.to_string() })
+        ServiceErrorResponse(hkask_services::ServiceError::Registry(e))
     }
 }
 
@@ -154,7 +155,7 @@ impl From<hkask_services_backup::BackupError> for ServiceErrorResponse {
     fn from(e: hkask_services_backup::BackupError) -> Self {
         let msg = e.to_string();
         ServiceErrorResponse(hkask_services::ServiceError::Backup {
-            source: None,
+            source: Some(Box::new(e)),
             message: msg,
         })
     }

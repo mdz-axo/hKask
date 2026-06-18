@@ -6,7 +6,6 @@ license.workspace = true
 description = "Registry, hLexicon, and template execution for hKask"
 
 [dependencies]
-hkask-services-core = { path = "../hkask-services-core" }
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
 minijinja.workspace = true

@@ -50,7 +50,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 
 **Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `do../status/PROJECT_STATUS.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
 
-**Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 19 × ~2KB = ~38KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface. Note: The term "arsenal" is not part of the hKask vocabulary — the project has 37 core crates and 11 MCP servers, all in a single workspace.
+**Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 19 × ~2KB = ~38KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface. Note: The term "arsenal" is not part of the hKask vocabulary — the project has 11 core crates and 21 MCP servers, all in a single workspace.
 
 ---
 
@@ -126,7 +126,7 @@ Document federation as a deferred architectural direction (no dedicated ADR yet)
 **Status:** **Resolved** (already confirmed 2026-05-28; reaffirmed 2026-05-29 MCP audit)  
 **Resolution Date:** 2026-05-28
 
-**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (7 tools) and `hkask-mcp-research` (~17 tools, consolidated from former `hkask-mcp-web` and `hkask-mcp-rss-reader` in 2026-06-11). No stubs remain. MCP tools inventory confirms completeness (see `do../status/PROJECT_STATUS.md`).
+**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-web` (3,389 LOC). No stubs remain. MCP tools inventory confirms completeness (see `do../status/PROJECT_STATUS.md`).
 
 ---
 
@@ -738,7 +738,7 @@ docs/                                Exemplary corpus
 
 **Open design questions:**
 - Should the exemplary corpus be static (curated once) or dynamic (updated as new exemplars are discovered)?
-- What embedding model? The existing `EmbeddingRouter` supports DeepInfra — either could generate documentation-aware embeddings.
+- What embedding model? The existing `EmbeddingRouter` supports Ollama, Fireworks, DeepInfra — any of these could generate documentation-aware embeddings.
 - Should the semantic score be a separate dimension (5th dimension alongside Hopper/Lovelace/Schriver/Gentle) or folded into the Gentle (agent-correctness) dimension?
 - What's the minimum viable exemplary corpus size? 50 documents? 500? The EmbedService budget gate could help here.
 

@@ -65,7 +65,7 @@ impl CuratorService {
     /// `ServiceError::Escalation` on queue error.
     pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {
         let queue = ctx.escalation_queue();
-        let entries = queue.list_pending().map_err(|e| ServiceError::Escalation { message: e.to_string() })?;
+        let entries = queue.list_pending().map_err(ServiceError::Escalation)?;
         Ok(entries.into_iter().map(EscalationResponse::from).collect())
     }
 
@@ -100,9 +100,10 @@ impl CuratorService {
             .resolve(id, resolved_by)
             .map_err(|e| match e {
                 hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
+                    source: None,
                     message: id,
                 },
-                other => ServiceError::Escalation { message: other.to_string() },
+                other => ServiceError::Escalation(other),
             })
     }
 
@@ -137,9 +138,10 @@ impl CuratorService {
             .dismiss(id, dismissed_by)
             .map_err(|e| match e {
                 hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
+                    source: None,
                     message: id,
                 },
-                other => ServiceError::Escalation { message: other.to_string() },
+                other => ServiceError::Escalation(other),
             })
     }
 
@@ -173,7 +175,7 @@ impl CuratorService {
             .metacognition()
             .run_cycle()
             .await
-            .map_err(|e| ServiceError::Metacognition { message: e.to_string() })?;
+            .map_err(ServiceError::Metacognition)?;
         Ok(agent.metacognition().generate_summary(&snapshot))
     }
 }

@@ -75,6 +75,7 @@ impl BundleService {
     ) -> Result<BundleComposeResult, ServiceError> {
         if skill_ids.len() < 2 {
             return Err(ServiceError::Compose {
+                source: None,
                 message: "A bundle requires at least 2 skills".to_string(),
             });
         }
@@ -96,6 +97,7 @@ impl BundleService {
                 .map(|s| s.as_str())
                 .collect();
             return Err(ServiceError::Compose {
+                source: None,
                 message: format!("Skills not found in registry: {}", missing.join(", ")),
             });
         }
@@ -175,6 +177,7 @@ impl BundleService {
             .map_err(|e| {
                 let msg = format!("Inference failed: {}", e);
                 ServiceError::Compose {
+                    source: Some(Box::new(e)),
                     message: msg,
                 }
             })?;
@@ -187,6 +190,7 @@ impl BundleService {
                 &result.text[..result.text.len().min(200)]
             );
             ServiceError::Compose {
+                source: Some(Box::new(e)),
                 message: msg,
             }
         })?;
@@ -195,6 +199,7 @@ impl BundleService {
         let validation = manifest.validate();
         if !validation.is_valid() {
             return Err(ServiceError::Compose {
+                source: None,
                 message: format!(
                     "Composed bundle failed validation: {}",
                     validation.errors.join("; ")
@@ -255,6 +260,7 @@ impl BundleService {
         let registry = ctx.registry();
         let guard = registry.lock().await;
         guard.get_bundle(id).ok_or_else(|| ServiceError::Compose {
+            source: None,
             message: format!("Bundle '{}' not found", id),
         })
     }
@@ -276,6 +282,7 @@ impl BundleService {
     ) -> Result<BundleComposeResult, ServiceError> {
         let existing = Self::get(ctx, id).await?;
         let existing = existing.ok_or_else(|| ServiceError::Compose {
+            source: None,
             message: format!("Bundle '{}' not found", id),
         })?;
 

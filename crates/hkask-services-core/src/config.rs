@@ -18,7 +18,6 @@ use hkask_types::wallet::WalletConfig;
 
 /// Default path for the primary database file.
 pub const DEFAULT_DB_PATH: &str = "data/hkask.db";
-const DEFAULT_CNS_THRESHOLD: u64 = 100;
 const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
 const DEFAULT_TEMPLATE_CACHE_PATH: &str = "/tmp/hkask-templates";
@@ -163,7 +162,7 @@ impl ServiceConfig {
             mcp_secret: mcp_secret_vec,
             default_model,
             inference_config,
-            cns_threshold: DEFAULT_CNS_THRESHOLD,
+            cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
@@ -207,7 +206,7 @@ impl ServiceConfig {
             a2a_secret: a2a_secret.into_bytes(),
             mcp_secret: mcp_secret.into_bytes(),
             inference_config: inference_config.clone(),
-            cns_threshold: DEFAULT_CNS_THRESHOLD,
+            cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
@@ -237,7 +236,7 @@ impl ServiceConfig {
             a2a_secret: vec![0u8; 32],
             mcp_secret: vec![0u8; 32],
             inference_config: inference_config.clone(),
-            cns_threshold: DEFAULT_CNS_THRESHOLD,
+            cns_threshold: hkask_cns::DEFAULT_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: true,

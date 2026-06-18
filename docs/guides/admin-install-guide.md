@@ -3,7 +3,7 @@ title: "hKask Admin Install Guide"
 audience: [server admins, DevOps]
 last_updated: 2026-06-17
 version: "0.27.0"
-status: "Draft"
+status: "Draft — Planning Phase"
 domain: "Technology"
 mds_categories: [lifecycle]
 ---
@@ -135,14 +135,13 @@ docker compose version
 ### Option A: Download from GitHub Releases (recommended)
 
 ```bash
-# Planned feature — pre-built binaries are not yet published.
-# Use Option B (Build from Source) below as the current installation path.
-# curl -fsSL https://github.com/org/hkask/releases/latest/download/kask-linux-x86_64 \
-#   -o /usr/local/bin/kask
-# chmod +x /usr/local/bin/kask
-#
+# Replace with actual release URL once published
+curl -fsSL https://github.com/org/hkask/releases/latest/download/kask-linux-x86_64 \
+  -o /usr/local/bin/kask
+chmod +x /usr/local/bin/kask
+
 # Verify
-# kask --version
+kask --version
 ```
 
 ### Option B: Build from Source
@@ -174,11 +173,8 @@ Edit `providers.env` and fill in your keys:
 ```bash
 # ── Inference Providers (at least one required) ───────────────────
 DI_API_KEY=sk-...                 # DeepInfra
-TOGETHER_API_KEY=...               # Together AI
-
+# FW_API_KEY=...                  # Fireworks.ai (optional)
 # FA_API_KEY=...                  # fal.ai (optional)
-# RUNPOD_API_KEY=...             # RunPod (optional)
-# BASETEN_API_KEY=...            # Baseten (optional)
 
 # ── OAuth Providers (at least one required) ───────────────────────
 OAUTH_GITHUB_CLIENT_ID=Iv23li...
@@ -277,20 +273,6 @@ Sign in with GitHub or Google.
 You are the first admin.
 
 Invite members: kask invite <email>
-```
-
-### Start the Daemon
-
-After init, start the background daemon:
-
-```bash
-kask daemon start
-```
-
-Verify it's running:
-
-```bash
-kask daemon status
 ```
 
 ---

@@ -591,7 +591,7 @@ pub fn open_escalation_queue(config: &ServiceConfig) -> Result<Arc<EscalationQue
 pub fn open_spec_store(config: &ServiceConfig) -> Result<SqliteSpecStore, ServiceError> {
     let db = Database::open(&config.db_path, &config.db_passphrase)?;
     let store = SqliteSpecStore::new(db.conn_arc());
-    store.init_schema().map_err(|e| ServiceError::Spec { message: e.to_string() })?;
+    store.init_schema().map_err(ServiceError::Spec)?;
     Ok(store)
 }
 
@@ -610,12 +610,12 @@ pub fn open_consent_manager(
     let consent_store = ConsentStore::new(Arc::clone(&conn));
     consent_store
         .initialize_schema()
-        .map_err(|e| ServiceError::ConsentStore { message: e.to_string() })?;
+        .map_err(ServiceError::ConsentStore)?;
     let cm = Arc::new(ConsentManager::new(consent_store));
     let sovereignty_boundary_store = SovereigntyBoundaryStore::new(conn);
     sovereignty_boundary_store
         .initialize_schema()
-        .map_err(|e| ServiceError::SovereigntyStore { message: e.to_string() })?;
+        .map_err(ServiceError::SovereigntyStore)?;
     Ok((cm, sovereignty_boundary_store))
 }
 
@@ -641,7 +641,7 @@ pub fn open_agent_registry(
     let store = hkask_storage::AgentRegistryStore::new(conn);
     store
         .initialize_schema()
-        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
+        .map_err(ServiceError::AgentRegistryStore)?;
     Ok((a2a, store))
 }
 
@@ -767,7 +767,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let consent_store = ConsentStore::new(consent_conn);
     consent_store
         .initialize_schema()
-        .map_err(|e| ServiceError::ConsentStore { message: e.to_string() })?;
+        .map_err(ServiceError::ConsentStore)?;
     let consent_manager = Arc::new(ConsentManager::new(consent_store));
 
     let escalation_queue = Arc::new(EscalationQueue::new(escalation_conn)?);
@@ -778,17 +778,19 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     let sovereignty_boundary_store = SovereigntyBoundaryStore::new(sovereignty_conn);
     sovereignty_boundary_store
         .initialize_schema()
-        .map_err(|e| ServiceError::SovereigntyStore { message: e.to_string() })?;
+        .map_err(ServiceError::SovereigntyStore)?;
 
     let spec_store = SqliteSpecStore::new(spec_conn);
-    spec_store.init_schema().map_err(|e| ServiceError::Spec { message: e.to_string() })?;
+    spec_store.init_schema().map_err(ServiceError::Spec)?;
 
     let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
     {
         let guard = user_store.lock().map_err(|_| {
-            ServiceError::UserStore { message: hkask_types::InfrastructureError::LockPoisoned.to_string() }
+            ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
+                hkask_types::InfrastructureError::LockPoisoned,
+            ))
         })?;
-        guard.initialize_schema().map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
+        guard.initialize_schema().map_err(ServiceError::UserStore)?;
     }
 
     // CNS runtime
@@ -1380,19 +1382,19 @@ fn build_registry_and_wallet(
 ) -> Result<RegWallet, ServiceError> {
     // Registry
     let registry = Arc::new(tokio::sync::Mutex::new(
-        SqliteRegistry::new_with_conn(f.primary_conn.clone()).map_err(|e| ServiceError::Template { message: e.to_string() })?,
+        SqliteRegistry::new_with_conn(f.primary_conn.clone()).map_err(ServiceError::Template)?,
     ));
 
     // Agent registry store
     let agent_registry_store = hkask_storage::AgentRegistryStore::new(f.primary_conn.clone());
     agent_registry_store
         .initialize_schema()
-        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
+        .map_err(ServiceError::AgentRegistryStore)?;
 
     // Restore A2A state from persistent storage
     let registered_agents = agent_registry_store
         .list()
-        .map_err(|e| ServiceError::AgentRegistryStore { message: e.to_string() })?;
+        .map_err(ServiceError::AgentRegistryStore)?;
     if !registered_agents.is_empty() {
         use std::str::FromStr;
         let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
@@ -1415,7 +1417,7 @@ fn build_registry_and_wallet(
         let handle = tokio::runtime::Handle::current();
         handle
             .block_on(l.a2a_runtime.restore_from_storage(agents, tokens))
-            .map_err(|e| ServiceError::A2A { message: e.to_string() })?;
+            .map_err(ServiceError::A2A)?;
     }
 
     // Wallet — non-fatal if config or build fails (daemon can run without wallet)
@@ -1469,19 +1471,22 @@ fn build_wallet(
     wallet_manager
         .ensure_wallet(default_wallet)
         .map_err(|e| ServiceError::Wallet {
+            source: Some(Box::new(e)),
             message: "Failed to ensure default wallet".into(),
         })?;
 
     // Bind wallets to replicants
     {
         let user_guard = f.user_store.lock().map_err(|_| {
-            ServiceError::UserStore { message: hkask_types::InfrastructureError::LockPoisoned.to_string() }
+            ServiceError::UserStore(hkask_storage::user_store::UserStoreError::Infra(
+                hkask_types::InfrastructureError::LockPoisoned,
+            ))
         })?;
         if let Ok(Some(system_identity)) = user_guard.get_replicant(&config.agent_name) {
             let user_id = system_identity.user_id;
             let replicants = user_guard
                 .list_replicants(&user_id)
-                .map_err(|e| ServiceError::UserStore { message: e.to_string() })?;
+                .map_err(ServiceError::UserStore)?;
             for identity in &replicants {
                 if identity.wallet_id.is_some() {
                     continue;

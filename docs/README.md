@@ -122,7 +122,7 @@ by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.27.
 |----------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | Build, test, and CI health |
 | [`corpus_inventory.yaml`](status/corpus_inventory.yaml) | Document corpus lifecycle classification |
-| [`public-seam-inventory.md`](status/public-seam-inventory.md) | Public seam inventory — 2,841 items across 46 crates |
+| [`public-seam-inventory.md`](status/public-seam-inventory.md) | Public seam inventory — 77 seams across 18 crates |
 | [`public-seam-priority.md`](status/public-seam-priority.md) | Public seam priority ranking |
 
 ---
@@ -171,7 +171,7 @@ by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.27.
 ```bash
 bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/check-metadata.sh   # mandatory metadata headers
-bash scripts/ci/contract-audit.sh   # contract coverage (1,804 pub fns, 2,343 REQ tags, 129.8%)
+bash scripts/contract-audit.sh   # contract coverage (128.1%, 2274 REQ: tags)
 ```
 
 *ℏKask — A Minimal Viable Container for Agents — v0.27.0 — 59 active documents*

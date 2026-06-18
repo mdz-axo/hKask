@@ -782,6 +782,7 @@ Representative domains:
 
 > **Note:** The inventory generator reports 30 contracts because it groups by unique ID. Production contract occurrences in `hkask-agents` total **174** (including repeated annotations on struct + impl + tests). Each production function retains the same contract ID across its struct comment, impl comment, and test comment.
 
+### 3.2 Storage (`hkask-storage`)
 ### 3.9 Communication (`hkask-comm`)
 
 **6 contracts** — P1 (User Sovereignty)

@@ -206,6 +206,7 @@ pub(crate) async fn sovereignty_check_access(
     let cat_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     if cat_str.is_empty() {
         return Err(ServiceError::ValidationError {
+            source: None,
             message: "Missing required query parameter: category".into(),
         }
         .into());

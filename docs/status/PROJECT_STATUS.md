@@ -12,17 +12,17 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** Agentic QA Pipeline — contract quality review instrumented across 1,804 public functions with 2,343 REQ tags. All contracts have pre/post (0 NO_PRE+NO_POST, 0 NO_POST). P1-13 added: manual contract-to-spec traceability review. (2026-06-17)
+**Current session:** Agentic QA Pipeline — contract quality review instrumented across 1,419 REQ-tagged functions. All contracts have pre/post (0 NO_PRE+NO_POST, 0 NO_POST). P1-13 added: manual contract-to-spec traceability review. (2026-06-17)
 
 ---
 
 ## Build
 
-All 48 workspace members.
+All 25 workspace members.
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (48/48 crates) | 2026-06-17 |
+| Workspace (`cargo check --workspace`) | ✅ Pass (25/25 crates) | 2026-06-17 |
 | ACP crate (`cargo check -p hkask-acp`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-17 |
 | Core crates (types, condenser, storage, memory, cns, templates, agents, keystore, mcp, services, cli, api, inference, improv, wallet, communication, acp) | ✅ Pass | 2026-06-17 |
 | MCP servers (condenser, research, spec, companies, communication, media, replica, docproc, training, memory, kanban) | ✅ Pass | 2026-06-15 |
@@ -31,7 +31,7 @@ All 48 workspace members.
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — ~575 tests across 18 crates, 0 failures. 2,343 REQ tags (contract-audit.sh: workspace-wide including MCP servers). 100% behavioral contract coverage — every `pub fn` carries `pre:`/`post:` conditions.
+`cargo test --workspace` result: ✅ Pass — ~570 tests across 16 crates, 0 failures. 2334 `/// REQ:` tags (workspace-wide including MCP servers). 100% behavioral contract coverage — every `pub fn` carries `pre:`/`post:` conditions.
 
 ### Test Distribution
 
@@ -56,8 +56,8 @@ All 48 workspace members.
 | hkask-acp | 4 | — |
 | hkask-adapter | 51 | 58 |
 | **Crate subtotal** | **~575** | **1860** |
-| MCP servers (11) | — | ~55 |
-| **Workspace total** | **~575** | **2343** |
+| MCP servers (10) | — | ~55 |
+| **Workspace total** | **~571** | **~1915** |
 
 ---
 
@@ -77,7 +77,7 @@ All 48 workspace members.
 | Dead code (`#[allow(dead_code)]`) | 1 site: compile-time assertion in `a2a/mod.rs:171` | 2026-06-10 |
 | Deployment model locked in | Single cloud server, browser terminal, no client binary. See deployment-and-backup.md | 2026-06-17 |
 | Headless constraint (no grafana/prometheus/dashboard/UI) | ✅ Clean | 2026-06-15 |
-| REQ tag coverage | ✅ 2,343 REQ tags across 1,804 public functions (129.8% density per contract-audit.sh) | 2026-06-17 |
+| REQ tag coverage | ✅ 2334 REQ tags (100% coverage — every `pub fn` contracted) | 2026-06-17 |
 | Schema drift check | ✅ `scripts/ci/check-schema-drift.sh` passes (37 tables/indexes) | 2026-06-17 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
 | Runtime `.unwrap()` in targeted crates | ✅ Zero violations (Wave 2 denylist) | 2026-06-15 |
@@ -91,14 +91,14 @@ All 48 workspace members.
 
 | Metric | Value |
 |--------|-------|
-| Source files (crates) | 438 |
-| Source files (MCP servers) | 74 |
-| Source files (total) | 512 |
-| Workspace members | 48 |
-| Skills | 33 |
+| Source files (crates) | 324 |
+| Source files (MCP servers) | 70 |
+| Source files (total) | 394 |
+| Workspace members | 26 |
+| Skills | 28 |
 | MCP servers | 11 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
-| CNS spans | 77 (CnsSpan enum variants in cns.rs) |
+| CNS spans | 84 (10 adapter/endpoint lifecycle spans added) |
 
 ---
 
@@ -106,14 +106,14 @@ All 48 workspace members.
 
 | Check | Script | Result | Date |
 |-------|--------|--------|------|
-| Public Surface Governance | `scripts/ci/check-public-surface.sh` | ✅ Pass (16/16 crates) | 2026-06-15 |
-| Unsafe Documentation Policy | `scripts/ci/check-unsafe-safety.sh` | ✅ Pass (all blocks documented) | 2026-06-15 |
-| Runtime `.unwrap()` Denylist | `scripts/ci/check-unwrap.sh` | ✅ Pass (0 violations) | 2026-06-15 |
-| MCP Gate-3 Consistency | `scripts/ci/check-mcp-gate3.sh` | ✅ Pass (10/10 servers) | 2026-06-15 |
-| REQ Traceability Trend | `scripts/ci/check-req-traceability.sh` | ✅ Pass (100% coverage) | 2026-06-16 |
+| Public Surface Governance | `scripts/check-public-surface.sh` | ✅ Pass (16/16 crates) | 2026-06-15 |
+| Unsafe Documentation Policy | `scripts/check-unsafe-safety.sh` | ✅ Pass (all blocks documented) | 2026-06-15 |
+| Runtime `.unwrap()` Denylist | `scripts/check-unwrap-denylist.sh` | ✅ Pass (0 violations) | 2026-06-15 |
+| MCP Gate-3 Consistency | `scripts/check-mcp-gate3.sh` | ✅ Pass (10/10 servers) | 2026-06-15 |
+| REQ Traceability Trend | `scripts/check-req-traceability.sh` | ✅ Pass (100% coverage) | 2026-06-16 |
 | Schema Drift (harness vs storage) | `scripts/ci/check-schema-drift.sh` | ✅ Pass (37 tables/indexes) | 2026-06-17 |
 | Contract Quality Review | `kask contract review` | ✅ Pass (0 NO_PRE+NO_POST, 0 NO_POST) | 2026-06-17 |
-| **Master** | `scripts/ci/ci-quality-gates.sh` | ✅ ALL CHECKS PASSED | 2026-06-15 |
+| **Master** | `scripts/ci-quality-gates.sh` | ✅ ALL CHECKS PASSED | 2026-06-15 |
 
 All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, running on every PR and push to main. Release builds depend on quality gates passing.
 
@@ -123,8 +123,8 @@ All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, 
 
 | Check | Script | Result | Date |
 |-------|--------|--------|------|
-| Link checker | `docs/ci/check-links.sh` | ✅ Pass (265 links, 0 broken) | 2026-06-14 |
-| Metadata checker | `docs/ci/check-metadata.sh` | ✅ Pass (56 docs, 0 missing, 2 warnings) | 2026-06-14 |
+| Link checker | `docs/ci/check-links.sh` | ✅ Pass (266 links, 0 broken) | 2026-06-14 |
+| Metadata checker | `docs/ci/check-metadata.sh` | ✅ Pass (73 docs, 0 missing, 0 warnings) | 2026-06-14 |
 | Version sync | `docs/ci/sync-versions.sh --dry-run` | ✅ Pass (0 pending updates, 11 excluded) | 2026-06-14 |
 
 **All CI gates pass.** The previous `ddmvss_categories` check was migrated to `mds_categories` (5-category MDS taxonomy). No documents use the deprecated 9-category taxonomy.
@@ -133,7 +133,7 @@ All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, 
 
 ## Code Drift
 
-See [`corpus_inventory.yaml`](corpus_inventory.yaml) for full document lifecycle classification and drift verdicts.
+See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 **All 14 drift items resolved (2026-06-12).** Zero remaining spec_ahead, code_ahead, or divergent items.
 
@@ -161,7 +161,7 @@ See [`corpus_inventory.yaml`](corpus_inventory.yaml) for full document lifecycle
 - Multi-LoRA inference: `LLMParameters.adapter` field added to `hkask-types`. `InferenceRouter::generate` + `generate_with_model` append `#adapter` to model name for Baseten multi-LoRA serving.
 - Tests: 3→14 (7 SqliteAdapterStore/JobStore tests, 4 chunking tests).
 - Docs: `docs/architecture/PUBLIC_SURFACE-hkask-mcp-training.md` created, `docs/research/training-decomposition-traces.md` updated (completed items, provider table, Baseten/Runpod design decisions, deferred items).
-- Deferred: `training_monitor_health` (needs active usage data), `training_ab_test` (needs multiple active versions), Together AI provider (replaced Fireworks).
+- Deferred: `training_monitor_health` (needs active usage data), `training_ab_test` (needs multiple active versions), Fireworks AI provider (billing inefficiency).
 - Build: ✅ All 18 workspace members compile. 14/14 training tests pass.
 
 **R7.3 Public Seam Watcher — P8 Runtime Enforcement:**
@@ -272,7 +272,7 @@ See [`corpus_inventory.yaml`](corpus_inventory.yaml) for full document lifecycle
 | Priority | Task |
 |----------|------|
 | LOW | Citation compliance: 23 files have fewer footnote citations than `##` sections (PS-07 gap). Audit complete 2026-06-11 — see §Citation Audit below. |
-| LOW | End-to-end onboarding smoke test (needs live inference provider) |
+| NOT YET DONE | End-to-end onboarding smoke test (needs live Okapi) |
 
 ### Communication Server — Remaining Items
 

@@ -55,6 +55,7 @@ impl GoalService {
     ) -> Result<GoalResponse, ServiceError> {
         let vis = Visibility::parse_str(&req.visibility).ok_or_else(|| {
             ServiceError::ValidationError {
+                source: None,
                 message: format!(
                     "Invalid visibility '{}': expected private | public",
                     req.visibility
@@ -64,7 +65,7 @@ impl GoalService {
         let repo = ctx.goal_repo();
         let goal = repo
             .create_goal(&req.owner, &req.text, vis)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
+            .map_err(ServiceError::GoalRepo)?;
         Ok(GoalResponse::from(goal))
     }
 
@@ -83,6 +84,7 @@ impl GoalService {
             Some(s) => {
                 Some(
                     GoalState::parse_str(s).ok_or_else(|| ServiceError::ValidationError {
+                        source: None,
                         message: format!("Invalid goal state filter '{}'", s),
                     })?,
                 )
@@ -92,7 +94,7 @@ impl GoalService {
         let repo = ctx.goal_repo();
         let goals = repo
             .list_goals(owner, filter)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
+            .map_err(ServiceError::GoalRepo)?;
         Ok(goals.into_iter().map(GoalResponse::from).collect())
     }
 
@@ -110,24 +112,27 @@ impl GoalService {
         let goal_id: GoalID = goal_id_str
             .parse()
             .map_err(|_| ServiceError::ValidationError {
+                source: None,
                 message: format!("Invalid goal ID '{}'", goal_id_str),
             })?;
         let new_state =
             GoalState::parse_str(new_state_str).ok_or_else(|| ServiceError::ValidationError {
+                source: None,
                 message: format!("Invalid goal state '{}'", new_state_str),
             })?;
         let repo = ctx.goal_repo();
 
         let goal = repo
             .get_goal(goal_id)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?
+            .map_err(ServiceError::GoalRepo)?
             .ok_or_else(|| ServiceError::ValidationError {
+                source: None,
                 message: format!("Goal not found: {}", goal_id),
             })?;
         let from_state = goal.state.as_str().to_string();
 
         repo.update_goal_state(goal_id, new_state)
-            .map_err(|e| ServiceError::GoalRepo { message: e.to_string() })?;
+            .map_err(ServiceError::GoalRepo)?;
 
         if let Some(tx) = ctx.curation_inbox_tx() {
             let event = CurationInput::GoalTransition(hkask_types::loops::GoalTransitionEvent {

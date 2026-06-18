@@ -248,6 +248,7 @@ fn api_scope_to_domain(scope: ApiBackupScope) -> Result<BackupScope, ServiceErro
         ApiBackupScope::Full => Ok(BackupScope::Full),
         ApiBackupScope::ByType(s) => {
             let at = parse_artifact_type(&s).ok_or_else(|| ServiceError::ValidationError {
+                source: None,
                 message: format!("Unknown artifact type: {s}"),
             })?;
             Ok(BackupScope::ByType(at))
@@ -255,6 +256,7 @@ fn api_scope_to_domain(scope: ApiBackupScope) -> Result<BackupScope, ServiceErro
         ApiBackupScope::ByIds { artifact_type, ids } => {
             let at = parse_artifact_type(&artifact_type).ok_or_else(|| {
                 ServiceError::ValidationError {
+                    source: None,
                     message: format!("Unknown artifact type: {artifact_type}"),
                 }
             })?;
@@ -271,6 +273,7 @@ fn api_restore_scope_to_domain(scope: ApiRestoreScope) -> Result<RestoreScope, S
         ApiRestoreScope::Full => Ok(RestoreScope::Full),
         ApiRestoreScope::ByType(s) => {
             let at = parse_artifact_type(&s).ok_or_else(|| ServiceError::ValidationError {
+                source: None,
                 message: format!("Unknown artifact type: {s}"),
             })?;
             Ok(RestoreScope::ByType(at))
@@ -278,6 +281,7 @@ fn api_restore_scope_to_domain(scope: ApiRestoreScope) -> Result<RestoreScope, S
         ApiRestoreScope::ByIds { artifact_type, ids } => {
             let at = parse_artifact_type(&artifact_type).ok_or_else(|| {
                 ServiceError::ValidationError {
+                    source: None,
                     message: format!("Unknown artifact type: {artifact_type}"),
                 }
             })?;
@@ -358,6 +362,7 @@ pub(crate) async fn restore(
         req.commit_hash
             .parse()
             .map_err(|e: String| ServiceError::ValidationError {
+                source: None,
                 message: format!("Invalid commit hash: {e}"),
             })?;
 
@@ -536,6 +541,7 @@ pub(crate) async fn update_config(
     if let Some(dur_str) = &req.retention {
         config.retention = Some(RetentionPolicy::from_duration_str(dur_str).map_err(|e| {
             ServiceError::ValidationError {
+                source: None,
                 message: format!("Invalid retention duration: {e}"),
             }
         })?);
