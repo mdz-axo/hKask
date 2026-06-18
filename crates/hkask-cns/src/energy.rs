@@ -140,6 +140,7 @@ impl EnergyDelta {
     /// [P9] Motivating: Homeostatic Self-Regulation — lazy universe compliance detection
     /// \[P8\] Constraining: Semantic Grounding — this is a pure measurement, not a moral judgment
     /// post: result == (self.0 <= 0.0)
+    #[rs::contract(id = "P9-cns-energy-delta-descending", principle = "P9")]
     pub fn is_descending(&self) -> bool {
         self.0 <= 0.0
     }
@@ -152,6 +153,7 @@ impl EnergyDelta {
     /// \[P8\] Constraining: Semantic Grounding — this is a measurement, not an alarm
     /// post: result == (self.0 > 0.0)
     /// post: is_ascending() == !is_descending() || self.0 == 0.0
+    #[rs::contract(id = "P9-cns-energy-delta-ascending", principle = "P9")]
     pub fn is_ascending(&self) -> bool {
         self.0 > 0.0
     }
@@ -243,6 +245,11 @@ impl EnergyBudget {
     /// post: replenish_rate == cap / 10, alert_threshold == DEFAULT_ENERGY_ALERT_THRESHOLD
     /// Defaults: replenish_rate = cap / 10, alert_threshold = DEFAULT_ENERGY_ALERT_THRESHOLD, hard_limit = true.
     pub fn new(cap: EnergyCost) -> Self {
+        rs::require!(
+            cap.0 > 0,
+            "P9-cns-energy-budget-new",
+            "precondition: cap must be positive"
+        );
         let cap_raw = cap.0;
         Self {
             remaining: cap,
@@ -322,7 +329,8 @@ impl EnergyBudget {
     /// Returns `true` if the gas fits within available (remaining - reserved) budget.
     pub fn can_proceed(&self, gas: EnergyCost) -> bool {
         let available = self.available();
-        gas.0 <= available.0 || !self.hard_limit
+        let result = gas.0 <= available.0 || !self.hard_limit;
+        result
     }
 
     #[rs::contract(id = "P9-cns-energy-budget-available", principle = "P9")]
@@ -335,7 +343,13 @@ impl EnergyBudget {
     /// \[NORMATIVE\] post: result >= 0 (available never negative) (P9 — Homeostatic Self-Regulation)
     /// post: result == remaining.saturating_sub(reserved)
     pub fn available(&self) -> EnergyCost {
-        EnergyCost(self.remaining.0.saturating_sub(self.reserved.0))
+        let result = EnergyCost(self.remaining.0.saturating_sub(self.reserved.0));
+        rs::assert!(
+            result.0 <= self.remaining.0,
+            "P9-cns-energy-budget-available",
+            "postcondition: available never exceeds remaining"
+        );
+        result
     }
 
     #[rs::contract(id = "P9-cns-energy-budget-reserve", principle = "P9")]
@@ -365,6 +379,11 @@ impl EnergyBudget {
             );
         }
         self.reserved = EnergyCost(self.reserved.0.saturating_add(gas.0));
+        rs::assert!(
+            self.remaining.0 + self.reserved.0 <= self.cap.0,
+            "P9-cns-energy-budget-reserve",
+            "invariant: remaining + reserved ≤ cap"
+        );
         Ok(gas)
     }
 
@@ -407,6 +426,11 @@ impl EnergyBudget {
             );
         }
         self.remaining = EnergyCost(self.remaining.0.saturating_sub(actual_gas.0));
+        rs::assert!(
+            self.remaining.0 + self.reserved.0 <= self.cap.0,
+            "P9-cns-energy-budget-settle",
+            "invariant: remaining + reserved ≤ cap"
+        );
         Ok(actual_gas)
     }
 

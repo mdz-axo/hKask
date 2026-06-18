@@ -1,18 +1,19 @@
 ---
 title: "rSolidity Contract Vocabulary"
 audience: "hKask developers"
-last_updated: "2026-06-17"
-version: "0.27.0"
-status: "Active"
+last_updated: "2026-06-18"
+version: "0.28.0"
+status: "Active — Formally Adopted"
 domain: "architecture"
 mds_categories: ["domain", "trust"]
 ---
 
 # rSolidity Contract Vocabulary
 
-**Status:** Macro crate implemented — first migration target (`hkask-cns` energy budget contracts) complete  
+**Status:** Formally adopted as the contracting language for hKask (2026-06-18). Macro crate implemented — first migration target (`hkask-cns` energy budget contracts) in progress.  
+**Decision:** rSolidity is the official runtime-contract layer for hKask. All contracts use `/// REQ:` for specification and rSolidity macros for runtime enforcement.  
 **Source anchor:** [`FUNCTIONAL_SPECIFICATION.md`](./FUNCTIONAL_SPECIFICATION.md)  
-**Version:** 0.27.0
+**Version:** 0.28.0
 
 ---
 

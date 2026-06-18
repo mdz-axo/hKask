@@ -7,7 +7,7 @@
 
 use hkask_mcp_communication::agent_registration::AgentRegistry;
 use hkask_communication::matrix::UserId;
-use std::str::FromStr;
+
 
 // ── Registration contract tests ─────────────────────────────────────────────
 
@@ -19,11 +19,11 @@ use std::str::FromStr;
 async fn record_mapping_stores_webid_to_userid() {
     let registry = AgentRegistry::new();
     let webid = hkask_types::WebID::new();
-    let user_id = UserId::from_str("@alice:localhost").expect("valid user id");
+    let user_id = UserId::new("@alice:localhost");
 
     registry.record_mapping(&webid, &user_id).await;
 
-    let found = registry.lookup(&webid).await;
+    let found = registry.resolve(&webid).await;
     assert!(found.is_some());
     assert_eq!(found.unwrap().as_str(), "@alice:localhost");
 }
@@ -34,13 +34,13 @@ async fn record_mapping_stores_webid_to_userid() {
 async fn record_mapping_is_idempotent() {
     let registry = AgentRegistry::new();
     let webid = hkask_types::WebID::new();
-    let first = UserId::from_str("@alice:localhost").expect("valid");
-    let second = UserId::from_str("@alice-v2:localhost").expect("valid");
+    let first = UserId::new("@alice:localhost");
+    let second = UserId::new("@alice-v2:localhost");
 
     registry.record_mapping(&webid, &first).await;
     registry.record_mapping(&webid, &second).await;
 
-    let found = registry.lookup(&webid).await;
+    let found = registry.resolve(&webid).await;
     assert_eq!(found.unwrap().as_str(), "@alice-v2:localhost");
 }
 
@@ -50,12 +50,12 @@ async fn record_mapping_is_idempotent() {
 async fn deregister_removes_mapping() {
     let registry = AgentRegistry::new();
     let webid = hkask_types::WebID::new();
-    let user_id = UserId::from_str("@bob:localhost").expect("valid");
+    let user_id = UserId::new("@bob:localhost");
 
     registry.record_mapping(&webid, &user_id).await;
     registry.deregister(&webid).await.expect("deregister should succeed");
 
-    let found = registry.lookup(&webid).await;
+    let found = registry.resolve(&webid).await;
     assert!(found.is_none());
 }
 
@@ -77,6 +77,6 @@ async fn lookup_unregistered_returns_none() {
     let registry = AgentRegistry::new();
     let unknown = hkask_types::WebID::new();
 
-    let found = registry.lookup(&unknown).await;
+    let found = registry.resolve(&unknown).await;
     assert!(found.is_none());
 }

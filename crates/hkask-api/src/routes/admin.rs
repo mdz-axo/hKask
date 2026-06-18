@@ -27,7 +27,10 @@ pub async fn create_invite(
     let user_store = user_store.lock().map_err(|e| {
         (StatusCode::INTERNAL_SERVER_ERROR, format!("Lock error: {e}"))
     })?;
-    let invite = user_store.create_invite(&auth.webid).map_err(|e| {
+    let replicant = user_store.get_replicant_by_webid(&auth.webid)
+        .map_err(|e| (StatusCode::FORBIDDEN, format!("{e}")))?
+        .ok_or((StatusCode::FORBIDDEN, "Replicant not found".into()))?;
+    let invite = user_store.create_invite(&replicant.user_id).map_err(|e| {
         (StatusCode::INTERNAL_SERVER_ERROR, format!("Invite creation failed: {e}"))
     })?;
     Ok(Json(InviteResponse { code: invite.code }))
@@ -45,7 +48,10 @@ pub async fn list_invites(
     let user_store = user_store.lock().map_err(|e| {
         (StatusCode::INTERNAL_SERVER_ERROR, format!("Lock error: {e}"))
     })?;
-    let invites = user_store.list_invites(&auth.webid).map_err(|e| {
+    let replicant = user_store.get_replicant_by_webid(&auth.webid)
+        .map_err(|e| (StatusCode::FORBIDDEN, format!("{e}")))?
+        .ok_or((StatusCode::FORBIDDEN, "Replicant not found".into()))?;
+    let invites = user_store.list_invites(&replicant.user_id).map_err(|e| {
         (StatusCode::INTERNAL_SERVER_ERROR, format!("List invites failed: {e}"))
     })?;
     Ok(Json(invites))
@@ -89,9 +95,11 @@ struct InviteResponse {
 }
 
 use axum::routing::{get, post};
-use utoipa_axum::{router::OpenApiRouter, routes};
+use axum::Router;
 
-pub fn admin_router() -> OpenApiRouter {
-    OpenApiRouter::new()
-        .routes(routes!(create_invite, list_invites, list_sessions, get_config))
+pub fn admin_router() -> Router<ApiState> {
+    Router::new()
+        .route("/api/v1/admin/invite", post(create_invite).get(list_invites))
+        .route("/api/v1/admin/sessions", get(list_sessions))
+        .route("/api/v1/admin/config", get(get_config))
 }

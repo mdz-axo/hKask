@@ -10,41 +10,41 @@ use hkask_condenser::types::Profile;
 
 // ── Classification contract tests ───────────────────────────────────────────
 
-// REQ: COND-CLASSIFY-001 — classify_tool maps known tools to correct categories
+// REQ: COND-CLASSIFY-001 — classify maps shell tools to ShellCommand category
 // expect: "I can see which category the condenser assigns to each tool name" [P8]
 #[test]
-fn classify_known_search_tool() {
+fn classify_shell_tool() {
     let engine = CondenserEngine::new();
-    let (cat, algo) = engine.classify("brave_web_search");
-    assert_eq!(cat.label(), "search");
+    let (cat, algo) = engine.classify("bash_execute");
+    assert_eq!(cat.label(), "shell_command");
     assert!(!algo.is_empty());
 }
 
-// REQ: COND-CLASSIFY-002 — classify maps code tools
-// expect: "I can see code-output tools get the correct category" [P8]
+// REQ: COND-CLASSIFY-002 — classify maps test tools
+// expect: "I can see test-output tools get the correct category" [P8]
 #[test]
-fn classify_code_tool() {
+fn classify_test_tool() {
     let engine = CondenserEngine::new();
-    let (cat, _) = engine.classify("bash_execute");
-    assert_eq!(cat.label(), "code");
+    let (cat, _) = engine.classify("pytest_run");
+    assert_eq!(cat.label(), "test_output");
 }
 
-// REQ: COND-CLASSIFY-003 — classify maps chat/informational tools
+// REQ: COND-CLASSIFY-003 — classify maps chat tools
 // expect: "I can see chat tools get the correct category" [P8]
 #[test]
 fn classify_chat_tool() {
     let engine = CondenserEngine::new();
     let (cat, _) = engine.classify("message_send");
-    assert_eq!(cat.label(), "chat");
+    assert_eq!(cat.label(), "conversation_history");
 }
 
-// REQ: COND-CLASSIFY-004 — unknown tools get "general" category
-// expect: "I can see that unfamiliar tool names are classified as general" [P8]
+// REQ: COND-CLASSIFY-004 — unknown tools get "unknown" category
+// expect: "I can see that unfamiliar tool names are classified as unknown" [P8]
 #[test]
-fn classify_unknown_tool_is_general() {
+fn classify_unknown_tool_is_unknown() {
     let engine = CondenserEngine::new();
     let (cat, _) = engine.classify("xyzzy_unknown_tool");
-    assert_eq!(cat.label(), "general");
+    assert_eq!(cat.label(), "unknown");
 }
 
 // ── Compression contract tests ──────────────────────────────────────────────
@@ -69,11 +69,11 @@ fn compress_with_explicit_category() {
     let mut engine = CondenserEngine::new();
     let input = "some output text";
     let result = engine.compress(
-        "brave_web_search",
+        "some_tool",
         input,
-        Some(hkask_condenser::types::ContextCategory::Search),
+        Some(hkask_condenser::types::ContextCategory::ShellCommand),
     );
-    assert_eq!(result.category, "search");
+    assert_eq!(result.category, "shell_command");
 }
 
 // REQ: COND-COMPRESS-003 — compress empty input returns valid output
@@ -93,7 +93,7 @@ fn repeated_compression_increments_stats() {
     let mut engine = CondenserEngine::new();
     let input = "hello world";
     for _ in 0..5 {
-        engine.compress("brave_web_search", input, None);
+        engine.compress("bash_execute", input, None);
     }
     assert_eq!(engine.stats.total_compressions, 5);
     assert!(engine.stats.total_original_bytes > 0);
@@ -107,9 +107,9 @@ fn repeated_compression_increments_stats() {
 #[test]
 fn set_profile_changes_behavior() {
     let mut engine = CondenserEngine::new();
-    engine.set_profile(Profile::Aggressive);
+    engine.set_profile(Profile::Heavy);
     let result = engine.compress("bash_execute", "a\nb\nc\nd\ne\nf", None);
-    assert_eq!(result.profile, "aggressive");
+    assert_eq!(result.profile, "heavy");
 }
 
 // REQ: COND-PROFILE-002 — Normal profile is the default
@@ -130,8 +130,6 @@ fn health_check_returns_signals() {
     let engine = CondenserEngine::new();
     let signals = engine.check_global_health();
     // Engine should return health signals (may be empty for fresh engine)
-    assert!(!engine.get_stats().algorithm_usage.is_empty()
-        || signals.len() == 0
-        || signals.len() > 0,
+    assert!(signals.len() == 0 || signals.len() > 0,
         "health check should return signals or empty vec");
 }

@@ -8,8 +8,8 @@
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Triple, TripleStore};
 use hkask_test_harness::TestWebId;
+use hkask_types::visibility::AccessControl;
 use hkask_types::Visibility;
-use chrono::Utc;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -35,13 +35,9 @@ fn setup_store() -> TripleStore {
 }
 
 fn make_triple(entity: &str, attr: &str, value: serde_json::Value, perspective: &hkask_types::WebID) -> Triple {
-    Triple::episodic(
-        entity,
-        attr,
-        value,
-        *perspective,
-        *perspective,
-    )
+    let mut t = Triple::new(entity, attr, value, *perspective);
+    t.access = AccessControl::episodic(*perspective, *perspective);
+    t
 }
 
 // ── Store contract tests ────────────────────────────────────────────────────

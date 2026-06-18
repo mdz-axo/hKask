@@ -23,6 +23,7 @@ use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult};
 use hkask_types::template::LLMParameters;
+use hkask_rsolidity as rs;
 
 use std::pin::Pin;
 use std::sync::Arc;
@@ -63,6 +64,7 @@ impl GovernedInference {
     /// \[P12\] Constraining: Affirmative Consent — agent identity is required for attribution
     /// pre:  inference is valid, cns is valid
     /// post: returns GovernedInference
+    #[rs::contract(id = "P9-cns-gov-inf-new", principle = "P9")]
     pub fn new(
         inner: Arc<dyn InferencePort>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
@@ -87,6 +89,7 @@ impl GovernedInference {
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per inference call
     /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with agent set (builder pattern)
+    #[rs::contract(id = "P12-cns-gov-inf-with-agent", principle = "P12")]
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
         self

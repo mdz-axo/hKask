@@ -8,6 +8,7 @@
 
 use hkask_types::cns::CircuitState;
 use hkask_types::ports::CircuitBreakerPort;
+use hkask_rsolidity as rs;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tracing::{error, info};
@@ -78,6 +79,7 @@ impl CircuitBreaker {
     /// \[P4\] Constraining: Clear Boundaries — default thresholds establish failure boundary
     /// pre:  name is non-empty
     /// post: returns CircuitBreaker with default thresholds
+    #[rs::contract(id = "P9-cns-circuit-default-for-inference", principle = "P9")]
     pub fn default_for_inference(name: &str) -> Self {
         Self::new(name.to_string(), CircuitBreakerConfig::default())
     }
@@ -89,6 +91,7 @@ impl CircuitBreaker {
     /// [P9] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
     /// \[P4\] Constraining: Clear Boundaries — state-driven gating enforces the boundary
     /// post: returns true if circuit is closed or half-open, false if open
+    #[rs::contract(id = "P9-cns-circuit-allow-request", principle = "P9")]
     pub fn allow_request(&self) -> bool {
         let state = self.state();
 
@@ -129,6 +132,7 @@ impl CircuitBreaker {
     /// [P9] Motivating: Homeostatic Self-Regulation — success count drives loop closure
     /// \[P4\] Constraining: Clear Boundaries — threshold-based state transition enforces boundary
     /// post: success counted, may transition circuit to closed
+    #[rs::contract(id = "P9-cns-circuit-record-success", principle = "P9")]
     pub fn record_success(&self) {
         let state = self.state();
 

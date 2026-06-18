@@ -152,11 +152,13 @@ pub fn contract(args: TokenStream, input: TokenStream) -> TokenStream {
         Err(e) => return e.to_compile_error().into(),
     };
 
-    // P#-... format
-    let id_ok = id.len() > 3
+    // P{N}-... format (N can be 1-2 digits: P1-P12)
+    let dash_pos = id.find('-');
+    let id_ok = dash_pos.is_some()
+        && dash_pos.unwrap() >= 2
+        && dash_pos.unwrap() <= 3
         && id.starts_with('P')
-        && id.chars().nth(1).is_some_and(|c| c.is_ascii_digit())
-        && id.chars().nth(2) == Some('-');
+        && id[1..dash_pos.unwrap()].chars().all(|c| c.is_ascii_digit());
     if !id_ok {
         return syn::Error::new_spanned(id_nv, format!("contract id `{}` must match `P#-...`", id))
             .to_compile_error()

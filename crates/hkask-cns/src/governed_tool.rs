@@ -33,6 +33,7 @@ use hkask_types::cns::CnsSpan;
 use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
 use hkask_types::loops::ToolConsumptionEvent;
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
+use hkask_rsolidity as rs;
 
 use serde_json::Value;
 use std::sync::Arc;
@@ -100,6 +101,7 @@ impl<P: ToolPort> GovernedTool<P> {
     ///
     /// Per P4: the Cybernetics binding here is the OCAP enforcement point —
     /// every tool invocation flows through this membrane.
+    #[rs::contract(id = "P9-cns-gov-tool-new", principle = "P9")]
     pub fn new(
         inner: Arc<P>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
@@ -127,6 +129,7 @@ impl<P: ToolPort> GovernedTool<P> {
     /// \[P4\] Constraining: Clear Boundaries — channel ownership tracks consumer identity
     /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with channel set (builder pattern)
+    #[rs::contract(id = "P9-cns-gov-tool-consumption-channel", principle = "P9")]
     pub fn with_tool_consumption_channel(
         mut self,
         tx: mpsc::UnboundedSender<ToolConsumptionEvent>,
@@ -144,6 +147,7 @@ impl<P: ToolPort> GovernedTool<P> {
     /// \[P4\] Constraining: Clear Boundaries — OCAP gate enforces boundary per invocation
     /// @must_use because builder methods must be chained or assigned
     /// post: returns Self with agent set (builder pattern)
+    #[rs::contract(id = "P12-cns-gov-tool-with-agent", principle = "P12")]
     pub fn with_agent(mut self, agent: WebID) -> Self {
         self.agent = agent;
         self

@@ -13,7 +13,10 @@ use crate::recall_dedup;
 use hkask_storage::{
     EmbeddingError, EmbeddingStore, SimilarityResult, Triple, TripleError, TripleStore,
 };
+use hkask_types::NuEventSink;
 use hkask_types::Visibility;
+use hkask_types::cns::CnsSpan;
+use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -55,6 +58,7 @@ pub struct CentroidResult {
 ///   semantically related triples, enabling context assembly that goes
 ///   beyond exact entity matches.
 pub struct SemanticMemory {
+    event_sink: Option<Arc<dyn NuEventSink>>,
     triple_store: TripleStore,
     embedding: Arc<EmbeddingStore>,
 }
@@ -72,7 +76,12 @@ impl SemanticMemory {
         Self {
             triple_store,
             embedding: Arc::new(embedding_store),
+            event_sink: None,
         }
+    }
+    pub fn with_cns(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
     }
 
     /// Query by entity with deduplication (entity_attribute_value_hash strategy).
@@ -118,11 +127,38 @@ impl SemanticMemory {
             return Err(SemanticMemoryError::HasPerspective);
         }
         self.triple_store.insert(&triple)?;
+        // CNS: emit NuEvent for semantic write
+        if let Some(sink) = &self.event_sink {
+            let span = Span::new(
+                SpanNamespace::from(CnsSpan::MemoryEncode),
+                "semantic_stored",
+            );
+            let event = NuEvent::new(
+                triple.access.owner_webid,
+                span,
+                Phase::Act,
+                serde_json::json!({"entity": triple.entity, "attribute": triple.attribute}),
+                0,
+            );
+            let _ = sink.persist(&event);
+        }
         Ok(())
     }
 
     pub(crate) fn store_consolidated(&self, triple: Triple) -> Result<(), SemanticMemoryError> {
         self.triple_store.insert(&triple)?;
+        // CNS: emit NuEvent for consolidation write
+        if let Some(sink) = &self.event_sink {
+            let span = Span::new(SpanNamespace::from(CnsSpan::MemoryEncode), "consolidated");
+            let event = NuEvent::new(
+                triple.access.owner_webid,
+                span,
+                Phase::Act,
+                serde_json::json!({"entity": triple.entity, "attribute": triple.attribute}),
+                0,
+            );
+            let _ = sink.persist(&event);
+        }
         Ok(())
     }
 

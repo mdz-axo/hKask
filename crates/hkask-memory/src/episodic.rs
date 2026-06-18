@@ -10,8 +10,12 @@
 use crate::recall_dedup;
 use chrono::Utc;
 use hkask_storage::{Triple, TripleError, TripleStore};
+use hkask_types::NuEventSink;
 use hkask_types::Visibility;
 use hkask_types::WebID;
+use hkask_types::cns::CnsSpan;
+use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -44,6 +48,7 @@ pub(crate) const DEFAULT_EPISODIC_BUDGET: usize = 10_000;
 /// - **Storage budget** (2a.4): Per-agent storage limit with consolidation
 ///   candidate identification (uses decayed confidence for prioritization).
 pub struct EpisodicMemory {
+    event_sink: Option<Arc<dyn NuEventSink>>,
     triple_store: TripleStore,
     /// Decay rate for confidence (λ in e^(-λt)). Default derived from 30-day half-life.
     decay_rate: f64,
@@ -65,7 +70,12 @@ impl EpisodicMemory {
             triple_store,
             decay_rate: DEFAULT_DECAY_RATE,
             storage_budget: DEFAULT_EPISODIC_BUDGET,
+            event_sink: None,
         }
+    }
+    pub fn with_cns(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
     }
 
     // Store
@@ -93,6 +103,21 @@ impl EpisodicMemory {
             return Err(EpisodicMemoryError::MissingPerspective);
         }
         self.triple_store.insert(&triple)?;
+        // CNS: emit NuEvent for memory write observability
+        if let Some(sink) = &self.event_sink {
+            let span = Span::new(
+                SpanNamespace::from(CnsSpan::MemoryEncode),
+                "episodic_stored",
+            );
+            let event = NuEvent::new(
+                triple.access.owner_webid,
+                span,
+                Phase::Act,
+                serde_json::json!({"entity": triple.entity, "attribute": triple.attribute}),
+                0,
+            );
+            let _ = sink.persist(&event);
+        }
         Ok(())
     }
 

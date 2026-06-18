@@ -249,7 +249,9 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         .merge(routes::goal_router())
         .merge(routes::settings_router())
         .merge(routes::wallet_router())
-        .merge(routes::admin::admin_router())
+        .route("/api/v1/admin/invite", axum::routing::post(routes::admin::create_invite).get(routes::admin::list_invites))
+        .route("/api/v1/admin/sessions", axum::routing::get(routes::admin::list_sessions))
+        .route("/api/v1/admin/config", axum::routing::get(routes::admin::get_config))
         // Middleware (outermost = last .layer() = runs first):
         // 1. CNS span — captures all requests
         // 2. Session cookie — injects AuthContext if valid session (DEP-020)
@@ -270,10 +272,13 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         })
         .layer(axum::middleware::from_fn(middleware::cns_middleware));
 
-    // Admin role-gating middleware (runs after session + auth)
-    router = router.layer(axum::middleware::from_fn_with_state(
-        state.clone(),
-        middleware::admin_middleware,
+    // Admin role-gating middleware (runs after session + auth, before routes)
+    let admin_store = state.agent_service.user_store().clone();
+    router = router.layer(axum::middleware::from_fn(
+        move |req: Request<Body>, next: Next| {
+            let store = admin_store.clone();
+            async move { middleware::admin_middleware(store, req, next).await }
+        },
     ));
 
     // Apply API key auth middleware if available (allows Bearer token auth on wallet routes)

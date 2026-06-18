@@ -30,6 +30,7 @@ contract:
     test_file_path: string
     implementation_code: string
     implementation_file_path: string
+    rsolidity_code: string
     test_passes: boolean
     verification_command: string
   energy_cap: 8192
@@ -133,8 +134,9 @@ Default: integration test through public API.
 
 ## Rules
 
-1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature with all layers per the Contract Architecture (SKILL.md) and the full v0.28.0 contract structure (`TESTING_DISCIPLINE.md` §1.2):
+1. **Write the CONTRACT first.** The contract is a doc-comment on the function signature with all layers per the Contract Architecture (SKILL.md) and the full v0.28.0 contract structure (`TESTING_DISCIPLINE.md` §1.2). The `#[rs::contract]` attribute goes on the line immediately above the `/// REQ:` doc-comment:
    ```
+   #[rs::contract(id = "P{N}-{domain}-{operation}", principle = "P{N}")]
    /// REQ: P{N}-{domain}-{operation}
    /// expect: "<user's functional expectation in their own voice>" [P{N}]
    /// pre:  <what must be true before calling>
@@ -144,14 +146,28 @@ Default: integration test through public API.
    /// prob: p=<threshold>, δ=<tolerance>, k=<recovery window> (only for non-deterministic functions per Testing Discipline §7.6)
    ```
    Each layer answers a distinct question:
+   - `#[rs::contract(id, principle)]` — compile-time contract ID and principle validation (rSolidity enforcement layer)
    - `expect:` — What did the user say they want? (verbal, user's voice). This is the structural origin point of the traceability chain. Must carry a `[P{N}]` tag naming the goal principle.
    - `[P{N}]` on `expect:` — Which principle justifies this contract? (exactly one, also encoded in the contract ID prefix). See selection guideline below.
    - `[P{N}] Constraining:` — What can't the code do? (zero to many, from all applicable principles). At minimum, every applicable Magna Carta principle (P1-P4) must be annotated.
    - `pre:/post:/inv:` — What are the caller/function obligations? (machine-checkable)
    
    The contract IS the specification of the test. Without all layers, the test verifies *something*, but it's not clear that it's the right thing against the right constraints.
+2. **Write the rSolidity enforcement.** After the `#[rs::contract]` attribute and `/// REQ:` contract, generate the equivalent rSolidity runtime macros in the function body using the strangler-fig pattern:
+   - `rs::require!(<pre-condition>, "P{N}-{domain}-{operation}", "<message>")` for each `pre:`
+   - `rs::assert!(<post-condition>, "P{N}-{domain}-{operation}", "<message>")` for each `post:` and `inv:`
+   - `rs::revert!("P{N}-{domain}-{operation}", err)` for failure paths
+   - `rs::emit!(CnsSpan::ContractCoverage, "measured", Phase::Sense, payload)` for CNS observability
+   - The `/// REQ:` doc-comment stays in place — it remains authoritative for `scripts/contract-audit.sh`
+   
+   Output the rSolidity code as `rsolidity_code` in the response.
+3. **Write the TEST.** It must fail — this is RED. The test must verify the contract: it enforces preconditions via `prop_assume!` and asserts postconditions via `prop_assert!`.
+4. **Write the MINIMAL implementation.** Only enough code to satisfy the contract — this is GREEN. No speculative features.
+5. **One behavior per tracer bullet.** Do not batch.
+6. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
+7. **Every test carries a `// REQ:` comment** naming the contract it validates. Format: `// REQ: <contract_id> — requirement summary`. The `contract_id` uses `P{N}-{domain}-{operation}` format. If a test has no contract_id, it tests implementation detail, not a functional requirement.
 
-   **Goal-principle anchoring rule** (`PRINCIPLES.md` §1.6): The `[P{N}]` on `expect:` must name the principle whose user-visible guarantee the contract directly serves. Selection logic:
+   **Goal-principle anchoring rule** (`PRINCIPLES.md` §1.6): The `[P{N}]` on `expect:` must name the principle whose user-visible guarantee the contract directly serves. The same `P{N}` principle value is used in `#[rs::contract(principle = "P{N}")]`. Selection logic:
    - *"I need to check gas before executing"* → P9 (Homeostatic Self-Regulation)
    - *"I need to control my data"* → P1 (User Sovereignty)
    - *"I need to deploy with one binary"* → P5 (Essentialism)
@@ -160,11 +176,6 @@ Default: integration test through public API.
    - If the user expectation expresses multiple principles, select the one whose user-visible guarantee is most directly exercised by this function.
 
    **Constraining-principle annotation rule** (`PRINCIPLES.md` §1.5): After `pre:` and `post:`, contracts must list `/// [P{N}] Constraining: <rationale>` for each constraining principle that shapes how the goal is delivered. At minimum, every Magna Carta principle (P1-P4) that applies must be annotated. To determine applicability: "Would implementing this contract without respecting this principle violate it?" If yes, the principle must appear as a constraining annotation.
-2. **Write the TEST second.** It must fail — this is RED. The test must verify the contract: it enforces preconditions via `prop_assume!` and asserts postconditions via `prop_assert!`.
-3. **Write the MINIMAL implementation third.** Only enough code to satisfy the contract — this is GREEN. No speculative features.
-4. **One behavior per tracer bullet.** Do not batch.
-5. **Test through the public interface** (the seam declared above). Do not test private methods or internal state.
-6. **Every test carries a `// REQ:` comment** naming the contract it validates. Format: `// REQ: <contract_id> — requirement summary`. The `contract_id` uses `P{N}-{domain}-{operation}` format. If a test has no contract_id, it tests implementation detail, not a functional requirement.
 
 ## Rust Conventions
 
@@ -208,6 +219,7 @@ Respond with a JSON object:
   "test_file_path": "path/to/test/file.rs",
   "implementation_code": "// The minimal code to satisfy the contract",
   "implementation_file_path": "path/to/implementation/file.rs",
+  "rsolidity_code": "#[rs::contract(id = \"P{N}-{domain}-{operation}\", principle = \"P{N}\")]\npub fn function_name(...) -> ... {\n    rs::require!(<pre-condition>, \"P{N}-{domain}-{operation}\", \"<message>\");\n    let result = /* implementation */;\n    rs::assert!(<post-condition>, \"P{N}-{domain}-{operation}\", \"<message>\");\n    result\n}",
   "test_passes": false,
   "verification_command": "cargo test -p <crate> --test <name>"
 }

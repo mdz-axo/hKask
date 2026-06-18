@@ -255,7 +255,45 @@ Compare counts against pre-refactor counts. Any decrease means contract metadata
 
 **Never refactor while RED.** Get to GREEN first.
 
-### 5. Verify
+### 5. rSolidity Rewrite
+
+rSolidity is the formally adopted contracting language for hKask (2026-06-18). After the contract is stable (GREEN + refactored), rewrite it into executable rSolidity macros per `RSOLIDITY_VOCABULARY.md` §4. The `/// REQ:` doc-comment remains the authoritative specification; rSolidity macros provide runtime enforcement.
+
+**Rewrite pattern** (strangler fig — old and new coexist):
+
+```rust
+use hkask_rsolidity::{contract, require, assert};
+
+#[contract(
+    id = "P{N}-{domain}-{operation}",
+    principle = "P{N}",
+    pre = "<precondition text from /// REQ:>",
+    post = "<postcondition text from /// REQ:>"
+)]
+pub fn function_name(...) -> ... {
+    require!(<pre-condition>, "P{N}-{domain}-{operation}", "<message>");
+    let result = /* implementation */;
+    assert!(<post-condition>, "P{N}-{domain}-{operation}", "<message>");
+    result
+}
+```
+
+**Rules:**
+- One rSolidity macro per contract clause (RSOLIDITY_VOCABULARY.md §3.1)
+- `require!` for `pre:`, `assert!` for `post:` and `inv:`, `revert!` for failure paths, `emit!` for CNS spans, `#[ocap]` for capability gates
+- `#[contract]` attribute must match the `/// REQ:` ID and principle
+- The old `/// REQ:` comment stays — it remains authoritative for `scripts/contract-audit.sh`
+- Run `cargo test -p hkask-rsolidity` to verify macros compile
+
+**Verification:**
+
+```bash
+cargo test -p hkask-rsolidity          # rSolidity macro smoke tests
+scripts/contract-audit.sh --rsolidity <crate>   # count contracts with #[contract] attribute
+kask cns health                         # verify no new algedonic alerts
+```
+
+### 6. Verify
 
 ```bash
 cargo test -p <crate>           # Run the specific crate's tests
@@ -281,7 +319,7 @@ bash scripts/ci/contract-audit.sh --constraining
 bash scripts/ci/contract-audit.sh --full
 ```
 
-### 6. Functional Gap Check
+### 7. Functional Gap Check
 
 After verification, compare tested behaviors against specification requirements:
 
@@ -300,7 +338,7 @@ This step catches the "tested but wrong" problem (tests that don't validate real
 3. **Constraining completeness** — Which Magna Carta principles (P1-P4) are missing from `[P{N}] Constraining:`? A Trust category contract without `[P4] Constraining` is a P0 gap.
 4. **Bidirectional verification** — Every gap is a missing or broken triple in the contract traceability graph (see `docs/architecture/contracts/contract-traceability.ttl`). Link 1 (Implementation→Contract) verified by `contract-audit.sh`. Link 2 (Contract→UserExpectation) verified by `expect:` semantic check. Link 3 (UserExpectation→GoalPrinciple) verified by principle alignment cross-reference.
 
-### 7. CNS Feedback Integration
+### 8. CNS Feedback Integration
 
 The TDD cycle is a pre-commit development activity. Post-deployment, the CNS provides runtime contract monitoring per Testing Discipline §7.3. CNS violations feed back into the TDD cycle as triggers for new tracer bullets:
 

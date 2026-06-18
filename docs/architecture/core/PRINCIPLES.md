@@ -158,3 +158,5 @@ A single contract has exactly one goal principle (the ID prefix) and 1 to 11 con
 UserFunctionalExpectation → GoalPrinciple → ConstrainingPrinciple → BehavioralContract → Pre/Post/Invariant
 ```
 The user expectation (the OUGHT from the functional spec) is the structural origin point — not merely "kept in mind" but encoded as the `expect:` field on every contract and verified by the test suite.
+
+**rSolidity enforcement:** The behavioral contract (pre/post/invariant) is made executable via rSolidity macros (`require!`, `assert!`, `revert!`, `#[contract]`, `#[ocap]`) per `RSOLIDITY_VOCABULARY.md`. rSolidity was formally adopted as the contracting language on 2026-06-18. The contract `/// REQ:` doc-comment remains the authoritative specification; rSolidity macros provide runtime enforcement with CNS span emission for violations.

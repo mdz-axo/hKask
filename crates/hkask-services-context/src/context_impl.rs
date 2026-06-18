@@ -904,7 +904,8 @@ async fn build_loops(
             .conn_arc()
     };
     let triple_store = TripleStore::new(Arc::clone(&mem_conn));
-    let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
+    let episodic_memory =
+        Arc::new(EpisodicMemory::new(triple_store).with_cns(Arc::clone(&f.cns_event_sink)));
     let storage_budget = episodic_memory.storage_budget();
     let episodic_loop =
         EpisodicLoop::new(Arc::clone(&episodic_memory), system_webid, storage_budget);
@@ -912,7 +913,9 @@ async fn build_loops(
 
     let triple_store2 = TripleStore::new(Arc::clone(&mem_conn));
     let embedding_store = EmbeddingStore::new(Arc::clone(&mem_conn));
-    let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
+    let semantic_memory = Arc::new(
+        SemanticMemory::new(triple_store2, embedding_store).with_cns(Arc::clone(&f.cns_event_sink)),
+    );
     let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     loop_system.register_loop(Arc::new(semantic_loop)).await;
 

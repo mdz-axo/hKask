@@ -11,7 +11,8 @@
 #   scripts/contract-audit.sh --principles    # audit goal-principle [P{N}] anchoring
 #   scripts/contract-audit.sh --constraining  # audit constraining-principle annotations
 #   scripts/contract-audit.sh --contract-quality # aggregate 4-layer quality score
-#   scripts/contract-audit.sh --full          # run all modes (coverage + expect + principles + constraining + quality)
+#   scripts/contract-audit.sh --rsolidity     # audit rSolidity #[contract] attribute presence
+#   scripts/contract-audit.sh --full          # run all modes (coverage + expect + principles + constraining + quality + rsolidity)
 #
 # Exit 0 always (trend monitor, not a hard gate — baseline is 0/1,727).
 #
@@ -33,6 +34,7 @@ while [[ $# -gt 0 ]]; do
         --principles)   MODE="principles"; shift ;;
         --constraining) MODE="constraining"; shift ;;
         --contract-quality) MODE="contract-quality"; shift ;;
+        --rsolidity)     MODE="rsolidity"; shift ;;
         --full)         FULL_MODE=true; shift ;;
         *)              TARGET="$1"; shift ;;
     esac
@@ -92,11 +94,11 @@ list_uncontracted() {
 
 # ── v0.28.0 Extended Helpers ─────────────────────────────────────────────────
 
-# Count contracts with expect: field
+# Count contracts with expect: field (on any doc-comment line, not just same-line as REQ:)
 count_expect() {
     local dir="$1"
     local count
-    count=$(grep -rn "///* REQ:.*expect:" "$dir" --include="*.rs" 2>/dev/null \
+    count=$(grep -rn "^[[:space:]]*///*.*expect:" "$dir" --include="*.rs" 2>/dev/null \
         | grep -v "cfg(test)" \
         | grep -v "/tests/" \
         | wc -l)
@@ -104,11 +106,11 @@ count_expect() {
     echo "${count:-0}"
 }
 
-# Count contracts with [P{N}] goal-principle tag on expect: lines
+# Count contracts with [P{N}] goal-principle tag (on any doc-comment line)
 count_goal_principle() {
     local dir="$1"
     local count
-    count=$(grep -rn "///* REQ:.*expect:.*\[P[0-9]*\]" "$dir" --include="*.rs" 2>/dev/null \
+    count=$(grep -rnE "^[[:space:]]*///*.*expect:.*\[P[0-9]+\]" "$dir" --include="*.rs" 2>/dev/null \
         | grep -v "cfg(test)" \
         | grep -v "/tests/" \
         | wc -l)
@@ -126,6 +128,61 @@ count_constraining() {
         | wc -l)
     count=$(echo "$count" | tr -d ' ')
     echo "${count:-0}"
+}
+
+# Count functions with #[contract] attribute (rSolidity migration)
+count_rsolidity() {
+    local dir="$1"
+    local count
+    count=$(grep -rn "#\[.*contract" "$dir" --include="*.rs" 2>/dev/null \
+        | grep -v "cfg(test)" \
+        | grep -v "/tests/" \
+        | wc -l)
+    count=$(echo "$count" | tr -d ' ')
+    echo "${count:-0}"
+}
+
+# List rSolidity drift: #[contract] without matching /// REQ:, and /// REQ: without #[contract].
+# Also detects id/principle mismatches between the two sources.
+list_rsolidity_drift() {
+    local dir="$1"
+    grep -rn -e "pub fn " -e "pub async fn " "$dir" --include="*.rs" 2>/dev/null \
+        | grep -v "cfg(test)" \
+        | grep -v "/tests/" \
+        | while IFS=: read -r file line rest; do
+            has_contract=false
+            has_rsolidity=false
+            req_id=""
+            rs_id=""
+            rs_principle=""
+            for offset in 0 1 2 3 4 5 6 7 8 9 10; do
+                check_line=$((line - offset))
+                if [ "$check_line" -gt 0 ]; then
+                    ctx=$(sed -n "${check_line}p" "$file" 2>/dev/null || true)
+                    if echo "$ctx" | grep -q "///* REQ:"; then
+                        has_contract=true
+                        # Extract REQ id
+                        req_id=$(echo "$ctx" | sed -n 's/.*REQ: *\(P[0-9]*-[a-zA-Z0-9_-]*\).*/\1/p')
+                    fi
+                    if echo "$ctx" | grep -q "#\[.*contract"; then
+                        has_rsolidity=true
+                        # Extract rSolidity id
+                        rs_id=$(echo "$ctx" | sed -n 's/.*id *= *"\([^"]*\)".*/\1/p')
+                        rs_principle=$(echo "$ctx" | sed -n 's/.*principle *= *"\([^"]*\)".*/\1/p')
+                    fi
+                fi
+            done
+            if [ "$has_rsolidity" = true ] && [ "$has_contract" = false ]; then
+                echo "ORPHAN_RSOLIDITY:$file:$line:$rest (no /// REQ:)"
+            elif [ "$has_contract" = true ] && [ "$has_rsolidity" = false ]; then
+                echo "UNMIGRATED:$file:$line:$rest"
+            elif [ "$has_contract" = true ] && [ "$has_rsolidity" = true ]; then
+                # Check for id/principle drift
+                if [ -n "$req_id" ] && [ -n "$rs_id" ] && [ "$req_id" != "$rs_id" ]; then
+                    echo "ID_MISMATCH:$file:$line:$rest (REQ:$req_id != rs:$rs_id)"
+                fi
+            fi
+        done || true
 }
 
 # List contracts missing expect: field
@@ -461,6 +518,7 @@ run_full_mode() {
             run_expect_mode "$c"
             run_principles_mode "$c"
             run_constraining_mode "$c"
+            run_rsolidity_mode "$c"
         done
         # Also run coverage summary
         echo "=== Contract Coverage Summary ==="
@@ -525,6 +583,77 @@ run_full_mode() {
     uncontracted_count=$((pub_count - contracted_count))
     echo "Uncontracted: $uncontracted_count — candidates for replicant contract proposals."
 }
+
+# ── rSolidity Migration Mode ───────────────────────────────────────────────────
+
+run_rsolidity_mode() {
+    crate="$1"
+    src="crates/${crate}/src"
+    [ -d "$src" ] || return
+
+    # Also handle mcp-servers
+    mcp_src="mcp-servers/${crate}/src"
+    [ -d "$mcp_src" ] && src="$mcp_src"
+
+    contracted=$(count_contracted "$src")
+    rsolidity_count=$(count_rsolidity "$src")
+
+    migration_pct="0.0"
+    if [ "$contracted" -gt 0 ]; then
+        migration_pct=$(echo "scale=1; $rsolidity_count * 100 / $contracted" | bc 2>/dev/null || echo "0.0")
+    fi
+
+    echo "=== rSolidity Migration: ${crate} ==="
+    echo ""
+    echo "Contracted:         $contracted"
+    echo "With #[contract]:   $rsolidity_count"
+    echo "Migration:          ${migration_pct}%"
+    echo ""
+
+    # Drift detection
+    drift=$(list_rsolidity_drift "$src")
+    if [ -n "$drift" ]; then
+        orphans=$(echo "$drift" | grep "ORPHAN_RSOLIDITY:" || true)
+        unmigrated=$(echo "$drift" | grep "UNMIGRATED:" || true)
+        mismatches=$(echo "$drift" | grep "ID_MISMATCH:" || true)
+
+        if [ -n "$orphans" ]; then
+            orphan_count=$(echo "$orphans" | wc -l)
+            echo "── Orphaned #[contract] (no matching /// REQ:) — ${orphan_count} ──"
+            echo "$orphans" | while IFS=: read -r tag file line rest; do
+                printf "  %-50s L%-4d %s\n" "$file" "$line" "$rest"
+            done
+            echo ""
+        fi
+
+        if [ -n "$mismatches" ]; then
+            mismatch_count=$(echo "$mismatches" | wc -l)
+            echo "── ID Mismatches (#[contract] id != /// REQ: id) — ${mismatch_count} ──"
+            echo "$mismatches" | while IFS=: read -r tag file line rest; do
+                printf "  %-50s L%-4d %s\n" "$file" "$line" "$rest"
+            done
+            echo ""
+        fi
+
+        if [ -n "$unmigrated" ]; then
+            unmigrated_count=$(echo "$unmigrated" | wc -l)
+            echo "── Unmigrated (/// REQ: only, no #[contract]) — ${unmigrated_count} ──"
+            echo "$unmigrated" | while IFS=: read -r tag file line rest; do
+                printf "  %-50s L%-4d %s\n" "$file" "$line" "$rest"
+            done
+            echo ""
+        fi
+    fi
+
+    if [ "$rsolidity_count" -eq "$contracted" ] && [ "$contracted" -gt 0 ] && [ -z "$(echo "$drift" | grep "ORPHAN_RSOLIDITY\|ID_MISMATCH" || true)" ]; then
+        echo "✓ All $contracted contracts have #[contract] attributes. Zero drift detected."
+        echo ""
+    elif [ "$rsolidity_count" -eq 0 ] && [ "$contracted" -eq 0 ]; then
+        echo "No contracts found in crate."
+        echo ""
+    fi
+}
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 # Route to appropriate handler
@@ -583,6 +712,19 @@ case "$MODE" in
             done
         else
             run_contract_quality_mode "$TARGET"
+        fi
+        exit 0
+        ;;
+    rsolidity)
+        TARGET="${TARGET:-ALL}"
+        if [ "$TARGET" = "ALL" ]; then
+            for crate_dir in crates/*/; do
+                c=$(basename "$crate_dir")
+                [ -d "crates/${c}/src" ] || continue
+                run_rsolidity_mode "$c"
+            done
+        else
+            run_rsolidity_mode "$TARGET"
         fi
         exit 0
         ;;

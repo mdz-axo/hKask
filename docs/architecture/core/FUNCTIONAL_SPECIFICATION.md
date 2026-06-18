@@ -13,8 +13,9 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 
 **Version:** v0.28.0
 **Created:** 2026-06-16
-**Status:** Active — anchor for the rSolidity contract vocabulary and the Testing Discipline
-**Last Updated:** 2026-06-18
+**Status:** Active — anchor for the Testing Discipline and rSolidity (formally adopted as the contracting language)  
+**Last Updated:** 2026-06-18  
+**Decision:** 2026-06-18 — rSolidity is formally adopted as the contracting language for hKask. All contracts use `/// REQ:` as the specification anchor and `rSolidity` macros (`require!`, `assert!`, `revert!`, `emit!`, `#[contract]`, `#[ocap]`) as the runtime enforcement layer. See `RSOLIDITY_VOCABULARY.md` for the complete vocabulary and migration pattern.
 
 > This document maps the complete system to its motivating principles, enumerates functional requirements per domain, and links each requirement to the contracts that implement it. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the 11 other principles that constrain how the goal is achieved). This document is the specification anchor for the Testing Discipline (§6) — the functional expectation on every contract is the user's expectation, and the test suite verifies it holds for all inputs.
 
@@ -1694,7 +1695,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 | Last Updated | 2026-06-18 |
 | Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + 61 new (web 19 + multi-user 12 + backup 18 + deployment 16, spec written) |
 | Build Status | `cargo check` workspace — PASS |
-| rSolidity Status | Macro crate implemented — see `RSOLIDITY_VOCABULARY.md` |
+| rSolidity Status | **Formally adopted as the contracting language** — see `RSOLIDITY_VOCABULARY.md` |
 | Governance | PRINCIPLES.md §0–§1.4 |
 | Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md` |
 | ERDs | §2 — 8 CNS domain ER diagrams; §3.18 — deployment domain ER diagram; §4 — Core domain model, deployment model, contract-anchoring model; §5.0 — Magna Carta hierarchy ER diagram |
