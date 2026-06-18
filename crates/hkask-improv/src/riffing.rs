@@ -61,7 +61,9 @@ pub fn resolve(tangent: &Contribution, policy: &RiffReturn, steps_taken: usize) 
             ),
         },
         RiffReturn::SpawnThread => RiffOutcome::Spawned {
-            thread_id: WebID::from_persona(format!("riff-thread:{}", truncate_for_riff(&tangent.content, 64)).as_bytes()),
+            thread_id: WebID::from_persona(
+                format!("riff-thread:{}", truncate_for_riff(&tangent.content, 64)).as_bytes(),
+            ),
         },
         RiffReturn::ReturnAfterSteps { max_steps } => {
             if steps_taken >= *max_steps {

@@ -214,7 +214,9 @@ impl BackupArchive {
             // Auto-rename entity if it collides with an existing replicant name
             if existing_replicant_names.contains(&row.entity) {
                 let new_name = format!("{}-migrated-{}", row.entity, date_suffix);
-                renamed.push((row.entity.clone(), new_name.clone()));
+                if !renamed.iter().any(|(old, _)| old == &row.entity) {
+                    renamed.push((row.entity.clone(), new_name.clone()));
+                }
                 row.entity = new_name;
             }
 
@@ -360,4 +362,234 @@ struct TripleRow {
     perspective: Option<String>,
     visibility: String,
     owner_webid: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::in_memory_db;
+    use crate::triples::Triple;
+    use hkask_types::WebID;
+    use serde_json::json;
+
+    fn temp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(name)
+    }
+
+    fn setup_triple_store() -> (TripleStore, WebID) {
+        let db = in_memory_db();
+        let store = TripleStore::new(db.conn_arc());
+        let webid = WebID::new();
+
+        // Create triples table
+        store
+            .lock_conn()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS triples (
+                id TEXT PRIMARY KEY,
+                entity TEXT NOT NULL,
+                attribute TEXT NOT NULL,
+                value TEXT NOT NULL,
+                valid_from TEXT NOT NULL,
+                valid_to TEXT,
+                confidence REAL NOT NULL DEFAULT 1.0,
+                perspective TEXT,
+                visibility TEXT NOT NULL DEFAULT 'private',
+                owner_webid TEXT NOT NULL
+            );",
+            )
+            .unwrap();
+
+        // Insert test triples
+        let triples = vec![
+            ("replicant:ada", "name", json!("Ada")),
+            ("replicant:ada", "role", json!("developer")),
+            ("goal:1", "status", json!("active")),
+        ];
+        for (entity, attr, val) in triples {
+            let t = Triple::new(entity, attr, val, webid);
+            store.insert(&t).unwrap();
+        }
+
+        (store, webid)
+    }
+
+    // REQ: DEP-TEST-001 — export creates encrypted archive with correct metadata
+    #[test]
+    fn export_creates_archive_with_metadata() {
+        let (store, webid) = setup_triple_store();
+        let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
+
+        let archive = BackupArchive::create(
+            path.clone(),
+            "test-passphrase",
+            &store,
+            &webid,
+            "test-server",
+        )
+        .unwrap();
+
+        assert_eq!(archive.path(), &path);
+        let count = archive.triple_count().unwrap();
+        assert_eq!(count, 3);
+
+        let meta = archive.metadata().unwrap();
+        assert_eq!(meta.webid, webid.to_string());
+        assert_eq!(meta.source_server_url, "test-server");
+        assert_eq!(meta.triple_count, 3);
+        assert_eq!(meta.schema_version, 1);
+    }
+
+    // REQ: DEP-TEST-002 — archive cannot be opened with wrong passphrase
+    #[test]
+    fn archive_rejects_wrong_passphrase() {
+        let (store, webid) = setup_triple_store();
+        let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
+
+        BackupArchive::create(path.clone(), "correct-pass", &store, &webid, "srv").unwrap();
+        let result = BackupArchive::open(path, "wrong-pass!!");
+        assert!(result.is_err());
+    }
+
+    // REQ: DEP-TEST-003 — round-trip: export → open → verify counts match
+    #[test]
+    fn roundtrip_export_open_preserves_triples() {
+        let (store, webid) = setup_triple_store();
+        let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
+
+        let archive =
+            BackupArchive::create(path.clone(), "test-pass", &store, &webid, "srv").unwrap();
+        drop(archive);
+
+        let reopened = BackupArchive::open(path, "test-pass").unwrap();
+        assert_eq!(reopened.triple_count().unwrap(), 3);
+
+        let meta = reopened.metadata().unwrap();
+        assert_eq!(meta.triple_count, 3);
+    }
+
+    // REQ: DEP-TEST-004 — import into empty target produces correct count
+    #[test]
+    fn import_into_empty_target() {
+        let (source, src_webid) = setup_triple_store();
+        let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
+
+        let archive =
+            BackupArchive::create(path.clone(), "test-pass", &source, &src_webid, "srv").unwrap();
+
+        // Create empty target store
+        let target_db = in_memory_db();
+        let target = TripleStore::new(target_db.conn_arc());
+        target
+            .lock_conn()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS triples (
+                id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+                value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+                confidence REAL NOT NULL DEFAULT 1.0, perspective TEXT,
+                visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL
+            );",
+            )
+            .unwrap();
+
+        let target_webid = WebID::new();
+        let names = HashSet::new();
+        let receipt = archive.import_into(&target, &target_webid, &names).unwrap();
+
+        assert_eq!(receipt.triple_count, 3);
+        assert!(receipt.renamed_replicants.is_empty());
+
+        // Verify triples in target
+        let target_count: i64 = target
+            .lock_conn()
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM triples", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(target_count, 3);
+
+        // Verify owner_webid updated
+        let owner: String = target
+            .lock_conn()
+            .unwrap()
+            .query_row("SELECT owner_webid FROM triples LIMIT 1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(owner, target_webid.to_string());
+    }
+
+    // REQ: DEP-TEST-005 — idempotent re-import produces same result
+    #[test]
+    fn import_is_idempotent() {
+        let (source, src_webid) = setup_triple_store();
+        let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
+
+        let archive = BackupArchive::create(path, "test-pass", &source, &src_webid, "srv").unwrap();
+
+        let target_db = in_memory_db();
+        let target = TripleStore::new(target_db.conn_arc());
+        target
+            .lock_conn()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS triples (
+                id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+                value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+                confidence REAL NOT NULL DEFAULT 1.0, perspective TEXT,
+                visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL
+            );",
+            )
+            .unwrap();
+
+        let tw = WebID::new();
+        let names = HashSet::new();
+
+        let r1 = archive.import_into(&target, &tw, &names).unwrap();
+        assert_eq!(r1.triple_count, 3);
+
+        let r2 = archive.import_into(&target, &tw, &names).unwrap();
+        assert_eq!(r2.triple_count, 3);
+
+        // Count should still be 3 (INSERT OR REPLACE)
+        let count: i64 = target
+            .lock_conn()
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM triples", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 3);
+    }
+
+    // REQ: DEP-TEST-006 — auto-rename on replicant name collision
+    #[test]
+    fn import_auto_renames_on_collision() {
+        let (source, src_webid) = setup_triple_store();
+        let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
+
+        let archive = BackupArchive::create(path, "test-pass", &source, &src_webid, "srv").unwrap();
+
+        let target_db = in_memory_db();
+        let target = TripleStore::new(target_db.conn_arc());
+        target
+            .lock_conn()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS triples (
+                id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+                value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+                confidence REAL NOT NULL DEFAULT 1.0, perspective TEXT,
+                visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL
+            );",
+            )
+            .unwrap();
+
+        let tw = WebID::new();
+        let mut names = HashSet::new();
+        names.insert("replicant:ada".to_string());
+
+        let receipt = archive.import_into(&target, &tw, &names).unwrap();
+        assert_eq!(receipt.triple_count, 3);
+        assert_eq!(receipt.renamed_replicants.len(), 1);
+        assert_eq!(receipt.renamed_replicants[0].0, "replicant:ada");
+        assert!(receipt.renamed_replicants[0].1.contains("migrated"));
+    }
 }

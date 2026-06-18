@@ -174,7 +174,10 @@ async fn cross_store_consent_visible_to_cns_events() {
     let event_sink = svc.event_sink();
     let test_event = hkask_types::event::NuEvent::new(
         webid,
-        hkask_types::event::Span::new(hkask_types::event::SpanNamespace::new("cns.test"), "test"),
+        hkask_types::event::Span::new(
+            hkask_types::event::SpanNamespace::new("cns.inference"),
+            "test.integration",
+        ),
         hkask_types::event::Phase::Act,
         serde_json::json!({"test": true}),
         0,

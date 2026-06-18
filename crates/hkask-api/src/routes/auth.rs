@@ -138,7 +138,7 @@ pub async fn login(
         .header(header::LOCATION, authorize_url)
         .header(header::SET_COOKIE, state_cookie)
         .body(axum::body::Body::empty())
-        .unwrap())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
 }
 
 /// GET /api/v1/auth/callback
@@ -229,7 +229,7 @@ pub async fn callback(
         .header(header::SET_COOKIE, clear_state)
         .header(header::SET_COOKIE, session_cookie)
         .body(axum::body::Body::empty())
-        .unwrap())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?)
 }
 
 /// GitHub token exchange response.

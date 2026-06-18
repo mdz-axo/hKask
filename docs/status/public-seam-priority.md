@@ -1,6 +1,6 @@
 # Public Seam Priority List
 
-**Generated:** 2026-06-18T09:17:52Z
+**Generated:** 2026-06-18T16:09:55Z
 **Source:** `scripts/public-seam-inventory.sh`
 **Purpose:** Top high-risk uncovered public items requiring REQ-tagged tests.
 
@@ -116,8 +116,8 @@ risk and typically covered by struct-level or integration tests.
 | 96 | hkask-agents | fn | `voice_description` | hkask-agents::pod::mod | crates/hkask-agents/src/pod/mod.rs:592 | Core Logic |
 | 97 | hkask-agents | fn | `webid` | hkask-agents::pod::types | crates/hkask-agents/src/pod/types.rs:161 | Core Logic |
 | 98 | hkask-api | fn | `a2a_router` | hkask-api::routes::a2a | crates/hkask-api/src/routes/a2a.rs:86 | API Route Handler |
-| 99 | hkask-api | fn | `backup_router` | hkask-api::routes::backup | crates/hkask-api/src/routes/backup.rs:211 | API Route Handler |
-| 100 | hkask-api | fn | `bots_router` | hkask-api::routes::bots | crates/hkask-api/src/routes/bots.rs:13 | API Route Handler |
+| 99 | hkask-api | fn | `auth_router` | hkask-api::routes::auth | crates/hkask-api/src/routes/auth.rs:407 | API Route Handler |
+| 100 | hkask-api | fn | `backup_router` | hkask-api::routes::backup | crates/hkask-api/src/routes/backup.rs:211 | API Route Handler |
 
 ---
 
@@ -126,7 +126,7 @@ risk and typically covered by struct-level or integration tests.
 | Crate | High-Risk Uncovered |
 |-------|--------------------|
 | hkask-types | 157 |
-| hkask-storage | 135 |
+| hkask-storage | 145 |
 | hkask-agents | 68 |
 | hkask-cns | 55 |
 | hkask-memory | 43 |
@@ -140,9 +140,9 @@ risk and typically covered by struct-level or integration tests.
 | hkask-services-context | 30 |
 | hkask-mcp | 30 |
 | hkask-adapter | 28 |
+| hkask-api | 27 |
 | hkask-mcp-companies | 26 |
 | hkask-wallet | 24 |
-| hkask-api | 24 |
 | hkask-improv | 21 |
 | hkask-mcp-training | 16 |
 | hkask-services-core | 14 |
@@ -167,4 +167,4 @@ risk and typically covered by struct-level or integration tests.
 | hkask-communication | 1 |
 | hkask-acp | 1 |
 
-**Total high-risk uncovered:** 1020
+**Total high-risk uncovered:** 1033
