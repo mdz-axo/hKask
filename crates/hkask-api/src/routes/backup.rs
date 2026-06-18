@@ -330,7 +330,7 @@ pub(crate) async fn snapshot(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<SnapshotRequest>,
 ) -> Result<Json<SnapshotResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-010 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-010
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_snapshot", "CNS");
@@ -360,7 +360,7 @@ pub(crate) async fn restore(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<RestoreRequest>,
 ) -> Result<Json<RestoreResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-011 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-011
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_restore", "CNS");
@@ -405,7 +405,7 @@ pub(crate) async fn list_snapshots(
     Extension(_auth): Extension<AuthContext>,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<Json<ListResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-012 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-012
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_list", "CNS");
@@ -440,7 +440,7 @@ pub(crate) async fn prune(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<PruneRequest>,
 ) -> Result<Json<PruneResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-013 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-013
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_prune", "CNS");
@@ -478,7 +478,7 @@ pub(crate) async fn verify(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<VerifyResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-014 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-014
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_verify", "CNS");
@@ -514,7 +514,7 @@ pub(crate) async fn get_config(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<BackupConfigResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-015 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-015
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_config_get", "CNS");
@@ -553,7 +553,7 @@ pub(crate) async fn update_config(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<UpdateConfigRequest>,
 ) -> Result<Json<BackupConfigResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-016 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-016
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "backup_config_update", "CNS");

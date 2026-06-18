@@ -49,7 +49,7 @@ impl ConsolidationToken {
 mod tests {
     use super::*;
 
-    // REQ: types-cap-token-001 — ConsolidationToken::verify_issuer() accepts expected issuer
+    // contract: types-cap-token-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn consolidation_token_verify_issuer_accepts_expected() {
@@ -57,7 +57,7 @@ mod tests {
         assert!(token.verify_issuer());
     }
 
-    // REQ: types-cap-token-002 — ConsolidationToken::verify_issuer() rejects wrong issuer
+    // contract: types-cap-token-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn consolidation_token_verify_issuer_rejects_wrong() {

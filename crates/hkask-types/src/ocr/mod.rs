@@ -8,7 +8,7 @@ pub use document::*;
 mod tests {
     use super::*;
 
-    // REQ:ocr-type-01 — PipelineOutcome is constructible and serializable
+    // contract: ocr-type-01
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn pipeline_outcome_roundtrip() {
@@ -31,7 +31,7 @@ mod tests {
         assert!(back.report.passed);
     }
 
-    // REQ:ocr-type-02 — VerificationReport::passed is derived, not settable
+    // contract: ocr-type-02
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verification_report_passed_is_computed() {
@@ -51,7 +51,7 @@ mod tests {
         assert!(report.passed, "clean report should pass");
     }
 
-    // REQ:ocr-type-03 — ComplexityTier ordering
+    // contract: ocr-type-03
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn complexity_tier_ordering() {
@@ -59,7 +59,7 @@ mod tests {
         assert!(ComplexityTier::Moderate < ComplexityTier::Complex);
     }
 
-    // REQ:ocr-type-04 — OcrBackend labels are stable
+    // contract: ocr-type-04
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn ocr_backend_labels() {
@@ -68,7 +68,7 @@ mod tests {
         assert_eq!(OcrBackend::LlmOcr("gpt4".into()).label(), "llm-ocr");
     }
 
-    // REQ:ocr-type-05 — PipelineError Display is meaningful
+    // contract: ocr-type-05
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn pipeline_error_display() {
@@ -82,7 +82,7 @@ mod tests {
         assert!(display.contains("lighton"));
     }
 
-    // REQ:ocr-type-06 — CrossValidation is serializable
+    // contract: ocr-type-06
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn cross_validation_roundtrip() {

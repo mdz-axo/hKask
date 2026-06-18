@@ -226,7 +226,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-PLUSSING-001 — Plussing extracts agreeable components from constructive input
+    // contract: IMPROV-PLUSSING-001
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn extracts_agreeable_from_constructive_input() {
@@ -242,7 +242,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-PLUSSING-002 — Plussing silently discards negative content (never explicitly negates)
+    // contract: IMPROV-PLUSSING-002
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn silently_discards_negative_content() {
@@ -261,7 +261,7 @@ mod tests {
         assert!(has_constructive, "Constructive content must be extracted");
     }
 
-    // REQ: IMPROV-PLUSSING-003 — Plussing build never references discarded components
+    // contract: IMPROV-PLUSSING-003
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn build_never_references_discarded() {
@@ -275,7 +275,7 @@ mod tests {
         );
     }
 
-    // REQ: IMPROV-PLUSSING-004 — Plussing handles empty/fully disagreeable contributions gracefully
+    // contract: IMPROV-PLUSSING-004
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn handles_fully_disagreeable_contribution() {
@@ -292,7 +292,7 @@ mod tests {
         );
     }
 
-    // REQ: IMPROV-PLUSSING-005 — Plussing handles empty contribution
+    // contract: IMPROV-PLUSSING-005
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn handles_empty_contribution() {
@@ -303,7 +303,7 @@ mod tests {
         assert!(!build.is_empty(), "Build must not be empty for empty input");
     }
 
-    // REQ: IMPROV-PLUSSING-006 — AgreeableComponent confidence is in [0.0, 1.0]
+    // contract: IMPROV-PLUSSING-006
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn confidence_in_valid_range() {

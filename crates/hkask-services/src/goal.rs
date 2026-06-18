@@ -189,7 +189,7 @@ impl GoalService {
 mod tests {
     use super::*;
 
-    // REQ: P7-svc-goal-001 — create_goal delegates to GoalRepository and produces GoalResponse
+    // contract: P7-svc-goal-001
     // expect: "Service create_goal works correctly under test conditions" [P7]
     #[test]
     fn create_goal_converts_visibility_and_returns_response() {
@@ -197,7 +197,7 @@ mod tests {
         assert!(err.is_none(), "bogus should not parse as a Visibility");
     }
 
-    // REQ: P7-svc-goal-002 — list_goals respects optional state filter
+    // contract: P7-svc-goal-002
     // expect: "Service list_goals works correctly under test conditions" [P7]
     #[test]
     fn list_goals_parses_state_filter() {
@@ -207,7 +207,7 @@ mod tests {
         assert!(GoalState::parse_str("bogus").is_none());
     }
 
-    // REQ: P7-svc-goal-003 — Goal::into() → GoalResponse preserves all fields
+    // contract: P7-svc-goal-003
     // expect: "Service Goal::into works correctly under test conditions" [P7]
     #[test]
     fn goal_to_response_maps_all_fields() {

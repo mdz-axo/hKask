@@ -109,7 +109,7 @@ mod tests {
     use super::*;
     use rand::Rng;
 
-    // REQ: HARN-049 — deterministic function always passes probabilistic contract (P8)
+    // contract: HARN-049
     // expect: "I can verify a deterministic function trivially passes a probabilistic contract" [P9]
     #[test]
     fn deterministic_fn_always_passes() {
@@ -120,7 +120,7 @@ mod tests {
         assert!((result.actual_rate - 1.0).abs() < 0.001);
     }
 
-    // REQ: HARN-050 — completely failing function fails probabilistic contract (P8)
+    // contract: HARN-050
     // expect: "I can verify a function that never meets its contract correctly fails" [P9]
     #[test]
     fn failing_fn_never_passes() {
@@ -130,7 +130,7 @@ mod tests {
         assert_eq!(result.successes, 0);
     }
 
-    // REQ: HARN-051 — threshold-straddling function reports correct pass/fail (P9)
+    // contract: HARN-051
     // expect: "I can verify that a function matching exactly the threshold behavior is handled correctly" [P9]
     #[test]
     fn threshold_boundary_is_correct() {
@@ -145,7 +145,7 @@ mod tests {
         assert!(result.actual_rate >= 0.0 && result.actual_rate <= 1.0);
     }
 
-    // REQ: HARN-052 — delta tolerance allows near-miss contracts to pass (P8)
+    // contract: HARN-052
     // expect: "I can verify that δ tolerance correctly relaxes the passing threshold" [P9]
     #[test]
     fn delta_tolerance_relaxes_threshold() {
@@ -157,7 +157,7 @@ mod tests {
         assert!(result.passed);
     }
 
-    // REQ: HARN-053 — recovery window retries failures (P9)
+    // contract: HARN-053
     // expect: "I can verify that the k recovery window correctly enables self-healing contracts" [P9]
     #[test]
     fn recovery_window_retries() {
@@ -171,7 +171,7 @@ mod tests {
         assert!(result.passed);
     }
 
-    // REQ: HARN-054 — failures list is capped at 10 (P5)
+    // contract: HARN-054
     // expect: "I can verify the failure list is bounded to prevent memory blowout" [P5]
     #[test]
     fn failure_list_is_capped() {
@@ -182,7 +182,7 @@ mod tests {
         assert!(!result.passed);
     }
 
-    // REQ: HARN-055 — ProbContractResult fields are populated correctly (P8)
+    // contract: HARN-055
     // expect: "I can verify the result carries semantically grounded counts and rates" [P8]
     #[test]
     fn result_fields_are_populated() {

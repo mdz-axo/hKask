@@ -243,7 +243,7 @@ pub fn save_settings<T: serde::Serialize>(settings: &T) -> Result<(), crate::Ser
 mod tests {
     use super::*;
 
-    // REQ: P3-svc-settings-001 — load_settings returns default when file missing
+    // contract: P3-svc-settings-001
     // expect: "Service load_settings works correctly under test conditions" [P3]
     #[test]
     fn load_settings_returns_default_when_file_missing() {
@@ -253,7 +253,7 @@ mod tests {
         assert!(!settings.generation_model.is_empty());
     }
 
-    // REQ: P3-svc-settings-002 — save_settings and load_settings round-trip
+    // contract: P3-svc-settings-002
     // expect: "Service load_settings works correctly under test conditions" [P3]
     #[test]
     fn save_and_load_roundtrip() {

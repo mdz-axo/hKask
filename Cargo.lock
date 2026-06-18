@@ -4088,7 +4088,6 @@ version = "0.27.0"
 dependencies = [
  "chrono",
  "hkask-keystore",
- "hkask-rsolidity",
  "hkask-types",
  "matrix-sdk",
  "serde",
@@ -4156,7 +4155,6 @@ dependencies = [
  "dirs",
  "ed25519-dalek 2.2.0",
  "hex",
- "hkask-rsolidity",
  "hkask-types",
  "hmac 0.12.1",
  "keyring",
@@ -4181,7 +4179,6 @@ dependencies = [
  "hex",
  "hkask-cns",
  "hkask-keystore",
- "hkask-rsolidity",
  "hkask-storage",
  "hkask-templates",
  "hkask-test-harness",

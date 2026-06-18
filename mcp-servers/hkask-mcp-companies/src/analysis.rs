@@ -102,14 +102,14 @@ pub fn extract_wc_days(metrics_json: &Value) -> Option<(f64, f64)> {
 mod tests {
     use super::*;
 
-    // REQ: FMP-MOAT — gross_margin_stability returns 1.0 for perfectly stable margins
+    // contract: FMP-MOAT
     #[test]
     fn gross_margin_stability_perfect() {
         let score = gross_margin_stability(&[0.60, 0.60, 0.60, 0.60]);
         assert!((score - 1.0).abs() < 0.001);
     }
 
-    // REQ: FMP-MOAT — gross_margin_stability returns lower score for volatile margins
+    // contract: FMP-MOAT
     #[test]
     fn gross_margin_stability_volatile() {
         let score = gross_margin_stability(&[0.60, 0.20, 0.80, 0.10]);
@@ -123,27 +123,27 @@ mod tests {
         );
     }
 
-    // REQ: FMP-MOAT — gross_margin_stability handles single data point gracefully
+    // contract: FMP-MOAT
     #[test]
     fn gross_margin_stability_single_point() {
         assert!((gross_margin_stability(&[0.60]) - 1.0).abs() < 0.001);
         assert!((gross_margin_stability(&[]) - 1.0).abs() < 0.001);
     }
 
-    // REQ: FMP-MOAT — gross_margin_stability handles zero mean gracefully
+    // contract: FMP-MOAT
     #[test]
     fn gross_margin_stability_zero_mean() {
         assert!((gross_margin_stability(&[0.0, 0.0, 0.0]) - 0.0).abs() < 0.001);
     }
 
-    // REQ: FMP-MOAT — working_capital_spread computes DPO − DSO
+    // contract: FMP-MOAT
     #[test]
     fn working_capital_spread_computation() {
         assert!((working_capital_spread(90.0, 30.0) - 60.0).abs() < 0.001);
         assert!((working_capital_spread(20.0, 40.0) - (-20.0)).abs() < 0.001);
     }
 
-    // REQ: FMP-MOAT — wc_signal_label classifies spread correctly
+    // contract: FMP-MOAT
     #[test]
     fn wc_signal_label_classification() {
         assert_eq!(wc_signal_label(60.0), "strong_market_power");
@@ -152,33 +152,33 @@ mod tests {
         assert_eq!(wc_signal_label(-30.0), "supplier_dominated");
     }
 
-    // REQ: FMP-MOAT — classify_moat returns Wide for both strong stability and positive spread
+    // contract: FMP-MOAT
     #[test]
     fn classify_moat_wide() {
         assert_eq!(classify_moat(0.9, 40.0, 5), MoatRating::Wide);
     }
 
-    // REQ: FMP-MOAT — classify_moat returns Narrow for partial moat signals
+    // contract: FMP-MOAT
     #[test]
     fn classify_moat_narrow() {
         assert_eq!(classify_moat(0.9, -10.0, 5), MoatRating::Narrow);
         assert_eq!(classify_moat(0.3, 40.0, 5), MoatRating::Narrow);
     }
 
-    // REQ: FMP-MOAT — classify_moat returns None for no moat signals
+    // contract: FMP-MOAT
     #[test]
     fn classify_moat_none() {
         assert_eq!(classify_moat(0.3, -10.0, 5), MoatRating::None);
     }
 
-    // REQ: FMP-MOAT — classify_moat returns InsufficientData with fewer than 3 periods
+    // contract: FMP-MOAT
     #[test]
     fn classify_moat_insufficient_data() {
         assert_eq!(classify_moat(0.9, 40.0, 2), MoatRating::InsufficientData);
         assert_eq!(classify_moat(0.3, -10.0, 1), MoatRating::InsufficientData);
     }
 
-    // REQ: FMP-MOAT — extract_gross_margins parses FMP key-metrics JSON
+    // contract: FMP-MOAT
     #[test]
     fn extract_gross_margins_from_json() {
         let json = serde_json::json!([
@@ -194,14 +194,14 @@ mod tests {
         assert!((margins[1].1 - 0.43).abs() < 0.001);
     }
 
-    // REQ: FMP-MOAT — extract_gross_margins handles empty/malformed JSON
+    // contract: FMP-MOAT
     #[test]
     fn extract_gross_margins_empty() {
         assert!(extract_gross_margins(&serde_json::json!([])).is_empty());
         assert!(extract_gross_margins(&serde_json::json!({})).is_empty());
     }
 
-    // REQ: FMP-MOAT — extract_wc_days extracts DPO and DSO from key-metrics
+    // contract: FMP-MOAT
     #[test]
     fn extract_wc_days_from_json() {
         let json = serde_json::json!([
@@ -212,7 +212,7 @@ mod tests {
         assert!((dso - 30.0).abs() < 0.001);
     }
 
-    // REQ: FMP-MOAT — extract_wc_days returns None for missing fields
+    // contract: FMP-MOAT
     #[test]
     fn extract_wc_days_missing_fields() {
         assert!(extract_wc_days(&serde_json::json!([])).is_none());
@@ -315,7 +315,7 @@ pub fn extract_invested_capital(balance_sheets: &Value) -> Vec<(String, f64)> {
 mod management_tests {
     use super::*;
 
-    // REQ: FMP-MGMT — ceo_capital_allocation_score returns InsufficientData with < 3 periods
+    // contract: FMP-MGMT
     #[test]
     fn ceo_score_insufficient_data() {
         assert_eq!(
@@ -324,7 +324,7 @@ mod management_tests {
         );
     }
 
-    // REQ: FMP-MGMT — ceo_capital_allocation_score rates excellent when decreasing capital + improving returns
+    // contract: FMP-MGMT
     #[test]
     fn ceo_score_excellent_decreasing_capital_improving_returns() {
         let returns = [0.10, 0.10, 0.12, 0.12, 0.15, 0.20];
@@ -335,7 +335,7 @@ mod management_tests {
         );
     }
 
-    // REQ: FMP-MGMT — ceo_capital_allocation_score rates good when capital stable + improving returns
+    // contract: FMP-MGMT
     #[test]
     fn ceo_score_good_increasing_capital_improving_returns() {
         // Returns improve but by less than 10% → Good, not Excellent
@@ -347,7 +347,7 @@ mod management_tests {
         );
     }
 
-    // REQ: FMP-MGMT — ceo_capital_allocation_score rates poor when increasing capital + decreasing returns
+    // contract: FMP-MGMT
     #[test]
     fn ceo_score_poor_increasing_capital_decreasing_returns() {
         let returns = [0.20, 0.18, 0.18, 0.15, 0.12, 0.10];
@@ -358,7 +358,7 @@ mod management_tests {
         );
     }
 
-    // REQ: FMP-MGMT — extract_roic parses FMP key-metrics JSON
+    // contract: FMP-MGMT
     #[test]
     fn extract_roic_from_json() {
         let json = serde_json::json!([
@@ -371,7 +371,7 @@ mod management_tests {
         assert!((roic[1].1 - 0.18).abs() < 0.001);
     }
 
-    // REQ: FMP-MGMT — extract_invested_capital parses balance sheet JSON
+    // contract: FMP-MGMT
     #[test]
     fn extract_invested_capital_from_json() {
         let json = serde_json::json!([

@@ -114,7 +114,7 @@ impl InferenceService {
         ctx: &InferenceContext,
         model: &str,
     ) -> Result<Arc<dyn InferencePort>, ServiceError> {
-        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.inference_svc span emitted
+        // contract: P9-CNS-SVC-001
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.inference_svc", operation = "resolve_port", model = %model, has_shared = ctx.shared_port.is_some(), "CNS");
@@ -140,7 +140,7 @@ impl InferenceService {
     /// # expect: "The service layer provides CNS health and regulation queries" [P9]
     #[contract(id = "P9-svc-inference-230", principle = "P9")]
     pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
-        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.inference_svc span emitted
+        // contract: P9-CNS-SVC-001
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.inference_svc", operation = "list_models", "CNS");
@@ -162,7 +162,7 @@ impl InferenceService {
         ctx: &InferenceContext,
         query: &str,
     ) -> Result<Vec<ModelInfo>, ServiceError> {
-        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.inference_svc span emitted
+        // contract: P9-CNS-SVC-001
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.inference_svc", operation = "search_models", query = %query, "CNS");

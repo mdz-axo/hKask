@@ -16,7 +16,6 @@
 //! - HTTP client uses rustls (no openssl)
 //! - Deposit addresses derived deterministically from treasury public key
 
-use hkask_rsolidity as rs;
 use async_trait::async_trait;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
@@ -664,7 +663,7 @@ mod integration_tests {
         SolanaPort::new_devnet(&pubkey).expect("Failed to create devnet SolanaPort")
     }
 
-    // REQ: P9-wallet-solana-chain-error-actor-test — chain_error emission uses caller-provided actor identity
+    // contract: P9-wallet-solana-chain-error-actor-test
     /// expect: "Wallet solana chain error actor test works correctly under test conditions" [P9]
     #[test]
     fn emit_chain_error_uses_provided_actor() {
@@ -687,7 +686,7 @@ mod integration_tests {
         assert_eq!(event.observation["operation"], "unit_test");
     }
 
-    // REQ: P9-wallet-solana-build-withdrawal-tx-test — build_withdrawal_tx produces valid serialized payload
+    // contract: P9-wallet-solana-build-withdrawal-tx-test
     /// expect: "Wallet solana build withdrawal tx test works correctly under test conditions" [P9]
     #[test]
     fn build_withdrawal_tx_produces_valid_payload() {
@@ -708,7 +707,7 @@ mod integration_tests {
         assert_eq!(payload.payer, port.treasury_pubkey);
     }
 
-    // REQ: P9-wallet-solana-signing-roundtrip-test — full withdrawal flow round-trips through signing
+    // contract: P9-wallet-solana-signing-roundtrip-test
     /// expect: "Wallet solana signing roundtrip test works correctly under test conditions" [P9]
     #[test]
     fn withdrawal_payload_signing_roundtrip() {
@@ -743,7 +742,7 @@ mod integration_tests {
         assert_eq!(sig_part.len(), 64);
     }
 
-    // REQ: P9-wallet-solana-submit-signed-tx-test — submit_signed_tx against devnet (ignored — needs funded treasury)
+    // contract: P9-wallet-solana-submit-signed-tx-test
     /// expect: "Wallet solana submit signed tx test works correctly under test conditions" [P9]
     #[test]
     #[ignore = "requires funded treasury on Solana devnet with USDC"]
@@ -805,7 +804,7 @@ mod integration_tests {
         }
     }
 
-    // REQ: P9-wallet-solana-monitor-deposits-test — monitor_deposits detects USDC transfer and extracts sender
+    // contract: P9-wallet-solana-monitor-deposits-test
     /// expect: "Wallet solana monitor deposits test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn monitor_deposits_detects_usdc_transfer() {

@@ -172,7 +172,7 @@ async fn update_settings(
 mod tests {
     use super::*;
 
-    // REQ: Merge-update preserves unspecified fields — only the fields
+    // contract: Merge-update
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // in the request are changed; all others keep their current values.
 
@@ -212,7 +212,7 @@ mod tests {
         assert!((settings.top_p - 0.9).abs() < f32::EPSILON);
     }
 
-    // REQ: Merge-update — update settings out of range is ignored
+    // contract: Merge-update
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn update_settings_out_of_range_is_ignored() {
@@ -240,7 +240,7 @@ mod tests {
         assert!((settings.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // REQ: api-settings-003 — seed field merge: Some(Some(v)) sets seed, Some(None) means random
+    // contract: api-settings-003
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn update_settings_seed_merge() {
@@ -449,7 +449,7 @@ mod tests {
                 )
         }
 
-        // REQ: api-settings-prop-001 — merge is idempotent
+        // contract: api-settings-prop-001
 // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
@@ -471,7 +471,7 @@ mod tests {
             }
         }
 
-        // REQ: api-settings-prop-002 — unspecified fields are preserved
+        // contract: api-settings-prop-002
 // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]
@@ -522,7 +522,7 @@ mod tests {
             }
         }
 
-        // REQ: api-settings-prop-003 — out-of-range values are silently ignored
+        // contract: api-settings-prop-003
 // expect: "API endpoints enforce OCAP boundaries" [P4]
         proptest! {
             #[test]

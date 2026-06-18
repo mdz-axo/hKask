@@ -42,7 +42,7 @@ fn make_triple(entity: &str, attr: &str, value: serde_json::Value, perspective: 
 
 // ── Store contract tests ────────────────────────────────────────────────────
 
-// REQ: MEM-STORE-001 — store private episodic triple succeeds
+// contract: MEM-STORE-001
 // expect: "I can store first-person experience triples in my sovereign episodic memory" [P3]
 // [P1] Constraining: rejects Public visibility — episodic is sovereign
 #[test]
@@ -62,7 +62,7 @@ fn store_and_recall_episodic_triple() {
     assert_eq!(recalled[0].attribute, "action");
 }
 
-// REQ: MEM-STORE-002 — store rejects Public visibility
+// contract: MEM-STORE-002
 // expect: "I can verify the system enforces sovereignty boundaries on episodic memory" [P1]
 #[test]
 fn store_rejects_public_triple() {
@@ -76,7 +76,7 @@ fn store_rejects_public_triple() {
     assert!(err.to_string().contains("visibility") || err.to_string().contains("Public"));
 }
 
-// REQ: MEM-STORE-003 — store requires perspective
+// contract: MEM-STORE-003
 // expect: "I can verify the system rejects anonymous episodic storage" [P12]
 #[test]
 fn store_requires_perspective() {
@@ -92,7 +92,7 @@ fn store_requires_perspective() {
 
 // ── Recall contract tests ───────────────────────────────────────────────────
 
-// REQ: MEM-RECALL-001 — recall filters by perspective
+// contract: MEM-RECALL-001
 // expect: "I can verify that episodic recall respects sovereignty — mine vs. yours" [P1]
 #[test]
 fn recall_filters_by_perspective() {
@@ -119,7 +119,7 @@ fn recall_filters_by_perspective() {
     assert_eq!(bob_recall[0].access.perspective, Some(bob));
 }
 
-// REQ: MEM-RECALL-002 — recall on nonexistent entity returns empty
+// contract: MEM-RECALL-002
 // expect: "I can query for nonexistent memories and get a clean empty result" [P8]
 #[test]
 fn recall_nonexistent_returns_empty() {
@@ -135,7 +135,7 @@ fn recall_nonexistent_returns_empty() {
 
 // ── Storage budget contract tests ───────────────────────────────────────────
 
-// REQ: MEM-BUDGET-001 — storage usage reports count
+// contract: MEM-BUDGET-001
 // expect: "I can query my episodic storage usage" [P9]
 #[test]
 fn storage_usage_reports_count() {

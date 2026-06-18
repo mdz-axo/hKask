@@ -643,7 +643,7 @@ mod tests {
 
     /// Property-based skeleton: once proptest is wired, assert that any skill
     /// with both layers present and all .j2 files valid scores >= 0.8.
-    // REQ: P9-services-skill-health-threshold — complete skills score ≥ 0.8
+    // contract: P9-services-skill-health-threshold
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     #[test]
     #[ignore = "requires proptest fixture for arbitrary complete skills"]

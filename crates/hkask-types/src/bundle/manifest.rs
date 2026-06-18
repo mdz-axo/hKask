@@ -45,7 +45,7 @@ pub enum SkillPolarity {
     Procedural,
 }
 
-// REQ: TYP-229 (as_str), TYP-230 (parse_str)
+// contract: TYP-229
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid SkillPolarity variant
 // as_str post: returns PascalCase string ("Generative", "Evaluative", "Regulative", "Procedural")

@@ -83,7 +83,7 @@ pub fn freshness_serpapi(freshness: &Freshness) -> String {
 mod tests {
     use super::*;
 
-    // REQ: CNS-WEB-FRESHNESS — Freshness parses from free-form user strings
+    // contract: CNS-WEB-FRESHNESS
     #[test]
     fn freshness_parsing_known_values() {
         assert_eq!("day".parse::<Freshness>().unwrap(), Freshness::Day);
@@ -92,7 +92,7 @@ mod tests {
         assert_eq!("year".parse::<Freshness>().unwrap(), Freshness::Year);
     }
 
-    // REQ: CNS-WEB-FRESHNESS — Freshness parses provider-specific aliases
+    // contract: CNS-WEB-FRESHNESS
     #[test]
     fn freshness_parsing_aliases() {
         assert_eq!("d".parse::<Freshness>().unwrap(), Freshness::Day);
@@ -106,7 +106,7 @@ mod tests {
         assert_eq!("365d".parse::<Freshness>().unwrap(), Freshness::Year);
     }
 
-    // REQ: CNS-WEB-FRESHNESS — Unknown freshness strings produce an error
+    // contract: CNS-WEB-FRESHNESS
     #[test]
     fn freshness_parsing_unknown_is_error() {
         assert!("decade".parse::<Freshness>().is_err());
@@ -114,7 +114,7 @@ mod tests {
         assert!("".parse::<Freshness>().is_err());
     }
 
-    // REQ: CNS-WEB-FRESHNESS — normalize_freshness maps to days for each level
+    // contract: CNS-WEB-FRESHNESS
     #[test]
     fn normalize_freshness_days() {
         let day = normalize_freshness(&Freshness::Day);
@@ -127,7 +127,7 @@ mod tests {
         assert_eq!(year[0].1, "365");
     }
 
-    // REQ: CNS-WEB-FRESHNESS — freshness_brave maps to Brave's parameter format
+    // contract: CNS-WEB-FRESHNESS
     #[test]
     fn freshness_brave_mapping() {
         assert_eq!(freshness_brave(&Freshness::Day), "pd");
@@ -136,7 +136,7 @@ mod tests {
         assert_eq!(freshness_brave(&Freshness::Year), "py");
     }
 
-    // REQ: CNS-WEB-FRESHNESS — freshness_serpapi maps to SerpAPI's tbs format
+    // contract: CNS-WEB-FRESHNESS
     #[test]
     fn freshness_serpapi_mapping() {
         assert_eq!(freshness_serpapi(&Freshness::Day), "qdr:d");

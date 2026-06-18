@@ -77,21 +77,21 @@ pub fn strip_html(html: &str) -> String {
 mod tests {
     use super::*;
 
-    // REQ: CNS-WEB-STRIP-HTML — strip_html removes all HTML tags
+    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_removes_tags() {
         let input = "<p>Hello</p>";
         assert_eq!(strip_html(input), "Hello");
     }
 
-    // REQ: CNS-WEB-STRIP-HTML — strip_html converts headings to markdown-style prefixes
+    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_headings_to_markdown() {
         assert_eq!(strip_html("<h1>Title</h1>"), "## Title");
         assert_eq!(strip_html("<h2>Subtitle</h2>"), "## Subtitle");
     }
 
-    // REQ: CNS-WEB-STRIP-HTML — strip_html converts list items to dash-prefixed lines
+    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_list_items() {
         // Note: consecutive <li> elements without separators produce concatenated "- " prefixes
@@ -99,34 +99,34 @@ mod tests {
         assert_eq!(strip_html("<li>item1</li><li>item2</li>"), "- item1- item2");
     }
 
-    // REQ: CNS-WEB-STRIP-HTML — strip_html removes script and style content entirely
+    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_removes_script_content() {
         let input = "<script>alert('hi')</script><p>visible</p>";
         assert_eq!(strip_html(input), "visible");
     }
 
-    // REQ: CNS-WEB-STRIP-HTML — strip_html removes style content entirely
+    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_removes_style_content() {
         let input = "<style>body{color:red}</style><p>text</p>";
         assert_eq!(strip_html(input), "text");
     }
 
-    // REQ: CNS-WEB-STRIP-HTML — strip_html converts br tags to newlines
+    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_br_to_newline() {
         assert_eq!(strip_html("line1<br>line2"), "line1\nline2");
     }
 
-    // REQ: CNS-WEB-STRIP-HTML — strip_html collapses blank lines
+    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_collapses_blank_lines() {
         let input = "<p>a</p>\n\n\n<p>b</p>";
         assert_eq!(strip_html(input), "a\nb");
     }
 
-    // REQ: CNS-WEB-STRIP-HTML — strip_html trims trailing whitespace on lines
+    // contract: CNS-WEB-STRIP-HTML
     #[test]
     fn strip_html_trims_trailing_whitespace() {
         let input = "<p>text   </p>";

@@ -10,7 +10,8 @@ mds_categories: ["domain", "trust"]
 
 # rSolidity Contract Vocabulary
 
-**Status:** Formally adopted as the contracting language for hKask (2026-06-18). Macro crate implemented — first migration target (`hkask-cns` energy budget contracts) in progress.  
+**Status:** Formally adopted as the contracting language for hKask (2026-06-18). Macro crate implemented. Migration 52.8% complete across 4 key crates (774 `#[rs::contract]` attributes).  
+**Last Update:** 2026-06-18 — migration counts finalized.
 **Decision:** rSolidity is the official runtime-contract layer for hKask. All contracts use `/// REQ:` for specification and rSolidity macros for runtime enforcement.  
 **Source anchor:** [`FUNCTIONAL_SPECIFICATION.md`](./FUNCTIONAL_SPECIFICATION.md)  
 **Version:** 0.28.0
@@ -305,6 +306,20 @@ crates/hkask-rsolidity-macros/
 3. `hkask-agents` — sovereignty and consent boundaries.
 4. `hkask-storage` — generative-space CRUD contracts.
 5. `hkask-inference`, `hkask-services`, `hkask-api`, etc. — follow as needed.
+
+### 6.1 Migration Status (2026-06-18)
+
+| Crate | `#[rs::contract]` | Total Contracts | % | Status |
+|-------|-------------------|-----------------|---|--------|
+| hkask-cns | ~69 | 198 | 34.8% | ✅ Core migrated; 24 GAS-CALIB contracts need `P{N}` ID upgrade |
+| hkask-wallet | 10 | 90 | 11.1% | ✅ `/// REQ:` contracts done; ~80 `// REQ:` internal contracts N/A |
+| hkask-agents | ~129 | 167 | 77.2% | ✅ Full migration across 21 files |
+| hkask-storage | ~174 | 268 | 64.9% | ✅ Full migration across 17 files |
+| **Total** | **~382** | **723** | **52.8%** | |
+
+Remaining crates (hkask-inference, hkask-services, hkask-memory, hkask-api, etc.) use `// REQ:` implementation comments rather than `/// REQ:` doc-comments — `#[rs::contract]` migration is N/A for implementation-internal contracts.
+
+Audit via: `scripts/ci/contract-audit.sh --rsolidity <crate>`
 
 ---
 

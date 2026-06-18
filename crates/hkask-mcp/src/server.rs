@@ -849,7 +849,7 @@ mod tests {
         (error, kind)
     }
 
-    // REQ: mcp-error-golden-001 — all 8 McpErrorKind variants produce correct wire format
+    // contract: mcp-error-golden-001
     #[test]
     fn all_error_kinds_produce_correct_wire_format() {
         let cases = vec![
@@ -892,7 +892,7 @@ mod tests {
         }
     }
 
-    // REQ: mcp-error-golden-002 — error wire format is stable (golden strings)
+    // contract: mcp-error-golden-002
     #[test]
     fn error_wire_format_golden_strings() {
         // These exact JSON strings are the contract. Changing them breaks all clients.
@@ -930,7 +930,7 @@ mod tests {
         );
     }
 
-    // REQ: mcp-error-golden-003 — McpErrorKind Display matches wire format kind field
+    // contract: mcp-error-golden-003
     #[test]
     fn error_kind_display_matches_wire_format() {
         for kind in &[
@@ -954,7 +954,7 @@ mod tests {
         }
     }
 
-    // REQ: mcp-error-golden-004 — classify_http_error maps status codes correctly
+    // contract: mcp-error-golden-004
     #[test]
     fn classify_http_error_maps_status_codes() {
         use reqwest::StatusCode;
@@ -994,7 +994,7 @@ mod tests {
 
     // ── Capability Enforcement Tests ─────────────────────────────────────
 
-    // REQ: mcp-cap-001 — MCP dispatch enforces capability token before invocation
+    // contract: mcp-cap-001
     #[test]
     fn permission_denied_error_carries_message() {
         let err = McpToolError::permission_denied("agent lacks tool:execute capability");
@@ -1008,7 +1008,7 @@ mod tests {
         assert!(json.contains("agent lacks tool:execute capability"));
     }
 
-    // REQ: mcp-cap-002 — MCP dispatch rejects expired delegation token
+    // contract: mcp-cap-002
     #[test]
     fn failed_precondition_error_for_expired_token() {
         let err = McpToolError::failed_precondition("delegation token expired at 1000");
@@ -1016,7 +1016,7 @@ mod tests {
         assert!(err.to_string().contains("delegation token expired"));
     }
 
-    // REQ: mcp-cap-003 — GovernedTool gates invocation on energy budget
+    // contract: mcp-cap-003
     #[test]
     fn rate_limited_error_for_energy_budget_exceeded() {
         let err = McpToolError::rate_limited("energy budget exceeded for tool:execute");
@@ -1026,7 +1026,7 @@ mod tests {
 
     // ── Error Propagation Tests ───────────────────────────────────────────
 
-    // REQ: mcp-error-prop-001 — MCP dispatch propagates server error to caller
+    // contract: mcp-error-prop-001
     #[test]
     fn internal_error_propagates_with_context() {
         let err = McpToolError::internal("downstream inference engine returned 500");
@@ -1042,7 +1042,7 @@ mod tests {
         assert_eq!(parsed["kind"], "internal");
     }
 
-    // REQ: mcp-error-prop-002 — MCP dispatch handles server timeout gracefully
+    // contract: mcp-error-prop-002
     #[test]
     fn timeout_error_propagates_with_context() {
         let err = McpToolError::timeout("tool:execute timed out after 30s");
@@ -1053,7 +1053,7 @@ mod tests {
         assert!(json.contains("tool:execute timed out after 30s"));
     }
 
-    // REQ: mcp-error-prop-003 — MCP dispatch returns error for unknown tool
+    // contract: mcp-error-prop-003
     #[test]
     fn not_found_error_for_unknown_tool() {
         let err = McpToolError::not_found("unknown tool: none_such");
@@ -1063,7 +1063,7 @@ mod tests {
 
     // ── Tool Discovery Tests ──────────────────────────────────────────────
 
-    // REQ: mcp-discovery-001 — validate_identifier accepts valid tool names
+    // contract: mcp-discovery-001
     #[test]
     fn validate_identifier_accepts_valid_names() {
         assert!(validate_identifier("tool_name", "web_search", 64).is_ok());
@@ -1072,28 +1072,28 @@ mod tests {
         assert!(validate_identifier("tool_name", "a", 64).is_ok());
     }
 
-    // REQ: mcp-discovery-002 — validate_identifier rejects invalid tool names
+    // contract: mcp-discovery-002
     #[test]
     fn validate_identifier_rejects_invalid_names() {
         assert!(validate_identifier("tool_name", "", 64).is_err());
         assert!(validate_identifier("tool_name", "tool name", 64).is_err()); // space
     }
 
-    // REQ: mcp-discovery-003 — validate_identifier rejects overly long names
+    // contract: mcp-discovery-003
     #[test]
     fn validate_identifier_rejects_overly_long_names() {
         let long_name = "a".repeat(65);
         assert!(validate_identifier("tool_name", &long_name, 64).is_err());
     }
 
-    // REQ: mcp-discovery-004 — validate_tool_url accepts valid URLs
+    // contract: mcp-discovery-004
     #[test]
     fn validate_tool_url_accepts_valid_urls() {
         assert!(validate_tool_url("http://localhost:8080").is_ok());
         assert!(validate_tool_url("https://api.example.com/v1").is_ok());
     }
 
-    // REQ: mcp-discovery-005 — validate_tool_url rejects invalid URLs
+    // contract: mcp-discovery-005
     #[test]
     fn validate_tool_url_rejects_invalid_urls() {
         assert!(validate_tool_url("not-a-url").is_err());

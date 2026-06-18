@@ -208,7 +208,7 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
-    // REQ: GAS-CALIB-001 — first observation initializes EMA
+    // contract: GAS-CALIB-001
     #[test]
     fn first_observation_initializes_ema() {
         let mut table = DynamicGasTable::new();
@@ -221,7 +221,7 @@ mod tests {
         assert_eq!(table.observation_count("hkask-mcp-condenser"), 1);
     }
 
-    // REQ: GAS-CALIB-002 — EMA smoothes multiple observations
+    // contract: GAS-CALIB-002
     #[test]
     fn ema_smooths_multiple_observations() {
         let mut table = DynamicGasTable::new();
@@ -236,7 +236,7 @@ mod tests {
         assert!((table.current_ratios()["hkask-mcp-research"] - expected_ema).abs() < 0.001);
     }
 
-    // REQ: GAS-CALIB-003 — ratio within tolerance does not adjust
+    // contract: GAS-CALIB-003
     #[test]
     fn within_tolerance_no_adjustment() {
         let mut table = DynamicGasTable::new();
@@ -246,7 +246,7 @@ mod tests {
         assert_eq!(adjusted, 0, "ratio 1.1 is within 20% tolerance");
     }
 
-    // REQ: GAS-CALIB-004 — ratio exceeding tolerance triggers adjustment
+    // contract: GAS-CALIB-004
     #[test]
     fn exceeds_tolerance_triggers_adjustment() {
         let mut table = DynamicGasTable::new();
@@ -260,7 +260,7 @@ mod tests {
         assert_eq!(reports["hkask-mcp-media"], 200);
     }
 
-    // REQ: GAS-CALIB-005 — cost floored at 1
+    // contract: GAS-CALIB-005
     #[test]
     fn cost_floored_at_one() {
         let mut table = DynamicGasTable::new();
@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(reports["hkask-mcp-memory"], 1, "cost floored at 1");
     }
 
-    // REQ: GAS-CALIB-006 — unobserved servers retain initial cost
+    // contract: GAS-CALIB-006
     #[test]
     fn unobserved_servers_retain_initial() {
         let table = DynamicGasTable::new();
@@ -281,7 +281,7 @@ mod tests {
         assert_eq!(reports["hkask-mcp-spec"], 5);
     }
 
-    // REQ: GAS-CALIB-001 — calibrate only applies servers with new observations
+    // contract: GAS-CALIB-001
     #[test]
     fn calibrate_does_not_reapply_without_new_observations() {
         let mut table = DynamicGasTable::new();
@@ -294,7 +294,7 @@ mod tests {
         assert_eq!(table.report_table()["hkask-mcp-media"], 200);
     }
 
-    // REQ: GAS-CALIB-001 — new observation on same server can readjust
+    // contract: GAS-CALIB-001
     #[test]
     fn calibrate_readjusts_after_new_observation() {
         let mut table = DynamicGasTable::new();
@@ -308,7 +308,7 @@ mod tests {
         assert_eq!(table.report_table()["hkask-mcp-media"], 400);
     }
 
-    // REQ: GAS-CALIB-007 — proptest: mock costs converge
+    // contract: GAS-CALIB-007
     proptest! {
         fn costs_converge_after_multiple_observations(
             obs_count in 2usize..50usize,

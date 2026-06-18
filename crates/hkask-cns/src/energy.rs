@@ -612,7 +612,7 @@ mod tests {
             .boxed()
     }
 
-    // REQ: P9-cns-energy-budget-invariant-test — Budget cap invariant
+    // contract: P9-cns-energy-budget-invariant-test
     // expect: "Budget invariants hold under arbitrary sequences of reserve/settle/consume operations" [P9]
     // After any sequence of reserve/settle/consume operations,
     // remaining + reserved never exceeds cap.
@@ -637,7 +637,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-cns-energy-budget-available-test — Available never negative
+    // contract: P9-cns-energy-budget-available-test
     // expect: "Available gas is never reported as negative" [P9]
     // available() = remaining - reserved, must never be negative.
     proptest! {
@@ -656,7 +656,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-cns-energy-budget-replenish-test — Replenish never exceeds cap
+    // contract: P9-cns-energy-budget-replenish-test
     // expect: "Replenishment never pushes the budget beyond its cap" [P9]
     // After replenishment, remaining never exceeds cap.
     proptest! {

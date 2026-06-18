@@ -149,7 +149,7 @@ mod tests {
         WebID::new()
     }
 
-    // REQ: P1-agt-sovereignty-deny-all-test — DenyAllConsent always returns false (fail-closed default)
+    // contract: P1-agt-sovereignty-deny-all-test
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn deny_all_consent_always_denies() {
@@ -159,7 +159,7 @@ mod tests {
         assert!(!consent.has_consent("user:bob", &DataCategory::EpisodicMemory));
     }
 
-    // REQ: P1-agt-sovereignty-boundary-test — SovereigntyChecker enforces sovereign boundary (consent + owner match)
+    // contract: P1-agt-sovereignty-boundary-test
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn sovereignty_checker_sovereign_data_requires_consent_and_owner() {

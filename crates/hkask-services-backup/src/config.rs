@@ -219,7 +219,7 @@ pub fn save_backup_config(config: &BackupConfig) -> Result<(), std::io::Error> {
 mod tests {
     use super::*;
 
-    // REQ: P7-svc-backup-config-backup-config-001 — Default config tracks nothing, keeps forever
+    // contract: P7-svc-backup-config-backup-config-001
     // expect: "Service backup config works correctly under test conditions" [P7]
     #[test]
     fn default_config_tracks_nothing() {
@@ -231,7 +231,7 @@ mod tests {
         assert!(config.encryption.is_none());
     }
 
-    // REQ: P7-svc-backup-config-backup-config-002 — RetentionPolicy defaults are correct
+    // contract: P7-svc-backup-config-backup-config-002
     // expect: "Service RetentionPolicy works correctly under test conditions" [P7]
     #[test]
     fn retention_policy_defaults() {
@@ -240,7 +240,7 @@ mod tests {
         assert_eq!(p.weekly_weeks, 12);
     }
 
-    // REQ: P7-svc-backup-config-backup-config-003 — RetentionPolicy keeps recent snapshots
+    // contract: P7-svc-backup-config-backup-config-003
     // expect: "Service RetentionPolicy works correctly under test conditions" [P7]
     #[test]
     fn retention_policy_keeps_recent() {

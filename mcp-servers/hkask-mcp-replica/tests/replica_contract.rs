@@ -11,7 +11,7 @@ use proptest::prelude::*;
 
 // ── cosine_distance invariants ──────────────────────────────────────────────
 
-// REQ: REPLICA-COS-001 — identical vectors have distance 0.0
+// contract: REPLICA-COS-001
 // expect: "I can verify that identical embeddings have zero distance — the identity invariant" [P8]
 #[test]
 fn cosine_distance_identity_is_zero() {
@@ -20,7 +20,7 @@ fn cosine_distance_identity_is_zero() {
     assert!((d - 0.0).abs() < 1e-6, "identical vectors should have distance 0.0, got {d}");
 }
 
-// REQ: REPLICA-COS-002 — orthogonal unit vectors have distance 1.0
+// contract: REPLICA-COS-002
 // expect: "I can verify that orthogonal embeddings have unit distance — orthogonality invariant" [P8]
 #[test]
 fn cosine_distance_orthogonal_is_one() {
@@ -30,7 +30,7 @@ fn cosine_distance_orthogonal_is_one() {
     assert!((d - 1.0).abs() < 1e-6, "orthogonal vectors should have distance 1.0, got {d}");
 }
 
-// REQ: REPLICA-COS-003 — opposite vectors have distance 2.0
+// contract: REPLICA-COS-003
 // expect: "I can verify that opposite embeddings have maximum distance — antipodal invariant" [P8]
 #[test]
 fn cosine_distance_opposite_is_two() {
@@ -40,7 +40,7 @@ fn cosine_distance_opposite_is_two() {
     assert!((d - 2.0).abs() < 1e-6, "opposite vectors should have distance 2.0, got {d}");
 }
 
-// REQ: REPLICA-COS-004 — empty vectors return distance 2.0 (degenerate)
+// contract: REPLICA-COS-004
 // expect: "I can verify empty embeddings are handled safely — degenerate case invariant" [P8]
 #[test]
 fn cosine_distance_empty_is_two() {
@@ -48,7 +48,7 @@ fn cosine_distance_empty_is_two() {
     assert!((d - 2.0).abs() < 1e-6, "empty vectors should return 2.0, got {d}");
 }
 
-// REQ: REPLICA-COS-005 — mismatched lengths return distance 2.0
+// contract: REPLICA-COS-005
 // expect: "I can verify dimension mismatches are handled safely — mismatch invariant" [P8]
 #[test]
 fn cosine_distance_mismatched_is_two() {
@@ -56,7 +56,7 @@ fn cosine_distance_mismatched_is_two() {
     assert!((d - 2.0).abs() < 1e-6, "mismatched dimensions should return 2.0, got {d}");
 }
 
-// REQ: REPLICA-COS-006 — cosine_distance is symmetric
+// contract: REPLICA-COS-006
 // expect: "I can verify that style distance is symmetric — dist(A,B) equals dist(B,A)" [P8]
 proptest! {
     #[test]
@@ -75,7 +75,7 @@ proptest! {
     }
 }
 
-// REQ: REPLICA-COS-007 — all-zero vectors return 2.0 (no direction)
+// contract: REPLICA-COS-007
 // expect: "I can verify zero-norm embeddings are handled safely — zero-vector invariant" [P8]
 #[test]
 fn cosine_distance_zero_norm_is_two() {
@@ -85,7 +85,7 @@ fn cosine_distance_zero_norm_is_two() {
 
 // ── Centroid distance ordering ──────────────────────────────────────────────
 
-// REQ: REPLICA-CENTROID-001 — stored centroids preserve distance ordering
+// contract: REPLICA-CENTROID-001
 // expect: "I can verify that an embedding is closer to its own centroid than to other centroids" [P9]
 // [P8] Constraining: distances are computed from known vectors — semantic grounding
 #[test]
@@ -109,7 +109,7 @@ fn centroid_distance_ordering_self_closest() {
 
 // ── Mashup monotonicity ─────────────────────────────────────────────────────
 
-// REQ: REPLICA-MASHUP-001 — blend interpolation is monotonic
+// contract: REPLICA-MASHUP-001
 // expect: "I can verify that as I blend toward an author, the distance to that author decreases" [P9]
 proptest! {
     #[test]
@@ -151,7 +151,7 @@ proptest! {
 
 // ── Probabilistic contract: style vector self-consistency ───────────────────
 
-// REQ: REPLICA-PROB-001 — self-generated style vectors are self-consistent
+// contract: REPLICA-PROB-001
 // expect: "I can verify that a style vector's distance to itself is always near zero" [P9]
 // prob: p=0.99, δ=0.01, k=0
 #[test]

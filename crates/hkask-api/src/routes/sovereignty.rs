@@ -108,7 +108,7 @@ pub(crate) async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-060 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-060
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_status", "CNS");
@@ -155,7 +155,7 @@ pub(crate) async fn sovereignty_grant_consent(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<SovereigntyConsentRequest>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-061 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-061
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_grant", category = %req.category, "CNS");
@@ -186,7 +186,7 @@ pub(crate) async fn sovereignty_revoke_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-062 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-062
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_revoke", "CNS");
@@ -216,7 +216,7 @@ pub(crate) async fn sovereignty_check_access(
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<AccessCheckResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-063 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-063
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_check_access", "CNS");

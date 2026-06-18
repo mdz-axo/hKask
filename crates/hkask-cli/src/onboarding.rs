@@ -926,7 +926,7 @@ fn prompt_choice(
 mod tests {
     use super::passphrase_strength;
 
-    // REQ: CLI-ONBOARDING-001 — Passphrases shorter than 8 characters are classified "weak"
+    // contract: CLI-ONBOARDING-001
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // regardless of character variety.
     #[test]
@@ -936,7 +936,7 @@ mod tests {
         assert_eq!(passphrase_strength("").0, "weak");
     }
 
-    // REQ: CLI-ONBOARDING-002 — An 8-character passphrase with only one character class (lowercase
+    // contract: CLI-ONBOARDING-002
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // letters) is classified "fair" — meets the minimum length but lacks variety.
     #[test]
@@ -947,7 +947,7 @@ mod tests {
         assert_eq!(passphrase_strength("abcdefghijk").0, "fair");
     }
 
-    // REQ: CLI-ONBOARDING-003 — A 16-character passphrase with at least 3 character classes is
+    // contract: CLI-ONBOARDING-003
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // classified "strong".
     #[test]

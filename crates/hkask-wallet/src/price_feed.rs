@@ -541,7 +541,7 @@ mod tests {
 
     // ── StaticPriceFeed tests ──────────────────────────────────────────────
 
-    // REQ: P9-wallet-price-static-rate-test — static price feed returns correct rates
+    // contract: P9-wallet-price-static-rate-test
     /// expect: "Wallet price static rate test works correctly under test conditions" [P9]
     #[test]
     fn static_price_feed_returns_expected_rates() {
@@ -549,7 +549,7 @@ mod tests {
         assert!((StaticPriceFeed::hardcoded_rate(ChainId::Hedera) - 0.08).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wallet-price-fee-nonzero-test — fee estimation produces non-zero rJoule fee
+    // contract: P9-wallet-price-fee-nonzero-test
     /// expect: "Wallet price fee nonzero test works correctly under test conditions" [P9]
     #[test]
     fn fee_estimation_produces_non_zero_fee() {
@@ -562,7 +562,7 @@ mod tests {
         assert!(fee.usdc_micro > 0);
     }
 
-    // REQ: P9-wallet-price-fee-floor-test — fee estimation floors at 1 rJ
+    // contract: P9-wallet-price-fee-floor-test
     /// expect: "Wallet price fee floor test works correctly under test conditions" [P9]
     #[test]
     fn fee_estimation_floors_at_one_rj() {
@@ -574,7 +574,7 @@ mod tests {
         assert_eq!(fee.rjoules, 1);
     }
 
-    // REQ: P9-wallet-price-chain-diff-test — different chains produce different fees
+    // contract: P9-wallet-price-chain-diff-test
     /// expect: "Wallet price chain diff test works correctly under test conditions" [P9]
     #[test]
     fn different_chains_produce_different_fees() {
@@ -589,7 +589,7 @@ mod tests {
 
     // ── EodhdPriceFeed tests ──────────────────────────────────────────────
 
-    // REQ: P9-wallet-price-eodhd-parse-test — EODHD feed parses real-time response correctly
+    // contract: P9-wallet-price-eodhd-parse-test
     /// expect: "Wallet price eodhd parse test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn eodhd_feed_parses_close_field() {
@@ -621,7 +621,7 @@ mod tests {
 
     // ── CoinGeckoPriceFeed tests ──────────────────────────────────────────
 
-    // REQ: P9-wallet-price-coingecko-parse-test — CoinGecko feed parses simple/price response
+    // contract: P9-wallet-price-coingecko-parse-test
     /// expect: "Wallet price coingecko parse test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn coingecko_feed_parses_usd_field() {
@@ -665,7 +665,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-wallet-price-composite-primary-test — composite returns from primary source on success
+    // contract: P9-wallet-price-composite-primary-test
     /// expect: "Wallet price composite primary test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_uses_primary_source() {
@@ -683,7 +683,7 @@ mod tests {
         assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wallet-price-composite-fallback-test — composite falls back when primary fails
+    // contract: P9-wallet-price-composite-fallback-test
     /// expect: "Wallet price composite fallback test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_falls_back_on_primary_failure() {
@@ -701,7 +701,7 @@ mod tests {
         assert!((rate.usd_per_token - 0.08).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wallet-price-composite-cache-test — composite returns cached rate within TTL
+    // contract: P9-wallet-price-composite-cache-test
     /// expect: "Wallet price composite cache test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_caches_within_ttl() {
@@ -723,7 +723,7 @@ mod tests {
         assert!((rate2.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wallet-price-composite-stale-test — composite returns stale cache on total failure
+    // contract: P9-wallet-price-composite-stale-test
     /// expect: "Wallet price composite stale test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_stale_fallback_on_total_failure() {
@@ -746,7 +746,7 @@ mod tests {
         assert!(err.to_string().contains("exhausted"));
     }
 
-    // REQ: P9-wallet-price-composite-empty-test — composite errors when no sources configured
+    // contract: P9-wallet-price-composite-empty-test
     /// expect: "Wallet price composite empty test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn composite_errors_on_empty_sources() {
@@ -757,7 +757,7 @@ mod tests {
 
     // ── resolve_price_feed tests ─────────────────────────────────────────
 
-    // REQ: P9-wallet-price-resolve-static-test — resolve_price_feed maps Static config
+    // contract: P9-wallet-price-resolve-static-test
     /// expect: "Wallet price resolve static test works correctly under test conditions" [P9]
     #[test]
     fn resolve_static_config() {
@@ -768,7 +768,7 @@ mod tests {
         assert!((rate.usd_per_token - 150.0).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-wallet-price-resolve-coingecko-test — resolve_price_feed maps CoinGecko config
+    // contract: P9-wallet-price-resolve-coingecko-test
     /// expect: "Wallet price resolve coingecko test works correctly under test conditions" [P9]
     #[test]
     fn resolve_coingecko_config() {
@@ -777,7 +777,7 @@ mod tests {
         let _ = feed;
     }
 
-    // REQ: P9-wallet-price-resolve-composite-test — resolve_price_feed maps Composite config
+    // contract: P9-wallet-price-resolve-composite-test
     /// expect: "Wallet price resolve composite test works correctly under test conditions" [P9]
     #[test]
     fn resolve_composite_config() {
@@ -789,7 +789,7 @@ mod tests {
         let _ = feed;
     }
 
-    // REQ: P9-wallet-price-resolve-skip-unknown-test — resolve_price_feed skips unknown sources in composite
+    // contract: P9-wallet-price-resolve-skip-unknown-test
     /// expect: "Wallet price resolve skip unknown test works correctly under test conditions" [P9]
     #[test]
     fn resolve_composite_skips_unknown_sources() {
@@ -802,7 +802,7 @@ mod tests {
         let _ = feed;
     }
 
-    // REQ: P9-wallet-price-resolve-all-unknown-test — resolve_price_feed errors when composite resolves no sources
+    // contract: P9-wallet-price-resolve-all-unknown-test
     /// expect: "Wallet price resolve all unknown test works correctly under test conditions" [P9]
     #[test]
     fn resolve_composite_errors_on_all_unknown() {

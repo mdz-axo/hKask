@@ -311,7 +311,7 @@ impl NuEventSink for NuEventStore {
 #[cfg(test)]
 mod tests {
     use hkask_types::event::{Span, SpanNamespace};
-    // REQ: P3-sto-nu-event-short-path-test — span_path shorter than namespace does not panic
+    // contract: P3-sto-nu-event-short-path-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // Before fix, `span_path[namespace.as_str().len() + 1..]` was an unconditional
@@ -337,7 +337,7 @@ mod tests {
             "fallback should return raw path when prefix doesn't match"
         );
     }
-    // REQ: P3-sto-nu-event-exact-namespace-test — span_path equal to namespace prefix does not panic
+    // contract: P3-sto-nu-event-exact-namespace-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn local_path_extraction_does_not_panic_on_exact_namespace_match() {
@@ -357,7 +357,7 @@ mod tests {
             "fallback should return raw path when no dot follows namespace"
         );
     }
-    // REQ: P3-sto-nu-event-well-formed-test — well-formed span_path extracts local component
+    // contract: P3-sto-nu-event-well-formed-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn local_path_extraction_succeeds_on_well_formed_path() {

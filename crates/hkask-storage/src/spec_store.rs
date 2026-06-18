@@ -384,7 +384,7 @@ mod tests {
     fn make_spec(name: &str, category: SpecCategory) -> Spec {
         Spec::new(name, category, DomainAnchor::Hkask)
     }
-    // REQ: P3-sto-spec-valid-at-test — list_valid_at includes currently valid specs (valid_from <= at < valid_to)
+    // contract: P3-sto-spec-valid-at-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_includes_currently_valid_specs() {
@@ -398,7 +398,7 @@ mod tests {
         assert_eq!(valid.len(), 1);
         assert_eq!(valid[0].name, "test");
     }
-    // REQ: P3-sto-spec-expired-test — list_valid_at excludes specs whose valid_to has passed
+    // contract: P3-sto-spec-expired-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_excludes_expired_specs() {
@@ -410,7 +410,7 @@ mod tests {
         store.save(&spec).unwrap();
         assert!(store.list_valid_at(now).unwrap().is_empty());
     }
-    // REQ: P3-sto-spec-no-expiry-test — list_valid_at includes specs with valid_to IS NULL (no expiry)
+    // contract: P3-sto-spec-no-expiry-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_includes_no_expiry_specs() {
@@ -421,7 +421,7 @@ mod tests {
         store.save(&spec).unwrap();
         assert_eq!(store.list_valid_at(now).unwrap().len(), 1);
     }
-    // REQ: P3-sto-spec-range-overlap-test — list_valid_in_range returns specs with overlapping temporal windows
+    // contract: P3-sto-spec-range-overlap-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_in_range_overlap_query() {
@@ -439,7 +439,7 @@ mod tests {
             1
         );
     }
-    // REQ: P3-sto-spec-since-test — list_since returns specs created after a timestamp
+    // contract: P3-sto-spec-since-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_since_transaction_time_query() {
@@ -456,7 +456,7 @@ mod tests {
         );
         assert_eq!(store.list_since(now - Duration::hours(1)).unwrap().len(), 1);
     }
-    // REQ: P3-sto-spec-expire-test — expire sets valid_to and excludes spec from list_valid_at
+    // contract: P3-sto-spec-expire-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn expire_updates_valid_to() {

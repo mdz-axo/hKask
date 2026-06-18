@@ -173,7 +173,7 @@ pub async fn auth_middleware(
     }
 
     // If session middleware already injected AuthContext, skip capability token check
-    // REQ: DEP-020 — session cookie auth coexists with capability token auth
+    // contract: DEP-020
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     if req.extensions().get::<AuthContext>().is_some() {
         return next.run(req).await;

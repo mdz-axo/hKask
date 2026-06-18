@@ -86,7 +86,7 @@ pub fn estimate_word_count(width: u32, height: u32, edge_density: f32) -> usize 
 mod tests {
     use super::*;
 
-    // REQ:ocr-verify-01 — Correct document passes verification
+    // contract: ocr-verify-01
     #[test]
     fn correct_document_passes() {
         use hkask_types::ocr::OcrBackend;
@@ -123,7 +123,7 @@ mod tests {
         );
     }
 
-    // REQ:ocr-verify-02 — Missing page fails verification (results < expected)
+    // contract: ocr-verify-02
     #[test]
     fn missing_page_fails() {
         use hkask_types::ocr::OcrBackend;
@@ -145,7 +145,7 @@ mod tests {
         assert!(!report.passed, "mismatch should cause failure");
     }
 
-    // REQ:ocr-verify-03 — Empty page is flagged
+    // contract: ocr-verify-03
     #[test]
     fn empty_page_flagged() {
         use hkask_types::ocr::OcrBackend;
@@ -181,7 +181,7 @@ mod tests {
         assert!(!report.passed, "empty page should cause failure");
     }
 
-    // REQ:ocr-verify-04 — Garbled text flags word anomaly
+    // contract: ocr-verify-04
     #[test]
     fn garbled_text_flags_word_anomaly() {
         use hkask_types::ocr::OcrBackend;

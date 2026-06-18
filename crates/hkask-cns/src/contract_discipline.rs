@@ -529,7 +529,7 @@ mod tests {
         }
     }
 
-    // REQ: cns-contract-violation-event-001 — emit contract violation signal event (P9)
+    // contract: cns-contract-violation-event-001
     #[test]
     fn emit_contract_violated_persists_event() {
         let sink = CaptureSink::new();
@@ -552,7 +552,7 @@ mod tests {
         );
     }
 
-    // REQ: cns-contract-coverage-event-001 — emit contract coverage telemetry event (P9)
+    // contract: cns-contract-coverage-event-001
     #[test]
     fn emit_contract_coverage_persists_event() {
         let sink = CaptureSink::new();
@@ -577,7 +577,7 @@ mod tests {
         WebID::from_persona(b"test-cns")
     }
 
-    // REQ: P9-cns-contract-violation-task-create — create_contract_violation_task persists task
+    // contract: P9-cns-contract-violation-task-create
     #[test]
     fn create_violation_task_persists() {
         let store = test_store();
@@ -613,7 +613,7 @@ mod tests {
         );
     }
 
-    // REQ: CNS-CVB-001 — board is auto-created and idempotent
+    // contract: CNS-CVB-001
     #[test]
     fn violations_board_is_created_once() {
         let store = test_store();
@@ -630,7 +630,7 @@ mod tests {
         assert_eq!(boards_after.len(), 1, "board should not be duplicated");
     }
 
-    // REQ: CNS-CVB-001 — each violation creates a distinct task
+    // contract: CNS-CVB-001
     #[test]
     fn each_violation_creates_distinct_task() {
         let store = test_store();
@@ -646,7 +646,7 @@ mod tests {
         assert_eq!(tasks.len(), 2);
     }
 
-    // REQ: CNS-CVB-001 — tasks carry different contract details
+    // contract: CNS-CVB-001
     #[test]
     fn tasks_carry_distinct_origin() {
         let store = test_store();
@@ -668,7 +668,7 @@ mod tests {
         assert!(origins.contains(&"REQ-B"));
     }
 
-    // REQ: CNS-CVB-001 — counterexample is persisted in origin when provided
+    // contract: CNS-CVB-001
     #[test]
     fn counterexample_persisted_in_task() {
         let store = test_store();
@@ -695,7 +695,7 @@ mod tests {
         assert_eq!(task_val["origin"]["function"], "wallet::deduct");
     }
 
-    // REQ: CNS-CVB-001 — counterexample is absent from origin when not provided
+    // contract: CNS-CVB-001
     #[test]
     fn counterexample_absent_when_none() {
         let store = test_store();
@@ -718,7 +718,7 @@ mod tests {
         assert_eq!(task_val["origin"]["contract_id"], "WAL-004");
     }
 
-    // REQ: CNS-CVB-002 — emit_contract_violated_with_task creates both span and task
+    // contract: CNS-CVB-002
     #[test]
     fn emit_and_task_creates_both() {
         let sink = CaptureSink::new();
@@ -746,7 +746,7 @@ mod tests {
         assert_eq!(tasks[0].value["origin"]["contract_id"], "CNS-XYZ");
     }
 
-    // REQ: P9-cns-contract-violated-emit — quality violation span persists with violation type
+    // contract: P9-cns-contract-violated-emit
     #[test]
     fn emit_contract_quality_violated_persists_event() {
         let sink = CaptureSink::new();

@@ -109,7 +109,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-RIFFING-001 — Riffing diverges from a seed into a solo tangent
+    // contract: IMPROV-RIFFING-001
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn diverges_from_seed() {
@@ -119,7 +119,7 @@ mod tests {
         assert!(tangent.contains("microservice"));
     }
 
-    // REQ: IMPROV-RIFFING-002 — Riffing resolves with ReturnToGroup policy
+    // contract: IMPROV-RIFFING-002
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn resolves_return_to_group() {
@@ -134,7 +134,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-RIFFING-003 — Riffing spawns a new thread with SpawnThread policy
+    // contract: IMPROV-RIFFING-003
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn spawns_new_thread() {
@@ -148,7 +148,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-RIFFING-004 — Riffing respects ReturnAfterSteps boundary
+    // contract: IMPROV-RIFFING-004
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn respects_return_after_steps() {
@@ -174,7 +174,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-RIFFING-005 — RiffReturn default is ReturnToGroup
+    // contract: IMPROV-RIFFING-005
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn default_return_is_return_to_group() {

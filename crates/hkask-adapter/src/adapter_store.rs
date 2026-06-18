@@ -515,7 +515,7 @@ mod tests {
         }
     }
 
-    // REQ: P8-adt-trained-adapter-store — store and retrieve by ID
+    // contract: P8-adt-trained-adapter-store
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn store_and_retrieve_by_id() {
@@ -536,7 +536,7 @@ mod tests {
         assert_eq!(retrieved.expertise.name, "solidity-audit");
     }
 
-    // REQ: P8-adt-trained-adapter-store — retrieve by expertise
+    // contract: P8-adt-trained-adapter-store
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn retrieve_by_expertise() {
@@ -559,7 +559,7 @@ mod tests {
         assert_eq!(rust.len(), 1);
     }
 
-    // REQ: P8-adt-trained-adapter-store — list by owner
+    // contract: P8-adt-trained-adapter-store
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn list_by_owner() {
@@ -580,7 +580,7 @@ mod tests {
         assert_eq!(owned[0].id, adapter.id);
     }
 
-    // REQ: P8-adt-trained-adapter-store — delete adapter
+    // contract: P8-adt-trained-adapter-store
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn delete_adapter() {
@@ -596,7 +596,7 @@ mod tests {
         assert!(store.get_by_id(adapter.id).expect("retrieve").is_none());
     }
 
-    // REQ: P8-adt-trained-adapter-store — delete non-existent returns error
+    // contract: P8-adt-trained-adapter-store
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn delete_non_existent_returns_error() {

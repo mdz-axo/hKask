@@ -151,7 +151,7 @@ mod tests {
     use crate::id::WebID;
     use ed25519_dalek::SigningKey;
 
-    // REQ: types-cap-verify-002 — verify_delegation_token returns NoChecker when checker is None
+    // contract: types-cap-verify-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verify_delegation_token_returns_no_checker_when_none() {
@@ -178,7 +178,7 @@ mod tests {
         assert_eq!(outcome, VerificationOutcome::NoChecker);
     }
 
-    // REQ: types-cap-verify-003 — require_write_access returns Ok for write tokens
+    // contract: types-cap-verify-003
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn require_write_access_accepts_write_token() {
@@ -196,7 +196,7 @@ mod tests {
         assert!(require_write_access(&token, "episodic").is_ok());
     }
 
-    // REQ: types-cap-verify-004 — require_write_access returns Err for read-only tokens
+    // contract: types-cap-verify-004
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn require_write_access_rejects_read_only_token() {

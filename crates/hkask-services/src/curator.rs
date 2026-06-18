@@ -202,7 +202,7 @@ mod tests {
     const FIXED_UUID_1: &str = "00000000-0000-0000-0000-000000000001";
     const FIXED_UUID_2: &str = "00000000-0000-0000-0000-000000000002";
 
-    // REQ: P9-svc-curator-001 — EscalationEntry → EscalationResponse maps all fields
+    // contract: P9-svc-curator-001
     // expect: "Service EscalationEntry works correctly under test conditions" [P9]
     #[test]
     fn escalation_entry_to_response_maps_fields() {
@@ -228,7 +228,7 @@ mod tests {
         assert!(resp.resolved_at.is_none());
     }
 
-    // REQ: P9-svc-curator-002 — resolved escalation has resolution fields populated
+    // contract: P9-svc-curator-002
     // expect: "Service escalation resolution works correctly under test conditions" [P9]
     #[test]
     fn escalation_entry_resolved_maps_resolution_fields() {

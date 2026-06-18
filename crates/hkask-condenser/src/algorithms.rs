@@ -459,7 +459,7 @@ pub fn classify_tool(tool_name: &str) -> ContextCategory {
 mod tests {
     use super::*;
 
-    // REQ: CNS-CONDENSER-BUDGET — compute_budget returns passthrough when input fits within profile
+    // contract: CNS-CONDENSER-BUDGET
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn compute_budget_passthrough_when_within_profile() {
@@ -468,7 +468,7 @@ mod tests {
         assert_eq!(budget, 10);
     }
 
-    // REQ: CNS-CONDENSER-BUDGET — compute_budget caps at max_lines even when retention would allow more
+    // contract: CNS-CONDENSER-BUDGET
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn compute_budget_respects_max_lines_cap() {
@@ -477,7 +477,7 @@ mod tests {
         assert_eq!(budget, 30);
     }
 
-    // REQ: CNS-CONDENSER-BUDGET — compute_budget never exceeds input line count
+    // contract: CNS-CONDENSER-BUDGET
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // Note: retention_pct is applied first, then capped. 5 lines * 20% = 1, so budget = 1.
     #[test]
@@ -486,7 +486,7 @@ mod tests {
         assert_eq!(budget, 1);
     }
 
-    // REQ: CNS-CONDENSER-BUDGET — compute_budget handles single-line input
+    // contract: CNS-CONDENSER-BUDGET
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn compute_budget_single_line() {
@@ -495,7 +495,7 @@ mod tests {
         assert_eq!(budget, 1);
     }
 
-    // REQ: CNS-CONDENSER-BUDGET — compute_budget handles zero lines
+    // contract: CNS-CONDENSER-BUDGET
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn compute_budget_zero_lines() {
@@ -504,7 +504,7 @@ mod tests {
         assert_eq!(budget, 0);
     }
 
-    // REQ: CNS-CONDENSER-CLASSIFY — classify_tool maps known tool names to correct categories
+    // contract: CNS-CONDENSER-CLASSIFY
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // Note: Phase 1 exact-token matching checks split parts in order. "npm" matches
     // ShellCommand before "build" is reached. "cargo_test" matches ShellCommand via "cargo".
@@ -518,7 +518,7 @@ mod tests {
         assert_eq!(classify_tool("cargo_test"), ContextCategory::ShellCommand);
     }
 
-    // REQ: CNS-CONDENSER-CLASSIFY — classify_tool falls back to substring matching for compound names
+    // contract: CNS-CONDENSER-CLASSIFY
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // Note: Phase 2 substring matching can produce false positives on short keywords (e.g., "run"
     // matches "testrunner", overriding the intended TestOutput classification).
@@ -532,7 +532,7 @@ mod tests {
         assert_eq!(classify_tool("jsonparser"), ContextCategory::StructuredData);
     }
 
-    // REQ: CNS-CONDENSER-CLASSIFY — classify_tool returns Unknown for unrecognized tool names
+    // contract: CNS-CONDENSER-CLASSIFY
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn classify_tool_unknown() {
@@ -541,7 +541,7 @@ mod tests {
         assert_eq!(classify_tool("xyz"), ContextCategory::Unknown);
     }
 
-    // REQ: CNS-CONDENSER-CLASSIFY — classify_tool handles hyphenated and underscored names identically
+    // contract: CNS-CONDENSER-CLASSIFY
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // Note: Both hyphen and underscore splits yield the same token set. First match wins.
     #[test]
@@ -552,7 +552,7 @@ mod tests {
         assert_eq!(classify_tool("npm_build"), ContextCategory::ShellCommand);
     }
 
-    // REQ: CNS-CONDENSER-RTK — RtkStyle compresses within budget and never exceeds original size
+    // contract: CNS-CONDENSER-RTK
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn rtk_style_compression_within_budget() {
@@ -579,7 +579,7 @@ mod tests {
         );
     }
 
-    // REQ: CNS-CONDENSER-RTK — RtkStyle preserves head and tail with ellipsis separator
+    // contract: CNS-CONDENSER-RTK
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn rtk_style_preserves_head_tail_structure() {
@@ -591,7 +591,7 @@ mod tests {
         assert!(result.contains("..."));
     }
 
-    // REQ: CNS-CONDENSER-RTK — RtkStyle passthrough when input fits within budget
+    // contract: CNS-CONDENSER-RTK
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn rtk_style_passthrough_small_input() {
@@ -602,7 +602,7 @@ mod tests {
         assert!(health.is_empty());
     }
 
-    // REQ: CNS-CONDENSER-SALIENCY — SaliencyRank scores lines by word frequency with structural bonus
+    // contract: CNS-CONDENSER-SALIENCY
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn saliency_rank_preserves_error_lines() {
@@ -616,7 +616,7 @@ mod tests {
         );
     }
 
-    // REQ: CNS-CONDENSER-SALIENCY — SaliencyRank emits low_signal health signal when most lines score zero
+    // contract: CNS-CONDENSER-SALIENCY
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn saliency_rank_low_signal_when_no_content() {
@@ -627,7 +627,7 @@ mod tests {
         assert_eq!(health[0].signal_type, "low_signal");
     }
 
-    // REQ: CNS-CONDENSER-FLASHRANK — Flashrank selects lines by relevance, novelty, and brevity
+    // contract: CNS-CONDENSER-FLASHRANK
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn flashrank_selects_within_budget() {
@@ -647,7 +647,7 @@ mod tests {
         assert!(health.is_empty());
     }
 
-    // REQ: CNS-CONDENSER-FLASHRANK — Flashrank emits budget_shortfall when not enough lines to fill budget
+    // contract: CNS-CONDENSER-FLASHRANK
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // Note: 3 lines with Heavy profile (10% retention, max 30) → budget = 1. Flashrank
     // fills 1 out of 1 → no shortfall. Budget_shortfall only when budget > available lines.
@@ -663,7 +663,7 @@ mod tests {
         );
     }
 
-    // REQ: CNS-CONDENSER-REGISTRY — AlgorithmRegistry selects correct algorithm per category
+    // contract: CNS-CONDENSER-REGISTRY
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn algorithm_registry_selects_by_category() {
@@ -687,7 +687,7 @@ mod tests {
         );
     }
 
-    // REQ: CNS-CONDENSER-REGISTRY — AlgorithmRegistry dispatches Unknown to flashrank
+    // contract: CNS-CONDENSER-REGISTRY
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // Flashrank is the universal fallback — its greedy marginal-utility selection works on
     // any text type without needing category-specific structural markers.
@@ -712,7 +712,7 @@ mod tests {
             .boxed()
     }
 
-    // REQ: CON-001 — Compression idempotency (P8, P9)
+    // contract: CON-001
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // For any input, re-compressing the output produces the same result.
     proptest! {
@@ -742,7 +742,7 @@ mod tests {
         }
     }
 
-    // REQ: CON-002 — Size monotonicity (P8, P9)
+    // contract: CON-002
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // Compression never produces output larger than input.
     proptest! {
@@ -768,7 +768,7 @@ mod tests {
         }
     }
 
-    // REQ: CON-003 — Flashrank as universal fallback is size-monotonic on Unknown input
+    // contract: CON-003
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     // Flashrank's greedy marginal-utility selection works on any content type — it must never
     // expand input even when given arbitrary Unknown-category content.

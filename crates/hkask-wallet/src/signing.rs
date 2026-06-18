@@ -151,7 +151,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-wallet-sign-withdrawal-signature-test — sign_withdrawal produces valid signature bytes
+    // contract: P9-wallet-sign-withdrawal-signature-test
     /// expect: "Wallet sign withdrawal signature test works correctly under test conditions" [P9]
     #[test]
     fn sign_withdrawal_produces_signature() {
@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(sig.len(), 64); // Ed25519 signature is 64 bytes
     }
 
-    // REQ: P9-wallet-sign-withdrawal-per-chain-test — sign_withdrawal produces different signatures per chain
+    // contract: P9-wallet-sign-withdrawal-per-chain-test
     /// expect: "Wallet sign withdrawal per chain test works correctly under test conditions" [P9]
     #[test]
     fn sign_withdrawal_differs_per_chain() {
@@ -172,7 +172,7 @@ mod tests {
         assert_ne!(sol_sig, hed_sig);
     }
 
-    // REQ: P9-wallet-sign-capability-hex-test — sign_capability produces hex-encoded signature
+    // contract: P9-wallet-sign-capability-hex-test
     /// expect: "Wallet sign capability hex test works correctly under test conditions" [P9]
     #[test]
     fn sign_capability_produces_hex_signature() {
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(sig.len(), 128); // 64 bytes → 128 hex chars
     }
 
-    // REQ: P9-wallet-sign-withdrawal-all-chains-test — sign_withdrawal works for all valid ChainId variants
+    // contract: P9-wallet-sign-withdrawal-all-chains-test
     /// expect: "Wallet sign withdrawal all chains test works correctly under test conditions" [P9]
     #[test]
     fn sign_withdrawal_all_chains() {
@@ -213,7 +213,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-wallet-sign-withdrawal-empty-test — sign_withdrawal handles empty tx_bytes gracefully
+    // contract: P9-wallet-sign-withdrawal-empty-test
     /// expect: "Wallet sign withdrawal empty test works correctly under test conditions" [P9]
     #[test]
     fn sign_withdrawal_empty_tx_bytes() {
@@ -227,7 +227,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wallet-sign-hinkal-message-signature-test — sign_message produces valid signature bytes
+    // contract: P9-wallet-sign-hinkal-message-signature-test
     /// expect: "Wallet sign hinkal message signature test works correctly under test conditions" [P9]
     #[test]
     fn sign_message_produces_signature() {
@@ -237,7 +237,7 @@ mod tests {
         assert_eq!(sig.len(), 64);
     }
 
-    // REQ: P9-wallet-sign-capability-tamper-test — sign_capability detects tampered capability
+    // contract: P9-wallet-sign-capability-tamper-test
     /// expect: "Wallet sign capability tamper test works correctly under test conditions" [P9]
     #[test]
     fn sign_capability_tampered_produces_different_signature() {

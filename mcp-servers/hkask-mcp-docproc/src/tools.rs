@@ -1356,41 +1356,41 @@ impl DocProcServer {
 mod tests {
     use super::*;
 
-    // REQ: docproc-qa-parse-01 — strip_json_fences removes markdown code blocks
+    // contract: docproc-qa-parse-01
     #[test]
     fn strip_json_fences_removes_fences() {
         let input = "```json\n{\"key\": \"value\"}\n```";
         assert_eq!(strip_json_fences(input), "{\"key\": \"value\"}");
     }
 
-    // REQ: docproc-qa-parse-02 — strip_json_fences passes through plain JSON
+    // contract: docproc-qa-parse-02
     #[test]
     fn strip_json_fences_passthrough_plain_json() {
         let input = "{\"key\": \"value\"}";
         assert_eq!(strip_json_fences(input), "{\"key\": \"value\"}");
     }
 
-    // REQ: docproc-qa-parse-03 — strip_json_fences handles whitespace around fences
+    // contract: docproc-qa-parse-03
     #[test]
     fn strip_json_fences_handles_whitespace() {
         let input = "  ```json\n{\"key\": \"value\"}\n```  ";
         assert_eq!(strip_json_fences(input), "{\"key\": \"value\"}");
     }
 
-    // REQ: docproc-qa-parse-04 — strip_json_fences handles fence without language tag
+    // contract: docproc-qa-parse-04
     #[test]
     fn strip_json_fences_no_language_tag() {
         let input = "```\n{\"key\": \"value\"}\n```";
         assert_eq!(strip_json_fences(input), "{\"key\": \"value\"}");
     }
 
-    // REQ: docproc-qa-parse-05 — strip_json_fences handles empty input
+    // contract: docproc-qa-parse-05
     #[test]
     fn strip_json_fences_empty_input() {
         assert_eq!(strip_json_fences(""), "");
     }
 
-    // REQ: docproc-chunk-01 — chunk_word_bounds computes correct defaults
+    // contract: docproc-chunk-01
     #[test]
     fn chunk_word_bounds_defaults() {
         let (max_w, min_w) = chunk_word_bounds(None, None);
@@ -1405,7 +1405,7 @@ mod tests {
         );
     }
 
-    // REQ: docproc-chunk-02 — chunk_word_bounds with explicit values
+    // contract: docproc-chunk-02
     #[test]
     fn chunk_word_bounds_explicit() {
         let (max_w, min_w) = chunk_word_bounds(Some(256), Some(32));
@@ -1414,7 +1414,7 @@ mod tests {
         assert!(min_w > 70 && min_w < 100);
     }
 
-    // REQ: docproc-chunk-03 — serialize_passages produces correct JSON shape
+    // contract: docproc-chunk-03
     #[test]
     fn serialize_passages_shape() {
         let passages = vec![
@@ -1429,14 +1429,14 @@ mod tests {
         assert_eq!(result[1]["text"], "Goodbye");
     }
 
-    // REQ: docproc-chunk-04 — serialize_passages handles empty input
+    // contract: docproc-chunk-04
     #[test]
     fn serialize_passages_empty() {
         let result = serialize_passages(vec![]);
         assert!(result.is_empty());
     }
 
-    // REQ: docproc-cache-01 — label sanitization replaces non-alphanumeric chars
+    // contract: docproc-cache-01
     #[test]
     fn cache_label_sanitization() {
         // This tests the sanitization logic inline since it's embedded in the tool
@@ -1454,7 +1454,7 @@ mod tests {
         assert_eq!(safe, "my_document_v1_notes");
     }
 
-    // REQ: docproc-cache-02 — cache path construction uses config dir
+    // contract: docproc-cache-02
     #[test]
     fn cache_path_construction() {
         let cache_dir = dirs::config_dir()
@@ -1467,7 +1467,7 @@ mod tests {
         assert!(cache_path.to_string_lossy().contains("docproc-cache"));
     }
 
-    // REQ: docproc-embed-01 — embed rejects empty texts list
+    // contract: docproc-embed-01
     #[test]
     fn embed_rejects_empty_texts() {
         let req = EmbedRequest {
@@ -1478,7 +1478,7 @@ mod tests {
         assert!(req.texts.is_empty());
     }
 
-    // REQ: docproc-triples-01 — extract_triples rejects empty text
+    // contract: docproc-triples-01
     #[test]
     fn extract_triples_rejects_empty_text() {
         let req = ExtractTriplesRequest {
@@ -1489,7 +1489,7 @@ mod tests {
         assert!(req.text.is_empty());
     }
 
-    // REQ: docproc-qa-01 — generate_qa rejects empty text
+    // contract: docproc-qa-01
     #[test]
     fn generate_qa_rejects_empty_text() {
         let req = GenerateQaRequest {
@@ -1500,7 +1500,7 @@ mod tests {
         assert!(req.text.is_empty());
     }
 
-    // REQ: docproc-qa-02 — generate_qa rejects empty chunk_id
+    // contract: docproc-qa-02
     #[test]
     fn generate_qa_rejects_empty_chunk_id() {
         let req = GenerateQaRequest {
@@ -1511,7 +1511,7 @@ mod tests {
         assert!(req.chunk_id.is_empty());
     }
 
-    // REQ: docproc-query-01 — cosine_similarity identical vectors = 1.0
+    // contract: docproc-query-01
     #[test]
     fn cosine_similarity_identical() {
         let v = vec![1.0, 2.0, 3.0];
@@ -1522,7 +1522,7 @@ mod tests {
         );
     }
 
-    // REQ: docproc-query-02 — cosine_similarity orthogonal vectors = 0.0
+    // contract: docproc-query-02
     #[test]
     fn cosine_similarity_orthogonal() {
         let a = vec![1.0, 0.0, 0.0];
@@ -1534,7 +1534,7 @@ mod tests {
         );
     }
 
-    // REQ: docproc-query-03 — cosine_similarity empty vectors = 0.0
+    // contract: docproc-query-03
     #[test]
     fn cosine_similarity_empty() {
         assert_eq!(cosine_similarity(&[], &[1.0]), 0.0);
@@ -1542,13 +1542,13 @@ mod tests {
         assert_eq!(cosine_similarity(&[], &[]), 0.0);
     }
 
-    // REQ: docproc-query-04 — cosine_similarity dimension mismatch = 0.0
+    // contract: docproc-query-04
     #[test]
     fn cosine_similarity_dimension_mismatch() {
         assert_eq!(cosine_similarity(&[1.0, 2.0], &[1.0, 2.0, 3.0]), 0.0);
     }
 
-    // REQ: docproc-query-05 — query rejects empty query string
+    // contract: docproc-query-05
     #[test]
     fn query_rejects_empty() {
         let req = QueryRequest {
@@ -1559,7 +1559,7 @@ mod tests {
         assert!(req.query.is_empty());
     }
 
-    // REQ: docproc-chunk-05 — chunk defaults index to true
+    // contract: docproc-chunk-05
     #[test]
     fn chunk_defaults_index_true() {
         // Verify the default_true helper

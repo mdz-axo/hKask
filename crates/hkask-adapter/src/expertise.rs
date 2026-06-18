@@ -149,7 +149,7 @@ pub enum ExpertiseError {
 mod tests {
     use super::*;
 
-    // REQ: P8-adt-expertise-definition — expertise creation with valid data succeeds
+    // contract: P8-adt-expertise-definition
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn expertise_new_with_valid_data_succeeds() {
@@ -174,7 +174,7 @@ mod tests {
         assert_eq!(expertise.training_source.base_model_family, "llama-3.3-70b");
     }
 
-    // REQ: P8-adt-expertise-definition — empty name returns error
+    // contract: P8-adt-expertise-definition
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn expertise_new_with_empty_name_fails() {
@@ -195,7 +195,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P8-adt-expertise-definition — whitespace-only name returns error
+    // contract: P8-adt-expertise-definition
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn expertise_new_with_whitespace_name_fails() {
@@ -216,7 +216,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P8-adt-domain-parse — parse recognized domains
+    // contract: P8-adt-domain-parse
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn mds_domain_parse_recognized_domains() {
@@ -231,7 +231,7 @@ mod tests {
         );
     }
 
-    // REQ: P8-adt-domain-parse — unrecognized returns None
+    // contract: P8-adt-domain-parse
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn mds_domain_parse_unrecognized_returns_none() {
@@ -239,7 +239,7 @@ mod tests {
         assert_eq!(MdsDomain::parse(""), None);
     }
 
-    // REQ: P8-adt-domain-as-str — round-trip
+    // contract: P8-adt-domain-as-str
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn mds_domain_as_str_round_trips() {
@@ -256,7 +256,7 @@ mod tests {
         }
     }
 
-    // REQ: P8-adt-expertise-definition — serialize/deserialize round-trips
+    // contract: P8-adt-expertise-definition
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn expertise_serde_round_trips() {

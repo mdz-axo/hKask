@@ -151,7 +151,7 @@ impl DiscoveryService {
         mcp: &dyn McpPort,
         token: &DelegationToken,
     ) -> Result<DiscoverResult, ServiceError> {
-        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.discover span emitted
+        // contract: P9-CNS-SVC-001
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.discover", operation = "discover", author = %req.author_name, max_works = req.max_works, "CNS");
@@ -471,7 +471,7 @@ pub fn generate_corpus_yaml(
     entities: Option<EntityConfig>,
     methods: &[DeclaredMethod],
 ) -> Result<PathBuf, ServiceError> {
-    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.discover span emitted
+    // contract: P9-CNS-SVC-001
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.discover", operation = "generate_corpus_yaml", author = %author_slug, work_count = works.len(), method_count = methods.len(), "CNS");
@@ -1311,7 +1311,7 @@ async fn fetch_youtube_transcript(
 /// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
 #[contract(id = "P3-svc-discover-169", principle = "P3")]
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
-    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.discover span emitted
+    // contract: P9-CNS-SVC-001
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.discover", operation = "download_and_cache", url = %url, cache = %cache_path.display(), "CNS");
@@ -1555,7 +1555,7 @@ mod tests {
 
     // ── slugify ─────────────────────────────────────────────────────────
 
-    // REQ: P3-svc-discover-001 — slugify produces lowercase hyphenated ASCII name
+    // contract: P3-svc-discover-001
     // expect: "Service slugify works correctly under test conditions" [P3]
     #[test]
     fn slugify_ascii_name() {
@@ -1563,7 +1563,7 @@ mod tests {
         assert_eq!(s, "david-dunning");
     }
 
-    // REQ: P3-svc-discover-002 — slugify strips special characters and preserves name core
+    // contract: P3-svc-discover-002
     // expect: "Service slugify works correctly under test conditions" [P3]
     #[test]
     fn slugify_with_special_chars() {
@@ -1571,7 +1571,7 @@ mod tests {
         assert!(s.contains("tolkien"));
     }
 
-    // REQ: P3-svc-discover-003 — slugify falls back to UUID for non-ASCII input
+    // contract: P3-svc-discover-003
     // expect: "Service slugify works correctly under test conditions" [P3]
     #[test]
     fn slugify_non_ascii_fallback() {
@@ -1583,7 +1583,7 @@ mod tests {
         assert_eq!(s.chars().filter(|c| *c == '-').count(), 4);
     }
 
-    // REQ: P3-svc-discover-004 — slugify falls back to UUID for empty string input
+    // contract: P3-svc-discover-004
     // expect: "Service slugify works correctly under test conditions" [P3]
     #[test]
     fn slugify_empty_string() {
@@ -1594,7 +1594,7 @@ mod tests {
 
     // ── parse_template_model ────────────────────────────────────────────
 
-    // REQ: P3-svc-discover-005 — parse_template_model extracts model directive from template
+    // contract: P3-svc-discover-005
     // expect: "Service parse_template_model works correctly under test conditions" [P3]
     #[test]
     fn parse_model_directive_present() {
@@ -1602,7 +1602,7 @@ mod tests {
         assert_eq!(parse_template_model(src), Some("OM/qwen3:14b".to_string()));
     }
 
-    // REQ: P3-svc-discover-006 — parse_template_model returns None when no directive present
+    // contract: P3-svc-discover-006
     // expect: "Service parse_template_model works correctly under test conditions" [P3]
     #[test]
     fn parse_model_directive_absent() {
@@ -1610,14 +1610,14 @@ mod tests {
         assert_eq!(parse_template_model(src), None);
     }
 
-    // REQ: P3-svc-discover-007 — parse_template_model returns None for empty template string
+    // contract: P3-svc-discover-007
     // expect: "Service parse_template_model works correctly under test conditions" [P3]
     #[test]
     fn parse_model_directive_empty_template() {
         assert_eq!(parse_template_model(""), None);
     }
 
-    // REQ: P3-svc-discover-008 — parse_template_model handles leading/trailing whitespace around directive
+    // contract: P3-svc-discover-008
     // expect: "Service parse_template_model works correctly under test conditions" [P3]
     #[test]
     fn parse_model_directive_whitespace_handling() {
@@ -1630,7 +1630,7 @@ mod tests {
 
     // ── default_corpus_config ───────────────────────────────────────────
 
-    // REQ: P3-svc-discover-009 — default_corpus_config produces correct field defaults for author
+    // contract: P3-svc-discover-009
     // expect: "Service default_corpus_config works correctly under test conditions" [P3]
     #[test]
     fn default_corpus_config_has_correct_defaults() {
@@ -1646,7 +1646,7 @@ mod tests {
         assert!(config.foundational_rules.is_empty());
     }
 
-    // REQ: P3-svc-discover-010 — default_corpus_config academic entities are empty by default
+    // contract: P3-svc-discover-010
     // expect: "Service default_corpus_config works correctly under test conditions" [P3]
     #[test]
     fn default_corpus_config_academic_entities_empty_by_default() {
@@ -1659,7 +1659,7 @@ mod tests {
 
     // ── DiscoveredWork with abstract ────────────────────────────────────
 
-    // REQ: P3-svc-discover-011 — DiscoveredWork serializes abstract_text field when Some
+    // contract: P3-svc-discover-011
     // expect: "Service DiscoveredWork works correctly under test conditions" [P3]
     #[test]
     fn discovered_work_serializes_abstract() {
@@ -1677,7 +1677,7 @@ mod tests {
         assert!(json.contains("This paper explores"));
     }
 
-    // REQ: P3-svc-discover-012 — DiscoveredWork serializes abstract_text as null when None
+    // contract: P3-svc-discover-012
     // expect: "Service DiscoveredWork works correctly under test conditions" [P3]
     #[test]
     fn discovered_work_omits_none_abstract() {
@@ -1697,7 +1697,7 @@ mod tests {
 
     // ── extract_search_terms ────────────────────────────────────────────
 
-    // REQ: P3-svc-discover-013 — extract_search_terms prepends author name to extracted terms
+    // contract: P3-svc-discover-013
     // expect: "Service extract_search_terms works correctly under test conditions" [P3]
     #[test]
     fn extract_search_terms_from_titles() {
@@ -1711,7 +1711,7 @@ mod tests {
         assert!(!terms.is_empty());
     }
 
-    // REQ: P3-svc-discover-014 — extract_search_terms returns author name only for empty titles
+    // contract: P3-svc-discover-014
     // expect: "Service extract_search_terms works correctly under test conditions" [P3]
     #[test]
     fn extract_search_terms_empty_titles() {
@@ -1721,7 +1721,7 @@ mod tests {
 
     // ── DiscoverRequest defaults ────────────────────────────────────────
 
-    // REQ: P3-svc-discover-015 — DiscoverRequest fields hold expected values after construction
+    // contract: P3-svc-discover-015
     // expect: "Service DiscoverRequest works correctly under test conditions" [P3]
     #[test]
     fn discover_request_defaults() {
@@ -1745,7 +1745,7 @@ mod tests {
         assert!(req.biographical_details.is_none());
     }
 
-    // REQ: P3-svc-discover-016 — DiscoverRequest stores biographical_details when provided
+    // contract: P3-svc-discover-016
     // expect: "Service DiscoverRequest works correctly under test conditions" [P3]
     #[test]
     fn discover_request_with_bio() {

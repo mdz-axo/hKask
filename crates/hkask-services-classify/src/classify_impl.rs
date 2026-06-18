@@ -120,7 +120,7 @@ pub fn load_classifier_config(
     name: &str,
     registry_dir: &Path,
 ) -> Result<ClassifierDef, ServiceError> {
-    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.classify span emitted
+    // contract: P9-CNS-SVC-001
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.classify", operation = "load_config", classifier = %name, "CNS");
@@ -281,7 +281,7 @@ pub async fn classify_batch(
     texts: &[String],
     config: ClassifierConfig,
 ) -> Result<Vec<ClassifyResult>, ServiceError> {
-    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.classify span emitted
+    // contract: P9-CNS-SVC-001
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.classify", operation = "classify_batch", item_count = texts.len(), "CNS");
@@ -369,7 +369,7 @@ pub async fn extract_triples_batch(
     texts: &[String],
     config: &ClassifierConfig,
 ) -> Result<Vec<TripleExtraction>, ServiceError> {
-    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.classify span emitted
+    // contract: P9-CNS-SVC-001
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.classify", operation = "extract_triples_batch", item_count = texts.len(), "CNS");

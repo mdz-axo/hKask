@@ -1336,7 +1336,7 @@ impl CapabilityPackage {
 mod tests {
     use super::*;
 
-    // REQ: P8-typ-kanbanT-001 — TaskStatus transitions follow column ordering
+    // contract: P8-typ-kanbanT-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_status_transitions() {
@@ -1366,7 +1366,7 @@ mod tests {
         assert!(!TaskStatus::Review.can_transition_to(TaskStatus::Backlog));
     }
 
-    // REQ: P8-typ-kanbanT-002 — TaskStatus::next() returns correct successor
+    // contract: P8-typ-kanbanT-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_status_next() {
@@ -1377,7 +1377,7 @@ mod tests {
         assert_eq!(TaskStatus::Done.next(), None);
     }
 
-    // REQ: P8-typ-kanbanT-003 — TaskStatus round-trips through string representation
+    // contract: P8-typ-kanbanT-003
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_status_string_roundtrip() {
@@ -1398,7 +1398,7 @@ mod tests {
         }
     }
 
-    // REQ: P8-typ-kanbanT-004 — TaskStatus parse accepts alternate forms
+    // contract: P8-typ-kanbanT-004
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_status_parse_aliases() {
@@ -1418,7 +1418,7 @@ mod tests {
         assert_eq!(TaskStatus::parse_str("invalid"), None);
     }
 
-    // REQ: P8-typ-kanbanT-005 — Board::column_for_status finds correct column
+    // contract: P8-typ-kanbanT-005
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn board_column_for_status() {
@@ -1441,7 +1441,7 @@ mod tests {
         );
     }
 
-    // REQ: P8-typ-kanbanT-006 — Task is created in Backlog status
+    // contract: P8-typ-kanbanT-006
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_created_in_backlog() {
@@ -1452,7 +1452,7 @@ mod tests {
         assert!(task.assignee.is_none());
     }
 
-    // REQ: P8-typ-kanbanT-007 — TaskSpec builder pattern
+    // contract: P8-typ-kanbanT-007
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_spec_builder() {
@@ -1465,7 +1465,7 @@ mod tests {
         assert_eq!(spec.criteria.len(), 1);
     }
 
-    // REQ: P8-typ-kanbanT-008 — VerificationCriterion builder
+    // contract: P8-typ-kanbanT-008
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn verification_criterion_with_llm() {
@@ -1476,7 +1476,7 @@ mod tests {
         assert!(vc.llm_prompt.is_some());
     }
 
-    // REQ: P8-typ-kanbanT-009 — TaskFilter construction
+    // contract: P8-typ-kanbanT-009
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn task_filter_by_status() {
@@ -1485,7 +1485,7 @@ mod tests {
         assert!(filter.assignee.is_none());
     }
 
-    // REQ: P8-typ-kanbanT-010 — ConsentProof construction
+    // contract: P8-typ-kanbanT-010
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn consent_proof_creation() {

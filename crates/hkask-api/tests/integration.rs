@@ -18,7 +18,7 @@ use std::collections::HashMap;
 
 // ── Chat Types ────────────────────────────────────────────────────────────
 
-// REQ: api-chat-001 — ChatRequest serializes to valid JSON
+// contract: api-chat-001
 #[test]
 fn chat_request_serialization_round_trip() {
     let req = ChatRequest {
@@ -33,7 +33,7 @@ fn chat_request_serialization_round_trip() {
     assert_eq!(parsed.model, Some("qwen3:8b".to_string()));
 }
 
-// REQ: api-chat-002 — ChatRequest with minimal fields serializes correctly
+// contract: api-chat-002
 #[test]
 fn chat_request_minimal_fields() {
     let req = ChatRequest {
@@ -48,7 +48,7 @@ fn chat_request_minimal_fields() {
     assert!(parsed.model.is_none());
 }
 
-// REQ: api-chat-003 — ChatResponse serializes to valid JSON
+// contract: api-chat-003
 #[test]
 fn chat_response_serialization_round_trip() {
     let resp = ChatResponse {
@@ -66,7 +66,7 @@ fn chat_response_serialization_round_trip() {
 
 // ── Pod Types ─────────────────────────────────────────────────────────────
 
-// REQ: api-pods-001 — CreatePodRequest serializes to valid JSON
+// contract: api-pods-001
 #[test]
 fn create_pod_request_serialization_round_trip() {
     let req = CreatePodRequest {
@@ -82,7 +82,7 @@ fn create_pod_request_serialization_round_trip() {
     assert_eq!(parsed.name, Some("my-bot".to_string()));
 }
 
-// REQ: api-pods-002 — CreatePodResponse carries pod_id
+// contract: api-pods-002
 #[test]
 fn create_pod_response_carries_pod_id() {
     let resp = CreatePodResponse {
@@ -94,7 +94,7 @@ fn create_pod_response_carries_pod_id() {
     assert_eq!(parsed.pod_id, "550e8400-e29b-41d4-a716-446655440000");
 }
 
-// REQ: api-pods-003 — PodStatusResponse carries all lifecycle fields
+// contract: api-pods-003
 #[test]
 fn pod_status_response_carries_all_fields() {
     let status = PodStatusResponse {
@@ -114,7 +114,7 @@ fn pod_status_response_carries_all_fields() {
     assert_eq!(parsed.agent_type, "Bot");
 }
 
-// REQ: api-pods-004 — ListPodsResponse wraps pod statuses
+// contract: api-pods-004
 #[test]
 fn list_pods_response_wraps_pod_statuses() {
     let resp = ListPodsResponse {
@@ -149,7 +149,7 @@ fn list_pods_response_wraps_pod_statuses() {
 
 // ── Model Types ───────────────────────────────────────────────────────────
 
-// REQ: api-models-001 — ModelEntry serializes with all metadata fields
+// contract: api-models-001
 #[test]
 fn model_entry_serialization_round_trip() {
     let entry = ModelEntry {
@@ -166,7 +166,7 @@ fn model_entry_serialization_round_trip() {
     assert_eq!(parsed.parameter_size, Some("8B".to_string()));
 }
 
-// REQ: api-models-002 — ModelListResponse carries count
+// contract: api-models-002
 #[test]
 fn model_list_response_carries_count() {
     let resp = ModelListResponse {
@@ -186,7 +186,7 @@ fn model_list_response_carries_count() {
     assert_eq!(parsed.models.len(), 1);
 }
 
-// REQ: api-models-003 — ModelListResponse empty list serializes correctly
+// contract: api-models-003
 #[test]
 fn model_list_response_empty_list() {
     let resp = ModelListResponse {
@@ -202,7 +202,7 @@ fn model_list_response_empty_list() {
 
 // ── CNS Types ─────────────────────────────────────────────────────────────
 
-// REQ: api-cns-001 — CnsHealthResponse carries health status fields
+// contract: api-cns-001
 #[test]
 fn cns_health_response_serialization() {
     let resp = CnsHealthResponse {
@@ -219,7 +219,7 @@ fn cns_health_response_serialization() {
     assert!(parsed.healthy);
 }
 
-// REQ: api-cns-002 — CnsVarietyResponse carries variety counters
+// contract: api-cns-002
 #[test]
 fn cns_variety_response_serialization() {
     let mut counters = HashMap::new();
@@ -246,7 +246,7 @@ fn cns_variety_response_serialization() {
 
 // ── Variety Counter Types ─────────────────────────────────────────────────
 
-// REQ: api-variety-001 — VarietyCounterResponse carries variety metrics
+// contract: api-variety-001
 #[test]
 fn variety_counter_response_serialization() {
     let resp = VarietyCounterResponse {
@@ -264,7 +264,7 @@ fn variety_counter_response_serialization() {
 
 // ── Sovereignty Types ─────────────────────────────────────────────────────
 
-// REQ: api-sovereignty-001 — SovereigntyStatusResponse carries consent state
+// contract: api-sovereignty-001
 #[test]
 fn sovereignty_status_response_serialization() {
     let resp = SovereigntyStatusResponse {
@@ -285,7 +285,7 @@ fn sovereignty_status_response_serialization() {
 
 // ── A2A Types ─────────────────────────────────────────────────────────────
 
-// REQ: api-a2a-001 — A2ARegisterRequest serializes agent registration data
+// contract: api-a2a-001
 #[test]
 fn a2a_register_request_serialization() {
     let req = A2ARegisterRequest {
@@ -301,7 +301,7 @@ fn a2a_register_request_serialization() {
     assert_eq!(parsed.capabilities.len(), 2);
 }
 
-// REQ: api-a2a-002 — A2ARegisterResponse carries delegation token and metadata
+// contract: api-a2a-002
 #[test]
 fn a2a_register_response_serialization() {
     let resp = A2ARegisterResponse {
@@ -319,7 +319,7 @@ fn a2a_register_response_serialization() {
 
 // ── Wallet Types ──────────────────────────────────────────────────────────
 
-// REQ: api-wallet-001 — WithdrawalFeeEstimateResponse serializes with fee fields
+// contract: api-wallet-001
 #[test]
 fn withdrawal_fee_estimate_response_serialization() {
     let resp = WithdrawalFeeEstimateResponse {
@@ -350,7 +350,7 @@ fn withdrawal_fee_estimate_response_serialization() {
 
 // ── Spec Types ────────────────────────────────────────────────────────────
 
-// REQ: api-spec-001 — SpecListResponse carries specification metadata
+// contract: api-spec-001
 #[test]
 fn spec_list_response_serialization() {
     let resp = SpecListResponse {
@@ -367,7 +367,7 @@ fn spec_list_response_serialization() {
     assert!(parsed.complete);
 }
 
-// REQ: api-spec-002 — SpecCoherenceResponse carries coherence metrics
+// contract: api-spec-002
 #[test]
 fn spec_coherence_response_serialization() {
     let resp = SpecCoherenceResponse {
@@ -383,7 +383,7 @@ fn spec_coherence_response_serialization() {
     assert_eq!(parsed.suggestions.len(), 1);
 }
 
-// REQ: api-spec-003 — SpecWritingQualityResponse carries quality metrics
+// contract: api-spec-003
 #[test]
 fn spec_writing_quality_response_serialization() {
     let resp = SpecWritingQualityResponse {
@@ -399,7 +399,7 @@ fn spec_writing_quality_response_serialization() {
 
 // ── Template Types ────────────────────────────────────────────────────────
 
-// REQ: api-templates-001 — TemplateResponse carries template metadata
+// contract: api-templates-001
 #[test]
 fn template_response_serialization() {
     let resp = TemplateResponse {
@@ -421,7 +421,7 @@ fn template_response_serialization() {
 
 // ── Capability Types ──────────────────────────────────────────────────────
 
-// REQ: api-cap-001 — GrantCapabilityRequest carries capability spec
+// contract: api-cap-001
 #[test]
 fn grant_capability_request_serialization() {
     let req = GrantCapabilityRequest {

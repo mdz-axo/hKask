@@ -83,7 +83,7 @@ mod tests {
         }
     }
 
-    // REQ: CNS-WEB-RANKING — dedup_results merges incoming into existing, deduplicating by URL
+    // contract: CNS-WEB-RANKING
     #[test]
     fn dedup_results_merges_disjoint() {
         let mut existing = vec![mk_result("a.com", 0.9)];
@@ -94,7 +94,7 @@ mod tests {
         assert_eq!(existing[1].url, "b.com");
     }
 
-    // REQ: CNS-WEB-RANKING — dedup_results keeps higher-scoring duplicate
+    // contract: CNS-WEB-RANKING
     #[test]
     fn dedup_results_keeps_higher_score() {
         let mut existing = vec![mk_result("a.com", 0.9)];
@@ -104,7 +104,7 @@ mod tests {
         assert!((existing[0].rrf_score - 0.9).abs() < 0.001);
     }
 
-    // REQ: CNS-WEB-RANKING — dedup_results replaces with higher-scoring incoming duplicate
+    // contract: CNS-WEB-RANKING
     #[test]
     fn dedup_results_upgrades_lower_score() {
         let mut existing = vec![mk_result("a.com", 0.5)];
@@ -114,7 +114,7 @@ mod tests {
         assert!((existing[0].rrf_score - 0.9).abs() < 0.001);
     }
 
-    // REQ: CNS-WEB-RANKING — dedup_results sorts by rrf_score descending
+    // contract: CNS-WEB-RANKING
     #[test]
     fn dedup_results_sorts_by_score() {
         let mut existing = vec![];
@@ -129,7 +129,7 @@ mod tests {
         assert_eq!(existing[2].url, "c.com");
     }
 
-    // REQ: CNS-WEB-RANKING — apply_rerank boosts recency by age
+    // contract: CNS-WEB-RANKING
     #[test]
     fn apply_rerank_recency_boosts() {
         let mut results = vec![mk_result("old.com", 0.5), mk_result("new.com", 0.5)];

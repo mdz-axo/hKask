@@ -19,7 +19,6 @@
 //! - HTTP/gRPC clients use rustls (no openssl)
 //! - Account IDs derived deterministically from treasury public key
 
-use hkask_rsolidity as rs;
 use async_trait::async_trait;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
@@ -670,7 +669,7 @@ mod integration_tests {
         .expect("Failed to create testnet HederaPort")
     }
 
-    // REQ: P9-wallet-hedera-chain-error-actor-test — chain_error emission uses caller-provided actor identity
+    // contract: P9-wallet-hedera-chain-error-actor-test
     /// expect: "Wallet hedera chain error actor test works correctly under test conditions" [P9]
     #[test]
     fn emit_chain_error_uses_provided_actor() {
@@ -697,7 +696,7 @@ mod integration_tests {
         assert_eq!(event.observation["operation"], "unit_test");
     }
 
-    // REQ: P9-wallet-hedera-build-withdrawal-tx-test — port construction succeeds with valid parameters
+    // contract: P9-wallet-hedera-build-withdrawal-tx-test
     /// expect: "Wallet hedera build withdrawal tx test works correctly under test conditions" [P9]
     #[test]
     fn port_construction_succeeds() {
@@ -705,7 +704,7 @@ mod integration_tests {
         assert_eq!(port.chain_id(), ChainId::Hedera);
     }
 
-    // REQ: P9-wallet-hedera-signing-roundtrip-test — build_withdrawal_tx produces valid protobuf
+    // contract: P9-wallet-hedera-signing-roundtrip-test
     /// expect: "Wallet hedera signing roundtrip test works correctly under test conditions" [P9]
     #[test]
     fn build_withdrawal_tx_produces_valid_protobuf() {
@@ -724,7 +723,7 @@ mod integration_tests {
         );
     }
 
-    // REQ: P9-wallet-hedera-submit-signed-tx-test — withdrawal payload signing roundtrip
+    // contract: P9-wallet-hedera-submit-signed-tx-test
     /// expect: "Wallet hedera submit signed tx test works correctly under test conditions" [P9]
     #[test]
     fn withdrawal_payload_signing_roundtrip() {
@@ -753,7 +752,7 @@ mod integration_tests {
         assert!(signed_tx.len() > 64);
     }
 
-    // REQ: P9-wallet-hedera-monitor-deposits-test — submit_signed_tx against testnet (ignored — needs funded treasury)
+    // contract: P9-wallet-hedera-monitor-deposits-test
     /// expect: "Wallet hedera monitor deposits test works correctly under test conditions" [P9]
     #[test]
     #[ignore = "requires funded treasury on Hedera testnet with HTS USDC"]
@@ -806,7 +805,7 @@ mod integration_tests {
         }
     }
 
-    // REQ: P9-wallet-hedera-monitor-hts-usdc-test — monitor_deposits detects HTS USDC transfer via mirror node
+    // contract: P9-wallet-hedera-monitor-hts-usdc-test
     /// expect: "Wallet hedera monitor hts usdc test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn monitor_deposits_detects_usdc_transfer() {

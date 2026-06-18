@@ -98,7 +98,7 @@ mod tests {
     use super::*;
     use hkask_cns::DEFAULT_THRESHOLD;
 
-    // REQ: P9-svc-cns-001 — health_returns_defaults_for_empty_runtime
+    // contract: P9-svc-cns-001
     // expect: "Service health works correctly under test conditions" [P9]
     //
     // A freshly constructed CnsRuntime should report healthy status
@@ -116,7 +116,7 @@ mod tests {
         assert_eq!(health.warning_count, 0);
     }
 
-    // REQ: P9-svc-cns-002 — alerts_returns_empty_for_fresh_runtime
+    // contract: P9-svc-cns-002
     // expect: "Service alerts works correctly under test conditions" [P9]
     #[tokio::test]
     async fn alerts_returns_empty_for_fresh_runtime() {
@@ -127,7 +127,7 @@ mod tests {
         assert!(alerts.is_empty(), "Fresh CNS runtime should have no alerts");
     }
 
-    // REQ: P9-svc-cns-003 — variety_returns_empty_for_fresh_runtime
+    // contract: P9-svc-cns-003
     // expect: "Service variety works correctly under test conditions" [P9]
     #[tokio::test]
     async fn variety_returns_empty_for_fresh_runtime() {

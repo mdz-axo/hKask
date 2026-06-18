@@ -162,7 +162,7 @@ impl VoiceDesign {
 mod tests {
     use super::*;
 
-    // REQ: types-voice-001 — VoiceDesign default is neutral with medium pitch
+    // contract: types-voice-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn default_voice_is_neutral() {
@@ -171,7 +171,7 @@ mod tests {
         assert_eq!(v.pitch, "medium");
     }
 
-    // REQ: types-voice-002 — to_tts_description renders all voice dimensions as descriptive prose
+    // contract: types-voice-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn tts_description_renders_prose() {

@@ -232,7 +232,7 @@ mod tests {
     use crate::endpoint_lifecycle::EndpointLifecycle;
     use crate::provider_cost::CostModel;
 
-    // REQ: P4-adt-adapter-router-compose — handle reflects lifecycle
+    // contract: P4-adt-adapter-router-compose
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_phase_reflects_lifecycle() {
@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(handle.phase(), EndpointPhase::Ready);
     }
 
-    // REQ: P4-adt-adapter-router-compose — handle is_billable delegates
+    // contract: P4-adt-adapter-router-compose
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn handle_is_billable_delegates() {
@@ -276,7 +276,7 @@ mod tests {
         assert!(handle.is_billable()); // Provisioning is billable
     }
 
-    // REQ: P4-adt-adapter-router-compose — AdapterError display is readable
+    // contract: P4-adt-adapter-router-compose
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn adapter_error_display() {

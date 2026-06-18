@@ -275,7 +275,7 @@ mod tests {
     use crate::capability::derive_signing_key;
     use crate::id::WebID;
 
-    // REQ: types-cap-verify-001 — CapabilityChecker::with_signing_key() creates checker with signing key
+    // contract: types-cap-verify-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn capability_checker_new_creates_checker() {

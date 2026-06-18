@@ -68,7 +68,7 @@ impl RateLimiter {
 mod tests {
     use super::*;
 
-    // REQ: CNS-WEB-RATELIMIT — RateLimiter allows requests within limit
+    // contract: CNS-WEB-RATELIMIT
     #[test]
     fn rate_limiter_allows_within_limit() {
         let rl = RateLimiter::new(5, 3600);
@@ -77,7 +77,7 @@ mod tests {
         }
     }
 
-    // REQ: CNS-WEB-RATELIMIT — RateLimiter denies requests exceeding limit
+    // contract: CNS-WEB-RATELIMIT
     #[test]
     fn rate_limiter_denies_over_limit() {
         let rl = RateLimiter::new(2, 3600);
@@ -86,7 +86,7 @@ mod tests {
         assert!(rl.check("web_search").is_err());
     }
 
-    // REQ: CNS-WEB-RATELIMIT — RateLimiter enforces per-tool counts independently
+    // contract: CNS-WEB-RATELIMIT
     #[test]
     fn rate_limiter_per_tool_independence() {
         let rl = RateLimiter::new(2, 3600);
@@ -98,7 +98,7 @@ mod tests {
         assert!(rl.check("web_extract").is_ok());
     }
 
-    // REQ: CNS-WEB-RATELIMIT — RateLimiter error message includes tool name and limit
+    // contract: CNS-WEB-RATELIMIT
     #[test]
     fn rate_limiter_error_message() {
         let rl = RateLimiter::new(2, 3600);

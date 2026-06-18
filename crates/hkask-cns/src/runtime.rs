@@ -811,7 +811,7 @@ async fn emit_critical_depletion(runtime: &CnsRuntime, alert: &crate::algedonic:
 mod tests {
     use super::*;
 
-    // REQ: P9-cns-runtime-variety-monitor-test-001
+    // contract: P9-cns-runtime-variety-monitor-test-001
     // expect: "Variety monitors track distinct states correctly" [P9]
     //
     // TASK 1 cybernetic property: the VarietyMonitor sensor must count
@@ -829,7 +829,7 @@ mod tests {
         assert_eq!(monitor.variety_for_domain("inference"), 5);
     }
 
-    // REQ: P9-cns-runtime-variety-deficit-test-002
+    // contract: P9-cns-runtime-variety-deficit-test-002
     // expect: "Variety deficit is calculated from expected vs actual" [P9]
     //
     // When 3 distinct states exist but 10 are expected, deficit must be 7.
@@ -843,7 +843,7 @@ mod tests {
         assert_eq!(tracker.variety(), 3);
     }
 
-    // REQ: P9-cns-runtime-variety-isolation-test-003
+    // contract: P9-cns-runtime-variety-isolation-test-003
     // expect: "Variety monitors isolate counters across domains" [P9]
     //
     // Two domains must track variety independently.
@@ -862,7 +862,7 @@ mod tests {
         assert_eq!(monitor.variety_for_domain("nonexistent"), 0);
     }
 
-    // REQ: P9-cns-runtime-outcome-rate-test-004
+    // contract: P9-cns-runtime-outcome-rate-test-004
     // expect: "Outcome success rate is calculated correctly" [P9]
     //
     // OutcomeTracker must correctly compute success rate from recorded
@@ -882,7 +882,7 @@ mod tests {
         assert_eq!(tracker.total_operations(), 3);
     }
 
-    // REQ: P9-cns-runtime-outcome-breakdown-test-005
+    // contract: P9-cns-runtime-outcome-breakdown-test-005
     // expect: "Outcome error kinds are broken down correctly" [P9]
     //
     // OutcomeTracker must track per-error-kind counts for diagnosis.
@@ -900,7 +900,7 @@ mod tests {
         assert!((tracker.success_rate() - 0.25).abs() < 0.001);
     }
 
-    // REQ: P9-cns-runtime-outcome-window-test-006
+    // contract: P9-cns-runtime-outcome-window-test-006
     // expect: "Outcome window resets as expected" [P9]
     //
     // OutcomeTracker must reset its window after the configured duration.

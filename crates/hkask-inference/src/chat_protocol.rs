@@ -565,7 +565,7 @@ mod tests {
         assert!(json.get("enable_thinking").is_none());
     }
 
-    // REQ: P9-inf-validate-prompt — validate_prompt contract (property-based)
+    // contract: P9-inf-validate-prompt
     // [P9] Motivating: Homeostatic Self-Regulation — input validation prevents token overconsumption
     // For any non-empty string ≤ 1_000_000 chars, validate_prompt returns Ok(()).
     // For empty string, returns Err. For strings > 1_000_000, returns Err.

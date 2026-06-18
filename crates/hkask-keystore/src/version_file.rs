@@ -85,14 +85,14 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    // REQ: svc-keystore-version-001 — default_version_is_one
+    // contract: svc-keystore-version-001
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn default_version_is_one() {
         assert_eq!(DEFAULT_KEY_VERSION, 1);
     }
 
-    // REQ: svc-keystore-version-002 — read_returns_default_when_no_file
+    // contract: svc-keystore-version-002
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn read_returns_default_when_no_file() {
@@ -101,7 +101,7 @@ mod tests {
         assert!(version >= 1);
     }
 
-    // REQ: svc-keystore-version-003 — write_and_read_roundtrip
+    // contract: svc-keystore-version-003
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn write_and_read_roundtrip() {

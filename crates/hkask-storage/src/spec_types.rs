@@ -143,7 +143,7 @@ impl SpecCategory {
 /// `hkask-services::SpecService` (CLI/API surface).
 ///
 /// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
-// REQ: P8-sto-spec-infer-category — infer_spec_category maps context keywords to MDS categories
+// contract: P8-sto-spec-infer-category
 // expect: "Storage operation works correctly under test conditions" [P8]
 /// pre:  arguments are valid
 /// post: returns expected result
@@ -422,7 +422,7 @@ pub trait SpecCurator: Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // REQ: P8-sto-spec-legacy-parse-test — SpecCategory::parse_str maps legacy DDMVSS names to MDS categories
+    // contract: P8-sto-spec-legacy-parse-test
     // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_maps_legacy_ddmvss_names() {
@@ -443,7 +443,7 @@ mod tests {
             Some(SpecCategory::Lifecycle)
         );
     }
-    // REQ: P8-sto-spec-mds-parse-test — SpecCategory::parse_str handles canonical MDS names
+    // contract: P8-sto-spec-mds-parse-test
     // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_handles_mds_names() {
@@ -456,13 +456,13 @@ mod tests {
             Some(SpecCategory::Lifecycle)
         );
     }
-    // REQ: P8-sto-spec-parse-none-test — SpecCategory::parse_str returns None for unknown strings
+    // contract: P8-sto-spec-parse-none-test
     // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_returns_none_for_unknown() {
         assert_eq!(SpecCategory::parse_str("nonsense"), None);
     }
-    // REQ: P8-sto-spec-legacy-deser-test — Spec deserializes legacy variant names to correct MDS categories
+    // contract: P8-sto-spec-legacy-deser-test
     // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn serde_deserializes_legacy_variant_names() {
@@ -473,7 +473,7 @@ mod tests {
         let spec: Spec = serde_json::from_str(json).unwrap();
         assert_eq!(spec.category, SpecCategory::Lifecycle);
     }
-    // REQ: P8-sto-spec-category-all-test — SpecCategory::all returns exactly five MDS variants
+    // contract: P8-sto-spec-category-all-test
     // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn spec_category_all_has_exactly_five_variants() {

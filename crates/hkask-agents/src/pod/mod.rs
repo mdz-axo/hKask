@@ -751,7 +751,7 @@ mod tests {
         .expect("test pod creation")
     }
 
-    // REQ: P4-agt-pod-dual-gate-test — Mode transitions require Activated state
+    // contract: P4-agt-pod-dual-gate-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn mode_requires_activation() {
@@ -763,7 +763,7 @@ mod tests {
         assert!(matches!(err, AgentPodError::ModeRequiresActivation(_)));
     }
 
-    // REQ: P4-agt-pod-dual-gate-test — Mode mutual exclusion (initially single-mode)
+    // contract: P4-agt-pod-dual-gate-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn mode_mutual_exclusion() {
@@ -792,7 +792,7 @@ mod tests {
         ));
     }
 
-    // REQ: P4-agt-pod-dual-gate-test — Role assignment check (sovereignty/consent gate)
+    // contract: P4-agt-pod-dual-gate-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn role_not_assigned_denied() {
@@ -805,7 +805,7 @@ mod tests {
         assert!(matches!(err, AgentPodError::RoleNotAssigned(_, _)));
     }
 
-    // REQ: P4-agt-pod-dual-gate-test — Mode exit and re-entry
+    // contract: P4-agt-pod-dual-gate-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn mode_exit_and_switch() {
@@ -827,7 +827,7 @@ mod tests {
         assert!(pod.is_in_server_mode());
     }
 
-    // REQ: P1-agt-pod-lifecycle-transition-test — PodLifecycleState valid transitions
+    // contract: P1-agt-pod-lifecycle-transition-test
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn lifecycle_state_valid_transitions() {
@@ -836,7 +836,7 @@ mod tests {
         assert!(PodLifecycleState::Activated.can_transition_to(PodLifecycleState::Deactivated));
     }
 
-    // REQ: P1-agt-pod-lifecycle-invalid-test — PodLifecycleState rejects invalid transitions
+    // contract: P1-agt-pod-lifecycle-invalid-test
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn lifecycle_state_rejects_invalid_transitions() {
@@ -846,7 +846,7 @@ mod tests {
         assert!(!PodLifecycleState::Deactivated.can_transition_to(PodLifecycleState::Activated));
     }
 
-    // REQ: P1-agt-pod-new-defaults-test — new AgentPod starts with correct defaults
+    // contract: P1-agt-pod-new-defaults-test
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn new_pod_has_correct_defaults() {
@@ -860,7 +860,7 @@ mod tests {
         assert!(!pod.is_in_chat_mode());
     }
 
-    // REQ: P1-agt-pod-is-active-test — is_active() only true when Activated
+    // contract: P1-agt-pod-is-active-test
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn is_active_only_when_activated() {
@@ -874,7 +874,7 @@ mod tests {
         assert!(!pod.is_active());
     }
 
-    // REQ: P1-agt-pod-voice-roundtrip-test — voice_design set/get round-trip
+    // contract: P1-agt-pod-voice-roundtrip-test
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn voice_design_set_get_roundtrip() {
@@ -886,7 +886,7 @@ mod tests {
         assert!(!pod.voice_description().is_empty());
     }
 
-    // REQ: P1-agt-pod-error-display-test — AgentPodError Display is human-readable
+    // contract: P1-agt-pod-error-display-test
     /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn agent_pod_error_display_is_readable() {

@@ -453,7 +453,7 @@ impl EmbedService {
         cache_dir: Option<&Path>,
         progress: Option<ProgressFn>,
     ) -> Result<EmbedResult, ServiceError> {
-        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.embed span emitted
+        // contract: P9-CNS-SVC-001
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.embed", operation = "embed_corpus", config = %config_path.display(), "CNS");
@@ -1178,7 +1178,7 @@ impl EmbedService {
 
     /// Parse a corpus config YAML file.
     pub fn parse_config(path: &Path) -> Result<CorpusConfig, ServiceError> {
-        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.embed span emitted
+        // contract: P9-CNS-SVC-001
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.embed", operation = "parse_config", config = %path.display(), "CNS");
@@ -1559,7 +1559,7 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 ///
 /// Falls back to sending raw PDF bytes as base64 if pdftoppm is not installed.
 pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
-    // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.embed span emitted
+    // contract: P9-CNS-SVC-001
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.embed", operation = "ocr_pdf_bytes", url = %url, byte_len = bytes.len(), "CNS");

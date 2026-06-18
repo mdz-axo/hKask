@@ -33,7 +33,7 @@ pub enum ConflictType {
     ResourceContention,
 }
 
-// REQ: TYP-240 (as_str), TYP-241 (parse_str)
+// contract: TYP-240
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid ConflictType variant
 // as_str post: returns PascalCase string ("CancelOut", "ContradictoryDirective", "OrderingCollision", "ResourceContention")
@@ -57,7 +57,7 @@ pub enum ConflictResolution {
     UserIntent,
 }
 
-// REQ: TYP-242 (as_str), TYP-243 (parse_str)
+// contract: TYP-242
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid ConflictResolution variant
 // as_str post: returns PascalCase string ("DomainSeparation", "PhaseSeparation", "SpecificityOverride", "ManifestOverride", "UserIntent")
@@ -80,7 +80,7 @@ pub enum ComplementarityType {
     CrossDomainEnhance,
 }
 
-// REQ: TYP-244 (as_str), TYP-245 (parse_str)
+// contract: TYP-244
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
 // as_str pre:  self is a valid ComplementarityType variant
 // as_str post: returns PascalCase string ("SequentialFeed", "ParallelAmplify", "CrossDomainEnhance")

@@ -541,7 +541,7 @@ mod tests {
         }
     }
 
-    // REQ: svc-cns-seam-001 — check_drift_detects_coverage_drop
+    // contract: svc-cns-seam-001
     #[test]
     fn check_drift_detects_coverage_drop() {
         let inv1 = make_test_inventory(vec![("test-crate", 100, 50, 10)]);
@@ -574,7 +574,7 @@ mod tests {
         assert_eq!(drifts[0].items_covered_delta, -5);
     }
 
-    // REQ: svc-cns-seam-002 — check_drift_detects_coverage_improvement
+    // contract: svc-cns-seam-002
     #[test]
     fn check_drift_detects_coverage_improvement() {
         let inv1 = make_test_inventory(vec![("test-crate", 100, 40, 20)]);
@@ -604,7 +604,7 @@ mod tests {
         assert_eq!(drifts[0].items_covered_delta, 15);
     }
 
-    // REQ: svc-cns-seam-003 — check_drift_returns_empty_when_no_change
+    // contract: svc-cns-seam-003
     #[test]
     fn check_drift_returns_empty_when_no_change() {
         let inv = make_test_inventory(vec![("test-crate", 100, 50, 10)]);
@@ -627,7 +627,7 @@ mod tests {
         assert!(drifts.is_empty(), "No drift when inventories are identical");
     }
 
-    // REQ: svc-cns-seam-004 — check_drift_first_call_returns_empty
+    // contract: svc-cns-seam-004
     #[test]
     fn check_drift_first_call_returns_empty() {
         let inv = make_test_inventory(vec![("test-crate", 100, 50, 10)]);
@@ -657,7 +657,7 @@ mod tests {
         );
     }
 
-    // REQ: svc-cns-seam-005 — check_drift_detects_new_crate
+    // contract: svc-cns-seam-005
     #[test]
     fn check_drift_detects_new_crate() {
         let inv1 = make_test_inventory(vec![("crate-a", 100, 50, 10)]);
@@ -687,7 +687,7 @@ mod tests {
         assert!(new_crate_drift[0].delta_pct > 0.0);
     }
 
-    // REQ: svc-cns-seam-006 — check_drift_detects_removed_crate
+    // contract: svc-cns-seam-006
     #[test]
     fn check_drift_detects_removed_crate() {
         let inv1 = make_test_inventory(vec![("crate-a", 100, 50, 10), ("crate-b", 50, 25, 5)]);
@@ -717,7 +717,7 @@ mod tests {
         assert!(removed[0].delta_pct < 0.0);
     }
 
-    // REQ: svc-cns-seam-007 — load_returns_none_when_no_inventory_available
+    // contract: svc-cns-seam-007
     //
     // When neither embedded JSON nor file path is available, load() returns None.
     // In test environment, EMBEDDED_INVENTORY will be the real inventory from
@@ -745,7 +745,7 @@ mod tests {
         }
     }
 
-    // REQ: svc-cns-seam-008 — summary_returns_workspace_wide_totals
+    // contract: svc-cns-seam-008
     #[test]
     fn summary_returns_workspace_wide_totals() {
         let inv = make_test_inventory(vec![("crate-a", 100, 50, 10), ("crate-b", 50, 25, 5)]);
@@ -763,7 +763,7 @@ mod tests {
         assert_eq!(summary.crate_count, 2);
     }
 
-    // REQ: svc-cns-seam-009 — check_drift_increments_variety_for_afferent_signal
+    // contract: svc-cns-seam-009
     //
     // G1 fix: verify that check_drift() calls increment_variety() for each
     // crate domain, closing the afferent signal path.

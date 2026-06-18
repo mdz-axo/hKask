@@ -63,7 +63,7 @@ mod tests {
     use hkask_agents::ports::memory_storage::RecalledEpisode;
     use hkask_types::loops::episodic::ExperienceClassification;
 
-    // REQ: P3-svc-chat-gas-001 — Token usage maps to gas cost at 1:1 ratio
+    // contract: P3-svc-chat-gas-001
     // expect: "Service gas_cost works correctly under test conditions" [P3]
     #[test]
     fn token_usage_gas_cost_one_to_one() {
@@ -75,7 +75,7 @@ mod tests {
         assert_eq!(usage.gas_cost(), 150, "Gas cost must equal total_tokens");
     }
 
-    // REQ: P3-svc-chat-gas-002 — Gas cost of zero tokens is zero
+    // contract: P3-svc-chat-gas-002
     // expect: "Service gas_cost works correctly under test conditions" [P3]
     #[test]
     fn token_usage_zero_tokens_zero_gas() {
@@ -87,7 +87,7 @@ mod tests {
         assert_eq!(usage.gas_cost(), 0);
     }
 
-    // REQ: P3-svc-chat-gas-003 — Gas cost derived from total_tokens
+    // contract: P3-svc-chat-gas-003
     // expect: "Service gas_cost works correctly under test conditions" [P3]
     #[test]
     fn token_usage_gas_uses_total_not_sum_of_parts() {
@@ -175,7 +175,7 @@ mod tests {
         }
     }
 
-    // REQ: P3-svc-chat-memory-001 — recall_semantic returns None when no triples match
+    // contract: P3-svc-chat-memory-001
     // expect: "Service recall_semantic works correctly under test conditions" [P3]
     #[test]
     fn recall_semantic_empty_returns_none() {
@@ -186,7 +186,7 @@ mod tests {
         assert!(result.is_none());
     }
 
-    // REQ: P3-svc-chat-memory-002 — recall_semantic joins string values with newlines
+    // contract: P3-svc-chat-memory-002
     // expect: "Service recall_semantic works correctly under test conditions" [P3]
     #[test]
     fn recall_semantic_joins_values_with_newlines() {
@@ -208,7 +208,7 @@ mod tests {
         assert_eq!(result, Some("A\nB".into()));
     }
 
-    // REQ: P3-svc-chat-memory-003 — recall_semantic filters non-string values
+    // contract: P3-svc-chat-memory-003
     // expect: "Service recall_semantic works correctly under test conditions" [P3]
     #[test]
     fn recall_semantic_filters_non_string_values() {
@@ -239,7 +239,7 @@ mod tests {
         assert_eq!(result, Some("Text".into()));
     }
 
-    // REQ: P3-svc-chat-episodic-001 — store_episodic stores input+response as JSON
+    // contract: P3-svc-chat-episodic-001
     // expect: "Service store_episodic works correctly under test conditions" [P3]
     #[test]
     fn store_episodic_records_chat_exchange() {
@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(r.value["agent_response"], "Hi!");
     }
 
-    // REQ: P3-svc-chat-episodic-002 — store_episodic confidence 0.7
+    // contract: P3-svc-chat-episodic-002
     // expect: "Service store_episodic works correctly under test conditions" [P3]
     #[test]
     fn store_episodic_uses_fixed_confidence() {
@@ -271,7 +271,7 @@ mod tests {
         assert!((req.as_ref().unwrap().confidence.value() - 0.7).abs() < 0.001);
     }
 
-    // REQ: P3-svc-chat-episodic-003 — store_episodic never panics
+    // contract: P3-svc-chat-episodic-003
     // expect: "Service store_episodic works correctly under test conditions" [P3]
     #[test]
     fn store_episodic_never_panics() {
@@ -500,7 +500,7 @@ impl ChatService {
         let params_override = req.params_override;
 
         // Resolve LLM parameters: caller override > agent-kind defaults
-        // REQ: P3 (Generative Space) — all parameters are user-exposed, none hidden.
+        // contract: P3
         // expect: "The service layer enables generative access to domain capabilities" [P3]
         let params = params_override.unwrap_or(LLMParameters {
             temperature: 0.7,
@@ -516,7 +516,7 @@ impl ChatService {
             adapter: None,
         });
 
-        // REQ: P9 (Homeostatic) — CNS span before inference (NuEvent, not just tracing)
+        // contract: P9
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         let request_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "request");
         let request_event = NuEvent::new(
@@ -541,7 +541,7 @@ impl ChatService {
                 retryable: false,
             })?;
 
-        // REQ: P9 (Homeostatic) — CNS span after inference
+        // contract: P9
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         let response_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "response");
         let response_event = NuEvent::new(

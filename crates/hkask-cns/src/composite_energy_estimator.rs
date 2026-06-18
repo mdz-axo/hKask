@@ -79,7 +79,7 @@ impl EnergyEstimator for CompositeEnergyEstimator {
 mod tests {
     use super::*;
 
-    // REQ: GAS-CALIB-003 — calibrated table replaces hardcoded costs
+    // contract: GAS-CALIB-003
     #[test]
     fn from_dynamic_table_uses_calibrated_server_cost() {
         let mut table = DynamicGasTable::new();
@@ -95,7 +95,7 @@ mod tests {
         );
     }
 
-    // REQ: GAS-CALIB-003 — unobserved servers keep default cost
+    // contract: GAS-CALIB-003
     #[test]
     fn from_dynamic_table_retains_default_for_unobserved_servers() {
         let table = DynamicGasTable::new();
@@ -104,7 +104,7 @@ mod tests {
         assert_eq!(cost, 5, "unobserved server should retain default cost");
     }
 
-    // REQ: P9-cns-est-composite-new — inference still routed to token estimator
+    // contract: P9-cns-est-composite-new
     #[test]
     fn from_dynamic_table_still_routes_inference() {
         let table = DynamicGasTable::new();
@@ -118,7 +118,7 @@ mod tests {
         assert_eq!(cost, 100, "inference cost uses token estimator, not table");
     }
 
-    // REQ: GAS-CALIB-003 — per-tool overrides survive calibration
+    // contract: GAS-CALIB-003
     #[test]
     fn from_dynamic_table_preserves_tool_overrides() {
         let table = DynamicGasTable::new();

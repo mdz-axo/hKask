@@ -967,7 +967,7 @@ mod tests {
         }
     }
 
-    // REQ: PORTFOLIO-CRUD — create, list, delete
+    // contract: PORTFOLIO-CRUD
     #[test]
     fn portfolio_create_list_delete() {
         let dir = tempfile::tempdir().unwrap();
@@ -990,7 +990,7 @@ mod tests {
         assert!(pm.delete("nonexistent").is_err());
     }
 
-    // REQ: PORTFOLIO-TX — add transaction, retrieve, append note
+    // contract: PORTFOLIO-TX
     #[test]
     fn transaction_add_and_retrieve() {
         let dir = tempfile::tempdir().unwrap();
@@ -1010,7 +1010,7 @@ mod tests {
         assert!(txs[0].notes.contains("buying the dip"));
     }
 
-    // REQ: PORTFOLIO-TX — filter by symbol, type, date range
+    // contract: PORTFOLIO-TX
     #[test]
     fn transaction_filtering() {
         let dir = tempfile::tempdir().unwrap();
@@ -1039,7 +1039,7 @@ mod tests {
         assert_eq!(july.len(), 1);
     }
 
-    // REQ: PORTFOLIO-VALIDATE — positions = buys - sells, cash consistency
+    // contract: PORTFOLIO-VALIDATE
     #[test]
     fn validate_positions_and_cash() {
         let dir = tempfile::tempdir().unwrap();
@@ -1085,7 +1085,7 @@ mod tests {
         assert!((report.cash_balance - 8202.0).abs() < 0.01);
     }
 
-    // REQ: PORTFOLIO-IMPORT — CSV import with header mapping
+    // contract: PORTFOLIO-IMPORT
     #[test]
     fn csv_import() {
         let dir = tempfile::tempdir().unwrap();
@@ -1110,7 +1110,7 @@ deposit,2024-01-01,,,,,10000.0
         assert!(report.valid);
     }
 
-    // REQ: PORTFOLIO-IMPORT — JSON import
+    // contract: PORTFOLIO-IMPORT
     #[test]
     fn json_import() {
         let dir = tempfile::tempdir().unwrap();
@@ -1129,7 +1129,7 @@ deposit,2024-01-01,,,,,10000.0
         assert_eq!(txs.len(), 2);
     }
 
-    // REQ: PORTFOLIO-EXPORT — CSV and JSON export round-trips
+    // contract: PORTFOLIO-EXPORT
     #[test]
     fn export_roundtrip() {
         let dir = tempfile::tempdir().unwrap();
@@ -1147,7 +1147,7 @@ deposit,2024-01-01,,,,,10000.0
         assert!(csv.contains("buy"));
     }
 
-    // REQ: PORTFOLIO-VALIDATE — detects bad transactions
+    // contract: PORTFOLIO-VALIDATE
     #[test]
     fn validate_detects_issues() {
         let dir = tempfile::tempdir().unwrap();
@@ -1168,7 +1168,7 @@ deposit,2024-01-01,,,,,10000.0
         );
     }
 
-    // REQ: NOTES-CRUD — add, list, filter, delete a company note
+    // contract: NOTES-CRUD
     #[test]
     fn notes_crud() {
         let dir = tempfile::tempdir().unwrap();
@@ -1220,7 +1220,7 @@ deposit,2024-01-01,,,,,10000.0
         assert!(empty.is_empty());
     }
 
-    // REQ: NOTES-DELETE — non-existent note
+    // contract: NOTES-DELETE
     #[test]
     fn delete_nonexistent_note() {
         let dir = tempfile::tempdir().unwrap();
@@ -1230,7 +1230,7 @@ deposit,2024-01-01,,,,,10000.0
         assert!(pm.delete_note("nonexistent-id").is_err());
     }
 
-    // REQ: FILES-ATTACH — attach a base64 file and list it
+    // contract: FILES-ATTACH
     #[test]
     fn file_attach_and_list() {
         let dir = tempfile::tempdir().unwrap();
@@ -1269,7 +1269,7 @@ deposit,2024-01-01,,,,,10000.0
         assert_eq!(contents, "Hello, portfolio!");
     }
 
-    // REQ: FILES-DELETE — delete file record and physical file
+    // contract: FILES-DELETE
     #[test]
     fn file_delete() {
         let dir = tempfile::tempdir().unwrap();

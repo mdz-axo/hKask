@@ -321,7 +321,7 @@ mod tests {
         DynamicImage::ImageRgb8(img)
     }
 
-    // REQ:ocr-pipeline-01 — Single page produces correct output with page marker
+    // contract: ocr-pipeline-01
     #[tokio::test]
     async fn single_page_pipeline() {
         let pages = vec![blank_page()];
@@ -336,7 +336,7 @@ mod tests {
         assert_eq!(outcome.errors.len(), 0);
     }
 
-    // REQ:ocr-pipeline-02 — Three pages produce correct page markers in order
+    // contract: ocr-pipeline-02
     #[tokio::test]
     async fn three_page_pipeline_markers() {
         let pages = vec![blank_page(), blank_page(), blank_page()];
@@ -367,7 +367,7 @@ mod tests {
         assert!(assembled.contains("Page three"));
     }
 
-    // REQ:ocr-pipeline-03 — Failed page produces error, pipeline continues
+    // contract: ocr-pipeline-03
     #[tokio::test]
     async fn failed_page_non_fatal() {
         let pages = vec![blank_page(), blank_page()];
@@ -383,7 +383,7 @@ mod tests {
         assert!(!outcome.report.passed, "report should not pass with errors");
     }
 
-    // REQ:ocr-pipeline-04 — assemble_document is a pure function
+    // contract: ocr-pipeline-04
     #[test]
     fn assemble_document_pure() {
         let results = vec![

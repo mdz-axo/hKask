@@ -228,25 +228,25 @@ impl ModelRegistry for HfModelRegistry {
 mod tests {
     use super::*;
 
-    // REQ: P8-trn-hf-resolve-provider-prefix — resolve_model_id strips known prefixes
+    // contract: P8-trn-hf-resolve-provider-prefix
     #[test]
     fn resolve_provider_prefix() {
         assert_eq!(resolve_model_id("DI/some-model"), "some-model");
     }
 
-    // REQ: P8-trn-hf-resolve-together-prefix — resolve_model_id strips TG/ prefix
+    // contract: P8-trn-hf-resolve-together-prefix
     #[test]
     fn resolve_together_prefix() {
         assert_eq!(resolve_model_id("TG/Qwen/Qwen3.5-9B"), "Qwen/Qwen3.5-9B");
     }
 
-    // REQ: P8-trn-hf-resolve-no-prefix-passthrough — resolve_model_id passes through unprefixed IDs
+    // contract: P8-trn-hf-resolve-no-prefix-passthrough
     #[test]
     fn resolve_no_prefix_passthrough() {
         assert_eq!(resolve_model_id("Qwen/Qwen3.5-9B"), "Qwen/Qwen3.5-9B");
     }
 
-    // REQ: P8-trn-hf-resolve-deepinfra-prefix — resolve_model_id strips DI/ prefix
+    // contract: P8-trn-hf-resolve-deepinfra-prefix
     #[test]
     fn resolve_deepinfra_prefix() {
         assert_eq!(
@@ -255,7 +255,7 @@ mod tests {
         );
     }
 
-    // REQ: P8-trn-hf-resolve-fireworks-prefix — resolve_model_id strips FA/ prefix
+    // contract: P8-trn-hf-resolve-fireworks-prefix
     #[test]
     fn resolve_fireworks_prefix() {
         assert_eq!(

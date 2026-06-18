@@ -542,7 +542,7 @@ fn default_llm_params() -> LLMParameters {
 mod tests {
     use super::*;
 
-    // REQ: P9-svc-kata-kata-template-001 — templates render with standard context
+    // contract: P9-svc-kata-kata-template-001
     // expect: "Service kata templates work correctly under test conditions" [P9]
     //
     // All 23 kata templates must render without errors when given
@@ -598,7 +598,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-svc-kata-kata-template-002 — templates contain learner_bot reference
+    // contract: P9-svc-kata-kata-template-002
     // expect: "Service kata templates work correctly under test conditions" [P9]
     //
     // Every kata template must reference the learner's identity so the

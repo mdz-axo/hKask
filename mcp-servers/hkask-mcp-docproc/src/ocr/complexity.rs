@@ -110,7 +110,7 @@ mod tests {
         ThresholdConfig::default()
     }
 
-    // REQ:ocr-complexity-01 — Blank image scores Simple
+    // contract: ocr-complexity-01
     #[test]
     fn blank_image_is_simple() {
         let img = DynamicImage::new_luma8(100, 100);
@@ -122,7 +122,7 @@ mod tests {
         );
     }
 
-    // REQ:ocr-complexity-02 — Text-only (high-contrast lines) scores Simple
+    // contract: ocr-complexity-02
     #[test]
     fn text_like_image_is_simple() {
         let mut img: RgbImage = ImageBuffer::new(200, 200);
@@ -143,7 +143,7 @@ mod tests {
         );
     }
 
-    // REQ:ocr-complexity-03 — Dense table (checkerboard with thick blocks) scores Moderate
+    // contract: ocr-complexity-03
     #[test]
     fn dense_table_is_moderate() {
         let mut img: RgbImage = ImageBuffer::new(200, 200);
@@ -169,7 +169,7 @@ mod tests {
         );
     }
 
-    // REQ:ocr-complexity-04 — Salt-and-pepper noise scores Complex
+    // contract: ocr-complexity-04
     #[test]
     fn noisy_photograph_is_complex() {
         use rand::Rng;
@@ -193,7 +193,7 @@ mod tests {
         );
     }
 
-    // REQ:ocr-complexity-05 — Deterministic: same input → same output
+    // contract: ocr-complexity-05
     #[test]
     fn deterministic_output() {
         let img = DynamicImage::new_luma8(50, 50);
@@ -204,7 +204,7 @@ mod tests {
         assert_eq!(a.tier, b.tier);
     }
 
-    // REQ:ocr-complexity-06 — Custom thresholds change tier boundaries
+    // contract: ocr-complexity-06
     #[test]
     fn custom_thresholds_change_tier() {
         // A checkerboard that's Moderate with defaults should become Simple with high thresholds

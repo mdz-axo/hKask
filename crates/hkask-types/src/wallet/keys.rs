@@ -82,7 +82,7 @@ pub struct ApiKeyMaterial {
     pub capability: ApiKeyCapability,
 }
 
-// REQ: MUST-2 — Debug impl redacts private key material
+// contract: MUST-2
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
 impl fmt::Debug for ApiKeyMaterial {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

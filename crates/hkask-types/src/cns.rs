@@ -367,7 +367,7 @@ mod cns_span_tests {
     use super::*;
     use std::str::FromStr;
 
-    // REQ: cns-span-001 — CnsSpan Display produces canonical namespace strings
+    // contract: cns-span-001
 // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_display_produces_canonical_strings() {
@@ -386,7 +386,7 @@ mod cns_span_tests {
         );
     }
 
-    // REQ: cns-span-002 — CnsSpan FromStr rejects invalid span identifiers
+    // contract: cns-span-002
 // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_from_str_rejects_invalid() {
@@ -396,7 +396,7 @@ mod cns_span_tests {
         assert!(CnsSpan::from_str("tool").is_err()); // short form not supported
     }
 
-    // REQ: cns-span-003 — CnsSpan FromStr round-trips through Display
+    // contract: cns-span-003
 // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_from_str_round_trips() {
@@ -414,7 +414,7 @@ mod cns_span_tests {
         }
     }
 
-    // REQ: cns-span-004 — CnsSpan Tool with subsystem produces correct string
+    // contract: cns-span-004
 // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_tool_subsystem_produces_correct_string() {
@@ -441,7 +441,7 @@ mod cns_span_tests {
         );
     }
 
-    // REQ: cns-span-005 — CnsSpan exhaustive match covers all canonical namespaces
+    // contract: cns-span-005
 // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn cnsspan_exhaustive_match_covers_all_canonical() {
@@ -500,7 +500,7 @@ mod cns_span_tests {
         );
     }
 
-    // REQ: cns-span-006 — ToolSubsystem as_str produces valid subsystem suffix
+    // contract: cns-span-006
 // expect: "CNS span types preserve canonical domain identity" [P8]
     #[test]
     fn tool_subsystem_display_produces_valid_suffix() {

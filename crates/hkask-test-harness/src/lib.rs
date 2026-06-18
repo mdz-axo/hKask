@@ -478,7 +478,7 @@ mod tests {
     use super::*;
     use hkask_types::event::SpanNamespace;
 
-    // REQ: HAR-001 — TestDb creates valid in-memory database (P5, P8)
+    // contract: HAR-001
     #[test]
     fn test_db_creates_valid_database() {
         let db = TestDb::new();
@@ -491,7 +491,7 @@ mod tests {
         assert_eq!(result.unwrap(), "triples");
     }
 
-    // REQ: HAR-002 — TestKeystore creates valid key file (P5, P8)
+    // contract: HAR-002
     #[test]
     fn test_keystore_creates_key_file() {
         let ks = TestKeystore::new();
@@ -501,7 +501,7 @@ mod tests {
         assert_eq!(stored.len(), 32);
     }
 
-    // REQ: HAR-003 — TestWebId produces deterministic identities (P12, P8)
+    // contract: HAR-003
     #[test]
     fn test_webid_deterministic() {
         let a1 = TestWebId::alice();
@@ -512,7 +512,7 @@ mod tests {
         assert_ne!(a1, b, "different personas must produce different WebIDs");
     }
 
-    // REQ: HAR-004 — MockCnsRuntime detects perturbations (P9, P8)
+    // contract: HAR-004
     #[test]
     fn mock_cns_detects_perturbation() {
         let cns = MockCnsRuntime::new();
@@ -527,7 +527,7 @@ mod tests {
         assert!(signals.iter().any(|s| s.is_negative_valence()));
     }
 
-    // REQ: HAR-005 — MockCnsRuntime restores homeostasis after time (P9, P8)
+    // contract: HAR-005
     #[test]
     fn mock_cns_restores_homeostasis() {
         let cns = MockCnsRuntime::new();
@@ -541,7 +541,7 @@ mod tests {
         assert!(signals.iter().any(|s| s.is_positive_valence()));
     }
 
-    // REQ: HAR-006 — temp_dir creates usable directory (P5, P8)
+    // contract: HAR-006
     #[test]
     fn temp_dir_is_usable() {
         let dir = temp_dir();
@@ -551,7 +551,7 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&file_path).unwrap(), "hello");
     }
 
-    // REQ: HAR-007 — test_event produces valid NuEvent (P8)
+    // contract: HAR-007
     #[test]
     fn test_event_is_valid() {
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
@@ -561,7 +561,7 @@ mod tests {
         assert_eq!(event.recursion_depth, 0);
     }
 
-    // REQ: HAR-008 — test_triple produces valid Triple (P8)
+    // contract: HAR-008
     #[test]
     fn test_triple_is_valid() {
         let triple = test_triple("entity:test", "attr:name", serde_json::json!("value"), None);

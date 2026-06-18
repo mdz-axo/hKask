@@ -759,7 +759,7 @@ mod tests {
         BackupService::with_config(mock, test_config())
     }
 
-    // REQ: P7-svc-backup-backup-snapshot-001 — Snapshot of tracked type produces commits
+    // contract: P7-svc-backup-backup-snapshot-001
     // expect: "Service snapshot works correctly under test conditions" [P7]
     #[tokio::test]
     async fn snapshot_tracked_type_produces_commits() {
@@ -777,7 +777,7 @@ mod tests {
         assert!(!result.commits.is_empty());
     }
 
-    // REQ: P7-svc-backup-backup-snapshot-002 — Snapshot of untracked type is rejected
+    // contract: P7-svc-backup-backup-snapshot-002
     // expect: "Service snapshot works correctly under test conditions" [P7]
     #[tokio::test]
     async fn snapshot_untracked_type_rejected() {
@@ -793,7 +793,7 @@ mod tests {
         assert!(matches!(result, Err(BackupError::NotTracked(_))));
     }
 
-    // REQ: P7-svc-backup-backup-snapshot-003 — Full snapshot with no tracked types errors
+    // contract: P7-svc-backup-backup-snapshot-003
     // expect: "Service snapshot works correctly under test conditions" [P7]
     #[tokio::test]
     async fn full_snapshot_no_tracked_types_errors() {
@@ -803,7 +803,7 @@ mod tests {
         assert!(matches!(result, Err(BackupError::Config(_))));
     }
 
-    // REQ: P7-svc-backup-backup-restore-001 — Restore reproduces artifact state
+    // contract: P7-svc-backup-backup-restore-001
     // expect: "Service restore works correctly under test conditions" [P7]
     #[tokio::test]
     async fn restore_reproduces_state() {
@@ -830,7 +830,7 @@ mod tests {
         assert_eq!(restored[0].1, "tpl-1");
     }
 
-    // REQ: P7-svc-backup-backup-list-001 — List returns snapshots for tracked repos
+    // contract: P7-svc-backup-backup-list-001
     // expect: "Service list works correctly under test conditions" [P7]
     #[tokio::test]
     async fn list_returns_snapshots() {
@@ -848,7 +848,7 @@ mod tests {
         assert!(!snapshots.is_empty());
     }
 
-    // REQ: P7-svc-backup-backup-prune-001 — Prune with retention removes old snapshots
+    // contract: P7-svc-backup-backup-prune-001
     // expect: "Service prune works correctly under test conditions" [P7]
     #[tokio::test]
     async fn prune_with_retention_identifies_expired() {
@@ -882,7 +882,7 @@ mod tests {
         assert_eq!(report.retained, 1);
     }
 
-    // REQ: P7-svc-backup-backup-verify-001 — Verify returns reports for tracked repos
+    // contract: P7-svc-backup-backup-verify-001
     // expect: "Service verify works correctly under test conditions" [P7]
     #[tokio::test]
     async fn verify_returns_reports() {
@@ -892,7 +892,7 @@ mod tests {
         assert!(!reports.is_empty());
     }
 
-    // REQ: P7-svc-backup-backup-config-004 — Update config persists and reflects changes
+    // contract: P7-svc-backup-backup-config-004
     // expect: "Service update_config works correctly under test conditions" [P7]
     #[tokio::test]
     async fn update_config_persists_and_reflects() {

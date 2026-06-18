@@ -107,7 +107,7 @@ mod tests {
         }
     }
 
-    // REQ: P4-agt-persona-filter-non-ascii-check-test — non-ASCII output does not panic on byte-boundary check
+    // contract: P4-agt-persona-filter-non-ascii-check-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_does_not_panic_on_non_ascii_output() {
@@ -124,7 +124,7 @@ mod tests {
         );
     }
 
-    // REQ: P4-agt-persona-filter-non-ascii-strip-test — strip does not panic on non-ASCII output
+    // contract: P4-agt-persona-filter-non-ascii-strip-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn strip_does_not_panic_on_non_ascii_output() {
@@ -135,7 +135,7 @@ mod tests {
         assert!(!cleaned.contains("Great"), "should strip the pattern");
     }
 
-    // REQ: P4-agt-persona-filter-ascii-detect-test — ASCII output: clean detection and stripping
+    // contract: P4-agt-persona-filter-ascii-detect-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_detects_ascii_forbidden_pattern() {
@@ -145,7 +145,7 @@ mod tests {
         assert_eq!(result.violations.len(), 2);
     }
 
-    // REQ: P4-agt-persona-filter-clean-test — no false positives on clean output
+    // contract: P4-agt-persona-filter-clean-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_passes_clean_output() {

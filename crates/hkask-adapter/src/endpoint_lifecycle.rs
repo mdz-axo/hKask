@@ -207,7 +207,7 @@ impl EndpointLifecycle {
 mod tests {
     use super::*;
 
-    // REQ: P9-adt-endpoint-lifecycle — valid phase transitions succeed
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn valid_phase_transitions() {
@@ -231,7 +231,7 @@ mod tests {
         assert_eq!(lc.phase, EndpointPhase::Terminated);
     }
 
-    // REQ: P9-adt-endpoint-lifecycle — invalid transitions return error
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn invalid_transition_returns_error() {
@@ -243,7 +243,7 @@ mod tests {
         assert_eq!(lc.phase, EndpointPhase::Provisioning);
     }
 
-    // REQ: P9-adt-endpoint-lifecycle — terminated cannot transition further
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn terminated_cannot_transition() {
@@ -257,7 +257,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P9-adt-endpoint-lifecycle — ready can go to draining (direct teardown before active)
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn ready_can_go_to_draining() {
@@ -268,7 +268,7 @@ mod tests {
             .expect("ready → draining should succeed");
     }
 
-    // REQ: P9-adt-endpoint-lifecycle — billable phases tracked correctly
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn billable_phases() {
@@ -279,7 +279,7 @@ mod tests {
         assert!(!EndpointPhase::Terminated.is_billable());
     }
 
-    // REQ: P9-adt-endpoint-lifecycle — cost accrual through transitions
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn cost_accrual_on_transition() {
@@ -294,7 +294,7 @@ mod tests {
         assert_eq!(lc.cost_accrued, 15.0);
     }
 
-    // REQ: P9-adt-endpoint-lifecycle — zero or negative duration does nothing
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn zero_duration_accrues_nothing() {
@@ -306,7 +306,7 @@ mod tests {
         assert_eq!(lc.cost_accrued, 0.0);
     }
 
-    // REQ: P9-adt-endpoint-lifecycle — budget enforcement
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn is_over_budget() {
@@ -320,7 +320,7 @@ mod tests {
         assert!(lc.is_over_budget(50.0));
     }
 
-    // REQ: P9-adt-endpoint-lifecycle — time until budget exceeded
+    // contract: P9-adt-endpoint-lifecycle
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn time_until_budget_exceeded() {

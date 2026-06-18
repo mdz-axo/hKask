@@ -11,7 +11,7 @@ use minijinja::Environment;
 use serde_json::json;
 use std::path::Path;
 
-// REQ: P3-tpl-test-template-rendering-correctness — Template rendering correctness (P8)
+// contract: P3-tpl-test-template-rendering-correctness
 // expect: "Template Template rendering correctness (P8)" [P3]
 // [P3] Motivating: Generative Space — validates Jinja2 templates render without errors
 // [P8] Constraining: Semantic Grounding — template syntax errors caught before runtime

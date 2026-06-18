@@ -236,7 +236,7 @@ mod tests {
     use super::*;
     use axum::response::IntoResponse;
 
-    // REQ: api-error-001 — ApiError maps to correct HTTP status codes
+    // contract: api-error-001
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_maps_to_correct_status_codes() {
@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    // REQ: api-error-002 — ApiError Display impls are human-readable
+    // contract: api-error-002
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_display_is_readable() {
@@ -293,7 +293,7 @@ mod tests {
         assert_eq!(err.to_string(), "Bad request: missing field");
     }
 
-    // REQ: api-error-003 — ApiError IntoResponse produces correct HTTP status
+    // contract: api-error-003
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     #[test]
     fn apierror_into_response_produces_correct_status() {

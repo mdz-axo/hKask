@@ -233,7 +233,7 @@ mod tests {
     use crate::wallet::error::WalletError;
     use crate::wallet::keys::ApiKeyCapability;
 
-    // REQ: P1-wallet-types — RJoule newtype prevents accidental mixing with gas units
+    // contract: P1-wallet-types
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn rjoule_newtype_prevents_gas_confusion() {
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(rj.as_u64(), gas); // explicit conversion required
     }
 
-    // REQ: P1-wallet-types — RJoule saturating_sub floors at zero
+    // contract: P1-wallet-types
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn rjoule_saturating_sub_floors_at_zero() {
@@ -253,7 +253,7 @@ mod tests {
         assert_eq!(a.saturating_sub(b), RJoule::ZERO);
     }
 
-    // REQ: P1-wallet-types — ChainId FromStr is case-insensitive
+    // contract: P1-wallet-types
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn chain_id_from_str_case_insensitive() {
@@ -263,7 +263,7 @@ mod tests {
         assert!("bitcoin".parse::<ChainId>().is_err());
     }
 
-    // REQ: P1-wallet-types — PrivacyMode is an enum, not a bool
+    // contract: P1-wallet-types
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn privacy_mode_is_exhaustive_enum() {
@@ -276,7 +276,7 @@ mod tests {
         }
     }
 
-    // REQ: P1-wallet-types — WalletId and ApiKeyId are distinct types
+    // contract: P1-wallet-types
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn wallet_id_and_api_key_id_are_distinct() {
@@ -288,7 +288,7 @@ mod tests {
         assert_ne!(wallet.as_uuid(), key.as_uuid()); // different UUIDs
     }
 
-    // REQ: P1-wallet-types — ApiKeyCapability tracks remaining budget
+    // contract: P1-wallet-types
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn api_key_capability_remaining_budget() {
@@ -309,7 +309,7 @@ mod tests {
         assert_eq!(cap.remaining_rj(), RJoule::new(3800));
     }
 
-    // REQ: P1-wallet-types — WalletConfig has sensible defaults
+    // contract: P1-wallet-types
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn wallet_config_defaults() {
@@ -323,7 +323,7 @@ mod tests {
         assert!(cfg.privacy_enabled);
     }
 
-    // REQ: P1-wallet-types — WalletError Display impls are human-readable
+    // contract: P1-wallet-types
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn wallet_error_display_is_readable() {

@@ -73,15 +73,14 @@ count_pub_fns() {
 
 count_contracted() {
     local dir="$1"
-    local count
-    # Count doc-comment contracts (/// REQ:) and line-comment REQ tags (// REQ:)
-    # Each contract starts with a REQ: line; pre:/post: follow on subsequent lines.
-    # Exclude test code and tests/ directories.
-    count=$(grep -rn "///* REQ:" "$dir" --include="*.rs" 2>/dev/null \
-        | grep -v "cfg(test)" \
-        | grep -v "/tests/" \
-        | wc -l)
-    count=$(echo "$count" | tr -d ' ')
+    local count=0
+    # Count all contract markers: #[contract], #[rs::contract], /// contract(id:, /// REQ: (legacy)
+    local c1 c2 c3 c4
+    c1=$(grep -rn '#\[contract(id' "$dir" --include="*.rs" 2>/dev/null | grep -v "cfg(test)" | grep -v "/tests/" | wc -l)
+    c2=$(grep -rn '#\[rs::contract(id' "$dir" --include="*.rs" 2>/dev/null | grep -v "cfg(test)" | grep -v "/tests/" | wc -l)
+    c3=$(grep -rn '/// contract(id:' "$dir" --include="*.rs" 2>/dev/null | grep -v "cfg(test)" | grep -v "/tests/" | wc -l)
+    c4=$(grep -rn '/// REQ:' "$dir" --include="*.rs" 2>/dev/null | grep -v "cfg(test)" | grep -v "/tests/" | wc -l)
+    count=$(( $(echo "$c1" | tr -d ' ') + $(echo "$c2" | tr -d ' ') + $(echo "$c3" | tr -d ' ') + $(echo "$c4" | tr -d ' ') ))
     echo "${count:-0}"
 }
 

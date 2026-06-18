@@ -114,7 +114,7 @@ impl ApiKeyIssuer {
         rate_limit: Option<RateLimitConfig>,
     ) -> Result<ApiKeyMaterial, WalletError> {
         // Generate fresh Ed25519 keypair for this API key
-        // REQ: P9-wallet-issuer-zeroize-seed — key generation seed wrapped in Zeroizing for automatic zeroize on drop
+        // contract: P9-wallet-issuer-zeroize-seed
         // expect: "My private key material is zeroized on drop and redacted from debug output" [P1]
         let mut rng = rand::rng();
         let mut seed = Zeroizing::new([0u8; 32]);
@@ -237,7 +237,7 @@ mod tests {
         ApiKeyIssuer::new(store).unwrap()
     }
 
-    // REQ: P9-wallet-issuer-create-keypair-test — create_key produces valid Ed25519 keypair
+    // contract: P9-wallet-issuer-create-keypair-test
     /// expect: "Wallet issuer create keypair test works correctly under test conditions" [P9]
     #[test]
     fn create_key_produces_valid_keypair() {
@@ -265,7 +265,7 @@ mod tests {
         assert!(retrieved.is_some());
     }
 
-    // REQ: P9-wallet-issuer-expiry-test — create_key with expiry sets expiry field
+    // contract: P9-wallet-issuer-expiry-test
     /// expect: "Wallet issuer expiry test works correctly under test conditions" [P9]
     #[test]
     fn create_key_with_expiry() {
@@ -289,7 +289,7 @@ mod tests {
         assert!(material.capability.expiry.is_some());
     }
 
-    // REQ: P9-wallet-issuer-revoke-unspent-test — revoke_key returns unspent rJoules
+    // contract: P9-wallet-issuer-revoke-unspent-test
     /// expect: "Wallet issuer revoke unspent test works correctly under test conditions" [P9]
     #[test]
     fn revoke_key_returns_unspent_rjoules() {
@@ -329,7 +329,7 @@ mod tests {
         assert_eq!(balance.rjoules, 8800); // 10000 - 5000 + 3800 unspent
     }
 
-    // REQ: P9-wallet-issuer-list-active-test — list_keys returns active keys
+    // contract: P9-wallet-issuer-list-active-test
     /// expect: "Wallet issuer list active test works correctly under test conditions" [P9]
     #[test]
     fn list_keys_returns_active_keys() {

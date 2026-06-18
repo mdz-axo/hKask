@@ -199,7 +199,7 @@ impl std::fmt::Display for DimensionMismatch {
 mod tests {
     use super::*;
 
-    // REQ: types-error-001 — McpErrorKind::is_retryable() only for Unavailable/Timeout/RateLimited
+    // contract: types-error-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn mcperrorkind_is_retryable() {
@@ -213,7 +213,7 @@ mod tests {
         assert!(!McpErrorKind::FailedPrecondition.is_retryable());
     }
 
-    // REQ: types-error-002 — McpErrorKind::requires_intervention() only for PermissionDenied/FailedPrecondition
+    // contract: types-error-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn mcperrorkind_requires_intervention() {
@@ -227,7 +227,7 @@ mod tests {
         assert!(!McpErrorKind::RateLimited.requires_intervention());
     }
 
-    // REQ: types-error-003 — From<PoisonError<T>> for InfrastructureError produces LockPoisoned
+    // contract: types-error-003
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_poison_error_produces_lock_poisoned() {
@@ -245,7 +245,7 @@ mod tests {
         assert_eq!(infra, InfrastructureError::LockPoisoned);
     }
 
-    // REQ: types-error-004 — From<serde_json::Error> for InfrastructureError produces Serialization
+    // contract: types-error-004
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_serde_error_produces_serialization() {
@@ -256,7 +256,7 @@ mod tests {
         assert!(matches!(infra, InfrastructureError::Serialization(_)));
     }
 
-    // REQ: types-error-005 — InfrastructureError Display impls are human-readable
+    // contract: types-error-005
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn infrastructure_error_display_is_readable() {
@@ -274,7 +274,7 @@ mod tests {
         );
     }
 
-    // REQ: types-error-006 — McpErrorKind Display renders snake_case
+    // contract: types-error-006
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn mcperrorkind_display_renders_snake_case() {

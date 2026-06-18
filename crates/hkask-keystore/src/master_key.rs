@@ -214,7 +214,7 @@ fn derive_sub_key_hex_versioned(master_key: &[u8], context: &str, key_version: u
 mod tests {
     use super::*;
 
-    // REQ: svc-keystore-version-004 — different_versions_produce_different_keys
+    // contract: svc-keystore-version-004
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     //
     // Version N and version N+1 must produce cryptographically independent
@@ -230,7 +230,7 @@ mod tests {
         assert_ne!(&*v1, &*v2, "Different versions must produce different keys");
     }
 
-    // REQ: svc-keystore-version-005 — same_version_produces_same_key
+    // contract: svc-keystore-version-005
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     //
     // The same master key, context, and version must always produce
@@ -246,7 +246,7 @@ mod tests {
         assert_eq!(&*v1_a, &*v1_b, "Same version must produce same key");
     }
 
-    // REQ: svc-keystore-version-006 — derive_all_secrets_with_version_is_deterministic
+    // contract: svc-keystore-version-006
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn derive_all_secrets_with_version_is_deterministic() {
@@ -260,7 +260,7 @@ mod tests {
         assert_eq!(secrets_a.ocap_secret, secrets_b.ocap_secret);
     }
 
-    // REQ: svc-keystore-version-007 — derive_all_secrets_different_versions_differ
+    // contract: svc-keystore-version-007
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn derive_all_secrets_different_versions_differ() {

@@ -37,13 +37,16 @@ pub async fn admin_middleware(
         Some(ctx) => ctx.webid,
         None => return Err(StatusCode::UNAUTHORIZED),
     };
-    let store = store.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let replicant = store.get_replicant_by_webid(&webid)
-        .map_err(|_| StatusCode::FORBIDDEN)?
-        .ok_or(StatusCode::FORBIDDEN)?;
-    let user = store.get_user(&replicant.user_id)
-        .map_err(|_| StatusCode::FORBIDDEN)?;
-    if user.role != Role::Admin {
+    let is_admin = {
+        let store = store.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let replicant = store.get_replicant_by_webid(&webid)
+            .map_err(|_| StatusCode::FORBIDDEN)?
+            .ok_or(StatusCode::FORBIDDEN)?;
+        let user = store.get_user(&replicant.user_id)
+            .map_err(|_| StatusCode::FORBIDDEN)?;
+        user.role == Role::Admin
+    };
+    if !is_admin {
         return Err(StatusCode::FORBIDDEN);
     }
     Ok(next.run(req).await)

@@ -350,7 +350,7 @@ impl ApiMeteringAlert {
 mod tests {
     use super::*;
 
-    // REQ: P9-cns-api-meter-endpoint-weight — endpoint_weight_embed_corpus_is_heavy
+    // contract: P9-cns-api-meter-endpoint-weight
     // expect: "Heavy endpoints like embed-corpus get a 5× weight multiplier" [P9]
     #[test]
     fn endpoint_weight_embed_corpus_is_heavy() {
@@ -358,7 +358,7 @@ mod tests {
         assert!((endpoint_weight("compose").0 - 5.0).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-cns-api-meter-endpoint-weight — endpoint_weight_default_is_one
+    // contract: P9-cns-api-meter-endpoint-weight
     // expect: "Unrecognized endpoints default to a 1× weight" [P9]
     #[test]
     fn endpoint_weight_default_is_one() {
@@ -366,7 +366,7 @@ mod tests {
         assert!((endpoint_weight("unknown").0 - 1.0).abs() < f64::EPSILON);
     }
 
-    // REQ: P9-cns-api-meter-check-and-record — rate_limit_bucket_prunes_old_requests
+    // contract: P9-cns-api-meter-check-and-record
     // expect: "Rate limit buckets discard requests older than 60 seconds" [P9]
     #[test]
     fn rate_limit_bucket_prunes_old_requests() {
@@ -381,7 +381,7 @@ mod tests {
         assert_eq!(bucket.request_timestamps.len(), 1);
     }
 
-    // REQ: P9-cns-api-meter-check-and-record — rate_limit_bucket_enforces_rpm
+    // contract: P9-cns-api-meter-check-and-record
     // expect: "The rate limiter rejects requests when per-minute limit is exceeded" [P9]
     #[test]
     fn rate_limit_bucket_enforces_rpm() {
@@ -397,7 +397,7 @@ mod tests {
         assert!(!bucket.check_rpm(now, 3));
     }
 
-    // REQ: P9-cns-api-meter-check-and-record — token_tracking_resets_on_new_day
+    // contract: P9-cns-api-meter-check-and-record
     // expect: "Token counts reset at UTC day boundaries" [P9]
     #[test]
     fn token_tracking_resets_on_new_day() {
@@ -409,7 +409,7 @@ mod tests {
         assert_eq!(bucket.tokens_today, 800);
     }
 
-    // REQ: P9-cns-api-meter-check-and-record — api_meter_enforces_limits
+    // contract: P9-cns-api-meter-check-and-record
     // expect: "The API meter tracks and reports RPM correctly across multiple requests" [P9]
     #[test]
     fn api_meter_enforces_limits() {
@@ -428,7 +428,7 @@ mod tests {
         assert_eq!(meter.current_rpm(key), 3);
     }
 
-    // REQ: P9-cns-api-meter-span-new — api_request_span_serialization
+    // contract: P9-cns-api-meter-span-new
     // expect: "API request spans serialize correctly with all metering fields" [P9]
     #[test]
     fn api_request_span_serialization() {
@@ -446,7 +446,7 @@ mod tests {
         assert!(json.contains("ok"));
     }
 
-    // REQ: P9-cns-api-meter-alert-severity — alert_severity_levels
+    // contract: P9-cns-api-meter-alert-severity
     // expect: "Alerts are classified as critical or warning based on their severity" [P9]
     #[test]
     fn alert_severity_levels() {

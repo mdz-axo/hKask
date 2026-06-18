@@ -286,7 +286,7 @@ mod tests {
         )
     }
 
-    // REQ: GAS-CALIB-005 — calibrate updates WalletManager gas_per_rjoule
+    // contract: GAS-CALIB-005
     #[tokio::test]
     async fn calibrate_updates_wallet_manager_rate() {
         let agent = WebID::new();
@@ -312,7 +312,7 @@ mod tests {
         );
     }
 
-    // REQ: GAS-CALIB-005-obs — rate adjustment emits a cns.wallet.conversion span
+    // contract: GAS-CALIB-005-obs
     #[tokio::test]
     async fn calibrate_emits_wallet_conversion_span_when_adjusted() {
         let agent = WebID::new();
@@ -346,7 +346,7 @@ mod tests {
         );
     }
 
-    // REQ: GAS-CALIB-005-obs — no rate adjustment means no span emitted
+    // contract: GAS-CALIB-005-obs
     #[tokio::test]
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let wallet_manager = make_wallet_manager();
@@ -366,7 +366,7 @@ mod tests {
         );
     }
 
-    // REQ: GAS-CALIB-005 — no settled events leaves rate unchanged
+    // contract: GAS-CALIB-005
     #[tokio::test]
     async fn calibrate_no_events_leaves_rate_unchanged() {
         let wallet_manager = make_wallet_manager();
@@ -382,7 +382,7 @@ mod tests {
         assert_eq!(wallet_manager.gas_per_rjoule(), 1000);
     }
 
-    // REQ: GAS-CALIB-005 — custom initial lookback is accepted
+    // contract: GAS-CALIB-005
     #[test]
     fn with_initial_lookback_changes_first_window() {
         let wallet_manager = make_wallet_manager();

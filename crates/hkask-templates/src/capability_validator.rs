@@ -122,7 +122,7 @@ mod tests {
         )
     }
 
-    // REQ: P3-tpl-test-empty-requirements-pass — empty requirements always pass
+    // contract: P3-tpl-test-empty-requirements-pass
 // expect: "Template empty requirements always pass" [P3]
     // [P3] Motivating: Generative Space — validates empty capability requirement set
     #[test]
@@ -132,7 +132,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: P3-tpl-test-satisfied-requirement-passes — satisfied requirement passes
+    // contract: P3-tpl-test-satisfied-requirement-passes
 // expect: "Template satisfied requirement passes" [P3]
     // [P3] Motivating: Generative Space — validates held token satisfies requirement
     #[test]
@@ -148,7 +148,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: P3-tpl-test-unsatisfied-requirement-fails — unsatisfied requirement fails with details
+    // contract: P3-tpl-test-unsatisfied-requirement-fails
 // expect: "Template unsatisfied requirement fails with details" [P3]
     // [P3] Motivating: Generative Space — validates insufficient capability is rejected
     #[test]
@@ -163,7 +163,7 @@ mod tests {
         assert!(err.to_string().contains("tool:search:execute"));
     }
 
-    // REQ: P3-tpl-test-execute-satisfies-read — action hierarchy: Execute token satisfies Read requirement
+    // contract: P3-tpl-test-execute-satisfies-read
 // expect: "Template action hierarchy: Execute token satisfies Read requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Execute token satisfies Read requirement
@@ -179,7 +179,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: P3-tpl-test-write-satisfies-read — Write token satisfies Read requirement
+    // contract: P3-tpl-test-write-satisfies-read
 // expect: "Template Write token satisfies Read requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Write token satisfies Read requirement
@@ -191,7 +191,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: P3-tpl-test-read-not-satisfies-write — Read token does NOT satisfy Write requirement
+    // contract: P3-tpl-test-read-not-satisfies-write
 // expect: "Template Read token does NOT satisfy Write requirement" [P3]
     // [P3] Motivating: Generative Space — validates action hierarchy
     // [P4] Constraining: Clear Boundaries — Read token does not satisfy Write requirement
@@ -203,7 +203,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P3-tpl-test-malformed-requirement-error — malformed requirement returns error
+    // contract: P3-tpl-test-malformed-requirement-error
 // expect: "Template malformed requirement returns error" [P3]
     // [P3] Motivating: Generative Space — validates malformed capability syntax is rejected
     #[test]
@@ -213,7 +213,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P3-tpl-test-multiple-requirements — multiple requirements all must be satisfied
+    // contract: P3-tpl-test-multiple-requirements
 // expect: "Template multiple requirements all must be satisfied" [P3]
     // [P3] Motivating: Generative Space — validates all required capabilities must be held
     #[test]
@@ -240,7 +240,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: P3-tpl-test-no-held-tokens-fail — no held tokens with requirements fails
+    // contract: P3-tpl-test-no-held-tokens-fail
 // expect: "Template no held tokens with requirements fails" [P3]
     // [P3] Motivating: Generative Space — validates missing tokens cause rejection
     #[test]

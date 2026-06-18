@@ -683,7 +683,7 @@ impl SemanticMemory {
 
 #[cfg(test)]
 mod tests {
-    // REQ: P3-mem-semantic-centroid-dimensions-test — compute_centroid does not panic on mismatched embedding dimensions
+    // contract: P3-mem-semantic-centroid-dimensions-test
     // expect: "Memory centroid dimensions work correctly under test conditions" [P3]
     //
     // Before fix, `centroid[i] += v` was called without checking `i < dim`,
@@ -706,7 +706,7 @@ mod tests {
         assert_eq!(centroid, vec![1.0, 2.0, 3.0, 4.0]);
     }
 
-    // REQ: P3-mem-semantic-centroid-short-test — compute_centroid does not panic on short embedding dimensions
+    // contract: P3-mem-semantic-centroid-short-test
     // expect: "Memory centroid short embedding works correctly under test conditions" [P3]
     #[test]
     fn centroid_accumulation_handles_short_embedding() {

@@ -10,7 +10,7 @@ use hkask_condenser::types::Profile;
 
 // ── Classification contract tests ───────────────────────────────────────────
 
-// REQ: COND-CLASSIFY-001 — classify maps shell tools to ShellCommand category
+// contract: COND-CLASSIFY-001
 // expect: "I can see which category the condenser assigns to each tool name" [P8]
 #[test]
 fn classify_shell_tool() {
@@ -20,7 +20,7 @@ fn classify_shell_tool() {
     assert!(!algo.is_empty());
 }
 
-// REQ: COND-CLASSIFY-002 — classify maps test tools
+// contract: COND-CLASSIFY-002
 // expect: "I can see test-output tools get the correct category" [P8]
 #[test]
 fn classify_test_tool() {
@@ -29,7 +29,7 @@ fn classify_test_tool() {
     assert_eq!(cat.label(), "test_output");
 }
 
-// REQ: COND-CLASSIFY-003 — classify maps chat tools
+// contract: COND-CLASSIFY-003
 // expect: "I can see chat tools get the correct category" [P8]
 #[test]
 fn classify_chat_tool() {
@@ -38,7 +38,7 @@ fn classify_chat_tool() {
     assert_eq!(cat.label(), "conversation_history");
 }
 
-// REQ: COND-CLASSIFY-004 — unknown tools get "unknown" category
+// contract: COND-CLASSIFY-004
 // expect: "I can see that unfamiliar tool names are classified as unknown" [P8]
 #[test]
 fn classify_unknown_tool_is_unknown() {
@@ -49,7 +49,7 @@ fn classify_unknown_tool_is_unknown() {
 
 // ── Compression contract tests ──────────────────────────────────────────────
 
-// REQ: COND-COMPRESS-001 — compress reduces output size
+// contract: COND-COMPRESS-001
 // expect: "I can compress verbose tool output and see size reduction" [P5]
 #[test]
 fn compress_reduces_size() {
@@ -62,7 +62,7 @@ fn compress_reduces_size() {
     assert_eq!(result.original_lines, 100);
 }
 
-// REQ: COND-COMPRESS-002 — compress with explicit category
+// contract: COND-COMPRESS-002
 // expect: "I can specify a category when compressing to override auto-classification" [P5]
 #[test]
 fn compress_with_explicit_category() {
@@ -76,7 +76,7 @@ fn compress_with_explicit_category() {
     assert_eq!(result.category, "shell_command");
 }
 
-// REQ: COND-COMPRESS-003 — compress empty input returns valid output
+// contract: COND-COMPRESS-003
 // expect: "I can compress empty input without errors" [P8]
 #[test]
 fn compress_empty_input() {
@@ -86,7 +86,7 @@ fn compress_empty_input() {
     assert_eq!(result.reduction_pct, 0.0);
 }
 
-// REQ: COND-COMPRESS-004 — repeated compression increments stats
+// contract: COND-COMPRESS-004
 // expect: "I can verify that compression statistics accumulate correctly" [P9]
 #[test]
 fn repeated_compression_increments_stats() {
@@ -102,7 +102,7 @@ fn repeated_compression_increments_stats() {
 
 // ── Profile contract tests ──────────────────────────────────────────────────
 
-// REQ: COND-PROFILE-001 — set_profile changes compression behavior
+// contract: COND-PROFILE-001
 // expect: "I can change the compression profile and see different output" [P5]
 #[test]
 fn set_profile_changes_behavior() {
@@ -112,7 +112,7 @@ fn set_profile_changes_behavior() {
     assert_eq!(result.profile, "heavy");
 }
 
-// REQ: COND-PROFILE-002 — Normal profile is the default
+// contract: COND-PROFILE-002
 // expect: "I can verify the default compression profile is Normal" [P8]
 #[test]
 fn default_profile_is_normal() {
@@ -123,7 +123,7 @@ fn default_profile_is_normal() {
 
 // ── Health check contract tests ─────────────────────────────────────────────
 
-// REQ: COND-HEALTH-001 — health check returns signals
+// contract: COND-HEALTH-001
 // expect: "I can query the condenser's health status" [P9]
 #[test]
 fn health_check_returns_signals() {

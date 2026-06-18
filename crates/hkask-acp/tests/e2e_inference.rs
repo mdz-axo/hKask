@@ -39,7 +39,7 @@ async fn read_responses<R: AsyncRead + Unpin>(
     results
 }
 
-// REQ: acp-e2e-002
+// contract: acp-e2e-002
 #[tokio::test]
 #[ignore = "requires running DeepInfra"]
 async fn e2e_real_inference_streaming() {

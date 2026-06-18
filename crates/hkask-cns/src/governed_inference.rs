@@ -306,7 +306,7 @@ impl InferencePort for GovernedInference {
 mod tests {
     use super::*;
 
-    // REQ: P9-cns-gov-inf-est-cost-max-tokens
+    // contract: P9-cns-gov-inf-est-cost-max-tokens
     #[test]
     fn estimate_inference_cost_uses_max_tokens() {
         let params = LLMParameters {
@@ -316,7 +316,7 @@ mod tests {
         assert_eq!(estimate_inference_cost(&params), 2048);
     }
 
-    // REQ: P9-cns-gov-inf-est-cost-floors-at-one
+    // contract: P9-cns-gov-inf-est-cost-floors-at-one
     #[test]
     fn estimate_inference_cost_floors_at_one() {
         let params = LLMParameters {

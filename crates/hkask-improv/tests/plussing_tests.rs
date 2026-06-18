@@ -15,7 +15,7 @@ fn make_contribution(content: &str) -> Contribution {
     }
 }
 
-// REQ: IMPROV-PLUSSING-TESTS-001 — Plussing extraction accuracy — constructive content is identified
+// contract: IMPROV-PLUSSING-TESTS-001
 #[test]
 fn extraction_identifies_constructive_content() {
     let c = make_contribution(
@@ -37,7 +37,7 @@ fn extraction_identifies_constructive_content() {
     }
 }
 
-// REQ: IMPROV-PLUSSING-TESTS-002 — Plussing never produces negation in output
+// contract: IMPROV-PLUSSING-TESTS-002
 #[test]
 fn output_never_contains_negation() {
     let c = make_contribution(
@@ -67,7 +67,7 @@ fn output_never_contains_negation() {
     }
 }
 
-// REQ: IMPROV-PLUSSING-TESTS-003 — Plussing handles mixed constructive/negative input
+// contract: IMPROV-PLUSSING-TESTS-003
 #[test]
 fn handles_mixed_input() {
     let c = make_contribution(
@@ -91,7 +91,7 @@ fn handles_mixed_input() {
     assert!(!has_useless, "Should discard 'useless'");
 }
 
-// REQ: IMPROV-PLUSSING-TESTS-004 — Plussing build is always constructive, even with empty seeds
+// contract: IMPROV-PLUSSING-TESTS-004
 #[test]
 fn build_always_constructive() {
     // Fully negative input.

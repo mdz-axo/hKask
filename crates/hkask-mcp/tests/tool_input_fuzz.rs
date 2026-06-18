@@ -8,7 +8,7 @@
 
 use proptest::prelude::*;
 
-// REQ: FUZ-002 — Tool input validation panic-free (P4)
+// contract: FUZ-002
 // Arbitrary JSON input never panics the parser.
 
 proptest! {
@@ -23,7 +23,7 @@ proptest! {
             "JSON parser panicked on {} bytes of arbitrary input", bytes.len());
     }
 
-    // REQ: FUZ-002 — json parser never panics on arbitrary strings
+    // contract: FUZ-002
     #[test]
     fn json_parser_never_panics_on_arbitrary_strings(
         input in proptest::arbitrary::any::<String>(),

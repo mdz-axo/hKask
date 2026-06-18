@@ -11,7 +11,6 @@ path = "src/lib.rs"
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-keystore = { path = "../hkask-keystore" }
-hkask-rsolidity = { path = "../hkask-rsolidity" }
 matrix-sdk.workspace = true
 tokio.workspace = true
 serde.workspace = true

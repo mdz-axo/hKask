@@ -96,7 +96,7 @@ async fn list_pods(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Json<ListPodsResponse> {
-    // REQ: P9-CNS-SURF-030 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-030
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_list", "CNS");
@@ -123,7 +123,7 @@ async fn create_pod(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-031 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-031
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_create", "CNS");
@@ -160,7 +160,7 @@ async fn activate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-032 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-032
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_activate", pod_id = %id, "CNS");
@@ -174,7 +174,7 @@ async fn deactivate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-033 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-033
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_deactivate", pod_id = %id, "CNS");
@@ -192,7 +192,7 @@ async fn pod_status(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-034 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-034
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_status", pod_id = %id, "CNS");

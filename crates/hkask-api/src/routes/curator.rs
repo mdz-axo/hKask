@@ -142,7 +142,7 @@ pub(crate) async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-022 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-022
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "curator_escalations", "CNS");
@@ -186,7 +186,7 @@ pub(crate) async fn resolve_escalation(
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-023 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-023
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "curator_resolve", escalation_id = %id, "CNS");
@@ -217,7 +217,7 @@ pub(crate) async fn dismiss_escalation(
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, ServiceErrorResponse> {
-    // REQ: P9-CNS-SURF-024 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-024
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "curator_dismiss", escalation_id = %id, "CNS");

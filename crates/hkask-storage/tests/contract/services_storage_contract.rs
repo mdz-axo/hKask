@@ -11,7 +11,7 @@ use hkask_storage::TripleStore;
 use hkask_test_harness::{TestDb, TestWebId, test_triple};
 use serde_json::json;
 
-// REQ: P4-sto-services-contract-test — Service→Storage contract (P4, P8)
+// contract: P4-sto-services-contract-test
 // Storage operations produce correct and deduplicated state.
 
 #[test]
@@ -30,7 +30,7 @@ fn triple_insert_and_query() {
     assert_eq!(results[0].attribute, "attr:name");
 }
 
-// REQ: P4-sto-services-contract-test — triple query by attribute
+// contract: P4-sto-services-contract-test
 #[test]
 fn triple_query_by_attribute() {
     let db = TestDb::new();
@@ -47,7 +47,7 @@ fn triple_query_by_attribute() {
     assert_eq!(results.len(), 2);
 }
 
-// REQ: P4-sto-services-contract-test — triple count is accurate
+// contract: P4-sto-services-contract-test
 #[test]
 fn triple_count_is_accurate() {
     let db = TestDb::new();
@@ -68,7 +68,7 @@ fn triple_count_is_accurate() {
     assert_eq!(store.count_semantic().unwrap(), 3);
 }
 
-// REQ: P4-sto-services-contract-test — triple delete removes correctly
+// contract: P4-sto-services-contract-test
 #[test]
 fn triple_delete_removes_correctly() {
     let db = TestDb::new();
@@ -84,7 +84,7 @@ fn triple_delete_removes_correctly() {
     assert_eq!(store.count_semantic().unwrap(), 0);
 }
 
-// REQ: P4-sto-services-contract-test — triple owner webid is preserved
+// contract: P4-sto-services-contract-test
 #[test]
 fn triple_owner_webid_is_preserved() {
     let db = TestDb::new();

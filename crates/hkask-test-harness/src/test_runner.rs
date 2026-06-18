@@ -209,19 +209,55 @@ fn resolve_req_tag(
 /// Extract REQ tag from a comment line. Returns the tag value (e.g., "P9-cns-energy-budget-test").
 fn extract_req_tag(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    // Only match lines where REQ: is at the start of a contract declaration,
-    // not embedded in prose text (e.g., "a proptest with a `// REQ:` tag")
-    if !trimmed.starts_with("/// REQ:") && !trimmed.starts_with("// REQ:") {
+
+    // Legacy format: /// REQ: P{N}-...
+    // Legacy format: // REQ: P{N}-...
+    if trimmed.starts_with("/// REQ:") || trimmed.starts_with("// REQ:") {
+        if let Some(pos) = trimmed.find("REQ:") {
+            let tag = trimmed[pos + 4..].trim();
+            let end = tag.find(|c: char| c.is_whitespace() || c == '\u{2014}').unwrap_or(tag.len());
+            let req = tag[..end].trim_end_matches(['.', ',', ';', ':', ')', ']', '}', '\u{2014}']);
+            if !req.is_empty() && !req.contains('`') {
+                return Some(req.to_string());
+            }
+        }
         return None;
     }
-    if let Some(pos) = trimmed.find("REQ:") {
-        let tag = trimmed[pos + 4..].trim();
-        let end = tag.find(|c: char| c.is_whitespace()).unwrap_or(tag.len());
+
+    // New format: /// contract(id: "P{N}-...", principle: "P{N}")
+    if trimmed.starts_with("/// contract(id:") {
+        if let Some(start) = trimmed.find('"') {
+            let after_quote = &trimmed[start + 1..];
+            if let Some(end) = after_quote.find('"') {
+                return Some(after_quote[..end].to_string());
+            }
+        }
+        return None;
+    }
+
+    // New format: #[contract(id = "P{N}-...", principle = "P{N}")]
+    // New format: #[rs::contract(id = "P{N}-...", principle = "P{N}")]
+    if trimmed.starts_with("#[contract(id =") || trimmed.starts_with("#[rs::contract(id =") {
+        if let Some(start) = trimmed.find('"') {
+            let after_quote = &trimmed[start + 1..];
+            if let Some(end) = after_quote.find('"') {
+                return Some(after_quote[..end].to_string());
+            }
+        }
+        return None;
+    }
+
+    // New test format: // contract: P{N}-{}
+    if trimmed.starts_with("// contract:") {
+        let tag = trimmed["// contract:".len()..].trim();
+        let end = tag.find(|c: char| c.is_whitespace() || c == '\u{2014}').unwrap_or(tag.len());
         let req = tag[..end].trim_end_matches(['.', ',', ';', ':', ')', ']', '}']);
-        if !req.is_empty() && !req.contains('`') {
+        if !req.is_empty() {
             return Some(req.to_string());
         }
+        return None;
     }
+
     None
 }
 
@@ -287,7 +323,7 @@ pub fn discover_uncontracted_functions(
                 let has_req = (i.saturating_sub(15)..i).any(|j| {
                     j < lines.len()
                         && (extract_req_tag(lines[j]).is_some()
-                            || lines[j].contains("#[rs::contract]")
+                            || lines[j].contains("#[contract(")
                             || lines[j].contains("#[rs::contract("))
                 });
                 if has_req {
@@ -384,7 +420,7 @@ pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec
                     if req_id.is_empty() {
                         if let Some(tag) = extract_req_tag(trimmed) {
                             req_id = tag;
-                        } else if trimmed.contains("#[rs::contract") {
+                        } else if trimmed.contains("#[rs::contract") || trimmed.contains("#[contract(") {
                             #[allow(clippy::collapsible_if)]
                             if let Some(start) = trimmed.find("id = \"") {
                                 let rest = &trimmed[start + 6..];
@@ -535,27 +571,28 @@ fn extract_constraining_principle(line: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    // REQ: harness-trace-008
+    // contract: harness-trace-008
     #[test]
     fn extract_req_tag_from_line_comment() {
         let tag = extract_req_tag("    // REQ: P9-cns-energy-budget-test");
         assert_eq!(tag, Some("P9-cns-energy-budget-test".to_string()));
     }
 
-    // REQ: harness-trace-008
+    // contract: harness-trace-008
     #[test]
     fn extract_req_tag_from_doc_comment() {
+        let tag = extract_req_tag("    /// REQ: CNS-001");
         assert_eq!(tag, Some("CNS-001".to_string()));
     }
 
-    // REQ: harness-trace-009
+    // contract: harness-trace-009
     #[test]
     fn extract_req_tag_no_match() {
         assert_eq!(extract_req_tag("// just a comment"), None);
         assert_eq!(extract_req_tag(""), None);
     }
 
-    // REQ: harness-trace-009
+    // contract: harness-trace-009
     #[test]
     fn extract_count_parses_cargo_output() {
         let output = "running 47 tests\ntest result: ok. 47 passed; 0 failed";
@@ -563,7 +600,7 @@ mod tests {
         assert_eq!(extract_count("no match", "running ", " test"), 0);
     }
 
-    // REQ: HARN-048
+    // contract: HARN-048
     #[test]
     fn contract_test_result_debug_format() {
         let result = ContractTestResult {
@@ -578,7 +615,7 @@ mod tests {
         assert!(dbg.contains("10"));
     }
 
-    // REQ: HARN-049 — discover finds contracted functions in harness
+    // contract: HARN-049
     #[test]
     fn discover_finds_contracted_functions() {
         let audit = discover_uncontracted_functions(
@@ -590,14 +627,14 @@ mod tests {
         assert!(audit.contracted > 0, "harness has REQ-tagged functions");
     }
 
-    // REQ: HARN-050 — discover returns None for nonexistent crate
+    // contract: HARN-050
     #[test]
     fn discover_nonexistent_crate_returns_none() {
         let audit = discover_uncontracted_functions("nonexistent-crate", "/nonexistent/path");
         assert!(audit.is_none(), "nonexistent crate should return None");
     }
 
-    // REQ: HARN-051 — inventory returns contracts with REQ tags
+    // contract: HARN-051
     #[test]
     fn inventory_finds_contract_entries() {
         let entries = inventory_contracts(
@@ -610,7 +647,7 @@ mod tests {
         assert!(has_req, "should find functions with REQ tags");
     }
 
-    // REQ: HARN-052 — extract_req_tag rejects prose REQ references
+    // contract: HARN-052
     #[test]
     fn extract_req_tag_rejects_prose_references() {
         // Prose mentions of REQ should not match
@@ -618,8 +655,9 @@ mod tests {
             extract_req_tag("/// Called by CI when a proptest with a `// REQ:` tag fails"),
             None
         );
-        // Only exact REQ: declarations
+        // Only exact contract declarations
         assert_eq!(
+            extract_req_tag("    // contract: HARN-001"),
             Some("HARN-001".to_string())
         );
     }

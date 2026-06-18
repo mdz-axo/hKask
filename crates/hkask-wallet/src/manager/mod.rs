@@ -247,7 +247,7 @@ impl WalletManager {
     ) -> Result<DepositReference, WalletError> {
         let nonce: [u8; 16] = rand::random();
         let expiry = Utc::now() + validity_duration;
-        // REQ: P9-wallet-mgr-deposit-ref-nonce — HKDF context includes nonce to bind reference to its specific random nonce
+        // contract: P9-wallet-mgr-deposit-ref-nonce
         // expect: "The system generates unique deposit references for attribution" [P9]
         let context = format!(
             "hkask:deposit-ref:{}:{}:{}:{}",
@@ -447,7 +447,7 @@ mod tests {
         .unwrap()
     }
 
-    // REQ: P9-wallet-mgr-gas-conversion-test — gas_to_rjoules converts correctly
+    // contract: P9-wallet-mgr-gas-conversion-test
     /// expect: "Wallet mgr gas conversion test works correctly under test conditions" [P9]
     #[test]
     fn gas_to_rjoules_conversion() {
@@ -457,7 +457,7 @@ mod tests {
         assert_eq!(mgr.gas_to_rjoules(0), RJoule::ZERO);
     }
 
-    // REQ: P9-wallet-mgr-rjoules-to-gas-test — rjoules_to_gas converts correctly
+    // contract: P9-wallet-mgr-rjoules-to-gas-test
     /// expect: "Wallet mgr rjoules to gas test works correctly under test conditions" [P9]
     #[test]
     fn rjoules_to_gas_conversion() {
@@ -466,7 +466,7 @@ mod tests {
         assert_eq!(mgr.rjoules_to_gas(RJoule::new(5)), 5000);
     }
 
-    // REQ: P9-wallet-mgr-fee-estimate — estimate_withdrawal_fee uses configured price feed
+    // contract: P9-wallet-mgr-fee-estimate
     /// expect: "I can estimate withdrawal fees before initiating a withdrawal" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
     /// \[P8\] Constraining: Semantic Grounding — derived from live/native USD rate
@@ -483,7 +483,7 @@ mod tests {
         assert!(fee.native_units > 0.0);
     }
 
-    // REQ: P9-wallet-mgr-can-afford-test — can_afford checks balance
+    // contract: P9-wallet-mgr-can-afford-test
     /// expect: "Wallet mgr can afford test works correctly under test conditions" [P9]
     #[test]
     fn can_afford_checks_balance() {
@@ -494,7 +494,7 @@ mod tests {
         assert!(!mgr.can_afford(wallet, RJoule::new(200)).unwrap());
     }
 
-    // REQ: P9-wallet-mgr-reserve-rejects-test — reserve_rjoules rejects insufficient balance
+    // contract: P9-wallet-mgr-reserve-rejects-test
     /// expect: "Wallet mgr reserve rejects test works correctly under test conditions" [P9]
     #[test]
     fn reserve_rejects_insufficient_balance() {
@@ -505,7 +505,7 @@ mod tests {
         assert!(mgr.reserve_rjoules(wallet, RJoule::new(100)).is_err());
     }
 
-    // REQ: P9-wallet-mgr-settle-debits-test — settle_rjoules debits actual cost
+    // contract: P9-wallet-mgr-settle-debits-test
     /// expect: "Wallet mgr settle debits test works correctly under test conditions" [P9]
     #[test]
     fn settle_debits_actual_cost() {
@@ -518,7 +518,7 @@ mod tests {
         assert_eq!(balance.rjoules, 70); // 100 - 30
     }
 
-    // REQ: P9-wallet-mgr-deposit-ref-gen-test — deposit reference generation and verification
+    // contract: P9-wallet-mgr-deposit-ref-gen-test
     /// expect: "Wallet mgr deposit ref gen test works correctly under test conditions" [P9]
     #[test]
     fn deposit_reference_generation() {
@@ -563,7 +563,7 @@ mod tests {
         let _ = store.store_api_key(&capability);
     }
 
-    // REQ: P9-wallet-mgr-balance-conservation-pbt — Balance conservation under encumbrance lifecycle (P4, P9)
+    // contract: P9-wallet-mgr-balance-conservation-pbt
     /// expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
     // After any sequence of credit, encumber, consume, and release operations:
     // - Wallet balance = total_credited - total_consumed (conservation)
@@ -571,7 +571,7 @@ mod tests {
     // - Per key: consumed ≤ encumbered (can't consume more than locked)
     proptest! {
         #![proptest_config(ProptestConfig { max_shrink_iters: 0, .. ProptestConfig::with_cases(64) })]
-        // REQ: P9-wallet-mgr-balance-conservation-pbt — balance conservation under encumbrance lifecycle
+        // contract: P9-wallet-mgr-balance-conservation-pbt
         /// expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
         #[test]
         fn balance_conservation_under_encumbrance_lifecycle(
@@ -678,7 +678,7 @@ mod tests {
         }
     }
 
-    // REQ: P9-wallet-mgr-deposit-monitor-idempotent-test — deposit monitor credits balance and is idempotent
+    // contract: P9-wallet-mgr-deposit-monitor-idempotent-test
     /// expect: "Wallet mgr deposit monitor idempotent test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn deposit_monitor_credits_and_is_idempotent() {
@@ -770,7 +770,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wallet-mgr-multi-chain-deposit-test — poll_deposits_once processes deposits from multiple chains
+    // contract: P9-wallet-mgr-multi-chain-deposit-test
     /// expect: "Wallet mgr multi chain deposit test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn poll_deposits_once_multi_chain() {
@@ -866,7 +866,7 @@ mod tests {
         assert_eq!(deposit_count, 2, "two deposits should be recorded");
     }
 
-    // REQ: P9-wallet-mgr-payment-lifecycle-test — full payment lifecycle: deposit → encumber → consume → report
+    // contract: P9-wallet-mgr-payment-lifecycle-test
     /// expect: "Wallet mgr payment lifecycle test works correctly under test conditions" [P9]
     #[test]
     fn end_to_end_payment_lifecycle() {
@@ -947,7 +947,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wallet-mgr-encumbrance-state-machine-test — EncumbranceStatus state machine: Released cannot transition back to Active
+    // contract: P9-wallet-mgr-encumbrance-state-machine-test
     /// expect: "Wallet mgr encumbrance state machine test works correctly under test conditions" [P9]
     // Proves that once an encumbrance is released, no operation can re-activate it.
     #[test]
@@ -1033,7 +1033,7 @@ mod tests {
 
     // ── Withdrawal pipeline tests ─────────────────────────────────────────
 
-    // REQ: P9-wallet-mgr-withdraw-pipeline-test — withdraw full pipeline: debit → build → sign → submit → record
+    // contract: P9-wallet-mgr-withdraw-pipeline-test
     /// expect: "Wallet mgr withdraw pipeline test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_full_pipeline_success() {
@@ -1089,7 +1089,7 @@ mod tests {
         assert_eq!(wtx.balance_after, 8000, "balance after withdrawal");
     }
 
-    // REQ: P9-wallet-mgr-withdraw-insufficient-test — withdraw rejects insufficient balance
+    // contract: P9-wallet-mgr-withdraw-insufficient-test
     /// expect: "Wallet mgr withdraw insufficient test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_rejects_insufficient_balance() {
@@ -1136,7 +1136,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wallet-mgr-withdraw-unsupported-chain-test — withdraw rejects unsupported chain
+    // contract: P9-wallet-mgr-withdraw-unsupported-chain-test
     /// expect: "Wallet mgr withdraw unsupported chain test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_rejects_unsupported_chain() {
@@ -1185,7 +1185,7 @@ mod tests {
         );
     }
 
-    // REQ: P9-wallet-mgr-shielded-withdraw-privacy-test — shielded Hinkal withdrawal uses privacy adapter path
+    // contract: P9-wallet-mgr-shielded-withdraw-privacy-test
     /// expect: "Wallet mgr shielded withdraw privacy test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_shielded_hinkal_uses_privacy_path() {
@@ -1219,7 +1219,7 @@ mod tests {
         assert_eq!(withdrawal_tx.rjoules_delta, -1500);
     }
 
-    // REQ: P9-wallet-mgr-shielded-deposit-test — shield_assets routes through privacy port with zero rJoule delta
+    // contract: P9-wallet-mgr-shielded-deposit-test
     /// expect: "Wallet mgr shielded deposit test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn shield_assets_uses_privacy_path() {

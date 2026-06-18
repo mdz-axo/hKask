@@ -212,7 +212,7 @@ impl PodService {
 mod tests {
     use super::*;
 
-    // REQ: P1-svc-pods-001 — parse_pod_id validates UUID format
+    // contract: P1-svc-pods-001
     // expect: "Service parse_pod_id works correctly under test conditions" [P1]
     #[test]
     fn parse_pod_id_rejects_invalid_uuid() {
@@ -226,7 +226,7 @@ mod tests {
         }
     }
 
-    // REQ: P1-svc-pods-002 — parse_pod_id accepts valid UUID
+    // contract: P1-svc-pods-002
     // expect: "Service parse_pod_id works correctly under test conditions" [P1]
     #[test]
     fn parse_pod_id_accepts_valid_uuid() {
@@ -235,7 +235,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // REQ: P1-svc-pods-003 — PodStatus → PodStatusResponse preserves all fields
+    // contract: P1-svc-pods-003
     // expect: "Service PodStatus works correctly under test conditions" [P1]
     #[test]
     fn pod_status_to_response_maps_fields() {

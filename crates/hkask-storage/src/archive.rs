@@ -383,7 +383,7 @@ mod tests {
         }
         (store, webid)
     }
-    // REQ: DEP-TEST-001 — export creates encrypted archive with correct metadata
+    // contract: DEP-TEST-001
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn export_creates_archive_with_metadata() {
@@ -406,7 +406,7 @@ mod tests {
         assert_eq!(meta.triple_count, 3);
         assert_eq!(meta.schema_version, 1);
     }
-    // REQ: DEP-TEST-002 — archive cannot be opened with wrong passphrase
+    // contract: DEP-TEST-002
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn archive_rejects_wrong_passphrase() {
@@ -416,7 +416,7 @@ mod tests {
         let result = BackupArchive::open(path, "wrong-pass!!");
         assert!(result.is_err());
     }
-    // REQ: DEP-TEST-003 — round-trip: export → open → verify counts match
+    // contract: DEP-TEST-003
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn roundtrip_export_open_preserves_triples() {
@@ -430,7 +430,7 @@ mod tests {
         let meta = reopened.metadata().unwrap();
         assert_eq!(meta.triple_count, 3);
     }
-    // REQ: DEP-TEST-004 — import into empty target produces correct count
+    // contract: DEP-TEST-004
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_into_empty_target() {
@@ -473,7 +473,7 @@ mod tests {
             .unwrap();
         assert_eq!(owner, target_webid.to_string());
     }
-    // REQ: DEP-TEST-005 — idempotent re-import produces same result
+    // contract: DEP-TEST-005
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_is_idempotent() {
@@ -508,7 +508,7 @@ mod tests {
             .unwrap();
         assert_eq!(count, 3);
     }
-    // REQ: DEP-TEST-006 — auto-rename on replicant name collision
+    // contract: DEP-TEST-006
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_auto_renames_on_collision() {

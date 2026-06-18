@@ -33,7 +33,7 @@ fn main() {
     // create their own runtimes with servers started via start_server().
     let runtime = McpRuntime::new();
 
-    // REQ: P9-CNS-SRF-001 pre: valid command parsed post: cns.cli span emitted
+    // contract: P9-CNS-SRF-001
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     // P9: CNS span
     let cns_start = Instant::now();

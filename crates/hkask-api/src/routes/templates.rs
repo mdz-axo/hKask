@@ -81,7 +81,7 @@ pub fn templates_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
-    // REQ: P9-CNS-SURF-040 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-040
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "templates_list", "CNS");

@@ -1099,7 +1099,7 @@ mod tests {
         let db = in_memory_db();
         WalletStore::new(db.conn_arc())
     }
-    // REQ: P3-sto-wallet-wal-test — WAL mode can be enabled on wallet store
+    // contract: P3-sto-wallet-wal-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn enable_wal_mode_succeeds() {
@@ -1112,7 +1112,7 @@ mod tests {
             result
         );
     }
-    // REQ: P1-sto-wallet-store-test — credit_rjoules increases balance
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn credit_rjoules_increases_balance() {
@@ -1121,7 +1121,7 @@ mod tests {
         let balance = store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
         assert_eq!(balance.rjoules, 1000);
     }
-    // REQ: P1-sto-wallet-store-test — debit_rjoules decreases balance
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn debit_rjoules_decreases_balance() {
@@ -1131,7 +1131,7 @@ mod tests {
         let balance = store.debit_rjoules(wallet, RJoule::new(300)).unwrap();
         assert_eq!(balance.rjoules, 700);
     }
-    // REQ: P1-sto-wallet-store-test — debit_rjoules rejects insufficient balance
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn debit_rjoules_rejects_insufficient_balance() {
@@ -1141,7 +1141,7 @@ mod tests {
         let err = store.debit_rjoules(wallet, RJoule::new(500)).unwrap_err();
         assert!(matches!(err, WalletError::InsufficientBalance { .. }));
     }
-    // REQ: P1-sto-wallet-store-test — balance never goes negative
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn balance_never_negative() {
@@ -1154,7 +1154,7 @@ mod tests {
         // Debit more should fail
         assert!(store.debit_rjoules(wallet, RJoule::new(1)).is_err());
     }
-    // REQ: P1-sto-wallet-store-test — transaction ledger is append-only
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn transaction_ledger_is_append_only() {
@@ -1180,7 +1180,7 @@ mod tests {
         assert_eq!(txs.len(), 1);
         assert_eq!(txs[0].rjoules_delta, 1000);
     }
-    // REQ: P1-sto-wallet-store-test — deposit reference is consumed atomically (anti-replay)
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn deposit_reference_anti_replay() {
@@ -1202,7 +1202,7 @@ mod tests {
         let result2 = store.consume_deposit_reference("test_ref_001").unwrap();
         assert_eq!(result2, None);
     }
-    // REQ: P1-sto-wallet-store-test — expired deposit reference cannot be consumed
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn expired_deposit_reference_rejected() {
@@ -1220,7 +1220,7 @@ mod tests {
         let result = store.consume_deposit_reference("expired_ref").unwrap();
         assert_eq!(result, None);
     }
-    // REQ: P1-sto-wallet-store-test — API key store and retrieve by public key
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn api_key_store_and_retrieve_by_public_key() {
@@ -1247,7 +1247,7 @@ mod tests {
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().key_id, cap.key_id);
     }
-    // REQ: P1-sto-wallet-store-test — API key revocation returns unspent rJoules
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn api_key_revocation_returns_unspent_rjoules() {
@@ -1278,7 +1278,7 @@ mod tests {
         let after = store.get_balance(wallet).unwrap().unwrap();
         assert_eq!(after.rjoules, 8800); // 5000 + 3800 unspent returned
     }
-    // REQ: P1-sto-wallet-spend-sync-test — consume_encumbrance increments api_keys.spent_rj in lockstep
+    // contract: P1-sto-wallet-spend-sync-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn consume_encumbrance_updates_api_key_spent_rj() {
@@ -1313,7 +1313,7 @@ mod tests {
             "spent_rj must track cumulative encumbrance consumption"
         );
     }
-    // REQ: P1-sto-wallet-spend-sync-drift-test — failed/replayed consume must not drift api_keys.spent_rj
+    // contract: P1-sto-wallet-spend-sync-drift-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn failed_consume_does_not_increment_api_key_spent_rj() {
@@ -1353,7 +1353,7 @@ mod tests {
             "spent_rj must remain unchanged on failed consume"
         );
     }
-    // REQ: P1-sto-wallet-store-test — purge_expired_references cleans up
+    // contract: P1-sto-wallet-store-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn purge_expired_references_cleans_up() {
@@ -1388,7 +1388,7 @@ mod tests {
             Some(wallet)
         );
     }
-    // REQ: P1-sto-wallet-balance-conservation-test — sum(ledger deltas) == current_balance
+    // contract: P1-sto-wallet-balance-conservation-test
     // expect: "Storage operation works correctly under test conditions" [P1]
     // Property test: for any sequence of credits and debits, the sum of all
     // transaction rjoules_delta values must equal the current wallet balance.
@@ -1494,7 +1494,7 @@ mod tests {
     // | store_deposit_reference     | ❌          | Always inserts                    |
     //
     // GAP entries are documented below with regression-catching tests.
-    // REQ: P3-sto-wallet-ensure-idempotent-test — ensure_wallet is idempotent (INSERT OR IGNORE)
+    // contract: P3-sto-wallet-ensure-idempotent-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn ensure_wallet_is_idempotent() {
@@ -1512,7 +1512,7 @@ mod tests {
             "balance should not change on duplicate ensure"
         );
     }
-    // REQ: P3-sto-wallet-release-idempotent-test — release_encumbrance is idempotent (status guard)
+    // contract: P3-sto-wallet-release-idempotent-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn release_encumbrance_is_idempotent() {
@@ -1557,7 +1557,7 @@ mod tests {
             "second release must not double-credit (idempotency contract)"
         );
     }
-    // REQ: P3-sto-wallet-credit-not-idempotent-test — credit_rjoules is NOT idempotent (documents gap)
+    // contract: P3-sto-wallet-credit-not-idempotent-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // This test documents the CURRENT behavior. When a transaction-hash
@@ -1578,7 +1578,7 @@ mod tests {
             "GAP: duplicate credit doubles balance — no tx-hash dedup exists"
         );
     }
-    // REQ: P3-sto-wallet-debit-not-idempotent-test — debit_rjoules is NOT idempotent (documents gap)
+    // contract: P3-sto-wallet-debit-not-idempotent-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // This test documents the CURRENT behavior. When an idempotency key
@@ -1600,7 +1600,7 @@ mod tests {
             "GAP: duplicate debit double-charges — no idempotency key exists"
         );
     }
-    // REQ: P3-sto-wallet-consume-reference-idempotent-test — consume_deposit_reference is idempotent (CAS guard)
+    // contract: P3-sto-wallet-consume-reference-idempotent-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // This is the same as the anti-replay test above but explicitly framed

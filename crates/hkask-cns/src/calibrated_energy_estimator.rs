@@ -285,7 +285,7 @@ mod tests {
         )
     }
 
-    // REQ: GAS-CALIB-004 — calibrate updates estimator costs from settled events
+    // contract: GAS-CALIB-004
     #[tokio::test]
     async fn calibrate_updates_costs_from_settled_events() {
         let agent = WebID::new();
@@ -313,7 +313,7 @@ mod tests {
         assert_eq!(after, 200);
     }
 
-    // REQ: GAS-CALIB-004 — incremental calibration processes new settled events
+    // contract: GAS-CALIB-004
     #[tokio::test]
     async fn calibrate_is_incremental() {
         let agent = WebID::new();
@@ -351,7 +351,7 @@ mod tests {
         );
     }
 
-    // REQ: GAS-CALIB-004 — custom initial lookback is respected
+    // contract: GAS-CALIB-004
     #[test]
     fn with_initial_lookback_changes_first_window() {
         let db = in_memory_db();
@@ -369,7 +369,7 @@ mod tests {
         );
     }
 
-    // REQ: GAS-CALIB-004-obs — calibration emits a cns.gas span when costs adjust
+    // contract: GAS-CALIB-004-obs
     #[tokio::test]
     async fn calibrate_emits_cns_gas_span_when_adjusted() {
         let agent = WebID::new();
@@ -405,7 +405,7 @@ mod tests {
         );
     }
 
-    // REQ: GAS-CALIB-004-obs — no adjustment means no calibration span emitted
+    // contract: GAS-CALIB-004-obs
     #[tokio::test]
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let db = in_memory_db();

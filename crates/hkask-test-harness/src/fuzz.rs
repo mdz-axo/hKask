@@ -74,19 +74,19 @@ pub fn json_fuzz_seeds() -> Vec<String> {
 mod tests {
     use super::*;
 
-    // REQ: HARN-053
+    // contract: HARN-053
     #[test]
     fn cli_fuzz_seeds_non_empty() {
         assert!(!cli_fuzz_seeds().is_empty());
     }
 
-    // REQ: HARN-054
+    // contract: HARN-054
     #[test]
     fn json_fuzz_seeds_non_empty() {
         assert!(!json_fuzz_seeds().is_empty());
     }
 
-    // REQ: HARN-053
+    // contract: HARN-053
     #[test]
     fn cli_fuzz_seeds_all_strings() {
         for seed in cli_fuzz_seeds() {
@@ -94,7 +94,7 @@ mod tests {
         }
     }
 
-    // REQ: HARN-054
+    // contract: HARN-054
     #[test]
     fn json_fuzz_seeds_contains_edge_cases() {
         let seeds = json_fuzz_seeds();

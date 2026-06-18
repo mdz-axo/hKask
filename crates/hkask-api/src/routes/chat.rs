@@ -88,7 +88,7 @@ pub(crate) async fn chat(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<ChatRequest>,
 ) -> Json<ChatResponse> {
-    // REQ: P9-CNS-SURF-020 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-020
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat", "CNS");
@@ -161,7 +161,7 @@ pub(crate) async fn chat_stream(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
-    // REQ: P9-CNS-SURF-021 pre: valid request post: cns.api span emitted
+    // contract: P9-CNS-SURF-021
 // expect: "API endpoints enforce OCAP boundaries" [P4]
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat_stream", "CNS");

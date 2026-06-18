@@ -517,7 +517,7 @@ mod tests {
         }
     }
 
-    // REQ: P3-keystore — resolve_treasury_key returns different keys per chain
+    // contract: P3-keystore
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn treasury_keys_differ_per_chain() {
@@ -529,7 +529,7 @@ mod tests {
         assert_eq!(hedera_key.len(), 32);
     }
 
-    // REQ: P3-keystore — resolve_treasury_key is deterministic
+    // contract: P3-keystore
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn treasury_key_is_deterministic() {
@@ -539,7 +539,7 @@ mod tests {
         assert_eq!(&*key1, &*key2);
     }
 
-    // REQ: P3-keystore — resolve_wallet_seed returns 32 bytes
+    // contract: P3-keystore
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn wallet_seed_is_32_bytes() {
@@ -548,7 +548,7 @@ mod tests {
         assert_eq!(seed.len(), 32);
     }
 
-    // REQ: P3-keystore — resolve_wallet_seed is deterministic
+    // contract: P3-keystore
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn wallet_seed_is_deterministic() {
@@ -558,7 +558,7 @@ mod tests {
         assert_eq!(&*seed1, &*seed2);
     }
 
-    // REQ: P3-keystore — sign_api_key_capability produces verifiable signature
+    // contract: P3-keystore
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn sign_api_key_capability_produces_signature() {
@@ -583,7 +583,7 @@ mod tests {
         assert!(sig.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
-    // REQ: P3-keystore — signature changes when capability is tampered
+    // contract: P3-keystore
     // expect: "My keys are generated, stored, and rotated under my sovereignty" [P3]
     #[test]
     fn signature_changes_on_tampered_capability() {

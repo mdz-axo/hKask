@@ -106,7 +106,7 @@ impl VerificationService {
     /// post: returns VerificationReport with principle results, pass/fail/gap/skip counts, and total assertions
     #[contract(id = "P4-svc-verification-232", principle = "P4")]
     pub fn verify(filter: Option<&str>) -> VerificationReport {
-        // REQ: P9-CNS-SVC-030 pre: valid filter, post: cns.verification span emitted
+        // contract: P9-CNS-SVC-030
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -116,7 +116,7 @@ impl VerificationService {
             "CNS"
         );
         let report = build_report(&load_manifests(), filter);
-        // REQ: P9-CNS-SVC-031 pre: valid report, post: cns.verification span emitted
+        // contract: P9-CNS-SVC-031
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(

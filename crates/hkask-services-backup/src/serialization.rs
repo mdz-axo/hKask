@@ -95,7 +95,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    // REQ: P7-svc-backup-serialization-backup-serialize-001 — Same artifact produces same bytes (deterministic)
+    // contract: P7-svc-backup-serialization-backup-serialize-001
     // expect: "Service serialize_artifact works correctly under test conditions" [P7]
     #[test]
     fn same_artifact_produces_same_bytes() {
@@ -105,7 +105,7 @@ mod tests {
         assert_eq!(bytes1, bytes2);
     }
 
-    // REQ: P7-svc-backup-serialization-backup-serialize-002 — Different IDs produce different bytes
+    // contract: P7-svc-backup-serialization-backup-serialize-002
     // expect: "Service serialize_artifact works correctly under test conditions" [P7]
     #[test]
     fn different_ids_produce_different_bytes() {
@@ -115,7 +115,7 @@ mod tests {
         assert_ne!(bytes1, bytes2);
     }
 
-    // REQ: P7-svc-backup-serialization-backup-serialize-003 — Round-trip: serialize → deserialize preserves data
+    // contract: P7-svc-backup-serialization-backup-serialize-003
     // expect: "Service serialization round-trip works correctly under test conditions" [P7]
     #[test]
     fn roundtrip_preserves_data() {
@@ -127,7 +127,7 @@ mod tests {
         assert_eq!(envelope.payload, data);
     }
 
-    // REQ: P7-svc-backup-serialization-backup-serialize-004 — Git path follows convention
+    // contract: P7-svc-backup-serialization-backup-serialize-004
     // expect: "Service artifact_git_path works correctly under test conditions" [P7]
     #[test]
     fn git_path_follows_convention() {

@@ -132,7 +132,7 @@ mod tests {
     use super::*;
     use std::thread;
 
-    // REQ: IMPROV-FREESTYLING-001 — FreestyleSession is time-bounded — expires after time_bound
+    // contract: IMPROV-FREESTYLING-001
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn session_expires_after_time_bound() {
@@ -143,7 +143,7 @@ mod tests {
         assert!(session.is_expired());
     }
 
-    // REQ: IMPROV-FREESTYLING-002 — FreestyleSession supports multiple participants
+    // contract: IMPROV-FREESTYLING-002
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn supports_multiple_participants() {
@@ -154,7 +154,7 @@ mod tests {
         assert_eq!(session.participants.len(), 3);
     }
 
-    // REQ: IMPROV-FREESTYLING-003 — FreestyleSession cycles through participants round-robin
+    // contract: IMPROV-FREESTYLING-003
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn cycles_participants_round_robin() {
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(session.next_speaker(), a1); // Wraps around
     }
 
-    // REQ: IMPROV-FREESTYLING-004 — FreestyleSession records turns and increments count
+    // contract: IMPROV-FREESTYLING-004
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn records_turns_and_increments_count() {
@@ -190,7 +190,7 @@ mod tests {
         assert_eq!(session.turn_count(), 2);
     }
 
-    // REQ: IMPROV-FREESTYLING-005 — FreestyleSession cycle returns None when expired
+    // contract: IMPROV-FREESTYLING-005
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn cycle_returns_none_when_expired() {
@@ -201,7 +201,7 @@ mod tests {
         assert!(result.is_none(), "Expired session should return None");
     }
 
-    // REQ: IMPROV-FREESTYLING-006 — FreestyleSession panics on empty participants
+    // contract: IMPROV-FREESTYLING-006
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     #[should_panic(expected = "requires at least one participant")]
@@ -209,7 +209,7 @@ mod tests {
         FreestyleSession::new(vec![], Duration::from_secs(60));
     }
 
-    // REQ: IMPROV-FREESTYLING-007 — FreestyleSession time_remaining decreases over time
+    // contract: IMPROV-FREESTYLING-007
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn time_remaining_decreases() {

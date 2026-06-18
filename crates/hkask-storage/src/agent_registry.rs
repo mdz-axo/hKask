@@ -472,7 +472,7 @@ mod tests {
         store.initialize_schema().expect("init schema ");
         store
     }
-    // REQ: P3-sto-agent-registry-notfound-get-test — get on missing name returns NotFound
+    // contract: P3-sto-agent-registry-notfound-get-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_missing_agent_returns_not_found() {
@@ -480,7 +480,7 @@ mod tests {
         let result = store.get("no-such-agent ");
         assert!(matches!(result, Err(AgentRegistryError::NotFound(_))));
     }
-    // REQ: P3-sto-agent-registry-notfound-remove-test — remove on missing name returns NotFound
+    // contract: P3-sto-agent-registry-notfound-remove-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn remove_missing_agent_returns_not_found() {

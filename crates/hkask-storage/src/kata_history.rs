@@ -298,7 +298,7 @@ struct KataHistoryRow {
 mod tests {
     use super::*;
     use crate::in_memory_db;
-    // REQ: P3-sto-kata-record-retrieve-test — KataHistoryStore records and retrieves practice entries
+    // contract: P3-sto-kata-record-retrieve-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn record_and_retrieve_entry() {
@@ -313,7 +313,7 @@ mod tests {
         assert_eq!(entries[0].kata_type, "starter");
         assert_eq!(entries[0].steps_completed, 5);
     }
-    // REQ: P3-sto-kata-count-test — KataHistoryStore counts entries per agent and per date
+    // contract: P3-sto-kata-count-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn count_entries_per_date() {
@@ -339,7 +339,7 @@ mod tests {
         assert_eq!(store.count_entries_on("Alice", "2026-06-15").unwrap(), 1);
         assert_eq!(store.count_entries_for_agent("Bob").unwrap(), 1);
     }
-    // REQ: P3-sto-kata-last-test — KataHistoryStore returns most recent entry for agent
+    // contract: P3-sto-kata-last-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn last_entry_for_agent() {
@@ -363,7 +363,7 @@ mod tests {
         assert_eq!(last.kata_type, "improvement");
         assert_eq!(last.gas_consumed, 15000);
     }
-    // REQ: P3-sto-kata-empty-test — KataHistoryStore returns None for agent with no entries
+    // contract: P3-sto-kata-empty-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn no_entries_returns_none() {
@@ -372,7 +372,7 @@ mod tests {
         let last = store.last_entry_for_agent("Nobody").unwrap();
         assert!(last.is_none());
     }
-    // REQ: P3-sto-kata-delete-before-test — KataHistoryStore deletes entries before a cutoff date
+    // contract: P3-sto-kata-delete-before-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn delete_entries_before() {

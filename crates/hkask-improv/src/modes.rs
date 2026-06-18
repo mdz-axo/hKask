@@ -162,7 +162,7 @@ mod tests {
         ConversationContext::new(WebID::new())
     }
 
-    // REQ: IMPROV-MODES-001 — Plussing produces a PlussedResponse variant
+    // contract: IMPROV-MODES-001
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn plussing_mode_produces_plussed_response() {
@@ -173,7 +173,7 @@ mod tests {
         assert!(matches!(response, ImprovResponse::Plussed(_)));
     }
 
-    // REQ: IMPROV-MODES-002 — YesAnd produces Extended variant with accepted base preserved
+    // contract: IMPROV-MODES-002
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn yes_and_preserves_accepted_base() {
@@ -192,7 +192,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-MODES-003 — YesBut produces Constrained variant with accepted base preserved
+    // contract: IMPROV-MODES-003
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn yes_but_preserves_accepted_base() {
@@ -211,7 +211,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-MODES-004 — Freestyling produces FreestyleTurn with time_remaining
+    // contract: IMPROV-MODES-004
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn freestyling_includes_time_bound() {
@@ -231,7 +231,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-MODES-005 — Riffing produces Riff variant with return_policy
+    // contract: IMPROV-MODES-005
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn riffing_includes_return_policy() {
@@ -253,7 +253,7 @@ mod tests {
         }
     }
 
-    // REQ: IMPROV-MODES-006 — Mode labels are stable and human-readable
+    // contract: IMPROV-MODES-006
 // expect: "The system supports structured improvisational agent interaction" [P3]
     #[test]
     fn mode_labels_are_stable() {

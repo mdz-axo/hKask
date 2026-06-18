@@ -208,7 +208,7 @@ impl ProviderCapability {
 mod tests {
     use super::*;
 
-    // REQ: P9-adt-provider-cost-model — valid cost model creation
+    // contract: P9-adt-provider-cost-model
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn cost_model_new_valid() {
@@ -218,7 +218,7 @@ mod tests {
         assert_eq!(cm.currency, "USD");
     }
 
-    // REQ: P9-adt-provider-cost-model — invalid hourly rate rejected
+    // contract: P9-adt-provider-cost-model
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn cost_model_new_invalid_rate() {
@@ -226,7 +226,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P9-adt-provider-cost-model — zero setup time rejected
+    // contract: P9-adt-provider-cost-model
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn cost_model_new_zero_setup() {
@@ -234,7 +234,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P9-adt-provider-cost-model — estimated cost computation
+    // contract: P9-adt-provider-cost-model
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn estimated_cost_for_hours() {
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(cm.estimated_cost_for_hours(0.0), 0.0);
     }
 
-    // REQ: P9-adt-provider-cost-model — setup cost fraction
+    // contract: P9-adt-provider-cost-model
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn estimated_setup_cost() {
@@ -253,7 +253,7 @@ mod tests {
         assert!((cm.estimated_setup_cost() - expected).abs() < 0.001);
     }
 
-    // REQ: P9-adt-provider-cost-model — provider capability checks
+    // contract: P9-adt-provider-cost-model
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn provider_capability_can_compose() {
@@ -263,7 +263,7 @@ mod tests {
         assert!(!tg.can_compose("mixtral-8x7b"));
     }
 
-    // REQ: P9-adt-provider-cost-model — no-compose providers reject everything
+    // contract: P9-adt-provider-cost-model
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn no_compose_providers_reject_all() {
@@ -272,7 +272,7 @@ mod tests {
         assert!(!deepinfra.can_compose("llama-3.3-70b"));
     }
 
-    // REQ: P9-adt-provider-cost-model — static models are consistent
+    // contract: P9-adt-provider-cost-model
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn static_models_integrity() {

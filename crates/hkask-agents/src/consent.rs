@@ -397,7 +397,7 @@ impl SovereigntyConsent for ConsentManager {
 mod tests {
     use super::*;
 
-    // REQ: P2-agt-consent-record-new-test — new ConsentRecord starts active with empty grants
+    // contract: P2-agt-consent-record-new-test
     /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     #[test]
     fn consent_record_new_has_correct_defaults() {
@@ -409,7 +409,7 @@ mod tests {
         assert!(record.granted_at > 0);
     }
 
-    // REQ: P2-agt-consent-record-grant-test — grant() adds category, sets active, clears revoked_at
+    // contract: P2-agt-consent-record-grant-test
     /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     #[test]
     fn consent_record_grant_adds_category_and_activates() {
@@ -424,7 +424,7 @@ mod tests {
         assert!(record.has_category("episodic_memory"));
     }
 
-    // REQ: P2-agt-consent-record-revoke-test — revoke() sets revoked_at and deactivates
+    // contract: P2-agt-consent-record-revoke-test
     /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     #[test]
     fn consent_record_revoke_sets_inactive() {
@@ -439,7 +439,7 @@ mod tests {
         assert!(!record.has_category("episodic_memory"));
     }
 
-    // REQ: P2-agt-consent-record-has-category-test — has_category() only true when active and granted
+    // contract: P2-agt-consent-record-has-category-test
     /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     #[test]
     fn consent_record_has_category_only_when_active_and_granted() {

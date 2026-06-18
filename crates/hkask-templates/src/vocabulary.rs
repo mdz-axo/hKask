@@ -175,7 +175,7 @@ pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
 mod tests {
     use super::*;
 
-    // REQ: tpl-vocab-test-sorted — KNOWN_TERMS list must maintain alphabetical order
+    // contract: tpl-vocab-test-sorted
 // expect: "Template KNOWN_TERMS list must maintain alphabetical order" [P3]
     #[test]
     fn known_terms_are_sorted() {
@@ -189,7 +189,7 @@ mod tests {
         }
     }
 
-    // REQ: tpl-vocab-test-duplicates — KNOWN_TERMS list must not contain duplicates
+    // contract: tpl-vocab-test-duplicates
 // expect: "Template KNOWN_TERMS list must not contain duplicates" [P3]
     #[test]
     fn known_terms_no_duplicates() {
@@ -198,7 +198,7 @@ mod tests {
         }
     }
 
-    // REQ: P3-tpl-vocab-test-known — validate_terms passes known terms
+    // contract: P3-tpl-vocab-test-known
 // expect: "Template validate_terms passes known terms" [P3]
     #[test]
     fn validate_known_terms_passes() {
@@ -214,7 +214,7 @@ mod tests {
         );
     }
 
-    // REQ: P3-tpl-vocab-test-unknown — validate_terms flags unknown terms
+    // contract: P3-tpl-vocab-test-unknown
 // expect: "Template validate_terms flags unknown terms" [P3]
     #[test]
     fn validate_unknown_terms_flags() {
@@ -227,7 +227,7 @@ mod tests {
         assert_eq!(unknown, vec!["nonsense_term_xyz".to_string()]);
     }
 
-    // REQ: P3-tpl-vocab-test-all-known — all manifest-derived terms are known
+    // contract: P3-tpl-vocab-test-all-known
 // expect: "Template all manifest-derived terms are known" [P3]
     #[test]
     fn all_bootstrapped_terms_are_known() {
@@ -240,7 +240,7 @@ mod tests {
         }
     }
 
-    // REQ: P3-tpl-vocab-test-empty — empty terms produce no warnings
+    // contract: P3-tpl-vocab-test-empty
 // expect: "Template empty terms produce no warnings" [P3]
     #[test]
     fn empty_terms_no_warnings() {

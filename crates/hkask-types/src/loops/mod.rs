@@ -47,7 +47,7 @@ pub use self::core::Loop as HkaskLoop;
 mod tests {
     use super::*;
 
-    // REQ: types-loop-quality-001 — LoopQuality::default() has zero values
+    // contract: types-loop-quality-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn loop_quality_default_is_zero() {
@@ -57,7 +57,7 @@ mod tests {
         assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
     }
 
-    // REQ: types-loop-quality-002 — from_cycle computes gain correctly
+    // contract: types-loop-quality-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_cycle_computes_gain() {
@@ -74,7 +74,7 @@ mod tests {
         assert!((q.fidelity_score - 1.0).abs() < f64::EPSILON);
     }
 
-    // REQ: types-loop-quality-003 — from_cycle with no deviations has zero gain
+    // contract: types-loop-quality-003
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn from_cycle_no_deviations_zero_gain() {
@@ -84,7 +84,7 @@ mod tests {
         assert!((q.fidelity_score - 0.0).abs() < f64::EPSILON);
     }
 
-    // REQ: types-loop-quality-004 — unmatched deviation reduces fidelity
+    // contract: types-loop-quality-004
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn unmatched_deviation_reduces_fidelity() {

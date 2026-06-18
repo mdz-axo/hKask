@@ -81,7 +81,7 @@ impl OnboardingService {
                     message: "Failed to store hkask-db-passphrase".into(),
                 })?;
         }
-        // REQ: P9-CNS-SVC-040 pre: valid passphrase, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-040
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -149,7 +149,7 @@ impl OnboardingService {
                 })?;
         }
 
-        // REQ: P9-CNS-SVC-041 pre: valid config, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-041
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -236,7 +236,7 @@ impl OnboardingService {
                 message: e.to_string(),
             })?;
 
-        // REQ: P9-CNS-SVC-042 pre: valid registration, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-042
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -260,7 +260,7 @@ impl OnboardingService {
         store: &AgentRegistryStore,
         profile: &UserProfile,
     ) -> Result<(), ServiceError> {
-        // REQ: P9-CNS-SVC-043 pre: valid store and profile, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-043
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "store_user_profile", "CNS");
@@ -280,7 +280,7 @@ impl OnboardingService {
     pub fn get_user_profile(
         store: &AgentRegistryStore,
     ) -> Result<Option<UserProfile>, ServiceError> {
-        // REQ: P9-CNS-SVC-044 pre: valid store, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-044
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "get_user_profile", "CNS");
@@ -306,7 +306,7 @@ impl OnboardingService {
         agent_name: &str,
         resolved_secrets: &ResolvedSecrets,
     ) -> Result<SignInOutcome, ServiceError> {
-        // REQ: P9-CNS-SVC-045 pre: valid config and agent_name, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-045
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "try_sign_in", agent = %agent_name, "CNS");
@@ -352,7 +352,7 @@ impl OnboardingService {
     /// post: returns Vec<RegisteredAgent> of replicants; empty Vec if DB inaccessible or no replicants
     #[contract(id = "P1-svc-onboarding-194", principle = "P1")]
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
-        // REQ: P9-CNS-SVC-046 pre: valid config, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-046
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "try_list_existing_replicants", "CNS");
@@ -392,7 +392,7 @@ impl OnboardingService {
     /// post: returns true if orphaned DB was cleaned up; false if DB has replicants or doesn't exist
     #[contract(id = "P1-svc-onboarding-195", principle = "P1")]
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
-        // REQ: P9-CNS-SVC-047 pre: valid config, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-047
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "remove_orphaned_db", "CNS");
@@ -443,7 +443,7 @@ impl OnboardingService {
     /// post: keychain entries (a2a-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
     #[contract(id = "P1-svc-onboarding-196", principle = "P1")]
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
-        // REQ: P9-CNS-SVC-048 pre: valid config, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-048
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "cleanup_failed_onboarding", "CNS");
@@ -489,7 +489,7 @@ impl OnboardingService {
         passphrase: &str,
         homeserver_url: &str,
     ) -> Result<MatrixRegistrationResult, ServiceError> {
-        // REQ: P9-CNS-SVC-049 pre: valid profile and homeserver, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-049
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "register_matrix_accounts", replicant = %replicant_display_name, "CNS");
@@ -575,7 +575,7 @@ impl OnboardingService {
     pub async fn register_system_accounts(
         homeserver_url: &str,
     ) -> Result<std::collections::HashMap<String, String>, ServiceError> {
-        // REQ: P9-CNS-SVC-050 pre: valid homeserver_url, post: cns.onboarding span emitted
+        // contract: P9-CNS-SVC-050
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "register_system_accounts", "CNS");
@@ -745,7 +745,7 @@ async fn register_on_conduit(
 /// post: returns true if server responds with 2xx; false on connection error or non-2xx status
 #[contract(id = "P1-svc-onboarding-199", principle = "P1")]
 pub async fn conduit_health_check(homeserver_url: &str) -> bool {
-    // REQ: P9-CNS-SVC-051 pre: valid URL, post: cns.onboarding span emitted
+    // contract: P9-CNS-SVC-051
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(target: "cns.onboarding", operation = "conduit_health_check", url = %homeserver_url, "CNS");

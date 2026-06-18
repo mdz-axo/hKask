@@ -678,7 +678,7 @@ mod tests {
 
     // ── A2A Wildcard Rejection ──────────────────────────────────────────────
 
-    // REQ: P4-agt-A2A-wildcard-reject-test — A2A rejects wildcard capability "*"
+    // contract: P4-agt-A2A-wildcard-reject-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_wildcard_capability() {
@@ -696,7 +696,7 @@ mod tests {
         }
     }
 
-    // REQ: P4-agt-A2A-wildcard-mixed-reject-test — A2A rejects wildcard mixed with valid capabilities
+    // contract: P4-agt-A2A-wildcard-mixed-reject-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_wildcard_mixed_with_valid_capabilities() {
@@ -720,7 +720,7 @@ mod tests {
 
     // ── ACP Registration ────────────────────────────────────────────────────
 
-    // REQ: P4-agt-A2A-register-test — ACP registers agent and returns delegation token
+    // contract: P4-agt-A2A-register-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_registers_agent_and_returns_token() {
@@ -738,7 +738,7 @@ mod tests {
         assert!(a2a.is_registered(&webid).await);
     }
 
-    // REQ: P4-agt-A2A-register-dup-test — A2A rejects duplicate agent registration
+    // contract: P4-agt-A2A-register-dup-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_duplicate_registration() {
@@ -760,7 +760,7 @@ mod tests {
         }
     }
 
-    // REQ: P4-agt-A2A-register-capabilities-test — Root authority creates delegation tokens for all requested capabilities
+    // contract: P4-agt-A2A-register-capabilities-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn root_authority_creates_tokens_for_all_capabilities() {
@@ -793,7 +793,7 @@ mod tests {
 
     // ── ACP Unregistration ──────────────────────────────────────────────────
 
-    // REQ: P4-agt-A2A-unregister-test — ACP unregisters agent and removes tokens
+    // contract: P4-agt-A2A-unregister-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_unregisters_agent_and_removes_tokens() {
@@ -815,7 +815,7 @@ mod tests {
         assert!(a2a.get_capabilities(&webid).await.is_empty());
     }
 
-    // REQ: P4-agt-A2A-unregister-unknown-test — ACP unregister of unknown agent returns error
+    // contract: P4-agt-A2A-unregister-unknown-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_unregister_unknown_agent_returns_error() {
@@ -832,7 +832,7 @@ mod tests {
 
     // ── ACP Token Revocation ────────────────────────────────────────────────
 
-    // REQ: P4-agt-A2A-revoke-test — ACP revokes token and denies subsequent access
+    // contract: P4-agt-A2A-revoke-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_revokes_token() {
@@ -853,7 +853,7 @@ mod tests {
 
     // ── ACP Restore ─────────────────────────────────────────────────────────
 
-    // REQ: P4-agt-A2A-restore-test — A2A restored from storage has same capabilities
+    // contract: P4-agt-A2A-restore-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_restore_preserves_capabilities() {
@@ -897,7 +897,7 @@ mod tests {
 
     // ── ACP List Agents ─────────────────────────────────────────────────────
 
-    // REQ: P4-agt-A2A-list-test — ACP lists all registered agents
+    // contract: P4-agt-A2A-list-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_lists_registered_agents() {
@@ -921,7 +921,7 @@ mod tests {
         assert!(webids.contains(&bob));
     }
 
-    // REQ: P4-agt-a2a-list-empty-test — ACP list is empty when no agents registered
+    // contract: P4-agt-a2a-list-empty-test
     /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_list_empty_when_no_agents() {

@@ -627,7 +627,7 @@ mod tests {
             .unwrap();
         store
     }
-    // REQ: P3-sto-triple-corrupt-timestamp-test — corrupt valid_from timestamp propagates an error
+    // contract: P3-sto-triple-corrupt-timestamp-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // Before fix, a corrupt valid_from was silently replaced with Utc::now(),
@@ -664,7 +664,7 @@ mod tests {
             "corrupt timestamp row should be skipped, not returned with Utc::now()"
         );
     }
-    // REQ: P3-sto-triple-roundtrip-timestamp-test — well-formed valid_from round-trips correctly
+    // contract: P3-sto-triple-roundtrip-timestamp-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn valid_from_round_trips_correctly() {
@@ -680,7 +680,7 @@ mod tests {
             .abs();
         assert!(delta < 2, "valid_from should survive a round-trip");
     }
-    // REQ: P3-sto-triple-notfound-test — get_by_id on missing id returns None, not an error
+    // contract: P3-sto-triple-notfound-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_by_id_missing_returns_none() {

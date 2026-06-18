@@ -105,7 +105,7 @@ pub enum AdapterConfigError {
 mod tests {
     use super::*;
 
-    // REQ: P8-adt-adapter-config-parse — parse valid PEFT config
+    // contract: P8-adt-adapter-config-parse
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn parse_valid_adapter_config() {
@@ -131,7 +131,7 @@ mod tests {
         );
     }
 
-    // REQ: P8-adt-adapter-config-parse — reject invalid JSON
+    // contract: P8-adt-adapter-config-parse
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn parse_invalid_json_returns_error() {
@@ -139,7 +139,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P8-adt-adapter-config-parse — validate base model match
+    // contract: P8-adt-adapter-config-parse
 // expect: "The adapter manages LoRA adapter lifecycle and inference composition" [P9]
     #[test]
     fn validate_base_model_match() {

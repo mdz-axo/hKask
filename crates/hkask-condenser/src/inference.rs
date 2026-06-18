@@ -72,7 +72,7 @@ pub fn approx_token_count(text: &str) -> usize {
 mod tests {
     use super::*;
 
-    // REQ: condenser-token-est — approx_token_count uses ~4 chars/token heuristic
+    // contract: condenser-token-est
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn token_count_uses_char_heuristic() {
@@ -89,14 +89,14 @@ mod tests {
         assert_eq!(approx_token_count("test test"), 2);
     }
 
-    // REQ: condenser-token-est — empty string floors at 1
+    // contract: condenser-token-est
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn token_count_empty_floors_at_one() {
         assert_eq!(approx_token_count(""), 1);
     }
 
-    // REQ: condenser-token-est — long text scales linearly
+    // contract: condenser-token-est
 // expect: "The system compresses context to preserve conversation continuity" [P5]
     #[test]
     fn token_count_scales_with_length() {

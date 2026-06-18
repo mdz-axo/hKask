@@ -300,7 +300,7 @@ impl WalletService {
     /// post: returns WalletBalance; Err(Wallet) on manager error
     #[contract(id = "P9-svc-wallet-284", principle = "P9")]
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<WalletBalance, ServiceError> {
-        // REQ: P9-CNS-SVC-001 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-001
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "get_balance", wallet_id = %wallet_id, "CNS");
@@ -320,7 +320,7 @@ impl WalletService {
     /// post: returns true if balance >= cost_rj; false otherwise; Err(Wallet) on manager error
     #[contract(id = "P9-svc-wallet-285", principle = "P9")]
     pub fn can_afford(&self, wallet_id: WalletId, cost_rj: RJoule) -> Result<bool, ServiceError> {
-        // REQ: P9-CNS-SVC-002 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-002
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "can_afford", wallet_id = %wallet_id, cost_rj = %cost_rj, "CNS");
@@ -340,7 +340,7 @@ impl WalletService {
     /// post: wallet row exists in store; Ok(()) on success; Err(Wallet) on manager error
     #[contract(id = "P9-svc-wallet-286", principle = "P9")]
     pub fn ensure_wallet(&self, wallet_id: WalletId) -> Result<(), ServiceError> {
-        // REQ: P9-CNS-SVC-003 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-003
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "ensure_wallet", wallet_id = %wallet_id, "CNS");
@@ -367,7 +367,7 @@ impl WalletService {
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<DepositAddress, ServiceError> {
-        // REQ: P9-CNS-SVC-004 pre: valid wallet_id and chain, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-004
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "get_deposit_address", wallet_id = %wallet_id, chain = ?chain, "CNS");
@@ -394,7 +394,7 @@ impl WalletService {
         chain: ChainId,
         validity_hours: i64,
     ) -> Result<DepositReference, ServiceError> {
-        // REQ: P9-CNS-SVC-005 pre: valid wallet_id and chain, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-005
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "generate_deposit_reference", wallet_id = %wallet_id, chain = ?chain, "CNS");
@@ -422,7 +422,7 @@ impl WalletService {
         limit: u32,
         offset: u32,
     ) -> Result<Vec<WalletTransaction>, ServiceError> {
-        // REQ: P9-CNS-SVC-006 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-006
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "get_transactions", wallet_id = %wallet_id, limit = limit, offset = offset, "CNS");
@@ -458,11 +458,11 @@ impl WalletService {
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<TxHash, ServiceError> {
-        // REQ: P9-CNS-SVC-007 pre: valid webid and wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-007
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "withdraw", webid = %webid, wallet_id = %wallet_id, amount_rj = %amount_rj, chain = ?chain, "CNS");
-        // REQ: P2-svc-wallet-withdraw-consent-gate — P2 affirmative consent gate for withdrawal signing
+        // contract: P2-svc-wallet-withdraw-consent-gate
         // expect: "Service operations require explicit, scoped consent" [P2]
         if let Some(ref cm) = self.consent_manager {
             let category = DataCategory::Custom("wallet_withdrawal".into());
@@ -490,7 +490,7 @@ impl WalletService {
             .await
             .map_err(|e| {
                 let msg = e.to_string();
-                // REQ: P9-svc-wallet-chain-error-span — emit chain_error span for CNS feedback loop closure
+                // contract: P9-svc-wallet-chain-error-span
                 // expect: "The service layer provides CNS health and regulation queries" [P9]
                 if matches!(
                     e,
@@ -519,7 +519,7 @@ impl WalletService {
         webid: &WebID,
         chain: ChainId,
     ) -> Result<WithdrawalFee, ServiceError> {
-        // REQ: P9-CNS-SVC-008 pre: valid webid and chain, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-008
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "estimate_withdrawal_fee", webid = %webid, chain = ?chain, "CNS");
@@ -549,7 +549,7 @@ impl WalletService {
         amount_usdc_micro: u64,
         chain: ChainId,
     ) -> Result<TxHash, ServiceError> {
-        // REQ: P9-CNS-SVC-009 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-009
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "shield_assets", wallet_id = %wallet_id, amount_usdc_micro = amount_usdc_micro, chain = ?chain, "CNS");
@@ -586,7 +586,7 @@ impl WalletService {
         purpose: String,
         rate_limit: Option<hkask_types::wallet::RateLimitConfig>,
     ) -> Result<ApiKeyMaterial, ServiceError> {
-        // REQ: P9-CNS-SVC-010 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-010
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "create_key", wallet_id = %wallet_id, purpose = %purpose, "CNS");
@@ -617,7 +617,7 @@ impl WalletService {
     /// post: key is revoked; unspent rJoules returned to wallet; Err(Wallet) on issuer error
     #[contract(id = "P9-svc-wallet-293", principle = "P9")]
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
-        // REQ: P9-CNS-SVC-011 pre: valid key_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-011
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "revoke_key", key_id = %key_id, "CNS");
@@ -637,7 +637,7 @@ impl WalletService {
     /// post: returns Vec<ApiKeyCapability> of active keys; empty Vec if none; Err(Wallet) on issuer error
     #[contract(id = "P9-svc-wallet-294", principle = "P9")]
     pub fn list_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, ServiceError> {
-        // REQ: P9-CNS-SVC-012 pre: valid wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-012
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "list_keys", wallet_id = %wallet_id, "CNS");
@@ -657,7 +657,7 @@ impl WalletService {
     /// post: returns Some(ApiKeyCapability) if found; None if not found; Err(Wallet) on manager error
     #[contract(id = "P9-svc-wallet-295", principle = "P9")]
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, ServiceError> {
-        // REQ: P9-CNS-SVC-013 pre: valid key_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-013
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "get_api_key", key_id = %key_id, "CNS");
@@ -679,7 +679,7 @@ impl WalletService {
     /// post: returns RJoule equivalent using manager's conversion rate
     #[contract(id = "P9-svc-wallet-296", principle = "P9")]
     pub fn gas_to_rjoules(&self, gas: u64) -> RJoule {
-        // REQ: P9-CNS-SVC-014 pre: gas >= 0, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-014
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "gas_to_rjoules", gas = gas, "CNS");
@@ -693,7 +693,7 @@ impl WalletService {
     /// post: returns u64 gas equivalent using manager's conversion rate
     #[contract(id = "P9-svc-wallet-297", principle = "P9")]
     pub fn rjoules_to_gas(&self, rj: RJoule) -> u64 {
-        // REQ: P9-CNS-SVC-015 pre: rj >= 0, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-015
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "rjoules_to_gas", rj = %rj, "CNS");
@@ -717,7 +717,7 @@ impl WalletService {
         agent: hkask_types::WebID,
         wallet_id: WalletId,
     ) -> Result<(), ServiceError> {
-        // REQ: P9-CNS-SVC-016 pre: valid agent and wallet_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-016
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "register_wallet_budget", agent = %agent, wallet_id = %wallet_id, "CNS");
@@ -754,7 +754,7 @@ impl WalletService {
         key_id: ApiKeyId,
         spending_limit_rj: RJoule,
     ) -> Result<(), ServiceError> {
-        // REQ: P9-CNS-SVC-017 pre: valid agent, wallet_id, and key_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-017
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "register_wallet_budget_for_key", agent = %agent, wallet_id = %wallet_id, key_id = %key_id, "CNS");
@@ -789,7 +789,7 @@ impl WalletService {
         key_id: ApiKeyId,
         amount: RJoule,
     ) -> Result<(), ServiceError> {
-        // REQ: P9-CNS-SVC-018 pre: valid wallet_id and key_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-018
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "encumber_key", wallet_id = %wallet_id, key_id = %key_id, amount = %amount, "CNS");
@@ -811,7 +811,7 @@ impl WalletService {
     /// post: encumbrance is released; unspent rJoules returned to wallet; Err(Wallet) on manager error
     #[contract(id = "P9-svc-wallet-301", principle = "P9")]
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), ServiceError> {
-        // REQ: P9-CNS-SVC-019 pre: valid key_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-019
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "release_encumbrance", key_id = %key_id, "CNS");
@@ -831,7 +831,7 @@ impl WalletService {
     /// post: rJoules are atomically debited from key's encumbrance; Err(Wallet) on manager error or insufficient balance
     #[contract(id = "P9-svc-wallet-302", principle = "P9")]
     pub fn consume_gas(&self, key_id: ApiKeyId, gas_rj: RJoule) -> Result<(), ServiceError> {
-        // REQ: P9-CNS-SVC-020 pre: valid key_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-020
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "consume_gas", key_id = %key_id, gas_rj = %gas_rj, "CNS");
@@ -854,7 +854,7 @@ impl WalletService {
         &self,
         key_id: ApiKeyId,
     ) -> Result<Option<hkask_types::wallet::Encumbrance>, ServiceError> {
-        // REQ: P9-CNS-SVC-021 pre: valid key_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-021
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "get_encumbrance", key_id = %key_id, "CNS");
@@ -877,7 +877,7 @@ impl WalletService {
     /// post: CNS alert emitted if event sink configured; no-op otherwise
     #[contract(id = "P9-svc-wallet-304", principle = "P9")]
     pub fn emit_key_alert(&self, key_id: ApiKeyId, exhausted: bool, expired: bool) {
-        // REQ: P9-CNS-SVC-022 pre: valid key_id, post: cns.wallet_svc span emitted
+        // contract: P9-CNS-SVC-022
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(target: "cns.wallet_svc", operation = "emit_key_alert", key_id = %key_id, exhausted = exhausted, expired = expired, "CNS");
@@ -1117,7 +1117,7 @@ mod tests {
         )
     }
 
-    // REQ: P9-svc-wallet-001 — get_balance returns zero for new wallet
+    // contract: P9-svc-wallet-001
     // expect: "Service get_balance works correctly under test conditions" [P9]
     #[test]
     fn get_balance_returns_zero_for_new_wallet() {
@@ -1129,7 +1129,7 @@ mod tests {
         assert_eq!(balance.rjoules, 0);
     }
 
-    // REQ: P9-svc-wallet-002 — gas_to_rjoules conversion
+    // contract: P9-svc-wallet-002
     // expect: "Service gas_to_rjoules works correctly under test conditions" [P9]
     #[test]
     fn gas_to_rjoules_conversion() {
@@ -1140,7 +1140,7 @@ mod tests {
         assert_eq!(svc.gas_to_rjoules(2000).as_u64(), 2);
     }
 
-    // REQ: P9-svc-wallet-003 — rjoules_to_gas conversion
+    // contract: P9-svc-wallet-003
     // expect: "Service rjoules_to_gas works correctly under test conditions" [P9]
     #[test]
     fn rjoules_to_gas_conversion() {
@@ -1149,7 +1149,7 @@ mod tests {
         assert_eq!(svc.rjoules_to_gas(RJoule::new(5)), 5000);
     }
 
-    // REQ: P9-svc-wallet-007 — estimate_withdrawal_fee returns positive fee
+    // contract: P9-svc-wallet-007
     // expect: "Service estimate_withdrawal_fee works correctly under test conditions" [P9]
     #[tokio::test]
     async fn estimate_withdrawal_fee_returns_positive_fee() {
@@ -1164,7 +1164,7 @@ mod tests {
         assert!(fee.native_units > 0.0);
     }
 
-    // REQ: P9-svc-wallet-008 — actor continuity from service request to adapter-originated chain_error span
+    // contract: P9-svc-wallet-008
     // expect: "Service withdraw actor_continuity works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_propagates_actor_into_adapter_chain_error_span() {
@@ -1202,7 +1202,7 @@ mod tests {
         assert_event_actor(&sink, "submit_signed_tx", &actor);
     }
 
-    // REQ: P9-svc-wallet-009 — actor continuity for fee-estimation error span
+    // contract: P9-svc-wallet-009
     // expect: "Service estimate_withdrawal_fee works correctly under test conditions" [P9]
     #[tokio::test]
     async fn estimate_fee_error_span_preserves_request_actor() {
@@ -1225,7 +1225,7 @@ mod tests {
         assert_event_actor(&sink, "estimate_withdrawal_fee", &actor);
     }
 
-    // REQ: P9-svc-wallet-010 — actor continuity for shielded withdraw adapter error span
+    // contract: P9-svc-wallet-010
     // expect: "Service shielded_withdraw works correctly under test conditions" [P9]
     #[tokio::test]
     async fn shielded_withdraw_error_span_preserves_request_actor() {
@@ -1260,7 +1260,7 @@ mod tests {
         assert_event_actor(&sink, "privacy_submit_signed_tx", &actor);
     }
 
-    // REQ: P9-svc-wallet-004 — create_key produces valid material
+    // contract: P9-svc-wallet-004
     // expect: "Service create_key works correctly under test conditions" [P9]
     #[test]
     fn create_key_produces_valid_material() {
@@ -1284,7 +1284,7 @@ mod tests {
         assert!(material.capability.spending_limit_rj.as_u64() == 5000);
     }
 
-    // REQ: P9-svc-wallet-005 — list_keys returns created keys
+    // contract: P9-svc-wallet-005
     // expect: "Service list_keys works correctly under test conditions" [P9]
     #[test]
     fn list_keys_returns_created_keys() {
@@ -1319,7 +1319,7 @@ mod tests {
         assert_eq!(keys.len(), 2);
     }
 
-    // REQ: P9-svc-wallet-006 — revoke_key removes from active list
+    // contract: P9-svc-wallet-006
     // expect: "Service revoke_key works correctly under test conditions" [P9]
     #[test]
     fn revoke_key_removes_from_active_list() {

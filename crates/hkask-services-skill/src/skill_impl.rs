@@ -92,7 +92,7 @@ pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> 
     }
 
     skills.sort_by(|a, b| a.name.cmp(&b.name));
-    // REQ: P9-CNS-SVC-020 pre: valid zone_dir, post: cns.skill span emitted
+    // contract: P9-CNS-SVC-020
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(
@@ -258,7 +258,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
     update_visibility_in_skill_md(&public_skill_md, "public");
     update_namespace_in_skill_md(&public_skill_md, &replicant_name);
 
-    // REQ: P9-CNS-SVC-021 pre: valid skill publish, post: cns.skill span emitted
+    // contract: P9-CNS-SVC-021
     // expect: "The service layer provides CNS health and regulation queries" [P9]
     // P9: CNS span
     tracing::info!(

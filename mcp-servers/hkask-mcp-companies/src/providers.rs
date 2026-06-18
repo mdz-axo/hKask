@@ -607,7 +607,7 @@ pub async fn eodhd_search_get(
 mod tests {
     use super::*;
 
-    // REQ: COMPANIES-PROVIDER — is_international_symbol detects exchange-qualified symbols
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn international_symbol_detection() {
         assert!(is_international_symbol("VOD.L"));
@@ -617,7 +617,7 @@ mod tests {
         assert!(!is_international_symbol("MSFT"));
     }
 
-    // REQ: COMPANIES-PROVIDER — primary_provider routes international symbols to EODHD
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn primary_provider_routing() {
         assert_eq!(primary_provider("AAPL"), Provider::Fmp);
@@ -626,7 +626,7 @@ mod tests {
         assert_eq!(primary_provider("BMW.DE"), Provider::Eodhd);
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd_profile extracts General section
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_profile_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -642,14 +642,14 @@ mod tests {
         assert_eq!(arr[0]["Name"], "Apple Inc.");
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd_profile handles missing General
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_profile_missing_general() {
         let result = normalize_eodhd_profile(&serde_json::json!({}));
         assert!(result.as_array().unwrap().is_empty());
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd_income_statement extracts yearly data
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_income_statement_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -676,7 +676,7 @@ mod tests {
         assert_eq!(arr[1]["calendarYear"], "2023");
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd_balance_sheet extracts yearly data
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_balance_sheet_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -696,7 +696,7 @@ mod tests {
         assert_eq!(arr[0]["calendarYear"], "2024");
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd_key_metrics builds yearly array with computed metrics
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_key_metrics_from_eodhd() {
         let fundamentals = serde_json::json!({
@@ -772,7 +772,7 @@ mod tests {
         assert!((dso - 31.4).abs() < 2.0, "expected ~31.4, got {dso}");
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd_historical wraps EOD array with symbol
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_historical_from_eodhd() {
         let eod_data = serde_json::json!([
@@ -784,7 +784,7 @@ mod tests {
         assert_eq!(result["historical"].as_array().unwrap().len(), 2);
     }
 
-    // REQ: COMPANIES-PROVIDER — normalize_eodhd handles empty/missing data gracefully
+    // contract: COMPANIES-PROVIDER
     #[test]
     fn normalize_empty_eodhd_data() {
         assert!(

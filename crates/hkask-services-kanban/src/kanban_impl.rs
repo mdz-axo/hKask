@@ -98,7 +98,7 @@ impl KanbanService {
             .insert(&triple)
             .map_err(|e| KanbanError::Internal(format!("triple insert failed: {e}")))?;
 
-        // REQ: P9-CNS-SVC-001 pre: valid input, post: cns.kanban span emitted
+        // contract: P9-CNS-SVC-001
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -368,7 +368,7 @@ impl KanbanService {
             .insert(&index_triple)
             .map_err(|e| KanbanError::Internal(format!("index triple insert failed: {e}")))?;
 
-        // REQ: P9-CNS-SVC-002 pre: valid input, post: cns.kanban span emitted
+        // contract: P9-CNS-SVC-002
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -545,7 +545,7 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
-        // REQ: P9-CNS-SVC-003 pre: valid transition, post: cns.kanban span emitted
+        // contract: P9-CNS-SVC-003
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -607,7 +607,7 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
-        // REQ: P9-CNS-SVC-004 pre: valid consent, post: cns.kanban span emitted
+        // contract: P9-CNS-SVC-004
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -676,7 +676,7 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("triple update failed: {e}")))?;
         }
 
-        // REQ: P9-CNS-SVC-005 pre: valid review, post: cns.kanban span emitted
+        // contract: P9-CNS-SVC-005
         // expect: "The service layer provides CNS health and regulation queries" [P9]
         // P9: CNS span
         tracing::info!(
@@ -961,7 +961,7 @@ mod tests {
         (svc, board, owner)
     }
 
-    // REQ: P3-svc-kanban-T-001
+    // contract: P3-svc-kanban-T-001
     // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_succeeds() {
@@ -975,7 +975,7 @@ mod tests {
         assert_eq!(board.columns.len(), 5);
     }
 
-    // REQ: P3-svc-kanban-T-002
+    // contract: P3-svc-kanban-T-002
     // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_rejects_empty_name() {
@@ -984,7 +984,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P3-svc-kanban-T-003
+    // contract: P3-svc-kanban-T-003
     // expect: "Service board_create works correctly under test conditions" [P3]
     #[test]
     fn board_create_rejects_empty_columns() {
@@ -993,7 +993,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P3-svc-kanban-T-004
+    // contract: P3-svc-kanban-T-004
     // expect: "Service board_list works correctly under test conditions" [P3]
     #[test]
     fn board_list_by_owner() {
@@ -1011,7 +1011,7 @@ mod tests {
         assert_eq!(alice_boards[0].name, "Alice's Board");
     }
 
-    // REQ: P3-svc-kanban-T-005
+    // contract: P3-svc-kanban-T-005
     // expect: "Service task_create works correctly under test conditions" [P3]
     #[test]
     fn task_create_defaults_to_backlog() {
@@ -1023,7 +1023,7 @@ mod tests {
         assert_eq!(task.board_id, board.id);
     }
 
-    // REQ: P3-svc-kanban-T-006
+    // contract: P3-svc-kanban-T-006
     // expect: "Service task_create works correctly under test conditions" [P3]
     #[test]
     fn task_create_rejects_unknown_board() {
@@ -1032,7 +1032,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P3-svc-kanban-T-007
+    // contract: P3-svc-kanban-T-007
     // expect: "Service task_list works correctly under test conditions" [P3]
     #[test]
     fn task_list_unfiltered() {
@@ -1046,7 +1046,7 @@ mod tests {
         assert_eq!(tasks.len(), 2);
     }
 
-    // REQ: P3-svc-kanban-T-008
+    // contract: P3-svc-kanban-T-008
     // expect: "Service task_list works correctly under test conditions" [P3]
     #[test]
     fn task_list_filter_by_status() {
@@ -1071,7 +1071,7 @@ mod tests {
         assert_eq!(in_progress.len(), 1);
     }
 
-    // REQ: P3-svc-kanban-T-009
+    // contract: P3-svc-kanban-T-009
     // expect: "Service task_move works correctly under test conditions" [P3]
     #[test]
     fn task_move_forward() {
@@ -1089,7 +1089,7 @@ mod tests {
         assert_eq!(t.status, TaskStatus::InProgress);
     }
 
-    // REQ: P3-svc-kanban-T-010
+    // contract: P3-svc-kanban-T-010
     // expect: "Service task_move works correctly under test conditions" [P3]
     #[test]
     fn task_move_rejects_skip() {
@@ -1102,7 +1102,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P3-svc-kanban-T-011
+    // contract: P3-svc-kanban-T-011
     // expect: "Service task_assign works correctly under test conditions" [P3]
     #[test]
     fn task_assign_with_consent() {
@@ -1117,7 +1117,7 @@ mod tests {
         assert_eq!(assigned.assignee, Some(agent));
     }
 
-    // REQ: P3-svc-kanban-T-012
+    // contract: P3-svc-kanban-T-012
     // expect: "Service task_assign works correctly under test conditions" [P3]
     #[test]
     fn task_assign_rejects_invalid_consent() {
@@ -1133,7 +1133,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P3-svc-kanban-T-013
+    // contract: P3-svc-kanban-T-013
     // expect: "Service task_verify works correctly under test conditions" [P3]
     #[test]
     fn task_verify_pass() {
@@ -1154,7 +1154,7 @@ mod tests {
         assert!(verified.verification.as_ref().unwrap().passed);
     }
 
-    // REQ: P3-svc-kanban-T-014
+    // contract: P3-svc-kanban-T-014
     // expect: "Service task_verify works correctly under test conditions" [P3]
     #[test]
     fn task_verify_rejects_non_review() {
@@ -1167,7 +1167,7 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // REQ: P3-svc-kanban-T-015
+    // contract: P3-svc-kanban-T-015
     // expect: "Service board_get works correctly under test conditions" [P3]
     #[test]
     fn board_get_succeeds() {
@@ -1177,7 +1177,7 @@ mod tests {
         assert_eq!(retrieved.unwrap().name, "Test Board");
     }
 
-    // REQ: P3-svc-kanban-T-016
+    // contract: P3-svc-kanban-T-016
     // expect: "Service board_isolation works correctly under test conditions" [P3]
     #[test]
     fn board_isolation() {

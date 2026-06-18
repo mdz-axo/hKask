@@ -110,7 +110,7 @@ fn filter_excluded(backends: Vec<OcrBackend>, exclude: Option<&OcrBackend>) -> V
 mod tests {
     use super::*;
 
-    // REQ:ocr-routing-01 — Simple pages route to single Tesseract
+    // contract: ocr-routing-01
     #[test]
     fn simple_routes_to_tesseract() {
         let score = ComplexityScore {
@@ -122,7 +122,7 @@ mod tests {
         assert_eq!(backends, vec![OcrBackend::Tesseract]);
     }
 
-    // REQ:ocr-routing-02 — Complex routes to LlmOcr with default or custom model
+    // contract: ocr-routing-02
     #[test]
     fn complex_routes_to_llm_ocr() {
         let score = ComplexityScore {
@@ -143,7 +143,7 @@ mod tests {
         assert_eq!(backends, vec![OcrBackend::LlmOcr("minicpm".into())]);
     }
 
-    // REQ:ocr-routing-03 — Property test: over 1000 Moderate pages, dual-routed
+    // contract: ocr-routing-03
     // count is within ±5% of configured 10% rate
     #[test]
     fn moderate_sampling_rate_within_tolerance() {
@@ -180,7 +180,7 @@ mod tests {
         );
     }
 
-    // REQ:ocr-routing-04 — Excluded backend is filtered out
+    // contract: ocr-routing-04
     #[test]
     fn exclude_failed_backend() {
         let score = ComplexityScore {
@@ -195,7 +195,7 @@ mod tests {
         );
     }
 
-    // REQ:ocr-routing-05 — 100% sample rate dual-routes every Moderate page
+    // contract: ocr-routing-05
     #[test]
     fn full_sample_rate_dual_routes_all() {
         let mut state = SamplingState::new(1.0);
@@ -210,7 +210,7 @@ mod tests {
         assert_eq!(state.moderate_pages_dual_routed, 100);
     }
 
-    // REQ:ocr-routing-06 — Zero sample rate never dual-routes
+    // contract: ocr-routing-06
     #[test]
     fn zero_sample_rate_never_dual_routes() {
         let mut state = SamplingState::new(0.0);

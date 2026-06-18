@@ -319,7 +319,7 @@ mod tests {
         ReplSettings::default()
     }
 
-    // REQ: CLI-SETTINGS-001 — Invalid values are rejected (function returns false, value unchanged)
+    // contract: CLI-SETTINGS-001
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
@@ -329,7 +329,7 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 21);
     }
 
-    // REQ: CLI-SETTINGS-002 — Invalid — apply setting rejects negative loop limit
+    // contract: CLI-SETTINGS-002
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_negative_loop_limit() {
@@ -338,7 +338,7 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 21);
     }
 
-    // REQ: CLI-SETTINGS-003 — Invalid — apply setting rejects temperature oor
+    // contract: CLI-SETTINGS-003
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_temperature_oor() {
@@ -347,7 +347,7 @@ mod tests {
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // REQ: CLI-SETTINGS-004 — Invalid — apply setting rejects top p oor
+    // contract: CLI-SETTINGS-004
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_top_p_oor() {
@@ -356,7 +356,7 @@ mod tests {
         assert!((s.top_p - 0.9).abs() < f32::EPSILON);
     }
 
-    // REQ: CLI-SETTINGS-005 — Invalid — apply setting rejects top k zero
+    // contract: CLI-SETTINGS-005
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_top_k_zero() {
@@ -365,7 +365,7 @@ mod tests {
         assert_eq!(s.top_k, 40);
     }
 
-    // REQ: CLI-SETTINGS-006 — Invalid — apply setting rejects garbage value
+    // contract: CLI-SETTINGS-006
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_rejects_garbage_value() {
@@ -374,7 +374,7 @@ mod tests {
         assert!((s.temperature - 0.7).abs() < f32::EPSILON);
     }
 
-    // REQ: CLI-SETTINGS-007 — Valid values are accepted (function returns true, value updated)
+    // contract: CLI-SETTINGS-007
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
 
     #[test]
@@ -384,7 +384,7 @@ mod tests {
         assert!((s.temperature - 0.3).abs() < f32::EPSILON);
     }
 
-    // REQ: CLI-SETTINGS-008 — Valid — apply setting accepts valid loop limit
+    // contract: CLI-SETTINGS-008
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_valid_loop_limit() {
@@ -393,7 +393,7 @@ mod tests {
         assert_eq!(s.tool_loop_limit, 100);
     }
 
-    // REQ: CLI-SETTINGS-009 — Valid — apply setting accepts auto condense off
+    // contract: CLI-SETTINGS-009
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_auto_condense_off() {
@@ -402,7 +402,7 @@ mod tests {
         assert!(!s.auto_condense);
     }
 
-    // REQ: CLI-SETTINGS-010 — Valid — apply setting accepts auto condense on
+    // contract: CLI-SETTINGS-010
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_auto_condense_on() {
@@ -412,7 +412,7 @@ mod tests {
         assert!(s.auto_condense);
     }
 
-    // REQ: CLI-SETTINGS-011 — Valid — apply setting accepts seed value
+    // contract: CLI-SETTINGS-011
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_seed_value() {
@@ -421,7 +421,7 @@ mod tests {
         assert_eq!(s.seed, Some(42));
     }
 
-    // REQ: CLI-SETTINGS-012 — Valid — apply setting accepts seed off
+    // contract: CLI-SETTINGS-012
 // expect: "I can access all hKask functionality through the kask CLI" [P3]
     #[test]
     fn apply_setting_accepts_seed_off() {

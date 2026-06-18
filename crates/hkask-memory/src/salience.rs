@@ -901,7 +901,7 @@ impl BudgetConfig {
 mod tests {
     use super::*;
 
-    // REQ: P3-mem-salience-hemingway-test — compute_method_signals detects Hemingway-like prose (high parataxis, low adverb density, short sentences)
+    // contract: P3-mem-salience-hemingway-test
     // expect: "Memory method signals detection works correctly under test conditions" [P3]
     #[test]
     fn method_signals_hemingway_like() {
@@ -913,7 +913,7 @@ mod tests {
         assert!(signals.avg_sentence_length < 10.0);
     }
 
-    // REQ: P3-mem-salience-wilde-test — compute_method_signals detects Wilde-like prose (high adjective/adverb/hedge/intensifier density)
+    // contract: P3-mem-salience-wilde-test
     // expect: "Memory method signals detection works correctly under test conditions" [P3]
     #[test]
     fn method_signals_wilde_like() {
@@ -928,7 +928,7 @@ mod tests {
         assert!(signals.intensifier_density > 0.0);
     }
 
-    // REQ: P3-mem-salience-declared-method-test — DeclaredMethod::matches correctly identifies when signals meet declared thresholds
+    // contract: P3-mem-salience-declared-method-test
     // expect: "Memory declared method matching works correctly under test conditions" [P3]
     #[test]
     fn declared_method_matches() {
@@ -951,7 +951,7 @@ mod tests {
         assert!(!method.matches(&wilde_signals));
     }
 
-    // REQ: P3-mem-salience-zero-empty-test — salience is zero when entity tags are empty
+    // contract: P3-mem-salience-zero-empty-test
     // expect: "Memory salience computation works correctly under test conditions" [P3]
     #[test]
     fn salience_zero_for_empty_tags() {
@@ -961,7 +961,7 @@ mod tests {
         assert!((scores[0] - 0.0).abs() < 0.01);
     }
 
-    // REQ: P3-mem-salience-shared-entities-test — salience increases when passages share entities; isolated passages score zero
+    // contract: P3-mem-salience-shared-entities-test
     // expect: "Memory salience computation works correctly under test conditions" [P3]
     #[test]
     fn salience_increases_with_shared_entities() {
@@ -986,7 +986,7 @@ mod tests {
         assert!((scores[2] - 0.0).abs() < 0.01, "passage 2 isolated");
     }
 
-    // REQ: P3-mem-salience-clustering-zero-test — clustering coefficient is zero when neighbors share no entities; bridge passages retain positive salience
+    // contract: P3-mem-salience-clustering-zero-test
     // expect: "Memory clustering computation works correctly under test conditions" [P3]
     #[test]
     fn clustering_zero_when_neighbors_disconnected() {
@@ -1023,7 +1023,7 @@ mod tests {
         assert!((scores[3] - 0.0).abs() < 0.01);
     }
 
-    // REQ: P3-mem-salience-bridge-higher-test — bridge passages score higher than dense clique members due to lower clustering penalty
+    // contract: P3-mem-salience-bridge-higher-test
     // expect: "Memory bridge scoring works correctly under test conditions" [P3]
     #[test]
     fn bridge_scores_higher_than_dense_clique() {
@@ -1080,7 +1080,7 @@ mod tests {
         );
     }
 
-    // REQ: P3-mem-salience-methods-graph-test — method tags participate in the salience graph alongside other entity types
+    // contract: P3-mem-salience-methods-graph-test
     // expect: "Memory methods graph works correctly under test conditions" [P3]
     #[test]
     fn methods_participate_in_graph() {
@@ -1099,7 +1099,7 @@ mod tests {
         assert!(scores[1] > 0.0);
     }
 
-    // REQ: P3-mem-salience-budget-per-page-test — PerPage budget resolves proportionally to passage count with a minimum floor
+    // contract: P3-mem-salience-budget-per-page-test
     // expect: "Memory budget resolution works correctly under test conditions" [P3]
     #[test]
     fn budget_per_page_resolve() {
@@ -1114,7 +1114,7 @@ mod tests {
         assert!(budget.resolve(10) >= 3750);
     }
 
-    // REQ: P3-mem-salience-budget-absolute-test — Absolute budget always returns the fixed max_triples regardless of passage count
+    // contract: P3-mem-salience-budget-absolute-test
     // expect: "Memory budget resolution works correctly under test conditions" [P3]
     #[test]
     fn budget_absolute() {
@@ -1122,7 +1122,7 @@ mod tests {
         assert_eq!(budget.resolve(5000), 10000);
     }
 
-    // REQ: P3-mem-salience-tag-case-insensitive-test — entity tagging is case-insensitive for characters and places
+    // contract: P3-mem-salience-tag-case-insensitive-test
     // expect: "Memory entity tagging works correctly under test conditions" [P3]
     #[test]
     fn entity_tagging_case_insensitive() {
@@ -1132,7 +1132,7 @@ mod tests {
         assert_eq!(tags.places, vec!["Paris"]);
     }
 
-    // REQ: P3-mem-salience-dialogue-ratio-test — dialogue ratio is correctly detected from quoted text in compute_method_signals
+    // contract: P3-mem-salience-dialogue-ratio-test
     // expect: "Memory dialogue ratio works correctly under test conditions" [P3]
     #[test]
     fn dialogue_ratio_detection() {
@@ -1158,7 +1158,7 @@ mod tests {
             .boxed()
     }
 
-    // REQ: P3-mem-salience-valid-range-test — Salience scores in valid range
+    // contract: P3-mem-salience-valid-range-test
     // expect: "Memory salience range works correctly under test conditions" [P3]
     // All salience scores are in [0.0, 1.0] and function never panics.
     proptest! {
@@ -1178,7 +1178,7 @@ mod tests {
         }
     }
 
-    // REQ: P3-mem-salience-empty-tags-proptest — Empty tags produce zero salience
+    // contract: P3-mem-salience-empty-tags-proptest
     // expect: "Memory salience computation works correctly under test conditions" [P3]
     // Passages with no entity tags always score zero.
     proptest! {

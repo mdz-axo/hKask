@@ -33,7 +33,7 @@ mod tests {
     use crate::WebID;
     use ed25519_dalek::SigningKey;
 
-    // REQ: capability-parse-001 — canonical default capability always parses
+    // contract: capability-parse-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     //
     // The pod constructor uses `CapabilitySpec::parse("tool:execute")` as the
@@ -43,7 +43,7 @@ mod tests {
         assert!(CapabilitySpec::parse("tool:execute").is_ok());
     }
 
-    // REQ: capability-parse-002 — malformed user-supplied capability does not panic
+    // contract: capability-parse-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     //
     // Before fix, `AgentPod::new` called `.expect()` on the user-supplied first
@@ -57,7 +57,7 @@ mod tests {
         assert!(CapabilitySpec::parse("::::").is_err());
     }
 
-    // REQ: capability-parse-003 — fallback logic mirrors pod constructor
+    // contract: capability-parse-003
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn malformed_capability_falls_back_to_default() {
@@ -99,7 +99,7 @@ mod tests {
 
         // ── CapabilitySpec::parse ──────────────────────────────────────────
 
-        // REQ: cap-prop-001 — valid 2-part capabilities parse without error
+        // contract: cap-prop-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -116,7 +116,7 @@ mod tests {
             }
         }
 
-        // REQ: cap-prop-002 — valid 3-part capabilities parse correctly
+        // contract: cap-prop-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -134,7 +134,7 @@ mod tests {
             }
         }
 
-        // REQ: cap-prop-003 — parse never panics on arbitrary input
+        // contract: cap-prop-003
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -143,7 +143,7 @@ mod tests {
             }
         }
 
-        // REQ: cap-prop-004 — single-part input or 4+ parts returns error
+        // contract: cap-prop-004
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -158,7 +158,7 @@ mod tests {
             }
         }
 
-        // REQ: cap-prop-005 — 4+ colon-separated parts returns error
+        // contract: cap-prop-005
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -170,7 +170,7 @@ mod tests {
             }
         }
 
-        // REQ: cap-prop-006 — unknown action falls back to Execute
+        // contract: cap-prop-006
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -191,7 +191,7 @@ mod tests {
 
         // ── DelegationResource::parse_str / as_str round-trip ──────────────
 
-        // REQ: cap-prop-007 — resource parse/as_str round-trip for all variants
+        // contract: cap-prop-007
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -212,7 +212,7 @@ mod tests {
 
         // ── DelegationAction::parse_str / as_str round-trip ────────────────
 
-        // REQ: cap-prop-008 — action parse/as_str round-trip for all variants
+        // contract: cap-prop-008
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -225,7 +225,7 @@ mod tests {
             }
         }
 
-        // REQ: cap-prop-009 — action hierarchy: Execute ≥ Write ≥ Read
+        // contract: cap-prop-009
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -242,7 +242,7 @@ mod tests {
         }
 
         proptest! {
-            // REQ: cap-prop-009 — action hierarchy permits read
+            // contract: cap-prop-009
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
             #[test]
             fn action_hierarchy_permits_read(
@@ -256,7 +256,7 @@ mod tests {
 
         // ── capabilities_match ──────────────────────────────────────────────
 
-        // REQ: cap-prop-012 — a capability always matches itself (reflexive)
+        // contract: cap-prop-012
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -270,7 +270,7 @@ mod tests {
             }
         }
 
-        // REQ: cap-prop-013 — action hierarchy: execute covers write covers read
+        // contract: cap-prop-013
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         // Uses 3-part capabilities with shared domain so resource_id matches.
         // 2-part capabilities have resource_id = full input, so different
@@ -296,7 +296,7 @@ mod tests {
             }
         }
 
-        // REQ: cap-prop-014 — different resources never match
+        // contract: cap-prop-014
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -317,7 +317,7 @@ mod tests {
 
         // ── capability_from_server_id ───────────────────────────────────────
 
-        // REQ: cap-prop-015 — server_id with hkask-mcp- prefix produces capability
+        // contract: cap-prop-015
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         proptest! {
             #[test]
@@ -332,7 +332,7 @@ mod tests {
         }
 
         proptest! {
-        // REQ: cap-prop-015 — non prefixed server id returns none
+        // contract: cap-prop-015
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
         #[test]
         fn non_prefixed_server_id_returns_none(
@@ -356,7 +356,7 @@ mod tests {
         derive_signing_key(TOKEN_SECRET)
     }
 
-    // REQ: token-verify-001 — DelegationToken verifies with correct public key
+    // contract: token-verify-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_verifies_with_correct_key() {
@@ -372,7 +372,7 @@ mod tests {
         assert!(token.verify());
     }
 
-    // REQ: token-verify-002 — DelegationToken rejects wrong public key
+    // contract: token-verify-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_rejects_wrong_key() {
@@ -402,7 +402,7 @@ mod tests {
         assert_ne!(token.public_key.0, wrong_token.public_key.0);
     }
 
-    // REQ: token-verify-003 — DelegationToken rejects tampered signature
+    // contract: token-verify-003
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_rejects_tampered_signature() {
@@ -420,7 +420,7 @@ mod tests {
         assert!(!token.verify());
     }
 
-    // REQ: token-attenuation-001 — DelegationToken can_attenuate when below max
+    // contract: token-attenuation-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_can_attenuate_when_below_max() {
@@ -436,7 +436,7 @@ mod tests {
         assert!(token.can_attenuate());
     }
 
-    // REQ: token-attenuation-002 — DelegationToken attenuation enforced at max
+    // contract: token-attenuation-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_attenuation_enforced_at_max() {
@@ -468,7 +468,7 @@ mod tests {
         assert!(current.attenuate(next_agent, &sk, 100_000).is_none());
     }
 
-    // REQ: token-attenuation-003 — DelegationToken attenuation preserves signature validity
+    // contract: token-attenuation-003
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_attenuation_preserves_signature_validity() {
@@ -492,7 +492,7 @@ mod tests {
         assert_eq!(attenuated.delegated_to, test_webid("agent-2"));
     }
 
-    // REQ: token-attenuation-004 — DelegationToken verify_attenuation_chain
+    // contract: token-attenuation-004
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_verify_attenuation_chain() {
@@ -518,7 +518,7 @@ mod tests {
         assert!(!attenuated.verify_attenuation_chain(&root_nonce, 0));
     }
 
-    // REQ: token-expiry-001 — DelegationToken is_expired when past expiry
+    // contract: token-expiry-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_is_expired_when_past_expiry() {
@@ -536,7 +536,7 @@ mod tests {
         assert!(!token.is_expired(500));
     }
 
-    // REQ: token-expiry-002 — DelegationToken without expiry never expires
+    // contract: token-expiry-002
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_without_expiry_never_expires() {
@@ -552,7 +552,7 @@ mod tests {
         assert!(!token.is_expired(i64::MAX));
     }
 
-    // REQ: token-serialization-001 — DelegationToken base64 round-trip
+    // contract: token-serialization-001
 // expect: "System types preserve semantic identity and are provenance-aware" [P8]
     #[test]
     fn token_base64_round_trip() {

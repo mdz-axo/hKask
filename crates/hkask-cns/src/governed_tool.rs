@@ -506,7 +506,7 @@ mod tests {
         .sign()
     }
 
-    // REQ: P9-cns-gov-tool-legacy-exact-match-test
+    // contract: P9-cns-gov-tool-legacy-exact-match-test
     //
     // OCAP Path 1: a DelegationToken minted for a specific tool name
     // must grant access when the tool name matches exactly.
@@ -520,7 +520,7 @@ mod tests {
         ));
     }
 
-    // REQ: P9-cns-gov-tool-legacy-denies-test
+    // contract: P9-cns-gov-tool-legacy-denies-test
     //
     // OCAP Path 1: a token for one tool must not grant access to another.
     #[test]
@@ -533,7 +533,7 @@ mod tests {
         ));
     }
 
-    // REQ: P9-cns-gov-tool-domain-capability-test
+    // contract: P9-cns-gov-tool-domain-capability-test
     //
     // OCAP Path 2: an agent capability token with domain "cns" and action
     // "execute" must grant access to a tool with required_capability
@@ -548,7 +548,7 @@ mod tests {
         ));
     }
 
-    // REQ: P9-cns-gov-tool-domain-denies-test
+    // contract: P9-cns-gov-tool-domain-denies-test
     //
     // A token for domain "cns" must not grant access to a tool
     // requiring "tool:memory:write".

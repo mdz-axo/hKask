@@ -379,7 +379,7 @@ mod tests {
         ));
         EscalationQueue::new(conn).expect("init queue")
     }
-    // REQ: P3-sto-escalation-resolve-missing-test — resolve on a missing id returns NotFound, not Ok
+    // contract: P3-sto-escalation-resolve-missing-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn resolve_missing_id_returns_not_found() {
@@ -391,7 +391,7 @@ mod tests {
             result
         );
     }
-    // REQ: P3-sto-escalation-dismiss-missing-test — dismiss on a missing id returns NotFound
+    // contract: P3-sto-escalation-dismiss-missing-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn dismiss_missing_id_returns_not_found() {
@@ -403,7 +403,7 @@ mod tests {
             result
         );
     }
-    // REQ: P3-sto-escalation-resolve-existing-test — resolve on an existing entry succeeds
+    // contract: P3-sto-escalation-resolve-existing-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn resolve_existing_id_succeeds() {
@@ -420,7 +420,7 @@ mod tests {
             .expect("add escalation");
         assert!(q.resolve(&id.to_string(), "tester").is_ok());
     }
-    // REQ: P3-sto-escalation-dismiss-existing-test — dismiss on an existing entry succeeds
+    // contract: P3-sto-escalation-dismiss-existing-test
     // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn dismiss_existing_id_succeeds() {
