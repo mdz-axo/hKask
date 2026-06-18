@@ -148,6 +148,18 @@ pub enum SkillStatus {
     RecommendDeprecation,
 }
 
+fn status_from_score(score: f64) -> SkillStatus {
+    if score >= 0.8 {
+        SkillStatus::Active
+    } else if score >= 0.5 {
+        SkillStatus::StaleWarning
+    } else if score >= 0.2 {
+        SkillStatus::Critical
+    } else {
+        SkillStatus::RecommendDeprecation
+    }
+}
+
 /// Errors emitted by the skill audit harness.
 #[derive(Debug, thiserror::Error)]
 pub enum SkillAuditError {
@@ -480,48 +492,6 @@ struct J2FrontMatter {
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const WORKSPACE_VERSION: &str = "0.27.0";
-}
-
-fn load_workspace_hlexicon(project_root: &Path) -> Result<HLexicon, SkillAuditError> {
-    let path = project_root
-        .join("registry")
-        .join("hlexicon")
-        .join("hlexicon-workspace.yaml");
-    let content = fs::read_to_string(&path).map_err(|e| SkillAuditError::Io(e.to_string()))?;
-    let value: serde_yaml_neo::Value =
-        serde_yaml_neo::from_str(&content).map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
-
-    let mut lexicon = HLexicon::new();
-    let Some(hlexicon) = value.get("hlexicon") else {
-        return Ok(lexicon);
-    };
-
-    for domain in ["wordact", "knowact", "flowdef"] {
-        if let Some(entries) = hlexicon.get(domain).and_then(|v| v.as_sequence()) {
-            for entry in entries {
-                let Some(term) = entry.get("term").and_then(|v| v.as_str()) else {
-                    continue;
-                };
-                let Some(definition) = entry.get("definition").and_then(|v| v.as_str()) else {
-                    continue;
-                };
-                let template_type = match domain {
-                    "wordact" => TemplateType::WordAct,
-                    "knowact" => TemplateType::KnowAct,
-                    "flowdef" => TemplateType::FlowDef,
-                    _ => continue,
-                };
-                lexicon.add(hkask_types::lexicon::LexiconTerm::new(
-                    term,
-                    template_type,
-                    definition,
-                ));
-            }
-        }
-    }
-
-    Ok(lexicon)
-}
 
 fn parse_j2_frontmatter(content: &str) -> Option<J2FrontMatter> {
     let content = content.trim_start();
