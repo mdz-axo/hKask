@@ -18,10 +18,3 @@ templates:
     description: >
       Generate a module map, caller graph, data flow summary, boundary summary,
       and key invariants for the current code region. Uses hKask domain vocabulary.
-
-hlexicon_terms:
-  - orient
-  - contextualise
-  - map
-  - classify
-  - integrate

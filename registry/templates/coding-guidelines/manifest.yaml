@@ -33,19 +33,3 @@ templates:
     description: >
       Verify an implementation or diff against all four principles.
       Produces a violations report, compliance scores, and corrective recommendations.
-
-hlexicon_terms:
-  - assess
-  - orient
-  - detect
-  - classify
-  - discriminate
-  - constrain
-  - apply
-  - regulate
-  - simplify
-  - specify
-  - verify
-  - evaluate
-  - calibrate
-  - audit

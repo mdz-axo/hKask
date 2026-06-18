@@ -28,17 +28,3 @@ templates:
       Scaffold a new registry crate from a user description. Generate manifest.yaml
       with crate metadata, template entries, and hLexicon terms. Generate companion
       SKILL.md from the registry crate. Validate and confirm before writing.
-
-hlexicon_terms:
-  - validate
-  - verify
-  - classify
-  - audit
-  - recommend
-  - create
-  - specify
-  - design
-  - compose
-  - install
-  - prune
-  - list

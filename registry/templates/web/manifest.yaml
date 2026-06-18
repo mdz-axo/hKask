@@ -51,14 +51,3 @@ templates:
     description: >
       Quick single-provider web search for fast results. Returns top
       results as a concise list with title, URL, and description.
-
-hlexicon_terms:
-  - extract
-  - synthesize
-  - distill
-  - search
-  - explore
-  - analyze
-  - query
-  - classify
-  - summarize

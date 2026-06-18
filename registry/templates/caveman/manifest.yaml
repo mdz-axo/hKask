@@ -18,10 +18,3 @@ templates:
       Compress a draft response into caveman mode: drop articles, filler,
       pleasantries, hedging. Preserve all technical substance. Insert
       clarity exceptions for security and irreversible actions.
-
-hlexicon_terms:
-  - compress
-  - distill
-  - simplify
-  - specify
-  - document

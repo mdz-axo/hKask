@@ -87,32 +87,3 @@ templates:
       every listed document exists, add missing entries, remove archived
       entries, update MDS category tags. Update architecture master
       index. Verify every document reachable from portal in ≤2 clicks.
-
-hlexicon_terms:
-  - inventory
-  - classify
-  - detect
-  - walk
-  - extract
-  - flag
-  - align
-  - restore
-  - migrate
-  - update
-  - verify
-  - assess
-  - evaluate
-  - revise
-  - improve
-  - validate
-  - resolve
-  - trace
-  - ground
-  - apply
-  - archive
-  - retire
-  - deprecate
-  - supersede
-  - refresh
-  - catalog
-  - orient

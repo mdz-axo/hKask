@@ -42,22 +42,3 @@ templates:
       SOAP operational reporting template. Produces structured reports
       with subjective, objective (profile, severity, host samples),
       assessment, and plan sections.
-
-hlexicon_terms:
-  - prompt
-  - write
-  - undertake
-  - transform
-  - compose
-  - specify
-  - recognize
-  - classify
-  - match
-  - discriminate
-  - select
-  - observe
-  - assess
-  - plan
-  - monitor
-  - report
-  - probe

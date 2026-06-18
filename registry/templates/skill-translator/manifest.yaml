@@ -37,18 +37,3 @@ templates:
       Reverse translation: generate a SKILL.md companion from a registry crate.
       Read manifest.yaml for crate metadata, read .j2 templates for methodology,
       produce a markdown companion suitable for the Zed coding agent.
-
-hlexicon_terms:
-  - detect
-  - classify
-  - analyze
-  - discriminate
-  - orient
-  - translate
-  - adapt
-  - extract
-  - compose
-  - verify
-  - map
-  - substitute
-  - generate

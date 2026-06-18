@@ -41,20 +41,3 @@ templates:
       Verify surgical completeness after a domain migration or full extraction:
       dependency direction, depth test, P6/P7/P8 compliance, clippy, test suite,
       deletion test on service modules. Produces a structured pass/fail report.
-
-hlexicon_terms:
-  - detect
-  - explore
-  - classify
-  - discriminate
-  - orient
-  - assess
-  - rank
-  - deepen
-  - design
-  - constrain
-  - verify
-  - crystallize
-  - migrate
-  - extract
-  - validate

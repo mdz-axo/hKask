@@ -86,27 +86,3 @@ templates:
       stronger types. Extract newtypes, replace booleans with enums, consolidate
       unsafe, strengthen error types, simplify ownership, and deepen shallow
       modules.
-
-hlexicon_terms:
-  - assess
-  - orient
-  - detect
-  - classify
-  - analyze
-  - ground
-  - contextualise
-  - design
-  - specify
-  - constrain
-  - structure
-  - compose
-  - simplify
-  - map
-  - audit
-  - evaluate
-  - score
-  - verify
-  - isolate
-  - plan
-  - transform
-  - deepen

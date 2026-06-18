@@ -37,19 +37,3 @@ templates:
       Resolve a conflict between statements using OT ranking.
       Rank by ontological type, epistemic mode, constraint force,
       and evidence provenance.
-
-hlexicon_terms:
-  - classify
-  - discriminate
-  - evaluate
-  - orient
-  - specify
-  - trace
-  - detect
-  - assess
-  - verify
-  - rank
-  - resolve
-  - regulate
-  - enforce
-  - contextualise

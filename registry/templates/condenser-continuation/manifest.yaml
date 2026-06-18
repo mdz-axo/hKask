@@ -48,23 +48,3 @@ templates:
       Assemble the final continuation document from restored context,
       prioritized tasks, and verification results. Redacts sensitive
       data and formats as structured markdown.
-
-hlexicon_terms:
-  - compact
-  - distill
-  - extract
-  - classify
-  - restore
-  - prioritize
-  - rank
-  - discriminate
-  - recommend
-  - verify
-  - validate
-  - test
-  - regulate
-  - compose
-  - synthesize
-  - structure
-  - document
-  - redact

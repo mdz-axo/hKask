@@ -37,20 +37,3 @@ templates:
       Grill loop for a selected candidate: walk the design tree, define the
       deepened module shape, identify seams and adapters, confirm test surface.
       Update glossary and ADRs inline as decisions crystallize.
-
-hlexicon_terms:
-  - detect
-  - explore
-  - classify
-  - discriminate
-  - orient
-  - assess
-  - rank
-  - propose
-  - evaluate
-  - specify
-  - deepen
-  - design
-  - constrain
-  - verify
-  - crystallize

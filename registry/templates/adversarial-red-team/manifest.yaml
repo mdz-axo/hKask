@@ -43,21 +43,3 @@ templates:
     description: >
       Test a target output against generated adversarial inputs. Evaluate
       resistance rate and identify critical failures that bypass defenses.
-
-hlexicon_terms:
-  - assess
-  - detect
-  - analyze
-  - synthesize
-  - probe
-  - classify
-  - sequence
-  - evaluate
-  - escalate
-  - discriminate
-  - calibrate
-  - orient
-  - verify
-  - audit
-  - score
-

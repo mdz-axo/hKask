@@ -27,12 +27,3 @@ templates:
       Extract atomic facts from evidence with confidence scores.
       Derives logical conclusions anchored in provided evidence
       and constraints.
-
-hlexicon_terms:
-  - infer
-  - converge
-  - verify
-  - constrain
-  - deduce
-  - analyze
-  - ground

@@ -18,8 +18,3 @@ templates:
       Verify a delegated task's completion by evaluating each acceptance
       criterion against delivered artifacts and provided evidence.
       Produces a pass/fail verdict with per-criterion results.
-
-hlexicon_terms:
-  - verify
-  - evaluate
-  - assess

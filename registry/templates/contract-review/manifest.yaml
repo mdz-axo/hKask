@@ -29,20 +29,3 @@ templates:
       presents the proposal (pre/post conditions, test strategy, risk level),
       the human evaluates, and they decide to accept, reject, or request
       revision. Uses improv plussing for collaborative refinement.
-
-hlexicon_terms:
-  - review
-  - evaluate
-  - discriminate
-  - assess
-  - classify
-  - verify
-  - decide
-  - accept
-  - reject
-  - revise
-  - proposal
-  - contract
-  - pre
-  - post
-  - invariant

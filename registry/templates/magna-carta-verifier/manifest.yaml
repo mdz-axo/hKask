@@ -39,18 +39,3 @@ templates:
       Render Rust test case code blocks from assertion definitions. Each
       assertion produces a compilable test skeleton targeting the declared
       crate, module, and method with the appropriate verification method.
-
-hlexicon_terms:
-  - validate
-  - classify
-  - detect
-  - observe
-  - enforce
-  - evaluate
-  - synthesize
-  - score
-  - report
-  - extract
-  - verify
-  - specify
-  - write

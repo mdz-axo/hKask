@@ -34,13 +34,3 @@ templates:
     description: >
       Review a decomposed task list for INVEST quality and completeness.
       Identifies accepted, rejected, and modified tasks with reasoning.
-
-hlexicon_terms:
-  - decompose
-  - analyze
-  - plan
-  - structure
-  - elicit
-  - evaluate
-  - assess
-  - verify

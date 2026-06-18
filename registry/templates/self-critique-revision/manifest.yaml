@@ -26,18 +26,3 @@ templates:
     lexicon_terms: [revise, evaluate, reflect, adapt, calibrate]
     description: >
       Produce a revised draft that addresses each critique point.
-
-hlexicon_terms:
-  - create
-  - specify
-  - report
-  - propose
-  - critique
-  - evaluate
-  - detect
-  - discriminate
-  - analyze
-  - revise
-  - reflect
-  - adapt
-  - calibrate

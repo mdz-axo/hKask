@@ -43,15 +43,3 @@ templates:
       Perform Ishikawa fishbone analysis across the 6M categories:
       Machine, Method, Material, Measurement, Man, and Environment.
       Produces prioritized potential causes.
-
-hlexicon_terms:
-  - fix
-  - plan
-  - recommend
-  - verify
-  - analyze
-  - specify
-  - isolate
-  - trace
-  - classify
-  - decompose

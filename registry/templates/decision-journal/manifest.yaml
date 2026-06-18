@@ -42,17 +42,3 @@ templates:
       Revisit a recorded decision by comparing predicted outcomes against
       actual results, performing hindsight bias checks, and evaluating
       process quality independently of outcome quality.
-
-hlexicon_terms:
-  - score
-  - calibrate
-  - evaluate
-  - aggregate
-  - predict
-  - plan
-  - specify
-  - document
-  - analyze
-  - reflect
-  - assess
-  - compare

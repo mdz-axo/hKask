@@ -37,16 +37,3 @@ templates:
     description: >
       δS = 0 convergence check. Compares current and previous configurations
       to decide whether the lazy loop has reached a stationary point.
-
-hlexicon_terms:
-  - decompose
-  - recognize
-  - simplify
-  - verify
-  - converge
-  - reflect
-  - route
-  - compose
-  - discriminate
-  - evaluate
-  - classify

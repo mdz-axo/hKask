@@ -26,15 +26,3 @@ templates:
       Generate an initial summary with entity identification. Extracts named
       entities and key concepts, produces a baseline summary, and computes
       entity density as the starting point for density passes.
-
-hlexicon_terms:
-  - compress
-  - converge
-  - synthesize
-  - revise
-  - evaluate
-  - summarize
-  - distill
-  - extract
-  - analyze
-  - classify

@@ -36,14 +36,3 @@ templates:
       Recommend layered defense strategies based on threat classification
       and exploitation paths. Identifies critical gaps and suggests
       sandbox-level adjustments.
-
-hlexicon_terms:
-  - analyze
-  - evaluate
-  - detect
-  - assess
-  - classify
-  - recommend
-  - isolate
-  - monitor
-  - audit

@@ -27,15 +27,3 @@ templates:
       Resolve a conflict between two constraints by ranking their force
       types against each other. Higher force types dominate lower ones.
       Produces a winner, resolution strategy, and rationale.
-
-hlexicon_terms:
-  - classify
-  - discriminate
-  - evaluate
-  - constrain
-  - specify
-  - rank
-  - resolve
-  - regulate
-  - orient
-  - enforce

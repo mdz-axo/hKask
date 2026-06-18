@@ -39,24 +39,3 @@ templates:
     type: KnowAct
     lexicon_terms: [observe, classify, discriminate, verify, reflect]
     description: Observation Drill — practice separating facts (IS) from interpretations (OUGHT).
-
-hlexicon_terms:
-  - sequence
-  - iterate
-  - exercise
-  - reflect
-  - write
-  - select
-  - classify
-  - assess
-  - recommend
-  - route
-  - probe
-  - query
-  - challenge
-  - plan
-  - apply
-  - evaluate
-  - observe
-  - discriminate
-  - verify

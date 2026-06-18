@@ -65,24 +65,3 @@ templates:
       Plan the bounded audit cascade routing (load-goal → critique-template →
       critique-critique → compose-proposal → user-choice) and the branching
       rules on accept/reject/counter-proposal. Does not execute the flow itself.
-
-hlexicon_terms:
-  - extract
-  - parse
-  - specify
-  - verify
-  - critique
-  - evaluate
-  - discriminate
-  - detect
-  - classify
-  - rank
-  - synthesize
-  - adapt
-  - simplify
-  - prompt
-  - sequence
-  - choice
-  - iteration
-  - escalate
-  - route

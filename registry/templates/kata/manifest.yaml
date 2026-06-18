@@ -51,26 +51,3 @@ templates:
     type: KnowAct
     lexicon_terms: [evaluate, route, decide, classify, monitor]
     description: Check if kata composition switching is appropriate mid-session.
-
-hlexicon_terms:
-  - select
-  - route
-  - classify
-  - discriminate
-  - recommend
-  - consent
-  - verify
-  - synthesize
-  - assess
-  - compare
-  - monitor
-  - reflect
-  - prompt
-  - pledge
-  - promise
-  - commit
-  - instruct
-  - evaluate
-  - decide
-  - converge
-  - iterate

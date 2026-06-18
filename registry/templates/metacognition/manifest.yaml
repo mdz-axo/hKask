@@ -18,9 +18,3 @@ templates:
       Decompose a high-level goal into a tree of sub-goals with dependencies,
       select a decomposition strategy, and estimate effort required based on
       prior outcomes and available tools.
-
-hlexicon_terms:
-  - decompose
-  - plan
-  - calibrate
-  - assess

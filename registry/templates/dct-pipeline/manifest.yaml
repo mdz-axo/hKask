@@ -27,11 +27,3 @@ templates:
       Decompose text into atomic subject-verb-object simple sentences and
       record semantic relationships (causal, conditional, contrastive, etc.)
       between them.
-
-hlexicon_terms:
-  - classify
-  - discriminate
-  - contextualise
-  - decompose
-  - analyze
-  - structure

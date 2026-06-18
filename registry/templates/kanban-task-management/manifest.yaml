@@ -26,10 +26,3 @@ templates:
       Verify a task's completion by evaluating each acceptance criterion
       against deliverables and evidence. Produces pass/fail with
       per-criterion results and detailed reasoning.
-
-hlexicon_terms:
-  - monitor
-  - assess
-  - detect
-  - verify
-  - evaluate

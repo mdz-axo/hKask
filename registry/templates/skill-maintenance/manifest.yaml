@@ -28,17 +28,3 @@ templates:
       Analyze coverage gaps across the registry corpus. Map common task patterns
       to existing registry crates, identify uncovered patterns, check template_type
       and hLexicon distribution. Produce recommendations for skill creation or discovery.
-
-hlexicon_terms:
-  - audit
-  - detect
-  - score
-  - classify
-  - recommend
-  - map
-  - trace
-  - gap
-  - prioritize
-  - deprecate
-  - retire
-  - verify

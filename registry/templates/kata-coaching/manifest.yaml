@@ -46,24 +46,3 @@ templates:
     type: WordAct
     lexicon_terms: [query, observe, verify, reflect, iterate]
     description: Q5 — How quickly can we go and see? Close the feedback loop.
-
-hlexicon_terms:
-  - sequence
-  - probe
-  - query
-  - reflect
-  - iterate
-  - orient
-  - clarify
-  - plan
-  - target
-  - observe
-  - report
-  - ground
-  - detect
-  - prioritize
-  - discriminate
-  - predict
-  - propose
-  - commit
-  - verify

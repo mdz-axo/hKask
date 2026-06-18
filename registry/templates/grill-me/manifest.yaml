@@ -34,17 +34,3 @@ templates:
     description: >
       Decide whether to escalate difficulty, hold, or re-probe based on
       answer quality ratio.
-
-hlexicon_terms:
-  - probe
-  - challenge
-  - discriminate
-  - classify
-  - evaluate
-  - infer
-  - detect
-  - integrate
-  - crystallize
-  - contextualise
-  - regulate
-  - orient

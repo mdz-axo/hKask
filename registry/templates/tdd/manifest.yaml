@@ -57,26 +57,3 @@ templates:
       Functional gap analysis: compare specification requirements against tested
       behaviors. Identify uncovered requirements (gaps) and produce deferral
       recommendations for OPEN_QUESTIONS.md. P0 gaps MUST have tracer bullets.
-
-hlexicon_terms:
-  - assess
-  - orient
-  - discriminate
-  - specify
-  - plan
-  - trace
-  - detect
-  - write
-  - verify
-  - constrain
-  - simplify
-  - extract
-  - deepen
-  - regulate
-  - evaluate
-  - audit
-  - calibrate
-  - classify
-  - map
-  - gap
-  - defer

@@ -34,17 +34,3 @@ templates:
       Map extracted entities and relations to a target schema. Resolves
       field mappings, infers missing fields from context, and reports
       field-level coverage and unresolved fields.
-
-hlexicon_terms:
-  - analyze
-  - parse
-  - structure
-  - detect
-  - classify
-  - recognize
-  - extract
-  - map
-  - transform
-  - translate
-  - resolve
-  - infer

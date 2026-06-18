@@ -35,14 +35,3 @@ templates:
       Verify citations in a synthesized answer against source contexts.
       Flags unsupported claims and hallucinated content, computes overall
       citation coverage and reliability.
-
-hlexicon_terms:
-  - decompose
-  - analyze
-  - suggest
-  - synthesize
-  - ground
-  - distill
-  - reference
-  - verify
-  - detect

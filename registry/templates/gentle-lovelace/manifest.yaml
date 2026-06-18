@@ -18,11 +18,3 @@ templates:
       Produce a structured diagnostic report from per-dimension cosine distance
       scores, with a diagnostic summary and actionable recommendations for
       improving the weakest writing dimensions.
-
-hlexicon_terms:
-  - evaluate
-  - score
-  - assess
-  - recommend
-  - analyze
-  - compare

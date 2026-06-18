@@ -58,19 +58,3 @@ templates:
     description: >
       Route the input intent to the best-fit specification template based
       on intent type: capture, constrain, contextualise, reconcile, or curate.
-
-hlexicon_terms:
-  - constrain
-  - require
-  - specify
-  - contextualise
-  - assess
-  - evaluate
-  - curate
-  - cultivate
-  - elicit
-  - reconcile
-  - resolve
-  - recognize
-  - match
-  - select

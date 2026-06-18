@@ -37,20 +37,3 @@ templates:
       Verify system functional at intermediate migration step. Run workspace
       build + test + lint, detect regressions, confirm old path intact until
       deletion, verify reversibility of current step.
-
-hlexicon_terms:
-  - assess
-  - map
-  - classify
-  - orient
-  - plan
-  - sequence
-  - execute
-  - wire
-  - verify
-  - constrain
-  - migrate
-  - evaluate
-  - audit
-  - detect
-  - calibrate

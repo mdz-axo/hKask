@@ -40,24 +40,3 @@ templates:
     type: WordAct
     lexicon_terms: [plan, predict, apply, evaluate, reflect]
     description: Step 4 — Experiment toward target. Design PDCA experiment with specific prediction and measurement plan.
-
-hlexicon_terms:
-  - sequence
-  - iterate
-  - reflect
-  - converge
-  - evaluate
-  - declare
-  - target
-  - measure
-  - plan
-  - explore
-  - observe
-  - collect
-  - detect
-  - report
-  - prioritize
-  - select
-  - predict
-  - apply
-  - verify

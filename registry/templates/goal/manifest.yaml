@@ -41,15 +41,3 @@ templates:
     description: >
       Fallback goal verification with minimal evaluation. Produces a
       continue verdict and default confidence for lightweight judgment.
-
-hlexicon_terms:
-  - specify
-  - propose
-  - require
-  - create
-  - evaluate
-  - verify
-  - ground
-  - assert
-  - command
-  - acknowledge

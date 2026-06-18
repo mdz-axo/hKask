@@ -94,29 +94,3 @@ templates:
     description: >
       Validate GML concept and effector inputs against type, shape, and range
       constraints before template processing.
-
-hlexicon_terms:
-  - evaluate
-  - reflect
-  - calibrate
-  - assess
-  - infer
-  - analogy
-  - abduct
-  - instrument
-  - monitor
-  - observe
-  - analyze
-  - compare
-  - detect
-  - handoff
-  - escalate
-  - validate
-  - enforce
-  - recognize
-  - discriminate
-  - parse
-  - synthesize
-  - compose
-  - structure
-  - explore

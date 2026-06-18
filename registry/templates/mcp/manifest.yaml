@@ -49,15 +49,3 @@ templates:
     description: >
       Search the web and extract content from results with configurable
       source filtering, freshness constraints, and snippet inclusion.
-
-hlexicon_terms:
-  - compact
-  - compress
-  - distill
-  - extract
-  - parse
-  - structure
-  - prompt
-  - request
-  - query
-  - search

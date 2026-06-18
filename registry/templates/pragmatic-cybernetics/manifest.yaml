@@ -33,21 +33,3 @@ templates:
     description: >
       Map hKask components to VSM S1–S5. Assess system viability and
       identify unviable components requiring structural intervention.
-
-hlexicon_terms:
-  - detect
-  - observe
-  - discriminate
-  - evaluate
-  - orient
-  - assess
-  - rank
-  - propose
-  - regulate
-  - map
-  - classify
-  - integrate
-  - escalate
-  - attenuate
-  - amplify
-  - verify

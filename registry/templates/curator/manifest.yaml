@@ -59,24 +59,3 @@ templates:
     description: >
       Gather and synthesize current system state from all bot reports and
       CNS monitoring data. Produce a unified system state assessment.
-
-hlexicon_terms:
-  - calibrate
-  - regulate
-  - assess
-  - evaluate
-  - adapt
-  - detect
-  - analyze
-  - classify
-  - escalate
-  - prioritize
-  - rank
-  - monitor
-  - observe
-  - verify
-  - select
-  - discriminate
-  - orient
-  - synthesize
-

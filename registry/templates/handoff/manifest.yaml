@@ -44,24 +44,3 @@ templates:
       Assemble the final handoff document from all gathered sections.
       Apply redaction, format as structured markdown, and write to the
       OS temp directory.
-
-hlexicon_terms:
-  - compact
-  - distill
-  - extract
-  - summarize
-  - crystallize
-  - catalog
-  - reference
-  - classify
-  - detect
-  - redact
-  - suggest
-  - match
-  - prioritize
-  - analyze
-  - recommend
-  - compose
-  - synthesize
-  - structure
-  - document

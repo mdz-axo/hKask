@@ -36,14 +36,3 @@ templates:
       Infer methodological and stylistic patterns from representative
       passages of an author's work. Produces method descriptions with
       optional stylometric signal thresholds.
-
-hlexicon_terms:
-  - catalog
-  - document
-  - synthesize
-  - extract
-  - classify
-  - distill
-  - infer
-  - recognize
-  - analyze

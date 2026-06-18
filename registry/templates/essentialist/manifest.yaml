@@ -37,16 +37,3 @@ templates:
       to human on retry exhaustion (3 max), abort on zero-delta completion.
       Delegates reasoning to deep-module (G1, G2) and coding-guidelines (G3)
       templates.
-
-hlexicon_terms:
-  - sequence
-  - iteration
-  - evaluate
-  - classify
-  - discriminate
-  - verify
-  - audit
-  - simplify
-  - reduce
-  - calibrate
-  - constrain

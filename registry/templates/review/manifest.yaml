@@ -15,12 +15,3 @@ templates:
     description: >
       Evaluate derived knowledge against a goal for missing information,
       contradictions, unsupported claims, logical gaps, and calibration.
-
-hlexicon_terms:
-  - critique
-  - evaluate
-  - contradiction
-  - gap
-  - confidence
-  - calibration
-  - verify

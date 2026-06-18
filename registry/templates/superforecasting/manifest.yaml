@@ -79,25 +79,3 @@ templates:
       Create a structured forecast record with resolution criteria and
       expiration date for later tracking, Brier scoring, and post-mortem
       analysis.
-
-hlexicon_terms:
-  - classify
-  - assess
-  - query
-  - decompose
-  - analyze
-  - compare
-  - search
-  - propose
-  - predict
-  - probe
-  - assert
-  - validate
-  - synthesize
-  - aggregate
-  - compose
-  - calibrate
-  - specify
-  - document
-  - report
-  - commit

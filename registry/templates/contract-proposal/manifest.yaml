@@ -29,19 +29,3 @@ templates:
       Generate a behavioral contract (/// REQ: pre/post) and a property-based
       test for a function, then submit via kask contract propose. Traces to the
       specification system via spec_id.
-
-hlexicon_terms:
-  - analyze
-  - detect
-  - discriminate
-  - assess
-  - classify
-  - write
-  - specify
-  - constrain
-  - verify
-  - propose
-  - contract
-  - precondition
-  - postcondition
-  - invariant
