@@ -135,6 +135,12 @@ pub struct InferenceConfig {
     /// Base URL for the fal.ai inference API (OpenAI-compatible endpoint).
     pub fal_base_url: String,
 
+    /// Base URL for fal.ai media/sync endpoints (native inference API).
+    pub fal_media_base_url: String,
+
+    /// Base URL for fal.ai queue/async endpoints (native inference API).
+    pub fal_queue_base_url: String,
+
     /// API key for fal.ai authentication.
     /// Required for FA provider. If empty, FA is unavailable.
     pub fal_api_key: String,
@@ -167,6 +173,8 @@ impl Default for InferenceConfig {
             deepinfra_base_url: "https://api.deepinfra.com".to_string(),
             deepinfra_api_key: String::new(),
             fal_base_url: "https://api.fal.ai".to_string(),
+            fal_media_base_url: "https://fal.run".to_string(),
+            fal_queue_base_url: "https://queue.fal.run".to_string(),
             fal_api_key: String::new(),
             together_base_url: "https://api.together.xyz".to_string(),
             together_api_key: String::new(),
@@ -197,6 +205,12 @@ impl InferenceConfig {
         let fal_base_url =
             std::env::var("FA_BASE_URL").unwrap_or_else(|_| "https://api.fal.ai".to_string());
 
+        let fal_media_base_url = std::env::var("FA_MEDIA_BASE_URL")
+            .unwrap_or_else(|_| "https://fal.run".to_string());
+
+        let fal_queue_base_url = std::env::var("FA_QUEUE_BASE_URL")
+            .unwrap_or_else(|_| "https://queue.fal.run".to_string());
+
         let fal_api_key = resolve_api_key("FA_API_KEY", &["FAL_API_KEY"]);
 
         let together_base_url =
@@ -211,6 +225,8 @@ impl InferenceConfig {
             deepinfra_base_url,
             deepinfra_api_key,
             fal_base_url,
+            fal_media_base_url,
+            fal_queue_base_url,
             fal_api_key,
             together_base_url,
             together_api_key,

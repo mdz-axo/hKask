@@ -21,6 +21,8 @@ use tracing::info;
 #[derive(Debug)]
 pub struct FalBackend {
     base_url: String,
+    media_base_url: String,
+    queue_base_url: String,
     api_key: String,
     client: Arc<reqwest::Client>,
 }
@@ -46,6 +48,8 @@ impl FalBackend {
             .map_err(InferenceError::Connection)?;
         Ok(Self {
             base_url: config.fal_base_url.clone(),
+            media_base_url: config.fal_media_base_url.clone(),
+            queue_base_url: config.fal_queue_base_url.clone(),
             api_key: config.fal_api_key.clone(),
             client,
         })
@@ -276,7 +280,7 @@ impl FalBackend {
         endpoint: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, InferenceError> {
-        let url = format!("https://fal.run/{}", endpoint);
+        let url = format!("{}/{}", self.media_base_url, endpoint);
         let resp = self
             .client
             .post(&url)
@@ -304,7 +308,7 @@ impl FalBackend {
         endpoint: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, InferenceError> {
-        let submit_url = format!("https://queue.fal.run/{}", endpoint);
+        let submit_url = format!("{}/{}", self.queue_base_url, endpoint);
         let resp = self
             .client
             .post(&submit_url)
@@ -336,8 +340,8 @@ impl FalBackend {
             .to_string();
 
         let status_url = format!(
-            "https://queue.fal.run/{}/requests/{}/status",
-            endpoint, request_id
+            "{}/{}/requests/{}/status",
+            self.queue_base_url, endpoint, request_id
         );
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(120);
 
@@ -381,7 +385,7 @@ impl FalBackend {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         }
 
-        let result_url = format!("https://queue.fal.run/{}/requests/{}", endpoint, request_id);
+        let result_url = format!("{}/{}/requests/{}", self.queue_base_url, endpoint, request_id);
         let resp = self
             .client
             .get(&result_url)

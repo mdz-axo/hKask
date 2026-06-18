@@ -102,7 +102,7 @@ templates:
     type: KnowAct | WordAct | FlowDef
     lexicon_terms: [term, ...]
     description: <one-line>
-hlexicon_terms: [term, ...]
+vocabulary_terms: [term, ...]
 ```
 
 ### 2. .j2 template files (one per step)
@@ -167,7 +167,7 @@ Respond with a JSON object:
 - `template_type` must be KnowAct, WordAct, or FlowDef — never Cognition, Prompt, or Process.
 - `visibility` must be Private, Public, or Shared.
 - `energy_cap` must be in 2048–8192 range.
-- `lexicon_terms` must exist in hLexicon or be proposed as new terms.
+- `lexicon_terms` must exist in the vocabulary or be proposed as new terms.
 - `contract.input` and `contract.output` must be structured JSON types.
 - Every step from `step_classifications` must appear in the output (preserved, adapted, or dropped with reason).
 - Do not invent hKask tools or MCP servers that do not exist. Use the domain substitution table.

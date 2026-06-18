@@ -24,10 +24,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use zeroize::Zeroizing;
 
 use crate::chain::{ChainPort, DepositEvent};
-use crate::price_feed::{PriceFeed, WithdrawalFee, estimate_withdrawal_fee};
+use crate::price_feed::{PriceFeed, WithdrawalFee};
 use crate::privacy::{PrivacyPort, ShieldedTransfer};
 use crate::signing;
 
+mod budget;
 mod cns;
 mod encumbrance;
 
@@ -722,147 +723,9 @@ impl WalletManager {
         })
     }
 
-    // ── Gas ↔ rJoule conversion ──────────────────────────────────────────────
+// ── Gas ↔ rJoule conversion ──────────────────────────────────────────────
 
-    /// Convert gas units to rJoules.
-    ///
-    /// REQ: P9-wallet-mgr-gas-to-rjoules
-    /// pre:  gas is a non-negative integer
-    /// post: returns RJoule equivalent using the current gas_per_rjoule rate
-    pub fn gas_to_rjoules(&self, gas: u64) -> RJoule {
-        // Integer division: gas / gas_per_rjoule
-        // Minimum 1 rJ if gas > 0 (sub-rJoule operations round up to 1 rJ)
-        if gas == 0 {
-            RJoule::ZERO
-        } else {
-            let rate = self.gas_per_rjoule.load(Ordering::Relaxed);
-            let rj = gas / rate;
-            RJoule::new(if rj == 0 { 1 } else { rj })
-        }
-    }
-
-    /// Convert rJoules to gas units.
-    ///
-    /// REQ: P9-wallet-mgr-rjoules-to-gas
-    /// pre:  rj is a non-negative RJoule
-    /// post: returns gas equivalent using the current gas_per_rjoule rate
-    pub fn rjoules_to_gas(&self, rj: RJoule) -> u64 {
-        rj.as_u64() * self.gas_per_rjoule.load(Ordering::Relaxed)
-    }
-
-    /// Current gas→rJoule conversion rate.
-    ///
-    /// REQ: P9-wallet-mgr-gas-per-rjoule
-    /// post: returns the manager's current gas_per_rjoule rate
-    pub fn gas_per_rjoule(&self) -> u64 {
-        self.gas_per_rjoule.load(Ordering::Relaxed)
-    }
-
-    /// Update the gas→rJoule conversion rate at runtime.
-    ///
-    /// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
-    /// pre:  rate > 0
-    /// post: subsequent gas_to_rjoules/rjoules_to_gas use the new rate
-    pub fn set_gas_per_rjoule(&self, rate: u64) {
-        let rate = rate.max(1);
-        self.gas_per_rjoule.store(rate, Ordering::Relaxed);
-    }
-
-    /// Estimate network withdrawal fee in rJoules/native units/USDC using configured PriceFeed.
-    ///
-    /// REQ: P9-wallet-mgr-fee-estimate
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
-    /// \[P8\] Constraining: Semantic Grounding — derived from live/native USD rate
-    /// pre:  chain is a valid ChainId
-    /// post: returns fee estimate derived from live/native USD rate when available
-    /// post: returns Err if configured price feed cannot provide a rate
-    pub async fn estimate_withdrawal_fee(
-        &self,
-        actor: &WebID,
-        chain: ChainId,
-    ) -> Result<WithdrawalFee, WalletError> {
-        let rate = self.price_feed.get_rate(chain).await.inspect_err(|e| {
-            self.emit_chain_error_for_actor(
-                actor,
-                chain,
-                "estimate_withdrawal_fee",
-                &e.to_string(),
-            );
-        })?;
-        Ok(estimate_withdrawal_fee(
-            chain,
-            &rate,
-            self.config.rj_per_usdc,
-        ))
-    }
-
-    /// Convert micro-USDC to rJoules.
-    fn usdc_to_rjoules(&self, usdc_micro: u64) -> RJoule {
-        let rj = (usdc_micro as u128 * self.config.rj_per_usdc as u128 / 1_000_000) as u64;
-        RJoule::new(rj)
-    }
-
-    /// Convert rJoules to micro-USDC.
-    fn rjoules_to_usdc(&self, rj: RJoule) -> u64 {
-        (rj.as_u64() as u128 * 1_000_000 / self.config.rj_per_usdc as u128) as u64
-    }
-
-    /// Check if a wallet can afford a given rJoule cost.
-    ///
-    /// REQ: P9-wallet-mgr-can-afford
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
-    /// \[P4\] Constraining: Clear Boundaries — cannot reserve beyond balance
-    /// pre:  wallet_id is a valid WalletId, cost_rj is a valid RJoule
-    /// post: returns Ok(true) iff balance.rjoules >= cost_rj
-    /// post: returns Ok(false) iff balance.rjoules < cost_rj
-    pub fn can_afford(&self, wallet_id: WalletId, cost_rj: RJoule) -> Result<bool, WalletError> {
-        let balance = self.get_balance(wallet_id)?;
-        Ok(balance.rjoules >= cost_rj.as_u64())
-    }
-
-    /// Reserve rJoules for an in-flight operation (optimistic).
-    /// The actual debit happens at settle time.
-    ///
-    /// REQ: P9-wallet-mgr-reserve
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
-    /// \[P4\] Constraining: Clear Boundaries — cannot reserve beyond balance
-    /// pre:  wallet_id is a valid WalletId, amount is a valid RJoule
-    /// post: if can_afford → Ok(()), reservation is optimistic (no debit)
-    /// post: if !can_afford → Err(InsufficientBalance)
-    pub fn reserve_rjoules(&self, wallet_id: WalletId, amount: RJoule) -> Result<(), WalletError> {
-        if !self.can_afford(wallet_id, amount)? {
-            let balance = self.get_balance(wallet_id)?;
-            return Err(WalletError::InsufficientBalance {
-                have: RJoule::new(balance.rjoules),
-                need: amount,
-            });
-        }
-        // Reservation is optimistic — we check can_afford but don't debit yet.
-        // The actual debit happens in settle_rjoules.
-        Ok(())
-    }
-
-    /// Settle rJoules after an operation completes.
-    /// Debits the actual cost (may be less than reserved on failure).
-    ///
-    /// REQ: P9-wallet-mgr-settle
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend
-    /// \[P4\] Constraining: Clear Boundaries — cannot reserve beyond balance
-    /// pre:  wallet_id is a valid WalletId, reserved and actual are valid RJoule
-    /// post: wallet balance debited by actual (not reserved)
-    /// post: if actual < reserved, difference is implicitly refunded
-    pub fn settle_rjoules(
-        &self,
-        wallet_id: WalletId,
-        reserved: RJoule,
-        actual: RJoule,
-    ) -> Result<(), WalletError> {
-        self.store.debit_rjoules(wallet_id, actual)?;
-        // If actual < reserved, the difference is implicitly refunded
-        // (we only debit actual, not reserved).
-        let _ = reserved; // reserved amount is informational
-        Ok(())
-    }
+    // Moved to budget.rs — impl blocks loaded via `mod budget;`.
 
     // ── Deposit reference scheme (merged from deposit_ref.rs) ─────────────────
 

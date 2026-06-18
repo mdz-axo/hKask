@@ -66,7 +66,6 @@ pub struct ChatMessage {
 ///
 /// `stream: false` is explicit in non-streaming calls to prevent chunked
 /// transfer encoding from confusing JSON parsers.
-/// Build an OpenAI-compatible chat completion request body.
 ///
 /// REQ: P9-inf-build-chat-request
 /// \[P9\] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload

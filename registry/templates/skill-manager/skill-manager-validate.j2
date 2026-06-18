@@ -60,7 +60,7 @@ Validate **all skills** in the registry directory.
 | R8 | Visibility valid | Each .j2 `visibility` in {Private, Public, Shared} |
 | R9 | .j2 file exists | Each template entry's `path` resolves to an actual .j2 file |
 | R10 | [inference] frontmatter valid | Each .j2 starts with `[inference]` block |
-| R11 | hLexicon terms exist | All `lexicon_terms` reference terms in workspace hLexicon |
+| R11 | vocabulary terms exist | All `lexicon_terms` reference terms in workspace vocabulary |
 | R12 | Jinja2 body present | Each .j2 has template body after `---` separator |
 
 ### SKILL.md Companion Checks (secondary)
@@ -88,7 +88,7 @@ Validate **all skills** in the registry directory.
 
 - **Critical**: Registry missing, invalid template_type
 - **High**: Orphan SKILL.md, contract invalidity
-- **Medium**: Drift, name mismatch, hLexicon gaps
+- **Medium**: Drift, name mismatch, vocabulary gaps
 - **Info**: Missing SKILL.md, description brevity
 
 ## Output Requirements
