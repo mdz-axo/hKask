@@ -96,7 +96,7 @@ pub fn emit_contract_violated(
 /// REQ: CNS-CVB-004
 /// \[P9\] Motivating: Homeostatic Self-Regulation — variety-based coverage monitoring
 /// pre:  sink is a valid NuEventSink; total_pub_fns >= contracted_fns
-/// post: cns.contract.coverage span persisted with coverage_pct
+/// post: cns.contract.coverage span persisted with coverage_pct and expectation_completeness_pct
 ///
 /// Called periodically by the Cybernetics Loop or CI to report the fraction
 /// of `pub fn` that have `// REQ: pre:` contracts. The CNS compares this
@@ -107,11 +107,13 @@ pub fn emit_contract_violated(
 /// - `total_pub_fns` — total number of public functions (excluding test code)
 /// - `contracted_fns` — number of functions with `// REQ: pre:` contracts
 /// - `coverage_pct` — coverage percentage (0.0–100.0)
+/// - `expectation_completeness_pct` — percentage of contracted fns carrying `expect:` field (0.0–100.0, v0.28.0)
 pub fn emit_contract_coverage(
     sink: &dyn NuEventSink,
     total_pub_fns: u64,
     contracted_fns: u64,
     coverage_pct: f64,
+    expectation_completeness_pct: f64,
 ) {
     let span = Span::new(SpanNamespace::from(CnsSpan::ContractCoverage), "measured");
     let event = NuEvent::new(
@@ -122,6 +124,7 @@ pub fn emit_contract_coverage(
             "total_pub_fns": total_pub_fns,
             "contracted_fns": contracted_fns,
             "coverage_pct": coverage_pct,
+            "expectation_completeness_pct": expectation_completeness_pct,
         }),
         0,
     );
@@ -131,6 +134,7 @@ pub fn emit_contract_coverage(
             total_pub_fns = total_pub_fns,
             contracted_fns = contracted_fns,
             coverage_pct = coverage_pct,
+            expectation_completeness_pct = expectation_completeness_pct,
             error = %e,
             "Failed to persist contract coverage span"
         );
@@ -471,13 +475,14 @@ mod tests {
     #[test]
     fn emit_contract_coverage_persists_event() {
         let sink = CaptureSink::new();
-        emit_contract_coverage(&sink, 1531, 55, 3.6);
+        emit_contract_coverage(&sink, 1531, 55, 3.6, 87.3);
 
         let event = sink.last_event.lock().unwrap().clone().unwrap();
         let obs = &event.observation;
         assert_eq!(obs["total_pub_fns"], 1531);
         assert_eq!(obs["contracted_fns"], 55);
         assert!((obs["coverage_pct"].as_f64().unwrap() - 3.6).abs() < 0.01);
+        assert!((obs["expectation_completeness_pct"].as_f64().unwrap() - 87.3).abs() < 0.01);
     }
 
     // ── Kanban bridge tests ──────────────────────────────────────────────

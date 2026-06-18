@@ -40,6 +40,7 @@ impl RootAuthority {
     /// Create new root authority.
     ///
     /// REQ: P4-agt-acp-root-new
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — root authority is the capability issuer
     /// pre:  `root_webid` is a valid `WebID`; `signing_key` is a valid
     ///       Ed25519 `SigningKey`.
@@ -58,6 +59,7 @@ impl RootAuthority {
     /// Root tokens have attenuation_level=0 and max_attenuation=7.
     ///
     /// REQ: P4-agt-acp-root-token-issue
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — root tokens start the delegation chain
     /// \[P7\] Constraining: Evolutionary Architecture — attenuation limits emerged from usage
     /// pre:  `resource` is a valid `DelegationResource`; `resource_id` is

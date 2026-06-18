@@ -113,7 +113,7 @@ impl ApiKeyIssuer {
     ) -> Result<ApiKeyMaterial, WalletError> {
         // Generate fresh Ed25519 keypair for this API key
         // REQ: P9-wallet-issuer-zeroize-seed — key generation seed wrapped in Zeroizing for automatic zeroize on drop
-        /// expect: "My private key material is zeroized on drop and redacted from debug output" [P1]
+        // expect: "My private key material is zeroized on drop and redacted from debug output" [P1]
         let mut rng = rand::rng();
         let mut seed = Zeroizing::new([0u8; 32]);
         rng.fill(&mut *seed);

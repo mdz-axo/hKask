@@ -23,6 +23,7 @@ pub struct PersonaCheckResult {
 /// \[NORMATIVE\] contains patterns that must not appear in Curator output. (P3 — Generative Space).
 ///
 /// REQ: P9-agt-curator-persona-check
+/// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — persona filter prevents harmful output
 /// \[P4\] Constraining: Clear Boundaries — forbidden patterns are explicit
 /// pre:  `output` is a valid UTF-8 string (may be empty); `constraints`
@@ -61,6 +62,7 @@ pub fn check_persona_constraints(
 /// Returns the cleaned output and a list of violations that were stripped.
 ///
 /// REQ: P9-agt-curator-persona-strip
+/// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — stripping reduces harm while preserving utility
 /// pre:  `output` is a valid UTF-8 string; `constraints` is a valid
 ///       `PersonaConstraints` with a non-empty `forbidden` list.
@@ -103,6 +105,7 @@ mod tests {
     }
 
     // REQ: P4-agt-persona-filter-non-ascii-check-test — non-ASCII output does not panic on byte-boundary check
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_does_not_panic_on_non_ascii_output() {
         // 'é' is 2 bytes in UTF-8. The forbidden pattern "great" is ASCII.
@@ -119,6 +122,7 @@ mod tests {
     }
 
     // REQ: P4-agt-persona-filter-non-ascii-strip-test — strip does not panic on non-ASCII output
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn strip_does_not_panic_on_non_ascii_output() {
         let c = constraints(&["great"]);
@@ -129,6 +133,7 @@ mod tests {
     }
 
     // REQ: P4-agt-persona-filter-ascii-detect-test — ASCII output: clean detection and stripping
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_detects_ascii_forbidden_pattern() {
         let c = constraints(&["Great", "Certainly"]);
@@ -138,6 +143,7 @@ mod tests {
     }
 
     // REQ: P4-agt-persona-filter-clean-test — no false positives on clean output
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn check_passes_clean_output() {
         let c = constraints(&["Great", "Certainly"]);

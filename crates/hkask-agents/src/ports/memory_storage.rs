@@ -43,6 +43,7 @@ impl StorageRequest {
     /// Create a new `StorageRequest` with all fields specified.
     ///
     /// REQ: P3-agt-memory-request-new
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — StorageRequest creates a memory triple
     /// \[P1\] Constraining: User Sovereignty — access.owner_webid carries ownership
     /// pre:  `entity` and `attribute` are non-empty strings after `.into()`;
@@ -72,6 +73,7 @@ impl StorageRequest {
     /// Convenience constructor that sets `access` to `AccessControl::episodic`.
     ///
     /// REQ: P3-agt-memory-request-episodic
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — episodic request binds perspective to owner
     /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
     ///       `entity` and `attribute` are non-empty after `.into()`.
@@ -98,6 +100,7 @@ impl StorageRequest {
     /// Convenience constructor that sets `access` to `AccessControl::semantic`.
     ///
     /// REQ: P3-agt-memory-request-semantic
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — semantic request is perspective-free
     /// pre:  `producer_webid` is a valid WebID; `confidence` in [0.0, 1.0];
     ///       `entity` and `attribute` are non-empty after `.into()`.
@@ -126,6 +129,7 @@ impl StorageRequest {
     /// - `Failure` → 0.3
     ///
     /// REQ: P3-agt-memory-confidence-map
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P8\] Motivating: Semantic Grounding — classification maps to confidence scalar
     /// pre:  `classification` is a valid `ExperienceClassification` variant;
     ///       `confidence_override`, if `Some`, is in [0.0, 1.0];
@@ -165,6 +169,7 @@ impl RecallRequest {
     /// Create an episodic recall request (perspective-bound).
     ///
     /// REQ: P3-agt-memory-recall-episodic
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — episodic recall requires delegation token
     /// \[P4\] Constraining: Clear Boundaries — token proves capability
     /// pre:  `query` is non-empty after `.into()`; `owner` is a valid WebID;
@@ -181,6 +186,7 @@ impl RecallRequest {
     /// Create a semantic recall request (perspective-free).
     ///
     /// REQ: P3-agt-memory-recall-semantic
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — semantic recall requires delegation token
     /// \[P4\] Constraining: Clear Boundaries — token proves capability
     /// pre:  `query` is non-empty after `.into()`; `token` is a valid

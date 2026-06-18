@@ -229,6 +229,7 @@ pub struct AgentRegistryLoader {
 
 impl AgentRegistryLoader {
     /// REQ: P3-agt-registry-loader-new
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — loader reads YAML agent definitions into registry
     /// pre:  `registry_path` is a valid `PathBuf`; `a2a_runtime` is a
     ///       valid `Arc<A2ARuntime>`; `store` is a valid
@@ -250,6 +251,7 @@ impl AgentRegistryLoader {
     }
 
     /// REQ: P3-agt-registry-loader-restore
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — restore previously registered agents
     /// pre:  The store schema has been initialized.
     /// post: If existing agents are found in the store, returns them
@@ -272,6 +274,7 @@ impl AgentRegistryLoader {
     }
 
     /// REQ: P3-agt-registry-loader-load
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — load agent definitions from filesystem
     /// pre:  The registry path contains valid YAML agent definitions.
     /// post: Returns `Ok(Vec<RegisteredAgent>)` with all successfully
@@ -383,6 +386,7 @@ impl AgentRegistryLoader {
     }
 
     /// REQ: P3-agt-registry-loader-store
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P8\] Motivating: Semantic Grounding — accessor for the registry store
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `AgentRegistryStore`.

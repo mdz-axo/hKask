@@ -65,6 +65,7 @@ impl PodStatus {
 impl PodManager {
     #[allow(clippy::too_many_arguments)]
     /// REQ: P1-agt-pod-manager-new
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — PodManager orchestrates user agent pods
     /// \[P4\] Constraining: Clear Boundaries — default DenyAllConsent
     /// pre:  All `Option` arguments may be `Some` or `None`; defaults are
@@ -120,6 +121,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-with-consent
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P2\] Constraining: Affirmative Consent — replace default consent policy
     /// pre:  `consent` is a valid `Arc<dyn SovereigntyConsent>`.
     /// post: Returns `self` with `consent` updated.
@@ -135,6 +137,7 @@ impl PodManager {
     /// whenever a pod becomes active.
     ///
     /// REQ: P1-agt-pod-manager-activation-hook
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P3\] Motivating: Generative Space — hook runs when pod becomes active
     /// pre:  `hook` is a valid boxed closure.
     /// post: The hook is appended to the activation hooks list.
@@ -142,6 +145,7 @@ impl PodManager {
         self.activation_hooks.write().await.push(hook);
     }
     /// REQ: P1-agt-pod-manager-with-checker
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — set capability checker
     /// pre:  `checker` is a valid `CapabilityChecker`.
     /// post: Returns `self` with `capability_checker` set to
@@ -151,6 +155,7 @@ impl PodManager {
         self
     }
     /// REQ: P1-agt-pod-manager-with-sink
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — attach CNS event sink
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `nu_event_sink` set to `Some(sink)`.
@@ -159,6 +164,7 @@ impl PodManager {
         self
     }
     /// REQ: P1-agt-pod-manager-with-governed-tool
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — wire governed tool for capability gating
     /// pre:  `tool` is a valid `Arc<GovernedTool<RawMcpToolPort>>`.
     /// post: Returns `self` with `governed_tool` set to `Some(tool)`.
@@ -168,6 +174,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-with-ports
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — configure runtime ports for pods
     /// pre:  All arguments are valid, non-null `Arc`s.
     /// post: Returns a `PodManager` with all ports set (no optional
@@ -194,6 +201,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-inference-port
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — accessor for inference port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Option<Arc<dyn InferencePort>>`.
@@ -202,6 +210,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-sovereignty-checker
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — get per-pod sovereignty checker
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Some(Arc<SovereigntyChecker>)` if the pod exists;
@@ -223,6 +232,7 @@ impl PodManager {
     /// (e.g., improv interactions). Default: no inference (pods are orchestration-only).
     ///
     /// REQ: P1-agt-pod-manager-default
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P5\] Motivating: Essentialism — default manager with in-memory mocks
     /// pre:  `inference_port` is `Some` or `None`.
     /// post: Returns a `PodManager` with in-memory storage, a mock A2A
@@ -250,6 +260,7 @@ impl PodManager {
 
 impl PodManager {
     /// REQ: P1-agt-pod-manager-create-pod
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — create a new agent pod from template + persona
     /// pre:  `template_name` is a non-empty string; `persona` is a valid
     ///       `AgentPersona` with validated fields; `name` is `Some` or
@@ -284,6 +295,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-activate-pod
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — activate pod (register + grant MCP)
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: If the pod is `Populated`, registers it with A2A, then
@@ -349,6 +361,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-deactivate-pod
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — deactivate pod and revoke capabilities
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: Deactivates the pod and attempts to revoke its capability
@@ -385,6 +398,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-recall-lifecycle
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P3\] Motivating: Generative Space — recall pod lifecycle episodes
     /// pre:  `pod_id` is a valid `PodID` referencing an existing pod.
     /// post: Returns `Ok(Vec<RecalledEpisode>)` with lifecycle events
@@ -404,6 +418,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-status
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — get pod status
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Ok(PodStatus)` if the pod exists; `Err(PodNotFound)`
@@ -418,6 +433,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-list-status
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — list all pod statuses
     /// pre:  (none).
     /// post: Returns `Ok(Vec<PodStatus>)` with status for all registered
@@ -433,6 +449,7 @@ impl PodManager {
     }
 
     /// REQ: P1-agt-pod-manager-a2a-port
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — accessor for A2A port
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `Arc<dyn A2APort + Send + Sync>`.
@@ -445,6 +462,7 @@ impl PodManager {
     /// Find a pod ID by replicant name (matches persona.agent.name).
     ///
     /// REQ: P1-agt-pod-manager-find-by-name
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — lookup pod by replicant name
     /// pre:  `name` is a non-empty string.
     /// post: Returns `Some(PodID)` if a pod with matching name exists;
@@ -462,6 +480,7 @@ impl PodManager {
     /// Get the WebID for a pod.
     ///
     /// REQ: P1-agt-pod-manager-webid
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — get pod's WebID
     /// pre:  `pod_id` is a valid `PodID`.
     /// post: Returns `Some(WebID)` if the pod exists; `None` otherwise.
@@ -472,6 +491,7 @@ impl PodManager {
     /// Check if a pod is assigned to a specific MCP role.
     ///
     /// REQ: P1-agt-pod-manager-has-role
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — check MCP role assignment
     /// pre:  `pod_id` is a valid `PodID`; `role` is a non-empty string.
     /// post: Returns `true` if the pod exists and has the role assigned;
@@ -489,6 +509,7 @@ impl PodManager {
     /// Capabilities are stored as strings like "web_search:execute" or "web_search".
     ///
     /// REQ: P1-agt-pod-manager-has-capability
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Constraining: Clear Boundaries — check tool capability
     /// pre:  `pod_id` is a valid `PodID`; `tool` is a non-empty string.
     /// post: Returns `true` if the pod exists and has a capability
@@ -511,6 +532,7 @@ impl PodManager {
     /// Assign an MCP role to a pod by name.
     ///
     /// REQ: P1-agt-pod-manager-assign-role
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — assign MCP role to named pod
     /// pre:  `name` is a non-empty string matching an existing pod;
     ///       `role` is a non-empty string.
@@ -536,6 +558,7 @@ impl PodManager {
     /// Mode can be "server" (with role), "chat", or "exit".
     ///
     /// REQ: P1-agt-pod-manager-set-mode
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — set pod mode (server/chat/exit)
     /// pre:  `name` is a non-empty string matching an existing pod;
     ///       `mode` is "server", "chat", or "exit"; `role` is required

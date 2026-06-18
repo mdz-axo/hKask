@@ -32,6 +32,7 @@ impl FalBackend {
     /// Returns an error if `fal_api_key` is empty.
     ///
     /// REQ: P4-inf-fal-backend-new
+    /// expect: "The system creates provider membranes requiring valid API keys" [P4]
     /// \[P4\] Motivating: Clear Boundaries — fal.ai provider membrane requires valid API key
     /// pre:  config.fal_api_key is set
     /// post: returns FalBackend with configured HTTP client
@@ -57,6 +58,7 @@ impl FalBackend {
     /// Send a chat completion request to fal.ai.
     ///
     /// REQ: P9-inf-fal-generate
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated text generation
     /// pre:  model is a valid fal.ai model name
     /// pre:  prompt is non-empty (validated by validate_prompt)
@@ -111,6 +113,7 @@ impl FalBackend {
     /// Vision/multimodal inference with base64-encoded images.
     ///
     /// REQ: P9-inf-fal-generate-vision
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
     /// pre:  model is a valid fal.ai vision-capable model name
     /// pre:  prompt is non-empty
@@ -177,6 +180,7 @@ impl FalBackend {
     /// Generate a streaming completion from Fal.
     ///
     /// REQ: P9-inf-fal-generate-stream
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
     /// pre:  model is a valid Fal model name
     /// post: returns stream of inference chunks
@@ -210,6 +214,7 @@ impl FalBackend {
     /// with the OpenAI-compatible chat completions endpoint.
     ///
     /// REQ: P9-inf-fal-list-models
+    /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — static model catalog for variety
     /// pre:  none (static catalog, no API call)
     /// post: returns Ok(Vec<FalModelEntry>) with curated model list
@@ -377,6 +382,7 @@ impl FalBackend {
     /// Endpoint: fal-ai/flux/schnell (fast) or fal-ai/flux-pro (quality).
     ///
     /// REQ: P9-inf-fal-generate-image
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image generation
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated image data
@@ -399,6 +405,7 @@ impl FalBackend {
     /// Endpoint: fal-ai/flux/dev/image-to-image
     ///
     /// REQ: P9-inf-fal-image-to-image
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image editing
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  prompt is a non-empty transformation instruction
@@ -425,6 +432,7 @@ impl FalBackend {
     /// Endpoint: fal-ai/birefnet
     ///
     /// REQ: P9-inf-fal-remove-background
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image transformation
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with background-removed image data
@@ -441,6 +449,7 @@ impl FalBackend {
     /// Endpoint: fal-ai/seedvr2 (queue)
     ///
     /// REQ: P9-inf-fal-upscale
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image upscaling
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with upscaled image data
@@ -461,6 +470,7 @@ impl FalBackend {
     /// Endpoint: fal-ai/minimax/video-01-live (queue)
     ///
     /// REQ: P9-inf-fal-generate-video
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated video data
@@ -482,6 +492,7 @@ impl FalBackend {
     /// Endpoint: fal-ai/seedance-2.0/image-to-video (queue)
     ///
     /// REQ: P9-inf-fal-image-to-video
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with generated video data
@@ -507,6 +518,7 @@ impl FalBackend {
     /// Endpoint: fal-ai/florence-2-large/referring-expression-segmentation
     ///
     /// REQ: P9-inf-fal-segment-object
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image segmentation
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  object_description is a non-empty description of the object to segment
@@ -535,6 +547,7 @@ impl FalBackend {
     /// Chris, Brian, Daniel, Lily, Bill. Default: "Rachel".
     ///
     /// REQ: P9-inf-fal-generate-speech
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech synthesis
     /// pre:  text is non-empty
     /// pre:  voice is a valid voice preset name
@@ -557,6 +570,7 @@ impl FalBackend {
     /// Endpoint: fal-ai/whisper
     ///
     /// REQ: P9-inf-fal-transcribe
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech transcription
     /// pre:  audio_url is a valid, accessible audio file URL
     /// post: returns Ok(serde_json::Value) with transcription data
@@ -582,6 +596,7 @@ mod tests {
     use super::*;
 
     /// REQ: P9-inf-test-fal-backend-new-fails — Construction fails without API key
+    /// expect: "Inference backend construction fails correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates boundary enforcement without key
     #[test]
     fn construction_fails_without_api_key() {
@@ -598,6 +613,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-fal-backend-new-succeeds — Construction succeeds with API key
+    /// expect: "Inference backend construction succeeds correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates boundary construction with key
     #[test]
     fn construction_succeeds_with_api_key() {
@@ -614,6 +630,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-fal-static-catalog — Static catalog returns known vision models
+    /// expect: "Inference static catalog lookup works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates model variety catalog
     #[tokio::test]
     async fn static_catalog_returns_vision_models() {
@@ -637,6 +654,7 @@ mod tests {
     }
 
     /// REQ: P9-inf-test-fal-vision-support — Vision support heuristic recognizes fal.ai models
+    /// expect: "Inference vision support heuristic works correctly under test conditions" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — validates vision model heuristic
     #[test]
     fn vision_support_heuristic_recognizes_fal_models() {

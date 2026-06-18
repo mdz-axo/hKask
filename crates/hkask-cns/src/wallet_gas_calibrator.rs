@@ -23,6 +23,7 @@ use tracing::{info, warn};
 /// Default interval between background wallet-gas calibrations.
 ///
 /// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
+/// expect: "I can configure the default interval for background wallet gas calibration" [P9]
 pub const DEFAULT_WALLET_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 /// Default lookback window for the first calibration pass after construction.
@@ -51,6 +52,8 @@ impl WalletGasCalibrator {
     /// Create a wallet gas calibrator backed by the given event store and wallet manager.
     ///
     /// REQ: GAS-CALIB-005 — runtime calibration of wallet gas conversion rate
+    /// expect: "I can create a wallet gas calibrator that self-tunes the gas→rJoule rate from settled events" [P9]
+/// expect: "I can configure the default interval for background wallet gas calibration" [P9]
     /// pre:  store is a valid NuEventStore; wallet_manager is valid
     /// post: returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate
     /// post: first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
@@ -83,6 +86,7 @@ impl WalletGasCalibrator {
     /// Attach a CNS event sink for calibration span emission.
     ///
     /// REQ: GAS-CALIB-005-obs — wallet rate adjustments emit cns.wallet.conversion spans
+/// expect: "I can attach an event sink so wallet conversion rate adjustments emit CNS observability spans" [P9]
     /// pre:  sink is a valid NuEventSink
     /// post: subsequent successful calibrations that adjust the rate emit a span
     #[must_use = "builder methods must be chained or assigned"]

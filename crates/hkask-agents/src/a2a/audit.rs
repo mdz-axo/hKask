@@ -17,6 +17,7 @@ impl AuditLog {
     /// Create new audit log with default max entries.
     ///
     /// REQ: P4-agt-acp-audit-new
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — audit log attests capability actions
     /// \[P1\] Constraining: User Sovereignty — every action is attributable to an agent
     /// pre:  (none).
@@ -30,6 +31,7 @@ impl AuditLog {
     }
 
     /// REQ: P4-agt-acp-audit-append
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — append-only audit preserves OCAP evidence
     /// \[P8\] Constraining: Semantic Grounding — entries are structured and traceable
     /// pre:  `entry` is a valid `AuditEntry`.

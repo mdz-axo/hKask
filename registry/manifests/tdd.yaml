@@ -239,6 +239,21 @@ steps:
             properties:
               behavior: { type: string }
               contract_id: { type: string }
+              user_expectation: { type: string }
+              goal_principle:
+                type: object
+                properties:
+                  principle: { type: string }
+                  name: { type: string }
+                  rationale: { type: string }
+              constraining_principles:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    principle: { type: string }
+                    name: { type: string }
+                    constraint: { type: string }
               seam: { type: string }
               test_type: { type: string }
               priority: { type: string }

@@ -196,6 +196,7 @@ impl AgentPod {
     /// Create a new AgentPod.
     ///
     /// REQ: P1-agt-pod-new
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — AgentPod is the user's agent container
     /// \[P4\] Constraining: Clear Boundaries — OCAP secret + capability token on creation
     /// pre:  `crate_name` is a non-empty string; `persona` is a valid
@@ -268,6 +269,7 @@ impl AgentPod {
     /// * `Err(AgentPodError)` — A2A registration failed
     ///
     /// REQ: P1-agt-pod-register
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — register pod with A2A under its WebID
     /// pre:  `self.state` must be `Populated` (or `Registered` for
     ///       idempotent re-registration); `acp` is a valid `A2APort`.
@@ -318,6 +320,7 @@ impl AgentPod {
     /// * `Err(AgentPodError)` — MCP access grant failed
     ///
     /// REQ: P1-agt-pod-activate
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — activate grants MCP access
     /// \[P4\] Constraining: Clear Boundaries — requires Registered state
     /// pre:  `self.state` must be `Registered` (or `Activated` for
@@ -359,6 +362,7 @@ impl AgentPod {
     /// * `Ok(())` — Deactivation successful
     ///
     /// REQ: P1-agt-pod-deactivate
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — deactivate terminates MCP access
     /// pre:  `self.state` must be `Activated` (or `Deactivated` for
     ///       idempotent re-deactivation).
@@ -399,6 +403,7 @@ impl AgentPod {
     /// * `Err(AgentPodError)` — Attenuation limit exceeded or keystore error
     ///
     /// REQ: P1-agt-pod-delegate
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P4\] Motivating: Clear Boundaries — delegate capability to another holder with attenuation
     /// \[P7\] Constraining: Evolutionary Architecture — attenuation limit emerged from usage
     /// pre:  `new_holder` is a valid `WebID`; `current_time` is a valid
@@ -431,6 +436,7 @@ impl AgentPod {
     /// Check if the pod can perform A2A operations.
     ///
     /// REQ: P1-agt-pod-is-active
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — state accessor for Activated
     /// pre:  (none).
     /// post: Returns `true` iff `self.state == PodLifecycleState::Activated`.
@@ -441,6 +447,7 @@ impl AgentPod {
     /// Get the current lifecycle state.
     ///
     /// REQ: P1-agt-pod-state
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — lifecycle state accessor
     /// pre:  (none — accessor).
     /// post: Returns the current `PodLifecycleState`.
@@ -461,6 +468,7 @@ impl AgentPod {
     /// at connection time, not here.
     ///
     /// REQ: P1-agt-pod-enter-server-mode
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — enter server mode to serve MCP role
     /// \[P4\] Constraining: Clear Boundaries — requires Activated + assigned role
     /// pre:  `self.state == Activated`; `self.mode == None`; `role` is
@@ -497,6 +505,7 @@ impl AgentPod {
     /// Requires: Activated state, not already in another mode.
     ///
     /// REQ: P1-agt-pod-enter-chat-mode
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — enter chat mode for interactive use
     /// \[P4\] Constraining: Clear Boundaries — requires Activated + no other mode
     /// pre:  `self.state == Activated`; `self.mode == None`.
@@ -523,6 +532,7 @@ impl AgentPod {
     /// Exit the current mode, returning the agent to no active mode.
     ///
     /// REQ: P1-agt-pod-exit-mode
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — exit current mode
     /// pre:  (none — always valid).
     /// post: `self.mode` is set to `None`; the previous mode (if any)
@@ -545,6 +555,7 @@ impl AgentPod {
     /// Check if the agent is currently in server mode.
     ///
     /// REQ: P1-agt-pod-is-server-mode
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Server)`.
@@ -557,6 +568,7 @@ impl AgentPod {
     /// Set the agent's voice design for TTS speech generation.
     ///
     /// REQ: P1-agt-pod-set-voice
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P3\] Motivating: Generative Space — configure voice design
     /// pre:  `voice` is a valid `VoiceDesign`.
     /// post: `self.voice_design` is set to `Some(voice)`; logs the change.
@@ -573,6 +585,7 @@ impl AgentPod {
     /// Get the agent's voice design, if one has been set.
     ///
     /// REQ: P1-agt-pod-get-voice
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — voice design accessor
     /// pre:  (none — accessor).
     /// post: Returns `Some(&VoiceDesign)` if set, `None` otherwise.
@@ -584,6 +597,7 @@ impl AgentPod {
     /// Returns the default neutral voice description if no voice is set.
     ///
     /// REQ: P1-agt-pod-voice-description
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — return TTS description
     /// pre:  (none).
     /// post: Returns the TTS description string for the configured voice,
@@ -599,6 +613,7 @@ impl AgentPod {
     /// Check if the agent is currently in chat mode.
     ///
     /// REQ: P1-agt-pod-is-chat-mode
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P8\] Motivating: Semantic Grounding — mode accessor
     /// pre:  (none).
     /// post: Returns `true` iff `self.mode == Some(AgentMode::Chat)`.
@@ -622,6 +637,7 @@ impl AgentPod {
     /// * `Err(AgentPodError)` — Sovereignty check error
     ///
     /// REQ: P1-agt-pod-check-sovereignty
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — verify action against sovereignty/consent
     /// \[P2\] Constraining: Affirmative Consent — delegates to consent boundary
     /// pre:  `action` is a non-empty string; `data_category` is a valid
@@ -719,6 +735,7 @@ mod tests {
     }
 
     // REQ: P4-agt-pod-dual-gate-test — Mode transitions require Activated state
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn mode_requires_activation() {
         let mut pod = test_pod();
@@ -730,6 +747,7 @@ mod tests {
     }
 
     // REQ: P4-agt-pod-dual-gate-test — Mode mutual exclusion (initially single-mode)
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn mode_mutual_exclusion() {
         let mut pod = test_pod();
@@ -758,6 +776,7 @@ mod tests {
     }
 
     // REQ: P4-agt-pod-dual-gate-test — Role assignment check (sovereignty/consent gate)
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn role_not_assigned_denied() {
         let mut pod = test_pod();
@@ -770,6 +789,7 @@ mod tests {
     }
 
     // REQ: P4-agt-pod-dual-gate-test — Mode exit and re-entry
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[test]
     fn mode_exit_and_switch() {
         let mut pod = test_pod();
@@ -791,6 +811,7 @@ mod tests {
     }
 
     // REQ: P1-agt-pod-lifecycle-transition-test — PodLifecycleState valid transitions
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn lifecycle_state_valid_transitions() {
         assert!(PodLifecycleState::Populated.can_transition_to(PodLifecycleState::Registered));
@@ -799,6 +820,7 @@ mod tests {
     }
 
     // REQ: P1-agt-pod-lifecycle-invalid-test — PodLifecycleState rejects invalid transitions
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn lifecycle_state_rejects_invalid_transitions() {
         assert!(!PodLifecycleState::Populated.can_transition_to(PodLifecycleState::Activated));
@@ -808,6 +830,7 @@ mod tests {
     }
 
     // REQ: P1-agt-pod-new-defaults-test — new AgentPod starts with correct defaults
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn new_pod_has_correct_defaults() {
         let pod = test_pod();
@@ -821,6 +844,7 @@ mod tests {
     }
 
     // REQ: P1-agt-pod-is-active-test — is_active() only true when Activated
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn is_active_only_when_activated() {
         let mut pod = test_pod();
@@ -834,6 +858,7 @@ mod tests {
     }
 
     // REQ: P1-agt-pod-voice-roundtrip-test — voice_design set/get round-trip
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn voice_design_set_get_roundtrip() {
         let mut pod = test_pod();
@@ -845,6 +870,7 @@ mod tests {
     }
 
     // REQ: P1-agt-pod-error-display-test — AgentPodError Display is human-readable
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn agent_pod_error_display_is_readable() {
         let err = AgentPodError::ModeRequiresActivation(PodLifecycleState::Populated);

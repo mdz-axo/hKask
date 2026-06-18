@@ -12,6 +12,7 @@ use chrono::Datelike;
 /// 0-based (rank 0 = first result).
 ///
 /// REQ: P3-mem-ranking-rrf-score
+/// expect: "The system ranks retrieval results by relevance" [P3]
 /// \[P3\] Motivating: Generative Space — fuses rank positions for context retrieval
 /// \[P8\] Constraining: Semantic Grounding — reciprocal rank fusion is a standard ranking signal
 /// pre:  k > 0, ranks contains valid 0-based positions
@@ -31,6 +32,7 @@ pub fn rrf_score(k: u64, ranks: &[usize]) -> f64 {
 /// Returns -1.0 for unparseable input.
 ///
 /// REQ: P3-mem-ranking-parse-age
+/// expect: "The system ranks retrieval results by relevance" [P3]
 /// \[P3\] Motivating: Generative Space — converts human-readable age strings into comparable temporal signals
 /// \[P5\] Constraining: Essentialism — returns -1.0 for unparseable input, no exceptions
 /// pre:  age is a valid &str
@@ -170,6 +172,7 @@ fn parse_fuzzy_date(s: &str) -> f64 {
 /// Returns one of: "today", "this week", "this month", "older", "unknown".
 ///
 /// REQ: P3-mem-ranking-normalize-date-bucket
+/// expect: "The system ranks retrieval results by relevance" [P3]
 /// \[P3\] Motivating: Generative Space — buckets parsed age into human-readable recency labels
 /// \[P8\] Constraining: Semantic Grounding — five fixed buckets preserve stable ordering
 /// pre:  published is a valid &str

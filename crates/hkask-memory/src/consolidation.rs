@@ -47,6 +47,7 @@ impl ConsolidationBridge {
     /// Create a new ConsolidationBridge.
     ///
     /// REQ: P3-mem-consolidation-bridge-new
+    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — bridges episodic experience into shared semantic memory
     /// \[P4\] Constraining: Clear Boundaries — links stores without bypassing their membranes
     /// pre:  episodic and semantic are initialized memory stores
@@ -161,6 +162,7 @@ impl ConsolidationBridge {
     /// Requires ConsolidationToken proving Cybernetics authority.
     ///
     /// REQ: P3-mem-consolidation-bridge-consolidate
+    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — promotes sovereign episodic triples to shared knowledge
     /// \[P1\] Constraining: User Sovereignty — strips perspective only under Curator authority
     /// \[P4\] Constraining: Clear Boundaries — requires ConsolidationToken from expected curator
@@ -203,6 +205,7 @@ impl ConsolidationBridge {
     /// Count consolidation candidates for a perspective.
     ///
     /// REQ: P3-mem-consolidation-candidate-count
+    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — surfaces how much episodic content is ready for promotion
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count-only query avoids loading full store
     /// pre:  perspective is a valid WebID

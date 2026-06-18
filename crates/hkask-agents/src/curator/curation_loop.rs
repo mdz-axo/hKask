@@ -62,6 +62,7 @@ impl CurationLoop {
     /// and escalation — the Curation Loop's only runtime dependencies.
     ///
     /// REQ: P9-agt-curator-loop-new
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — Curation Loop is the regulatory sense-act loop
     /// \[P4\] Constraining: Clear Boundaries — single CuratorHandle capability
     /// pre:  `curator_handle` is a valid `CuratorHandle` (singleton);
@@ -79,6 +80,7 @@ impl CurationLoop {
     }
 
     /// REQ: P9-agt-curator-loop-new-with-consolidation
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — consolidation tunes the loop
     /// \[P7\] Constraining: Evolutionary Architecture — consolidation config emerged from usage
     /// pre:  `curator_handle` is a valid `CuratorHandle`; `context` is a
@@ -103,6 +105,7 @@ impl CurationLoop {
     /// Wire the unified inbox for CurationInput messages.
     ///
     /// REQ: P9-agt-curator-loop-inbox
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — unified inbox receives CurationInput
     /// pre:  `rx` is a valid `UnboundedReceiver<CurationInput>`.
     /// post: Returns `self` with `inbox` set to `Some(Arc<RwLock<rx>>)`.
@@ -115,6 +118,7 @@ impl CurationLoop {
     /// Access the CuratorContext (capability-disciplined runtime references).
     ///
     /// REQ: P9-agt-curator-loop-context
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — context exposes CNS and escalation
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CuratorContext>`.
@@ -128,6 +132,7 @@ impl CurationLoop {
     /// for the entire system.
     ///
     /// REQ: P9-agt-curator-loop-handle
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — handle is the capability to curate
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `CuratorHandle`.
@@ -141,6 +146,7 @@ impl CurationLoop {
     /// re-processing all historical algedonic events on restart.
     ///
     /// REQ: P9-agt-curator-loop-restore-cursor
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — cursor restore avoids re-processing history
     /// pre:  `self.context.nu_event_store()` may be `Some` or `None`.
     /// post: If a persisted cursor exists, `last_review_ms` is updated;

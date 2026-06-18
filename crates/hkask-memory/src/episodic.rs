@@ -55,6 +55,7 @@ impl EpisodicMemory {
     /// Create a new EpisodicMemory with default decay rate and storage budget.
     ///
     /// REQ: P3-mem-episodic-memory-new
+    /// expect: "I can store first-person experience triples in my sovereign episodic memory" [P3]
     /// \[P3\] Motivating: Generative Space — creates a sovereign first-person experience store
     /// \[P9\] Constraining: Homeostatic Self-Regulation — default decay and budget are regulation defaults
     /// pre:  triple_store is initialized
@@ -72,6 +73,7 @@ impl EpisodicMemory {
     /// Store an episodic triple (private by default, with perspective).
     ///
     /// REQ: P3-mem-episodic-store
+    /// expect: "I can store first-person experience triples in my sovereign episodic memory" [P3]
     /// \[P3\] Motivating: Generative Space — stores a first-person experience triple
     /// \[P1\] Constraining: User Sovereignty — rejects Public visibility (episodic is sovereign)
     /// \[P4\] Constraining: Clear Boundaries — requires perspective owner
@@ -105,6 +107,7 @@ impl EpisodicMemory {
     /// Emits `cns.memory.decay` span for each triple that undergoes decay.
     ///
     /// REQ: P3-mem-episodic-query-deduped
+    /// expect: "I can recall deduplicated episodic triples with confidence decay" [P3]
     /// \[P3\] Motivating: Generative Space — recalls deduplicated episodic triples for an entity
     /// \[P9\] Constraining: Homeostatic Self-Regulation — applies confidence decay and temporal attention at recall
     /// pre:  entity is non-empty, perspective is valid
@@ -154,6 +157,7 @@ impl EpisodicMemory {
     /// Uses a COUNT query instead of loading all triples into memory.
     ///
     /// REQ: P3-mem-episodic-storage-usage
+    /// expect: "I can recall deduplicated episodic triples with confidence decay" [P3]
     /// \[P3\] Motivating: Generative Space — reports episodic storage usage per perspective
     /// \[P9\] Constraining: Homeostatic Self-Regulation — COUNT query avoids loading full store
     /// pre:  perspective is a valid WebID
@@ -228,6 +232,7 @@ impl EpisodicMemory {
     /// Get the configured storage budget.
     ///
     /// REQ: P3-mem-episodic-storage-budget
+    /// expect: "I can recall deduplicated episodic triples with confidence decay" [P3]
     /// \[P3\] Motivating: Generative Space — exposes the episodic storage set-point
     /// \[P9\] Constraining: Homeostatic Self-Regulation — budget bounds per-agent experience growth
     /// post: returns the storage_budget value set at construction
@@ -243,6 +248,7 @@ impl EpisodicMemory {
     /// publicly because it doesn't return triple data.
     ///
     /// REQ: P3-mem-episodic-candidate-count
+    /// expect: "I can recall deduplicated episodic triples with confidence decay" [P3]
     /// \[P3\] Motivating: Generative Space — reports how many episodic triples are eligible for consolidation
     /// \[P9\] Constraining: Homeostatic Self-Regulation — uses decayed confidence for prioritization
     /// pre:  perspective is a valid WebID

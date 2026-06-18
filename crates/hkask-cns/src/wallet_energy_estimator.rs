@@ -46,6 +46,7 @@ impl WalletEnergyEstimator {
     /// calibration share the same gas-cost base.
     ///
     /// REQ: GAS-CALIB-006 — wallet estimator uses calibrated per-server costs
+    /// expect: "I can compose a wallet energy estimator from a pre-calibrated composite estimator so gas→rJoule conversion uses live costs" [P9]
     /// pre:  gas_per_rjoule > 0
     /// post: returns WalletEnergyEstimator with the supplied inner estimator
     pub fn with_estimator(gas_per_rjoule: u64, inner: CompositeEnergyEstimator) -> Self {

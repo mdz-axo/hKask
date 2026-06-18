@@ -39,6 +39,7 @@ impl InferenceRouter {
     /// configuration is valid (e.g., API key is present for cloud providers).
     ///
     /// REQ: P4-inf-inference-router-new
+    /// expect: "The system creates multi-provider membranes assembled from configured boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — multi-provider membrane assembled from configured boundaries
     /// pre:  config is a valid InferenceConfig
     /// post: returns InferenceRouter with backends for configured providers
@@ -100,6 +101,7 @@ impl InferenceRouter {
     /// Dispatch a generate call to the resolved backend.
     ///
     /// REQ: P9-inf-dispatch-generate
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — shared dispatch for text generation
     /// pre:  provider is a resolved ProviderId with available backend
     /// pre:  model, prompt, params are validated and cloned
@@ -153,6 +155,7 @@ impl InferenceRouter {
     /// provider fails, results from others are still returned.
     ///
     /// REQ: P9-inf-router-list-models
+    /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregated model variety across providers
     /// pre:  backends are initialized (may be None)
     /// post: returns Vec<RouterModelEntry> with all available models across providers
@@ -197,6 +200,7 @@ impl InferenceRouter {
     /// Search models by name across all providers (case-insensitive substring).
     ///
     /// REQ: P9-inf-router-search-models
+    /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — searchable model catalog for routing
     /// pre:  query may be empty (returns all models)
     /// post: returns Vec<RouterModelEntry> filtered by case-insensitive substring match
@@ -218,6 +222,7 @@ impl InferenceRouter {
     /// `supports_vision` flag. Useful for OCR model selection.
     ///
     /// REQ: P9-inf-router-list-vision-models
+    /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — vision-capable model discovery
     /// pre:  none (delegates to list_models)
     /// post: returns Vec<RouterModelEntry> filtered to supports_vision == Some(true)
@@ -232,6 +237,7 @@ impl InferenceRouter {
     /// Vision/multimodal inference — dispatch to the appropriate backend with base64 images.
     ///
     /// REQ: P9-inf-router-generate-vision
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal dispatch
     /// pre:  prompt is non-empty
     /// pre:  images is non-empty
@@ -296,6 +302,7 @@ impl InferenceRouter {
     /// Routes to fal.ai FLUX Schnell (default) or DeepInfra FLUX 2 Klein.
     ///
     /// REQ: P9-inf-router-generate-image
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image generation dispatch
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated image data
@@ -319,6 +326,7 @@ impl InferenceRouter {
     /// Routes to fal.ai Flux dev img2img (default) or DeepInfra Qwen Image Edit.
     ///
     /// REQ: P9-inf-router-image-to-image
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated image editing dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  prompt is a non-empty transformation instruction
@@ -340,6 +348,7 @@ impl InferenceRouter {
     /// Routes to DeepInfra Bria RMBG 2.0 (cheapest) with fal.ai Birefnet fallback.
     ///
     /// REQ: P9-inf-router-remove-background
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated background removal dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// post: tries DeepInfra first, falls back to fal.ai on failure
@@ -369,6 +378,7 @@ impl InferenceRouter {
     /// Routes to fal.ai SeedVR2 (queue).
     ///
     /// REQ: P9-inf-router-upscale
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated upscaling dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with upscaled image data
@@ -388,6 +398,7 @@ impl InferenceRouter {
     /// Routes to fal.ai MiniMax video-01-live (queue).
     ///
     /// REQ: P9-inf-router-generate-video
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation dispatch
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated video data
@@ -409,6 +420,7 @@ impl InferenceRouter {
     /// Routes to fal.ai Seedance 2.0 image-to-video (queue).
     ///
     /// REQ: P9-inf-router-image-to-video
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated video generation dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with generated video data
@@ -431,6 +443,7 @@ impl InferenceRouter {
     /// Default model on DeepInfra: hexgrad/Kokoro-82M.
     ///
     /// REQ: P9-inf-router-generate-speech
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated speech synthesis dispatch
     /// pre:  text is non-empty
     /// pre:  voice is a valid voice preset name
@@ -462,6 +475,7 @@ impl InferenceRouter {
     /// Routes to fal.ai Florence-2 segmentation.
     ///
     /// REQ: P9-inf-router-segment-object
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated segmentation dispatch
     /// pre:  image_url is a valid, accessible image URL
     /// pre:  object_description is a non-empty description of the object to segment
@@ -484,6 +498,7 @@ impl InferenceRouter {
     /// Routes to DeepInfra Whisper (default) with fal.ai Whisper fallback.
     ///
     /// REQ: P9-inf-router-transcribe
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated transcription dispatch
     /// pre:  audio_url is a valid, accessible audio file URL
     /// post: tries DeepInfra first, falls back to fal.ai on failure
@@ -725,6 +740,7 @@ impl InferenceRouter {
     /// Generate a text embedding vector via the embedding router.
     ///
     /// REQ: P9-inf-router-embed-text
+    /// expect: "The system dispatches regulated inference to the correct provider" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated embedding dispatch
     /// pre:  text is a non-empty string
     /// post: delegates to EmbeddingRouter::embed_sentence with resolved model

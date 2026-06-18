@@ -79,6 +79,7 @@ impl Clone for SovereigntyChecker {
 
 impl SovereigntyChecker {
     /// REQ: P1-agt-sovereignty-checker-new
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — checker enforces the user-data boundary
     /// \[P2\] Constraining: Affirmative Consent — delegates to consent port
     /// pre:  `owner_webid` is a valid `WebID`; `consent` is a valid
@@ -99,6 +100,7 @@ impl SovereigntyChecker {
     }
 
     /// REQ: P1-agt-sovereignty-checker-can-access
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — access decision combines consent + ownership
     /// pre:  `data_category` is a valid `DataCategory`; `requester` is a
     ///       valid `WebID`.
@@ -118,6 +120,7 @@ impl SovereigntyChecker {
     }
 
     /// REQ: P1-agt-sovereignty-checker-can-perform
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     /// \[P1\] Motivating: User Sovereignty — action decision combines consent + operation
     /// pre:  `operation` is a non-empty string; `data_category` is a
     ///       valid `DataCategory`.
@@ -143,6 +146,7 @@ mod tests {
     }
 
     // REQ: P1-agt-sovereignty-deny-all-test — DenyAllConsent always returns false (fail-closed default)
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn deny_all_consent_always_denies() {
         let consent = DenyAllConsent;
@@ -152,6 +156,7 @@ mod tests {
     }
 
     // REQ: P1-agt-sovereignty-boundary-test — SovereigntyChecker enforces sovereign boundary (consent + owner match)
+    /// expect: "My agents operate within my sovereignty boundaries" [P1]
     #[test]
     fn sovereignty_checker_sovereign_data_requires_consent_and_owner() {
         let owner = test_webid();

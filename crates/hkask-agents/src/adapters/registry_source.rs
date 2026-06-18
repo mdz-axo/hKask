@@ -19,6 +19,7 @@ impl Default for FilesystemRegistrySource {
 
 impl FilesystemRegistrySource {
     /// REQ: P3-agt-registry-source-new
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P5\] Motivating: Essentialism — filesystem registry source is a unit struct
     /// pre:  (none).
     /// post: Returns a new `FilesystemRegistrySource` (unit struct).

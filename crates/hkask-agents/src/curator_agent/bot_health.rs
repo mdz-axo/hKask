@@ -2,9 +2,10 @@
 //! against budget allocations from the CNS runtime.
 //!
 //! REQ: P9-agt-bot-health-classify — Mock CNS state with known budget values, feed gas events,
-//! \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
-//! \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
-//! verify threshold behavior.
+//! expect: "The system regulates agent behavior through cybernetic feedback" [P9]
+// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
+// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
+// verify threshold behavior.
 
 use chrono::{DateTime, Duration, Utc};
 use hkask_cns::energy::AgentEnergyStatus;
@@ -131,6 +132,7 @@ mod tests {
 
     /// Test that classify_health correctly thresholds consumption ratios.
     /// REQ: P9-agt-bot-health-classify — verify threshold behavior.
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
@@ -161,6 +163,7 @@ mod tests {
     }
 
     /// REQ: P9-agt-bot-health-classify — verify threshold behavior at Degraded boundary
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
@@ -191,6 +194,7 @@ mod tests {
     }
 
     /// REQ: P9-agt-bot-health-classify — verify threshold behavior at Critical boundary
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
@@ -221,6 +225,7 @@ mod tests {
     }
 
     /// REQ: P9-agt-bot-health-classify — missing budget defaults to Healthy
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]
@@ -240,6 +245,7 @@ mod tests {
     }
 
     /// REQ: P9-agt-bot-health-classify — zero cap budget defaults to Healthy
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — classify bot energy health for Curator
     /// \[P4\] Constraining: Clear Boundaries — thresholds map consumption ratio to status
     #[test]

@@ -42,6 +42,7 @@ impl TogetherBackend {
     /// Returns an error if `together_api_key` is empty.
     ///
     /// REQ: P4-inf-together-backend-new
+    /// expect: "The system creates provider membranes requiring valid API keys" [P4]
     /// \[P4\] Motivating: Clear Boundaries — Together AI provider membrane requires valid API key
     /// pre:  config.together_api_key is set
     /// post: returns TogetherBackend with configured HTTP client
@@ -65,6 +66,7 @@ impl TogetherBackend {
     /// Send a chat completion request to Together AI.
     ///
     /// REQ: P9-inf-together-generate
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated text generation
     /// pre:  model is a valid Together AI model name
     /// pre:  prompt is non-empty (validated by validate_prompt)
@@ -122,6 +124,7 @@ impl TogetherBackend {
     /// Generate a streaming completion from Together.
     ///
     /// REQ: P9-inf-together-generate-stream
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated streaming text generation
     /// pre:  model is a valid Together model name
     /// post: returns stream of inference chunks
@@ -151,6 +154,7 @@ impl TogetherBackend {
     /// Vision/multimodal inference with base64-encoded images.
     ///
     /// REQ: P9-inf-together-generate-vision
+    /// expect: "The system regulates text/image/speech generation through provider membranes" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multimodal generation
     /// pre:  model is a valid Together AI vision-capable model name
     /// pre:  prompt is non-empty
@@ -206,6 +210,7 @@ impl TogetherBackend {
     /// List available models from Together AI.
     ///
     /// REQ: P9-inf-together-list-models
+    /// expect: "I can discover available models across providers" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model variety discovery
     /// pre:  self.client and self.base_url are initialized
     /// post: returns Ok(Vec<TogetherModel>) with all available models

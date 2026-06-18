@@ -52,6 +52,7 @@ impl PodLifecycleState {
     /// Terminal state `Deactivated` admits no further transitions.
     ///
     /// REQ: P4-agt-pod-lifecycle-can-transition
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — lifecycle state machine enforces transitions
     /// \[P7\] Constraining: Evolutionary Architecture — linear model + idempotent restate
     /// pre:  `self` and `next` are valid `PodLifecycleState` variants.

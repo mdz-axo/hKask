@@ -35,6 +35,7 @@ use tracing::{info, warn};
 /// Default interval between background calibrations.
 ///
 /// REQ: GAS-CALIB-004 — runtime calibration loop wired to production estimator
+/// expect: "I can configure the default interval for the background gas calibration loop" [P9]
 pub const DEFAULT_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
 /// Default lookback window for the first calibration after construction.
@@ -65,6 +66,7 @@ impl CalibratedEnergyEstimator {
     /// Create a calibrated estimator backed by the given event store.
     ///
     /// REQ: GAS-CALIB-004 — runtime calibration loop wired to production estimator
+/// expect: "I can configure the default interval for the background gas calibration loop" [P9]
     /// pre:  store is a valid NuEventStore
     /// post: returns CalibratedEnergyEstimator with default table and no observations
     /// post: first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
@@ -84,6 +86,8 @@ impl CalibratedEnergyEstimator {
     /// Configure how far back the first calibration pass searches for events.
     ///
     /// REQ: GAS-CALIB-004
+    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
+    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
     /// pre:  lookback is a positive duration
     /// post: first calibration will search [Utc::now() - lookback, Utc::now()]
     #[must_use = "builder methods must be chained or assigned"]
@@ -97,6 +101,7 @@ impl CalibratedEnergyEstimator {
     /// Attach a CNS event sink for calibration span emission.
     ///
     /// REQ: GAS-CALIB-004-obs — calibration adjustments emit cns.gas spans
+/// expect: "I can attach an event sink so calibration adjustments emit CNS observability spans" [P9]
     /// pre:  sink is a valid NuEventSink
     /// post: subsequent successful calibrations that adjust costs emit a span
     #[must_use = "builder methods must be chained or assigned"]
@@ -108,6 +113,8 @@ impl CalibratedEnergyEstimator {
     /// Run one incremental calibration pass.
     ///
     /// REQ: GAS-CALIB-004
+    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
+    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
     /// pre:  `self.store` is a valid NuEventStore
     /// post: all settled gas events since the last calibration are fed into
     ///       `DynamicGasTable`; `CompositeEnergyEstimator` is rebuilt from the
@@ -191,6 +198,8 @@ impl CalibratedEnergyEstimator {
     /// but do not crash the task.
     ///
     /// REQ: GAS-CALIB-004
+    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
+    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
     /// pre:  interval > 0
     /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
@@ -213,6 +222,8 @@ impl CalibratedEnergyEstimator {
     /// Useful for diagnostics and tests.
     ///
     /// REQ: GAS-CALIB-004
+    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data" [P9]
+    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation" [P9]
     /// post: returns a copy of the internal server_costs map
     pub fn current_table(&self) -> std::collections::HashMap<String, u64> {
         self.table

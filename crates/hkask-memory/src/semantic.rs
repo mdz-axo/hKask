@@ -63,6 +63,7 @@ impl SemanticMemory {
     /// Create a new SemanticMemory with triple and embedding stores.
     ///
     /// REQ: P3-mem-semantic-memory-new
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — creates shared semantic knowledge store
     /// \[P8\] Constraining: Semantic Grounding — unifies triple and embedding stores
     /// pre:  triple_store and embedding_store are initialized
@@ -81,6 +82,7 @@ impl SemanticMemory {
     /// regardless of timestamps, confidence, or perspective metadata.
     ///
     /// REQ: P3-mem-semantic-query-deduped
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — recalls deduplicated public semantic triples
     /// \[P4\] Constraining: Clear Boundaries — filters to Public visibility
     /// pre:  entity is non-empty
@@ -97,6 +99,7 @@ impl SemanticMemory {
     /// Store a semantic triple (must be Public, no perspective).
     ///
     /// REQ: P3-mem-semantic-store
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — stores shared semantic triple
     /// \[P4\] Constraining: Clear Boundaries — requires Public visibility and no perspective
     /// pre:  triple.access.visibility == Public
@@ -126,6 +129,7 @@ impl SemanticMemory {
     /// Count all semantic triples.
     ///
     /// REQ: P3-mem-semantic-triple-count
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — reports total shared knowledge triples
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count feeds storage budget loop
     /// post: returns total count of semantic triples in store
@@ -136,6 +140,7 @@ impl SemanticMemory {
     /// Count semantic triples for a specific entity.
     ///
     /// REQ: P3-mem-semantic-triple-count-entity
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — reports semantic triples per entity
     /// \[P9\] Constraining: Homeostatic Self-Regulation — per-entity budget monitoring
     /// pre:  entity is non-empty
@@ -147,6 +152,7 @@ impl SemanticMemory {
     /// Query all triples with a given attribute.
     ///
     /// REQ: P3-mem-semantic-query-attribute
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — queries shared triples by attribute
     /// \[P8\] Constraining: Semantic Grounding — attribute-based recall expands context
     /// pre:  attribute is non-empty
@@ -163,6 +169,7 @@ impl SemanticMemory {
     /// similarity search to find semantically related triples.
     ///
     /// REQ: P3-mem-semantic-store-embedding
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — indexes embedding vector for similarity retrieval
     /// \[P8\] Constraining: Semantic Grounding — vector indexed by triple entity_ref
     /// pre:  entity_ref is non-empty, vector is non-empty, model is valid
@@ -185,6 +192,7 @@ impl SemanticMemory {
     /// if their entity keys differ.
     ///
     /// REQ: P3-mem-semantic-search-similar
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — KNN search augments recall beyond exact matches
     /// \[P8\] Constraining: Semantic Grounding — results ordered by embedding distance
     /// pre:  query_vector is non-empty, limit > 0
@@ -200,6 +208,7 @@ impl SemanticMemory {
     /// Count stored embeddings.
     ///
     /// REQ: P3-mem-semantic-embedding-count
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — reports indexed embedding count
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count used for embedding budget monitoring
     /// post: returns total count of embeddings in store
@@ -211,6 +220,7 @@ impl SemanticMemory {
     /// (e.g., centroid computation, KNN search).
     ///
     /// REQ: P3-mem-semantic-embedding-store
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — exposes embedding store for advanced operations
     /// \[P5\] Constraining: Essentialism — direct accessor avoids duplicate wrappers
     /// post: returns reference to the EmbeddingStore
@@ -242,6 +252,7 @@ impl SemanticMemory {
     /// under that entity_ref, enabling one-step compute+store.
     ///
     /// REQ: P3-mem-semantic-compute-centroid
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — computes mean style vector for corpus validation
     /// \[P8\] Constraining: Semantic Grounding — arithmetic mean over matching embeddings
     /// pre:  prefix is non-empty, dim > 0
@@ -329,6 +340,7 @@ impl SemanticMemory {
     /// before re-downloading and re-embedding their corpus.
     ///
     /// REQ: P3-mem-semantic-purge-prefix
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — purges embeddings for idempotent re-ingest
     /// \[P5\] Constraining: Essentialism — prefix-based deletion, count of successes returned
     /// pre:  prefix is non-empty
@@ -365,6 +377,7 @@ impl SemanticMemory {
     /// `{entity_ref_prefix}:{chunk_index}`.
     ///
     /// REQ: P3-mem-semantic-chunk-text
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — chunks text into passage-sized units for embedding
     /// \[P5\] Constraining: Essentialism — paragraph/sentence boundary splitting with min/max words
     /// pre:  text is non-empty, entity_ref_prefix is non-empty
@@ -478,6 +491,7 @@ impl SemanticMemory {
     /// Looks for the standard `*** START OF` / `*** END OF` markers.
     ///
     /// REQ: P3-mem-semantic-strip-gutenberg
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — removes boilerplate for clean corpus ingestion
     /// \[P5\] Constraining: Essentialism — marker-based trim, no regex
     /// pre:  text is a valid &str
@@ -518,6 +532,7 @@ impl SemanticMemory {
     /// targets low-confidence triples, they are deleted outright.
     ///
     /// REQ: P3-mem-semantic-delete-triple
+    /// expect: "I can store shared semantic triples for public knowledge" [P3]
     /// \[P3\] Motivating: Generative Space — deletes semantic triple for budget enforcement or cleanup
     /// \[P9\] Constraining: Homeostatic Self-Regulation — used by regulation loops to free space
     /// pre:  id is a valid TripleID
@@ -541,6 +556,7 @@ impl SemanticMemory {
     /// confidence ascending then `valid_from` ascending (oldest first).
     ///
     /// REQ: P3-mem-semantic-lowest-confidence
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — identifies lowest-confidence triples for pruning
     /// \[P9\] Constraining: Homeostatic Self-Regulation — ordered by confidence and age
     /// pre:  limit > 0
@@ -558,6 +574,7 @@ impl SemanticMemory {
     /// for the consolidation trigger signal.
     ///
     /// REQ: P3-mem-semantic-low-confidence-count
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — counts uncertain semantic triples
     /// \[P9\] Constraining: Homeostatic Self-Regulation — threshold-driven count
     /// pre:  threshold in [0.0, 1.0]
@@ -577,6 +594,7 @@ impl SemanticMemory {
     /// for the consolidation trigger.
     ///
     /// REQ: P3-mem-semantic-low-confidence-triples
+    /// expect: "I can recall deduplicated semantic triples with embedding similarity" [P3]
     /// \[P3\] Motivating: Generative Space — retrieves uncertain semantic triples for review
     /// \[P9\] Constraining: Homeostatic Self-Regulation — bounded by threshold and limit
     /// pre:  threshold in [0.0, 1.0], limit > 0
@@ -595,6 +613,7 @@ impl SemanticMemory {
 #[cfg(test)]
 mod tests {
     // REQ: P3-mem-semantic-centroid-dimensions-test — compute_centroid does not panic on mismatched embedding dimensions
+    // expect: "Memory centroid dimensions work correctly under test conditions" [P3]
     //
     // Before fix, `centroid[i] += v` was called without checking `i < dim`,
     // causing an index-out-of-bounds panic when an embedding vector was longer
@@ -617,6 +636,7 @@ mod tests {
     }
 
     // REQ: P3-mem-semantic-centroid-short-test — compute_centroid does not panic on short embedding dimensions
+    // expect: "Memory centroid short embedding works correctly under test conditions" [P3]
     #[test]
     fn centroid_accumulation_handles_short_embedding() {
         let dim = 4usize;

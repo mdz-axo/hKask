@@ -17,7 +17,7 @@ This skill's runtime templates live in `registry/templates/tdd/`:
 | Template | Type | Purpose |
 |----------|------|--------|
 | `tdd-plan.j2` | KnowAct | Plan TDD cycle: extract requirements from specs, prioritize by risk |
-| `tdd-tracer.j2` | KnowAct | Execute tracer bullet: write one failing test, then minimal code to pass |
+| `tdd-tracer.j2` | KnowAct | Execute tracer bullet: write one contract, then one failing test, then minimal code to pass |
 | `tdd-refactor.j2` | KnowAct | Refactor while GREEN: extract duplication, deepen modules |
 | `tdd-verify.j2` | KnowAct | Verify TDD cycle completion: tests pass, clippy clean, spec traceability |
 | `tdd-gap-check.j2` | KnowAct | Functional gap analysis: compare spec requirements against tested behaviors |
@@ -136,7 +136,7 @@ RIGHT (vertical):
 5. Prefer `assert!` with meaningful messages over `assert_eq!` when the message adds diagnostic value.
 6. Test error paths — verify error variants, not just happy paths.
 7. **No `todo!()` or `unimplemented!()`** — write minimal stubs that return sensible defaults or errors, not panics.
-8. **Every test carries a `// REQ:` comment** naming the spec requirement it validates. Format: `// REQ: <spec_id> — requirement summary`. The `spec_id` comes from `spec/goal/capture`. If a test has no spec_id, it tests implementation detail, not a functional requirement.
+8. **Every test carries a `// REQ:` comment** naming the contract it validates. Format: `// REQ: <contract_id> — requirement summary`. The `contract_id` uses `P{N}-{domain}-{operation}` format (FUNCTIONAL_SPECIFICATION.md §7).
 
 ## Workflow
 
@@ -238,7 +238,20 @@ After all tests pass, look for refactor candidates:
 - Apply SOLID principles where natural
 - Consider what new code reveals about existing code
 - Run tests after each refactor step
-- **Preserve `// REQ:` tags** — refactoring changes structure, not functional alignment
+- **Preserve `// REQ:` tags and all contract layers** — refactoring changes structure, not functional alignment or principle grounding
+
+**Rule 6bis — Contract metadata must travel with the function.** When moving or renaming a function, the `expect:` field, `[P{N}]` goal-principle tag, and `[P{N}] Constraining:` annotations must travel with the contract. Loss of any of these fields is a REFACTOR violation — it severs the traceability chain.
+
+**Rule 8bis — Verify extended contract metadata after each step.** Run:
+```bash
+grep -rn "/// REQ:.*expect:" crates/ --include="*.rs" | wc -l
+grep -rn "/// \[P[0-9]*\]" crates/ --include="*.rs" | wc -l
+```
+Compare counts against pre-refactor counts. Any decrease means contract metadata was lost — revert.
+
+**Contract evolution requiring user consent (P2):** If a contract's `expect:` field or goal principle changed during refactoring, this is NOT a pure refactor — it's a contract evolution requiring P2 affirmative consent. Flag such changes for human review.
+
+**Refactor-safe contract evolution rule:** The `expect:` field is the ground truth. If the formal contract (`pre:`/`post:`) drifts from the user expectation, the contract is wrong, not the expectation. Weakening a precondition or strengthening a postcondition that causes `expect:` to no longer semantically match is a critical violation.
 
 **Never refactor while RED.** Get to GREEN first.
 
@@ -248,6 +261,24 @@ After all tests pass, look for refactor candidates:
 cargo test -p <crate>           # Run the specific crate's tests
 cargo clippy -p <crate> -- -D warnings  # Lint
 cargo check -p <crate>          # Type-check
+```
+
+**Contract structure audit (v0.28.0):**
+```bash
+# Coverage audit (contract count vs pub fn count)
+bash scripts/ci/contract-audit.sh --summary
+
+# expect: field presence
+bash scripts/ci/contract-audit.sh --expect
+
+# [P{N}] goal-principle anchoring
+bash scripts/ci/contract-audit.sh --principles
+
+# [P{N}] Constraining: annotation completeness
+bash scripts/ci/contract-audit.sh --constraining
+
+# All modes combined
+bash scripts/ci/contract-audit.sh --full
 ```
 
 ### 6. Functional Gap Check
@@ -263,11 +294,11 @@ After verification, compare tested behaviors against specification requirements:
 
 This step catches the "tested but wrong" problem (tests that don't validate real requirements) and the "untested requirement" problem (spec requirements with no coverage).
 
-**Contract quality sub-check:** For each contract in scope, verify the 4 layers:
-1. **expect:** — Does it faithfully capture the verbal expectation from the spec? Is it in the user's voice, not the implementer's? Does it carry a `[P{N}]` tag?
-2. **Goal principle** — Does the `[P{N}]` tag on `expect:` correctly identify the principle? Does the principle's guarantee semantically match what the contract promises?
-3. **Constraining principles** — Are all applicable constraints declared? Would relaxing one violate a principle?
-4. **Behavioral specification** — Do `pre:` / `post:` / `inv:` form a complete machine-checkable specification? Can a failing test distinguish a contract violation from a test bug?
+**Contract quality sub-check:** For each contract in scope, verify all layers with scoring:
+1. **`expect:` quality** — Scored 0-3: 0 (missing), 1 (vacuous — restates function name), 2 (functional — describes user need), 3 (anchored — names motivating principle with rationale). Contracts scoring 0-1 are gaps.
+2. **Goal principle alignment** — Does the contract's `[P{N}]` match the MDS category's default goal principle? Cross-reference with the MDS category mapping (Domain→P1, Capability→P4, Interface→P3, Composition→P7, Trust→P4+P2, Observability→P9, Persistence→P8, Lifecycle→P5, Curation→P8). Mismatches require rationale.
+3. **Constraining completeness** — Which Magna Carta principles (P1-P4) are missing from `[P{N}] Constraining:`? A Trust category contract without `[P4] Constraining` is a P0 gap.
+4. **Bidirectional verification** — Every gap is a missing or broken triple in the contract traceability graph (see `docs/architecture/contracts/contract-traceability.ttl`). Link 1 (Implementation→Contract) verified by `contract-audit.sh`. Link 2 (Contract→UserExpectation) verified by `expect:` semantic check. Link 3 (UserExpectation→GoalPrinciple) verified by principle alignment cross-reference.
 
 ### 7. CNS Feedback Integration
 
@@ -310,8 +341,12 @@ The TDD cycle is a pre-commit development activity. Post-deployment, the CNS pro
 [ ] Each MDS category in scope has coverage (Domain, Composition, Trust, Lifecycle, Curation)
 [ ] Every contract's expect: faithfully captures the spec's verbal expectation and carries a [P{N}] tag
 [ ] Every contract's [P{N}] tag matches the contract ID prefix
-[ ] Every contract's [P{N}] Constraining annotations are complete
+[ ] Every contract's [P{N}] Constraining annotations are complete (minimum applicable P1-P4 Magna Carta)
 [ ] No implementation violates constraining principles
-[ ] Contract completeness audit shows no regression (Testing Discipline §9.2)
+[ ] Contract coverage audit: bash scripts/ci/contract-audit.sh --summary — all crates ≥100%
+[ ] Expectation audit: bash scripts/ci/contract-audit.sh --expect — zero MISSING_EXPECTATION
+[ ] Principle audit: bash scripts/ci/contract-audit.sh --principles — zero MISSING_GOAL_PRINCIPLE
+[ ] Constraining audit: bash scripts/ci/contract-audit.sh --constraining — zero UNCONSTRAINED
 [ ] Gaps are recorded in OPEN_QUESTIONS.md with deferral rationale
+[ ] Any contract expect: or goal_principle change during refactor is flagged for P2 consent
 ```

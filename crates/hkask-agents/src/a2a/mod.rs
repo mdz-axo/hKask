@@ -178,6 +178,7 @@ impl A2AMessage {
     /// Dispatch a visitor over the variant. Single match site in the codebase.
     ///
     /// REQ: P4-agt-a2a-message-visit
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — single dispatch site for A2A message variants
     /// pre:  `visitor` is a valid `&mut dyn A2AMessageVisitor`.
     /// post: Calls the appropriate visitor method based on the message
@@ -227,6 +228,7 @@ impl A2AMessage {
     /// `None` for `TemplateResponse` (no sender).
     ///
     /// REQ: P4-agt-a2a-message-sender
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — sender identity is explicit per variant
     /// \[P1\] Constraining: User Sovereignty — identity belongs to the agent/user
     /// pre:  (none).
@@ -247,6 +249,7 @@ impl A2AMessage {
     /// `MemoryArtifact` uses `artifact_id`.
     ///
     /// REQ: P4-agt-a2a-message-id
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — correlation/artifact IDs enable traceability
     /// pre:  (none).
     /// post: Returns the correlation/artifact ID string for the message
@@ -262,6 +265,7 @@ impl A2AMessage {
     /// Get a human-readable message type name.
     ///
     /// REQ: P4-agt-a2a-message-type
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P8\] Motivating: Semantic Grounding — stable message type labels
     /// pre:  (none).
     /// post: Returns a `&'static str`: `"template_dispatch"`,
@@ -306,6 +310,7 @@ impl A2ARuntime {
     /// The Ed25519 signing key for token issuance is derived from it.
     ///
     /// REQ: P4-agt-a2a-runtime-new
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — A2A runtime derives root authority from master secret
     /// \[P1\] Constraining: User Sovereignty — root WebID is user-derived
     /// pre:  `secret` is a non-empty byte slice (master key material).
@@ -330,6 +335,7 @@ impl A2ARuntime {
     /// Keys are cryptographically independent — compromising one doesn't compromise others.
     ///
     /// REQ: P4-agt-a2a-secret-derive
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — HKDF isolates per-agent secrets
     /// \[P1\] Constraining: User Sovereignty — secrets are bound to agent identity
     /// pre:  `agent_webid` is a valid `WebID`.
@@ -364,6 +370,7 @@ impl A2ARuntime {
     /// Returns primary DelegationToken for the agent.
     ///
     /// REQ: P4-agt-a2a-token-issue
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — DelegationToken attenuates capabilities
     /// \[P1\] Constraining: User Sovereignty — tokens are issued to named agents
     /// pre:  `webid` is a valid `WebID`; `agent_type` is a valid
@@ -440,6 +447,7 @@ impl A2ARuntime {
     }
 
     /// REQ: P4-agt-a2a-agent-unregister
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — unregister revokes all agent capabilities
     /// pre:  `webid` is a valid `WebID`.
     /// post: If the agent exists, removes it and its capability tokens
@@ -468,6 +476,7 @@ impl A2ARuntime {
     /// R2: Persist Agent State. Returns count of agents restored.
     ///
     /// REQ: P4-agt-a2a-agents-restore
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — restore preserves capability graph
     /// pre:  `agents` is a list of `A2AAgent` records; `tokens` is a map
     ///       of WebID → `Vec<DelegationToken>`.
@@ -567,6 +576,7 @@ impl A2ARuntime {
     /// List all registered agents.
     ///
     /// REQ: P4-agt-a2a-agents-list
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — enumerate registered agents
     /// pre:  (none).
     /// post: Returns a `Vec<A2AAgent>` containing clones of all currently
@@ -658,6 +668,7 @@ mod tests {
     // ── A2A Wildcard Rejection ──────────────────────────────────────────────
 
     // REQ: P4-agt-A2A-wildcard-reject-test — A2A rejects wildcard capability "*"
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_wildcard_capability() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -675,6 +686,7 @@ mod tests {
     }
 
     // REQ: P4-agt-A2A-wildcard-mixed-reject-test — A2A rejects wildcard mixed with valid capabilities
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_wildcard_mixed_with_valid_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -698,6 +710,7 @@ mod tests {
     // ── ACP Registration ────────────────────────────────────────────────────
 
     // REQ: P4-agt-A2A-register-test — ACP registers agent and returns delegation token
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_registers_agent_and_returns_token() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -715,6 +728,7 @@ mod tests {
     }
 
     // REQ: P4-agt-A2A-register-dup-test — A2A rejects duplicate agent registration
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_rejects_duplicate_registration() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -736,6 +750,7 @@ mod tests {
     }
 
     // REQ: P4-agt-A2A-register-capabilities-test — Root authority creates delegation tokens for all requested capabilities
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn root_authority_creates_tokens_for_all_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -768,6 +783,7 @@ mod tests {
     // ── ACP Unregistration ──────────────────────────────────────────────────
 
     // REQ: P4-agt-A2A-unregister-test — ACP unregisters agent and removes tokens
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_unregisters_agent_and_removes_tokens() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -789,6 +805,7 @@ mod tests {
     }
 
     // REQ: P4-agt-A2A-unregister-unknown-test — ACP unregister of unknown agent returns error
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_unregister_unknown_agent_returns_error() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -805,6 +822,7 @@ mod tests {
     // ── ACP Token Revocation ────────────────────────────────────────────────
 
     // REQ: P4-agt-A2A-revoke-test — ACP revokes token and denies subsequent access
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_revokes_token() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -825,6 +843,7 @@ mod tests {
     // ── ACP Restore ─────────────────────────────────────────────────────────
 
     // REQ: P4-agt-A2A-restore-test — A2A restored from storage has same capabilities
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_restore_preserves_capabilities() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -868,6 +887,7 @@ mod tests {
     // ── ACP List Agents ─────────────────────────────────────────────────────
 
     // REQ: P4-agt-A2A-list-test — ACP lists all registered agents
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_lists_registered_agents() {
         let a2a = A2ARuntime::new(TEST_SECRET);
@@ -891,6 +911,7 @@ mod tests {
     }
 
     // REQ: P4-agt-a2a-list-empty-test — ACP list is empty when no agents registered
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     #[tokio::test]
     async fn a2a_list_empty_when_no_agents() {
         let a2a = A2ARuntime::new(TEST_SECRET);

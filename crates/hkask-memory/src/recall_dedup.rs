@@ -18,6 +18,7 @@ use std::collections::HashSet;
 /// different confidence levels is recognized as a duplicate.
 ///
 /// REQ: P3-mem-recall-eav-hash
+/// expect: "The system deduplicates triples to preserve generative storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — canonical recall dedup enables reuse of factual content across memory
 /// \[P8\] Constraining: Semantic Grounding — deterministic BLAKE3 hash over canonical EAV content
 /// pre:  triple is a valid Triple with entity, attribute, value
@@ -62,6 +63,7 @@ fn canonical_value(value: &serde_json::Value) -> String {
 /// Preserves the original ordering (first-seen wins).
 ///
 /// REQ: P3-mem-recall-dedup-triples
+/// expect: "The system deduplicates triples to preserve generative storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — deduplication preserves generative storage budget
 /// \[P5\] Constraining: Essentialism — first-seen wins, no speculative retention policy
 /// pre:  triples is a Vec of valid Triples

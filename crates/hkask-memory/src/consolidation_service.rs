@@ -33,6 +33,7 @@ impl ConsolidationService {
     /// The token must be issued by the Curator (system-level authority).
     ///
     /// REQ: P3-mem-consolidation-service-new
+    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — user-facing entry point for memory consolidation and cleanup
     /// \[P4\] Constraining: Clear Boundaries — requires Curator-issued ConsolidationToken
     /// pre:  bridge and semantic are initialized
@@ -60,6 +61,7 @@ impl ConsolidationService {
     ///    count is at or below `max_semantic_triples` (if specified)
     ///
     /// REQ: P3-mem-consolidation-service-consolidate
+    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — combines episodic promotion with semantic cleanup
     /// \[P9\] Constraining: Homeostatic Self-Regulation — enforces confidence floor and max triple limits
     /// \[P4\] Constraining: Clear Boundaries — delegates to token-gated bridge
@@ -212,6 +214,7 @@ impl ConsolidationService {
     /// Count episodic consolidation candidates for a perspective.
     ///
     /// REQ: P3-mem-consolidation-service-candidate-count
+    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — reports how many episodic triples can be promoted
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count-only, graceful degradation on error
     /// pre:  perspective is a valid WebID
@@ -223,6 +226,7 @@ impl ConsolidationService {
     /// Count semantic triples at or below a confidence threshold.
     ///
     /// REQ: P3-mem-consolidation-service-low-confidence-count
+    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — reports low-confidence semantic triples for cleanup
     /// \[P9\] Constraining: Homeostatic Self-Regulation — threshold-driven pruning signal
     /// pre:  threshold in [0.0, 1.0]
@@ -235,6 +239,7 @@ impl ConsolidationService {
     /// Get current semantic triple count.
     ///
     /// REQ: P3-mem-consolidation-service-triple-count
+    /// expect: "The system bridges episodic experience into shared semantic memory" [P3]
     /// \[P3\] Motivating: Generative Space — reports total semantic memory size
     /// \[P9\] Constraining: Homeostatic Self-Regulation — count used for budget monitoring
     /// post: returns total count of triples in semantic memory

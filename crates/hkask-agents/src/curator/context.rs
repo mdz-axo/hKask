@@ -28,6 +28,7 @@ pub struct CuratorContext {
 
 impl CuratorContext {
     /// REQ: P9-agt-curator-context-new
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — CuratorContext bundles regulatory dependencies
     /// pre:  `handle` is a valid `CuratorHandle`; `cns` is a valid
     ///       `Arc<CnsRuntime>`; `curator_directive_tx` is `Some` or `None`;
@@ -53,6 +54,7 @@ impl CuratorContext {
     /// Create CuratorContext with a NuEvent store for algedonic review.
     ///
     /// REQ: P9-agt-curator-context-with-store
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — NuEvent store enables algedonic review
     /// pre:  All arguments are valid (same as `new`); `nu_event_store` is
     ///       a valid `Arc<NuEventStore>`.
@@ -78,6 +80,7 @@ impl CuratorContext {
     /// Builder: attach an A2A port for A2A bot-directed messaging.
     ///
     /// REQ: P9-agt-curator-context-with-a2a
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P4\] Motivating: Clear Boundaries — A2A port lets Curator direct bots
     /// pre:  `a2a_port` is a valid `Arc<dyn A2APort>`.
     /// post: Returns `self` with `a2a_port` set to `Some(a2a_port)`.
@@ -89,6 +92,7 @@ impl CuratorContext {
     /// Access the CuratorHandle (capability handle).
     ///
     /// REQ: P9-agt-curator-context-handle
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — accessor for the Curator capability handle
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `CuratorHandle`.
@@ -130,6 +134,7 @@ impl CuratorContext {
     /// When no channel is configured (e.g., standalone CLI), this is a no-op.
     ///
     /// REQ: P9-agt-curator-context-directive
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — issue directives to the Curation Loop
     /// pre:  `directive` is a valid `CuratorDirective`.
     /// post: If `curator_directive_tx` is `Some`, the directive is sent;

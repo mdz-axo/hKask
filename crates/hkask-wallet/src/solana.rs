@@ -664,6 +664,7 @@ mod integration_tests {
     }
 
     // REQ: P9-wallet-solana-chain-error-actor-test — chain_error emission uses caller-provided actor identity
+    /// expect: "Wallet solana chain error actor test works correctly under test conditions" [P9]
     #[test]
     fn emit_chain_error_uses_provided_actor() {
         let pubkey = "11111111111111111111111111111111";
@@ -686,6 +687,7 @@ mod integration_tests {
     }
 
     // REQ: P9-wallet-solana-build-withdrawal-tx-test — build_withdrawal_tx produces valid serialized payload
+    /// expect: "Wallet solana build withdrawal tx test works correctly under test conditions" [P9]
     #[test]
     fn build_withdrawal_tx_produces_valid_payload() {
         let port = devnet_port();
@@ -706,6 +708,7 @@ mod integration_tests {
     }
 
     // REQ: P9-wallet-solana-signing-roundtrip-test — full withdrawal flow round-trips through signing
+    /// expect: "Wallet solana signing roundtrip test works correctly under test conditions" [P9]
     #[test]
     fn withdrawal_payload_signing_roundtrip() {
         // SAFETY: test-only — sets master key env var in isolated test process.
@@ -740,6 +743,7 @@ mod integration_tests {
     }
 
     // REQ: P9-wallet-solana-submit-signed-tx-test — submit_signed_tx against devnet (ignored — needs funded treasury)
+    /// expect: "Wallet solana submit signed tx test works correctly under test conditions" [P9]
     #[test]
     #[ignore = "requires funded treasury on Solana devnet with USDC"]
     fn submit_withdrawal_to_devnet() {
@@ -801,6 +805,7 @@ mod integration_tests {
     }
 
     // REQ: P9-wallet-solana-monitor-deposits-test — monitor_deposits detects USDC transfer and extracts sender
+    /// expect: "Wallet solana monitor deposits test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn monitor_deposits_detects_usdc_transfer() {
         let server = wiremock::MockServer::start().await;

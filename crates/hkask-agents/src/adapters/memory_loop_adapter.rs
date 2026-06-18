@@ -146,6 +146,7 @@ impl MemoryLoopForwarder {
     /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
     ///
     /// REQ: P3-agt-memory-adapter-new
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — MemoryLoopForwarder wires episodic + semantic
     /// pre:  `episodic` is a valid `EpisodicMemory`; `semantic` is a valid
     ///       `SemanticMemory`.
@@ -157,6 +158,7 @@ impl MemoryLoopForwarder {
     /// Create with in-memory storage for testing.
     ///
     /// REQ: P3-agt-memory-adapter-in-memory
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — in-memory SQLite adapter for tests
     /// pre:  (none).
     /// post: Returns `Ok(Self)` with an in-memory SQLite database;
@@ -173,6 +175,7 @@ impl MemoryLoopForwarder {
     /// contexts, use `in_memory()` and propagate the error with `?`.
     ///
     /// REQ: P3-agt-memory-adapter-in-memory-unwrap
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P3\] Motivating: Generative Space — infallible in-memory constructor for tests
     /// pre:  (none).
     /// post: Returns `Self` with an in-memory database; panics if
@@ -184,6 +187,7 @@ impl MemoryLoopForwarder {
     /// Create from database path and passphrase (encrypted).
     ///
     /// REQ: P3-agt-memory-adapter-encrypted
+    /// expect: "The system loads and adapts agent registries for generative use" [P3]
     /// \[P1\] Motivating: User Sovereignty — encrypted on-disk memory adapter
     /// \[P4\] Constraining: Clear Boundaries — passphrase protects the store
     /// pre:  `path` is a valid filesystem path; `passphrase` is a

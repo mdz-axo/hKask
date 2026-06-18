@@ -83,6 +83,7 @@ pub struct MethodSignals {
 /// beyond what's needed for word splitting.
 ///
 /// REQ: P3-mem-salience-method-signals
+/// expect: "The system scores passage salience to gate triple storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — extracts cheap stylometric signals for method-aware retrieval
 /// \[P8\] Constraining: Semantic Grounding — signals are deterministic heuristics over raw text
 /// pre:  text is a valid &str
@@ -616,6 +617,7 @@ pub struct EntityTags {
 /// tags only (no duplicates within a category).
 ///
 /// REQ: P3-mem-salience-tag-entities
+/// expect: "The system scores passage salience to gate triple storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — tags passages with declared entities for the salience graph
 /// \[P8\] Constraining: Semantic Grounding — case-insensitive substring matching
 /// pre:  text is non-empty, entity lists are valid
@@ -650,6 +652,7 @@ impl EntityTags {
     /// All entity and method names as a single iterator for graph construction.
     ///
     /// REQ: P3-mem-salience-all-tags
+    /// expect: "The system scores passage salience to gate triple storage budget" [P3]
     /// \[P3\] Motivating: Generative Space — flattens entity categories for graph construction
     /// \[P5\] Constraining: Essentialism — minimal iterator over existing vectors
     /// post: returns iterator over all tag strings across all categories
@@ -666,6 +669,7 @@ impl EntityTags {
     /// Number of distinct tags across all categories.
     ///
     /// REQ: P3-mem-salience-tag-count
+    /// expect: "The system scores passage salience to gate triple storage budget" [P3]
     /// \[P3\] Motivating: Generative Space — counts distinct tags across all categories
     /// \[P5\] Constraining: Essentialism — simple sum of category lengths
     /// post: returns sum of lengths of all tag category vectors
@@ -710,6 +714,7 @@ impl EntityTags {
 /// Foundational rules (passages with zero tags) get salience 0.0.
 ///
 /// REQ: P3-mem-salience-compute-batch
+/// expect: "The system scores passage salience to gate triple storage budget" [P3]
 /// \[P3\] Motivating: Generative Space — scores passage salience to gate triple storage budget
 /// \[P9\] Constraining: Homeostatic Self-Regulation — graph centrality bounded by neighbor sampling
 /// pre:  all_tags is a slice of EntityTags
@@ -858,6 +863,7 @@ impl BudgetConfig {
     /// The constant 250 assumes ~250 passages ≈ 100 pages.
     ///
     /// REQ: P3-mem-salience-budget-resolve
+    /// expect: "The system scores passage salience to gate triple storage budget" [P3]
     /// \[P3\] Motivating: Generative Space — resolves passage count into absolute triple budget
     /// \[P9\] Constraining: Homeostatic Self-Regulation — budget caps generative storage growth
     /// pre:  passage_count ≥ 0
@@ -893,6 +899,7 @@ mod tests {
     use super::*;
 
     // REQ: P3-mem-salience-hemingway-test — compute_method_signals detects Hemingway-like prose (high parataxis, low adverb density, short sentences)
+    // expect: "Memory method signals detection works correctly under test conditions" [P3]
     #[test]
     fn method_signals_hemingway_like() {
         let text = "He drank the wine. It was good. He walked out into the rain.";
@@ -904,6 +911,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-wilde-test — compute_method_signals detects Wilde-like prose (high adjective/adverb/hedge/intensifier density)
+    // expect: "Memory method signals detection works correctly under test conditions" [P3]
     #[test]
     fn method_signals_wilde_like() {
         let text = "The utterly magnificent and beautifully ornate chandelier \
@@ -918,6 +926,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-declared-method-test — DeclaredMethod::matches correctly identifies when signals meet declared thresholds
+    // expect: "Memory declared method matching works correctly under test conditions" [P3]
     #[test]
     fn declared_method_matches() {
         let method = DeclaredMethod {
@@ -940,6 +949,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-zero-empty-test — salience is zero when entity tags are empty
+    // expect: "Memory salience computation works correctly under test conditions" [P3]
     #[test]
     fn salience_zero_for_empty_tags() {
         let tags = vec![EntityTags::default()];
@@ -949,6 +959,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-shared-entities-test — salience increases when passages share entities; isolated passages score zero
+    // expect: "Memory salience computation works correctly under test conditions" [P3]
     #[test]
     fn salience_increases_with_shared_entities() {
         // Three passages: two share "Jake", one isolated
@@ -973,6 +984,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-clustering-zero-test — clustering coefficient is zero when neighbors share no entities; bridge passages retain positive salience
+    // expect: "Memory clustering computation works correctly under test conditions" [P3]
     #[test]
     fn clustering_zero_when_neighbors_disconnected() {
         // Three passages each with a unique entity — no shared entities
@@ -1009,6 +1021,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-bridge-higher-test — bridge passages score higher than dense clique members due to lower clustering penalty
+    // expect: "Memory bridge scoring works correctly under test conditions" [P3]
     #[test]
     fn bridge_scores_higher_than_dense_clique() {
         // Four passages: A and B share entity X. C and D share entity Y.
@@ -1065,6 +1078,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-methods-graph-test — method tags participate in the salience graph alongside other entity types
+    // expect: "Memory methods graph works correctly under test conditions" [P3]
     #[test]
     fn methods_participate_in_graph() {
         let tags = vec![
@@ -1083,6 +1097,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-budget-per-page-test — PerPage budget resolves proportionally to passage count with a minimum floor
+    // expect: "Memory budget resolution works correctly under test conditions" [P3]
     #[test]
     fn budget_per_page_resolve() {
         let budget = BudgetConfig::PerPage {
@@ -1097,6 +1112,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-budget-absolute-test — Absolute budget always returns the fixed max_triples regardless of passage count
+    // expect: "Memory budget resolution works correctly under test conditions" [P3]
     #[test]
     fn budget_absolute() {
         let budget = BudgetConfig::Absolute { max_triples: 10000 };
@@ -1104,6 +1120,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-tag-case-insensitive-test — entity tagging is case-insensitive for characters and places
+    // expect: "Memory entity tagging works correctly under test conditions" [P3]
     #[test]
     fn entity_tagging_case_insensitive() {
         let text = "Jake Barnes walked through Paris in the rain.";
@@ -1113,6 +1130,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-dialogue-ratio-test — dialogue ratio is correctly detected from quoted text in compute_method_signals
+    // expect: "Memory dialogue ratio works correctly under test conditions" [P3]
     #[test]
     fn dialogue_ratio_detection() {
         let text = "\"I'm not drunk,\" he said. \"You are,\" she replied. The rain fell.";
@@ -1138,6 +1156,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-valid-range-test — Salience scores in valid range
+    // expect: "Memory salience range works correctly under test conditions" [P3]
     // All salience scores are in [0.0, 1.0] and function never panics.
     proptest! {
         #[test]
@@ -1157,6 +1176,7 @@ mod tests {
     }
 
     // REQ: P3-mem-salience-empty-tags-proptest — Empty tags produce zero salience
+    // expect: "Memory salience computation works correctly under test conditions" [P3]
     // Passages with no entity tags always score zero.
     proptest! {
         #[test]

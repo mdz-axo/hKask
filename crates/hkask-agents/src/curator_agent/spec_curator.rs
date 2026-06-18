@@ -38,6 +38,7 @@ pub struct DefaultSpecCurator {
 
 impl DefaultSpecCurator {
     /// REQ: P9-agt-curator-agent-spec-new
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — initialize spec curator with coherence threshold
     /// \[P7\] Constraining: Evolutionary Architecture — thresholds calibrated from observations
     /// pre:  `coherence_threshold` is in range [0.0, 1.0] (clamped).
@@ -68,6 +69,7 @@ impl DefaultSpecCurator {
     /// MDS §5: Coherence threshold calibration — FUT-013.
     ///
     /// REQ: P9-agt-curator-agent-spec-calibrate
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — calibrate threshold from historical coherence
     /// \[P7\] Constraining: Evolutionary Architecture — 25th-percentile heuristic emerged from usage
     /// pre:  `curation_store` is a valid `SqliteCurationRecordStore`.
@@ -115,6 +117,7 @@ impl DefaultSpecCurator {
     /// Logs the actual threshold values at construction time for post-hoc analysis.
     ///
     /// REQ: P9-agt-curator-agent-spec-with-config
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — apply explicit curation threshold config
     /// pre:  `config` is a valid `CurationThresholdConfig` with thresholds
     ///       in [0.0, 1.0] (clamped).
@@ -140,6 +143,7 @@ impl DefaultSpecCurator {
     /// Create with a custom drift threshold.
     ///
     /// REQ: P9-agt-curator-agent-spec-drift-threshold
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — drift threshold triggers escalation
     /// pre:  `threshold` is in range [0.0, 1.0] (clamped).
     /// post: Returns `self` with `drift_threshold` updated.
@@ -151,6 +155,7 @@ impl DefaultSpecCurator {
     /// Provide a `NuEventSink` for emitting algedonic events on drift escalation.
     ///
     /// REQ: P9-agt-curator-agent-spec-with-sink
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — emit algedonic events on drift escalation
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `event_sink` set to `Some(sink)`.
@@ -162,6 +167,7 @@ impl DefaultSpecCurator {
     /// Wire the direct spec event channel: SpecCurator → CurationLoop.
     ///
     /// REQ: P9-agt-curator-agent-spec-channel
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — wire spec events into CurationLoop
     /// pre:  `tx` is a valid `UnboundedSender<CurationInput>`.
     /// post: Returns `self` with `spec_tx` set to `Some(tx)`.
@@ -186,6 +192,7 @@ impl DefaultSpecCurator {
     /// during curation.
     ///
     /// REQ: P9-agt-curator-agent-spec-check
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — check spec coherence and emit drift alerts
     /// pre:  `spec_id` is a non-empty string; `categories` is a slice of
     ///       category name strings.

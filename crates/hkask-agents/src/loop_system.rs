@@ -56,6 +56,7 @@ pub const CURATION_TICK_SECS: u64 = 10;
 pub const DEFAULT_FALLBACK_TICK_SECS: u64 = 1;
 
 /// REQ: P9-agt-loop-id
+/// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
 /// \[P8\] Motivating: Semantic Grounding — LoopId names the regulatory loops
 /// pre:  `loop_id` is one of `Inference`, `Memory`, `Cybernetics`, or
 ///       `Curation`.
@@ -100,6 +101,7 @@ impl LoopSystem {
     /// Create a new LoopSystem.
     ///
     /// REQ: P9-agt-loop-system-new
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — LoopSystem orchestrates sense-act cycles
     /// \[P5\] Constraining: Essentialism — minimal registry + cancellation token
     /// pre:  (none).
@@ -125,6 +127,7 @@ impl LoopSystem {
     /// Customize the tick interval for a specific loop.
     ///
     /// REQ: P9-agt-loop-system-interval
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — configurable tick interval per loop
     /// \[P7\] Constraining: Evolutionary Architecture — intervals emerge from operational need
     /// pre:  `loop_id` is a valid `LoopId`; `interval` is a positive
@@ -142,6 +145,7 @@ impl LoopSystem {
     /// Multiple loops may share the same `LoopId`.
     ///
     /// REQ: P9-agt-loop-system-register
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — register loop instances under LoopId
     /// pre:  `loop_instance` is a valid `Arc<dyn HkaskLoop>`.
     /// post: The loop is added to the registry under its `LoopId`;
@@ -161,6 +165,7 @@ impl LoopSystem {
     /// Get the cancellation token for external cancellation.
     ///
     /// REQ: P9-agt-loop-system-cancel-token
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — cancellation token stops all loops
     /// pre:  (none — accessor).
     /// post: Returns a clone of the inner `CancellationToken`.
@@ -174,6 +179,7 @@ impl LoopSystem {
     /// `sense → compare → compute → act` cycle on a timer.
     ///
     /// REQ: P9-agt-loop-system-run
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — spawn tokio tasks for each loop
     /// pre:  Loops have been registered via `register_loop`.
     /// post: Spawns a tokio task per loop instance; each task ticks
@@ -232,6 +238,7 @@ impl LoopSystem {
     /// Authority DAG: Curation → Cybernetics → {Inference, Memory}
     ///
     /// REQ: P9-agt-loop-system-tick
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — single sense-compare-compute-act tick
     /// pre:  Loops have been registered.
     /// post: Each registered loop is ticked once in authority order;
@@ -250,6 +257,7 @@ impl LoopSystem {
     /// Run multiple regulation cycles.
     ///
     /// REQ: P9-agt-loop-system-run-ticks
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — run multiple ticks sequentially
     /// pre:  `max_ticks` > 0.
     /// post: Calls `tick()` `max_ticks` times sequentially; logs each
@@ -269,6 +277,7 @@ impl LoopSystem {
     /// Signal all loop tasks to stop.
     ///
     /// REQ: P9-agt-loop-system-stop
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — idempotent stop signal
     /// pre:  (none — idempotent).
     /// post: The cancellation token is triggered; all spawned tick tasks
@@ -281,6 +290,7 @@ impl LoopSystem {
     /// Total number of loop instances across all IDs.
     ///
     /// REQ: P9-agt-loop-system-count
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P8\] Motivating: Semantic Grounding — count of registered loop instances
     /// pre:  (none).
     /// post: Returns the sum of `Vec::len()` across all entries in the
@@ -292,6 +302,7 @@ impl LoopSystem {
     /// Get the IDs of all registered loops.
     ///
     /// REQ: P9-agt-loop-system-ids
+    /// expect: "The system regulates agent behavior through cybernetic feedback" [P9]
     /// \[P8\] Motivating: Semantic Grounding — list registered loop IDs
     /// pre:  (none).
     /// post: Returns a `Vec<LoopId>` containing all keys currently in

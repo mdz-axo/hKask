@@ -45,6 +45,7 @@ pub(crate) struct ConsentRecord {
 
 impl ConsentRecord {
     /// REQ: P2-agt-consent-record-new
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — consent record starts empty and active
     /// \[P1\] Constraining: User Sovereignty — record is bound to user WebID
     /// pre:  `webid` is a non-empty string.
@@ -62,6 +63,7 @@ impl ConsentRecord {
     }
 
     /// REQ: P2-agt-consent-record-grant
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — explicit grant adds a data category
     /// pre:  `category` is a non-empty string.
     /// post: `category` is added to `granted_categories`; `active` is set
@@ -73,6 +75,7 @@ impl ConsentRecord {
     }
 
     /// REQ: P2-agt-consent-record-revoke
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — revocation terminates consent
     /// pre:  (none — revoke is always valid).
     /// post: `revoked_at` is set to the current UTC timestamp;
@@ -83,6 +86,7 @@ impl ConsentRecord {
     }
 
     /// REQ: P2-agt-consent-record-is-active
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — active iff not revoked
     /// pre:  (none).
     /// post: Returns `true` iff `active == true` AND `revoked_at` is `None`.
@@ -91,6 +95,7 @@ impl ConsentRecord {
     }
 
     /// REQ: P2-agt-consent-record-has-category
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — category check enforces scoped grant
     /// pre:  `category` is a non-empty string.
     /// post: Returns `true` iff the record is active AND `category` is
@@ -147,6 +152,7 @@ impl ConsentManager {
     /// Create a new consent manager backed by the given store.
     ///
     /// REQ: P2-agt-consent-manager-new
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — manager caches active consent records
     /// pre:  `store` is a valid, initialized `ConsentStore`.
     /// post: Returns a `ConsentManager` with an empty in-memory cache;
@@ -173,6 +179,7 @@ impl ConsentManager {
     /// # REQ: OPEN_QUESTIONS §2.2 — consent denial CNS instrumentation.
     ///
     /// REQ: P2-agt-consent-manager-with-sink
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — CNS instrumentation for denials (observability only, no feedback)
     /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
     /// post: Returns `self` with `event_sink` set to `Some(sink)`.
@@ -234,6 +241,7 @@ impl ConsentManager {
     /// Grant consent for a data category.
     ///
     /// REQ: P2-agt-consent-manager-grant
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — persist a scoped grant
     /// pre:  `webid` is a non-empty string; `category` is a valid
     ///       `DataCategory` variant.
@@ -267,6 +275,7 @@ impl ConsentManager {
     /// Revoke all consent for a WebID.
     ///
     /// REQ: P2-agt-consent-manager-revoke
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — revoke all consent for a WebID
     /// pre:  `webid` is a non-empty string.
     /// post: If a record exists for `webid`, it is revoked and persisted;
@@ -291,6 +300,7 @@ impl ConsentManager {
     /// providing observability without opening a feedback path.
     ///
     /// REQ: P2-agt-consent-manager-check
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — terminal deny unless active grant exists
     /// \[P1\] Constraining: User Sovereignty — check is per-user/data-category
     /// pre:  `webid` is a non-empty string; `category` is a valid
@@ -345,6 +355,7 @@ impl ConsentManager {
     /// Get all granted categories for a WebID.
     ///
     /// REQ: P2-agt-consent-manager-granted-categories
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     /// \[P2\] Motivating: Affirmative Consent — list granted categories for disclosure
     /// pre:  `webid` is a non-empty string.
     /// post: Returns `Ok(Vec<String>)` containing all granted category
@@ -375,6 +386,7 @@ mod tests {
     use super::*;
 
     // REQ: P2-agt-consent-record-new-test — new ConsentRecord starts active with empty grants
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     #[test]
     fn consent_record_new_has_correct_defaults() {
         let record = ConsentRecord::new("user:alice");
@@ -386,6 +398,7 @@ mod tests {
     }
 
     // REQ: P2-agt-consent-record-grant-test — grant() adds category, sets active, clears revoked_at
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     #[test]
     fn consent_record_grant_adds_category_and_activates() {
         let mut record = ConsentRecord::new("user:alice");
@@ -400,6 +413,7 @@ mod tests {
     }
 
     // REQ: P2-agt-consent-record-revoke-test — revoke() sets revoked_at and deactivates
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     #[test]
     fn consent_record_revoke_sets_inactive() {
         let mut record = ConsentRecord::new("user:alice");
@@ -414,6 +428,7 @@ mod tests {
     }
 
     // REQ: P2-agt-consent-record-has-category-test — has_category() only true when active and granted
+    /// expect: "Agent consent is explicitly granted, scoped, and revocable" [P2]
     #[test]
     fn consent_record_has_category_only_when_active_and_granted() {
         let mut record = ConsentRecord::new("user:alice");

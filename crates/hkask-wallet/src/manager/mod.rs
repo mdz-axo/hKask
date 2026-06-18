@@ -42,6 +42,7 @@ mod withdrawals;
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
 ///
 /// REQ: P9-wallet-mgr-struct
+/// expect: "The system manages rJoule balances, encumbrances, and energy-based payments" [P9]
 /// \[P9\] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
 /// \[P1\] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
 /// inv: wallet_seed is zeroized on drop (Zeroizing wrapper)
@@ -67,6 +68,7 @@ impl WalletManager {
     /// Build a WalletManager from configuration, store, chain/privacy ports, and price feed.
     ///
     /// REQ: P9-wallet-mgr-build
+    /// expect: "The system manages rJoule balances, encumbrances, and energy-based payments" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — wallet is the energy regulation anchor
     /// \[P1\] Constraining: User Sovereignty — wallet_seed is user-owned and zeroized
     /// pre:  config is valid, store is initialized, chains is non-empty
@@ -125,6 +127,7 @@ impl WalletManager {
     /// Get the current rJoule balance for a wallet.
     ///
     /// REQ: P9-wallet-mgr-balance
+    /// expect: "I can query my rJoule balance" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — balance is the cybernetic state
     /// \[P8\] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically
     /// pre:  wallet_id is a valid WalletId
@@ -148,6 +151,7 @@ impl WalletManager {
     /// Returns `None` if the key doesn't exist or has been revoked.
     ///
     /// REQ: P9-wallet-mgr-api-key-get
+    /// expect: "The system manages API key issuance with spending limits and expiry" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — API key health state for feedback loops
     /// \[P4\] Constraining: Clear Boundaries — revoked keys are excluded
     /// pre:  key_id is a valid ApiKeyId
@@ -240,6 +244,7 @@ impl WalletManager {
         let nonce: [u8; 16] = rand::random();
         let expiry = Utc::now() + validity_duration;
         // REQ: P9-wallet-mgr-deposit-ref-nonce — HKDF context includes nonce to bind reference to its specific random nonce
+        // expect: "The system generates unique deposit references for attribution" [P9]
         let context = format!(
             "hkask:deposit-ref:{}:{}:{}:{}",
             wallet_id,
@@ -439,6 +444,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-gas-conversion-test — gas_to_rjoules converts correctly
+    /// expect: "Wallet mgr gas conversion test works correctly under test conditions" [P9]
     #[test]
     fn gas_to_rjoules_conversion() {
         let mgr = make_manager();
@@ -448,6 +454,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-rjoules-to-gas-test — rjoules_to_gas converts correctly
+    /// expect: "Wallet mgr rjoules to gas test works correctly under test conditions" [P9]
     #[test]
     fn rjoules_to_gas_conversion() {
         let mgr = make_manager();
@@ -456,6 +463,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-fee-estimate — estimate_withdrawal_fee uses configured price feed
+    /// expect: "I can estimate withdrawal fees before initiating a withdrawal" [P9]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — fee estimate enables cost-aware withdrawal
     /// \[P8\] Constraining: Semantic Grounding — derived from live/native USD rate
     #[tokio::test]
@@ -472,6 +480,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-can-afford-test — can_afford checks balance
+    /// expect: "Wallet mgr can afford test works correctly under test conditions" [P9]
     #[test]
     fn can_afford_checks_balance() {
         let mgr = make_manager();
@@ -482,6 +491,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-reserve-rejects-test — reserve_rjoules rejects insufficient balance
+    /// expect: "Wallet mgr reserve rejects test works correctly under test conditions" [P9]
     #[test]
     fn reserve_rejects_insufficient_balance() {
         let mgr = make_manager();
@@ -492,6 +502,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-settle-debits-test — settle_rjoules debits actual cost
+    /// expect: "Wallet mgr settle debits test works correctly under test conditions" [P9]
     #[test]
     fn settle_debits_actual_cost() {
         let mgr = make_manager();
@@ -504,6 +515,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-deposit-ref-gen-test — deposit reference generation and verification
+    /// expect: "Wallet mgr deposit ref gen test works correctly under test conditions" [P9]
     #[test]
     fn deposit_reference_generation() {
         let mgr = make_manager();
@@ -548,6 +560,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-balance-conservation-pbt — Balance conservation under encumbrance lifecycle (P4, P9)
+    /// expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
     // After any sequence of credit, encumber, consume, and release operations:
     // - Wallet balance = total_credited - total_consumed (conservation)
     // - Total consumed ≤ total credited (can't spend more than deposited)
@@ -555,6 +568,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig { max_shrink_iters: 0, .. ProptestConfig::with_cases(64) })]
         // REQ: P9-wallet-mgr-balance-conservation-pbt — balance conservation under encumbrance lifecycle
+        /// expect: "Wallet mgr balance conservation pbt works correctly under test conditions" [P9]
         #[test]
         fn balance_conservation_under_encumbrance_lifecycle(
             credits in prop::collection::vec(arbitrary_rjoule(), 1..10),
@@ -661,6 +675,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-deposit-monitor-idempotent-test — deposit monitor credits balance and is idempotent
+    /// expect: "Wallet mgr deposit monitor idempotent test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn deposit_monitor_credits_and_is_idempotent() {
         // SAFETY: test-only
@@ -752,6 +767,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-multi-chain-deposit-test — poll_deposits_once processes deposits from multiple chains
+    /// expect: "Wallet mgr multi chain deposit test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn poll_deposits_once_multi_chain() {
         // SAFETY: test-only
@@ -847,6 +863,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-payment-lifecycle-test — full payment lifecycle: deposit → encumber → consume → report
+    /// expect: "Wallet mgr payment lifecycle test works correctly under test conditions" [P9]
     #[test]
     fn end_to_end_payment_lifecycle() {
         // SAFETY: test-only
@@ -927,6 +944,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-encumbrance-state-machine-test — EncumbranceStatus state machine: Released cannot transition back to Active
+    /// expect: "Wallet mgr encumbrance state machine test works correctly under test conditions" [P9]
     // Proves that once an encumbrance is released, no operation can re-activate it.
     #[test]
     fn encumbrance_status_state_machine_no_released_to_active() {
@@ -1012,6 +1030,7 @@ mod tests {
     // ── Withdrawal pipeline tests ─────────────────────────────────────────
 
     // REQ: P9-wallet-mgr-withdraw-pipeline-test — withdraw full pipeline: debit → build → sign → submit → record
+    /// expect: "Wallet mgr withdraw pipeline test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_full_pipeline_success() {
         // SAFETY: test-only
@@ -1067,6 +1086,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-withdraw-insufficient-test — withdraw rejects insufficient balance
+    /// expect: "Wallet mgr withdraw insufficient test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_rejects_insufficient_balance() {
         // SAFETY: test-only
@@ -1113,6 +1133,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-withdraw-unsupported-chain-test — withdraw rejects unsupported chain
+    /// expect: "Wallet mgr withdraw unsupported chain test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_rejects_unsupported_chain() {
         // SAFETY: test-only
@@ -1161,6 +1182,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-shielded-withdraw-privacy-test — shielded Hinkal withdrawal uses privacy adapter path
+    /// expect: "Wallet mgr shielded withdraw privacy test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn withdraw_shielded_hinkal_uses_privacy_path() {
         let mgr = make_manager_with_hinkal_privacy();
@@ -1194,6 +1216,7 @@ mod tests {
     }
 
     // REQ: P9-wallet-mgr-shielded-deposit-test — shield_assets routes through privacy port with zero rJoule delta
+    /// expect: "Wallet mgr shielded deposit test works correctly under test conditions" [P9]
     #[tokio::test]
     async fn shield_assets_uses_privacy_path() {
         let mgr = make_manager_with_hinkal_privacy();

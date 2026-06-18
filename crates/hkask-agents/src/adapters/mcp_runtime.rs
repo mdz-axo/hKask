@@ -79,6 +79,7 @@ impl CapabilityOnlyAdapter {
     /// Create a capability-only adapter with the given checker.
     ///
     /// REQ: P4-agt-mcp-capability-adapter-new
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — capability-only adapter gates tools without runtime
     /// pre:  `checker` is a valid `Arc<CapabilityChecker>`.
     /// post: Returns a `CapabilityOnlyAdapter` with the given checker;
@@ -136,6 +137,7 @@ impl FullMcpAdapter {
     /// handle for bridging sync→async calls.
     ///
     /// REQ: P4-agt-mcp-full-adapter-new
+    /// expect: "Agent interactions are gated by OCAP boundaries" [P4]
     /// \[P4\] Motivating: Clear Boundaries — full adapter combines capability checker + MCP runtime
     /// pre:  `checker` is a valid `Arc<CapabilityChecker>`; `runtime` is
     ///       a valid `Arc<McpRuntime>`; `handle` is a valid tokio runtime
