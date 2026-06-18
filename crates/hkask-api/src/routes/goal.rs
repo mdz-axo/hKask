@@ -137,10 +137,10 @@ pub(crate) async fn list_goals(
 )]
 pub(crate) async fn set_goal_state(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
 ) -> Result<Json<GoalResponse>, ServiceErrorResponse> {
-    let goal = hkask_services::GoalService::set_goal_state(&state.agent_service, &id, &req.state)?;
+    let goal = hkask_services::GoalService::set_goal_state(&state.agent_service, &id, &req.state, &auth.webid)?;
     Ok(Json(goal.into()))
 }

@@ -18,6 +18,10 @@ use hkask_types::{
 use serde_json::Value;
 use std::sync::Arc;
 
+mod kata;
+mod verification;
+mod comments;
+
 /// Core kanban coordination service.
 ///
 /// Persists boards and tasks as RDF triples in a TripleStore.
@@ -970,55 +974,11 @@ impl KanbanService {
 
     // ── Comments (mini-REPL per task) ─────────────────────────────────
 
-    /// Append a comment to a task.
-    ///
-    /// REQ: KAN-SVC-030
-    /// pre:  task_id is valid; author is valid WebID; body is non-empty
-    /// post: comment is appended to the task's comment thread
-    pub fn task_comment(
-        &self,
-        task_id: TaskId,
-        author: WebID,
-        body: &str,
-    ) -> Result<Comment, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
-        let comment = Comment::new(task_id, author, body.to_string());
-        task.comments.push(comment.clone());
-        task.updated_at = chrono::Utc::now();
-        self.update_task_triple(&task)?;
-        Ok(comment)
-    }
-
-    /// List all comments on a task.
-    ///
-    /// REQ: KAN-SVC-031
-    /// pre:  task_id is a valid TaskId
-    /// post:      /// post: returns Ok(Vec<Comment>) or Err(KanbanError)
-    pub fn task_comments(&self, task_id: TaskId) -> Result<Vec<Comment>, KanbanError> {
-        let task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
-        Ok(task.comments)
-    }
+    // Moved to comments.rs.
 
     // ── Deliverables (file path / URL links) ──────────────────────────
 
-    /// Add a deliverable link to a task.
-    ///
-    /// REQ: KAN-SVC-032
-    /// pre:  task_id is valid; path is a non-empty file path or URL
-    /// post: path is appended to the task's deliverable list
-    pub fn task_add_deliverable(&self, task_id: TaskId, path: &str) -> Result<Task, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
-        task.deliverables.push(path.to_string());
-        task.updated_at = chrono::Utc::now();
-        self.update_task_triple(&task)?;
-        Ok(task)
-    }
+    // Moved to comments.rs.
 
     // ── Phases ────────────────────────────────────────────────────────
 
@@ -1296,93 +1256,9 @@ impl KanbanService {
         Ok(fixes)
     }
 
-    /// Generate a structured prompt for LLM-mediated verification.
-    ///
-    /// REQ: KAN-SVC-050
-    /// pre:  task_id refers to a task in Review with acceptance criteria
-    /// post: returns a prompt that, when fed to an LLM, produces structured verification JSON
-    pub fn verification_prompt(
-        &self,
-        task_id: TaskId,
-        evidence: &str,
-    ) -> Result<String, KanbanError> {
-        let task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+    // ── LLM Verification ──────────────────────────────────────────────
 
-        if task.criteria.is_empty() {
-            return Err(KanbanError::InvalidInput(
-                "Task has no acceptance criteria".into(),
-            ));
-        }
-
-        let criteria_text: Vec<String> = task
-            .criteria
-            .iter()
-            .enumerate()
-            .map(|(i, c)| format!("{}. {}", i + 1, c.description))
-            .collect();
-
-        Ok(format!(
-            "Verify whether this task satisfies its acceptance criteria.
-
-             Task: {title}
-             Evidence: {evidence}
-
-             Criteria:
-{criteria}
-
-             Return JSON with: passed (bool), reasoning (string),              criteria_results (array of objects with: criterion, satisfied, evidence_found, feedback).              Be rigorous. A criterion is satisfied ONLY if concrete evidence exists.",
-            title = task.title,
-            evidence = evidence,
-            criteria = criteria_text.join("
-"),
-        ))
-    }
-
-    /// Apply an LLM verification response to a task.
-    ///
-    /// REQ: KAN-SVC-051
-    /// pre:  task_id refers to a task in Review; llm_json is valid verification JSON
-    /// post: task.verification is set; task moves to Done if passed
-    pub fn verify_with_llm(
-        &self,
-        task_id: TaskId,
-        verifier: WebID,
-        llm_json: &str,
-    ) -> Result<(Task, Verification), KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
-
-        if task.status != TaskStatus::Review {
-            return Err(KanbanError::InvalidTransition {
-                task: task_id,
-                from: task.status,
-                to: TaskStatus::Done,
-            });
-        }
-
-        let parsed: serde_json::Value = serde_json::from_str(llm_json)
-            .map_err(|e| KanbanError::InvalidInput(format!("Invalid LLM JSON: {e}")))?;
-
-        let passed = parsed["passed"].as_bool().unwrap_or(false);
-        let reasoning = parsed["reasoning"]
-            .as_str()
-            .unwrap_or("No reasoning provided")
-            .to_string();
-
-        let verification = Verification::new(passed, reasoning, verifier);
-        task.verification = Some(verification.clone());
-
-        if passed {
-            task.status = TaskStatus::Done;
-        }
-        task.updated_at = chrono::Utc::now();
-        self.update_task_triple(&task)?;
-
-        Ok((task, verification))
-    }
+    // Moved to verification.rs.
 
     // ── Kata Integration (task-scoped scientific thinking) ──────────
 

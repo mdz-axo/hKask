@@ -54,7 +54,8 @@ pub fn list(state: Option<&str>) -> Result<(), ServiceError> {
 /// post: delegates to GoalService::set_goal_state
 pub fn set_state(id: &str, state: &str) -> Result<(), ServiceError> {
     let ctx = super::helpers::build_service_context();
-    let goal = GoalService::set_goal_state(&ctx, id, state)?;
+    let owner = hkask_types::WebID::from_persona(b"cli-user");
+    let goal = GoalService::set_goal_state(&ctx, id, state, &owner)?;
     println!("Goal {} -> {}", goal.id, goal.state);
     Ok(())
 }

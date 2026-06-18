@@ -37,12 +37,6 @@ impl ConversationContext {
     }
 }
 
-/// Protocol trait for improv modes — each mode implements respond().
-pub trait ImprovProtocol {
-    fn respond(&self, contribution: &Contribution, context: &ConversationContext)
-    -> ImprovResponse;
-}
-
 /// A single turn in a conversation — the atomic unit of improv interaction.
 #[derive(Debug, Clone)]
 pub struct Contribution {
