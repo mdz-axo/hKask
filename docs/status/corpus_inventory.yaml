@@ -1431,16 +1431,16 @@ documents:
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 summary:
-  total_documents: 83
-  active_aligned: 63
+  total_documents: 84
+  active_aligned: 64
   active_partial: 4
   stale: 2
   missing: 4
   na: 14
   disposition_create: 4
-  disposition_keep: 79
+  disposition_keep: 80
   drift_by_verdict:
-    aligned: 50
+    aligned: 51
     partial: 4
     missing: 4
     stale: 2

@@ -34,7 +34,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |----|------|-------|----------|--------|----------|
 | **P1-01** | Requirements specification | Architect | High | ✅ Complete | `do../specifications/specs/REQUIREMENTS.md` |
 | **P1-02** | Traceability matrix | Architect | Medium | ✅ Complete | `do../specifications/specs/TRACEABILITY_MATRIX.md` |
-| **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 28 diagrams, 8 V1.1+ candidates |
+| **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 30 diagrams, 5 V1.1+ candidates |
 | **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6); note: ADR-023 superseded by ADR-027, ADR-028 archived (deferred), ADR-029 archived (superseded) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
 | **P1-06** | Citation compliance audit | Curator | Medium | ✅ Complete | 9 target docs compliant (2026-06-11); 12 additional docs pending |

@@ -3,7 +3,7 @@
 //! Namespace: cns.* (canonical observability namespace)
 //! Key spans: cns.tool.*, cns.prompt.*, cns.inference.*, cns.agent_pod.*, cns.connector.*, cns.pipeline.*, cns.gas.*, cns.review.*, cns.template.*, cns.curation.*, cns.variety.*, cns.sovereignty.*, cns.goal.*, cns.spec.*
 
-// G2 Justification: This module exposes 8 public items because it defines CNS types — CnsSpan (51 variants), ToolSubsystem, QueueDepth, CircuitState, CnsHealth, SeamCoverage, SeamInventory, RetryConfig. CnsSpan alone carries 51 canonical namespace variants. Submodule split planned for v0.28.0.
+// G2 Justification: This module exposes 8 public items because it defines CNS types — CnsSpan (77 variants), ToolSubsystem, QueueDepth, CircuitState, CnsHealth, SeamCoverage, SeamInventory, RetryConfig. CnsSpan alone carries 77 canonical namespace variants. Submodule split planned for v0.28.0.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

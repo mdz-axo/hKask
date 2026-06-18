@@ -124,7 +124,7 @@ All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, 
 | Check | Script | Result | Date |
 |-------|--------|--------|------|
 | Link checker | `docs/ci/check-links.sh` | ✅ Pass (266 links, 0 broken) | 2026-06-14 |
-| Metadata checker | `docs/ci/check-metadata.sh` | ✅ Pass (73 docs, 0 missing, 0 warnings) | 2026-06-14 |
+| Metadata checker | `docs/ci/check-metadata.sh` | ✅ Pass (56 docs, 0 missing, 2 warnings) | 2026-06-14 |
 | Version sync | `docs/ci/sync-versions.sh --dry-run` | ✅ Pass (0 pending updates, 11 excluded) | 2026-06-14 |
 
 **All CI gates pass.** The previous `ddmvss_categories` check was migrated to `mds_categories` (5-category MDS taxonomy). No documents use the deprecated 9-category taxonomy.
@@ -133,7 +133,7 @@ All gates are wired into `.github/workflows/ci.yml` as the `quality-gates` job, 
 
 ## Code Drift
 
-See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml).
+See [`corpus_inventory.yaml`](corpus_inventory.yaml) for full document lifecycle classification and drift verdicts.
 
 **All 14 drift items resolved (2026-06-12).** Zero remaining spec_ahead, code_ahead, or divergent items.
 
