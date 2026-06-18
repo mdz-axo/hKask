@@ -170,6 +170,7 @@ pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
 mod tests {
     use super::*;
 
+    // REQ: tpl-vocab-test-sorted — KNOWN_TERMS list must maintain alphabetical order
     #[test]
     fn known_terms_are_sorted() {
         for w in KNOWN_TERMS.windows(2) {
@@ -182,6 +183,7 @@ mod tests {
         }
     }
 
+    // REQ: tpl-vocab-test-duplicates — KNOWN_TERMS list must not contain duplicates
     #[test]
     fn known_terms_no_duplicates() {
         for w in KNOWN_TERMS.windows(2) {
