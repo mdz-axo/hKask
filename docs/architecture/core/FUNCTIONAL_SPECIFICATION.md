@@ -629,7 +629,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 | FR-IT029 | `P9-inf-test-deepinfra-live-summary` | `deepinfra_summarization()` |
 | FR-IT030 | `P9-inf-test-together-live-summary` | `together_summarization()` |
 
-> **Note:** The original handoff estimated ~87 inference contract occurrences; the actual source contains **58 production** and **30 test** unique contract IDs. Backend constructors and the router constructor are P4 (boundary); all other production contracts and all tests are P9 (homeostatic). Cloud-only deployment — no local Ollama backend.
+> **Note:** The original handoff estimated ~87 inference contract occurrences; the actual source contains **58 production** and **30 test** unique contract IDs. Backend constructors and the router constructor are P4 (boundary); all other production contracts and all tests are P9 (homeostatic). Cloud-only deployment.
 
 ### 3.5 Templates (`hkask-templates`)
 
@@ -1078,7 +1078,7 @@ The following domains are **new — not yet implemented**:
 - `hkask-agents` is **complete** as of this revision: `P1-agt-*`, `P2-agt-*`, `P3-agt-*`, `P4-agt-*`, `P9-agt-*`.
 - `hkask-storage` is **complete** as of this revision: `P1-sto-*`, `P2-sto-*`, `P3-sto-*`, `P4-sto-*`, `P8-sto-*`.
 - `hkask-memory` is **complete** as of this revision: `P3-mem-*`.
-- `hkask-inference` is **complete** as of this revision: `P9-inf-*`, `P4-inf-*`. Cloud-only — Ollama backend removed.
+- `hkask-inference` is **complete** as of this revision: `P9-inf-*`, `P4-inf-*`. Cloud-only.
 - `hkask-services` is **not yet realigned**: still contains `SVC-*`, `svc-*`, `MUST-*`, `MDS-*`, `BACKUP-*`, `lifecycle-*`, `services-settings-*`, and bare `P9`/`P3` IDs.
 
 ---
@@ -1108,7 +1108,7 @@ The following domains are **new — not yet implemented**:
 - [x] Contract ID format specification complete
 - [x] Non-CNS domain contracts (wallet) — realigned to `P9-wallet-*`
 - [x] Non-CNS domain contracts (memory) — realigned to `P3-mem-*`
-- [x] Non-CNS domain contracts (inference) — realigned to `P9-inf-*` / `P4-inf-*`, cloud-only (Ollama removed)
+- [x] Non-CNS domain contracts (inference) — realigned to `P9-inf-*` / `P4-inf-*`, cloud-only
 - [x] Non-CNS domain contracts (templates) — realigned to `P3-tpl-*`
 - [x] rSolidity contract vocabulary derivation and macro crate — see `RSOLIDITY_VOCABULARY.md`
 - [x] Web Interface specification — OAuth, xterm.js terminal, WebSocket PTY (planned — see `docs/plans/deployment-and-backup.md`)

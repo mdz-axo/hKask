@@ -192,10 +192,10 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 
 | Strategy | Details |
 |----------|---------|
-| **Primary seam** | `WebID`, `NuEvent`, `HLexicon` public APIs |
+| **Primary seam** | `WebID`, `NuEvent` public APIs |
 | **Test type** | Unit: type construction, parsing, validation. Contract: serialization round-trips |
 | **Key invariant** | Lexicon round-trips (markdown → YAML → loaded vocabulary) |
-| **Anti-pattern** | Testing internal hashmap structure of `HLexicon` |
+| **Anti-pattern** | Testing internal hashmap structure of lexicon types |
 
 ### 7.2 Capability (REQ-CAP-*)
 

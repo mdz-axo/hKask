@@ -64,7 +64,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 - Individual methods are self-documenting: `svc.pod_manager()` is clearer than `let (_, _, pm, _) = svc.coordination()`
 - Two small tuples remain where the pair is always used together: `memory()` (episodic + semantic always co-accessed) and `identity()` (WebID + A2A runtime always co-accessed)
 
-### 1.3 hLexicon Allocation
+### 1.3 Vocabulary Allocation
 
 | Term | Domain | Definition |
 |------|--------|-----------|

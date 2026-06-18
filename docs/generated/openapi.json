@@ -644,7 +644,7 @@
           "models"
         ],
         "summary": "List all available models from all configured providers.",
-        "description": "Queries Ollama, DeepInfra, fal.ai, and Together AI and returns metadata for each\navailable model with provider prefix applied. Returns an empty list if\nno providers are reachable (graceful degradation).",
+        "description": "Queries DeepInfra, fal.ai, and Together AI and returns metadata for each\navailable model with provider prefix applied. Returns an empty list if\nno providers are reachable (graceful degradation).",
         "operationId": "list_models",
         "responses": {
           "200": {
@@ -4131,7 +4131,7 @@
       },
       "TemplateResponse": {
         "type": "object",
-        "description": "Template response \u2014 a registered skill template in the WordAct / FlowDef / KnowAct taxonomy (Pattern A).\n\n`template_type` is one of: WordAct, FlowDef, KnowAct.\n`lexicon_terms` maps the template to canonical hLexicon vocabulary terms.",
+        "description": "Template response \u2014 a registered skill template in the WordAct / FlowDef / KnowAct taxonomy (Pattern A).\n\n`template_type` is one of: WordAct, FlowDef, KnowAct.\n`lexicon_terms` maps the template to canonical vocabulary terms.",
         "required": [
           "id",
           "template_type",
@@ -4154,7 +4154,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Canonical hLexicon terms this template implements"
+            "description": "Canonical vocabulary terms this template implements"
           },
           "name": {
             "type": "string",
@@ -4442,7 +4442,7 @@
   "tags": [
     {
       "name": "templates",
-      "description": "Template registry \u2014 WordAct / FlowDef / KnowAct skills in the hLexicon taxonomy (Pattern A)"
+      "description": "Template registry \u2014 WordAct / FlowDef / KnowAct skills in the vocabulary taxonomy (Pattern A)"
     },
     {
       "name": "bots",
@@ -4462,7 +4462,7 @@
     },
     {
       "name": "models",
-      "description": "Multi-provider model catalog (Ollama, DeepInfra, fal.ai, Together AI) \u2014 discover and search available LLMs"
+      "description": "Multi-provider model catalog (DeepInfra, fal.ai, Together AI) \u2014 discover and search available LLMs"
     },
     {
       "name": "curator",

@@ -340,13 +340,11 @@ documents:
     disposition: keep
 
   # ── Architecture Reference ─────────────────────────────────────────────────
-  - path: docs/architecture/reference/hKask-hLexicon.md
+  - path: docs/architecture/reference/hKask-Curator-persona.md
     category: reference
     status: Active
     last_updated: 2026-06-15
     version: "0.27.0"
-    mds_categories: [domain]
-    staleness_signal: none
     drift_verdict: aligned
     code_artifacts: [crates/hkask-types/]
     governing_principles: [P8]

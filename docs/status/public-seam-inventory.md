@@ -96,7 +96,6 @@ Each public item is classified:
 | fn | `estimated_cost_for_hours` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:59 | 🔴 Core Logic | 🟢 |
 | fn | `estimated_setup_cost` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:64 | 🔴 Core Logic | 🟢 |
 | fn | `new` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:36 | 🟢 Accessor/Constructor | 🟢 |
-| fn | `ollama` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:193 | 🔴 Core Logic | 🟢 |
 | fn | `runpod` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:132 | 🔴 Core Logic | 🟢 |
 | fn | `runpod` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:170 | 🔴 Core Logic | 🟢 |
 | fn | `together` | hkask-adapter::provider_cost | crates/hkask-adapter/src/provider_cost.rs:121 | 🔴 Core Logic | 🟢 |
@@ -2859,8 +2858,6 @@ Each public item is classified:
 | fn | `validate` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:212 | 🔴 Core Logic | 🟢 |
 | fn | `with_citation` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:159 | 🟢 Accessor/Constructor | 🟢 |
 | fn | `with_mds_category` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:167 | 🟢 Accessor/Constructor | 🟢 |
-| struct | `HLexicon` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:175 | 🟡 Type Declaration | 🟢 |
-| struct | `LexiconTerm` | hkask-types::lexicon | crates/hkask-types/src/lexicon.rs:130 | 🟡 Type Declaration | 🟢 |
 | enum | `ActionType` | hkask-types::loops::actions | crates/hkask-types/src/loops/actions.rs:25 | 🟡 Type Declaration | 🔴 |
 | fn | `new` | hkask-types::loops::actions | crates/hkask-types/src/loops/actions.rs:14 | 🟢 Accessor/Constructor | 🟢 |
 | struct | `LoopAction` | hkask-types::loops::actions | crates/hkask-types/src/loops/actions.rs:7 | 🟡 Type Declaration | 🔴 |

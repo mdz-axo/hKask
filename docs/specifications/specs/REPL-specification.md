@@ -129,7 +129,7 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 14. Populate tool prompt section from MCP runtime discovery
 15. Load persona constraints and process manifest for initial agent
 
-**Note:** The WebID arrives from the server via `--webid` (derived from OAuth identity). Onboarding no longer includes a "skip, use local Ollama" path — the cloud server has no local GPU inference. Model selection during onboarding uses the server's configured inference providers. All state (config, memory, history) is scoped to the authenticated WebID.
+**Note:** The WebID arrives from the server via `--webid` (derived from OAuth identity). Onboarding uses the server's configured inference providers (cloud-only). All state (config, memory, history) is scoped to the authenticated WebID.
 
 ## 4. Input Loop
 

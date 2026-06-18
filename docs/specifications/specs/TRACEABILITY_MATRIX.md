@@ -24,7 +24,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-DOM-001 | Bounded context identity | `hkask-types` | `id`, `event`, `agent_def` | `WebID`, `NuEvent`, `AgentDefinition` | — | ✅ Implemented |
 | REQ-DOM-002 | ν-event observability primitive | `hkask-types` | `event` | `NuEvent`, `Span`, `NuEventSink` | — | ✅ Implemented |
-| REQ-DOM-003 | Vocabulary grounding | `hkask-types`, `hkask-templates` | `lexicon` | `HLexicon`, `load_lexicon_from_yaml` | `hkask-templates::lexicon` module tests | ✅ Implemented |
+| REQ-DOM-003 | Vocabulary grounding | `hkask-types`, `hkask-templates` | `lexicon` | `load_lexicon_from_yaml` | `hkask-templates::lexicon` module tests | ✅ Implemented |
 | REQ-DOM-004 | Lexicon single-source derivation (markdown → YAML, explicit regen, drift test) | `hkask-templates` | `lexicon` | `load_lexicon_from_yaml`, `load_lexicon_default` | `hkask-templates::lexicon` module tests | ✅ Implemented |
 
 ## Capability

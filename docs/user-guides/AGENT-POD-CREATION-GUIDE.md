@@ -1218,7 +1218,6 @@ kask pod deactivate <pod-id>
 
 - [ ] `agent_persona.yaml` — Agent identity and capabilities
 - [ ] `dispatch_manifest.yaml` — Workflow definition
-- [ ] `hlexicon.yaml` — Domain terms (optional)
 - [ ] `templates/selectors/selector.j2` — Template selector
 - [ ] `templates/prompts/*.j2` — Prompt templates
 - [ ] `templates/processes/*.yaml` — Process templates
