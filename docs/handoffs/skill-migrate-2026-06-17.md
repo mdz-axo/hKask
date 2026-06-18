@@ -66,8 +66,8 @@ The 29 non-governance SKILL.md files still have body content written under the o
 ### MEDIUM: Reverse-Translation Validation
 The `skill-translator-reverse.j2` template exists but has not been validated end-to-end. Take a registry-only skill (e.g., `curator` with 6 templates), run it through reverse translation, and verify the generated SKILL.md is usable by the Zed agent.
 
-### MEDIUM: hLexicon Term Population
-The 27 auto-generated manifests have placeholder descriptions and empty `lexicon_terms`. Cross-reference template bodies against `registry/hlexicon/hlexicon-workspace.yaml` to populate proper hLexicon terms. This is a documentation-quality task, not blocking.
+### MEDIUM: Vocabulary Term Population
+The 27 auto-generated manifests have placeholder descriptions and empty `lexicon_terms`. Cross-reference template bodies against the known vocabulary (`crates/hkask-templates/src/vocabulary.rs` `KNOWN_TERMS`) to populate proper terms. This is a documentation-quality task, not blocking.
 
 ### LOW: Infrastructure Directory Cleanup
 6 directories (`chat-template`, `cns`, `git`, `inference`, `memory`, `registry`) are infrastructure config dirs, not template crates. They contain selectors, YAML configs, and Jinja2 utility files -- no `[inference]` frontmatter. They either need `manifest.yaml` files declaring their non-template role, or a decision that they're intentionally manifest-free infrastructure.

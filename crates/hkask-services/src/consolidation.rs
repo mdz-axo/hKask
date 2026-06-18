@@ -59,7 +59,7 @@ pub fn db_path_for_agent(webid: &WebID) -> String {
 /// pre:  passphrase must be non-empty; server passphrase must be configured in keystore
 /// post: returns the expected passphrase string on match; Err(Keystore) if not configured; Err(InvalidPassphrase) if mismatch
 pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
-    let expected = hkask_keystore::resolve_db_passphrase().map_err(|_| ServiceError::Keystore {
+    let expected = hkask_keystore::keychain::resolve_db_passphrase().map_err(|_| ServiceError::Keystore {
         source: None,
         message: "Server passphrase not configured".into(),
     })?;

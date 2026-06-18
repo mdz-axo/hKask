@@ -345,7 +345,7 @@ Before a document is merged:
 
 All architecture documents MUST map to at least one of the 5 MDS categories defined in [`../architecture/MDS.md`](../../architecture/core/MDS.md) §1:
 
-1. **Domain** — Bounded context, ν-events, entities, hLexicon terms
+1. **Domain** — Bounded context, ν-events, entities
 2. **Composition** — Registry, cascade rules, template types, MCP/CLI/API surfaces, equivalence matrix
 3. **Trust** — Threat model, OCAP boundaries, keystore, capability tokens, attenuation policy
 4. **Lifecycle** — Bootstrap, evolution, deprecation, CNS spans, variety counters, storage schema, memory pipelines, encryption
@@ -381,7 +381,7 @@ The verification checklist (§10) is extended with MDS alignment checks:
 
 | Category | Required Content | Verification |
 |----------|-----------------|--------------|
-| **Domain** | Bounded context, ν-event types, entity definitions | hLexicon terms allocated |
+| **Domain** | Bounded context, ν-event types, entity definitions | Terms allocated |
 | **Composition** | Registry schema, cascade rules, template types, surface definitions, equivalence matrix | Template types documented; MCP ≡ CLI ≡ API verified |
 | **Trust** | Threat model, mitigations, keystore config, OCAP policy, attenuation rules | STRIDE-lite analysis complete; capability grant table present |
 | **Lifecycle** | Bootstrap sequence, evolution rules, deprecation policy, CNS span registry, storage schema, encryption config | All operations emit spans; bitemporal semantics documented |

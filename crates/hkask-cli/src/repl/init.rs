@@ -97,7 +97,7 @@ pub(super) fn init_repl_state(
         Some(secrets) => {
             // Onboarding provides A2A + DB secrets. MCP secret is resolved
             // separately since ResolvedSecrets doesn't carry it.
-            let mcp_secret = hkask_keystore::resolve_mcp_secret()
+            let mcp_secret = hkask_keystore::keychain::resolve_mcp_secret()
                 .map(|s| String::from_utf8_lossy(&s).to_string())
                 .unwrap_or_else(|_| "hkask-mcp-default".to_string());
             hkask_services::ServiceConfig::from_secrets(

@@ -236,9 +236,9 @@ thinking_budget = "full"
 {{ input_variable }}
 ```
 
-### Step 5: Validate hLexicon terms
+### Step 5: Validate vocabulary terms
 
-Cross-reference every `lexicon_terms` and `hlexicon_terms` entry against `registry/hlexicon/hlexicon-workspace.yaml`.
+Cross-reference every `lexicon_terms` entry against the known vocabulary (`crates/hkask-templates/src/vocabulary.rs` `KNOWN_TERMS`). Unknown terms are logged as warnings at registration.
 
 ### Step 6: Validate registry crate
 

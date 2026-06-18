@@ -517,7 +517,7 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 | R3.2 | SpecStore bitemporal semantics | Persistence | **Resolved** — 4 bitemporal query methods + recorded_at column + list_curation_records_since. 6 tests. Updated 2026-06-08 | MDS §11 #2 |
 | R3.3 | Spec signing (Ed25519) | Trust | **Resolved** — Ed25519SpecSigner implemented | MDS §11 #3 |
 | R3.4 | Spec capability tokens (spec:read, spec:write, spec:compose) | Capability | **Resolved** — CapabilityChecker::grant_spec() implemented | MDS §11 #4 |
-| R3.5 | hLexicon spec-curation terms bootstrapping | Domain | **Resolved** (partially bootstrapped) | Audit §2.3 |
+| R3.5 | Spec-curation terms bootstrapping | Domain | **Resolved** (partially bootstrapped) | Audit §2.3 |
 | R3.6 | MCP≡CLI≡API cross-surface equivalence test | Interface | ⚠️ Deferred | MDS §11 #6 |
 | R3.7 | Curation authority OCAP boundary integration | Trust | ⚠️ Deferred | — |
 | R3.8 | Curation records persistence | Persistence | **Resolved** (partial) — SqliteCurationRecordStore exists. Not yet wired into evaluate(). | MDS §11 #8 |

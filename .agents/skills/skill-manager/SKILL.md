@@ -93,7 +93,7 @@ Build the registry crate first (canonical), then generate SKILL.md from it.
 
 1. **Confirm scope**: Project-local (default) or global
 2. **Choose name**: User confirms. Lowercase-hyphenated, 2–40 chars. No `hkask-`, `cns-`, `mcp-` prefixes.
-3. **Derive hLexicon terms**: From description, pick 3–8 terms from `registry/hlexicon/hlexicon-workspace.yaml`
+3. **Derive vocabulary terms**: From description, pick 3–8 terms from the known vocabulary (`crates/hkask-templates/src/vocabulary.rs` `KNOWN_TERMS`)
 4. **Create registry crate** — `registry/templates/<name>/`:
    - `manifest.yaml`:
      ```yaml

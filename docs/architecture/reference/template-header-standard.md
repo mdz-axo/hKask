@@ -1,5 +1,5 @@
 ---
-title: "Template Header Standard — hLexicon Functional Roles"
+title: "Template Header Standard — Functional Roles"
 audience: [developers, template authors]
 last_updated: 2026-06-15
 version: "0.27.0"
@@ -8,7 +8,7 @@ domain: "Application"
 mds_categories: [composition]
 ---
 
-# Template Header Standard — hLexicon Functional Roles
+# Template Header Standard — Functional Roles
 
 standard:
   # Required Header Format (Jinja2 templates)
@@ -97,7 +97,6 @@ standard:
   governance:
     new_template:
       - Add standard header with functional_role
-      - Update subsystem hLexicon registry
       - Run validation script
       - Verify 100% compliance
     
@@ -105,7 +104,6 @@ standard:
       - Run validation script
       - Review functional distribution
       - Identify and fix missing headers
-      - Update workspace hLexicon registry
     
     compliance_target: 100%
     current_compliance: 43%  # Measured at time of writing; re-run validation script for current figure
@@ -117,8 +115,6 @@ standard:
 [^jinja2]: Ronacher, A. (2026). *Jinja2 Documentation*. <https://jinja.palletsprojects.com/>.
 
 [^minijinja]: Mitsuhiko. (2026). *minijinja: Jinja2-compatible template engine for Rust*. <https://github.com/mitsuhiko/minijinja>.
-
-[^hKask-hLexicon]: hKask Project. (2026). *hKask-hLexicon.md*. `/home/mdz-axolotl/Clones/hKask/docs/architecture/hKask-hLexicon.md`. Functional role definitions.
 
 [^hKask-templates]: hKask Project. (2026). *crates/hkask-templates/src/registry_sqlite.rs*. Template registry implementation.
 

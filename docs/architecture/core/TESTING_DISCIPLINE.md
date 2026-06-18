@@ -142,8 +142,8 @@ The contract chain (§2.3, item 4) requires contracts on ALL called functions to
 
 ## 3. Ontology — Testing Vocabulary
 
-| Term | Definition | hLexicon Domain |
-|------|-----------|-----------------|
+| Term | Definition | Domain |
+|------|-----------|--------|
 | **Seam** | A public interface (`pub` trait, `pub` fn, `pub` struct with `pub` methods) that is the test surface | FlowDef |
 | **Contract** | A behavioral specification on a seam: preconditions, postconditions, invariants (Meyer, 1986) | KnowAct |
 | **Invariant** | A behavioral property that must hold for all valid inputs or across all operations on a type | KnowAct |
@@ -194,7 +194,7 @@ Each MDS category has a distinct testing emphasis. The contract defines *what* t
 |----------|---------|
 | **Primary seam** | `WebID`, `NuEvent`, `HLexicon` public APIs |
 | **Test type** | Unit: type construction, parsing, validation. Contract: serialization round-trips |
-| **Key invariant** | hLexicon round-trips (markdown → YAML → loaded vocabulary) |
+| **Key invariant** | Lexicon round-trips (markdown → YAML → loaded vocabulary) |
 | **Anti-pattern** | Testing internal hashmap structure of `HLexicon` |
 
 ### 7.2 Capability (REQ-CAP-*)

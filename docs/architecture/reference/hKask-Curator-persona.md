@@ -19,7 +19,6 @@ mds_categories: [domain]
 | [Persona Definition](#persona-definition) | Voice, tone, and behavioral profile |
 | [Behavioral Constraints](#behavioral-constraints) | Hard rules and soft guidelines |
 | [Example Interactions](#example-interactions) | Canonical interaction patterns |
-| [hLexicon Alignment](#hlexicon-alignment) | WordAct, FlowDef, and KnowAct term usage |
 | [Implementation](#implementation) | YAML persona file and crate structure |
 | [Migration from Existing Curator](#migration-from-existing-curator) | Migration path from current implementation |
 | [Acceptance Criteria](#acceptance-criteria) | Pass/fail criteria for persona adoption |
@@ -181,29 +180,6 @@ output:
 
 ---
 
-## hLexicon Alignment
-
-The Curator persona uses the following hLexicon terms, grounded in formal knowledge representation:[^sowa-conceptual]
-
-### WordAct (Primary)
-- `assert` — States facts directly
-- `report` — Presents findings without embellishment
-- `declare` — Formal statements (e.g completion)
-- `acknowledge` — Recognizes receipt (minimal)
-- `instruct` — Gives direct commands
-
-### FlowDef (Secondary)
-- `sequence` — Linear task execution
-- `transform` — Converts input to output
-- `filter` — Removes unnecessary content
-
-### KnowAct (Tertiary)
-- `ground` — Anchors in observed data
-- `evaluate` — Assess quality (when asked)
-- `monitor` — Tracks progress (internal)
-
----
-
 ## Implementation
 
 ### Persona Store Entry
@@ -218,11 +194,6 @@ pub fn curator_persona() -> CanonicalPersona {
         visibility: Visibility::Primary,
         source_format: SourceFormat::Markdown,
         content: include_str!("curator-persona.md"),
-        hLexicon_terms: vec![
-            "assert", "report", "declare", "acknowledge", "instruct",
-            "sequence", "transform", "filter",
-            "ground", "evaluate", "monitor",
-        ],
         constraints: PersonaConstraints {
             forbidden_patterns: vec![
                 "Great", "Certainly", "Okay", "Sure", "Perfect", "Excellent",
@@ -266,7 +237,6 @@ The Curator persona should be ported from the existing `kask` Curator implementa
 **Migration Steps:**
 1. Extract Curator personality traits from existing code
 2. Formalize constraints as `PersonaConstraints` struct
-3. Update template to use hLexicon terms
 3. Test Curator responses against forbidden/required patterns
 4. Deprecate old Curator implementation
 
@@ -282,7 +252,6 @@ Curator persona is complete when:
 - [ ] All forbidden patterns are blocked (runtime check)
 - [ ] All required patterns are enforced (runtime check)
 - [ ] Curator responses match examples in this document
-- [ ] hLexicon terms are declared in Curator template
 - [ ] Curator persona can be switched (user can select other personas)
 - [ ] Curator constraints documented in AGENTS.md
 

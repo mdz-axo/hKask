@@ -22,11 +22,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | # | Category | Completeness Predicate | Min Artifacts | Cross-References |
 |---|----------|----------------------|---------------|-----------------|
-| 1 | **Domain** | Every entity has a named term in hLexicon and a bounded-context map | hLexicon allocation, domain ontology sketch | → Composition (verbs), → Lifecycle (persistence) |
+| 1 | **Domain** | Every entity has a named term and a bounded-context map | Domain ontology sketch | → Composition (verbs), → Lifecycle (persistence) |
 | 2 | **Composition** | Every domain verb has a granted composition, registered interface, and composable path | Capability grant table, interface equivalence matrix, registry schema | → Domain (ontology), → Trust (tokens) |
 | 3 | **Trust** | Every capability operation has a threat-model entry and an OCAP-bound mitigation | Threat model, keystore config, capability attenuation policy | → Composition (capabilities), → Lifecycle (audit) |
 | 4 | **Lifecycle** | Bootstrap, evolution, deprecation, lifecycle, and persistence are expressible as spec transitions | Bootstrap manifest, evolution rules, deprecation policy, CNS span registry | → Domain (entities), → Trust (audit) |
-| 5 | **Curation** | Every spec artifact has been evaluated for coherence by a curator with documented rationale | Curation decision log, coherence score | → Domain (hLexicon grounding), → Lifecycle (health) |
+| 5 | **Curation** | Every spec artifact has been evaluated for coherence by a curator with documented rationale | Curation decision log, coherence score | → Domain (grounding), → Lifecycle (health) |
 
 [^evans-ddd]: Evans, Eric. *Domain-Driven Design: Tackling Complexity in the Heart of Software.* Addison-Wesley, 2003. — Bounded contexts, ubiquitous language, and the domain model that MDS categories extend.
 
@@ -61,13 +61,13 @@ Curation decisions (Accept/Revise/Reject) are made by the Curator or human — n
 
 Five tools. Implemented in `hkask-mcp-spec` with OCAP governance. Three curation tools (evaluate, reconcile, cultivate) were deleted as agent-hallucinated curation logic. One tool (bind) was deleted because OCAP boundaries are declared inline during goal capture, not attached separately. Curation decisions remain external to the spec server.
 
-| # | Tool | Input | Output | hLexicon Terms | Status |
+| # | Tool | Input | Output | Status |
 |---|------|-------|--------|----------------|--------|
-| 1 | `spec/goal/capture` | `{description, context}` | `{goal_id, requirements[], ocap_boundaries}` | `specify`, `elicit`, `require`, `constrain` | ✅ Implemented |
-| 2 | `spec/goal/decompose` | `{goal_id}` | `{sub_goals[], dependencies[]}` | `decompose`, `sequence` | ✅ Implemented |
-| 3 | `spec/require/writing-quality` | `{spec_id}` | `{dimensions_passing, meets_publication_standard}` | `evaluate` | ✅ Implemented |
-| 4 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | `recognize`, `match` | ✅ Implemented |
-| 5 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | `ground` | ✅ Implemented |
+| 1 | `spec/goal/capture` | `{description, context}` | `{goal_id, requirements[], ocap_boundaries}` | ✅ Implemented |
+| 2 | `spec/goal/decompose` | `{goal_id}` | `{sub_goals[], dependencies[]}` | ✅ Implemented |
+| 3 | `spec/require/writing-quality` | `{spec_id}` | `{dimensions_passing, meets_publication_standard}` | ✅ Implemented |
+| 4 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | ✅ Implemented |
+| 5 | `spec/graph/coherence` | `{collection_id}` | `{coherence_score, violations[], suggestions[]}` | ✅ Implemented |
 
 ### Additional Tool Surfaces
 
@@ -112,29 +112,7 @@ The planned `replica_discover` tool would orchestrate this pipeline:
 
 ---
 
-## 4. hLexicon Extension — Spec Terms
-
-| Term | Domain | Definition |
-|------|--------|-----------|
-| `specify` | WordAct | Articulate a goal as a binding requirement |
-| `elicit` | WordAct | Draw out user intent as structured input |
-| `require` | WordAct | Assert a goal as a non-negotiable constraint |
-| `decompose` | FlowDef | Break a goal into ordered sub-goals |
-| `sequence` | FlowDef | Arrange sub-goals into execution order |
-| `constrain` | FlowDef | Attach OCAP boundaries to a goal |
-| `curate` | KnowAct | Evaluate an artifact for collection coherence |
-| `contextualise` | KnowAct | Situate an artifact within its meaningful environment |
-| `replicate` | WordAct | Generate prose in a stylistic replica of an author's voice |
-| `embed_corpus` | WordAct | Convert an author's works into a vector embedding corpus |
-| `mashup` | WordAct | Blend two authorial styles via centroid interpolation |
-| `compare` | KnowAct | Measure stylistic distance between author centroids |
-| `reconcile` | KnowAct | Resolve goal tensions without collapsing them |
-
-[^hlexicon]: hKask Team. (2026). *hLexicon — Canonical Vocabulary.* `docs/architecture/reference/hKask-hLexicon.md` — the 87-term vocabulary that grounds all MDS spec terms.
-
----
-
-## 5. Capability-Driven Model
+## 4. Capability-Driven Model
 
 MDS is capability-driven, not constraint-driven:
 
@@ -151,7 +129,7 @@ MDS is capability-driven, not constraint-driven:
 
 ---
 
-## 6. MDS Cycle
+## 5. MDS Cycle
 
 ```
 MDS_cycle(S, D) :=
@@ -169,11 +147,11 @@ The spec server handles capture → decompose → quality → coherence. Curatio
 
 ---
 
-## 7. Template Manifests
+## 6. Template Manifests
 
 Each category has a minimal YAML template. All use `schema_version: "0.27.0"`.
 
-### 7.1 Domain Spec Template
+### 6.1 Domain Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -185,10 +163,6 @@ ontology:
   entities:
     - name: Agent
       attributes: [webid, capabilities, persona]
-  hlexicon_allocation:
-    word_act_terms: [...]
-    flow_def_terms: [...]
-    know_act_terms: [...]
 
 focusing_assumptions:
   - id: FA-D1
@@ -196,7 +170,7 @@ focusing_assumptions:
     rationale: "..."
 
 completeness_checklist:
-  - "Every entity has a named hLexicon term"
+  - "Every entity has a named term"
   - "Bounded-context map exists"
 
 cross_references:
@@ -206,7 +180,7 @@ cross_references:
     relation: "Entity state persisted across lifecycle"
 ```
 
-### 7.2 Composition Spec Template
+### 6.2 Composition Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -237,7 +211,7 @@ ocap_policy:
   token_ttl_seconds: 3600
 ```
 
-### 7.3 Trust Spec Template
+### 6.3 Trust Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -263,7 +237,7 @@ keystore:
   storage: OS_keychain + SQLCipher
 ```
 
-### 7.4 Lifecycle Spec Template
+### 6.4 Lifecycle Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -306,7 +280,7 @@ persistence:
       visibility: public
 ```
 
-### 7.5 Curation Spec Template
+### 6.5 Curation Spec Template
 
 ```yaml
 schema_version: "0.27.0"
@@ -332,7 +306,7 @@ coherence_metric:
 
 ---
 
-## 8. Testing Protocol
+## 7. Testing Protocol
 
 ### Principles
 
@@ -345,7 +319,7 @@ coherence_metric:
 
 | Category | Test Strategy |
 |----------|--------------|
-| Domain | Entity definition + hLexicon term validation |
+| Domain | Entity definition + term validation |
 | Composition | Capability composition + interface equivalence verification |
 | Trust | OCAP boundary enforcement + threat model audit |
 | Lifecycle | Bootstrap + evolution + deprecation + CNS span emission |
@@ -355,7 +329,7 @@ coherence_metric:
 
 ---
 
-## 9. References
+## 8. References
 
 [^w3c-rdf]: W3C. (2014). *RDF 1.1 Concepts and Abstract Syntax*. <https://www.w3.org/TR/rdf11-concepts/>.
 [^miller-robust]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.

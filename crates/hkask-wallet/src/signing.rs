@@ -19,7 +19,7 @@
 //! It does NOT sign deposit transactions (user's primary wallet signs those).
 
 use ed25519_dalek::Signer;
-use hkask_keystore::resolve_treasury_key;
+use hkask_keystore::keychain::resolve_treasury_key;
 use hkask_types::wallet::{ApiKeyCapability, ChainId, WalletError};
 use zeroize::Zeroizing;
 
@@ -123,7 +123,7 @@ fn sign_bytes(chain: ChainId, bytes: &[u8]) -> Result<Vec<u8>, WalletError> {
 /// # Returns
 /// 64-byte Ed25519 signature as a hex-encoded string (128 hex chars).
 pub fn sign_capability(capability: &ApiKeyCapability) -> Result<String, WalletError> {
-    hkask_keystore::sign_api_key_capability(capability)
+    hkask_keystore::keychain::sign_api_key_capability(capability)
         .map_err(|e| WalletError::Infra(hkask_types::InfrastructureError::Database(e.to_string())))
 }
 

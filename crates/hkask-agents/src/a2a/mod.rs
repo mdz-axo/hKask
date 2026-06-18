@@ -377,7 +377,7 @@ impl A2ARuntime {
 
         // Derive using HKDF-SHA256 with agent WebID as domain separator
         let context = format!("hkask:a2a-agent:{}", agent_webid);
-        let derived = hkask_keystore::derive_sub_key(self.secret.as_ref(), &context);
+        let derived = hkask_keystore::master_key::derive_sub_key(self.secret.as_ref(), &context);
         let arc_key = Arc::new(derived);
 
         // Cache the derived key
@@ -626,7 +626,7 @@ impl Default for A2ARuntime {
     /// `hkask_keystore::resolve_a2a_secret()` directly and handle the
     /// `Result` instead of using `Default::default()`.
     fn default() -> Self {
-        let secret = hkask_keystore::resolve_a2a_secret().expect(
+        let secret = hkask_keystore::keychain::resolve_a2a_secret().expect(
             "A2A secret not available. Run `kask chat` to complete onboarding, \
                  or set HKASK_MASTER_KEY or HKASK_A2A_SECRET.",
         );

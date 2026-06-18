@@ -24,7 +24,7 @@ mds_categories: [domain, composition, curation]
 
 **We know** action minimization is the selection mechanism that governs what happens next in physical reality. This is not a hypothesis — it is the principle from which classical mechanics, optics, and field theory are derived. Hamilton's principle (δS = 0) is not a description of what systems *tend* to do; it is the law that *selects* which path reality takes among all possible paths.
 
-**We accommodate least action through pragmatics.** Pragmatics — the context-dependent layer of meaning that sits on top of syntax and semantics — is the logical shim that adjusts for the fact that communication seeks the path of least action. We don't say everything explicitly; we rely on implicature, shared context, and common ground to minimize the information that must be transmitted. This is not a convention — it is the same selection mechanism operating in information space. The condenser is pragmatic compression: preserve what is pragmatically relevant, discard what is pragmatically redundant. Context windows are pragmatic scope: how much shared ground to maintain for efficient communication. The hLexicon is pragmatic grounding: a controlled vocabulary that reduces the action cost of establishing referents. Templates are pragmatic frames: pre-built structure that reduces the action cost of generation.
+**We accommodate least action through pragmatics.** Pragmatics — the context-dependent layer of meaning that sits on top of syntax and semantics — is the logical shim that adjusts for the fact that communication seeks the path of least action. We don't say everything explicitly; we rely on implicature, shared context, and common ground to minimize the information that must be transmitted. This is not a convention — it is the same selection mechanism operating in information space. The condenser is pragmatic compression: preserve what is pragmatically relevant, discard what is pragmatically redundant. Context windows are pragmatic scope: how much shared ground to maintain for efficient communication. Templates are pragmatic frames: pre-built structure that reduces the action cost of generation.
 
 **We track and manage least action through the energy system.** The energy/gas budgeting infrastructure (`EnergyBudget`, `EnergyCost`, gas caps, replenishment rates, backpressure) is not merely a resource management mechanism — it is the system's attempt to track and manage action in computational space. Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. The budget cap is the maximum action the system allows per session. The replenishment rate is the cybernetic analog of a system settling back toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. Backpressure is the governing dynamic asserting itself: when the system approaches its action budget, it resists further expenditure. The `EnergyDelta` type makes explicit what the energy system was already implicitly tracking: whether the system is moving toward or away from stationary action.
 
@@ -58,17 +58,16 @@ Extracted from the least action principle and Coopersmith's treatment, classifie
 | 14 | `⟨Pragmatics⟩ ⟨isLogicalShimFor⟩ ⟨LeastAction⟩` | IS | Subjunctive | Implicit (communication theory) |
 | 15 | `⟨Condenser⟩ ⟨performs⟩ ⟨PragmaticCompression⟩` | IS | Declarative | Directly Stated (condenser design) |
 | 16 | `⟨ContextWindow⟩ ⟨defines⟩ ⟨PragmaticScope⟩` | IS | Declarative | Directly Stated (context_turns setting) |
-| 17 | `⟨HLexicon⟩ ⟨provides⟩ ⟨PragmaticGrounding⟩` | IS | Declarative | Directly Stated (controlled vocabulary) |
-| 18 | `⟨Templates⟩ ⟨provide⟩ ⟨PragmaticFrames⟩` | IS | Declarative | Directly Stated (registry design) |
-| 19 | `⟨EnergyBudget⟩ ⟨tracks⟩ ⟨ComputationalAction⟩` | IS | Declarative | Directly Stated (energy.rs) |
-| 20 | `⟨EnergyCost⟩ ⟨measures⟩ ⟨OperationAction⟩` | IS | Declarative | Directly Stated (energy.rs) |
-| 21 | `⟨ReplenishmentRate⟩ ⟨models⟩ ⟨StationaryReturn⟩` | IS | Subjunctive | Implicit (cybernetics loop) |
-| 22 | `⟨Backpressure⟩ ⟨asserts⟩ ⟨ActionBoundary⟩` | IS | Declarative | Directly Stated (backpressure signal) |
-| 23 | `⟨GasCap⟩ ⟨defines⟩ ⟨MaximumAction⟩` | IS | Declarative | Directly Stated (gas_cap setting) |
+| 17 | `⟨Templates⟩ ⟨provide⟩ ⟨PragmaticFrames⟩` | IS | Declarative | Directly Stated (registry design) |
+| 18 | `⟨EnergyBudget⟩ ⟨tracks⟩ ⟨ComputationalAction⟩` | IS | Declarative | Directly Stated (energy.rs) |
+| 19 | `⟨EnergyCost⟩ ⟨measures⟩ ⟨OperationAction⟩` | IS | Declarative | Directly Stated (energy.rs) |
+| 20 | `⟨ReplenishmentRate⟩ ⟨models⟩ ⟨StationaryReturn⟩` | IS | Subjunctive | Implicit (cybernetics loop) |
+| 21 | `⟨Backpressure⟩ ⟨asserts⟩ ⟨ActionBoundary⟩` | IS | Declarative | Directly Stated (backpressure signal) |
+| 22 | `⟨GasCap⟩ ⟨defines⟩ ⟨MaximumAction⟩` | IS | Declarative | Directly Stated (gas_cap setting) |
 
-### 1.2 hLexicon Mapping
+### 1.2 Vocabulary Mapping
 
-**Existing terms that overlap semantically** (from `registry/hlexicon/hlexicon-workspace.yaml`):
+**Existing terms that overlap semantically** (from `crates/hkask-templates/src/vocabulary.rs`):
 
 | Term | Domain | Definition | Lazy Universe Connection |
 |------|--------|------------|--------------------------|
@@ -393,12 +392,7 @@ pub fn action_threshold(&self) -> f64 {
 }
 ```
 
-### 4.5 hLexicon Additions
-
-8 new terms added to `registry/hlexicon/hlexicon-workspace.yaml`:
-`minimize`, `equilibrium`, `homeostasis`, `converge`, `stationary_action`, `variational_principle`, `gradient_descent`, `energy_landscape`
-
-### 4.6 Test Results
+### 4.5 Test Results
 
 ```
 cargo test -p hkask-cns -p hkask-services -p hkask-mcp-condenser
@@ -427,7 +421,7 @@ New tests:
 | P3 — Generative Space | Action threshold is user-tunable via profile selection | ✅ Lazy universe is a tuning knob, not a restriction |
 | P4 — Clear Boundaries (OCAP) | CNS spans for lazy universe metrics are OCAP-gated | ✅ Observability, not enforcement |
 
-### 5.2 hLexicon Consistency
+### 5.2 Vocabulary Consistency
 
 All new terms (`stationary_action`, `variational_principle`, `gradient_descent`, `energy_landscape`, `minimize`, `equilibrium`, `homeostasis`, `converge`) are registered in the KnowAct domain with definitions consistent with their usage in PRINCIPLES.md and code documentation.
 
@@ -526,7 +520,7 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 |--------|-----------------|--------------------------|
 | Compression ratio | bytes_out / bytes_in | How much explicit information was discarded because context carried it |
 | Context efficiency | pragmatic_content / total_content | How much of the message is "new" information vs. information already in shared ground |
-| hLexicon hit rate | terms_resolved / terms_used | How often the controlled vocabulary eliminated the need for explicit definition |
+| Vocabulary hit rate | terms_resolved / terms_used | How often the controlled vocabulary eliminated the need for explicit definition |
 | Template reuse rate | template_applications / total_responses | How often pragmatic frames reduced generation cost |
 | Context window utilization | context_turns_used / context_turns_available | How efficiently shared ground is being leveraged |
 
@@ -584,7 +578,7 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 | `crates/hkask-services/src/deletion_test.rs` | New file (~207 lines) | 4.3 |
 | `crates/hkask-services/src/lib.rs` | +deletion_test module + DeletionTest export | 4.3 |
 | `mcp-servers/hkask-mcp-condenser/src/types.rs` | +action_threshold() + 2 tests | 4.4 |
-| `registry/hlexicon/hlexicon-workspace.yaml` | +8 new terms | 1.2 |
+| `crates/hkask-templates/src/vocabulary.rs` | +8 new terms | 1.2 |
 | `docs/architecture/lazy-universe-research.md` | This document | 1–6 |
 
 ## Appendix B: Test Inventory

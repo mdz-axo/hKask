@@ -129,7 +129,7 @@ impl Registry {
         Ok(())
     }
 
-    /// Register a template entry. ContractValidator performs passthrough validation.
+    /// Register a template entry. Validates lexicon_terms against known vocabulary.
     ///
     /// Unknown terms are logged as warnings (Warn mode).
     /// The registry performs declaration-consistency checks at registration time;
@@ -144,6 +144,12 @@ impl Registry {
         let warnings = entry.validate();
         for warning in &warnings {
             tracing::warn!(target: "hkask.templates", "Registration warning: {}", warning);
+        }
+
+        // Validate lexicon_terms against known vocabulary
+        let vocab_warnings = crate::vocabulary::validate_entry(&entry);
+        for warning in &vocab_warnings {
+            tracing::warn!(target: "hkask.templates", "{}", warning);
         }
 
         self.templates.insert(entry.id.clone(), entry);

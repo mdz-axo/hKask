@@ -73,7 +73,6 @@ by [MDS](architecture/core/MDS.md) category. 59 active documents. ℏKask v0.27.
 
 | Document | Description |
 |----------|-------------|
-| [`hKask-hLexicon.md`](architecture/reference/hKask-hLexicon.md) | 87-term vocabulary catalog |
 | [`ports-inventory.md`](architecture/reference/ports-inventory.md) | Hexagonal port inventory |
 | [`okapi-integration.md`](architecture/reference/okapi-integration.md) | Inference Router API contract |
 | [`utoipa-implementation.md`](architecture/reference/utoipa-implementation.md) | OpenAPI generation guide |

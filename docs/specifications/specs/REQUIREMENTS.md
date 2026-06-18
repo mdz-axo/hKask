@@ -65,34 +65,30 @@ Curation: Merge | Revise | Defer | Discard
 - **Status:** Implemented
 - **Curation:** Merge
 
-### REQ-DOM-003: hLexicon Vocabulary Grounding
+### REQ-DOM-003: Vocabulary Grounding
 
 - **Category:** Domain
 - **Text:** When authoring templates or specifications, I want a bounded vocabulary, so I can ensure consistent terminology.
 - **Criteria:**
-  - [x] 87 term-slots allocated across WordAct (28) / FlowDef (34) / KnowAct (25); 86 unique term strings (`transform` shared across two domains)
-  - [x] Spec-curation terms (`specify`, `require`, `constrain`, `curate`, `elicit`, `reconcile`, `contextualise`, `cultivate`) defined
-  - [x] Terms referenced in template `lexicon_terms` field and enforced at registration by `ContractValidator` (not yet in code; see TODO.md P2-06)
-- **Implementation:** `hkask-types::lexicon` (`HLexicon`), `hkask-templates::lexicon::load_hlexicon_from_yaml`
-- **Tests:** `hkask-templates::lexicon` module tests
+  - [x] 120 term-slots bootstrapped from manifest `lexicon_terms` across the skill corpus
+  - [x] Terms referenced in template `lexicon_terms` field and validated at registration via `hkask-templates::vocabulary::validate_entry`
+- **Implementation:** `hkask-templates::vocabulary` (`is_known`, `unrecognized`, `validate_entry`)
+- **Tests:** `hkask-templates::vocabulary` unit tests
 - **Status:** Implemented
 - **Curation:** Merge
 
-### REQ-DOM-004: hLexicon Single-Source Derivation
+### REQ-DOM-004: Vocabulary Single-Source
 
 - **Category:** Domain, Lifecycle, Curation
-- **Text:** When the hLexicon vocabulary evolves, I want the markdown catalog to be the single source of truth from which the YAML registry is derived, with regeneration kept explicit and human-driven, so the documentation and the data cannot silently drift apart and the derived YAML is never invisibly rewritten.
+- **Text:** When the vocabulary evolves, I want a single source of truth so documentation and validation cannot silently drift apart.
 - **Criteria:**
-  - [x] `docs/architecture/reference/hKask-hLexicon.md` is the canonical source; its term tables define the vocabulary
-  - [x] `registry/hlexicon/hlexicon-workspace.yaml` is a committed, derived artifact with its own data lifecycle (customizable/extensible, unlike compiled Rust)
-  - [x] Derivation lives in Rust only \u2014 no new language toolchain: `hkask-templates::lexicon` parses the YAML for validation (markdown\u2192YAML derivation not yet in code; see TODO.md P2-06)
-  - [x] Regeneration is explicit and opt-in; the YAML is never auto-overwritten
-  - [x] `load_hlexicon_from_yaml()` loads the 86-term vocabulary from the committed YAML for validation
-  - [x] Consistency check pending broader test expansion (P0-02)
-- **Implementation:** `hkask-templates::lexicon` (`load_hlexicon_from_yaml`, `load_hlexicon_from_file`, `load_hlexicon_default`), `registry/hlexicon/hlexicon-workspace.yaml`
-- **Tests:** `hkask-templates::lexicon` module tests; `hkask-types::lexicon::tests::bootstrap_domains_match_catalog`
+  - [x] `crates/hkask-templates/src/vocabulary.rs` is the canonical source; the sorted `KNOWN_TERMS` array defines the vocabulary
+  - [x] Terms are validated at registration time by `Registry::register()` and `SqliteRegistry::register()`
+  - [x] New terms are added directly to the `KNOWN_TERMS` array (maintain sorted order)
+- **Implementation:** `hkask-templates::vocabulary` (`KNOWN_TERMS`, `is_known`, `validate_entry`)
+- **Tests:** `hkask-templates::vocabulary` unit tests
 - **Status:** Implemented
-- **Curation:** Merge — closes the drift gap that allowed the doc/code term counts to diverge; markdown/YAML/Rust have distinct, intentional lifecycles
+- **Curation:** Merge — vocabulary is now compile-time embedded in Rust; no separate YAML artifact needed
 
 [^evans-ddd]: Evans, Eric. *Domain-Driven Design: Tackling Complexity in the Heart of Software.* Addison-Wesley, 2003. — Bounded contexts and ubiquitous language that ground domain requirements.
 
@@ -336,9 +332,6 @@ Curation: Merge | Revise | Defer | Discard
 
 - **Category:** Lifecycle
 - **Text:** When starting the system, I want a deterministic bootstrap, so I can ensure consistent initialization.
-- **Criteria:**
-  - [x] Database → hLexicon → Registry → Capability → Curator → CNS → MCP
-  - [x] All steps verified by `cargo check --workspace`
 - **Implementation:** `hkask-cli::main`
 - **Status:** Implemented
 - **Curation:** Merge

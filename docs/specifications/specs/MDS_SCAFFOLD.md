@@ -24,7 +24,7 @@ Where each MDS category's authoritative documents live:
 
 | # | MDS Category | Authoritative Document | Primary Directory | Supporting References |
 |---|--------------|----------------------|-------------------|----------------------|
-| 1 | **Domain** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`reference/hKask-hLexicon.md`](../../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../../architecture/reference/hKask-Curator-persona.md) |
+| 1 | **Domain** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`reference/hKask-Curator-persona.md`](../../architecture/reference/hKask-Curator-persona.md) |
 | 2 | **Composition** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`reference/template-header-standard.md`](../../architecture/reference/template-header-standard.md) |
 | 3 | **Trust** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`magna-carta.md`](../../architecture/core/magna-carta.md) |
 | 4 | **Lifecycle** | [`MDS.md`](../../architecture/core/MDS.md) | `architecture/` | [`DEPLOYMENT.md`](../../guides/DEPLOYMENT.md) |

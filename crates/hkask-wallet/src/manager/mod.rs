@@ -7,7 +7,7 @@
 //! beyond what inline functions provide.
 
 use chrono::{Duration, Utc};
-use hkask_keystore::resolve_wallet_seed;
+use hkask_keystore::keychain::resolve_wallet_seed;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;

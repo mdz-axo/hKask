@@ -15,6 +15,7 @@ pub mod prompt_strategy;
 pub mod registry;
 pub mod registry_sqlite;
 pub mod skill_loader;
+pub mod vocabulary;
 
 pub use executor::ManifestExecutor;
 pub use hkask_types::BundleManifest;

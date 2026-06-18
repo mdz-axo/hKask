@@ -32,8 +32,6 @@ pub use freestyling::FreestyleSession;
 pub use modes::ImprovMode;
 pub use protocol::{Contribution, ConversationContext, ImprovResponse};
 
-use hkask_types::id::WebID;
-
 /// Facade — apply an improv mode (or cascade) to a contribution.
 pub struct ImprovSkill;
 
@@ -46,7 +44,7 @@ impl ImprovSkill {
         mode: &ImprovMode,
         contribution: &Contribution,
         context: &ConversationContext,
-    ) -> Result<ImprovResponse, ImprovError> {
+    ) -> Result<ImprovResponse, cascade::ImprovError> {
         match mode {
             ImprovMode::Cascade(cascade) => cascade.execute(contribution, context),
             other => Ok(other.respond(contribution, context)),

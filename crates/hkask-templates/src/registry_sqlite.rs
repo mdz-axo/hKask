@@ -141,6 +141,9 @@ impl SqliteRegistry {
         for warning in &entry.validate() {
             tracing::warn!(target: "hkask.templates", "{}", warning);
         }
+        for warning in &crate::vocabulary::validate_entry(&entry) {
+            tracing::warn!(target: "hkask.templates", "{}", warning);
+        }
         let mut conn = self
             .conn
             .lock()

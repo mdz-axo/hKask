@@ -135,7 +135,7 @@ impl ServiceConfig {
 
         // Resolve secrets from keystore. If keystore resolution fails,
         // fall back to empty secrets (in-memory mode will be used).
-        let a2a_secret = hkask_keystore::resolve_a2a_secret()
+        let a2a_secret = hkask_keystore::keychain::resolve_a2a_secret()
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to resolve A2A secret".into(),
@@ -143,13 +143,13 @@ impl ServiceConfig {
             .to_vec();
 
         let db_passphrase_bytes =
-            hkask_keystore::resolve_db_passphrase().map_err(|e| ServiceError::Keystore {
+            hkask_keystore::keychain::resolve_db_passphrase().map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to resolve DB passphrase".into(),
             })?;
         let db_passphrase = String::from_utf8_lossy(db_passphrase_bytes.as_ref()).into_owned();
 
-        let mcp_secret_vec = hkask_keystore::resolve_mcp_secret()
+        let mcp_secret_vec = hkask_keystore::keychain::resolve_mcp_secret()
             .map_err(|e| ServiceError::Keystore {
                 source: Some(Box::new(e)),
                 message: "Failed to resolve MCP secret".into(),

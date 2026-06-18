@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use hkask_agents::A2ARuntime;
-use hkask_keystore::{Keychain, derive_all_internal_secrets};
+use hkask_keystore::{Keychain, master_key::derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database};
 use hkask_types::time::now_rfc3339;
 use hkask_types::{AgentDefinition, AgentKind, Charter, RegisteredAgent, UserProfile, WebID};

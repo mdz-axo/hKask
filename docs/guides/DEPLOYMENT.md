@@ -46,7 +46,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a minimal agent-nat
 - Browser terminal (xterm.js + WebSocket) — primary user access via OAuth sign-in
 - API-based chat endpoint (`POST /api/chat`)
 - Multi-tenant with Admin/Member roles
-- Template registry with hLexicon validation
+- Template registry
 - Agent pod management (bot/replicant lifecycle)
 - CNS monitoring with algedonic alerts
 - User sovereignty enforcement (Magna Carta)

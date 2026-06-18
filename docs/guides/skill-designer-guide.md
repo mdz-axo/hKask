@@ -156,7 +156,7 @@ templates:
 - `crate.name` must match the directory name
 - `crate.version` must match the hKask version
 - `templates[].type` must be one of: `WordAct`, `KnowAct`, `FlowDef`
-- `templates[].lexicon_terms` must reference real terms from `registry/hlexicon/hlexicon-workspace.yaml`
+- `templates[].lexicon_terms` must reference real terms from the known vocabulary (`crates/hkask-templates/src/vocabulary.rs`)
 - **`type` in `manifest.yaml` is correct as `FlowDef`** — this is NOT the same as `template_type` in `.j2` frontmatter (see §3.3)
 
 ### 3.3 .j2 Template Structure
@@ -225,7 +225,7 @@ Both must agree on the canonical value.
 
 ### 3.6 Lexicon Grounding
 
-All `lexicon_terms` and `hlexicon_terms` must reference real terms defined in `registry/hlexicon/hlexicon-workspace.yaml`. Template IDs should use the `namespace/action` naming convention (e.g., `coding-guidelines/guidelines-assess`).
+All `lexicon_terms` must reference real terms defined in the known vocabulary (`crates/hkask-templates/src/vocabulary.rs`). Template IDs should use the `namespace/action` naming convention (e.g., `coding-guidelines/guidelines-assess`).
 
 ---
 
@@ -436,4 +436,4 @@ flowchart TD
 - [CNS Domain Specification](../architecture/core/CNS-DOMAIN-SPECIFICATION.md) — CNS span registry and health checks
 - [Testing Discipline](../architecture/core/TESTING_DISCIPLINE.md) — Contract testing and REQ tagging
 - `crates/hkask-types/src/cns.rs` — Canonical CNS span definitions
-- `registry/hlexicon/hlexicon-workspace.yaml` — Canonical lexicon terms
+- `crates/hkask-templates/src/vocabulary.rs` — Canonical vocabulary terms

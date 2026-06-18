@@ -70,7 +70,7 @@ pub struct DataSovereigntyBoundary {
 **Default hKask Configuration:**
 - **Sovereign:** episodic_memory, personal_context, capability_tokens, ocap_boundaries
 - **Shared:** semantic_memory, template_invocations
-- **Public:** hlexicon_terms, template_registry
+- **Public:** template_registry
 
 ### SOLID Alignment
 
@@ -79,7 +79,7 @@ pub struct DataSovereigntyBoundary {
 | True data ownership | SQLCipher-encrypted local store, `WebID`-scoped access |
 | Fine-grained access control | `DataSovereigntyBoundary` with per-category sovereign/shared/public |
 | No implicit sharing | `SovereigntyChecker::can_access()` + `SovereigntyConsent` port |
-| Interoperability & portability | hLexicon, open template registry, standard export formats |
+| Interoperability & portability | Open template registry, standard export formats |
 
 ### Atomic Consent
 

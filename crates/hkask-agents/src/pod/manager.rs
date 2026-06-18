@@ -577,7 +577,7 @@ impl Default for PodManager {
 }
 
 fn resolve_a2a_secret_for_checker() -> Option<CapabilityChecker> {
-    hkask_keystore::resolve_a2a_secret()
+    hkask_keystore::keychain::resolve_a2a_secret()
         .ok()
         .map(|secret| CapabilityChecker::new(&secret))
 }

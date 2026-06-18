@@ -25,9 +25,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/curator_agent/bot_metrics.rs` | ✅ VERIFIED |
 | DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
-| DIAG-DC-006 | hLexicon Allocation Table (WordAct/FlowDef/KnowAct) | [MDS.md](architecture/core/MDS.md) §7 | `docs/architecture/reference/hKask-hLexicon.md` | ✅ VERIFIED |
-| DIAG-DC-007 | Standing Session Chat Lifecycle | [MDS.md](architecture/core/MDS.md) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-web/src/main.rs` | ✅ VERIFIED |
-| DIAG-DC-008 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [MDS.md](architecture/core/MDS.md) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
+| DIAG-DC-006 | Standing Session Chat Lifecycle | [MDS.md](architecture/core/MDS.md) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-web/src/main.rs` | ✅ VERIFIED |
+| DIAG-DC-007 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [MDS.md](architecture/core/MDS.md) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
 
 ## 2. Interface & Composition Diagrams
 
@@ -59,7 +58,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-PL-001 | Database Architecture — SQLCipher with 9 specialized stores | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-storage/src/database.rs:74` | ✅ VERIFIED |
 | DIAG-PL-002 | Bitemporal Triple Schema (valid-time × transaction-time) | [MDS.md](architecture/core/MDS.md) §2 | `crates/hkask-storage/src/triples.rs:79` | ✅ VERIFIED |
 | DIAG-PL-003 | Memory Architecture — Episodic/Semantic public/private gating | [MDS.md](architecture/core/MDS.md) §3 | `crates/hkask-memory/src/` | ✅ VERIFIED |
-| DIAG-PL-004 | Bootstrap Sequence (DB → hLexicon → Registry → Capability → Curator → CNS → MCP) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-cli/src/main.rs` | ✅ VERIFIED |
+| DIAG-PL-004 | Bootstrap Sequence (DB → Registry → Capability → Curator → CNS → MCP) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-cli/src/main.rs` | ✅ VERIFIED |
 | DIAG-PL-005 | Embedding Vector Lifecycle (model → sqlite-vec → KNN search) | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-storage/src/embeddings.rs` | ✅ VERIFIED |
 
 ## 5. Framework & Methodology Diagrams

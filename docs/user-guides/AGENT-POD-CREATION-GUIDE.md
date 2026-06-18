@@ -85,7 +85,6 @@ Populated → Registered → Activated → Deactivated
 my-agent-crate/
 ├── agent_persona.yaml       # Agent identity and capabilities
 ├── dispatch_manifest.yaml   # Process workflow definition
-├── hlexicon.yaml           # Domain-specific terms (optional)
 └── templates/              # Jinja2 templates
     ├── selectors/          # Selection templates
     │   └── selector.j2
@@ -694,7 +693,6 @@ my-agent-crate/
 ├── Cargo.toml              # Rust crate metadata
 ├── agent_persona.yaml      # Agent persona
 ├── dispatch_manifest.yaml  # Dispatch workflow
-├── hlexicon.yaml          # Domain terms (optional)
 └── templates/
     ├── selectors/
     │   └── selector.j2
@@ -764,22 +762,7 @@ members = [
 ]
 ```
 
-### 5.4 hLexicon Terms (Optional)
-
-```yaml
-# File: hlexicon.yaml
-
-# Domain-specific terms for template matching
-- recognize
-- classify
-- match
-- discriminate
-- [your-domain-terms]
-```
-
----
-
-## Step 6: Register with A2A Runtime
+### 5.3 Workspace Registration
 
 Registration issues capability tokens following OCAP principles[^miller2006].
 

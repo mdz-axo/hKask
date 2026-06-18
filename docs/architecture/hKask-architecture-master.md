@@ -26,17 +26,16 @@ hKask's architecture is governed by **four irreducible patterns** that compose i
 
 **What it is:** A tripartite template type system that governs how hKask composes behavior. Mirrors the structure of human cognition: speech acts (WordAct), procedural memory (FlowDef), and metacognition (KnowAct).
 
-| Type | Format | Governs | hLexicon Domain |
-|------|--------|---------|----------------|
-| **WordAct** | Jinja2 `.j2` | "What to say" — system prompts, persona definitions, performative utterances | specify, elicit, require, constrain |
-| **FlowDef** | YAML `.yaml` | "What to do" — `select → populate → execute` cascade, choice/escalate/abort/delegate verbs | select, populate, execute, sequence |
-| **KnowAct** | Jinja2 `.j2` | "How to think" — pattern recognition, classification, reflection, calibration | recognize, classify, discriminate, reflect, calibrate |
+| Type | Format | Governs |
+|------|--------|---------|
+| **WordAct** | Jinja2 `.j2` | "What to say" — system prompts, persona definitions, performative utterances |
+| **FlowDef** | YAML `.yaml` | "What to do" — `select → populate → execute` cascade, choice/escalate/abort/delegate verbs |
+| **KnowAct** | Jinja2 `.j2` | "How to think" — pattern recognition, classification, reflection, calibration |
 
 **Key properties:**
 - Selection intelligence lives in **Jinja2/LLM**, not Rust code (P3 Generative Space)
 - `ManifestExecutor` drives the cascade: render selector → LLM → parse JSON → follow chosen path
 - Cascade is recursive — a FlowDef step can contain nested WordAct/KnowAct/FlowDef, bounded by matryoshka limit (7)
-- hLexicon grounds 142 term-slots across 3 domains with academic citations (P8 Semantic Grounding)
 - Specifications are FlowDef manifests — not a separate type (unification principle)
 - Energy-accounted and OCAP-gated: every execute step goes through `GovernedTool`
 
@@ -845,7 +844,6 @@ Detailed lookup tables and diagrams in `reference/`:
 | Artifact | Purpose |
 |----------|---------|
 
-| [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md) | Full 87-term vocabulary catalog |
 | [`reference/ports-inventory.md`](reference/ports-inventory.md) | Hexagonal port trait signatures |
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
@@ -906,7 +904,6 @@ docs/architecture/
 │   ├── ADR-031-consolidation-authorization.md # Active
 │   └── ADR-035-replicant-server-mode.md   # Active
 └── reference/
-    ├── hKask-hLexicon.md                  # Vocabulary catalog
     ├── ports-inventory.md                 # Port reference
     ├── utoipa-implementation.md           # API guide
     ├── template-header-standard.md        # Format reference
@@ -914,7 +911,7 @@ docs/architecture/
     └── okapi-integration.md               # Inference Router API contract
 ```
 
-**Total:** 19 architecture documents (8 core + 1 mandate + 4 root + 2 ADRs + 1 template + 6 reference) + 1 PUBLIC_SURFACE justification.
+**Total:** 19 architecture documents (8 core + 1 mandate + 4 root + 2 ADRs + 1 template + 5 reference) + 1 PUBLIC_SURFACE justification.
 
 **Related folders:** `docs/research/` (lazy-universe-research.md, training-decomposition-traces.md), `docs/specifications/` (wallet-specification.md, MDS_SCAFFOLD.md, etc.), `docs/guides/` (kata-user-guide.md, lora-training-guide.md), `docs/user-guides/` (kanban-user-guide.md, lora-adapter-store-guide.md)
 
