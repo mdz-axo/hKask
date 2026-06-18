@@ -374,7 +374,60 @@ pub fn emit_contract_accepted(
             reviewer = reviewer_webid,
             function = function_name,
             error = %e,
-            "Failed to persist contract accepted span"
+            "Failed to persist contract rejected span"
+        );
+    }
+}
+
+/// Emit `cns.contract.quality.violated` when a 4-layer contract quality check fails.
+///
+/// REQ: P9-cns-contract-quality-violated
+/// \[P9\] Motivating: Homeostatic Self-Regulation — structural contract quality signal
+/// pre:  sink is a valid NuEventSink; function_name, contract_id, violation_type are non-empty
+/// post: cns.contract.quality.violated span persisted with violation details
+///
+/// Called by the contract audit (`--contract-quality` flag) or the TDD verify step
+/// when a contract is missing required layers (expect:, [P{N}], Constraining:).
+/// Distinguished from `cns.contract.violated` (runtime test failures) — this is a
+/// structural/process violation, not a code bug.
+///
+/// # Arguments
+/// - `sink` — the CNS event sink
+/// - `function_name` — the fully-qualified function name
+/// - `contract_id` — the `P{N}-{domain}-{operation}` contract ID
+/// - `violation_type` — one of: missing-expect, missing-goal-principle, missing-constraining, contract-id-mismatch
+/// - `location` — file:line of the contract
+/// - `description` — human-readable description of the violation
+pub fn emit_contract_quality_violated(
+    sink: &dyn NuEventSink,
+    function_name: &str,
+    contract_id: &str,
+    violation_type: &str,
+    location: &str,
+    description: &str,
+) {
+    let span = Span::new(SpanNamespace::from(CnsSpan::ContractQualityViolated), "quality_violated");
+    let event = NuEvent::new(
+        WebID::from_persona(b"contract-discipline"),
+        span,
+        Phase::Compare,
+        json!({
+            "function": function_name,
+            "contract_id": contract_id,
+            "violation_type": violation_type,
+            "location": location,
+            "description": description,
+        }),
+        0,
+    );
+    if let Err(e) = sink.persist(&event) {
+        tracing::warn!(
+            target: "cns.contract",
+            function = function_name,
+            contract_id = contract_id,
+            violation_type = violation_type,
+            error = %e,
+            "Failed to persist contract quality violation span"
         );
     }
 }
@@ -663,5 +716,26 @@ mod tests {
         let tasks = store.query_by_entity(VIOLATION_TASK_ENTITY).unwrap();
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].value["origin"]["contract_id"], "CNS-XYZ");
+    }
+
+    // REQ: P9-cns-contract-quality-violated — quality violation span persists with violation type
+    #[test]
+    fn emit_contract_quality_violated_persists_event() {
+        let sink = CaptureSink::new();
+        emit_contract_quality_violated(
+            &sink,
+            "energy::EnergyBudget::can_proceed",
+            "P9-cns-energy-budget-can-proceed",
+            "missing-expect",
+            "crates/hkask-cns/src/energy.rs:42",
+            "Contract missing expect: field — user expectation not captured",
+        );
+        let event = sink.last_event.lock().unwrap().clone().unwrap();
+        assert_eq!(event.observation["violation_type"], "missing-expect");
+        assert_eq!(event.observation["contract_id"], "P9-cns-energy-budget-can-proceed");
+        assert!(event.observation["description"]
+            .as_str()
+            .unwrap()
+            .contains("user expectation"));
     }
 }

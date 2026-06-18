@@ -125,6 +125,8 @@ pub enum CnsSpan {
     ContractAccepted,
     /// Contract rejected by human (Phase B3 consent gate).
     ContractRejected,
+    /// Contract quality violation detected (missing expect:, [P{N}], Constraining:, etc.).
+    ContractQualityViolated,
     /// ACP replicant memory size tracking.
     AcpReplicantMemorySize,
     /// ACP IDE connection state change.
@@ -221,6 +223,7 @@ impl CnsSpan {
             CnsSpan::ContractProposed => "cns.contract.proposed",
             CnsSpan::ContractAccepted => "cns.contract.accepted",
             CnsSpan::ContractRejected => "cns.contract.rejected",
+            CnsSpan::ContractQualityViolated => "cns.contract.quality.violated",
             CnsSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
             CnsSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
         }
@@ -305,6 +308,7 @@ impl std::str::FromStr for CnsSpan {
             "cns.contract.proposed" => Ok(CnsSpan::ContractProposed),
             "cns.contract.accepted" => Ok(CnsSpan::ContractAccepted),
             "cns.contract.rejected" => Ok(CnsSpan::ContractRejected),
+            "cns.contract.quality.violated" => Ok(CnsSpan::ContractQualityViolated),
             "cns.acp.replicant.memory_size" => Ok(CnsSpan::AcpReplicantMemorySize),
             "cns.acp.ide.connection_state" => Ok(CnsSpan::AcpIdeConnectionState),
             _ => Err(()),

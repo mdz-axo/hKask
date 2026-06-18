@@ -502,7 +502,99 @@ run_constraining_mode() {
     fi
 }
 
-# ── Full mode (all checks) ───────────────────────────────────────────────────
+# ── Contract Quality Mode (4-layer score) ──────────────────────────────────────
+
+run_contract_quality_mode() {
+    crate="$1"
+    src="crates/${crate}/src"
+    [ -d "$src" ] || return
+
+    contracted=$(count_contracted "$src")
+    expect_count=$(count_expect "$src")
+    goal_count=$(count_goal_principle "$src")
+    constraining_count=$(count_constraining "$src")
+
+    missing_expect=$((contracted - expect_count))
+    missing_goal=$((contracted - goal_count))
+    unconstrained=$((contracted - constraining_count))
+
+    # Quality score: weighted average of layer completeness
+    # Layer weights: expect=35%, goal-principle=30%, constraining=25%, pre/post=10%
+    expect_pct="0"; goal_pct="0"; constraining_pct="0"
+    if [ "$contracted" -gt 0 ]; then
+        expect_pct=$(echo "scale=1; $expect_count * 100 / $contracted" | bc 2>/dev/null || echo "0")
+        goal_pct=$(echo "scale=1; $goal_count * 100 / $contracted" | bc 2>/dev/null || echo "0")
+        constraining_pct=$(echo "scale=1; $constraining_count * 100 / $contracted" | bc 2>/dev/null || echo "0")
+    fi
+
+    quality_score=$(echo "scale=1; 0.35*$expect_pct + 0.30*$goal_pct + 0.25*$constraining_pct + 10" | bc 2>/dev/null || echo "0.0")
+
+    echo "=== Contract Quality: ${crate} ==="
+    echo ""
+    echo "Contracted:            $contracted"
+    echo ""
+    echo "Layer                  Count    Complete %"
+    echo "────────────────────── ──────── ──────────"
+    printf "expect: (user voice)   %-8d %s%%\n" "$expect_count" "$expect_pct"
+    printf "[P{N}] goal-principle  %-8d %s%%\n" "$goal_count" "$goal_pct"
+    printf "[P{N}] Constraining:   %-8d %s%%\n" "$constraining_count" "$constraining_pct"
+    echo ""
+    printf "QUALITY SCORE:         %s/100\n" "$quality_score"
+    echo ""
+
+    if [ "$quality_score" = "0.0" ] || [ -z "$quality_score" ]; then
+        quality_score="0.0"
+    fi
+
+    # Flag violations by severity
+    violations=0
+    if [ "$missing_expect" -gt 0 ]; then
+        echo "── CRITICAL: $missing_expect contracts missing expect: (user expectation) ──"
+        list_missing_expect "$src" | while IFS=: read -r _ file line rest; do
+            printf "  %-50s L%-4d %s\n" "$file" "$line" "$rest"
+        done
+        echo ""
+        violations=$((violations + 1))
+    fi
+
+    if [ "$missing_goal" -gt 0 ]; then
+        echo "── CRITICAL: $missing_goal contracts missing [P{N}] goal-principle ──"
+        principle_gaps=$(list_principle_gaps "$src")
+        echo "$principle_gaps" | while IFS=: read -r _ file line rest; do
+            printf "  %-50s L%-4d %s\n" "$file" "$line" "$rest"
+        done
+        echo ""
+        violations=$((violations + 1))
+    fi
+
+    if [ "$unconstrained" -gt 0 ]; then
+        echo "── HIGH: $unconstrained contracts without [P{N}] Constraining: annotations ──"
+        list_unconstrained "$src" | while IFS=: read -r _ file line rest; do
+            printf "  %-50s L%-4d %s\n" "$file" "$line" "$rest"
+        done
+        echo ""
+        violations=$((violations + 1))
+    fi
+
+    magna_carta_gaps=$(list_missing_magna_carta "$src")
+    if [ -n "$magna_carta_gaps" ]; then
+        magna_count=$(echo "$magna_carta_gaps" | wc -l)
+        echo "── MEDIUM: $magna_count contracts missing Magna Carta (P1-P4) constraints ──"
+        echo "$magna_carta_gaps" | while IFS=: read -r _ file line rest; do
+            printf "  %-50s L%-4d %s\n" "$file" "$line" "$rest"
+        done
+        echo ""
+        violations=$((violations + 1))
+    fi
+
+    if [ "$violations" -eq 0 ]; then
+        echo "✓ All contracts pass 4-layer quality check."
+        echo ""
+    fi
+
+    echo "Quality gate: $(echo "$quality_score >= 80" | bc -l | grep -q 1 && echo 'PASS (>=80%)' || echo 'BELOW TARGET (<80%)')"
+    echo ""
+}
 
 run_full_mode() {
     crate="$1"

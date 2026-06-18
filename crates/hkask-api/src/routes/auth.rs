@@ -67,17 +67,44 @@ impl OAuthConfig {
                     ),
                 })
             }
-            OAuthProvider::Google => Err("Google OAuth not yet implemented".to_string()),
+            OAuthProvider::Google => {
+                let client_id = std::env::var("HKASK_OAUTH_GOOGLE_CLIENT_ID")
+                    .map_err(|_| "HKASK_OAUTH_GOOGLE_CLIENT_ID not set".to_string())?;
+                let client_secret = std::env::var("HKASK_OAUTH_GOOGLE_CLIENT_SECRET")
+                    .map_err(|_| "HKASK_OAUTH_GOOGLE_CLIENT_SECRET not set".to_string())?;
+                let domain =
+                    std::env::var("HKASK_DOMAIN").unwrap_or_else(|_| "localhost".to_string());
+                let scheme = if domain == "localhost" {
+                    "http"
+                } else {
+                    "https"
+                };
+                Ok(Self {
+                    client_id,
+                    client_secret,
+                    redirect_uri: format!(
+                        "{scheme}://{domain}/api/v1/auth/callback?provider=google"
+                    ),
+                })
+            }
         }
     }
 
-    fn authorize_url(&self, state: &str) -> String {
-        format!(
-            "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&state={}&scope=user:email",
-            self.client_id,
-            urlencoding(&self.redirect_uri),
-            state
-        )
+    fn authorize_url(&self, provider: &OAuthProvider, state: &str) -> String {
+        match provider {
+            OAuthProvider::GitHub => format!(
+                "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&state={}&scope=user:email",
+                self.client_id,
+                urlencoding(&self.redirect_uri),
+                state
+            ),
+            OAuthProvider::Google => format!(
+                "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&state={}&response_type=code&scope=openid%20email%20profile",
+                self.client_id,
+                urlencoding(&self.redirect_uri),
+                state
+            ),
+        }
     }
 }
 
@@ -100,10 +127,22 @@ struct GitHubEmail {
     verified: bool,
 }
 
+/// Google OIDC userinfo response.
+#[derive(Debug, Deserialize)]
+struct GoogleUser {
+    sub: String,
+    #[serde(default)]
+    email: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    email_verified: Option<bool>,
+}
+
 /// GET /api/v1/auth/login
 ///
 /// REQ: DEP-013 — initiates OAuth flow with CSRF state protection.
-/// pre:  provider query param is "github"
+/// pre:  provider query param is "github" or "google"
 /// post: redirects to provider's OAuth authorize URL
 /// post: sets state cookie for CSRF verification
 pub async fn login(
