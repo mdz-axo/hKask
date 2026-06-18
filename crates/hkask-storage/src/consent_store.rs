@@ -2,28 +2,22 @@
 //!
 //! Persists consent records so they survive restarts, enforcing
 //! user sovereignty (Principle 1.3) in the headless system.
-
 use crate::Store;
 use hkask_types::InfrastructureError;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use thiserror::Error;
-
 /// Consent store errors
 #[derive(Debug, Error)]
 pub enum ConsentStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
     #[error("Consent record not found for WebID: {0}")]
     NotFound(String),
 }
-
 impl_from_rusqlite!(ConsentStoreError, Infra);
-
 impl_from_serde_json!(ConsentStoreError, Infra);
-
 /// Persistent consent record
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredConsentRecord {
@@ -34,14 +28,13 @@ pub struct StoredConsentRecord {
     pub revoked_at: Option<i64>,
     pub active: bool,
 }
-
 define_store!(ConsentStore);
-
 impl ConsentStore {
     /// Initialize the consent_records table
     /// Initialize the consent store schema.
     ///
     /// REQ: P2-sto-consent-schema
+    /// expect: "My consent records are stored with explicit affirmative consent" [P2]
     /// \[P2\] Motivating: Affirmative Consent — schema for consent records
     /// post: consent_records table created if not exists
     pub fn initialize_schema(&self) -> Result<(), ConsentStoreError> {
@@ -60,11 +53,11 @@ impl ConsentStore {
         )?;
         Ok(())
     }
-
     /// Store (upsert) a consent record for a WebID
     /// Store a consent record.
     ///
     /// REQ: P2-sto-consent-store
+    /// expect: "My consent records are stored with explicit affirmative consent" [P2]
     /// \[P2\] Motivating: Affirmative Consent — persist a scoped consent record
     /// pre:  record.webid is non-empty
     /// post: record inserted or replaced in consent_records
@@ -72,7 +65,6 @@ impl ConsentStore {
         let conn = self.lock_conn()?;
         let categories_json = serde_json::to_string(&record.granted_categories)?;
         let active_int = if record.active { 1 } else { 0 };
-
         conn.execute(
             "INSERT INTO consent_records (id, webid, granted_categories, granted_at, revoked_at, active)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -90,25 +82,22 @@ impl ConsentStore {
                 active_int,
             ],
         )?;
-
         Ok(())
     }
-
     /// Get the active consent record for a WebID
     /// Get a consent record by WebID.
     ///
     /// REQ: P2-sto-consent-get
+    /// expect: "My consent records are stored with explicit affirmative consent" [P2]
     /// \[P2\] Motivating: Affirmative Consent — retrieve consent by WebID
     /// pre:  webid is non-empty
     /// post: returns Some(record) if found, None otherwise
     pub fn get(&self, webid: &str) -> Result<Option<StoredConsentRecord>, ConsentStoreError> {
         let conn = self.lock_conn()?;
-
         let mut stmt = conn.prepare(
             "SELECT id, webid, granted_categories, granted_at, revoked_at, active
              FROM consent_records WHERE webid = ?1",
         )?;
-
         let record = stmt
             .query_row(params![webid], |row| {
                 let id: String = row.get(0)?;
@@ -117,10 +106,8 @@ impl ConsentStore {
                 let granted_at: i64 = row.get(3)?;
                 let revoked_at: Option<i64> = row.get(4)?;
                 let active_int: i32 = row.get(5)?;
-
                 let granted_categories: HashSet<String> = serde_json::from_str(&categories_json)
                     .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
-
                 Ok(StoredConsentRecord {
                     id,
                     webid,
@@ -131,14 +118,13 @@ impl ConsentStore {
                 })
             })
             .optional()?;
-
         Ok(record)
     }
-
     /// Delete consent record for a WebID
     /// Delete a consent record by WebID.
     ///
     /// REQ: P2-sto-consent-delete
+    /// expect: "My consent records are stored with explicit affirmative consent" [P2]
     /// \[P2\] Motivating: Affirmative Consent — delete a consent record
     /// pre:  webid is non-empty
     /// post: record deleted if existed

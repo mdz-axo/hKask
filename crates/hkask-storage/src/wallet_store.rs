@@ -6,7 +6,6 @@
 //! - `api_keys` — issued Ed25519 capability tokens with spending limits
 //! - `deposit_addresses` — derived deposit addresses per wallet per chain
 //! - `deposit_references` — one-time shielded deposit references (anti-replay)
-
 use crate::Store;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{
@@ -16,17 +15,13 @@ use hkask_types::{
 };
 use rusqlite::OptionalExtension;
 use std::str::FromStr;
-
 define_store!(WalletStore);
-
 // ── Row types for query mapping ────────────────────────────────────────────────
-
 struct WalletBalanceRow {
     wallet_id: String,
     balance_rj: i64,
     usdc_equivalent_micro: i64,
 }
-
 struct WalletTransactionRow {
     id: i64,
     wallet_id: String,
@@ -41,7 +36,6 @@ struct WalletTransactionRow {
     gas_units: Option<i64>,
     created_at: String,
 }
-
 struct ApiKeyRow {
     key_id: String,
     wallet_id: String,
@@ -56,15 +50,12 @@ struct ApiKeyRow {
     expires_at: Option<String>,
     issued_at: String,
 }
-
 struct DepositAddressRow {
     chain: String,
     address: String,
     privacy_mode: String,
 }
-
 // ── WalletStore implementation ──────────────────────────────────────────────────
-
 impl WalletStore {
     /// Enable SQLite WAL (Write-Ahead Logging) mode for better concurrency.
     ///
@@ -73,6 +64,7 @@ impl WalletStore {
     /// Without WAL, all operations serialize on the connection mutex.
     ///
     /// REQ: P3-sto-wallet-wal-test — WAL mode for wallet store concurrency
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// post: journal_mode set to WAL
     /// post: synchronous set to NORMAL (balance durability vs performance)
     ///
@@ -80,6 +72,7 @@ impl WalletStore {
     /// Enable WAL mode for better concurrency.
     ///
     /// REQ: P3-sto-wallet-wal-mode
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — enable WAL for wallet concurrency
     /// \[P7\] Constraining: Evolutionary Architecture — WAL mode emerged from multi-agent load
     /// post: journal_mode set to WAL, synchronous set to NORMAL
@@ -94,13 +87,12 @@ impl WalletStore {
         tracing::info!(target: "hkask.storage", "WalletStore WAL mode enabled");
         Ok(())
     }
-
     // ── Balance ──────────────────────────────────────────────────────────────
-
     /// Get the current balance for a wallet, or None if the wallet doesn't exist.
     /// Get wallet balance.
     ///
     /// REQ: P3-sto-wallet-balance-get
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — get wallet balance
     /// pre:  wallet_id is valid
     /// post: returns Some(WalletBalance) if wallet exists, None otherwise
@@ -130,7 +122,6 @@ impl WalletStore {
         );
         Ok(rows.into_iter().next())
     }
-
     /// Ensure a wallet row exists (idempotent — creates if missing).
     /// Takes an already-locked connection to avoid deadlock.
     fn ensure_wallet_with_conn(
@@ -144,12 +135,12 @@ impl WalletStore {
         )?;
         Ok(())
     }
-
     /// Ensure a wallet row exists (idempotent — creates if missing).
     /// Public version that acquires its own lock.
     /// Ensure a wallet exists (idempotent).
     ///
     /// REQ: P3-sto-wallet-ensure
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — idempotently ensure wallet row
     /// pre:  wallet_id is valid
     /// post: wallet row exists (created if missing)
@@ -157,11 +148,11 @@ impl WalletStore {
         let conn = self.lock_conn()?;
         self.ensure_wallet_with_conn(&conn, wallet_id)
     }
-
     /// List all wallet IDs in the system.
     /// List all wallet IDs.
     ///
     /// REQ: P3-sto-wallet-list-ids
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — list wallet IDs
     /// post: returns Vec of all WalletId
     pub fn list_wallet_ids(&self) -> Result<Vec<WalletId>, WalletError> {
@@ -175,12 +166,12 @@ impl WalletStore {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))
     }
-
     /// Credit rJoules to a wallet. Returns the new balance.
     /// Creates the wallet row if it doesn't exist.
     /// Credit rJoules to a wallet.
     ///
     /// REQ: P3-sto-wallet-credit
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — credit rJoules
     /// pre:  wallet_id exists, amount > 0
     /// post: balance increased by amount, transaction recorded
@@ -202,12 +193,12 @@ impl WalletStore {
                 "wallet vanished after credit".into(),
             )))
     }
-
     /// Debit rJoules from a wallet. Returns error if balance insufficient.
     /// The caller must verify `balance >= amount` before calling.
     /// Debit rJoules from a wallet.
     ///
     /// REQ: P3-sto-wallet-debit
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — debit rJoules
     /// pre:  wallet_id exists, amount > 0, balance >= amount
     /// post: balance decreased by amount, transaction recorded
@@ -241,13 +232,12 @@ impl WalletStore {
                 "wallet vanished after debit".into(),
             )))
     }
-
     // ── Transactions ─────────────────────────────────────────────────────────
-
     /// Record a transaction in the append-only ledger.
     /// Record a wallet transaction.
     ///
     /// REQ: P3-sto-wallet-tx-record
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — record wallet transaction
     /// pre:  tx has valid wallet_id and rjoules_delta
     /// post: transaction inserted into ledger
@@ -272,11 +262,11 @@ impl WalletStore {
         )?;
         Ok(())
     }
-
     /// Get paginated transaction history for a wallet.
     /// Get transactions for a wallet.
     ///
     /// REQ: P3-sto-wallet-tx-list
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — list transactions
     /// pre:  wallet_id is valid
     /// post: returns Vec of transactions, optionally limited
@@ -315,12 +305,12 @@ impl WalletStore {
         );
         Ok(rows)
     }
-
     /// Check if a transaction with the given on-chain tx_hash already exists.
     /// Used for deposit idempotency — prevents double-crediting on restart.
     /// Check if a transaction hash exists.
     ///
     /// REQ: P3-sto-wallet-tx-hash-exists
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P4\] Motivating: Clear Boundaries — anti-replay hash check
     /// pre:  tx_hash is non-empty
     /// post: returns true if hash exists (anti-replay)
@@ -333,13 +323,12 @@ impl WalletStore {
         )?;
         Ok(count > 0)
     }
-
     // ── API Keys ─────────────────────────────────────────────────────────────
-
     /// Store a newly issued API key capability.
     /// Store an API key capability.
     ///
     /// REQ: P3-sto-wallet-api-key-store
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — store API key capability
     /// pre:  capability has valid key_id and wallet_id
     /// post: API key stored
@@ -370,11 +359,11 @@ impl WalletStore {
         )?;
         Ok(())
     }
-
     /// Look up an API key by its ID.
     /// Get an API key by key ID.
     ///
     /// REQ: P3-sto-wallet-api-key-get
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — get API key by ID
     /// pre:  key_id is valid
     /// post: returns Some(capability) if found, None otherwise
@@ -408,11 +397,11 @@ impl WalletStore {
         );
         Ok(rows.into_iter().next())
     }
-
     /// Look up an API key by its Ed25519 public key (for Bearer token auth).
     /// Get an API key by public key.
     ///
     /// REQ: P3-sto-wallet-api-key-by-pubkey
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — get API key by public key
     /// pre:  public_key is valid
     /// post: returns Some(capability) if found, None otherwise
@@ -449,11 +438,11 @@ impl WalletStore {
         );
         Ok(rows.into_iter().next())
     }
-
     /// List all active (non-revoked) API keys for a wallet.
     /// List API keys for a wallet.
     ///
     /// REQ: P3-sto-wallet-api-key-list
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — list API keys
     /// pre:  wallet_id is valid
     /// post: returns Vec of API key capabilities
@@ -487,12 +476,12 @@ impl WalletStore {
         );
         Ok(rows)
     }
-
     /// Revoke an API key. Returns unspent rJoules to the wallet.
     /// Idempotent — revoking an already-revoked key is a no-op.
     /// Revoke an API key.
     ///
     /// REQ: P3-sto-wallet-api-key-revoke
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — revoke API key
     /// pre:  key_id is valid
     /// post: API key revoked, unspent rJ returned to wallet
@@ -521,11 +510,11 @@ impl WalletStore {
         }
         Ok(())
     }
-
     /// Update the spent_rj counter on an API key (called after each tool invocation).
     /// Update spent rJoules for an API key.
     ///
     /// REQ: P3-sto-wallet-spent-rj-update
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — update spent rJ for key
     /// pre:  key_id is valid
     /// post: spent_rj updated
@@ -537,13 +526,12 @@ impl WalletStore {
         )?;
         Ok(())
     }
-
     // ── Deposit Addresses ────────────────────────────────────────────────────
-
     /// Store a derived deposit address for a wallet.
     /// Store a deposit address.
     ///
     /// REQ: P3-sto-wallet-address-store
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — store deposit address
     /// pre:  address has valid wallet_id and chain
     /// post: deposit address stored
@@ -568,11 +556,11 @@ impl WalletStore {
         )?;
         Ok(())
     }
-
     /// Get all deposit addresses for a wallet.
     /// Get deposit addresses for a wallet.
     ///
     /// REQ: P3-sto-wallet-address-list
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — list deposit addresses
     /// pre:  wallet_id is valid
     /// post: returns Vec of deposit addresses
@@ -606,7 +594,6 @@ impl WalletStore {
         );
         Ok(rows)
     }
-
     /// Resolve which wallet owns a deposit address (reverse lookup).
     ///
     /// Used by the deposit monitor to credit incoming transfers to the
@@ -614,6 +601,7 @@ impl WalletStore {
     /// Resolve wallet for a deposit address.
     ///
     /// REQ: P3-sto-wallet-address-resolve
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — resolve wallet for address
     /// pre:  chain is valid, address is non-empty
     /// post: returns Some(WalletId) if found, None otherwise
@@ -633,13 +621,12 @@ impl WalletStore {
             None => Ok(None),
         }
     }
-
     // ── Deposit References ───────────────────────────────────────────────────
-
     /// Store a one-time shielded deposit reference.
     /// Store a deposit reference for anti-replay.
     ///
     /// REQ: P3-sto-wallet-reference-store
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — store deposit reference
     /// pre:  reference has valid fields
     /// post: deposit reference stored
@@ -656,12 +643,12 @@ impl WalletStore {
         )?;
         Ok(())
     }
-
     /// Consume a deposit reference — atomically marks it spent and returns the wallet_id.
     /// Returns None if the reference doesn't exist, is already spent, or has expired.
     /// Consume a deposit reference (anti-replay).
     ///
     /// REQ: P3-sto-wallet-reference-consume
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — consume deposit reference
     /// pre:  reference is valid and not expired
     /// post: reference consumed, wallet credited
@@ -687,11 +674,11 @@ impl WalletStore {
         )?;
         Ok(Some(WalletId::from_str(&wallet_id_str)?))
     }
-
     /// Purge expired deposit references. Returns count of purged rows.
     /// Purge expired deposit references.
     ///
     /// REQ: P3-sto-wallet-reference-purge
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — purge expired references
     /// post: expired references deleted
     /// post: returns count of deleted references
@@ -704,9 +691,7 @@ impl WalletStore {
         )?;
         Ok(rows as u64)
     }
-
     // ── Encumbrance methods ──────────────────────────────────────────────────
-
     /// Lock rJoules from a wallet for an API key's use.
     ///
     /// Debits the wallet balance by `amount_rj` and creates an active
@@ -715,6 +700,7 @@ impl WalletStore {
     /// Encumber rJoules for an API key (lock funds for spending).
     ///
     /// REQ: P3-sto-wallet-encumber
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — encumber rJoules for key
     /// pre:  wallet_id exists, key_id is valid, amount > 0, balance >= amount
     /// post: rJoules encumbered, balance decreased
@@ -727,7 +713,6 @@ impl WalletStore {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
         let amount = amount_rj.as_u64() as i64;
-
         // Check no existing active encumbrance for this key
         let existing: Option<String> = conn
             .query_row(
@@ -741,7 +726,6 @@ impl WalletStore {
         {
             return Err(WalletError::EncumbranceAlreadyExists { key_id });
         }
-
         // Debit wallet
         let rows = conn.execute(
             "UPDATE wallet_balances SET balance_rj = balance_rj - ?1, updated_at = ?2 WHERE wallet_id = ?3 AND balance_rj >= ?1",
@@ -755,16 +739,13 @@ impl WalletStore {
                 need: amount_rj,
             });
         }
-
         // Create encumbrance row
         conn.execute(
             "INSERT INTO encumbrances (key_id, wallet_id, amount_rj, consumed_rj, status, created_at) VALUES (?1, ?2, ?3, 0, 'active', ?4)",
             rusqlite::params![key_id.to_string(), wallet_id.to_string(), amount, now],
         )?;
-
         Ok(())
     }
-
     /// Release an encumbrance, returning unspent rJoules to the wallet.
     ///
     /// Idempotent — releasing an already-released or consumed encumbrance
@@ -772,13 +753,13 @@ impl WalletStore {
     /// Release an encumbrance (return unspent rJoules to wallet).
     ///
     /// REQ: P3-sto-wallet-encumbrance-release
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — release encumbrance
     /// pre:  key_id has active encumbrance
     /// post: encumbrance released, unspent rJ returned to wallet
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
-
         // Read current state
         let row: Option<(String, i64, i64)> = conn
             .query_row(
@@ -787,18 +768,15 @@ impl WalletStore {
                 |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?)),
             )
             .optional()?;
-
         let (wallet_id_str, amount, consumed) = match row {
             Some(r) => r,
             None => return Ok(()), // already released/consumed or doesn't exist
         };
-
         // Mark released
         conn.execute(
             "UPDATE encumbrances SET status = 'released', released_at = ?1 WHERE key_id = ?2 AND status = 'active'",
             rusqlite::params![now, key_id.to_string()],
         )?;
-
         // Return unspent rJoules to wallet
         let unspent = amount - consumed;
         if unspent > 0 {
@@ -807,10 +785,8 @@ impl WalletStore {
                 rusqlite::params![unspent, now, wallet_id_str],
             )?;
         }
-
         Ok(())
     }
-
     /// Atomically consume rJoules from an active encumbrance.
     ///
     /// This is a single SQL UPDATE that checks `amount_rj - consumed_rj >= cost`
@@ -819,6 +795,7 @@ impl WalletStore {
     /// Consume from an encumbrance (spend locked rJoules).
     ///
     /// REQ: P3-sto-wallet-encumbrance-consume
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — consume from encumbrance
     /// pre:  key_id has active encumbrance with sufficient remaining
     /// post: consumed_rj increased, api_keys.spent_rj synced
@@ -830,7 +807,6 @@ impl WalletStore {
     ) -> Result<(), WalletError> {
         let conn = self.lock_conn()?;
         let cost = cost_rj.as_u64() as i64;
-
         // Atomic consume
         let rows = conn.execute(
             "UPDATE encumbrances SET consumed_rj = consumed_rj + ?1 WHERE key_id = ?2 AND status = 'active' AND (amount_rj - consumed_rj) >= ?1",
@@ -839,22 +815,18 @@ impl WalletStore {
         if rows == 0 {
             return Self::diagnose_consume_failure(&conn, key_id, cost_rj);
         }
-
         // Sync api_keys.spent_rj
         conn.execute(
             "UPDATE api_keys SET spent_rj = spent_rj + ?1 WHERE key_id = ?2",
             rusqlite::params![cost, key_id.to_string()],
         )?;
-
         // Transition status if fully consumed
         conn.execute(
             "UPDATE encumbrances SET status = 'consumed', released_at = ?1 WHERE key_id = ?2 AND status = 'active' AND consumed_rj >= amount_rj",
             rusqlite::params![now_rfc3339(), key_id.to_string()],
         )?;
-
         Ok(())
     }
-
     fn diagnose_consume_failure(
         conn: &rusqlite::Connection,
         key_id: ApiKeyId,
@@ -884,11 +856,11 @@ impl WalletStore {
             None => Err(WalletError::EncumbranceNotFound { key_id }),
         }
     }
-
     /// Get an encumbrance by key ID.
     /// Get an encumbrance by key ID.
     ///
     /// REQ: P3-sto-wallet-encumbrance-get
+    /// expect: "The system provides durable storage for wallet data" [P3]
     /// \[P3\] Motivating: Generative Space — get encumbrance
     /// pre:  key_id is valid
     /// post: returns Some(Encumbrance) if found, None otherwise
@@ -910,7 +882,6 @@ impl WalletStore {
                 },
             )
             .optional()?;
-
         match row {
             Some((wallet_id_str, amount, consumed, status_str, created_at, released_at)) => {
                 let wallet_id = WalletId::from_str(&wallet_id_str).map_err(|e| {
@@ -932,9 +903,7 @@ impl WalletStore {
         }
     }
 }
-
 // ── Row conversion helpers ─────────────────────────────────────────────────────
-
 type TxTypeColumns = (
     &'static str,
     Option<String>,
@@ -944,7 +913,6 @@ type TxTypeColumns = (
     Option<String>,
     Option<i64>,
 );
-
 fn tx_type_to_columns(tx_type: &TransactionType) -> TxTypeColumns {
     match tx_type {
         TransactionType::Deposit {
@@ -1006,7 +974,6 @@ fn tx_type_to_columns(tx_type: &TransactionType) -> TxTypeColumns {
         ),
     }
 }
-
 fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransaction, WalletError> {
     let tx_type = match r.tx_type.as_str() {
         "deposit" => TransactionType::Deposit {
@@ -1061,7 +1028,6 @@ fn row_to_wallet_transaction(r: WalletTransactionRow) -> Result<WalletTransactio
             .map_err(|e| WalletError::Infra(InfrastructureError::Database(e.to_string())))?,
     })
 }
-
 fn row_to_api_key_capability(r: ApiKeyRow) -> Result<ApiKeyCapability, WalletError> {
     let public_key_bytes: [u8; 32] = r.public_key.try_into().map_err(|_| {
         WalletError::Infra(InfrastructureError::Database(
@@ -1099,20 +1065,17 @@ fn row_to_api_key_capability(r: ApiKeyRow) -> Result<ApiKeyCapability, WalletErr
             .map_err(|e| WalletError::Infra(InfrastructureError::Database(e)))?,
     })
 }
-
 // ── Tests ──────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::database::in_memory_db;
-
     fn make_store() -> WalletStore {
         let db = in_memory_db();
         WalletStore::new(db.conn_arc())
     }
-
     // REQ: P3-sto-wallet-wal-test — WAL mode can be enabled on wallet store
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn enable_wal_mode_succeeds() {
         let store = make_store();
@@ -1124,8 +1087,8 @@ mod tests {
             result
         );
     }
-
     // REQ: P1-sto-wallet-store-test — credit_rjoules increases balance
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn credit_rjoules_increases_balance() {
         let store = make_store();
@@ -1133,8 +1096,8 @@ mod tests {
         let balance = store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
         assert_eq!(balance.rjoules, 1000);
     }
-
     // REQ: P1-sto-wallet-store-test — debit_rjoules decreases balance
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn debit_rjoules_decreases_balance() {
         let store = make_store();
@@ -1143,8 +1106,8 @@ mod tests {
         let balance = store.debit_rjoules(wallet, RJoule::new(300)).unwrap();
         assert_eq!(balance.rjoules, 700);
     }
-
     // REQ: P1-sto-wallet-store-test — debit_rjoules rejects insufficient balance
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn debit_rjoules_rejects_insufficient_balance() {
         let store = make_store();
@@ -1153,8 +1116,8 @@ mod tests {
         let err = store.debit_rjoules(wallet, RJoule::new(500)).unwrap_err();
         assert!(matches!(err, WalletError::InsufficientBalance { .. }));
     }
-
     // REQ: P1-sto-wallet-store-test — balance never goes negative
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn balance_never_negative() {
         let store = make_store();
@@ -1166,15 +1129,14 @@ mod tests {
         // Debit more should fail
         assert!(store.debit_rjoules(wallet, RJoule::new(1)).is_err());
     }
-
     // REQ: P1-sto-wallet-store-test — transaction ledger is append-only
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn transaction_ledger_is_append_only() {
         let store = make_store();
         let wallet = WalletId::new();
         store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
         let balance = store.get_balance(wallet).unwrap().unwrap();
-
         let tx = WalletTransaction {
             id: 0, // auto-increment, ignored on insert
             wallet_id: wallet,
@@ -1189,19 +1151,17 @@ mod tests {
             timestamp: chrono::Utc::now(),
         };
         store.record_transaction(&tx).unwrap();
-
         let txs = store.get_transactions(wallet, 10, 0).unwrap();
         assert_eq!(txs.len(), 1);
         assert_eq!(txs[0].rjoules_delta, 1000);
     }
-
     // REQ: P1-sto-wallet-store-test — deposit reference is consumed atomically (anti-replay)
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn deposit_reference_anti_replay() {
         let store = make_store();
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
-
         let dep_ref = DepositReference {
             reference: "test_ref_001".into(),
             wallet_id: wallet,
@@ -1210,23 +1170,20 @@ mod tests {
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };
         store.store_deposit_reference(&dep_ref).unwrap();
-
         // First consumption succeeds
         let result = store.consume_deposit_reference("test_ref_001").unwrap();
         assert_eq!(result, Some(wallet));
-
         // Second consumption fails (already spent)
         let result2 = store.consume_deposit_reference("test_ref_001").unwrap();
         assert_eq!(result2, None);
     }
-
     // REQ: P1-sto-wallet-store-test — expired deposit reference cannot be consumed
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn expired_deposit_reference_rejected() {
         let store = make_store();
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
-
         let dep_ref = DepositReference {
             reference: "expired_ref".into(),
             wallet_id: wallet,
@@ -1235,18 +1192,16 @@ mod tests {
             expires_at: chrono::Utc::now() - chrono::Duration::hours(1), // already expired
         };
         store.store_deposit_reference(&dep_ref).unwrap();
-
         let result = store.consume_deposit_reference("expired_ref").unwrap();
         assert_eq!(result, None);
     }
-
     // REQ: P1-sto-wallet-store-test — API key store and retrieve by public key
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn api_key_store_and_retrieve_by_public_key() {
         let store = make_store();
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
-
         let pubkey = Ed25519PublicKey([1u8; 32]);
         let cap = ApiKeyCapability {
             wallet_id: wallet,
@@ -1263,19 +1218,17 @@ mod tests {
             preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
-
         let retrieved = store.get_api_key_by_public_key(pubkey.as_bytes()).unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().key_id, cap.key_id);
     }
-
     // REQ: P1-sto-wallet-store-test — API key revocation returns unspent rJoules
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn api_key_revocation_returns_unspent_rjoules() {
         let store = make_store();
         let wallet = WalletId::new();
         store.credit_rjoules(wallet, RJoule::new(10000)).unwrap();
-
         let cap = ApiKeyCapability {
             wallet_id: wallet,
             key_id: ApiKeyId::new(),
@@ -1292,24 +1245,21 @@ mod tests {
         };
         let key_id = cap.key_id;
         store.store_api_key(&cap).unwrap();
-
         // Debit the wallet by the key's spending limit (simulating allocation)
         store.debit_rjoules(wallet, RJoule::new(5000)).unwrap();
         let before = store.get_balance(wallet).unwrap().unwrap();
         assert_eq!(before.rjoules, 5000); // 10000 - 5000
-
         store.revoke_api_key(key_id).unwrap();
         let after = store.get_balance(wallet).unwrap().unwrap();
         assert_eq!(after.rjoules, 8800); // 5000 + 3800 unspent returned
     }
-
     // REQ: P1-sto-wallet-spend-sync-test — consume_encumbrance increments api_keys.spent_rj in lockstep
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn consume_encumbrance_updates_api_key_spent_rj() {
         let store = make_store();
         let wallet = WalletId::new();
         store.credit_rjoules(wallet, RJoule::new(10_000)).unwrap();
-
         let key_id = ApiKeyId::new();
         let cap = ApiKeyCapability {
             wallet_id: wallet,
@@ -1326,13 +1276,11 @@ mod tests {
             preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
-
         store
             .encumber_rjoules(wallet, key_id, RJoule::new(2000))
             .unwrap();
         store.consume_encumbrance(key_id, RJoule::new(300)).unwrap();
         store.consume_encumbrance(key_id, RJoule::new(250)).unwrap();
-
         let key = store.get_api_key(key_id).unwrap().unwrap();
         assert_eq!(
             key.spent_rj,
@@ -1340,14 +1288,13 @@ mod tests {
             "spent_rj must track cumulative encumbrance consumption"
         );
     }
-
     // REQ: P1-sto-wallet-spend-sync-drift-test — failed/replayed consume must not drift api_keys.spent_rj
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn failed_consume_does_not_increment_api_key_spent_rj() {
         let store = make_store();
         let wallet = WalletId::new();
         store.credit_rjoules(wallet, RJoule::new(10_000)).unwrap();
-
         let key_id = ApiKeyId::new();
         let cap = ApiKeyCapability {
             wallet_id: wallet,
@@ -1364,19 +1311,16 @@ mod tests {
             preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
-
         store
             .encumber_rjoules(wallet, key_id, RJoule::new(300))
             .unwrap();
         store.consume_encumbrance(key_id, RJoule::new(300)).unwrap();
-
         // Replay/second consume must fail because encumbrance is fully consumed.
         let second = store.consume_encumbrance(key_id, RJoule::new(1));
         assert!(
             second.is_err(),
             "second consume must fail after full consumption"
         );
-
         let key = store.get_api_key(key_id).unwrap().unwrap();
         assert_eq!(
             key.spent_rj,
@@ -1384,14 +1328,13 @@ mod tests {
             "spent_rj must remain unchanged on failed consume"
         );
     }
-
     // REQ: P1-sto-wallet-store-test — purge_expired_references cleans up
+    // expect: "Storage operation works correctly under test conditions" [P1]
     #[test]
     fn purge_expired_references_cleans_up() {
         let store = make_store();
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
-
         // Store an expired reference
         let expired = DepositReference {
             reference: "old_ref".into(),
@@ -1401,7 +1344,6 @@ mod tests {
             expires_at: chrono::Utc::now() - chrono::Duration::hours(1),
         };
         store.store_deposit_reference(&expired).unwrap();
-
         // Store a valid reference
         let valid = DepositReference {
             reference: "new_ref".into(),
@@ -1411,10 +1353,8 @@ mod tests {
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };
         store.store_deposit_reference(&valid).unwrap();
-
         let purged = store.purge_expired_references().unwrap();
         assert_eq!(purged, 1);
-
         // Expired is gone
         assert_eq!(store.consume_deposit_reference("old_ref").unwrap(), None);
         // Valid still works
@@ -1423,8 +1363,8 @@ mod tests {
             Some(wallet)
         );
     }
-
     // REQ: P1-sto-wallet-balance-conservation-test — sum(ledger deltas) == current_balance
+    // expect: "Storage operation works correctly under test conditions" [P1]
     // Property test: for any sequence of credits and debits, the sum of all
     // transaction rjoules_delta values must equal the current wallet balance.
     #[test]
@@ -1432,7 +1372,6 @@ mod tests {
         let store = make_store();
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
-
         // Perform a random-ish sequence of credits and debits.
         // Using fixed values for deterministic reproducibility.
         let operations: [(bool, u64); 12] = [
@@ -1449,7 +1388,6 @@ mod tests {
             (false, 1500), // debit 1500
             (true, 2500),  // credit 2500
         ];
-
         let mut expected_sum: i64 = 0;
         for (is_credit, amount) in &operations {
             let rj = RJoule::new(*amount);
@@ -1495,7 +1433,6 @@ mod tests {
                 }
             }
         }
-
         // Verify: current balance == sum of all deltas
         let balance = store.get_balance(wallet).unwrap().unwrap();
         assert_eq!(
@@ -1503,7 +1440,6 @@ mod tests {
             "MUST-10 VIOLATION: balance {} != sum of ledger deltas {}",
             balance.rjoules, expected_sum,
         );
-
         // Cross-verify via transaction ledger
         let txs = store.get_transactions(wallet, 100, 0).unwrap();
         let ledger_sum: i64 = txs.iter().map(|tx| tx.rjoules_delta).sum();
@@ -1513,7 +1449,6 @@ mod tests {
             balance.rjoules, ledger_sum,
         );
     }
-
     // ── Idempotency contract tests ──────────────────────────────────────
     //
     // Idempotency contract matrix (PR 2.5.1):
@@ -1534,18 +1469,16 @@ mod tests {
     // | store_deposit_reference     | ❌          | Always inserts                    |
     //
     // GAP entries are documented below with regression-catching tests.
-
     // REQ: P3-sto-wallet-ensure-idempotent-test — ensure_wallet is idempotent (INSERT OR IGNORE)
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn ensure_wallet_is_idempotent() {
         let store = make_store();
         let wallet = WalletId::new();
-
         // First call creates
         store.ensure_wallet(wallet).unwrap();
         let b1 = store.get_balance(wallet).unwrap().unwrap();
         assert_eq!(b1.rjoules, 0);
-
         // Second call should be no-op (INSERT OR IGNORE)
         store.ensure_wallet(wallet).unwrap();
         let b2 = store.get_balance(wallet).unwrap().unwrap();
@@ -1554,14 +1487,13 @@ mod tests {
             "balance should not change on duplicate ensure"
         );
     }
-
     // REQ: P3-sto-wallet-release-idempotent-test — release_encumbrance is idempotent (status guard)
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn release_encumbrance_is_idempotent() {
         let store = make_store();
         let wallet = WalletId::new();
         store.credit_rjoules(wallet, RJoule::new(5000)).unwrap();
-
         // Create an API key first (encumbrance references api_keys table)
         let key_id = ApiKeyId::new();
         let cap = ApiKeyCapability {
@@ -1579,15 +1511,12 @@ mod tests {
             preferred_chain: None,
         };
         store.store_api_key(&cap).unwrap();
-
         store
             .encumber_rjoules(wallet, key_id, RJoule::new(1000))
             .unwrap();
-
         // Balance should be 4000 after encumbrance
         let after_encumber = store.get_balance(wallet).unwrap().unwrap();
         assert_eq!(after_encumber.rjoules, 4000);
-
         // First release returns funds
         store.release_encumbrance(key_id).unwrap();
         let after_first = store.get_balance(wallet).unwrap().unwrap();
@@ -1595,7 +1524,6 @@ mod tests {
             after_first.rjoules, 5000,
             "first release should return funds"
         );
-
         // Second release is a no-op (explicitly documented as idempotent)
         store.release_encumbrance(key_id).unwrap();
         let after_second = store.get_balance(wallet).unwrap().unwrap();
@@ -1604,8 +1532,8 @@ mod tests {
             "second release must not double-credit (idempotency contract)"
         );
     }
-
     // REQ: P3-sto-wallet-credit-not-idempotent-test — credit_rjoules is NOT idempotent (documents gap)
+    // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // This test documents the CURRENT behavior. When a transaction-hash
     // deduplication mechanism is added, this test MUST be updated to verify
@@ -1614,11 +1542,9 @@ mod tests {
     fn credit_rjoules_is_not_idempotent_documents_gap() {
         let store = make_store();
         let wallet = WalletId::new();
-
         // Credit once
         store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
         assert_eq!(store.get_balance(wallet).unwrap().unwrap().rjoules, 1000);
-
         // Credit again with same amount — currently doubles (GAP)
         store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
         assert_eq!(
@@ -1627,8 +1553,8 @@ mod tests {
             "GAP: duplicate credit doubles balance — no tx-hash dedup exists"
         );
     }
-
     // REQ: P3-sto-wallet-debit-not-idempotent-test — debit_rjoules is NOT idempotent (documents gap)
+    // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // This test documents the CURRENT behavior. When an idempotency key
     // mechanism is added, this test MUST be updated to verify that duplicate
@@ -1638,11 +1564,9 @@ mod tests {
         let store = make_store();
         let wallet = WalletId::new();
         store.credit_rjoules(wallet, RJoule::new(1000)).unwrap();
-
         // Debit once
         store.debit_rjoules(wallet, RJoule::new(300)).unwrap();
         assert_eq!(store.get_balance(wallet).unwrap().unwrap().rjoules, 700);
-
         // Debit again — currently succeeds and double-charges (GAP)
         store.debit_rjoules(wallet, RJoule::new(300)).unwrap();
         assert_eq!(
@@ -1651,8 +1575,8 @@ mod tests {
             "GAP: duplicate debit double-charges — no idempotency key exists"
         );
     }
-
     // REQ: P3-sto-wallet-consume-reference-idempotent-test — consume_deposit_reference is idempotent (CAS guard)
+    // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // This is the same as the anti-replay test above but explicitly framed
     // as an idempotency contract test.
@@ -1661,7 +1585,6 @@ mod tests {
         let store = make_store();
         let wallet = WalletId::new();
         store.ensure_wallet(wallet).unwrap();
-
         let dep_ref = DepositReference {
             reference: "idem_ref_001".into(),
             wallet_id: wallet,
@@ -1670,11 +1593,9 @@ mod tests {
             expires_at: chrono::Utc::now() + chrono::Duration::hours(24),
         };
         store.store_deposit_reference(&dep_ref).unwrap();
-
         // First consumption succeeds
         let r1 = store.consume_deposit_reference("idem_ref_001").unwrap();
         assert_eq!(r1, Some(wallet));
-
         // Second consumption returns None (idempotent — already spent)
         let r2 = store.consume_deposit_reference("idem_ref_001").unwrap();
         assert_eq!(

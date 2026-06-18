@@ -10,7 +10,8 @@
 #   scripts/contract-audit.sh --expect        # audit expect: field presence (v0.28.0)
 #   scripts/contract-audit.sh --principles    # audit goal-principle [P{N}] anchoring
 #   scripts/contract-audit.sh --constraining  # audit constraining-principle annotations
-#   scripts/contract-audit.sh --full          # run all modes (coverage + expect + principles + constraining)
+#   scripts/contract-audit.sh --contract-quality # aggregate 4-layer quality score
+#   scripts/contract-audit.sh --full          # run all modes (coverage + expect + principles + constraining + quality)
 #
 # Exit 0 always (trend monitor, not a hard gate — baseline is 0/1,727).
 #
@@ -31,6 +32,7 @@ while [[ $# -gt 0 ]]; do
         --expect)       MODE="expect"; shift ;;
         --principles)   MODE="principles"; shift ;;
         --constraining) MODE="constraining"; shift ;;
+        --contract-quality) MODE="contract-quality"; shift ;;
         --full)         FULL_MODE=true; shift ;;
         *)              TARGET="$1"; shift ;;
     esac
@@ -299,6 +301,19 @@ case "$MODE" in
             done
         else
             run_constraining_mode "$TARGET"
+        fi
+        exit 0
+        ;;
+    contract-quality)
+        TARGET="${TARGET:-ALL}"
+        if [ "$TARGET" = "ALL" ]; then
+            for crate_dir in crates/*/; do
+                c=$(basename "$crate_dir")
+                [ -d "crates/${c}/src" ] || continue
+                run_contract_quality_mode "$c"
+            done
+        else
+            run_contract_quality_mode "$TARGET"
         fi
         exit 0
         ;;

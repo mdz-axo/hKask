@@ -1,13 +1,10 @@
 //! hKask Storage — SQLite + SQLCipher storage backend
-
 #[macro_use]
 mod store_macros;
 pub mod lock_helpers;
-
 pub use lock_helpers::{lock_mutex, read_rwlock, write_rwlock};
 pub use store_macros::Store;
 pub use store_macros::now_rfc3339;
-
 pub mod agent_registry;
 pub mod archive;
 pub mod consent_store;
@@ -25,7 +22,6 @@ pub mod spec_types;
 pub mod triples;
 pub mod user_store;
 pub mod wallet_store;
-
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use archive::{ArchiveError, BackupArchive, BackupMeta, MergeReceipt, MigrationReceipt};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
@@ -51,7 +47,6 @@ pub use spec_types::{
     Criterion, DomainAnchor, DriftReport, GoalSpec, Spec, SpecCategory, SpecCurationRecord,
     SpecCurator, SpecError, SpecId, infer_spec_category,
 };
-
 pub use triples::{Triple, TripleError, TripleStore};
 pub use user_store::UserStoreError;
 pub use wallet_store::WalletStore;

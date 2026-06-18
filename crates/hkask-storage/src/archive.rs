@@ -1,11 +1,11 @@
 //! BackupArchive — portable sovereignty archive for hKask cloud deployment.
 //!
 //! # REQ: DEP-100 — P1 User Sovereignty: downloadable, passphrase-encrypted triple export.
+//! expect: "My user data and sovereignty boundaries are stored under my control" [P1]
 //!
 //! Creates a single SQLCipher-encrypted SQLite file containing:
 //! 1. A `backup_meta` table with export metadata
 //! 2. The user's full live triple set from the source TripleStore
-
 use crate::Store;
 use crate::database::Database;
 use crate::triples::TripleStore;
@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use thiserror::Error;
-
 #[derive(Debug, Error)]
 pub enum ArchiveError {
     #[error("Database error: {0}")]
@@ -25,7 +24,6 @@ pub enum ArchiveError {
     #[error("No triples found for user")]
     Empty,
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupMeta {
     pub webid: String,
@@ -34,10 +32,10 @@ pub struct BackupMeta {
     pub triple_count: i64,
     pub schema_version: u32,
 }
-
 /// Receipt returned after a successful migration import.
 ///
 /// REQ: DEP-200 — P1 User Sovereignty: migration receipt for audit trail.
+/// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigrationReceipt {
     /// Number of triples imported (or already present).
@@ -45,22 +43,20 @@ pub struct MigrationReceipt {
     /// Replicant names that were auto-renamed to avoid collision.
     pub renamed_replicants: Vec<(String, String)>,
 }
-
 /// Receipt returned after replicant merge.
 ///
 /// REQ: DEP-500 — P5 Migration: merge receipt.
+/// expect: "The system provides durable storage for migration data" [P5]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MergeReceipt {
     pub triple_count: u64,
     pub source: String,
     pub target: String,
 }
-
 pub struct BackupArchive {
     db: Database,
     path: PathBuf,
 }
-
 impl BackupArchive {
     pub fn create(
         output_path: PathBuf,
@@ -74,17 +70,14 @@ impl BackupArchive {
                 "Passphrase must be at least 8 characters".to_string(),
             ));
         }
-
         let path_str = output_path.to_str().ok_or_else(|| {
             ArchiveError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "Invalid output path",
             ))
         })?;
-
         let db = Database::open(path_str, passphrase)
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
-
         // Create schema
         {
             let conn_arc = db.conn_arc();
@@ -114,9 +107,7 @@ impl BackupArchive {
             )
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         }
-
         let triple_count = Self::copy_triples(&db, source, owner_webid)?;
-
         let meta = BackupMeta {
             webid: owner_webid.to_string(),
             source_server_url: source_server_url.to_string(),
@@ -124,7 +115,6 @@ impl BackupArchive {
             triple_count,
             schema_version: 1,
         };
-
         {
             let conn_arc = db.conn_arc();
             let conn = conn_arc
@@ -143,13 +133,11 @@ impl BackupArchive {
             )
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         }
-
         Ok(Self {
             db,
             path: output_path,
         })
     }
-
     pub fn open(path: PathBuf, passphrase: &str) -> Result<Self, ArchiveError> {
         let path_str = path.to_str().ok_or_else(|| {
             ArchiveError::Io(std::io::Error::new(
@@ -161,7 +149,6 @@ impl BackupArchive {
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         Ok(Self { db, path })
     }
-
     pub fn metadata(&self) -> Result<BackupMeta, ArchiveError> {
         let conn_arc = self.db.conn_arc();
         let conn = conn_arc
@@ -182,11 +169,9 @@ impl BackupArchive {
         )
         .map_err(|e| ArchiveError::Database(e.to_string()))
     }
-
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
-
     pub fn triple_count(&self) -> Result<i64, ArchiveError> {
         let conn_arc = self.db.conn_arc();
         let conn = conn_arc
@@ -197,10 +182,10 @@ impl BackupArchive {
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         Ok(count)
     }
-
     /// Import triples from this archive into a target TripleStore.
     ///
     /// REQ: DEP-201 — idempotent CRDT merge via INSERT OR REPLACE by TripleID.
+    /// expect: "The system provides durable storage for archival data" [P3]
     /// pre:  archive is open; target is a live TripleStore; existing_names are current replicant names
     /// post: all triples upserted into target
     /// post: auto-renamed entities where collision with existing replicant names
@@ -215,11 +200,9 @@ impl BackupArchive {
         let total = rows.len() as i64;
         let mut renamed: Vec<(String, String)> = Vec::new();
         let date_suffix = Utc::now().format("%Y%m%d").to_string();
-
         let conn = target
             .lock_conn()
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
-
         for mut row in rows {
             // Auto-rename entity if it collides with an existing replicant name
             if existing_replicant_names.contains(&row.entity) {
@@ -229,10 +212,8 @@ impl BackupArchive {
                 }
                 row.entity = new_name;
             }
-
             // Update owner_webid to target user
             row.owner_webid = owner_webid.to_string();
-
             // Idempotent upsert by TripleID
             conn.execute(
                 "INSERT OR REPLACE INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
@@ -252,25 +233,21 @@ impl BackupArchive {
             )
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         }
-
         Ok(MigrationReceipt {
             triple_count: total,
             renamed_replicants: renamed,
         })
     }
-
     /// Read all triples from this archive.
     fn read_triples(&self) -> Result<Vec<TripleRow>, ArchiveError> {
         let conn_arc = self.db.conn_arc();
         let conn = conn_arc
             .lock()
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
-
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid FROM triples",
         )
         .map_err(|e| ArchiveError::Database(e.to_string()))?;
-
         stmt.query_map([], |row| {
             Ok(TripleRow {
                 id: row.get(0)?,
@@ -289,25 +266,21 @@ impl BackupArchive {
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| ArchiveError::Database(e.to_string()))
     }
-
     fn copy_triples(
         archive_db: &Database,
         source: &TripleStore,
         owner_webid: &WebID,
     ) -> Result<i64, ArchiveError> {
         let webid_str = owner_webid.to_string();
-
         let rows: Vec<TripleRow> = {
             let source_conn = source
                 .lock_conn()
                 .map_err(|e| ArchiveError::Database(e.to_string()))?;
-
             let mut stmt = source_conn.prepare(
                 "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
                  FROM triples WHERE owner_webid = ?1",
             )
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
-
             stmt.query_map(rusqlite::params![webid_str], |row| {
                 Ok(TripleRow {
                     id: row.get(0)?,
@@ -326,17 +299,14 @@ impl BackupArchive {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| ArchiveError::Database(e.to_string()))?
         };
-
         let count = rows.len() as i64;
         if count == 0 {
             return Err(ArchiveError::Empty);
         }
-
         let conn_arc = archive_db.conn_arc();
         let archive_conn = conn_arc
             .lock()
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
-
         for row in &rows {
             archive_conn.execute(
                 "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
@@ -356,11 +326,9 @@ impl BackupArchive {
             )
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         }
-
         Ok(count)
     }
 }
-
 struct TripleRow {
     id: String,
     entity: String,
@@ -373,7 +341,6 @@ struct TripleRow {
     visibility: String,
     owner_webid: String,
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -381,16 +348,13 @@ mod tests {
     use crate::triples::Triple;
     use hkask_types::WebID;
     use serde_json::json;
-
     fn temp_path(name: &str) -> PathBuf {
         std::env::temp_dir().join(name)
     }
-
     fn setup_triple_store() -> (TripleStore, WebID) {
         let db = in_memory_db();
         let store = TripleStore::new(db.conn_arc());
         let webid = WebID::new();
-
         // Create triples table
         store
             .lock_conn()
@@ -410,7 +374,6 @@ mod tests {
             );",
             )
             .unwrap();
-
         // Insert test triples
         let triples = vec![
             ("replicant:ada", "name", json!("Ada")),
@@ -421,16 +384,14 @@ mod tests {
             let t = Triple::new(entity, attr, val, webid);
             store.insert(&t).unwrap();
         }
-
         (store, webid)
     }
-
     // REQ: DEP-TEST-001 — export creates encrypted archive with correct metadata
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn export_creates_archive_with_metadata() {
         let (store, webid) = setup_triple_store();
         let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
-
         let archive = BackupArchive::create(
             path.clone(),
             "test-passphrase",
@@ -439,55 +400,47 @@ mod tests {
             "test-server",
         )
         .unwrap();
-
         assert_eq!(archive.path(), &path);
         let count = archive.triple_count().unwrap();
         assert_eq!(count, 3);
-
         let meta = archive.metadata().unwrap();
         assert_eq!(meta.webid, webid.to_string());
         assert_eq!(meta.source_server_url, "test-server");
         assert_eq!(meta.triple_count, 3);
         assert_eq!(meta.schema_version, 1);
     }
-
     // REQ: DEP-TEST-002 — archive cannot be opened with wrong passphrase
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn archive_rejects_wrong_passphrase() {
         let (store, webid) = setup_triple_store();
         let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
-
         BackupArchive::create(path.clone(), "correct-pass", &store, &webid, "srv").unwrap();
         let result = BackupArchive::open(path, "wrong-pass!!");
         assert!(result.is_err());
     }
-
     // REQ: DEP-TEST-003 — round-trip: export → open → verify counts match
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn roundtrip_export_open_preserves_triples() {
         let (store, webid) = setup_triple_store();
         let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
-
         let archive =
             BackupArchive::create(path.clone(), "test-pass", &store, &webid, "srv").unwrap();
         drop(archive);
-
         let reopened = BackupArchive::open(path, "test-pass").unwrap();
         assert_eq!(reopened.triple_count().unwrap(), 3);
-
         let meta = reopened.metadata().unwrap();
         assert_eq!(meta.triple_count, 3);
     }
-
     // REQ: DEP-TEST-004 — import into empty target produces correct count
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_into_empty_target() {
         let (source, src_webid) = setup_triple_store();
         let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
-
         let archive =
             BackupArchive::create(path.clone(), "test-pass", &source, &src_webid, "srv").unwrap();
-
         // Create empty target store
         let target_db = in_memory_db();
         let target = TripleStore::new(target_db.conn_arc());
@@ -503,14 +456,11 @@ mod tests {
             );",
             )
             .unwrap();
-
         let target_webid = WebID::new();
         let names = HashSet::new();
         let receipt = archive.import_into(&target, &target_webid, &names).unwrap();
-
         assert_eq!(receipt.triple_count, 3);
         assert!(receipt.renamed_replicants.is_empty());
-
         // Verify triples in target
         let target_count: i64 = target
             .lock_conn()
@@ -518,7 +468,6 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM triples", [], |r| r.get(0))
             .unwrap();
         assert_eq!(target_count, 3);
-
         // Verify owner_webid updated
         let owner: String = target
             .lock_conn()
@@ -527,15 +476,13 @@ mod tests {
             .unwrap();
         assert_eq!(owner, target_webid.to_string());
     }
-
     // REQ: DEP-TEST-005 — idempotent re-import produces same result
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_is_idempotent() {
         let (source, src_webid) = setup_triple_store();
         let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
-
         let archive = BackupArchive::create(path, "test-pass", &source, &src_webid, "srv").unwrap();
-
         let target_db = in_memory_db();
         let target = TripleStore::new(target_db.conn_arc());
         target
@@ -550,16 +497,12 @@ mod tests {
             );",
             )
             .unwrap();
-
         let tw = WebID::new();
         let names = HashSet::new();
-
         let r1 = archive.import_into(&target, &tw, &names).unwrap();
         assert_eq!(r1.triple_count, 3);
-
         let r2 = archive.import_into(&target, &tw, &names).unwrap();
         assert_eq!(r2.triple_count, 3);
-
         // Count should still be 3 (INSERT OR REPLACE)
         let count: i64 = target
             .lock_conn()
@@ -568,15 +511,13 @@ mod tests {
             .unwrap();
         assert_eq!(count, 3);
     }
-
     // REQ: DEP-TEST-006 — auto-rename on replicant name collision
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn import_auto_renames_on_collision() {
         let (source, src_webid) = setup_triple_store();
         let path = temp_path(&format!("hkask-test-{}.db", uuid::Uuid::new_v4()));
-
         let archive = BackupArchive::create(path, "test-pass", &source, &src_webid, "srv").unwrap();
-
         let target_db = in_memory_db();
         let target = TripleStore::new(target_db.conn_arc());
         target
@@ -591,11 +532,9 @@ mod tests {
             );",
             )
             .unwrap();
-
         let tw = WebID::new();
         let mut names = HashSet::new();
         names.insert("replicant:ada".to_string());
-
         let receipt = archive.import_into(&target, &tw, &names).unwrap();
         assert_eq!(receipt.triple_count, 3);
         assert_eq!(receipt.renamed_replicants.len(), 1);

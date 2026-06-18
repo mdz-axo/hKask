@@ -5,28 +5,26 @@ set -euo pipefail
 
 STORAGE_DIR="crates/hkask-storage/src"
 
-# Compute expectation from contract ID
+# Compute expectation from contract ID and full REQ line
+# $1 = contract_id, $2 = is_test, $3 = comment_prefix, $4 = full_req_line (for principle extraction)
 get_expectation() {
     local contract_id="$1"
     local is_test="$2"
     local prefix="$3"
+    local full_line="$4"
 
-    if [ "$is_test" = "yes" ]; then
-        local principle
-        principle=$(echo "$contract_id" | sed -n 's/^\(P[0-9]\{1,2\}\)-.*/\1/p')
-        if [ -z "$principle" ]; then
-            principle=$(echo "$contract_id" | sed -n 's/^DEP-[^-]*.*\(P[0-9]\{1,2\}\).*/\1/p')
-        fi
-        [ -z "$principle" ] && principle="P3"
-        echo "${prefix} expect: \"Storage operation works correctly under test conditions\" [${principle}]"
-        return
-    fi
-
+    # Extract principle: try from contract_id first, then from full line, default to P3
     local principle
     principle=$(echo "$contract_id" | sed -n 's/^\(P[0-9]\{1,2\}\)-.*/\1/p')
     if [ -z "$principle" ]; then
-        principle=$(echo "$contract_id" | sed -n 's/.*\(P[0-9]\{1,2\}\).*/\1/p')
-        [ -z "$principle" ] && principle="P3"
+        # Try to find P# in the full REQ line (e.g., "DEP-200 — P1 User Sovereignty")
+        principle=$(echo "$full_line" | grep -oP 'P\d+' | head -1)
+    fi
+    [ -z "$principle" ] && principle="P3"
+
+    if [ "$is_test" = "yes" ]; then
+        echo "${prefix} expect: \"Storage operation works correctly under test conditions\" [${principle}]"
+        return
     fi
 
     case "$contract_id" in
@@ -147,7 +145,7 @@ process_file() {
                             is_test="yes"
                         fi
                         local expectation
-                        expectation=$(get_expectation "$contract_id" "$is_test" "${indent}${req_prefix}")
+                        expectation=$(get_expectation "$contract_id" "$is_test" "${indent}${req_prefix}" "$prev_line")
                         echo "$expectation" >> "$tempfile"
                     fi
                 fi
@@ -175,7 +173,7 @@ process_file() {
                     is_test="yes"
                 fi
                 local expectation
-                expectation=$(get_expectation "$contract_id" "$is_test" "${indent}${req_prefix}")
+                expectation=$(get_expectation "$contract_id" "$is_test" "${indent}${req_prefix}" "$prev_line")
                 echo "$expectation" >> "$tempfile"
             fi
         fi

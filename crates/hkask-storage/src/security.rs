@@ -1,16 +1,15 @@
 //! Security utilities for path sanitization and access control
 //!
 //! Prevents path traversal attacks in storage operations.
-
 use hkask_types::InfrastructureError;
 use std::path::{Component, Path, PathBuf};
-
 /// Sanitize a user-provided path to prevent path traversal attacks.
 ///
 /// Returns an error if the path contains `..` components or escapes the base directory.
 /// Sanitize a user-supplied path against directory traversal.
 ///
 /// REQ: P4-sto-path-safe-join
+/// expect: "The system enforces OCAP boundaries on storage access" [P4]
 /// \[P4\] Motivating: Clear Boundaries — prevent directory traversal
 /// \[P1\] Constraining: User Sovereignty — user paths stay within base directory
 /// pre:  base is a valid directory, input is a relative path

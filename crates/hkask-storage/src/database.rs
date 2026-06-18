@@ -4,15 +4,12 @@
 //! Passphrases are derived using Argon2id to produce 256-bit encryption keys.
 //!
 //! **Spec Reference:** architecture v0.21.0 §2.3
-
 use hkask_keystore::derive_key;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
-
 /// Default embedding dimension (configurable via HKASK_EMBEDDING_DIM)
 pub(crate) const DEFAULT_EMBEDDING_DIM: usize = 1024;
-
 /// Get embedding dimension from environment or default
 pub(crate) fn embedding_dim() -> usize {
     std::env::var("HKASK_EMBEDDING_DIM")
@@ -20,7 +17,6 @@ pub(crate) fn embedding_dim() -> usize {
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEFAULT_EMBEDDING_DIM)
 }
-
 fn load_sqlite_vec() -> Result<(), DatabaseError> {
     use std::sync::Once;
     static INIT: Once = Once::new();
@@ -36,7 +32,6 @@ fn load_sqlite_vec() -> Result<(), DatabaseError> {
             *mut *mut std::os::raw::c_char,
             *const rusqlite::ffi::sqlite3_api_routines,
         ) -> std::os::raw::c_int;
-
         // sqlite3_vec_init is a void fn() that internally handles the sqlite3
         // extension registration. We cast its address to the expected entry point
         // type for sqlite3_auto_extension, which is the standard FFI registration pattern.
@@ -46,10 +41,8 @@ fn load_sqlite_vec() -> Result<(), DatabaseError> {
     });
     Ok(())
 }
-
 /// Salt size for SQLCipher key derivation
 pub(crate) const SQLCIPHER_SALT_SIZE: usize = 16;
-
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum DatabaseError {
@@ -60,7 +53,6 @@ pub enum DatabaseError {
     #[error("Key derivation error: {0}")]
     KeyDerivation(String),
 }
-
 /// Database wrapper with SQLCipher support
 ///
 /// Uses `Arc<Mutex<>>` for connection sharing across threads.
@@ -71,7 +63,6 @@ pub enum DatabaseError {
 pub struct Database {
     pub(crate) conn: Arc<Mutex<Connection>>,
 }
-
 impl Database {
     /// Open database with passphrase for encryption, optional schema extensions.
     fn open_impl(
@@ -90,7 +81,6 @@ impl Database {
                 "Passphrase must be at least 8 characters".to_string(),
             ));
         }
-
         let salt_path = format!("{}.salt", path);
         let salt = if let Ok(salt_bytes) = std::fs::read(&salt_path) {
             if salt_bytes.len() != SQLCIPHER_SALT_SIZE {
@@ -107,23 +97,21 @@ impl Database {
                 .map_err(|e| DatabaseError::SqlCipher(format!("Failed to write salt: {}", e)))?;
             salt
         };
-
         let conn = Connection::open(path)?;
         Self::configure_encryption(&conn, passphrase, &salt)?;
         Self::initialize_schema(&conn)?;
         if let Some(ext) = extensions {
             conn.execute_batch(ext)?;
         }
-
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
     }
-
     /// Open database with passphrase for encryption
     /// Open an encrypted database at the given path.
     ///
     /// REQ: P4-sto-database-open
+    /// expect: "The system enforces OCAP boundaries on storage access" [P4]
     /// \[P4\] Motivating: Clear Boundaries — open encrypted SQLite database
     /// \[P1\] Constraining: User Sovereignty — passphrase protects local data
     /// pre:  path is valid, passphrase is non-empty
@@ -131,7 +119,6 @@ impl Database {
     pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
         Self::open_impl(path, passphrase, None)
     }
-
     /// Open database with passphrase and custom schema extensions
     ///
     /// After initializing the core schema, executes the provided DDL string.
@@ -147,6 +134,7 @@ impl Database {
     /// Open database with additional DDL extensions.
     ///
     /// REQ: P4-sto-database-open-ext
+    /// expect: "The system enforces OCAP boundaries on storage access" [P4]
     /// \[P4\] Motivating: Clear Boundaries — open encrypted DB with DDL extensions
     /// pre:  path is valid, passphrase is non-empty, extensions is valid SQL
     /// post: returns Database with extensions applied
@@ -157,7 +145,6 @@ impl Database {
     ) -> Result<Self, DatabaseError> {
         Self::open_impl(path, passphrase, Some(extensions))
     }
-
     /// Open in-memory database (unencrypted, for testing)
     fn in_memory_impl(extensions: Option<&str>) -> Result<Self, DatabaseError> {
         load_sqlite_vec()?;
@@ -170,17 +157,16 @@ impl Database {
             conn: Arc::new(Mutex::new(conn)),
         })
     }
-
     /// Open in-memory database (unencrypted, for testing)
     /// Open an in-memory database (unencrypted, for testing).
     ///
     /// REQ: P4-sto-database-in-memory
+    /// expect: "The system enforces OCAP boundaries on storage access" [P4]
     /// \[P4\] Motivating: Clear Boundaries — open in-memory DB for tests
     /// post: returns in-memory Database
     pub fn in_memory() -> Result<Self, DatabaseError> {
         Self::in_memory_impl(None)
     }
-
     /// Open in-memory database with custom schema extensions (unencrypted, for testing)
     ///
     /// After initializing the core schema, executes the provided DDL string.
@@ -194,13 +180,13 @@ impl Database {
     /// Open in-memory database with extensions.
     ///
     /// REQ: P4-sto-database-in-memory-ext
+    /// expect: "The system enforces OCAP boundaries on storage access" [P4]
     /// \[P4\] Motivating: Clear Boundaries — open in-memory DB with extensions
     /// pre:  extensions is valid SQL DDL
     /// post: returns in-memory Database with extensions
     pub fn in_memory_with_extensions(extensions: &str) -> Result<Self, DatabaseError> {
         Self::in_memory_impl(Some(extensions))
     }
-
     fn configure_encryption(
         conn: &Connection,
         passphrase: &str,
@@ -212,25 +198,23 @@ impl Database {
         conn.execute_batch(&format!("PRAGMA key = 'x\"{}\"';", key_hex))?;
         Ok(())
     }
-
     fn initialize_schema(conn: &Connection) -> Result<(), DatabaseError> {
         let schema = include_str!("sql/schema.sql");
         let dim = embedding_dim();
         conn.execute_batch(&schema.replace("$DIM", &dim.to_string()))?;
         Ok(())
     }
-
     /// Get database connection for shared access
     /// Get a clone of the shared connection Arc.
     ///
     /// REQ: P4-sto-database-conn-arc
+    /// expect: "The system enforces OCAP boundaries on storage access" [P4]
     /// \[P4\] Motivating: Clear Boundaries — share connection Arc with stores
     /// post: returns Arc<Mutex<Connection>> for Store constructors
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }
 }
-
 /// Open a database from a path and passphrase, with in-memory fallback.
 ///
 /// If `path` is `":memory:"`, opens an in-memory database (unencrypted).
@@ -241,6 +225,7 @@ impl Database {
 /// Open a database from path or :memory:.
 ///
 /// REQ: P4-sto-database-open-unwrap
+/// expect: "The system enforces OCAP boundaries on storage access" [P4]
 /// \[P4\] Motivating: Clear Boundaries — infallible encrypted DB open
 /// pre:  path is valid, passphrase is non-empty
 /// post: returns Database (in-memory if path is ":memory:")
@@ -251,7 +236,6 @@ pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseE
         Database::open(path, passphrase)
     }
 }
-
 /// Open an in-memory database, panicking on failure.
 ///
 /// Use this in test fixtures and CLI startup where an in-memory DB
@@ -263,12 +247,12 @@ pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseE
 /// Create an in-memory database for testing.
 ///
 /// REQ: P4-sto-database-in-memory-unwrap
+/// expect: "The system enforces OCAP boundaries on storage access" [P4]
 /// \[P4\] Motivating: Clear Boundaries — infallible in-memory DB open
 /// post: returns in-memory Database (panics on failure)
 pub fn in_memory_db() -> Database {
     Database::in_memory().expect("in-memory database initialization should never fail")
 }
-
 fn generate_salt() -> [u8; SQLCIPHER_SALT_SIZE] {
     use rand::Rng;
     rand::rng().random()

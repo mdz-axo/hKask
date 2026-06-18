@@ -4,10 +4,8 @@
 //! over `Arc<Mutex<Connection>>`. Every store struct implements this trait.
 //! `define_store!` generates the struct + `Store` impl for each store.
 //! `impl_from_rusqlite!` generates the canonical `From<rusqlite::Error>` impl.
-
 use hkask_types::InfrastructureError;
 use std::sync::{Arc, Mutex, MutexGuard};
-
 // P4.3: `now_rfc3339` lives in `hkask-types` (the foundation crate) so
 // that non-storage crates (CLI, agents) can also use it without
 // pulling in the entire storage dependency tree. Re-export it from this
@@ -18,7 +16,6 @@ use std::sync::{Arc, Mutex, MutexGuard};
 // `crate::store_macros::now_rfc3339` still resolves for any caller that
 // reaches for the canonical implementation directly.)
 pub use hkask_types::time::now_rfc3339;
-
 /// Shared trait for all SQLite-backed stores.
 ///
 /// Provides the standard `conn_arc()` and `lock_conn()` methods over
@@ -32,14 +29,12 @@ pub use hkask_types::time::now_rfc3339;
 pub trait Store {
     /// Get a clone of the inner connection Arc for direct SQL access.
     fn conn_arc(&self) -> Arc<Mutex<rusqlite::Connection>>;
-
     /// Acquire the mutex lock on the shared connection.
     ///
     /// Returns `InfrastructureError::LockPoisoned` if another thread
     /// panicked while holding the lock.
     fn lock_conn(&self) -> Result<MutexGuard<'_, rusqlite::Connection>, InfrastructureError>;
 }
-
 /// Define a store struct with the standard `Arc<Mutex<Connection>>` pattern.
 ///
 /// Generates:
@@ -60,19 +55,16 @@ macro_rules! define_store {
         pub struct $name {
             conn: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
         }
-
         impl $name {
             /// Create a new store backed by the given connection.
             pub fn new(conn: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>) -> Self {
                 Self { conn }
             }
         }
-
         impl $crate::Store for $name {
             fn conn_arc(&self) -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {
                 std::sync::Arc::clone(&self.conn)
             }
-
             fn lock_conn(
                 &self,
             ) -> std::result::Result<
@@ -84,7 +76,6 @@ macro_rules! define_store {
         }
     };
 }
-
 /// Implement `From<rusqlite::Error>` for a store error type, mapping to
 /// `XxxError::Infra(InfrastructureError::Database(e.to_string()))`.
 ///
@@ -106,7 +97,6 @@ macro_rules! impl_from_rusqlite {
         }
     };
 }
-
 /// Implement `From<serde_json::Error>` for a store error type, mapping to
 /// `XxxError::Infra(InfrastructureError::from(e))`.
 ///
@@ -127,7 +117,6 @@ macro_rules! impl_from_serde_json {
         }
     };
 }
-
 /// Collect mapped rows, propagating the **first error** instead of logging and skipping.
 ///
 /// Use for targeted single-result queries (e.g., `get_by_id`) where a malformed
@@ -161,7 +150,6 @@ macro_rules! collect_rows_strict {
         results
     }};
 }
-
 /// Collect mapped rows into a result vector with graceful error logging.
 ///
 /// Eliminates the repeated `collect → for row_result in mapped { match Ok/Err }`

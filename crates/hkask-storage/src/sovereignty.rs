@@ -5,27 +5,21 @@
 //! - Shared data categories (require consent)
 //! - Public data categories (always accessible)
 //! - Affirmative consent requirements
-
 use crate::Store;
 use hkask_types::InfrastructureError;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
 /// Sovereignty boundary store errors
 #[derive(Debug, Error)]
 pub enum SovereigntyStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
     #[error("UUID parse error: {0}")]
     UuidParse(String),
 }
-
 impl_from_rusqlite!(SovereigntyStoreError, Infra);
-
 impl_from_serde_json!(SovereigntyStoreError, Infra);
-
 /// Stored sovereignty boundary entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SovereigntyBoundaryEntry {
@@ -38,9 +32,7 @@ pub struct SovereigntyBoundaryEntry {
     pub created_at: i64,
     pub updated_at: i64,
 }
-
 define_store!(SovereigntyBoundaryStore);
-
 impl SovereigntyBoundaryStore {
     /// Initialize the database schema
     ///
@@ -50,6 +42,7 @@ impl SovereigntyBoundaryStore {
     /// Initialize the sovereignty boundary store schema.
     ///
     /// REQ: P1-sto-sovereignty-schema
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — schema for sovereignty boundaries
     /// post: sovereignty_boundaries table created if not exists
     pub fn initialize_schema(&self) -> Result<(), SovereigntyStoreError> {
@@ -70,14 +63,11 @@ impl SovereigntyBoundaryStore {
             CREATE INDEX IF NOT EXISTS idx_sovereignty_updated ON sovereignty_boundaries(updated_at);
             ",
         )?;
-
         // Migrations for Magna Carta refactoring
         self.migrate_resistance_column(&conn)?;
         self.migrate_drop_kill_zone(&conn)?;
-
         Ok(())
     }
-
     /// Migrate the `resistance` column to `requires_affirmative_consent`.
     ///
     /// The Magna Carta renamed the `resistance` column (legacy "Acquisition
@@ -90,16 +80,13 @@ impl SovereigntyBoundaryStore {
         let has_old_column = conn
             .prepare("SELECT resistance FROM sovereignty_boundaries LIMIT 0")
             .is_ok();
-
         if !has_old_column {
             return Ok(());
         }
-
         tracing::info!(
             target: "hkask.storage.migration",
             "Migrating sovereignty_boundaries: resistance → requires_affirmative_consent"
         );
-
         conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS sovereignty_boundaries_new (
@@ -124,10 +111,8 @@ impl SovereigntyBoundaryStore {
             CREATE INDEX IF NOT EXISTS idx_sovereignty_updated ON sovereignty_boundaries(updated_at);
             ",
         )?;
-
         Ok(())
     }
-
     /// Drop the `kill_zone_threshold` column (kill-zone was removed from Magna Carta).
     ///
     /// If the column is present, this rebuilds the table without it.
@@ -138,16 +123,13 @@ impl SovereigntyBoundaryStore {
         let has_column = conn
             .prepare("SELECT kill_zone_threshold FROM sovereignty_boundaries LIMIT 0")
             .is_ok();
-
         if !has_column {
             return Ok(());
         }
-
         tracing::info!(
             target: "hkask.storage.migration",
             "Migrating sovereignty_boundaries: dropping kill_zone_threshold column"
         );
-
         conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS sovereignty_boundaries_new (
@@ -172,14 +154,13 @@ impl SovereigntyBoundaryStore {
             CREATE INDEX IF NOT EXISTS idx_sovereignty_updated ON sovereignty_boundaries(updated_at);
             ",
         )?;
-
         Ok(())
     }
-
     /// Store sovereignty boundary for a WebID
     /// Store a sovereignty boundary entry.
     ///
     /// REQ: P1-sto-sovereignty-store
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — store a sovereignty boundary entry
     /// pre:  entry.webid is non-empty
     /// post: entry inserted or replaced
@@ -189,7 +170,6 @@ impl SovereigntyBoundaryStore {
         let shared_json = serde_json::to_string(&entry.shared_categories)?;
         let public_json = serde_json::to_string(&entry.public_categories)?;
         let now = chrono::Utc::now().timestamp();
-
         conn.execute(
             "INSERT INTO sovereignty_boundaries
              (id, webid, sovereign_categories, shared_categories, public_categories,
@@ -212,14 +192,13 @@ impl SovereigntyBoundaryStore {
                 now
             ],
         )?;
-
         Ok(())
     }
-
     /// Get sovereignty boundary for a WebID
     /// Get sovereignty boundary entries for a WebID.
     ///
     /// REQ: P1-sto-sovereignty-get
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get boundaries for a WebID
     /// pre:  webid is non-empty
     /// post: returns Vec of entries for this WebID
@@ -233,7 +212,6 @@ impl SovereigntyBoundaryStore {
                     requires_affirmative_consent, created_at, updated_at
              FROM sovereignty_boundaries WHERE webid = ?1",
         )?;
-
         let entry = stmt
             .query_row(params![webid], |row| {
                 let id: String = row.get(0)?;
@@ -244,14 +222,12 @@ impl SovereigntyBoundaryStore {
                 let requires_affirmative_consent: String = row.get(5)?;
                 let created_at: i64 = row.get(6)?;
                 let updated_at: i64 = row.get(7)?;
-
                 let sovereign_categories: Vec<String> = serde_json::from_str(&sovereign_json)
                     .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
                 let shared_categories: Vec<String> = serde_json::from_str(&shared_json)
                     .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
                 let public_categories: Vec<String> = serde_json::from_str(&public_json)
                     .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
-
                 Ok(SovereigntyBoundaryEntry {
                     id,
                     webid,
@@ -264,14 +240,13 @@ impl SovereigntyBoundaryStore {
                 })
             })
             .optional()?;
-
         Ok(entry)
     }
-
     /// Delete sovereignty boundary for a WebID
     /// Delete sovereignty boundary entries for a WebID.
     ///
     /// REQ: P1-sto-sovereignty-delete
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — delete boundaries for a WebID
     /// pre:  webid is non-empty
     /// post: entries deleted for this WebID

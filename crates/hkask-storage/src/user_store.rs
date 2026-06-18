@@ -1,5 +1,4 @@
 //! UserStore — Human user identity, Argon2id auth, encrypted PII, session management.
-
 use crate::archive::MergeReceipt;
 use crate::Store;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
@@ -13,15 +12,12 @@ use rusqlite::params;
 use std::str::FromStr;
 use thiserror::Error;
 use zeroize::Zeroizing;
-
 const REPLICANT_COLUMNS: &str = "replicant_name, user_id, replicant_webid, wallet_id, first_name_enc, last_name_enc, persona_yaml, is_primary, created_at, last_login";
 const SESSION_COLUMNS: &str = "session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active";
-
 #[derive(Error, Debug)]
 pub enum UserStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
     #[error("User not found: {0}")]
     NotFound(String),
     #[error("Replicant name already registered: {0}")]
@@ -39,13 +35,9 @@ pub enum UserStoreError {
     #[error("Passphrase expired {0} days ago — must change")]
     PassphraseExpired(i64),
 }
-
 impl_from_rusqlite!(UserStoreError, Infra);
-
 pub type UserResult<T> = std::result::Result<T, UserStoreError>;
-
 define_store!(UserStore);
-
 fn replicant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ReplicantIdentity> {
     Ok(ReplicantIdentity {
         replicant_name: row.get(0)?,
@@ -63,7 +55,6 @@ fn replicant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ReplicantIden
         last_login: row.get(9)?,
     })
 }
-
 fn session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UserSession> {
     Ok(UserSession {
         session_id: row.get(0)?,
@@ -75,11 +66,11 @@ fn session_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UserSession> {
         last_active: row.get(6)?,
     })
 }
-
 impl UserStore {
     /// Initialize the user store schema.
     ///
     /// REQ: P1-sto-user-schema
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — schema for users, replicants, sessions
     /// post: users, replicants, sessions tables created if not exists
     pub fn initialize_schema(&self) -> UserResult<()> {
@@ -100,10 +91,10 @@ impl UserStore {
             .ok();
         Ok(())
     }
-
     /// Register a new replicant.
     ///
     /// REQ: P1-sto-user-register
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — register a replicant
     /// \[P2\] Constraining: Affirmative Consent — passphrase requirements enforced
     /// pre:  replicant_name is non-empty, passphrase meets requirements
@@ -120,13 +111,11 @@ impl UserStore {
         if self.get_replicant(&replicant_name)?.is_some() {
             return Err(UserStoreError::ReplicantNameTaken(replicant_name));
         }
-
         let user_id = UserID::new();
         let salt = Self::generate_salt();
         let master_salt = Self::generate_salt();
         let passphrase_hash = Self::hash_passphrase(&passphrase, &salt)?;
         let pii_key = Self::derive_pii_key(&passphrase, &master_salt)?;
-
         let email_enc = Self::encrypt_pii(email.as_bytes(), &pii_key)?;
         let phone_enc = phone
             .as_ref()
@@ -134,10 +123,8 @@ impl UserStore {
             .transpose()?;
         let first_name_enc = Self::encrypt_pii(first_name.as_bytes(), &pii_key)?;
         let last_name_enc = Self::encrypt_pii(last_name.as_bytes(), &pii_key)?;
-
         let mut conn = self.lock_conn()?;
         let tx = conn.transaction()?;
-
         tx.execute(
             "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, passphrase_set_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -152,10 +139,8 @@ impl UserStore {
                 chrono::Utc::now().timestamp(),
             ],
         )?;
-
         let identity =
             ReplicantIdentity::new(replicant_name, user_id, first_name_enc, last_name_enc, true);
-
         tx.execute(
             "INSERT INTO replicant_identities
              (replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc, is_primary, created_at)
@@ -170,14 +155,13 @@ impl UserStore {
                 chrono::Utc::now().timestamp()
             ],
         )?;
-
         tx.commit()?;
         Ok(identity)
     }
-
     /// Find or create a human user via OAuth sign-in.
     ///
     /// REQ: DEP-002 — P1 User Sovereignty: OAuth user lookup/creation preserves WebID ownership.
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// pre:  provider is a valid OAuthProvider; provider_user_id is the external ID from the provider
     /// post: if user exists with matching provider + provider_user_id → returns existing (user, replicant)
     /// post: if user does not exist → creates new HumanUser + primary ReplicantIdentity + returns both
@@ -203,7 +187,6 @@ impl UserStore {
             )?;
             return Ok((user, replicant));
         }
-
         // Create new user — OAuth users get a generated passphrase (never used directly)
         let generated_passphrase = uuid::Uuid::new_v4().to_string();
         let user_id = UserID::new();
@@ -211,9 +194,7 @@ impl UserStore {
         let master_salt = Self::generate_salt();
         let passphrase_hash = Self::hash_passphrase(&generated_passphrase, &salt)?;
         let pii_key = Self::derive_pii_key(&generated_passphrase, &master_salt)?;
-
         let email_enc = Self::encrypt_pii(email.as_bytes(), &pii_key)?;
-
         // Derive replicant name from display name, with dedup on collision
         let mut replicant_name = sanitize_replicant_name(display_name);
         let mut suffix: u32 = 1;
@@ -232,13 +213,10 @@ impl UserStore {
         }
         let first_name_enc = Self::encrypt_pii(display_name.as_bytes(), &pii_key)?;
         let last_name_enc = Self::encrypt_pii(b"", &pii_key)?;
-
         let provider_str = provider.to_string();
         let now = chrono::Utc::now().timestamp();
-
         let mut conn = self.lock_conn()?;
         let tx = conn.transaction()?;
-
         tx.execute(
             "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, passphrase_set_at, oauth_provider, oauth_provider_user_id, oauth_display_name)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
@@ -256,7 +234,6 @@ impl UserStore {
                 display_name,
             ],
         )?;
-
         let identity = ReplicantIdentity::new(
             replicant_name.clone(),
             user_id,
@@ -264,7 +241,6 @@ impl UserStore {
             last_name_enc,
             true,
         );
-
         tx.execute(
             "INSERT INTO replicant_identities
              (replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc, is_primary, created_at)
@@ -279,16 +255,14 @@ impl UserStore {
                 now
             ],
         )?;
-
         tx.commit()?;
-
         let user = self.get_user(&user_id)?;
         Ok((user, identity))
     }
-
     /// Find a human user by OAuth provider identity.
     ///
     /// REQ: DEP-003
+    /// expect: "The system provides durable storage for archival data" [P3]
     /// pre:  provider is a valid OAuthProvider; provider_user_id is non-empty
     /// post: returns Some((user, primary_replicant)) if found; None if not found
     fn find_user_by_oauth(
@@ -301,12 +275,10 @@ impl UserStore {
         let mut stmt = conn.prepare(
             "SELECT user_id FROM human_users WHERE oauth_provider = ?1 AND oauth_provider_user_id = ?2",
         )?;
-
         let user_id: Option<String> = stmt
             .query_row(params![provider_str, provider_user_id], |row| row.get(0))
             .optional()
             .map_err(UserStoreError::from)?;
-
         match user_id {
             Some(uid_str) => {
                 let uid = UserID::from_str(&uid_str).map_err(|e| {
@@ -325,10 +297,10 @@ impl UserStore {
             None => Ok(None),
         }
     }
-
     /// Create a session and return it (used by OAuth flow and login).
     ///
     /// REQ: DEP-004
+    /// expect: "The system provides durable storage for archival data" [P3]
     /// pre:  identity is a valid ReplicantIdentity
     /// post: returns a new UserSession with 7-day expiry
     pub fn create_oauth_session(&self, identity: &ReplicantIdentity) -> UserResult<UserSession> {
@@ -336,10 +308,10 @@ impl UserStore {
         self.update_last_login(&identity.replicant_name)?;
         Ok(session)
     }
-
     /// List all replicant names across all users (for collision detection during migration).
     ///
     /// REQ: DEP-210
+    /// expect: "The system provides durable storage for archival data" [P3]
     /// pre:  none
     /// post: returns Vec of all replicant_name values
     pub fn list_all_replicant_names(&self) -> UserResult<Vec<String>> {
@@ -352,10 +324,10 @@ impl UserStore {
             .map_err(UserStoreError::from)?;
         Ok(names)
     }
-
     /// Rename a replicant (used after migration when auto-rename occurred).
     ///
     /// REQ: DEP-211
+    /// expect: "The system provides durable storage for archival data" [P3]
     /// pre:  from_name exists; to_name does not exist
     /// post: replicant_identities.replicant_name updated
     pub fn rename_replicant(&self, from_name: &str, to_name: &str) -> UserResult<()> {
@@ -369,10 +341,10 @@ impl UserStore {
         }
         Ok(())
     }
-
     /// Delete a replicant and all its associated data.
     ///
     /// REQ: DEP-212
+    /// expect: "The system provides durable storage for archival data" [P3]
     /// pre:  replicant_name exists
     /// post: replicant_identities row deleted; sessions deleted
     pub fn delete_replicant(&self, replicant_name: &str) -> UserResult<()> {
@@ -390,11 +362,11 @@ impl UserStore {
         )?;
         Ok(())
     }
-
     /// Merge triples from a source replicant into a target replicant.
     /// Updates entity field where it matches the source replicant name.
     ///
     /// REQ: DEP-500 — P5 Migration: idempotent replicant merge.
+    /// expect: "The system provides durable storage for migration data" [P5]
     /// pre:  source_name and target_name are valid replicant names
     /// post: all triples with entity = source_name updated to entity = target_name
     /// post: returns MergeReceipt with triple_count
@@ -414,10 +386,10 @@ impl UserStore {
             target: target_name.to_string(),
         })
     }
-
     /// Find a replicant by WebID.
     ///
     /// REQ: DEP-312
+    /// expect: "The system provides durable storage for archival data" [P3]
     /// pre:  webid is a valid WebID
     /// post: returns Some(ReplicantIdentity) if found, None otherwise
     pub fn get_replicant_by_webid(
@@ -434,10 +406,10 @@ impl UserStore {
             Err(e) => Err(UserStoreError::from(e)),
         }
     }
-
     /// Login a replicant with passphrase.
     ///
     /// REQ: P1-sto-user-login
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — authenticate replicant session
     /// pre:  replicant_name is registered, passphrase is correct
     /// post: returns UserSession on success
@@ -446,16 +418,13 @@ impl UserStore {
         let identity = self
             .get_replicant(replicant_name)?
             .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
-
         let human = self.get_user(&identity.user_id)?;
         let verified = Self::verify_passphrase(passphrase, &human.passphrase_hash)?;
         if !verified {
             return Err(UserStoreError::InvalidCredentials);
         }
-
         let session = self.create_session(&identity)?;
         self.update_last_login(&identity.replicant_name)?;
-
         // Check passphrase expiry (60 days)
         if let Some(days_old) = self
             .check_passphrase_expiry(replicant_name, 60)
@@ -469,13 +438,12 @@ impl UserStore {
             // Return the session but flag the expiry
             return Err(UserStoreError::PassphraseExpired(days_old));
         }
-
         Ok(session)
     }
-
     /// Logout a session.
     ///
     /// REQ: P1-sto-user-logout
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — invalidate session
     /// pre:  session_id is valid
     /// post: session invalidated
@@ -487,11 +455,11 @@ impl UserStore {
         )?;
         Ok(())
     }
-
     /// Change a replicant's passphrase. Requires the old passphrase for verification.
     /// Change a replicant's passphrase.
     ///
     /// REQ: P1-sto-user-passphrase-change
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — change replicant passphrase
     /// pre:  replicant_name is registered, old_passphrase is correct
     /// post: passphrase updated
@@ -504,37 +472,32 @@ impl UserStore {
         let identity = self
             .get_replicant(replicant_name)?
             .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
-
         let human = self.get_user(&identity.user_id)?;
         let verified = Self::verify_passphrase(old_passphrase, &human.passphrase_hash)?;
         if !verified {
             return Err(UserStoreError::InvalidCredentials);
         }
-
         // Hash new passphrase with existing salt and master_salt
         let new_hash = Self::hash_passphrase(new_passphrase, &human.salt)?;
         let now = chrono::Utc::now().timestamp();
-
         let conn = self.lock_conn()?;
         conn.execute(
             "UPDATE human_users SET passphrase_hash = ?1, passphrase_set_at = ?2 WHERE user_id = ?3",
             params![new_hash, now, identity.user_id],
         )?;
-
         // Invalidate all existing sessions for this replicant
         conn.execute(
             "DELETE FROM user_sessions WHERE replicant_name = ?1",
             params![replicant_name],
         )?;
-
         Ok(())
     }
-
     /// Check if a replicant's passphrase is older than `max_age_days`.
     /// Returns `Some(days_old)` if expired, `None` if still valid or no timestamp.
     /// Check if a passphrase has expired.
     ///
     /// REQ: P1-sto-user-passphrase-expired
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — detect passphrase rotation need
     /// pre:  replicant_name is registered
     /// post: returns true if passphrase needs rotation
@@ -546,27 +509,24 @@ impl UserStore {
         let identity = self
             .get_replicant(replicant_name)?
             .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
-
         let human = self.get_user(&identity.user_id)?;
         let set_at = match human.passphrase_set_at {
             Some(ts) => ts,
             None => return Ok(None), // no timestamp set, can't check
         };
-
         let now = chrono::Utc::now().timestamp();
         let age_seconds = now - set_at;
         let age_days = age_seconds / 86400;
-
         if age_days > max_age_days {
             Ok(Some(age_days))
         } else {
             Ok(None)
         }
     }
-
     /// Get a session by ID.
     ///
     /// REQ: P1-sto-user-session-get
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get session by ID
     /// pre:  session_id is non-empty
     /// post: returns Some(session) if valid, None otherwise
@@ -581,10 +541,10 @@ impl UserStore {
             Err(e) => Err(UserStoreError::from(e)),
         }
     }
-
     /// List sessions for a replicant.
     ///
     /// REQ: P1-sto-user-session-list
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — list active sessions
     /// pre:  replicant_name is non-empty
     /// post: returns Vec of active sessions
@@ -599,10 +559,10 @@ impl UserStore {
             session_from_row
         ))
     }
-
     /// Get a replicant by name.
     ///
     /// REQ: P1-sto-user-replicant-get
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get replicant by name
     /// pre:  replicant_name is non-empty
     /// post: returns Some(identity) if found, None otherwise
@@ -617,10 +577,10 @@ impl UserStore {
             Err(e) => Err(UserStoreError::from(e)),
         }
     }
-
     /// Get a human user by ID.
     ///
     /// REQ: P1-sto-user-human-get
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get human user by ID
     /// pre:  user_id is valid
     /// post: returns HumanUser
@@ -631,7 +591,6 @@ impl UserStore {
                     oauth_provider, oauth_provider_user_id, oauth_display_name
              FROM human_users WHERE user_id = ?1",
         )?;
-
         stmt.query_row(params![user_id], |row| {
             Ok(HumanUser {
                 user_id: *user_id,
@@ -657,10 +616,10 @@ impl UserStore {
             other => UserStoreError::from(other),
         })
     }
-
     /// List replicants for a user.
     ///
     /// REQ: P1-sto-user-replicant-list
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — list replicants owned by user
     /// pre:  user_id is valid
     /// post: returns Vec of replicants owned by user
@@ -671,11 +630,11 @@ impl UserStore {
         ))?;
         Ok(collect_rows!(stmt, params![user_id], replicant_from_row))
     }
-
     /// Get the wallet ID for a replicant.
     /// Get wallet ID for a replicant.
     ///
     /// REQ: P1-sto-user-wallet-get
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — get wallet ID for replicant
     /// pre:  replicant_name is non-empty
     /// post: returns Some(WalletId) if set, None otherwise
@@ -685,11 +644,11 @@ impl UserStore {
             .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
         Ok(identity.wallet_id)
     }
-
     /// Set the wallet ID for a replicant (called during onboarding after wallet creation).
     /// Set wallet ID for a replicant.
     ///
     /// REQ: P1-sto-user-wallet-set
+    /// expect: "My user data and sovereignty boundaries are stored under my control" [P1]
     /// \[P1\] Motivating: User Sovereignty — set wallet ID for replicant
     /// pre:  replicant_name is registered, wallet_id is valid
     /// post: wallet_id stored for replicant
@@ -704,13 +663,11 @@ impl UserStore {
         }
         Ok(())
     }
-
     fn create_session(&self, identity: &ReplicantIdentity) -> UserResult<UserSession> {
         let session_id = uuid::Uuid::new_v4().to_string();
         let session_key_salt = Self::generate_salt();
         let now = chrono::Utc::now().timestamp();
         let expires_at = now + 86400 * 7;
-
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT INTO user_sessions
@@ -726,7 +683,6 @@ impl UserStore {
                 now
             ],
         )?;
-
         Ok(UserSession {
             session_id,
             replicant_name: identity.replicant_name.clone(),
@@ -737,7 +693,6 @@ impl UserStore {
             last_active: now,
         })
     }
-
     fn update_last_login(&self, replicant_name: &str) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -746,47 +701,36 @@ impl UserStore {
         )?;
         Ok(())
     }
-
     fn generate_salt() -> String {
         let mut salt = [0u8; 16];
         rand::rng().fill_bytes(&mut salt);
         hex::encode(salt)
     }
-
     fn hash_passphrase(passphrase: &str, salt: &str) -> UserResult<String> {
         use argon2::password_hash::SaltString;
         use argon2::{Algorithm, Argon2, Params, Version};
-
         let salt_bytes = hex::decode(salt)
             .map_err(|e| UserStoreError::KeyDerivation(format!("Invalid salt hex: {}", e)))?;
-
         let salt_string = SaltString::from_b64(
             &base64::engine::general_purpose::STANDARD_NO_PAD.encode(&salt_bytes),
         )
         .map_err(|e| UserStoreError::KeyDerivation(format!("Salt error: {}", e)))?;
-
         let params = Params::new(19456, 2, 1, None)
             .map_err(|e| UserStoreError::KeyDerivation(e.to_string()))?;
-
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-
         let password_hash = argon2
             .hash_password(passphrase.as_bytes(), &salt_string)
             .map_err(|e| UserStoreError::PasswordHash(e.to_string()))?;
-
         Ok(password_hash.to_string())
     }
-
     fn verify_passphrase(passphrase: &str, hash: &str) -> UserResult<bool> {
         let parsed_hash =
             PasswordHash::new(hash).map_err(|e| UserStoreError::PasswordHash(e.to_string()))?;
-
         match argon2::Argon2::default().verify_password(passphrase.as_bytes(), &parsed_hash) {
             Ok(_) => Ok(true),
             Err(_) => Ok(false),
         }
     }
-
     pub(crate) fn derive_pii_key(
         passphrase: &str,
         master_salt: &str,
@@ -798,32 +742,27 @@ impl UserStore {
         )
         .map_err(|e| UserStoreError::KeyDerivation(e.to_string()))
     }
-
     pub(crate) fn encrypt_pii(plaintext: &[u8], key: &Zeroizing<[u8; 32]>) -> UserResult<Vec<u8>> {
         use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
-
         let cipher = Aes256Gcm::new_from_slice(&**key)
             .map_err(|e| UserStoreError::Encryption(e.to_string()))?;
-
         let mut nonce_bytes = [0u8; 12];
         rand::rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
-
         let ciphertext = cipher
             .encrypt(nonce, plaintext)
             .map_err(|e| UserStoreError::Encryption(e.to_string()))?;
-
         let mut result = nonce_bytes.to_vec();
         result.extend_from_slice(&ciphertext);
         Ok(result)
     }
 }
-
 /// Sanitize a display name into a valid replicant name.
 ///
 /// Replicant names must be 1-64 alphanumeric characters with hyphens/underscores.
 /// This converts spaces to underscores and strips invalid characters.
 /// REQ: DEP-005
+/// expect: "The system provides durable storage for archival data" [P3]
 fn sanitize_replicant_name(display_name: &str) -> String {
     let sanitized: String = display_name
         .chars()

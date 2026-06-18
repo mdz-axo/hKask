@@ -2,14 +2,12 @@
 //! Relocated from `hkask-types` per P1: consumed primarily by `hkask-storage` and `hkask-mcp-spec`.
 //!
 //! Five categories per MDS §1: Domain, Composition, Trust, Lifecycle, Curation.
-
 use chrono::{DateTime, Utc};
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
 use hkask_types::id::{GoalID, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use uuid::Uuid;
-
 /// Macro for string↔enum conversion pairs.
 macro_rules! str_enum {
     ($enum:ident { $($variant:ident => $s:literal),+ $(,)? }) => {
@@ -17,6 +15,7 @@ macro_rules! str_enum {
             /// Get string representation.
             ///
             /// REQ: P8-sto-spec-str-enum-as-str
+            /// expect: "Storage types preserve semantic identity across operations" [P8]
             /// \[P8\] Motivating: Semantic Grounding — stable string representation
             /// post: returns lowercase string
             pub fn as_str(&self) -> &'static str {
@@ -25,6 +24,7 @@ macro_rules! str_enum {
             /// Parse from string.
             ///
             /// REQ: P8-sto-spec-str-enum-parse
+            /// expect: "Storage types preserve semantic identity across operations" [P8]
             /// \[P8\] Motivating: Semantic Grounding — parse from string
             /// post: returns Some if valid, None otherwise
             pub fn parse_str(s: &str) -> Option<Self> {
@@ -36,14 +36,13 @@ macro_rules! str_enum {
         }
     };
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpecId(pub Uuid);
-
 impl SpecId {
     /// Create a new SpecId.
     ///
     /// REQ: P8-sto-spec-id-new
+    /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — new SpecId
     /// post: returns new random SpecId
     pub fn new() -> Self {
@@ -52,6 +51,7 @@ impl SpecId {
     /// Create a SpecId from a string.
     ///
     /// REQ: P8-sto-spec-id-from-str
+    /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — SpecId from string
     /// pre:  s is a valid UUID string
     /// post: returns SpecId
@@ -61,19 +61,16 @@ impl SpecId {
             .map_err(|_| SpecError::InvalidId(s.to_string()))
     }
 }
-
 impl Default for SpecId {
     fn default() -> Self {
         Self::new()
     }
 }
-
 impl std::fmt::Display for SpecId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
-
 /// MDS 5-category spec taxonomy (MDS §1).
 ///
 /// Collapsed from 9 DDMVSS categories:
@@ -91,11 +88,11 @@ pub enum SpecCategory {
     Lifecycle,
     Curation,
 }
-
 impl SpecCategory {
     /// Get string representation of category.
     ///
     /// REQ: P8-sto-spec-category-as-str
+    /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — category string label
     /// post: returns snake_case string
     pub fn as_str(&self) -> &'static str {
@@ -107,11 +104,11 @@ impl SpecCategory {
             SpecCategory::Curation => "curation",
         }
     }
-
     /// Parse a string into a `SpecCategory`, mapping legacy DDMVSS names to
     /// their MDS equivalents.
     ///
     /// REQ: P8-sto-spec-category-parse
+    /// expect: "Storage types preserve semantic identity across operations" [P8]
     /// \[P8\] Motivating: Semantic Grounding — parse category
     /// post: returns Some(SpecCategory) if valid, None otherwise
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -124,7 +121,6 @@ impl SpecCategory {
             _ => None,
         }
     }
-
     pub fn all() -> &'static [SpecCategory] {
         &[
             SpecCategory::Domain,
@@ -135,7 +131,6 @@ impl SpecCategory {
         ]
     }
 }
-
 /// Infer MDS spec category from natural-language context keywords.
 ///
 /// Single source of truth for context-keyword → MDS category mapping.
@@ -144,6 +139,7 @@ impl SpecCategory {
 ///
 /// Defaults to [`SpecCategory::Domain`] when context is `None` or unrecognized.
 // REQ: P8-sto-spec-infer-category — infer_spec_category maps context keywords to MDS categories
+// expect: "Storage operation works correctly under test conditions" [P8]
 /// pre:  arguments are valid
 /// post: returns expected result
 /// \[P8\] Motivating: Semantic Grounding — infer MDS category from context
@@ -164,21 +160,17 @@ pub fn infer_spec_category(context: Option<&str>) -> SpecCategory {
         SpecCategory::Domain
     }
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DomainAnchor {
     Inference,
     Hkask,
 }
-
 str_enum!(DomainAnchor { Inference => "inference", Hkask => "hkask" });
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Criterion {
     pub description: String,
     pub satisfied: bool,
 }
-
 impl Criterion {
     pub fn new(description: &str) -> Self {
         Self {
@@ -186,12 +178,10 @@ impl Criterion {
             satisfied: false,
         }
     }
-
     pub fn mark_satisfied(&mut self) {
         self.satisfied = true;
     }
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoalSpec {
     pub id: GoalID,
@@ -202,7 +192,6 @@ pub struct GoalSpec {
     pub depth: u8,
     pub display_name: Option<String>,
 }
-
 impl GoalSpec {
     pub fn new(text: &str) -> Self {
         Self {
@@ -215,27 +204,22 @@ impl GoalSpec {
             display_name: None,
         }
     }
-
     pub fn with_display_name(mut self, name: impl Into<String>) -> Self {
         self.display_name = Some(name.into());
         self
     }
-
     pub fn with_criterion(mut self, description: &str) -> Self {
         self.criteria.push(Criterion::new(description));
         self
     }
-
     pub fn can_have_subgoals(&self) -> bool {
         self.depth < 7
     }
-
     pub fn is_complete(&self) -> bool {
         !self.criteria.is_empty()
             && self.criteria.iter().all(|c| c.satisfied)
             && self.sub_goals.iter().all(|g| g.is_complete())
     }
-
     pub fn coherence(&self) -> f64 {
         if self.criteria.is_empty() {
             return 0.0;
@@ -251,7 +235,6 @@ impl GoalSpec {
         }
     }
 }
-
 /// Jaccard drift report: declared vs registered verb sets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DriftReport {
@@ -259,7 +242,6 @@ pub struct DriftReport {
     pub missing_verbs: Vec<String>,
     pub extra_verbs: Vec<String>,
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Spec {
     pub id: SpecId,
@@ -275,7 +257,6 @@ pub struct Spec {
     pub valid_from: Option<DateTime<Utc>>,
     pub valid_to: Option<DateTime<Utc>>,
 }
-
 impl Spec {
     pub fn new(name: &str, category: SpecCategory, domain_anchor: DomainAnchor) -> Self {
         Self {
@@ -293,7 +274,6 @@ impl Spec {
             valid_to: None,
         }
     }
-
     pub fn with_declared_verb(mut self, verb: &str) -> Self {
         self.declared_verbs.push(verb.to_string());
         self
@@ -314,7 +294,6 @@ impl Spec {
         self.valid_to = Some(dt);
         self
     }
-
     /// Compute Jaccard drift between declared verbs and registered tools.
     pub fn drift(&self, registered_verbs: &[String]) -> DriftReport {
         let declared: HashSet<String> = self.declared_verbs.iter().cloned().collect();
@@ -333,23 +312,19 @@ impl Spec {
             extra_verbs: extra,
         }
     }
-
     pub fn with_goal(mut self, goal: GoalSpec) -> Self {
         self.goals.push(goal);
         self
     }
-
     pub fn is_complete(&self) -> bool {
         !self.goals.is_empty() && self.goals.iter().all(|g| g.is_complete())
     }
-
     pub fn coherence(&self) -> f64 {
         if self.goals.is_empty() {
             return 0.0;
         }
         self.goals.iter().map(|g| g.coherence()).sum::<f64>() / self.goals.len() as f64
     }
-
     pub fn collection_coherence(specs: &[Spec]) -> f64 {
         if specs.is_empty() {
             return 0.0;
@@ -365,7 +340,6 @@ impl Spec {
         ((coverage + completeness) / 2.0).clamp(0.0, 1.0)
     }
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecCurationRecord {
     pub spec_id: SpecId,
@@ -375,7 +349,6 @@ pub struct SpecCurationRecord {
     pub ocap_boundary: OCAPBoundary,
     pub curated_at: DateTime<Utc>,
 }
-
 impl SpecCurationRecord {
     pub fn new(
         spec_id: SpecId,
@@ -394,7 +367,6 @@ impl SpecCurationRecord {
         }
     }
 }
-
 #[derive(Debug, thiserror::Error)]
 pub enum SpecError {
     #[error("Spec not found: {0}")]
@@ -418,11 +390,8 @@ pub enum SpecError {
     #[error("Spec drift exceeded threshold: {0}")]
     DriftExceeded(f64),
 }
-
 impl_from_rusqlite!(SpecError, Infra);
-
 impl_from_serde_json!(SpecError, Infra);
-
 /// Curation trait — evaluates spec coherence and makes curation decisions.
 ///
 /// Implemented by `DefaultSpecCurator` in `hkask-agents`. This trait lives
@@ -435,23 +404,20 @@ pub trait SpecCurator: Send + Sync {
         spec: &Spec,
         registered_verbs: &[String],
     ) -> Result<SpecCurationRecord, SpecError>;
-
     /// Evaluate all specs and produce records.
     fn reconcile(
         &self,
         specs: &[Spec],
         registered_verbs: &[String],
     ) -> Result<Vec<SpecCurationRecord>, SpecError>;
-
     /// Iteratively cultivate a collection until coherence meets threshold.
     fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError>;
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     // REQ: P8-sto-spec-legacy-parse-test — SpecCategory::parse_str maps legacy DDMVSS names to MDS categories
+    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_maps_legacy_ddmvss_names() {
         assert_eq!(
@@ -471,8 +437,8 @@ mod tests {
             Some(SpecCategory::Lifecycle)
         );
     }
-
     // REQ: P8-sto-spec-mds-parse-test — SpecCategory::parse_str handles canonical MDS names
+    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_handles_mds_names() {
         assert_eq!(
@@ -484,26 +450,25 @@ mod tests {
             Some(SpecCategory::Lifecycle)
         );
     }
-
     // REQ: P8-sto-spec-parse-none-test — SpecCategory::parse_str returns None for unknown strings
+    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn parse_str_returns_none_for_unknown() {
         assert_eq!(SpecCategory::parse_str("nonsense"), None);
     }
-
     // REQ: P8-sto-spec-legacy-deser-test — Spec deserializes legacy variant names to correct MDS categories
+    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn serde_deserializes_legacy_variant_names() {
         let json = r#"{"id": "00000000-0000-0000-0000-000000000001", "name": "test", "category": "Capability", "domain_anchor": "Hkask", "declared_verbs": [], "goals": [], "version": null, "signature": null, "signed_by": null, "created_at": "2026-01-01T00:00:00Z", "valid_from": null, "valid_to": null}"#;
         let spec: Spec = serde_json::from_str(json).unwrap();
         assert_eq!(spec.category, SpecCategory::Composition);
-
         let json = r#"{"id": "00000000-0000-0000-0000-000000000002", "name": "test", "category": "Observability", "domain_anchor": "Hkask", "declared_verbs": [], "goals": [], "version": null, "signature": null, "signed_by": null, "created_at": "2026-01-01T00:00:00Z", "valid_from": null, "valid_to": null}"#;
         let spec: Spec = serde_json::from_str(json).unwrap();
         assert_eq!(spec.category, SpecCategory::Lifecycle);
     }
-
     // REQ: P8-sto-spec-category-all-test — SpecCategory::all returns exactly five MDS variants
+    // expect: "Storage operation works correctly under test conditions" [P8]
     #[test]
     fn spec_category_all_has_exactly_five_variants() {
         assert_eq!(SpecCategory::all().len(), 5);

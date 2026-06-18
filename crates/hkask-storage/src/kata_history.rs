@@ -8,15 +8,11 @@
 //! Integrated with the daemon's dual-encoding memory pipeline: the daemon reads
 //! `kata_history` rows to build episodic narratives and feeds CNS counters
 //! for variety and automaticity monitoring.
-
 use hkask_types::InfrastructureError;
-
 use crate::Store;
 use crate::define_store;
 use crate::impl_from_rusqlite;
-
 define_store!(KataHistoryStore);
-
 /// A single kata practice session entry.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KataHistoryEntry {
@@ -37,7 +33,6 @@ pub struct KataHistoryEntry {
     /// ISO timestamp of record creation.
     pub created_at: String,
 }
-
 /// Error type for kata history operations.
 #[derive(Debug, thiserror::Error)]
 pub enum KataHistoryError {
@@ -46,9 +41,7 @@ pub enum KataHistoryError {
     #[error("Parse error: {0}")]
     Parse(String),
 }
-
 impl_from_rusqlite!(KataHistoryError, Infra);
-
 impl KataHistoryStore {
     /// Record a kata practice session for an agent.
     ///
@@ -63,6 +56,7 @@ impl KataHistoryStore {
     /// Record a kata history entry.
     ///
     /// REQ: P3-sto-kata-record
+    /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — record a kata practice entry
     /// pre:  entry.agent_name is non-empty
     /// post: entry inserted into kata_history
@@ -82,11 +76,11 @@ impl KataHistoryStore {
         )?;
         Ok(conn.last_insert_rowid())
     }
-
     /// Retrieve all entries for an agent, ordered by date descending.
     /// Get entries for a specific agent.
     ///
     /// REQ: P3-sto-kata-list-agent
+    /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — list entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of entries for this agent
@@ -129,11 +123,11 @@ impl KataHistoryStore {
         }
         Ok(results)
     }
-
     /// Count total entries for an agent. Useful for CNS variety counter aggregation.
     /// Count entries for an agent.
     ///
     /// REQ: P3-sto-kata-count-agent
+    /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns count of entries
@@ -146,11 +140,11 @@ impl KataHistoryStore {
         )?;
         Ok(count as usize)
     }
-
     /// Count entries for an agent on a specific date. Returns count > 0 if practiced today.
     /// Count entries on a specific date.
     ///
     /// REQ: P3-sto-kata-count-date
+    /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count entries per date
     /// pre:  agent_name is non-empty, date is valid ISO date
     /// post: returns count of entries on that date
@@ -167,11 +161,11 @@ impl KataHistoryStore {
         )?;
         Ok(count as usize)
     }
-
     /// Get the most recent entry for an agent.
     /// Get the last entry for an agent.
     ///
     /// REQ: P3-sto-kata-last
+    /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — most recent entry for agent
     /// pre:  agent_name is non-empty
     /// post: returns Some(entry) if exists, None otherwise
@@ -214,11 +208,11 @@ impl KataHistoryStore {
             None => Ok(None),
         }
     }
-
     /// Get all entries for an agent within a date range (inclusive).
     /// Get entries in a date range.
     ///
     /// REQ: P3-sto-kata-range
+    /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — entries in date range
     /// pre:  agent_name is non-empty, from/to are valid ISO dates
     /// post: returns Vec of entries in range
@@ -263,11 +257,11 @@ impl KataHistoryStore {
         }
         Ok(results)
     }
-
     /// Delete entries older than a given date. Useful for CNS routine cleanup.
     /// Delete entries before a date.
     ///
     /// REQ: P3-sto-kata-delete-before
+    /// expect: "The system provides durable storage for kata history data" [P3]
     /// \[P3\] Motivating: Generative Space — delete old entries
     /// pre:  before_date is a valid ISO date
     /// post: entries before date deleted
@@ -281,7 +275,6 @@ impl KataHistoryStore {
         Ok(count)
     }
 }
-
 /// Internal row struct for mapping from database.
 struct KataHistoryRow {
     id: i64,
@@ -293,35 +286,31 @@ struct KataHistoryRow {
     gas_consumed: u64,
     created_at: String,
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::in_memory_db;
-
     // REQ: P3-sto-kata-record-retrieve-test — KataHistoryStore records and retrieves practice entries
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn record_and_retrieve_entry() {
         let db = in_memory_db();
         let store = KataHistoryStore::new(db.conn_arc());
-
         store
             .record("Alice", "2026-06-15", "starter", "starter-kata", 5, 0)
             .unwrap();
-
         let entries = store.entries_for_agent("Alice").unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].agent_name, "Alice");
         assert_eq!(entries[0].kata_type, "starter");
         assert_eq!(entries[0].steps_completed, 5);
     }
-
     // REQ: P3-sto-kata-count-test — KataHistoryStore counts entries per agent and per date
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn count_entries_per_date() {
         let db = in_memory_db();
         let store = KataHistoryStore::new(db.conn_arc());
-
         store
             .record("Alice", "2026-06-14", "coaching", "coaching-kata", 5, 200)
             .unwrap();
@@ -338,18 +327,16 @@ mod tests {
                 15000,
             )
             .unwrap();
-
         assert_eq!(store.count_entries_for_agent("Alice").unwrap(), 2);
         assert_eq!(store.count_entries_on("Alice", "2026-06-15").unwrap(), 1);
         assert_eq!(store.count_entries_for_agent("Bob").unwrap(), 1);
     }
-
     // REQ: P3-sto-kata-last-test — KataHistoryStore returns most recent entry for agent
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn last_entry_for_agent() {
         let db = in_memory_db();
         let store = KataHistoryStore::new(db.conn_arc());
-
         store
             .record("Alice", "2026-06-14", "starter", "starter-kata", 5, 0)
             .unwrap();
@@ -363,14 +350,13 @@ mod tests {
                 15000,
             )
             .unwrap();
-
         let last = store.last_entry_for_agent("Alice").unwrap().unwrap();
         assert_eq!(last.date, "2026-06-15");
         assert_eq!(last.kata_type, "improvement");
         assert_eq!(last.gas_consumed, 15000);
     }
-
     // REQ: P3-sto-kata-empty-test — KataHistoryStore returns None for agent with no entries
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn no_entries_returns_none() {
         let db = in_memory_db();
@@ -378,13 +364,12 @@ mod tests {
         let last = store.last_entry_for_agent("Nobody").unwrap();
         assert!(last.is_none());
     }
-
     // REQ: P3-sto-kata-delete-before-test — KataHistoryStore deletes entries before a cutoff date
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn delete_entries_before() {
         let db = in_memory_db();
         let store = KataHistoryStore::new(db.conn_arc());
-
         store
             .record("Alice", "2026-06-13", "starter", "starter-kata", 5, 0)
             .unwrap();
@@ -401,7 +386,6 @@ mod tests {
                 15000,
             )
             .unwrap();
-
         let deleted = store.delete_entries_before("2026-06-14").unwrap();
         assert_eq!(deleted, 1);
         let remaining = store.entries_for_agent("Alice").unwrap();

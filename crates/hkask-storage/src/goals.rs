@@ -1,6 +1,5 @@
 //! Goal storage — transient coordination substrates.
 //! Long-term retention lives in agent memory (episodic/semantic).
-
 use crate::lock_helpers::lock_mutex;
 use crate::{Store, now_rfc3339};
 use chrono::Utc;
@@ -12,38 +11,27 @@ use hkask_types::visibility::Visibility;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
-
 /// Shared column list for all goal SELECT statements.
 const GOAL_COLUMNS: &str = "id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name";
-
 #[derive(Debug, Error)]
 pub enum GoalRepositoryError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
     #[error("Visibility denied: {0}")]
     VisibilityDenied(String),
-
     #[error("Goal not found: {0}")]
     NotFound(String),
-
     #[error("Invalid goal state transition: {0}")]
     InvalidTransition(String),
-
     #[error("Subgoal depth exceeded: {0}")]
     MaxDepthExceeded(String),
-
     #[error("Corrupt goal data: {0}")]
     Corrupt(String),
-
     #[error("Quarantine failed: {0}")]
     QuarantineFailed(String),
 }
-
 impl_from_rusqlite!(GoalRepositoryError, Infra);
-
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
-
 /// A goal moved to quarantine due to data corruption.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuarantinedGoal {
@@ -54,7 +42,6 @@ pub struct QuarantinedGoal {
     pub repair_attempts: u32,
     pub repaired: bool,
 }
-
 impl SqliteGoalRepository {
     fn quarantined_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<QuarantinedGoal> {
         Ok(QuarantinedGoal {
@@ -69,30 +56,27 @@ impl SqliteGoalRepository {
         })
     }
 }
-
 pub struct SqliteGoalRepository {
     pub(crate) conn: Arc<Mutex<Connection>>,
     /// Optional CNS telemetry sink for observability.
     telemetry: Option<Arc<dyn NuEventSink>>,
 }
-
 impl Store for SqliteGoalRepository {
     fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
     }
-
     fn lock_conn(
         &self,
     ) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
         lock_mutex(&self.conn)
     }
 }
-
 impl SqliteGoalRepository {
     /// Create a new goal repository over the given SQLite connection.
     /// Create a new goal repository.
     ///
     /// REQ: P3-sto-goal-repo-new
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — create goal repository
     /// pre:  conn is a valid SQLite connection
     /// post: returns SqliteGoalRepository with schema initialized
@@ -102,18 +86,17 @@ impl SqliteGoalRepository {
             telemetry: None,
         }
     }
-
     /// Attach a CNS telemetry sink for observability.
     /// Enable CNS telemetry for goal operations.
     ///
     /// REQ: P3-sto-goal-repo-telemetry
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — attach CNS telemetry
     /// post: returns Self with telemetry sink configured
     pub fn with_telemetry(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.telemetry = Some(sink);
         self
     }
-
     fn load_goal(&self, goal_id: GoalID) -> Result<Goal> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("SELECT {GOAL_COLUMNS} FROM goals WHERE id = ?1"))?;
@@ -123,11 +106,11 @@ impl SqliteGoalRepository {
             None => Err(GoalRepositoryError::NotFound(goal_id.to_string())),
         }
     }
-
     /// Parse a goal row, mapping extraction failures to Corrupt errors.
     /// Try to construct a Goal from a query row.
     ///
     /// REQ: P3-sto-goal-try-row
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — construct Goal from query row
     /// post: returns Goal if row is valid
     pub fn try_goal_from_row(
@@ -140,10 +123,10 @@ impl SqliteGoalRepository {
             other => GoalRepositoryError::Infra(InfrastructureError::Database(other.to_string())),
         })
     }
-
     /// Construct a Goal from a rusqlite Row.
     ///
     /// REQ: P3-sto-goal-row-parse
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — parse Goal from rusqlite Row
     /// post: returns Goal from row columns
     pub fn goal_from_row(row: &rusqlite::Row) -> rusqlite::Result<Goal> {
@@ -167,7 +150,6 @@ impl SqliteGoalRepository {
         let parent_goal_id: Option<GoalID> = row.get(7)?;
         let depth_i32: i32 = row.get(8)?;
         let display_name: Option<String> = row.get(9).unwrap_or(None);
-
         let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_raw)
             .map(|dt| dt.with_timezone(&Utc))
             .map_err(|_| corrupt(5, &created_at_raw))?;
@@ -179,7 +161,6 @@ impl SqliteGoalRepository {
             })
             .transpose()?;
         let depth = u8::try_from(depth_i32).map_err(|_| corrupt(8, &depth_i32.to_string()))?;
-
         Ok(Goal {
             id,
             webid,
@@ -194,18 +175,17 @@ impl SqliteGoalRepository {
         })
     }
 }
-
 impl SqliteGoalRepository {
     /// Create a new goal.
     /// Create a new goal.
     ///
     /// REQ: P3-sto-goal-create
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — create a goal
     /// pre:  webid is valid, text is non-empty
     /// post: goal created and returned
     pub fn create_goal(&self, webid: &WebID, text: &str, visibility: Visibility) -> Result<Goal> {
         let goal = Goal::new(*webid, text, visibility);
-
         // Persist created_at explicitly in RFC3339 so it round-trips through
         // the strict reader. The SQLite `datetime('now')` default produces a
         // non-RFC3339 string that the reader (correctly) rejects as corrupt.
@@ -213,13 +193,12 @@ impl SqliteGoalRepository {
             "INSERT INTO goals (id, webid, text, state, visibility, depth, created_at, display_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             (goal.id, goal.webid, goal.text.clone(), goal.state, goal.visibility, goal.depth as i32, goal.created_at.to_rfc3339(), goal.display_name.clone()),
         )?;
-
         Ok(goal)
     }
-
     /// Get a goal by ID.
     ///
     /// REQ: P3-sto-goal-get
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — get goal by ID
     /// pre:  goal_id is valid
     /// post: returns Some(Goal) if found, None otherwise
@@ -232,10 +211,10 @@ impl SqliteGoalRepository {
             .transpose()
             .map_err(Into::into)
     }
-
     /// Update a goal's state.
     ///
     /// REQ: P3-sto-goal-update-state
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — update goal state
     /// pre:  goal_id is valid, state is valid
     /// post: goal state updated
@@ -264,10 +243,10 @@ impl SqliteGoalRepository {
         }
         Ok(())
     }
-
     /// List goals for a WebID with optional state filter.
     ///
     /// REQ: P3-sto-goal-list
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — list goals for WebID
     /// pre:  webid is valid
     /// post: returns Vec of goals, optionally filtered by state
@@ -287,11 +266,11 @@ impl SqliteGoalRepository {
         };
         Ok(goals)
     }
-
     /// Add a criterion to a goal.
     /// Add a criterion to a goal.
     ///
     /// REQ: P3-sto-goal-criterion-add
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — add criterion to goal
     /// pre:  goal_id is valid, criterion has description
     /// post: criterion added to goal
@@ -304,18 +283,17 @@ impl SqliteGoalRepository {
             )));
         }
         let _goal = self.load_goal(goal_id)?;
-
         self.lock_conn()?.execute(
             "INSERT INTO goal_criteria (id, goal_id, type, description, satisfied) VALUES (?1, ?2, ?3, ?4, ?5)",
             (criterion.id, criterion.goal_id, criterion.criterion_type, criterion.description, criterion.satisfied as i32),
         )?;
         Ok(())
     }
-
     /// Add an artifact to a goal.
     /// Add an artifact to a goal.
     ///
     /// REQ: P3-sto-goal-artifact-add
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — add artifact to goal
     /// pre:  goal_id is valid, artifact has content
     /// post: artifact added to goal
@@ -327,25 +305,23 @@ impl SqliteGoalRepository {
             )));
         }
         let _goal = self.load_goal(goal_id)?;
-
         self.lock_conn()?.execute(
             "INSERT INTO goal_artifacts (id, goal_id, artifact_ref, artifact_type, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             (artifact.id, artifact.goal_id, artifact.artifact_ref, artifact.artifact_type, artifact.created_at.to_rfc3339()),
         )?;
         Ok(())
     }
-
     /// Get criteria for a goal.
     /// Get criteria for a goal.
     ///
     /// REQ: P3-sto-goal-criteria-get
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — get criteria for goal
     /// pre:  goal_id is valid
     /// post: returns Vec of GoalCriterion
     pub fn get_criteria(&self, goal_id: GoalID) -> Result<Vec<GoalCriterion>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
-
         let criteria = collect_rows!(
             stmt,
             [goal_id],
@@ -359,21 +335,19 @@ impl SqliteGoalRepository {
                 })
             }
         );
-
         Ok(criteria)
     }
-
     /// Get artifacts for a goal.
     /// Get artifacts for a goal.
     ///
     /// REQ: P3-sto-goal-artifacts-get
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — get artifacts for goal
     /// pre:  goal_id is valid
     /// post: returns Vec of GoalArtifact
     pub fn get_artifacts(&self, goal_id: GoalID) -> Result<Vec<GoalArtifact>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
-
         let artifacts = collect_rows!(
             stmt,
             [goal_id],
@@ -401,14 +375,13 @@ impl SqliteGoalRepository {
                 })
             }
         );
-
         Ok(artifacts)
     }
-
     /// Create a subgoal under a parent goal.
     /// Create a subgoal under a parent goal.
     ///
     /// REQ: P3-sto-goal-subgoal-create
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — create subgoal
     /// pre:  parent_id is valid, text is non-empty
     /// post: subgoal created with depth = parent.depth + 1
@@ -422,27 +395,23 @@ impl SqliteGoalRepository {
         let parent = self.get_goal(parent_id)?.ok_or_else(|| {
             GoalRepositoryError::NotFound(format!("Parent goal {} not found", parent_id))
         })?;
-
         if !parent.can_have_subgoals() {
             return Err(GoalRepositoryError::MaxDepthExceeded(format!(
                 "Parent goal at depth {} cannot have subgoals",
                 parent.depth
             )));
         }
-
         let subgoal = Goal::new(*webid, text, visibility).with_parent(parent_id, parent.depth);
-
         self.lock_conn()?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, parent_goal_id, depth, created_at, display_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             (subgoal.id, subgoal.webid, subgoal.text.clone(), subgoal.state, subgoal.visibility, parent_id, subgoal.depth as i32, subgoal.created_at.to_rfc3339(), subgoal.display_name.clone()),
         )?;
-
         Ok(subgoal)
     }
-
     /// Get subgoals for a parent goal.
     ///
     /// REQ: P3-sto-goal-subgoal-list
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — list subgoals
     /// pre:  parent_id is valid
     /// post: returns Vec of child goals
@@ -453,10 +422,10 @@ impl SqliteGoalRepository {
         ))?;
         Ok(collect_rows!(stmt, [parent_id], Self::goal_from_row))
     }
-
     /// Delete a goal and its subgoals.
     ///
     /// REQ: P3-sto-goal-delete
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — delete goal and subgoals
     /// pre:  goal_id is valid
     /// post: goal and subgoals deleted
@@ -466,7 +435,6 @@ impl SqliteGoalRepository {
             .execute("DELETE FROM goals WHERE id = ?1", [goal_id])?;
         Ok(())
     }
-
     /// Move a corrupted goal to the quarantine table.
     ///
     /// This removes the goal from the main `goals` table and inserts a forensic
@@ -476,6 +444,7 @@ impl SqliteGoalRepository {
     /// Quarantine a goal.
     ///
     /// REQ: P3-sto-goal-quarantine
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — quarantine a goal
     /// pre:  goal_id is valid, reason is non-empty
     /// post: goal moved to quarantine
@@ -483,7 +452,6 @@ impl SqliteGoalRepository {
         // Load the goal before removing it so we can snapshot its state.
         let goal = self.load_goal(goal_id)?;
         let original_data = serde_json::to_string(&goal).unwrap_or_default();
-
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT INTO quarantined_goals (id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired)
@@ -491,17 +459,15 @@ impl SqliteGoalRepository {
             rusqlite::params![goal_id, original_data, reason, now_rfc3339()],
         )
         .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
-
         // Remove from main goals table
         conn.execute("DELETE FROM goals WHERE id = ?1", [goal_id])
             .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
-
         Ok(())
     }
-
     /// Repair a quarantined goal.
     ///
     /// REQ: P3-sto-goal-repair
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — restore quarantined goal
     /// pre:  goal_id is valid
     /// post: goal restored from quarantine
@@ -521,7 +487,6 @@ impl SqliteGoalRepository {
                 None => return Err(GoalRepositoryError::NotFound(goal_id.to_string())),
             }
         };
-
         if quarantined.original_data.is_empty()
             || serde_json::from_str::<Goal>(&quarantined.original_data).is_err()
         {
@@ -533,7 +498,6 @@ impl SqliteGoalRepository {
             .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
             return Ok(false);
         }
-
         let goal: Goal =
             serde_json::from_str(&quarantined.original_data).expect("goal deserialization");
         let conn = self.lock_conn()?;
@@ -547,7 +511,6 @@ impl SqliteGoalRepository {
             ],
         )
         .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
-
         conn.execute(
             "UPDATE quarantined_goals SET repaired = 1, repair_attempts = repair_attempts + 1 WHERE id = ?1",
             [goal_id],
@@ -555,10 +518,10 @@ impl SqliteGoalRepository {
         .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
         Ok(true)
     }
-
     /// List all quarantined goals.
     ///
     /// REQ: P3-sto-goal-quarantine-list
+    /// expect: "The system provides durable storage for goal data" [P3]
     /// \[P3\] Motivating: Generative Space — list quarantined goals
     /// post: returns Vec of QuarantinedGoal
     pub fn list_quarantined_goals(&self) -> Result<Vec<QuarantinedGoal>> {

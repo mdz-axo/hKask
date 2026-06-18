@@ -9,34 +9,26 @@
 //! - `images`: path, hash, dimensions, gallery_id
 //! - `tags`: image_id, tag_type, value, confidence
 //! - `face_registry`: first_name, last_name, image_id, status, notes
-
 use crate::{Store, now_rfc3339};
 use hkask_types::InfrastructureError;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;
-
 #[derive(Debug, Error)]
 pub enum GalleryStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
     #[error("Gallery not found: {0}")]
     NotFound(String),
-
     #[error("Image not found: {0}")]
     ImageNotFound(String),
-
     #[error("Invalid policy mode: {0}")]
     InvalidMode(String),
-
     #[error("Gallery already exists at path: {0}")]
     AlreadyExists(String),
 }
-
 impl_from_rusqlite!(GalleryStoreError, Infra);
-
 /// Gallery policy mode — three states, no gray zone.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
@@ -48,10 +40,8 @@ pub enum GalleryMode {
     /// Files may be edited in-place; original data may be lost.
     Destructive,
 }
-
 impl FromStr for GalleryMode {
     type Err = GalleryStoreError;
-
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "read-only" => Ok(Self::ReadOnly),
@@ -61,11 +51,11 @@ impl FromStr for GalleryMode {
         }
     }
 }
-
 impl GalleryMode {
     /// Get the string representation of the face status.
     ///
     /// REQ: P3-sto-gallery-mode-str
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — stable gallery mode labels
     /// post: returns "active" or "inactive"
     pub fn as_str(&self) -> &'static str {
@@ -76,7 +66,6 @@ impl GalleryMode {
         }
     }
 }
-
 /// A gallery record.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GalleryRecord {
@@ -88,7 +77,6 @@ pub struct GalleryRecord {
     pub created_at: String,
     pub updated_at: String,
 }
-
 /// An indexed image entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageRecord {
@@ -103,7 +91,6 @@ pub struct ImageRecord {
     pub size_bytes: u64,
     pub added_at: String,
 }
-
 /// A tag on an image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TagRecord {
@@ -115,7 +102,6 @@ pub struct TagRecord {
     pub model_used: String,
     pub created_at: String,
 }
-
 /// A registered face in the face registry.
 ///
 /// Maps a reference image to a person's name for facial recognition matching.
@@ -133,14 +119,13 @@ pub struct FaceRegistryRecord {
     pub created_at: String,
     pub updated_at: String,
 }
-
 define_store!(GalleryStore);
-
 impl GalleryStore {
     /// Initialize gallery tables in the database.
     /// Initialize gallery tables.
     ///
     /// REQ: P3-sto-gallery-schema
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — schema for galleries, images, tags, faces
     /// pre:  conn is a valid SQLite connection
     /// post: gallery tables created if not exists
@@ -155,7 +140,6 @@ impl GalleryStore {
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
-
             CREATE TABLE IF NOT EXISTS gallery_images (
                 id TEXT PRIMARY KEY,
                 gallery_id TEXT NOT NULL REFERENCES galleries(id) ON DELETE CASCADE,
@@ -168,12 +152,10 @@ impl GalleryStore {
                 size_bytes INTEGER NOT NULL,
                 added_at TEXT NOT NULL
             );
-
             CREATE INDEX IF NOT EXISTS idx_gallery_images_gallery
                 ON gallery_images(gallery_id);
             CREATE INDEX IF NOT EXISTS idx_gallery_images_hash
                 ON gallery_images(hash);
-
             CREATE TABLE IF NOT EXISTS gallery_tags (
                 id TEXT PRIMARY KEY,
                 image_id TEXT NOT NULL REFERENCES gallery_images(id) ON DELETE CASCADE,
@@ -183,15 +165,12 @@ impl GalleryStore {
                 model_used TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL
             );
-
             CREATE INDEX IF NOT EXISTS idx_gallery_tags_image
                 ON gallery_tags(image_id);
             CREATE INDEX IF NOT EXISTS idx_gallery_tags_type
                 ON gallery_tags(tag_type);
-
             CREATE UNIQUE INDEX IF NOT EXISTS idx_gallery_tags_unique
                 ON gallery_tags(image_id, tag_type, value);
-
             CREATE TABLE IF NOT EXISTS face_registry (
                 id TEXT PRIMARY KEY,
                 first_name TEXT NOT NULL,
@@ -203,18 +182,18 @@ impl GalleryStore {
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
-
             CREATE INDEX IF NOT EXISTS idx_face_registry_status
                 ON face_registry(status);",
         )
     }
-
     /// Create a new gallery. Returns the gallery record.
     ///
     /// REQ: P3-sto-gallery-create-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Create a new gallery.
     ///
     /// REQ: P3-sto-gallery-create
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — create a gallery
     /// pre:  name is non-empty
     /// post: gallery created and returned
@@ -226,7 +205,6 @@ impl GalleryStore {
         let conn = self.lock_conn()?;
         let id = uuid::Uuid::new_v4().to_string();
         let now = now_rfc3339();
-
         // Check for existing gallery at this path
         let existing: Option<String> = conn
             .query_row(
@@ -235,17 +213,14 @@ impl GalleryStore {
                 |row| row.get(0),
             )
             .optional()?;
-
         if existing.is_some() {
             return Err(GalleryStoreError::AlreadyExists(root_path.to_string()));
         }
-
         conn.execute(
             "INSERT INTO galleries (id, root_path, mode, image_count, total_size_bytes, created_at, updated_at)
              VALUES (?1, ?2, ?3, 0, 0, ?4, ?4)",
             rusqlite::params![id, root_path, mode.as_str(), now],
         )?;
-
         Ok(GalleryRecord {
             id,
             root_path: root_path.to_string(),
@@ -256,14 +231,15 @@ impl GalleryStore {
             updated_at: now,
         })
     }
-
     /// Add an image to the gallery index.
     ///
     /// REQ: P3-sto-gallery-add-image-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     #[allow(clippy::too_many_arguments)]
     /// Add an image to a gallery.
     ///
     /// REQ: P3-sto-gallery-add-image
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — add image to gallery
     /// pre:  gallery_id is valid, image data is non-empty
     /// post: image stored in gallery
@@ -281,7 +257,6 @@ impl GalleryStore {
         let conn = self.lock_conn()?;
         let id = uuid::Uuid::new_v4().to_string();
         let now = now_rfc3339();
-
         conn.execute(
             "INSERT INTO gallery_images (id, gallery_id, relative_path, absolute_path, hash, width, height, format, size_bytes, added_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -290,14 +265,12 @@ impl GalleryStore {
                 width, height, format, size_bytes as i64, now
             ],
         )?;
-
         // Update gallery counts
         conn.execute(
             "UPDATE galleries SET image_count = image_count + 1, total_size_bytes = total_size_bytes + ?1, updated_at = ?2
              WHERE id = ?3",
             rusqlite::params![size_bytes as i64, now, gallery_id],
         )?;
-
         Ok(ImageRecord {
             id,
             gallery_id: gallery_id.to_string(),
@@ -311,13 +284,14 @@ impl GalleryStore {
             added_at: now,
         })
     }
-
     /// Get an image by index (0-based position in gallery) or by hash.
     ///
     /// REQ: P3-sto-gallery-get-image-index-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Get an image from a gallery.
     ///
     /// REQ: P3-sto-gallery-get-image
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — get image by index or hash
     /// pre:  gallery_id is valid
     /// post: returns GalleryImage if found
@@ -328,7 +302,6 @@ impl GalleryStore {
         hash: Option<&str>,
     ) -> std::result::Result<ImageRecord, GalleryStoreError> {
         let conn = self.lock_conn()?;
-
         let row = if let Some(h) = hash {
             conn.query_row(
                 "SELECT id, gallery_id, relative_path, absolute_path, hash, width, height, format, size_bytes, added_at
@@ -361,16 +334,16 @@ impl GalleryStore {
                 "Must provide either index or hash".to_string(),
             ));
         };
-
         Ok(row)
     }
-
     /// Tag an image with AI-generated metadata.
     ///
     /// REQ: P3-sto-gallery-tag-image-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Tag an image in a gallery.
     ///
     /// REQ: P3-sto-gallery-tag-image
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — tag an image
     /// pre:  gallery_id and image_hash are valid, tag is non-empty
     /// post: tag added to image
@@ -385,20 +358,17 @@ impl GalleryStore {
         let conn = self.lock_conn()?;
         let id = uuid::Uuid::new_v4().to_string();
         let now = now_rfc3339();
-
         conn.execute(
             "INSERT OR IGNORE INTO gallery_tags (id, image_id, tag_type, value, confidence, model_used, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             rusqlite::params![id, image_id, tag_type, value, confidence, model_used, now],
         )?;
-
         // Read back the existing row when insert was ignored
         let existing_id: String = conn.query_row(
             "SELECT id FROM gallery_tags WHERE image_id = ?1 AND tag_type = ?2 AND value = ?3",
             rusqlite::params![image_id, tag_type, value],
             |row| row.get(0),
         )?;
-
         Ok(TagRecord {
             id: existing_id,
             image_id: image_id.to_string(),
@@ -409,13 +379,14 @@ impl GalleryStore {
             created_at: now,
         })
     }
-
     /// Get all tags for an image.
     ///
     /// REQ: P3-sto-gallery-get-tags-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Get tags for an image.
     ///
     /// REQ: P3-sto-gallery-get-tags
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — get tags for an image
     /// pre:  gallery_id and image_hash are valid
     /// post: returns Vec of tags
@@ -424,24 +395,21 @@ impl GalleryStore {
         image_id: &str,
     ) -> std::result::Result<Vec<TagRecord>, GalleryStoreError> {
         let conn = self.lock_conn()?;
-
         let mut stmt = conn.prepare(
             "SELECT id, image_id, tag_type, value, confidence, model_used, created_at
              FROM gallery_tags WHERE image_id = ?1
              ORDER BY created_at DESC",
         )?;
-
         let rows = stmt
             .query_map([image_id], Self::tag_from_row)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
-
         Ok(rows)
     }
-
     /// Get gallery record by ID.
     /// Get a gallery by ID.
     ///
     /// REQ: P3-sto-gallery-get
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — get gallery by ID
     /// pre:  gallery_id is valid
     /// post: returns Gallery if found
@@ -450,7 +418,6 @@ impl GalleryStore {
         gallery_id: &str,
     ) -> std::result::Result<GalleryRecord, GalleryStoreError> {
         let conn = self.lock_conn()?;
-
         conn.query_row(
             "SELECT id, root_path, mode, image_count, total_size_bytes, created_at, updated_at
              FROM galleries WHERE id = ?1",
@@ -474,14 +441,15 @@ impl GalleryStore {
             other => GalleryStoreError::from(other),
         })
     }
-
     /// Get all tags for all images in a gallery.
     ///
     /// Returns tags joined with their image's relative path for search ranking.
     /// REQ: P3-sto-gallery-all-tags
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Get all tags across all galleries.
     ///
     /// REQ: P3-sto-gallery-all-tags
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — list all tags across galleries
     /// post: returns Vec of all unique tags
     pub fn get_all_tags(
@@ -489,7 +457,6 @@ impl GalleryStore {
         gallery_id: &str,
     ) -> std::result::Result<Vec<(TagRecord, String)>, GalleryStoreError> {
         let conn = self.lock_conn()?;
-
         let mut stmt = conn.prepare(
             "SELECT t.id, t.image_id, t.tag_type, t.value, t.confidence, t.model_used, t.created_at, i.relative_path
              FROM gallery_tags t
@@ -497,7 +464,6 @@ impl GalleryStore {
              WHERE i.gallery_id = ?1
              ORDER BY t.created_at DESC",
         )?;
-
         let rows = stmt
             .query_map([gallery_id], |row| {
                 let tag = TagRecord {
@@ -513,16 +479,16 @@ impl GalleryStore {
                 Ok((tag, relative_path))
             })?
             .collect::<std::result::Result<Vec<_>, _>>()?;
-
         Ok(rows)
     }
-
     /// Register a face in the registry.
     ///
     /// REQ: P3-sto-gallery-face-register-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Register a face in the gallery.
     ///
     /// REQ: P3-sto-gallery-face-register
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — register a face
     /// pre:  face data is valid
     /// post: face registered and returned
@@ -538,13 +504,11 @@ impl GalleryStore {
         let conn = self.lock_conn()?;
         let id = uuid::Uuid::new_v4().to_string();
         let now = now_rfc3339();
-
         conn.execute(
             "INSERT INTO face_registry (id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
             rusqlite::params![id, first_name, last_name, image_id, embedding, status, notes, now],
         )?;
-
         Ok(FaceRegistryRecord {
             id,
             first_name: first_name.to_string(),
@@ -557,13 +521,14 @@ impl GalleryStore {
             updated_at: now,
         })
     }
-
     /// List all faces in the registry, optionally filtered by status.
     ///
     /// REQ: P3-sto-gallery-face-list-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// List faces with optional status filter.
     ///
     /// REQ: P3-sto-gallery-face-list
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — list faces
     /// post: returns Vec of faces, optionally filtered by status
     pub fn list_faces(
@@ -571,7 +536,6 @@ impl GalleryStore {
         status_filter: Option<&str>,
     ) -> std::result::Result<Vec<FaceRegistryRecord>, GalleryStoreError> {
         let conn = self.lock_conn()?;
-
         if let Some(status) = status_filter {
             let mut stmt = conn.prepare(
                 "SELECT id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at
@@ -592,13 +556,14 @@ impl GalleryStore {
                 .map_err(GalleryStoreError::from)
         }
     }
-
     /// Get a face registry entry by ID.
     ///
     /// REQ: P3-sto-gallery-face-get-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Get a face by ID.
     ///
     /// REQ: P3-sto-gallery-face-get
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — get face by ID
     /// pre:  face_id is non-empty
     /// post: returns Face if found
@@ -607,7 +572,6 @@ impl GalleryStore {
         face_id: &str,
     ) -> std::result::Result<FaceRegistryRecord, GalleryStoreError> {
         let conn = self.lock_conn()?;
-
         conn.query_row(
             "SELECT id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at
              FROM face_registry WHERE id = ?1",
@@ -621,34 +585,33 @@ impl GalleryStore {
             other => GalleryStoreError::from(other),
         })
     }
-
     /// Remove a face from the registry by ID.
     ///
     /// REQ: P3-sto-gallery-face-remove-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Remove a face from the gallery.
     ///
     /// REQ: P3-sto-gallery-face-remove
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — remove face
     /// pre:  face_id is non-empty
     /// post: face deleted
     pub fn remove_face(&self, face_id: &str) -> std::result::Result<(), GalleryStoreError> {
         let conn = self.lock_conn()?;
-
         let affected = conn.execute("DELETE FROM face_registry WHERE id = ?1", [face_id])?;
-
         if affected == 0 {
             return Err(GalleryStoreError::NotFound(format!("face_id={}", face_id)));
         }
-
         Ok(())
     }
-
     /// Update a face registry entry's status and notes.
     ///
     /// REQ: P3-sto-gallery-face-update-test
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// Update a face's status.
     ///
     /// REQ: P3-sto-gallery-face-update
+    /// expect: "The system provides durable storage for gallery data" [P3]
     /// \[P3\] Motivating: Generative Space — update face status
     /// pre:  face_id is valid, status is valid
     /// post: face status updated
@@ -660,16 +623,13 @@ impl GalleryStore {
     ) -> std::result::Result<FaceRegistryRecord, GalleryStoreError> {
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
-
         let affected = conn.execute(
             "UPDATE face_registry SET status = ?1, notes = ?2, updated_at = ?3 WHERE id = ?4",
             rusqlite::params![status, notes, now, face_id],
         )?;
-
         if affected == 0 {
             return Err(GalleryStoreError::NotFound(format!("face_id={}", face_id)));
         }
-
         // Read back the updated row within the same lock
         conn.query_row(
             "SELECT id, first_name, last_name, image_id, embedding, status, notes, created_at, updated_at
@@ -679,9 +639,7 @@ impl GalleryStore {
         )
         .map_err(GalleryStoreError::from)
     }
-
     // ── Row mappers ──
-
     fn image_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ImageRecord> {
         Ok(ImageRecord {
             id: row.get(0)?,
@@ -696,7 +654,6 @@ impl GalleryStore {
             added_at: row.get(9)?,
         })
     }
-
     fn tag_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TagRecord> {
         Ok(TagRecord {
             id: row.get(0)?,
@@ -708,7 +665,6 @@ impl GalleryStore {
             created_at: row.get(6)?,
         })
     }
-
     fn face_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<FaceRegistryRecord> {
         Ok(FaceRegistryRecord {
             id: row.get(0)?,
@@ -723,12 +679,10 @@ impl GalleryStore {
         })
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::in_memory_db;
-
     fn setup() -> GalleryStore {
         let db = in_memory_db();
         let conn = db.conn.lock().unwrap();
@@ -736,8 +690,8 @@ mod tests {
         drop(conn);
         GalleryStore::new(db.conn)
     }
-
     /// REQ: P3-sto-gallery-create-test — create gallery returns valid record
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn create_gallery_returns_record() {
         let store = setup();
@@ -748,8 +702,8 @@ mod tests {
         assert_eq!(record.mode, "read-only");
         assert_eq!(record.image_count, 0);
     }
-
     /// REQ: P3-sto-gallery-create-dup-test — duplicate path is rejected
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn create_duplicate_path_rejected() {
         let store = setup();
@@ -759,15 +713,14 @@ mod tests {
         let result = store.create("/tmp/test-gallery", GalleryMode::CopyOnWrite);
         assert!(result.is_err());
     }
-
     /// REQ: P3-sto-gallery-add-image-test — add_image stores record
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn add_image_stores_record() {
         let store = setup();
         let gallery = store
             .create("/tmp/test-gallery", GalleryMode::ReadOnly)
             .unwrap();
-
         let img = store
             .add_image(
                 &gallery.id,
@@ -780,20 +733,18 @@ mod tests {
                 500_000,
             )
             .unwrap();
-
         assert_eq!(img.relative_path, "photo.jpg");
         assert_eq!(img.width, 1920);
         assert_eq!(img.height, 1080);
     }
-
     /// REQ: P3-sto-gallery-get-image-index-test — get by index
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_image_by_index() {
         let store = setup();
         let gallery = store
             .create("/tmp/test-gallery", GalleryMode::ReadOnly)
             .unwrap();
-
         store
             .add_image(
                 &gallery.id,
@@ -818,22 +769,19 @@ mod tests {
                 2000,
             )
             .unwrap();
-
         let img = store.get_image(&gallery.id, Some(0), None).unwrap();
         assert_eq!(img.relative_path, "first.jpg");
-
         let img = store.get_image(&gallery.id, Some(1), None).unwrap();
         assert_eq!(img.relative_path, "second.jpg");
     }
-
     /// REQ: P3-sto-gallery-get-image-hash-test — get by hash
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_image_by_hash() {
         let store = setup();
         let gallery = store
             .create("/tmp/test-gallery", GalleryMode::ReadOnly)
             .unwrap();
-
         store
             .add_image(
                 &gallery.id,
@@ -846,12 +794,11 @@ mod tests {
                 500_000,
             )
             .unwrap();
-
         let img = store.get_image(&gallery.id, None, Some("abc123")).unwrap();
         assert_eq!(img.hash, "abc123");
     }
-
     /// REQ: P3-sto-gallery-tag-image-test — tag_image stores tag
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn tag_image_stores_tag() {
         let store = setup();
@@ -870,7 +817,6 @@ mod tests {
                 1000,
             )
             .unwrap();
-
         let tag = store
             .tag_image(
                 &img.id,
@@ -880,13 +826,12 @@ mod tests {
                 "llama-3.2-vision",
             )
             .unwrap();
-
         assert_eq!(tag.tag_type, "face");
         assert_eq!(tag.value, "young adult male");
         assert_eq!(tag.confidence, 0.95);
     }
-
     /// REQ: P3-sto-gallery-get-tags-test — get_tags returns all tags
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_tags_returns_all() {
         let store = setup();
@@ -905,19 +850,17 @@ mod tests {
                 1000,
             )
             .unwrap();
-
         store
             .tag_image(&img.id, "face", "person A", 0.9, "llama")
             .unwrap();
         store
             .tag_image(&img.id, "object", "car", 0.85, "llama")
             .unwrap();
-
         let tags = store.get_tags(&img.id).unwrap();
         assert_eq!(tags.len(), 2);
     }
-
     /// REQ: P3-sto-gallery-tag-dedup-test — tag_image ignores duplicate (image_id, tag_type, value)
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn tag_image_ignores_duplicates() {
         let store = setup();
@@ -936,7 +879,6 @@ mod tests {
                 1000,
             )
             .unwrap();
-
         // Tag the same (image_id, tag_type, value) twice
         let tag1 = store
             .tag_image(&img.id, "face", "person A", 0.9, "llama")
@@ -944,17 +886,15 @@ mod tests {
         let tag2 = store
             .tag_image(&img.id, "face", "person A", 0.8, "other-model")
             .unwrap();
-
         // Same row ID returned (the insert was ignored)
         assert_eq!(tag1.id, tag2.id);
         // Only one tag exists
         let tags = store.get_tags(&img.id).unwrap();
         assert_eq!(tags.len(), 1);
     }
-
     // ── Face registry tests ──
-
     /// REQ: P3-sto-gallery-face-register-test — register_face creates a valid record
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn register_face_creates_record() {
         let store = setup();
@@ -973,7 +913,6 @@ mod tests {
                 50000,
             )
             .unwrap();
-
         let face = store
             .register_face(
                 "Alice",
@@ -984,15 +923,14 @@ mod tests {
                 "Frontal portrait, good lighting",
             )
             .unwrap();
-
         assert_eq!(face.first_name, "Alice");
         assert_eq!(face.last_name, "Chen");
         assert_eq!(face.image_id, img.id);
         assert_eq!(face.status, "valid");
         assert!(face.notes.contains("good lighting"));
     }
-
     /// REQ: P3-sto-gallery-face-list-test — list_faces returns all registered faces
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_faces_returns_all() {
         let store = setup();
@@ -1023,19 +961,17 @@ mod tests {
                 50000,
             )
             .unwrap();
-
         store
             .register_face("Alice", "Chen", &img1.id, None, "valid", "")
             .unwrap();
         store
             .register_face("Bob", "Smith", &img2.id, None, "valid", "")
             .unwrap();
-
         let faces = store.list_faces(None).unwrap();
         assert_eq!(faces.len(), 2);
     }
-
     /// REQ: P3-sto-gallery-face-list-filter-test — list_faces filters by status
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_faces_filters_by_status() {
         let store = setup();
@@ -1066,24 +1002,21 @@ mod tests {
                 50000,
             )
             .unwrap();
-
         store
             .register_face("Alice", "Chen", &img1.id, None, "valid", "")
             .unwrap();
         store
             .register_face("Bob", "Smith", &img2.id, None, "rejected", "Too dark")
             .unwrap();
-
         let valid = store.list_faces(Some("valid")).unwrap();
         assert_eq!(valid.len(), 1);
         assert_eq!(valid[0].first_name, "Alice");
-
         let rejected = store.list_faces(Some("rejected")).unwrap();
         assert_eq!(rejected.len(), 1);
         assert_eq!(rejected[0].first_name, "Bob");
     }
-
     /// REQ: P3-sto-gallery-face-get-test — get_face returns correct record
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_face_returns_record() {
         let store = setup();
@@ -1102,25 +1035,23 @@ mod tests {
                 50000,
             )
             .unwrap();
-
         let face = store
             .register_face("Alice", "Chen", &img.id, None, "valid", "")
             .unwrap();
-
         let retrieved = store.get_face(&face.id).unwrap();
         assert_eq!(retrieved.first_name, "Alice");
         assert_eq!(retrieved.last_name, "Chen");
     }
-
     /// REQ: P3-sto-gallery-face-get-missing-test — get_face errors on unknown ID
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_face_unknown_id_errors() {
         let store = setup();
         let result = store.get_face("nonexistent-id");
         assert!(result.is_err());
     }
-
     /// REQ: P3-sto-gallery-face-remove-test — remove_face deletes record
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn remove_face_deletes_record() {
         let store = setup();
@@ -1139,18 +1070,15 @@ mod tests {
                 50000,
             )
             .unwrap();
-
         let face = store
             .register_face("Alice", "Chen", &img.id, None, "valid", "")
             .unwrap();
-
         store.remove_face(&face.id).unwrap();
-
         let result = store.get_face(&face.id);
         assert!(result.is_err());
     }
-
     /// REQ: P3-sto-gallery-face-update-test — update_face changes status and notes
+    /// expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn update_face_changes_status() {
         let store = setup();
@@ -1169,15 +1097,12 @@ mod tests {
                 50000,
             )
             .unwrap();
-
         let face = store
             .register_face("Alice", "Chen", &img.id, None, "pending", "")
             .unwrap();
-
         let updated = store
             .update_face(&face.id, "rejected", "Multiple faces detected")
             .unwrap();
-
         assert_eq!(updated.status, "rejected");
         assert!(updated.notes.contains("Multiple faces"));
     }

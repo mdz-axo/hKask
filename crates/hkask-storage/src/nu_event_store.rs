@@ -3,7 +3,6 @@ use crate::{Store, now_rfc3339};
 use hkask_types::event::{Phase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};
-
 /// Per-domain decay constants for weighted replay.
 ///
 /// Each loop domain has its own `λ` (lambda) for exponential decay.
@@ -22,7 +21,6 @@ pub struct DecayConfig {
     /// Minimum weight threshold — events below this are not replayed. Default: 0.001
     pub weight_threshold: f64,
 }
-
 impl Default for DecayConfig {
     fn default() -> Self {
         Self {
@@ -34,14 +32,12 @@ impl Default for DecayConfig {
         }
     }
 }
-
 /// A NuEvent with its computed replay weight.
 #[derive(Debug, Clone)]
 pub struct WeightedEvent {
     pub event: NuEvent,
     pub weight: f64,
 }
-
 /// Algedonic-significant span categories for Curation review.
 ///
 /// These are the CNS span namespaces that produce events requiring
@@ -57,9 +53,7 @@ const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &[
     "wallet.key_expired",
     "wallet.key_exhausted",
 ];
-
 define_store!(NuEventStore);
-
 impl NuEventStore {
     /// Replay events with exponentially decaying weights.
     ///
@@ -77,6 +71,7 @@ impl NuEventStore {
     /// Replay events with temporal decay weighting.
     ///
     /// REQ: P3-sto-nu-event-replay
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — replay events with temporal decay
     /// pre:  observer is valid, category is valid, lookback_secs > 0
     /// post: returns `Vec<NuEvent>` within lookback window, weighted by recency
@@ -88,7 +83,6 @@ impl NuEventStore {
     ) -> Result<Vec<WeightedEvent>, InfrastructureError> {
         let events = self.query_algedonic(since, limit)?;
         let now = chrono::Utc::now();
-
         let weighted: Vec<WeightedEvent> = events
             .into_iter()
             .filter_map(|event| {
@@ -103,10 +97,8 @@ impl NuEventStore {
                 }
             })
             .collect();
-
         Ok(weighted)
     }
-
     /// Returns the decay constant `λ` for a `SpanCategory`.
     ///
     /// Unknown categories fall back to `cybernetics_lambda`.
@@ -114,6 +106,7 @@ impl NuEventStore {
     /// Get the decay lambda for a span category.
     ///
     /// REQ: P3-sto-nu-event-decay
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — get decay lambda for category
     /// pre:  category is a valid SpanCategory
     /// post: returns decay lambda from config or default
@@ -127,11 +120,9 @@ impl NuEventStore {
             SpanCategory::Unknown => config.cybernetics_lambda, // safe default
         }
     }
-
     pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
         let conn = self.lock_conn()?;
         let (span_category, span_path) = span_to_columns(&event.span);
-
         conn.execute(
             "INSERT INTO nu_events (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
@@ -152,7 +143,6 @@ impl NuEventStore {
         )?;
         Ok(())
     }
-
     /// Query algedonic-significant events since a given timestamp.
     ///
     /// Returns NuEvents from algedonic span categories (energy, variety,
@@ -170,6 +160,7 @@ impl NuEventStore {
     /// Persist a cursor value for event replay.
     ///
     /// REQ: P3-sto-nu-event-cursor-store
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — persist replay cursor
     /// pre:  key is non-empty
     /// post: cursor value stored
@@ -181,7 +172,6 @@ impl NuEventStore {
         )?;
         Ok(())
     }
-
     /// Load a persisted loop cursor value.
     ///
     /// Returns `Ok(None)` if no cursor has been persisted for the given key
@@ -189,6 +179,7 @@ impl NuEventStore {
     /// Load a persisted cursor value.
     ///
     /// REQ: P3-sto-nu-event-cursor-load
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P3\] Motivating: Generative Space — load replay cursor
     /// pre:  key is non-empty
     /// post: returns Some(value) if cursor exists, None otherwise
@@ -201,10 +192,10 @@ impl NuEventStore {
             None => Ok(None),
         }
     }
-
     /// Query algedonic signals from the event store.
     ///
     /// REQ: P3-sto-nu-event-algedonic-query
+    /// expect: "The system provides durable storage for event data" [P3]
     /// \[P9\] Motivating: Homeostatic Self-Regulation — query algedonic signals
     /// post: returns Vec of algedonic signal events
     pub fn query_algedonic(
@@ -213,9 +204,7 @@ impl NuEventStore {
         limit: u64,
     ) -> Result<Vec<NuEvent>, InfrastructureError> {
         let conn = self.lock_conn()?;
-
         let since_str = since.to_rfc3339();
-
         // Build IN clause for algedonic span categories
         let placeholders: Vec<&str> = ALGEDONIC_SPAN_CATEGORIES.iter().map(|_| "?").collect();
         let sql = format!(
@@ -227,9 +216,7 @@ impl NuEventStore {
              LIMIT ?",
             placeholders.join(", ")
         );
-
         let mut stmt = conn.prepare(&sql)?;
-
         // Dynamic params: since, then each span category, then limit
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
             Vec::with_capacity(2 + ALGEDONIC_SPAN_CATEGORIES.len());
@@ -238,16 +225,12 @@ impl NuEventStore {
             param_values.push(Box::new(cat.to_string()));
         }
         param_values.push(Box::new(limit as i64));
-
         let param_refs: Vec<&dyn rusqlite::types::ToSql> =
             param_values.iter().map(|p| p.as_ref()).collect();
-
         let events = collect_rows!(stmt, param_refs.as_slice(), row_to_nu_event);
-
         Ok(events)
     }
 }
-
 /// Reconstruct a NuEvent from a database row.
 fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> {
     let id: EventID = row.get(0)?;
@@ -263,13 +246,11 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
     let parent_event: Option<EventID> = row.get(10)?;
     let visibility: Visibility = row.get(11)?;
     let visibility_str = visibility.as_str().to_string();
-
     let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
         .map_err(|e| {
             rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(e))
         })?
         .to_utc();
-
     // Reconstruct Span from stored category + path
     let namespace_str = format!("cns.{}", span_category);
     let namespace = SpanNamespace::parse(&namespace_str).unwrap_or_else(|| {
@@ -289,21 +270,16 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
         span_path.as_str()
     };
     let span = Span::new(namespace, local_path);
-
     let phase = Phase::from_str(&phase_str);
-
     let observation: serde_json::Value = serde_json::from_str(&observation_str).map_err(|e| {
         rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::new(e))
     })?;
-
     let regulation = regulation_str
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
-
     let outcome = outcome_str
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
-
     Ok(NuEvent {
         id,
         timestamp,
@@ -318,22 +294,19 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
         visibility: visibility_str,
     })
 }
-
 fn span_to_columns(span: &Span) -> (&str, &str) {
     (span.namespace.short_name(), span.path.as_str())
 }
-
 impl NuEventSink for NuEventStore {
     fn persist(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
         self.insert(event)
     }
 }
-
 #[cfg(test)]
 mod tests {
     use hkask_types::event::{Span, SpanNamespace};
-
     // REQ: P3-sto-nu-event-short-path-test — span_path shorter than namespace does not panic
+    // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // Before fix, `span_path[namespace.as_str().len() + 1..]` was an unconditional
     // slice that panicked when span_path did not start with the namespace prefix
@@ -345,7 +318,6 @@ mod tests {
         let namespace = SpanNamespace::new("cns.gas");
         let ns_str = namespace.as_str();
         let span_path = "depleted"; // does NOT start with "cns.gas"
-
         let local_path = if span_path.starts_with(ns_str)
             && span_path.len() > ns_str.len()
             && span_path.as_bytes().get(ns_str.len()) == Some(&b'.')
@@ -354,20 +326,18 @@ mod tests {
         } else {
             span_path
         };
-
         assert_eq!(
             local_path, "depleted",
             "fallback should return raw path when prefix doesn't match"
         );
     }
-
     // REQ: P3-sto-nu-event-exact-namespace-test — span_path equal to namespace prefix does not panic
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn local_path_extraction_does_not_panic_on_exact_namespace_match() {
         let namespace = SpanNamespace::new("cns.gas");
         let ns_str = namespace.as_str();
         let span_path = "cns.gas"; // exactly the namespace, no local component
-
         let local_path = if span_path.starts_with(ns_str)
             && span_path.len() > ns_str.len()
             && span_path.as_bytes().get(ns_str.len()) == Some(&b'.')
@@ -376,20 +346,18 @@ mod tests {
         } else {
             span_path
         };
-
         assert_eq!(
             local_path, "cns.gas",
             "fallback should return raw path when no dot follows namespace"
         );
     }
-
     // REQ: P3-sto-nu-event-well-formed-test — well-formed span_path extracts local component
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn local_path_extraction_succeeds_on_well_formed_path() {
         let namespace = SpanNamespace::new("cns.gas");
         let ns_str = namespace.as_str();
         let span_path = "cns.gas.depleted";
-
         let local_path = if span_path.starts_with(ns_str)
             && span_path.len() > ns_str.len()
             && span_path.as_bytes().get(ns_str.len()) == Some(&b'.')
@@ -398,7 +366,6 @@ mod tests {
         } else {
             span_path
         };
-
         assert_eq!(local_path, "depleted");
         let _ = Span::new(namespace, local_path);
     }

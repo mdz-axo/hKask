@@ -3,7 +3,6 @@
 //! The escalation queue is a Cybernetics (Loop 6) algedonic regulation mechanism.
 //! Governed by the Cybernetics loop, which receives CuratorDirectives from Curation
 //! and escalation signals from algedonic variety deficit detection.
-
 use crate::{Store, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::{BotID, EscalationID, InfrastructureError, TemplateID};
@@ -11,7 +10,6 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationEntry {
     pub id: EscalationID,
@@ -26,12 +24,12 @@ pub struct EscalationEntry {
     pub resolved_at: Option<DateTime<Utc>>,
     pub resolved_by: Option<String>,
 }
-
 impl EscalationEntry {
     /// Create a pending escalation entry with auto-generated id, timestamps, and defaults.
     /// Create a pending escalation signal.
     ///
     /// REQ: P3-sto-escalation-pending
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create pending escalation entry
     /// post: returns EscalationSignal with Pending status
     pub fn pending(output: String, confidence: f64, error_context: String) -> Self {
@@ -50,7 +48,6 @@ impl EscalationEntry {
         }
     }
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EscalationStatus {
@@ -58,38 +55,32 @@ pub enum EscalationStatus {
     Resolved,
     Dismissed,
 }
-
 pub struct EscalationQueue {
     conn: Arc<std::sync::Mutex<rusqlite::Connection>>,
 }
-
 #[derive(Error, Debug)]
 pub enum EscalationError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
     #[error("Escalation not found: {0}")]
     NotFound(String),
 }
-
 impl_from_rusqlite!(EscalationError, Infra);
-
 impl Store for EscalationQueue {
     fn conn_arc(&self) -> Arc<std::sync::Mutex<rusqlite::Connection>> {
         Arc::clone(&self.conn)
     }
-
     fn lock_conn(
         &self,
     ) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, InfrastructureError> {
         crate::lock_helpers::lock_mutex(&self.conn)
     }
 }
-
 impl EscalationQueue {
     /// Create a new escalation queue.
     ///
     /// REQ: P3-sto-escalation-queue-new
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create escalation queue
     /// pre:  conn is a valid SQLite connection
     /// post: returns EscalationQueue with schema initialized
@@ -98,7 +89,6 @@ impl EscalationQueue {
         queue.init()?;
         Ok(queue)
     }
-
     fn init(&self) -> Result<(), EscalationError> {
         self.lock_conn()?.execute_batch(
             r#"CREATE TABLE IF NOT EXISTS escalations (
@@ -118,10 +108,10 @@ impl EscalationQueue {
         )?;
         Ok(())
     }
-
     /// Add an escalation entry.
     ///
     /// REQ: P3-sto-escalation-add
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — add escalation entry
     /// pre:  entry has valid domain and output
     /// post: entry inserted into escalations
@@ -136,7 +126,6 @@ impl EscalationQueue {
     ) -> Result<EscalationID, EscalationError> {
         let id = EscalationID::new();
         let now = now_rfc3339();
-
         self.lock_conn()?.execute(
             r#"INSERT INTO escalations (id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')"#,
@@ -151,13 +140,12 @@ impl EscalationQueue {
                 now
             ],
         )?;
-
         Ok(id)
     }
-
     /// List pending escalations.
     ///
     /// REQ: P3-sto-escalation-list-pending
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — list pending escalations
     /// post: returns Vec of pending EscalationEntry
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
@@ -166,11 +154,9 @@ impl EscalationQueue {
             r#"SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE status = 'pending' ORDER BY created_at ASC"#
         )?;
-
         let rows = stmt.query_map([], |row| {
             let bot_uuid_str: String = row.get(2)?;
             let bot_id: BotID = bot_uuid_str.parse().unwrap_or_else(|_| BotID::new());
-
             let id_str: String = row.get(0)?;
             Ok(EscalationEntry {
                 id: id_str.parse().unwrap_or_else(|_| EscalationID::new()),
@@ -191,17 +177,16 @@ impl EscalationQueue {
                 resolved_by: None,
             })
         })?;
-
         let mut escalations = Vec::new();
         for esc in rows {
             escalations.push(esc?);
         }
         Ok(escalations)
     }
-
     /// Get an escalation by ID.
     ///
     /// REQ: P3-sto-escalation-get
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — get escalation by ID
     /// pre:  id is non-empty
     /// post: returns Some(entry) if found, None otherwise
@@ -211,9 +196,7 @@ impl EscalationQueue {
             "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE id = ?1"
         )?;
-
         let mut rows = stmt.query([id])?;
-
         if let Some(row) = rows.next()? {
             let status_str: String = row.get(8)?;
             let status = match status_str.as_str() {
@@ -222,17 +205,14 @@ impl EscalationQueue {
                 "dismissed" => EscalationStatus::Dismissed,
                 _ => EscalationStatus::Pending,
             };
-
             let bot_uuid_str: String = row.get(2)?;
             let bot_id: BotID = bot_uuid_str.parse().unwrap_or_else(|_| BotID::new());
-
             let resolved_at: Option<String> = row.get(9)?;
             let resolved_at = resolved_at.and_then(|s| {
                 DateTime::parse_from_rfc3339(&s)
                     .map(|dt| dt.with_timezone(&Utc))
                     .ok()
             });
-
             Ok(Some(EscalationEntry {
                 id: row
                     .get::<_, String>(0)?
@@ -258,10 +238,10 @@ impl EscalationQueue {
             Ok(None)
         }
     }
-
     /// Resolve an escalation.
     ///
     /// REQ: P3-sto-escalation-resolve
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — resolve escalation
     /// pre:  id is non-empty, resolved_by is non-empty
     /// post: escalation status set to Resolved
@@ -276,10 +256,10 @@ impl EscalationQueue {
         }
         Ok(())
     }
-
     /// Dismiss an escalation.
     ///
     /// REQ: P3-sto-escalation-dismiss
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — dismiss escalation
     /// pre:  id is non-empty, resolved_by is non-empty
     /// post: escalation status set to Dismissed
@@ -294,10 +274,10 @@ impl EscalationQueue {
         }
         Ok(())
     }
-
     /// Get escalation statistics.
     ///
     /// REQ: P3-sto-escalation-stats
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — escalation statistics
     /// post: returns EscalationStats with counts by status
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
@@ -310,7 +290,6 @@ impl EscalationQueue {
                 SUM(CASE WHEN status = 'dismissed' THEN 1 ELSE 0 END) as dismissed
              FROM escalations"#,
         )?;
-
         let row = stmt.query_row([], |row| {
             Ok(EscalationStats {
                 total: row.get(0)?,
@@ -319,11 +298,9 @@ impl EscalationQueue {
                 dismissed: row.get(3)?,
             })
         })?;
-
         Ok(row)
     }
 }
-
 /// Aggregated stats over escalation queue.
 ///
 /// The algedonic channel's value is inversely proportional to its traffic
@@ -336,11 +313,11 @@ pub struct EscalationBatch {
     pub created_at: DateTime<Utc>,
     pub threshold: usize,
 }
-
 impl EscalationBatch {
     /// Create a new escalation summary.
     ///
     /// REQ: P3-sto-escalation-summary-new
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — create escalation summary
     /// pre:  domain is non-empty, threshold > 0
     /// post: returns EscalationSummary
@@ -353,10 +330,10 @@ impl EscalationBatch {
             threshold,
         }
     }
-
     /// Generate a human-readable summary.
     ///
     /// REQ: P3-sto-escalation-summary-text
+    /// expect: "The system provides durable storage for escalation data" [P3]
     /// \[P3\] Motivating: Generative Space — generate summary text
     /// post: returns summary string with counts and threshold info
     pub fn summary(&self) -> String {
@@ -374,7 +351,6 @@ impl EscalationBatch {
         )
     }
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationStats {
     pub total: i64,
@@ -382,20 +358,18 @@ pub struct EscalationStats {
     pub resolved: i64,
     pub dismissed: i64,
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::{Arc, Mutex};
-
     fn make_queue() -> EscalationQueue {
         let conn = Arc::new(Mutex::new(
             rusqlite::Connection::open_in_memory().expect("in-memory DB"),
         ));
         EscalationQueue::new(conn).expect("init queue")
     }
-
     // REQ: P3-sto-escalation-resolve-missing-test — resolve on a missing id returns NotFound, not Ok
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn resolve_missing_id_returns_not_found() {
         let q = make_queue();
@@ -406,8 +380,8 @@ mod tests {
             result
         );
     }
-
     // REQ: P3-sto-escalation-dismiss-missing-test — dismiss on a missing id returns NotFound
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn dismiss_missing_id_returns_not_found() {
         let q = make_queue();
@@ -418,8 +392,8 @@ mod tests {
             result
         );
     }
-
     // REQ: P3-sto-escalation-resolve-existing-test — resolve on an existing entry succeeds
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn resolve_existing_id_succeeds() {
         let q = make_queue();
@@ -435,8 +409,8 @@ mod tests {
             .expect("add escalation");
         assert!(q.resolve(&id.to_string(), "tester").is_ok());
     }
-
     // REQ: P3-sto-escalation-dismiss-existing-test — dismiss on an existing entry succeeds
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn dismiss_existing_id_succeeds() {
         let q = make_queue();

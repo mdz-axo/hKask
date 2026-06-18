@@ -5,28 +5,23 @@ use hkask_types::{
     UserProfile,
 };
 use thiserror::Error;
-
 #[derive(Error, Debug)]
 pub enum AgentRegistryError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
     #[error("Agent not found: {0}")]
     NotFound(String),
     #[error("Agent already registered: {0}")]
     AlreadyRegistered(String),
 }
-
 impl_from_rusqlite!(AgentRegistryError, Infra);
-
 impl_from_serde_json!(AgentRegistryError, Infra);
-
 define_store!(AgentRegistryStore);
-
 impl AgentRegistryStore {
     /// Initialize the agent registry schema.
     ///
     /// REQ: P3-sto-agent-registry-schema
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — agent registry schema
     /// post: agents, user_profiles, contacts, scheduled_tasks tables created
     pub fn initialize_schema(&self) -> Result<(), AgentRegistryError> {
@@ -66,17 +61,16 @@ impl AgentRegistryStore {
         )?;
         Ok(())
     }
-
     /// Insert a registered agent.
     ///
     /// REQ: P3-sto-agent-registry-insert
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — insert registered agent
     /// pre:  agent.name is non-empty
     /// post: agent inserted into agents table
     pub fn insert(&self, agent: &RegisteredAgent) -> Result<(), AgentRegistryError> {
         let conn = self.lock_conn()?;
         let definition_json = serde_json::to_string(&agent.definition)?;
-
         conn.execute(
             "INSERT OR REPLACE INTO agent_registry (name, agent_kind, definition_json, token_hash, registered_at, source_yaml)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -91,10 +85,10 @@ impl AgentRegistryStore {
         )?;
         Ok(())
     }
-
     /// Get an agent by name.
     ///
     /// REQ: P3-sto-agent-registry-get
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — get agent by name
     /// pre:  name is non-empty
     /// post: returns RegisteredAgent if found
@@ -104,7 +98,6 @@ impl AgentRegistryStore {
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry WHERE name = ?1",
         )?;
-
         let agent = stmt
             .query_row(rusqlite::params![name], |row| {
                 let definition_json: String = row.get(0)?;
@@ -119,7 +112,6 @@ impl AgentRegistryStore {
                 }
                 other => AgentRegistryError::from(other),
             })?;
-
         let definition: AgentDefinition = serde_json::from_str(&agent.0)?;
         Ok(RegisteredAgent {
             definition,
@@ -128,10 +120,10 @@ impl AgentRegistryStore {
             source_yaml: agent.3,
         })
     }
-
     /// List all registered agents.
     ///
     /// REQ: P3-sto-agent-registry-list
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — list all agents
     /// post: returns Vec of all RegisteredAgent
     pub fn list(&self) -> Result<Vec<RegisteredAgent>, AgentRegistryError> {
@@ -140,7 +132,6 @@ impl AgentRegistryStore {
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry ORDER BY name ",
         )?;
-
         let agents = collect_rows!(
             stmt,
             [],
@@ -168,13 +159,12 @@ impl AgentRegistryStore {
                 })
             }
         );
-
         Ok(agents)
     }
-
     /// List agents by kind.
     ///
     /// REQ: P3-sto-agent-registry-list-by-kind
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — list agents by kind
     /// pre:  kind is a valid AgentKind
     /// post: returns Vec of agents matching kind
@@ -187,7 +177,6 @@ impl AgentRegistryStore {
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry WHERE agent_kind = ?1 ORDER BY name ",
         )?;
-
         let agents = collect_rows!(
             stmt,
             rusqlite::params![kind],
@@ -215,13 +204,12 @@ impl AgentRegistryStore {
                 })
             }
         );
-
         Ok(agents)
     }
-
     /// Remove an agent by name.
     ///
     /// REQ: P3-sto-agent-registry-remove
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — remove agent
     /// pre:  name is non-empty
     /// post: agent deleted if existed
@@ -236,11 +224,11 @@ impl AgentRegistryStore {
         }
         Ok(())
     }
-
     /// Store the human user's profile. Replaces any existing profile (single-row table).
     /// Store a user profile.
     ///
     /// REQ: P3-sto-agent-registry-profile-store
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — store user profile
     /// pre:  profile has valid fields
     /// post: profile upserted
@@ -253,11 +241,11 @@ impl AgentRegistryStore {
         )?;
         Ok(())
     }
-
     /// Retrieve the human user's profile. Returns None if no profile has been stored.
     /// Get the user profile.
     ///
     /// REQ: P3-sto-agent-registry-profile-get
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — get user profile
     /// post: returns Some(profile) if exists, None otherwise
     pub fn get_user_profile(&self) -> Result<Option<UserProfile>, AgentRegistryError> {
@@ -270,11 +258,11 @@ impl AgentRegistryStore {
             Err(e) => Err(AgentRegistryError::from(e)),
         }
     }
-
     /// Add a contact to an agent's contact registry.
     /// Add a contact.
     ///
     /// REQ: P3-sto-agent-registry-contact-add
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — add contact
     /// pre:  contact has valid fields
     /// post: contact inserted
@@ -292,12 +280,12 @@ impl AgentRegistryStore {
         )?;
         Ok(())
     }
-
     /// Find contacts for an agent by name or relationship.
     /// Returns all matching contacts.
     /// Find contacts matching criteria.
     ///
     /// REQ: P3-sto-agent-registry-contact-find
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — find contacts
     /// post: returns Vec of matching contacts
     pub fn find_contacts(
@@ -322,11 +310,11 @@ impl AgentRegistryStore {
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(AgentRegistryError::from)
     }
-
     /// List all contacts for an agent.
     /// List contacts for an agent.
     ///
     /// REQ: P3-sto-agent-registry-contact-list
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — list contacts for agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of contacts
@@ -347,11 +335,11 @@ impl AgentRegistryStore {
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(AgentRegistryError::from)
     }
-
     /// Add a scheduled task for an agent.
     /// Add a scheduled task.
     ///
     /// REQ: P3-sto-agent-registry-task-add
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — add scheduled task
     /// pre:  task has valid fields
     /// post: task inserted
@@ -371,11 +359,11 @@ impl AgentRegistryStore {
         )?;
         Ok(())
     }
-
     /// List all enabled scheduled tasks whose next_run is due (<= now).
     /// List tasks due for execution.
     ///
     /// REQ: P3-sto-agent-registry-task-list-due
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — list due tasks
     /// pre:  now is a valid timestamp
     /// post: returns Vec of due tasks
@@ -398,11 +386,11 @@ impl AgentRegistryStore {
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(AgentRegistryError::from)
     }
-
     /// List all scheduled tasks for an agent.
     /// List scheduled tasks for an agent.
     ///
     /// REQ: P3-sto-agent-registry-task-list-agent
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — list tasks for agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of tasks
@@ -428,11 +416,11 @@ impl AgentRegistryStore {
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(AgentRegistryError::from)
     }
-
     /// Update the next_run time for a scheduled task (after it fires).
     /// Update the next run time for a task.
     ///
     /// REQ: P3-sto-agent-registry-task-update
+    /// expect: "The system provides durable storage for agent registry data" [P3]
     /// \[P3\] Motivating: Generative Space — update task next_run
     /// pre:  task_id is valid, next_run is valid
     /// post: next_run updated
@@ -455,13 +443,11 @@ impl AgentRegistryStore {
         Ok(())
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use rusqlite::Connection;
     use std::sync::{Arc, Mutex};
-
     fn make_store() -> AgentRegistryStore {
         let conn = Arc::new(Mutex::new(
             Connection::open_in_memory().expect("in-memory DB "),
@@ -470,16 +456,16 @@ mod tests {
         store.initialize_schema().expect("init schema ");
         store
     }
-
     // REQ: P3-sto-agent-registry-notfound-get-test — get on missing name returns NotFound
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_missing_agent_returns_not_found() {
         let store = make_store();
         let result = store.get("no-such-agent ");
         assert!(matches!(result, Err(AgentRegistryError::NotFound(_))));
     }
-
     // REQ: P3-sto-agent-registry-notfound-remove-test — remove on missing name returns NotFound
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn remove_missing_agent_returns_not_found() {
         let store = make_store();

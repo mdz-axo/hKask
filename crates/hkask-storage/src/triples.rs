@@ -1,5 +1,4 @@
 //! Uni-temporal triples — entity/attribute/value with valid_from/valid_to.
-
 use crate::{Store, collect_rows, now_rfc3339};
 use chrono::{DateTime, Utc};
 use hkask_types::id::{TripleID, WebID};
@@ -8,19 +7,15 @@ use hkask_types::visibility::{AccessControl, TemporalBounds};
 use hkask_types::{Confidence, InfrastructureError, Visibility};
 use serde_json::Value;
 use thiserror::Error;
-
 #[derive(Error, Debug)]
 pub enum TripleError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
     #[error("Triple not found")]
     NotFound,
 }
-
 impl_from_rusqlite!(TripleError, Infra);
 impl_from_serde_json!(TripleError, Infra);
-
 /// Bitemporal triple
 #[derive(Debug, Clone)]
 pub struct Triple {
@@ -32,11 +27,11 @@ pub struct Triple {
     pub confidence: Confidence,
     pub access: AccessControl,
 }
-
 impl Triple {
     /// Create a new Triple with required fields.
     ///
     /// REQ: P3-sto-triple-new
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — create a triple
     /// \[P1\] Constraining: User Sovereignty — owner_webid carries ownership
     /// pre:  entity and attribute are non-empty, owner_webid is valid
@@ -52,10 +47,10 @@ impl Triple {
             access: AccessControl::new(owner_webid),
         }
     }
-
     /// Set confidence on a Triple.
     ///
     /// REQ: P3-sto-triple-with-confidence
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set confidence
     /// post: returns Self with confidence set (builder pattern)
     pub fn with_confidence(mut self, c: impl Into<Confidence>) -> Self {
@@ -65,6 +60,7 @@ impl Triple {
     /// Set perspective on a Triple.
     ///
     /// REQ: P3-sto-triple-with-perspective
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set perspective
     /// post: returns Self with perspective set (builder pattern)
     pub fn with_perspective(mut self, p: WebID) -> Self {
@@ -74,16 +70,17 @@ impl Triple {
     /// Set visibility on a Triple.
     ///
     /// REQ: P3-sto-triple-with-visibility
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — builder: set visibility
     /// post: returns Self with visibility set (builder pattern)
     pub fn with_visibility(mut self, v: Visibility) -> Self {
         self.access = self.access.with_visibility(v);
         self
     }
-
     /// Check if this is an episodic triple (has perspective).
     ///
     /// REQ: P3-sto-triple-is-episodic
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — predicate for episodic
     /// post: returns true iff perspective is Some
     pub fn is_episodic(&self) -> bool {
@@ -92,21 +89,20 @@ impl Triple {
     /// Check if this is a semantic triple (public, no perspective).
     ///
     /// REQ: P3-sto-triple-is-semantic
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — predicate for semantic
     /// post: returns true iff visibility is Public and perspective is None
     pub fn is_semantic(&self) -> bool {
         self.access.is_semantic()
     }
 }
-
 define_store!(TripleStore);
-
 const TRIPLE_COLUMNS: &str = "id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid";
-
 impl TripleStore {
     /// Insert a triple into the store.
     ///
     /// REQ: P3-sto-triple-insert
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — insert triple into store
     /// pre:  triple has valid entity, attribute, value
     /// post: triple inserted
@@ -129,10 +125,10 @@ impl TripleStore {
         )?;
         Ok(())
     }
-
     /// Query triples by entity.
     ///
     /// REQ: P3-sto-triple-query-entity
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query by entity
     /// pre:  entity is non-empty
     /// post: returns Vec of triples matching entity
@@ -148,10 +144,10 @@ impl TripleStore {
             Self::row_to_triple
         ))
     }
-
     /// Query triples by entity and attribute.
     ///
     /// REQ: P3-sto-triple-query-entity-attribute
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query by entity + attribute
     /// pre:  entity and attribute are non-empty
     /// post: returns Vec of matching triples
@@ -171,10 +167,10 @@ impl TripleStore {
             Self::row_to_triple
         ))
     }
-
     /// Query triples by perspective.
     ///
     /// REQ: P3-sto-triple-query-perspective
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query by perspective
     /// pre:  perspective is valid
     /// post: returns Vec of triples for this perspective
@@ -190,11 +186,11 @@ impl TripleStore {
             Self::row_to_triple
         ))
     }
-
     /// Query all triples with a given attribute, regardless of entity.
     /// Query triples by attribute.
     ///
     /// REQ: P3-sto-triple-query-attribute
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query by attribute
     /// pre:  attribute is non-empty
     /// post: returns Vec of triples matching attribute
@@ -210,12 +206,12 @@ impl TripleStore {
             Self::row_to_triple
         ))
     }
-
     /// Update a triple's value (close current version, insert new).
     /// Wrapped in a transaction for atomicity.
     /// Update a triple's value and confidence.
     ///
     /// REQ: P3-sto-triple-update
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — update value and confidence
     /// pre:  id is valid
     /// post: triple value and confidence updated
@@ -228,19 +224,16 @@ impl TripleStore {
         let new_confidence = new_confidence.into();
         let conn = self.lock_conn()?;
         let now = now_rfc3339();
-
         conn.execute("BEGIN IMMEDIATE", [])?;
         let result = (|| -> Result<(), TripleError> {
             conn.execute(
                 "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
                 rusqlite::params![now, id],
             )?;
-
             let mut stmt = conn.prepare(
                 "SELECT entity, attribute, perspective, visibility, owner_webid
                  FROM triples WHERE id = ?1",
             )?;
-
             let row = stmt.query_row(rusqlite::params![id], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
@@ -250,13 +243,11 @@ impl TripleStore {
                     row.get::<_, WebID>(4)?,
                 ))
             })?;
-
             let access = AccessControl {
                 perspective: row.2,
                 visibility: row.3,
                 owner_webid: row.4,
             };
-
             let new_id = TripleID::new();
             conn.execute(
                 &format!("INSERT INTO triples ({TRIPLE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)"),
@@ -272,10 +263,8 @@ impl TripleStore {
                     access.owner_webid,
                 ],
             )?;
-
             Ok(())
         })();
-
         match result {
             Ok(()) => {
                 conn.execute("COMMIT", [])?;
@@ -287,10 +276,10 @@ impl TripleStore {
             }
         }
     }
-
     /// Get a triple by ID.
     ///
     /// REQ: P3-sto-triple-get-id
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — get triple by ID
     /// pre:  id is valid
     /// post: returns Some(Triple) if found, None otherwise
@@ -309,11 +298,11 @@ impl TripleStore {
         );
         Ok(triples.into_iter().next())
     }
-
     /// Semantic triples with lowest confidence, ordered ASC. Used by consolidation.
     /// Query lowest-confidence semantic triples.
     ///
     /// REQ: P3-sto-triple-low-confidence
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — low-confidence semantic triples
     /// pre:  limit > 0
     /// post: returns up to limit triples ordered by confidence ascending
@@ -335,11 +324,11 @@ impl TripleStore {
             Self::row_to_triple
         ))
     }
-
     /// Count semantic triples below confidence threshold. Used by consolidation.
     /// Count semantic triples below a confidence threshold.
     ///
     /// REQ: P3-sto-triple-count-below
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count below threshold
     /// pre:  threshold in [0.0, 1.0]
     /// post: returns count of triples with confidence ≤ threshold
@@ -352,11 +341,11 @@ impl TripleStore {
         )?;
         Ok(count as usize)
     }
-
     /// Semantic triples below confidence threshold, ordered ASC. Used by consolidation.
     /// Query semantic triples below a confidence threshold.
     ///
     /// REQ: P3-sto-triple-query-below
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — query below threshold
     /// pre:  threshold in [0.0, 1.0], limit > 0
     /// post: returns up to limit triples with confidence ≤ threshold
@@ -379,11 +368,11 @@ impl TripleStore {
             Self::row_to_triple
         ))
     }
-
     /// Count semantic triples (perspective IS NULL, valid_to IS NULL).
     /// Count all semantic triples.
     ///
     /// REQ: P3-sto-triple-count-semantic
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count semantic triples
     /// post: returns total count of semantic triples
     pub fn count_semantic(&self) -> Result<usize, TripleError> {
@@ -395,11 +384,11 @@ impl TripleStore {
         )?;
         Ok(count as usize)
     }
-
     /// Count semantic triples for a given entity.
     /// Count semantic triples for an entity.
     ///
     /// REQ: P3-sto-triple-count-entity
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count per entity
     /// pre:  entity is non-empty
     /// post: returns count for entity
@@ -412,11 +401,11 @@ impl TripleStore {
         )?;
         Ok(count as usize)
     }
-
     /// Count triples for a given perspective (episodic).
     /// Count triples by perspective.
     ///
     /// REQ: P3-sto-triple-count-perspective
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P8\] Motivating: Semantic Grounding — count per perspective
     /// pre:  perspective is valid
     /// post: returns count for perspective
@@ -429,11 +418,11 @@ impl TripleStore {
         )?;
         Ok(count as usize)
     }
-
     /// Soft-delete: set valid_to to close a triple.
     /// Soft-delete a triple by setting valid_to.
     ///
     /// REQ: P3-sto-triple-soft-delete
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — soft-delete triple
     /// pre:  id is valid
     /// post: triple's valid_to set to now (soft-delete)
@@ -446,11 +435,11 @@ impl TripleStore {
         )?;
         Ok(())
     }
-
     /// Hard-delete a triple row entirely.
     /// Hard-delete a triple by ID.
     ///
     /// REQ: P3-sto-triple-hard-delete
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — hard-delete triple
     /// pre:  id is valid
     /// post: triple permanently deleted
@@ -459,12 +448,12 @@ impl TripleStore {
         conn.execute("DELETE FROM triples WHERE id = ?1", rusqlite::params![id])?;
         Ok(())
     }
-
     /// Hard-delete all triples whose entity starts with the given prefix.
     /// Returns the number of rows deleted.
     /// Delete triples by entity prefix.
     ///
     /// REQ: P3-sto-triple-delete-prefix
+    /// expect: "The system provides durable storage for triple data" [P3]
     /// \[P3\] Motivating: Generative Space — delete by entity prefix
     /// pre:  prefix is non-empty
     /// post: matching triples deleted
@@ -478,7 +467,6 @@ impl TripleStore {
         )?;
         Ok(count)
     }
-
     /// Row → TripleRow: FromSql for IDs/WebID/Visibility. Timestamps stay String (orphan rule).
     fn row_to_triple_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TripleRow> {
         Ok(TripleRow {
@@ -494,7 +482,6 @@ impl TripleStore {
             owner_webid: row.get(9)?,
         })
     }
-
     /// TripleRow → Triple: parse timestamps + JSON value (orphan rule).
     fn row_to_triple(row: TripleRow) -> Result<Triple, TripleError> {
         let value: Value = serde_json::from_str(&row.value)?;
@@ -525,7 +512,6 @@ impl TripleStore {
         })
     }
 }
-
 /// Triple -> TripleEntry: lossy (flattens access control for CAS storage).
 impl From<&Triple> for TripleEntry {
     fn from(t: &Triple) -> Self {
@@ -546,7 +532,6 @@ impl From<&Triple> for TripleEntry {
         }
     }
 }
-
 struct TripleRow {
     id: TripleID,
     entity: String,
@@ -559,13 +544,11 @@ struct TripleRow {
     visibility: Visibility,
     owner_webid: WebID,
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use rusqlite::Connection;
     use std::sync::{Arc, Mutex};
-
     fn make_store() -> TripleStore {
         let conn = Arc::new(Mutex::new(
             Connection::open_in_memory().expect("in-memory DB"),
@@ -585,8 +568,8 @@ mod tests {
             .unwrap();
         store
     }
-
     // REQ: P3-sto-triple-corrupt-timestamp-test — corrupt valid_from timestamp propagates an error
+    // expect: "Storage operation works correctly under test conditions" [P3]
     //
     // Before fix, a corrupt valid_from was silently replaced with Utc::now(),
     // returning a triple with a fabricated temporal validity bound.
@@ -596,7 +579,6 @@ mod tests {
         let store = make_store();
         let webid = WebID::new();
         let id = TripleID::new();
-
         // Insert a triple with a garbage timestamp that cannot be parsed as RFC3339.
         store
             .lock_conn()
@@ -616,7 +598,6 @@ mod tests {
                 ],
             )
             .unwrap();
-
         // Query should return zero triples (row is logged and skipped by collect_rows!).
         let triples = store.query_by_entity("test-entity").unwrap();
         assert!(
@@ -624,15 +605,14 @@ mod tests {
             "corrupt timestamp row should be skipped, not returned with Utc::now()"
         );
     }
-
     // REQ: P3-sto-triple-roundtrip-timestamp-test — well-formed valid_from round-trips correctly
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn valid_from_round_trips_correctly() {
         let store = make_store();
         let webid = WebID::new();
         let triple = Triple::new("entity", "attr", serde_json::json!("val"), webid);
         store.insert(&triple).unwrap();
-
         let triples = store.query_by_entity("entity").unwrap();
         assert_eq!(triples.len(), 1);
         // valid_from should match the original to second precision.
@@ -641,8 +621,8 @@ mod tests {
             .abs();
         assert!(delta < 2, "valid_from should survive a round-trip");
     }
-
     // REQ: P3-sto-triple-notfound-test — get_by_id on missing id returns None, not an error
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn get_by_id_missing_returns_none() {
         let store = make_store();

@@ -2,16 +2,13 @@
 //!
 //! Also provides `SqliteCurationRecordStore` for persisting spec curation
 //! decisions (MDS §5 Curation).
-
 use crate::Store;
 use crate::spec_types::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecId};
 use chrono::{DateTime, Utc};
 use hkask_types::InfrastructureError;
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
-
 define_store!(SqliteSpecStore);
 define_store!(SqliteCurationRecordStore);
-
 /// SpecStore trait — storage abstraction for MDS specifications.
 ///
 /// Trait-object-safe (no `Self: Sized` constraints on methods).
@@ -31,10 +28,8 @@ pub trait SpecStore: Send + Sync {
     fn list_since(&self, since: DateTime<Utc>) -> Result<Vec<Spec>, SpecError>;
     fn expire(&self, id: SpecId, valid_to: DateTime<Utc>) -> Result<(), SpecError>;
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // SqliteSpecStore — trait implementations
-
 impl SpecStore for SqliteSpecStore {
     fn save(&self, spec: &Spec) -> Result<(), SpecError> {
         self.save_inner(spec)
@@ -68,16 +63,13 @@ impl SpecStore for SqliteSpecStore {
         self.expire_inner(id, valid_to)
     }
 }
-
 // ── Shared row extraction helpers ────────────────────────────────────────
-
 fn row_to_spec(row: &rusqlite::Row<'_>) -> rusqlite::Result<Spec> {
     let data: String = row.get(0)?;
     serde_json::from_str(&data).map_err(|e| {
         rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
     })
 }
-
 fn row_to_curation_record(
     row: &rusqlite::Row<'_>,
     spec_id: SpecId,
@@ -124,13 +116,12 @@ fn row_to_curation_record(
         curated_at,
     })
 }
-
 // ── SqliteSpecStore ──────────────────────────────────────────────────────
-
 impl SqliteSpecStore {
     /// Initialize the spec store schema.
     ///
     /// REQ: P3-sto-spec-schema
+    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — schema for specification documents
     /// post: specs table created if not exists
     pub fn init_schema(&self) -> Result<(), SpecError> {
@@ -146,13 +137,12 @@ impl SqliteSpecStore {
         Ok(())
     }
 }
-
 // ── SqliteCurationRecordStore ────────────────────────────────────────────
-
 impl SqliteCurationRecordStore {
     /// Initialize the curation record store schema.
     ///
     /// REQ: P3-sto-spec-curation-schema
+    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — schema for curation records
     /// post: spec_curation_records table created if not exists
     pub fn init_schema(&self) -> Result<(), SpecError> {
@@ -167,10 +157,10 @@ impl SqliteCurationRecordStore {
         )?;
         Ok(())
     }
-
     /// Save a curation record.
     ///
     /// REQ: P3-sto-spec-curation-save
+    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — save a curation decision
     /// pre:  record.spec_id is non-empty
     /// post: record inserted into spec_curation_records
@@ -190,10 +180,10 @@ impl SqliteCurationRecordStore {
         .map_err(|e| SpecError::Infra(InfrastructureError::Database(e.to_string())))?;
         Ok(())
     }
-
     /// Load curation records for a spec.
     ///
     /// REQ: P3-sto-spec-curation-load
+    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — load curation records for a spec
     /// pre:  spec_id is non-empty
     /// post: returns Vec of curation records for this spec
@@ -212,10 +202,10 @@ impl SqliteCurationRecordStore {
             |row| { row_to_curation_record(row, spec_id, 0, 3) }
         ))
     }
-
     /// List curation records since a timestamp.
     ///
     /// REQ: P3-sto-spec-curation-since
+    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — list curation records since timestamp
     /// post: returns Vec of records created after since_ts
     pub fn list_curation_records_since(
@@ -240,10 +230,10 @@ impl SqliteCurationRecordStore {
         });
         Ok(records)
     }
-
     /// Load all curation records.
     ///
     /// REQ: P3-sto-spec-curation-all
+    /// expect: "The system provides durable storage for spec data" [P3]
     /// \[P3\] Motivating: Generative Space — load all curation records
     /// post: returns Vec of all curation records
     pub fn load_all_curation_records(&self) -> Result<Vec<SpecCurationRecord>, SpecError> {
@@ -266,9 +256,7 @@ impl SqliteCurationRecordStore {
         Ok(records)
     }
 }
-
 // ── SqliteSpecStore inherent methods ──────────────────────────────────────
-
 impl SqliteSpecStore {
     fn load_inner(&self, id: SpecId) -> Result<Spec, SpecError> {
         let conn = self.lock_conn()?;
@@ -281,7 +269,6 @@ impl SqliteSpecStore {
             })?;
         serde_json::from_str(&data).map_err(Into::into)
     }
-
     fn save_inner(&self, spec: &Spec) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         conn.execute(
@@ -298,7 +285,6 @@ impl SqliteSpecStore {
         )?;
         Ok(())
     }
-
     fn delete_inner(&self, id: SpecId) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         let changed = conn.execute(
@@ -311,13 +297,11 @@ impl SqliteSpecStore {
             Ok(())
         }
     }
-
     fn list_all_inner(&self) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs")?;
         Ok(collect_rows!(stmt, [], row_to_spec))
     }
-
     fn list_by_category_inner(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs WHERE category = ?1")?;
@@ -327,7 +311,6 @@ impl SqliteSpecStore {
             row_to_spec
         ))
     }
-
     fn list_valid_at_inner(&self, at: DateTime<Utc>) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -340,7 +323,6 @@ impl SqliteSpecStore {
             row_to_spec
         ))
     }
-
     fn list_valid_in_range_inner(
         &self,
         from: DateTime<Utc>,
@@ -357,7 +339,6 @@ impl SqliteSpecStore {
             row_to_spec
         ))
     }
-
     fn list_since_inner(&self, since: DateTime<Utc>) -> Result<Vec<Spec>, SpecError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT data FROM specs WHERE created_at >= ?1")?;
@@ -367,7 +348,6 @@ impl SqliteSpecStore {
             row_to_spec
         ))
     }
-
     fn expire_inner(&self, id: SpecId, valid_to: DateTime<Utc>) -> Result<(), SpecError> {
         let conn = self.lock_conn()?;
         let changed = conn.execute(
@@ -381,7 +361,6 @@ impl SqliteSpecStore {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -389,19 +368,17 @@ mod tests {
     use chrono::Duration;
     use rusqlite::Connection;
     use std::sync::{Arc, Mutex};
-
     fn make_store() -> SqliteSpecStore {
         let conn = Arc::new(Mutex::new(Connection::open_in_memory().unwrap()));
         let store = SqliteSpecStore::new(conn);
         store.init_schema().unwrap();
         store
     }
-
     fn make_spec(name: &str, category: SpecCategory) -> Spec {
         Spec::new(name, category, DomainAnchor::Hkask)
     }
-
     // REQ: P3-sto-spec-valid-at-test — list_valid_at includes currently valid specs (valid_from <= at < valid_to)
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_includes_currently_valid_specs() {
         let store = make_store();
@@ -414,8 +391,8 @@ mod tests {
         assert_eq!(valid.len(), 1);
         assert_eq!(valid[0].name, "test");
     }
-
     // REQ: P3-sto-spec-expired-test — list_valid_at excludes specs whose valid_to has passed
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_excludes_expired_specs() {
         let store = make_store();
@@ -426,8 +403,8 @@ mod tests {
         store.save(&spec).unwrap();
         assert!(store.list_valid_at(now).unwrap().is_empty());
     }
-
     // REQ: P3-sto-spec-no-expiry-test — list_valid_at includes specs with valid_to IS NULL (no expiry)
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_at_includes_no_expiry_specs() {
         let store = make_store();
@@ -437,8 +414,8 @@ mod tests {
         store.save(&spec).unwrap();
         assert_eq!(store.list_valid_at(now).unwrap().len(), 1);
     }
-
     // REQ: P3-sto-spec-range-overlap-test — list_valid_in_range returns specs with overlapping temporal windows
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_valid_in_range_overlap_query() {
         let store = make_store();
@@ -455,8 +432,8 @@ mod tests {
             1
         );
     }
-
     // REQ: P3-sto-spec-since-test — list_since returns specs created after a timestamp
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn list_since_transaction_time_query() {
         let store = make_store();
@@ -472,8 +449,8 @@ mod tests {
         );
         assert_eq!(store.list_since(now - Duration::hours(1)).unwrap().len(), 1);
     }
-
     // REQ: P3-sto-spec-expire-test — expire sets valid_to and excludes spec from list_valid_at
+    // expect: "Storage operation works correctly under test conditions" [P3]
     #[test]
     fn expire_updates_valid_to() {
         let store = make_store();
