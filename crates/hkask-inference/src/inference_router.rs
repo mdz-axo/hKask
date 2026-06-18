@@ -8,7 +8,6 @@ use crate::RouterModelEntry;
 use crate::chat_protocol::validate_prompt;
 use crate::config::{InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
-use crate::embedding_router::EmbeddingRouter;
 use crate::fal_backend::FalBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceStreamChunk};
@@ -26,8 +25,6 @@ pub struct InferenceRouter {
     deepinfra: Option<DeepInfraBackend>,
     fal: Option<FalBackend>,
     together: Option<TogetherBackend>,
-    #[allow(dead_code)]
-    embedding: Option<EmbeddingRouter>,
 }
 
 impl InferenceRouter {
@@ -62,7 +59,6 @@ impl InferenceRouter {
             deepinfra,
             fal,
             together,
-            embedding: None,
         }
     }
 

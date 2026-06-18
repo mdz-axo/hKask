@@ -28,6 +28,9 @@ use crate::price_feed::{PriceFeed, WithdrawalFee, estimate_withdrawal_fee};
 use crate::privacy::{PrivacyPort, ShieldedTransfer};
 use crate::signing;
 
+mod cns;
+mod encumbrance;
+
 /// Orchestrates chain ports, privacy layer, and rJoule accounting.
 ///
 /// # Ownership `[OUGHT-DECL]`
@@ -112,99 +115,8 @@ impl WalletManager {
         &self.price_feed
     }
 
-    fn default_actor() -> WebID {
-        WebID::from_persona_with_namespace(b"wallet-manager", "wallet-surface")
-    }
-
-    /// Emit a CNS span if an event sink is configured (canonical namespaces only).
-    fn emit_span_with_actor(
-        &self,
-        actor: &WebID,
-        span: CnsSpan,
-        verb: &str,
-        phase: Phase,
-        obs: serde_json::Value,
-    ) {
-        if let Some(ref sink) = self.event_sink {
-            let span_obj = Span::new(SpanNamespace::from(span), verb);
-            let event = NuEvent::new(*actor, span_obj, phase, obs, 0);
-            if let Err(e) = sink.persist(&event) {
-                tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist CNS span");
-            }
-        }
-    }
-
-    fn emit_span(&self, span: CnsSpan, verb: &str, phase: Phase, obs: serde_json::Value) {
-        let actor = Self::default_actor();
-        self.emit_span_with_actor(&actor, span, verb, phase, obs);
-    }
-
-    /// Emit a CNS algedonic alert for API key health events.
-    ///
-    /// REQ: P9-wallet-mgr-key-alert-span (algedonic feedback closure)
-    /// pre:  key_id is a valid ApiKeyId
-    /// post: if key is expired → emits cns.wallet.key_expired span (Sense phase)
-    /// post: if key is exhausted → emits cns.wallet.key_exhausted span (Sense phase)
-    /// post: if event_sink is None → no-op (graceful degradation)
-    ///
-    /// Called by `WalletBackedBudget::can_proceed` when key health checks fail,
-    /// providing CNS algedonic visibility into key lifecycle events.
-    pub fn emit_key_alert(&self, key_id: ApiKeyId, exhausted: bool, expired: bool) {
-        if expired {
-            self.emit_span(
-                CnsSpan::WalletKeyExpired,
-                "expired",
-                Phase::Sense,
-                serde_json::json!({
-                    "key_id": key_id.to_string(),
-                }),
-            );
-        }
-        if exhausted {
-            self.emit_span(
-                CnsSpan::WalletKeyExhausted,
-                "exhausted",
-                Phase::Sense,
-                serde_json::json!({
-                    "key_id": key_id.to_string(),
-                }),
-            );
-        }
-    }
-
-    /// Emit a CNS span for chain-level errors (RPC failure, tx rejection, etc.).
-    ///
-    /// REQ: P9-wallet-mgr-chain-error-span
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — chain errors feed the CNS sense loop
-    /// \[P12\] Constraining: Replicant Host Mandate — actor identity is recorded
-    /// pre:  chain is a valid ChainId
-    /// post: emits cns.wallet.chain_error span with error details (Sense phase)
-    /// post: if event_sink is None → no-op (graceful degradation)
-    pub fn emit_chain_error_for_actor(
-        &self,
-        actor: &WebID,
-        chain: ChainId,
-        operation: &str,
-        error_msg: &str,
-    ) {
-        self.emit_span_with_actor(
-            actor,
-            CnsSpan::WalletChainError,
-            "error",
-            Phase::Sense,
-            serde_json::json!({
-                "actor": actor.to_string(),
-                "chain": chain.to_string(),
-                "operation": operation,
-                "error": error_msg,
-            }),
-        );
-    }
-
-    pub fn emit_chain_error(&self, chain: ChainId, operation: &str, error_msg: &str) {
-        let actor = Self::default_actor();
-        self.emit_chain_error_for_actor(&actor, chain, operation, error_msg);
-    }
+    // CNS event emission moved to cns.rs. All methods are available via impl blocks
+    // in that module, loaded through `use super::*`.
 
     // ── Balance ──────────────────────────────────────────────────────────────
 
@@ -996,91 +908,7 @@ impl WalletManager {
 
     // ── Encumbrance — rJoule lock/release/consume ────────────────────────────
 
-    /// Encumber rJoules from a wallet for an API key's allocation.
-    ///
-    /// REQ: P9-wallet-mgr-encumber
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
-    /// \[P4\] Constraining: Clear Boundaries — only the entitled key can consume
-    /// \[P8\] Constraining: Semantic Grounding — atomic consume/release preserves balance
-    /// pre:  wallet_id is a valid WalletId, key_id is a valid ApiKeyId, amount > 0
-    /// post: amount rJoules locked against wallet for key_id
-    /// post: emits cns.wallet.encumbered span if event_sink configured
-    /// Locks `amount` rJoules against the wallet balance. The locked rJoules
-    /// can only be consumed by the specified API key via `consume()`.
-    /// Unspent rJoules are returned to the wallet on `release_encumbrance()`.
-    pub fn encumber(
-        &self,
-        wallet_id: WalletId,
-        key_id: ApiKeyId,
-        amount: RJoule,
-    ) -> Result<(), WalletError> {
-        self.store.encumber_rjoules(wallet_id, key_id, amount)?;
-        self.emit_span(
-            CnsSpan::Gas,
-            "encumbered",
-            Phase::Act,
-            serde_json::json!({
-                "key_id": key_id.to_string(),
-                "wallet_id": wallet_id.to_string(),
-                "amount_rj": amount.as_u64(),
-            }),
-        );
-        Ok(())
-    }
-
-    /// Release an encumbrance, returning unspent rJoules to the wallet.
-    ///
-    /// REQ: P9-wallet-mgr-release-encumbrance
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
-    /// \[P4\] Constraining: Clear Boundaries — only the entitled key can consume
-    /// \[P8\] Constraining: Semantic Grounding — atomic consume/release preserves balance
-    /// pre:  key_id is a valid ApiKeyId
-    /// post: unspent rJoules returned to wallet
-    /// post: idempotent — releasing already-released/consumed encumbrance is no-op
-    /// Idempotent — releasing an already-released or consumed encumbrance
-    /// is a no-op.
-    pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
-        self.store.release_encumbrance(key_id)?;
-        self.emit_span(
-            CnsSpan::Gas,
-            "released",
-            Phase::Act,
-            serde_json::json!({
-                "key_id": key_id.to_string(),
-            }),
-        );
-        Ok(())
-    }
-
-    /// Atomically consume rJoules from an API key's encumbrance.
-    ///
-    /// REQ: P9-wallet-mgr-consume
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
-    /// \[P4\] Constraining: Clear Boundaries — only the entitled key can consume
-    /// \[P8\] Constraining: Semantic Grounding — atomic consume/release preserves balance
-    /// pre:  key_id is a valid ApiKeyId, gas_rj > 0
-    /// post: gas_rj deducted from key's active encumbrance (atomic)
-    /// post: if encumbrance fully consumed → status transitions to 'consumed'
-    /// Deducts `gas_rj` from the key's active encumbrance. This is a single
-    /// atomic operation — no separate check+deduct pair. If the encumbrance
-    /// is fully consumed, status transitions to 'consumed'.
-    pub fn consume(&self, key_id: ApiKeyId, gas_rj: RJoule) -> Result<(), WalletError> {
-        self.store.consume_encumbrance(key_id, gas_rj)?;
-        Ok(())
-    }
-
-    /// Get the encumbrance for an API key.
-    ///
-    /// REQ: P9-wallet-mgr-get-encumbrance
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — encumbrance locks energy for API keys
-    /// \[P4\] Constraining: Clear Boundaries — only the entitled key can consume
-    /// \[P8\] Constraining: Semantic Grounding — atomic consume/release preserves balance
-    /// pre:  key_id is a valid ApiKeyId
-    /// post: returns Ok(Some(encumbrance)) if key has active encumbrance
-    /// post: returns Ok(None) if key has no encumbrance
-    pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
-        self.store.get_encumbrance(key_id)
-    }
+    // Moved to encumbrance.rs — impl blocks loaded via `mod encumbrance;`.
 }
 
 // ── HKDF helper (minimal, uses hmac + sha2 from workspace) ─────────────────────
